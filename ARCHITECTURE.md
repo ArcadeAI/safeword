@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.5
-**Last Updated:** 2026-01-10
+**Version:** 1.6
+**Last Updated:** 2026-02-16
 **Status:** Production
 
 ---
@@ -21,7 +21,7 @@
 
 ## Overview
 
-Safeword is a CLI tool that configures linting, hooks, and development guides for Claude Code projects. It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), and Go projects (golangci-lint).
+Safeword is a CLI tool that configures linting, hooks, and development guides for Claude Code projects. It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), and Rust projects (clippy, rustfmt).
 
 ### Tech Stack
 
@@ -32,6 +32,8 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 | JS Linting      | ESLint        | Industry standard, extensive rule set  |
 | Python Linting  | Ruff          | Fast, replaces flake8/black/isort      |
 | Go Linting      | golangci-lint | Aggregates 100+ linters, fast          |
+| Rust Linting    | clippy        | 750+ lints, pedantic by default        |
+| Rust Formatting | rustfmt       | Deterministic, gofmt-style formatting  |
 | Type Checking   | tsc / mypy    | Native type checkers for each language |
 
 ---
@@ -94,8 +96,8 @@ Language-specific tooling (detection, config generation, setup) is encapsulated 
 
 ```typescript
 interface LanguagePack {
-  id: string; // e.g., 'python', 'typescript', 'golang'
-  name: string; // e.g., 'Python', 'TypeScript', 'Go'
+  id: string; // e.g., 'python', 'typescript', 'golang', 'rust'
+  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust'
   extensions: string[]; // e.g., ['.py', '.pyi']
   detect: (cwd: string) => boolean; // Is this language present?
   setup: (cwd: string, ctx: SetupContext) => SetupResult;
@@ -103,9 +105,10 @@ interface LanguagePack {
 
 // Registry
 const LANGUAGE_PACKS: Record<string, LanguagePack> = {
-  python: pythonPack,
-  typescript: typescriptPack,
   golang: golangPack,
+  python: pythonPack,
+  rust: rustPack,
+  typescript: typescriptPack,
 };
 ```
 
@@ -147,7 +150,7 @@ Installed packs tracked in `.safeword/config.json`:
 ```json
 {
   "version": "0.15.0",
-  "installedPacks": ["python", "typescript", "golang"]
+  "installedPacks": ["python", "typescript", "golang", "rust"]
 }
 ```
 
@@ -160,7 +163,7 @@ Installed packs tracked in `.safeword/config.json`:
 Language detection runs FIRST, before any framework-specific detection. This prevents side effects like creating package.json for Python-only projects.
 
 ```text
-detectLanguages(cwd)     →  Languages { javascript, python, golang }
+detectLanguages(cwd)     →  Languages { javascript, python, golang, rust }
        ↓
 detectProjectType()      →  ProjectType (if javascript)
 detectPythonType()       →  PythonProjectType (if python)
@@ -178,6 +181,7 @@ interface Languages {
   javascript: boolean; // package.json exists
   python: boolean; // pyproject.toml OR requirements.txt exists
   golang: boolean; // go.mod exists
+  rust: boolean; // Cargo.toml exists
 }
 
 // Python-specific detection (returned only if languages.python)
@@ -303,14 +307,15 @@ interface ProjectContext {
 ### File Extension Routing
 
 **What:** Route files to correct linter based on extension
-**Why:** Polyglot projects need ESLint, Ruff, and golangci-lint
+**Why:** Polyglot projects need ESLint, Ruff, golangci-lint, and clippy
 **Example:** See `packages/cli/templates/hooks/lib/lint.ts`
 
 ```typescript
 const JS_EXTENSIONS = new Set(['js', 'jsx', 'ts', 'tsx', ...]);
 const PYTHON_EXTENSIONS = new Set(['py', 'pyi']);
 const GO_EXTENSIONS = new Set(['go']);
-// Route to ESLint, Ruff, or golangci-lint based on extension
+const RUST_EXTENSIONS = new Set(['rs']);
+// Route to ESLint, Ruff, golangci-lint, or clippy/rustfmt based on extension
 ```
 
 ### Silent Linter Execution
@@ -351,4 +356,7 @@ const GO_EXTENSIONS = new Set(['go']);
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
 - Ruff docs: https://docs.astral.sh/ruff/
 - golangci-lint docs: https://golangci-lint.run/
+- Clippy docs: https://doc.rust-lang.org/stable/clippy/
+- rustfmt docs: https://rust-lang.github.io/rustfmt/
+- Cargo lints: https://doc.rust-lang.org/cargo/reference/manifest.html#the-lints-section
 - PEP 621: https://peps.python.org/pep-0621/

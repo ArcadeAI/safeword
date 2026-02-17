@@ -33,10 +33,13 @@ bunx safeword@latest setup
 | `.golangci.yml`         | Creates file        | Linting config (Go)      |
 | `.safeword/ruff.toml`   | Creates file        | Linting config (Python)  |
 | `pyproject.toml`        | Adds tools          | Ruff, mypy (Python)      |
+| `clippy.toml`           | Creates file        | Linting config (Rust)    |
+| `rustfmt.toml`          | Creates file        | Formatting config (Rust) |
+| `Cargo.toml`            | Adds lints section  | clippy lints (Rust)      |
 | `AGENTS.md`             | Creates or prepends | Links to SAFEWORD.md     |
 | `.mcp.json`             | Creates or merges   | MCP server config        |
 
-Setup auto-detects your stack. A TypeScript project won't get Go or Python tooling.
+Setup auto-detects your stack. A TypeScript project won't get Go, Python, or Rust tooling.
 
 ## safeword upgrade
 

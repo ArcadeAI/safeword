@@ -66,21 +66,28 @@ module.exports = {
       severity: 'error',
       comment: 'Language packs must be independent',
       from: { path: '^packages/cli/src/packs/golang/' },
-      to: { path: '^packages/cli/src/packs/(python|typescript)/' },
+      to: { path: '^packages/cli/src/packs/(python|rust|typescript)/' },
     },
     {
       name: 'cli-python-pack-isolated',
       severity: 'error',
       comment: 'Language packs must be independent',
       from: { path: '^packages/cli/src/packs/python/' },
-      to: { path: '^packages/cli/src/packs/(golang|typescript)/' },
+      to: { path: '^packages/cli/src/packs/(golang|rust|typescript)/' },
+    },
+    {
+      name: 'cli-rust-pack-isolated',
+      severity: 'error',
+      comment: 'Language packs must be independent',
+      from: { path: '^packages/cli/src/packs/rust/' },
+      to: { path: '^packages/cli/src/packs/(golang|python|typescript)/' },
     },
     {
       name: 'cli-typescript-pack-isolated',
       severity: 'error',
       comment: 'Language packs must be independent',
       from: { path: '^packages/cli/src/packs/typescript/' },
-      to: { path: '^packages/cli/src/packs/(golang|python)/' },
+      to: { path: '^packages/cli/src/packs/(golang|python|rust)/' },
     },
 
     // Packs cannot use presets

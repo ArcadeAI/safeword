@@ -15,7 +15,7 @@ Quick actions you type in Claude Code. Just type the command and hit enter.
 | `/audit`           | Find dead code and architecture drift     |
 | `/quality-review`  | Deep review against latest best practices |
 | `/cleanup-zombies` | Kill stuck processes hogging ports        |
-| `/tdd`             | Start test-driven development workflow    |
+| `/bdd`             | Start BDD workflow (includes TDD)         |
 | `/refactor`        | Start safe refactoring workflow           |
 
 ---
@@ -42,6 +42,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | TypeScript / JavaScript | ESLint        |
     | Python                  | Ruff          |
     | Go                      | golangci-lint |
+    | Rust                    | clippy        |
 
     If a linter isn't installed, it's silently skipped.
 
@@ -76,6 +77,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | TypeScript / JavaScript | ESLint        |
     | Python                  | Ruff          |
     | Go                      | golangci-lint |
+    | Rust                    | clippy        |
 
     If a linter isn't installed, it's silently skipped.
 
@@ -113,22 +115,20 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
 Skills are structured workflows that activate based on what you're asking for. When you say "debug this test failure" or "refactor this function", your agent follows the skill's methodology instead of jumping straight to code changes.
 
-| Skill             | Triggers on                                   |
-| ----------------- | --------------------------------------------- |
-| Brainstorming     | "design", "explore options", "think through"  |
-| Debugging         | "debug", "fix this error", "test is failing"  |
-| TDD               | "implement", "add feature", "build"           |
-| Quality Reviewing | "review", "check security", "verify versions" |
-| Refactoring       | "refactor", "clean up", "extract", "rename"   |
-| Writing Plans     | "write plan", "break down into tasks"         |
+| Skill             | Triggers on                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| BDD Orchestration | "add", "implement", "build", "feature" (includes TDD workflow) |
+| Debugging         | "debug", "fix this error", "test is failing"                   |
+| Quality Reviewing | "review", "check security", "verify versions"                  |
+| Refactoring       | "refactor", "clean up", "extract", "rename"                    |
 
-### Brainstorming
+### BDD Orchestration
 
-Helps you think through a problem before writing code. Asks clarifying questions, explores alternatives, and validates assumptions incrementally.
+Full feature workflow: **Discovery** → **Scenarios** → **Decomposition** → **TDD** → **Done**. Includes TDD (RED/GREEN/REFACTOR) inline.
 
-**Example:** "I need to add caching but I'm not sure how to approach it"
+**Example:** "Add user authentication to the API"
 
-Your agent will ask questions like "What's the cache invalidation strategy?" and "Should this be in-memory or distributed?" before proposing solutions.
+Your agent will discover requirements, write BDD scenarios, decompose into tasks, then implement each with test-driven development.
 
 ### Debugging
 
@@ -137,14 +137,6 @@ Investigates before fixing. Follows: **Investigate** → **Hypothesize** → **T
 **Example:** "This test is failing but I don't know why"
 
 Instead of immediately changing code, your agent will read the test, trace the execution path, form a hypothesis, and verify it before making changes.
-
-### TDD (Test-Driven Development)
-
-Enforces the discipline of writing tests first: **RED** (failing test) → **GREEN** (make it pass) → **REFACTOR** (clean up).
-
-**Example:** "Add a function that validates email addresses"
-
-Your agent will write the test first, run it to see it fail, then write the minimum code to make it pass.
 
 ### Quality Reviewing
 
@@ -161,14 +153,6 @@ Small, safe changes with test verification after each step: **One change** → *
 **Example:** "Clean up this messy function"
 
 Your agent will make one small improvement, run tests, commit, then repeat—never batching multiple changes.
-
-### Writing Plans
-
-Creates detailed implementation plans before coding. Useful for complex features that need coordination.
-
-**Example:** "Plan out how we'd add multi-tenancy"
-
-Your agent will produce a step-by-step plan with file paths, code examples, and verification steps.
 
 <footer class="docs-footer">
 
