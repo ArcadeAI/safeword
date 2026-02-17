@@ -60,6 +60,24 @@ Safeword auto-detects your stack and configures linting accordingly:
 
 Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
 
+## Biome & Alternative Formatters
+
+If your project uses Biome, dprint, or Rome, Safeword detects it automatically and skips Prettier installation. Your formatter keeps running as-is.
+
+**Safeword still installs ESLint.** This is intentional — Biome doesn't support:
+
+- **Security scanning** — catches unsafe patterns like `eval()`, non-literal regex, prototype pollution
+- **Cyclomatic complexity** — flags overly complex functions that AI agents tend to generate
+- **Framework-specific rules** — React hooks, Next.js best practices, Astro components
+
+Both tools coexist cleanly — ESLint handles code analysis (bugs, security, complexity) while Biome handles formatting. Safeword configures Biome to ignore safeword's own files.
+
+| With Biome        | Without Biome     |
+| ----------------- | ----------------- |
+| ESLint (devDep)   | ESLint (devDep)   |
+| safeword (devDep) | safeword (devDep) |
+| _(no Prettier)_   | Prettier (devDep) |
+
 ## Hook Configuration
 
 Hooks are configured in `.claude/settings.json`. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.

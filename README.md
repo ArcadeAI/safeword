@@ -32,9 +32,23 @@ test -f .claude/settings.json && echo ".claude/settings.json ✓"
 - `.safeword/hooks/` - Claude Code hooks (auto-linting, quality review)
 - `.claude/settings.json` - Hook configuration for Claude Code
 - `.claude/commands/` - Slash commands (`/lint`, `/quality-review`, `/audit`)
-- `AGENTS.md` - Project context with framework reference (also patches `CLAUDE.md` if it exists)
+- `AGENTS.md` - Project context with framework reference (also adds one import line to `CLAUDE.md` if it exists)
 
 **Commit these to your repo** for team consistency.
+
+---
+
+## How It Fits Your Project
+
+**Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Elysia, Prisma, Django, Rails, whatever you use. Your application code and runtime dependencies are never touched.
+
+**CLAUDE.md stays yours** — If you have an existing `CLAUDE.md`, safeword adds one import line at the top linking to `.safeword/SAFEWORD.md`. Your existing content is untouched.
+
+**Dev-only linting tools** — For JS/TS projects, safeword installs ESLint and Prettier as `devDependencies`. These are linting tools for development — they never ship with your application or affect your runtime.
+
+**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor events). They never run during normal human development. Safeword does not install git hooks or modify your commit workflow.
+
+**Use in CI if you want** — Safeword adds `lint` and `format` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
 ---
 
@@ -258,7 +272,7 @@ Commit `.safeword/` and `.claude/` in your project repo for team consistency.
 
 **How it works**:
 
-1. `AGENTS.md` links to `.safeword/SAFEWORD.md` (also patches `CLAUDE.md` if present)
+1. `AGENTS.md` links to `.safeword/SAFEWORD.md` (also adds one import line to `CLAUDE.md` if present)
 2. `SAFEWORD.md` imports guides via Guides table
 3. Guides cross-reference each other and templates
 4. Learnings stored in `.safeword-project/learnings/`
@@ -276,6 +290,28 @@ Commit `.safeword/` and `.claude/` in your project repo for team consistency.
 5. **Hooks/Skills** - Automation and specialized capabilities
 
 **Living Documentation**: Update as you learn, archive completed work, consolidate when needed
+
+---
+
+## FAQ
+
+**Will safeword change my stack or framework?**
+No. Safeword is a process overlay — it adds quality enforcement (TDD, linting, code review) on top of whatever you already use. It doesn't install application dependencies or modify your source code.
+
+**Will it overwrite my CLAUDE.md?**
+No. If you have an existing `CLAUDE.md`, safeword prepends a single 4-line block that links to `.safeword/SAFEWORD.md`. Your existing content stays exactly where it is. If you don't have a `CLAUDE.md`, nothing is created.
+
+**What packages does it install?**
+For JS/TS projects: ESLint, Prettier, and supporting plugins — all as `devDependencies` (the `-D` flag). These are linting tools, not application dependencies. Python, Go, and Rust use their language-native linters (ruff, golangci-lint, clippy).
+
+**I use biome/dprint — is that a problem?**
+Safeword detects biome/dprint and skips Prettier installation. ESLint is still installed because biome doesn't support security scanning (`eslint-plugin-security`), cyclomatic complexity checks (`sonarjs`), or framework-specific rules (React hooks, Next.js, Astro). Both tools coexist without conflict.
+
+**Do teammates need to install safeword separately?**
+No. Commit the `.safeword/` and `.claude/` directories to git. When teammates pull, they get the full setup. The linting devDependencies install automatically with `npm install` / `bun install`.
+
+**Will it interfere with my development workflow?**
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally, and safeword does not install git hooks. It adds `lint` and `format` scripts to `package.json` that you can optionally use in CI or precommit hooks.
 
 ---
 

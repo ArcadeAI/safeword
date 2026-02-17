@@ -299,6 +299,10 @@ function printSetupSummary(options: SetupSummaryOptions): void {
   ];
   printModifiedFiles(modifiedFiles);
 
+  if (result.updated.includes('CLAUDE.md')) {
+    info('\nNote: CLAUDE.md — added one import line at the top. Your content is preserved.');
+  }
+
   // Next steps
   info('\nNext steps:');
   listItem('Run `safeword check` to verify setup');
@@ -343,7 +347,10 @@ function setupJavaScriptProject(
     info(`\nAdded format scripts to ${workspaceUpdates.length} workspace package(s)`);
   }
 
-  installDependencies(cwd, packagesToInstall, 'linting dependencies');
+  logExistingFormatter(ctx);
+
+  installDependencies(cwd, packagesToInstall, 'linting devDependencies');
+  info('These are dev-only tools — your application dependencies are unchanged.');
 
   return { archFiles, workspaceUpdates };
 }
@@ -361,6 +368,17 @@ function logArchitectureDetected(arch: ReturnType<typeof buildArchitecture>): vo
   }
   info(`\nArchitecture detected: ${detected.join('; ')}`);
   info('Generated dependency-cruiser config for /audit command');
+}
+
+/**
+ * Log existing formatter detection and explain ESLint coexistence
+ */
+function logExistingFormatter(ctx: ProjectContext): void {
+  if (!ctx.projectType.existingFormatter) return;
+
+  info('\nDetected existing formatter (biome/dprint) — skipping Prettier.');
+  info('ESLint is still installed for security scanning, complexity checks, and framework rules');
+  info("that biome/dprint don't cover. Both tools coexist without conflict.");
 }
 
 /**

@@ -314,6 +314,13 @@ p.hero-subtitle {
   opacity: 0.9;
 }
 
+/* Hero subtitle detail - secondary positioning line */
+.hero-subtitle-detail {
+  font-size: 1.1rem !important;
+  font-weight: 400 !important;
+  opacity: 0.75;
+}
+
 /* Left-align logo on splash page and make it larger */
 [data-has-hero] header .site-title {
   font-size: 2em;

@@ -21,23 +21,23 @@ bunx safeword@latest setup
 
 ### What gets installed
 
-| What                    | Action              | Purpose                  |
-| ----------------------- | ------------------- | ------------------------ |
-| `.safeword/`            | Creates directory   | Hooks, guides, templates |
-| `.claude/settings.json` | Creates file        | Hook configuration       |
-| `.claude/skills/`       | Creates directory   | Workflow skills          |
-| `.cursor/hooks.json`    | Creates file        | Hook configuration       |
-| `.cursor/rules/`        | Creates directory   | Behavior rules           |
-| `eslint.config.mjs`     | Creates file        | Linting config (JS/TS)   |
-| `package.json`          | Adds packages       | ESLint, Prettier (JS/TS) |
-| `.golangci.yml`         | Creates file        | Linting config (Go)      |
-| `ruff.toml`             | Creates file        | Linting config (Python)  |
-| `mypy.ini`              | Creates file        | Type checking (Python)   |
-| `clippy.toml`           | Creates file        | Linting config (Rust)    |
-| `rustfmt.toml`          | Creates file        | Formatting config (Rust) |
-| `Cargo.toml`            | Adds lints section  | clippy lints (Rust)      |
-| `AGENTS.md`             | Creates or prepends | Links to SAFEWORD.md     |
-| `.mcp.json`             | Creates or merges   | MCP server config        |
+| What                    | Action               | Purpose                    |
+| ----------------------- | -------------------- | -------------------------- |
+| `.safeword/`            | Creates directory    | Hooks, guides, templates   |
+| `.claude/settings.json` | Creates file         | Hook configuration         |
+| `.claude/skills/`       | Creates directory    | Workflow skills            |
+| `.cursor/hooks.json`    | Creates file         | Hook configuration         |
+| `.cursor/rules/`        | Creates directory    | Behavior rules             |
+| `eslint.config.mjs`     | Creates file         | Linting config (JS/TS)     |
+| `package.json`          | Adds devDependencies | Linting tools (JS/TS only) |
+| `.golangci.yml`         | Creates file         | Linting config (Go)        |
+| `ruff.toml`             | Creates file         | Linting config (Python)    |
+| `mypy.ini`              | Creates file         | Type checking (Python)     |
+| `clippy.toml`           | Creates file         | Linting config (Rust)      |
+| `rustfmt.toml`          | Creates file         | Formatting config (Rust)   |
+| `Cargo.toml`            | Adds lints section   | clippy lints (Rust)        |
+| `AGENTS.md`             | Creates or prepends  | Links to SAFEWORD.md       |
+| `.mcp.json`             | Creates or merges    | MCP server config          |
 
 Setup auto-detects your stack. A TypeScript project won't get Go, Python, or Rust tooling.
 

@@ -1,0 +1,58 @@
+---
+title: FAQ
+description: Common questions about what Safeword does and doesn't do
+---
+
+## What Safeword Is
+
+Safeword is a **process layer** for AI coding agents. It enforces quality practices — TDD, linting, code review, structured debugging — on top of whatever stack you already use.
+
+**It is not:**
+
+- A framework or library that your application depends on
+- An opinion about your tech stack
+- A replacement for your existing tools
+
+## Common Questions
+
+### Will Safeword change my stack or application dependencies?
+
+No. Safeword adds development-only linting tools (`devDependencies`) and configuration files. Your runtime dependencies, application code, and build pipeline are untouched.
+
+For JS/TS projects, it installs ESLint, Prettier, and supporting plugins with the `-D` flag. For Python, Go, and Rust, it uses language-native linters (ruff, golangci-lint, clippy) that are standard development tools.
+
+### Will it overwrite my CLAUDE.md?
+
+No. If you have an existing `CLAUDE.md`, Safeword prepends a single 4-line block at the top that links to `.safeword/SAFEWORD.md`. Your existing content stays exactly where it is. If you don't have a `CLAUDE.md`, nothing is created — Safeword uses `AGENTS.md` as the primary entry point.
+
+### I already use Biome / dprint — is that a problem?
+
+Safeword detects alternative formatters and skips Prettier installation. But it still installs ESLint because Biome and dprint don't cover:
+
+- **Security scanning** — catches unsafe patterns like `eval()`, non-literal regex, prototype pollution
+- **Cyclomatic complexity** — flags overly complex functions that AI agents tend to generate
+- **Framework-specific rules** — React hooks, Next.js best practices, Astro components
+
+Both tools coexist — ESLint handles code analysis while Biome handles formatting. Safeword configures Biome to ignore safeword's own files. See [Configuration](/reference/configuration) for details.
+
+### Do my teammates need to install Safeword?
+
+No. Commit the `.safeword/`, `.claude/`, and `.cursor/` directories to your repo. When teammates pull, they get the full setup automatically. The linting devDependencies install with their normal `npm install` / `bun install`.
+
+### Will it interfere with my development workflow?
+
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor events). They never run when you code normally, and safeword does not install git hooks or modify your commit workflow. Safeword adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
+
+### Can I remove Safeword later?
+
+Yes. Run `bunx safeword reset --full` to remove all Safeword files and linting packages. Your application code is unaffected. See [CLI](/reference/cli) for details.
+
+### What if I only want some of the features?
+
+Safeword's hooks and skills are configured in `.claude/settings.json`. You can disable individual hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
+
+<footer class="docs-footer">
+
+[GitHub](https://github.com/TheMostlyGreat/safeword) · MIT License · © 2026
+
+</footer>

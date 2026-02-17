@@ -66,6 +66,7 @@ export default defineConfig({
       ],
       sidebar: [
         { label: 'Quick Start', slug: 'getting-started/quick-start' },
+        { label: 'FAQ', slug: 'getting-started/faq' },
         {
           label: 'Reference',
           items: [

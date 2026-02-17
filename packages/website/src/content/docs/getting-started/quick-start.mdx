@@ -15,6 +15,8 @@ bunx safeword@latest setup
 
 Takes about 30 seconds. Works with TypeScript, Python, Go, and Rust projects.
 
+Safeword adds linting tools as devDependencies and configuration files. Your application code, runtime dependencies, and existing configs are unchanged.
+
 ## What Changes
 
 You use Claude Code or Cursor the same way you always have. Type a prompt, get code. But now there's a safety net running in the background.
@@ -77,6 +79,8 @@ Safeword added a few folders to your project:
 | `.safeword/`            | Config files, guides, and templates                   |
 
 These files commit to your repo. When your team pulls, they get the same setup automatically.
+
+For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only linting tools — they don't ship with your application.
 
 ## Go Deeper
 
