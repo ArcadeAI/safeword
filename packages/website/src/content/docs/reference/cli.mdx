@@ -94,6 +94,16 @@ bunx safeword@latest diff
 
 **When to use:** Before upgrading, to see what would change. Or to check if you've customized any files.
 
+## safeword sync-config
+
+Regenerate the dependency-cruiser configuration for `/audit`.
+
+```bash
+bunx safeword@latest sync-config
+```
+
+**When to use:** Before running `/audit`, or after changing your project's architecture boundaries. Detects workspaces and layers, then generates `.dependency-cruiser.cjs`.
+
 ---
 
 ## File Ownership

@@ -165,10 +165,12 @@ Key directories created in your project:
 - `prompt-questions.ts` - Reminds agent to ask clarifying questions
 - `post-tool-lint.ts` - Auto-lints after file edits
 - `stop-quality.ts` - Quality review prompt on stop
+- `cursor/after-file-edit.ts` - Auto-lints after Cursor file edits
+- `cursor/stop.ts` - Quality review prompt on Cursor stop
 
 **Skills** (in `.claude/skills/`): Specialized agent capabilities
 
-- `safeword-bdd-orchestrating/` - BDD orchestrator for feature-level work (includes TDD in Phase 6)
+- `safeword-bdd-orchestrating/` - BDD orchestrator for feature-level work (Discovery, Scenarios, Decomposition, TDD, Splitting, Done)
 - `safeword-debugging/` - Four-phase debugging (investigate before fixing)
 - `safeword-quality-reviewing/` - Deep code review with web research
 - `safeword-refactoring/` - Small-step refactoring with test verification
@@ -207,6 +209,9 @@ bunx safeword@latest upgrade
 # Preview changes before upgrading
 bunx safeword@latest diff
 bunx safeword@latest diff -v # Show full diff output
+
+# Regenerate architecture config for /audit
+bunx safeword@latest sync-config
 
 # Remove safeword from project
 bunx safeword reset
@@ -277,13 +282,13 @@ This section is for contributors to safeword itself.
 
 ### Tech Stack
 
-| Component | Technology                    |
-| --------- | ----------------------------- |
-| Runtime   | Bun (dev), Node 18+ (users)   |
-| CLI       | TypeScript, Commander.js      |
-| Build     | tsup (ESM-only output)        |
-| Tests     | Vitest, promptfoo (LLM evals) |
-| Linting   | ESLint 9 + Prettier           |
+| Component | Technology                  |
+| --------- | --------------------------- |
+| Runtime   | Bun (dev), Node 18+ (users) |
+| CLI       | TypeScript, Commander.js    |
+| Build     | tsup (ESM-only output)      |
+| Tests     | Vitest                      |
+| Linting   | ESLint 9 + Prettier         |
 
 ### Optional System Binaries
 
@@ -302,7 +307,7 @@ Without these binaries, the scripts print a message and skip.
 
 1. Edit in `packages/cli/templates/` (source of truth)
 2. Run `bunx safeword upgrade` to sync to `.safeword/`
-3. Test changes, run evals: `bun run eval`
+3. Test changes
 
 **Running Tests:**
 
@@ -337,76 +342,6 @@ The CLI installs matching skills for both Claude Code and Cursor IDEs.
 2. Update `packages/cli/src/schema.ts` if adding/removing skills
 3. Run parity tests: `bun run test -- --testNamePattern="parity"`
 4. Run `bunx safeword upgrade` to sync to local project
-
----
-
-## LLM Eval Testing
-
-**Purpose**: Validate that guides are effective for LLM consumption using promptfoo.
-
-### Running Evals
-
-```bash
-# Run all eval tests
-bun run eval
-
-# Run without cache (fresh API calls)
-bun run eval:no-cache
-
-# Open web UI to view results
-bun run eval:view
-```
-
-### What's Tested
-
-The eval suite tests that LLMs correctly follow guide instructions:
-
-| Category               | Tests   | What's Validated                                                                       |
-| ---------------------- | ------- | -------------------------------------------------------------------------------------- |
-| Architecture           | 21      | Doc type selection, layers, dependencies, ESLint, LLM review, pre-commit, CI, template |
-| Code Philosophy        | 14      | Bloat avoidance, error handling, TDD, self-review, git workflow                        |
-| Testing Methodology    | 13      | Test type selection, TDD phases, test integrity, cost controls                         |
-| Zombie Process         | 7       | Port-based cleanup, scripts, tmux isolation, best practices                            |
-| User Stories           | 13      | INVEST validation, size guidelines, templates, technical constraints                   |
-| LLM Instruction Design | 15      | MECE trees, tie-breaking, lookup tables, anti-patterns                                 |
-| TDD Best Practices     | 10      | Template selection, story formats, data builders                                       |
-| Design Doc             | 10      | Prerequisites, template, components, user flow, decisions                              |
-| Context Files          | 11      | File selection, triggers, imports, size, cross-references                              |
-| Data Architecture      | 7       | Decision tree, principles, flows, policies, checklist                                  |
-| Learning Extraction    | 11      | Triggers, templates, precedence, cross-references                                      |
-| LLM Prompting          | 10      | Caching, structured outputs, LLM-as-judge, costs                                       |
-| Test Definitions       | 12      | Suites, status, naming, mapping, LLM-friendly                                          |
-| **Total**              | **154** |                                                                                        |
-
-### Adding New Tests
-
-Edit `promptfoo.yaml` and add a test case:
-
-```yaml
-- description: 'test-id: Description'
-  vars:
-    input: 'User prompt to test'
-    context: |
-      Relevant excerpt from guide
-  assert:
-    - type: llm-rubric
-      value: |
-        EXCELLENT: Best response criteria
-        ACCEPTABLE: Minimum passing criteria
-        POOR: Failing criteria
-```
-
-### Requirements
-
-- `ANTHROPIC_API_KEY` environment variable set
-- Tests use Claude Haiku 4 by default
-
-### Interpreting Results
-
-- **PASS**: LLM followed guide correctly
-- **FAIL**: Guide may need improvement (clearer instructions, examples, tie-breakers)
-
-Results saved to `eval-results.json` after each run.
 
 ---
 

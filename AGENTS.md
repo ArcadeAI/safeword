@@ -196,10 +196,8 @@ Write ticket names that describe **user value**, not implementation.
 
 3. **`bun test` vs `bun run test`**: This project uses Vitest. Always use `bun run test` (runs package.json script) not `bun test` (runs Bun's built-in test runner, which will fail on Vitest tests).
 
-4. **Eval failures**: Usually means the guide needs clearer instructions, not that the test is wrong. Fix the guide.
+4. **Hook paths**: Always use `"$CLAUDE_PROJECT_DIR"/.safeword/hooks/...` format (quoted variable) for Claude Code hooks.
 
-5. **Hook paths**: Always use `"$CLAUDE_PROJECT_DIR"/.safeword/hooks/...` format (quoted variable) for Claude Code hooks.
+5. **Monorepo publishing**: `workspace:^` resolves at `bun install` time, not publish time. For 0.x packages, `^0.6.0` excludes 0.7.0. Run `bun install` after version bumps, or use explicit versions for cross-package deps.
 
-6. **Monorepo publishing**: `workspace:^` resolves at `bun install` time, not publish time. For 0.x packages, `^0.6.0` excludes 0.7.0. Run `bun install` after version bumps, or use explicit versions for cross-package deps.
-
-7. **Preset vs Project config**: When fixing lint errors in THIS repo, modify `/eslint.config.mjs` (project config), NOT `packages/cli/src/presets/` (preset). Preset changes affect ALL safeword users. Project config only affects this repo. Rule of thumb: if a rule is a false positive for CLI tools specifically, add an override to the root eslint.config.mjs with the `cli-package-override` block.
+6. **Preset vs Project config**: When fixing lint errors in THIS repo, modify `/eslint.config.mjs` (project config), NOT `packages/cli/src/presets/` (preset). Preset changes affect ALL safeword users. Project config only affects this repo. Rule of thumb: if a rule is a false positive for CLI tools specifically, add an override to the root eslint.config.mjs with the `cli-package-override` block.

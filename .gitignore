@@ -8,9 +8,6 @@ examples/
 .env
 .env.local
 
-# Test artifacts
-eval-results.json
-
 # Safeword - Local cache and nested installs
 .safeword/.update-cache.json
 packages/*/.safeword/

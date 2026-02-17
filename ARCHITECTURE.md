@@ -186,19 +186,19 @@ interface Languages {
 
 // Python-specific detection (returned only if languages.python)
 interface PythonProjectType {
-  framework: 'django' | 'flask' | 'fastapi' | null;
+  framework: 'django' | 'flask' | 'fastapi' | undefined;
   packageManager: 'poetry' | 'uv' | 'pip';
 }
 
-// Extended ProjectContext (packages/cli/src/schema.ts)
+// Extended ProjectContext (packages/cli/src/packs/types.ts)
 // Note: projectType stays REQUIRED - returns all-false for Python-only projects
 interface ProjectContext {
   cwd: string;
   projectType: ProjectType; // Unchanged - handles missing package.json
   developmentDeps: Record<string, string>;
+  productionDeps: Record<string, string>;
   isGitRepo: boolean;
-  languages: Languages; // NEW
-  // pythonType?: PythonProjectType; // Phase 2 - for framework-specific configs
+  languages?: Languages; // Optional - set when language detection runs
 }
 ```
 
