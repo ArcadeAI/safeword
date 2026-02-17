@@ -21,7 +21,7 @@
 
 ## Overview
 
-Safeword is a CLI tool that configures linting, hooks, and development guides for Claude Code projects. It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), and Rust projects (clippy, rustfmt).
+Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code and Cursor). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), and Rust projects (clippy, rustfmt).
 
 ### Tech Stack
 

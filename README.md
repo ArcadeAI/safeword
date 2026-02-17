@@ -216,8 +216,8 @@ bunx safeword reset --full # Also remove linting config + packages
 
 **Auto-detection**: Detects project type from `package.json` and installs relevant ESLint/Prettier plugins:
 
-- TypeScript, React, Next.js, Astro, Vue, Svelte, Electron
-- Vitest, Playwright, Tailwind
+- TypeScript, React, Next.js, Astro
+- Vitest, Playwright, Tailwind, Turbo, Storybook, TanStack Query
 - Publishable libraries (adds publint)
 
 ### How Guide Imports Work
@@ -399,7 +399,7 @@ Edit `promptfoo.yaml` and add a test case:
 ### Requirements
 
 - `ANTHROPIC_API_KEY` environment variable set
-- Tests use Claude Sonnet 4 by default
+- Tests use Claude Haiku 4 by default
 
 ### Interpreting Results
 
