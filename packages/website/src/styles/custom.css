@@ -330,7 +330,7 @@ p.hero-subtitle {
 /* Remove sticky header on splash page and align with content */
 [data-has-hero] header {
   position: relative;
-  padding: 2.5rem 0 2.5rem var(--sw-content-inset) !important;
+  padding: 4rem 0 2.5rem var(--sw-content-inset) !important;
   align-items: center !important;
   pointer-events: none;
 }
@@ -349,7 +349,7 @@ p.hero-subtitle {
 /* Splash page docs link - positioned in header row */
 .splash-docs-link {
   position: fixed;
-  top: 40px;
+  top: 52px;
   transform: translateY(-50%);
   right: 6rem;
   z-index: 9999;
