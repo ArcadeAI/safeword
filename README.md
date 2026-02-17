@@ -2,7 +2,7 @@
 
 **Problem**: AI agents write code without tests, skip design validation, and lack consistency across projects.
 
-**Solution**: Portable patterns and guides that enforce TDD workflow, quality standards, and best practices across all your projects.
+**Solution**: Portable patterns and guides that enforce test-first development (BDD/TDD), quality standards, and best practices across all your projects.
 
 **Repository**: <https://github.com/TheMostlyGreat/safeword> (private)
 
@@ -20,19 +20,22 @@ bunx safeword@latest setup
 **2. Verify installation:**
 
 ```bash
-# Check for SAFEWORD files and hooks
+# Check for SAFEWORD files
 test -f .safeword/SAFEWORD.md && echo ".safeword/SAFEWORD.md ✓"
-test -f .claude/settings.json && echo ".claude/settings.json ✓"
+test -f AGENTS.md && echo "AGENTS.md ✓"
 ```
 
 **Result**: Your project now has:
 
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
-- `.safeword/guides/` - TDD methodology, testing, code philosophy
-- `.safeword/hooks/` - Claude Code hooks (auto-linting, quality review)
+- `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
+- `.safeword/hooks/` - Auto-linting, quality review hooks
 - `.claude/settings.json` - Hook configuration for Claude Code
-- `.claude/commands/` - Slash commands (`/lint`, `/quality-review`, `/audit`)
-- `AGENTS.md` - Project context with framework reference (also adds one import line to `CLAUDE.md` if it exists)
+- `.claude/commands/` - Slash commands for Claude Code
+- `.cursor/hooks.json` - Hook configuration for Cursor
+- `.cursor/rules/` - Behavior rules for Cursor
+- `.cursor/commands/` - Slash commands for Cursor
+- `AGENTS.md` - Project context with framework reference
 
 **Commit these to your repo** for team consistency.
 
@@ -40,11 +43,11 @@ test -f .claude/settings.json && echo ".claude/settings.json ✓"
 
 ## How It Fits Your Project
 
-**Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Elysia, Prisma, Django, Rails, whatever you use. Your application code and runtime dependencies are never touched.
+**Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**CLAUDE.md stays yours** — If you have an existing `CLAUDE.md`, safeword adds one import line at the top linking to `.safeword/SAFEWORD.md`. Your existing content is untouched.
+**Your agent config stays yours** — Safeword uses `AGENTS.md` as the primary entry point. If you have an existing `CLAUDE.md`, it adds one import line at the top — your content is untouched.
 
-**Dev-only linting tools** — For JS/TS projects, safeword installs ESLint and Prettier as `devDependencies`. These are linting tools for development — they never ship with your application or affect your runtime.
+**Dev-only tools** — For JS/TS projects, safeword installs ESLint, Prettier, and supporting plugins as `devDependencies`. These are code quality tools for development — they never ship with your application or affect your runtime.
 
 **AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor events). They never run during normal human development. Safeword does not install git hooks or modify your commit workflow.
 
@@ -54,7 +57,7 @@ test -f .claude/settings.json && echo ".claude/settings.json ✓"
 
 ## How It Works
 
-**Project-local framework**: Scripts write to `.safeword/` and `.claude/` in your project (no global install needed)
+**Project-local framework**: Scripts write to `.safeword/`, `.claude/`, and `.cursor/` in your project (no global install needed)
 
 **Team consistency**: Teammates get the framework from your project repo (no global install needed)
 
@@ -69,9 +72,9 @@ Key directories created in your project:
 - `.safeword/guides/` - Core methodology and best practices
 - `.safeword/templates/` - Fillable document structures
 - `.safeword-project/tickets/` - Tickets for complex/multi-step work (context anchors)
-- `.safeword/hooks/` - Automation scripts for Claude Code
-- `.claude/commands/` - Slash commands
-- `.claude/skills/` - Specialized agent capabilities
+- `.safeword/hooks/` - Automation scripts (Claude Code + Cursor)
+- `.claude/commands/`, `.cursor/commands/` - Slash commands
+- `.claude/skills/`, `.cursor/rules/` - Specialized agent capabilities
 
 ---
 
@@ -79,11 +82,11 @@ Key directories created in your project:
 
 **Purpose**: Reusable methodology applicable to all projects
 
-| Guide                      | Purpose                                                     | When to Read            |
-| -------------------------- | ----------------------------------------------------------- | ----------------------- |
-| **planning-guide.md**      | Feature planning workflow, spec creation, TDD integration   | Starting any feature    |
-| **testing-guide.md**       | TDD workflow (RED/GREEN/REFACTOR), test pyramid, test types | Writing tests           |
-| **learning-extraction.md** | Extract learnings from debugging, recognition triggers      | After complex debugging |
+| Guide                      | Purpose                                                            | When to Read            |
+| -------------------------- | ------------------------------------------------------------------ | ----------------------- |
+| **planning-guide.md**      | Feature planning workflow, spec creation, BDD/TDD integration      | Starting any feature    |
+| **testing-guide.md**       | Test-first workflow (RED/GREEN/REFACTOR), test pyramid, test types | Writing tests           |
+| **learning-extraction.md** | Extract learnings from debugging, recognition triggers             | After complex debugging |
 
 ---
 
@@ -244,9 +247,9 @@ bunx safeword reset --full # Also remove linting config + packages
 
 ### How Guide Imports Work
 
-`AGENTS.md` contains a link to `.safeword/SAFEWORD.md` (also added to `CLAUDE.md` if present)
+`AGENTS.md` contains a link to `.safeword/SAFEWORD.md` (also added to `CLAUDE.md` if present).
 
-SAFEWORD.md then imports guides via the Guides table. Claude Code auto-loads these as context.
+SAFEWORD.md then imports guides via the Guides table. Both Claude Code and Cursor auto-load these as context.
 
 ### Check for Existing Learnings
 
@@ -264,7 +267,7 @@ ls .safeword-project/learnings/
 
 ## Syncing Across Machines
 
-Commit `.safeword/` and `.claude/` in your project repo for team consistency.
+Commit `.safeword/`, `.claude/`, and `.cursor/` in your project repo for team consistency.
 
 ---
 
@@ -283,7 +286,7 @@ Commit `.safeword/` and `.claude/` in your project repo for team consistency.
 
 ## Principles
 
-1. **Guides** - Reusable methodology (test pyramid, TDD workflow)
+1. **Guides** - Reusable methodology (test pyramid, BDD/TDD workflow)
 2. **Templates** - Fillable structures (user stories, test definitions)
 3. **Learnings** - Extracted knowledge (gotchas, discoveries)
 4. **Planning** - Feature planning and design (user stories, test definitions, design docs)
@@ -296,19 +299,19 @@ Commit `.safeword/` and `.claude/` in your project repo for team consistency.
 ## FAQ
 
 **Will safeword change my stack or framework?**
-No. Safeword is a process overlay — it adds quality enforcement (TDD, linting, code review) on top of whatever you already use. It doesn't install application dependencies or modify your source code.
+No. Safeword is a process overlay — it adds quality enforcement (BDD/TDD, linting, code review) on top of whatever you already use. It doesn't install application dependencies or modify your source code.
 
 **Will it overwrite my CLAUDE.md?**
-No. If you have an existing `CLAUDE.md`, safeword prepends a single 4-line block that links to `.safeword/SAFEWORD.md`. Your existing content stays exactly where it is. If you don't have a `CLAUDE.md`, nothing is created.
+No. Safeword uses `AGENTS.md` as the primary entry point. If you have an existing `CLAUDE.md`, it prepends a single 4-line block that links to `.safeword/SAFEWORD.md`. Your existing content stays exactly where it is.
 
 **What packages does it install?**
-For JS/TS projects: ESLint, Prettier, and supporting plugins — all as `devDependencies` (the `-D` flag). These are linting tools, not application dependencies. Python, Go, and Rust use their language-native linters (ruff, golangci-lint, clippy).
+For JS/TS projects: ESLint, Prettier, and supporting plugins — all as `devDependencies` (the `-D` flag). These are code quality tools, not application dependencies. Python, Go, and Rust (beta) use their language-native linters (ruff, golangci-lint, clippy).
 
 **I use biome/dprint — is that a problem?**
 Safeword detects biome/dprint and skips Prettier installation. ESLint is still installed because biome doesn't support security scanning (`eslint-plugin-security`), cyclomatic complexity checks (`sonarjs`), or framework-specific rules (React hooks, Next.js, Astro). Both tools coexist without conflict.
 
 **Do teammates need to install safeword separately?**
-No. Commit the `.safeword/` and `.claude/` directories to git. When teammates pull, they get the full setup. The linting devDependencies install automatically with `npm install` / `bun install`.
+No. Commit the `.safeword/`, `.claude/`, and `.cursor/` directories to git. When teammates pull, they get the full setup. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally, and safeword does not install git hooks. It adds `lint` and `format` scripts to `package.json` that you can optionally use in CI or precommit hooks.

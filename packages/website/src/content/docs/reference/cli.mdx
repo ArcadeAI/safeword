@@ -13,33 +13,32 @@ Initialize Safeword in a project. Run this once when you first add Safeword to a
 bunx safeword@latest setup
 ```
 
-| Option        | Description               |
-| ------------- | ------------------------- |
-| `--yes`, `-y` | Skip confirmation prompts |
-
 **When to use:** First time setting up Safeword in a project, or after cloning a repo that doesn't have Safeword yet.
 
 ### What gets installed
 
-| What                    | Action               | Purpose                    |
-| ----------------------- | -------------------- | -------------------------- |
-| `.safeword/`            | Creates directory    | Hooks, guides, templates   |
-| `.claude/settings.json` | Creates file         | Hook configuration         |
-| `.claude/skills/`       | Creates directory    | Workflow skills            |
-| `.cursor/hooks.json`    | Creates file         | Hook configuration         |
-| `.cursor/rules/`        | Creates directory    | Behavior rules             |
-| `eslint.config.mjs`     | Creates file         | Linting config (JS/TS)     |
-| `package.json`          | Adds devDependencies | Linting tools (JS/TS only) |
-| `.golangci.yml`         | Creates file         | Linting config (Go)        |
-| `ruff.toml`             | Creates file         | Linting config (Python)    |
-| `mypy.ini`              | Creates file         | Type checking (Python)     |
-| `clippy.toml`           | Creates file         | Linting config (Rust)      |
-| `rustfmt.toml`          | Creates file         | Formatting config (Rust)   |
-| `Cargo.toml`            | Adds lints section   | clippy lints (Rust)        |
-| `AGENTS.md`             | Creates or prepends  | Links to SAFEWORD.md       |
-| `.mcp.json`             | Creates or merges    | MCP server config          |
+| What                    | Action               | Purpose                         |
+| ----------------------- | -------------------- | ------------------------------- |
+| `.safeword/`            | Creates directory    | Hooks, guides, templates        |
+| `.claude/settings.json` | Creates or merges    | Hook configuration              |
+| `.claude/skills/`       | Creates directory    | Workflow skills                 |
+| `.claude/commands/`     | Creates directory    | Slash commands                  |
+| `.cursor/hooks.json`    | Creates or merges    | Hook configuration              |
+| `.cursor/rules/`        | Creates directory    | Behavior rules                  |
+| `.cursor/commands/`     | Creates directory    | Slash commands                  |
+| `eslint.config.mjs`     | Creates file         | Linting config (JS/TS)          |
+| `package.json`          | Adds devDependencies | Code quality tools (JS/TS only) |
+| `.golangci.yml`         | Creates file         | Linting config (Go)             |
+| `ruff.toml`             | Creates file         | Linting config (Python)         |
+| `mypy.ini`              | Creates file         | Type checking (Python)          |
+| `clippy.toml`           | Creates file         | Linting config (Rust)           |
+| `rustfmt.toml`          | Creates file         | Formatting config (Rust)        |
+| `Cargo.toml`            | Adds lints section   | clippy lints (Rust)             |
+| `AGENTS.md`             | Creates or prepends  | Links to SAFEWORD.md            |
+| `.mcp.json`             | Creates or merges    | MCP server config               |
+| `.cursor/mcp.json`      | Creates or merges    | MCP server config (Cursor)      |
 
-Setup auto-detects your stack. A TypeScript project won't get Go, Python, or Rust tooling.
+Setup auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), or Rust (beta) tooling.
 
 ## safeword upgrade
 
@@ -112,7 +111,7 @@ Safeword manages two types of files:
 
 **Owned files** — Safeword controls these completely. They get overwritten on upgrade. Examples: hooks, skills, guides, commands.
 
-**Managed files** — Created if missing, but never overwritten. You can customize these freely. Examples: `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`.
+**Managed files** — Created if missing, but never overwritten. You can customize these freely. Examples: `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `ruff.toml`, `.golangci.yml`, `clippy.toml`.
 
 Run `safeword diff` to see which files you've modified.
 

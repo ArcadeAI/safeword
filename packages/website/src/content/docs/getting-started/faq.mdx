@@ -5,7 +5,7 @@ description: Common questions about what Safeword does and doesn't do
 
 ## What Safeword Is
 
-Safeword is a **process layer** for AI coding agents. It enforces quality practices — TDD, linting, code review, structured debugging — on top of whatever stack you already use.
+Safeword is a **process layer** for AI coding agents. It enforces quality practices — BDD/TDD, linting, code review, structured debugging — on top of whatever stack you already use.
 
 **It is not:**
 
@@ -17,9 +17,9 @@ Safeword is a **process layer** for AI coding agents. It enforces quality practi
 
 ### Will Safeword change my stack or application dependencies?
 
-No. Safeword adds development-only linting tools (`devDependencies`) and configuration files. Your runtime dependencies, application code, and build pipeline are untouched.
+No. Safeword adds development-only code quality tools (`devDependencies`) and configuration files. Your runtime dependencies, application code, and build pipeline are untouched.
 
-For JS/TS projects, it installs ESLint, Prettier, and supporting plugins with the `-D` flag. For Python, Go, and Rust, it uses language-native linters (ruff, golangci-lint, clippy) that are standard development tools.
+For JS/TS projects, it installs ESLint, Prettier, and supporting plugins with the `-D` flag. For Python, Go, and Rust (beta), it uses language-native linters (ruff, golangci-lint, clippy) that are standard development tools.
 
 ### Will it overwrite my CLAUDE.md?
 
@@ -49,7 +49,7 @@ Yes. Run `bunx safeword reset --full` to remove all Safeword files and linting p
 
 ### What if I only want some of the features?
 
-Safeword's hooks and skills are configured in `.claude/settings.json`. You can disable individual hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
+Safeword's hooks are configured in `.claude/settings.json` (Claude Code) and `.cursor/hooks.json` (Cursor). You can disable individual hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
 
 <footer class="docs-footer">
 

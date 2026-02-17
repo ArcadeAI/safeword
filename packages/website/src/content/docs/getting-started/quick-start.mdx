@@ -13,9 +13,9 @@ One command. Your agent writes better code.
 bunx safeword@latest setup
 ```
 
-Takes about 30 seconds. Works with TypeScript, Python, Go, and Rust projects.
+Takes about 30 seconds. Works with TypeScript, Python (beta), Go (beta), and Rust (beta) projects.
 
-Safeword adds linting tools as devDependencies and configuration files. Your application code, runtime dependencies, and existing configs are unchanged.
+Safeword adds code quality tools as devDependencies and configuration files. Your application code, runtime dependencies, and existing configs are unchanged.
 
 ## What Changes
 
@@ -68,19 +68,20 @@ Open your project and ask your agent to build something real:
 
 Safeword added a few folders to your project:
 
-| Folder                  | What's in it                                          |
-| ----------------------- | ----------------------------------------------------- |
-| `.safeword/hooks/`      | Scripts that run automatically (lint, quality checks) |
-| `.claude/skills/`       | Structured workflows for debugging, TDD, refactoring  |
-| `.claude/commands/`     | Slash commands like `/lint` and `/audit`              |
-| `.claude/settings.json` | Hook configuration for Claude Code                    |
-| `.cursor/rules/`        | Rules for Cursor                                      |
-| `.cursor/commands/`     | Slash commands for Cursor                             |
-| `.safeword/`            | Config files, guides, and templates                   |
+| Folder                  | What's in it                                             |
+| ----------------------- | -------------------------------------------------------- |
+| `.safeword/hooks/`      | Scripts that run automatically (lint, quality checks)    |
+| `.claude/skills/`       | Structured workflows for debugging, BDD/TDD, refactoring |
+| `.claude/commands/`     | Slash commands like `/lint` and `/audit`                 |
+| `.claude/settings.json` | Hook configuration for Claude Code                       |
+| `.cursor/hooks.json`    | Hook configuration for Cursor                            |
+| `.cursor/rules/`        | Rules for Cursor                                         |
+| `.cursor/commands/`     | Slash commands for Cursor                                |
+| `.safeword/`            | Config files, guides, and templates                      |
 
 These files commit to your repo. When your team pulls, they get the same setup automatically.
 
-For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only linting tools — they don't ship with your application.
+For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 
 ## Go Deeper
 

@@ -20,19 +20,20 @@ export default [
 
 **Available configs:**
 
-| Config                       | Use case               |
-| ---------------------------- | ---------------------- |
-| `recommended`                | JavaScript only        |
-| `recommendedTypeScript`      | TypeScript             |
-| `recommendedTypeScriptReact` | TypeScript + React     |
-| `recommendedTypeScriptNext`  | TypeScript + Next.js   |
-| `vitest`                     | Add Vitest support     |
-| `playwright`                 | Add Playwright support |
-| `astro`                      | Add Astro support      |
-| `tailwind`                   | Add Tailwind support   |
-| `tanstackQuery`              | Add TanStack Query     |
-| `storybook`                  | Add Storybook support  |
-| `turbo`                      | Add Turborepo support  |
+| Config                       | Use case                                |
+| ---------------------------- | --------------------------------------- |
+| `recommended`                | JavaScript only                         |
+| `recommendedTypeScript`      | TypeScript                              |
+| `recommendedTypeScriptReact` | TypeScript + React                      |
+| `recommendedTypeScriptNext`  | TypeScript + Next.js                    |
+| `nextOnlyRules`              | Next.js rules for monorepo file scoping |
+| `vitest`                     | Add Vitest support                      |
+| `playwright`                 | Add Playwright support                  |
+| `astro`                      | Add Astro support                       |
+| `tailwind`                   | Add Tailwind support                    |
+| `tanstackQuery`              | Add TanStack Query                      |
+| `storybook`                  | Add Storybook support                   |
+| `turbo`                      | Add Turborepo support                   |
 
 To add your own rules, extend the array:
 
@@ -51,12 +52,12 @@ export default [
 
 Safeword auto-detects your stack and configures linting accordingly:
 
-| Language   | Linting           | Type Checking |
-| ---------- | ----------------- | ------------- |
-| TypeScript | ESLint + Prettier | tsc           |
-| Python     | Ruff              | mypy          |
-| Go         | golangci-lint     | go vet        |
-| Rust       | clippy            | rustc         |
+| Language      | Linting           | Type Checking |
+| ------------- | ----------------- | ------------- |
+| TypeScript    | ESLint + Prettier | tsc           |
+| Python (beta) | Ruff              | mypy          |
+| Go (beta)     | golangci-lint     | go vet        |
+| Rust (beta)   | clippy            | rustc         |
 
 Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
 
@@ -97,12 +98,16 @@ Safeword has two types of files:
 **Never overwritten** (safe to customize):
 
 - `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`
-- `AGENTS.md`
+- Language-specific configs: `ruff.toml`, `mypy.ini`, `.golangci.yml`, `clippy.toml`, `rustfmt.toml`
 
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
+- `AGENTS.md`, `CLAUDE.md` — safeword link block re-ensured, your content preserved
 - `.claude/settings.json` — safeword hooks updated, your custom hooks preserved
-- `.mcp.json` — MCP server config merged
+- `.cursor/hooks.json` — safeword hooks updated, your custom hooks preserved
+- `package.json` — lint/format scripts and devDependencies merged (JS/TS only)
+- `.mcp.json`, `.cursor/mcp.json` — MCP server config merged
+- `biome.json` — safeword ignore patterns merged (if Biome detected)
 
 **To customize something that gets overwritten:**
 
