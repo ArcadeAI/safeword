@@ -12,6 +12,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
+
 // Type guard for filtering out undefined values
 const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
 
@@ -203,7 +205,7 @@ describe('Schema - Single Source of Truth', () => {
     it('should include all required base packages', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const required = [
-        'eslint@^9', // Pinned to v9 until ESLint plugin ecosystem supports v10
+        ESLINT_PACKAGE, // Pinned to v9 until ESLint plugin ecosystem supports v10
         'safeword', // bundles eslint-config-prettier + all ESLint plugins
         'dependency-cruiser',
         'knip',

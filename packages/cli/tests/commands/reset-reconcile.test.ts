@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
 import {
   createTemporaryDirectory,
   getReconcileTestUtilities,
@@ -301,7 +302,7 @@ describe('Reset Command - Reconcile Integration', () => {
 
       // Should report packages to remove
       expect(result.packagesToRemove.length).toBeGreaterThan(0);
-      expect(result.packagesToRemove).toContain('eslint@^9');
+      expect(result.packagesToRemove).toContain(ESLINT_PACKAGE);
       expect(result.packagesToRemove).toContain('prettier');
     });
   });

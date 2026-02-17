@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
 import {
   createTemporaryDirectory,
   getReconcileTestUtilities,
@@ -76,7 +77,7 @@ describe('Setup Command - Reconcile Integration', () => {
 
       // Should compute packages to install
       expect(result.packagesToInstall.length).toBeGreaterThan(0);
-      expect(result.packagesToInstall).toContain('eslint@^9');
+      expect(result.packagesToInstall).toContain(ESLINT_PACKAGE);
     });
 
     it('should create all directories when applied', async () => {

@@ -13,6 +13,8 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
+
 // This import will fail until reconcile.ts is created (RED phase)
 // import { reconcile, computePackagesToInstall } from '../src/reconcile.js';
 // import { SAFEWORD_SCHEMA } from '../src/schema.js';
@@ -240,7 +242,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       // Should include all base packages
-      expect(result.packagesToInstall).toContain('eslint@^9');
+      expect(result.packagesToInstall).toContain(ESLINT_PACKAGE);
       expect(result.packagesToInstall).toContain('prettier');
       expect(result.packagesToInstall).toContain('safeword');
     });
@@ -274,7 +276,7 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const result = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
-      expect(result.packagesToInstall).not.toContain('eslint@^9');
+      expect(result.packagesToInstall).not.toContain(ESLINT_PACKAGE);
       expect(result.packagesToInstall).not.toContain('prettier');
       // But should still include others
       expect(result.packagesToInstall).toContain('knip');
@@ -622,7 +624,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', ctx);
 
       // Should include packages to remove
-      expect(result.packagesToRemove).toContain('eslint@^9');
+      expect(result.packagesToRemove).toContain(ESLINT_PACKAGE);
       expect(result.packagesToRemove).toContain('prettier');
       expect(result.packagesToRemove).toContain('knip');
     });
@@ -717,7 +719,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = computePackagesToInstall(SAFEWORD_SCHEMA, projectType, {});
 
       // Base packages + prettier (from "standard" conditional for non-Biome projects)
-      expect(result).toContain('eslint@^9');
+      expect(result).toContain(ESLINT_PACKAGE);
       expect(result).toContain('safeword');
       expect(result).toContain('dependency-cruiser');
       expect(result).toContain('knip');
@@ -733,7 +735,7 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const result = computePackagesToInstall(SAFEWORD_SCHEMA, projectType, {});
 
-      expect(result).toContain('eslint@^9');
+      expect(result).toContain(ESLINT_PACKAGE);
       expect(result).toContain('safeword');
       expect(result).not.toContain('prettier');
     });
@@ -803,7 +805,7 @@ describe('Reconcile - Reconciliation Engine', () => {
         installedDevelopmentDeps,
       );
 
-      expect(result).not.toContain('eslint@^9');
+      expect(result).not.toContain(ESLINT_PACKAGE);
       expect(result).not.toContain('prettier');
       expect(result).not.toContain('knip');
       expect(result).toContain('safeword'); // Not installed, should be included

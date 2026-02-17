@@ -13,6 +13,8 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
+
 const __dirname = import.meta.dirname;
 
 describe('Check Command - Reconcile Integration', () => {
@@ -171,7 +173,7 @@ describe('Check Command - Reconcile Integration', () => {
 
       // Should report packages to install
       expect(result.packagesToInstall.length).toBeGreaterThan(0);
-      expect(result.packagesToInstall).toContain('eslint@^9');
+      expect(result.packagesToInstall).toContain(ESLINT_PACKAGE);
       expect(result.packagesToInstall).toContain('prettier');
     });
 
@@ -206,7 +208,7 @@ describe('Check Command - Reconcile Integration', () => {
       });
 
       // Installed packages should not be in packagesToInstall
-      expect(result.packagesToInstall).not.toContain('eslint@^9');
+      expect(result.packagesToInstall).not.toContain(ESLINT_PACKAGE);
       expect(result.packagesToInstall).not.toContain('prettier');
       expect(result.packagesToInstall).not.toContain('husky');
     });
