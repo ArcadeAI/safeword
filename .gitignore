@@ -22,6 +22,9 @@ packages/*/CLAUDE.md
 packages/*/AGENTS.md
 packages/*/ARCHITECTURE.md
 
+# IDE
+.vscode/
+
 # Claude Code - Personal settings
 .claude/settings.local.json
 .claude/todos/
