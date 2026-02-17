@@ -7,11 +7,12 @@
  * Mirrors the structure of typescript/files.ts and python/files.ts for consistency.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import YAML from 'yaml';
 
+import { exists } from '../../utils/fs.js';
 import type { FileDefinition, ManagedFileDefinition } from '../types.js';
 
 // ============================================================================
@@ -80,7 +81,7 @@ function generateSafewordGolangciConfig(existingConfig: string | undefined, cwd:
   }
 
   const configPath = nodePath.join(cwd, existingConfig);
-  if (!existsSync(configPath)) {
+  if (!exists(configPath)) {
     return getSafewordGolangciStandalone();
   }
 
