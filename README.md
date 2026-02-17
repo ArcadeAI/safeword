@@ -1,4 +1,4 @@
-# SAFEWORD - Claude Code Framework
+# SAFEWORD - AI Agent Configuration CLI
 
 **Problem**: AI agents write code without tests, skip design validation, and lack consistency across projects.
 
@@ -140,14 +140,16 @@ Key directories created in your project:
 **Structure**:
 
 ```plaintext
-.safeword-project/tickets/
-├── 001-feature-name/
-│   ├── ticket.md           # Ticket definition (frontmatter + work log)
-│   ├── test-definitions.md # BDD scenarios (Given/When/Then)
-│   ├── spec.md             # Feature spec for epics (optional)
-│   └── design.md           # Design doc for complex features (optional)
-├── completed/              # Archive for done tickets
-└── tmp/                    # Scratch space (research, logs, etc.)
+.safeword-project/
+├── tickets/
+│   ├── 001-feature-name/
+│   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
+│   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
+│   │   ├── spec.md             # Feature spec for epics (optional)
+│   │   └── design.md           # Design doc for complex features (optional)
+│   └── completed/              # Archive for done tickets
+├── learnings/                  # Extracted knowledge (gotchas, discoveries)
+└── tmp/                        # Scratch space (research, logs, etc.)
 ```
 
 **When to create**: Multiple attempts likely, multi-step with dependencies, investigation needed, or risk of losing context
@@ -222,12 +224,13 @@ bunx safeword reset --full # Also remove linting config + packages
 **Auto-detection**: Detects project type from `package.json` and installs relevant ESLint/Prettier plugins:
 
 - TypeScript, React, Next.js, Astro
-- Vitest, Playwright, Tailwind, Turbo, Storybook, TanStack Query
+- Vitest, Playwright, Tailwind, Turbo, TanStack Query
+- Storybook (always included, file-scoped to `*.stories.*`)
 - Publishable libraries (adds publint)
 
 ### How Guide Imports Work
 
-`AGENTS.md` contains a link: `@./.safeword/SAFEWORD.md` (also added to `CLAUDE.md` if present)
+`AGENTS.md` contains a link to `.safeword/SAFEWORD.md` (also added to `CLAUDE.md` if present)
 
 SAFEWORD.md then imports guides via the Guides table. Claude Code auto-loads these as context.
 
@@ -256,7 +259,7 @@ Commit `.safeword/` and `.claude/` in your project repo for team consistency.
 **How it works**:
 
 1. `AGENTS.md` links to `.safeword/SAFEWORD.md` (also patches `CLAUDE.md` if present)
-2. `SAFEWORD.md` imports guides via Quick Reference table
+2. `SAFEWORD.md` imports guides via Guides table
 3. Guides cross-reference each other and templates
 4. Learnings stored in `.safeword-project/learnings/`
 
@@ -331,10 +334,10 @@ The CLI installs matching skills for both Claude Code and Cursor IDEs.
 
 **Parity tests:** `packages/cli/tests/schema.test.ts`
 
-| IDE         | Skills Location                | Commands Location       |
-| ----------- | ------------------------------ | ----------------------- |
-| Claude Code | `.claude/skills/safeword-*/`   | `.claude/commands/*.md` |
-| Cursor      | `.cursor/rules/safeword-*.mdc` | `.cursor/commands/*.md` |
+| IDE         | Skills Location                        | Commands Location       |
+| ----------- | -------------------------------------- | ----------------------- |
+| Claude Code | `.claude/skills/safeword-*/`           | `.claude/commands/*.md` |
+| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc` | `.cursor/commands/*.md` |
 
 **Editing skills:**
 

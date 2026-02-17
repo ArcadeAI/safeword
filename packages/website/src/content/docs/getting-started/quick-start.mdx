@@ -66,13 +66,15 @@ Open your project and ask your agent to build something real:
 
 Safeword added a few folders to your project:
 
-| Folder              | What's in it                                          |
-| ------------------- | ----------------------------------------------------- |
-| `.safeword/hooks/`  | Scripts that run automatically (lint, quality checks) |
-| `.claude/skills/`   | Structured workflows for debugging, TDD, refactoring  |
-| `.claude/commands/` | Slash commands like `/lint` and `/audit`              |
-| `.safeword/`        | Config files, guides, and ESLint setup                |
-| `.cursor/rules/`    | Rules for Cursor (if detected)                        |
+| Folder                  | What's in it                                          |
+| ----------------------- | ----------------------------------------------------- |
+| `.safeword/hooks/`      | Scripts that run automatically (lint, quality checks) |
+| `.claude/skills/`       | Structured workflows for debugging, TDD, refactoring  |
+| `.claude/commands/`     | Slash commands like `/lint` and `/audit`              |
+| `.claude/settings.json` | Hook configuration for Claude Code                    |
+| `.cursor/rules/`        | Rules for Cursor                                      |
+| `.cursor/commands/`     | Slash commands for Cursor                             |
+| `.safeword/`            | Config files, guides, and templates                   |
 
 These files commit to your repo. When your team pulls, they get the same setup automatically.
 

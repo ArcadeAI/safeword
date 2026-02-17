@@ -84,16 +84,18 @@ Training data is stale. Follow this sequence:
 **Folder structure:**
 
 ```text
-.safeword-project/tickets/
-├── 001-feature-name/
-│   ├── ticket.md           # Ticket definition (frontmatter + work log)
-│   ├── test-definitions.md # BDD scenarios (Given/When/Then)
-│   ├── spec.md             # Feature spec for epics (optional)
-│   └── design.md           # Design doc for complex features (optional)
-├── 002-another-task/
-│   └── ticket.md
-├── completed/              # Archive for done tickets
-└── tmp/                    # Scratch space (research, logs, etc.)
+.safeword-project/
+├── tickets/
+│   ├── 001-feature-name/
+│   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
+│   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
+│   │   ├── spec.md             # Feature spec for epics (optional)
+│   │   └── design.md           # Design doc for complex features (optional)
+│   ├── 002-another-task/
+│   │   └── ticket.md
+│   └── completed/              # Archive for done tickets
+├── learnings/                  # Extracted knowledge (gotchas, discoveries)
+└── tmp/                        # Scratch space (research, logs, etc.)
 ```
 
 **Artifact Levels:**

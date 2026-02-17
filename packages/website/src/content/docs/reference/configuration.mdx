@@ -78,9 +78,13 @@ Safeword has two types of files:
 
 **Never overwritten** (safe to customize):
 
-- `eslint.config.mjs`, `.prettierrc`
-- `.claude/settings.json`
+- `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`
 - `AGENTS.md`
+
+**Partially updated** (your customizations preserved, safeword keys re-merged):
+
+- `.claude/settings.json` — safeword hooks updated, your custom hooks preserved
+- `.mcp.json` — MCP server config merged
 
 **To customize something that gets overwritten:**
 
