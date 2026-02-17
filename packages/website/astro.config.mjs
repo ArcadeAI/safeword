@@ -6,7 +6,8 @@ import { defineConfig } from 'astro/config';
 const __dirname = import.meta.dirname;
 
 export default defineConfig({
-  site: 'https://safeword.dev',
+  site: 'https://themostlygreat.github.io',
+  base: '/safeword',
   vite: {
     cacheDir: path.resolve(__dirname, 'node_modules/.vite'),
   },
