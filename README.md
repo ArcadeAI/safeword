@@ -224,7 +224,7 @@ bunx safeword reset --full # Also remove linting config + packages
 
 `AGENTS.md` contains a link: `@./.safeword/SAFEWORD.md` (also added to `CLAUDE.md` if present)
 
-SAFEWORD.md then imports guides via the Quick Reference table. Claude Code auto-loads these as context.
+SAFEWORD.md then imports guides via the Guides table. Claude Code auto-loads these as context.
 
 ### Check for Existing Learnings
 
@@ -329,7 +329,7 @@ The CLI installs matching skills for both Claude Code and Cursor IDEs.
 | IDE         | Skills Location                | Commands Location       |
 | ----------- | ------------------------------ | ----------------------- |
 | Claude Code | `.claude/skills/safeword-*/`   | `.claude/commands/*.md` |
-| Cursor      | `.cursor/rules/safeword-*.mdc` | N/A                     |
+| Cursor      | `.cursor/rules/safeword-*.mdc` | `.cursor/commands/*.md` |
 
 **Editing skills:**
 

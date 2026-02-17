@@ -399,7 +399,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'cursor/rules/bdd-splitting.mdc',
     },
 
-    // Cursor commands (8 files - same as Claude)
+    // Cursor commands (7 files - same as Claude)
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
     '.cursor/commands/done.md': { template: 'commands/done.md' },
     '.cursor/commands/audit.md': { template: 'commands/audit.md' },
