@@ -30,7 +30,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
+          cache: false
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -42,8 +43,8 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - name: Install golangci-lint v2
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
       - name: Install Python tools
         run: |
@@ -72,6 +73,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install
+
+      - name: Build CLI (required by eslint.config.mjs)
+        run: bun run --cwd packages/cli build
 
       - name: Lint
         run: bun run lint
