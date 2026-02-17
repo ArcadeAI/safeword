@@ -349,7 +349,7 @@ p.hero-subtitle {
 /* Splash page docs link - positioned in header row */
 .splash-docs-link {
   position: fixed;
-  top: 52px;
+  top: 64px;
   transform: translateY(-50%);
   right: 6rem;
   z-index: 9999;
