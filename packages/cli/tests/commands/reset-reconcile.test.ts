@@ -301,7 +301,7 @@ describe('Reset Command - Reconcile Integration', () => {
 
       // Should report packages to remove
       expect(result.packagesToRemove.length).toBeGreaterThan(0);
-      expect(result.packagesToRemove).toContain('eslint');
+      expect(result.packagesToRemove).toContain('eslint@^9');
       expect(result.packagesToRemove).toContain('prettier');
     });
   });

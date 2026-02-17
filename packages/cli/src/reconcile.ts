@@ -789,7 +789,8 @@ export function computePackagesToInstall(
     ...getConditionalPackages(schema.packages.conditional, projectType),
   ];
 
-  return needed.filter(pkg => !(pkg in installedDevelopmentDeps));
+  // Strip version specifier (e.g. 'eslint@^9' → 'eslint') when checking installed deps
+  return needed.filter(pkg => !(stripVersionSpecifier(pkg) in installedDevelopmentDeps));
 }
 
 /**
@@ -809,7 +810,18 @@ function computePackagesToRemove(
   ];
 
   // Only remove packages that are actually installed
-  return safewordPackages.filter(pkg => pkg in installedDevelopmentDeps);
+  // Strip version specifier (e.g. 'eslint@^9' → 'eslint') when checking installed deps
+  return safewordPackages.filter(pkg => stripVersionSpecifier(pkg) in installedDevelopmentDeps);
+}
+
+/**
+ * Strip version specifier from a package name.
+ * e.g. 'eslint@^9' → 'eslint', 'safeword' → 'safeword', '@next/eslint-plugin-next@^16' → '@next/eslint-plugin-next'
+ */
+function stripVersionSpecifier(pkg: string): string {
+  // Scoped packages start with @ — find the version @ after the scope
+  const atIndex = pkg.startsWith('@') ? pkg.indexOf('@', 1) : pkg.indexOf('@');
+  return atIndex === -1 ? pkg : pkg.slice(0, atIndex);
 }
 
 /**

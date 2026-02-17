@@ -171,7 +171,7 @@ describe('Check Command - Reconcile Integration', () => {
 
       // Should report packages to install
       expect(result.packagesToInstall.length).toBeGreaterThan(0);
-      expect(result.packagesToInstall).toContain('eslint');
+      expect(result.packagesToInstall).toContain('eslint@^9');
       expect(result.packagesToInstall).toContain('prettier');
     });
 
@@ -206,7 +206,7 @@ describe('Check Command - Reconcile Integration', () => {
       });
 
       // Installed packages should not be in packagesToInstall
-      expect(result.packagesToInstall).not.toContain('eslint');
+      expect(result.packagesToInstall).not.toContain('eslint@^9');
       expect(result.packagesToInstall).not.toContain('prettier');
       expect(result.packagesToInstall).not.toContain('husky');
     });

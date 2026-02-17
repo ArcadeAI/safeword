@@ -434,7 +434,8 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
 export const typescriptPackages = {
   base: [
     // Core tools (always needed for JS/TS)
-    'eslint',
+    // Pin to v9 until ESLint plugin ecosystem supports v10 (released Feb 2026)
+    'eslint@^9',
     // Safeword (bundles eslint-config-prettier + all ESLint plugins)
     'safeword',
     // Architecture and dead code tools (used by /audit)

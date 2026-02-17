@@ -90,7 +90,7 @@ describe('Schema - Single Source of Truth', () => {
   describe('preservedDirs', () => {
     it('should preserve user content directories', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword/learnings');
+      expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword-project/learnings');
       expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword/logs');
       expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword-project/tickets');
       expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword-project/tickets/completed');
@@ -203,7 +203,7 @@ describe('Schema - Single Source of Truth', () => {
     it('should include all required base packages', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const required = [
-        'eslint',
+        'eslint@^9', // Pinned to v9 until ESLint plugin ecosystem supports v10
         'safeword', // bundles eslint-config-prettier + all ESLint plugins
         'dependency-cruiser',
         'knip',

@@ -129,7 +129,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
 
       // Should report packages to install
       expect(result.packagesToInstall.length).toBeGreaterThan(0);
-      expect(result.packagesToInstall).toContain('eslint');
+      expect(result.packagesToInstall).toContain('eslint@^9');
     });
 
     it('should not report installed packages as missing', async () => {
@@ -163,7 +163,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       });
 
       // Installed packages should not be in packagesToInstall
-      expect(result.packagesToInstall).not.toContain('eslint');
+      expect(result.packagesToInstall).not.toContain('eslint@^9');
       expect(result.packagesToInstall).not.toContain('prettier');
       expect(result.packagesToInstall).not.toContain('husky');
     });
@@ -183,7 +183,9 @@ describe('Upgrade Command - Reconcile Integration', () => {
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       // Directories should be created
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/learnings'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/learnings'))).toBe(
+        true,
+      );
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/tickets'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/commands'))).toBe(true);
     });

@@ -120,7 +120,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Created on setup but NOT deleted on reset (preserves user data)
   preservedDirs: [
-    '.safeword/learnings',
+    '.safeword-project/learnings',
     '.safeword/logs',
     '.safeword-project/tickets',
     '.safeword-project/tickets/completed',

@@ -76,7 +76,7 @@ describe('Setup Command - Reconcile Integration', () => {
 
       // Should compute packages to install
       expect(result.packagesToInstall.length).toBeGreaterThan(0);
-      expect(result.packagesToInstall).toContain('eslint');
+      expect(result.packagesToInstall).toContain('eslint@^9');
     });
 
     it('should create all directories when applied', async () => {
@@ -86,7 +86,9 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/guides'))).toBe(true);
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/learnings'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/learnings'))).toBe(
+        true,
+      );
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/tickets'))).toBe(true);
       expect(
         existsSync(nodePath.join(temporaryDirectory, '.safeword-project/tickets/completed')),
