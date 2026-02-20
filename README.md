@@ -4,7 +4,7 @@
 
 **Solution**: Portable patterns and guides that enforce test-first development (BDD/TDD), quality standards, and best practices across all your projects.
 
-**Repository**: <https://github.com/TheMostlyGreat/safeword> (private)
+**Repository**: <https://github.com/TheMostlyGreat/safeword> 
 
 ---
 
