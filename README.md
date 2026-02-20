@@ -391,4 +391,4 @@ The CLI installs matching skills for both Claude Code and Cursor IDEs.
 
 - **Claude Code docs**: <https://docs.claude.com/en/docs/claude-code>
 - **Issues**: <https://github.com/anthropics/claude-code/issues>
-- **This repo**: <https://github.com/TheMostlyGreat/safeword> (private)
+- **This repo**: <https://github.com/TheMostlyGreat/safeword>
