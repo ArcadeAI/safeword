@@ -69,6 +69,7 @@
     "yaml": "^2.7.0"
   },
   "devDependencies": {
+    "@types/estree": "^1.0.8",
     "@types/node": "^20.10.0",
     "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
