@@ -1,0 +1,10 @@
+{
+  "name": "safeword",
+  "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring",
+  "version": "0.16.0",
+  "author": { "name": "safeword" },
+  "homepage": "https://safeword.dev",
+  "repository": "https://github.com/TheMostlyGreat/safeword",
+  "license": "MIT",
+  "keywords": ["bdd", "tdd", "linting", "quality-review", "debugging", "refactoring"]
+}
