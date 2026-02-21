@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      github-actions:
+        patterns: ['*']
+
+  - package-ecosystem: 'bun'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      bun-dependencies:
+        patterns: ['*']
+
+  - package-ecosystem: 'pip'
+    directory: '/.github'
+    schedule:
+      interval: 'weekly'
+    groups:
+      python-tools:
+        patterns: ['*']
