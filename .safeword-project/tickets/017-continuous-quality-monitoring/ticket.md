@@ -3,7 +3,7 @@ id: 017
 type: epic
 phase: intake
 status: superseded
-superseded_by: 022
+superseded_by: ['022', '024', '025']
 created: 2026-01-10T20:00:00Z
 last_modified: 2026-01-11T22:00:00Z
 children: ['017a', '017b']

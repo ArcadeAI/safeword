@@ -32,8 +32,8 @@ interface QualityState {
   gate: string | null;
 }
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const stateFile = nodePath.join(projectDir, '.safeword-project', 'quality-state.json');
+const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const stateFile = nodePath.join(projectDirectory, '.safeword-project', 'quality-state.json');
 
 // Read hook input from stdin
 let input: HookInput;
@@ -66,7 +66,7 @@ try {
 const currentHead = (() => {
   try {
     return execSync('git rev-parse --short HEAD', {
-      cwd: projectDir,
+      cwd: projectDirectory,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
@@ -121,7 +121,7 @@ function readPhaseFile(phase: string): string {
     return `Phase: ${phase}`;
   }
   const filePath = nodePath.join(
-    projectDir,
+    projectDirectory,
     '.claude',
     'skills',
     'safeword-bdd-orchestrating',

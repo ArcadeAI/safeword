@@ -25,8 +25,8 @@ interface QualityState {
   gate: string | null;
 }
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const stateFile = nodePath.join(projectDir, '.safeword-project', 'quality-state.json');
+const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const stateFile = nodePath.join(projectDirectory, '.safeword-project', 'quality-state.json');
 
 // Read hook input from stdin
 let input: HookInput;
@@ -67,7 +67,7 @@ function saveState(state: QualityState): void {
 function getHeadHash(): string {
   try {
     return execSync('git rev-parse --short HEAD', {
-      cwd: projectDir,
+      cwd: projectDirectory,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
@@ -79,7 +79,7 @@ function getHeadHash(): string {
 function countLoc(): number {
   try {
     const diffStat = execSync('git diff --stat HEAD', {
-      cwd: projectDir,
+      cwd: projectDirectory,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -118,7 +118,9 @@ if (state.locSinceCommit >= LOC_THRESHOLD) {
 
 // Phase change detection
 if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
-  const fullPath = editedFile.startsWith('/') ? editedFile : nodePath.join(projectDir, editedFile);
+  const fullPath = editedFile.startsWith('/')
+    ? editedFile
+    : nodePath.join(projectDirectory, editedFile);
   if (existsSync(fullPath)) {
     const content = readFileSync(fullPath, 'utf-8');
     const phaseMatch = content.match(/^phase:\s*(\S+)/m);

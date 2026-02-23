@@ -2,13 +2,17 @@
 id: 022
 type: epic
 phase: intake
-status: ready
+status: superseded
+superseded_by: ['024', '025']
 created: 2026-01-11T22:00:00Z
-last_modified: 2026-01-11T22:00:00Z
+last_modified: 2026-02-21T16:15:00Z
 supersedes: ['017']
 ---
 
 # Hierarchical Work State Machine
+
+> **Superseded by [024 - Continuous Quality Gates](../024-continuous-quality-gates/ticket.md) + [025 - Hierarchy Navigation](../025-hierarchy-navigation/ticket.md)**
+> The stack-based state machine was over-engineered. LOC + phase gates (024) and hierarchy navigation (025) achieve the same goals with flat state and filesystem walks.
 
 **User Story:** When working on complex features that span epics, tickets, scenarios, and TDD cycles, I want the system to track where I am, inject the right context at each step, and enforce quality gates so I don't lose progress or drift from the plan.
 

@@ -2,13 +2,17 @@
 id: 017b
 type: feature
 phase: intake
-status: ready
+status: superseded
+superseded_by: 024
 parent: 017
 created: 2026-01-10T20:23:00Z
-last_modified: 2026-01-11T16:45:00Z
+last_modified: 2026-02-21T16:15:00Z
 ---
 
 # Phase Transition Quality Gates
+
+> **Superseded by [024 - Continuous Quality Gates](../024-continuous-quality-gates/ticket.md)**
+> Merged with 017a into a single ticket — they share the same hook pair and state file.
 
 **User Story:** When I run `/bdd` and the agent moves from scenario definition to implementation, I want a quality gate so I can validate the plan before coding begins.
 

@@ -2,13 +2,17 @@
 id: 017a
 type: feature
 phase: intake
-status: ready
+status: superseded
+superseded_by: 024
 parent: 017
 created: 2026-01-10T20:23:00Z
-last_modified: 2026-01-11T16:40:00Z
+last_modified: 2026-02-21T16:15:00Z
 ---
 
 # LOC-Based Commit Enforcement
+
+> **Superseded by [024 - Continuous Quality Gates](../024-continuous-quality-gates/ticket.md)**
+> Merged with 017b into a single ticket — they share the same hook pair and state file.
 
 **User Story:** When I run `/bdd` and the agent implements for 30+ minutes straight, I want quality checks to happen automatically so I don't discover compounding errors at the end.
 
