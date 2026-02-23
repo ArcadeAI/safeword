@@ -21,14 +21,14 @@
     "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err"
   },
   "devDependencies": {
-    "dependency-cruiser": "^17.3.6",
-    "eslint": "^9.39.1",
+    "dependency-cruiser": "^17.3.8",
+    "eslint": "^10.0.1",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
-    "knip": "^5.82.1",
+    "knip": "^5.85.0",
     "lint-staged": "16",
-    "markdownlint-cli2": "^0.20.0",
-    "prettier": "3.8.0",
+    "markdownlint-cli2": "^0.21.0",
+    "prettier": "3.8.1",
     "prettier-plugin-sh": "^0.18.0",
     "shellcheck": "^4.1.0"
   },
@@ -53,7 +53,7 @@
     ]
   },
   "dependencies": {
-    "eslint-plugin-jsdoc": "^62.2.0",
+    "eslint-plugin-jsdoc": "^62.7.0",
     "typescript-eslint": "^8.56.0"
   },
   "overrides": {
