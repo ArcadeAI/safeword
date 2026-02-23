@@ -35,13 +35,12 @@ claude --plugin-dir /path/to/safeword/plugin
 
 ## Usage
 
-After installing the plugin, start a new Claude Code session. You'll see a hint to run setup:
+After installing the plugin, start a new Claude Code session. Claude will automatically detect that safeword isn't configured and run the setup for you.
 
-```
-SAFEWORD: Not configured for this project. Run /safeword:setup to install...
-```
+You can also run setup manually:
 
-Run `/safeword:setup` and Claude will install safeword into your project.
+- `/safeword:setup` — install safeword into the current project
+- `/safeword:upgrade` — upgrade to the latest version
 
 ## Prerequisites
 
@@ -49,7 +48,12 @@ Run `/safeword:setup` and Claude will install safeword into your project.
 
 ## After setup
 
-Once `bunx safeword setup` completes, everything is installed locally in your project (`.safeword/`, `.claude/`). The plugin can be safely uninstalled — all functionality is preserved.
+Once setup completes, everything is installed locally in your project (`.safeword/`, `.claude/`). The plugin can be safely uninstalled — all functionality is preserved.
+
+## Known limitations
+
+- **Non-project directories**: The setup hint appears in any directory without `.safeword/`, including non-project directories. It's harmless — just ignore it or run setup if relevant.
+- **Cursor/other editors**: This plugin is Claude Code only. For Cursor support, use `bunx safeword@latest setup` directly.
 
 ## Learn more
 

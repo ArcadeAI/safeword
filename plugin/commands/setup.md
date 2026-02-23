@@ -8,19 +8,27 @@ Install safeword's AI coding agent configuration into the current project.
 
 ## Instructions
 
-Run the safeword CLI:
+1. Check if safeword is already installed:
+
+```bash
+test -d .safeword && echo "Already installed" || echo "Not installed"
+```
+
+2. If already installed, suggest `bunx safeword@latest upgrade` instead and stop.
+
+3. If not installed, run:
 
 ```bash
 bunx safeword@latest setup
 ```
 
-If bun is not installed, use npx:
+4. If `bunx` is not available, try:
 
 ```bash
 npx safeword@latest setup
 ```
 
-Setup auto-detects your project's languages (TypeScript, Python, Go, Rust) and installs the appropriate configuration. No prompts — it just runs.
+Setup auto-detects languages (TypeScript, Python, Go, Rust) and installs everything. No prompts.
 
 ## What Gets Installed
 
@@ -33,10 +41,6 @@ Setup auto-detects your project's languages (TypeScript, Python, Go, Rust) and i
 
 ## After Installation
 
-Verify setup:
+Report what was created, then suggest committing the new files.
 
-```bash
-bunx safeword@latest check
-```
-
-Once installed, everything is local to the project. The safeword plugin can be uninstalled — all functionality is preserved.
+The safeword plugin can be uninstalled after setup — all functionality is local to the project.

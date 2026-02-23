@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -d \"${CLAUDE_PROJECT_DIR:-.}/.safeword\" || echo 'SAFEWORD: Not configured for this project. Run /safeword:setup to install AI coding workflows (BDD, auto-linting, quality reviews, and more).'"
+            "command": "test -d \"${CLAUDE_PROJECT_DIR:-.}/.safeword\" || echo 'SAFEWORD: Not yet configured. Run `bunx safeword@latest setup` to install (auto-detects languages, no prompts). If bunx is unavailable, use `npx safeword@latest setup`. Report what was installed.'"
           }
         ]
       }
