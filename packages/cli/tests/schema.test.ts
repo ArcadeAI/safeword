@@ -258,11 +258,14 @@ describe('Schema - Single Source of Truth', () => {
         .filter(isDefined)
         .toSorted((a, b) => a.localeCompare(b));
 
-      // Map between naming conventions: debug↔debugging, quality-review↔quality-reviewing, refactor↔refactoring
-      const cursorToSkillName = (cursorName: string): string =>
-        cursorName.replace(/ing$/, '').replace(/g$/, '');
+      // Cursor rules use gerund names, Claude skills use short names
+      const CURSOR_RULE_TO_SKILL: Record<string, string> = {
+        debugging: 'debug',
+        'quality-reviewing': 'quality-review',
+        refactoring: 'refactor',
+      };
       const normalizedCursorRules = cursorRules
-        .map(cursorToSkillName)
+        .map(name => CURSOR_RULE_TO_SKILL[name] ?? name)
         .toSorted((a, b) => a.localeCompare(b));
 
       expect(normalizedCursorRules).toEqual(claudeSkills);

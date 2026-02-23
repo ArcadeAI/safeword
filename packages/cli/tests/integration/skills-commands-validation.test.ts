@@ -349,14 +349,12 @@ describe('Skills Validation (Claude Code Format)', () => {
         }
       });
 
-      // Safeword convention: gerund naming (not required by Claude Code, but enforced for consistency)
-      it('should follow gerund naming convention (safeword convention)', () => {
+      // Skills use short, action-oriented names (bdd, debug, refactor, quality-review)
+      it('should have concise action-oriented name', () => {
         const name = parsed?.frontmatter.name;
         if (name) {
-          expect(
-            isGerundName(name),
-            `Skill name "${name}" should use gerund form (verb+ing) like "debugging", "refactoring"`,
-          ).toBe(true);
+          expect(name.length, `Skill name "${name}" should be concise`).toBeLessThanOrEqual(20);
+          expect(name, 'Skill name should be lowercase with hyphens').toMatch(/^[a-z][a-z0-9-]*$/);
         }
       });
 
@@ -640,10 +638,10 @@ describe('Skills-Cursor Parity', () => {
     const ruleFiles = new Set(getCursorRuleFiles().map(f => nodePath.basename(f, '.mdc')));
 
     const missingRules: string[] = [];
-    for (const skillDir of skillDirectories) {
-      const expectedRules = SKILL_TO_RULE_MAP[skillDir];
+    for (const skillDirectory of skillDirectories) {
+      const expectedRules = SKILL_TO_RULE_MAP[skillDirectory];
       if (!expectedRules) {
-        missingRules.push(`${skillDir} (no rule mapping defined)`);
+        missingRules.push(`${skillDirectory} (no rule mapping defined)`);
         continue;
       }
       const rules = Array.isArray(expectedRules) ? expectedRules : [expectedRules];
