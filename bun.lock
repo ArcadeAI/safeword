@@ -67,6 +67,9 @@
         "typescript": "^5.3.0",
         "vitest": "^4.0.17",
       },
+      "peerDependencies": {
+        "eslint": "^9.0.0",
+      },
     },
     "packages/website": {
       "name": "@safeword/website",
