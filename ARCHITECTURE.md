@@ -271,21 +271,21 @@ interface ProjectContext {
 | Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked |
 | Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                       |
 | Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)   |
-| Implementation | `packages/cli/templates/skills/safeword-bdd-orchestrating/SKILL.md` Phase 6-7                              |
+| Implementation | `packages/cli/templates/skills/bdd/SKILL.md` Phase 6-7                                                     |
 
 ### Skill Consolidation (Removed Redundant Skills)
 
 **Status:** Accepted
 **Date:** 2026-01-09
 
-| Field          | Value                                                                                                              |
-| -------------- | ------------------------------------------------------------------------------------------------------------------ |
-| What           | Removed standalone TDD, brainstorming, and writing-plans skills; consolidated into BDD orchestration               |
-| Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode      |
-| Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                     |
-| Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command                |
-| Remaining      | 4 skills: `safeword-bdd-orchestrating`, `safeword-debugging`, `safeword-quality-reviewing`, `safeword-refactoring` |
-| Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                             |
+| Field          | Value                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------- |
+| What           | Removed standalone TDD, brainstorming, and writing-plans skills; consolidated into BDD orchestration          |
+| Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode |
+| Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                |
+| Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command           |
+| Remaining      | 4 skills: `bdd`, `debug`, `quality-review`, `refactor`                                                        |
+| Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                        |
 
 ### Hard Block for Done Phase (Exit Code 2)
 

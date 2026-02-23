@@ -167,6 +167,21 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Writing-plans skill removed - redundant with BDD decomposition + Claude Code native plan mode (v0.16.0)
     '.claude/skills/safeword-writing-plans/SKILL.md',
     '.cursor/rules/safeword-writing-plans.mdc',
+    // Skills renamed from safeword-* to short names, overlapping commands removed (v0.17.0)
+    '.claude/skills/safeword-debugging/SKILL.md',
+    '.claude/skills/safeword-quality-reviewing/SKILL.md',
+    '.claude/skills/safeword-refactoring/SKILL.md',
+    '.claude/skills/safeword-bdd-orchestrating/SKILL.md',
+    '.claude/skills/safeword-bdd-orchestrating/DISCOVERY.md',
+    '.claude/skills/safeword-bdd-orchestrating/SCENARIOS.md',
+    '.claude/skills/safeword-bdd-orchestrating/DECOMPOSITION.md',
+    '.claude/skills/safeword-bdd-orchestrating/TDD.md',
+    '.claude/skills/safeword-bdd-orchestrating/DONE.md',
+    '.claude/skills/safeword-bdd-orchestrating/SPLITTING.md',
+    // Overlapping Claude commands removed - skills handle these (v0.17.0)
+    '.claude/commands/bdd.md',
+    '.claude/commands/quality-review.md',
+    '.claude/commands/refactor.md',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint)
@@ -203,6 +218,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-tdd-enforcing', // Removed - BDD includes TDD (v0.16.0)
     '.claude/skills/safeword-brainstorming', // Removed - BDD discovery phase covers this (v0.16.0)
     '.claude/skills/safeword-writing-plans', // Removed - redundant with BDD + native plan mode (v0.16.0)
+    // Skills renamed from safeword-* to short names (v0.17.0)
+    '.claude/skills/safeword-debugging',
+    '.claude/skills/safeword-quality-reviewing',
+    '.claude/skills/safeword-refactoring',
+    '.claude/skills/safeword-bdd-orchestrating',
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
@@ -321,48 +341,44 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'scripts/cleanup-zombies.sh',
     },
 
-    // Claude skills and commands
-    '.claude/skills/safeword-debugging/SKILL.md': {
-      template: 'skills/safeword-debugging/SKILL.md',
+    // Claude skills (short names, auto-trigger + explicit invocation)
+    '.claude/skills/debug/SKILL.md': {
+      template: 'skills/debug/SKILL.md',
     },
-    '.claude/skills/safeword-quality-reviewing/SKILL.md': {
-      template: 'skills/safeword-quality-reviewing/SKILL.md',
+    '.claude/skills/quality-review/SKILL.md': {
+      template: 'skills/quality-review/SKILL.md',
     },
-    '.claude/skills/safeword-refactoring/SKILL.md': {
-      template: 'skills/safeword-refactoring/SKILL.md',
+    '.claude/skills/refactor/SKILL.md': {
+      template: 'skills/refactor/SKILL.md',
     },
-    '.claude/skills/safeword-bdd-orchestrating/SKILL.md': {
-      template: 'skills/safeword-bdd-orchestrating/SKILL.md',
+    '.claude/skills/bdd/SKILL.md': {
+      template: 'skills/bdd/SKILL.md',
     },
-    '.claude/skills/safeword-bdd-orchestrating/DISCOVERY.md': {
-      template: 'skills/safeword-bdd-orchestrating/DISCOVERY.md',
+    '.claude/skills/bdd/DISCOVERY.md': {
+      template: 'skills/bdd/DISCOVERY.md',
     },
-    '.claude/skills/safeword-bdd-orchestrating/SCENARIOS.md': {
-      template: 'skills/safeword-bdd-orchestrating/SCENARIOS.md',
+    '.claude/skills/bdd/SCENARIOS.md': {
+      template: 'skills/bdd/SCENARIOS.md',
     },
-    '.claude/skills/safeword-bdd-orchestrating/DECOMPOSITION.md': {
-      template: 'skills/safeword-bdd-orchestrating/DECOMPOSITION.md',
+    '.claude/skills/bdd/DECOMPOSITION.md': {
+      template: 'skills/bdd/DECOMPOSITION.md',
     },
-    '.claude/skills/safeword-bdd-orchestrating/TDD.md': {
-      template: 'skills/safeword-bdd-orchestrating/TDD.md',
+    '.claude/skills/bdd/TDD.md': {
+      template: 'skills/bdd/TDD.md',
     },
-    '.claude/skills/safeword-bdd-orchestrating/DONE.md': {
-      template: 'skills/safeword-bdd-orchestrating/DONE.md',
+    '.claude/skills/bdd/DONE.md': {
+      template: 'skills/bdd/DONE.md',
     },
-    '.claude/skills/safeword-bdd-orchestrating/SPLITTING.md': {
-      template: 'skills/safeword-bdd-orchestrating/SPLITTING.md',
+    '.claude/skills/bdd/SPLITTING.md': {
+      template: 'skills/bdd/SPLITTING.md',
     },
-    '.claude/commands/bdd.md': { template: 'commands/bdd.md' },
+    // Claude commands (explicit invocation only, no overlapping skill equivalents)
     '.claude/commands/done.md': { template: 'commands/done.md' },
     '.claude/commands/audit.md': { template: 'commands/audit.md' },
     '.claude/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',
     },
     '.claude/commands/lint.md': { template: 'commands/lint.md' },
-    '.claude/commands/quality-review.md': {
-      template: 'commands/quality-review.md',
-    },
-    '.claude/commands/refactor.md': { template: 'commands/refactor.md' },
 
     // Cursor rules
     '.cursor/rules/safeword-core.mdc': {
@@ -399,7 +415,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'cursor/rules/bdd-splitting.mdc',
     },
 
-    // Cursor commands (7 files - same as Claude)
+    // Cursor commands (7 files - Cursor needs explicit commands for all capabilities)
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
     '.cursor/commands/done.md': { template: 'commands/done.md' },
     '.cursor/commands/audit.md': { template: 'commands/audit.md' },

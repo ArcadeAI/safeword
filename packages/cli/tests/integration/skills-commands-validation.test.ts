@@ -526,8 +526,7 @@ describe('Skills and Commands Cross-Validation', () => {
       }
     }
 
-    // This test documents the pattern, not enforces it
-    // Safeword uses "safeword-debugging" dir with "debugging" name - that's fine
+    // Skill directory names should match the name: field in frontmatter
     expect(mismatches.length).toBe(0);
   });
 
@@ -619,24 +618,39 @@ describe('Cursor Rules Validation (.mdc Format)', () => {
 });
 
 describe('Skills-Cursor Parity', () => {
-  it('each safeword skill should have corresponding cursor rule (or split rules for BDD)', () => {
-    const skillDirectoryectories = getSkillDirectories().filter(d => d.startsWith('safeword-'));
+  // Mapping from skill short names to cursor rule names
+  // Skills use short names (bdd, debug, etc.), cursor rules keep safeword- prefix
+  const SKILL_TO_RULE_MAP: Record<string, string | string[]> = {
+    bdd: [
+      'bdd-core',
+      'bdd-discovery',
+      'bdd-scenarios',
+      'bdd-decomposition',
+      'bdd-tdd',
+      'bdd-done',
+      'bdd-splitting',
+    ],
+    debug: 'safeword-debugging',
+    'quality-review': 'safeword-quality-reviewing',
+    refactor: 'safeword-refactoring',
+  };
+
+  it('each skill should have corresponding cursor rule(s)', () => {
+    const skillDirectories = getSkillDirectories();
     const ruleFiles = new Set(getCursorRuleFiles().map(f => nodePath.basename(f, '.mdc')));
 
-    // BDD skill is split into multiple Cursor rules (bdd-*.mdc)
-    const bddRuleExists = [...ruleFiles].some(f => f.startsWith('bdd-'));
-
     const missingRules: string[] = [];
-    for (const skillDirectory of skillDirectoryectories) {
-      // BDD skill is covered by split rules
-      if (skillDirectory === 'safeword-bdd-orchestrating') {
-        if (!bddRuleExists) {
-          missingRules.push(skillDirectory);
-        }
+    for (const skillDir of skillDirectories) {
+      const expectedRules = SKILL_TO_RULE_MAP[skillDir];
+      if (!expectedRules) {
+        missingRules.push(`${skillDir} (no rule mapping defined)`);
         continue;
       }
-      if (!ruleFiles.has(skillDirectory)) {
-        missingRules.push(skillDirectory);
+      const rules = Array.isArray(expectedRules) ? expectedRules : [expectedRules];
+      for (const rule of rules) {
+        if (!ruleFiles.has(rule)) {
+          missingRules.push(`${skillDir} → ${rule}`);
+        }
       }
     }
 
@@ -644,15 +658,24 @@ describe('Skills-Cursor Parity', () => {
   });
 
   it('each safeword cursor rule should have corresponding skill', () => {
-    const skillDirectoryectories = getSkillDirectories();
+    const skillDirectories = new Set(getSkillDirectories());
     // safeword-core is a special entry point rule, not a skill
+    // bdd-* rules map to bdd skill
     const ruleFiles = getCursorRuleFiles()
       .map(f => nodePath.basename(f, '.mdc'))
-      .filter(name => name.startsWith('safeword-') && name !== 'safeword-core');
+      .filter(
+        name =>
+          (name.startsWith('safeword-') && name !== 'safeword-core') || name.startsWith('bdd-'),
+      );
 
     const orphanRules: string[] = [];
     for (const rule of ruleFiles) {
-      if (!skillDirectoryectories.includes(rule)) {
+      // Check if any skill maps to this rule
+      const hasSkill = Object.entries(SKILL_TO_RULE_MAP).some(([skill, rules]) => {
+        if (!skillDirectories.has(skill)) return false;
+        return Array.isArray(rules) ? rules.includes(rule) : rules === rule;
+      });
+      if (!hasSkill) {
         orphanRules.push(rule);
       }
     }

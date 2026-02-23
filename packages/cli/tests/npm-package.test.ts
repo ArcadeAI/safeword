@@ -78,8 +78,8 @@ describe('NPM Package Structure', () => {
     expect(mdFiles.length).toBeGreaterThan(5);
   });
 
-  it('should have templates/skills with quality reviewer', () => {
-    const skillPath = nodePath.join(cliRoot, 'templates', 'skills', 'safeword-quality-reviewing');
+  it('should have templates/skills with quality review', () => {
+    const skillPath = nodePath.join(cliRoot, 'templates', 'skills', 'quality-review');
     expect(existsSync(skillPath)).toBe(true);
     expect(existsSync(nodePath.join(skillPath, 'SKILL.md'))).toBe(true);
   });

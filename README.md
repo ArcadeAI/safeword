@@ -4,7 +4,7 @@
 
 **Solution**: Portable patterns and guides that enforce test-first development (BDD/TDD), quality standards, and best practices across all your projects.
 
-**Repository**: <https://github.com/TheMostlyGreat/safeword> 
+**Repository**: <https://github.com/TheMostlyGreat/safeword>
 
 ---
 
@@ -189,10 +189,10 @@ Key directories created in your project:
 
 **Skills** (in `.claude/skills/`): Specialized agent capabilities
 
-- `safeword-bdd-orchestrating/` - BDD orchestrator for feature-level work (Discovery, Scenarios, Decomposition, TDD, Splitting, Done)
-- `safeword-debugging/` - Four-phase debugging (investigate before fixing)
-- `safeword-quality-reviewing/` - Deep code review with web research
-- `safeword-refactoring/` - Small-step refactoring with test verification
+- `bdd/` - BDD orchestrator for feature-level work (Discovery, Scenarios, Decomposition, TDD, Splitting, Done)
+- `debug/` - Four-phase debugging (investigate before fixing)
+- `quality-review/` - Deep code review with web research
+- `refactor/` - Small-step refactoring with test verification
 
 **Commands** (in `.claude/commands/`): Slash commands
 

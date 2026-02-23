@@ -69,7 +69,7 @@ describe('Reset Command - Reconcile Integration', () => {
     mkdirSync(nodePath.join(temporaryDirectory, '.claude/commands'), {
       recursive: true,
     });
-    mkdirSync(nodePath.join(temporaryDirectory, '.claude/skills/safeword-quality-reviewing'), {
+    mkdirSync(nodePath.join(temporaryDirectory, '.claude/skills/quality-review'), {
       recursive: true,
     });
     writeFileSync(
@@ -91,7 +91,7 @@ describe('Reset Command - Reconcile Integration', () => {
     );
     writeFileSync(nodePath.join(temporaryDirectory, '.claude/commands/lint.md'), '# Lint');
     writeFileSync(
-      nodePath.join(temporaryDirectory, '.claude/skills/safeword-quality-reviewing/SKILL.md'),
+      nodePath.join(temporaryDirectory, '.claude/skills/quality-review/SKILL.md'),
       '# Skill',
     );
 
@@ -135,10 +135,10 @@ describe('Reset Command - Reconcile Integration', () => {
       // .claude/commands/lint.md should be removed
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/commands/lint.md'))).toBe(false);
 
-      // .claude/skills/safeword-* should be removed
-      expect(
-        existsSync(nodePath.join(temporaryDirectory, '.claude/skills/safeword-quality-reviewing')),
-      ).toBe(false);
+      // .claude/skills/* should be removed
+      expect(existsSync(nodePath.join(temporaryDirectory, '.claude/skills/quality-review'))).toBe(
+        false,
+      );
     });
 
     it('should unmerge JSON settings (remove safeword hooks, keep custom)', async () => {

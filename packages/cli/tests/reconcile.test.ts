@@ -473,9 +473,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       // All owned files should be removed
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/commands/lint.md'))).toBe(false);
       expect(
-        existsSync(
-          nodePath.join(temporaryDirectory, '.claude/skills/safeword-quality-reviewing/SKILL.md'),
-        ),
+        existsSync(nodePath.join(temporaryDirectory, '.claude/skills/quality-review/SKILL.md')),
       ).toBe(false);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/SAFEWORD.md'))).toBe(false);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(false);

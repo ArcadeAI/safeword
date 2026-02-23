@@ -239,27 +239,33 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('Claude/Cursor parity', () => {
-    it('should have matching skills for Claude and Cursor (excluding core and BDD split files)', async () => {
+    it('should have matching skills for Claude and Cursor rules (excluding core and BDD split files)', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
-      // Extract skill names from schema paths
-      // Note: BDD skill is split into phase files in Cursor (bdd-*.mdc) but single skill in Claude
+      // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
-        .filter(path => path.startsWith('.claude/skills/safeword-'))
-        .map(path => /safeword-([^/]+)/.exec(path)?.[1])
+        .filter(path => path.startsWith('.claude/skills/') && path.endsWith('/SKILL.md'))
+        .map(path => path.split('/')[2])
         .filter(isDefined)
-        // Exclude BDD - it's split differently in Cursor
-        .filter(name => name !== 'bdd-orchestrating')
+        // Exclude BDD - it's split into multiple Cursor rules
+        .filter(name => name !== 'bdd')
         .toSorted((a, b) => a.localeCompare(b));
 
+      // Cursor rules still use safeword- prefix, extract the suffix
       const cursorRules = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
         .filter(path => path.startsWith('.cursor/rules/safeword-') && !path.includes('core'))
         .map(path => /safeword-([^.]+)/.exec(path)?.[1])
         .filter(isDefined)
         .toSorted((a, b) => a.localeCompare(b));
 
-      // Both should have the same skills (excluding BDD which is split)
-      expect(cursorRules).toEqual(claudeSkills);
+      // Map between naming conventions: debug↔debugging, quality-review↔quality-reviewing, refactor↔refactoring
+      const cursorToSkillName = (cursorName: string): string =>
+        cursorName.replace(/ing$/, '').replace(/g$/, '');
+      const normalizedCursorRules = cursorRules
+        .map(cursorToSkillName)
+        .toSorted((a, b) => a.localeCompare(b));
+
+      expect(normalizedCursorRules).toEqual(claudeSkills);
     });
 
     it('should have BDD skill in Claude with corresponding split rules in Cursor', async () => {
@@ -267,7 +273,7 @@ describe('Schema - Single Source of Truth', () => {
 
       // Claude should have the BDD skill
       const hasBddSkill = Object.keys(SAFEWORD_SCHEMA.ownedFiles).some(path =>
-        path.includes('safeword-bdd-orchestrating/SKILL.md'),
+        path.includes('bdd/SKILL.md'),
       );
       expect(hasBddSkill).toBe(true);
 
@@ -278,7 +284,7 @@ describe('Schema - Single Source of Truth', () => {
       expect(bddRules.length).toBeGreaterThanOrEqual(7);
     });
 
-    it('should have matching commands for Claude and Cursor', async () => {
+    it('should have Cursor commands as superset of Claude commands', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       // Extract command names from schema paths
@@ -294,8 +300,13 @@ describe('Schema - Single Source of Truth', () => {
         .filter(isDefined)
         .toSorted((a, b) => a.localeCompare(b));
 
-      // Both should have the same commands
-      expect(cursorCommands).toEqual(claudeCommands);
+      // Cursor has all commands (needs explicit invoke for everything)
+      // Claude has fewer commands (skills handle bdd, quality-review, refactor)
+      for (const cmd of claudeCommands) {
+        expect(cursorCommands, `Cursor missing Claude command: ${cmd}`).toContain(cmd);
+      }
+      // Cursor should have more commands than Claude (overlapping ones handled by skills)
+      expect(cursorCommands.length).toBeGreaterThan(claudeCommands.length);
     });
   });
 });

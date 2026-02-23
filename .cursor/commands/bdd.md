@@ -14,9 +14,8 @@ Override detection and use BDD workflow for this task.
 
 ## Behavior
 
-1. Switch to `safeword-bdd-orchestrating` skill
-2. Run through BDD phases: context check, discovery, scenarios, validation, decomposition
-3. Continue with inline TDD (Phase 6: RED → GREEN → REFACTOR)
+1. Run through BDD phases: context check, discovery, scenarios, validation, decomposition
+2. Continue with inline TDD (Phase 6: RED → GREEN → REFACTOR)
 
 ## Example
 
