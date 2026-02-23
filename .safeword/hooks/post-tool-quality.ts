@@ -1,0 +1,141 @@
+#!/usr/bin/env bun
+// Safeword: Quality Gates - PostToolUse observer
+// Counts LOC via git diff --stat HEAD, detects phase changes, updates quality-state.json
+// Fires on Edit|Write|MultiEdit|NotebookEdit
+
+import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+const LOC_THRESHOLD = 400;
+
+interface HookInput {
+  tool_name?: string;
+  tool_input?: {
+    file_path?: string;
+    notebook_path?: string;
+  };
+}
+
+interface QualityState {
+  locSinceCommit: number;
+  lastCommitHash: string;
+  activeTicket: string | null;
+  lastKnownPhase: string | null;
+  gate: string | null;
+}
+
+const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const stateFile = nodePath.join(projectDir, '.safeword-project', 'quality-state.json');
+
+// Read hook input from stdin
+let input: HookInput;
+try {
+  input = await Bun.stdin.json();
+} catch {
+  process.exit(0);
+}
+
+const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
+
+// Load or create state
+function loadState(): QualityState {
+  if (existsSync(stateFile)) {
+    try {
+      return JSON.parse(readFileSync(stateFile, 'utf-8'));
+    } catch {
+      // Corrupted file — reinitialize
+    }
+  }
+  return {
+    locSinceCommit: 0,
+    lastCommitHash: '',
+    activeTicket: null,
+    lastKnownPhase: null,
+    gate: null,
+  };
+}
+
+function saveState(state: QualityState): void {
+  const dir = nodePath.dirname(stateFile);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  writeFileSync(stateFile, JSON.stringify(state, null, 2));
+}
+
+function getHeadHash(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: projectDir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function countLoc(): number {
+  try {
+    const diffStat = execSync('git diff --stat HEAD', {
+      cwd: projectDir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const insMatch = diffStat.match(/(\d+) insertions?\(\+\)/);
+    const delMatch = diffStat.match(/(\d+) deletions?\(-\)/);
+    return (insMatch ? parseInt(insMatch[1]) : 0) + (delMatch ? parseInt(delMatch[1]) : 0);
+  } catch {
+    return 0;
+  }
+}
+
+// --- Main ---
+
+const state = loadState();
+const currentHead = getHeadHash();
+
+// If no commits yet, skip enforcement
+if (!currentHead) {
+  process.exit(0);
+}
+
+// Check if commit happened (gate clears)
+if (state.lastCommitHash !== currentHead) {
+  state.locSinceCommit = 0;
+  state.lastCommitHash = currentHead;
+  state.gate = null;
+}
+
+// Count LOC
+state.locSinceCommit = countLoc();
+
+// LOC gate
+if (state.locSinceCommit >= LOC_THRESHOLD) {
+  state.gate = 'loc';
+}
+
+// Phase change detection
+if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
+  const fullPath = editedFile.startsWith('/') ? editedFile : nodePath.join(projectDir, editedFile);
+  if (existsSync(fullPath)) {
+    const content = readFileSync(fullPath, 'utf-8');
+    const phaseMatch = content.match(/^phase:\s*(\S+)/m);
+    const currentPhase = phaseMatch?.[1];
+
+    if (currentPhase && currentPhase !== state.lastKnownPhase) {
+      state.gate = `phase:${currentPhase}`;
+      state.lastKnownPhase = currentPhase;
+    }
+
+    // Track active ticket
+    const idMatch = content.match(/^id:\s*(\S+)/m);
+    if (idMatch) {
+      state.activeTicket = idMatch[1];
+    }
+  }
+}
+
+saveState(state);
+process.exit(0);
