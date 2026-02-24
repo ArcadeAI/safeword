@@ -6,6 +6,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
+import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
 
 interface HookInput {
@@ -368,18 +369,53 @@ if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop
   // Features need both test and scenario evidence
   // Tasks/patches just need test evidence
+  let evidencePassed = false;
   if (ticketInfo.type === 'feature') {
     if (hasTestEvidence(combinedText) && hasScenarioEvidence(combinedText)) {
-      process.exit(0);
+      evidencePassed = true;
     }
-    hardBlockDone(getDoneHardBlockMessage('feature'));
-  } else {
-    // Tasks and patches just need test evidence
-    if (hasTestEvidence(combinedText)) {
-      process.exit(0);
-    }
+  } else if (hasTestEvidence(combinedText)) {
+    evidencePassed = true;
+  }
+
+  if (!evidencePassed) {
     hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
   }
+
+  // Evidence passed — run hierarchy navigation before allowing stop.
+  // Mark current ticket done BEFORE walking siblings, so findNextWork
+  // doesn't navigate back to the current ticket.
+  const ticketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
+  updateTicketStatus(ticketDirectory, 'done', 'done');
+
+  const MAX_DEPTH = 5;
+  let currentDirectory = ticketDirectory;
+  const cascadedParents: string[] = [];
+
+  for (let depth = 0; depth < MAX_DEPTH; depth++) {
+    const next = findNextWork(currentDirectory, ticketsDir);
+
+    if (next.type === 'navigate') {
+      const cascadeMessage =
+        cascadedParents.length > 0 ? ` Parents marked done: ${cascadedParents.join(', ')}.` : '';
+      softBlock(
+        `Ticket complete.${cascadeMessage}\n\nNext ticket: ${next.ticketId}\nRead ${next.ticketDirectory}/ticket.md and begin work on it.`,
+      );
+    }
+
+    if (next.type === 'cascade-done') {
+      updateTicketStatus(next.ticketDirectory!, 'done', 'done');
+      cascadedParents.push(next.parentId!);
+      currentDirectory = next.ticketDirectory!;
+      continue;
+    }
+
+    // 'all-done' — standalone ticket or entire tree complete
+    process.exit(0);
+  }
+
+  // Max depth reached — allow stop rather than infinite loop
+  process.exit(0);
 }
 
 // Other phases: use summary-based soft blocking

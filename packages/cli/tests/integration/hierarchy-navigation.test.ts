@@ -127,6 +127,12 @@ describe('hierarchy navigation in stop hook', () => {
       parent: "'001'",
       last_modified: '2026-01-01T00:00:00Z',
     });
+    // Features at done phase require test-definitions.md (cumulative artifact check)
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/001a-feature/test-definitions.md',
+      '- [x] scenario 1',
+    );
 
     // Next sibling — not done
     createTicket(projectDirectory, '001b-feature', {
@@ -279,6 +285,12 @@ describe('hierarchy navigation in stop hook', () => {
       parent: null,
       last_modified: '2026-01-01T00:00:00Z',
     });
+    // Features at done phase require test-definitions.md
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/025-standalone/test-definitions.md',
+      '- [x] scenario 1',
+    );
 
     const transcriptPath = createTranscript(projectDirectory, featureEvidence);
     const result = runStopHook(projectDirectory, transcriptPath);
