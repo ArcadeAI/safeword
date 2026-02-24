@@ -185,21 +185,23 @@ describe('findNextWork', () => {
       children: [6, 7, 8],
     });
 
-    const currentDirectory = createTicket(ticketsDirectory, '006-feature-a', {
-      id: '006',
+    // Children are unquoted numbers [6, 7, 8] — YAML failsafe keeps as strings
+    // Directory names use the same unpadded format to match
+    const currentDirectory = createTicket(ticketsDirectory, '6-feature-a', {
+      id: 6,
       status: 'done',
       phase: 'done',
       parent: '001',
     });
 
-    createTicket(ticketsDirectory, '007-feature-b', {
-      id: '007',
+    createTicket(ticketsDirectory, '7-feature-b', {
+      id: 7,
       status: 'in_progress',
       parent: '001',
     });
 
-    createTicket(ticketsDirectory, '008-feature-c', {
-      id: '008',
+    createTicket(ticketsDirectory, '8-feature-c', {
+      id: 8,
       status: 'ready',
       parent: '001',
     });
@@ -207,7 +209,7 @@ describe('findNextWork', () => {
     const result = findNextWork(currentDirectory, ticketsDirectory);
     expect(result.type).toBe('navigate');
     expect(result.ticketId).toBe('7');
-    expect(result.ticketDirectory).toContain('007-feature-b');
+    expect(result.ticketDirectory).toContain('7-feature-b');
   });
 
   // Scenario 2: Skip done siblings, find next undone
