@@ -1,7 +1,7 @@
 {
-  "locSinceCommit": 51,
-  "lastCommitHash": "3615833",
-  "activeTicket": "024",
-  "lastKnownPhase": "done",
-  "gate": null
+  "locSinceCommit": 32,
+  "lastCommitHash": "e6c03c1",
+  "activeTicket": "025",
+  "lastKnownPhase": "define-behavior",
+  "gate": "phase:define-behavior"
 }

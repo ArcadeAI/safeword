@@ -1,8 +1,8 @@
 ---
 id: 025
 type: feature
-phase: intake
-status: ready
+phase: define-behavior
+status: in_progress
 parent: null
 supersedes: ['022']
 created: 2026-02-21T16:15:00Z
