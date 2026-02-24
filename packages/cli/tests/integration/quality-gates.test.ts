@@ -224,7 +224,7 @@ describe('Quality Gates', () => {
 
     it('2.2: PreToolUse blocks with phase file content', () => {
       // Create skill directory with a phase file containing known content
-      const skillDirectory = '.claude/skills/safeword-bdd-orchestrating';
+      const skillDirectory = '.claude/skills/bdd';
       writeTestFile(
         projectDirectory,
         `${skillDirectory}/TDD.md`,

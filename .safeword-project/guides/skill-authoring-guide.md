@@ -29,15 +29,15 @@ skill-name/
 
 ## Naming
 
-Use **gerund form** (verb + -ing). This clearly describes the activity.
+Use **short, action-oriented names**. Concise names are preferred over verbose gerunds.
 
-| Form       | Examples                                      | Status     |
-| ---------- | --------------------------------------------- | ---------- |
-| Gerund     | `brainstorming`, `debugging`, `tdd-enforcing` | Preferred  |
-| Noun-agent | `debugger`, `tdd-enforcer`                    | Acceptable |
-| Vague      | `helper`, `utils`, `tools`                    | Avoid      |
+| Form   | Examples                         | Status     |
+| ------ | -------------------------------- | ---------- |
+| Short  | `bdd`, `debug`, `refactor`       | Preferred  |
+| Gerund | `brainstorming`, `tdd-enforcing` | Acceptable |
+| Vague  | `helper`, `utils`, `tools`       | Avoid      |
 
-**Keyword-first pattern:** For methodology skills (BDD, TDD), put the keyword first for searchability: `bdd-orchestrating`, `tdd-enforcing`. Users searching "bdd" or "tdd" find them faster.
+**Short, action-oriented names:** Prefer concise names like `bdd`, `debug`, `refactor` over verbose gerunds like `bdd-orchestrating`. Users find them faster and they're easier to type as `/commands`.
 
 **Official Claude Code requirements:**
 

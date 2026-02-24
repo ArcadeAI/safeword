@@ -120,13 +120,7 @@ function readPhaseFile(phase: string): string {
   if (!fileName) {
     return `Phase: ${phase}`;
   }
-  const filePath = nodePath.join(
-    projectDirectory,
-    '.claude',
-    'skills',
-    'safeword-bdd-orchestrating',
-    fileName,
-  );
+  const filePath = nodePath.join(projectDirectory, '.claude', 'skills', 'bdd', fileName);
   if (!existsSync(filePath)) {
     return `Phase: ${phase} (phase file not found: ${fileName})`;
   }
