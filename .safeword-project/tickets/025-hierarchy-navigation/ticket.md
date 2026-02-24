@@ -1,7 +1,7 @@
 ---
 id: 025
 type: feature
-phase: scenario-gate
+phase: decomposition
 status: in_progress
 parent: null
 supersedes: ['022']
@@ -229,5 +229,7 @@ function updateTicketStatus(ticketDir: string, newStatus: string, newPhase: stri
 ---
 
 - 2026-02-21T16:15:00Z Created: Extracted hierarchy navigation from 022, simplified to filesystem walk
+- 2026-02-23T18:10:00Z Phase 0-2: Context check passed. Decisions: extract to lib/hierarchy.ts, use softBlock
+- 2026-02-24T01:00:00Z Phase 3: 8 scenarios defined. Format parsing folded into S1-S4. Self-nav tested implicitly via S1
 
 ---

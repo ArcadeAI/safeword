@@ -1,7 +1,7 @@
 {
-  "locSinceCommit": 32,
-  "lastCommitHash": "3cf6c6d",
+  "locSinceCommit": 34,
+  "lastCommitHash": "746a9b6",
   "activeTicket": "025",
-  "lastKnownPhase": "scenario-gate",
-  "gate": "phase:scenario-gate"
+  "lastKnownPhase": "decomposition",
+  "gate": "phase:decomposition"
 }
