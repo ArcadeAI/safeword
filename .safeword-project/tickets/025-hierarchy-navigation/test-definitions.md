@@ -4,7 +4,7 @@
 
 ### Scenario 1: Navigate to next undone sibling
 
-- [ ] **Given** child ticket 013a (with `parent: 001`, unquoted number format) is in phase: done
+- [x] **Given** child ticket 013a (with `parent: 001`, unquoted number format) is in phase: done
       **And** parent ticket 001 has `children: [6, 7, 8]` (unquoted number format)
       **And** sibling 7 has `status: in_progress` (not done)
       **When** the stop hook runs hierarchy navigation
@@ -12,7 +12,7 @@
 
 ### Scenario 2: Skip done siblings, find next undone
 
-- [ ] **Given** child ticket 013b is marked done
+- [x] **Given** child ticket 013b is marked done
       **And** parent 013 has `children: ['013a', '013b', '013c', '013d']`
       **And** 013a and 013c are both `status: done`
       **And** 013d is `status: in_progress`
@@ -21,7 +21,7 @@
 
 ### Scenario 3: All siblings done — cascade parent to done
 
-- [ ] **Given** child ticket 013e is marked done
+- [x] **Given** child ticket 013e is marked done
       **And** parent 013 has `children: ['013a', '013b', '013c', '013d', '013e']` (quoted string format)
       **And** all siblings 013a-013d are already `status: done`
       **When** the stop hook runs hierarchy navigation
@@ -30,7 +30,7 @@
 
 ### Scenario 4: Multi-level cascade — navigate to parent's sibling
 
-- [ ] **Given** child ticket 013e is the last undone child of parent `013` (quoted string format)
+- [x] **Given** child ticket 013e is the last undone child of parent `013` (quoted string format)
       **And** parent 013 is itself a child of grandparent epic 001 (`parent: '013'`)
       **And** grandparent 001 has `children: ['012', '013', '014']`
       **And** sibling 014 has `status: ready` (not done)
@@ -40,28 +40,28 @@
 
 ### Scenario 5: Standalone ticket (no parent) — allow stop
 
-- [ ] **Given** a ticket with `parent: null` is in `phase: done`
+- [x] **Given** a ticket with `parent: null` is in `phase: done`
       **And** evidence has been provided (tests pass, scenarios complete)
       **When** the stop hook runs hierarchy navigation
       **Then** stop is allowed (exit 0, no blocking)
 
 ### Scenario 6: Broken hierarchy — parent directory missing
 
-- [ ] **Given** a child ticket has `parent: '999'`
+- [x] **Given** a child ticket has `parent: '999'`
       **And** no directory matching `999-*` exists in tickets/
       **When** the stop hook runs hierarchy navigation
       **Then** stop is allowed gracefully (no crash, no block)
 
 ### Scenario 7: Children field empty or missing
 
-- [ ] **Given** a child ticket has `parent: '016'`
+- [x] **Given** a child ticket has `parent: '016'`
       **And** parent ticket 016 exists but has no `children:` field (or `children: []`)
       **When** the stop hook runs hierarchy navigation
       **Then** stop is allowed (empty hierarchy = nothing to navigate)
 
 ### Scenario 8: Max recursion depth prevents infinite loop
 
-- [ ] **Given** a ticket hierarchy 5+ levels deep with cascading completions
+- [x] **Given** a ticket hierarchy 5+ levels deep with cascading completions
       **When** the stop hook cascades done status up the tree
       **Then** it stops cascading at depth 5 and allows stop (exit 0)
 

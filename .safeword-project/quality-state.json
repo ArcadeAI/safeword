@@ -1,7 +1,7 @@
 {
-  "locSinceCommit": 436,
-  "lastCommitHash": "afc6cdf",
+  "locSinceCommit": 48,
+  "lastCommitHash": "7f39343",
   "activeTicket": "025",
-  "lastKnownPhase": "implement",
-  "gate": "loc"
+  "lastKnownPhase": "done",
+  "gate": "phase:done"
 }
