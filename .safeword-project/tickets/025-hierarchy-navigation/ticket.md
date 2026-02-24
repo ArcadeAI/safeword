@@ -1,7 +1,7 @@
 ---
 id: 025
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 parent: null
 supersedes: ['022']
