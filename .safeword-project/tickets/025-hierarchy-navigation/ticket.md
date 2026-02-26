@@ -2,7 +2,7 @@
 id: 025
 type: feature
 phase: done
-status: in_progress
+status: done
 parent: null
 supersedes: ['022']
 created: 2026-02-21T16:15:00Z
