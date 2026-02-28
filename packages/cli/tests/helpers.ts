@@ -175,7 +175,7 @@ export async function runCli(
 ): Promise<CliResult> {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_BUN_INSTALL } = options;
 
-  const command = `node ${CLI_PATH} ${args.join(' ')}`;
+  const command = `${process.execPath} ${CLI_PATH} ${args.join(' ')}`;
 
   try {
     const { stdout, stderr } = await execAsync(command, {
@@ -219,7 +219,7 @@ export function runCliSync(
 ): CliResult {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_SYNC } = options;
 
-  const command = `node ${CLI_PATH} ${args.join(' ')}`;
+  const command = `${process.execPath} ${CLI_PATH} ${args.join(' ')}`;
 
   try {
     const stdout = execSync(command, {

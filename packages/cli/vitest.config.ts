@@ -1,10 +1,20 @@
+import path from 'node:path';
+
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Ensure the runtime binary directory is in PATH for child processes
+    // (e.g. bunx, bun) so execSync calls in tests can find them
+    env: {
+      PATH: `${path.dirname(process.execPath)}:${process.env.PATH}`,
+    },
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
+    // Slow tests (real npm installs) excluded by default.
+    // Run with: bun vitest run --config vitest.slow.config.ts
+    exclude: ['tests/**/*.slow.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

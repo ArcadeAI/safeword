@@ -329,29 +329,14 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
     });
 
     it('should have MCP packages that can be resolved by bunx', async () => {
-      // Verify the packages exist on npm (can be resolved by bunx)
-      // This is a lightweight check - just verify the packages exist
-      // Note: Using npm info since we're checking npm registry (bunx also uses npm registry)
-      const { execSync } = await import('node:child_process');
+      // Verify the packages exist on npm registry (lightweight HTTP check)
+      const packages = ['@upstash/context7-mcp', '@playwright/mcp'];
 
-      // Check context7 package exists
-      try {
-        execSync('npm info @upstash/context7-mcp', {
-          encoding: 'utf8',
-          timeout: 10_000,
+      for (const pkg of packages) {
+        const response = await fetch(`https://registry.npmjs.org/${pkg}`, {
+          signal: AbortSignal.timeout(10_000),
         });
-      } catch {
-        expect.fail('@upstash/context7-mcp package not found');
-      }
-
-      // Check playwright package exists
-      try {
-        execSync('npm info @playwright/mcp', {
-          encoding: 'utf8',
-          timeout: 10_000,
-        });
-      } catch {
-        expect.fail('@playwright/mcp package not found');
+        expect(response.ok, `${pkg} package not found on npm registry`).toBe(true);
       }
     });
   });
