@@ -22,6 +22,8 @@ export function detectPackageManager(cwd: string): PackageManager {
   if (existsSync(path.join(cwd, 'pnpm-lock.yaml'))) return 'pnpm';
   if (existsSync(path.join(cwd, 'yarn.lock'))) return 'yarn';
   if (existsSync(path.join(cwd, 'package-lock.json'))) return 'npm';
+  // No lockfile found — fall back to current runtime (bun) or npm
+  if (process.versions.bun) return 'bun';
   return 'npm';
 }
 
