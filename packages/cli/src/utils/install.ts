@@ -14,6 +14,18 @@ import { info, listItem, success, warn } from './output.js';
 type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
 
 /**
+ * Package manager command definitions.
+ * Single source of truth for install/uninstall args across all managers.
+ */
+const PM_COMMANDS: Record<PackageManager, { install: string; uninstall: string; devFlag: string }> =
+  {
+    npm: { install: 'install', uninstall: 'uninstall', devFlag: '-D' },
+    yarn: { install: 'add', uninstall: 'remove', devFlag: '-D' },
+    pnpm: { install: 'add', uninstall: 'remove', devFlag: '-D' },
+    bun: { install: 'add', uninstall: 'remove', devFlag: '-D' },
+  };
+
+/**
  * Detect package manager by lockfile (bun > pnpm > yarn > npm)
  */
 export function detectPackageManager(cwd: string): PackageManager {
@@ -28,42 +40,11 @@ export function detectPackageManager(cwd: string): PackageManager {
 }
 
 /**
- * Get install command args for package manager
- */
-function getInstallArguments(pm: PackageManager): string[] {
-  const args: Record<PackageManager, string[]> = {
-    npm: ['install', '-D'],
-    yarn: ['add', '-D'],
-    pnpm: ['add', '-D'],
-    bun: ['add', '-D'],
-  };
-  return args[pm];
-}
-
-/**
- * Get display command for logging
- */
-function getInstallCommand(pm: PackageManager, packages: string[]): string {
-  const cmds: Record<PackageManager, string> = {
-    npm: `npm install -D ${packages.join(' ')}`,
-    yarn: `yarn add -D ${packages.join(' ')}`,
-    pnpm: `pnpm add -D ${packages.join(' ')}`,
-    bun: `bun add -D ${packages.join(' ')}`,
-  };
-  return cmds[pm];
-}
-
-/**
  * Get uninstall command for package manager
  */
 export function getUninstallCommand(pm: PackageManager, packages: string[]): string {
-  const cmds: Record<PackageManager, string> = {
-    npm: `npm uninstall ${packages.join(' ')}`,
-    yarn: `yarn remove ${packages.join(' ')}`,
-    pnpm: `pnpm remove ${packages.join(' ')}`,
-    bun: `bun remove ${packages.join(' ')}`,
-  };
-  return cmds[pm];
+  const { uninstall } = PM_COMMANDS[pm];
+  return `${pm} ${uninstall} ${packages.join(' ')}`;
 }
 
 /**
@@ -73,18 +54,18 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
   if (packages.length === 0) return;
 
   const pm = detectPackageManager(cwd);
-  const displayCmd = getInstallCommand(pm, packages);
+  const { install, devFlag } = PM_COMMANDS[pm];
+  const displayCommand = `${pm} ${install} ${devFlag} ${packages.join(' ')}`;
 
   info(`\nInstalling ${label}...`);
-  info(`Running: ${displayCmd}`);
+  info(`Running: ${displayCommand}`);
 
   try {
-    const args = [...getInstallArguments(pm), ...packages];
-    execFileSync(pm, args, { cwd, stdio: 'inherit' });
+    execFileSync(pm, [install, devFlag, ...packages], { cwd, stdio: 'inherit' });
     success(`Installed ${label}`);
   } catch {
     warn(`Failed to install ${label}. Run manually:`);
-    listItem(displayCmd);
+    listItem(displayCommand);
   }
 }
 
