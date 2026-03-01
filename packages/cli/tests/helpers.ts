@@ -468,59 +468,7 @@ source = { virtual = "." }
   writeTestFile(dir, 'pyproject.toml', content);
 }
 
-/**
- * Creates a Rust workspace using glob pattern (members = ["crates/*"])
- * Tests the glob expansion feature in parseWorkspaceMembers
- *
- * @param dir - Directory to create workspace in
- * @param options - Workspace options
- * @param options.members - Crate names (default: ['alpha', 'beta'])
- * @param options.edition - Rust edition (default: '2021')
- */
-export function createRustWorkspaceWithGlob(
-  dir: string,
-  options: { members?: string[]; edition?: string } = {},
-): void {
-  const members = options.members ?? ['alpha', 'beta'];
-  const edition = options.edition ?? '2021';
-
-  // Root workspace Cargo.toml with glob pattern
-  writeTestFile(
-    dir,
-    'Cargo.toml',
-    `[workspace]
-members = ["crates/*"]
-resolver = "2"
-`,
-  );
-
-  // Create each member crate
-  for (const member of members) {
-    const cratePath = nodePath.join('crates', member);
-    mkdirSync(nodePath.join(dir, cratePath, 'src'), { recursive: true });
-
-    writeTestFile(
-      dir,
-      nodePath.join(cratePath, 'Cargo.toml'),
-      `[package]
-name = "${member}"
-version = "0.1.0"
-edition = "${edition}"
-
-[dependencies]
-`,
-    );
-
-    writeTestFile(
-      dir,
-      nodePath.join(cratePath, 'src', 'lib.rs'),
-      `pub fn hello() -> &'static str {
-    "Hello from ${member}!"
-}
-`,
-    );
-  }
-}
+// createRustWorkspaceWithGlob removed — use createRustWorkspace({ useGlob: true })
 
 /**
  * Creates a Go project with go.mod and main.go
@@ -726,20 +674,24 @@ edition = "${edition}"
  * @param options - Workspace options
  * @param options.members - Crate names (default: ['crate-a', 'crate-b'])
  * @param options.edition - Rust edition (default: '2021')
+ * @param options.useGlob - Use glob pattern `"crates/*"` instead of explicit member list
  */
 export function createRustWorkspace(
   dir: string,
-  options: { members?: string[]; edition?: string } = {},
+  options: { members?: string[]; edition?: string; useGlob?: boolean } = {},
 ): void {
   const members = options.members ?? ['crate-a', 'crate-b'];
   const edition = options.edition ?? '2021';
+
+  const memberEntries = members.map(m => `"crates/${m}"`).join(', ');
+  const membersField = options.useGlob ? '["crates/*"]' : `[${memberEntries}]`;
 
   // Root workspace Cargo.toml
   writeTestFile(
     dir,
     'Cargo.toml',
     `[workspace]
-members = [${members.map(m => `"crates/${m}"`).join(', ')}]
+members = ${membersField}
 resolver = "2"
 `,
   );

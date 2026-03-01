@@ -21,7 +21,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createRustProject,
   createRustWorkspace,
-  createRustWorkspaceWithGlob,
   createTemporaryDirectory,
   fileExists,
   initGitRepo,
@@ -507,7 +506,7 @@ describe('E2E: Rust Workspace Glob Pattern', () => {
   beforeAll(async () => {
     projectDirectory = createTemporaryDirectory();
     // Creates workspace with members = ["crates/*"] and crates/alpha, crates/beta
-    createRustWorkspaceWithGlob(projectDirectory, { members: ['alpha', 'beta', 'gamma'] });
+    createRustWorkspace(projectDirectory, { members: ['alpha', 'beta', 'gamma'], useGlob: true });
     initGitRepo(projectDirectory);
     await runCli(['setup', '--yes'], { cwd: projectDirectory });
   }, 180_000);
