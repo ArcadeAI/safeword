@@ -75,7 +75,6 @@
     "eslint": "^9.39.2",
     "knip": "^5.82.1",
     "prettier": "^3.7.4",
-    "prettier-plugin-sh": "^0.18.0",
     "publint": "^0.3.16",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0",
