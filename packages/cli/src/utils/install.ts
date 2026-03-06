@@ -61,7 +61,7 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
   info(`Running: ${displayCommand}`);
 
   try {
-    execFileSync(pm, [install, devFlag, ...packages], { cwd, stdio: 'inherit' });
+    execFileSync(pm, [install, devFlag, ...packages], { cwd, stdio: 'pipe', timeout: 120_000 });
     success(`Installed ${label}`);
   } catch {
     warn(`Failed to install ${label}. Run manually:`);

@@ -15,7 +15,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
-  TIMEOUT_SETUP,
+  TIMEOUT_BUN_INSTALL,
 } from '../helpers';
 
 function createMonorepoPackageJson(
@@ -89,7 +89,7 @@ describe('Setup - Workspace Format Scripts', () => {
       expect(appPackage.scripts.format).toBe('prettier --write .');
       expect(libraryPackage.scripts.format).toBe('prettier --write .');
     },
-    TIMEOUT_SETUP,
+    TIMEOUT_BUN_INSTALL,
   );
 
   it(
@@ -110,7 +110,7 @@ describe('Setup - Workspace Format Scripts', () => {
       const appPackage = JSON.parse(readTestFile(temporaryDirectory, 'packages/app/package.json'));
       expect(appPackage.scripts.format).toBe('biome format .');
     },
-    TIMEOUT_SETUP,
+    TIMEOUT_BUN_INSTALL,
   );
 
   it(
@@ -137,7 +137,7 @@ describe('Setup - Workspace Format Scripts', () => {
       expect(corePackage.scripts.format).toBe('prettier --write .');
       expect(utilitiesPackage.scripts.format).toBe('prettier --write .');
     },
-    TIMEOUT_SETUP,
+    TIMEOUT_BUN_INSTALL,
   );
 
   it(
@@ -159,7 +159,7 @@ describe('Setup - Workspace Format Scripts', () => {
       // Should NOT have format script since root uses Biome
       expect(appPackage.scripts.format).toBeUndefined();
     },
-    TIMEOUT_SETUP,
+    TIMEOUT_BUN_INSTALL,
   );
 
   it(
@@ -188,7 +188,7 @@ describe('Setup - Workspace Format Scripts', () => {
       const appPackage = JSON.parse(readTestFile(temporaryDirectory, 'packages/app/package.json'));
       expect(appPackage.scripts.format).toBe('prettier --write .');
     },
-    TIMEOUT_SETUP,
+    TIMEOUT_BUN_INSTALL,
   );
 
   it(
@@ -212,6 +212,6 @@ describe('Setup - Workspace Format Scripts', () => {
       );
       expect(existsPackage.scripts.format).toBe('prettier --write .');
     },
-    TIMEOUT_SETUP,
+    TIMEOUT_BUN_INSTALL,
   );
 });

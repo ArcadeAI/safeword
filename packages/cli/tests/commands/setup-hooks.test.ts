@@ -17,6 +17,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  TIMEOUT_BUN_INSTALL,
   writeTestFile,
 } from '../helpers';
 
@@ -49,24 +50,28 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
   });
 
   describe('Test 3.1: Registers hooks in settings.json', () => {
-    it('should create .claude/settings.json with hooks', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
-      initGitRepo(temporaryDirectory);
+    it(
+      'should create .claude/settings.json with hooks',
+      async () => {
+        createTypeScriptPackageJson(temporaryDirectory);
+        initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+        await runCli(['setup'], { cwd: temporaryDirectory });
 
-      expect(fileExists(temporaryDirectory, '.claude/settings.json')).toBe(true);
+        expect(fileExists(temporaryDirectory, '.claude/settings.json')).toBe(true);
 
-      const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
+        const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
 
-      expect(settings.hooks).toBeDefined();
-      expect(settings.hooks.SessionStart).toBeDefined();
-      expect(Array.isArray(settings.hooks.SessionStart)).toBe(true);
-      expect(settings.hooks.UserPromptSubmit).toBeDefined();
-      expect(Array.isArray(settings.hooks.UserPromptSubmit)).toBe(true);
-      expect(settings.hooks.PostToolUse).toBeDefined();
-      expect(Array.isArray(settings.hooks.PostToolUse)).toBe(true);
-    });
+        expect(settings.hooks).toBeDefined();
+        expect(settings.hooks.SessionStart).toBeDefined();
+        expect(Array.isArray(settings.hooks.SessionStart)).toBe(true);
+        expect(settings.hooks.UserPromptSubmit).toBeDefined();
+        expect(Array.isArray(settings.hooks.UserPromptSubmit)).toBe(true);
+        expect(settings.hooks.PostToolUse).toBeDefined();
+        expect(Array.isArray(settings.hooks.PostToolUse)).toBe(true);
+      },
+      TIMEOUT_BUN_INSTALL,
+    );
 
     it('should reference .safeword/hooks paths', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
@@ -249,33 +254,37 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
   });
 
   describe('Test 3.9: Preserves existing MCP servers', () => {
-    it('should preserve user MCP servers when adding safeword servers', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
-      initGitRepo(temporaryDirectory);
+    it(
+      'should preserve user MCP servers when adding safeword servers',
+      async () => {
+        createTypeScriptPackageJson(temporaryDirectory);
+        initGitRepo(temporaryDirectory);
 
-      // Create existing .mcp.json with custom server
-      const existingMcp = {
-        mcpServers: {
-          'my-custom-server': {
-            command: 'my-server',
-            args: ['--port', '3000'],
+        // Create existing .mcp.json with custom server
+        const existingMcp = {
+          mcpServers: {
+            'my-custom-server': {
+              command: 'my-server',
+              args: ['--port', '3000'],
+            },
           },
-        },
-      };
-      writeTestFile(temporaryDirectory, '.mcp.json', JSON.stringify(existingMcp, undefined, 2));
+        };
+        writeTestFile(temporaryDirectory, '.mcp.json', JSON.stringify(existingMcp, undefined, 2));
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+        await runCli(['setup'], { cwd: temporaryDirectory });
 
-      const mcpConfig = JSON.parse(readTestFile(temporaryDirectory, '.mcp.json'));
+        const mcpConfig = JSON.parse(readTestFile(temporaryDirectory, '.mcp.json'));
 
-      // Custom server should be preserved
-      expect(mcpConfig.mcpServers['my-custom-server']).toBeDefined();
-      expect(mcpConfig.mcpServers['my-custom-server'].command).toBe('my-server');
+        // Custom server should be preserved
+        expect(mcpConfig.mcpServers['my-custom-server']).toBeDefined();
+        expect(mcpConfig.mcpServers['my-custom-server'].command).toBe('my-server');
 
-      // Safeword servers should be added
-      expect(mcpConfig.mcpServers.context7).toBeDefined();
-      expect(mcpConfig.mcpServers.playwright).toBeDefined();
-    });
+        // Safeword servers should be added
+        expect(mcpConfig.mcpServers.context7).toBeDefined();
+        expect(mcpConfig.mcpServers.playwright).toBeDefined();
+      },
+      TIMEOUT_BUN_INSTALL,
+    );
   });
 
   describe('Test 3.10: Installs slash commands', () => {

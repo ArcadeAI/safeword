@@ -246,7 +246,7 @@ describe('Setup Command - Reconcile Integration', () => {
         const result = execSync(`bunx tsx ${cliPath} setup`, {
           cwd: temporaryDirectory,
           encoding: 'utf8',
-          timeout: 60_000,
+          timeout: 120_000,
         });
 
         expect(result).toContain('Setup');

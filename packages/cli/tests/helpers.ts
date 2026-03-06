@@ -1,10 +1,10 @@
-import { exec, execSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { execFile, execSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /**
  * Timeout constants for test operations.
@@ -175,10 +175,8 @@ export async function runCli(
 ): Promise<CliResult> {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_BUN_INSTALL } = options;
 
-  const command = `${process.execPath} ${CLI_PATH} ${args.join(' ')}`;
-
   try {
-    const { stdout, stderr } = await execAsync(command, {
+    const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_PATH, ...args], {
       cwd,
       env: { ...process.env, ...env },
       timeout,
@@ -188,10 +186,11 @@ export async function runCli(
     const execError = error as {
       stdout?: string;
       stderr?: string;
-      code?: number;
+      code?: number | string;
       status?: number;
     };
-    const exitCode = execError.code ?? execError.status ?? 1;
+    // execFile sets code to signal name (e.g. 'SIGTERM') on timeout kill
+    const exitCode = typeof execError.code === 'number' ? execError.code : (execError.status ?? 1);
     return {
       stdout: execError.stdout ?? '',
       stderr: execError.stderr ?? '',
