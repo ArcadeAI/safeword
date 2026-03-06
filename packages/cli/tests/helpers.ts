@@ -607,26 +607,20 @@ function isCargoInstalled(): boolean {
   return isCommandAvailable('cargo');
 }
 
-/**
- * Check if clippy component is installed
- */
-export function isClippyInstalled(): boolean {
+function isRustComponentInstalled(component: string): boolean {
   if (!isCargoInstalled()) return false;
   const result = spawnSync('rustup', ['component', 'list', '--installed'], {
     encoding: 'utf8',
   });
-  return result.stdout?.includes('clippy') ?? false;
+  return result.stdout?.includes(component) ?? false;
 }
 
-/**
- * Check if rustfmt component is installed
- */
+export function isClippyInstalled(): boolean {
+  return isRustComponentInstalled('clippy');
+}
+
 export function isRustfmtInstalled(): boolean {
-  if (!isCargoInstalled()) return false;
-  const result = spawnSync('rustup', ['component', 'list', '--installed'], {
-    encoding: 'utf8',
-  });
-  return result.stdout?.includes('rustfmt') ?? false;
+  return isRustComponentInstalled('rustfmt');
 }
 
 /**
