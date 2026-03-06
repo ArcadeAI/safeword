@@ -13,17 +13,19 @@ import { info, listItem, success, warn } from './output.js';
 
 type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
 
+/** Dev-dependency flag, shared across all package managers. */
+const DEV_FLAG = '-D';
+
 /**
  * Package manager command definitions.
  * Single source of truth for install/uninstall args across all managers.
  */
-const PM_COMMANDS: Record<PackageManager, { install: string; uninstall: string; devFlag: string }> =
-  {
-    npm: { install: 'install', uninstall: 'uninstall', devFlag: '-D' },
-    yarn: { install: 'add', uninstall: 'remove', devFlag: '-D' },
-    pnpm: { install: 'add', uninstall: 'remove', devFlag: '-D' },
-    bun: { install: 'add', uninstall: 'remove', devFlag: '-D' },
-  };
+const PM_COMMANDS: Record<PackageManager, { install: string; uninstall: string }> = {
+  npm: { install: 'install', uninstall: 'uninstall' },
+  yarn: { install: 'add', uninstall: 'remove' },
+  pnpm: { install: 'add', uninstall: 'remove' },
+  bun: { install: 'add', uninstall: 'remove' },
+};
 
 /**
  * Detect package manager by lockfile (bun > pnpm > yarn > npm)
@@ -54,14 +56,14 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
   if (packages.length === 0) return;
 
   const pm = detectPackageManager(cwd);
-  const { install, devFlag } = PM_COMMANDS[pm];
-  const displayCommand = `${pm} ${install} ${devFlag} ${packages.join(' ')}`;
+  const { install } = PM_COMMANDS[pm];
+  const displayCommand = `${pm} ${install} ${DEV_FLAG} ${packages.join(' ')}`;
 
   info(`\nInstalling ${label}...`);
   info(`Running: ${displayCommand}`);
 
   try {
-    execFileSync(pm, [install, devFlag, ...packages], { cwd, stdio: 'pipe', timeout: 120_000 });
+    execFileSync(pm, [install, DEV_FLAG, ...packages], { cwd, stdio: 'pipe', timeout: 120_000 });
     success(`Installed ${label}`);
   } catch {
     warn(`Failed to install ${label}. Run manually:`);
