@@ -86,65 +86,46 @@ export function createPackageJson(dir: string, overrides: Record<string, unknown
   writeFileSync(nodePath.join(dir, 'package.json'), JSON.stringify(pkg, undefined, 2));
 }
 
-/**
- * Creates a TypeScript package.json (with typescript in devDependencies)
- * Also pre-installs local safeword to ensure tests use the current build.
- * @param dir
- * @param overrides
- */
+const FRAMEWORK_DEPS = {
+  typescript: { devDependencies: { typescript: '^5.0.0' } },
+  react: { dependencies: { react: '^18.0.0', 'react-dom': '^18.0.0' } },
+  nextjs: {
+    dependencies: { next: '^14.0.0', react: '^18.0.0', 'react-dom': '^18.0.0' },
+  },
+} as const;
+
+function createFrameworkPackageJson(
+  dir: string,
+  framework: keyof typeof FRAMEWORK_DEPS,
+  overrides: Record<string, unknown> = {},
+): void {
+  const frameworkConfig = FRAMEWORK_DEPS[framework];
+  createPackageJson(dir, {
+    ...('dependencies' in frameworkConfig && { dependencies: frameworkConfig.dependencies }),
+    devDependencies: {
+      ...('devDependencies' in frameworkConfig && frameworkConfig.devDependencies),
+      safeword: SAFEWORD_VERSION,
+    },
+    ...overrides,
+  });
+}
+
 export function createTypeScriptPackageJson(
   dir: string,
   overrides: Record<string, unknown> = {},
 ): void {
-  createPackageJson(dir, {
-    devDependencies: {
-      typescript: '^5.0.0',
-      safeword: SAFEWORD_VERSION,
-    },
-    ...overrides,
-  });
+  createFrameworkPackageJson(dir, 'typescript', overrides);
 }
 
-/**
- * Creates a React package.json
- * Also pre-installs local safeword to ensure tests use the current build.
- * @param dir
- * @param overrides
- */
 export function createReactPackageJson(dir: string, overrides: Record<string, unknown> = {}): void {
-  createPackageJson(dir, {
-    dependencies: {
-      react: '^18.0.0',
-      'react-dom': '^18.0.0',
-    },
-    devDependencies: {
-      safeword: SAFEWORD_VERSION,
-    },
-    ...overrides,
-  });
+  createFrameworkPackageJson(dir, 'react', overrides);
 }
 
-/**
- * Creates a Next.js package.json
- * Also pre-installs local safeword to ensure tests use the current build.
- * @param dir
- * @param overrides
- */
 export function createNextJsPackageJson(
   dir: string,
   overrides: Record<string, unknown> = {},
 ): void {
-  createPackageJson(dir, {
-    dependencies: {
-      next: '^14.0.0',
-      react: '^18.0.0',
-      'react-dom': '^18.0.0',
-    },
-    devDependencies: {
-      safeword: SAFEWORD_VERSION,
-    },
-    ...overrides,
-  });
+  createFrameworkPackageJson(dir, 'nextjs', overrides);
 }
 
 /**
