@@ -1,5 +1,5 @@
 {
-  "ignore": [".claude/**", ".cursor/**", ".safeword/**"],
+  "ignore": [".claude/**", ".cursor/**", ".safeword/**", "**/*.stories.*", "**/*.story.*"],
   "minLines": 10,
   "reporters": ["console"]
 }

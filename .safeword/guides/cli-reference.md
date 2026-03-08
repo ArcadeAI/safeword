@@ -4,23 +4,25 @@ Commands for managing safeword in projects.
 
 ## Commands
 
-| Command                        | Purpose                             |
-| ------------------------------ | ----------------------------------- |
-| `bunx safeword@latest setup`   | Install safeword in current project |
-| `bunx safeword@latest check`   | Check project health and versions   |
-| `bunx safeword@latest upgrade` | Upgrade to latest version           |
-| `bunx safeword@latest diff`    | Preview changes before upgrading    |
-| `bunx safeword reset`          | Remove safeword from project        |
+| Command                            | Purpose                                |
+| ---------------------------------- | -------------------------------------- |
+| `bunx safeword@latest setup`       | Install safeword in current project    |
+| `bunx safeword@latest check`       | Check project health and versions      |
+| `bunx safeword@latest upgrade`     | Upgrade to latest version              |
+| `bunx safeword@latest diff`        | Preview changes before upgrading       |
+| `bunx safeword@latest sync-config` | Regenerate depcruise config for /audit |
+| `bunx safeword reset`              | Remove safeword from project           |
 
 ## When to Use
 
-| Situation                  | Command                        |
-| -------------------------- | ------------------------------ |
-| New project setup          | `bunx safeword@latest setup`   |
-| Check if update available  | `bunx safeword@latest check`   |
-| Update after CLI release   | `bunx safeword@latest upgrade` |
-| See what upgrade changes   | `bunx safeword@latest diff`    |
-| Remove safeword completely | `bunx safeword reset --full`   |
+| Situation                  | Command                            |
+| -------------------------- | ---------------------------------- |
+| New project setup          | `bunx safeword@latest setup`       |
+| Check if update available  | `bunx safeword@latest check`       |
+| Update after CLI release   | `bunx safeword@latest upgrade`     |
+| See what upgrade changes   | `bunx safeword@latest diff`        |
+| Before running /audit      | `bunx safeword@latest sync-config` |
+| Remove safeword completely | `bunx safeword reset --full`       |
 
 ## Options
 

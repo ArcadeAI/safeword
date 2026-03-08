@@ -272,7 +272,7 @@ Fallback: task. User can /bdd to override.
 
 ## Response Format
 
-End responses with this JSON when you've made or proposed changes:
+End every response with:
 
 ```json
 {"proposedChanges": boolean, "madeChanges": boolean, "askedQuestion": boolean}
@@ -283,8 +283,6 @@ End responses with this JSON when you've made or proposed changes:
 | proposedChanges | NEW or MODIFIED proposal in THIS response                     |
 | madeChanges     | Used Edit, Write, MultiEdit, or NotebookEdit tools (not Read) |
 | askedQuestion   | Asked question, need response before proceeding               |
-
-**When to include:** After edits, proposals, or when quality review fires. Skip for simple Q&A.
 
 **After quality review fires:**
 
@@ -354,4 +352,4 @@ When markdown lint reports MD040 (missing language), choose:
 5. **Read the matching guide** when a trigger fires
 6. **Always read the latest documentation for the relevant tool**
 7. **AVOID BLOAT**
-8. **After edits/proposals**, end with: `{"proposedChanges": bool, "madeChanges": bool, "askedQuestion": bool}`
+8. **End every response** with: `{"proposedChanges": bool, "madeChanges": bool, "askedQuestion": bool}`

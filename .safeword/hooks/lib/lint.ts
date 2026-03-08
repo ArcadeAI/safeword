@@ -6,7 +6,8 @@
 //
 // Auto-upgrades safeword if a language pack is missing.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { $ } from 'bun';
 
@@ -26,6 +27,7 @@ const JS_EXTENSIONS = new Set([
 ]);
 const PYTHON_EXTENSIONS = new Set(['py', 'pyi']);
 const GO_EXTENSIONS = new Set(['go']);
+const RUST_EXTENSIONS = new Set(['rs']);
 const SHELL_EXTENSIONS = new Set(['sh']);
 const PRETTIER_EXTENSIONS = new Set([
   'md',
@@ -43,6 +45,8 @@ const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const SAFEWORD_ESLINT = `${projectDir}/.safeword/eslint.config.mjs`;
 const SAFEWORD_RUFF = `${projectDir}/.safeword/ruff.toml`;
 const SAFEWORD_GOLANGCI = `${projectDir}/.safeword/.golangci.yml`;
+const SAFEWORD_CLIPPY = `${projectDir}/.safeword/clippy.toml`;
+const SAFEWORD_RUSTFMT = `${projectDir}/.safeword/rustfmt.toml`;
 const SAFEWORD_PRETTIER = `${projectDir}/.safeword/.prettierrc`;
 
 // Track if we've already tried upgrading (avoid repeated attempts in same process)
@@ -51,6 +55,42 @@ let upgradeAttempted = false;
 /** Check config exists, dynamically (not cached) */
 function hasConfig(path: string): boolean {
   return existsSync(path);
+}
+
+/**
+ * Regex to extract package name from Cargo.toml.
+ * Matches: [package] ... name = "package-name"
+ * Captures the package name in group 1.
+ *
+ * Note: This is intentionally duplicated from src/packs/rust/setup.ts because
+ * this lint.ts template is copied to user projects and cannot import from safeword.
+ */
+const CARGO_PACKAGE_NAME_REGEX = /\[package\][^[]*name\s*=\s*"([^"]+)"/;
+
+/**
+ * Detect the Rust package name for a file by walking up directories.
+ * Finds the nearest Cargo.toml with a [package] section and extracts the name.
+ * Returns undefined for virtual workspace roots or files outside any package.
+ */
+function detectRustPackage(filePath: string): string | undefined {
+  let currentDirectory = nodePath.dirname(filePath);
+  const normalizedProjectDir = nodePath.resolve(projectDir);
+
+  while (currentDirectory.startsWith(normalizedProjectDir)) {
+    const cargoPath = nodePath.join(currentDirectory, 'Cargo.toml');
+    if (existsSync(cargoPath)) {
+      const content = readFileSync(cargoPath, 'utf8');
+      // Only return package name if this Cargo.toml has a [package] section
+      if (content.includes('[package]')) {
+        const nameMatch = CARGO_PACKAGE_NAME_REGEX.exec(content);
+        return nameMatch?.[1];
+      }
+    }
+    const parentDirectory = nodePath.dirname(currentDirectory);
+    if (parentDirectory === currentDirectory) break;
+    currentDirectory = parentDirectory;
+  }
+  return undefined;
 }
 
 /**
@@ -157,6 +197,36 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
       // Fallback: run without safeword config
       await $`golangci-lint run --fix ${file}`.nothrow().quiet();
       await $`golangci-lint fmt ${file}`.nothrow().quiet();
+    }
+    return;
+  }
+
+  // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
+  // Auto-upgrades safeword if Rust pack is missing
+  if (RUST_EXTENSIONS.has(extension)) {
+    const hasRustConfig = await ensurePackInstalled('Rust', SAFEWORD_RUSTFMT);
+
+    // Run clippy with package targeting for workspaces
+    // Detect which package this file belongs to
+    const packageName = detectRustPackage(file);
+    if (packageName) {
+      // Use CLIPPY_CONF_DIR to point clippy to safeword config
+      const clippyEnv = hasConfig(SAFEWORD_CLIPPY)
+        ? { CLIPPY_CONF_DIR: nodePath.dirname(SAFEWORD_CLIPPY) }
+        : {};
+
+      await $`cargo clippy -p ${packageName} --fix --allow-dirty --allow-staged`
+        .env(clippyEnv)
+        .nothrow()
+        .quiet();
+    }
+
+    // Run rustfmt for file-level formatting
+    if (hasRustConfig) {
+      await $`rustfmt --config-path ${SAFEWORD_RUSTFMT} ${file}`.nothrow().quiet();
+    } else {
+      // Fallback: run without safeword config
+      await $`rustfmt ${file}`.nothrow().quiet();
     }
     return;
   }

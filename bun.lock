@@ -17,12 +17,13 @@
         "markdownlint-cli2": "^0.20.0",
         "prettier": "3.8.0",
         "prettier-plugin-sh": "^0.18.0",
+        "safeword": "^0.17.0",
         "shellcheck": "^4.1.0",
       },
     },
     "packages/cli": {
       "name": "safeword",
-      "version": "0.16.1",
+      "version": "0.17.0",
       "bin": {
         "safeword": "dist/cli.js",
       },
