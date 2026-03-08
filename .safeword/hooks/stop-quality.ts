@@ -404,9 +404,9 @@ if (currentPhase === 'done') {
     }
 
     if (next.type === 'cascade-done') {
-      updateTicketStatus(next.ticketDirectory!, 'done', 'done');
-      cascadedParents.push(next.parentId!);
-      currentDirectory = next.ticketDirectory!;
+      updateTicketStatus(next.ticketDirectory, 'done', 'done');
+      cascadedParents.push(next.parentId);
+      currentDirectory = next.ticketDirectory;
       continue;
     }
 

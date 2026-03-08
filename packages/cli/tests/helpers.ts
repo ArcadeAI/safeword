@@ -448,8 +448,6 @@ source = { virtual = "." }
   writeTestFile(dir, 'pyproject.toml', content);
 }
 
-// createRustWorkspaceWithGlob removed — use createRustWorkspace({ useGlob: true })
-
 /**
  * Creates a Go project with go.mod and main.go
  * @param dir

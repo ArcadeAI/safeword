@@ -1,6 +1,9 @@
 {
   "ignore": [".safeword/**", ".safeword-project/**"],
-  "ignoreFiles": ["packages/cli/templates/hooks/**"],
+  "ignoreFiles": ["packages/cli/templates/hooks/**", "packages/cli/vitest.slow.config.ts"],
   "ignoreDependencies": ["eslint-plugin-*"],
-  "ignoreBinaries": ["shfmt", "dot"]
+  "ignoreBinaries": ["shfmt", "dot"],
+  "ignoreIssues": {
+    "packages/cli/src/presets/typescript/index.ts": ["duplicates"]
+  }
 }

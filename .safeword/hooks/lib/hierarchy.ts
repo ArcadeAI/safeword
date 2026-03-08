@@ -25,12 +25,10 @@ export interface TicketFrontmatter {
   type: string | null;
 }
 
-export interface NextAction {
-  type: 'navigate' | 'cascade-done' | 'all-done';
-  ticketId?: string;
-  ticketDirectory?: string;
-  parentId?: string;
-}
+export type NextAction =
+  | { type: 'navigate'; ticketId: string; ticketDirectory: string }
+  | { type: 'cascade-done'; parentId: string; ticketDirectory: string }
+  | { type: 'all-done' };
 
 // ---------------------------------------------------------------------------
 // Functions

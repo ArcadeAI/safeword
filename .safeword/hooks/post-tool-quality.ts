@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-const LOC_THRESHOLD = 400;
+import { LOC_THRESHOLD, type QualityState } from './lib/quality-state.ts';
 
 interface HookInput {
   tool_name?: string;
@@ -15,14 +15,6 @@ interface HookInput {
     file_path?: string;
     notebook_path?: string;
   };
-}
-
-interface QualityState {
-  locSinceCommit: number;
-  lastCommitHash: string;
-  activeTicket: string | null;
-  lastKnownPhase: string | null;
-  gate: string | null;
 }
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
