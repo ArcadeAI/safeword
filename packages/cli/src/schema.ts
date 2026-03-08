@@ -246,6 +246,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustOwnedFiles,
 
     // Hooks shared library - TypeScript with Bun runtime
+    '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
 

@@ -6,6 +6,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
+import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
 
 interface HookInput {
@@ -368,18 +369,47 @@ if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop
   // Features need both test and scenario evidence
   // Tasks/patches just need test evidence
+  let evidencePassed = false;
   if (ticketInfo.type === 'feature') {
     if (hasTestEvidence(combinedText) && hasScenarioEvidence(combinedText)) {
-      process.exit(0);
+      evidencePassed = true;
+    } else {
+      hardBlockDone(getDoneHardBlockMessage('feature'));
     }
-    hardBlockDone(getDoneHardBlockMessage('feature'));
   } else {
-    // Tasks and patches just need test evidence
     if (hasTestEvidence(combinedText)) {
-      process.exit(0);
+      evidencePassed = true;
+    } else {
+      hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
     }
-    hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
   }
+
+  // Evidence passed — mark current ticket done and navigate hierarchy
+  if (evidencePassed && ticketInfo.folder) {
+    const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
+    updateTicketStatus(currentTicketDirectory, 'done', 'done');
+
+    // Walk hierarchy: cascade done status up and navigate to next sibling
+    let directory = currentTicketDirectory;
+    const MAX_CASCADE = 10;
+    for (let depth = 0; depth < MAX_CASCADE; depth++) {
+      const next = findNextWork(directory, ticketsDir);
+      if (next.type === 'navigate') {
+        softBlock(
+          `Ticket complete! Next up: read ${next.ticketDirectory}/ticket.md and begin work on ${next.ticketId}.`,
+        );
+      } else if (next.type === 'cascade-done') {
+        // Mark parent done and continue walking up
+        updateTicketStatus(next.ticketDirectory, 'done', 'done');
+        directory = next.ticketDirectory;
+      } else {
+        // all-done — no more work in hierarchy
+        break;
+      }
+    }
+  }
+
+  process.exit(0);
 }
 
 // Other phases: use summary-based soft blocking
