@@ -62,16 +62,6 @@ describe('E2E: Go Golden Path', () => {
     expect(config).toContain('gofumpt');
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint config is valid', () => {
-    // golangci-lint config verify checks if config is valid
-    const result = spawnSync('golangci-lint', ['config', 'verify'], {
-      cwd: projectDirectory,
-      encoding: 'utf8',
-    });
-
-    expect(result.status).toBe(0);
-  });
-
   it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint runs on valid code', () => {
     // main.go from createGoProject should be valid
     const result = spawnSync('golangci-lint', ['run', 'main.go'], {

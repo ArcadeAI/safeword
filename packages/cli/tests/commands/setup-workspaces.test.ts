@@ -76,6 +76,7 @@ describe('Setup - Workspace Format Scripts', () => {
 
       const result = await runCli(['setup'], {
         cwd: temporaryDirectory,
+        env: { SAFEWORD_SKIP_INSTALL: '1' },
       });
 
       expect(result.exitCode).toBe(0);

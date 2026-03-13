@@ -54,6 +54,7 @@ export function getUninstallCommand(pm: PackageManager, packages: string[]): str
  */
 export function installDependencies(cwd: string, packages: string[], label = 'packages'): void {
   if (packages.length === 0) return;
+  if (process.env.SAFEWORD_SKIP_INSTALL) return;
 
   const pm = detectPackageManager(cwd);
   const { install } = PM_COMMANDS[pm];

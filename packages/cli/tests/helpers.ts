@@ -572,6 +572,8 @@ export function runLintHook(projectDirectory: string, filePath: string): SpawnSy
     cwd: projectDirectory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
     encoding: 'utf8',
+    timeout: 30_000,
+    killSignal: 'SIGKILL',
   });
 }
 

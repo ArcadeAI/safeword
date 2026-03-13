@@ -169,6 +169,7 @@ export function getPythonInstallCommand(cwd: string, tools: string[] = ['ruff'])
  */
 export function installPythonDependencies(cwd: string, tools: string[]): boolean {
   if (tools.length === 0) return true;
+  if (process.env.SAFEWORD_SKIP_INSTALL) return true;
 
   // pip projects need manual install due to PEP 668
   const pm = detectPythonPackageManager(cwd);
