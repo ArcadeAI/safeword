@@ -8,7 +8,7 @@
  * so they can be unit tested with vitest directly.
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parse as parseYaml } from 'yaml';
@@ -99,7 +99,10 @@ export function updateTicketStatus(
   content = content.replace(/^status:\s*\S+/m, `status: ${newStatus}`);
   content = content.replace(/^phase:\s*\S+/m, `phase: ${newPhase}`);
   content = content.replace(/^last_modified:\s*.+/m, `last_modified: ${new Date().toISOString()}`);
-  writeFileSync(ticketPath, content);
+  // Write-then-rename for atomicity: prevents partial writes on process kill
+  const tmpPath = `${ticketPath}.tmp`;
+  writeFileSync(tmpPath, content);
+  renameSync(tmpPath, ticketPath);
 }
 
 /**
