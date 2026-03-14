@@ -48,7 +48,7 @@ function parseFrontmatter(yaml: string): Record<string, string | string[]> {
     // Block sequence item (e.g. "  - 013")
     const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
     if (listMatch) {
-      currentList?.push(stripQuotes(listMatch[1].trim()));
+      currentList?.push(stripQuotes((listMatch[1] ?? '').trim()));
       continue;
     }
 
@@ -62,8 +62,9 @@ function parseFrontmatter(yaml: string): Record<string, string | string[]> {
     // Key: value pair
     const pairMatch = line.match(/^(\w+):\s*(.*)$/);
     if (pairMatch) {
-      const key = pairMatch[1];
-      const raw = pairMatch[2].trim();
+      const key = pairMatch[1] ?? '';
+      const raw = (pairMatch[2] ?? '').trim();
+      if (!key) continue;
       if (raw === '') {
         // Start of block sequence
         currentKey = key;
@@ -111,7 +112,7 @@ export function readTicketFrontmatter(ticketDirectory: string): TicketFrontmatte
 
   // parseFrontmatter returns all scalars as strings (failsafe-equivalent),
   // so '001' stays '001' and 'null' stays the string 'null'.
-  const parsed = parseFrontmatter(frontmatterMatch[1]);
+  const parsed = parseFrontmatter(frontmatterMatch[1] ?? '');
 
   const str = (key: string): string | undefined => {
     const v = parsed[key];
@@ -143,7 +144,7 @@ export function resolveTicketDirectory(ticketId: string, ticketsDirectory: strin
   );
 
   if (matches.length === 1) {
-    return nodePath.join(ticketsDirectory, matches[0]);
+    return nodePath.join(ticketsDirectory, matches[0]!);
   }
 
   return null;

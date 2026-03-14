@@ -208,6 +208,7 @@ describe('findNextWork', () => {
 
     const result = findNextWork(currentDirectory, ticketsDirectory);
     expect(result.type).toBe('navigate');
+    if (result.type !== 'navigate') throw new Error('Expected navigate');
     expect(result.ticketId).toBe('7');
     expect(result.ticketDirectory).toContain('7-feature-b');
   });
@@ -247,6 +248,7 @@ describe('findNextWork', () => {
 
     const result = findNextWork(currentDirectory, ticketsDirectory);
     expect(result.type).toBe('navigate');
+    if (result.type !== 'navigate') throw new Error('Expected navigate');
     expect(result.ticketId).toBe('013d');
   });
 
@@ -273,6 +275,7 @@ describe('findNextWork', () => {
 
     const result = findNextWork(currentDirectory, ticketsDirectory);
     expect(result.type).toBe('cascade-done');
+    if (result.type !== 'cascade-done') throw new Error('Expected cascade-done');
     expect(result.parentId).toBe('013');
     expect(result.ticketDirectory).toContain('013-epic');
   });

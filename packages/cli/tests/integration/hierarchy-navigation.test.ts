@@ -12,7 +12,7 @@
  * 8 scenarios from test-definitions.md.
  */
 
-import { execSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 

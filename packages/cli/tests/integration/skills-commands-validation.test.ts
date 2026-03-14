@@ -647,7 +647,7 @@ describe('Skills-Cursor Parity', () => {
       const rules = Array.isArray(expectedRules) ? expectedRules : [expectedRules];
       for (const rule of rules) {
         if (!ruleFiles.has(rule)) {
-          missingRules.push(`${skillDir} → ${rule}`);
+          missingRules.push(`${skillDirectory} → ${rule}`);
         }
       }
     }
