@@ -367,26 +367,16 @@ if (artifactError) {
 }
 
 if (currentPhase === 'done') {
-  // Done phase: require evidence before allowing stop
-  // Features need both test and scenario evidence
-  // Tasks/patches just need test evidence
-  let evidencePassed = false;
-  if (ticketInfo.type === 'feature') {
-    if (hasTestEvidence(combinedText) && hasScenarioEvidence(combinedText)) {
-      evidencePassed = true;
-    } else {
-      hardBlockDone(getDoneHardBlockMessage('feature'));
-    }
-  } else {
-    if (hasTestEvidence(combinedText)) {
-      evidencePassed = true;
-    } else {
-      hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
-    }
-  }
+  // Done phase: require evidence before allowing stop.
+  // Features need both test and scenario evidence; tasks need test only.
+  const isFeature = ticketInfo.type === 'feature';
+  const hasEvidence = isFeature
+    ? hasTestEvidence(combinedText) && hasScenarioEvidence(combinedText)
+    : hasTestEvidence(combinedText);
+  if (!hasEvidence) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
 
   // Evidence passed — mark current ticket done and navigate hierarchy
-  if (evidencePassed && ticketInfo.folder) {
+  if (ticketInfo.folder) {
     const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
     updateTicketStatus(currentTicketDirectory, 'done', 'done');
 
