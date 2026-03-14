@@ -320,19 +320,12 @@ function hasScenarioEvidence(text: string): boolean {
  * Get done gate message based on ticket type.
  */
 function getDoneHardBlockMessage(ticketType: string | undefined): string {
-  if (ticketType === 'feature') {
-    return `SAFEWORD: Feature done requires evidence. Run /done and show results.
-
-Expected evidence formats:
-- "✓ X/X tests pass" (required)
-- "All N scenarios marked complete" (required for features)
-
-Run tests, show output, then try again.`;
-  }
+  const scenarioLine =
+    ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
   return `SAFEWORD: Done phase requires evidence. Run /done and show results.
 
 Expected evidence formats:
-- "✓ X/X tests pass"
+- "✓ X/X tests pass" (required)${scenarioLine}
 
 Run tests, show output, then try again.`;
 }
