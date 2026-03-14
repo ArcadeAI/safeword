@@ -67,6 +67,7 @@ function getCurrentTicketInfo(): TicketInfo {
 
     // Find most recently modified in_progress ticket (excluding epics)
     let latestFolder = '';
+    let latestContent = '';
     let latestMtime = 0;
     for (const folder of folders) {
       const ticketPath = `${ticketsDir}/${folder}/ticket.md`;
@@ -84,14 +85,14 @@ function getCurrentTicketInfo(): TicketInfo {
       if (mtime > latestMtime) {
         latestMtime = mtime;
         latestFolder = folder;
+        latestContent = content;
       }
     }
 
     if (!latestFolder) return empty;
 
-    const content = readFileSync(`${ticketsDir}/${latestFolder}/ticket.md`, 'utf-8');
-    const phaseMatch = content.match(/^phase:\s*(\S+)/m);
-    const typeMatch = content.match(/^type:\s*(\S+)/m);
+    const phaseMatch = latestContent.match(/^phase:\s*(\S+)/m);
+    const typeMatch = latestContent.match(/^type:\s*(\S+)/m);
 
     return {
       phase: phaseMatch?.[1] as BddPhase | undefined,
