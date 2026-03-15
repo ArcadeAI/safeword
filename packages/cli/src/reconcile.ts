@@ -90,21 +90,12 @@ function getConditionalPackages(
   return packages;
 }
 
-/**
- * Check if path should be skipped in non-git repos (husky files)
- * @param path
- * @param isGitRepo
- */
+/** Check if path should be skipped in non-git repos (husky files) */
 function shouldSkipForNonGit(path: string, isGitRepo: boolean): boolean {
   return path.startsWith(HUSKY_DIR) && !isGitRepo;
 }
 
-/**
- * Plan mkdir actions for directories that don't exist
- * @param dirs
- * @param cwd
- * @param isGitRepo
- */
+/** Plan mkdir actions for directories that don't exist */
 function planMissingDirectories(
   directories: string[],
   cwd: string,
@@ -122,12 +113,7 @@ function planMissingDirectories(
   return { actions, created };
 }
 
-/**
- * Plan text-patch actions for files missing the marker
- * @param patches
- * @param cwd
- * @param isGitRepo
- */
+/** Plan text-patch actions for files missing the marker */
 function planTextPatches(
   patches: Record<string, TextPatchDefinition>,
   cwd: string,
@@ -197,11 +183,7 @@ function planTextPatchesWithCreation(
   return { actions, created };
 }
 
-/**
- * Plan rmdir actions for directories that exist
- * @param dirs
- * @param cwd
- */
+/** Plan rmdir actions for directories that exist */
 function planExistingDirectoriesRemoval(
   directories: string[],
   cwd: string,
@@ -217,11 +199,7 @@ function planExistingDirectoriesRemoval(
   return { actions, removed };
 }
 
-/**
- * Plan rm actions for files that exist
- * @param files
- * @param cwd
- */
+/** Plan rm actions for files that exist */
 function planExistingFilesRemoval(
   files: string[],
   cwd: string,
@@ -237,10 +215,7 @@ function planExistingFilesRemoval(
   return { actions, removed };
 }
 
-/**
- * Check if a .claude path needs parent dir cleanup
- * @param filePath
- */
+/** Check if a .claude path needs parent dir cleanup */
 function getClaudeParentDirectoryForCleanup(filePath: string): string | undefined {
   if (!filePath.startsWith('.claude/')) return undefined;
   const parentDirectory = filePath.slice(0, Math.max(0, filePath.lastIndexOf('/')));
@@ -290,13 +265,6 @@ interface ReconcileOptions {
 // Main reconcile function
 // ============================================================================
 
-/**
- *
- * @param schema
- * @param mode
- * @param ctx
- * @param options
- */
 export async function reconcile(
   schema: SafewordSchema,
   mode: ReconcileMode,
@@ -345,12 +313,6 @@ interface ReconcilePlan {
   packagesToRemove: string[];
 }
 
-/**
- *
- * @param schema
- * @param mode
- * @param ctx
- */
 function computePlan(
   schema: SafewordSchema,
   mode: ReconcileMode,
@@ -377,11 +339,6 @@ function computePlan(
   }
 }
 
-/**
- *
- * @param schema
- * @param ctx
- */
 function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): ReconcilePlan {
   const actions: Action[] = [];
   const wouldCreate: string[] = [];
@@ -491,11 +448,6 @@ function planManagedFilesActions(
   return { actions, created, updated: [] };
 }
 
-/**
- *
- * @param schema
- * @param ctx
- */
 function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): ReconcilePlan {
   const actions: Action[] = [];
   const wouldCreate: string[] = [];
@@ -555,12 +507,6 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   };
 }
 
-/**
- *
- * @param schema
- * @param ctx
- * @param full
- */
 function computeUninstallPlan(
   schema: SafewordSchema,
   ctx: ProjectContext,
@@ -642,11 +588,6 @@ interface ExecutionResult {
   removed: string[];
 }
 
-/**
- *
- * @param plan
- * @param ctx
- */
 function executePlan(plan: ReconcilePlan, ctx: ProjectContext): ExecutionResult {
   const created: string[] = [];
   const updated: string[] = [];
@@ -660,12 +601,6 @@ function executePlan(plan: ReconcilePlan, ctx: ProjectContext): ExecutionResult 
   return result;
 }
 
-/**
- *
- * @param action
- * @param ctx
- * @param result
- */
 function executeChmod(cwd: string, paths: string[]): void {
   for (const path of paths) {
     const fullPath = nodePath.join(cwd, path);
@@ -720,13 +655,6 @@ function executeAction(action: Action, ctx: ProjectContext, result: ExecutionRes
   }
 }
 
-/**
- *
- * @param cwd
- * @param path
- * @param content
- * @param result
- */
 function executeWrite(cwd: string, path: string, content: string, result: ExecutionResult): void {
   const fullPath = nodePath.join(cwd, path);
   const existed = exists(fullPath);
@@ -738,11 +666,6 @@ function executeWrite(cwd: string, path: string, content: string, result: Execut
 // Helper functions
 // ============================================================================
 
-/**
- *
- * @param definition
- * @param ctx
- */
 function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): string | undefined {
   if (definition.template) {
     const templatesDirectory = getTemplatesDirectory();
@@ -761,23 +684,12 @@ function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): st
   throw new Error('FileDefinition must have template, content, or generator');
 }
 
-/**
- *
- * @param installedPath
- * @param newContent
- */
 function fileNeedsUpdate(installedPath: string, newContent: string): boolean {
   if (!exists(installedPath)) return true;
   const currentContent = readFileSafe(installedPath);
   return currentContent?.trim() !== newContent.trim();
 }
 
-/**
- *
- * @param schema
- * @param projectType
- * @param installedDevDeps
- */
 export function computePackagesToInstall(
   schema: SafewordSchema,
   projectType: ProjectType,
@@ -793,12 +705,6 @@ export function computePackagesToInstall(
   return needed.filter(pkg => !(stripVersionSpecifier(pkg) in installedDevelopmentDeps));
 }
 
-/**
- *
- * @param schema
- * @param projectType
- * @param installedDevDeps
- */
 function computePackagesToRemove(
   schema: SafewordSchema,
   projectType: ProjectType,
@@ -824,13 +730,6 @@ function stripVersionSpecifier(pkg: string): string {
   return atIndex === -1 ? pkg : pkg.slice(0, atIndex);
 }
 
-/**
- *
- * @param cwd
- * @param path
- * @param definition
- * @param ctx
- */
 function executeJsonMerge(
   cwd: string,
   path: string,
@@ -852,12 +751,6 @@ function executeJsonMerge(
   writeJson(fullPath, merged);
 }
 
-/**
- *
- * @param cwd
- * @param path
- * @param definition
- */
 function executeJsonUnmerge(
   cwd: string,
   path: string,
@@ -884,12 +777,6 @@ function executeJsonUnmerge(
   writeJson(fullPath, unmerged);
 }
 
-/**
- *
- * @param cwd
- * @param path
- * @param definition
- */
 function executeTextPatch(cwd: string, path: string, definition: TextPatchDefinition): void {
   const fullPath = nodePath.join(cwd, path);
   let content = readFileSafe(fullPath) ?? '';
@@ -906,12 +793,6 @@ function executeTextPatch(cwd: string, path: string, definition: TextPatchDefini
   writeFile(fullPath, content);
 }
 
-/**
- *
- * @param cwd
- * @param path
- * @param definition
- */
 function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefinition): void {
   const fullPath = nodePath.join(cwd, path);
   const content = readFileSafe(fullPath);
