@@ -1,4 +1,6 @@
 {
-  "ignore": [".safeword/**"],
-  "ignoreDependencies": ["dependency-cruiser"]
+  "ignore": ["templates/**"],
+  "ignoreBinaries": ["shellcheck"],
+  "ignoreDependencies": ["dependency-cruiser", "lint-staged"],
+  "exclude": ["duplicates"]
 }
