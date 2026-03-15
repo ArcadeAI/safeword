@@ -67,6 +67,7 @@ function getCurrentTicketInfo(): TicketInfo {
 
     // Find most recently modified in_progress ticket (excluding epics)
     let latestFolder = '';
+    let latestContent = '';
     let latestMtime = 0;
     for (const folder of folders) {
       const ticketPath = `${ticketsDir}/${folder}/ticket.md`;
@@ -84,14 +85,14 @@ function getCurrentTicketInfo(): TicketInfo {
       if (mtime > latestMtime) {
         latestMtime = mtime;
         latestFolder = folder;
+        latestContent = content;
       }
     }
 
     if (!latestFolder) return empty;
 
-    const content = readFileSync(`${ticketsDir}/${latestFolder}/ticket.md`, 'utf-8');
-    const phaseMatch = content.match(/^phase:\s*(\S+)/m);
-    const typeMatch = content.match(/^type:\s*(\S+)/m);
+    const phaseMatch = latestContent.match(/^phase:\s*(\S+)/m);
+    const typeMatch = latestContent.match(/^type:\s*(\S+)/m);
 
     return {
       phase: phaseMatch?.[1] as BddPhase | undefined,
@@ -301,37 +302,21 @@ const TEST_EVIDENCE_PATTERN = /✓\s*\d+\/\d+\s*tests?\s*pass/i; // "✓ 156/156
 const TEST_EVIDENCE_ALT_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass"
 const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
 
-/**
- * Check if transcript contains test evidence.
- */
+/** Check if transcript contains test evidence (either format). */
 function hasTestEvidence(text: string): boolean {
   return TEST_EVIDENCE_PATTERN.test(text) || TEST_EVIDENCE_ALT_PATTERN.test(text);
-}
-
-/**
- * Check if transcript contains scenario evidence.
- */
-function hasScenarioEvidence(text: string): boolean {
-  return SCENARIO_EVIDENCE_PATTERN.test(text);
 }
 
 /**
  * Get done gate message based on ticket type.
  */
 function getDoneHardBlockMessage(ticketType: string | undefined): string {
-  if (ticketType === 'feature') {
-    return `SAFEWORD: Feature done requires evidence. Run /done and show results.
-
-Expected evidence formats:
-- "✓ X/X tests pass" (required)
-- "All N scenarios marked complete" (required for features)
-
-Run tests, show output, then try again.`;
-  }
+  const scenarioLine =
+    ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
   return `SAFEWORD: Done phase requires evidence. Run /done and show results.
 
 Expected evidence formats:
-- "✓ X/X tests pass"
+- "✓ X/X tests pass" (required)${scenarioLine}
 
 Run tests, show output, then try again.`;
 }
@@ -366,26 +351,16 @@ if (artifactError) {
 }
 
 if (currentPhase === 'done') {
-  // Done phase: require evidence before allowing stop
-  // Features need both test and scenario evidence
-  // Tasks/patches just need test evidence
-  let evidencePassed = false;
-  if (ticketInfo.type === 'feature') {
-    if (hasTestEvidence(combinedText) && hasScenarioEvidence(combinedText)) {
-      evidencePassed = true;
-    } else {
-      hardBlockDone(getDoneHardBlockMessage('feature'));
-    }
-  } else {
-    if (hasTestEvidence(combinedText)) {
-      evidencePassed = true;
-    } else {
-      hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
-    }
-  }
+  // Done phase: require evidence before allowing stop.
+  // Features need both test and scenario evidence; tasks need test only.
+  const isFeature = ticketInfo.type === 'feature';
+  const hasEvidence = isFeature
+    ? hasTestEvidence(combinedText) && SCENARIO_EVIDENCE_PATTERN.test(combinedText)
+    : hasTestEvidence(combinedText);
+  if (!hasEvidence) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
 
   // Evidence passed — mark current ticket done and navigate hierarchy
-  if (evidencePassed && ticketInfo.folder) {
+  if (ticketInfo.folder) {
     const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
     updateTicketStatus(currentTicketDirectory, 'done', 'done');
 
