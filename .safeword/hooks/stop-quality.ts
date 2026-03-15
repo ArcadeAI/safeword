@@ -302,18 +302,9 @@ const TEST_EVIDENCE_PATTERN = /✓\s*\d+\/\d+\s*tests?\s*pass/i; // "✓ 156/156
 const TEST_EVIDENCE_ALT_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass"
 const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
 
-/**
- * Check if transcript contains test evidence.
- */
+/** Check if transcript contains test evidence (either format). */
 function hasTestEvidence(text: string): boolean {
   return TEST_EVIDENCE_PATTERN.test(text) || TEST_EVIDENCE_ALT_PATTERN.test(text);
-}
-
-/**
- * Check if transcript contains scenario evidence.
- */
-function hasScenarioEvidence(text: string): boolean {
-  return SCENARIO_EVIDENCE_PATTERN.test(text);
 }
 
 /**
@@ -364,7 +355,7 @@ if (currentPhase === 'done') {
   // Features need both test and scenario evidence; tasks need test only.
   const isFeature = ticketInfo.type === 'feature';
   const hasEvidence = isFeature
-    ? hasTestEvidence(combinedText) && hasScenarioEvidence(combinedText)
+    ? hasTestEvidence(combinedText) && SCENARIO_EVIDENCE_PATTERN.test(combinedText)
     : hasTestEvidence(combinedText);
   if (!hasEvidence) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
 
