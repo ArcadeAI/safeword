@@ -178,10 +178,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-bdd-orchestrating/TDD.md',
     '.claude/skills/safeword-bdd-orchestrating/DONE.md',
     '.claude/skills/safeword-bdd-orchestrating/SPLITTING.md',
-    // Overlapping Claude commands removed - skills handle these (v0.17.0)
-    '.claude/commands/bdd.md',
-    '.claude/commands/quality-review.md',
-    '.claude/commands/refactor.md',
+    // Command for debug was never a standalone command before v0.17.0 (always a skill)
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint)
@@ -373,7 +370,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/bdd/SPLITTING.md': {
       template: 'skills/bdd/SPLITTING.md',
     },
-    // Claude commands (explicit invocation only, no overlapping skill equivalents)
+    // Claude commands (slash-command invocation — skills are NOT slash-invocable)
+    '.claude/commands/quality-review.md': { template: 'commands/quality-review.md' },
+    '.claude/commands/bdd.md': { template: 'commands/bdd.md' },
+    '.claude/commands/refactor.md': { template: 'commands/refactor.md' },
+    '.claude/commands/debug.md': { template: 'commands/debug.md' },
     '.claude/commands/done.md': { template: 'commands/done.md' },
     '.claude/commands/audit.md': { template: 'commands/audit.md' },
     '.claude/commands/cleanup-zombies.md': {
@@ -416,8 +417,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'cursor/rules/bdd-splitting.mdc',
     },
 
-    // Cursor commands (7 files - Cursor needs explicit commands for all capabilities)
+    // Cursor commands (8 files - Cursor needs explicit commands for all capabilities)
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
+    '.cursor/commands/debug.md': { template: 'commands/debug.md' },
     '.cursor/commands/done.md': { template: 'commands/done.md' },
     '.cursor/commands/audit.md': { template: 'commands/audit.md' },
     '.cursor/commands/cleanup-zombies.md': {

@@ -303,13 +303,15 @@ describe('Schema - Single Source of Truth', () => {
         .filter(isDefined)
         .toSorted((a, b) => a.localeCompare(b));
 
-      // Cursor has all commands (needs explicit invoke for everything)
-      // Claude has fewer commands (skills handle bdd, quality-review, refactor)
+      // Both platforms should have the same commands
+      // Claude commands = shims pointing to skills + standalone commands
+      // Cursor commands = same set (Cursor needs explicit commands for all capabilities)
       for (const cmd of claudeCommands) {
         expect(cursorCommands, `Cursor missing Claude command: ${cmd}`).toContain(cmd);
       }
-      // Cursor should have more commands than Claude (overlapping ones handled by skills)
-      expect(cursorCommands.length).toBeGreaterThan(claudeCommands.length);
+      for (const cmd of cursorCommands) {
+        expect(claudeCommands, `Claude missing Cursor command: ${cmd}`).toContain(cmd);
+      }
     });
   });
 });
