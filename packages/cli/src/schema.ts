@@ -246,6 +246,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
+    '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
 
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-verify-agents.ts': {
@@ -265,6 +266,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/post-tool-lint.ts': {
       template: 'hooks/post-tool-lint.ts',
+    },
+    '.safeword/hooks/post-tool-quality.ts': {
+      template: 'hooks/post-tool-quality.ts',
+    },
+    '.safeword/hooks/post-tool-bypass-warn.ts': {
+      template: 'hooks/post-tool-bypass-warn.ts',
+    },
+    '.safeword/hooks/pre-tool-quality.ts': {
+      template: 'hooks/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/pre-tool-config-guard.ts': {
+      template: 'hooks/pre-tool-config-guard.ts',
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
 

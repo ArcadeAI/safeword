@@ -62,8 +62,14 @@ describe('NPM Package Structure', () => {
     // Stop hook
     expect(files).toContain('stop-quality.ts');
 
-    // Post-tool hook
+    // Post-tool hooks
     expect(files).toContain('post-tool-lint.ts');
+    expect(files).toContain('post-tool-quality.ts');
+    expect(files).toContain('post-tool-bypass-warn.ts');
+
+    // Pre-tool hooks
+    expect(files).toContain('pre-tool-quality.ts');
+    expect(files).toContain('pre-tool-config-guard.ts');
 
     // Shared lib
     expect(files).toContain('lib');

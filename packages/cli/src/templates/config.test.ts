@@ -107,10 +107,11 @@ describe('SETTINGS_HOOKS', () => {
     expect(SETTINGS_HOOKS).toHaveProperty('SessionStart');
     expect(SETTINGS_HOOKS).toHaveProperty('UserPromptSubmit');
     expect(SETTINGS_HOOKS).toHaveProperty('Stop');
+    expect(SETTINGS_HOOKS).toHaveProperty('PreToolUse');
     expect(SETTINGS_HOOKS).toHaveProperty('PostToolUse');
   });
 
-  it('should have valid PostToolUse matcher that targets edit tools', () => {
+  it('should have valid PostToolUse lint matcher that targets edit tools only', () => {
     const hook = SETTINGS_HOOKS.PostToolUse.at(0);
     if (!hook) {
       throw new Error('PostToolUse hook not found');
@@ -135,6 +136,39 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Read')).toBe(false);
     expect(regex.test('Bash')).toBe(false);
     expect(regex.test('Grep')).toBe(false);
+  });
+
+  it('should have PostToolUse quality observer matcher that includes Bash', () => {
+    const qualityHook = SETTINGS_HOOKS.PostToolUse.find(h =>
+      h.hooks.some(hook => hook.type === 'command' && hook.command.includes('post-tool-quality')),
+    );
+    if (!qualityHook) {
+      throw new Error('PostToolUse quality hook not found');
+    }
+
+    // eslint-disable-next-line security/detect-non-literal-regexp -- Testing user-defined matcher pattern
+    const regex = new RegExp(qualityHook.matcher);
+
+    // Should match edit tools AND Bash (for commit detection)
+    expect(regex.test('Write')).toBe(true);
+    expect(regex.test('Edit')).toBe(true);
+    expect(regex.test('Bash')).toBe(true);
+
+    // Should NOT match read-only tools
+    expect(regex.test('Read')).toBe(false);
+    expect(regex.test('Grep')).toBe(false);
+  });
+
+  it('should have PreToolUse hooks for quality enforcement and config guard', () => {
+    const preToolHooks = SETTINGS_HOOKS.PreToolUse;
+    expect(preToolHooks.length).toBe(2);
+
+    const commands = preToolHooks.flatMap(h =>
+      h.hooks.filter(hook => hook.type === 'command').map(hook => hook.command),
+    );
+
+    expect(commands.some(c => c.includes('pre-tool-quality'))).toBe(true);
+    expect(commands.some(c => c.includes('pre-tool-config-guard'))).toBe(true);
   });
 
   it('should have all commands reference $CLAUDE_PROJECT_DIR', () => {

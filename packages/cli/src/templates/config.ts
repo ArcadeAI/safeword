@@ -382,6 +382,26 @@ export const SETTINGS_HOOKS = {
       ],
     },
   ],
+  PreToolUse: [
+    {
+      matcher: 'Edit|Write|MultiEdit|NotebookEdit',
+      hooks: [
+        {
+          type: 'command',
+          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/pre-tool-quality.ts',
+        },
+      ],
+    },
+    {
+      matcher: 'Edit|Write|MultiEdit|NotebookEdit',
+      hooks: [
+        {
+          type: 'command',
+          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/pre-tool-config-guard.ts',
+        },
+      ],
+    },
+  ],
   PostToolUse: [
     {
       matcher: 'Write|Edit|MultiEdit|NotebookEdit',
@@ -389,6 +409,24 @@ export const SETTINGS_HOOKS = {
         {
           type: 'command',
           command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/post-tool-lint.ts',
+        },
+      ],
+    },
+    {
+      matcher: 'Write|Edit|MultiEdit|NotebookEdit|Bash',
+      hooks: [
+        {
+          type: 'command',
+          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/post-tool-quality.ts',
+        },
+      ],
+    },
+    {
+      matcher: 'Write|Edit|MultiEdit|NotebookEdit',
+      hooks: [
+        {
+          type: 'command',
+          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/post-tool-bypass-warn.ts',
         },
       ],
     },
