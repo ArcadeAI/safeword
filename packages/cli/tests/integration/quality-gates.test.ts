@@ -162,12 +162,15 @@ describe('Quality Gates', () => {
 
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
-      expect(result.status).toBe(2);
-      expect(result.stderr).toContain('SAFEWORD');
-      expect(result.stderr).toContain('450 LOC');
-      expect(result.stderr).toContain('RED');
-      expect(result.stderr).toContain('GREEN');
-      expect(result.stderr).toContain('REFACTOR');
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('SAFEWORD');
+      expect(reason).toContain('450 LOC');
+      expect(reason).toContain('RED');
+      expect(reason).toContain('GREEN');
+      expect(reason).toContain('REFACTOR');
     });
 
     it('1.4: LOC gate clears on commit', () => {
@@ -242,11 +245,14 @@ describe('Quality Gates', () => {
 
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
-      expect(result.status).toBe(2);
-      expect(result.stderr).toContain('SAFEWORD');
-      expect(result.stderr).toContain('implement');
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('SAFEWORD');
+      expect(reason).toContain('implement');
       // Content must come from the actual file (read at runtime, not hardcoded)
-      expect(result.stderr).toContain('TDD Guide');
+      expect(reason).toContain('TDD Guide');
     });
 
     it('2.3: phase gate clears on commit', () => {
@@ -429,9 +435,12 @@ describe('Quality Gates', () => {
 
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
-      expect(result.status).toBe(2);
-      expect(result.stderr).toContain('SAFEWORD');
-      expect(result.stderr).toContain('refactor');
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('SAFEWORD');
+      expect(reason).toContain('refactor');
     });
 
     it('5.3: PostToolUse does not set refactor gate for feat: commit outside implement phase', () => {
