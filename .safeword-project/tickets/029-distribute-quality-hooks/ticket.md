@@ -3,7 +3,7 @@ id: 029
 slug: distribute-quality-hooks
 type: feature
 status: in_progress
-phase: implement
+phase: done
 ---
 
 # Distribute Quality Gate Hooks to Consumer Projects
