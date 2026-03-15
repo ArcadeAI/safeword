@@ -240,6 +240,13 @@ bunx safeword reset -y     # Skip confirmation
 bunx safeword reset --full # Also remove linting config + packages
 ```
 
+### Publishing (maintainers)
+
+```bash
+# From packages/cli/
+bun publish
+```
+
 **Auto-detection**: Detects project type from `package.json` and installs relevant ESLint/Prettier plugins:
 
 - TypeScript, React, Next.js, Astro
