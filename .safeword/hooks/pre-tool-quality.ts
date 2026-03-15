@@ -90,6 +90,18 @@ TDD reminder:
   process.exit(2);
 }
 
+// Refactor gate
+if (state.gate === 'refactor') {
+  console.error(`SAFEWORD: GREEN phase complete. Run refactor pass before continuing.
+
+Either:
+1. Run /refactor, then commit: "refactor: [what improved]"
+2. If code is already clean, commit: "refactor: no changes needed"
+
+Then continue to next scenario.`);
+  process.exit(2);
+}
+
 // Phase gate
 if (state.gate.startsWith('phase:')) {
   const phase = state.gate.replace('phase:', '');

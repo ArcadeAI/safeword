@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Safeword: Quality Gates - PostToolUse observer
-// Counts LOC via git diff --stat HEAD, detects phase changes, updates quality-state.json
-// Fires on Edit|Write|MultiEdit|NotebookEdit
+// Counts LOC via git diff --stat HEAD, detects phase changes and feat: commits,
+// updates quality-state.json. Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -68,6 +68,18 @@ function getHeadHash(): string {
   }
 }
 
+function getLastCommitMessage(): string {
+  try {
+    return execSync('git log -1 --pretty=%s', {
+      cwd: projectDirectory,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
 function countLoc(): number {
   try {
     const diffStat = execSync('git diff --stat HEAD', {
@@ -98,6 +110,14 @@ if (state.lastCommitHash !== currentHead) {
   state.locSinceCommit = 0;
   state.lastCommitHash = currentHead;
   state.gate = null;
+
+  // Refactor gate: after a feat: commit during implement phase, require refactor
+  if (state.lastKnownPhase === 'implement') {
+    const lastMessage = getLastCommitMessage();
+    if (lastMessage.startsWith('feat:')) {
+      state.gate = 'refactor';
+    }
+  }
 }
 
 // Count LOC

@@ -6,7 +6,7 @@
  * - PreToolUse blocks edits when LOC > 400 or phase gate is set
  * - Gates clear when HEAD changes (commit happened)
  *
- * 12 scenarios across 4 suites: LOC Gate, Phase Gate, State Management, Edge Cases
+ * 15 scenarios across 5 suites: LOC Gate, Phase Gate, State Management, Edge Cases, Refactor Gate
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -372,6 +372,97 @@ describe('Quality Gates', () => {
       // Should count ~50 lines (insertions only, no deletions line)
       expect(state.locSinceCommit).toBeGreaterThanOrEqual(40);
       expect(state.locSinceCommit).toBeLessThan(100);
+    });
+  });
+
+  // =========================================================================
+  // Suite 5: Refactor Gate
+  // =========================================================================
+  describe('Refactor Gate', () => {
+    it('5.1: PostToolUse sets refactor gate after feat: commit during implement phase', () => {
+      // Simulate: Claude committed "feat: scenario name" (GREEN phase done)
+      // Then edits another file — PostToolUse should detect the feat: commit
+      // and set gate: 'refactor' since lastKnownPhase is 'implement'
+      writeTestFile(projectDirectory, 'src/impl.ts', 'export const y = 2;\n');
+      execSync('git add src/impl.ts && git commit -m "feat: add scenario implementation"', {
+        cwd: projectDirectory,
+        stdio: 'pipe',
+      });
+
+      const head = getHead(projectDirectory);
+
+      // State has stale hash (pre-commit) — PostToolUse will see HEAD changed
+      writeState(projectDirectory, {
+        locSinceCommit: 50,
+        lastCommitHash: 'pre-commit-hash',
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        gate: null,
+      });
+
+      // Now Claude edits another file — PostToolUse fires
+      writeTestFile(projectDirectory, 'src/next.ts', 'export const z = 3;\n');
+      execSync('git add src/next.ts', { cwd: projectDirectory, stdio: 'pipe' });
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'src/next.ts'),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBe('refactor');
+      expect(state.lastCommitHash).toBe(head);
+    });
+
+    it('5.2: PreToolUse blocks with refactor instructions when refactor gate set', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        gate: 'refactor',
+      });
+
+      const result = runPreToolQuality(projectDirectory, 'Edit');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('SAFEWORD');
+      expect(result.stderr).toContain('refactor');
+    });
+
+    it('5.3: PostToolUse does not set refactor gate for feat: commit outside implement phase', () => {
+      // Commit with feat: prefix but phase is NOT implement
+      writeTestFile(projectDirectory, 'src/impl.ts', 'export const y = 2;\n');
+      execSync('git add src/impl.ts && git commit -m "feat: add something"', {
+        cwd: projectDirectory,
+        stdio: 'pipe',
+      });
+
+      writeState(projectDirectory, {
+        locSinceCommit: 50,
+        lastCommitHash: 'pre-commit-hash',
+        activeTicket: '099',
+        lastKnownPhase: 'intake',
+        gate: null,
+      });
+
+      writeTestFile(projectDirectory, 'src/next.ts', 'export const z = 3;\n');
+      execSync('git add src/next.ts', { cwd: projectDirectory, stdio: 'pipe' });
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'src/next.ts'),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBeNull();
     });
   });
 });
