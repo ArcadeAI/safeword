@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.6
-**Last Updated:** 2026-02-16
+**Version:** 1.7
+**Last Updated:** 2026-03-15
 **Status:** Production
 
 ---
@@ -299,6 +299,57 @@ interface ProjectContext {
 | Trade-off      | Slightly more friction at completion time                                                               |
 | Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims) |
 | Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching       |
+
+### Hierarchy Navigation on Ticket Completion
+
+**Status:** Accepted
+**Date:** 2026-02-21
+
+| Field          | Value                                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| What           | When done gate passes, stop hook walks the ticket tree: marks ticket done, cascades to parent if all siblings done, navigates to next undone sibling                     |
+| Why            | Eliminates manual "what's next?" lookup; agent automatically continues with adjacent work without user prompt                                                            |
+| Trade-off      | Stop hook now has side effects (writes ticket status); must mark current ticket done before calling findNextWork or it finds itself as undone sibling                    |
+| Alternatives   | Manual navigation (rejected: interrupts flow), separate navigation command (rejected: requires user prompt)                                                              |
+| Implementation | `.safeword/hooks/lib/hierarchy.ts` - pure functions `findNextWork`, `updateTicketStatus`, `resolveTicketDirectory`; called from `stop-quality.ts` after done gate passes |
+
+**Navigation algorithm:**
+
+1. Mark current ticket `status: done, phase: done`
+2. Read parent's `children` array
+3. Find first child where `status !== done` → `navigate` to that ticket
+4. If all children done → `cascade-done`: mark parent done, recurse from parent
+5. If no parent or tree exhausted → `all-done`: allow stop
+
+**Zero-dependency YAML parser:** `hierarchy.ts` uses an inline `parseFrontmatter()` rather than the `yaml` npm package. Hooks run in user project context where `yaml` is not installed; inline parser avoids any runtime dependency.
+
+### Continuous Quality Gates (LOC + Phase)
+
+**Status:** Accepted
+**Date:** 2026-02-07
+
+| Field          | Value                                                                                                                        |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`; PreToolUse blocks edits when LOC > 400 or phase gate set   |
+| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases                                    |
+| Trade-off      | Adds ~50ms per tool call (git diff); state file in `.safeword-project/quality-state.json` must be cleaned on commit          |
+| Alternatives   | LOC check in stop hook only (rejected: too late), manual discipline (rejected: unreliable)                                   |
+| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json` |
+
+**Gate clearing:** Both gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed.
+
+### Frozen Transcript Fixture Testing
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+| Field          | Value                                                                                                                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | A checked-in JSONL fixture (`packages/cli/tests/fixtures/stop-hook-transcript.jsonl`) captures the real Claude Code v2.1.42 transcript wire format; CI runs the stop hook against it                       |
+| Why            | The stop hook parses transcript JSONL to detect edits. If Anthropic changes the format (field names, nesting, content block types), the hook silently exits 0 instead of blocking — this test catches that |
+| Trade-off      | Fixture must be manually updated when Claude Code's transcript format changes; no LLM API key required                                                                                                     |
+| Alternatives   | Real E2E with live API (rejected: non-deterministic, expensive), hand-crafted simplified fixtures only (rejected: doesn't catch real format drift)                                                         |
+| Implementation | `packages/cli/tests/integration/stop-hook-transcript-format.test.ts`; fixture includes thinking blocks, tool_use, tool_result, and real envelope fields (parentUuid, requestId, etc.)                      |
 
 ---
 
