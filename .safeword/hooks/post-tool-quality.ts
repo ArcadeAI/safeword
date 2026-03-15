@@ -124,7 +124,7 @@ if (state.lastCommitHash !== currentHead) {
 state.locSinceCommit = countLoc();
 
 // LOC gate
-if (state.locSinceCommit >= LOC_THRESHOLD) {
+if (state.locSinceCommit >= LOC_THRESHOLD && state.gate !== 'refactor') {
   state.gate = 'loc';
 }
 
