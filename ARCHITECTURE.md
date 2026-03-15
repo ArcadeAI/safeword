@@ -323,20 +323,26 @@ interface ProjectContext {
 
 **Zero-dependency YAML parser:** `hierarchy.ts` uses an inline `parseFrontmatter()` rather than the `yaml` npm package. Hooks run in user project context where `yaml` is not installed; inline parser avoids any runtime dependency.
 
-### Continuous Quality Gates (LOC + Phase)
+### Continuous Quality Gates (LOC + Phase + Refactor)
 
 **Status:** Accepted
-**Date:** 2026-02-07
+**Date:** 2026-02-07 (updated 2026-03-14: added refactor gate)
 
-| Field          | Value                                                                                                                        |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`; PreToolUse blocks edits when LOC > 400 or phase gate set   |
-| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases                                    |
-| Trade-off      | Adds ~50ms per tool call (git diff); state file in `.safeword-project/quality-state.json` must be cleaned on commit          |
-| Alternatives   | LOC check in stop hook only (rejected: too late), manual discipline (rejected: unreliable)                                   |
-| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json` |
+| Field          | Value                                                                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`; PreToolUse blocks edits when LOC > 400, phase gate set, or refactor gate set      |
+| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases; refactor gate enforces TDD REFACTOR step                 |
+| Trade-off      | Adds ~50ms per tool call (git diff); state file in `.safeword-project/quality-state.json` must be cleaned on commit                                 |
+| Alternatives   | LOC check in stop hook only (rejected: too late), manual discipline (rejected: unreliable), per-scenario state machine (rejected: over-engineering) |
+| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json`                        |
 
-**Gate clearing:** Both gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed.
+**Gate types:**
+
+- **LOC gate** — triggers when `git diff --stat HEAD` exceeds 400 LOC; forces commit before more edits
+- **Phase gate** — triggers on ticket phase transitions; forces commit to acknowledge new phase
+- **Refactor gate** — triggers after a `feat:` commit during `implement` phase; forces refactor pass before next edit (clears on any commit, including `refactor: no changes needed`)
+
+**Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. Refactor gate has priority over LOC gate (LOC gate cannot overwrite an active refactor gate).
 
 ### Frozen Transcript Fixture Testing
 

@@ -183,6 +183,8 @@ Key directories created in your project:
 - `prompt-timestamp.ts` - Injects timestamp into prompts
 - `prompt-questions.ts` - Reminds agent to ask clarifying questions
 - `post-tool-lint.ts` - Auto-lints after file edits
+- `post-tool-quality.ts` - Tracks LOC, detects phase changes and feat: commits
+- `pre-tool-quality.ts` - Blocks edits when quality gate is active (LOC, phase, or refactor)
 - `stop-quality.ts` - Quality review prompt on stop
 - `cursor/after-file-edit.ts` - Auto-lints after Cursor file edits
 - `cursor/stop.ts` - Quality review prompt on Cursor stop
