@@ -1,7 +1,7 @@
 {
   "name": "safeword",
   "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring. Start a new session to auto-install, or run /safeword:setup.",
-  "version": "0.17.0",
+  "version": "0.20.0",
   "author": { "name": "safeword" },
   "homepage": "https://safeword.dev",
   "repository": "https://github.com/TheMostlyGreat/safeword",
