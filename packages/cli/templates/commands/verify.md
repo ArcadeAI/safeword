@@ -100,12 +100,13 @@ Fix these before marking done:
 - [ ] Complete remaining scenarios
 ```
 
-**Important:** The stop hook validates evidence patterns:
+**Important:** The stop hook validates evidence patterns for features:
 
 - `✓ X/X tests pass` — proves test suite ran
 - `All N scenarios marked complete` — proves scenarios checked
+- `Audit passed` — proves /audit ran (run /audit separately)
 
-Without these patterns, the done phase will block.
+Without all three patterns, the done phase will hard block.
 
 ## Summary
 
