@@ -7,17 +7,17 @@ import { describe, expect, it } from 'vitest';
 import { getEslintConfig, SETTINGS_HOOKS } from './config';
 
 describe('getEslintConfig', () => {
-  it('should use import.meta.url for config-relative path resolution (not CWD)', () => {
+  it('should use import.meta.dirname for config-relative path resolution (not CWD)', () => {
     // This test documents a critical fix: the ESLint config must resolve package.json
     // relative to the config file location, NOT relative to process.cwd().
     // When lint-staged runs from a subdirectory in a monorepo, CWD-relative resolution
     // would read the wrong package.json and fail to find framework ESLint plugins.
     const config = getEslintConfig();
 
-    // Must use import.meta.url pattern for config-relative resolution
-    expect(config).toContain('import.meta.url');
-    expect(config).toContain('fileURLToPath');
-    expect(config).toContain('dirname');
+    // Must use import.meta.dirname for config-relative resolution
+    expect(config).toContain('import.meta.dirname');
+    // Should NOT use the verbose fileURLToPath pattern (triggers unicorn/prefer-import-meta-properties)
+    expect(config).not.toContain('fileURLToPath');
   });
 
   it('should import safeword/eslint and destructure detect/configs', () => {

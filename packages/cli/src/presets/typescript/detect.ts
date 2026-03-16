@@ -185,11 +185,20 @@ function detectFramework(
 /**
  * Get dynamic ignores based on detected frameworks.
  */
-function getIgnores(deps: DepsRecord): string[] {
-  const ignores = ['**/node_modules/', '**/dist/', '**/build/', '**/coverage/'];
-  if ('next' in deps) ignores.push('**/.next/');
-  if ('astro' in deps) ignores.push('**/.astro/');
-  return ignores;
+function getIgnores(_deps: DepsRecord): string[] {
+  return [
+    '**/node_modules/',
+    '**/dist/',
+    '**/build/',
+    '**/coverage/',
+    // Safeword's own hook/config files (TS, not in project's tsconfig scope)
+    '.safeword/**',
+    // Build output directories — always ignore even if framework not currently installed
+    '**/.next/',
+    '**/.astro/',
+    // Non-JS ecosystems that may contain JS files
+    '**/.venv/',
+  ];
 }
 
 /**

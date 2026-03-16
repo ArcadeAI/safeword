@@ -130,15 +130,13 @@ export function getEslintConfig(hasExistingFormatter = false): string {
  * Standard ESLint config - full linting with Prettier
  */
 function getStandardEslintConfig(): string {
-  return `import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import safeword from "safeword/eslint";
+  return `import safeword from "safeword/eslint";
 
 // Prettier config is bundled with safeword
 const eslintConfigPrettier = safeword.prettierConfig;
 
 const { detect, configs } = safeword;
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 const deps = detect.collectAllDeps(__dirname);
 const framework = detect.detectFramework(deps);
 
@@ -160,12 +158,10 @@ ${OPTIONAL_CONFIGS_SNIPPET}
  * Does not include eslint-config-prettier since another tool handles formatting.
  */
 function getFormatterAgnosticEslintConfig(): string {
-  return `import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import safeword from "safeword/eslint";
+  return `import safeword from "safeword/eslint";
 
 const { detect, configs } = safeword;
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 const deps = detect.collectAllDeps(__dirname);
 const framework = detect.detectFramework(deps);
 
@@ -255,14 +251,12 @@ function getSafewordEslintConfigLegacy(
   return `// Safeword ESLint config - extends legacy project config with stricter rules
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // NOTE: Legacy .eslintrc.* format is deprecated. Consider migrating to eslint.config.mjs
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { FlatCompat } from "@eslint/eslintrc";
 ${safewordImport}${prettier.import}
 
 console.warn("Safeword: Legacy .eslintrc.* detected. Consider migrating to eslint.config.mjs");
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 // baseDirectory is .safeword/, so ../${existingConfig} resolves to project root
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
@@ -292,12 +286,11 @@ function getSafewordEslintConfigStandalone(hasExistingFormatter: boolean): strin
   return `// Safeword ESLint config - standalone (no project config to extend)
 // Used by hooks for LLM enforcement.
 import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import safeword from "safeword/eslint";
 ${prettier.import}
 
 const { detect, configs } = safeword;
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 // Look in parent directory for deps (this file is in .safeword/)
 const projectDir = dirname(__dirname);
 const deps = detect.collectAllDeps(projectDir);
