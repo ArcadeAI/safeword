@@ -3,7 +3,7 @@ id: 030
 slug: rename-done-to-verify
 type: feature
 status: in_progress
-phase: scenario-gate
+phase: decomposition
 ---
 
 # Rename /done to /verify with Dependency Drift Check
