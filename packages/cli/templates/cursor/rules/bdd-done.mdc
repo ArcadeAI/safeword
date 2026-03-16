@@ -7,41 +7,61 @@ alwaysApply: false
 
 **Entry:** All scenarios marked `[x]` in test-definitions
 
-## Required Checks (run /verify then /audit)
+## Step 1: Cross-Scenario Refactoring
 
-- [ ] All scenarios `[x]` in test-definitions
-- [ ] Full test suite passes
-- [ ] Build succeeds
-- [ ] Lint passes
-- [ ] Dependency drift clean (package.json vs ARCHITECTURE.md)
-- [ ] Run `/audit` — no errors (warnings OK)
-
-**Both `/verify` and `/audit` evidence required** — stop hook validates all three patterns.
-
-## Flake Detection
-
-Run tests 3x:
+Run `/refactor` across all files changed in this ticket:
 
 ```bash
-for i in {1..3}; do bun test || echo "FLAKE on run $i"; done
+git diff main --name-only
 ```
 
-## Cross-Scenario Refactoring
-
-Run `/refactor` to look for cleanup:
+Look for cross-scenario patterns:
 
 - Duplicate setup → shared fixture
 - Similar assertions → custom matcher
 - Copy-pasted logic → shared module
 
-## Parent Epic
+Only refactor if clear wins exist.
+
+## Step 2: Flake Detection (if flakes suspected)
+
+```bash
+for i in {1..3}; do bun test || echo "FLAKE on run $i"; done
+```
+
+## Step 3: Run /verify
+
+Tests, build, lint, scenarios, dep drift. Generates evidence.
+
+## Step 4: Run /audit
+
+Architecture, dead code, duplication. Generates audit evidence.
+
+**Both `/verify` and `/audit` evidence required** — stop hook validates all three patterns.
+
+## Step 5: BDD Compliance Self-Check
+
+Review your work against BDD phases. Fill in specifics:
+
+```
+## BDD Compliance Check
+- [ ] Phases 0-2: Discovery — [what]
+- [ ] Phase 3: Scenarios — [N in Given/When/Then]
+- [ ] Phase 4: Validated with user — [how]
+- [ ] Phase 5: Decomposed — [N tasks]
+- [ ] Phase 6: RED→GREEN→REFACTOR — [N scenarios, N commits]
+- [ ] Phase 7: Refactor→Verify→Audit — [results]
+- [ ] Phase transitions committed before each phase
+```
+
+## Step 6: Parent Epic
 
 If ticket has `parent:` field:
 
 1. Add completion entry to parent's work log
 2. If all `children:` done → update parent `status: done`
 
-## Final Commit
+## Step 7: Final Commit
 
 1. Update ticket: `phase: done`, `status: done`
 2. Commit: `feat(scope): [summary]`
