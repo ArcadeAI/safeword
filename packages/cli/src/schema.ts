@@ -179,6 +179,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-bdd-orchestrating/DONE.md',
     '.claude/skills/safeword-bdd-orchestrating/SPLITTING.md',
     // Command for debug was never a standalone command before v0.17.0 (always a skill)
+    // /done renamed to /verify (v0.20.0)
+    '.claude/commands/done.md',
+    '.cursor/commands/done.md',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint)
@@ -388,7 +391,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/bdd.md': { template: 'commands/bdd.md' },
     '.claude/commands/refactor.md': { template: 'commands/refactor.md' },
     '.claude/commands/debug.md': { template: 'commands/debug.md' },
-    '.claude/commands/done.md': { template: 'commands/done.md' },
+    '.claude/commands/verify.md': { template: 'commands/verify.md' },
     '.claude/commands/audit.md': { template: 'commands/audit.md' },
     '.claude/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',
@@ -433,7 +436,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Cursor commands (8 files - Cursor needs explicit commands for all capabilities)
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
     '.cursor/commands/debug.md': { template: 'commands/debug.md' },
-    '.cursor/commands/done.md': { template: 'commands/done.md' },
+    '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/audit.md': { template: 'commands/audit.md' },
     '.cursor/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',

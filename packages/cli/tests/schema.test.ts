@@ -190,6 +190,26 @@ describe('Schema - Single Source of Truth', () => {
     });
   });
 
+  describe('verify command registration (T10)', () => {
+    it('should have verify.md registered in ownedFiles for both Claude and Cursor', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      expect('.claude/commands/verify.md' in SAFEWORD_SCHEMA.ownedFiles).toBe(true);
+      expect('.cursor/commands/verify.md' in SAFEWORD_SCHEMA.ownedFiles).toBe(true);
+    });
+
+    it('should NOT have done.md in ownedFiles', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      expect('.claude/commands/done.md' in SAFEWORD_SCHEMA.ownedFiles).toBe(false);
+      expect('.cursor/commands/done.md' in SAFEWORD_SCHEMA.ownedFiles).toBe(false);
+    });
+
+    it('should have done.md in deprecatedFiles', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      expect(SAFEWORD_SCHEMA.deprecatedFiles).toContain('.claude/commands/done.md');
+      expect(SAFEWORD_SCHEMA.deprecatedFiles).toContain('.cursor/commands/done.md');
+    });
+  });
+
   describe('managedFiles', () => {
     it('should include eslint.config.mjs, tsconfig.json, knip.json, and .prettierrc', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
