@@ -103,7 +103,7 @@ Assume you've never seen it before.
 5. Parent epic updated (if applicable)?
    → Show: "Added entry to [parent] work log" or "No parent"
 
-If ANY item lacks evidence, continue working. Run /done to verify.${JSON_SUFFIX}`,
+If ANY item lacks evidence, continue working. Run /verify to check, then /audit before marking done.${JSON_SUFFIX}`,
 };
 
 /**

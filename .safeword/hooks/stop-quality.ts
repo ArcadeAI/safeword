@@ -301,6 +301,7 @@ const qualityMessage = getQualityMessage(currentPhase);
 const TEST_EVIDENCE_PATTERN = /✓\s*\d+\/\d+\s*tests?\s*pass/i; // "✓ 156/156 tests pass"
 const TEST_EVIDENCE_ALT_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass"
 const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
+const AUDIT_EVIDENCE_PATTERN = /audit\s+passed/i; // "Audit passed" or "Audit passed with warnings"
 
 /** Check if transcript contains test evidence (either format). */
 function hasTestEvidence(text: string): boolean {
@@ -310,13 +311,25 @@ function hasTestEvidence(text: string): boolean {
 /**
  * Get done gate message based on ticket type.
  */
-function getDoneHardBlockMessage(ticketType: string | undefined): string {
+function getDoneHardBlockMessage(ticketType: string | undefined, missingAudit: boolean): string {
   const scenarioLine =
     ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
-  return `SAFEWORD: Done phase requires evidence. Run /done and show results.
+  const auditLine =
+    ticketType === 'feature' ? '\n- "Audit passed" (required for features — run /audit)' : '';
+
+  if (missingAudit) {
+    return `SAFEWORD: Done phase requires audit evidence. Run /audit and show results.
+
+Expected evidence format:
+- "Audit passed" or "Audit passed with warnings"
+
+Run /audit, show output, then try again.`;
+  }
+
+  return `SAFEWORD: Done phase requires evidence. Run /verify and show results.
 
 Expected evidence formats:
-- "✓ X/X tests pass" (required)${scenarioLine}
+- "✓ X/X tests pass" (required)${scenarioLine}${auditLine}
 
 Run tests, show output, then try again.`;
 }
@@ -352,12 +365,20 @@ if (artifactError) {
 
 if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop.
-  // Features need both test and scenario evidence; tasks need test only.
+  // Features need test + scenario + audit evidence; tasks need test only.
   const isFeature = ticketInfo.type === 'feature';
-  const hasEvidence = isFeature
-    ? hasTestEvidence(combinedText) && SCENARIO_EVIDENCE_PATTERN.test(combinedText)
-    : hasTestEvidence(combinedText);
-  if (!hasEvidence) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type));
+  const hasTests = hasTestEvidence(combinedText);
+  const hasScenarios = SCENARIO_EVIDENCE_PATTERN.test(combinedText);
+  const hasAudit = AUDIT_EVIDENCE_PATTERN.test(combinedText);
+
+  if (isFeature) {
+    // Features: require all three evidence types
+    if (!hasTests || !hasScenarios) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
+    if (!hasAudit) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
+  } else {
+    // Tasks: require test evidence only
+    if (!hasTests) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
+  }
 
   // Evidence passed — mark current ticket done and navigate hierarchy
   if (ticketInfo.folder) {

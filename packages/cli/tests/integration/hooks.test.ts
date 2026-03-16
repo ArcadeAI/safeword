@@ -463,7 +463,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       expect(result.exitCode).toBe(2);
       expect(result.reason).toContain('SAFEWORD');
       expect(result.reason).toContain('requires evidence');
-      expect(result.reason).toContain('/done');
+      expect(result.reason).toContain('/verify');
     });
 
     it('Scenario 4b: Allows done phase with evidence present', () => {
@@ -483,9 +483,9 @@ describe('E2E: Phase-Aware Quality Review', () => {
         '# Test Definitions\n\n- [x] Scenario 1',
       );
 
-      // Transcript contains evidence patterns
+      // Transcript contains all evidence patterns (test + scenario + audit)
       const evidenceText =
-        '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\n{"proposedChanges": false, "madeChanges": true}';
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed\n\n{"proposedChanges": false, "madeChanges": true}';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Evidence found - should allow stop (exit 0, no block)
@@ -729,7 +729,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       expect(result.reason).toBe('');
     });
 
-    it('Scenario 16: Feature done with both test and scenario evidence passes', () => {
+    it('Scenario 16: Feature done with test, scenario, and audit evidence passes', () => {
       setupIssuesDirectory(projectDirectory, [
         {
           id: '001',
@@ -746,9 +746,9 @@ describe('E2E: Phase-Aware Quality Review', () => {
         '# Test Definitions\n\n- [x] Scenario 1',
       );
 
-      // Both test and scenario evidence
+      // Test + scenario + audit evidence
       const evidenceText =
-        '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\n{"proposedChanges": false, "madeChanges": true}';
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings\n\n{"proposedChanges": false, "madeChanges": true}';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Should allow

@@ -104,7 +104,7 @@ afterEach(() => {
 
 describe('hierarchy navigation in stop hook', () => {
   // Evidence that passes the done gate for features
-  const featureEvidence = '✓ 15/15 tests pass\nAll 8 scenarios marked complete';
+  const featureEvidence = '✓ 15/15 tests pass\nAll 8 scenarios marked complete\nAudit passed';
   // Evidence that passes the done gate for tasks
   const taskEvidence = '✓ 15/15 tests pass';
 
