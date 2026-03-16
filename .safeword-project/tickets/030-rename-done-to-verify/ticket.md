@@ -3,7 +3,7 @@ id: 030
 slug: rename-done-to-verify
 type: feature
 status: in_progress
-phase: define-behavior
+phase: scenario-gate
 ---
 
 # Rename /done to /verify with Dependency Drift Check
@@ -32,3 +32,4 @@ phase: define-behavior
 ## Work Log
 
 - 2026-03-15T22:59Z Started: Ticket created from design discussion
+- 2026-03-15T23:00Z Complete: Phase 0-2 - Context established from prior design discussion
