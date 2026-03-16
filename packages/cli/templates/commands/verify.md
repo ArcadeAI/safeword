@@ -1,16 +1,14 @@
 ---
-description: Run completion checklist for current feature ticket (project)
+description: Verify ticket criteria — tests, build, lint, scenarios, dep drift (project)
 ---
 
-# Done
+# Verify
 
-Run completion checklist before marking a feature ticket done.
+Prove a ticket meets its criteria. Works with or without an active ticket.
 
 ## Instructions
 
-### 1. Find Current Ticket
-
-Find the most recently modified in_progress ticket:
+### 1. Find Current Ticket (if any)
 
 ```bash
 # Find in_progress tickets, excluding epics
@@ -20,10 +18,12 @@ for f in .safeword-project/tickets/*/ticket.md; do
 done | head -1
 ```
 
-Read the ticket to get:
+If a ticket is found, read it to get:
 
 - `parent:` field (if any)
 - Ticket ID/slug for test-definitions lookup
+
+If no ticket is found, skip scenario validation (step 3) and parent check (step 4).
 
 ### 2. Run Automated Checks
 
@@ -42,7 +42,7 @@ bun run build 2>&1
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.
 
-### 3. Validate Test Definitions
+### 3. Validate Test Definitions (skip if no ticket)
 
 1. Find matching file: `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
 2. Count scenarios: total `- [` lines
@@ -51,7 +51,7 @@ The `/lint` command handles linting with auto-fix. Report any remaining unfixabl
 
 If any unchecked `[ ]` remain, list them.
 
-### 4. Check Parent Epic (if applicable)
+### 4. Check Parent Epic (skip if no ticket)
 
 If ticket has `parent:` field:
 
@@ -60,17 +60,35 @@ If ticket has `parent:` field:
 3. Check each child's `status:`
 4. Report: "Siblings: X/Y done"
 
-### 5. Report Results
+### 5. Check Dependency Drift
+
+Compare `package.json` dependencies against `ARCHITECTURE.md`:
+
+1. If `ARCHITECTURE.md` does not exist, skip this check
+2. Read `ARCHITECTURE.md` content
+3. Read `package.json` `dependencies` and `devDependencies` keys
+4. For each dependency name:
+   - Extract the package name (without `@scope/` prefix for matching — but check both full name and short name)
+   - Check if `ARCHITECTURE.md` mentions the package name (case-insensitive)
+5. Flag any dependency NOT mentioned: `"Dependency \`{name}\` not documented in ARCHITECTURE.md"`
+
+Do NOT flag:
+
+- `@types/*` packages (type-only, not architectural)
+- Packages in `devDependencies` that are tooling (eslint plugins, prettier plugins, test utils) — only flag deps that represent architectural choices
+
+### 6. Report Results
 
 Format results using these EXACT patterns (hook validates these):
 
 ```
-## Done Checklist
+## Verify Checklist
 
 **Test Suite:** ✓ 156/156 tests pass (or ❌ 3 failures)
 **Build:** ✅ Success (or ❌ Failed)
 **Lint:** ✅ Clean (or ❌ 2 errors)
-**Scenarios:** All 10 scenarios marked complete (or ❌ 8/10 complete)
+**Scenarios:** All 10 scenarios marked complete (or ❌ 8/10 complete, or ⏭️ Skipped — no ticket)
+**Dep Drift:** ✅ Clean (or ⚠️ 2 undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
 **Parent Epic:** 006 (siblings: 2/3 done) or N/A
 
 [If all pass]
@@ -84,11 +102,11 @@ Fix these before marking done:
 
 **Important:** The stop hook validates evidence patterns:
 
-- `✓ X/X tests pass` - proves test suite ran
-- `All N scenarios marked complete` - proves scenarios checked
+- `✓ X/X tests pass` — proves test suite ran
+- `All N scenarios marked complete` — proves scenarios checked
 
 Without these patterns, the done phase will block.
 
 ## Summary
 
-This command automates Phase 7 (Done Gate) verification. Use it before marking any feature ticket complete.
+This command verifies ticket criteria (Phase 7 Done Gate). Use it before marking any feature ticket complete. It also works without a ticket for quick project health checks (tests + build + lint + dep drift).
