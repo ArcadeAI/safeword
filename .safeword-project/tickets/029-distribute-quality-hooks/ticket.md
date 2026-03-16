@@ -2,7 +2,7 @@
 id: 029
 slug: distribute-quality-hooks
 type: feature
-status: in_progress
+status: done
 phase: done
 ---
 
