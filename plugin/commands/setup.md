@@ -33,7 +33,7 @@ Setup auto-detects languages (TypeScript, Python, Go, Rust) and installs everyth
 ## What Gets Installed
 
 - **Skills**: BDD orchestration, systematic debugging, refactoring, quality reviewing
-- **Commands**: /bdd, /lint, /audit, /done, /quality-review, /refactor, /cleanup-zombies
+- **Commands**: /bdd, /lint, /audit, /verify, /quality-review, /refactor, /cleanup-zombies
 - **Hooks**: Auto-lint on edit, quality review on stop, timestamp injection, question guidance
 - **Guides**: Testing, planning, architecture, debugging, context files, and more
 - **Templates**: Feature specs, task specs, design docs, tickets, work logs
