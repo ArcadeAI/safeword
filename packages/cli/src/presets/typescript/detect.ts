@@ -192,7 +192,7 @@ function getIgnores(_deps: DepsRecord): string[] {
     '**/build/',
     '**/coverage/',
     // Safeword's own hook/config files (TS, not in project's tsconfig scope)
-    '.safeword/**',
+    '.safeword/',
     // Build output directories — always ignore even if framework not currently installed
     '**/.next/',
     '**/.astro/',
