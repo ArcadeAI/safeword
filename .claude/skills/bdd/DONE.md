@@ -2,13 +2,16 @@
 
 **Entry:** All scenarios marked `[x]` in test-definitions
 
-## Required Checks (run /done to automate)
+## Required Checks (run /verify then /audit)
 
 - [ ] All scenarios `[x]` in test-definitions
 - [ ] Full test suite passes
 - [ ] Build succeeds
 - [ ] Lint passes
+- [ ] Dependency drift clean (package.json vs ARCHITECTURE.md)
 - [ ] Run `/audit` — no errors (warnings OK)
+
+**Both `/verify` and `/audit` evidence required** — stop hook validates all three patterns.
 
 ## Flake Detection
 

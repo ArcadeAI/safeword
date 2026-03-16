@@ -103,5 +103,5 @@ For splitting large features, see SPLITTING.md.
 - **feature** → full BDD flow (Phases 0-7), track in ticket `phase:` field
 - **Resume** → read ticket, find first unchecked scenario, continue
 - **Split** → check thresholds at Entry, Phase 3, Phase 5; user decides (see SPLITTING.md)
-- **Done gate** → run /done before marking ticket complete
+- **Done gate** → run /verify then /audit before marking ticket complete
 - When unsure → default to task, user can `/bdd` to override
