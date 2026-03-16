@@ -54,8 +54,8 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
       expect(eslintConfig).toContain('astro: [...configs.recommendedTypeScript, ...configs.astro]');
       expect(eslintConfig).toContain('baseConfigs[framework]');
 
-      // Check dynamic ignores (detect.getIgnores adds .astro/ for Astro projects)
-      expect(eslintConfig).toContain('detect.getIgnores(deps)');
+      // Check standard ignores (detect.getIgnores includes .next/, .astro/, .venv/, etc.)
+      expect(eslintConfig).toContain('detect.getIgnores()');
 
       // Check package.json has safeword (bundles Astro plugin)
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));

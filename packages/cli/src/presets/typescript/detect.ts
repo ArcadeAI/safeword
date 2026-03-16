@@ -183,9 +183,10 @@ function detectFramework(
 }
 
 /**
- * Get dynamic ignores based on detected frameworks.
+ * Standard ignore patterns for ESLint flat config.
+ * Includes build output, tool caches, and non-JS ecosystems.
  */
-function getIgnores(_deps: DepsRecord): string[] {
+function getIgnores(): string[] {
   return [
     '**/node_modules/',
     '**/dist/',
@@ -198,6 +199,8 @@ function getIgnores(_deps: DepsRecord): string[] {
     '**/.astro/',
     // Non-JS ecosystems that may contain JS files
     '**/.venv/',
+    // Tool caches
+    '**/.turbo/',
   ];
 }
 

@@ -29,7 +29,7 @@ const cliToolOverrides = {
 };
 
 export default [
-  { ignores: detect.getIgnores(deps) },
+  { ignores: detect.getIgnores() },
 
   ...baseConfigs[framework],
   ...(detect.hasVitest(deps) ? configs.vitest : []),

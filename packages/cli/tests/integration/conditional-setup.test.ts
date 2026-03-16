@@ -143,8 +143,8 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       );
       expect(eslintConfig).toContain('baseConfigs[framework]');
 
-      // Check dynamic ignores (detect.getIgnores adds .next/ for Next.js projects)
-      expect(eslintConfig).toContain('detect.getIgnores(deps)');
+      // Check standard ignores (detect.getIgnores includes .next/, .astro/, .venv/, etc.)
+      expect(eslintConfig).toContain('detect.getIgnores()');
 
       // Check package.json has safeword (bundles Next.js plugin)
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));

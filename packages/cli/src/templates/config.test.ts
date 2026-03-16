@@ -61,10 +61,10 @@ describe('getEslintConfig', () => {
     expect(config).toContain('detect.hasTailwind(deps)');
   });
 
-  it('should use detect.getIgnores for dynamic ignores', () => {
+  it('should use detect.getIgnores for standard ignores', () => {
     const config = getEslintConfig();
 
-    expect(config).toContain('detect.getIgnores(deps)');
+    expect(config).toContain('detect.getIgnores()');
   });
 
   it('should include eslint-config-prettier when no existing formatter', () => {

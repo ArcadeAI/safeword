@@ -143,7 +143,7 @@ const framework = detect.detectFramework(deps);
 ${getMonorepoSnippet('__dirname')}
 
 export default [
-  { ignores: detect.getIgnores(deps) },
+  { ignores: detect.getIgnores() },
   ...baseConfigs[framework],
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
@@ -168,7 +168,7 @@ const framework = detect.detectFramework(deps);
 ${getMonorepoSnippet('__dirname')}
 
 export default [
-  { ignores: detect.getIgnores(deps) },
+  { ignores: detect.getIgnores() },
   ...baseConfigs[framework],
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
@@ -301,7 +301,7 @@ ${getMonorepoSnippet('projectDir')}
 ${SAFEWORD_STRICT_RULES_FULL}
 
 export default [
-  { ignores: detect.getIgnores(deps) },
+  { ignores: detect.getIgnores() },
   ...baseConfigs[framework],
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
