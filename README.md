@@ -201,7 +201,7 @@ Key directories created in your project:
 - `/audit` - Run architecture and dead code analysis
 - `/bdd` - Force BDD flow for current task
 - `/cleanup-zombies` - Kill zombie processes on ports
-- `/done` - Run completion checklist for current feature
+- `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
 - `/refactor` - Systematic refactoring with small-step discipline

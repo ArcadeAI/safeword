@@ -76,7 +76,7 @@ packages/cli/
 ├── templates/
 │   ├── SAFEWORD.md     # Core instructions (installed to .safeword/)
 │   ├── AGENTS.md       # Project context template
-│   ├── commands/       # Slash commands (/audit, /bdd, /cleanup-zombies, /done, /lint, /quality-review, /refactor)
+│   ├── commands/       # Slash commands (/audit, /bdd, /cleanup-zombies, /verify, /lint, /quality-review, /refactor)
 │   ├── cursor/         # Cursor IDE rules (.mdc files)
 │   ├── doc-templates/  # Feature specs, design docs, tickets
 │   ├── guides/         # Methodology guides (TDD, planning, etc.)
@@ -292,13 +292,14 @@ interface ProjectContext {
 **Status:** Accepted
 **Date:** 2026-01-07
 
-| Field          | Value                                                                                                   |
-| -------------- | ------------------------------------------------------------------------------------------------------- |
-| What           | Done phase in quality hook uses exit 2 (hard block) requiring evidence before completion                |
-| Why            | Prevents premature "done" claims; agent must show test output (e.g., "✓ 156/156 tests pass")            |
-| Trade-off      | Slightly more friction at completion time                                                               |
-| Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims) |
-| Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching       |
+| Field          | Value                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| What           | Done phase in quality hook uses exit 2 (hard block) requiring evidence before completion                     |
+| Why            | Prevents premature "done" claims; agent must show test/scenario/audit output                                 |
+| Trade-off      | Slightly more friction at completion time                                                                    |
+| Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims)      |
+| Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching            |
+| Evidence       | Features require: `✓ X/X tests pass` + `All N scenarios marked complete` + `Audit passed`. Tasks: test only. |
 
 ### Hierarchy Navigation on Ticket Completion
 

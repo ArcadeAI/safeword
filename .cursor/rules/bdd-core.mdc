@@ -49,4 +49,4 @@ phase: implement # intake | define-behavior | scenario-gate | decomposition | im
 - **feature** → full BDD flow, track `phase:` field
 - **Resume** → read ticket, find unchecked scenario
 - **Split** → see bdd-splitting.mdc
-- **Done** → run /done before marking complete
+- **Done** → run /verify then /audit before marking complete
