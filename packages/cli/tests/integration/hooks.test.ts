@@ -755,6 +755,58 @@ describe('E2E: Phase-Aware Quality Review', () => {
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });
+
+    it('T7: Feature done hard blocks without audit evidence', () => {
+      setupIssuesDirectory(projectDirectory, [
+        {
+          id: '001',
+          type: 'feature',
+          phase: 'done',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/test-definitions.md',
+        '# Test Definitions\n\n- [x] Scenario 1',
+      );
+
+      // Has test + scenario evidence but NO audit evidence
+      const evidenceText =
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\n{"proposedChanges": false, "madeChanges": true}';
+      const result = runStopHookForPhase(projectDirectory, evidenceText);
+
+      // Should hard block requiring /audit
+      expect(result.exitCode).toBe(2);
+      expect(result.reason).toContain('audit');
+    });
+
+    it('T8: Feature done passes with verify + audit evidence', () => {
+      setupIssuesDirectory(projectDirectory, [
+        {
+          id: '001',
+          type: 'feature',
+          phase: 'done',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/test-definitions.md',
+        '# Test Definitions\n\n- [x] Scenario 1',
+      );
+
+      // Has test + scenario + audit evidence
+      const evidenceText =
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings\n\n{"proposedChanges": false, "madeChanges": true}';
+      const result = runStopHookForPhase(projectDirectory, evidenceText);
+
+      // Should allow
+      expect(result.exitCode).toBe(0);
+      expect(result.reason).toBe('');
+    });
   });
 
   // Cleanup after all phase tests
