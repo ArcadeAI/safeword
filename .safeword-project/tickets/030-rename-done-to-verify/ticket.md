@@ -2,8 +2,8 @@
 id: 030
 slug: rename-done-to-verify
 type: feature
-status: in_progress
-phase: implement
+status: done
+phase: done
 ---
 
 # Rename /done to /verify with Dependency Drift Check
