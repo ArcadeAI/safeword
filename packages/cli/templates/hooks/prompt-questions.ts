@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// Safeword: Question protocol guidance (UserPromptSubmit)
-// Reminds Claude to ask 1-5 clarifying questions for ambiguous tasks
+// Safeword: Pre-work reminders (UserPromptSubmit)
+// Reminds Claude to classify work level and ask clarifying questions
 
 import { existsSync } from 'node:fs';
 
@@ -13,5 +13,5 @@ if (!existsSync(safewordDir)) {
 }
 
 console.log(
-  `SAFEWORD: Research before asking. Debate options (correct? elegant? latest practices?), then ask 1-5 targeted questions about scope, constraints, or success criteria.`,
+  `SAFEWORD: Classify work level FIRST (patch/task/feature) and announce before starting. Research before asking. Debate options (correct? elegant? latest practices?), then ask 1-5 targeted questions about scope, constraints, or success criteria.`,
 );

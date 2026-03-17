@@ -2,6 +2,62 @@
 
 ---
 
+## Work Level Detection
+
+**⚠️ MANDATORY: Run this decision tree on EVERY request BEFORE doing any work.**
+
+**Resuming existing work?** If user references a ticket ID/slug or says "resume"/"continue":
+→ Read ticket, use its `type:` field (feature/task/patch) instead of this tree.
+
+Stop at first match:
+
+```text
+Is this explicitly a bug fix, typo, or config change?
+├─ Yes → patch
+└─ No ↓
+
+Does request mention "feature", "add", "implement", "support", "build", "iteration", "phase"?
+├─ No → task
+└─ Yes ↓
+
+Will it require 3+ files AND (new state OR multiple user flows)?
+├─ Yes → feature
+└─ No / Unsure ↓
+
+Can ONE test cover the observable change?
+├─ Yes → task
+└─ No → feature
+
+Fallback: task. User can /bdd to override.
+```
+
+**Always announce after detection:**
+
+- **patch:** "Patch. Fixing directly."
+- **task:** "Task. Writing tests first. `/bdd` to override." → TDD (RED → GREEN → REFACTOR)
+- **feature:** "Feature. `/tdd` to override." → Run `/bdd`
+
+**Examples:**
+
+| Request                      | Signals                         | Level   |
+| ---------------------------- | ------------------------------- | ------- |
+| "Fix typo in README"         | 1 file, no test needed          | patch   |
+| "Fix login error message"    | 1-2 files, 1 test               | task    |
+| "Change button color to red" | 1 file, 1 test, no state        | task    |
+| "Add dark mode toggle"       | 3+ files, new state, user prefs | feature |
+| "Add user authentication"    | Many files, state machine       | feature |
+| "Move onto iteration 2"      | New work chunk, scope in spec   | feature |
+| "Implement iteration 3 of X" | Iteration = sub-feature of spec | feature |
+| "Continue to phase 3"        | Phase = spec continuation       | feature |
+
+**Edge cases:**
+
+- "Add a comment to function X" → patch (not behavior change)
+- "Implement the fix for bug #123" → task (bug fix despite "implement")
+- "Build the Docker image" → patch (infrastructure, not product)
+
+---
+
 ## Code Philosophy
 
 **Optimize for:** Clarity → Simplicity → Correctness (in that order)
@@ -181,62 +237,6 @@ status: in_progress
 | ------------------------------- | ---------------------------------------------------------------------------- |
 | Multiple artifacts at once      | One log per artifact (don't combine)                                         |
 | No clear artifact (exploratory) | Create `explore-{topic}.md`, convert to proper artifact when scope clarifies |
-
----
-
-## Work Level Detection
-
-**⚠️ MANDATORY: Run this decision tree on EVERY request BEFORE doing any work.**
-
-**Resuming existing work?** If user references a ticket ID/slug or says "resume"/"continue":
-→ Read ticket, use its `type:` field (feature/task/patch) instead of this tree.
-
-Stop at first match:
-
-```text
-Is this explicitly a bug fix, typo, or config change?
-├─ Yes → patch
-└─ No ↓
-
-Does request mention "feature", "add", "implement", "support", "build", "iteration", "phase"?
-├─ No → task
-└─ Yes ↓
-
-Will it require 3+ files AND (new state OR multiple user flows)?
-├─ Yes → feature
-└─ No / Unsure ↓
-
-Can ONE test cover the observable change?
-├─ Yes → task
-└─ No → feature
-
-Fallback: task. User can /bdd to override.
-```
-
-**Always announce after detection:**
-
-- **patch:** "Patch. Fixing directly."
-- **task:** "Task. Writing tests first. `/bdd` to override." → TDD (RED → GREEN → REFACTOR)
-- **feature:** "Feature. `/tdd` to override." → Run `/bdd`
-
-**Examples:**
-
-| Request                      | Signals                         | Level   |
-| ---------------------------- | ------------------------------- | ------- |
-| "Fix typo in README"         | 1 file, no test needed          | patch   |
-| "Fix login error message"    | 1-2 files, 1 test               | task    |
-| "Change button color to red" | 1 file, 1 test, no state        | task    |
-| "Add dark mode toggle"       | 3+ files, new state, user prefs | feature |
-| "Add user authentication"    | Many files, state machine       | feature |
-| "Move onto iteration 2"      | New work chunk, scope in spec   | feature |
-| "Implement iteration 3 of X" | Iteration = sub-feature of spec | feature |
-| "Continue to phase 3"        | Phase = spec continuation       | feature |
-
-**Edge cases:**
-
-- "Add a comment to function X" → patch (not behavior change)
-- "Implement the fix for bug #123" → task (bug fix despite "implement")
-- "Build the Docker image" → patch (infrastructure, not product)
 
 ---
 
