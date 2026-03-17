@@ -30,6 +30,7 @@ interface TranscriptMessage {
 interface ResponseSummary {
   proposedChanges: boolean;
   madeChanges: boolean;
+  askedQuestion?: boolean;
 }
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
@@ -412,7 +413,10 @@ if (currentPhase === 'done') {
 if (summary) {
   // Use reported summary
   if (summary.proposedChanges || summary.madeChanges) {
-    softBlock(qualityMessage);
+    const questionReminder = summary.askedQuestion
+      ? '\n\nIMPORTANT: You asked the user a question above. Re-state it after your review.'
+      : '';
+    softBlock(`${qualityMessage}${questionReminder}`);
   }
 } else if (editToolsUsed) {
   // Fallback: edit tools detected but no summary - trigger review anyway
