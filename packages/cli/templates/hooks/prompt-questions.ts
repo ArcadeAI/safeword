@@ -12,6 +12,6 @@ if (!existsSync(safewordDir)) {
   process.exit(0);
 }
 
-console.log(
-  `SAFEWORD: Classify work level FIRST (patch/task/feature) and announce before starting. Research before asking. Debate options (correct? elegant? latest practices?), then ask 1-5 targeted questions about scope, constraints, or success criteria.`,
-);
+console.log(`SAFEWORD:
+- Classify patch/task/feature and announce before starting.
+- Research options, then ask 1-5 targeted questions about scope and constraints.`);
