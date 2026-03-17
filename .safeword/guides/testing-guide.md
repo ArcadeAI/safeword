@@ -199,8 +199,8 @@ test('user creates account and first item', async ({ page }) => {
       value: JSON.parse(output).intent === 'order_pizza'
     - type: llm-rubric
       value: |
-        EXCELLENT: Confirms pizza type/size, asks for delivery details
-        POOR: Generic response or wrong intent
+        PASS: Correctly identifies pizza order, confirms size and type
+        FAIL: Wrong intent, ignores key details, or generic response
 ```
 
 ---
