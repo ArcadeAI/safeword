@@ -1,5 +1,5 @@
 ---
-description: Run comprehensive code audit for architecture and dead code
+description: Run comprehensive code audit for architecture, dead code, and test quality
 ---
 
 # Audit
@@ -110,7 +110,41 @@ Find and check all agent configuration files (excluding `.safeword/`):
 - [Anthropic Engineering](https://www.anthropic.com/engineering/claude-code-best-practices)
 - [Cursor Docs](https://cursor.com/docs/context/rules)
 
-### 3. Project Documentation Checks
+### 3. Test Quality Review
+
+Review existing test files for quality issues. Sample test files from the project and check against the iron laws and anti-patterns in `.claude/skills/testing/SKILL.md`.
+
+**Find test files:**
+
+```bash
+# Find test files (common patterns)
+find . -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" | grep -v node_modules | grep -v dist | head -20
+```
+
+**For each sampled test file, check:**
+
+| Check                        | Criteria                                                                                                | Severity |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
+| Meaningful assertions        | Every test has specific value/behavior assertions (not just `toBeTruthy`, `toBeDefined`, `not.toThrow`) | error    |
+| Behavior over implementation | Tests assert observable outcomes, not internal state or mock call args                                  | warn     |
+| Independence                 | No test depends on another test's side effects; fresh state per test                                    | error    |
+| No arbitrary timeouts        | No `sleep()`, `waitForTimeout()`, or hardcoded delays                                                   | warn     |
+| Edge case coverage           | Tests include error paths and boundary cases, not just happy path                                       | warn     |
+| No duplicate tests           | Similar tests use parameterized/table-driven patterns (`it.each`)                                       | warn     |
+| Test naming                  | Names describe behavior, not implementation ("returns 401 when..." not "works correctly")               | warn     |
+
+**Report format:**
+
+```text
+Test Quality:
+- Files reviewed: N
+- Issues found: N (E errors, W warnings)
+- [E/W] file.test.ts:42 — Weak assertion: `expect(result).toBeTruthy()` → assert specific value
+- [E/W] file.test.ts:15 — Shared mutable state: `user` modified across tests
+- [W] file.test.ts — Happy-path only: no error case tests for `processOrder()`
+```
+
+### 4. Project Documentation Checks
 
 **ARCHITECTURE.md:**
 
@@ -164,6 +198,11 @@ Report findings by severity with codes:
 **Outdated Packages:**
 
 - [list or "all up to date"]
+
+**Test Quality:**
+
+- Files reviewed: N
+- Issues: [None / list by severity]
 
 ---
 
