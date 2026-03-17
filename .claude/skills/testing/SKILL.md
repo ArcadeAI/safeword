@@ -6,19 +6,52 @@ allowed-tools: '*'
 
 # Writing Good Tests
 
-Tests catch bugs. Bad tests give false confidence. Know the difference.
+Tests prove the system behaves correctly. Every test — unit, integration, E2E, eval — must verify **observable behavior**, not implementation details.
 
-**Iron Law:** A TEST THAT CAN'T FAIL IS WORTHLESS
+**Core Principle:** TEST BEHAVIOR, NOT IMPLEMENTATION
+
+---
+
+## Philosophy: Behavior-Biased Testing
+
+**What this means:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods).
+
+**Why:** Tests coupled to implementation break on every refactor. Behavioral tests survive refactoring because behavior doesn't change — only the internals do.
+
+**Scope preference:** When multiple test types can verify a behavior, prefer the highest scope that's practical. Higher scope = more confidence that the real system works.
+
+```text
+Prefer (highest confidence):
+  E2E        → proves the user can do the thing
+  Integration → proves components work together
+  Unit        → proves the algorithm is correct
+Fallback (lowest scope):
+```
+
+**When to drop to a lower scope:**
+
+- Pure function with many edge cases (20+ combinations) → unit test
+- Internal service boundary, no UI involved → integration test
+- Algorithm with complex logic (parsing, math, state machines) → unit test
+- Only one module's contract matters → integration test
+
+**When to stay at higher scope:**
+
+- User-facing feature or workflow → E2E
+- Multiple modules must cooperate → integration or E2E
+- "If this breaks, users notice immediately" → E2E
+
+**Announce your decision:** "Test type: [unit/integration/E2E/eval] because [reason]."
+
+For the full decision tree, bug detection matrix, and edge cases: `.safeword/guides/testing-guide.md`
 
 ---
 
 ## Iron Laws
 
-Non-negotiable. Violating any of these produces tests that pass but catch nothing.
+Non-negotiable at every test level. Violating these produces tests that pass but catch nothing.
 
 ### 1. Test Behavior, Not Implementation
-
-Test what the code DOES, not how it does it. Tests coupled to internals break on every refactor.
 
 ```typescript
 // WRONG — tests internal state
@@ -29,6 +62,13 @@ expect(mockFn).toHaveBeenCalledWith('internal-detail');
 expect(screen.getByText('Count: 1')).toBeVisible();
 expect(result).toEqual({ total: 42 });
 ```
+
+This applies at EVERY level:
+
+- **Unit:** assert on return values, not on which helpers were called
+- **Integration:** assert on API responses, not on which service methods fired
+- **E2E:** assert on what the user sees, not on DOM structure
+- **Eval:** grade the output quality, not the path the LLM took
 
 ### 2. Every Test Needs a Meaningful Assertion
 
@@ -66,27 +106,11 @@ it('saves valid input to database', ...);
 
 No test depends on another test's side effects. Fresh state per test. Run in any order.
 
-```typescript
-// WRONG — shared mutable state
-let user = createUser();
-it('test A', () => {
-  user.name = 'Alice';
-});
-it('test B', () => {
-  expect(user.name).toBe('Alice');
-}); // Depends on A!
-
-// RIGHT
-beforeEach(() => {
-  user = createUser();
-});
-```
-
 ---
 
 ## Anti-Patterns
 
-These are the most common ways AI-generated tests go wrong. Watch for all of them.
+The most common ways AI-generated tests go wrong. Watch for all of them.
 
 | Pattern                     | Problem                                          | Fix                                                                          |
 | --------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- |
@@ -99,24 +123,82 @@ These are the most common ways AI-generated tests go wrong. Watch for all of the
 | **Testing private methods** | Couples tests to implementation                  | Test through the public API                                                  |
 | **Exact UI text matching**  | Breaks on copy changes                           | Use regex `/submit/i` or data-testid attributes                              |
 | **Bug-locking**             | Tests written against buggy code encode the bug  | Write tests BEFORE implementation (TDD), or verify behavior is correct first |
+| **Scope defaulting**        | AI defaults to unit tests for everything         | Ask "what's the highest scope that's practical?" first                       |
 
 ---
 
-## Choosing the Right Test Type
+## Behavioral Testing by Type
 
-AI defaults to unit tests for everything. That's wrong. Choose the fastest type that catches the bug.
+### Unit Tests — Behavioral
 
-```text
-1. Tests AI-generated content quality?     → LLM Evaluation
-2. Requires a real browser?                → E2E test
-3. Tests multiple modules/services?        → Integration test
-4. Tests a pure function (input → output)? → Unit test
-5. None of the above?                      → Re-evaluate what you're testing
+Test the contract (inputs → outputs), not the internals.
+
+```typescript
+// Behavioral: asserts on output
+it('applies 20% discount for VIP users', () => {
+  expect(calculateDiscount(100, { tier: 'VIP' })).toBe(80);
+});
+
+// Non-behavioral: asserts on internal call
+it('calls applyRate with 0.2', () => {
+  calculateDiscount(100, { tier: 'VIP' });
+  expect(applyRate).toHaveBeenCalledWith(0.2);
+});
 ```
 
-**Announce your decision:** "Test type: [unit/integration/E2E/LLM eval] because [reason]."
+### Integration Tests — Behavioral
 
-For the full decision tree, bug detection matrix, and edge cases: `.safeword/guides/testing-guide.md`
+Test that components produce correct combined outcomes with real dependencies.
+
+```typescript
+// Behavioral: asserts on combined outcome
+it('returns user profile with computed permissions', async () => {
+  const response = await api.get('/users/1/profile');
+  expect(response.data.permissions).toContain('edit_posts');
+});
+
+// Non-behavioral: asserts on which services were called
+it('calls UserService then PermissionService', async () => { ... });
+```
+
+### E2E Tests — Behavioral
+
+Test what the user can see and do. E2E tests are naturally behavioral — lean into this.
+
+```typescript
+// Behavioral: user-visible outcome
+test('user creates account and sees dashboard', async ({ page }) => {
+  await page.goto('/signup');
+  await page.fill('[name="email"]', 'test@example.com');
+  await page.fill('[name="password"]', 'secure123');
+  await page.click('button:has-text("Sign Up")');
+  await expect(page).toHaveURL('/dashboard');
+  await expect(page.getByText('Welcome')).toBeVisible();
+});
+```
+
+### LLM Evals — Behavioral
+
+Grade what the output _achieves_, not the path the model took. Use deterministic assertions first, LLM-as-judge second.
+
+```yaml
+# Deterministic assertion (cheap, run every commit)
+- type: javascript
+  value: JSON.parse(output).intent === 'order_pizza'
+
+# LLM-as-judge (for subjective quality, run on PR/schedule)
+- type: llm-rubric
+  value: |
+    PASS: Correctly identifies pizza order, confirms size and type
+    FAIL: Wrong intent, ignores key details, or generic response
+```
+
+Eval-specific principles:
+
+- **Grade outcomes, not paths** — the LLM can take any route to the right answer
+- **Binary PASS/FAIL over scales** — "3 vs 4" is meaningless; force clarity
+- **One dimension per scorer** — don't bundle factuality + tone + completeness
+- **Deterministic checks first** — regex, schema validation, required fields before LLM-as-judge
 
 ---
 
@@ -178,7 +260,7 @@ await waitFor(() => expect(element).toBeVisible());
 it('works correctly');
 it('should handle edge case');
 
-// RIGHT
+// RIGHT — describes the behavior
 it('returns 401 when API key is missing');
 it('preserves user input after validation error');
 ```

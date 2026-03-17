@@ -6,9 +6,11 @@ Test methodology, TDD workflow, and test type selection.
 
 ## Test Philosophy
 
-**Test what matters** - Focus on user experience and delivered features, not implementation details.
+**Behavior-biased testing:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods). Tests coupled to implementation break on every refactor. Behavioral tests survive.
 
-**Always test what you build** - Run tests yourself before completion. Don't ask the user to verify.
+**Prefer highest practical scope:** When multiple test types can verify a behavior, prefer the one that exercises more of the real system. Higher scope = more confidence. Drop to lower scope only when higher scope is impractical (combinatorial inputs, pure algorithms, isolated contracts).
+
+**Always test what you build** — Run tests yourself before completion. Don't ask the user to verify.
 
 ---
 
@@ -42,7 +44,7 @@ Tests are the specification. When a test fails, the implementation is wrong—no
 
 **Goal:** Catch bugs quickly and cheaply with fast feedback loops.
 
-**Rule:** Test with the fastest test type that can catch the bug.
+**Rule:** Test with the highest-scope type that's practical. Higher scope = more confidence in real behavior. Drop to lower scope for combinatorial inputs or pure algorithms.
 
 ```text
 Unit (milliseconds)      ← Pure functions, no I/O
@@ -109,7 +111,7 @@ Which test type catches which bug?
 | AI prompt quality degradation        | ❌    | ❌           | ❌   | LLM Eval (only) |
 | AI reasoning accuracy                | ❌    | ❌           | ❌   | LLM Eval (only) |
 
-**Key principle:** If multiple test types can catch the bug, choose the fastest one.
+**Key principle:** If multiple test types can catch the bug, prefer the highest scope that's practical. Use lower scope for pure logic with many edge cases.
 
 ---
 
