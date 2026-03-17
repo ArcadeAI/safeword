@@ -40,20 +40,18 @@ Tests are the specification. When a test fails, the implementation is wrong—no
 
 ---
 
-## Test Speed Hierarchy
+## Test Type Hierarchy
 
-**Goal:** Catch bugs quickly and cheaply with fast feedback loops.
-
-**Rule:** Test with the highest-scope type that's practical. Higher scope = more confidence in real behavior. Drop to lower scope for combinatorial inputs or pure algorithms.
+**Rule:** Prefer the highest-scope type that's practical. Higher scope = more confidence in real behavior. Drop to lower scope for combinatorial inputs or pure algorithms.
 
 ```text
-Unit (milliseconds)      ← Pure functions, no I/O
-  ↓
-Integration (seconds)    ← Multiple modules, database, API calls
-  ↓
-LLM Eval (seconds)       ← AI judgment, costs $0.01-0.30 per run
-  ↓
-E2E (seconds-minutes)    ← Full browser, user flows
+E2E (seconds-minutes)    ← Full browser, user flows         ↑ prefer
+  ↑
+LLM Eval (seconds)       ← AI judgment, costs $0.01-0.30
+  ↑
+Integration (seconds)    ← Multiple modules, database, API
+  ↑
+Unit (milliseconds)      ← Pure functions, no I/O           ↑ fallback
 ```
 
 ---
