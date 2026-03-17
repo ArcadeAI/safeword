@@ -6,9 +6,11 @@ Test methodology, TDD workflow, and test type selection.
 
 ## Test Philosophy
 
-**Test what matters** - Focus on user experience and delivered features, not implementation details.
+**Behavior-biased testing:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods). Tests coupled to implementation break on every refactor. Behavioral tests survive.
 
-**Always test what you build** - Run tests yourself before completion. Don't ask the user to verify.
+**Prefer highest practical scope:** When multiple test types can verify a behavior, prefer the one that exercises more of the real system. Higher scope = more confidence. Drop to lower scope only when higher scope is impractical (combinatorial inputs, pure algorithms, isolated contracts).
+
+**Always test what you build** — Run tests yourself before completion. Don't ask the user to verify.
 
 ---
 
@@ -38,20 +40,18 @@ Tests are the specification. When a test fails, the implementation is wrong—no
 
 ---
 
-## Test Speed Hierarchy
+## Test Type Hierarchy
 
-**Goal:** Catch bugs quickly and cheaply with fast feedback loops.
-
-**Rule:** Test with the fastest test type that can catch the bug.
+**Rule:** Prefer the highest-scope type that's practical. Higher scope = more confidence in real behavior. Drop to lower scope for combinatorial inputs or pure algorithms.
 
 ```text
-Unit (milliseconds)      ← Pure functions, no I/O
-  ↓
-Integration (seconds)    ← Multiple modules, database, API calls
-  ↓
-LLM Eval (seconds)       ← AI judgment, costs $0.01-0.30 per run
-  ↓
-E2E (seconds-minutes)    ← Full browser, user flows
+E2E (seconds-minutes)    ← Full browser, user flows         ↑ prefer
+  ↑
+LLM Eval (seconds)       ← AI judgment, costs $0.01-0.30
+  ↑
+Integration (seconds)    ← Multiple modules, database, API
+  ↑
+Unit (milliseconds)      ← Pure functions, no I/O           ↑ fallback
 ```
 
 ---
@@ -109,7 +109,7 @@ Which test type catches which bug?
 | AI prompt quality degradation        | ❌    | ❌           | ❌   | LLM Eval (only) |
 | AI reasoning accuracy                | ❌    | ❌           | ❌   | LLM Eval (only) |
 
-**Key principle:** If multiple test types can catch the bug, choose the fastest one.
+**Key principle:** If multiple test types can catch the bug, prefer the highest scope that's practical. Use lower scope for pure logic with many edge cases.
 
 ---
 
@@ -197,8 +197,8 @@ test('user creates account and first item', async ({ page }) => {
       value: JSON.parse(output).intent === 'order_pizza'
     - type: llm-rubric
       value: |
-        EXCELLENT: Confirms pizza type/size, asks for delivery details
-        POOR: Generic response or wrong intent
+        PASS: Correctly identifies pizza order, confirms size and type
+        FAIL: Wrong intent, ignores key details, or generic response
 ```
 
 ---

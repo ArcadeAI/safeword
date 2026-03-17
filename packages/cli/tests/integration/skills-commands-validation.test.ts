@@ -631,6 +631,7 @@ describe('Skills-Cursor Parity', () => {
     debug: 'safeword-debugging',
     'quality-review': 'safeword-quality-reviewing',
     refactor: 'safeword-refactoring',
+    testing: 'safeword-testing',
   };
 
   it('each skill should have corresponding cursor rule(s)', () => {

@@ -365,6 +365,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/refactor/SKILL.md': {
       template: 'skills/refactor/SKILL.md',
     },
+    '.claude/skills/testing/SKILL.md': {
+      template: 'skills/testing/SKILL.md',
+    },
     '.claude/skills/bdd/SKILL.md': {
       template: 'skills/bdd/SKILL.md',
     },
@@ -393,6 +396,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/debug.md': { template: 'commands/debug.md' },
     '.claude/commands/verify.md': { template: 'commands/verify.md' },
     '.claude/commands/audit.md': { template: 'commands/audit.md' },
+    '.claude/commands/testing.md': { template: 'commands/testing.md' },
     '.claude/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',
     },
@@ -410,6 +414,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.cursor/rules/safeword-refactoring.mdc': {
       template: 'cursor/rules/safeword-refactoring.mdc',
+    },
+    '.cursor/rules/safeword-testing.mdc': {
+      template: 'cursor/rules/safeword-testing.mdc',
     },
     '.cursor/rules/bdd-core.mdc': {
       template: 'cursor/rules/bdd-core.mdc',
@@ -446,6 +453,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'commands/quality-review.md',
     },
     '.cursor/commands/refactor.md': { template: 'commands/refactor.md' },
+    '.cursor/commands/testing.md': { template: 'commands/testing.md' },
 
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {
