@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "CLI for setting up and managing safeword development environments",
   "type": "module",
   "bin": {
@@ -47,7 +47,6 @@
     "@next/eslint-plugin-next": "^16.1.1",
     "@tanstack/eslint-plugin-query": "^5.91.2",
     "commander": "^12.1.0",
-    "dependency-cruiser": "^17.3.9",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-astro": "^1.5.0",
@@ -67,7 +66,6 @@
     "eslint-plugin-turbo": "^2.7.5",
     "eslint-plugin-unicorn": "^62.0.0",
     "eslint-plugin-vitest": "^0.5.4",
-    "lint-staged": "^16.4.0",
     "typescript-eslint": "^8.56.0",
     "yaml": "^2.7.0"
   },
