@@ -272,6 +272,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-lint-check.ts': {
       template: 'hooks/session-lint-check.ts',
     },
+    '.safeword/hooks/session-compact-context.ts': {
+      template: 'hooks/session-compact-context.ts',
+    },
     '.safeword/hooks/prompt-timestamp.ts': {
       template: 'hooks/prompt-timestamp.ts',
     },
