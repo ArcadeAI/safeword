@@ -394,6 +394,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/bdd/SPLITTING.md': {
       template: 'skills/bdd/SPLITTING.md',
     },
+    '.claude/skills/ticket-system/SKILL.md': {
+      template: 'skills/ticket-system/SKILL.md',
+    },
     // Claude commands (slash-command invocation — skills are NOT slash-invocable)
     '.claude/commands/quality-review.md': { template: 'commands/quality-review.md' },
     '.claude/commands/bdd.md': { template: 'commands/bdd.md' },
@@ -422,6 +425,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.cursor/rules/safeword-testing.mdc': {
       template: 'cursor/rules/safeword-testing.mdc',
+    },
+    '.cursor/rules/safeword-ticket-system.mdc': {
+      template: 'cursor/rules/safeword-ticket-system.mdc',
     },
     '.cursor/rules/bdd-core.mdc': {
       template: 'cursor/rules/bdd-core.mdc',
