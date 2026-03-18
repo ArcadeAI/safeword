@@ -11,6 +11,7 @@ import { getQualityMessage, type BddPhase } from './lib/quality.ts';
 
 interface HookInput {
   transcript_path?: string;
+  stop_hook_active?: boolean;
 }
 
 interface ContentItem {
@@ -138,6 +139,12 @@ let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+// Deterministic loop guard: if stop hook already triggered a continuation,
+// allow Claude to stop. Prevents infinite quality review loops.
+if (input.stop_hook_active) {
   process.exit(0);
 }
 
