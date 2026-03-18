@@ -182,6 +182,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // /done renamed to /verify (v0.20.0)
     '.claude/commands/done.md',
     '.cursor/commands/done.md',
+    // Shim commands removed — skills auto-create /slash-commands (v0.22.0)
+    '.claude/commands/bdd.md',
+    '.claude/commands/debug.md',
+    '.claude/commands/quality-review.md',
+    '.claude/commands/refactor.md',
+    '.claude/commands/testing.md',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint)
@@ -397,14 +403,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/ticket-system/SKILL.md': {
       template: 'skills/ticket-system/SKILL.md',
     },
-    // Claude commands (slash-command invocation — skills are NOT slash-invocable)
-    '.claude/commands/quality-review.md': { template: 'commands/quality-review.md' },
-    '.claude/commands/bdd.md': { template: 'commands/bdd.md' },
-    '.claude/commands/refactor.md': { template: 'commands/refactor.md' },
-    '.claude/commands/debug.md': { template: 'commands/debug.md' },
+    // Claude commands — only standalone commands that have no matching skill
+    // Skills auto-create /slash-commands, so shim commands are redundant
     '.claude/commands/verify.md': { template: 'commands/verify.md' },
     '.claude/commands/audit.md': { template: 'commands/audit.md' },
-    '.claude/commands/testing.md': { template: 'commands/testing.md' },
     '.claude/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',
     },

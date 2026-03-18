@@ -355,14 +355,11 @@ describe('Schema - Single Source of Truth', () => {
         .filter(isDefined)
         .toSorted((a, b) => a.localeCompare(b));
 
-      // Both platforms should have the same commands
-      // Claude commands = shims pointing to skills + standalone commands
-      // Cursor commands = same set (Cursor needs explicit commands for all capabilities)
+      // Cursor commands must be a superset of Claude commands
+      // (Cursor needs explicit commands for all capabilities since it has no skills)
+      // Claude commands are standalone-only — skills auto-create /slash-commands
       for (const cmd of claudeCommands) {
         expect(cursorCommands, `Cursor missing Claude command: ${cmd}`).toContain(cmd);
-      }
-      for (const cmd of cursorCommands) {
-        expect(claudeCommands, `Claude missing Cursor command: ${cmd}`).toContain(cmd);
       }
     });
   });
