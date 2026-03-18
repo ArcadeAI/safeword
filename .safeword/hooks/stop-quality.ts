@@ -142,11 +142,9 @@ try {
   process.exit(0);
 }
 
-// Deterministic loop guard: if stop hook already triggered a continuation,
-// allow Claude to stop. Prevents infinite quality review loops.
-if (input.stop_hook_active) {
-  process.exit(0);
-}
+// stop_hook_active is used below as a fallback loop guard — see edit-tools detection.
+// When a JSON summary is present, the loop self-terminates via proposedChanges/madeChanges.
+const stopHookActive = input.stop_hook_active ?? false;
 
 const transcriptPath = input.transcript_path;
 if (!transcriptPath) {
@@ -425,8 +423,9 @@ if (summary) {
       : '';
     softBlock(`${qualityMessage}${questionReminder}`);
   }
-} else if (editToolsUsed) {
+} else if (editToolsUsed && !stopHookActive) {
   // Fallback: edit tools detected but no summary - trigger review anyway
+  // Guard: if stop_hook_active, this is a continuation where Claude forgot the JSON — stop gracefully
   softBlock(`${qualityMessage}\n\n(Note: JSON summary was missing but edit tools were detected)`);
 }
 // No summary and no edit tools - nothing to review, exit silently
