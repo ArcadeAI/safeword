@@ -1,7 +1,7 @@
 ---
 id: 031
 type: epic
-phase: implement
+phase: intake
 status: in_progress
 created: 2026-03-18T15:28:00Z
 last_modified: 2026-03-18T15:28:00Z
