@@ -245,6 +245,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...golangOwnedFiles,
     ...rustOwnedFiles,
 
+    // Hooks - Bash (no Bun dependency, must run before Bun hooks)
+    '.safeword/hooks/session-bun-check.sh': {
+      template: 'hooks/session-bun-check.sh',
+    },
+
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },

@@ -4,6 +4,7 @@
  * Uses reconcile() with mode='install' to create all managed files.
  */
 
+import { execSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -22,7 +23,7 @@ import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
-import { error, header, info, listItem, success } from '../utils/output.js';
+import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { detectLanguages, type Languages } from '../utils/project-detector.js';
 import { VERSION } from '../version.js';
 import { buildArchitecture, hasArchitectureDetected, syncConfigCore } from './sync-config.js';
@@ -427,6 +428,17 @@ function setupGoProject(languages: Languages): void {
   }
 }
 
+/** Warn if Bun is not available (hooks require it) */
+function warnIfBunMissing(): void {
+  try {
+    execSync('bun --version', { stdio: 'pipe' });
+  } catch {
+    warn('bun not found — quality hooks will not work without it.');
+    info('  Install: curl -fsSL https://bun.sh/install | bash');
+    info('  Hooks will hard-block at session start until bun is available.');
+  }
+}
+
 export async function setup(): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
@@ -441,6 +453,7 @@ export async function setup(): Promise<void> {
   header('Safeword Setup');
   info(`Version: ${VERSION}`);
   if (packageJsonCreated) info('Created package.json (none found)');
+  warnIfBunMissing();
 
   try {
     info('\nCreating safeword configuration...');

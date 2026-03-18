@@ -320,108 +320,40 @@ export const CURSOR_HOOKS = {
 };
 
 // Claude Code hooks configuration (.claude/settings.json format)
+
+const HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
+
+/** Create a hook entry that runs a script with no matcher (SessionStart, UserPromptSubmit, Stop) */
+function hook(command: string) {
+  return { hooks: [{ type: 'command', command }] };
+}
+
+/** Create a hook entry with a tool matcher (PreToolUse, PostToolUse) */
+function matchedHook(matcher: string, command: string) {
+  return { matcher, hooks: [{ type: 'command', command }] };
+}
+
+const EDIT_TOOLS = 'Edit|Write|MultiEdit|NotebookEdit';
+
 export const SETTINGS_HOOKS = {
   SessionStart: [
-    {
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-verify-agents.ts',
-        },
-      ],
-    },
-    {
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-version.ts',
-        },
-      ],
-    },
-    {
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-lint-check.ts',
-        },
-      ],
-    },
+    hook(`bash ${HOOKS_DIR}/session-bun-check.sh`),
+    hook(`bun ${HOOKS_DIR}/session-verify-agents.ts`),
+    hook(`bun ${HOOKS_DIR}/session-version.ts`),
+    hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
   ],
   UserPromptSubmit: [
-    {
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/prompt-timestamp.ts',
-        },
-      ],
-    },
-    {
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/prompt-questions.ts',
-        },
-      ],
-    },
+    hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),
+    hook(`bun ${HOOKS_DIR}/prompt-questions.ts`),
   ],
-  Stop: [
-    {
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/stop-quality.ts',
-        },
-      ],
-    },
-  ],
+  Stop: [hook(`bun ${HOOKS_DIR}/stop-quality.ts`)],
   PreToolUse: [
-    {
-      matcher: 'Edit|Write|MultiEdit|NotebookEdit',
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/pre-tool-quality.ts',
-        },
-      ],
-    },
-    {
-      matcher: 'Edit|Write|MultiEdit|NotebookEdit',
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/pre-tool-config-guard.ts',
-        },
-      ],
-    },
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-config-guard.ts`),
   ],
   PostToolUse: [
-    {
-      matcher: 'Write|Edit|MultiEdit|NotebookEdit',
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/post-tool-lint.ts',
-        },
-      ],
-    },
-    {
-      matcher: 'Write|Edit|MultiEdit|NotebookEdit|Bash',
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/post-tool-quality.ts',
-        },
-      ],
-    },
-    {
-      matcher: 'Write|Edit|MultiEdit|NotebookEdit',
-      hooks: [
-        {
-          type: 'command',
-          command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/post-tool-bypass-warn.ts',
-        },
-      ],
-    },
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-lint.ts`),
+    matchedHook(`${EDIT_TOOLS}|Bash`, `bun ${HOOKS_DIR}/post-tool-quality.ts`),
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
   ],
 };

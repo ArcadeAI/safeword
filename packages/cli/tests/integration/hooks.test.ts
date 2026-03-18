@@ -47,6 +47,56 @@ afterAll(() => {
 });
 
 describe('E2E: SessionStart Hooks', () => {
+  describe('session-bun-check.sh', () => {
+    it('exits silently when bun is available', () => {
+      const result = spawnSync('bash', ['.safeword/hooks/session-bun-check.sh'], {
+        cwd: projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        encoding: 'utf8',
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('exits silently for non-safeword project', () => {
+      const nonSafewordDirectory = createTemporaryDirectory();
+      try {
+        const result = spawnSync(
+          'bash',
+          [nodePath.join(projectDirectory, '.safeword/hooks/session-bun-check.sh')],
+          {
+            cwd: nonSafewordDirectory,
+            env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
+            encoding: 'utf8',
+          },
+        );
+
+        expect(result.status).toBe(0);
+      } finally {
+        removeTemporaryDirectory(nonSafewordDirectory);
+      }
+    });
+
+    it('hard-blocks with exit 2 when bun is not in PATH', () => {
+      const result = spawnSync('bash', ['.safeword/hooks/session-bun-check.sh'], {
+        cwd: projectDirectory,
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: projectDirectory,
+          // Override PATH to exclude bun
+          PATH: '/usr/bin:/bin',
+        },
+        encoding: 'utf8',
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('bun is required');
+      expect(result.stderr).toContain('quality hooks');
+      expect(result.stderr).toContain('Install');
+    });
+  });
+
   describe('session-version.ts', () => {
     it('outputs version message for safeword project', () => {
       const output = execSync('bun .safeword/hooks/session-version.ts', {
@@ -252,7 +302,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       );
 
       expect(output).toContain('SAFEWORD');
-      expect(output).toContain('Research before asking');
+      expect(output).toContain('Classify patch/task/feature');
       expect(output).toContain('1-5 targeted questions');
       expect(output).toContain('scope');
       expect(output).toContain('constraints');
