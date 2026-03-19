@@ -28,6 +28,7 @@ const JS_EXTENSIONS = new Set([
 const PYTHON_EXTENSIONS = new Set(['py', 'pyi']);
 const GO_EXTENSIONS = new Set(['go']);
 const RUST_EXTENSIONS = new Set(['rs']);
+const SQL_EXTENSIONS = new Set(['sql']);
 const SHELL_EXTENSIONS = new Set(['sh']);
 const PRETTIER_EXTENSIONS = new Set([
   'md',
@@ -45,6 +46,7 @@ const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const SAFEWORD_ESLINT = `${projectDir}/.safeword/eslint.config.mjs`;
 const SAFEWORD_RUFF = `${projectDir}/.safeword/ruff.toml`;
 const SAFEWORD_GOLANGCI = `${projectDir}/.safeword/.golangci.yml`;
+const SAFEWORD_SQLFLUFF = `${projectDir}/.safeword/sqlfluff.cfg`;
 const SAFEWORD_CLIPPY = `${projectDir}/.safeword/clippy.toml`;
 const SAFEWORD_RUSTFMT = `${projectDir}/.safeword/rustfmt.toml`;
 const SAFEWORD_PRETTIER = `${projectDir}/.safeword/.prettierrc`;
@@ -227,6 +229,17 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
     } else {
       // Fallback: run without safeword config
       await $`rustfmt ${file}`.nothrow().quiet();
+    }
+    return;
+  }
+
+  // SQL files - sqlfluff (if available)
+  if (SQL_EXTENSIONS.has(extension)) {
+    const hasSqlfluff = await ensurePackInstalled('dbt', SAFEWORD_SQLFLUFF);
+    if (hasSqlfluff) {
+      await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} --force ${file}`.nothrow().quiet();
+    } else {
+      await $`sqlfluff fix --force ${file}`.nothrow().quiet();
     }
     return;
   }

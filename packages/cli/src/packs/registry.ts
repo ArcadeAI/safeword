@@ -5,6 +5,7 @@
  */
 
 import { getInstalledPacks } from './config.js';
+import { dbtPack } from './dbt/index.js';
 import { golangPack } from './golang/index.js';
 import { pythonPack } from './python/index.js';
 import { rustPack } from './rust/index.js';
@@ -15,6 +16,7 @@ import { typescriptPack } from './typescript/index.js';
  * All registered language packs.
  */
 export const LANGUAGE_PACKS: Record<string, LanguagePack> = {
+  dbt: dbtPack,
   golang: golangPack,
   python: pythonPack,
   rust: rustPack,
