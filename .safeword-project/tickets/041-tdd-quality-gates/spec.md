@@ -2,7 +2,7 @@
 
 **Feature**: Quality review gates at each TDD sub-phase boundary (RED, GREEN, REFACTOR), detected via sub-checkboxes in test-definitions.md — folding the current refactor gate into a unified `tdd:` gate namespace.
 
-**Status**: ❌ Not Started (0/4 stories complete)
+**Status**: ❌ Not Started (0/3 stories complete)
 
 ---
 
@@ -15,7 +15,7 @@
 
 ### Compatibility
 
-- [ ] Existing refactor gate behavior preserved (renamed `tdd:refactor`, same trigger logic relocated)
+- [ ] Existing refactor gate behavior preserved (relocated from commit-prefix to test-definitions.md detection)
 - [ ] Phase gate behavior unchanged
 - [ ] LOC gate coexists (LOC doesn't override `tdd:` gates, same as current refactor guard)
 
@@ -27,29 +27,7 @@
 
 ---
 
-## Story 1: `additionalContext` in deny output + `tdd:` gate namespace
-
-**As a** hook system
-**I want to** use `additionalContext` for action guidance and rename gates to the `tdd:` namespace
-**So that** Claude reliably receives skill instructions and TDD gates are explicitly named
-
-**Acceptance Criteria**:
-
-- ❌ `deny()` in PreToolUse accepts optional `additionalContext` parameter
-- ❌ Output JSON includes `additionalContext` field when provided
-- ❌ Existing `gate: 'refactor'` renamed to `gate: 'tdd:refactor'`
-- ❌ Phase gate uses `additionalContext` for `/quality-review` instruction (fix from 66025ea)
-- ❌ Refactor gate uses `additionalContext` for `/tdd-review` instruction
-- ❌ LOC gate guard updated: `state.gate !== 'refactor'` → `!state.gate?.startsWith('tdd:')`
-- ❌ Existing tests updated for new gate name and `additionalContext` field
-- ❌ Both project hook and template hook updated identically
-
-**Implementation Status**: ❌ Not Started
-**Tests**: `packages/cli/tests/integration/quality-gates.test.ts`
-
----
-
-## Story 2: Test-definitions.md sub-checkboxes and TDD step detection
+## Story 1: Test-definitions.md sub-checkboxes and TDD step detection
 
 **As a** quality gate system
 **I want to** detect TDD step transitions by watching sub-checkboxes in test-definitions.md
@@ -82,32 +60,39 @@
 
 **Notes**: Detection logic: find first scenario where at least one sub-checkbox is `[x]` and at least one is `[ ]`. The count of checked items tells you the step: 1 checked = RED done, 2 checked = GREEN done. All 3 checked = scenario complete, move to next. If no mixed scenario found, no gate fires (either all done or none started).
 
-**Resume/stale state:** Uses the same pattern as phase gates — compare to `lastKnownTddStep`, fire gate on mismatch. On resume or ticket switch, a gate may fire even though no transition just happened. This is intentional: it serves as an orientation checkpoint ("review where this scenario is before continuing"). Consistent with phase gate behavior (we saw this fire on ticket 041 creation — useful, not a bug).
+**Resume/stale state:** Uses the same pattern as phase gates — compare to `lastKnownTddStep`, fire gate on mismatch. On resume or ticket switch, a gate may fire even though no transition just happened. This is intentional: it serves as an orientation checkpoint ("review where this scenario is before continuing"). Consistent with phase gate behavior.
 
 ---
 
-## Story 3: Remove commit-prefix detection for refactor gate
+## Story 2: `additionalContext` in deny output + `tdd:` gate namespace + commit-prefix removal
 
-**As a** quality gate system
-**I want to** remove the `feat:` commit detection that currently sets the refactor gate
-**So that** TDD step detection comes from one source (test-definitions.md), not two
+**As a** hook system
+**I want to** use `additionalContext` for action guidance, rename gates to the `tdd:` namespace, and remove commit-prefix detection
+**So that** Claude reliably receives skill instructions, TDD gates are explicitly named, and detection comes from one source
 
 **Acceptance Criteria**:
 
+- ❌ `deny()` in PreToolUse accepts optional `additionalContext` parameter
+- ❌ Output JSON includes `additionalContext` field when provided
+- ❌ Existing `gate: 'refactor'` renamed to `gate: 'tdd:refactor'`
+- ❌ Phase gate uses `additionalContext` for `/quality-review` instruction (fix from 66025ea)
+- ❌ All `tdd:` gates use `additionalContext` for `/tdd-review` instruction
+- ❌ LOC gate guard updated: `state.gate !== 'refactor'` → `!state.gate?.startsWith('tdd:')`
 - ❌ Remove `feat:` → `refactor` gate logic from PostToolUse commit detection block
-- ❌ TDD gates now fire exclusively from test-definitions.md sub-checkbox changes
+- ❌ TDD gates now fire exclusively from test-definitions.md sub-checkbox changes (Story 1)
 - ❌ Commit still clears any active gate (existing behavior preserved)
-- ❌ Existing refactor gate tests rewritten to use sub-checkbox detection instead
-- ❌ Both project hook and template hook updated
+- ❌ PreToolUse handles all `tdd:` gates with single code path (interpolated step name)
+- ❌ Existing tests updated for new gate name, `additionalContext` field, and removed commit detection
+- ❌ Both project hook and template hook updated identically
 
 **Implementation Status**: ❌ Not Started
 **Tests**: `packages/cli/tests/integration/quality-gates.test.ts`
 
-**Notes**: This is a clean removal — the `feat:` detection block (lines 114-120 in post-tool-quality.ts) gets deleted. The refactor gate behavior is now handled by Story 2's GREEN checkbox detection. Tests that set `gate: 'refactor'` in state are rewritten to trigger via test-definitions.md edits.
+**Notes**: This story combines the old Stories 1 and 3. Implementation order: build Story 1 (test-definitions.md detection) first so both detection systems coexist temporarily, then apply this story to rename + remove commit detection in one step. No regression window because old detection stays until new detection is proven.
 
 ---
 
-## Story 4: `/tdd-review` skill + TDD.md updates
+## Story 3: `/tdd-review` skill + TDD.md updates
 
 **As a** developer using BDD workflow
 **I want** a step-aware TDD review skill and updated TDD instructions
@@ -131,23 +116,22 @@
 
 ## Summary
 
-**Completed**: 0/4 stories (0%)
-**Remaining**: 4/4 stories (100%)
+**Completed**: 0/3 stories (0%)
+**Remaining**: 3/3 stories (100%)
 
-### Phase 1: Foundation ❌
+### Phase 1: Detection ❌
 
-- Story 1: `additionalContext` + `tdd:` gate namespace
+- Story 1: Test-definitions.md sub-checkboxes and TDD step detection
 
-### Phase 2: Detection ❌
+### Phase 2: Namespace + Cleanup ❌
 
-- Story 2: Test-definitions.md sub-checkboxes and TDD step detection
-- Story 3: Remove commit-prefix detection for refactor gate
+- Story 2: `additionalContext` + `tdd:` namespace + commit-prefix removal
 
 ### Phase 3: Review ❌
 
-- Story 4: `/tdd-review` skill + TDD.md updates
+- Story 3: `/tdd-review` skill + TDD.md updates
 
-**Next Steps**: Story 1 first (foundation), then Stories 2+3 together (swap detection mechanism), then Story 4 (skill + instructions).
+**Implementation order**: Story 1 first (adds new detection alongside existing). Then Story 2 (renames gates, adds `additionalContext`, removes old detection). Then Story 3 (skill + instructions).
 
 ---
 
@@ -168,7 +152,7 @@
 ### Decision 3: `additionalContext` for action guidance
 
 **What:** Use `additionalContext` field in deny output to guide Claude toward skills.
-**Why:** Per Claude Code docs, `additionalContext` is the designed mechanism for "what to do instead." `permissionDecisionReason` explains WHY blocked.
+**Why:** Per Claude Code docs (v2.1.9+), `additionalContext` is the designed mechanism for "what to do instead." `permissionDecisionReason` explains WHY blocked. Both are shown to Claude on deny.
 **Trade-off:** Requires updating deny function interface. Minor refactor.
 
 ### Decision 4: Single `/tdd-review` skill as source of truth
@@ -182,3 +166,15 @@
 **What:** Each scenario gets three sub-items: `- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`.
 **Why:** Visible progress per scenario, serves as both human documentation and machine-readable state. "Living documentation" pattern — the artifact is always current because updating it is what triggers the gates. The act of tracking IS the detection mechanism.
 **Trade-off:** Adds 3 lines per scenario to test-definitions.md. Template change required. Claude must update sub-checkboxes at each TDD step (but this is what makes detection work — the overhead IS the feature).
+
+### Decision 6: Implementation order — detection first, then rename+remove
+
+**What:** Build test-definitions.md detection (Story 1) before renaming gates and removing commit-prefix detection (Story 2).
+**Why:** Avoids regression — old `feat:` detection stays active until new detection is proven. Both systems coexist briefly during Story 1, then Story 2 removes the old one. No window where refactor gate doesn't exist.
+**Trade-off:** Temporary dual detection during Story 1. Acceptable since Story 2 immediately follows.
+
+### Decision 7: Single PreToolUse code path for all `tdd:` gates
+
+**What:** Handle all `tdd:` gates with one code block using `startsWith('tdd:')` and interpolated step name.
+**Why:** Avoids per-step branching in hooks. The `/tdd-review` skill handles step-specific guidance — the hook just says which step and references the skill. Testing 2 of 3 variants provides sufficient coverage for a single code path.
+**Trade-off:** Step-specific messaging lives in the skill, not the hook. Consistent with the "no inline content in hooks" constraint.
