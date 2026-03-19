@@ -69,18 +69,6 @@ function getHeadHash(): string {
   }
 }
 
-function getLastCommitMessage(): string {
-  try {
-    return execSync('git log -1 --pretty=%s', {
-      cwd: projectDirectory,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
-  } catch {
-    return '';
-  }
-}
-
 function countLoc(): number {
   try {
     const diffStat = execSync('git diff --stat HEAD', {
