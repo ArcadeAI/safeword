@@ -21,7 +21,7 @@
 
 ## Overview
 
-Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code and Cursor). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), and Rust projects (clippy, rustfmt).
+Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code and Cursor). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
 
 ### Tech Stack
 
@@ -34,6 +34,7 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 | Go Linting      | golangci-lint | Aggregates 100+ linters, fast          |
 | Rust Linting    | clippy        | 750+ lints, pedantic by default        |
 | Rust Formatting | rustfmt       | Deterministic, gofmt-style formatting  |
+| SQL Linting     | SQLFluff      | dbt-aware, Jinja templater support     |
 | Type Checking   | tsc / mypy    | Native type checkers for each language |
 
 ---
@@ -96,8 +97,8 @@ Language-specific tooling (detection, config generation, setup) is encapsulated 
 
 ```typescript
 interface LanguagePack {
-  id: string; // e.g., 'python', 'typescript', 'golang', 'rust'
-  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust'
+  id: string; // e.g., 'python', 'typescript', 'golang', 'rust', 'dbt'
+  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust', 'dbt'
   extensions: string[]; // e.g., ['.py', '.pyi']
   detect: (cwd: string) => boolean; // Is this language present?
   setup: (cwd: string, ctx: SetupContext) => SetupResult;
@@ -105,6 +106,7 @@ interface LanguagePack {
 
 // Registry
 const LANGUAGE_PACKS: Record<string, LanguagePack> = {
+  dbt: dbtPack,
   golang: golangPack,
   python: pythonPack,
   rust: rustPack,
@@ -414,6 +416,7 @@ const RUST_EXTENSIONS = new Set(['rs']);
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
 - Ruff docs: https://docs.astral.sh/ruff/
 - golangci-lint docs: https://golangci-lint.run/
+- SQLFluff docs: https://docs.sqlfluff.com/
 - Clippy docs: https://doc.rust-lang.org/stable/clippy/
 - rustfmt docs: https://rust-lang.github.io/rustfmt/
 - Cargo lints: https://doc.rust-lang.org/cargo/reference/manifest.html#the-lints-section
