@@ -1,8 +1,8 @@
 ---
 id: 040
 type: feature
-phase: intake
-status: pending
+phase: define-behavior
+status: in_progress
 created: 2026-03-19T04:51:00Z
 last_modified: 2026-03-19T04:51:00Z
 ---
