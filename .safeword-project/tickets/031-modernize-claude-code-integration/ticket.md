@@ -5,7 +5,7 @@ phase: intake
 status: in_progress
 created: 2026-03-18T15:28:00Z
 last_modified: 2026-03-18T15:28:00Z
-children: [032, 033, 034, 035, 036, 037, 038]
+children: [032, 033, 034, 035, 036, 037, 038, 039]
 ---
 
 # Modernize Claude Code integration for latest platform features
