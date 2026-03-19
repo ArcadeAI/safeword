@@ -529,5 +529,177 @@ describe('Quality Gates', () => {
       const state = readState(projectDirectory);
       expect(state.gate).toBe('tdd:green');
     });
+
+    it('8: GREEN checkbox marked sets tdd:refactor gate', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: 'red',
+        gate: null,
+      });
+
+      const testDefsPath = writeTestDefinitions(projectDirectory, '099-test', [
+        { name: 'Login validation', red: true, green: true, refactor: false },
+      ]);
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, testDefsPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBe('tdd:refactor');
+    });
+
+    it('9: REFACTOR checkbox marked sets tdd:red gate', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: 'green',
+        gate: null,
+      });
+
+      const testDefsPath = writeTestDefinitions(projectDirectory, '099-test', [
+        { name: 'Login validation', red: true, green: true, refactor: true },
+        { name: 'Password reset', red: false, green: false, refactor: false },
+      ]);
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, testDefsPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBe('tdd:red');
+    });
+
+    it('10: no gate when TDD step unchanged', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: 'red',
+        gate: null,
+      });
+
+      const testDefsPath = writeTestDefinitions(projectDirectory, '099-test', [
+        { name: 'Login validation', red: true, green: false, refactor: false },
+      ]);
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, testDefsPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBeNull();
+    });
+
+    it('11: TDD detection only during implement phase', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'decomposition',
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      const testDefsPath = writeTestDefinitions(projectDirectory, '099-test', [
+        { name: 'Login validation', red: true, green: false, refactor: false },
+      ]);
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, testDefsPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBeNull();
+    });
+
+    it('12: non-ticket test-definitions.md edit is ignored', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      writeTestFile(
+        projectDirectory,
+        'docs/test-definitions.md',
+        [
+          '# Test Definitions',
+          '',
+          '### Scenario: Login',
+          '- [x] RED',
+          '- [ ] GREEN',
+          '- [ ] REFACTOR',
+        ].join('\n'),
+      );
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/test-definitions.md'),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBeNull();
+    });
+
+    it('13: all-checked scenario with no next scenario fires no gate', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: 'refactor',
+        gate: null,
+      });
+
+      const testDefsPath = writeTestDefinitions(projectDirectory, '099-test', [
+        { name: 'Login validation', red: true, green: true, refactor: true },
+      ]);
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, testDefsPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBeNull();
+    });
   });
 });

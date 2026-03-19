@@ -192,6 +192,7 @@ function parseTddStep(content: string): string | null {
   const steps = ['red', 'green', 'refactor'];
   let checkedCount = 0;
   let uncheckedCount = 0;
+  let previousScenarioComplete = false;
 
   for (const line of lines) {
     // Detect scenario header — reset counters
@@ -200,7 +201,8 @@ function parseTddStep(content: string): string | null {
       if (checkedCount > 0 && uncheckedCount > 0) {
         return steps[checkedCount - 1] ?? null;
       }
-      // All checked = complete scenario, keep scanning for next
+      // Track if previous scenario was fully complete
+      previousScenarioComplete = checkedCount === 3 && uncheckedCount === 0;
       checkedCount = 0;
       uncheckedCount = 0;
       continue;
@@ -217,14 +219,19 @@ function parseTddStep(content: string): string | null {
     }
   }
 
-  // Check last scenario
+  // Check last scenario — mixed means active
   if (checkedCount > 0 && uncheckedCount > 0) {
     return steps[checkedCount - 1] ?? null;
   }
 
-  // All scenarios complete (all checked) — check if last had all 3 checked
+  // Last scenario fully complete — return 'refactor' (just finished)
   if (checkedCount === 3 && uncheckedCount === 0) {
-    return 'refactor'; // Last scenario just completed REFACTOR
+    return 'refactor';
+  }
+
+  // Last scenario all unchecked but previous was complete — REFACTOR just done
+  if (checkedCount === 0 && uncheckedCount > 0 && previousScenarioComplete) {
+    return 'refactor';
   }
 
   return null;
