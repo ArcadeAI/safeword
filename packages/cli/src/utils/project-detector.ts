@@ -30,6 +30,9 @@ const GO_MOD = 'go.mod';
 // Rust project file markers
 const CARGO_TOML = 'Cargo.toml';
 
+// dbt project file markers
+const DBT_PROJECT_YML = 'dbt_project.yml';
+
 // Rust config file markers
 const CLIPPY_CONFIG_FILES = ['clippy.toml', '.clippy.toml'];
 const RUSTFMT_CONFIG_FILES = ['rustfmt.toml', '.rustfmt.toml'];
@@ -100,6 +103,8 @@ export interface ProjectType {
   existingClippyConfig: string | undefined;
   /** Path to existing rustfmt config if present (e.g., 'rustfmt.toml') */
   existingRustfmtConfig: string | undefined;
+  /** Path to existing SQLFluff config if present (e.g., '.sqlfluff') */
+  existingSqlfluffConfig: string | undefined;
 }
 
 /**
@@ -111,6 +116,7 @@ export interface Languages {
   python: boolean; // pyproject.toml OR requirements.txt exists
   golang: boolean; // go.mod exists
   rust: boolean; // Cargo.toml exists
+  dbt: boolean; // dbt_project.yml exists
 }
 
 /**
@@ -134,12 +140,14 @@ export function detectLanguages(cwd: string): Languages {
   const hasRequirements = existsSync(nodePath.join(cwd, REQUIREMENTS_TXT));
   const hasGoModule = existsSync(nodePath.join(cwd, GO_MOD));
   const hasCargoToml = existsSync(nodePath.join(cwd, CARGO_TOML));
+  const hasDbtProject = existsSync(nodePath.join(cwd, DBT_PROJECT_YML));
 
   return {
     javascript: hasPackageJson,
     python: hasPyproject || hasRequirements,
     golang: hasGoModule,
     rust: hasCargoToml,
+    dbt: hasDbtProject,
   };
 }
 
@@ -342,6 +350,18 @@ function findExistingRustfmtConfig(cwd: string): string | undefined {
   return undefined;
 }
 
+// SQLFluff config file markers
+const SQLFLUFF_CONFIG_FILES = ['.sqlfluff', 'setup.cfg'];
+
+function findExistingSqlfluffConfig(cwd: string): string | undefined {
+  for (const config of SQLFLUFF_CONFIG_FILES) {
+    if (existsSync(nodePath.join(cwd, config))) {
+      return config;
+    }
+  }
+  return undefined;
+}
+
 /**
  * Detect JavaScript framework dependencies from package.json.
  */
@@ -414,11 +434,18 @@ function detectCoreTooling(
  */
 function detectSystemsTooling(
   cwd: string | undefined,
-): Pick<ProjectType, 'existingGolangciConfig' | 'existingClippyConfig' | 'existingRustfmtConfig'> {
+): Pick<
+  ProjectType,
+  | 'existingGolangciConfig'
+  | 'existingClippyConfig'
+  | 'existingRustfmtConfig'
+  | 'existingSqlfluffConfig'
+> {
   return {
     existingGolangciConfig: cwd ? findExistingGolangciConfig(cwd) : undefined,
     existingClippyConfig: cwd ? findExistingClippyConfig(cwd) : undefined,
     existingRustfmtConfig: cwd ? findExistingRustfmtConfig(cwd) : undefined,
+    existingSqlfluffConfig: cwd ? findExistingSqlfluffConfig(cwd) : undefined,
   };
 }
 
@@ -440,6 +467,7 @@ function detectExistingTooling(
   | 'existingGolangciConfig'
   | 'existingClippyConfig'
   | 'existingRustfmtConfig'
+  | 'existingSqlfluffConfig'
 > {
   return {
     ...detectCoreTooling(cwd, scripts),
