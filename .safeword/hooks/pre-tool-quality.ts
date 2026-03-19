@@ -128,7 +128,8 @@ if (state.gate.startsWith('phase:')) {
 
 ${phaseContent}
 
-Commit to proceed.`);
+Before proceeding, run /quality-review to review your outgoing phase work.
+Then commit to clear this gate.`);
 }
 
 process.exit(0);

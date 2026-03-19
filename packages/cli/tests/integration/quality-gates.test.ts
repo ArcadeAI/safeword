@@ -225,7 +225,7 @@ describe('Quality Gates', () => {
       expect(state.lastKnownPhase).toBe('implement');
     });
 
-    it('2.2: PreToolUse blocks with phase file content', () => {
+    it('2.2: PreToolUse blocks with phase file content and quality-review instruction', () => {
       // Create skill directory with a phase file containing known content
       const skillDirectory = '.claude/skills/bdd';
       writeTestFile(
@@ -253,6 +253,8 @@ describe('Quality Gates', () => {
       expect(reason).toContain('implement');
       // Content must come from the actual file (read at runtime, not hardcoded)
       expect(reason).toContain('TDD Guide');
+      // Must instruct Claude to run /quality-review before proceeding
+      expect(reason).toContain('/quality-review');
     });
 
     it('2.3: phase gate clears on commit', () => {
