@@ -17,6 +17,10 @@
 
 ### Test [N.1]: [Test name] [✅/⏭️/❌]
 
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 **Status**: [✅ Passing / ⏭️ Skipped / ❌ Not Implemented / 🔴 Failing]
 **Description**: [What this test verifies]
 
@@ -35,6 +39,10 @@
 ---
 
 ### Test [N.2]: [Test name] [✅/⏭️/❌]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 **Status**: [✅ Passing / ⏭️ Skipped / ❌ Not Implemented / 🔴 Failing]
 **Description**: [What this test verifies]
@@ -56,6 +64,10 @@
 [Brief description of what this test suite covers]
 
 ### Test [N+1.1]: [Test name] [✅/⏭️/❌]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 **Status**: [✅ Passing / ⏭️ Skipped / ❌ Not Implemented / 🔴 Failing]
 **Description**: [What this test verifies]

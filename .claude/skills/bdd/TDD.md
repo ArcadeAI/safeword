@@ -23,10 +23,11 @@ If no E2E infrastructure exists, build skeleton first:
 
 ### 6.1 RED - Write Failing Test
 
-1. Pick ONE test from test-definitions (first unchecked `[ ]`)
+1. Pick ONE test from test-definitions (first scenario with unchecked `[ ] RED`)
 2. Write test code (from Given/When/Then)
 3. Run test → verify fails for RIGHT reason (behavior missing, not syntax)
-4. Commit: `test: [scenario name]`
+4. Mark `[x] RED` in test-definitions.md (triggers tdd:green quality gate)
+5. Commit: `test: [scenario name]`
 
 **Red Flags → STOP:**
 
@@ -44,7 +45,8 @@ If no E2E infrastructure exists, build skeleton first:
 1. Write minimal code to pass test
 2. Run test → verify passes
 3. Run FULL test suite → verify no regressions
-4. Commit: `feat: [scenario name]`
+4. Mark `[x] GREEN` in test-definitions.md (triggers tdd:refactor quality gate)
+5. Commit: `feat: [scenario name]`
 
 **Evidence before claims:** Show test output, don't just claim "tests pass".
 
@@ -64,6 +66,7 @@ Before marking scenario complete:
 1. **Confirm refactor status** (say one of these):
    - "Refactored: [what improved]" + show refactor commit
    - "No refactoring needed: code is clean"
-2. Mark scenario `[x]` in test-definitions
-3. Return to 6.1 for next scenario
-4. All done → proceed to Phase 7
+2. Mark `[x] REFACTOR` in test-definitions.md (triggers tdd:red quality gate)
+3. Commit and proceed to next scenario
+4. Return to 6.1 for next scenario (first with unchecked `[ ] RED`)
+5. All done → proceed to Phase 7
