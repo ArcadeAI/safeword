@@ -21,6 +21,7 @@
 
 ### Dependencies
 
+- [ ] Claude Code >= v2.1.9 (required for `additionalContext` in PreToolUse hooks)
 - [ ] Must use `additionalContext` field in PreToolUse deny output (per Claude Code docs)
 - [ ] Review content must live in skill files (no inline content in hooks — prevents drift)
 
