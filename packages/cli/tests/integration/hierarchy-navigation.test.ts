@@ -62,7 +62,10 @@ function createTranscript(projectDirectory: string, evidence: string): string {
     type: 'assistant',
     message: {
       role: 'assistant',
-      content: [{ type: 'text', text: evidence }],
+      content: [
+        { type: 'tool_use', name: 'Edit' },
+        { type: 'text', text: evidence },
+      ],
     },
   };
   writeTestFile(projectDirectory, 'transcript.jsonl', JSON.stringify(message));

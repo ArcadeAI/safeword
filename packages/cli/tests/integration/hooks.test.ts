@@ -372,19 +372,14 @@ describe('E2E: Phase-Aware Quality Review', () => {
   }
 
   // Helper to create transcript with changes
-  function createChangesTranscript(
-    targetDirectory: string,
-    customText = 'Made changes.\n\n{"proposedChanges": false, "madeChanges": true}',
-  ): string {
+  function createChangesTranscript(targetDirectory: string, customText = 'Made changes.'): string {
     const transcriptPath = `${targetDirectory}/.safeword/test-transcript.jsonl`;
     const message = {
       type: 'assistant',
       message: {
         content: [
-          {
-            type: 'text',
-            text: customText,
-          },
+          { type: 'tool_use', name: 'Edit' },
+          { type: 'text', text: customText },
         ],
       },
     };
@@ -535,7 +530,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       // Transcript contains all evidence patterns (test + scenario + audit)
       const evidenceText =
-        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed\n\n{"proposedChanges": false, "madeChanges": true}';
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Evidence found - should allow stop (exit 0, no block)
@@ -749,8 +744,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       );
 
       // Only test evidence, missing scenario evidence
-      const evidenceText =
-        '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n\n{"proposedChanges": false, "madeChanges": true}';
+      const evidenceText = '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Feature should require scenario evidence
@@ -770,8 +764,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
 
       // Only test evidence, no scenario evidence
-      const evidenceText =
-        '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n\n{"proposedChanges": false, "madeChanges": true}';
+      const evidenceText = '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Task should allow with just test evidence
@@ -798,7 +791,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       // Test + scenario + audit evidence
       const evidenceText =
-        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings\n\n{"proposedChanges": false, "madeChanges": true}';
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Should allow
@@ -824,7 +817,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       // Has test + scenario evidence but NO audit evidence
       const evidenceText =
-        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\n{"proposedChanges": false, "madeChanges": true}';
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Should hard block requiring /audit
@@ -850,7 +843,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       // Has test + scenario + audit evidence
       const evidenceText =
-        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings\n\n{"proposedChanges": false, "madeChanges": true}';
+        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Should allow
