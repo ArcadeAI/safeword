@@ -8,8 +8,9 @@ examples/
 .env
 .env.local
 
-# Safeword - Local cache and nested installs
+# Safeword - Local cache and transient state
 .safeword/.update-cache.json
+.safeword-project/quality-state.json
 packages/*/.safeword/
 packages/*/.safeword-project/
 packages/*/.claude/
