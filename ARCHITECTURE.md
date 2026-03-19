@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.7
-**Last Updated:** 2026-03-15
+**Version:** 1.8
+**Last Updated:** 2026-03-19
 **Status:** Production
 
 ---
@@ -287,7 +287,7 @@ interface ProjectContext {
 | Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode |
 | Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                |
 | Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command           |
-| Remaining      | 4 skills: `bdd`, `debug`, `quality-review`, `refactor`                                                        |
+| Remaining      | 5 skills: `bdd`, `debug`, `quality-review`, `refactor`, `tdd-review`                                          |
 | Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                        |
 
 ### Hard Block for Done Phase (Exit Code 2)
@@ -327,26 +327,30 @@ interface ProjectContext {
 
 **Zero-dependency YAML parser:** `hierarchy.ts` uses an inline `parseFrontmatter()` rather than the `yaml` npm package. Hooks run in user project context where `yaml` is not installed; inline parser avoids any runtime dependency.
 
-### Continuous Quality Gates (LOC + Phase + Refactor)
+### Continuous Quality Gates (LOC + Phase + TDD)
 
 **Status:** Accepted
-**Date:** 2026-02-07 (updated 2026-03-14: added refactor gate)
+**Date:** 2026-02-07 (updated 2026-03-19: replaced refactor gate with tdd: namespace, artifact-based detection)
 
-| Field          | Value                                                                                                                                               |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`; PreToolUse blocks edits when LOC > 400, phase gate set, or refactor gate set      |
-| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases; refactor gate enforces TDD REFACTOR step                 |
-| Trade-off      | Adds ~50ms per tool call (git diff); state file in `.safeword-project/quality-state.json` must be cleaned on commit                                 |
-| Alternatives   | LOC check in stop hook only (rejected: too late), manual discipline (rejected: unreliable), per-scenario state machine (rejected: over-engineering) |
-| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json`                        |
+| Field          | Value                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`, detects phase transitions, and detects TDD step transitions via test-definitions.md   |
+| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases; TDD gates enforce RED→GREEN→REFACTOR review at each boundary |
+| Trade-off      | Adds ~50ms per tool call (git diff); state file in `.safeword-project/quality-state.json` must be cleaned on commit                                     |
+| Alternatives   | LOC check in stop hook only (rejected: too late), commit-prefix detection (rejected: convention-based, bypassable), manual discipline (rejected)        |
+| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json`                            |
 
 **Gate types:**
 
-- **LOC gate** — triggers when `git diff --stat HEAD` exceeds 400 LOC; forces commit before more edits
-- **Phase gate** — triggers on ticket phase transitions; forces commit to acknowledge new phase
-- **Refactor gate** — triggers after a `feat:` commit during `implement` phase; forces refactor pass before next edit (clears on any commit, including `refactor: no changes needed`)
+- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC; forces commit before more edits
+- **Phase gate** (`phase:{name}`) — triggers on ticket phase transitions; uses `additionalContext` to reference `/quality-review` skill
+- **TDD gates** (`tdd:green`, `tdd:refactor`, `tdd:red`) — triggers when RED/GREEN/REFACTOR sub-checkboxes change in test-definitions.md during `implement` phase; uses `additionalContext` to reference `/tdd-review` skill
 
-**Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. Refactor gate has priority over LOC gate (LOC gate cannot overwrite an active refactor gate).
+**TDD step detection:** PostToolUse watches `test-definitions.md` in ticket directories. Each scenario has three sub-checkboxes (`- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`). The parser finds the first scenario with mixed checked/unchecked items and determines which step just completed. The act of marking a sub-checkbox IS the detection mechanism — the artifact is the single source of truth.
+
+**`additionalContext` field:** PreToolUse deny output uses `additionalContext` (Claude Code v2.1.9+) to guide Claude toward skills. `permissionDecisionReason` explains WHY blocked; `additionalContext` tells WHAT TO DO. This prevents content drift — hooks reference skills by name, skills own the review content.
+
+**Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 
 ### Frozen Transcript Fixture Testing
 
