@@ -9,13 +9,6 @@ export type BddPhase =
   | 'implement'
   | 'done';
 
-const JSON_SUFFIX = `
-
-End your response with: {"proposedChanges": boolean, "madeChanges": boolean}
-- proposedChanges: true if THIS response suggests new code/changes to implement
-- madeChanges: true if THIS response used Edit/Write tools
-- Review confirmations (like this) should report both as false`;
-
 const PHASE_MESSAGES: Record<BddPhase, string> = {
   intake: `SAFEWORD Quality Review (Discovery Phase):
 
@@ -25,7 +18,7 @@ Check your discovery work:
 - Are failure modes identified?
 - Is there anything the user hasn't considered?
 
-Research before asking. Avoid bloat.${JSON_SUFFIX}`,
+Research before asking. Avoid bloat.`,
 
   'define-behavior': `SAFEWORD Quality Review (Scenario Phase):
 
@@ -35,7 +28,7 @@ Check your scenarios:
 - Is each scenario deterministic (same result on repeat)?
 - Are happy path, failure modes, and edge cases covered?
 
-Research before asking. Avoid bloat.${JSON_SUFFIX}`,
+Research before asking. Avoid bloat.`,
 
   'scenario-gate': `SAFEWORD Quality Review (Scenario Gate):
 
@@ -52,7 +45,7 @@ Research before asking. Avoid bloat.${JSON_SUFFIX}`,
 3. Issues found?
    → Show: "Issues: [list with fixes]" or "No issues"
 
-If validation incomplete, continue working before proceeding to decomposition.${JSON_SUFFIX}`,
+If validation incomplete, continue working before proceeding to decomposition.`,
 
   decomposition: `SAFEWORD Quality Review (Decomposition Phase):
 
@@ -70,7 +63,7 @@ If validation incomplete, continue working before proceeding to decomposition.${
 4. Missing anything?
    → Show: "Ready" or "Missing: [gaps]"
 
-If breakdown incomplete, continue working before proceeding to implement.${JSON_SUFFIX}`,
+If breakdown incomplete, continue working before proceeding to implement.`,
 
   implement: `SAFEWORD Quality Review:
 
@@ -82,7 +75,7 @@ Assume you've never seen it before.
 - Does it follow latest docs/best practices?
 - If questions remain: research first, then ask targeted questions.
 - Avoid bloat.
-- If you asked a question above that's still relevant after review, re-ask it.${JSON_SUFFIX}`,
+- If you asked a question above that's still relevant after review, re-ask it.`,
 
   done: `SAFEWORD Quality Review (Done Phase):
 
@@ -103,7 +96,7 @@ Assume you've never seen it before.
 5. Parent epic updated (if applicable)?
    → Show: "Added entry to [parent] work log" or "No parent"
 
-If ANY item lacks evidence, continue working. Run /verify to check, then /audit before marking done.${JSON_SUFFIX}`,
+If ANY item lacks evidence, continue working. Run /verify to check, then /audit before marking done.`,
 };
 
 /**

@@ -951,9 +951,10 @@ describe('E2E: Stop Hook', () => {
   }
 
   describe('stop-quality.ts', () => {
-    it('triggers quality review when madeChanges is true', () => {
-      const text = 'I made some edits.\n\n{"proposedChanges": false, "madeChanges": true}';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
+    it('triggers quality review when edit tools are used', () => {
+      const transcriptPath = createMultiMessageTranscript(projectDirectory, [
+        { text: 'Let me edit that file.', toolUse: 'Edit' },
+      ]);
 
       const result = runStopHook(projectDirectory, transcriptPath);
       const output = parseStopOutput(result);
@@ -965,54 +966,8 @@ describe('E2E: Stop Hook', () => {
       expect(output.reason).toContain('Is it correct?');
     });
 
-    it('triggers quality review when proposedChanges is true', () => {
-      const text = 'I propose these changes.\n\n{"proposedChanges": true, "madeChanges": false}';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
-
-      const result = runStopHook(projectDirectory, transcriptPath);
-      const output = parseStopOutput(result);
-
-      expect(result.exitCode).toBe(0);
-      expect(output.decision).toBe('block');
-      expect(output.reason).toContain('Quality Review');
-    });
-
-    it('handles JSON fields in different order', () => {
-      const text = 'Done.\n\n{"madeChanges": true, "proposedChanges": false}';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
-
-      const result = runStopHook(projectDirectory, transcriptPath);
-      const output = parseStopOutput(result);
-
-      expect(result.exitCode).toBe(0);
-      expect(output.decision).toBe('block');
-      expect(output.reason).toContain('Quality Review');
-    });
-
-    it('exits silently when JSON blob is missing and no edit tools used', () => {
-      // No JSON summary, but also no edit tools - nothing to review
+    it('exits silently when no edit tools are used', () => {
       const text = 'I answered a question without making any changes.';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
-
-      const result = runStopHook(projectDirectory, transcriptPath);
-
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe('');
-    });
-
-    it('exits silently when JSON blob has missing field and no edit tools used', () => {
-      // Incomplete JSON (missing madeChanges), but no edit tools - nothing to review
-      const text = 'Partial JSON.\n\n{"proposedChanges": true}';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
-
-      const result = runStopHook(projectDirectory, transcriptPath);
-
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe('');
-    });
-
-    it('exits silently when no changes made or proposed', () => {
-      const text = 'Just answered a question.\n\n{"proposedChanges": false, "madeChanges": false}';
       const transcriptPath = createMockTranscript(projectDirectory, text);
 
       const result = runStopHook(projectDirectory, transcriptPath);
@@ -1037,41 +992,8 @@ describe('E2E: Stop Hook', () => {
       }
     });
 
-    it('uses last valid JSON blob when multiple exist in same message', () => {
-      // First blob says no changes, second says changes made - should use second
-      const text =
-        'First update: {"proposedChanges": false, "madeChanges": false}\n\n' +
-        'Then I made edits: {"proposedChanges": false, "madeChanges": true}';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
-
-      const result = runStopHook(projectDirectory, transcriptPath);
-      const output = parseStopOutput(result);
-
-      expect(result.exitCode).toBe(0);
-      expect(output.decision).toBe('block');
-      expect(output.reason).toContain('Quality Review');
-    });
-
-    it('only uses JSON from the last assistant message, ignoring older messages', () => {
-      // First message says changes made, but second (last) message says no changes
-      // Should NOT trigger because only last message is checked
-      const transcriptPath = createMultiMessageTranscript(projectDirectory, [
-        {
-          text: 'Made some edits.\n\n{"proposedChanges": false, "madeChanges": true}',
-        },
-        {
-          text: 'Just a question.\n\n{"proposedChanges": false, "madeChanges": false}',
-        },
-      ]);
-
-      const result = runStopHook(projectDirectory, transcriptPath);
-
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe(''); // Silent exit, no block
-    });
-
-    it('detects edit tools from recent messages even without JSON summary', () => {
-      // Edit tool in first message, no JSON in either message
+    it('detects edit tools from older messages within scan window', () => {
+      // Edit tool in first message, text-only in second
       const transcriptPath = createMultiMessageTranscript(projectDirectory, [
         { text: 'Let me edit that file.', toolUse: 'Edit' },
         { text: 'Done with the changes.' },
@@ -1082,11 +1004,10 @@ describe('E2E: Stop Hook', () => {
 
       expect(result.exitCode).toBe(0);
       expect(output.decision).toBe('block');
-      expect(output.reason).toContain('edit tools were detected');
+      expect(output.reason).toContain('Quality Review');
     });
 
     it('exits with error when usage limit reached in last message', () => {
-      // Short message indicating Claude hit usage limit
       const text = '5-hour limit reached - resets in 2 hours';
       const transcriptPath = createMockTranscript(projectDirectory, text);
 
@@ -1097,7 +1018,7 @@ describe('E2E: Stop Hook', () => {
     });
 
     it('does not false-positive on discussion of rate limits in normal response', () => {
-      // Long assistant response discussing rate limits in user's code
+      // Long response discussing rate limits — no edit tools, so no review
       const text =
         'Here is how to implement rate limiting in your API:\n\n' +
         '```typescript\n' +
@@ -1105,13 +1026,12 @@ describe('E2E: Stop Hook', () => {
         'if (requests > maxRequests) {\n' +
         '  throw new Error("5-hour limit reached");\n' +
         '}\n' +
-        '```\n\n' +
-        '{"proposedChanges": true, "madeChanges": false}';
+        '```';
       const transcriptPath = createMockTranscript(projectDirectory, text);
 
       const result = runStopHook(projectDirectory, transcriptPath);
 
-      // Should trigger quality review, NOT usage limit error
+      // No edit tools → silent exit, no usage limit error (text is long)
       expect(result.exitCode).toBe(0);
       expect(result.stderr).not.toContain('usage limit reached');
     });

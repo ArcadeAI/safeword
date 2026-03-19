@@ -28,12 +28,6 @@ interface TranscriptMessage {
   };
 }
 
-interface ResponseSummary {
-  proposedChanges: boolean;
-  madeChanges: boolean;
-  askedQuestion?: boolean;
-}
-
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -142,8 +136,8 @@ try {
   process.exit(0);
 }
 
-// stop_hook_active is used below as a fallback loop guard — see edit-tools detection.
-// When a JSON summary is present, the loop self-terminates via proposedChanges/madeChanges.
+// Loop guard: if stop hook already triggered a continuation and no new edits,
+// allow Claude to stop. Prevents infinite quality review loops.
 const stopHookActive = input.stop_hook_active ?? false;
 
 const transcriptPath = input.transcript_path;
@@ -161,14 +155,11 @@ const transcriptText = await transcriptFile.text();
 const lines = transcriptText.trim().split('\n');
 
 // Check last message for usage limit (avoids false positives from conversation content)
-// Claude shows blocking messages when quota exceeded - these are short, standalone messages
-// Patterns: "5-hour limit reached", "Usage limit reached", {"type":"exceeded_limit"}
 const USAGE_LIMIT_PATTERN =
   /\b(usage limit reached|5-hour limit reached|"type"\s*:\s*"exceeded_limit")\b/i;
 try {
   const lastLine = lines[lines.length - 1] ?? '';
   const lastMessage: TranscriptMessage = JSON.parse(lastLine);
-  // Extract text content from message
   const textContent =
     lastMessage.message?.content
       ?.filter(
@@ -176,7 +167,6 @@ try {
       )
       .map(item => item.text)
       .join('') ?? '';
-  // Only trigger if text content is short (< 200 chars) - limit messages are brief
   if (textContent.length > 0 && textContent.length < 200 && USAGE_LIMIT_PATTERN.test(textContent)) {
     console.error('SAFEWORD: Claude usage limit reached. Try again after reset.');
     process.exit(1);
@@ -185,10 +175,9 @@ try {
   // Not valid JSON or missing structure - continue with normal processing
 }
 
-// Only look at the LAST assistant message for JSON summary
-// Scan up to 5 recent assistant messages for edit tool detection
-const recentTexts: string[] = [];
+// Detect edit tool usage in recent assistant messages
 let editToolsUsed = false;
+let combinedText = '';
 let assistantMessagesChecked = 0;
 const MAX_MESSAGES_FOR_TOOLS = 5;
 
@@ -197,13 +186,11 @@ for (let i = lines.length - 1; i >= 0 && assistantMessagesChecked < MAX_MESSAGES
     const message: TranscriptMessage = JSON.parse(lines[i]);
     if (message.type === 'assistant' && message.message?.content) {
       assistantMessagesChecked++;
-
       for (const item of message.message.content) {
-        // Only collect text from the FIRST (most recent) assistant message
+        // Collect text from the most recent assistant message (for done-phase evidence)
         if (assistantMessagesChecked === 1 && item.type === 'text' && item.text) {
-          recentTexts.push(item.text);
+          combinedText += item.text;
         }
-        // Detect edit tool usage in recent messages
         if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) {
           editToolsUsed = true;
         }
@@ -214,86 +201,9 @@ for (let i = lines.length - 1; i >= 0 && assistantMessagesChecked < MAX_MESSAGES
   }
 }
 
-if (recentTexts.length === 0 && !editToolsUsed) {
+// No edit tools used → no quality review needed (conversational response)
+if (!editToolsUsed) {
   process.exit(0);
-}
-
-// Combine all recent texts to search for JSON summary
-const combinedText = recentTexts.join('\n');
-
-/**
- * Extract all JSON objects from text using brace-balanced scanning.
- * Handles nested objects and braces inside strings correctly.
- */
-function extractJsonObjects(text: string): string[] {
-  const results: string[] = [];
-  let i = 0;
-
-  while (i < text.length) {
-    if (text[i] === '{') {
-      let depth = 0;
-      let inString = false;
-      let escape = false;
-      const start = i;
-
-      for (let j = i; j < text.length; j++) {
-        const char = text[j];
-
-        if (escape) {
-          escape = false;
-          continue;
-        }
-
-        if (char === '\\' && inString) {
-          escape = true;
-          continue;
-        }
-
-        if (char === '"') {
-          inString = !inString;
-          continue;
-        }
-
-        if (!inString) {
-          if (char === '{') depth++;
-          if (char === '}') depth--;
-
-          if (depth === 0) {
-            results.push(text.slice(start, j + 1));
-            i = j;
-            break;
-          }
-        }
-      }
-    }
-    i++;
-  }
-
-  return results;
-}
-
-const candidates = extractJsonObjects(combinedText);
-
-function isValidSummary(object: unknown): object is ResponseSummary {
-  return (
-    typeof object === 'object' &&
-    object !== null &&
-    typeof (object as ResponseSummary).proposedChanges === 'boolean' &&
-    typeof (object as ResponseSummary).madeChanges === 'boolean'
-  );
-}
-
-let summary: ResponseSummary | null = null;
-for (const candidate of candidates) {
-  try {
-    const parsed = JSON.parse(candidate);
-    if (isValidSummary(parsed)) {
-      summary = parsed;
-      // Don't break - use last valid summary (most recent in conversation)
-    }
-  } catch {
-    // Not valid JSON, skip
-  }
 }
 
 // Get ticket info and phase-aware quality message
@@ -414,19 +324,9 @@ if (currentPhase === 'done') {
   process.exit(0);
 }
 
-// Other phases: use summary-based soft blocking
-if (summary) {
-  // Use reported summary
-  if (summary.proposedChanges || summary.madeChanges) {
-    const questionReminder = summary.askedQuestion
-      ? '\n\nIMPORTANT: You asked the user a question above. Re-state it after your review.'
-      : '';
-    softBlock(`${qualityMessage}${questionReminder}`);
-  }
-} else if (editToolsUsed && !stopHookActive) {
-  // Fallback: edit tools detected but no summary - trigger review anyway
-  // Guard: if stop_hook_active, this is a continuation where Claude forgot the JSON — stop gracefully
-  softBlock(`${qualityMessage}\n\n(Note: JSON summary was missing but edit tools were detected)`);
+// Other phases: trigger quality review when edits were made
+// Guard: if stop_hook_active, a previous review already ran — allow stop
+if (stopHookActive) {
+  process.exit(0);
 }
-// No summary and no edit tools - nothing to review, exit silently
-// (Removed JSON requirement to prevent infinite loops when AI doesn't include summary)
+softBlock(qualityMessage);
