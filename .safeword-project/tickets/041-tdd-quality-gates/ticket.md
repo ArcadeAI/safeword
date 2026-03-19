@@ -1,10 +1,10 @@
 ---
 id: 041
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 created: 2026-03-19T15:55:00Z
-last_modified: 2026-03-19T16:36:00Z
+last_modified: 2026-03-19T17:25:00Z
 ---
 
 # TDD Inner-Loop Quality Gates
