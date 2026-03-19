@@ -25,20 +25,13 @@ interface HookInput {
   tool_name?: string;
 }
 
-interface HookOutput {
-  hookSpecificOutput: {
-    hookEventName: 'PreToolUse';
-    permissionDecision: 'deny';
-    permissionDecisionReason: string;
-  };
-}
-
-function deny(reason: string): never {
-  const output: HookOutput = {
+function deny(reason: string, additionalContext?: string): never {
+  const output: Record<string, unknown> = {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
       permissionDecisionReason: reason,
+      ...(additionalContext ? { additionalContext } : {}),
     },
   };
   console.log(JSON.stringify(output));
@@ -109,27 +102,23 @@ TDD reminder:
 - REFACTOR: commit cleanup`);
 }
 
-// Refactor gate
-if (state.gate === 'refactor') {
-  deny(`SAFEWORD: GREEN phase complete. Run refactor pass before continuing.
-
-Either:
-1. Run /refactor, then commit: "refactor: [what improved]"
-2. If code is already clean, commit: "refactor: no changes needed"
-
-Then continue to next scenario.`);
+// TDD gates (tdd:green, tdd:refactor, tdd:red)
+if (state.gate.startsWith('tdd:')) {
+  const step = state.gate.replace('tdd:', '');
+  deny(
+    `SAFEWORD: Entering ${step} phase. Review your work before proceeding.`,
+    'Run /tdd-review to review your work. Then commit to clear this gate.',
+  );
 }
 
 // Phase gate
 if (state.gate.startsWith('phase:')) {
   const phase = state.gate.replace('phase:', '');
   const phaseContent = readPhaseFile(phase);
-  deny(`SAFEWORD: Entering ${phase} phase.
-
-${phaseContent}
-
-Before proceeding, run /quality-review to review your outgoing phase work.
-Then commit to clear this gate.`);
+  deny(
+    `SAFEWORD: Entering ${phase} phase.\n\n${phaseContent}`,
+    'Run /quality-review to review your outgoing phase work. Then commit to clear this gate.',
+  );
 }
 
 process.exit(0);

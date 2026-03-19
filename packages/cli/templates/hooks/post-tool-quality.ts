@@ -112,20 +112,14 @@ if (state.lastCommitHash !== currentHead) {
   state.lastCommitHash = currentHead;
   state.gate = null;
 
-  // Refactor gate: after a feat: commit during implement phase, require refactor
-  if (state.lastKnownPhase === 'implement') {
-    const lastMessage = getLastCommitMessage();
-    if (lastMessage.startsWith('feat:')) {
-      state.gate = 'refactor';
-    }
-  }
+  // (feat: commit detection removed — TDD gates now come from test-definitions.md)
 }
 
 // Count LOC
 state.locSinceCommit = countLoc();
 
 // LOC gate
-if (state.locSinceCommit >= LOC_THRESHOLD && state.gate !== 'refactor') {
+if (state.locSinceCommit >= LOC_THRESHOLD && !state.gate?.startsWith('tdd:')) {
   state.gate = 'loc';
 }
 
