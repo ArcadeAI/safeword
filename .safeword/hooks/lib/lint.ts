@@ -237,9 +237,9 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
   if (SQL_EXTENSIONS.has(extension)) {
     const hasSqlfluff = await ensurePackInstalled('dbt', SAFEWORD_SQLFLUFF);
     if (hasSqlfluff) {
-      await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} --force ${file}`.nothrow().quiet();
+      await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${file}`.nothrow().quiet();
     } else {
-      await $`sqlfluff fix --force ${file}`.nothrow().quiet();
+      await $`sqlfluff fix ${file}`.nothrow().quiet();
     }
     return;
   }
