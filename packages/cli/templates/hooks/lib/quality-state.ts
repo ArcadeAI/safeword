@@ -11,4 +11,5 @@ export interface QualityState {
   activeTicket: string | null;
   lastKnownPhase: string | null;
   gate: string | null;
+  lastKnownTddStep: string | null;
 }

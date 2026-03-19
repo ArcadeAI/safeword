@@ -45,6 +45,7 @@ function loadState(): QualityState {
     activeTicket: null,
     lastKnownPhase: null,
     gate: null,
+    lastKnownTddStep: null,
   };
 }
 
@@ -151,5 +152,80 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
   }
 }
 
+// TDD step detection (test-definitions.md sub-checkboxes)
+if (
+  state.lastKnownPhase === 'implement' &&
+  editedFile.includes('.safeword-project/tickets/') &&
+  editedFile.endsWith('test-definitions.md')
+) {
+  const fullPath = editedFile.startsWith('/')
+    ? editedFile
+    : nodePath.join(projectDirectory, editedFile);
+  if (existsSync(fullPath)) {
+    const content = readFileSync(fullPath, 'utf-8');
+    const currentStep = parseTddStep(content);
+
+    if (currentStep && currentStep !== state.lastKnownTddStep) {
+      const nextGate =
+        currentStep === 'red' ? 'tdd:green' : currentStep === 'green' ? 'tdd:refactor' : 'tdd:red';
+      state.gate = nextGate;
+      state.lastKnownTddStep = currentStep;
+    }
+  }
+}
+
 saveState(state);
 process.exit(0);
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse test-definitions.md sub-checkboxes to find current TDD step.
+ * Looks for the first scenario with mixed checked/unchecked sub-items.
+ * Returns the last completed step: 'red' (1 checked), 'green' (2 checked),
+ * 'refactor' (3 checked). Returns null if no active scenario found.
+ */
+function parseTddStep(content: string): string | null {
+  const lines = content.split('\n');
+  const steps = ['red', 'green', 'refactor'];
+  let checkedCount = 0;
+  let uncheckedCount = 0;
+
+  for (const line of lines) {
+    // Detect scenario header — reset counters
+    if (/^###\s/.test(line)) {
+      // Check previous scenario before resetting
+      if (checkedCount > 0 && uncheckedCount > 0) {
+        return steps[checkedCount - 1] ?? null;
+      }
+      // All checked = complete scenario, keep scanning for next
+      checkedCount = 0;
+      uncheckedCount = 0;
+      continue;
+    }
+
+    // Count sub-checkboxes (RED/GREEN/REFACTOR)
+    const checkboxMatch = line.match(/^- \[([ x])\] (RED|GREEN|REFACTOR)\s*$/i);
+    if (checkboxMatch) {
+      if (checkboxMatch[1] === 'x') {
+        checkedCount++;
+      } else {
+        uncheckedCount++;
+      }
+    }
+  }
+
+  // Check last scenario
+  if (checkedCount > 0 && uncheckedCount > 0) {
+    return steps[checkedCount - 1] ?? null;
+  }
+
+  // All scenarios complete (all checked) — check if last had all 3 checked
+  if (checkedCount === 3 && uncheckedCount === 0) {
+    return 'refactor'; // Last scenario just completed REFACTOR
+  }
+
+  return null;
+}
