@@ -253,8 +253,8 @@ describe('Quality Gates', () => {
       expect(reason).toContain('implement');
       // Content must come from the actual file (read at runtime, not hardcoded)
       expect(reason).toContain('TDD Guide');
-      // Must instruct Claude to run /quality-review before proceeding
-      expect(reason).toContain('/quality-review');
+      // /quality-review instruction in additionalContext (not reason)
+      expect(output.hookSpecificOutput.additionalContext).toContain('/quality-review');
     });
 
     it('2.3: phase gate clears on commit', () => {
@@ -385,55 +385,18 @@ describe('Quality Gates', () => {
   });
 
   // =========================================================================
-  // Suite 5: Refactor Gate
+  // Suite 5: TDD Gate Namespace + additionalContext + Commit-Prefix Removal
   // =========================================================================
-  describe('Refactor Gate', () => {
-    it('5.1: PostToolUse sets refactor gate after feat: commit during implement phase', () => {
-      // Simulate: Claude committed "feat: scenario name" (GREEN phase done)
-      // Then edits another file — PostToolUse should detect the feat: commit
-      // and set gate: 'refactor' since lastKnownPhase is 'implement'
-      writeTestFile(projectDirectory, 'src/impl.ts', 'export const y = 2;\n');
-      execSync('git add src/impl.ts && git commit -m "feat: add scenario implementation"', {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      });
-
-      const head = getHead(projectDirectory);
-
-      // State has stale hash (pre-commit) — PostToolUse will see HEAD changed
-      writeState(projectDirectory, {
-        locSinceCommit: 50,
-        lastCommitHash: 'pre-commit-hash',
-        activeTicket: '099',
-        lastKnownPhase: 'implement',
-        gate: null,
-      });
-
-      // Now Claude edits another file — PostToolUse fires
-      writeTestFile(projectDirectory, 'src/next.ts', 'export const z = 3;\n');
-      execSync('git add src/next.ts', { cwd: projectDirectory, stdio: 'pipe' });
-
-      const result = runPostToolQuality(
-        projectDirectory,
-        'Edit',
-        nodePath.join(projectDirectory, 'src/next.ts'),
-      );
-
-      expect(result.status).toBe(0);
-
-      const state = readState(projectDirectory);
-      expect(state.gate).toBe('refactor');
-      expect(state.lastCommitHash).toBe(head);
-    });
-
-    it('5.2: PreToolUse blocks with refactor instructions when refactor gate set', () => {
+  describe('TDD Gate Namespace', () => {
+    it('1: deny with additionalContext includes both fields in output', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
         lastKnownPhase: 'implement',
-        gate: 'refactor',
+        lastKnownTddStep: null,
+        gate: 'tdd:refactor',
       });
 
       const result = runPreToolQuality(projectDirectory, 'Edit');
@@ -441,15 +404,60 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      const reason = output.hookSpecificOutput.permissionDecisionReason;
-      expect(reason).toContain('SAFEWORD');
-      expect(reason).toContain('refactor');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toBeTruthy();
+      expect(output.hookSpecificOutput.additionalContext).toContain('/tdd-review');
     });
 
-    it('5.3: PostToolUse does not set refactor gate for feat: commit outside implement phase', () => {
-      // Commit with feat: prefix but phase is NOT implement
+    it('2: deny without additionalContext omits the field', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 450,
+        lastCommitHash: head,
+        activeTicket: null,
+        lastKnownPhase: null,
+        lastKnownTddStep: null,
+        gate: 'loc',
+      });
+
+      const result = runPreToolQuality(projectDirectory, 'Edit');
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
+    });
+
+    it('3: LOC gate does not override tdd: gates', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 500,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: 'tdd:refactor',
+      });
+
+      // Create a large file to trigger LOC threshold
+      const lines = Array.from({ length: 420 }, (_, i) => `const x${i} = ${i};`).join('\n');
+      writeTestFile(projectDirectory, 'large-file.ts', lines);
+      execSync('git add large-file.ts', { cwd: projectDirectory, stdio: 'pipe' });
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'large-file.ts'),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBe('tdd:refactor');
+    });
+
+    it('4: feat: commit no longer sets refactor gate', () => {
       writeTestFile(projectDirectory, 'src/impl.ts', 'export const y = 2;\n');
-      execSync('git add src/impl.ts && git commit -m "feat: add something"', {
+      execSync('git add src/impl.ts && git commit -m "feat: add scenario implementation"', {
         cwd: projectDirectory,
         stdio: 'pipe',
       });
@@ -458,7 +466,8 @@ describe('Quality Gates', () => {
         locSinceCommit: 50,
         lastCommitHash: 'pre-commit-hash',
         activeTicket: '099',
-        lastKnownPhase: 'intake',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
         gate: null,
       });
 
@@ -475,6 +484,80 @@ describe('Quality Gates', () => {
 
       const state = readState(projectDirectory);
       expect(state.gate).toBeNull();
+    });
+
+    it('5: PreToolUse blocks with additionalContext for tdd:refactor gate', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: 'tdd:refactor',
+      });
+
+      const result = runPreToolQuality(projectDirectory, 'Edit');
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('SAFEWORD');
+      expect(reason).toContain('refactor');
+      expect(output.hookSpecificOutput.additionalContext).toContain('/tdd-review');
+    });
+
+    it('6: phase gate uses additionalContext for quality-review', () => {
+      const skillDirectory = '.claude/skills/bdd';
+      writeTestFile(
+        projectDirectory,
+        `${skillDirectory}/TDD.md`,
+        '# TDD Guide\n\nRED then GREEN then REFACTOR\n',
+      );
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: 'phase:implement',
+      });
+
+      const result = runPreToolQuality(projectDirectory, 'Edit');
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('SAFEWORD');
+      expect(reason).toContain('implement');
+      expect(reason).toContain('TDD Guide');
+      expect(output.hookSpecificOutput.additionalContext).toContain('/quality-review');
+    });
+
+    it('14: PreToolUse blocks with step-appropriate message for tdd:green', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: 'tdd:green',
+      });
+
+      const result = runPreToolQuality(projectDirectory, 'Edit');
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('SAFEWORD');
+      expect(reason).toContain('green');
+      expect(output.hookSpecificOutput.additionalContext).toContain('/tdd-review');
     });
   });
 
