@@ -476,4 +476,57 @@ describe('Quality Gates', () => {
       expect(state.gate).toBeNull();
     });
   });
+
+  // =========================================================================
+  // Suite 6: TDD Step Detection (test-definitions.md sub-checkboxes)
+  // =========================================================================
+  describe('TDD Step Detection', () => {
+    /** Helper: write a test-definitions.md with scenario sub-checkboxes */
+    function writeTestDefinitions(
+      cwd: string,
+      ticketFolder: string,
+      scenarios: { name: string; red: boolean; green: boolean; refactor: boolean }[],
+    ): string {
+      const lines = ['# Test Definitions', ''];
+      for (const scenario of scenarios) {
+        lines.push(
+          `### Scenario: ${scenario.name}`,
+          `- [${scenario.red ? 'x' : ' '}] RED`,
+          `- [${scenario.green ? 'x' : ' '}] GREEN`,
+          `- [${scenario.refactor ? 'x' : ' '}] REFACTOR`,
+          '',
+        );
+      }
+      const relativePath = `.safeword-project/tickets/${ticketFolder}/test-definitions.md`;
+      writeTestFile(cwd, relativePath, lines.join('\n'));
+      return relativePath;
+    }
+
+    it('7: RED checkbox marked sets tdd:green gate', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      const testDefsPath = writeTestDefinitions(projectDirectory, '099-test', [
+        { name: 'Login validation', red: true, green: false, refactor: false },
+      ]);
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, testDefsPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.gate).toBe('tdd:green');
+    });
+  });
 });
