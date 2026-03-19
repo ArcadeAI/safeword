@@ -56,8 +56,7 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
     });
 
     // Hook should soft-block (exit 0 with JSON decision) because:
-    // 1. Transcript has an Edit tool_use block → editToolsUsed = true
-    // 2. Last assistant message has JSON summary with madeChanges: true → summary detected
+    // Transcript has an Edit tool_use block → editToolsUsed = true
     const exitCode = result.status ?? 0;
     expect(exitCode).toBe(0);
 
