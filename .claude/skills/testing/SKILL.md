@@ -1,6 +1,7 @@
 ---
 name: testing
 description: How to write good tests. Use when writing tests in any context — 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Also consult when writing tests during /bdd or /debug. Core knowledge for test quality across all workflows.
+user-invocable: false
 allowed-tools: '*'
 ---
 
