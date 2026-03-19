@@ -94,33 +94,6 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 3. **Use hooks for guaranteed enforcement** — they always run
 4. **Inline guidance when handoffs fail** — merge skills instead of delegating
 
-### Frequent Commits as Checkpoints
-
-Small, atomic commits after each meaningful change create rollback points and reviewable history.
-
-**When to commit:**
-
-- After each test passes (GREEN phase)
-- Before refactoring (safe point to revert)
-- After successful refactor
-- When switching context or tasks
-
-**Research sources:**
-
-- Addy Osmani: Small iteration loops, "waterfall in 15 minutes" ([source](https://addyosmani.com/blog/ai-coding-workflow/))
-- Spotify: Independent verifiers validate completion ([source](https://engineering.atspotify.com/2025/12/feedback-loops-background-coding-agents-part-3))
-
-### Evidence-Based Completion
-
-Don't claim done without proof. Completion prompts should require observable evidence.
-
-**Pattern:**
-
-- ❌ "All tests pass" (claim without proof)
-- ✅ "✓ 156/156 tests pass" (evidence)
-
-**Implementation:** Quality hook's done-phase prompt requires showing specific counts/outputs before allowing completion claim.
-
 ## Architecture Decisions
 
 ### Reconciliation Engine (`reconcile.ts`)
