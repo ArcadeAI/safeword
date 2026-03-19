@@ -43,9 +43,11 @@ DEPCRUISE_CONFIG=""
 # DEAD CODE DETECTION
 # =========================================================================
 
-# 2a. Dead code - TypeScript/JS (knip with auto-fix)
+# 2a. Dead code - TypeScript/JS (knip with auto-fix + config hints)
 [ -f package.json ] && {
   bunx knip --fix 2>&1 || true
+  # Capture config hints separately for W005 detection
+  bunx knip --reporter json 2> /dev/null || true
 }
 
 # 2b. Dead code - Python (deadcode)
@@ -84,6 +86,49 @@ bunx jscpd . --gitignore --min-lines 10 --reporters console 2>&1 || true
   go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"
 }
 ```
+
+#### Outdated Package Triage
+
+After running the outdated checks above, **classify each outdated package** using this matrix:
+
+| Dep Type | Bump      | Risk   | Action                                                 |
+| -------- | --------- | ------ | ------------------------------------------------------ |
+| dev      | patch     | Low    | Safe to update now                                     |
+| dev      | minor     | Low    | Safe to update now                                     |
+| prod     | patch     | Low    | Safe to update — run tests after                       |
+| prod     | minor     | Medium | Review changelog, then update                          |
+| dev      | major     | Medium | Research breaking changes, may need config updates     |
+| prod     | major     | High   | Defer to dedicated task — investigate migration path   |
+| any      | 0.x minor | Medium | Treat as major (semver allows breaking changes in 0.x) |
+
+Present results as a structured table:
+
+```text
+| Package | Current | Latest | Type | Bump | Risk |
+|---------|---------|--------|------|------|------|
+| knip | 5.86.0 | 5.88.1 | dev | patch | Low |
+| eslint | 9.39.4 | 10.0.3 | dev | major | High |
+```
+
+Then give a **verdict per risk tier**:
+
+- **Low risk:** "Safe to update now — dev-only tools, patch/minor bumps"
+- **Medium risk:** "Review changelogs before updating" (list specific packages)
+- **High risk:** "Defer to dedicated task — major version bumps need migration research" (list specific packages)
+
+If all packages are up to date, report: `✅ All packages up to date`
+
+#### Knip Configuration Hints (W005)
+
+Review the `--reporter json` output from knip above. If knip reports **configuration hints** (unused entries in `ignoreDependencies`, `ignoreBinaries`, `ignoreUnresolved`, or `ignoreWorkspaces`), flag each as:
+
+```text
+- [W005] Stale config: `knip.json` — `{entry}` can be removed from {list}
+```
+
+These mean the ignore override no longer matches anything knip would flag — the suppression is dead config. Cleaning them up reduces noise for future readers.
+
+If no configuration hints are found, skip this section.
 
 ### 2. Agent Config Checks
 
@@ -179,6 +224,7 @@ Report findings by severity with codes:
 - [W002] Structure: `AGENTS.md` missing recommended WHAT/WHY/HOW sections
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
 - [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
+- [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
 
 ### Code Quality
 
@@ -197,7 +243,17 @@ Report findings by severity with codes:
 
 **Outdated Packages:**
 
-- [list or "all up to date"]
+| Package | Current | Latest | Type | Bump | Risk |
+| ------- | ------- | ------ | ---- | ---- | ---- |
+| ...     | ...     | ...    | ...  | ...  | ...  |
+
+(or `✅ All packages up to date` if none outdated)
+
+**Verdict:**
+
+- ✅ **Low risk (N):** Safe to update now — [summary]
+- ⚠️ **Medium risk (N):** Review changelogs — [list packages]
+- 🔴 **High risk (N):** Defer to dedicated task — [list packages]
 
 **Test Quality:**
 
