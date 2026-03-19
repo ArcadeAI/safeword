@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 // Safeword: Auto Quality Review Stop Hook
-// Triggers quality review when changes are proposed or made
-// Uses JSON summary if available, falls back to detecting edit tool usage
+// Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
