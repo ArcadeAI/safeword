@@ -4,9 +4,10 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { getActiveTicket } from './lib/active-ticket.ts';
 import { LOC_THRESHOLD, type QualityState } from './lib/quality-state.ts';
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
@@ -78,7 +79,7 @@ const PLANNING_PHASES = new Set([
   'decomposition',
   'done',
 ]);
-const activePhase = getActiveTicketPhase();
+const activePhase = getActiveTicket(projectDirectory).phase;
 if (activePhase && PLANNING_PHASES.has(activePhase)) {
   deny(
     `SAFEWORD: Active ticket is at "${activePhase}" phase — code edits require "implement" phase.\n\nAdvance your ticket to implement phase before writing code.`,
@@ -156,41 +157,6 @@ process.exit(0);
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Read the phase of the most recently modified in_progress non-epic ticket.
- * Returns null if no active ticket found.
- */
-function getActiveTicketPhase(): string | null {
-  const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
-  if (!existsSync(ticketsDirectory)) return null;
-
-  try {
-    const folders = readdirSync(ticketsDirectory).filter(f => {
-      if (f === 'completed' || f === 'tmp') return false;
-      return existsSync(nodePath.join(ticketsDirectory, f, 'ticket.md'));
-    });
-
-    let latestPhase: string | null = null;
-    let latestMtime = 0;
-
-    for (const folder of folders) {
-      const content = readFileSync(nodePath.join(ticketsDirectory, folder, 'ticket.md'), 'utf-8');
-      if (content.match(/^status:\s*(\S+)/m)?.[1] !== 'in_progress') continue;
-      if (content.match(/^type:\s*(\S+)/m)?.[1] === 'epic') continue;
-
-      const mtime = new Date(content.match(/last_modified:\s*(.+)/m)?.[1] ?? '0').getTime();
-      if (mtime > latestMtime) {
-        latestMtime = mtime;
-        latestPhase = content.match(/^phase:\s*(\S+)/m)?.[1] ?? null;
-      }
-    }
-
-    return latestPhase;
-  } catch {
-    return null;
-  }
-}
 
 function readPhaseFile(phase: string): string {
   const fileName = PHASE_FILE_MAP[phase];
