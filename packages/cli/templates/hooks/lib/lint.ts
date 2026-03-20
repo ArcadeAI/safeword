@@ -174,7 +174,7 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
   if (upgradeAttempted) return false;
   upgradeAttempted = true;
 
-  console.log(`SAFEWORD: ${packName} pack missing, running upgrade...`);
+  console.error(`SAFEWORD: ${packName} pack missing, running upgrade...`);
 
   const result = await $`bunx safeword@latest upgrade --yes`.nothrow().quiet();
   if (result.exitCode !== 0) {
@@ -185,7 +185,7 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
   // If upgrade succeeded but config still missing, the language may be in
   // a location safeword can't auto-detect.
   if (!hasConfig(configPath)) {
-    console.log(
+    console.error(
       `SAFEWORD: ${packName} config not created after upgrade. ` +
         `Linting with ${packName} defaults (no strict safeword rules).`,
     );
@@ -199,11 +199,11 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
       .nothrow()
       .quiet();
   if (commitResult.exitCode !== 0) {
-    console.log(
+    console.error(
       'SAFEWORD: Could not auto-commit .safeword/ changes (not a git repo or no changes)',
     );
   } else {
-    console.log('SAFEWORD: Upgrade complete and committed');
+    console.error('SAFEWORD: Upgrade complete and committed');
   }
 
   return hasConfig(configPath);
@@ -244,7 +244,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       : await $`bunx eslint --fix ${file}`.nothrow().quiet();
 
     if (eslintResult.exitCode !== 0 && eslintResult.stderr.length > 0) {
-      console.log(eslintResult.stderr.toString());
+      console.error(eslintResult.stderr.toString());
     }
     await runPrettier(file);
     return { warnings };
@@ -276,7 +276,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       !(await checkToolAvailable(
         'golangci-lint',
         'Go',
-        'go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest',
+        'curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh',
         warnings,
       ))
     ) {
@@ -359,7 +359,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   if (SHELL_EXTENSIONS.has(extension)) {
     const shellcheckResult = await $`bunx shellcheck ${file}`.nothrow().quiet();
     if (shellcheckResult.exitCode !== 0 && shellcheckResult.stderr.length > 0) {
-      console.log(shellcheckResult.stderr.toString());
+      console.error(shellcheckResult.stderr.toString());
     }
     if (
       hasConfig(SAFEWORD_PRETTIER) ||
