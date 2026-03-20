@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Safeword: Quality Gates - PostToolUse observer
-// Counts LOC via git diff --stat HEAD, detects phase changes and feat: commits,
+// Counts LOC via git diff --stat HEAD, detects phase changes and TDD step transitions,
 // updates quality-state.json. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
 
 import { execSync } from 'node:child_process';
@@ -99,8 +99,6 @@ if (state.lastCommitHash !== currentHead) {
   state.locSinceCommit = 0;
   state.lastCommitHash = currentHead;
   state.gate = null;
-
-  // (feat: commit detection removed — TDD gates now come from test-definitions.md)
 }
 
 // Count LOC
@@ -122,7 +120,11 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
     const currentPhase = phaseMatch?.[1];
 
     if (currentPhase && currentPhase !== state.lastKnownPhase) {
-      state.gate = `phase:${currentPhase}`;
+      // Only gate on real phase transitions, not ticket creation (null → phase).
+      // Creating a ticket isn't a transition — there's no outgoing phase work to review.
+      if (state.lastKnownPhase !== null) {
+        state.gate = `phase:${currentPhase}`;
+      }
       state.lastKnownPhase = currentPhase;
     }
 

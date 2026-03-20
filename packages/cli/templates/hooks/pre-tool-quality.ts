@@ -7,6 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { getActiveTicket } from './lib/active-ticket.ts';
 import { LOC_THRESHOLD, type QualityState } from './lib/quality-state.ts';
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
@@ -23,6 +24,10 @@ const PHASE_FILE_MAP: Record<string, string> = {
 
 interface HookInput {
   tool_name?: string;
+  tool_input?: {
+    file_path?: string;
+    notebook_path?: string;
+  };
 }
 
 function deny(reason: string, additionalContext?: string): never {
@@ -50,10 +55,36 @@ try {
 }
 
 const tool = input.tool_name ?? '';
+const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
 // Only gate edit tools
 if (!EDIT_TOOLS.includes(tool)) {
   process.exit(0);
+}
+
+// Never block edits to tooling/meta files — these are not application code.
+// Prevents circular dependencies and allows config/skill work during any phase.
+const META_PATHS = ['.safeword-project/', '.safeword/', '.claude/', '.cursor/'];
+if (META_PATHS.some(p => editedFile.includes(p))) {
+  process.exit(0);
+}
+
+// Phase-based access control: planning phases can only edit project artifacts.
+// Reads the active ticket's phase directly (not from state) to avoid cross-ticket
+// contamination where editing one ticket's phase affects another ticket's enforcement.
+const PLANNING_PHASES = new Set([
+  'intake',
+  'define-behavior',
+  'scenario-gate',
+  'decomposition',
+  'done',
+]);
+const activePhase = getActiveTicket(projectDirectory).phase;
+if (activePhase && PLANNING_PHASES.has(activePhase)) {
+  deny(
+    `SAFEWORD: Active ticket is at "${activePhase}" phase — code edits require "implement" phase.\n\nAdvance your ticket to implement phase before writing code.`,
+    'Update ticket.md frontmatter: phase: implement',
+  );
 }
 
 // No state file → no enforcement

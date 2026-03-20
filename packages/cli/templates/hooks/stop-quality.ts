@@ -3,8 +3,9 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
+import { getActiveTicket } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
 
@@ -39,65 +40,13 @@ interface TicketInfo {
   folder: string | undefined;
 }
 
-/**
- * Read ticket info from the most recently modified in_progress ticket.
- * Only considers tickets with status: in_progress (ignores backlog, done, etc.)
- * Skips type: epic tickets (work happens in child features/tasks)
- */
 function getCurrentTicketInfo(): TicketInfo {
-  const empty: TicketInfo = { phase: undefined, type: undefined, folder: undefined };
-
-  if (!existsSync(ticketsDir)) {
-    return empty;
-  }
-
-  try {
-    // List ticket folders (exclude 'completed' and 'tmp')
-    const folders = readdirSync(ticketsDir).filter(f => {
-      if (f === 'completed' || f === 'tmp') return false;
-      const ticketPath = `${ticketsDir}/${f}/ticket.md`;
-      return existsSync(ticketPath);
-    });
-    if (folders.length === 0) return empty;
-
-    // Find most recently modified in_progress ticket (excluding epics)
-    let latestFolder = '';
-    let latestContent = '';
-    let latestMtime = 0;
-    for (const folder of folders) {
-      const ticketPath = `${ticketsDir}/${folder}/ticket.md`;
-      const content = readFileSync(ticketPath, 'utf-8');
-
-      // Skip tickets that aren't in_progress
-      const statusMatch = content.match(/^status:\s*(\S+)/m);
-      if (statusMatch?.[1] !== 'in_progress') continue;
-
-      // Skip epic tickets (work happens in children)
-      const typeMatch = content.match(/^type:\s*(\S+)/m);
-      if (typeMatch?.[1] === 'epic') continue;
-
-      const mtime = new Date(content.match(/last_modified: (.+)/)?.[1] ?? 0).getTime();
-      if (mtime > latestMtime) {
-        latestMtime = mtime;
-        latestFolder = folder;
-        latestContent = content;
-      }
-    }
-
-    if (!latestFolder) return empty;
-
-    const phaseMatch = latestContent.match(/^phase:\s*(\S+)/m);
-    const typeMatch = latestContent.match(/^type:\s*(\S+)/m);
-
-    return {
-      phase: phaseMatch?.[1] as BddPhase | undefined,
-      type: typeMatch?.[1],
-      folder: latestFolder,
-    };
-  } catch {
-    // Silent fail - use default message
-  }
-  return empty;
+  const info = getActiveTicket(projectDir);
+  return {
+    phase: info.phase as BddPhase | undefined,
+    type: info.type,
+    folder: info.folder,
+  };
 }
 
 /**
