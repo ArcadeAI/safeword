@@ -61,10 +61,10 @@ if (!EDIT_TOOLS.includes(tool)) {
   process.exit(0);
 }
 
-// Never block edits to project artifacts — prevents circular dependency where
-// a gate blocks fixing the file that caused the gate. Gates enforce code commit
-// discipline; .safeword-project/ is metadata, not code.
-if (editedFile.includes('.safeword-project/')) {
+// Never block edits to tooling/meta files — these are not application code.
+// Prevents circular dependencies and allows config/skill work during any phase.
+const META_PATHS = ['.safeword-project/', '.safeword/', '.claude/', '.cursor/'];
+if (META_PATHS.some(p => editedFile.includes(p))) {
   process.exit(0);
 }
 

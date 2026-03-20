@@ -1018,18 +1018,23 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('7.7: .safeword-project/ edits still allowed during planning phases', () => {
+    it('7.7: meta paths (.safeword-project/, .claude/, .safeword/) allowed during planning', () => {
       createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
 
-      const ticketPath = nodePath.join(
-        projectDirectory,
+      const metaPaths = [
         '.safeword-project/tickets/099-test/ticket.md',
-      );
-      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
+        '.claude/skills/bdd/DISCOVERY.md',
+        '.safeword/hooks/pre-tool-quality.ts',
+        '.cursor/settings.json',
+      ];
 
-      // Should allow — .safeword-project/ exempt from all checks
-      expect(result.status).toBe(0);
-      expect(result.stdout).toBe('');
+      for (const relativePath of metaPaths) {
+        const fullPath = nodePath.join(projectDirectory, relativePath);
+        const result = runPreToolQuality(projectDirectory, 'Edit', fullPath);
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toBe('');
+      }
     });
   });
 });
