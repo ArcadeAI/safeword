@@ -299,6 +299,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
     },
+    '.safeword/hooks/session-cleanup-quality.ts': {
+      template: 'hooks/session-cleanup-quality.ts',
+    },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
 
     // Guides

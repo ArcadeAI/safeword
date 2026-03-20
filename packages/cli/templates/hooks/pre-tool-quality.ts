@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getActiveTicket } from './lib/active-ticket.ts';
-import { LOC_THRESHOLD, type QualityState } from './lib/quality-state.ts';
+import { getStateFilePath, LOC_THRESHOLD, type QualityState } from './lib/quality-state.ts';
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
@@ -23,6 +23,7 @@ const PHASE_FILE_MAP: Record<string, string> = {
 };
 
 interface HookInput {
+  session_id?: string;
   tool_name?: string;
   tool_input?: {
     file_path?: string;
@@ -44,7 +45,6 @@ function deny(reason: string, additionalContext?: string): never {
 }
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const stateFile = nodePath.join(projectDirectory, '.safeword-project', 'quality-state.json');
 
 // Read hook input from stdin
 let input: HookInput;
@@ -54,6 +54,7 @@ try {
   process.exit(0);
 }
 
+const stateFile = getStateFilePath(projectDirectory, input.session_id);
 const tool = input.tool_name ?? '';
 const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 

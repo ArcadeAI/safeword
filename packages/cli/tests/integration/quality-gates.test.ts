@@ -31,16 +31,24 @@ const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
 const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
 
-const STATE_FILE_PATH = '.safeword-project/quality-state.json';
+/** Get per-session state file path */
+function stateFilePath(sessionId = 'test-session'): string {
+  return `.safeword-project/quality-state-${sessionId}.json`;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /** Run the PostToolUse quality hook */
-function runPostToolQuality(cwd: string, toolName: string, filePath: string) {
+function runPostToolQuality(
+  cwd: string,
+  toolName: string,
+  filePath: string,
+  sessionId = 'test-session',
+) {
   const hookInput = JSON.stringify({
-    session_id: 'test-session',
+    session_id: sessionId,
     hook_event_name: 'PostToolUse',
     tool_name: toolName,
     tool_input: { file_path: filePath },
@@ -55,9 +63,14 @@ function runPostToolQuality(cwd: string, toolName: string, filePath: string) {
 }
 
 /** Run the PreToolUse quality hook */
-function runPreToolQuality(cwd: string, toolName: string, filePath?: string) {
+function runPreToolQuality(
+  cwd: string,
+  toolName: string,
+  filePath?: string,
+  sessionId = 'test-session',
+) {
   const hookInput = JSON.stringify({
-    session_id: 'test-session',
+    session_id: sessionId,
     hook_event_name: 'PreToolUse',
     tool_name: toolName,
     tool_input: filePath ? { file_path: filePath } : {},
@@ -76,14 +89,14 @@ function getHead(cwd: string): string {
   return execSync('git rev-parse --short HEAD', { cwd, encoding: 'utf8' }).trim();
 }
 
-/** Write quality-state.json */
-function writeState(cwd: string, state: Record<string, unknown>): void {
-  writeTestFile(cwd, STATE_FILE_PATH, JSON.stringify(state, null, 2));
+/** Write per-session quality state */
+function writeState(cwd: string, state: Record<string, unknown>, sessionId = 'test-session'): void {
+  writeTestFile(cwd, stateFilePath(sessionId), JSON.stringify(state, null, 2));
 }
 
-/** Read quality-state.json */
-function readState(cwd: string): Record<string, unknown> {
-  return JSON.parse(readTestFile(cwd, STATE_FILE_PATH));
+/** Read per-session quality state */
+function readState(cwd: string, sessionId = 'test-session'): Record<string, unknown> {
+  return JSON.parse(readTestFile(cwd, stateFilePath(sessionId)));
 }
 
 /** Create a test project with git repo and initial commit */
@@ -442,7 +455,7 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
       // PreToolUse must NOT create the state file (read-only)
-      expect(fileExists(projectDirectory, STATE_FILE_PATH)).toBe(false);
+      expect(fileExists(projectDirectory, stateFilePath())).toBe(false);
     });
 
     it('3.2: PostToolUse creates state file with 5 fields', () => {
@@ -457,7 +470,7 @@ describe('Quality Gates', () => {
       );
 
       expect(result.status).toBe(0);
-      expect(fileExists(projectDirectory, STATE_FILE_PATH)).toBe(true);
+      expect(fileExists(projectDirectory, stateFilePath())).toBe(true);
 
       const state = readState(projectDirectory);
       const keys = Object.keys(state);
@@ -1035,6 +1048,97 @@ describe('Quality Gates', () => {
         expect(result.status).toBe(0);
         expect(result.stdout).toBe('');
       }
+    });
+  });
+
+  // =========================================================================
+  // Suite 8: Per-Session State Isolation
+  // =========================================================================
+  describe('Per-Session State', () => {
+    it('8.1: sessions use separate state files', () => {
+      // Create LOC gate in session-A
+      const head = getHead(projectDirectory);
+      writeState(
+        projectDirectory,
+        {
+          locSinceCommit: 500,
+          lastCommitHash: head,
+          activeTicket: null,
+          lastKnownPhase: null,
+          lastKnownTddStep: null,
+          gate: 'loc',
+        },
+        'session-A',
+      );
+
+      // Session-B has no state — should not be blocked
+      const result = runPreToolQuality(projectDirectory, 'Edit', undefined, 'session-B');
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('8.2: session-A gate does not block session-B', () => {
+      const head = getHead(projectDirectory);
+
+      // Session-A: phase gate set
+      writeState(
+        projectDirectory,
+        {
+          locSinceCommit: 0,
+          lastCommitHash: head,
+          activeTicket: '099',
+          lastKnownPhase: 'implement',
+          lastKnownTddStep: null,
+          gate: 'phase:implement',
+        },
+        'session-A',
+      );
+
+      // Session-B: no gate
+      writeState(
+        projectDirectory,
+        {
+          locSinceCommit: 0,
+          lastCommitHash: head,
+          activeTicket: '099',
+          lastKnownPhase: 'implement',
+          lastKnownTddStep: null,
+          gate: null,
+        },
+        'session-B',
+      );
+
+      // Session-A should be blocked
+      const resultA = runPreToolQuality(projectDirectory, 'Edit', undefined, 'session-A');
+      expect(resultA.status).toBe(0);
+      const outputA = JSON.parse(resultA.stdout);
+      expect(outputA.hookSpecificOutput.permissionDecision).toBe('deny');
+
+      // Session-B should pass
+      const resultB = runPreToolQuality(projectDirectory, 'Edit', undefined, 'session-B');
+      expect(resultB.status).toBe(0);
+      expect(resultB.stdout).toBe('');
+    });
+
+    it('8.3: PostToolUse writes to session-specific state file', () => {
+      writeTestFile(projectDirectory, 'src/foo.ts', 'export const x = 1;\n');
+      execSync('git add src/foo.ts', { cwd: projectDirectory, stdio: 'pipe' });
+
+      runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'src/foo.ts'),
+        'session-X',
+      );
+
+      // Session-X state should exist
+      expect(fileExists(projectDirectory, stateFilePath('session-X'))).toBe(true);
+      const stateX = readState(projectDirectory, 'session-X');
+      expect(stateX.lastCommitHash).toBe(getHead(projectDirectory));
+
+      // Default test-session state should NOT exist
+      expect(fileExists(projectDirectory, stateFilePath())).toBe(false);
     });
   });
 });
