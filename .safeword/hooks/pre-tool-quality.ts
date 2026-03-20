@@ -61,10 +61,10 @@ if (!EDIT_TOOLS.includes(tool)) {
   process.exit(0);
 }
 
-// Never block edits to ticket.md — prevents circular dependency where
-// a phase gate blocks fixing the phase that caused the gate.
-// Narrow to ticket.md only; test-definitions.md should still respect TDD gates.
-if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
+// Never block edits to project artifacts — prevents circular dependency where
+// a gate blocks fixing the file that caused the gate. Gates enforce code commit
+// discipline; .safeword-project/ is metadata, not code.
+if (editedFile.includes('.safeword-project/')) {
   process.exit(0);
 }
 

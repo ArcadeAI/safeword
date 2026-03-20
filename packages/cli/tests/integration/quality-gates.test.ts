@@ -271,7 +271,7 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
     });
 
-    it('2.4: ticket.md edits bypass phase gate (prevents circular dependency)', () => {
+    it('2.4: .safeword-project/ edits bypass phase gate (prevents circular dependency)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -288,12 +288,12 @@ describe('Quality Gates', () => {
       );
       const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
 
-      // Should allow — ticket.md is exempt from gates
+      // Should allow — .safeword-project/ files are exempt from gates
       expect(result.status).toBe(0);
       expect(result.stdout).toBe('');
     });
 
-    it('2.5: test-definitions.md edits still blocked by TDD gate', () => {
+    it('2.5: test-definitions.md edits also bypass TDD gate', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -310,13 +310,12 @@ describe('Quality Gates', () => {
       );
       const result = runPreToolQuality(projectDirectory, 'Edit', testDefsPath);
 
-      // Should block — test-definitions.md is NOT exempt
+      // Should allow — all .safeword-project/ files are exempt
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(result.stdout).toBe('');
     });
 
-    it('2.6: ticket.md edits bypass LOC gate too', () => {
+    it('2.6: .safeword-project/ edits bypass LOC gate too', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 500,
@@ -327,11 +326,11 @@ describe('Quality Gates', () => {
         gate: 'loc',
       });
 
-      const ticketPath = nodePath.join(
+      const learningPath = nodePath.join(
         projectDirectory,
-        '.safeword-project/tickets/099-test/ticket.md',
+        '.safeword-project/learnings/some-learning.md',
       );
-      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
+      const result = runPreToolQuality(projectDirectory, 'Edit', learningPath);
 
       expect(result.status).toBe(0);
       expect(result.stdout).toBe('');
@@ -364,6 +363,71 @@ describe('Quality Gates', () => {
       expect(state.lastKnownPhase).toBe('intake');
       // LOC should still be tracked (file has 1 line)
       expect(state.locSinceCommit).toBeGreaterThan(0);
+    });
+
+    it('2.8: ticket creation (null→phase) does not set gate', () => {
+      const ticketPath = '.safeword-project/tickets/099-test/ticket.md';
+      writeTestFile(
+        projectDirectory,
+        ticketPath,
+        ['---', 'id: 099', 'phase: implement', 'status: in_progress', '---', '# Test'].join('\n'),
+      );
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        lastKnownPhase: null,
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Write',
+        nodePath.join(projectDirectory, ticketPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      // Phase tracked but no gate — null→phase is not a transition
+      expect(state.lastKnownPhase).toBe('implement');
+      expect(state.gate).toBeNull();
+      expect(state.activeTicket).toBe('099');
+    });
+
+    it('2.9: real phase transition (non-null→phase) still sets gate', () => {
+      const ticketPath = '.safeword-project/tickets/099-test/ticket.md';
+      writeTestFile(
+        projectDirectory,
+        ticketPath,
+        ['---', 'id: 099', 'phase: implement', 'status: in_progress', '---', '# Test'].join('\n'),
+      );
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'intake',
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, ticketPath),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      // Real transition — gate should fire
+      expect(state.lastKnownPhase).toBe('implement');
+      expect(state.gate).toBe('phase:implement');
     });
   });
 

@@ -122,7 +122,11 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
     const currentPhase = phaseMatch?.[1];
 
     if (currentPhase && currentPhase !== state.lastKnownPhase) {
-      state.gate = `phase:${currentPhase}`;
+      // Only gate on real phase transitions, not ticket creation (null → phase).
+      // Creating a ticket isn't a transition — there's no outgoing phase work to review.
+      if (state.lastKnownPhase !== null) {
+        state.gate = `phase:${currentPhase}`;
+      }
       state.lastKnownPhase = currentPhase;
     }
 
