@@ -1,8 +1,8 @@
 ---
 id: 045
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-03-20T05:33:00Z
 last_modified: 2026-03-20T15:21:00Z
 parent: 044
