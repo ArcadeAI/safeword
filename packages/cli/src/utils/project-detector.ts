@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { detect } from '../presets/typescript/detect.js';
+import { existsShallow, findShallow } from './fs.js';
 
 // Re-export detection constants from typescript preset (single source of truth)
 export const {
@@ -135,12 +136,16 @@ export interface PythonProjectType {
  * @see ARCHITECTURE.md → Language Detection
  */
 export function detectLanguages(cwd: string): Languages {
+  // TypeScript/JS: root-only (subdirectory package.json is too common to be meaningful)
   const hasPackageJson = existsSync(nodePath.join(cwd, 'package.json'));
-  const hasPyproject = existsSync(nodePath.join(cwd, PYPROJECT_TOML));
-  const hasRequirements = existsSync(nodePath.join(cwd, REQUIREMENTS_TXT));
-  const hasGoModule = existsSync(nodePath.join(cwd, GO_MOD));
-  const hasCargoToml = existsSync(nodePath.join(cwd, CARGO_TOML));
-  const hasDbtProject = existsSync(nodePath.join(cwd, DBT_PROJECT_YML));
+
+  // Other languages: check root AND immediate subdirectories
+  // This catches projects where a language lives in a subdirectory (e.g., dbt/pyproject.toml)
+  const hasPyproject = existsShallow(cwd, PYPROJECT_TOML);
+  const hasRequirements = existsShallow(cwd, REQUIREMENTS_TXT);
+  const hasGoModule = existsShallow(cwd, GO_MOD);
+  const hasCargoToml = existsShallow(cwd, CARGO_TOML);
+  const hasDbtProject = existsShallow(cwd, DBT_PROJECT_YML);
 
   return {
     javascript: hasPackageJson,
@@ -158,27 +163,26 @@ export function detectLanguages(cwd: string): Languages {
  * @see ARCHITECTURE.md → Language Detection
  */
 export function detectPythonType(cwd: string): PythonProjectType | undefined {
-  const pyprojectPath = nodePath.join(cwd, PYPROJECT_TOML);
-  const requirementsPath = nodePath.join(cwd, REQUIREMENTS_TXT);
-  const uvLockPath = nodePath.join(cwd, UV_LOCK);
+  // Search root and immediate subdirectories for Python manifests
+  const pyprojectDirectory = findShallow(cwd, PYPROJECT_TOML);
+  const requirementsDirectory = findShallow(cwd, REQUIREMENTS_TXT);
 
-  const hasPyproject = existsSync(pyprojectPath);
-  const hasRequirements = existsSync(requirementsPath);
-
-  if (!hasPyproject && !hasRequirements) {
+  // Determine manifest directory — pyproject.toml takes priority
+  const manifestDirectory = pyprojectDirectory ?? requirementsDirectory;
+  if (!manifestDirectory) {
     return undefined;
   }
 
   // Read project file for dependency/tool detection
-  const content = hasPyproject
-    ? readFileSync(pyprojectPath, 'utf8')
-    : readFileSync(requirementsPath, 'utf8');
+  const content = pyprojectDirectory
+    ? readFileSync(nodePath.join(pyprojectDirectory, PYPROJECT_TOML), 'utf8')
+    : readFileSync(nodePath.join(manifestDirectory, REQUIREMENTS_TXT), 'utf8');
 
   // Detect package manager (priority: poetry > uv > pip)
   let packageManager: PythonProjectType['packageManager'] = 'pip';
-  if (hasPyproject && content.includes('[tool.poetry]')) {
+  if (pyprojectDirectory && content.includes('[tool.poetry]')) {
     packageManager = 'poetry';
-  } else if (existsSync(uvLockPath)) {
+  } else if (existsSync(nodePath.join(manifestDirectory, UV_LOCK))) {
     packageManager = 'uv';
   }
 

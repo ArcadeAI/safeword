@@ -4,9 +4,7 @@
  * Detects Go projects. Config file (.golangci.yml) is created by schema.
  */
 
-import nodePath from 'node:path';
-
-import { exists } from '../../utils/fs.js';
+import { existsShallow } from '../../utils/fs.js';
 import type { LanguagePack, SetupContext, SetupResult } from '../types.js';
 import { setupGoTooling } from './setup.js';
 
@@ -16,7 +14,7 @@ export const golangPack: LanguagePack = {
   extensions: ['.go'],
 
   detect(cwd: string): boolean {
-    return exists(nodePath.join(cwd, 'go.mod'));
+    return existsShallow(cwd, 'go.mod');
   },
 
   setup(_cwd: string, _ctx: SetupContext): SetupResult {

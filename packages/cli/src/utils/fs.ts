@@ -56,6 +56,78 @@ export function exists(path: string): boolean {
 }
 
 /**
+ * Directories to exclude when scanning subdirectories for language manifests.
+ * These contain vendored/generated files that would cause false positives.
+ */
+const SUBDIRECTORY_EXCLUDE = new Set([
+  'node_modules',
+  '.git',
+  '.safeword',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  'coverage',
+  'dbt_packages',
+  'out',
+  '.next',
+  '.nuxt',
+  '.output',
+  '__pycache__',
+  '.venv',
+  'venv',
+]);
+
+/**
+ * Check if a file exists at the project root OR in any immediate subdirectory.
+ * Useful for detecting language manifests in projects where a language lives
+ * in a subdirectory (e.g., `dbt/pyproject.toml`).
+ *
+ * @param cwd - Project root directory
+ * @param filename - File to search for (e.g., 'pyproject.toml')
+ * @returns true if found at root or in any immediate subdirectory
+ */
+export function existsShallow(cwd: string, filename: string): boolean {
+  return findShallow(cwd, filename) !== undefined;
+}
+
+/**
+ * Find a file at the project root OR in any immediate subdirectory.
+ * Returns the directory containing the file, or undefined if not found.
+ *
+ * @param cwd - Project root directory
+ * @param filename - File to search for (e.g., 'pyproject.toml')
+ * @returns Directory path where file was found, or undefined
+ */
+export function findShallow(cwd: string, filename: string): string | undefined {
+  // Check root first
+  if (existsSync(nodePath.join(cwd, filename))) {
+    return cwd;
+  }
+
+  // Check immediate subdirectories
+  try {
+    const entries = readdirSync(cwd, { withFileTypes: true });
+    for (const entry of entries) {
+      if (
+        entry.isDirectory() &&
+        !entry.name.startsWith('.') &&
+        !SUBDIRECTORY_EXCLUDE.has(entry.name)
+      ) {
+        const subdirectory = nodePath.join(cwd, entry.name);
+        if (existsSync(nodePath.join(subdirectory, filename))) {
+          return subdirectory;
+        }
+      }
+    }
+  } catch {
+    // Ignore permission errors
+  }
+
+  return undefined;
+}
+
+/**
  * Create directory recursively
  * @param path
  */

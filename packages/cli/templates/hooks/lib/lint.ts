@@ -115,6 +115,15 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
     return false;
   }
 
+  // If upgrade succeeded but config still missing, the language may be in
+  // a location safeword can't auto-detect.
+  if (!hasConfig(configPath)) {
+    console.log(
+      `SAFEWORD: ${packName} config not created after upgrade. ` +
+        `Linting with ${packName} defaults (no strict safeword rules).`,
+    );
+  }
+
   // Auto-commit .safeword/ (excluding learnings/ and logs/)
   // Use -- .safeword/ to only commit safeword files, not other staged changes
   await $`git add .safeword/ ':!.safeword/learnings/' ':!.safeword/logs/'`.nothrow().quiet();
