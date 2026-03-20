@@ -70,6 +70,36 @@ async function isCommandAvailable(command: string): Promise<boolean> {
 }
 
 /**
+ * Walk up from a file's directory looking for a marker file.
+ * Stops at the project root. Returns the directory containing the marker, or undefined.
+ */
+function findUpward(filePath: string, markerFile: string): string | undefined {
+  let currentDirectory = nodePath.dirname(filePath);
+  const normalizedProjectDir = nodePath.resolve(projectDir);
+
+  while (currentDirectory.startsWith(normalizedProjectDir)) {
+    if (existsSync(nodePath.join(currentDirectory, markerFile))) {
+      return currentDirectory;
+    }
+    const parentDirectory = nodePath.dirname(currentDirectory);
+    if (parentDirectory === currentDirectory) break;
+    currentDirectory = parentDirectory;
+  }
+  return undefined;
+}
+
+/**
+ * Detect the Python install command for a tool by checking for lockfiles
+ * near the edited file. Walks up from the file to find the nearest PM marker.
+ */
+function getPythonInstallHint(filePath: string, tool: string): string {
+  if (findUpward(filePath, 'uv.lock')) return `uv add --dev ${tool}`;
+  if (findUpward(filePath, 'poetry.lock')) return `poetry add --group dev ${tool}`;
+  if (findUpward(filePath, 'Pipfile')) return `pipenv install --dev ${tool}`;
+  return `pip install ${tool}`;
+}
+
+/**
  * Check if a linter binary is available, warn once per session if not.
  * Returns true if available, false (with warning added) if missing.
  */
@@ -84,7 +114,8 @@ async function checkToolAvailable(
   if (!available) {
     toolWarnings.add(tool);
     warnings.push(
-      `${language} linter "${tool}" is not installed — ${language} files are not being linted. Install with: ${installHint}`,
+      `${language} linter "${tool}" is not installed — ${language} files are not being linted. ` +
+        `Ask the user if they'd like you to install it by running: ${installHint}`,
     );
   }
   return available;
@@ -222,7 +253,9 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Python files - Ruff check (fix code), then Ruff format
   // Auto-upgrades safeword if Python pack is missing
   if (PYTHON_EXTENSIONS.has(extension)) {
-    if (!(await checkToolAvailable('ruff', 'Python', 'pip install ruff', warnings))) {
+    if (
+      !(await checkToolAvailable('ruff', 'Python', getPythonInstallHint(file, 'ruff'), warnings))
+    ) {
       return { warnings };
     }
     const hasRuff = await ensurePackInstalled('Python', SAFEWORD_RUFF);
@@ -288,7 +321,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     } else if (!toolWarnings.has('rustfmt')) {
       toolWarnings.add('rustfmt');
       warnings.push(
-        'Rust formatter "rustfmt" is not installed — Rust files are not being formatted. Install with: rustup component add rustfmt',
+        'Rust formatter "rustfmt" is not installed — Rust files are not being formatted. ' +
+          "Ask the user if they'd like you to install it by running: rustup component add rustfmt",
       );
     }
     return { warnings };
@@ -296,7 +330,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
 
   // SQL files - sqlfluff (if available)
   if (SQL_EXTENSIONS.has(extension)) {
-    if (!(await checkToolAvailable('sqlfluff', 'SQL/dbt', 'pip install sqlfluff', warnings))) {
+    if (
+      !(await checkToolAvailable(
+        'sqlfluff',
+        'SQL/dbt',
+        getPythonInstallHint(file, 'sqlfluff'),
+        warnings,
+      ))
+    ) {
       return { warnings };
     }
     const hasSqlfluff = await ensurePackInstalled('dbt', SAFEWORD_SQLFLUFF);
