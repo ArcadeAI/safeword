@@ -915,4 +915,121 @@ describe('Quality Gates', () => {
       expect(state.gate).toBeNull();
     });
   });
+
+  // =========================================================================
+  // Suite 7: Phase-Based Access Control
+  // =========================================================================
+  describe('Phase Access Control', () => {
+    /** Helper: create a ticket at a given phase and status */
+    function createTicket(
+      cwd: string,
+      id: string,
+      slug: string,
+      options: { phase: string; status: string; type?: string },
+    ): void {
+      const lastModified = new Date().toISOString();
+      writeTestFile(
+        cwd,
+        `.safeword-project/tickets/${id}-${slug}/ticket.md`,
+        [
+          '---',
+          `id: ${id}`,
+          `type: ${options.type ?? 'task'}`,
+          `phase: ${options.phase}`,
+          `status: ${options.status}`,
+          `last_modified: ${lastModified}`,
+          '---',
+          `# ${slug}`,
+        ].join('\n'),
+      );
+    }
+
+    it('7.1: blocks code edits when active ticket at intake phase', () => {
+      createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('intake');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('implement');
+    });
+
+    it('7.2: allows code edits when active ticket at implement phase', () => {
+      createTicket(projectDirectory, '099', 'test', { phase: 'implement', status: 'in_progress' });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      // No deny output — allowed
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('7.3: blocks code edits when active ticket at done phase', () => {
+      createTicket(projectDirectory, '099', 'test', { phase: 'done', status: 'in_progress' });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('done');
+    });
+
+    it('7.4: allows code edits when no active ticket exists', () => {
+      // No ticket created — no enforcement
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('7.5: ignores epic tickets (uses child ticket phase)', () => {
+      // Epic at intake, child task at implement
+      createTicket(projectDirectory, '100', 'epic', {
+        phase: 'intake',
+        status: 'in_progress',
+        type: 'epic',
+      });
+      createTicket(projectDirectory, '101', 'child', { phase: 'implement', status: 'in_progress' });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      // Should allow — epic is skipped, child is at implement
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('7.6: ignores non-in_progress tickets', () => {
+      // Ticket at intake but status is pending — not active
+      createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'pending' });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      // Should allow — ticket is not in_progress
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('7.7: .safeword-project/ edits still allowed during planning phases', () => {
+      createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
+
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
+
+      // Should allow — .safeword-project/ exempt from all checks
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+  });
 });
