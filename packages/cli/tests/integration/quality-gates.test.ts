@@ -55,12 +55,12 @@ function runPostToolQuality(cwd: string, toolName: string, filePath: string) {
 }
 
 /** Run the PreToolUse quality hook */
-function runPreToolQuality(cwd: string, toolName: string) {
+function runPreToolQuality(cwd: string, toolName: string, filePath?: string) {
   const hookInput = JSON.stringify({
     session_id: 'test-session',
     hook_event_name: 'PreToolUse',
     tool_name: toolName,
-    tool_input: {},
+    tool_input: filePath ? { file_path: filePath } : {},
   });
 
   return spawnSync('bash', ['-c', `echo '${hookInput}' | bun "${PRE_TOOL_QUALITY}"`], {
@@ -271,7 +271,73 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
     });
 
-    it('2.4: non-ticket edit does not set phase gate', () => {
+    it('2.4: ticket.md edits bypass phase gate (prevents circular dependency)', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: 'phase:implement',
+      });
+
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
+
+      // Should allow — ticket.md is exempt from gates
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('2.5: test-definitions.md edits still blocked by TDD gate', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'implement',
+        lastKnownTddStep: null,
+        gate: 'tdd:green',
+      });
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Edit', testDefsPath);
+
+      // Should block — test-definitions.md is NOT exempt
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+    });
+
+    it('2.6: ticket.md edits bypass LOC gate too', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 500,
+        lastCommitHash: head,
+        activeTicket: null,
+        lastKnownPhase: null,
+        lastKnownTddStep: null,
+        gate: 'loc',
+      });
+
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('2.7: non-ticket edit does not set phase gate', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,

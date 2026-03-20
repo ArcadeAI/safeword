@@ -23,6 +23,10 @@ const PHASE_FILE_MAP: Record<string, string> = {
 
 interface HookInput {
   tool_name?: string;
+  tool_input?: {
+    file_path?: string;
+    notebook_path?: string;
+  };
 }
 
 function deny(reason: string, additionalContext?: string): never {
@@ -50,9 +54,17 @@ try {
 }
 
 const tool = input.tool_name ?? '';
+const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
 // Only gate edit tools
 if (!EDIT_TOOLS.includes(tool)) {
+  process.exit(0);
+}
+
+// Never block edits to ticket.md — prevents circular dependency where
+// a phase gate blocks fixing the phase that caused the gate.
+// Narrow to ticket.md only; test-definitions.md should still respect TDD gates.
+if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
   process.exit(0);
 }
 
