@@ -207,6 +207,10 @@ Test Quality:
 - Detect `docs/`, `documentation/` with Starlight/Docusaurus/etc config
 - Check staleness of docs content
 
+**Documentation impact check:**
+
+Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag any documentation that references changed code but hasn't been updated.
+
 ---
 
 ## Report Format
