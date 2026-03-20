@@ -1,10 +1,10 @@
 ---
 id: 043
 type: bugfix
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-03-20T05:25:00Z
-last_modified: 2026-03-20T05:33:00Z
+last_modified: 2026-03-20T07:54:00Z
 parent: 044
 ---
 
