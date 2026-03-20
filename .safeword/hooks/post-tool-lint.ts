@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // Safeword: Auto-lint changed files (PostToolUse)
-// Silently auto-fixes, only outputs unfixable errors
+// Silently auto-fixes, only outputs unfixable errors.
+// Surfaces missing tool warnings to Claude via additionalContext.
 
 import { lintFile } from './lib/lint.ts';
 
@@ -30,4 +31,10 @@ if (!file || !(await Bun.file(file).exists())) {
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 process.chdir(projectDir);
 
-await lintFile(file, projectDir);
+const result = await lintFile(file, projectDir);
+
+// Surface warnings to Claude via PostToolUse additionalContext
+if (result.warnings.length > 0) {
+  const context = result.warnings.map(w => `SAFEWORD: ${w}`).join('\n');
+  console.log(JSON.stringify({ additionalContext: context }));
+}

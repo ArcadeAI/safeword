@@ -54,6 +54,42 @@ const SAFEWORD_PRETTIER = `${projectDir}/.safeword/.prettierrc`;
 // Track if we've already tried upgrading (avoid repeated attempts in same process)
 let upgradeAttempted = false;
 
+// Track which tools we've already warned about (once per session)
+const toolWarnings = new Set<string>();
+
+/** Result from linting a file */
+export interface LintResult {
+  /** Warnings for Claude (e.g., missing tool binaries) */
+  warnings: string[];
+}
+
+/** Check if a command is available on PATH */
+async function isCommandAvailable(command: string): Promise<boolean> {
+  const result = await $`which ${command}`.nothrow().quiet();
+  return result.exitCode === 0;
+}
+
+/**
+ * Check if a linter binary is available, warn once per session if not.
+ * Returns true if available, false (with warning added) if missing.
+ */
+async function checkToolAvailable(
+  tool: string,
+  language: string,
+  installHint: string,
+  warnings: string[],
+): Promise<boolean> {
+  if (toolWarnings.has(tool)) return false;
+  const available = await isCommandAvailable(tool);
+  if (!available) {
+    toolWarnings.add(tool);
+    warnings.push(
+      `${language} linter "${tool}" is not installed — ${language} files are not being linted. Install with: ${installHint}`,
+    );
+  }
+  return available;
+}
+
 /** Check config exists, dynamically (not cached) */
 function hasConfig(path: string): boolean {
   return existsSync(path);
@@ -164,8 +200,9 @@ async function runPrettier(file: string): Promise<void> {
  * @param file - Path to the file to lint
  * @param _projectDir - Project root directory (cached at module init, kept for backward compat)
  */
-export async function lintFile(file: string, _projectDir: string): Promise<void> {
+export async function lintFile(file: string, _projectDir: string): Promise<LintResult> {
   const extension = file.split('.').pop()?.toLowerCase() ?? '';
+  const warnings: string[] = [];
 
   // JS/TS and framework files - ESLint first (fix code), then Prettier (format)
   // Auto-upgrades safeword if TypeScript pack is missing
@@ -179,37 +216,48 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
       console.log(eslintResult.stderr.toString());
     }
     await runPrettier(file);
-    return;
+    return { warnings };
   }
 
   // Python files - Ruff check (fix code), then Ruff format
   // Auto-upgrades safeword if Python pack is missing
   if (PYTHON_EXTENSIONS.has(extension)) {
+    if (!(await checkToolAvailable('ruff', 'Python', 'pip install ruff', warnings))) {
+      return { warnings };
+    }
     const hasRuff = await ensurePackInstalled('Python', SAFEWORD_RUFF);
     if (hasRuff) {
       await $`ruff check --config ${SAFEWORD_RUFF} --fix ${file}`.nothrow().quiet();
       await $`ruff format --config ${SAFEWORD_RUFF} ${file}`.nothrow().quiet();
     } else {
-      // Fallback: run without safeword config
       await $`ruff check --fix ${file}`.nothrow().quiet();
       await $`ruff format ${file}`.nothrow().quiet();
     }
-    return;
+    return { warnings };
   }
 
   // Go files - golangci-lint run (fix code), then golangci-lint fmt (format)
   // Auto-upgrades safeword if Go pack is missing
   if (GO_EXTENSIONS.has(extension)) {
+    if (
+      !(await checkToolAvailable(
+        'golangci-lint',
+        'Go',
+        'go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest',
+        warnings,
+      ))
+    ) {
+      return { warnings };
+    }
     const hasGolangci = await ensurePackInstalled('Go', SAFEWORD_GOLANGCI);
     if (hasGolangci) {
       await $`golangci-lint run --config ${SAFEWORD_GOLANGCI} --fix ${file}`.nothrow().quiet();
       await $`golangci-lint fmt --config ${SAFEWORD_GOLANGCI} ${file}`.nothrow().quiet();
     } else {
-      // Fallback: run without safeword config
       await $`golangci-lint run --fix ${file}`.nothrow().quiet();
       await $`golangci-lint fmt ${file}`.nothrow().quiet();
     }
-    return;
+    return { warnings };
   }
 
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
@@ -218,10 +266,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
     const hasRustConfig = await ensurePackInstalled('Rust', SAFEWORD_RUSTFMT);
 
     // Run clippy with package targeting for workspaces
-    // Detect which package this file belongs to
     const packageName = detectRustPackage(file);
-    if (packageName) {
-      // Use CLIPPY_CONF_DIR to point clippy to safeword config
+    if (packageName && (await isCommandAvailable('cargo'))) {
       const clippyEnv = hasConfig(SAFEWORD_CLIPPY)
         ? { CLIPPY_CONF_DIR: nodePath.dirname(SAFEWORD_CLIPPY) }
         : {};
@@ -233,30 +279,39 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
     }
 
     // Run rustfmt for file-level formatting
-    if (hasRustConfig) {
-      await $`rustfmt --config-path ${SAFEWORD_RUSTFMT} ${file}`.nothrow().quiet();
-    } else {
-      // Fallback: run without safeword config
-      await $`rustfmt ${file}`.nothrow().quiet();
+    if (await isCommandAvailable('rustfmt')) {
+      if (hasRustConfig) {
+        await $`rustfmt --config-path ${SAFEWORD_RUSTFMT} ${file}`.nothrow().quiet();
+      } else {
+        await $`rustfmt ${file}`.nothrow().quiet();
+      }
+    } else if (!toolWarnings.has('rustfmt')) {
+      toolWarnings.add('rustfmt');
+      warnings.push(
+        'Rust formatter "rustfmt" is not installed — Rust files are not being formatted. Install with: rustup component add rustfmt',
+      );
     }
-    return;
+    return { warnings };
   }
 
   // SQL files - sqlfluff (if available)
   if (SQL_EXTENSIONS.has(extension)) {
+    if (!(await checkToolAvailable('sqlfluff', 'SQL/dbt', 'pip install sqlfluff', warnings))) {
+      return { warnings };
+    }
     const hasSqlfluff = await ensurePackInstalled('dbt', SAFEWORD_SQLFLUFF);
     if (hasSqlfluff) {
       await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${file}`.nothrow().quiet();
     } else {
       await $`sqlfluff fix ${file}`.nothrow().quiet();
     }
-    return;
+    return { warnings };
   }
 
   // Other supported formats - prettier only
   if (PRETTIER_EXTENSIONS.has(extension)) {
     await runPrettier(file);
-    return;
+    return { warnings };
   }
 
   // Shell scripts - shellcheck (if available), then Prettier (if plugin installed)
@@ -265,7 +320,6 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
     if (shellcheckResult.exitCode !== 0 && shellcheckResult.stderr.length > 0) {
       console.log(shellcheckResult.stderr.toString());
     }
-    // Run prettier if safeword config exists (has plugin configured) or plugin is installed
     if (
       hasConfig(SAFEWORD_PRETTIER) ||
       existsSync(`${projectDir}/node_modules/prettier-plugin-sh`)
@@ -273,4 +327,6 @@ export async function lintFile(file: string, _projectDir: string): Promise<void>
       await runPrettier(file);
     }
   }
+
+  return { warnings };
 }
