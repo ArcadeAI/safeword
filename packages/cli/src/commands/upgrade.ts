@@ -7,11 +7,17 @@
 import nodePath from 'node:path';
 
 import { installPack } from '../packs/install.js';
+import {
+  detectPythonPackageManager,
+  getPythonInstallCommand,
+  hasRuffDependency,
+  installPythonDependencies,
+} from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
-import { exists, readFileSafe } from '../utils/fs.js';
+import { exists, findShallow, readFileSafe } from '../utils/fs.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { compareVersions } from '../utils/version.js';
@@ -48,6 +54,27 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
   success(`\nSafeword upgraded to v${VERSION}`);
 }
 
+function installPythonTools(cwd: string): void {
+  const pythonDirectory = findShallow(cwd, 'pyproject.toml') ?? cwd;
+  if (hasRuffDependency(pythonDirectory)) return;
+
+  const pm = detectPythonPackageManager(pythonDirectory);
+  if (pm === 'pip') {
+    warn('\nPython tools not auto-installed (pip). Install manually:');
+    listItem(getPythonInstallCommand(pythonDirectory));
+    return;
+  }
+
+  info('\nInstalling Python tools (ruff, mypy)...');
+  const installed = installPythonDependencies(pythonDirectory, ['ruff', 'mypy']);
+  if (installed) {
+    success('Python tools installed');
+  } else {
+    warn('Python tools install failed. Install manually:');
+    listItem(getPythonInstallCommand(pythonDirectory));
+  }
+}
+
 export async function upgrade(): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
@@ -75,9 +102,15 @@ export async function upgrade(): Promise<void> {
     installDependencies(cwd, result.packagesToInstall, 'missing packages');
 
     // Install missing language packs
-    for (const packId of getMissingPacks(cwd)) {
+    const missingPacks = getMissingPacks(cwd);
+    for (const packId of missingPacks) {
       installPack(packId, cwd);
       info(`Installed ${packId} pack`);
+    }
+
+    // Install Python tools if Python pack was just added
+    if (missingPacks.includes('python')) {
+      installPythonTools(cwd);
     }
 
     printUpgradeSummary(result, projectVersion, cwd);
