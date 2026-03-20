@@ -5,7 +5,7 @@ phase: intake
 status: in_progress
 created: 2026-03-20T05:33:00Z
 last_modified: 2026-03-20T05:33:00Z
-children: [043, 045]
+children: [043, 045, 046]
 ---
 
 # Quality Gate Robustness
@@ -24,6 +24,11 @@ Pre-tool blocks edits to `.safeword-project/` files, creating unrecoverable dead
 
 `quality-state.json` is a single shared file. Parallel sessions clobber each other's state, cross-contaminate gates, and falsely clear gates on unrelated commits. Fix: per-session state files keyed by `session_id`.
 
+### 046 — Phase-Based Access Control (task, in_progress)
+
+Pre-tool hook restricts edits by ticket phase. Planning phases only allow `.safeword-project/` edits; implement allows everything. Makes phases self-enforcing.
+
 ## Work Log
 
+- 2026-03-20 06:03 UTC — Added 046 (phase access control). Discovered during 043 implementation that gates alone don't enforce phases.
 - 2026-03-20 05:33 UTC — Epic created. 043 already in progress (partial implementation exists). 045 scoped.
