@@ -1,6 +1,5 @@
 {
   "ignore": ["templates/**"],
   "ignoreBinaries": ["shellcheck"],
-  "ignoreDependencies": ["dependency-cruiser", "lint-staged"],
   "exclude": ["duplicates"]
 }

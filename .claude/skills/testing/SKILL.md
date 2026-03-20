@@ -1,6 +1,6 @@
 ---
 name: testing
-description: How to write good tests. Use when writing tests in any context — 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Also consult when writing tests during /bdd or /debug. Core knowledge for test quality across all workflows.
+description: How to write good tests. Use when writing tests in any context — 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Explicitly invoked by other skills at specific phases — BDD TDD.md at RED phase, tdd-review at GREEN gate (coverage adequacy), refactor at PROTECT phase (characterization tests), and /debug. Core knowledge for test quality across all workflows.
 user-invocable: false
 allowed-tools: '*'
 ---

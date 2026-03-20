@@ -23,11 +23,14 @@ If no E2E infrastructure exists, build skeleton first:
 
 ### 6.1 RED - Write Failing Test
 
+**Before writing:** Load the testing skill and read `.safeword/guides/testing-guide.md` for test type selection, behavioral testing principles, and anti-patterns. Both sources apply — the skill for iron laws and patterns, the guide for the type hierarchy and bug detection matrix.
+
 1. Pick ONE test from test-definitions (first scenario with unchecked `[ ] RED`)
-2. Write test code (from Given/When/Then)
-3. Run test → verify fails for RIGHT reason (behavior missing, not syntax)
-4. Mark `[x] RED` in test-definitions.md (triggers tdd:green quality gate)
-5. Commit: `test: [scenario name]`
+2. **Announce test type:** "Test type: [unit/integration/E2E/eval] because [reason]" (use testing guide's decision tree)
+3. Write test code (from Given/When/Then), following testing skill's iron laws
+4. Run test → verify fails for RIGHT reason (behavior missing, not syntax)
+5. Mark `[x] RED` in test-definitions.md (triggers tdd:green quality gate)
+6. Commit: `test: [scenario name]`
 
 **Red Flags → STOP:**
 

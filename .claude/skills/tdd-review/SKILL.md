@@ -20,12 +20,14 @@ Read the gate message to determine which TDD step is next:
 
 ## GREEN Gate (RED just completed — review test)
 
-Lightweight review (~30 seconds). Check the test that was just written:
+Focused review (~1 minute). Check the test that was just written:
 
 - **Atomic?** Tests ONE behavior. Red flag: multiple When/Then pairs.
 - **Right assertions?** Meaningful expectations, not `.toBeTruthy()` or `.not.toThrow()`.
 - **Behavior, not implementation?** Tests observable outcomes. Red flag: mocking internals, checking call counts.
 - **Fails for the right reason?** Missing behavior, not syntax errors.
+- **Right test type?** Load the testing skill and consult its scope hierarchy (E2E > Integration > Unit). Was a higher-scope test practical here? Did we drop to unit when integration would catch more?
+- **Coverage adequacy?** Consult testing guide's bug detection matrix. Ask: "What could still break that this test wouldn't catch?" Flag gaps — missing edge cases, error paths, or boundary values — as candidates for additional scenarios.
 
 If issues found: fix before implementing. If clean: commit and proceed to implementation.
 

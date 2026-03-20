@@ -1,6 +1,6 @@
 {
   "ignore": [".safeword/**", ".safeword-project/**"],
-  "ignoreFiles": ["packages/cli/templates/hooks/**", "packages/cli/vitest.slow.config.ts"],
+  "ignoreFiles": ["packages/cli/templates/hooks/**"],
   "ignoreDependencies": ["eslint-plugin-*"],
   "ignoreBinaries": ["shfmt", "dot"],
   "ignoreIssues": {
