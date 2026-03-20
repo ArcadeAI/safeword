@@ -5,7 +5,7 @@ phase: intake
 status: in_progress
 created: 2026-03-20T05:33:00Z
 last_modified: 2026-03-20T05:33:00Z
-children: [043, 045, 046]
+children: [043, 045, 046, 047]
 ---
 
 # Quality Gate Robustness
@@ -28,7 +28,12 @@ Pre-tool blocks edits to `.safeword-project/` files, creating unrecoverable dead
 
 Pre-tool hook restricts edits by ticket phase. Planning phases only allow `.safeword-project/` edits; implement allows everything. Makes phases self-enforcing.
 
+### 047 — Smarter Stop Hook Guard (task, pending)
+
+Replace one-shot `stopHookActive` boolean with edit-aware check. Re-fire review when review triggers new code edits. Low priority — defense-in-depth.
+
 ## Work Log
 
+- 2026-03-20 15:08 UTC — Added 047 (smarter stop hook guard). Architecture docs updated. 043 and 046 done.
 - 2026-03-20 06:03 UTC — Added 046 (phase access control). Discovered during 043 implementation that gates alone don't enforce phases.
 - 2026-03-20 05:33 UTC — Epic created. 043 already in progress (partial implementation exists). 045 scoped.

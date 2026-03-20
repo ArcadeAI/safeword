@@ -330,21 +330,27 @@ interface ProjectContext {
 ### Continuous Quality Gates (LOC + Phase + TDD)
 
 **Status:** Accepted
-**Date:** 2026-02-07 (updated 2026-03-19: replaced refactor gate with tdd: namespace, artifact-based detection)
+**Date:** 2026-02-07 (updated 2026-03-20: added phase access control, meta-path exemption, null→phase skip, shared active-ticket module)
 
-| Field          | Value                                                                                                                                                   |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`, detects phase transitions, and detects TDD step transitions via test-definitions.md   |
-| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases; TDD gates enforce RED→GREEN→REFACTOR review at each boundary |
-| Trade-off      | Adds ~50ms per tool call (git diff); state file in `.safeword-project/quality-state.json` must be cleaned on commit                                     |
-| Alternatives   | LOC check in stop hook only (rejected: too late), commit-prefix detection (rejected: convention-based, bypassable), manual discipline (rejected)        |
-| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json`                            |
+| Field          | Value                                                                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`, detects phase transitions, and detects TDD step transitions via test-definitions.md       |
+| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases; TDD gates enforce RED→GREEN→REFACTOR review at each boundary     |
+| Trade-off      | Adds ~50ms per tool call (git diff + ticket scan); state file in `.safeword-project/quality-state.json` must be cleaned on commit                           |
+| Alternatives   | LOC check in stop hook only (rejected: too late), commit-prefix detection (rejected: convention-based, bypassable), manual discipline (rejected)            |
+| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json`; shared `lib/active-ticket.ts` |
 
 **Gate types:**
 
 - **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC; forces commit before more edits
-- **Phase gate** (`phase:{name}`) — triggers on ticket phase transitions; uses `additionalContext` to reference `/quality-review` skill
+- **Phase gate** (`phase:{name}`) — triggers on ticket phase transitions; uses `additionalContext` to reference `/quality-review` skill. Ticket creation (null→phase) is silent — only real transitions gate.
 - **TDD gates** (`tdd:green`, `tdd:refactor`, `tdd:red`) — triggers when RED/GREEN/REFACTOR sub-checkboxes change in test-definitions.md during `implement` phase; uses `additionalContext` to reference `/tdd-review` skill
+
+**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate, decomposition) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
+
+**Meta-path exemption:** Files under `.safeword-project/`, `.safeword/`, `.claude/`, and `.cursor/` are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
+
+**Active ticket resolution:** `lib/active-ticket.ts` scans ticket directories for the most recently modified `in_progress` non-epic ticket. Used by both `pre-tool-quality.ts` (phase access control) and `stop-quality.ts` (phase-aware review). Reads ticket files directly rather than relying on `lastKnownPhase` in state to avoid cross-ticket contamination.
 
 **TDD step detection:** PostToolUse watches `test-definitions.md` in ticket directories. Each scenario has three sub-checkboxes (`- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`). The parser finds the first scenario with mixed checked/unchecked items and determines which step just completed. The act of marking a sub-checkbox IS the detection mechanism — the artifact is the single source of truth.
 
