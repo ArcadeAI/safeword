@@ -37,6 +37,14 @@ if (scenarioCount === 0) {
 }
 ```
 
+## Additional Scope (from 049b review)
+
+The cumulative artifact check currently uses `softBlock`, which means the `stop_hook_active`
+bypass lets Claude skip the gate on its second stop attempt. Consider whether the artifact
+check should use `hardBlockDone` instead — making it a true gate with no bypass. Trade-off:
+no escape hatch if the requirement is wrong. Decide before implementing.
+
 ## Work Log
 
 - 2026-03-21 Ticket created as child of 049.
+- 2026-03-21 Noted: artifact check uses softBlock (bypassable), not hardBlockDone. Consider switching to hard block as part of this ticket.
