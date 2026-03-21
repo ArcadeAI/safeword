@@ -29,14 +29,14 @@ The current soft block asks Claude to review its own work — this is intrinsic 
 
 ## Options
 
-**Option A — `type: prompt` hook (simpler)**
-Use Claude Code's built-in prompt hook type. Define a prompt that evaluates `$ARGUMENTS` (which contains the hook input including `last_assistant_message`). Returns `ok: true/false`. No external API call needed — Claude Code handles the model invocation.
+**Option A — `type: prompt` hook (simpler, but not truly independent)**
+Use Claude Code's built-in prompt hook type. Claude Code invokes Claude itself with the prompt — this is still Claude judging Claude, just in a fresh context with no conversation history. Avoids sycophancy from accumulated context but does not use a different model. Lowest friction to implement.
 
 **Option B — `type: agent` hook (more powerful)**
 Spawn a subagent with tools (Read, Grep, Glob) that can read files to verify claims in Claude's response before deciding. More latency, more powerful.
 
-**Option C — Shell hook calling Anthropic API directly**
-Call the Haiku API from the hook script with the last message as input. Full control over prompt and model. Requires API key in environment.
+**Option C — Shell hook calling Anthropic API directly (true independent judge)**
+Call the Haiku API (`claude-haiku-4-5-20251001`) from the hook script with the last message as input. Genuinely different model, genuinely independent evaluation. Full control over prompt. Requires `ANTHROPIC_API_KEY` in environment — already available in Claude Code sessions.
 
 Option A is likely the right starting point — uses built-in Claude Code infrastructure, lowest complexity.
 

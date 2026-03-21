@@ -24,7 +24,7 @@ Hooks to update:
 - `packages/cli/templates/hooks/post-tool-quality.ts` (+ working copy)
 - `packages/cli/templates/hooks/session-cleanup-quality.ts` (+ working copy)
 
-These hooks currently exit 0 silently. Add a JSON output path that includes `suppressOutput: true` when there's nothing to report.
+These hooks currently `process.exit(0)` with no stdout. To use `suppressOutput`, they must instead output a JSON object. Change their exit path to `console.log(JSON.stringify({ suppressOutput: true })); process.exit(0)` rather than bare `process.exit(0)`.
 
 **Note:** Verify the exact field behavior against current docs before implementing — confirm `suppressOutput` applies to Stop hook output or PostToolUse output specifically.
 
