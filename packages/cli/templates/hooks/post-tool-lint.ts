@@ -33,8 +33,7 @@ process.chdir(projectDir);
 
 const result = await lintFile(file, projectDir);
 
-// Surface warnings to Claude via PostToolUse additionalContext
+// Surface warnings to Claude via stdout (appears as system-reminder)
 if (result.warnings.length > 0) {
-  const context = result.warnings.map(w => `SAFEWORD: ${w}`).join('\n');
-  console.log(JSON.stringify({ additionalContext: context }));
+  console.log(result.warnings.map(w => `SAFEWORD: ${w}`).join('\n'));
 }
