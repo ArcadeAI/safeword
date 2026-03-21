@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.25.8",
+  "version": "0.25.9",
   "description": "CLI for setting up and managing safeword development environments",
   "type": "module",
   "bin": {
