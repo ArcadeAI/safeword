@@ -183,3 +183,4 @@ Commit after: GREEN phase, before/after refactoring, when switching tasks.
 5. **Read the matching guide** when a trigger fires
 6. **Always read the latest documentation for the relevant tool**
 7. **AVOID BLOAT**
+8. **Check `.safeword-project/known-issues.md`** before working on hooks or quality gates

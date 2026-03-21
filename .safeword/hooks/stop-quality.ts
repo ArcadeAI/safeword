@@ -199,12 +199,12 @@ Run tests, show output, then try again.`;
 }
 
 /**
- * Hard block for done phase - uses exit 2 to force Claude to continue.
- * Claude receives stderr and must provide evidence before stopping.
+ * Hard block for done phase - requires evidence before Claude can stop.
+ * Uses canonical JSON decision:block mechanism (same as softBlock).
  */
 function hardBlockDone(reason: string): never {
-  console.error(reason);
-  process.exit(2);
+  console.log(JSON.stringify({ decision: 'block', reason }));
+  process.exit(0);
 }
 
 /**
@@ -216,10 +216,10 @@ function softBlock(reason: string): never {
 }
 
 // Decision logic:
-// 1. Cumulative artifact missing → soft block
-// 2. Done phase with missing evidence → hard block (exit 2)
+// 1. Cumulative artifact missing → block
+// 2. Done phase with missing evidence → block (requires evidence in reason)
 // 3. Done phase with evidence → allow (exit 0)
-// 4. Other phases → soft block with quality review
+// 4. Other phases → block with quality review prompt
 
 // Check cumulative artifacts (features at scenario-gate+ need test-definitions.md)
 const artifactError = checkCumulativeArtifacts(ticketInfo);
