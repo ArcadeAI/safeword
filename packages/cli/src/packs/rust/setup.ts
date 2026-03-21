@@ -13,12 +13,12 @@ import type { SetupResult } from '../types.js';
 // Default lint configuration for Cargo.toml
 const SAFEWORD_CLIPPY_LINTS = `[lints.clippy]
 # Enable pedantic for stricter linting (priority -1 allows individual overrides)
-pedantic = { level = "warn", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
 
 # Cherry-picked restriction lints for LLM enforcement
-unwrap_used = "warn"
-expect_used = "warn"
-todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+todo = "deny"
 
 # Allow common pedantic noise
 missing_errors_doc = "allow"
@@ -42,12 +42,12 @@ const CARGO_PACKAGE_NAME_REGEX = /\[package\][^[]*name\s*=\s*"([^"]+)"/;
 
 const SAFEWORD_WORKSPACE_LINTS = `[workspace.lints.clippy]
 # Enable pedantic for stricter linting (priority -1 allows individual overrides)
-pedantic = { level = "warn", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
 
 # Cherry-picked restriction lints for LLM enforcement
-unwrap_used = "warn"
-expect_used = "warn"
-todo = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+todo = "deny"
 
 # Allow common pedantic noise
 missing_errors_doc = "allow"
