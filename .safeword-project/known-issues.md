@@ -6,9 +6,11 @@ Systemic issues with the hook system, Claude Code bugs, and gaps in enforcement.
 
 ## Upstream Claude Code Bugs (out of our control)
 
-**#12667 (open):** Stop hooks with `decision: block` + exit 0 show `"hook error:"` label to user AND inject it into Claude's context. Can cause Claude to see accumulated fake errors and prematurely end turns.
+**#12667 (closed as stale, not fixed):** Stop hooks with `decision: block` + exit 0 show `"hook error:"` label to user AND inject it into Claude's context. Closed by GitHub inactivity auto-close — underlying problem unfixed.
 
-**#34713 (open):** All hook executions generate `"hook error"` labels unconditionally regardless of exit code. In heavy-hook sessions, this produces many false error lines, potentially causing Claude to abandon multi-step tasks.
+**#34713 (open, confirmed 2026-03-21):** All hook executions generate `"hook error"` labels unconditionally regardless of exit code. Duplicate of #10936, #10463, #27886 — none produced a fix. False error lines accumulate in Claude's context and can cause it to abandon multi-step tasks.
+
+**`suppressOutput: true` does NOT fix these.** The field suppresses stdout from verbose mode only. Label generation is separate logic — adding `suppressOutput` has no effect on Claude's context pollution.
 
 **#10412 (open):** Stop hooks with exit code 2 fail silently when installed via plugin system (`.claude/plugins/`). Our hooks use `.safeword/hooks/` + `.claude/settings.json`, so not currently affected — but relevant if we ever use plugins.
 
@@ -21,8 +23,6 @@ Systemic issues with the hook system, Claude Code bugs, and gaps in enforcement.
 **Soft block is a prompt, not a gate:** The one-shot escape hatch (`stopHookActive` guard) lets Claude stop after one quality review round regardless of depth. This is intentional (loop prevention) but means the soft block functions as friction, not enforcement.
 
 **Refactor skips audit:** The refactor skill mandates running `/audit` at Phase 5 completion, but the stop hook's one-shot escape allows Claude to skip it unless the refactor task is tracked at done phase.
-
-**exit(2) in done-phase hard block:** `hardBlockDone` uses `console.error + process.exit(2)` instead of the canonical `{ decision: 'block' } + exit 0`. Exit 2 had a past reliability regression and fails in plugin contexts. Low risk currently but not the canonical path.
 
 ---
 
