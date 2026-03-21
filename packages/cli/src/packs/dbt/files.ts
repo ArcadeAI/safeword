@@ -51,7 +51,7 @@ function generateSqlfluffBaseConfig(existingSqlfluffConfig: string | undefined):
 [sqlfluff]
 # Inherit from project config — add stricter overrides below
 templater = jinja
-warnings = none
+warnings =
 
 [sqlfluff:templater:jinja]
 apply_dbt_builtins = True
@@ -67,7 +67,7 @@ ${SQLFLUFF_STRICT_RULES}
 dialect = ansi
 templater = jinja
 max_line_length = 120
-warnings = none
+warnings =
 
 [sqlfluff:templater:jinja]
 apply_dbt_builtins = True

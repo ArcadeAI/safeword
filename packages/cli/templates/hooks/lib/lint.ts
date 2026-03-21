@@ -276,7 +276,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       !(await checkToolAvailable(
         'golangci-lint',
         'Go',
-        'curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh',
+        'curl -sSfL https://golangci-lint.run/install.sh | sh',
         warnings,
       ))
     ) {
