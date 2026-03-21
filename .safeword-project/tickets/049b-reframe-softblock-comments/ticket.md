@@ -2,7 +2,7 @@
 id: 049b
 slug: reframe-softblock-comments
 type: patch
-status: pending
+status: done
 phase: implement
 parent: 049-stop-hook-quality-improvements
 ---
@@ -26,3 +26,4 @@ The current comments say "soft block" which implies enforcement parity with the 
 ## Work Log
 
 - 2026-03-21 Ticket created as child of 049.
+- 2026-03-21 Done: updated hardBlockDone JSDoc (no bypass), softBlock JSDoc (bypassable, one-shot), decision logic comment block (distinguishes gate vs prompt), stopHookActive guard comment (loop prevention + intentional design note). Both template and working copy updated.
