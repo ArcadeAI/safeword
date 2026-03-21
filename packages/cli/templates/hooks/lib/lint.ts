@@ -328,23 +328,23 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     return { warnings };
   }
 
-  // SQL files - sqlfluff (if available)
+  // SQL files - sqlfluff (only for dbt projects, not generic SQL migrations)
+  // Only warn about missing sqlfluff if the dbt pack is installed,
+  // since .sql files exist in many non-dbt contexts (migrations, raw queries).
   if (SQL_EXTENSIONS.has(extension)) {
-    if (
-      !(await checkToolAvailable(
-        'sqlfluff',
-        'SQL/dbt',
-        getPythonInstallHint(file, 'sqlfluff'),
-        warnings,
-      ))
-    ) {
-      return { warnings };
-    }
     const hasSqlfluff = await ensurePackInstalled('dbt', SAFEWORD_SQLFLUFF);
     if (hasSqlfluff) {
+      if (
+        !(await checkToolAvailable(
+          'sqlfluff',
+          'SQL/dbt',
+          getPythonInstallHint(file, 'sqlfluff'),
+          warnings,
+        ))
+      ) {
+        return { warnings };
+      }
       await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${file}`.nothrow().quiet();
-    } else {
-      await $`sqlfluff fix ${file}`.nothrow().quiet();
     }
     return { warnings };
   }
