@@ -2,7 +2,7 @@
 id: 049c
 slug: scope-evidence-to-bash-output
 type: task
-status: pending
+status: done
 phase: implement
 parent: 049-stop-hook-quality-improvements
 ---
@@ -44,3 +44,4 @@ The JSONL structure pairs a `tool_use` content item (with `name: "Bash"`) and it
 ## Work Log
 
 - 2026-03-21 Ticket created as child of 049. Research confirms transcript parsing is required (last_assistant_message is text-only).
+- 2026-03-21 Done: implemented two-pass transcript scan. Pass 1 finds last edit watermark + all Bash call IDs/positions. Pass 2 collects tool_result content for Bash calls after watermark. Test + scenario patterns now match Bash output only; audit stays text-based (split trust model). Hard block if no Bash output found after last edit.
