@@ -18,11 +18,11 @@ Systemic issues with the hook system, Claude Code bugs, and gaps in enforcement.
 
 ## Our System Gaps
 
-**Done-phase Goodhart's Law:** Evidence patterns (`✓ X/X tests pass`, `Audit passed`) match anywhere in Claude's last message text — including prose Claude writes without running the tools. Claude could satisfy the gate without running `/verify` or `/audit`. See research doc for options.
+**Done-phase Goodhart's Law:** Evidence patterns (`✓ X/X tests pass`, `Audit passed`) match anywhere in Claude's last message text — including prose Claude writes without running the tools. Tracked in 049c (scope to Bash output) and 049d (hook runs tests directly).
 
-**Soft block is a prompt, not a gate:** The one-shot escape hatch (`stopHookActive` guard) lets Claude stop after one quality review round regardless of depth. This is intentional (loop prevention) but means the soft block functions as friction, not enforcement.
+**Soft block is a prompt, not a gate:** The one-shot escape hatch (`stopHookActive` guard) lets Claude stop after one quality review round regardless of depth. This is intentional (loop prevention) but means the soft block functions as friction, not enforcement. Tracked in 049f (Haiku as judge).
 
-**Refactor skips audit:** The refactor skill mandates running `/audit` at Phase 5 completion, but the stop hook's one-shot escape allows Claude to skip it unless the refactor task is tracked at done phase.
+**Refactor skips audit:** The refactor skill mandates running `/audit` at Phase 5 completion, but the stop hook's one-shot escape allows Claude to skip it unless the refactor task is tracked at done phase. Addressed by 049d.
 
 ---
 

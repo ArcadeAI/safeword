@@ -35,3 +35,4 @@ This ticket is deprioritized until Anthropic fixes the underlying label-generati
 ## Work Log
 
 - 2026-03-21 Ticket created as child of 049.
+- 2026-03-21 Blocked: `suppressOutput: true` only suppresses verbose mode stdout display — does not affect hook error label generation (bugs #34713, #12667). No implementation value until upstream fix. Ticket marked blocked.
