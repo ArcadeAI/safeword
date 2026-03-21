@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Safeword: Auto-lint changed files (PostToolUse)
 // Silently auto-fixes, only outputs unfixable errors.
-// Surfaces missing tool warnings to Claude via additionalContext.
+// Surfaces missing tool warnings to Claude via stdout.
 
 import { lintFile } from './lib/lint.ts';
 
