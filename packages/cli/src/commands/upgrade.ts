@@ -75,6 +75,28 @@ function installPythonTools(cwd: string): void {
   }
 }
 
+function installDbtTools(cwd: string): void {
+  // dbt projects use Python — find pyproject.toml near dbt_project.yml
+  const dbtDirectory = findShallow(cwd, 'dbt_project.yml') ?? cwd;
+  const pythonDirectory = findShallow(dbtDirectory, 'pyproject.toml') ?? dbtDirectory;
+
+  const pm = detectPythonPackageManager(pythonDirectory);
+  if (pm === 'pip') {
+    warn('\ndbt tools not auto-installed (pip). Install manually:');
+    listItem(getPythonInstallCommand(pythonDirectory, ['sqlfluff']));
+    return;
+  }
+
+  info('\nInstalling dbt tools (sqlfluff)...');
+  const installed = installPythonDependencies(pythonDirectory, ['sqlfluff']);
+  if (installed) {
+    success('dbt tools installed');
+  } else {
+    warn('dbt tools install failed. Install manually:');
+    listItem(getPythonInstallCommand(pythonDirectory, ['sqlfluff']));
+  }
+}
+
 export async function upgrade(): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
@@ -108,9 +130,12 @@ export async function upgrade(): Promise<void> {
       info(`Installed ${packId} pack`);
     }
 
-    // Install Python tools if Python pack was just added
+    // Install language-specific tools for newly added packs
     if (missingPacks.includes('python')) {
       installPythonTools(cwd);
+    }
+    if (missingPacks.includes('dbt')) {
+      installDbtTools(cwd);
     }
 
     printUpgradeSummary(result, projectVersion, cwd);
