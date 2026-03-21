@@ -199,8 +199,8 @@ Run tests, show output, then try again.`;
 }
 
 /**
- * Hard block for done phase - requires evidence before Claude can stop.
- * Uses canonical JSON decision:block mechanism (same as softBlock).
+ * Hard block for done phase — requires specific evidence before Claude can stop.
+ * No bypass: stop_hook_active does not skip this check.
  */
 function hardBlockDone(reason: string): never {
   console.log(JSON.stringify({ decision: 'block', reason }));
@@ -208,7 +208,9 @@ function hardBlockDone(reason: string): never {
 }
 
 /**
- * Soft block for other phases - uses JSON decision to prompt review.
+ * Bypassable block — delivers a reason or instruction to Claude via JSON decision:block.
+ * The stop_hook_active guard (below) allows one bypass per review cycle to prevent loops.
+ * Used for: quality review prompts, navigation instructions, cumulative artifact gates.
  */
 function softBlock(reason: string): never {
   console.log(JSON.stringify({ decision: 'block', reason }));
@@ -216,10 +218,10 @@ function softBlock(reason: string): never {
 }
 
 // Decision logic:
-// 1. Cumulative artifact missing → block
-// 2. Done phase with missing evidence → block (requires evidence in reason)
+// 1. Cumulative artifact missing → softBlock (gate: must fix, but stop_hook_active can bypass)
+// 2. Done phase with missing evidence → hardBlockDone (no bypass; loops until evidence present)
 // 3. Done phase with evidence → allow (exit 0)
-// 4. Other phases → block with quality review prompt
+// 4. Other phases → softBlock with quality review prompt (one-shot judgment; not enforcement)
 
 // Check cumulative artifacts (features at scenario-gate+ need test-definitions.md)
 const artifactError = checkCumulativeArtifacts(ticketInfo);
@@ -272,8 +274,10 @@ if (currentPhase === 'done') {
   process.exit(0);
 }
 
-// Other phases: trigger quality review when edits were made
-// Guard: if stop_hook_active, a previous review already ran — allow stop
+// Other phases: prompt quality review when edits were made.
+// Loop prevention: if stop_hook_active, the previous review cycle already ran — allow stop.
+// This is intentional, not a weakness: the quality review is Claude's judgment on things
+// external tools cannot verify (elegance, abstractions, best practices). One round is the point.
 if (stopHookActive) {
   process.exit(0);
 }
