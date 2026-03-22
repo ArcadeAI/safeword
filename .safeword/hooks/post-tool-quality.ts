@@ -35,7 +35,7 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 function loadState(): QualityState {
   if (existsSync(stateFile)) {
     try {
-      return JSON.parse(readFileSync(stateFile, 'utf-8'));
+      return JSON.parse(readFileSync(stateFile, 'utf8'));
     } catch {
       // Corrupted file — reinitialize
     }
@@ -62,7 +62,7 @@ function getHeadHash(): string {
   try {
     return execSync('git rev-parse --short HEAD', {
       cwd: projectDirectory,
-      encoding: 'utf-8',
+      encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
   } catch {
@@ -74,7 +74,7 @@ function countLoc(): number {
   try {
     const diffStat = execSync('git diff --stat HEAD', {
       cwd: projectDirectory,
-      encoding: 'utf-8',
+      encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const insMatch = diffStat.match(/(\d+) insertions?\(\+\)/);
@@ -116,7 +116,7 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
     ? editedFile
     : nodePath.join(projectDirectory, editedFile);
   if (existsSync(fullPath)) {
-    const content = readFileSync(fullPath, 'utf-8');
+    const content = readFileSync(fullPath, 'utf8');
     const phaseMatch = content.match(/^phase:\s*(\S+)/m);
     const currentPhase = phaseMatch?.[1];
 
@@ -147,7 +147,7 @@ if (
     ? editedFile
     : nodePath.join(projectDirectory, editedFile);
   if (existsSync(fullPath)) {
-    const content = readFileSync(fullPath, 'utf-8');
+    const content = readFileSync(fullPath, 'utf8');
     const currentStep = parseTddStep(content);
 
     if (currentStep && currentStep !== state.lastKnownTddStep) {

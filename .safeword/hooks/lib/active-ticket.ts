@@ -29,7 +29,7 @@ export function getActiveTicket(projectDirectory: string): ActiveTicketInfo {
     let latestMtime = 0;
 
     for (const folder of folders) {
-      const content = readFileSync(nodePath.join(ticketsDirectory, folder, 'ticket.md'), 'utf-8');
+      const content = readFileSync(nodePath.join(ticketsDirectory, folder, 'ticket.md'), 'utf8');
       if (content.match(/^status:\s*(\S+)/m)?.[1] !== 'in_progress') continue;
       if (content.match(/^type:\s*(\S+)/m)?.[1] === 'epic') continue;
 

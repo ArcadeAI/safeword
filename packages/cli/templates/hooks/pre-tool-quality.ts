@@ -95,7 +95,7 @@ if (!existsSync(stateFile)) {
 
 let state: QualityState;
 try {
-  state = JSON.parse(readFileSync(stateFile, 'utf-8'));
+  state = JSON.parse(readFileSync(stateFile, 'utf8'));
 } catch {
   process.exit(0);
 }
@@ -105,7 +105,7 @@ const currentHead = (() => {
   try {
     return execSync('git rev-parse --short HEAD', {
       cwd: projectDirectory,
-      encoding: 'utf-8',
+      encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
   } catch {
@@ -168,5 +168,5 @@ function readPhaseFile(phase: string): string {
   if (!existsSync(filePath)) {
     return `Phase: ${phase} (phase file not found: ${fileName})`;
   }
-  return readFileSync(filePath, 'utf-8').trim();
+  return readFileSync(filePath, 'utf8').trim();
 }
