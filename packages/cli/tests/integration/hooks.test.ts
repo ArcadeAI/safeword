@@ -899,34 +899,17 @@ describe('E2E: Stop Hook', () => {
     targetDirectory: string,
     transcriptPath: string,
   ): { stdout: string; stderr: string; exitCode: number } {
-    const input = JSON.stringify({ transcript_path: transcriptPath });
-    try {
-      const result = spawnSync(
-        'bash',
-        ['-c', `echo '${input}' | bun .safeword/hooks/stop-quality.ts`],
-        {
-          cwd: targetDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
-          encoding: 'utf8',
-        },
-      );
-      return {
-        stdout: result.stdout || '',
-        stderr: result.stderr || '',
-        exitCode: result.status || 0,
-      };
-    } catch (error: unknown) {
-      const execError = error as {
-        stdout?: string;
-        stderr?: string;
-        status?: number;
-      };
-      return {
-        stdout: execError.stdout || '',
-        stderr: execError.stderr || '',
-        exitCode: execError.status || 1,
-      };
-    }
+    const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
+      input: JSON.stringify({ transcript_path: transcriptPath }),
+      cwd: targetDirectory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
+      encoding: 'utf8',
+    });
+    return {
+      stdout: result.stdout || '',
+      stderr: result.stderr || '',
+      exitCode: result.status || 0,
+    };
   }
 
   // Helper to parse JSON output from stop hook (new format: exit 0 + JSON stdout)
