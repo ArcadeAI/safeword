@@ -388,8 +388,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
   }
 
   // Helper to run stop hook and extract quality message
-  // Returns { reason, exitCode, stderr } to handle both soft blocks (exit 0, JSON stdout)
-  // and hard blocks (exit 2, stderr message)
+  // Returns { reason, exitCode, stderr }; hook always exits 0 with JSON stdout
   function runStopHookForPhase(
     targetDirectory: string,
     customText?: string,
@@ -411,12 +410,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
     const exitCode = result.status ?? 0;
     const stderr = result.stderr?.trim() ?? '';
 
-    // Exit 2 = hard block, message in stderr
-    if (exitCode === 2) {
-      return { reason: stderr, exitCode, stderr };
-    }
-
-    // Exit 0 = soft block or allow, try to parse JSON from stdout
+    // Exit 0 = soft/hard block or allow; parse JSON from stdout
     try {
       const parsed = JSON.parse(result.stdout.trim());
       return { reason: parsed.reason ?? '', exitCode, stderr };
