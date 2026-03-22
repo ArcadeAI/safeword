@@ -306,58 +306,23 @@ function hasExistingImportLinterConfig(cwd: string): boolean {
   }
 }
 
-/**
- * Check if project has existing golangci-lint config.
- * @param cwd - Working directory to scan
- * @returns The config file path if found, undefined otherwise.
- */
 function findExistingGolangciConfig(cwd: string): string | undefined {
-  for (const config of GOLANGCI_CONFIG_FILES) {
-    if (existsSync(nodePath.join(cwd, config))) {
-      return config;
-    }
-  }
-  return undefined;
+  return findFirstExisting(cwd, GOLANGCI_CONFIG_FILES);
 }
 
-/**
- * Check if project has existing clippy config.
- * @param cwd - Working directory to scan
- * @returns The config file path if found, undefined otherwise.
- */
 function findExistingClippyConfig(cwd: string): string | undefined {
-  for (const config of CLIPPY_CONFIG_FILES) {
-    if (existsSync(nodePath.join(cwd, config))) {
-      return config;
-    }
-  }
-  return undefined;
+  return findFirstExisting(cwd, CLIPPY_CONFIG_FILES);
 }
 
-/**
- * Check if project has existing rustfmt config.
- * @param cwd - Working directory to scan
- * @returns The config file path if found, undefined otherwise.
- */
 function findExistingRustfmtConfig(cwd: string): string | undefined {
-  for (const config of RUSTFMT_CONFIG_FILES) {
-    if (existsSync(nodePath.join(cwd, config))) {
-      return config;
-    }
-  }
-  return undefined;
+  return findFirstExisting(cwd, RUSTFMT_CONFIG_FILES);
 }
 
 // SQLFluff config file markers
 const SQLFLUFF_CONFIG_FILES = ['.sqlfluff', 'setup.cfg'];
 
 function findExistingSqlfluffConfig(cwd: string): string | undefined {
-  for (const config of SQLFLUFF_CONFIG_FILES) {
-    if (existsSync(nodePath.join(cwd, config))) {
-      return config;
-    }
-  }
-  return undefined;
+  return findFirstExisting(cwd, SQLFLUFF_CONFIG_FILES);
 }
 
 /**
