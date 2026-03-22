@@ -45,49 +45,44 @@ afterEach(() => {
   removeTemporaryDirectory(projectDirectory);
 });
 
-/**
- * Build a minimal JSONL transcript with one Edit tool_use so editToolsUsed=true,
- * write it to the temp dir, and run the stop hook with the given last_assistant_message.
- * No package.json in projectDirectory → runTests skips → done-phase falls back to text evidence.
- */
-function runStopHookDonePhase(projectDirectory_: string, lastAssistantMessage: string) {
-  // Minimal transcript: one assistant message with an Edit tool_use
-  const transcriptLine = JSON.stringify({
-    type: 'assistant',
-    message: {
-      role: 'assistant',
-      content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
-    },
-  });
-  const transcriptPath = nodePath.join(projectDirectory_, 'transcript.jsonl');
-  writeFileSync(transcriptPath, transcriptLine);
-
-  // Active done-phase task ticket
-  const ticketFolder = nodePath.join(
-    projectDirectory_,
-    '.safeword-project',
-    'tickets',
-    '099-done-task',
-  );
-  mkdirSync(ticketFolder, { recursive: true });
-  writeFileSync(
-    nodePath.join(ticketFolder, 'ticket.md'),
-    ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
-  );
-
-  const input = JSON.stringify({
-    transcript_path: transcriptPath,
-    last_assistant_message: lastAssistantMessage,
-  });
-  return spawnSync('bash', ['-c', `echo '${input}' | bun "${STOP_QUALITY}"`], {
-    cwd: projectDirectory_,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory_ },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
-  });
-}
-
 describe('Stop Hook: Done-phase evidence via last_assistant_message', () => {
+  /**
+   * Build a minimal JSONL transcript with one Edit tool_use so editToolsUsed=true,
+   * write it to the temp dir, and run the stop hook with the given last_assistant_message.
+   * No package.json in projectDirectory → runTests skips → done-phase falls back to text evidence.
+   */
+  function runStopHookDonePhase(directory: string, lastAssistantMessage: string) {
+    // Minimal transcript: one assistant message with an Edit tool_use
+    const transcriptLine = JSON.stringify({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
+      },
+    });
+    const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+    writeFileSync(transcriptPath, transcriptLine);
+
+    // Active done-phase task ticket
+    const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', '099-done-task');
+    mkdirSync(ticketFolder, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketFolder, 'ticket.md'),
+      ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
+    );
+
+    return spawnSync('bun', [STOP_QUALITY], {
+      input: JSON.stringify({
+        transcript_path: transcriptPath,
+        last_assistant_message: lastAssistantMessage,
+      }),
+      cwd: directory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+  }
+
   it('allows when last_assistant_message contains test evidence', () => {
     const result = runStopHookDonePhase(projectDirectory, '156/156 tests pass — all green.');
     expect(result.status).toBe(0);
@@ -106,13 +101,13 @@ describe('Stop Hook: Done-phase evidence via last_assistant_message', () => {
 
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
   it('detects edits and triggers quality review from real-format transcript', () => {
-    const input = JSON.stringify({
-      transcript_path: FIXTURE_PATH,
-      // Simulate hook runtime providing last_assistant_message directly.
-      // combinedText now reads from this field instead of the transcript.
-      last_assistant_message: 'Here is what I did: updated the file.',
-    });
-    const result = spawnSync('bash', ['-c', `echo '${input}' | bun "${STOP_QUALITY}"`], {
+    const result = spawnSync('bun', [STOP_QUALITY], {
+      input: JSON.stringify({
+        transcript_path: FIXTURE_PATH,
+        // Simulate hook runtime providing last_assistant_message directly.
+        // combinedText now reads from this field instead of the transcript.
+        last_assistant_message: 'Here is what I did: updated the file.',
+      }),
       cwd: projectDirectory,
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
       encoding: 'utf8',
