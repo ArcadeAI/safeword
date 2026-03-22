@@ -231,18 +231,18 @@ interface PackageJsonWithScripts extends PackageJson {
   scripts?: Record<string, string>;
 }
 
+/** Returns the first file from candidates that exists in cwd, or undefined. */
+function findFirstExisting(cwd: string, candidates: readonly string[]): string | undefined {
+  return candidates.find(file => existsSync(nodePath.join(cwd, file)));
+}
+
 /**
  * Check if project has existing ESLint config.
  * @param cwd - Working directory to scan
  * @returns The config file path if found, undefined otherwise.
  */
 function findExistingEslintConfig(cwd: string): string | undefined {
-  for (const config of ESLINT_CONFIG_FILES) {
-    if (existsSync(nodePath.join(cwd, config))) {
-      return config;
-    }
-  }
-  return undefined;
+  return findFirstExisting(cwd, ESLINT_CONFIG_FILES);
 }
 
 /**
