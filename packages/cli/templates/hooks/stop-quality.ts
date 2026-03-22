@@ -31,6 +31,12 @@ interface TranscriptMessage {
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
+/** Evidence patterns for done-phase validation (matched against Claude's last message text). */
+const TEST_EVIDENCE_PATTERN = /✓\s*\d+\/\d+\s*tests?\s*pass/i; // "✓ 156/156 tests pass"
+const TEST_EVIDENCE_ALT_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass"
+const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
+const AUDIT_EVIDENCE_PATTERN = /audit\s+passed/i; // "Audit passed" or "Audit passed with warnings"
+
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
 const ticketsDir = `${projectDir}/.safeword-project/tickets`;
@@ -170,14 +176,6 @@ if (!editToolsUsed) {
 const ticketInfo = getCurrentTicketInfo();
 const currentPhase = ticketInfo.phase;
 const qualityMessage = getQualityMessage(currentPhase);
-
-/**
- * Evidence patterns for done phase validation.
- */
-const TEST_EVIDENCE_PATTERN = /✓\s*\d+\/\d+\s*tests?\s*pass/i; // "✓ 156/156 tests pass"
-const TEST_EVIDENCE_ALT_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass"
-const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
-const AUDIT_EVIDENCE_PATTERN = /audit\s+passed/i; // "Audit passed" or "Audit passed with warnings"
 
 /** Check if transcript contains test evidence (either format). */
 function hasTestEvidence(text: string): boolean {
