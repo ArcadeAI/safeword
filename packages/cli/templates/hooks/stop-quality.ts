@@ -121,8 +121,7 @@ const transcriptText = await transcriptFile.text();
 const lines = transcriptText.trim().split('\n');
 
 // Check last message for usage limit (avoids false positives from conversation content)
-const USAGE_LIMIT_PATTERN =
-  /\b(usage limit reached|5-hour limit reached|"type"\s*:\s*"exceeded_limit")\b/i;
+const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 try {
   const lastLine = lines[lines.length - 1] ?? '';
   const lastMessage: TranscriptMessage = JSON.parse(lastLine);
@@ -170,15 +169,9 @@ if (!editToolsUsed) {
   process.exit(0);
 }
 
-// Get ticket info and phase-aware quality message
+// Get ticket info for phase-aware decision logic
 const ticketInfo = getCurrentTicketInfo();
 const currentPhase = ticketInfo.phase;
-const qualityMessage = getQualityMessage(currentPhase);
-
-/** Check if transcript contains test evidence. */
-function hasTestEvidence(text: string): boolean {
-  return TEST_EVIDENCE_PATTERN.test(text);
-}
 
 /**
  * Get done gate message based on ticket type.
@@ -218,7 +211,7 @@ function hardBlockDone(reason: string): never {
 /**
  * Bypassable block — delivers a reason or instruction to Claude via JSON decision:block.
  * The stop_hook_active guard (below) allows one bypass per review cycle to prevent loops.
- * Used for: quality review prompts, navigation instructions, cumulative artifact gates.
+ * Used for: quality review prompts, navigation instructions.
  */
 function softBlock(reason: string): never {
   console.log(JSON.stringify({ decision: 'block', reason }));
@@ -263,7 +256,7 @@ if (currentPhase === 'done') {
     if (!hasAudit) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence
-    if (!hasTestEvidence(combinedText))
+    if (!TEST_EVIDENCE_PATTERN.test(combinedText))
       hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
   }
 
@@ -302,4 +295,4 @@ if (currentPhase === 'done') {
 if (stopHookActive) {
   process.exit(0);
 }
-softBlock(qualityMessage);
+softBlock(getQualityMessage(currentPhase));
