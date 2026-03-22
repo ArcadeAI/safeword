@@ -47,7 +47,12 @@ afterEach(() => {
 
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
   it('detects edits and triggers quality review from real-format transcript', () => {
-    const input = JSON.stringify({ transcript_path: FIXTURE_PATH });
+    const input = JSON.stringify({
+      transcript_path: FIXTURE_PATH,
+      // Simulate hook runtime providing last_assistant_message directly.
+      // combinedText now reads from this field instead of the transcript.
+      last_assistant_message: 'Here is what I did: updated the file.',
+    });
     const result = spawnSync('bash', ['-c', `echo '${input}' | bun "${STOP_QUALITY}"`], {
       cwd: projectDirectory,
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
