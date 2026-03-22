@@ -11,14 +11,8 @@ import nodePath from 'node:path';
 import { detect } from '../presets/typescript/detect.js';
 import { existsShallow, findShallow } from './fs.js';
 
-// Re-export detection constants from typescript preset (single source of truth)
-export const {
-  TAILWIND_PACKAGES,
-  TANSTACK_QUERY_PACKAGES,
-
-  hasExistingLinter,
-  hasExistingFormatter,
-} = detect;
+const { TAILWIND_PACKAGES, TANSTACK_QUERY_PACKAGES, hasExistingLinter, hasExistingFormatter } =
+  detect;
 
 // Python project file markers
 const PYPROJECT_TOML = 'pyproject.toml';
