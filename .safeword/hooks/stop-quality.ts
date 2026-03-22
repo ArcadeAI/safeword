@@ -185,11 +185,6 @@ function hasTestEvidence(text: string): boolean {
  * Get done gate message based on ticket type.
  */
 function getDoneHardBlockMessage(ticketType: string | undefined, missingAudit: boolean): string {
-  const scenarioLine =
-    ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
-  const auditLine =
-    ticketType === 'feature' ? '\n- "Audit passed" (required for features — run /audit)' : '';
-
   if (missingAudit) {
     return `SAFEWORD: Done phase requires audit evidence. Run /audit and show results.
 
@@ -198,6 +193,11 @@ Expected evidence format:
 
 Run /audit, show output, then try again.`;
   }
+
+  const scenarioLine =
+    ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
+  const auditLine =
+    ticketType === 'feature' ? '\n- "Audit passed" (required for features — run /audit)' : '';
 
   return `SAFEWORD: Done phase requires evidence. Run /verify and show results.
 
