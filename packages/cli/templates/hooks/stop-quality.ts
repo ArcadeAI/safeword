@@ -13,6 +13,7 @@ import { runTests } from './lib/test-runner.ts';
 interface HookInput {
   transcript_path?: string;
   stop_hook_active?: boolean;
+  last_assistant_message?: string;
 }
 
 interface ContentItem {
@@ -140,9 +141,11 @@ try {
   // Not valid JSON or missing structure - continue with normal processing
 }
 
+// Claude's last response text — provided directly by the hook runtime.
+const combinedText = input.last_assistant_message ?? '';
+
 // Detect edit tool usage in recent assistant messages
 let editToolsUsed = false;
-let combinedText = '';
 let assistantMessagesChecked = 0;
 const MAX_MESSAGES_FOR_TOOLS = 5;
 
@@ -152,10 +155,6 @@ for (let i = lines.length - 1; i >= 0 && assistantMessagesChecked < MAX_MESSAGES
     if (message.type === 'assistant' && message.message?.content) {
       assistantMessagesChecked++;
       for (const item of message.message.content) {
-        // Collect text from the most recent assistant message (for done-phase evidence)
-        if (assistantMessagesChecked === 1 && item.type === 'text' && item.text) {
-          combinedText += item.text;
-        }
         if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) {
           editToolsUsed = true;
         }
@@ -185,11 +184,6 @@ function hasTestEvidence(text: string): boolean {
  * Get done gate message based on ticket type.
  */
 function getDoneHardBlockMessage(ticketType: string | undefined, missingAudit: boolean): string {
-  const scenarioLine =
-    ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
-  const auditLine =
-    ticketType === 'feature' ? '\n- "Audit passed" (required for features — run /audit)' : '';
-
   if (missingAudit) {
     return `SAFEWORD: Done phase requires audit evidence. Run /audit and show results.
 
@@ -198,6 +192,11 @@ Expected evidence format:
 
 Run /audit, show output, then try again.`;
   }
+
+  const scenarioLine =
+    ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
+  const auditLine =
+    ticketType === 'feature' ? '\n- "Audit passed" (required for features — run /audit)' : '';
 
   return `SAFEWORD: Done phase requires evidence. Run /verify and show results.
 
