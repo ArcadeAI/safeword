@@ -73,8 +73,7 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   }
 
   // File exists — verify it has at least one scenario (not empty/stub).
-  // Counts all checkbox lines including sub-steps (RED/GREEN/REFACTOR), so a single
-  // scenario with sub-steps yields count > 1. The threshold is just > 0 (prevents stub files).
+  // Counts all checkbox lines (including RED/GREEN/REFACTOR sub-steps). Threshold: > 0.
   const content = readFileSync(testDefsPath, 'utf8');
   const scenarioCount = (content.match(/^\s*- \[/gm) ?? []).length;
   if (scenarioCount === 0) {
