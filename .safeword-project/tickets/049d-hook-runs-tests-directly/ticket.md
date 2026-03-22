@@ -2,7 +2,7 @@
 id: 049d
 slug: hook-runs-tests-directly
 type: task
-status: pending
+status: done
 phase: implement
 parent: 049-stop-hook-quality-improvements
 ---
@@ -45,3 +45,4 @@ In the done-phase block, before checking text evidence:
 ## Work Log
 
 - 2026-03-21 Ticket created as child of 049.
+- 2026-03-22 Done. Created hooks/lib/test-runner.ts (detectPackageManager, getTestCommand, runTests). Updated stop-quality.ts done-phase: tests run directly via execFileSync (60s timeout, last 30 lines output), gates on exit code. Also fixed 049c regression: hasScenarios/hasAudit correctly matched against combinedText (Claude text), not Bash output — scenario summary comes from /verify prose, not tool_result. Python support deferred. extractBashOutputSinceLastEdit removed (dead code, superseded).
