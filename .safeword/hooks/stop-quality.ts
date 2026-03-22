@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { getActiveTicket } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
+import { runTests } from './lib/test-runner.ts';
 
 interface HookInput {
   transcript_path?: string;
@@ -18,9 +19,6 @@ interface ContentItem {
   type: string;
   text?: string;
   name?: string; // tool_use: tool name
-  id?: string; // tool_use: unique call ID
-  tool_use_id?: string; // tool_result: correlates to tool_use.id
-  content?: string | ContentItem[]; // tool_result: output content
 }
 
 interface TranscriptMessage {
@@ -163,76 +161,6 @@ const currentPhase = ticketInfo.phase;
 const qualityMessage = getQualityMessage(currentPhase);
 
 /**
- * Extract Bash tool output from transcript lines, scoped to calls after the last edit.
- *
- * Two-pass approach:
- * 1. Find the line index of the most recent edit tool call (Write/Edit/MultiEdit/NotebookEdit)
- *    and collect all Bash tool_use IDs with their positions.
- * 2. Collect tool_result content for Bash calls that came after the last edit.
- *
- * Returns combined output string, or null if no Bash calls found after last edit.
- *
- * Trust model: test + scenario evidence must come from real Bash output (external, verifiable).
- * Audit evidence stays text-based — /audit is judgment-based, not a Bash subprocess.
- */
-function extractBashOutputSinceLastEdit(transcriptLines: string[]): string | null {
-  // Pass 1: find last edit position and all Bash tool_use IDs with their line positions
-  let lastEditLineIndex = -1;
-  const bashCalls: Array<{ id: string; lineIndex: number }> = [];
-
-  for (let i = 0; i < transcriptLines.length; i++) {
-    try {
-      const msg: TranscriptMessage = JSON.parse(transcriptLines[i]);
-      if (msg.type === 'assistant' && msg.message?.content) {
-        for (const item of msg.message.content) {
-          if (item.type === 'tool_use') {
-            if (item.name && EDIT_TOOLS.has(item.name)) lastEditLineIndex = i;
-            if (item.name === 'Bash' && item.id) bashCalls.push({ id: item.id, lineIndex: i });
-          }
-        }
-      }
-    } catch {
-      // Skip invalid JSON
-    }
-  }
-
-  // Bash calls that came strictly after the last edit
-  const bashIdsAfterEdit = new Set(
-    bashCalls.filter(b => b.lineIndex > lastEditLineIndex).map(b => b.id),
-  );
-  if (bashIdsAfterEdit.size === 0) return null;
-
-  // Pass 2: collect tool_result content for those Bash calls
-  let output = '';
-  for (const line of transcriptLines) {
-    try {
-      const msg: TranscriptMessage = JSON.parse(line);
-      if (msg.type === 'user' && msg.message?.content) {
-        for (const item of msg.message.content) {
-          if (
-            item.type === 'tool_result' &&
-            item.tool_use_id &&
-            bashIdsAfterEdit.has(item.tool_use_id)
-          ) {
-            if (typeof item.content === 'string') {
-              output += '\n' + item.content;
-            } else if (Array.isArray(item.content)) {
-              for (const c of item.content) {
-                if (c.type === 'text' && c.text) output += '\n' + c.text;
-              }
-            }
-          }
-        }
-      }
-    } catch {
-      // Skip invalid JSON
-    }
-  }
-
-  return output || null;
-}
-
-/**
  * Evidence patterns for done phase validation.
  */
 const TEST_EVIDENCE_PATTERN = /✓\s*\d+\/\d+\s*tests?\s*pass/i; // "✓ 156/156 tests pass"
@@ -263,12 +191,12 @@ Expected evidence format:
 Run /audit, show output, then try again.`;
   }
 
-  return `SAFEWORD: Done phase requires test evidence from Bash output. Run /verify and show results.
+  return `SAFEWORD: Done phase requires evidence. Run /verify and show results.
 
-Expected evidence formats (must appear in Bash tool output):
-- "✓ X/X tests pass" (required)${scenarioLine}${auditLine}
+Expected evidence formats:
+- "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)${scenarioLine}${auditLine}
 
-Run /verify (or run tests directly via Bash), show output, then try again.`;
+Run /verify, show output, then try again.`;
 }
 
 /**
@@ -307,26 +235,30 @@ if (currentPhase === 'done') {
   // Features need test + scenario + audit evidence; tasks need test only.
   const isFeature = ticketInfo.type === 'feature';
 
-  // Test + scenario evidence must come from Bash tool output after the last edit.
-  // This prevents Claude from gaming the gate by writing the evidence string in prose.
-  // Audit evidence stays text-based: /audit is a skill (judgment), not a Bash subprocess.
-  const bashOutput = extractBashOutputSinceLastEdit(lines);
-  if (bashOutput === null) {
+  // Run tests directly — authoritative external gate, cannot be gamed by prose.
+  // skipped=true means no test command found (package.json missing or no scripts.test).
+  const testResult = runTests(projectDir);
+  if (!testResult.skipped && !testResult.passed) {
     hardBlockDone(
-      `SAFEWORD: Done phase requires test evidence from Bash output, but no Bash commands ran after your last edit.\n\nRun /verify (or run tests directly via Bash), show output, then try again.`,
+      `SAFEWORD: Tests failed. Fix failures before marking done.\n\n${testResult.output}`,
     );
   }
-  const hasTests = hasTestEvidence(bashOutput);
-  const hasScenarios = SCENARIO_EVIDENCE_PATTERN.test(bashOutput);
-  const hasAudit = AUDIT_EVIDENCE_PATTERN.test(combinedText); // /audit output is in assistant text
+
+  // Scenario + audit evidence: text-based (checked in Claude's last message).
+  // Scenarios come from /verify prose output — not Bash tool output.
+  // Audit comes from /audit skill output — not a Bash subprocess.
+  // 049e will make scenario evidence authoritative via test-definitions.md file content.
+  const hasScenarios = SCENARIO_EVIDENCE_PATTERN.test(combinedText);
+  const hasAudit = AUDIT_EVIDENCE_PATTERN.test(combinedText);
 
   if (isFeature) {
-    // Features: require all three evidence types
-    if (!hasTests || !hasScenarios) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
+    // Features: require scenario + audit evidence (tests already verified above)
+    if (!hasScenarios) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
     if (!hasAudit) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
-  } else {
-    // Tasks: require test evidence only
-    if (!hasTests) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
+  } else if (testResult.skipped) {
+    // Tasks with no test command: fall back to text evidence
+    if (!hasTestEvidence(combinedText))
+      hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
   }
 
   // Evidence passed — mark current ticket done and navigate hierarchy
