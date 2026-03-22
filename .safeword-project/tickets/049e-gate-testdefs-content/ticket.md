@@ -2,8 +2,8 @@
 id: 049e
 slug: gate-testdefs-content
 type: task
-status: pending
-phase: implement
+status: done
+phase: done
 parent: 049-stop-hook-quality-improvements
 ---
 
@@ -48,3 +48,4 @@ no escape hatch if the requirement is wrong. Decide before implementing.
 
 - 2026-03-21 Ticket created as child of 049.
 - 2026-03-21 Noted: artifact check uses softBlock (bypassable), not hardBlockDone. Consider switching to hard block as part of this ticket.
+- 2026-03-21 Implemented: content check added, switched to hardBlockDone (no bypass). Both working copy and template updated.

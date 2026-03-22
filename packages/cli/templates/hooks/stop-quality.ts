@@ -52,24 +52,34 @@ function getCurrentTicketInfo(): TicketInfo {
 
 /**
  * Check cumulative artifact requirements for features.
- * Features at scenario-gate+ phases require test-definitions.md to exist.
+ * Features at scenario-gate+ phases require test-definitions.md with at least one scenario.
+ * Uses hardBlockDone — no stop_hook_active bypass. A feature with no scenarios is broken.
  */
-function checkCumulativeArtifacts(ticketInfo: TicketInfo): string | undefined {
+function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   // Only enforce for features
-  if (ticketInfo.type !== 'feature') return undefined;
-  if (!ticketInfo.folder || !ticketInfo.phase) return undefined;
+  if (ticketInfo.type !== 'feature') return;
+  if (!ticketInfo.folder || !ticketInfo.phase) return;
 
   // Phases that require test-definitions.md
   const phasesRequiringTestDefs = ['scenario-gate', 'decomposition', 'implement', 'done'];
-  if (!phasesRequiringTestDefs.includes(ticketInfo.phase)) return undefined;
+  if (!phasesRequiringTestDefs.includes(ticketInfo.phase)) return;
 
-  // Check if test-definitions.md exists
   const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
+
   if (!existsSync(testDefsPath)) {
-    return `Feature at ${ticketInfo.phase} phase requires test-definitions.md. Create it before proceeding.`;
+    hardBlockDone(
+      `Feature at ${ticketInfo.phase} phase requires test-definitions.md. Create it with at least one scenario before stopping.`,
+    );
   }
 
-  return undefined;
+  // File exists — verify it has at least one scenario (not empty/stub)
+  const content = readFileSync(testDefsPath, 'utf8');
+  const scenarioCount = (content.match(/^\s*- \[/gm) ?? []).length;
+  if (scenarioCount === 0) {
+    hardBlockDone(
+      `Feature at ${ticketInfo.phase} phase: test-definitions.md has no scenarios defined. Add at least one before stopping.`,
+    );
+  }
 }
 
 // Not a safeword project, skip silently
@@ -224,11 +234,8 @@ function softBlock(reason: string): never {
 // 3. Done phase with evidence → allow (exit 0)
 // 4. Other phases → softBlock with quality review prompt (one-shot judgment; not enforcement)
 
-// Check cumulative artifacts (features at scenario-gate+ need test-definitions.md)
-const artifactError = checkCumulativeArtifacts(ticketInfo);
-if (artifactError) {
-  softBlock(artifactError);
-}
+// Check cumulative artifacts (features at scenario-gate+ need test-definitions.md with scenarios)
+checkCumulativeArtifacts(ticketInfo);
 
 if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop.
