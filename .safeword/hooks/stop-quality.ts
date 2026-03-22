@@ -120,25 +120,7 @@ if (!(await transcriptFile.exists())) {
 const transcriptText = await transcriptFile.text();
 const lines = transcriptText.trim().split('\n');
 
-// Check last message for usage limit (avoids false positives from conversation content)
-const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
-try {
-  const lastLine = lines[lines.length - 1] ?? '';
-  const lastMessage: TranscriptMessage = JSON.parse(lastLine);
-  const textContent =
-    lastMessage.message?.content
-      ?.filter(
-        (item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text,
-      )
-      .map(item => item.text)
-      .join('') ?? '';
-  if (textContent.length > 0 && textContent.length < 200 && USAGE_LIMIT_PATTERN.test(textContent)) {
-    console.error('SAFEWORD: Claude usage limit reached. Try again after reset.');
-    process.exit(1);
-  }
-} catch {
-  // Not valid JSON or missing structure - continue with normal processing
-}
+checkUsageLimit(lines);
 
 // Claude's last response text — provided directly by the hook runtime.
 const combinedText = input.last_assistant_message ?? '';
@@ -172,6 +154,36 @@ if (!editToolsUsed) {
 // Get ticket info for phase-aware decision logic
 const ticketInfo = getCurrentTicketInfo();
 const currentPhase = ticketInfo.phase;
+
+/**
+ * Check last transcript line for usage limit phrases.
+ * Exits with code 1 if found — avoids false positives from conversation content
+ * by checking only the final message and capping text length at 200 chars.
+ */
+const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
+function checkUsageLimit(transcriptLines: string[]): void {
+  try {
+    const lastLine = transcriptLines[transcriptLines.length - 1] ?? '';
+    const lastMessage: TranscriptMessage = JSON.parse(lastLine);
+    const textContent =
+      lastMessage.message?.content
+        ?.filter(
+          (item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text,
+        )
+        .map(item => item.text)
+        .join('') ?? '';
+    if (
+      textContent.length > 0 &&
+      textContent.length < 200 &&
+      USAGE_LIMIT_PATTERN.test(textContent)
+    ) {
+      console.error('SAFEWORD: Claude usage limit reached. Try again after reset.');
+      process.exit(1);
+    }
+  } catch {
+    // Not valid JSON or missing structure - continue with normal processing
+  }
+}
 
 /**
  * Get done gate message based on ticket type.
