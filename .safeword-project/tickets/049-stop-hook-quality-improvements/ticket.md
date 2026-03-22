@@ -2,8 +2,8 @@
 id: '049'
 slug: stop-hook-quality-improvements
 type: epic
-status: in_progress
-phase: implement
+status: done
+phase: done
 children:
   - 049a-suppressoutput-silent-hooks
   - 049b-reframe-softblock-comments
@@ -37,3 +37,4 @@ Ticket 048 (done) already switched `hardBlockDone` to canonical JSON block mecha
 ## Work Log
 
 - 2026-03-21 Epic created from stop-hook research session. 048 already done (exit2→JSON block).
+- 2026-03-21 049a–049e complete. 049f cancelled and promoted to standalone ticket 050 (backlog). Epic done.
