@@ -138,28 +138,6 @@ const ticketInfo = getCurrentTicketInfo();
 const currentPhase = ticketInfo.phase;
 
 /**
- * Scan the last MAX_MESSAGES_FOR_TOOLS assistant messages for edit tool usage.
- * Returns true if Write/Edit/MultiEdit/NotebookEdit appears in any recent message.
- */
-function detectEditToolsUsed(transcriptLines: string[]): boolean {
-  let checked = 0;
-  for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
-    try {
-      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
-      if (message.type === 'assistant' && message.message?.content) {
-        checked++;
-        for (const item of message.message.content) {
-          if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) return true;
-        }
-      }
-    } catch {
-      // Skip invalid JSON lines
-    }
-  }
-  return false;
-}
-
-/**
  * Check last transcript line for usage limit phrases.
  * Exits with code 1 if found — avoids false positives from conversation content
  * by checking only the final message and capping text length at 200 chars.
@@ -186,6 +164,28 @@ function checkUsageLimit(transcriptLines: string[]): void {
   } catch {
     // Not valid JSON or missing structure - continue with normal processing
   }
+}
+
+/**
+ * Scan the last MAX_MESSAGES_FOR_TOOLS assistant messages for edit tool usage.
+ * Returns true if Write/Edit/MultiEdit/NotebookEdit appears in any recent message.
+ */
+function detectEditToolsUsed(transcriptLines: string[]): boolean {
+  let checked = 0;
+  for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    try {
+      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      if (message.type === 'assistant' && message.message?.content) {
+        checked++;
+        for (const item of message.message.content) {
+          if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) return true;
+        }
+      }
+    } catch {
+      // Skip invalid JSON lines
+    }
+  }
+  return false;
 }
 
 /**
