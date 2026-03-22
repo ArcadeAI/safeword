@@ -196,11 +196,6 @@ export function detectPythonType(cwd: string): PythonProjectType | undefined {
 function hasShellScripts(cwd: string, maxDepth = 4): boolean {
   const excludeDirectories = new Set(['node_modules', '.git', '.safeword']);
 
-  /**
-   *
-   * @param dir
-   * @param depth
-   */
   function scan(dir: string, depth: number): boolean {
     if (depth > maxDepth) return false;
 
