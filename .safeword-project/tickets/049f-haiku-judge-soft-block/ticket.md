@@ -2,8 +2,8 @@
 id: 049f
 slug: haiku-judge-soft-block
 type: task
-status: pending
-phase: implement
+status: cancelled
+phase: intake
 parent: 049-stop-hook-quality-improvements
 ---
 
@@ -55,3 +55,4 @@ Option A is likely the right starting point — uses built-in Claude Code infras
 ## Work Log
 
 - 2026-03-21 Ticket created as child of 049. Trail of Bits uses Haiku-as-judge in production (community-documented).
+- 2026-03-22 Cancelled. Moved to standalone ticket 050-haiku-judge-stop-hook.
