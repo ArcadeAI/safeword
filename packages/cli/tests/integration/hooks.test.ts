@@ -947,14 +947,14 @@ describe('E2E: Stop Hook', () => {
     it('exits silently for non-safeword project', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {
-        const input = JSON.stringify({ transcript_path: '/tmp/fake.jsonl' });
-        const output = execSync(`echo '${input}' | bun .safeword/hooks/stop-quality.ts`, {
+        const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
+          input: JSON.stringify({ transcript_path: '/tmp/fake.jsonl' }),
           cwd: projectDirectory,
           env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
           encoding: 'utf8',
         });
 
-        expect(output.trim()).toBe('');
+        expect(result.stdout.trim()).toBe('');
       } finally {
         removeTemporaryDirectory(nonSafewordDirectory);
       }
