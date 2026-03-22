@@ -52,7 +52,6 @@ function getTestCommand(cwd: string): string | null {
     const pkg = JSON.parse(content) as { scripts?: Record<string, string> };
     if (!pkg.scripts?.test) return null;
     const pm = detectPackageManager(cwd);
-    // Use 'run test' for bun/npm/pnpm/yarn to invoke the scripts.test command
     return pm === 'npm' ? 'npm test' : `${pm} run test`;
   } catch {
     return null;
@@ -75,7 +74,7 @@ function truncateOutput(output: string): string {
  * Run the project's test suite directly and return the result.
  *
  * - Detects test command from package.json scripts.test
- * - Uses execFileSync for synchronous, timeout-safe execution (no zombie processes)
+ * - Uses execSync for synchronous, timeout-safe execution (no zombie processes)
  * - Returns skipped=true if no test command found (caller should not block)
  */
 export function runTests(cwd: string): TestResult {
