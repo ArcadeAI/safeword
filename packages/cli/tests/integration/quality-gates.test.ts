@@ -47,14 +47,13 @@ function runPostToolQuality(
   filePath: string,
   sessionId = 'test-session',
 ) {
-  const hookInput = JSON.stringify({
-    session_id: sessionId,
-    hook_event_name: 'PostToolUse',
-    tool_name: toolName,
-    tool_input: { file_path: filePath },
-  });
-
-  return spawnSync('bash', ['-c', `echo '${hookInput}' | bun "${POST_TOOL_QUALITY}"`], {
+  return spawnSync('bun', [POST_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      hook_event_name: 'PostToolUse',
+      tool_name: toolName,
+      tool_input: { file_path: filePath },
+    }),
     cwd,
     env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
     encoding: 'utf8',
@@ -69,14 +68,13 @@ function runPreToolQuality(
   filePath?: string,
   sessionId = 'test-session',
 ) {
-  const hookInput = JSON.stringify({
-    session_id: sessionId,
-    hook_event_name: 'PreToolUse',
-    tool_name: toolName,
-    tool_input: filePath ? { file_path: filePath } : {},
-  });
-
-  return spawnSync('bash', ['-c', `echo '${hookInput}' | bun "${PRE_TOOL_QUALITY}"`], {
+  return spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      hook_event_name: 'PreToolUse',
+      tool_name: toolName,
+      tool_input: filePath ? { file_path: filePath } : {},
+    }),
     cwd,
     env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
     encoding: 'utf8',
