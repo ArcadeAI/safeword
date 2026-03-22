@@ -306,24 +306,8 @@ function hasExistingImportLinterConfig(cwd: string): boolean {
   }
 }
 
-function findExistingGolangciConfig(cwd: string): string | undefined {
-  return findFirstExisting(cwd, GOLANGCI_CONFIG_FILES);
-}
-
-function findExistingClippyConfig(cwd: string): string | undefined {
-  return findFirstExisting(cwd, CLIPPY_CONFIG_FILES);
-}
-
-function findExistingRustfmtConfig(cwd: string): string | undefined {
-  return findFirstExisting(cwd, RUSTFMT_CONFIG_FILES);
-}
-
 // SQLFluff config file markers
 const SQLFLUFF_CONFIG_FILES = ['.sqlfluff', 'setup.cfg'];
-
-function findExistingSqlfluffConfig(cwd: string): string | undefined {
-  return findFirstExisting(cwd, SQLFLUFF_CONFIG_FILES);
-}
 
 /**
  * Detect JavaScript framework dependencies from package.json.
@@ -405,10 +389,10 @@ function detectSystemsTooling(
   | 'existingSqlfluffConfig'
 > {
   return {
-    existingGolangciConfig: cwd ? findExistingGolangciConfig(cwd) : undefined,
-    existingClippyConfig: cwd ? findExistingClippyConfig(cwd) : undefined,
-    existingRustfmtConfig: cwd ? findExistingRustfmtConfig(cwd) : undefined,
-    existingSqlfluffConfig: cwd ? findExistingSqlfluffConfig(cwd) : undefined,
+    existingGolangciConfig: cwd ? findFirstExisting(cwd, GOLANGCI_CONFIG_FILES) : undefined,
+    existingClippyConfig: cwd ? findFirstExisting(cwd, CLIPPY_CONFIG_FILES) : undefined,
+    existingRustfmtConfig: cwd ? findFirstExisting(cwd, RUSTFMT_CONFIG_FILES) : undefined,
+    existingSqlfluffConfig: cwd ? findFirstExisting(cwd, SQLFLUFF_CONFIG_FILES) : undefined,
   };
 }
 
