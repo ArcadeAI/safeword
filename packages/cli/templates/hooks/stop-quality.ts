@@ -72,7 +72,9 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
     );
   }
 
-  // File exists — verify it has at least one scenario (not empty/stub)
+  // File exists — verify it has at least one scenario (not empty/stub).
+  // Counts all checkbox lines including sub-steps (RED/GREEN/REFACTOR), so a single
+  // scenario with sub-steps yields count > 1. The threshold is just > 0 (prevents stub files).
   const content = readFileSync(testDefsPath, 'utf8');
   const scenarioCount = (content.match(/^\s*- \[/gm) ?? []).length;
   if (scenarioCount === 0) {
@@ -229,7 +231,7 @@ function softBlock(reason: string): never {
 }
 
 // Decision logic:
-// 1. Cumulative artifact missing → softBlock (gate: must fix, but stop_hook_active can bypass)
+// 1. Cumulative artifact missing/empty → hardBlockDone (no bypass; a feature with no scenarios is broken)
 // 2. Done phase with missing evidence → hardBlockDone (no bypass; loops until evidence present)
 // 3. Done phase with evidence → allow (exit 0)
 // 4. Other phases → softBlock with quality review prompt (one-shot judgment; not enforcement)
@@ -254,7 +256,6 @@ if (currentPhase === 'done') {
   // Scenario + audit evidence: text-based (checked in Claude's last message).
   // Scenarios come from /verify prose output — not Bash tool output.
   // Audit comes from /audit skill output — not a Bash subprocess.
-  // 049e will make scenario evidence authoritative via test-definitions.md file content.
   const hasScenarios = SCENARIO_EVIDENCE_PATTERN.test(combinedText);
   const hasAudit = AUDIT_EVIDENCE_PATTERN.test(combinedText);
 
