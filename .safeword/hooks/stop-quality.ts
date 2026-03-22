@@ -31,11 +31,14 @@ interface TranscriptMessage {
 }
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
+/** How many recent assistant messages to scan for edit tool usage. */
+const MAX_MESSAGES_FOR_TOOLS = 5;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
 const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
 const AUDIT_EVIDENCE_PATTERN = /audit\s+passed/i; // "Audit passed" or "Audit passed with warnings"
+const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -125,29 +128,8 @@ checkUsageLimit(lines);
 // Claude's last response text — provided directly by the hook runtime.
 const combinedText = input.last_assistant_message ?? '';
 
-// Detect edit tool usage in recent assistant messages
-let editToolsUsed = false;
-let assistantMessagesChecked = 0;
-const MAX_MESSAGES_FOR_TOOLS = 5;
-
-for (let i = lines.length - 1; i >= 0 && assistantMessagesChecked < MAX_MESSAGES_FOR_TOOLS; i--) {
-  try {
-    const message: TranscriptMessage = JSON.parse(lines[i]);
-    if (message.type === 'assistant' && message.message?.content) {
-      assistantMessagesChecked++;
-      for (const item of message.message.content) {
-        if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) {
-          editToolsUsed = true;
-        }
-      }
-    }
-  } catch {
-    // Skip invalid JSON lines
-  }
-}
-
 // No edit tools used → no quality review needed (conversational response)
-if (!editToolsUsed) {
+if (!detectEditToolsUsed(lines)) {
   process.exit(0);
 }
 
@@ -156,11 +138,32 @@ const ticketInfo = getCurrentTicketInfo();
 const currentPhase = ticketInfo.phase;
 
 /**
+ * Scan the last MAX_MESSAGES_FOR_TOOLS assistant messages for edit tool usage.
+ * Returns true if Write/Edit/MultiEdit/NotebookEdit appears in any recent message.
+ */
+function detectEditToolsUsed(transcriptLines: string[]): boolean {
+  let checked = 0;
+  for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    try {
+      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      if (message.type === 'assistant' && message.message?.content) {
+        checked++;
+        for (const item of message.message.content) {
+          if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) return true;
+        }
+      }
+    } catch {
+      // Skip invalid JSON lines
+    }
+  }
+  return false;
+}
+
+/**
  * Check last transcript line for usage limit phrases.
  * Exits with code 1 if found — avoids false positives from conversation content
  * by checking only the final message and capping text length at 200 chars.
  */
-const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 function checkUsageLimit(transcriptLines: string[]): void {
   try {
     const lastLine = transcriptLines[transcriptLines.length - 1] ?? '';

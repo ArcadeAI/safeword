@@ -36,6 +36,7 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
 const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
 const AUDIT_EVIDENCE_PATTERN = /audit\s+passed/i; // "Audit passed" or "Audit passed with warnings"
+const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -160,7 +161,6 @@ const currentPhase = ticketInfo.phase;
  * Exits with code 1 if found — avoids false positives from conversation content
  * by checking only the final message and capping text length at 200 chars.
  */
-const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 function checkUsageLimit(transcriptLines: string[]): void {
   try {
     const lastLine = transcriptLines[transcriptLines.length - 1] ?? '';
