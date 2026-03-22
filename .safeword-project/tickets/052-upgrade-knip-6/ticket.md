@@ -2,8 +2,8 @@
 id: 052
 slug: upgrade-knip-6
 type: task
-status: backlog
-phase: intake
+status: done
+phase: done
 ---
 
 # Upgrade knip 5 → 6
