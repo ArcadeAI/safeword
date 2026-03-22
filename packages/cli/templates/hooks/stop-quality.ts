@@ -253,7 +253,10 @@ if (currentPhase === 'done') {
 
   if (isFeature) {
     // Features: require scenario + audit evidence (tests already verified above)
-    if (!hasScenarios) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
+    if (!hasScenarios)
+      hardBlockDone(
+        `SAFEWORD: Done phase requires scenario evidence. Run /verify and show results.\n\nExpected: "All N scenarios marked complete"\n\nRun /verify, show output, then try again.`,
+      );
     if (!hasAudit) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence

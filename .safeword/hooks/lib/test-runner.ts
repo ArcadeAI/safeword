@@ -3,7 +3,7 @@
  * Detects and executes the project's test suite directly.
  */
 
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -83,18 +83,27 @@ export function runTests(cwd: string): TestResult {
   if (!command) return { passed: true, output: '', skipped: true };
 
   try {
-    const output = execFileSync(command, {
+    const output = execSync(command, {
       cwd,
-      shell: true,
       timeout: TEST_TIMEOUT_MS,
       stdio: 'pipe',
       encoding: 'utf8',
     });
     return { passed: true, output: truncateOutput(output), skipped: false };
   } catch (error) {
-    const stdout = (error as NodeJS.ErrnoException & { stdout?: string }).stdout ?? '';
-    const stderr = (error as NodeJS.ErrnoException & { stderr?: string }).stderr ?? '';
-    const combined = stdout + stderr;
+    const err = error as NodeJS.ErrnoException & {
+      stdout?: string;
+      stderr?: string;
+      killed?: boolean;
+    };
+    if (err.killed) {
+      return {
+        passed: false,
+        output: `Tests timed out after ${TEST_TIMEOUT_MS / 1000}s — tests may be too slow or the runner hung.`,
+        skipped: false,
+      };
+    }
+    const combined = (err.stdout ?? '') + (err.stderr ?? '');
     return {
       passed: false,
       output: truncateOutput(combined || `Tests exited with non-zero status`),
