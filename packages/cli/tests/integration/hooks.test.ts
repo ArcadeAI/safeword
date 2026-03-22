@@ -399,16 +399,15 @@ describe('E2E: Phase-Aware Quality Review', () => {
     stderr: string;
   } {
     const transcriptPath = createChangesTranscript(targetDirectory, customText);
-    const input = JSON.stringify({ transcript_path: transcriptPath });
-    const result = spawnSync(
-      'bash',
-      ['-c', `echo '${input}' | bun .safeword/hooks/stop-quality.ts`],
-      {
-        cwd: targetDirectory,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
-        encoding: 'utf8',
-      },
-    );
+    const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
+      input: JSON.stringify({
+        transcript_path: transcriptPath,
+        last_assistant_message: customText ?? '',
+      }),
+      cwd: targetDirectory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
+      encoding: 'utf8',
+    });
     const exitCode = result.status ?? 0;
     const stderr = result.stderr?.trim() ?? '';
 
@@ -504,10 +503,9 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       const result = runStopHookForPhase(projectDirectory);
 
-      // Done phase uses hard block (exit 2) with stderr message
-      expect(result.exitCode).toBe(2);
+      // Done phase uses hard block (exit 0, JSON output)
+      expect(result.exitCode).toBe(0);
       expect(result.reason).toContain('SAFEWORD');
-      expect(result.reason).toContain('requires evidence');
       expect(result.reason).toContain('/verify');
     });
 
@@ -748,7 +746,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Feature should require scenario evidence
-      expect(result.exitCode).toBe(2);
+      expect(result.exitCode).toBe(0);
       expect(result.reason).toContain('scenarios');
     });
 
@@ -821,7 +819,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
       // Should hard block requiring /audit
-      expect(result.exitCode).toBe(2);
+      expect(result.exitCode).toBe(0);
       expect(result.reason).toContain('audit');
     });
 

@@ -72,11 +72,13 @@ function createTranscript(projectDirectory: string, evidence: string): string {
   return transcriptPath;
 }
 
-/** Run the stop hook with a transcript */
-function runStopHook(projectDirectory: string, transcriptPath: string) {
-  const hookInput = JSON.stringify({ transcript_path: transcriptPath });
-
-  return spawnSync('bash', ['-c', `echo '${hookInput}' | bun "${STOP_QUALITY}"`], {
+/** Run the stop hook with a transcript and last_assistant_message evidence */
+function runStopHook(projectDirectory: string, transcriptPath: string, lastAssistantMessage = '') {
+  return spawnSync('bun', [STOP_QUALITY], {
+    input: JSON.stringify({
+      transcript_path: transcriptPath,
+      last_assistant_message: lastAssistantMessage,
+    }),
     cwd: projectDirectory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
     encoding: 'utf8',
@@ -157,7 +159,7 @@ describe('hierarchy navigation in stop hook', () => {
     });
 
     const transcriptPath = createTranscript(projectDirectory, featureEvidence);
-    const result = runStopHook(projectDirectory, transcriptPath);
+    const result = runStopHook(projectDirectory, transcriptPath, featureEvidence);
 
     // Should soft-block with navigation directive
     expect(result.status).toBe(0);
@@ -204,7 +206,7 @@ describe('hierarchy navigation in stop hook', () => {
     });
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
-    const result = runStopHook(projectDirectory, transcriptPath);
+    const result = runStopHook(projectDirectory, transcriptPath, taskEvidence);
 
     // Should allow stop (no more siblings, parent has no parent)
     expect(result.status).toBe(0);
@@ -262,7 +264,7 @@ describe('hierarchy navigation in stop hook', () => {
     });
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
-    const result = runStopHook(projectDirectory, transcriptPath);
+    const result = runStopHook(projectDirectory, transcriptPath, taskEvidence);
 
     // Should soft-block navigating to 014
     expect(result.status).toBe(0);
@@ -296,7 +298,7 @@ describe('hierarchy navigation in stop hook', () => {
     );
 
     const transcriptPath = createTranscript(projectDirectory, featureEvidence);
-    const result = runStopHook(projectDirectory, transcriptPath);
+    const result = runStopHook(projectDirectory, transcriptPath, featureEvidence);
 
     // Should allow stop (no parent = no hierarchy to navigate)
     expect(result.status).toBe(0);
@@ -315,7 +317,7 @@ describe('hierarchy navigation in stop hook', () => {
     });
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
-    const result = runStopHook(projectDirectory, transcriptPath);
+    const result = runStopHook(projectDirectory, transcriptPath, taskEvidence);
 
     // Should allow stop (broken hierarchy = graceful fallback)
     expect(result.status).toBe(0);
@@ -341,7 +343,7 @@ describe('hierarchy navigation in stop hook', () => {
     });
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
-    const result = runStopHook(projectDirectory, transcriptPath);
+    const result = runStopHook(projectDirectory, transcriptPath, taskEvidence);
 
     // Should allow stop (empty children = nothing to navigate)
     expect(result.status).toBe(0);
