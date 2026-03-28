@@ -155,7 +155,7 @@ function detectFromDatabaseUrl(cwd: string): string | undefined {
 
   try {
     const content = readFileSync(envPath, 'utf8');
-    const match = /DATABASE_URL\s*=\s*["']?(\w+):\/\//.exec(content);
+    const match = /DATABASE_URL\s*=\s*["']?(\w+):/.exec(content);
     if (!match) return undefined;
 
     return SCHEME_TO_DIALECT[match[1]];

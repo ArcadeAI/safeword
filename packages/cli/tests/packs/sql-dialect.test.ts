@@ -132,6 +132,11 @@ describe('detectSqlDialect', () => {
     expect(detectSqlDialect(projectDirectory)).toBe('clickhouse');
   });
 
+  it('detects sqlite from DATABASE_URL without slashes', () => {
+    writeTestFile(projectDirectory, '.env', 'DATABASE_URL=sqlite:db/app.sqlite3\n');
+    expect(detectSqlDialect(projectDirectory)).toBe('sqlite');
+  });
+
   // =========================================================================
   // Priority ordering
   // =========================================================================
