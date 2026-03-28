@@ -61,6 +61,8 @@ const toolWarnings = new Set<string>();
 export interface LintResult {
   /** Warnings for Claude (e.g., missing tool binaries) */
   warnings: string[];
+  /** Remaining lint errors after auto-fix (surfaced to Claude via additionalContext) */
+  errors?: string;
 }
 
 /** Check if a command is available on PATH */
@@ -239,15 +241,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Auto-upgrades safeword if TypeScript pack is missing
   if (JS_EXTENSIONS.has(extension)) {
     const hasEslint = await ensurePackInstalled('TypeScript', SAFEWORD_ESLINT);
-    const eslintResult = hasEslint
-      ? await $`bunx eslint --config ${SAFEWORD_ESLINT} --fix ${file}`.nothrow().quiet()
-      : await $`bunx eslint --fix ${file}`.nothrow().quiet();
-
-    if (eslintResult.exitCode !== 0 && eslintResult.stderr.length > 0) {
-      console.error(eslintResult.stderr.toString());
-    }
+    // Auto-fix pass
+    const configArgs = hasEslint ? ['--config', SAFEWORD_ESLINT] : [];
+    await $`bunx eslint ${configArgs} --fix ${file}`.nothrow().quiet();
     await runPrettier(file);
-    return { warnings };
+    // Check pass — capture remaining errors for Claude
+    const checkResult = await $`bunx eslint ${configArgs} ${file}`.nothrow().quiet();
+    const errors = checkResult.exitCode !== 0 ? checkResult.stdout.toString().trim() : '';
+    return { warnings, ...(errors && { errors }) };
   }
 
   // Python files - Ruff check (fix code), then Ruff format
@@ -259,14 +260,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       return { warnings };
     }
     const hasRuff = await ensurePackInstalled('Python', SAFEWORD_RUFF);
-    if (hasRuff) {
-      await $`ruff check --config ${SAFEWORD_RUFF} --fix ${file}`.nothrow().quiet();
-      await $`ruff format --config ${SAFEWORD_RUFF} ${file}`.nothrow().quiet();
-    } else {
-      await $`ruff check --fix ${file}`.nothrow().quiet();
-      await $`ruff format ${file}`.nothrow().quiet();
-    }
-    return { warnings };
+    const configArgs = hasRuff ? ['--config', SAFEWORD_RUFF] : [];
+    // Auto-fix pass
+    await $`ruff check ${configArgs} --fix ${file}`.nothrow().quiet();
+    await $`ruff format ${configArgs} ${file}`.nothrow().quiet();
+    // Check pass — capture remaining errors for Claude
+    const checkResult = await $`ruff check ${configArgs} ${file}`.nothrow().quiet();
+    const errors = checkResult.exitCode !== 0 ? checkResult.stdout.toString().trim() : '';
+    return { warnings, ...(errors && { errors }) };
   }
 
   // Go files - golangci-lint run (fix code), then golangci-lint fmt (format)
@@ -283,14 +284,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       return { warnings };
     }
     const hasGolangci = await ensurePackInstalled('Go', SAFEWORD_GOLANGCI);
-    if (hasGolangci) {
-      await $`golangci-lint run --config ${SAFEWORD_GOLANGCI} --fix ${file}`.nothrow().quiet();
-      await $`golangci-lint fmt --config ${SAFEWORD_GOLANGCI} ${file}`.nothrow().quiet();
-    } else {
-      await $`golangci-lint run --fix ${file}`.nothrow().quiet();
-      await $`golangci-lint fmt ${file}`.nothrow().quiet();
-    }
-    return { warnings };
+    const configArgs = hasGolangci ? ['--config', SAFEWORD_GOLANGCI] : [];
+    // Auto-fix pass
+    await $`golangci-lint run ${configArgs} --fix ${file}`.nothrow().quiet();
+    await $`golangci-lint fmt ${configArgs} ${file}`.nothrow().quiet();
+    // Check pass — capture remaining errors for Claude
+    const checkResult = await $`golangci-lint run ${configArgs} ${file}`.nothrow().quiet();
+    const errors = checkResult.exitCode !== 0 ? checkResult.stdout.toString().trim() : '';
+    return { warnings, ...(errors && { errors }) };
   }
 
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
@@ -358,15 +359,15 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Shell scripts - shellcheck (if available), then Prettier (if plugin installed)
   if (SHELL_EXTENSIONS.has(extension)) {
     const shellcheckResult = await $`bunx shellcheck ${file}`.nothrow().quiet();
-    if (shellcheckResult.exitCode !== 0 && shellcheckResult.stderr.length > 0) {
-      console.error(shellcheckResult.stderr.toString());
-    }
+    const shellErrors =
+      shellcheckResult.exitCode !== 0 ? shellcheckResult.stdout.toString().trim() : '';
     if (
       hasConfig(SAFEWORD_PRETTIER) ||
       existsSync(`${projectDir}/node_modules/prettier-plugin-sh`)
     ) {
       await runPrettier(file);
     }
+    return { warnings, ...(shellErrors && { errors: shellErrors }) };
   }
 
   return { warnings };
