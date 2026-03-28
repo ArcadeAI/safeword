@@ -20,6 +20,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   writeSafewordConfig,
+  writeTestFile,
 } from '../helpers.js';
 
 let testDirectory: string;
@@ -79,6 +80,14 @@ describe('Pack Registry', () => {
     expect(detected).toContain('python');
     expect(detected).toContain('typescript');
     expect(detected).toHaveLength(2);
+  });
+
+  it('Test 1.8: Detects Python from requirements.txt only', () => {
+    writeTestFile(testDirectory, 'requirements.txt', 'flask>=3.0\n');
+
+    const detected = detectLanguages(testDirectory);
+
+    expect(detected).toContain('python');
   });
 
   it('Test 1.6: Detects Rust from Cargo.toml', () => {
