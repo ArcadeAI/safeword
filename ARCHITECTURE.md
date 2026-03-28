@@ -82,14 +82,14 @@ packages/cli/
 ├── templates/
 │   ├── SAFEWORD.md     # Core instructions (installed to .safeword/)
 │   ├── AGENTS.md       # Project context template
-│   ├── commands/       # Slash commands (/audit, /bdd, /cleanup-zombies, /verify, /lint, /quality-review, /refactor)
+│   ├── commands/       # Slash commands (see templates/commands/ for full list)
 │   ├── cursor/         # Cursor IDE rules (.mdc files)
 │   ├── doc-templates/  # Feature specs, design docs, tickets
 │   ├── guides/         # Methodology guides (TDD, planning, etc.)
 │   ├── hooks/          # Claude Code hooks (lint, quality review)
 │   ├── prompts/        # Prompt templates for commands
 │   ├── scripts/        # Shell scripts (cleanup, bisect)
-│   └── skills/         # Claude Code skills (BDD orchestration, debugging, quality review, refactoring)
+│   └── skills/         # Claude Code skills (see templates/skills/ for full list)
 ```
 
 ---
@@ -102,8 +102,8 @@ Language-specific tooling (detection, config generation, setup) is encapsulated 
 
 ```typescript
 interface LanguagePack {
-  id: string; // e.g., 'python', 'typescript', 'golang', 'rust', 'dbt'
-  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust', 'dbt'
+  id: string; // e.g., 'python', 'typescript', 'golang', 'rust', 'sql'
+  name: string; // e.g., 'Python', 'TypeScript', 'Go', 'Rust', 'SQL/dbt'
   extensions: string[]; // e.g., ['.py', '.pyi']
   detect: (cwd: string) => boolean; // Is this language present?
   setup: (cwd: string, ctx: SetupContext) => SetupResult;
@@ -111,10 +111,10 @@ interface LanguagePack {
 
 // Registry
 const LANGUAGE_PACKS: Record<string, LanguagePack> = {
-  dbt: dbtPack,
   golang: golangPack,
   python: pythonPack,
   rust: rustPack,
+  sql: sqlPack,
   typescript: typescriptPack,
 };
 ```
@@ -189,6 +189,7 @@ interface Languages {
   python: boolean; // pyproject.toml OR requirements.txt exists
   golang: boolean; // go.mod exists
   rust: boolean; // Cargo.toml exists
+  sql: boolean; // dbt_project.yml exists
 }
 
 // Python-specific detection (returned only if languages.python)
@@ -265,14 +266,14 @@ CLI command
 
 ### Runtime (`dependencies`)
 
-| Package                  | Purpose                              |
-| ------------------------ | ------------------------------------ |
-| `commander`              | CLI argument parsing                 |
-| `yaml`                   | YAML config parsing (failsafe mode)  |
-| `@eslint/js`             | ESLint core rules                    |
-| `typescript-eslint`      | TypeScript ESLint parser + rules     |
-| `eslint-config-prettier` | Disable formatting rules             |
-| `eslint-plugin-*`        | 17 ESLint plugins (see package.json) |
+| Package                  | Purpose                             |
+| ------------------------ | ----------------------------------- |
+| `commander`              | CLI argument parsing                |
+| `yaml`                   | YAML config parsing (failsafe mode) |
+| `@eslint/js`             | ESLint core rules                   |
+| `typescript-eslint`      | TypeScript ESLint parser + rules    |
+| `eslint-config-prettier` | Disable formatting rules            |
+| `eslint-plugin-*`        | ESLint plugins (see package.json)   |
 
 ### Dev (`devDependencies`)
 
@@ -401,7 +402,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode |
 | Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                |
 | Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command           |
-| Remaining      | 5 skills: `bdd`, `debug`, `quality-review`, `refactor`, `tdd-review`                                          |
+| Remaining      | See `templates/skills/` for current list                                                                      |
 | Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                        |
 
 ### Hard Block for Done Phase (Exit Code 2)

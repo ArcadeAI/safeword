@@ -15,7 +15,7 @@ A CLI tool that installs AI coding agent configurations into projects. **This re
 
 2. **Reconciliation Over Copy**: The CLI computes diffs between installed and template versions, enabling clean upgrades without clobbering user changes.
 
-3. **IDE Parity**: Claude Code and Cursor get equivalent skills/commands. Same capabilities, different formats. Parity enforced by tests.
+3. **IDE Parity**: Claude Code (skills + commands) and Cursor (commands + rules) have feature parity via different mechanisms. Enforced by tests.
 
 4. **Dogfooding**: This repo runs safeword on itself. Template changes are tested in real usage before release.
 
