@@ -17,12 +17,13 @@
         "markdownlint-cli2": "^0.22.0",
         "prettier": "^3.8.1",
         "prettier-plugin-sh": "^0.18.0",
+        "safeword": "^0.26.0",
         "shellcheck": "^4.1.0",
       },
     },
     "packages/cli": {
       "name": "safeword",
-      "version": "0.25.15",
+      "version": "0.26.0",
       "bin": {
         "safeword": "dist/cli.js",
       },
@@ -51,7 +52,7 @@
         "eslint-plugin-unicorn": "^62.0.0",
         "eslint-plugin-vitest": "^0.5.4",
         "typescript-eslint": "^8.56.0",
-        "yaml": "^2.8.3",
+        "yaml": "^2.7.0",
       },
       "devDependencies": {
         "@types/estree": "^1.0.8",
