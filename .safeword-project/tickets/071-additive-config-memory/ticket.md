@@ -2,8 +2,8 @@
 id: 071
 slug: additive-config-memory
 type: task
-status: backlog
-phase: implement
+status: done
+phase: done
 ---
 
 # Task: Save "adds, never replaces" principle to project memory
