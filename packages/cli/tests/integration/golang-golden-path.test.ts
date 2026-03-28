@@ -57,7 +57,8 @@ describe('E2E: Go Golden Path', () => {
     // Check essential golangci-lint v2 settings
     expect(config).toContain('version: "2"');
     expect(config).toContain('linters:');
-    expect(config).toContain('default: all'); // Use all linters for maximum strictness
+    expect(config).toContain('default: standard'); // Curated enable list, not default:all
+    expect(config).toContain('gosec'); // Safeword's curated linters present
     expect(config).toContain('formatters:');
     expect(config).toContain('gofumpt');
   });

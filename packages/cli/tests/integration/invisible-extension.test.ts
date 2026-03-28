@@ -254,11 +254,17 @@ formatters:
         expect(fileExists(projectDirectory, '.safeword/.golangci.yml')).toBe(true);
         const safewordConfig = readTestFile(projectDirectory, '.safeword/.golangci.yml');
 
-        // Should be merged (safeword rules win)
+        // Should be merged additively (customer choices preserved)
         expect(safewordConfig).toContain('version: "2"');
-        // Safeword should override to 'all' linters
-        expect(safewordConfig).toContain('default: all');
-        // Should include gofumpt formatter
+        // Customer's default: standard should be preserved (not overridden to all)
+        expect(safewordConfig).toContain('default: standard');
+        expect(safewordConfig).not.toContain('default: all');
+        // Customer's enable (gofmt) should survive, safeword's linters added
+        expect(safewordConfig).toContain('gofmt');
+        expect(safewordConfig).toContain('gosec');
+        expect(safewordConfig).toContain('cyclop');
+        // Customer's formatter (goimports) preserved, gofumpt added
+        expect(safewordConfig).toContain('goimports');
         expect(safewordConfig).toContain('gofumpt');
       },
       SETUP_TIMEOUT,
@@ -286,9 +292,10 @@ formatters:
         expect(fileExists(projectDirectory, '.safeword/.golangci.yml')).toBe(true);
         const safewordConfig = readTestFile(projectDirectory, '.safeword/.golangci.yml');
 
-        // Should be standalone config
+        // Should be standalone config with curated rules (not all)
         expect(safewordConfig).toContain('version: "2"');
-        expect(safewordConfig).toContain('default: all');
+        expect(safewordConfig).toContain('default: standard');
+        expect(safewordConfig).not.toContain('default: all');
       },
       SETUP_TIMEOUT,
     );

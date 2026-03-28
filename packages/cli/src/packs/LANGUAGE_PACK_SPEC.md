@@ -24,7 +24,7 @@ interface LanguagePack {
 | ---------- | --------------------------------------- | ----------------------------------------------- |
 | TypeScript | ESLint: multiple strict plugins         | Minimal (Prettier conflicts)                    |
 | Python     | Curated `extend-select` (E,F,W,I,UP,B…) | Formatter conflicts (COM812, ISC001, E501)      |
-| Go         | `default: all`                          | `std-error-handling`, `common-false-positives`  |
+| Go         | `default: standard` + curated `enable`  | `std-error-handling`, `common-false-positives`  |
 | Rust       | `pedantic = "warn"`                     | `missing_errors_doc`, `module_name_repetitions` |
 
 **Design Constraints (Required):** Every language pack MUST enforce:
