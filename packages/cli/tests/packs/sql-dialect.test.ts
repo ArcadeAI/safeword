@@ -76,6 +76,26 @@ describe('detectSqlDialect', () => {
     expect(detectSqlDialect(projectDirectory)).toBe('clickhouse');
   });
 
+  it('returns undefined for unknown adapter type in profiles.yml', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: test\nprofile: test\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'test:\n  target: dev\n  outputs:\n    dev:\n      type: firebolt\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBeUndefined();
+  });
+
+  it('returns undefined when profile name does not match any profile', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: test\nprofile: my_project\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'other_project:\n  target: dev\n  outputs:\n    dev:\n      type: postgres\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBeUndefined();
+  });
+
   it('profiles.yml takes priority over Python deps', () => {
     writeTestFile(projectDirectory, 'dbt_project.yml', 'name: test\nprofile: test\n');
     writeTestFile(
@@ -216,6 +236,15 @@ describe('detectSqlDialect', () => {
       "module.exports = { dialect: 'singlestore' };\n",
     );
     expect(detectSqlDialect(projectDirectory)).toBe('mysql');
+  });
+
+  it('returns undefined for unknown Drizzle dialect', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle.config.ts',
+      "export default defineConfig({ dialect: 'cockroach' });\n",
+    );
+    expect(detectSqlDialect(projectDirectory)).toBeUndefined();
   });
 
   // =========================================================================
