@@ -328,11 +328,11 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     return { warnings };
   }
 
-  // SQL files - sqlfluff (only for dbt projects, not generic SQL migrations)
-  // Only warn about missing sqlfluff if the dbt pack is installed,
-  // since .sql files exist in many non-dbt contexts (migrations, raw queries).
+  // SQL files - sqlfluff (only for SQL-focused projects)
+  // Only warn about missing sqlfluff if the sql pack is installed,
+  // since .sql files exist in many non-SQL-focused contexts.
   if (SQL_EXTENSIONS.has(extension)) {
-    const hasSqlfluff = await ensurePackInstalled('dbt', SAFEWORD_SQLFLUFF);
+    const hasSqlfluff = await ensurePackInstalled('sql', SAFEWORD_SQLFLUFF);
     if (hasSqlfluff) {
       if (
         !(await checkToolAvailable(

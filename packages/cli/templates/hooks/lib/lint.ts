@@ -328,7 +328,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     return { warnings };
   }
 
-  // SQL files - sqlfluff (only for dbt projects, not generic SQL migrations)
+  // SQL files - sqlfluff (only for SQL-focused projects)
   // Only warn about missing sqlfluff if the sql pack is installed,
   // since .sql files exist in many non-SQL-focused contexts.
   if (SQL_EXTENSIONS.has(extension)) {

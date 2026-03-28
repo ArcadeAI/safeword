@@ -1,11 +1,11 @@
 /**
- * E2E Test: dbt Golden Path
+ * E2E Test: SQL Golden Path
  *
- * Verifies that a dbt project with safeword works correctly:
- * - dbt_project.yml triggers dbt language detection
+ * Verifies that a SQL project (dbt) with safeword works correctly:
+ * - dbt_project.yml triggers SQL language detection
  * - SQLFluff config is created (.sqlfluff + .safeword/sqlfluff.cfg)
  * - Existing .sqlfluff is not overwritten
- * - Projects without dbt_project.yml don't get dbt pack
+ * - Projects without SQL markers don't get SQL pack
  */
 
 import { mkdirSync } from 'node:fs';
@@ -182,12 +182,12 @@ describe('E2E: dbt Golden Path', () => {
       expect('.sqlfluff' in SAFEWORD_SCHEMA.managedFiles).toBe(true);
     });
 
-    it('3.2: dbt pack is registered in LANGUAGE_PACKS', async () => {
+    it('3.2: sql pack is registered in LANGUAGE_PACKS', async () => {
       const { LANGUAGE_PACKS } = await import('../../src/packs/registry.js');
 
-      expect(LANGUAGE_PACKS.dbt).toBeDefined();
-      expect(LANGUAGE_PACKS.dbt.id).toBe('dbt');
-      expect(LANGUAGE_PACKS.dbt.extensions).toContain('.sql');
+      expect(LANGUAGE_PACKS.sql).toBeDefined();
+      expect(LANGUAGE_PACKS.sql.id).toBe('sql');
+      expect(LANGUAGE_PACKS.sql.extensions).toContain('.sql');
     });
 
     it('3.3: setup completes successfully for dbt projects', async () => {
