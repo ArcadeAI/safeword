@@ -7,6 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { sqlPack } from '../../src/packs/sql/index.js';
 import { existsInTree, findInTree } from '../../src/utils/fs.js';
 import { detectLanguages } from '../../src/utils/project-detector.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers';
@@ -195,5 +196,72 @@ describe('detectLanguages with subdirectories', () => {
     );
     const languages = detectLanguages(projectDirectory);
     expect(languages.python).toBe(true);
+  });
+});
+
+// =============================================================================
+// SQL pack detection: Tier 1 and Tier 2 signals
+// =============================================================================
+
+describe('SQL pack detection', () => {
+  // Tier 1: config file markers
+  it.each([
+    ['dbt_project.yml', 'name: test\n'],
+    ['.sqlfluff', '[sqlfluff]\ndialect = postgres\n'],
+    ['sqlc.yaml', 'version: 2\n'],
+    ['sqlc.yml', 'version: 2\n'],
+    ['sqlc.json', '{"version": "2"}\n'],
+    ['flyway.toml', '[flyway]\n'],
+    ['flyway.conf', 'flyway.url=jdbc:postgresql://localhost/db\n'],
+    ['atlas.hcl', 'env "local" {}\n'],
+    ['liquibase.properties', 'changeLogFile=changelog.sql\n'],
+    ['schemachange-config.yml', 'root-folder: migrations\n'],
+  ])('Tier 1: detects SQL from %s', (filename, content) => {
+    writeTestFile(projectDirectory, filename, content);
+    expect(sqlPack.detect(projectDirectory)).toBe(true);
+  });
+
+  // Tier 2: directory conventions with .sql files
+  it('Tier 2: detects SQL from prisma/migrations with .sql', () => {
+    writeTestFile(
+      projectDirectory,
+      'prisma/migrations/001_init.sql',
+      'CREATE TABLE users (id INT);',
+    );
+    expect(sqlPack.detect(projectDirectory)).toBe(true);
+  });
+
+  it('Tier 2: detects SQL from drizzle/ with .sql', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle/0001_create_users.sql',
+      'CREATE TABLE users (id INT);',
+    );
+    expect(sqlPack.detect(projectDirectory)).toBe(true);
+  });
+
+  it('Tier 2: detects SQL from db/migrations/ with .sql', () => {
+    writeTestFile(projectDirectory, 'db/migrations/001_init.sql', 'CREATE TABLE users (id INT);');
+    expect(sqlPack.detect(projectDirectory)).toBe(true);
+  });
+
+  // Tier 2 negative: directory exists but no .sql files
+  it('Tier 2: does NOT detect from empty drizzle/ directory', () => {
+    writeTestFile(projectDirectory, 'drizzle/.gitkeep', '');
+    expect(sqlPack.detect(projectDirectory)).toBe(false);
+  });
+
+  // Negative cases
+  it('does NOT detect SQL in empty project', () => {
+    expect(sqlPack.detect(projectDirectory)).toBe(false);
+  });
+
+  it('does NOT detect SQL from bare migrations/ directory', () => {
+    writeTestFile(
+      projectDirectory,
+      'migrations/001_create_users.sql',
+      'CREATE TABLE users (id INT);',
+    );
+    expect(sqlPack.detect(projectDirectory)).toBe(false);
   });
 });
