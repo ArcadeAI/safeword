@@ -39,7 +39,7 @@ describe('dogfood parity', () => {
 
     if (mismatches.length > 0) {
       expect.fail(
-        `Dogfood files differ from canonical templates. Update templates first, then run 'safeword upgrade':\n  - ${mismatches.join('\n  - ')}`,
+        `Dogfood files differ from templates. Copy dogfood → templates to sync:\n  - ${mismatches.join('\n  - ')}`,
       );
     }
   });
