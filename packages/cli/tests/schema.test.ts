@@ -158,9 +158,6 @@ describe('Schema - Single Source of Truth', () => {
     });
   });
 
-  // dogfood parity check moved to dogfood-parity.release.test.ts
-  // Run with: bun run test:release
-
   describe('verify command registration (T10)', () => {
     it('should have verify.md registered in ownedFiles for both Claude and Cursor', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
