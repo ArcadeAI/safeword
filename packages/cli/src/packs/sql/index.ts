@@ -28,11 +28,21 @@ const TIER1_MARKERS = [
 // Tier 2: Directories that indicate SQL work when they contain .sql files
 const TIER2_DIRECTORIES = ['prisma/migrations', 'drizzle', 'db/migrations'];
 
-/** Check if a directory exists and contains at least one .sql file. */
+/** Check if a directory exists and contains at least one .sql file (checks one level of subdirs too). */
 function directoryHasSqlFiles(directory: string): boolean {
   if (!existsSync(directory)) return false;
   try {
-    return readdirSync(directory).some(f => f.endsWith('.sql'));
+    const entries = readdirSync(directory, { withFileTypes: true });
+    // Check direct .sql files (drizzle/, db/migrations/)
+    if (entries.some(entry => entry.isFile() && entry.name.endsWith('.sql'))) return true;
+    // Check subdirectories for .sql files (prisma/migrations/20210313_init/migration.sql)
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const subEntries = readdirSync(nodePath.join(directory, entry.name));
+        if (subEntries.some(f => f.endsWith('.sql'))) return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }

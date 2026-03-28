@@ -222,10 +222,10 @@ describe('SQL pack detection', () => {
   });
 
   // Tier 2: directory conventions with .sql files
-  it('Tier 2: detects SQL from prisma/migrations with .sql', () => {
+  it('Tier 2: detects SQL from prisma/migrations with .sql in subdirs', () => {
     writeTestFile(
       projectDirectory,
-      'prisma/migrations/001_init.sql',
+      'prisma/migrations/20210313_init/migration.sql',
       'CREATE TABLE users (id INT);',
     );
     expect(sqlPack.detect(projectDirectory)).toBe(true);
