@@ -90,9 +90,6 @@ export function existsInTree(cwd: string, filename: string): boolean {
   return findInTree(cwd, filename) !== undefined;
 }
 
-/** @deprecated Use existsInTree */
-export const existsShallow = existsInTree;
-
 /**
  * Find a file anywhere in the project tree.
  * Recursively scans subdirectories, skipping excluded directories.
@@ -153,9 +150,6 @@ function scanTreeForFile(
 
   return undefined;
 }
-
-/** @deprecated Use findInTree */
-export const findShallow = findInTree;
 
 /**
  * Create directory recursively
