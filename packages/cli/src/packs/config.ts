@@ -51,13 +51,6 @@ export function isPackInstalled(cwd: string, packId: string): boolean {
 }
 
 /**
- * Add a pack to the installed packs list.
- * Creates config.json if it doesn't exist.
- *
- * @param cwd - Project root directory
- * @param packId - Pack ID to add
- */
-/**
  * Rename a pack ID in the installed packs list.
  * Used for pack renames (e.g., dbt → sql).
  */
@@ -71,6 +64,10 @@ export function migratePackId(cwd: string, oldId: string, newId: string): void {
   writeConfig(cwd, config);
 }
 
+/**
+ * Add a pack to the installed packs list.
+ * Creates config.json if it doesn't exist.
+ */
 export function addInstalledPack(cwd: string, packId: string): void {
   const config = readConfig(cwd) ?? { version: VERSION, installedPacks: [] };
 
