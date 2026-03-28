@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.8
-**Last Updated:** 2026-03-19
+**Version:** 1.9
+**Last Updated:** 2026-03-28
 **Status:** Production
 
 ---
@@ -13,6 +13,10 @@
 - [CLI Structure](#cli-structure)
 - [Language Packs](#language-packs)
 - [Language Detection](#language-detection)
+- [Reconciliation Engine](#reconciliation-engine)
+- [Dependencies](#dependencies)
+- [Test Structure](#test-structure)
+- [Build & Distribution](#build--distribution)
 - [Key Decisions](#key-decisions)
 - [Best Practices](#best-practices)
 - [Migration Strategy](#migration-strategy)
@@ -206,6 +210,116 @@ interface ProjectContext {
 ```
 
 **Implementation:** `packages/cli/src/utils/project-detector.ts`
+
+---
+
+## Reconciliation Engine
+
+The reconciliation engine (`src/reconcile.ts`) is the core of all file operations. Commands never write files directly — they compute a plan from the schema and execute it.
+
+### Schema (`src/schema.ts`)
+
+Single source of truth for everything safeword manages:
+
+```typescript
+SAFEWORD_SCHEMA = {
+  ownedDirs: [...]          // Created on setup, deleted on reset
+  sharedDirs: [...]         // We add to, not fully owned
+  preservedDirs: [...]      // Created but never deleted (user data)
+  deprecatedFiles: [...]    // Deleted on upgrade
+  ownedFiles: { ... }       // Overwritten on every upgrade
+  managedFiles: { ... }     // Created if missing, not overwritten
+  jsonMerges: { ... }       // Merge specific keys into JSON files
+  textPatches: { ... }      // Marker-based text insertions
+  packages: { base, conditional }  // Dependencies to install
+}
+```
+
+File definitions support three content sources: `template` (path in `templates/`), `content` (static string or factory), `generator` (dynamic function of `ProjectContext`, returns `undefined` to skip).
+
+### Reconciliation Modes
+
+| Mode             | Behavior                                         |
+| ---------------- | ------------------------------------------------ |
+| `install`        | Create dirs, write files, merge JSON, patch text |
+| `upgrade`        | Remove deprecated, update owned, create missing  |
+| `uninstall`      | Remove safeword-managed files and dirs           |
+| `uninstall-full` | Also remove generated configs (ESLint, Prettier) |
+
+**Key property:** Idempotent. Running the same mode twice produces the same result.
+
+### Data Flow
+
+```text
+CLI command
+  → createProjectContext(cwd)     # detect languages, frameworks, tooling
+  → reconcile(schema, mode, ctx)  # compute plan from schema + context
+    → computePlan()               # directory, file, JSON, text actions
+    → executePlan()               # create, update, delete, chmod
+  → installDependencies()         # npm/bun/pnpm/yarn
+```
+
+---
+
+## Dependencies
+
+### Runtime (`dependencies`)
+
+| Package                  | Purpose                              |
+| ------------------------ | ------------------------------------ |
+| `commander`              | CLI argument parsing                 |
+| `yaml`                   | YAML config parsing (failsafe mode)  |
+| `@eslint/js`             | ESLint core rules                    |
+| `typescript-eslint`      | TypeScript ESLint parser + rules     |
+| `eslint-config-prettier` | Disable formatting rules             |
+| `eslint-plugin-*`        | 17 ESLint plugins (see package.json) |
+
+### Dev (`devDependencies`)
+
+| Package      | Purpose                 |
+| ------------ | ----------------------- |
+| `vitest`     | Test runner             |
+| `tsup`       | Bundler                 |
+| `typescript` | Type checking           |
+| `eslint`     | Linting (self-hosted)   |
+| `prettier`   | Formatting              |
+| `knip`       | Dead code detection     |
+| `publint`    | Package publishing lint |
+
+### Peer
+
+| Package  | Version  | Purpose                        |
+| -------- | -------- | ------------------------------ |
+| `eslint` | `^9.0.0` | Required by consuming projects |
+
+---
+
+## Test Structure
+
+| Script             | Config                     | Includes             | Purpose               |
+| ------------------ | -------------------------- | -------------------- | --------------------- |
+| `test`             | `vitest.config.ts`         | `*.test.ts`          | Main suite (1300+)    |
+| `test:release`     | `vitest.release.config.ts` | `*.release.test.ts`  | Dogfood parity gate   |
+| `test:slow`        | `vitest.slow.config.ts`    | `*.slow.test.ts`     | Real package installs |
+| `test:integration` | (default config)           | `tests/integration/` | Integration subset    |
+
+All configs extend `vitest.base.ts` (sequential execution, `maxWorkers: 1`).
+
+---
+
+## Build & Distribution
+
+```text
+tsup → dist/
+  ├── cli.js              # Executable entry (#!/usr/bin/env node)
+  ├── index.js            # Library exports (VERSION, detect, eslint)
+  ├── presets/typescript/  # ESLint preset (safeword/eslint)
+  └── *.d.ts              # Type declarations
+```
+
+Published files: `dist/` + `templates/` (bundled for setup/upgrade).
+
+**Publish gate:** `prepublishOnly` runs `test:release` (dogfood parity) then `build`.
 
 ---
 
