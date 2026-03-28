@@ -227,11 +227,29 @@ describe('detectSqlDialect', () => {
     expect(detectSqlDialect(projectDirectory)).toBe('mysql');
   });
 
-  it('returns undefined for unknown Drizzle dialect', () => {
+  it('detects postgres from drizzle.config.ts gel dialect', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle.config.ts',
+      "export default defineConfig({ dialect: 'gel' });\n",
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('postgres');
+  });
+
+  it('detects postgres from drizzle.config.ts cockroach dialect', () => {
     writeTestFile(
       projectDirectory,
       'drizzle.config.ts',
       "export default defineConfig({ dialect: 'cockroach' });\n",
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('postgres');
+  });
+
+  it('returns undefined for unknown Drizzle dialect', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle.config.ts',
+      "export default defineConfig({ dialect: 'unknown_db' });\n",
     );
     expect(detectSqlDialect(projectDirectory)).toBeUndefined();
   });

@@ -73,6 +73,8 @@ const DRIZZLE_TO_DIALECT: Record<string, string> = {
   turso: 'sqlite',
   singlestore: 'mysql',
   mssql: 'tsql',
+  gel: 'postgres',
+  cockroach: 'postgres',
 };
 
 // ORM provider → SQLFluff dialect
