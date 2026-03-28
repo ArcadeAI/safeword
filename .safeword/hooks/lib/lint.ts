@@ -211,6 +211,19 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
   return hasConfig(configPath);
 }
 
+/** Run a linter in check-only mode and capture remaining errors after auto-fix. */
+async function captureRemainingErrors(command: string[]): Promise<string | undefined> {
+  const result = await $`${command}`.nothrow().quiet();
+  if (result.exitCode === 0) return undefined;
+  const output = result.stdout.toString().trim();
+  return output || undefined;
+}
+
+/** Build --config args if safeword config exists. */
+function configArgs(configPath: string, hasConfig_: boolean): string[] {
+  return hasConfig_ ? ['--config', configPath] : [];
+}
+
 /** Run prettier with safeword config if available */
 async function runPrettier(file: string): Promise<void> {
   if (hasConfig(SAFEWORD_PRETTIER)) {
@@ -241,13 +254,10 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Auto-upgrades safeword if TypeScript pack is missing
   if (JS_EXTENSIONS.has(extension)) {
     const hasEslint = await ensurePackInstalled('TypeScript', SAFEWORD_ESLINT);
-    // Auto-fix pass
-    const configArgs = hasEslint ? ['--config', SAFEWORD_ESLINT] : [];
-    await $`bunx eslint ${configArgs} --fix ${file}`.nothrow().quiet();
+    const cfg = configArgs(SAFEWORD_ESLINT, hasEslint);
+    await $`bunx eslint ${cfg} --fix ${file}`.nothrow().quiet();
     await runPrettier(file);
-    // Check pass — capture remaining errors for Claude
-    const checkResult = await $`bunx eslint ${configArgs} ${file}`.nothrow().quiet();
-    const errors = checkResult.exitCode !== 0 ? checkResult.stdout.toString().trim() : '';
+    const errors = await captureRemainingErrors(['bunx', 'eslint', ...cfg, file]);
     return { warnings, ...(errors && { errors }) };
   }
 
@@ -260,13 +270,10 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       return { warnings };
     }
     const hasRuff = await ensurePackInstalled('Python', SAFEWORD_RUFF);
-    const configArgs = hasRuff ? ['--config', SAFEWORD_RUFF] : [];
-    // Auto-fix pass
-    await $`ruff check ${configArgs} --fix ${file}`.nothrow().quiet();
-    await $`ruff format ${configArgs} ${file}`.nothrow().quiet();
-    // Check pass — capture remaining errors for Claude
-    const checkResult = await $`ruff check ${configArgs} ${file}`.nothrow().quiet();
-    const errors = checkResult.exitCode !== 0 ? checkResult.stdout.toString().trim() : '';
+    const cfg = configArgs(SAFEWORD_RUFF, hasRuff);
+    await $`ruff check ${cfg} --fix ${file}`.nothrow().quiet();
+    await $`ruff format ${cfg} ${file}`.nothrow().quiet();
+    const errors = await captureRemainingErrors(['ruff', 'check', ...cfg, file]);
     return { warnings, ...(errors && { errors }) };
   }
 
@@ -284,13 +291,10 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       return { warnings };
     }
     const hasGolangci = await ensurePackInstalled('Go', SAFEWORD_GOLANGCI);
-    const configArgs = hasGolangci ? ['--config', SAFEWORD_GOLANGCI] : [];
-    // Auto-fix pass
-    await $`golangci-lint run ${configArgs} --fix ${file}`.nothrow().quiet();
-    await $`golangci-lint fmt ${configArgs} ${file}`.nothrow().quiet();
-    // Check pass — capture remaining errors for Claude
-    const checkResult = await $`golangci-lint run ${configArgs} ${file}`.nothrow().quiet();
-    const errors = checkResult.exitCode !== 0 ? checkResult.stdout.toString().trim() : '';
+    const cfg = configArgs(SAFEWORD_GOLANGCI, hasGolangci);
+    await $`golangci-lint run ${cfg} --fix ${file}`.nothrow().quiet();
+    await $`golangci-lint fmt ${cfg} ${file}`.nothrow().quiet();
+    const errors = await captureRemainingErrors(['golangci-lint', 'run', ...cfg, file]);
     return { warnings, ...(errors && { errors }) };
   }
 
