@@ -50,6 +50,7 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 packages/
 ├── cli/            # Main CLI tool + ESLint configs (bunx safeword)
 └── website/        # Documentation site (Astro/Starlight)
+plugin/             # Cursor IDE plugin (commands, hooks)
 ```
 
 | Package             | Purpose                                                 | Published As |
@@ -130,7 +131,7 @@ const LANGUAGE_PACKS: Record<string, LanguagePack> = {
 | `install.ts`  | Pack installation orchestration                      |
 | `types.ts`    | Shared types (`LanguagePack`, `ProjectContext`)      |
 
-**Per-language packs** (3-file pattern):
+**Per-language packs** (standard pattern: `index.ts`, `files.ts`, `setup.ts`):
 
 ```text
 packs/{lang}/
@@ -138,6 +139,8 @@ packs/{lang}/
 ├── files.ts   # ownedFiles, managedFiles, jsonMerges exports
 └── setup.ts   # Setup utilities (language-specific tooling)
 ```
+
+Note: SQL pack uses `dialect.ts` (dialect auto-detection) instead of `setup.ts`.
 
 **Exports from files.ts:**
 
@@ -224,14 +227,17 @@ Single source of truth for everything safeword manages:
 
 ```typescript
 SAFEWORD_SCHEMA = {
-  ownedDirs: [...]          // Created on setup, deleted on reset
-  sharedDirs: [...]         // We add to, not fully owned
-  preservedDirs: [...]      // Created but never deleted (user data)
-  deprecatedFiles: [...]    // Deleted on upgrade
-  ownedFiles: { ... }       // Overwritten on every upgrade
-  managedFiles: { ... }     // Created if missing, not overwritten
-  jsonMerges: { ... }       // Merge specific keys into JSON files
-  textPatches: { ... }      // Marker-based text insertions
+  version: string             // Current safeword version
+  ownedDirs: [...]            // Created on setup, deleted on reset
+  sharedDirs: [...]           // We add to, not fully owned
+  preservedDirs: [...]        // Created but never deleted (user data)
+  deprecatedFiles: [...]      // Deleted on upgrade
+  deprecatedDirs: [...]       // Deleted on upgrade
+  deprecatedPackages: [...]   // Uninstalled on upgrade
+  ownedFiles: { ... }         // Overwritten on every upgrade
+  managedFiles: { ... }       // Created if missing, not overwritten
+  jsonMerges: { ... }         // Merge specific keys into JSON files
+  textPatches: { ... }        // Marker-based text insertions
   packages: { base, conditional }  // Dependencies to install
 }
 ```
