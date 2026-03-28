@@ -133,8 +133,8 @@ export function detectLanguages(cwd: string): Languages {
   // TypeScript/JS: root-only (subdirectory package.json is too common to be meaningful)
   const hasPackageJson = existsSync(nodePath.join(cwd, 'package.json'));
 
-  // Other languages: check root AND immediate subdirectories
-  // This catches projects where a language lives in a subdirectory (e.g., dbt/pyproject.toml)
+  // Other languages: recursive tree scan (skips excluded dirs like node_modules, vendor, etc.)
+  // This catches monorepos where languages live deep (e.g., apps/engine/go.mod)
   const hasPyproject = existsInTree(cwd, PYPROJECT_TOML);
   const hasRequirements = existsInTree(cwd, REQUIREMENTS_TXT);
   const hasGoModule = existsInTree(cwd, GO_MOD);
