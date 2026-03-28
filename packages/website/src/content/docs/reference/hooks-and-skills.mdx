@@ -16,8 +16,9 @@ Quick actions you type in Claude Code or Cursor. Just type the command and hit e
 | `/quality-review`  | Deep review against latest best practices |
 | `/cleanup-zombies` | Kill stuck processes hogging ports        |
 | `/bdd`             | Start BDD workflow (includes TDD)         |
+| `/debug`           | Start structured debugging workflow       |
 | `/refactor`        | Start safe refactoring workflow           |
-| `/done`            | Run completion checklist for current task |
+| `/verify`          | Run completion checklist for current task |
 
 ---
 
@@ -44,6 +45,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | Python                  | Ruff          |
     | Go                      | golangci-lint |
     | Rust                    | clippy        |
+    | SQL / dbt               | SQLFluff      |
 
     If a linter isn't installed, it's silently skipped.
 
@@ -79,6 +81,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | Python                  | Ruff          |
     | Go                      | golangci-lint |
     | Rust                    | clippy        |
+    | SQL / dbt               | SQLFluff      |
 
     If a linter isn't installed, it's silently skipped.
 
@@ -94,6 +97,8 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | Debugging         | Investigate before jumping to fixes                      |
     | Refactoring       | One small change at a time, test after each              |
     | Quality Reviewing | Check against current docs and best practices            |
+    | Testing           | Behavioral testing principles and test type selection    |
+    | Ticket System     | Context anchoring with tickets and work logs             |
     | BDD (7 rules)     | Full feature workflow from discovery through TDD to done |
 
     ### Customizing hooks and rules
@@ -122,14 +127,16 @@ Skills are structured workflows that activate based on what you're asking for. W
 | Debugging         | "debug", "fix this error", "test is failing"                                                                        |
 | Quality Reviewing | "review", "check security", "verify versions"                                                                       |
 | Refactoring       | "refactor", "clean up", "extract", "rename"                                                                         |
+| Testing           | "write tests", "add tests", "test this", "improve coverage" (also invoked by other skills internally)               |
+| Ticket System     | "create ticket", "work log", "resume", ticket ID references (context anchoring for complex work)                    |
 
 ### BDD Orchestration
 
-Full feature workflow: **Discovery** → **Scenarios** → **Decomposition** → **TDD** → **Splitting** → **Done**. Includes TDD (RED/GREEN/REFACTOR) inline.
+Full feature workflow: **Discovery** → **Scenarios** → **Scenario Gate** → **Decomposition** → **TDD** → **Done**. Includes TDD (RED/GREEN/REFACTOR) inline. Large features can be split at any checkpoint.
 
 **Example:** "Add user authentication to the API"
 
-Your agent will discover requirements, write BDD scenarios, decompose into tasks, then implement each with test-driven development.
+Your agent will discover requirements, write BDD scenarios, validate them against quality criteria (atomic, observable, deterministic), decompose into tasks, then implement each with test-driven development.
 
 ### Debugging
 
@@ -154,6 +161,22 @@ Small, safe changes with test verification after each step: **One change** → *
 **Example:** "Clean up this messy function"
 
 Your agent will make one small improvement, run tests, commit, then repeat—never batching multiple changes.
+
+### Testing
+
+Core knowledge for writing good tests. Ensures tests verify observable behavior, not implementation details.
+
+**Example:** "Write tests for the payment module"
+
+Your agent will choose the right test type (unit, integration, E2E), write focused assertions, and avoid brittle mocking. This skill is also invoked automatically by other skills — BDD at the RED phase, refactoring for characterization tests, and debugging.
+
+### Ticket System
+
+Context anchoring for complex, multi-step work. Creates tickets with colocated artifacts (specs, test definitions, work logs) in `.safeword-project/tickets/`.
+
+**Example:** "Create a ticket for the auth refactor"
+
+Your agent will create a structured ticket folder with a spec, test definitions, and work log — preventing context loss across long tasks.
 
 <footer class="docs-footer">
 

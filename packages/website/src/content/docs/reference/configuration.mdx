@@ -52,12 +52,13 @@ export default [
 
 Safeword auto-detects your stack and configures linting accordingly:
 
-| Language      | Linting           | Type Checking |
-| ------------- | ----------------- | ------------- |
-| TypeScript    | ESLint + Prettier | tsc           |
-| Python (beta) | Ruff              | mypy          |
-| Go (beta)     | golangci-lint     | go vet        |
-| Rust (beta)   | clippy            | rustc         |
+| Language       | Linting           | Type Checking |
+| -------------- | ----------------- | ------------- |
+| TypeScript     | ESLint + Prettier | tsc           |
+| Python (beta)  | Ruff              | mypy          |
+| Go (beta)      | golangci-lint     | go vet        |
+| Rust (beta)    | clippy            | rustc         |
+| SQL/dbt (beta) | SQLFluff          | —             |
 
 Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
 
@@ -98,7 +99,7 @@ Safeword has two types of files:
 **Never overwritten** (safe to customize):
 
 - `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`
-- Language-specific configs: `ruff.toml`, `mypy.ini`, `.golangci.yml`, `clippy.toml`, `rustfmt.toml`
+- Language-specific configs: `ruff.toml`, `mypy.ini`, `.golangci.yml`, `clippy.toml`, `rustfmt.toml`, `.sqlfluff`
 
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
