@@ -8,7 +8,7 @@ Run the full linting and formatting suite for the detected project type(s).
 
 ## Instructions
 
-Run these commands based on project type. Both Python and JS commands run for polyglot projects.
+Run these commands based on project type. All detected languages run for polyglot projects.
 
 ```bash
 # Python linting (if pyproject.toml or requirements.txt exists)
@@ -34,12 +34,20 @@ Run these commands based on project type. Both Python and JS commands run for po
   # TypeScript type check (if tsconfig.json exists)
   [ -f tsconfig.json ] && bunx tsc --noEmit 2>&1 || true
 }
+
+# Go linting (if go.mod exists)
+[ -f go.mod ] && {
+  # golangci-lint - fix and report issues
+  golangci-lint run --fix ./... 2>&1 || true
+  # golangci-lint - format
+  golangci-lint fmt ./... 2>&1 || true
+}
 ```
 
 ## Summary
 
 After running, report:
 
-1. Any linting errors that couldn't be auto-fixed (Ruff or ESLint)
+1. Any linting errors that couldn't be auto-fixed (Ruff, ESLint, or golangci-lint)
 2. Any formatting issues
 3. Type errors (mypy or TypeScript)
