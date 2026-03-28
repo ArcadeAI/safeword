@@ -23,7 +23,72 @@ afterEach(() => {
 
 describe('detectSqlDialect', () => {
   // =========================================================================
-  // Signal 1: dbt adapter from Python deps
+  // Signal 1: dbt profiles.yml
+  // =========================================================================
+
+  it('detects postgres from profiles.yml type field', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: my_project\nprofile: my_project\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'my_project:\n  target: dev\n  outputs:\n    dev:\n      type: postgres\n      host: localhost\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('postgres');
+  });
+
+  it('detects snowflake from profiles.yml type field', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: analytics\nprofile: analytics\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'analytics:\n  target: prod\n  outputs:\n    prod:\n      type: snowflake\n      account: xy12345\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('snowflake');
+  });
+
+  it('matches profile name from dbt_project.yml (ignores other profiles)', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: my_project\nprofile: my_project\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'other_project:\n  target: dev\n  outputs:\n    dev:\n      type: bigquery\nmy_project:\n  target: dev\n  outputs:\n    dev:\n      type: redshift\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('redshift');
+  });
+
+  it('falls back to first output when target is missing', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: test\nprofile: test\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'test:\n  outputs:\n    dev:\n      type: bigquery\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('bigquery');
+  });
+
+  it('checks dbt/ subdir for profiles.yml', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: mono\nprofile: mono\n');
+    writeTestFile(
+      projectDirectory,
+      'dbt/profiles.yml',
+      'mono:\n  target: dev\n  outputs:\n    dev:\n      type: clickhouse\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('clickhouse');
+  });
+
+  it('profiles.yml takes priority over Python deps', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: test\nprofile: test\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'test:\n  target: dev\n  outputs:\n    dev:\n      type: snowflake\n',
+    );
+    writeTestFile(projectDirectory, 'requirements.txt', 'dbt-postgres==1.8.0\n');
+    expect(detectSqlDialect(projectDirectory)).toBe('snowflake');
+  });
+
+  // =========================================================================
+  // Signal 2: dbt adapter from Python deps
   // =========================================================================
 
   it('detects postgres from requirements.txt dbt-postgres', () => {
@@ -61,7 +126,7 @@ describe('detectSqlDialect', () => {
   });
 
   // =========================================================================
-  // Signal 2: sqlc config
+  // Signal 3: sqlc config
   // =========================================================================
 
   it('detects postgres from sqlc.yaml engine', () => {
@@ -83,7 +148,7 @@ describe('detectSqlDialect', () => {
   });
 
   // =========================================================================
-  // Signal 3: Prisma schema
+  // Signal 4: Prisma schema
   // =========================================================================
 
   it('detects postgres from prisma schema provider', () => {
@@ -114,7 +179,47 @@ describe('detectSqlDialect', () => {
   });
 
   // =========================================================================
-  // Signal 4: DATABASE_URL
+  // Signal 5: Drizzle config
+  // =========================================================================
+
+  it('detects postgres from drizzle.config.ts dialect', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle.config.ts',
+      'import { defineConfig } from "drizzle-kit";\nexport default defineConfig({ dialect: "postgresql", schema: "./src/schema.ts" });\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('postgres');
+  });
+
+  it('detects sqlite from drizzle.config.ts turso dialect', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle.config.ts',
+      "export default defineConfig({ dialect: 'turso', schema: './src/schema.ts' });\n",
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('sqlite');
+  });
+
+  it('detects tsql from drizzle.config.mjs mssql dialect', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle.config.mjs',
+      'export default defineConfig({ dialect: "mssql" });\n',
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('tsql');
+  });
+
+  it('detects mysql from drizzle.config.js singlestore dialect', () => {
+    writeTestFile(
+      projectDirectory,
+      'drizzle.config.js',
+      "module.exports = { dialect: 'singlestore' };\n",
+    );
+    expect(detectSqlDialect(projectDirectory)).toBe('mysql');
+  });
+
+  // =========================================================================
+  // Signal 6: DATABASE_URL
   // =========================================================================
 
   it('detects postgres from DATABASE_URL scheme', () => {

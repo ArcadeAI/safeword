@@ -7,6 +7,9 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
+
+import YAML from 'yaml';
 
 import { findInTree } from '../../utils/fs.js';
 
@@ -62,6 +65,16 @@ const SCHEME_TO_DIALECT: Record<string, string> = {
   mssql: 'tsql',
 };
 
+// Drizzle dialect → SQLFluff dialect
+const DRIZZLE_TO_DIALECT: Record<string, string> = {
+  postgresql: 'postgres',
+  mysql: 'mysql',
+  sqlite: 'sqlite',
+  turso: 'sqlite',
+  singlestore: 'mysql',
+  mssql: 'tsql',
+};
+
 // ORM provider → SQLFluff dialect
 const PROVIDER_TO_DIALECT: Record<string, string> = {
   postgresql: 'postgres',
@@ -74,17 +87,70 @@ const PROVIDER_TO_DIALECT: Record<string, string> = {
 /**
  * Detect SQL dialect from project signals.
  * Returns the SQLFluff dialect string or undefined (→ ansi default).
+ *
+ * Priority order: profiles.yml (canonical for dbt) → Python deps (always in repo)
+ * → sqlc config → Prisma schema → Drizzle config → DATABASE_URL (lowest confidence).
  */
 export function detectSqlDialect(cwd: string): string | undefined {
   return (
+    detectFromProfiles(cwd) ??
     detectFromPythonDeps(cwd) ??
     detectFromSqlcConfig(cwd) ??
     detectFromPrismaSchema(cwd) ??
+    detectFromDrizzleConfig(cwd) ??
     detectFromDatabaseUrl(cwd)
   );
 }
 
-/** Signal 1: dbt-{adapter} packages in Python dependency files. */
+/** Read adapter type from a profiles.yml file for the given profile name. */
+function resolveProfileType(profilesPath: string, profileName: string): string | undefined {
+  if (!existsSync(profilesPath)) return undefined;
+
+  const content = readFileSync(profilesPath, 'utf8');
+  const profiles = YAML.parse(content, { schema: 'failsafe' }) as Record<string, unknown>;
+  const profile = profiles[profileName] as Record<string, unknown> | undefined;
+  if (!profile?.outputs) return undefined;
+
+  const outputs = profile.outputs as Record<string, Record<string, unknown>>;
+  const targetName = typeof profile.target === 'string' ? profile.target : Object.keys(outputs)[0];
+  if (!targetName) return undefined;
+
+  const target = outputs[targetName];
+  return typeof target?.type === 'string' ? target.type : undefined;
+}
+
+/** Signal 1: dbt profiles.yml → adapter type field. */
+function detectFromProfiles(cwd: string): string | undefined {
+  const dbtProjectDirectory = findInTree(cwd, 'dbt_project.yml');
+  if (!dbtProjectDirectory) return undefined;
+
+  try {
+    const projectContent = readFileSync(
+      nodePath.join(dbtProjectDirectory, 'dbt_project.yml'),
+      'utf8',
+    );
+    const project = YAML.parse(projectContent, { schema: 'failsafe' }) as Record<string, unknown>;
+    const profileName = project.profile;
+    if (typeof profileName !== 'string') return undefined;
+
+    // Search: project root → dbt/ subdir → ~/.dbt/ (dbt's standard fallback)
+    const candidates = [
+      nodePath.join(dbtProjectDirectory, 'profiles.yml'),
+      nodePath.join(dbtProjectDirectory, 'dbt', 'profiles.yml'),
+      nodePath.join(process.env.HOME ?? '', '.dbt', 'profiles.yml'),
+    ];
+
+    for (const profilesPath of candidates) {
+      const adapterType = resolveProfileType(profilesPath, profileName);
+      if (adapterType) return ADAPTER_TO_DIALECT[adapterType];
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Signal 2: dbt-{adapter} packages in Python dependency files. */
 function detectFromPythonDeps(cwd: string): string | undefined {
   const directory = findInTree(cwd, 'requirements.txt') ?? findInTree(cwd, 'pyproject.toml');
   if (!directory) return undefined;
@@ -114,7 +180,7 @@ function detectFromPythonDeps(cwd: string): string | undefined {
   }
 }
 
-/** Signal 2: sqlc config → engine field. */
+/** Signal 3: sqlc config → engine field. */
 function detectFromSqlcConfig(cwd: string): string | undefined {
   for (const filename of ['sqlc.yaml', 'sqlc.yml', 'sqlc.json']) {
     const directory = findInTree(cwd, filename);
@@ -131,7 +197,7 @@ function detectFromSqlcConfig(cwd: string): string | undefined {
   return undefined;
 }
 
-/** Signal 3: Prisma schema.prisma → provider field. */
+/** Signal 4: Prisma schema.prisma → provider field. */
 function detectFromPrismaSchema(cwd: string): string | undefined {
   const schemaPath = nodePath.join(cwd, 'prisma', 'schema.prisma');
   if (!existsSync(schemaPath)) return undefined;
@@ -148,7 +214,24 @@ function detectFromPrismaSchema(cwd: string): string | undefined {
   }
 }
 
-/** Signal 4: DATABASE_URL scheme in .env file. */
+/** Signal 5: drizzle.config.ts → dialect field. */
+function detectFromDrizzleConfig(cwd: string): string | undefined {
+  for (const filename of ['drizzle.config.ts', 'drizzle.config.js', 'drizzle.config.mjs']) {
+    const filePath = nodePath.join(cwd, filename);
+    if (!existsSync(filePath)) continue;
+
+    try {
+      const content = readFileSync(filePath, 'utf8');
+      const match = /dialect\s*:\s*["'](\w+)["']/.exec(content);
+      if (match) return DRIZZLE_TO_DIALECT[match[1]];
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
+/** Signal 6: DATABASE_URL scheme in .env file. */
 function detectFromDatabaseUrl(cwd: string): string | undefined {
   const envPath = nodePath.join(cwd, '.env');
   if (!existsSync(envPath)) return undefined;
