@@ -79,13 +79,13 @@ export function detectLanguages(cwd: string): Languages {
   // Delegate to each pack's detect() method — single source of truth.
   // TypeScript pack checks root-only (subdirectory package.json is too common).
   // All other packs use recursive tree scanning via existsInTree().
-  const { typescript, python, golang, rust, dbt } = LANGUAGE_PACKS;
+  const { typescript, python, golang, rust, sql } = LANGUAGE_PACKS;
   return {
     javascript: typescript.detect(cwd),
     python: python.detect(cwd),
     golang: golang.detect(cwd),
     rust: rust.detect(cwd),
-    dbt: dbt.detect(cwd),
+    sql: sql.detect(cwd),
   };
 }
 

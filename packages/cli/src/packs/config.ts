@@ -57,6 +57,20 @@ export function isPackInstalled(cwd: string, packId: string): boolean {
  * @param cwd - Project root directory
  * @param packId - Pack ID to add
  */
+/**
+ * Rename a pack ID in the installed packs list.
+ * Used for pack renames (e.g., dbt → sql).
+ */
+export function migratePackId(cwd: string, oldId: string, newId: string): void {
+  const config = readConfig(cwd);
+  if (!config) return;
+  if (!config.installedPacks.includes(oldId)) return;
+  if (config.installedPacks.includes(newId)) return;
+
+  config.installedPacks = config.installedPacks.map(p => (p === oldId ? newId : p));
+  writeConfig(cwd, config);
+}
+
 export function addInstalledPack(cwd: string, packId: string): void {
   const config = readConfig(cwd) ?? { version: VERSION, installedPacks: [] };
 

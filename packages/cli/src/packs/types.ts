@@ -19,7 +19,7 @@ export interface Languages {
   python: boolean; // pyproject.toml OR requirements.txt exists
   golang: boolean; // go.mod exists
   rust: boolean; // Cargo.toml exists
-  dbt: boolean; // dbt_project.yml exists
+  sql: boolean; // dbt_project.yml (or other SQL tool markers) exists
 }
 
 export interface ProjectType {

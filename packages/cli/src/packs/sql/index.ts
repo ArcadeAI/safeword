@@ -1,19 +1,21 @@
 /**
- * dbt Language Pack
+ * SQL Language Pack
  *
- * Detects dbt projects (dbt_project.yml) and configures SQLFluff
+ * Detects SQL projects (dbt, sqlc, Flyway, etc.) and configures SQLFluff
  * for SQL linting with Jinja-aware parsing.
  */
 
 import { existsInTree } from '../../utils/fs.js';
 import type { LanguagePack, SetupContext, SetupResult } from '../types.js';
 
-export const dbtPack: LanguagePack = {
-  id: 'dbt',
-  name: 'dbt',
+export const sqlPack: LanguagePack = {
+  id: 'sql',
+  name: 'SQL',
   extensions: ['.sql'],
 
   detect(cwd: string): boolean {
+    // Phase 1: dbt only (same as before rename)
+    // Phase 2 (ticket 057) will add Tier 1/2 signals
     return existsInTree(cwd, 'dbt_project.yml');
   },
 

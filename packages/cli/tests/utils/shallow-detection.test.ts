@@ -147,10 +147,10 @@ describe('detectLanguages with subdirectories', () => {
     expect(languages.python).toBe(true);
   });
 
-  it('detects dbt in subdirectory', () => {
+  it('detects SQL in subdirectory', () => {
     writeTestFile(projectDirectory, 'dbt/dbt_project.yml', 'name: test\n');
     const languages = detectLanguages(projectDirectory);
-    expect(languages.dbt).toBe(true);
+    expect(languages.sql).toBe(true);
   });
 
   it('detects Go in subdirectory', () => {
@@ -178,7 +178,7 @@ describe('detectLanguages with subdirectories', () => {
     const languages = detectLanguages(projectDirectory);
     expect(languages.javascript).toBe(true);
     expect(languages.python).toBe(true);
-    expect(languages.dbt).toBe(true);
+    expect(languages.sql).toBe(true);
   });
 
   it('detects Go at depth 2 (monorepo pattern)', () => {

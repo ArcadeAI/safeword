@@ -1,7 +1,7 @@
 /**
- * dbt Language Pack - Schema Definitions
+ * SQL Language Pack - Schema Definitions
  *
- * All dbt-specific file definitions and config generators.
+ * All SQL-specific file definitions and config generators.
  * Imported by schema.ts and spread into SAFEWORD_SCHEMA.
  */
 
@@ -80,10 +80,10 @@ ${SQLFLUFF_STRICT_RULES}
 // Owned Files (overwritten on upgrade)
 // ============================================================================
 
-export const dbtOwnedFiles: Record<string, FileDefinition> = {
+export const sqlOwnedFiles: Record<string, FileDefinition> = {
   '.safeword/sqlfluff.cfg': {
     generator: ctx =>
-      ctx.languages?.dbt
+      ctx.languages?.sql
         ? generateSqlfluffBaseConfig(ctx.projectType.existingSqlfluffConfig)
         : undefined,
   },
@@ -116,10 +116,10 @@ apply_dbt_builtins = True
 // Managed Files (create if missing, reconciled on reset/upgrade)
 // ============================================================================
 
-export const dbtManagedFiles: Record<string, ManagedFileDefinition> = {
+export const sqlManagedFiles: Record<string, ManagedFileDefinition> = {
   '.sqlfluff': {
     generator: ctx =>
-      ctx.languages?.dbt && !ctx.projectType.existingSqlfluffConfig
+      ctx.languages?.sql && !ctx.projectType.existingSqlfluffConfig
         ? generateProjectSqlfluffConfig()
         : undefined,
   },

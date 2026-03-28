@@ -7,10 +7,10 @@
  * Adding a new file? Add it here and it will be handled by setup/upgrade/reset.
  */
 
-import { dbtManagedFiles, dbtOwnedFiles } from './packs/dbt/files.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
+import { sqlManagedFiles, sqlOwnedFiles } from './packs/sql/files.js';
 import {
   typescriptJsonMerges,
   typescriptManagedFiles,
@@ -251,7 +251,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...pythonOwnedFiles,
     ...golangOwnedFiles,
     ...rustOwnedFiles,
-    ...dbtOwnedFiles,
+    ...sqlOwnedFiles,
 
     // Hooks - Bash (no Bun dependency, must run before Bun hooks)
     '.safeword/hooks/session-bun-check.sh': {
@@ -495,8 +495,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...golangManagedFiles,
     // Rust managed files (clippy.toml, rustfmt.toml)
     ...rustManagedFiles,
-    // dbt managed files (.sqlfluff)
-    ...dbtManagedFiles,
+    // SQL managed files (.sqlfluff)
+    ...sqlManagedFiles,
   },
 
   // JSON files where we merge specific keys

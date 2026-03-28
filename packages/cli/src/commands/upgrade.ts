@@ -6,6 +6,7 @@
 
 import nodePath from 'node:path';
 
+import { migratePackId } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import {
   detectPythonPackageManager,
@@ -75,24 +76,24 @@ function installPythonTools(cwd: string): void {
   }
 }
 
-function installDbtTools(cwd: string): void {
-  // dbt projects use Python — find pyproject.toml near dbt_project.yml
-  const dbtDirectory = findInTree(cwd, 'dbt_project.yml') ?? cwd;
-  const pythonDirectory = findInTree(dbtDirectory, 'pyproject.toml') ?? dbtDirectory;
+function installSqlTools(cwd: string): void {
+  // SQL projects use Python for SQLFluff — find pyproject.toml near dbt_project.yml
+  const sqlDirectory = findInTree(cwd, 'dbt_project.yml') ?? cwd;
+  const pythonDirectory = findInTree(sqlDirectory, 'pyproject.toml') ?? sqlDirectory;
 
   const pm = detectPythonPackageManager(pythonDirectory);
   if (pm === 'pip') {
-    warn('\ndbt tools not auto-installed (pip). Install manually:');
+    warn('\nSQL tools not auto-installed (pip). Install manually:');
     listItem(getPythonInstallCommand(pythonDirectory, ['sqlfluff']));
     return;
   }
 
-  info('\nInstalling dbt tools (sqlfluff)...');
+  info('\nInstalling SQL tools (sqlfluff)...');
   const installed = installPythonDependencies(pythonDirectory, ['sqlfluff']);
   if (installed) {
-    success('dbt tools installed');
+    success('SQL tools installed');
   } else {
-    warn('dbt tools install failed. Install manually:');
+    warn('SQL tools install failed. Install manually:');
     listItem(getPythonInstallCommand(pythonDirectory, ['sqlfluff']));
   }
 }
@@ -123,6 +124,9 @@ export async function upgrade(): Promise<void> {
     const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
     installDependencies(cwd, result.packagesToInstall, 'missing packages');
 
+    // Migrate renamed pack IDs (dbt → sql)
+    migratePackId(cwd, 'dbt', 'sql');
+
     // Install missing language packs
     const missingPacks = getMissingPacks(cwd);
     for (const packId of missingPacks) {
@@ -134,8 +138,8 @@ export async function upgrade(): Promise<void> {
     if (missingPacks.includes('python')) {
       installPythonTools(cwd);
     }
-    if (missingPacks.includes('dbt')) {
-      installDbtTools(cwd);
+    if (missingPacks.includes('sql')) {
+      installSqlTools(cwd);
     }
 
     printUpgradeSummary(result, projectVersion, cwd);
