@@ -194,11 +194,14 @@ cognitive-complexity-threshold = 25
     expect(config).toContain('My custom clippy config');
   });
 
-  it('creates .safeword/clippy.toml for hooks', () => {
+  it('creates .safeword/clippy.toml that preserves customer thresholds and fills gaps', () => {
     expect(fileExists(projectDirectory, '.safeword/clippy.toml')).toBe(true);
     const config = readTestFile(projectDirectory, '.safeword/clippy.toml');
-    // Safeword config has strict defaults
-    expect(config).toContain('cognitive-complexity-threshold = 10');
+    // Customer's threshold preserved (not overridden to 10)
+    expect(config).toContain('cognitive-complexity-threshold = 25');
+    // Safeword fills gaps for thresholds customer didn't set
+    expect(config).toContain('too-many-arguments-threshold = 5');
+    expect(config).toContain('too-many-lines-threshold = 100');
   });
 });
 
