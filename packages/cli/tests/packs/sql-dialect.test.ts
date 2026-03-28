@@ -96,17 +96,6 @@ describe('detectSqlDialect', () => {
     expect(detectSqlDialect(projectDirectory)).toBeUndefined();
   });
 
-  it('profiles.yml takes priority over Python deps', () => {
-    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: test\nprofile: test\n');
-    writeTestFile(
-      projectDirectory,
-      'profiles.yml',
-      'test:\n  target: dev\n  outputs:\n    dev:\n      type: snowflake\n',
-    );
-    writeTestFile(projectDirectory, 'requirements.txt', 'dbt-postgres==1.8.0\n');
-    expect(detectSqlDialect(projectDirectory)).toBe('snowflake');
-  });
-
   // =========================================================================
   // Signal 2: dbt adapter from Python deps
   // =========================================================================
@@ -274,6 +263,17 @@ describe('detectSqlDialect', () => {
   // =========================================================================
   // Priority ordering
   // =========================================================================
+
+  it('profiles.yml takes priority over Python deps', () => {
+    writeTestFile(projectDirectory, 'dbt_project.yml', 'name: test\nprofile: test\n');
+    writeTestFile(
+      projectDirectory,
+      'profiles.yml',
+      'test:\n  target: dev\n  outputs:\n    dev:\n      type: snowflake\n',
+    );
+    writeTestFile(projectDirectory, 'requirements.txt', 'dbt-postgres==1.8.0\n');
+    expect(detectSqlDialect(projectDirectory)).toBe('snowflake');
+  });
 
   it('Python deps take priority over DATABASE_URL', () => {
     writeTestFile(projectDirectory, 'requirements.txt', 'dbt-snowflake==1.8.0\n');
