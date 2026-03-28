@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { LANGUAGE_PACKS } from '../packs/registry.js';
+import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
 import { findInTree } from './fs.js';
 
@@ -57,53 +58,6 @@ export interface PackageJson {
   types?: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
-}
-
-export interface ProjectType {
-  typescript: boolean;
-  react: boolean;
-  nextjs: boolean;
-  astro: boolean;
-  vitest: boolean;
-  playwright: boolean;
-  tailwind: boolean;
-  tanstackQuery: boolean;
-  publishableLibrary: boolean;
-  shell: boolean;
-  /** True if project has existing lint script or linter config */
-  existingLinter: boolean;
-  /** True if project has existing format script or formatter config */
-  existingFormatter: boolean;
-  /** Path to existing ESLint config if present (e.g., 'eslint.config.mjs' or '.eslintrc.json') */
-  existingEslintConfig: string | undefined;
-  /** True if existing ESLint config is legacy format (.eslintrc.*) requiring FlatCompat */
-  legacyEslint: boolean;
-  /** Path to existing ruff config ('ruff.toml' or 'pyproject.toml'), undefined if none */
-  existingRuffConfig: 'ruff.toml' | 'pyproject.toml' | undefined;
-  /** True if project has [tool.mypy] in pyproject.toml or mypy.ini */
-  existingMypyConfig: boolean;
-  /** True if project has [tool.importlinter] in pyproject.toml or .importlinter */
-  existingImportLinterConfig: boolean;
-  /** Path to existing golangci-lint config if present (e.g., '.golangci.yml') */
-  existingGolangciConfig: string | undefined;
-  /** Path to existing clippy config if present (e.g., 'clippy.toml') */
-  existingClippyConfig: string | undefined;
-  /** Path to existing rustfmt config if present (e.g., 'rustfmt.toml') */
-  existingRustfmtConfig: string | undefined;
-  /** Path to existing SQLFluff config if present (e.g., '.sqlfluff') */
-  existingSqlfluffConfig: string | undefined;
-}
-
-/**
- * Language detection result
- * @see ARCHITECTURE.md → Language Detection
- */
-export interface Languages {
-  javascript: boolean; // package.json exists
-  python: boolean; // pyproject.toml OR requirements.txt exists
-  golang: boolean; // go.mod exists
-  rust: boolean; // Cargo.toml exists
-  dbt: boolean; // dbt_project.yml exists
 }
 
 /**
@@ -420,3 +374,5 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     ...detectExistingTooling(cwd, scripts),
   };
 }
+
+export { type Languages, type ProjectType } from '../packs/types.js';
