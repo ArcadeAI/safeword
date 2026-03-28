@@ -53,6 +53,8 @@ const SCHEME_TO_DIALECT: Record<string, string> = {
   mysql: 'mysql',
   mariadb: 'mysql',
   sqlite: 'sqlite',
+  sqlite3: 'sqlite',
+  bigquery: 'bigquery',
   clickhouse: 'clickhouse',
   redshift: 'redshift',
   snowflake: 'snowflake',
