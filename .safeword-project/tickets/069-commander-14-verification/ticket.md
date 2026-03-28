@@ -2,8 +2,8 @@
 id: 069
 slug: commander-14-verification
 type: task
-status: backlog
-phase: research
+status: done
+phase: done
 ---
 
 # Task: Verify CLI works with commander 14
