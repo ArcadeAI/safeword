@@ -8,25 +8,17 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { LANGUAGE_PACKS } from '../packs/registry.js';
 import { detect } from '../presets/typescript/detect.js';
-import { existsInTree, findInTree } from './fs.js';
+import { findInTree } from './fs.js';
 
 const { TAILWIND_PACKAGES, TANSTACK_QUERY_PACKAGES, hasExistingLinter, hasExistingFormatter } =
   detect;
 
-// Python project file markers
+// Python project file markers (used by detectPythonType and config detection)
 const PYPROJECT_TOML = 'pyproject.toml';
 const REQUIREMENTS_TXT = 'requirements.txt';
 const UV_LOCK = 'uv.lock';
-
-// Go project file markers
-const GO_MOD = 'go.mod';
-
-// Rust project file markers
-const CARGO_TOML = 'Cargo.toml';
-
-// dbt project file markers
-const DBT_PROJECT_YML = 'dbt_project.yml';
 
 // Rust config file markers
 const CLIPPY_CONFIG_FILES = ['clippy.toml', '.clippy.toml'];
@@ -130,23 +122,16 @@ export interface PythonProjectType {
  * @see ARCHITECTURE.md → Language Detection
  */
 export function detectLanguages(cwd: string): Languages {
-  // TypeScript/JS: root-only (subdirectory package.json is too common to be meaningful)
-  const hasPackageJson = existsSync(nodePath.join(cwd, 'package.json'));
-
-  // Other languages: recursive tree scan (skips excluded dirs like node_modules, vendor, etc.)
-  // This catches monorepos where languages live deep (e.g., apps/engine/go.mod)
-  const hasPyproject = existsInTree(cwd, PYPROJECT_TOML);
-  const hasRequirements = existsInTree(cwd, REQUIREMENTS_TXT);
-  const hasGoModule = existsInTree(cwd, GO_MOD);
-  const hasCargoToml = existsInTree(cwd, CARGO_TOML);
-  const hasDbtProject = existsInTree(cwd, DBT_PROJECT_YML);
-
+  // Delegate to each pack's detect() method — single source of truth.
+  // TypeScript pack checks root-only (subdirectory package.json is too common).
+  // All other packs use recursive tree scanning via existsInTree().
+  const { typescript, python, golang, rust, dbt } = LANGUAGE_PACKS;
   return {
-    javascript: hasPackageJson,
-    python: hasPyproject || hasRequirements,
-    golang: hasGoModule,
-    rust: hasCargoToml,
-    dbt: hasDbtProject,
+    javascript: typescript.detect(cwd),
+    python: python.detect(cwd),
+    golang: golang.detect(cwd),
+    rust: rust.detect(cwd),
+    dbt: dbt.detect(cwd),
   };
 }
 
