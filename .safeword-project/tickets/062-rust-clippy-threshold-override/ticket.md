@@ -2,8 +2,8 @@
 id: 062
 slug: rust-clippy-threshold-override
 type: task
-status: backlog
-phase: research
+status: done
+phase: done
 ---
 
 # Task: Rust clippy.toml thresholds override customer values
@@ -30,3 +30,4 @@ phase: research
 ## Work Log
 
 - 2026-03-27 Created during linter config audit. Low priority — thresholds only, not rule selection.
+- 2026-03-27 Implemented fill-gap pattern. Parses customer's clippy.toml, only adds thresholds they didn't set. 68 Rust tests pass.

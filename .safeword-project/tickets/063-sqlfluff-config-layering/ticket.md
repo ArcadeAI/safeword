@@ -2,8 +2,8 @@
 id: 063
 slug: sqlfluff-config-layering
 type: task
-status: backlog
-phase: research
+status: done
+phase: done
 ---
 
 # Task: Verify sqlfluff config layering doesn't override customer rules
@@ -32,3 +32,5 @@ phase: research
 ## Work Log
 
 - 2026-03-27 Created during linter config audit. Needs investigation before fix.
+- 2026-03-28 Research: sqlfluff --config patches key-by-key (additive by design). No select-ALL problem. But dialect/templater were being overridden.
+- 2026-03-28 Fixed: omit dialect and templater from .safeword/sqlfluff.cfg when customer has existing config. Customer's values pass through. 47 SQL tests pass.
