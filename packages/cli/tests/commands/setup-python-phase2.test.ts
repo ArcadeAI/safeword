@@ -96,8 +96,10 @@ describe('Suite 1: Ruff Config Generation', () => {
       const safewordRuffToml = readTestFile(projectDirectory, '.safeword/ruff.toml');
       expect(safewordRuffToml).toContain('[lint]');
       expect(safewordRuffToml).toContain('select = [');
-      // Verify ALL is selected (includes E, F, B)
-      expect(safewordRuffToml).toMatch(/"ALL"/);
+      // Verify curated rules (not ALL — ALL is discouraged by ruff maintainers)
+      expect(safewordRuffToml).not.toContain('"ALL"');
+      expect(safewordRuffToml).toContain('"E"');
+      expect(safewordRuffToml).toContain('"B"');
 
       // pyproject.toml should NOT be modified for ruff
       const pyprojectContent = readPyprojectToml(projectDirectory);

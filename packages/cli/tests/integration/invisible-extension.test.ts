@@ -176,8 +176,9 @@ select = ["E", "F"]
 
         // Should extend project's pyproject.toml
         expect(safewordRuff).toContain('extend = "../pyproject.toml"');
-        // Should have safeword's stricter rules
-        expect(safewordRuff).toContain('select = ["ALL"]');
+        // Should use additive rules (extend-select, not select) to preserve customer config
+        expect(safewordRuff).toContain('extend-select');
+        expect(safewordRuff).not.toContain('select = ["ALL"]');
       },
       SETUP_TIMEOUT,
     );
@@ -207,8 +208,9 @@ version = "1.0.0"
 
         // Should NOT have extend directive (standalone)
         expect(safewordRuff).not.toContain('extend =');
-        // Should have safeword's rules
-        expect(safewordRuff).toContain('select = ["ALL"]');
+        // Should have curated rules (not ALL)
+        expect(safewordRuff).toContain('select = [');
+        expect(safewordRuff).not.toContain('select = ["ALL"]');
       },
       SETUP_TIMEOUT,
     );

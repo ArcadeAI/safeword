@@ -18,14 +18,14 @@ interface LanguagePack {
 
 ## Linter Philosophy
 
-**Strictness:** Enable ALL rules by default, then selectively disable noisy/conflicting ones.
+**Strictness:** Curated strict rules by default. Additive when extending customer config.
 
-| Language   | Strictness Setting              | Exclusions                                      |
-| ---------- | ------------------------------- | ----------------------------------------------- |
-| TypeScript | ESLint: multiple strict plugins | Minimal (Prettier conflicts)                    |
-| Python     | `select = ["ALL"]`              | `D`, `ANN`, formatter conflicts                 |
-| Go         | `default: all`                  | `std-error-handling`, `common-false-positives`  |
-| Rust       | `pedantic = "warn"`             | `missing_errors_doc`, `module_name_repetitions` |
+| Language   | Strictness Setting                      | Exclusions                                      |
+| ---------- | --------------------------------------- | ----------------------------------------------- |
+| TypeScript | ESLint: multiple strict plugins         | Minimal (Prettier conflicts)                    |
+| Python     | Curated `extend-select` (E,F,W,I,UP,B…) | Formatter conflicts (COM812, ISC001, E501)      |
+| Go         | `default: all`                          | `std-error-handling`, `common-false-positives`  |
+| Rust       | `pedantic = "warn"`                     | `missing_errors_doc`, `module_name_repetitions` |
 
 **Design Constraints (Required):** Every language pack MUST enforce:
 

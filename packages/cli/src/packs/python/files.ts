@@ -15,14 +15,33 @@ import { detectPythonLayers, detectRootPackage } from './setup.js';
 // ============================================================================
 
 /**
- * Shared Ruff lint rules for .safeword/ruff.toml.
- * Used by both standalone and extending configs.
+ * Curated rule set — covers correctness, security, and modern Python
+ * without the upgrade-breakage and noise of select = ["ALL"].
+ *
+ * See: https://docs.astral.sh/ruff/linter/ (ruff maintainers discourage ALL)
  */
-const RUFF_LINT_RULES = `[lint]
-select = ["ALL"]
-ignore = [
-    "D",      # pydocstyle - too noisy for LLM code
-    "ANN",    # flake8-annotations - mypy handles this
+const SAFEWORD_RULES = [
+  '"E"', // pycodestyle errors
+  '"F"', // Pyflakes
+  '"W"', // pycodestyle warnings
+  '"I"', // isort
+  '"UP"', // pyupgrade
+  '"B"', // flake8-bugbear
+  '"SIM"', // flake8-simplify
+  '"C4"', // flake8-comprehensions
+  '"RUF"', // ruff-specific rules
+  '"PTH"', // pathlib enforcement
+  '"RET"', // return statement checks
+  '"S"', // bandit security
+  '"T20"', // print statement detection
+  '"TC"', // type-checking imports
+  '"ERA"', // commented-out code (LLMs leave dead comments)
+  '"PERF"', // performance anti-patterns
+  '"PLE"', // pylint errors
+  '"PLW"', // pylint warnings
+].join(', ');
+
+const RUFF_SHARED_SETTINGS = `ignore = [
     "COM812", # missing trailing comma - conflicts with formatter
     "ISC001", # single-line-implicit-string-concatenation - conflicts with formatter
     "E501",   # line too long - formatter handles this
@@ -33,6 +52,22 @@ ignore = [
 
 [lint.mccabe]
 max-complexity = 10`;
+
+/**
+ * Standalone lint rules — used when no existing customer config.
+ * Uses `select` to define the full baseline.
+ */
+const RUFF_LINT_STANDALONE = `[lint]
+select = [${SAFEWORD_RULES}]
+${RUFF_SHARED_SETTINGS}`;
+
+/**
+ * Additive lint rules — used when extending customer config.
+ * Uses `extend-select` so customer's `select` is preserved.
+ */
+const RUFF_LINT_ADDITIVE = `[lint]
+extend-select = [${SAFEWORD_RULES}]
+${RUFF_SHARED_SETTINGS}`;
 
 // ============================================================================
 // Config Generators for .safeword/ (ownedFiles)
@@ -52,19 +87,24 @@ function generateRuffBaseConfig(
   existingRuffConfig: 'ruff.toml' | 'pyproject.toml' | undefined,
 ): string {
   if (existingRuffConfig) {
-    // Extend project's existing Ruff config with safeword's stricter rules
-    // Path is relative to .safeword/ directory, so ../ goes up to project root
-    return `# Safeword Ruff config - extends project config with stricter rules
+    // Extend project's existing Ruff config with ADDITIVE rules.
+    // extend-select adds rules without replacing customer's select.
+    // Path is relative to .safeword/ directory, so ../ goes up to project root.
+    return `# Safeword Ruff config - adds rules on top of project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
 # Re-run \`safeword upgrade\` to regenerate after project config changes.
+#
+# NOTE: Uses extend-select (additive) so your select/ignore are preserved.
+# Known edge case: ruff may drop parent ignore rules when child uses
+# extend-select (https://github.com/astral-sh/ruff/issues/10622).
+# If a project ignore stops working, duplicate it in this file.
 
 # Inherit from project's ${existingRuffConfig}
 extend = "../${existingRuffConfig}"
 
-# Safeword overrides (stricter than project defaults)
 line-length = 100
 
-${RUFF_LINT_RULES}
+${RUFF_LINT_ADDITIVE}
 `;
   }
 
@@ -74,7 +114,7 @@ ${RUFF_LINT_RULES}
 
 line-length = 100
 
-${RUFF_LINT_RULES}
+${RUFF_LINT_STANDALONE}
 `;
 }
 
