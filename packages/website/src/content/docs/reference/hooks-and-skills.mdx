@@ -35,22 +35,6 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | Agent edits a file      | Runs the appropriate linter, enforces quality gates  |
     | You stop the session    | Prompts for quality review                          |
 
-    ### Auto-linting
-
-    After your agent writes or modifies a file, the right linter runs:
-
-    | File type               | Linter        |
-    | ----------------------- | ------------- |
-    | TypeScript / JavaScript | ESLint        |
-    | Python                  | Ruff          |
-    | Go                      | golangci-lint |
-    | Rust                    | clippy        |
-    | SQL / dbt               | SQLFluff      |
-
-    If a linter isn't installed, it's silently skipped.
-
-    **What you see:** `SAFEWORD: Linting...` appears in output. If there are issues, your agent sees them and fixes immediately.
-
     ### Customizing hooks
 
     Default hooks get overwritten on `safeword upgrade`. To customize:
@@ -70,22 +54,6 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | ----------------------- | ------------------------------- |
     | Agent edits a file      | Runs the appropriate linter     |
     | You stop the session    | Prompts for quality review      |
-
-    ### Auto-linting
-
-    After your agent writes or modifies a file, the right linter runs:
-
-    | File type               | Linter        |
-    | ----------------------- | ------------- |
-    | TypeScript / JavaScript | ESLint        |
-    | Python                  | Ruff          |
-    | Go                      | golangci-lint |
-    | Rust                    | clippy        |
-    | SQL / dbt               | SQLFluff      |
-
-    If a linter isn't installed, it's silently skipped.
-
-    **What you see:** `SAFEWORD: Linting...` appears in output. If there are issues, your agent sees them and fixes immediately.
 
     ### Rules
 
@@ -114,6 +82,22 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
 </Tabs>
+
+### Auto-linting
+
+After your agent writes or modifies a file, the right linter runs:
+
+| File type               | Linter        |
+| ----------------------- | ------------- |
+| TypeScript / JavaScript | ESLint        |
+| Python                  | Ruff          |
+| Go                      | golangci-lint |
+| Rust                    | clippy        |
+| SQL / dbt               | SQLFluff      |
+
+If a linter isn't installed, it's silently skipped.
+
+**What you see:** `SAFEWORD: Linting...` appears in output. If there are issues, your agent sees them and fixes immediately.
 
 ---
 
