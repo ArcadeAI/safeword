@@ -49,17 +49,16 @@ function generateSqlfluffBaseConfig(
   dialect: string,
 ): string {
   if (existingSqlfluffConfig) {
-    return `# Safeword SQLFluff config - extends project config with stricter rules
+    // Don't emit dialect or templater — let customer's config provide them.
+    // sqlfluff --config patches key-by-key, so omitting means customer's values survive.
+    return `# Safeword SQLFluff config - adds stricter rules on top of project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
+# Re-run \`safeword upgrade\` to regenerate after project config changes.
+#
+# NOTE: Your dialect and templater are preserved. Safeword only adds style rules.
 
 [sqlfluff]
-# Inherit from project config — add stricter overrides below
-dialect = ${dialect}
-templater = jinja
 warnings =
-
-[sqlfluff:templater:jinja]
-apply_dbt_builtins = True
 
 ${SQLFLUFF_STRICT_RULES}
 `;
