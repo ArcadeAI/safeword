@@ -28,6 +28,7 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:integration": "vitest run tests/integration/",
+    "test:release": "vitest run --config vitest.release.config.ts",
     "test:slow": "vitest run --config vitest.slow.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

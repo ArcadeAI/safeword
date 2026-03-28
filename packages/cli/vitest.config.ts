@@ -9,7 +9,7 @@ export default mergeConfig(
       include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
       // Slow tests (real npm installs) excluded by default.
       // Run with: bun vitest run --config vitest.slow.config.ts
-      exclude: ['tests/**/*.slow.test.ts'],
+      exclude: ['tests/**/*.slow.test.ts', 'tests/**/*.release.test.ts'],
       coverage: {
         provider: 'v8',
         include: ['src/**/*.ts'],
