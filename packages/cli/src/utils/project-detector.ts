@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { detect } from '../presets/typescript/detect.js';
-import { existsShallow, findShallow } from './fs.js';
+import { existsInTree, findInTree } from './fs.js';
 
 const { TAILWIND_PACKAGES, TANSTACK_QUERY_PACKAGES, hasExistingLinter, hasExistingFormatter } =
   detect;
@@ -135,11 +135,11 @@ export function detectLanguages(cwd: string): Languages {
 
   // Other languages: check root AND immediate subdirectories
   // This catches projects where a language lives in a subdirectory (e.g., dbt/pyproject.toml)
-  const hasPyproject = existsShallow(cwd, PYPROJECT_TOML);
-  const hasRequirements = existsShallow(cwd, REQUIREMENTS_TXT);
-  const hasGoModule = existsShallow(cwd, GO_MOD);
-  const hasCargoToml = existsShallow(cwd, CARGO_TOML);
-  const hasDbtProject = existsShallow(cwd, DBT_PROJECT_YML);
+  const hasPyproject = existsInTree(cwd, PYPROJECT_TOML);
+  const hasRequirements = existsInTree(cwd, REQUIREMENTS_TXT);
+  const hasGoModule = existsInTree(cwd, GO_MOD);
+  const hasCargoToml = existsInTree(cwd, CARGO_TOML);
+  const hasDbtProject = existsInTree(cwd, DBT_PROJECT_YML);
 
   return {
     javascript: hasPackageJson,
@@ -158,8 +158,8 @@ export function detectLanguages(cwd: string): Languages {
  */
 export function detectPythonType(cwd: string): PythonProjectType | undefined {
   // Search root and immediate subdirectories for Python manifests
-  const pyprojectDirectory = findShallow(cwd, PYPROJECT_TOML);
-  const requirementsDirectory = findShallow(cwd, REQUIREMENTS_TXT);
+  const pyprojectDirectory = findInTree(cwd, PYPROJECT_TOML);
+  const requirementsDirectory = findInTree(cwd, REQUIREMENTS_TXT);
 
   // Determine manifest directory — pyproject.toml takes priority
   const manifestDirectory = pyprojectDirectory ?? requirementsDirectory;

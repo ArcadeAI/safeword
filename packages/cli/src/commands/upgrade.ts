@@ -17,7 +17,7 @@ import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
-import { exists, findShallow, readFileSafe } from '../utils/fs.js';
+import { exists, findInTree, readFileSafe } from '../utils/fs.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { compareVersions } from '../utils/version.js';
@@ -55,7 +55,7 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
 }
 
 function installPythonTools(cwd: string): void {
-  const pythonDirectory = findShallow(cwd, 'pyproject.toml') ?? cwd;
+  const pythonDirectory = findInTree(cwd, 'pyproject.toml') ?? cwd;
   if (hasRuffDependency(pythonDirectory)) return;
 
   const pm = detectPythonPackageManager(pythonDirectory);
@@ -77,8 +77,8 @@ function installPythonTools(cwd: string): void {
 
 function installDbtTools(cwd: string): void {
   // dbt projects use Python — find pyproject.toml near dbt_project.yml
-  const dbtDirectory = findShallow(cwd, 'dbt_project.yml') ?? cwd;
-  const pythonDirectory = findShallow(dbtDirectory, 'pyproject.toml') ?? dbtDirectory;
+  const dbtDirectory = findInTree(cwd, 'dbt_project.yml') ?? cwd;
+  const pythonDirectory = findInTree(dbtDirectory, 'pyproject.toml') ?? dbtDirectory;
 
   const pm = detectPythonPackageManager(pythonDirectory);
   if (pm === 'pip') {

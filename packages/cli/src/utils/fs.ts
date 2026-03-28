@@ -79,53 +79,83 @@ const SUBDIRECTORY_EXCLUDE = new Set([
 ]);
 
 /**
- * Check if a file exists at the project root OR in any immediate subdirectory.
- * Useful for detecting language manifests in projects where a language lives
- * in a subdirectory (e.g., `dbt/pyproject.toml`).
+ * Check if a file exists anywhere in the project tree.
+ * Recursively scans subdirectories, skipping excluded directories.
  *
  * @param cwd - Project root directory
  * @param filename - File to search for (e.g., 'pyproject.toml')
- * @returns true if found at root or in any immediate subdirectory
+ * @returns true if found anywhere in the project tree
  */
-export function existsShallow(cwd: string, filename: string): boolean {
-  return findShallow(cwd, filename) !== undefined;
+export function existsInTree(cwd: string, filename: string): boolean {
+  return findInTree(cwd, filename) !== undefined;
 }
 
+/** @deprecated Use existsInTree */
+export const existsShallow = existsInTree;
+
 /**
- * Find a file at the project root OR in any immediate subdirectory.
- * Returns the directory containing the file, or undefined if not found.
+ * Find a file anywhere in the project tree.
+ * Recursively scans subdirectories, skipping excluded directories.
+ * Root is checked first; deeper matches use depth-first traversal.
  *
  * @param cwd - Project root directory
  * @param filename - File to search for (e.g., 'pyproject.toml')
+ * @param maxDepth - Maximum directory depth to scan (default: 10)
  * @returns Directory path where file was found, or undefined
  */
-export function findShallow(cwd: string, filename: string): string | undefined {
+export function findInTree(cwd: string, filename: string, maxDepth = 10): string | undefined {
   // Check root first
   if (existsSync(nodePath.join(cwd, filename))) {
     return cwd;
   }
 
-  // Check immediate subdirectories
+  return scanTreeForFile(cwd, filename, 1, maxDepth);
+}
+
+/** Return scannable subdirectory paths (excludes hidden dirs and SUBDIRECTORY_EXCLUDE). */
+function getScannableSubdirectories(directory: string): string[] {
   try {
-    const entries = readdirSync(cwd, { withFileTypes: true });
-    for (const entry of entries) {
-      if (
-        entry.isDirectory() &&
-        !entry.name.startsWith('.') &&
-        !SUBDIRECTORY_EXCLUDE.has(entry.name)
-      ) {
-        const subdirectory = nodePath.join(cwd, entry.name);
-        if (existsSync(nodePath.join(subdirectory, filename))) {
-          return subdirectory;
-        }
-      }
-    }
+    return readdirSync(directory, { withFileTypes: true })
+      .filter(
+        entry =>
+          entry.isDirectory() &&
+          !entry.name.startsWith('.') &&
+          !SUBDIRECTORY_EXCLUDE.has(entry.name),
+      )
+      .map(entry => nodePath.join(directory, entry.name));
   } catch {
-    // Ignore permission errors
+    return [];
+  }
+}
+
+function scanTreeForFile(
+  directory: string,
+  filename: string,
+  depth: number,
+  maxDepth: number,
+): string | undefined {
+  if (depth > maxDepth) return undefined;
+
+  const subdirectories = getScannableSubdirectories(directory);
+
+  // Check all children at this level first
+  for (const subdirectory of subdirectories) {
+    if (existsSync(nodePath.join(subdirectory, filename))) {
+      return subdirectory;
+    }
+  }
+
+  // Then recurse deeper
+  for (const subdirectory of subdirectories) {
+    const result = scanTreeForFile(subdirectory, filename, depth + 1, maxDepth);
+    if (result !== undefined) return result;
   }
 
   return undefined;
 }
+
+/** @deprecated Use findInTree */
+export const findShallow = findInTree;
 
 /**
  * Create directory recursively

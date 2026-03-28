@@ -1,13 +1,13 @@
 /**
- * Unit Tests: Shallow Subdirectory Detection
+ * Unit Tests: Recursive Tree Detection
  *
- * Tests for existsShallow() and findShallow() utilities that detect
- * language manifests in immediate subdirectories.
+ * Tests for existsInTree() and findInTree() utilities that detect
+ * language manifests anywhere in the project tree.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { existsShallow, findShallow } from '../../src/utils/fs.js';
+import { existsInTree, findInTree } from '../../src/utils/fs.js';
 import { detectLanguages } from '../../src/utils/project-detector.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers';
 
@@ -24,22 +24,36 @@ afterEach(() => {
 });
 
 // =============================================================================
-// existsShallow
+// existsInTree
 // =============================================================================
 
-describe('existsShallow', () => {
+describe('existsInTree', () => {
   it('finds file at project root', () => {
     writeTestFile(projectDirectory, 'pyproject.toml', '[project]\nname = "test"\n');
-    expect(existsShallow(projectDirectory, 'pyproject.toml')).toBe(true);
+    expect(existsInTree(projectDirectory, 'pyproject.toml')).toBe(true);
   });
 
   it('finds file in immediate subdirectory', () => {
     writeTestFile(projectDirectory, 'dbt/pyproject.toml', '[project]\nname = "test"\n');
-    expect(existsShallow(projectDirectory, 'pyproject.toml')).toBe(true);
+    expect(existsInTree(projectDirectory, 'pyproject.toml')).toBe(true);
+  });
+
+  it('finds file at depth 2 (monorepo pattern)', () => {
+    writeTestFile(projectDirectory, 'apps/engine/go.mod', 'module example.com/apps/engine\n');
+    expect(existsInTree(projectDirectory, 'go.mod')).toBe(true);
+  });
+
+  it('finds file at depth 3', () => {
+    writeTestFile(
+      projectDirectory,
+      'platform/services/auth/pyproject.toml',
+      '[project]\nname = "auth"\n',
+    );
+    expect(existsInTree(projectDirectory, 'pyproject.toml')).toBe(true);
   });
 
   it('returns false when file does not exist anywhere', () => {
-    expect(existsShallow(projectDirectory, 'pyproject.toml')).toBe(false);
+    expect(existsInTree(projectDirectory, 'pyproject.toml')).toBe(false);
   });
 
   it('excludes node_modules', () => {
@@ -48,63 +62,82 @@ describe('existsShallow', () => {
       'node_modules/some-pkg/pyproject.toml',
       '[project]\nname = "vendored"\n',
     );
-    expect(existsShallow(projectDirectory, 'pyproject.toml')).toBe(false);
+    expect(existsInTree(projectDirectory, 'pyproject.toml')).toBe(false);
   });
 
   it('excludes hidden directories', () => {
     writeTestFile(projectDirectory, '.venv/pyproject.toml', '[project]\nname = "venv"\n');
-    expect(existsShallow(projectDirectory, 'pyproject.toml')).toBe(false);
+    expect(existsInTree(projectDirectory, 'pyproject.toml')).toBe(false);
   });
 
   it('excludes vendor directory', () => {
     writeTestFile(projectDirectory, 'vendor/lib/go.mod', 'module vendored\n');
-    expect(existsShallow(projectDirectory, 'go.mod')).toBe(false);
+    expect(existsInTree(projectDirectory, 'go.mod')).toBe(false);
   });
 
   it('excludes dbt_packages directory', () => {
     writeTestFile(projectDirectory, 'dbt_packages/some_pkg/dbt_project.yml', 'name: vendored\n');
-    expect(existsShallow(projectDirectory, 'dbt_project.yml')).toBe(false);
+    expect(existsInTree(projectDirectory, 'dbt_project.yml')).toBe(false);
   });
 
-  it('does not search deeper than one level', () => {
-    writeTestFile(
-      projectDirectory,
-      'packages/backend/pyproject.toml',
-      '[project]\nname = "deep"\n',
-    );
-    expect(existsShallow(projectDirectory, 'pyproject.toml')).toBe(false);
+  it('excludes node_modules nested deep', () => {
+    writeTestFile(projectDirectory, 'apps/node_modules/pkg/go.mod', 'module vendored\n');
+    expect(existsInTree(projectDirectory, 'go.mod')).toBe(false);
+  });
+
+  it('excludes vendor nested deep', () => {
+    writeTestFile(projectDirectory, 'apps/engine/vendor/dep/go.mod', 'module vendored\n');
+    expect(existsInTree(projectDirectory, 'go.mod')).toBe(false);
   });
 });
 
 // =============================================================================
-// findShallow
+// findInTree
 // =============================================================================
 
-describe('findShallow', () => {
+describe('findInTree', () => {
   it('returns cwd when file is at root', () => {
     writeTestFile(projectDirectory, 'pyproject.toml', '[project]\nname = "test"\n');
-    expect(findShallow(projectDirectory, 'pyproject.toml')).toBe(projectDirectory);
+    expect(findInTree(projectDirectory, 'pyproject.toml')).toBe(projectDirectory);
   });
 
   it('returns subdirectory path when file is in subdir', () => {
     writeTestFile(projectDirectory, 'dbt/pyproject.toml', '[project]\nname = "test"\n');
-    const result = findShallow(projectDirectory, 'pyproject.toml');
+    const result = findInTree(projectDirectory, 'pyproject.toml');
     expect(result).toContain('/dbt');
   });
 
+  it('returns deep subdirectory path', () => {
+    writeTestFile(
+      projectDirectory,
+      'apps/coordinator/pyproject.toml',
+      '[project]\nname = "coordinator"\n',
+    );
+    const result = findInTree(projectDirectory, 'pyproject.toml');
+    expect(result).toContain('/apps/coordinator');
+  });
+
   it('returns undefined when file not found', () => {
-    expect(findShallow(projectDirectory, 'pyproject.toml')).toBeUndefined();
+    expect(findInTree(projectDirectory, 'pyproject.toml')).toBeUndefined();
   });
 
   it('prefers root over subdirectory', () => {
     writeTestFile(projectDirectory, 'pyproject.toml', '[project]\nname = "root"\n');
     writeTestFile(projectDirectory, 'dbt/pyproject.toml', '[project]\nname = "sub"\n');
-    expect(findShallow(projectDirectory, 'pyproject.toml')).toBe(projectDirectory);
+    expect(findInTree(projectDirectory, 'pyproject.toml')).toBe(projectDirectory);
+  });
+
+  it('respects maxDepth parameter', () => {
+    writeTestFile(projectDirectory, 'a/b/c/pyproject.toml', '[project]\nname = "deep"\n');
+    // depth 2 should not reach a/b/c (depth 3)
+    expect(findInTree(projectDirectory, 'pyproject.toml', 2)).toBeUndefined();
+    // depth 3 should reach it
+    expect(findInTree(projectDirectory, 'pyproject.toml', 3)).toContain('/a/b/c');
   });
 });
 
 // =============================================================================
-// detectLanguages with subdirectories
+// detectLanguages with deep subdirectories
 // =============================================================================
 
 describe('detectLanguages with subdirectories', () => {
@@ -146,5 +179,21 @@ describe('detectLanguages with subdirectories', () => {
     expect(languages.javascript).toBe(true);
     expect(languages.python).toBe(true);
     expect(languages.dbt).toBe(true);
+  });
+
+  it('detects Go at depth 2 (monorepo pattern)', () => {
+    writeTestFile(projectDirectory, 'apps/engine/go.mod', 'module example.com/engine\n');
+    const languages = detectLanguages(projectDirectory);
+    expect(languages.golang).toBe(true);
+  });
+
+  it('detects Python at depth 2 (monorepo pattern)', () => {
+    writeTestFile(
+      projectDirectory,
+      'apps/coordinator/pyproject.toml',
+      '[project]\nname = "coordinator"\n',
+    );
+    const languages = detectLanguages(projectDirectory);
+    expect(languages.python).toBe(true);
   });
 });
