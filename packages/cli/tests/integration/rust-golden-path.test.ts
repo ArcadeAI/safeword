@@ -203,6 +203,32 @@ cognitive-complexity-threshold = 25
     expect(config).toContain('too-many-arguments-threshold = 5');
     expect(config).toContain('too-many-lines-threshold = 100');
   });
+
+  it('adds no safeword defaults when customer sets all thresholds', async () => {
+    // Create a second project where customer covers everything
+    const fullCoverageDirectory = createTemporaryDirectory();
+    createRustProject(fullCoverageDirectory);
+    writeTestFile(
+      fullCoverageDirectory,
+      'clippy.toml',
+      `cognitive-complexity-threshold = 20
+too-many-arguments-threshold = 8
+too-many-lines-threshold = 150
+type-complexity-threshold = 300
+`,
+    );
+    initGitRepo(fullCoverageDirectory);
+    await runCli(['setup', '--yes'], { cwd: fullCoverageDirectory });
+
+    const config = readTestFile(fullCoverageDirectory, '.safeword/clippy.toml');
+    // All customer thresholds preserved
+    expect(config).toContain('cognitive-complexity-threshold = 20');
+    expect(config).toContain('too-many-arguments-threshold = 8');
+    // No "Safeword defaults" section since all gaps are filled
+    expect(config).not.toContain('Safeword defaults');
+
+    removeTemporaryDirectory(fullCoverageDirectory);
+  });
 });
 
 // Scenario 4b: Existing rustfmt.toml is preserved

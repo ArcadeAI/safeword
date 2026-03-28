@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Safeword: Auto-lint changed files (PostToolUse)
-// Silently auto-fixes, only outputs unfixable errors.
-// Surfaces missing tool warnings to Claude via stdout.
+// Auto-fixes what it can, then surfaces remaining errors to Claude via additionalContext.
+// Also surfaces missing tool warnings via plain stdout.
 
 import { lintFile } from './lib/lint.ts';
 
@@ -33,7 +33,24 @@ process.chdir(projectDir);
 
 const result = await lintFile(file, projectDir);
 
-// Surface warnings to Claude via stdout (appears as system-reminder)
+// Build output parts
+const parts: string[] = [];
+
+// Surface warnings as plain text (missing tool binaries)
 if (result.warnings.length > 0) {
-  console.log(result.warnings.map(w => `SAFEWORD: ${w}`).join('\n'));
+  parts.push(result.warnings.map(w => `SAFEWORD: ${w}`).join('\n'));
+}
+
+// Surface remaining lint errors via additionalContext so Claude can fix them
+if (result.errors) {
+  const output = {
+    hookSpecificOutput: {
+      hookEventName: 'PostToolUse',
+      additionalContext: `Lint errors remain after auto-fix in ${file}:\n${result.errors}`,
+    },
+  };
+  console.log(JSON.stringify(output));
+} else if (parts.length > 0) {
+  // Only plain text warnings (no errors) — output as before
+  console.log(parts.join('\n'));
 }

@@ -1120,5 +1120,41 @@ describe('E2E: Python Lint Hook', () => {
       expect(fixed).not.toContain('import os');
       expect(fixed).toContain('x = 1');
     });
+
+    it.skipIf(!RUFF_AVAILABLE)(
+      'should output additionalContext JSON when unfixable errors remain',
+      () => {
+        // F841 (unused variable after return) is not auto-fixable without --unsafe-fixes
+        const codeWithUnfixable = 'def foo():\n    return\n    x = 1\n';
+        writeTestFile(projectDirectory, 'unfixable-test.py', codeWithUnfixable);
+
+        const result = runPostToolLint(`${projectDirectory}/unfixable-test.py`);
+        expect(result.status).toBe(0);
+
+        // Hook should output additionalContext JSON for remaining errors
+        const stdout = result.stdout.trim();
+        expect(stdout).toBeTruthy();
+        const output = JSON.parse(stdout);
+        expect(output.hookSpecificOutput).toBeDefined();
+        expect(output.hookSpecificOutput.hookEventName).toBe('PostToolUse');
+        expect(output.hookSpecificOutput.additionalContext).toContain('unfixable-test.py');
+      },
+    );
+
+    it.skipIf(!RUFF_AVAILABLE)('should output no JSON when all errors are auto-fixed', () => {
+      // Unused import is fully auto-fixable — no remaining errors
+      const autoFixable = 'import os\nx = 1\n';
+      writeTestFile(projectDirectory, 'clean-after-fix.py', autoFixable);
+
+      const result = runPostToolLint(`${projectDirectory}/clean-after-fix.py`);
+      expect(result.status).toBe(0);
+
+      // No additionalContext should be output (file is clean after fix)
+      const stdout = result.stdout.trim();
+      // stdout should be empty or not contain hookSpecificOutput
+      if (stdout) {
+        expect(stdout).not.toContain('additionalContext');
+      }
+    });
   });
 });

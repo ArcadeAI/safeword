@@ -227,13 +227,15 @@ version = "1.0.0"
         // Create go.mod to mark as Go project
         writeTestFile(projectDirectory, 'go.mod', 'module example.com/myproject\n\ngo 1.21\n');
 
-        // Create existing golangci-lint v2 config
+        // Create existing golangci-lint v2 config with custom enable, disable, and formatter
         const golangciConfig = `version: "2"
 
 linters:
   default: standard
   enable:
     - gofmt
+  disable:
+    - govet
 
 formatters:
   enable:
@@ -263,6 +265,9 @@ formatters:
         expect(safewordConfig).toContain('gofmt');
         expect(safewordConfig).toContain('gosec');
         expect(safewordConfig).toContain('cyclop');
+        // Customer's disable (govet) should survive in union with safeword's
+        expect(safewordConfig).toContain('govet');
+        expect(safewordConfig).toContain('forbidigo');
         // Customer's formatter (goimports) preserved, gofumpt added
         expect(safewordConfig).toContain('goimports');
         expect(safewordConfig).toContain('gofumpt');
