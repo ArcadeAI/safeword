@@ -307,7 +307,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     }
     if (!toolWarnings.has('golangci-lint-v2-ok')) {
       const versionResult = await $`golangci-lint version --short`.nothrow().quiet();
-      const version = versionResult.stdout.toString().trim();
+      const version = versionResult.stdout.toString().trim().replace(/^v/, '');
       if (version && version.startsWith('1.')) {
         toolWarnings.add('golangci-lint-v1');
         warnings.push(
