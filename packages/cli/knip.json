@@ -1,5 +1,4 @@
 {
   "ignore": ["templates/**"],
-  "ignoreBinaries": ["shellcheck"],
-  "exclude": ["duplicates"]
+  "ignoreBinaries": ["shellcheck"]
 }
