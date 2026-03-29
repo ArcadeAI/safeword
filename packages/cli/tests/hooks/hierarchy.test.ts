@@ -324,3 +324,4 @@ describe('findNextWork', () => {
     expect(result.type).toBe('all-done');
   });
 });
+/* eslint-enable unicorn/no-null */

@@ -350,3 +350,4 @@ describe('hierarchy navigation in stop hook', () => {
     expect(result.stdout.trim()).toBe('');
   });
 });
+/* eslint-enable unicorn/no-null */
