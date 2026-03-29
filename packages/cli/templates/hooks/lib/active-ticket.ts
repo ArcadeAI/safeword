@@ -1,7 +1,7 @@
 /**
  * Ticket lookup utilities for quality hooks.
  *
- * getTicketPhase() — look up a specific ticket by ID (used by pre-tool for session-scoped access)
+ * getTicketInfo() — look up a specific ticket by ID (used by pre-tool for session-scoped access)
  * getActiveTicket() — find most recent in_progress ticket globally (used by stop hook for review)
  */
 
