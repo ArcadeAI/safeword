@@ -1,10 +1,10 @@
 ---
 id: 086
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-03-29T17:11:00Z
-last_modified: 2026-03-29T17:11:00Z
+last_modified: 2026-03-29T18:00:00Z
 ---
 
 # Suppression Scope Enforcement Across All Checkers
@@ -49,6 +49,8 @@ The bypass-warn hook (`post-tool-bypass-warn.ts`) already detects suppression pa
 
 ## Work Log
 
+- 2026-03-29T18:00:00Z Complete: implemented in dce1521 — plugin + linterOptions + 7 new tests (305 pass)
+- 2026-03-29T17:52:00Z Started: researched latest docs, implemented eslint-comments preset config
 - 2026-03-29T17:11:00Z Created: from audit session finding — file-level eslint-disable was too broad, caught on self-review
 
 ---
