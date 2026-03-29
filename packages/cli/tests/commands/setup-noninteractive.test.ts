@@ -61,7 +61,7 @@ describe('Test Suite 6: Non-Interactive Setup', () => {
 
       // Should complete (either with defaults or --yes required message)
       // The exact behavior depends on implementation
-      expect(result.exitCode).toBeDefined();
+      expect(result.exitCode).toBe(0);
     });
   });
 

@@ -156,7 +156,6 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
       await runCli(['setup'], { cwd: temporaryDirectory });
 
       const packageJson = JSON.parse(readTestFile(temporaryDirectory, 'package.json'));
-      expect(packageJson.scripts?.['format:check']).toBeDefined();
       expect(packageJson.scripts?.['format:check']).toContain('prettier');
       expect(packageJson.scripts?.['format:check']).toContain('--check');
     });

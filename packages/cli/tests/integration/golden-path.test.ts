@@ -52,7 +52,7 @@ describe('E2E: Golden Path', () => {
       cwd: projectDirectory,
       encoding: 'utf8',
     });
-    expect(result).toBeDefined();
+    expect(result).toBe('');
   });
 
   it('eslint detects violations', () => {
@@ -149,7 +149,7 @@ describe('E2E: TypeScript Setup Idempotency', () => {
       cwd: projectDirectory,
       encoding: 'utf8',
     });
-    expect(result).toBeDefined();
+    expect(result).toBe('');
   });
 
   it('config files remain valid', () => {

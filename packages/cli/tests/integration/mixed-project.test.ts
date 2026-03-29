@@ -97,7 +97,7 @@ version = "0.1.0"
       cwd: projectDirectory,
       encoding: 'utf8',
     });
-    expect(result).toBeDefined();
+    expect(result).toBe('');
   });
 
   it('ESLint detects TypeScript violations', () => {

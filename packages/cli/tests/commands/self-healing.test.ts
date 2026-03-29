@@ -77,7 +77,7 @@ describe('Test Suite 12: AGENTS.md Self-Healing', () => {
 
       // Hook should indicate repair is needed or perform repair
       // The exact output depends on implementation
-      expect(result.exitCode).toBeDefined();
+      expect(result.exitCode).toBe(0);
     });
   });
 

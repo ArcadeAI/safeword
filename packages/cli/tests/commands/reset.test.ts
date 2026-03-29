@@ -69,7 +69,7 @@ describe('Test Suite 11: Reset', () => {
       });
 
       // Should complete without hanging
-      expect(result.exitCode).toBeDefined();
+      expect(result.exitCode).toBe(0);
     });
   });
 

@@ -112,7 +112,7 @@ func main() {
       cwd: projectDirectory,
       encoding: 'utf8',
     });
-    expect(result).toBeDefined();
+    expect(result).toBe('');
   });
 
   it('ESLint detects TypeScript violations', () => {
