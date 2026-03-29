@@ -34,6 +34,7 @@ last_modified: 2026-03-29T19:16:00Z
 
 ## Work Log
 
+- 2026-03-29T19:31:00Z Note: eslint-plugin-sonarjs v4 and eslint-plugin-security v4 now support ESLint 10 peer dep — 2 fewer blockers (4 remain)
 - 2026-03-29T19:16:00Z Created: from audit session — only major outdated dep
 
 ---
