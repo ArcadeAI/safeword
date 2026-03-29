@@ -234,6 +234,98 @@ describe('default ignores', () => {
   });
 });
 
+describe('eslint-comments governance', () => {
+  it('includes eslint-comments plugin', () => {
+    const hasEslintComments = recommended.some(config => {
+      if (typeof config === 'object' && config !== null && 'plugins' in config) {
+        return config.plugins && 'eslint-comments' in config.plugins;
+      }
+      return false;
+    });
+
+    expect(hasEslintComments).toBe(true);
+  });
+
+  it('enforces disable-enable-pair at error', () => {
+    const rule = recommended
+      .flatMap(config =>
+        config?.rules ? [config.rules['eslint-comments/disable-enable-pair']] : [],
+      )
+      .find(Boolean);
+
+    expect(rule).toBeDefined();
+    const severity = Array.isArray(rule) ? rule[0] : rule;
+    expect(severity).toBe('error');
+  });
+
+  it('enforces no-unlimited-disable at error', () => {
+    const rule = recommended
+      .flatMap(config =>
+        config?.rules ? [config.rules['eslint-comments/no-unlimited-disable']] : [],
+      )
+      .find(Boolean);
+
+    expect(rule).toBe('error');
+  });
+
+  it('enforces require-description at error', () => {
+    const rule = recommended
+      .flatMap(config =>
+        config?.rules ? [config.rules['eslint-comments/require-description']] : [],
+      )
+      .find(Boolean);
+
+    expect(rule).toBeDefined();
+    const severity = Array.isArray(rule) ? rule[0] : rule;
+    expect(severity).toBe('error');
+  });
+
+  it('catches undescribed disable comments', () => {
+    const linter = new Linter({ configType: 'flat' });
+
+    const code = `
+// eslint-disable-next-line no-unused-vars
+const x = 1;
+export default x;
+`;
+
+    const results = linter.verify(code, recommended, { filename: 'test.mjs' });
+    const descriptionErrors = results.filter(
+      r => r.ruleId === 'eslint-comments/require-description',
+    );
+
+    expect(descriptionErrors.length).toBe(1);
+  });
+
+  it('allows described disable comments', () => {
+    const linter = new Linter({ configType: 'flat' });
+
+    const code = `
+// eslint-disable-next-line no-unused-vars -- needed for API compatibility
+const x = 1;
+export default x;
+`;
+
+    const results = linter.verify(code, recommended, { filename: 'test.mjs' });
+    const descriptionErrors = results.filter(
+      r => r.ruleId === 'eslint-comments/require-description',
+    );
+
+    expect(descriptionErrors.length).toBe(0);
+  });
+
+  it('includes reportUnusedDisableDirectives at error', () => {
+    const hasLinterOptions = recommended.some(config => {
+      if (typeof config === 'object' && config !== null && 'linterOptions' in config) {
+        return config.linterOptions?.reportUnusedDisableDirectives === 'error';
+      }
+      return false;
+    });
+
+    expect(hasLinterOptions).toBe(true);
+  });
+});
+
 describe('file scoping', () => {
   it('exports JS_TS_FILES pattern constant', () => {
     expect(JS_TS_FILES).toBeDefined();

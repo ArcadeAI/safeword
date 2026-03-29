@@ -224,7 +224,7 @@ export const pythonManagedFiles: Record<string, ManagedFileDefinition> = {
 
   // Project-level import-linter config (created only if layers detected and no existing config)
   '.importlinter': {
-    // eslint-disable-next-line sonarjs/no-inconsistent-returns
+    // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
       if (!ctx.languages?.python) return;
       if (ctx.projectType.existingImportLinterConfig) return;

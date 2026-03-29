@@ -198,7 +198,7 @@ export const typescriptOwnedFiles: Record<string, FileDefinition> = {
   },
 
   '.safeword/.prettierrc': {
-    // eslint-disable-next-line sonarjs/no-inconsistent-returns
+    // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
       // Skip for non-JS projects or projects with existing formatter (they use Biome, etc.)
       if (!ctx.languages?.javascript || ctx.projectType.existingFormatter) {
@@ -219,7 +219,7 @@ export const typescriptOwnedFiles: Record<string, FileDefinition> = {
 export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
   // Project-level ESLint config (created only if no existing ESLint config)
   'eslint.config.mjs': {
-    // eslint-disable-next-line sonarjs/no-inconsistent-returns
+    // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
       // Skip if project already has ESLint config (safeword will use .safeword/eslint.config.mjs)
       if (ctx.projectType.existingEslintConfig) return;
@@ -229,7 +229,7 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
   },
   // Minimal tsconfig for ESLint type-checked linting (only if missing)
   'tsconfig.json': {
-    // eslint-disable-next-line sonarjs/no-inconsistent-returns
+    // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
       // Skip for non-JS projects (Python-only)
       if (!ctx.languages?.javascript) return;
@@ -264,7 +264,7 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
   },
   // Project-level Prettier config (created only if no existing formatter)
   '.prettierrc': {
-    // eslint-disable-next-line sonarjs/no-inconsistent-returns
+    // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
       // Skip for non-JS projects or projects with existing formatter
       if (!ctx.languages?.javascript) return;

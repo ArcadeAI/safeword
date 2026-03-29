@@ -6,6 +6,7 @@
  */
 
 import js from '@eslint/js';
+import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import { importX } from 'eslint-plugin-import-x';
 import pluginPromise from 'eslint-plugin-promise';
@@ -267,6 +268,27 @@ const basePluginsUnscoped: any[] = [
       'safeword/no-incomplete-error-handling': 'error',
       'safeword/no-accumulating-spread': 'error', // O(n²) reduce pattern
       'safeword/no-re-export-all': 'error', // Hurts tree-shaking
+    },
+  },
+
+  // ESLint native: flag stale disable directives (ESLint 9 default is warn, we want error)
+  {
+    name: 'safeword/linter-options',
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
+  },
+
+  // ESLint disable comment governance - prevents broad/undocumented suppressions
+  {
+    name: 'safeword/eslint-comments',
+    plugins: { 'eslint-comments': eslintComments },
+    rules: {
+      'eslint-comments/disable-enable-pair': ['error', { allowWholeFile: true }],
+      'eslint-comments/no-unlimited-disable': 'error', // Must name specific rule
+      'eslint-comments/require-description': ['error', { ignore: ['eslint-enable'] }], // Must explain why
+      'eslint-comments/no-duplicate-disable': 'error', // No redundant disables
+      'eslint-comments/no-unused-enable': 'error', // No orphaned enables
     },
   },
 ];

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
 import { describe, expect, it } from 'vitest';
 
 import { TAILWIND_FILES, tailwindConfig } from '../tailwind.js';
