@@ -31,6 +31,19 @@ const TAILWIND_PACKAGES = ['tailwindcss', '@tailwindcss/vite', '@tailwindcss/pos
 const PLAYWRIGHT_PACKAGES = ['@playwright/test', 'playwright'] as const;
 
 /**
+ * Storybook package names (core CLI + common framework integrations).
+ */
+const STORYBOOK_PACKAGES = [
+  'storybook',
+  '@storybook/react',
+  '@storybook/vue3',
+  '@storybook/svelte',
+  '@storybook/angular',
+  '@storybook/web-components',
+  '@storybook/html',
+] as const;
+
+/**
  * Non-Prettier formatter config files (Biome, dprint, Rome).
  * Used to detect if project uses an alternative formatter.
  * Prettier is safeword's default, so its presence doesn't skip config creation.
@@ -169,6 +182,13 @@ function hasTurbo(deps: DepsRecord): boolean {
 }
 
 /**
+ * Check if Storybook is installed.
+ */
+function hasStorybook(deps: DepsRecord): boolean {
+  return STORYBOOK_PACKAGES.some(pkg => pkg in deps);
+}
+
+/**
  * Detect base framework for config selection.
  * Returns the most specific framework detected.
  */
@@ -293,6 +313,7 @@ export const detect = {
   TAILWIND_PACKAGES,
   TANSTACK_QUERY_PACKAGES,
   PLAYWRIGHT_PACKAGES,
+  STORYBOOK_PACKAGES,
   ALTERNATIVE_FORMATTER_FILES,
   NEXT_CONFIG_FILES,
 
@@ -307,6 +328,7 @@ export const detect = {
   hasVitest,
   hasPlaywright,
   hasTurbo,
+  hasStorybook,
 
   // Monorepo detection
   findNextConfigPaths,
