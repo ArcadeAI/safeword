@@ -1,8 +1,8 @@
 ---
 id: 095
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-03-29T22:27:00Z
 last_modified: 2026-03-29T22:27:00Z
 ---
@@ -57,6 +57,8 @@ Alternatively, `pre-tool-quality.ts` could skip phase enforcement when the ticke
 
 ## Work Log
 
+- 2026-03-29T22:36:00Z Complete: pre-tool hook now checks ticket status (in_progress only). Done/backlog tickets don't block. getTicketPhase→getTicketInfo returns {phase, status}.
+- 2026-03-29T22:35:00Z Research: Claude Code docs recommend stateless re-evaluation. Fix: read ticket status directly, not from cached state.
 - 2026-03-29T22:27:00Z Created: observed done-phase blocking after ticket 094 completion. Required manual state file edit to unblock.
 
 ---

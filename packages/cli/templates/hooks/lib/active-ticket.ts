@@ -17,22 +17,28 @@ export interface ActiveTicketInfo {
 const EMPTY: ActiveTicketInfo = { phase: undefined, type: undefined, folder: undefined };
 
 /**
- * Look up a specific ticket's phase by ID (e.g., "038").
- * Used for session-scoped phase access — only checks the ticket THIS session owns.
+ * Look up a specific ticket's phase and status by ID (e.g., "038").
+ * Re-reads the ticket file each time for stateless re-evaluation.
  */
-export function getTicketPhase(projectDirectory: string, ticketId: string): string | undefined {
+export function getTicketInfo(
+  projectDirectory: string,
+  ticketId: string,
+): { phase: string | undefined; status: string | undefined } {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
-  if (!existsSync(ticketsDirectory)) return undefined;
+  if (!existsSync(ticketsDirectory)) return { phase: undefined, status: undefined };
 
   try {
     const folders = readdirSync(ticketsDirectory);
     const match = folders.find(f => f.startsWith(`${ticketId}-`));
-    if (!match) return undefined;
+    if (!match) return { phase: undefined, status: undefined };
 
     const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
-    return content.match(/^phase:\s*(\S+)/m)?.[1];
+    return {
+      phase: content.match(/^phase:\s*(\S+)/m)?.[1],
+      status: content.match(/^status:\s*(\S+)/m)?.[1],
+    };
   } catch {
-    return undefined;
+    return { phase: undefined, status: undefined };
   }
 }
 

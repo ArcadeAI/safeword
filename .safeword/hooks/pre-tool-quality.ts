@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getTicketPhase } from './lib/active-ticket.ts';
+import { getTicketInfo } from './lib/active-ticket.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
@@ -115,10 +115,11 @@ if (state.lastCommitHash !== currentHead) {
 // Uses THIS session's activeTicket (from per-session state) — not a global scan.
 // This prevents tickets from other sessions from blocking this session's edits.
 if (state.activeTicket) {
-  const phase = getTicketPhase(projectDirectory, state.activeTicket);
-  if (phase && PLANNING_PHASES.has(phase)) {
+  const ticket = getTicketInfo(projectDirectory, state.activeTicket);
+  // Only enforce phase access for in_progress tickets — done/backlog tickets don't block
+  if (ticket.status === 'in_progress' && ticket.phase && PLANNING_PHASES.has(ticket.phase)) {
     deny(
-      `SAFEWORD: Active ticket is at "${phase}" phase — code edits require "implement" phase.\n\nAdvance your ticket to implement phase before writing code.`,
+      `SAFEWORD: Active ticket is at "${ticket.phase}" phase — code edits require "implement" phase.\n\nAdvance your ticket to implement phase before writing code.`,
       'Update ticket.md frontmatter: phase: implement',
     );
   }
