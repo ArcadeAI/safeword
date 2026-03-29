@@ -1,7 +1,6 @@
 ---
 name: cleanup-zombies
 description: Runs cleanup to kill zombie dev servers and test processes for this project
-disable-model-invocation: true
 allowed-tools: '*'
 ---
 

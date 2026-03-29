@@ -1,7 +1,6 @@
 ---
 name: audit
 description: Run comprehensive code audit for architecture, dead code, and test quality
-disable-model-invocation: true
 allowed-tools: '*'
 ---
 

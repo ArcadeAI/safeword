@@ -1,7 +1,6 @@
 ---
 name: lint
 description: Run linters and formatters to fix code style issues (project)
-disable-model-invocation: true
 allowed-tools: '*'
 ---
 
