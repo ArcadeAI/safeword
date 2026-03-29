@@ -3,7 +3,7 @@ id: '079'
 slug: architecture-detection
 title: 'Architecture File Detection & Generation During Setup'
 type: Improvement
-status: in_progress
+status: backlog
 ---
 
 # Task: Architecture File Detection & Generation During Setup

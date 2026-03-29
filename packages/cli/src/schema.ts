@@ -189,6 +189,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/quality-review.md',
     '.claude/commands/refactor.md',
     '.claude/commands/testing.md',
+    // Commands converted to skills (ticket 038)
+    '.claude/commands/lint.md',
+    '.claude/commands/verify.md',
+    '.claude/commands/audit.md',
+    '.claude/commands/cleanup-zombies.md',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint)
@@ -413,14 +418,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/ticket-system/SKILL.md': {
       template: 'skills/ticket-system/SKILL.md',
     },
-    // Claude commands — only standalone commands that have no matching skill
-    // Skills auto-create /slash-commands, so shim commands are redundant
-    '.claude/commands/verify.md': { template: 'commands/verify.md' },
-    '.claude/commands/audit.md': { template: 'commands/audit.md' },
-    '.claude/commands/cleanup-zombies.md': {
-      template: 'commands/cleanup-zombies.md',
+    // Claude skills — action commands with disable-model-invocation
+    // Skills auto-create /slash-commands, so separate commands are unnecessary
+    '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
+    '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
+    '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
+    '.claude/skills/cleanup-zombies/SKILL.md': {
+      template: 'skills/cleanup-zombies/SKILL.md',
     },
-    '.claude/commands/lint.md': { template: 'commands/lint.md' },
 
     // Cursor rules
     '.cursor/rules/safeword-core.mdc': {

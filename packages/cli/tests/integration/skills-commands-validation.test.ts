@@ -633,6 +633,11 @@ describe('Skills-Cursor Parity', () => {
     refactor: 'safeword-refactoring',
     testing: 'safeword-testing',
     'ticket-system': 'safeword-ticket-system',
+    // Action skills use Cursor commands, not rules (disable-model-invocation)
+    lint: undefined,
+    verify: undefined,
+    audit: undefined,
+    'cleanup-zombies': undefined,
   };
 
   it('each skill should have corresponding cursor rule(s)', () => {
@@ -641,11 +646,13 @@ describe('Skills-Cursor Parity', () => {
 
     const missingRules: string[] = [];
     for (const skillDirectory of skillDirectories) {
-      const expectedRules = SKILL_TO_RULE_MAP[skillDirectory];
-      if (!expectedRules) {
+      if (!(skillDirectory in SKILL_TO_RULE_MAP)) {
         missingRules.push(`${skillDirectory} (no rule mapping defined)`);
         continue;
       }
+      const expectedRules = SKILL_TO_RULE_MAP[skillDirectory];
+      // null = action skill, uses Cursor commands instead of rules
+      if (!expectedRules) continue;
       const rules = Array.isArray(expectedRules) ? expectedRules : [expectedRules];
       for (const rule of rules) {
         if (!ruleFiles.has(rule)) {

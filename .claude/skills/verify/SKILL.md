@@ -1,5 +1,8 @@
 ---
-description: Verify ticket criteria — tests, build, lint, scenarios, dep drift (project)
+name: verify
+description: Runs verification of ticket criteria — tests, build, lint, scenarios, dep drift (project)
+disable-model-invocation: true
+allowed-tools: '*'
 ---
 
 # Verify

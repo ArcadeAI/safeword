@@ -159,9 +159,9 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('verify command registration (T10)', () => {
-    it('should have verify.md registered in ownedFiles for both Claude and Cursor', async () => {
+    it('should have verify registered in ownedFiles for both Claude and Cursor', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      expect('.claude/commands/verify.md' in SAFEWORD_SCHEMA.ownedFiles).toBe(true);
+      expect('.claude/skills/verify/SKILL.md' in SAFEWORD_SCHEMA.ownedFiles).toBe(true);
       expect('.cursor/commands/verify.md' in SAFEWORD_SCHEMA.ownedFiles).toBe(true);
     });
 
@@ -259,16 +259,19 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('Claude/Cursor parity', () => {
-    it('should have matching skills for Claude and Cursor rules (excluding core and BDD split files)', async () => {
+    it('should have matching skills for Claude and Cursor rules (excluding core, BDD split, and action skills)', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      // Action skills have disable-model-invocation and use Cursor commands instead of rules
+      const ACTION_SKILLS = new Set(['lint', 'verify', 'audit', 'cleanup-zombies']);
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
         .filter(path => path.startsWith('.claude/skills/') && path.endsWith('/SKILL.md'))
         .map(path => path.split('/')[2])
         .filter(isDefined)
-        // Exclude BDD - it's split into multiple Cursor rules
-        .filter(name => name !== 'bdd')
+        // Exclude BDD (split into multiple Cursor rules) and action skills (use Cursor commands)
+        .filter(name => name !== 'bdd' && !ACTION_SKILLS.has(name))
         .toSorted((a, b) => a.localeCompare(b));
 
       // Cursor rules still use safeword- prefix, extract the suffix
