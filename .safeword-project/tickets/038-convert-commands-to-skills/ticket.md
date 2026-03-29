@@ -1,8 +1,8 @@
 ---
 id: 038
 type: task
-phase: intake
-status: blocked
+phase: implement
+status: in_progress
 parent: 031
 created: 2026-03-18T15:28:00Z
 last_modified: 2026-03-18T15:28:00Z

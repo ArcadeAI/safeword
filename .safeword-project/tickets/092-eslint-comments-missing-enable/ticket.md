@@ -3,7 +3,7 @@ id: '092'
 slug: eslint-comments-missing-enable
 title: 'Fix eslint-comments/disable-enable-pair errors in hierarchy tests'
 type: Bug
-status: open
+status: done
 ---
 
 # Task: Fix eslint-comments/disable-enable-pair errors in hierarchy tests

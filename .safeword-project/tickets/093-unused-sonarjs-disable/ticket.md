@@ -3,7 +3,7 @@ id: '093'
 slug: unused-sonarjs-disable
 title: 'Remove unused sonarjs/code-eval disable directive'
 type: Bug
-status: open
+status: done
 ---
 
 # Task: Remove unused sonarjs/code-eval disable directive
