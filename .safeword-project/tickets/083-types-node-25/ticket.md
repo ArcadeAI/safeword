@@ -3,7 +3,7 @@ id: '083'
 slug: types-node-25
 title: 'Bump @types/node from 20.x to 25.x'
 type: Improvement
-status: open
+status: done
 ---
 
 # Task: Bump @types/node from 20.x to 25.x
