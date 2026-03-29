@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.9
-**Last Updated:** 2026-03-28
+**Version:** 1.10
+**Last Updated:** 2026-03-29
 **Status:** Production
 
 ---
@@ -18,8 +18,6 @@
 - [Test Structure](#test-structure)
 - [Build & Distribution](#build--distribution)
 - [Key Decisions](#key-decisions)
-- [Best Practices](#best-practices)
-- [Migration Strategy](#migration-strategy)
 
 ---
 
@@ -491,55 +489,6 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Trade-off      | Fixture must be manually updated when Claude Code's transcript format changes; no LLM API key required                                                                                                     |
 | Alternatives   | Real E2E with live API (rejected: non-deterministic, expensive), hand-crafted simplified fixtures only (rejected: doesn't catch real format drift)                                                         |
 | Implementation | `packages/cli/tests/integration/stop-hook-transcript-format.test.ts`; fixture includes thinking blocks, tool_use, tool_result, and real envelope fields (parentUuid, requestId, etc.)                      |
-
----
-
-## Best Practices
-
-### File Extension Routing
-
-**What:** Route files to correct linter based on extension
-**Why:** Polyglot projects need ESLint, Ruff, golangci-lint, and clippy
-**Example:** See `packages/cli/templates/hooks/lib/lint.ts`
-
-```typescript
-const JS_EXTENSIONS = new Set(['js', 'jsx', 'ts', 'tsx', ...]);
-const PYTHON_EXTENSIONS = new Set(['py', 'pyi']);
-const GO_EXTENSIONS = new Set(['go']);
-const RUST_EXTENSIONS = new Set(['rs']);
-// Route to ESLint, Ruff, golangci-lint, or clippy/rustfmt based on extension
-```
-
-### Silent Linter Execution
-
-**What:** Run linters with `.nothrow().quiet()` (Bun shell pattern)
-**Why:** Matches current ESLint behavior; tool missing = silent skip, no explicit `which` check needed
-**Example:** `await $\`ruff check --fix ${file}\`.nothrow().quiet();`
-
-### Schema Language Awareness
-
-**What:** Schema generators check `ctx.languages.javascript` before creating JS-specific files
-**Why:** Prevents eslint.config.mjs, knip.json, package.json merges for Python-only projects
-**Files affected:**
-
-- `packages/cli/src/schema.ts` - managedFiles generators, jsonMerges, packages.base
-
----
-
-## Migration Strategy
-
-### From JS-Only to Polyglot Support
-
-**Trigger:** Implementation of Python support feature
-
-**Steps:**
-
-1. Add `detectLanguages()` layer above `detectProjectType()`
-2. Extend lint hook with Python extension routing
-3. Make setup command conditional on detected languages
-4. Update /lint command template with Python tooling
-
-**Rollback:** Revert to previous version; no breaking changes to JS-only projects
 
 ---
 

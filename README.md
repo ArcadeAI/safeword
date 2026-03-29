@@ -180,11 +180,15 @@ Key directories created in your project:
 - `session-verify-agents.ts` - Verifies AGENTS.md link on session start
 - `session-version.ts` - Shows safeword version on session start
 - `session-lint-check.ts` - Checks for lint errors on session start
+- `session-cleanup-quality.ts` - Garbage-collects old quality state files on session end
+- `session-compact-context.ts` - Re-injects active ticket context after context compaction
 - `prompt-timestamp.ts` - Injects timestamp into prompts
 - `prompt-questions.ts` - Reminds agent to ask clarifying questions
 - `post-tool-lint.ts` - Auto-lints after file edits
-- `post-tool-quality.ts` - Tracks LOC, detects phase changes and feat: commits
-- `pre-tool-quality.ts` - Blocks edits when quality gate is active (LOC, phase, or refactor)
+- `post-tool-quality.ts` - Tracks LOC, detects phase changes and TDD steps
+- `post-tool-bypass-warn.ts` - Warns when agent bypasses quality gates
+- `pre-tool-quality.ts` - Blocks edits when quality gate is active (LOC, phase, or TDD)
+- `pre-tool-config-guard.ts` - Guards against settings.json modifications
 - `stop-quality.ts` - Quality review prompt on stop
 - `cursor/after-file-edit.ts` - Auto-lints after Cursor file edits
 - `cursor/stop.ts` - Quality review prompt on Cursor stop
@@ -195,16 +199,20 @@ Key directories created in your project:
 - `debug/` - Four-phase debugging (investigate before fixing)
 - `quality-review/` - Deep code review with web research
 - `refactor/` - Small-step refactoring with test verification
+- `testing/` - Test writing methodology (iron laws, anti-patterns)
+- `ticket-system/` - Ticket system and work logs for context anchoring
 
 **Commands** (in `.claude/commands/`): Slash commands
 
 - `/audit` - Run architecture and dead code analysis
 - `/bdd` - Force BDD flow for current task
 - `/cleanup-zombies` - Kill zombie processes on ports
-- `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
+- `/debug` - Four-phase debugging framework
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
 - `/refactor` - Systematic refactoring with small-step discipline
+- `/testing` - Test writing guidance and best practices
+- `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
 
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 
@@ -335,7 +343,7 @@ This section is for contributors to safeword itself.
 
 | Component | Technology                  |
 | --------- | --------------------------- |
-| Runtime   | Bun (dev), Node 18+ (users) |
+| Runtime   | Bun (dev), Node 20+ (users) |
 | CLI       | TypeScript, Commander.js    |
 | Build     | tsup (ESM-only output)      |
 | Tests     | Vitest                      |
