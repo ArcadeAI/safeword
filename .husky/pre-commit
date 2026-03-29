@@ -2,4 +2,7 @@
 # Uses schema-derived patterns to stay in sync with what safeword creates
 bun scripts/check-nested-configs.ts || exit 1
 
+# Version sync: package.json is source of truth, marketplace.json must match
+node -e 'var c=require("./packages/cli/package.json").version,m=require("./marketplace.json").plugins[0].version;if(c!=m){console.error("Version mismatch: package.json="+c+" marketplace.json="+m+". Update marketplace.json.");process.exit(1)}'
+
 lint-staged
