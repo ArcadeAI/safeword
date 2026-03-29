@@ -45,13 +45,14 @@ describe('getEslintConfig', () => {
     expect(config).toContain('baseConfigs[framework]');
   });
 
-  it('should include testing and query configs unconditionally (file-scoped)', () => {
+  it('should include testing, storybook, and query configs conditionally', () => {
     const config = getEslintConfig();
 
-    // Vitest, Playwright, TanStack Query are always included (file-scoped, no false positives)
-    expect(config).toContain('configs.vitest');
-    expect(config).toContain('configs.playwright');
-    expect(config).toContain('configs.tanstackQuery');
+    // All framework plugins are conditional (peer deps require the framework)
+    expect(config).toContain('detect.hasVitest(deps)');
+    expect(config).toContain('detect.hasPlaywright(deps)');
+    expect(config).toContain('detect.hasStorybook(deps)');
+    expect(config).toContain('detect.hasTanstackQuery(deps)');
   });
 
   it('should use detection only for Tailwind (plugin needs config to validate classes)', () => {

@@ -65,13 +65,13 @@ const scopedNextConfigs = nextPaths?.flatMap((filePath) =>
  * Testing, Storybook, and conditional framework configs.
  * Used by all 3 ESLint config generators.
  */
-const OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - always included (file-scoped to *.test.* and *.e2e.*)
-  ...configs.vitest,
-  ...configs.playwright,
+const OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - only if detected (plugins have framework peer deps)
+  ...(detect.hasVitest(deps) ? configs.vitest : []),
+  ...(detect.hasPlaywright(deps) ? configs.playwright : []),
   // Storybook - only if detected (v10+ requires storybook peer dep)
   ...(detect.hasStorybook(deps) ? configs.storybook : []),
-  // TanStack Query - always included (rules only match useQuery/useMutation patterns)
-  ...configs.tanstackQuery,
+  // TanStack Query - only if detected (has typescript peer dep)
+  ...(detect.hasTanstackQuery(deps) ? configs.tanstackQuery : []),
   // Tailwind - only if detected (plugin needs tailwind config to validate classes)
   ...(detect.hasTailwind(deps) ? configs.tailwind : []),
   // Turborepo - only if detected (validates env vars are declared in turbo.json)
