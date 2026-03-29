@@ -1,3 +1,10 @@
+---
+id: 076
+type: task
+phase: done
+status: done
+---
+
 # Task: CI hardening — concurrency, timeouts, caching, golangci-lint binary
 
 **Type:** Improvement

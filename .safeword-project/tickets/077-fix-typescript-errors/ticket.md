@@ -1,3 +1,10 @@
+---
+id: 077
+type: task
+phase: done
+status: done
+---
+
 # Task: Fix TypeScript errors from SQL pack additions
 
 **Type:** Bug

@@ -2,8 +2,8 @@
 id: 061
 slug: lint-hook-feedback
 type: task
-status: in_progress
-phase: implement
+status: done
+phase: done
 ---
 
 # Task: Surface unfixable lint errors back to Claude via additionalContext

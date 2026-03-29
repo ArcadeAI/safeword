@@ -1,8 +1,8 @@
 ---
 id: 057
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-03-27T18:55:00Z
 last_modified: 2026-03-28T04:20:00Z
 parent: null
