@@ -44,6 +44,7 @@ const DEFAULT_PROJECT_TYPE = {
   existingGolangciConfig: undefined,
   existingClippyConfig: undefined,
   existingRustfmtConfig: undefined,
+  existingSqlfluffConfig: undefined,
 };
 
 describe('Reconcile - Reconciliation Engine', () => {
@@ -96,11 +97,13 @@ describe('Reconcile - Reconciliation Engine', () => {
         python: boolean;
         golang: boolean;
         rust: boolean;
+        sql: boolean;
       }) ?? {
         javascript: true,
         python: false,
         golang: false,
         rust: false,
+        sql: false,
       },
     };
   }

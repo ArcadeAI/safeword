@@ -170,10 +170,11 @@ function detectFromPythonDeps(cwd: string): string | undefined {
     if (!content) return undefined;
 
     // Match dbt-{adapter} packages, skipping dbt-core (framework, not adapter)
-    const matches = [...content.matchAll(/dbt-(\w+)/g)];
-    for (const match of matches) {
-      if (match[1] === 'core') continue;
-      const dialect = ADAPTER_TO_DIALECT[match[1]];
+    const adapters = [...content.matchAll(/dbt-(\w+)/g)]
+      .map(m => m[1])
+      .filter((a): a is string => a !== undefined && a !== 'core');
+    for (const adapter of adapters) {
+      const dialect = ADAPTER_TO_DIALECT[adapter];
       if (dialect) return dialect;
     }
     return undefined;
@@ -191,7 +192,7 @@ function detectFromSqlcConfig(cwd: string): string | undefined {
     try {
       const content = readFileSync(nodePath.join(directory, filename), 'utf8');
       const match = /engine['":\s]+(\w+)/.exec(content);
-      if (match) return ADAPTER_TO_DIALECT[match[1]] ?? match[1];
+      if (match?.[1]) return ADAPTER_TO_DIALECT[match[1]] ?? match[1];
     } catch {
       continue;
     }
@@ -207,7 +208,7 @@ function detectFromPrismaSchema(cwd: string): string | undefined {
   try {
     const content = readFileSync(schemaPath, 'utf8');
     const match = /provider\s*=\s*"(\w+)"/.exec(content);
-    if (!match) return undefined;
+    if (!match?.[1]) return undefined;
 
     // Skip non-database providers (e.g., "prisma-client-js")
     return PROVIDER_TO_DIALECT[match[1]];
@@ -225,7 +226,7 @@ function detectFromDrizzleConfig(cwd: string): string | undefined {
     try {
       const content = readFileSync(filePath, 'utf8');
       const match = /dialect\s*:\s*["'](\w+)["']/.exec(content);
-      if (match) return DRIZZLE_TO_DIALECT[match[1]];
+      if (match?.[1]) return DRIZZLE_TO_DIALECT[match[1]];
     } catch {
       continue;
     }
@@ -241,7 +242,7 @@ function detectFromDatabaseUrl(cwd: string): string | undefined {
   try {
     const content = readFileSync(envPath, 'utf8');
     const match = /DATABASE_URL\s*=\s*["']?(\w+):/.exec(content);
-    if (!match) return undefined;
+    if (!match?.[1]) return undefined;
 
     return SCHEME_TO_DIALECT[match[1]];
   } catch {

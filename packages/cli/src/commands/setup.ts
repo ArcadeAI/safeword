@@ -463,6 +463,7 @@ export async function setup(): Promise<void> {
       python: false,
       golang: false,
       rust: false,
+      sql: false,
     };
     const isNonJsOnly =
       (languages.python || languages.golang || languages.rust) && !languages.javascript;

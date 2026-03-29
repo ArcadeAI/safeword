@@ -17,4 +17,4 @@ import turboPlugin from 'eslint-plugin-turbo';
  * Uses official flat/recommended preset (already at error severity).
  * Catches undeclared env vars that would break Turborepo caching.
  */
-export const turboConfig: any[] = [turboPlugin.configs['flat/recommended']];
+export const turboConfig: any[] = [turboPlugin.configs?.['flat/recommended']].filter(Boolean);

@@ -113,7 +113,7 @@ function parseClippyKeys(content: string): Set<string> {
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('#')) {
       const match = /^([\w-]+)\s*=/.exec(trimmed);
-      if (match) keys.add(match[1]);
+      if (match?.[1]) keys.add(match[1]);
     }
   }
   return keys;

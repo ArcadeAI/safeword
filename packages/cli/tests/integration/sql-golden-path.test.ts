@@ -185,9 +185,10 @@ describe('E2E: dbt Golden Path', () => {
     it('3.2: sql pack is registered in LANGUAGE_PACKS', async () => {
       const { LANGUAGE_PACKS } = await import('../../src/packs/registry.js');
 
-      expect(LANGUAGE_PACKS.sql).toBeDefined();
-      expect(LANGUAGE_PACKS.sql.id).toBe('sql');
-      expect(LANGUAGE_PACKS.sql.extensions).toContain('.sql');
+      const sqlPack = LANGUAGE_PACKS.sql;
+      expect(sqlPack).toBeDefined();
+      expect(sqlPack?.id).toBe('sql');
+      expect(sqlPack?.extensions).toContain('.sql');
     });
 
     it('3.3: setup completes successfully for dbt projects', async () => {
