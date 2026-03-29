@@ -9,6 +9,7 @@ on:
     # Weekly on Sunday at midnight UTC - catches runner image and environmental drift
     - cron: '0 0 * * 0'
 
+# Cancel superseded PR runs; main pushes each get a unique group (run_id) so they queue
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -36,7 +37,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.25'
-          cache: false
+          cache: false # No go.mod in repo — Go is only here for the golangci-lint binary
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -50,7 +51,7 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      # Config requires v2 format (see packages/cli/src/packs/golang/files.ts)
+      # Pre-built binary (~3s) instead of go install (~55s compile from source)
       - name: Install golangci-lint v2
         run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
 

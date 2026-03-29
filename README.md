@@ -1,5 +1,7 @@
 # SAFEWORD - AI Agent Configuration CLI
 
+[![CI](https://github.com/TheMostlyGreat/safeword/actions/workflows/ci.yml/badge.svg)](https://github.com/TheMostlyGreat/safeword/actions/workflows/ci.yml)
+
 **Problem**: AI agents write code without tests, skip design validation, and lack consistency across projects.
 
 **Solution**: Portable patterns and guides that enforce test-first development (BDD/TDD), quality standards, and best practices across all your projects.
