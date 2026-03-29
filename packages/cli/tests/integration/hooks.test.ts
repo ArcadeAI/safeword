@@ -1133,7 +1133,7 @@ describe('E2E: Python Lint Hook', () => {
 
         // Hook should output additionalContext JSON for remaining errors
         const stdout = result.stdout.trim();
-        expect(stdout).toBeTruthy();
+        expect(stdout).toMatch(/.+/);
         const output = JSON.parse(stdout);
         expect(output.hookSpecificOutput).toBeDefined();
         expect(output.hookSpecificOutput.hookEventName).toBe('PostToolUse');

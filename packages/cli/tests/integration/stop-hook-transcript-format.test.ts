@@ -131,7 +131,7 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
       );
     }
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toBeTruthy();
+    expect(parsed.reason).toMatch(/.+/);
   });
 
   it('fixture uses real transcript envelope fields (format regression guard)', () => {

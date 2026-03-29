@@ -24,7 +24,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-/* eslint-disable unicorn/no-null -- State file uses JSON null values by design */
+/* eslint-disable unicorn/no-null -- State file uses JSON null values by design; re-enabled at EOF */
 
 // Absolute paths to hook scripts in safeword source tree
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -545,7 +545,7 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      expect(output.hookSpecificOutput.permissionDecisionReason).toBeTruthy();
+      expect(output.hookSpecificOutput.permissionDecisionReason).toMatch(/.+/);
       expect(output.hookSpecificOutput.additionalContext).toContain('/tdd-review');
     });
 
@@ -1140,3 +1140,4 @@ describe('Quality Gates', () => {
     });
   });
 });
+/* eslint-enable unicorn/no-null */
