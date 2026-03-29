@@ -82,6 +82,7 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
       expect(eslintConfig).toContain('safeword/eslint"');
       // Config is now dynamic - detects framework at runtime
 
+      // eslint-disable-next-line sonarjs/code-eval -- false positive: asserting generated config content, not eval
       expect(eslintConfig).toContain('javascript: configs.recommended');
       expect(eslintConfig).toContain('baseConfigs[framework]');
 
