@@ -1,6 +1,8 @@
 /**
- * Find the most recently modified in_progress non-epic ticket.
- * Used by pre-tool-quality.ts (phase access control) and stop-quality.ts (phase-aware review).
+ * Ticket lookup utilities for quality hooks.
+ *
+ * getTicketPhase() — look up a specific ticket by ID (used by pre-tool for session-scoped access)
+ * getActiveTicket() — find most recent in_progress ticket globally (used by stop hook for review)
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

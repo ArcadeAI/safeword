@@ -17,6 +17,15 @@ import {
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
+// Phases that block code edits (only implement phase allows writing code)
+const PLANNING_PHASES = new Set([
+  'intake',
+  'define-behavior',
+  'scenario-gate',
+  'decomposition',
+  'done',
+]);
+
 // Phase → skill file mapping
 const PHASE_FILE_MAP: Record<string, string> = {
   intake: 'DISCOVERY.md',
@@ -105,13 +114,6 @@ if (state.lastCommitHash !== currentHead) {
 // Phase-based access control: planning phases block code edits.
 // Uses THIS session's activeTicket (from per-session state) — not a global scan.
 // This prevents tickets from other sessions from blocking this session's edits.
-const PLANNING_PHASES = new Set([
-  'intake',
-  'define-behavior',
-  'scenario-gate',
-  'decomposition',
-  'done',
-]);
 if (state.activeTicket) {
   const phase = getTicketPhase(projectDirectory, state.activeTicket);
   if (phase && PLANNING_PHASES.has(phase)) {
