@@ -7,7 +7,7 @@
  *
  * Does NOT apply to regular *.test.ts files (those are vitest).
  *
- * All rules escalated to error EXCEPT no-skipped-test (stays warn for TDD).
+ * All rules escalated to error (LLMs ignore warnings).
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
@@ -18,7 +18,6 @@ import playwrightPlugin from 'eslint-plugin-playwright';
  * Playwright e2e test linting config
  *
  * Based on recommended config with all warns escalated to error.
- * Exception: no-skipped-test stays at warn (legitimate TDD pattern).
  *
  * File patterns target only e2e tests to avoid vitest conflicts:
  * - Explicit e2e suffix (e.g., login.e2e.ts)
@@ -62,8 +61,7 @@ export const playwrightConfig: any[] = [
       'playwright/no-wait-for-selector': 'error',
       'playwright/no-wait-for-timeout': 'error',
 
-      // EXCEPTION: stays at warn (legitimate TDD pattern)
-      'playwright/no-skipped-test': 'warn',
+      'playwright/no-skipped-test': 'error',
 
       // Relax base rules for test files - each override has documented justification:
       //

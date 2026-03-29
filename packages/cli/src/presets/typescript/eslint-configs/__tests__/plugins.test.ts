@@ -4,7 +4,7 @@
  * Verifies that test configs:
  * - Include appropriate plugins
  * - Target test file patterns
- * - Have correct rule severities (error except no-skipped-test)
+ * - Have correct rule severities (all error, LLMs ignore warnings)
  */
 
 import { describe, expect, it } from 'vitest';
@@ -136,23 +136,20 @@ describe('Playwright critical rules at error', () => {
   });
 });
 
-describe('Playwright no-skipped-test exception', () => {
-  it('playwright/no-skipped-test stays at warn (TDD exception)', () => {
+describe('Playwright no-skipped-test at error', () => {
+  it('playwright/no-skipped-test is error (LLMs ignore warnings)', () => {
     expect(getSeverityNumber(getRuleConfig(playwrightConfig, 'playwright/no-skipped-test'))).toBe(
-      WARN,
+      ERROR,
     );
   });
 });
 
-describe('Playwright no other warnings (except no-skipped-test)', () => {
-  it('no playwright rules at warn except no-skipped-test', () => {
+describe('Playwright no warnings', () => {
+  it('no playwright rules at warn', () => {
     const allRules = getAllRules(playwrightConfig);
     const rulesAtWarn = Object.entries(allRules)
       .filter(([ruleId]) => ruleId.startsWith('playwright/'))
-      .filter(
-        ([ruleId, config]) =>
-          ruleId !== 'playwright/no-skipped-test' && getSeverityNumber(config) === WARN,
-      );
+      .filter(([_, config]) => getSeverityNumber(config) === WARN);
 
     expect(rulesAtWarn).toEqual([]);
   });
