@@ -301,6 +301,19 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     ) {
       return { warnings };
     }
+    // Safeword config requires golangci-lint v2+ (released March 2025)
+    if (!toolWarnings.has('golangci-lint-v2')) {
+      const versionResult = await $`golangci-lint version --short`.nothrow().quiet();
+      const version = versionResult.stdout.toString().trim();
+      if (version && version.startsWith('1.')) {
+        toolWarnings.add('golangci-lint-v2');
+        warnings.push(
+          `golangci-lint v${version} detected — safeword requires v2+. ` +
+            `Upgrade: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin`,
+        );
+        return { warnings };
+      }
+    }
     const hasGolangci = await ensurePackInstalled('Go', SAFEWORD_GOLANGCI);
     const cfg = configArgs(SAFEWORD_GOLANGCI, hasGolangci);
     await $`golangci-lint run ${cfg} --fix ${file}`.nothrow().quiet();
