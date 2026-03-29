@@ -5,10 +5,11 @@
  * Imported by schema.ts and spread into SAFEWORD_SCHEMA.
  *
  * Mirrors the structure of typescript/files.ts and golang/files.ts for consistency.
+ *
+ * Note: Generator functions return `string | undefined` by design (undefined = skip file).
+ * This conflicts with sonarjs/no-inconsistent-returns vs unicorn/no-useless-undefined (#1199).
+ * Inline disables target only generator arrow functions, not regular functions in this file.
  */
-
-/* eslint-disable sonarjs/no-inconsistent-returns -- Generators return string | undefined
-   by design (undefined = skip file). Conflicts with unicorn/no-useless-undefined (#1199). */
 
 import type { FileDefinition, ManagedFileDefinition } from '../types.js';
 import { detectPythonLayers, detectRootPackage } from './setup.js';
@@ -223,6 +224,7 @@ export const pythonManagedFiles: Record<string, ManagedFileDefinition> = {
 
   // Project-level import-linter config (created only if layers detected and no existing config)
   '.importlinter': {
+    // eslint-disable-next-line sonarjs/no-inconsistent-returns
     generator: ctx => {
       if (!ctx.languages?.python) return;
       if (ctx.projectType.existingImportLinterConfig) return;
