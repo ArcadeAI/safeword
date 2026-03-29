@@ -369,6 +369,8 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Alternatives   | mypy in hook with caching (rejected: still too slow), skip mypy entirely (rejected: loses value)     |
 | Implementation | Hook: `packages/cli/templates/hooks/lib/lint.ts`; Command: `packages/cli/templates/commands/lint.md` |
 
+**Linter crash resilience:** `captureRemainingErrors()` reads stderr when stdout is empty on non-zero exit. This distinguishes "linter found no issues" from "linter crashed" (e.g., golangci-lint Go version mismatch). Crashes surface as warnings via the existing `warnings` array, not as lint errors. This prevents silent failures where a broken linter reports success.
+
 ### Bundled Language Packs (No External Packages)
 
 **Status:** Accepted
@@ -461,7 +463,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 
 **Gate types:**
 
-- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC; forces commit before more edits
+- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`.safeword/`, `.claude/`, `.cursor/`, `.safeword-project/`) are excluded from the count via git pathspec, so setup/upgrade output doesn't inflate it.
 - **Phase gate** (`phase:{name}`) — triggers on ticket phase transitions; uses `additionalContext` to reference `/quality-review` skill. Ticket creation (null→phase) is silent — only real transitions gate.
 - **TDD gates** (`tdd:green`, `tdd:refactor`, `tdd:red`) — triggers when RED/GREEN/REFACTOR sub-checkboxes change in test-definitions.md during `implement` phase; uses `additionalContext` to reference `/tdd-review` skill
 
