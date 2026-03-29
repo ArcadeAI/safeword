@@ -14,6 +14,26 @@ export interface ActiveTicketInfo {
 
 const EMPTY: ActiveTicketInfo = { phase: undefined, type: undefined, folder: undefined };
 
+/**
+ * Look up a specific ticket's phase by ID (e.g., "038").
+ * Used for session-scoped phase access — only checks the ticket THIS session owns.
+ */
+export function getTicketPhase(projectDirectory: string, ticketId: string): string | undefined {
+  const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  if (!existsSync(ticketsDirectory)) return undefined;
+
+  try {
+    const folders = readdirSync(ticketsDirectory);
+    const match = folders.find(f => f.startsWith(`${ticketId}-`));
+    if (!match) return undefined;
+
+    const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
+    return content.match(/^phase:\s*(\S+)/m)?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
 export function getActiveTicket(projectDirectory: string): ActiveTicketInfo {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
   if (!existsSync(ticketsDirectory)) return EMPTY;

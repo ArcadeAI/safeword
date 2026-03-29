@@ -1,8 +1,8 @@
 ---
 id: 094
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-03-29T21:25:00Z
 last_modified: 2026-03-29T21:25:00Z
 ---
@@ -64,6 +64,8 @@ Ignore `in_progress` tickets not modified in the last N minutes (e.g., 30 min). 
 
 ## Work Log
 
+- 2026-03-29T22:14:00Z Complete: implemented Option B — pre-tool-quality.ts now uses session's activeTicket from per-session state instead of global ticket scan. Added getTicketPhase() to active-ticket.ts.
+- 2026-03-29T22:05:00Z Research: traced exact code path. Phase-access check ran before state file, used global scan. Fix: move after state file read, use session's activeTicket.
 - 2026-03-29T21:25:00Z Created: from audit session — blocked 5 times by stale tickets from other sessions. Required manual cleanup of tickets 054, 055, 038, 092, 093 plus a commit to clear cached gate.
 
 ---

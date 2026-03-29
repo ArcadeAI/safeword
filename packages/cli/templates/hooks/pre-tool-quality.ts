@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getActiveTicket } from './lib/active-ticket.ts';
+import { getTicketPhase } from './lib/active-ticket.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
@@ -73,25 +73,7 @@ if (META_PATHS.some(p => editedFile.includes(p))) {
   process.exit(0);
 }
 
-// Phase-based access control: planning phases can only edit project artifacts.
-// Reads the active ticket's phase directly (not from state) to avoid cross-ticket
-// contamination where editing one ticket's phase affects another ticket's enforcement.
-const PLANNING_PHASES = new Set([
-  'intake',
-  'define-behavior',
-  'scenario-gate',
-  'decomposition',
-  'done',
-]);
-const activePhase = getActiveTicket(projectDirectory).phase;
-if (activePhase && PLANNING_PHASES.has(activePhase)) {
-  deny(
-    `SAFEWORD: Active ticket is at "${activePhase}" phase — code edits require "implement" phase.\n\nAdvance your ticket to implement phase before writing code.`,
-    'Update ticket.md frontmatter: phase: implement',
-  );
-}
-
-// No state file → no enforcement
+// No state file → no enforcement (session hasn't started tracking yet)
 if (!existsSync(stateFile)) {
   process.exit(0);
 }
@@ -118,6 +100,26 @@ const currentHead = (() => {
 
 if (state.lastCommitHash !== currentHead) {
   process.exit(0);
+}
+
+// Phase-based access control: planning phases block code edits.
+// Uses THIS session's activeTicket (from per-session state) — not a global scan.
+// This prevents tickets from other sessions from blocking this session's edits.
+const PLANNING_PHASES = new Set([
+  'intake',
+  'define-behavior',
+  'scenario-gate',
+  'decomposition',
+  'done',
+]);
+if (state.activeTicket) {
+  const phase = getTicketPhase(projectDirectory, state.activeTicket);
+  if (phase && PLANNING_PHASES.has(phase)) {
+    deny(
+      `SAFEWORD: Active ticket is at "${phase}" phase — code edits require "implement" phase.\n\nAdvance your ticket to implement phase before writing code.`,
+      'Update ticket.md frontmatter: phase: implement',
+    );
+  }
 }
 
 // No gate set → allow
