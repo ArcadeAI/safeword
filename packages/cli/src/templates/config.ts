@@ -68,8 +68,8 @@ const scopedNextConfigs = nextPaths?.flatMap((filePath) =>
 const OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - always included (file-scoped to *.test.* and *.e2e.*)
   ...configs.vitest,
   ...configs.playwright,
-  // Storybook - always included (file-scoped to *.stories.*)
-  ...configs.storybook,
+  // Storybook - only if detected (v10+ requires storybook peer dep)
+  ...(detect.hasStorybook(deps) ? configs.storybook : []),
   // TanStack Query - always included (rules only match useQuery/useMutation patterns)
   ...configs.tanstackQuery,
   // Tailwind - only if detected (plugin needs tailwind config to validate classes)
