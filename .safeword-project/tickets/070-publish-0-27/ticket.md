@@ -2,8 +2,8 @@
 id: 070
 slug: publish-0-27
 type: task
-status: backlog
-phase: implement
+status: done
+phase: done
 ---
 
 # Task: Publish safeword 0.27.0

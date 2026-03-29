@@ -2,8 +2,8 @@
 id: 050
 slug: haiku-judge-stop-hook
 type: task
-status: backlog
-phase: intake
+status: wontfix
+phase: done
 ---
 
 # Haiku as independent judge for stop hook soft block

@@ -144,6 +144,33 @@ describe('E2E: dbt Golden Path', () => {
       expect(config).toContain('capitalisation_policy');
     });
 
+    it('2.5: detected dialect flows into both generated configs', async () => {
+      createDbtProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'profiles.yml',
+        `default:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: test
+      database: test
+`,
+      );
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup'], { cwd: temporaryDirectory });
+
+      const managedConfig = readTestFile(temporaryDirectory, '.sqlfluff');
+      expect(managedConfig).toContain('dialect = snowflake');
+      expect(managedConfig).not.toContain('dialect = ansi');
+
+      const ownedConfig = readTestFile(temporaryDirectory, '.safeword/sqlfluff.cfg');
+      expect(ownedConfig).toContain('dialect = snowflake');
+      expect(ownedConfig).not.toContain('dialect = ansi');
+    });
+
     it('2.3: does NOT overwrite existing .sqlfluff', async () => {
       createDbtProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, '.sqlfluff', '[sqlfluff]\ndialect = bigquery\n');

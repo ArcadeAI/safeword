@@ -1,8 +1,8 @@
 ---
 id: 021
 type: feature
-phase: intake
-status: backlog
+phase: done
+status: wontfix
 created: 2026-01-11T16:50:00Z
 last_modified: 2026-01-11T16:50:00Z
 ---
