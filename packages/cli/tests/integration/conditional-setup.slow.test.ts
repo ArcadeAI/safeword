@@ -118,4 +118,30 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
     },
     SETUP_TIMEOUT,
   );
+
+  it(
+    'detects publishable library and includes publint',
+    async () => {
+      projectDirectory = createTemporaryDirectory();
+      createPackageJson(projectDirectory, {
+        // Publishable: has main/exports, not private
+        main: './dist/index.js',
+        exports: {
+          '.': './dist/index.js',
+        },
+        devDependencies: { typescript: '^5.0.0' },
+      });
+      initGitRepo(projectDirectory);
+
+      await runCli(['setup', '--yes'], {
+        cwd: projectDirectory,
+        timeout: SETUP_TIMEOUT,
+      });
+
+      const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
+      expect(pkg.devDependencies).toHaveProperty('publint');
+      expect(pkg.scripts).toHaveProperty('publint');
+    },
+    SETUP_TIMEOUT,
+  );
 });

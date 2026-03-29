@@ -156,34 +156,8 @@ describe('E2E: Conditional Setup - Project Type Detection', () => {
   // They require real npm installs that routinely exceed timeout limits.
   // Run explicitly: bun vitest run --config vitest.slow.config.ts
 
-  // Skip: This test hangs intermittently during npm install (45min+ timeouts)
-  // The functionality is tested in project-detector.test.ts unit tests
-  it.skip(
-    'detects publishable library and includes publint',
-    async () => {
-      projectDirectory = createTemporaryDirectory();
-      createPackageJson(projectDirectory, {
-        // Publishable: has main/exports, not private
-        main: './dist/index.js',
-        exports: {
-          '.': './dist/index.js',
-        },
-        devDependencies: { typescript: '^5.0.0' },
-      });
-      initGitRepo(projectDirectory);
-
-      await runCli(['setup', '--yes'], {
-        cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
-      });
-
-      // Check package.json has publint installed
-      const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
-      expect(pkg.devDependencies).toHaveProperty('publint');
-      expect(pkg.scripts).toHaveProperty('publint');
-    },
-    SETUP_TIMEOUT,
-  );
+  // Publint detection test moved to conditional-setup.slow.test.ts
+  // Requires real npm install that hangs intermittently (45min+ timeouts)
 });
 
 describe('E2E: Conditional Setup - Existing Config Preservation', () => {

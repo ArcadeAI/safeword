@@ -58,6 +58,9 @@ jobs:
       - name: Install Python tools
         run: pip install -r .github/requirements-ci.txt
 
+      - name: Install Poetry
+        run: pipx install poetry
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -66,6 +69,8 @@ jobs:
 
       - name: Test CLI
         run: bun run --cwd packages/cli test
+        env:
+          TEST_POETRY: '1'
 
   lint:
     runs-on: ubuntu-latest

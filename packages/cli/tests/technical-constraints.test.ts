@@ -65,21 +65,8 @@ describe('Test Suite 0: Technical Constraints', () => {
     });
   });
 
-  describe('Test 0.3: Node.js version check', () => {
-    it.skip('should exit with error on Node.js < 18 (requires CI container)', async () => {
-      // This test requires running with Node.js < 18, which needs:
-      // - A Docker container with older Node, OR
-      // - nvm switching in CI
-      //
-      // The implementation should check process.version at startup
-      // and exit with code 1 if version < 18.
-      //
-      // Expected behavior:
-      // - Exit code 1
-      // - stderr contains "Node.js version" and "18"
-      expect(true).toBe(true); // Placeholder
-    });
-  });
+  // Test 0.3 (Node.js < 18 check) removed — engines field in package.json
+  // enforces >=20 at install time. No runtime check exists or is needed.
 
   describe('Test 0.4: Works with different package managers', () => {
     it('should work with npm', async () => {
