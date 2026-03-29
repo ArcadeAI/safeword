@@ -11,6 +11,9 @@ Run a comprehensive code audit. Execute checks and report results by severity.
 ### 1. Code Quality Checks
 
 ```bash
+# Ensure we're in the project root regardless of prior CWD state
+cd "$CLAUDE_PROJECT_DIR" || exit 1
+
 # =========================================================================
 # REFRESH CONFIG (detect current architecture)
 # =========================================================================

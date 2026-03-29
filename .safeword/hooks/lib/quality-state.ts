@@ -7,6 +7,10 @@ import nodePath from 'node:path';
 
 export const LOC_THRESHOLD = 400;
 
+/** Tooling/meta paths that are not application code.
+ *  Used by pre-tool (skip blocking) and post-tool (skip LOC counting). */
+export const META_PATHS = ['.safeword-project/', '.safeword/', '.claude/', '.cursor/'];
+
 export interface QualityState {
   locSinceCommit: number;
   lastCommitHash: string;

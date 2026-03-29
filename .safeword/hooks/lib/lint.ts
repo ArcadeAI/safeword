@@ -211,12 +211,23 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
   return hasConfig(configPath);
 }
 
-/** Run a linter in check-only mode and capture remaining errors after auto-fix. */
-async function captureRemainingErrors(command: string[]): Promise<string | undefined> {
+/** Run a linter in check-only mode and capture remaining errors after auto-fix.
+ *  When a linter crashes (non-zero exit, empty stdout, stderr present), pushes
+ *  an infrastructure warning instead of returning lint errors. */
+async function captureRemainingErrors(
+  command: string[],
+  warnings?: string[],
+): Promise<string | undefined> {
   const result = await $`${command}`.nothrow().quiet();
   if (result.exitCode === 0) return undefined;
-  const output = result.stdout.toString().trim();
-  return output || undefined;
+  const stdout = result.stdout.toString().trim();
+  const stderr = result.stderr.toString().trim();
+  // Infra failure: linter crashed, not a lint error in the user's code
+  if (!stdout && stderr && warnings) {
+    warnings.push(`${command[0]} failed: ${stderr.split('\n')[0]}`);
+    return undefined;
+  }
+  return stdout || undefined;
 }
 
 /** Build --config args if safeword config exists. */
@@ -257,7 +268,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     const cfg = configArgs(SAFEWORD_ESLINT, hasEslint);
     await $`bunx eslint ${cfg} --fix ${file}`.nothrow().quiet();
     await runPrettier(file);
-    const errors = await captureRemainingErrors(['bunx', 'eslint', ...cfg, file]);
+    const errors = await captureRemainingErrors(['bunx', 'eslint', ...cfg, file], warnings);
     return { warnings, ...(errors && { errors }) };
   }
 
@@ -273,7 +284,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     const cfg = configArgs(SAFEWORD_RUFF, hasRuff);
     await $`ruff check ${cfg} --fix ${file}`.nothrow().quiet();
     await $`ruff format ${cfg} ${file}`.nothrow().quiet();
-    const errors = await captureRemainingErrors(['ruff', 'check', ...cfg, file]);
+    const errors = await captureRemainingErrors(['ruff', 'check', ...cfg, file], warnings);
     return { warnings, ...(errors && { errors }) };
   }
 
@@ -294,7 +305,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     const cfg = configArgs(SAFEWORD_GOLANGCI, hasGolangci);
     await $`golangci-lint run ${cfg} --fix ${file}`.nothrow().quiet();
     await $`golangci-lint fmt ${cfg} ${file}`.nothrow().quiet();
-    const errors = await captureRemainingErrors(['golangci-lint', 'run', ...cfg, file]);
+    const errors = await captureRemainingErrors(['golangci-lint', 'run', ...cfg, file], warnings);
     return { warnings, ...(errors && { errors }) };
   }
 

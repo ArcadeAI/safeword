@@ -7,7 +7,12 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getStateFilePath, LOC_THRESHOLD, type QualityState } from './lib/quality-state.ts';
+import {
+  getStateFilePath,
+  LOC_THRESHOLD,
+  META_PATHS,
+  type QualityState,
+} from './lib/quality-state.ts';
 
 interface HookInput {
   session_id?: string;
@@ -72,7 +77,8 @@ function getHeadHash(): string {
 
 function countLoc(): number {
   try {
-    const diffStat = execSync('git diff --stat HEAD', {
+    const excludes = META_PATHS.map(p => `':!${p}'`).join(' ');
+    const diffStat = execSync(`git diff --stat HEAD -- . ${excludes}`, {
       cwd: projectDirectory,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],

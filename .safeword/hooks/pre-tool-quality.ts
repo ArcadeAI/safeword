@@ -8,7 +8,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getActiveTicket } from './lib/active-ticket.ts';
-import { getStateFilePath, LOC_THRESHOLD, type QualityState } from './lib/quality-state.ts';
+import {
+  getStateFilePath,
+  LOC_THRESHOLD,
+  META_PATHS,
+  type QualityState,
+} from './lib/quality-state.ts';
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
@@ -64,8 +69,6 @@ if (!EDIT_TOOLS.includes(tool)) {
 }
 
 // Never block edits to tooling/meta files — these are not application code.
-// Prevents circular dependencies and allows config/skill work during any phase.
-const META_PATHS = ['.safeword-project/', '.safeword/', '.claude/', '.cursor/'];
 if (META_PATHS.some(p => editedFile.includes(p))) {
   process.exit(0);
 }
