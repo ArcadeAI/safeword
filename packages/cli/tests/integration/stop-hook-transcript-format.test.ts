@@ -149,3 +149,98 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
     expect(hasRealEnvelope).toBe(true);
   });
 });
+
+describe('Stop Hook: Ticket Resolution Context', () => {
+  /** Helper: create a minimal transcript with an Edit tool_use */
+  function createTranscript(directory: string): string {
+    const transcriptLine = JSON.stringify({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
+      },
+    });
+    const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+    writeFileSync(transcriptPath, transcriptLine);
+    return transcriptPath;
+  }
+
+  /** Helper: create a ticket with given phase and status */
+  function createTicket(
+    directory: string,
+    id: string,
+    slug: string,
+    options: { phase: string; status: string; type?: string },
+  ): void {
+    const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', `${id}-${slug}`);
+    mkdirSync(ticketFolder, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketFolder, 'ticket.md'),
+      [
+        '---',
+        `id: ${id}`,
+        `status: ${options.status}`,
+        `type: ${options.type ?? 'task'}`,
+        `phase: ${options.phase}`,
+        `last_modified: ${new Date().toISOString()}`,
+        '---',
+      ].join('\n'),
+    );
+  }
+
+  /** Helper: run the stop hook */
+  function runStopHook(directory: string, transcriptPath: string) {
+    return spawnSync('bun', [STOP_QUALITY], {
+      input: JSON.stringify({
+        transcript_path: transcriptPath,
+        last_assistant_message: 'Here is what I changed.',
+      }),
+      cwd: directory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+  }
+
+  it('shows quality review when active ticket at implement phase', () => {
+    createTicket(projectDirectory, '099', 'test', {
+      phase: 'implement',
+      status: 'in_progress',
+    });
+    const transcriptPath = createTranscript(projectDirectory);
+    const result = runStopHook(projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    // Should soft-block with quality review (edits were made)
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toMatch(/quality review|double check|critique/i);
+  });
+
+  it('shows generic quality review when no ticket exists', () => {
+    // No ticket created — just .safeword/ dir (from beforeEach)
+    const transcriptPath = createTranscript(projectDirectory);
+    const result = runStopHook(projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    // Should still soft-block with generic quality review (edits were made, no ticket context)
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toMatch(/quality review|double check|critique/i);
+  });
+
+  it('shows done-phase hard block when active ticket at done phase', () => {
+    createTicket(projectDirectory, '099', 'test', {
+      phase: 'done',
+      status: 'in_progress',
+    });
+    const transcriptPath = createTranscript(projectDirectory);
+    const result = runStopHook(projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    // Should hard-block requiring evidence (done phase)
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toMatch(/evidence|verify/i);
+  });
+});
