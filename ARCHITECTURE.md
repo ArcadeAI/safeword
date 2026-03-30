@@ -348,44 +348,11 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 
 ## Key Decisions
 
-### Graceful Linter Fallback
+### Settled Decisions (2025-12)
 
-**Status:** Accepted
-**Date:** 2025-12-24
-
-| Field          | Value                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------- |
-| What           | Skip linter silently if not installed, rather than error                                  |
-| Why            | Hook should never block Claude's workflow; users may not have tools installed immediately |
-| Trade-off      | User may not realize linting is skipped                                                   |
-| Alternatives   | Error on missing linter (rejected: blocks Claude), warn always (rejected: noisy)          |
-| Implementation | `packages/cli/templates/hooks/lib/lint.ts` - uses `.nothrow().quiet()`                    |
-
-### TOML Parsing Without Dependencies
-
-**Status:** Accepted
-**Date:** 2025-12-24
-
-| Field          | Value                                                                               |
-| -------------- | ----------------------------------------------------------------------------------- |
-| What           | Use line-based extraction for pyproject.toml instead of full TOML parser            |
-| Why            | No new npm dependencies; only need section detection (`[tool.poetry]`, `[tool.uv]`) |
-| Trade-off      | May fail on complex TOML edge cases                                                 |
-| Alternatives   | @iarna/toml (rejected: adds dependency), toml-js (rejected: adds dependency)        |
-| Implementation | `packages/cli/src/utils/project-detector.ts`                                        |
-
-### Ruff in Hook, mypy in Command Only
-
-**Status:** Accepted
-**Date:** 2025-12-24
-
-| Field          | Value                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| What           | Lint hook runs Ruff (fast); /lint command runs mypy (slow)                                           |
-| Why            | Ruff: ms per file, safe for hooks. mypy: seconds for whole project, would block Claude               |
-| Trade-off      | Type errors not caught until explicit /lint run                                                      |
-| Alternatives   | mypy in hook with caching (rejected: still too slow), skip mypy entirely (rejected: loses value)     |
-| Implementation | Hook: `packages/cli/templates/hooks/lib/lint.ts`; Command: `packages/cli/templates/commands/lint.md` |
+- **Graceful Linter Fallback:** Skip linter silently if not installed (`.nothrow().quiet()`). Hook should never block Claude's workflow. (`lint.ts`)
+- **TOML Parsing Without Dependencies:** Line-based extraction for pyproject.toml. Only need `[tool.poetry]`/`[tool.uv]` detection — no TOML parser dependency. (`project-detector.ts`)
+- **Ruff in Hook, mypy in Command Only:** Ruff is ms/file (safe for hooks); mypy is seconds/project (only runs via `/lint` command).
 
 **Linter crash resilience:** `captureRemainingErrors()` reads stderr when stdout is empty on non-zero exit. This distinguishes "linter found no issues" from "linter crashed" (e.g., golangci-lint Go version mismatch). Crashes surface as warnings via the existing `warnings` array, not as lint errors. This prevents silent failures where a broken linter reports success.
 
