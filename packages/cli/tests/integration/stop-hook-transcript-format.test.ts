@@ -188,10 +188,27 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     );
   }
 
+  /** Helper: write per-session state file */
+  function writeSessionState(
+    directory: string,
+    sessionId: string,
+    state: Record<string, unknown>,
+  ): void {
+    const statePath = nodePath.join(
+      directory,
+      '.safeword-project',
+      `quality-state-${sessionId}.json`,
+    );
+    mkdirSync(nodePath.join(directory, '.safeword-project'), { recursive: true });
+    // eslint-disable-next-line unicorn/no-null -- JSON.stringify replacer parameter
+    writeFileSync(statePath, JSON.stringify(state, null, 2));
+  }
+
   /** Helper: run the stop hook */
-  function runStopHook(directory: string, transcriptPath: string) {
+  function runStopHook(directory: string, transcriptPath: string, sessionId?: string) {
     return spawnSync('bun', [STOP_QUALITY], {
       input: JSON.stringify({
+        session_id: sessionId,
         transcript_path: transcriptPath,
         last_assistant_message: 'Here is what I changed.',
       }),
@@ -242,5 +259,62 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
     expect(parsed.reason).toMatch(/evidence|verify/i);
+  });
+
+  it('uses session binding when session_id and state file exist', () => {
+    // Create two tickets — session is bound to 099
+    createTicket(projectDirectory, '099', 'session-ticket', {
+      phase: 'implement',
+      status: 'in_progress',
+    });
+    createTicket(projectDirectory, '100', 'other-ticket', {
+      phase: 'done',
+      status: 'in_progress',
+    });
+    writeSessionState(projectDirectory, 'test-session', {
+      locSinceCommit: 0,
+      lastCommitHash: '',
+      activeTicket: '099',
+      lastKnownPhase: 'implement',
+      // eslint-disable-next-line unicorn/no-null -- QualityState interface uses null
+      lastKnownTddStep: null,
+      gate: null, // eslint-disable-line unicorn/no-null -- QualityState interface uses null
+    });
+
+    const transcriptPath = createTranscript(projectDirectory);
+    const result = runStopHook(projectDirectory, transcriptPath, 'test-session');
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.decision).toBe('block');
+    // Should show implement-phase quality review (session's ticket), not done-phase hard block
+    expect(parsed.reason).toMatch(/quality review|double check|critique/i);
+    expect(parsed.reason).not.toMatch(/evidence|verify/i);
+  });
+
+  it('shows no ticket context when session ticket is done status', () => {
+    createTicket(projectDirectory, '099', 'done-ticket', {
+      phase: 'done',
+      status: 'done',
+    });
+    writeSessionState(projectDirectory, 'test-session', {
+      locSinceCommit: 0,
+      lastCommitHash: '',
+      activeTicket: '099',
+      lastKnownPhase: 'done',
+      // eslint-disable-next-line unicorn/no-null -- QualityState interface uses null
+      lastKnownTddStep: null,
+      gate: null, // eslint-disable-line unicorn/no-null -- QualityState interface uses null
+    });
+
+    const transcriptPath = createTranscript(projectDirectory);
+    const result = runStopHook(projectDirectory, transcriptPath, 'test-session');
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.decision).toBe('block');
+    // Done-status ticket = no ticket context → generic quality review, not done-phase hard block
+    expect(parsed.reason).toMatch(/quality review|double check|critique/i);
+    expect(parsed.reason).not.toMatch(/evidence|verify/i);
   });
 });
