@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.10
-**Last Updated:** 2026-03-29
+**Version:** 1.11
+**Last Updated:** 2026-03-30
 **Status:** Production
 
 ---
@@ -213,6 +213,23 @@ interface ProjectContext {
 
 **Implementation:** `packages/cli/src/utils/project-detector.ts`
 
+### Framework-Specific ESLint Plugins
+
+All framework ESLint plugins are **conditional** — only included when the framework is detected in the user's `package.json` dependencies. This prevents peer dependency warnings for frameworks users don't have installed.
+
+| Plugin         | Detection                   | Peer Dep             |
+| -------------- | --------------------------- | -------------------- |
+| vitest         | `detect.hasVitest()`        | `vitest: *`          |
+| playwright     | `detect.hasPlaywright()`    | —                    |
+| storybook      | `detect.hasStorybook()`     | `storybook: ^10.3.3` |
+| tanstack-query | `detect.hasTanstackQuery()` | `typescript: ^5.4.0` |
+| tailwind       | `detect.hasTailwind()`      | —                    |
+| turbo          | `detect.hasTurbo()`         | `turbo: >2.0.0`      |
+
+Base plugins (sonarjs, security, unicorn, import-x, regexp, promise, jsdoc, eslint-comments) are always included.
+
+**Implementation:** `packages/cli/src/presets/typescript/detect.ts`, `packages/cli/src/templates/config.ts`
+
 ---
 
 ## Reconciliation Engine
@@ -270,14 +287,15 @@ CLI command
 
 ### Runtime (`dependencies`)
 
-| Package                  | Purpose                             |
-| ------------------------ | ----------------------------------- |
-| `commander`              | CLI argument parsing                |
-| `yaml`                   | YAML config parsing (failsafe mode) |
-| `@eslint/js`             | ESLint core rules                   |
-| `typescript-eslint`      | TypeScript ESLint parser + rules    |
-| `eslint-config-prettier` | Disable formatting rules            |
-| `eslint-plugin-*`        | ESLint plugins (see package.json)   |
+| Package                                           | Purpose                             |
+| ------------------------------------------------- | ----------------------------------- |
+| `commander`                                       | CLI argument parsing                |
+| `yaml`                                            | YAML config parsing (failsafe mode) |
+| `@eslint/js`                                      | ESLint core rules                   |
+| `typescript-eslint`                               | TypeScript ESLint parser + rules    |
+| `eslint-config-prettier`                          | Disable formatting rules            |
+| `eslint-plugin-*`                                 | ESLint plugins (see package.json)   |
+| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance          |
 
 ### Dev (`devDependencies`)
 
@@ -370,6 +388,12 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Implementation | Hook: `packages/cli/templates/hooks/lib/lint.ts`; Command: `packages/cli/templates/commands/lint.md` |
 
 **Linter crash resilience:** `captureRemainingErrors()` reads stderr when stdout is empty on non-zero exit. This distinguishes "linter found no issues" from "linter crashed" (e.g., golangci-lint Go version mismatch). Crashes surface as warnings via the existing `warnings` array, not as lint errors. This prevents silent failures where a broken linter reports success.
+
+**golangci-lint version check:** The lint hook checks `golangci-lint version --short` before running Go linting. Safeword generates v2 config format — v1 users get a clear warning with upgrade instructions instead of an opaque config parse error. The check runs once per session (cached via `toolWarnings` set).
+
+**ESLint disable comment governance:** `@eslint-community/eslint-plugin-eslint-comments` enforces suppression hygiene: `disable-enable-pair` (block orphaned disables), `no-unlimited-disable` (require rule name), `require-description` (require `-- reason`), `no-duplicate-disable`, `no-unused-enable`. Combined with `reportUnusedDisableDirectives: 'error'` via `linterOptions` to catch stale disables.
+
+**Schema drift prevention:** `.husky/pre-push` runs targeted tests (~60s) when `schema.ts` is modified in commits being pushed. Stop hook also appends a reminder when `git diff` shows schema.ts changes. Skippable with `git push --no-verify`.
 
 ### Bundled Language Packs (No External Packages)
 

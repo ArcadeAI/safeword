@@ -257,11 +257,10 @@ bunx safeword reset --full # Also remove linting config + packages
 bun publish
 ```
 
-**Auto-detection**: Detects project type from `package.json` and installs relevant ESLint/Prettier plugins:
+**Auto-detection**: Detects project type from `package.json` and enables relevant ESLint plugins only when the framework is installed:
 
 - TypeScript, React, Next.js, Astro
-- Vitest, Playwright, Tailwind, Turbo, TanStack Query
-- Storybook (always included, file-scoped to `*.stories.*`)
+- Vitest, Playwright, Storybook, Tailwind, Turbo, TanStack Query
 - Publishable libraries (adds publint)
 
 ### How Guide Imports Work
