@@ -316,7 +316,7 @@ if (stopHookActive) {
 let schemaReminder = '';
 try {
   // Check uncommitted changes
-  const uncommitted = execSync('git diff --stat HEAD', {
+  const uncommitted = execSync('git diff --name-only HEAD', {
     cwd: projectDir,
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
