@@ -1,8 +1,8 @@
 /**
  * Ticket lookup utilities for quality hooks.
  *
- * getTicketInfo() — look up a specific ticket by ID (used by pre-tool for session-scoped access)
- * getActiveTicket() — find most recent in_progress ticket globally (used by stop hook for review)
+ * getTicketInfo() — look up a specific ticket by ID (used by pre-tool and stop hook for session-scoped access)
+ * getActiveTicket() — find most recent in_progress ticket globally (used by stop hook for hierarchy navigation)
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -16,27 +16,32 @@ export interface ActiveTicketInfo {
 
 const EMPTY: ActiveTicketInfo = { phase: undefined, type: undefined, folder: undefined };
 
-/**
- * Look up a specific ticket's phase and status by ID (e.g., "038").
- * Re-reads the ticket file each time for stateless re-evaluation.
- */
-export function getTicketInfo(
-  projectDirectory: string,
-  ticketId: string,
-): {
+export interface TicketDetails {
   phase: string | undefined;
   status: string | undefined;
   type: string | undefined;
   folder: string | undefined;
-} {
+}
+
+const EMPTY_DETAILS: TicketDetails = {
+  phase: undefined,
+  status: undefined,
+  type: undefined,
+  folder: undefined,
+};
+
+/**
+ * Look up a specific ticket's phase and status by ID (e.g., "038").
+ * Re-reads the ticket file each time for stateless re-evaluation.
+ */
+export function getTicketInfo(projectDirectory: string, ticketId: string): TicketDetails {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
-  if (!existsSync(ticketsDirectory))
-    return { phase: undefined, status: undefined, type: undefined, folder: undefined };
+  if (!existsSync(ticketsDirectory)) return EMPTY_DETAILS;
 
   try {
     const folders = readdirSync(ticketsDirectory);
     const match = folders.find(f => f.startsWith(`${ticketId}-`));
-    if (!match) return { phase: undefined, status: undefined, type: undefined, folder: undefined };
+    if (!match) return EMPTY_DETAILS;
 
     const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
     return {
@@ -46,7 +51,7 @@ export function getTicketInfo(
       folder: match,
     };
   } catch {
-    return { phase: undefined, status: undefined, type: undefined, folder: undefined };
+    return EMPTY_DETAILS;
   }
 }
 
