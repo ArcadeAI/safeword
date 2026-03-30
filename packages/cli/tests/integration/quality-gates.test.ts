@@ -956,7 +956,16 @@ describe('Quality Gates', () => {
     }
 
     it('7.1: blocks code edits when active ticket at intake phase', () => {
+      const head = getHead(projectDirectory);
       createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'intake',
+        lastKnownTddStep: null,
+        gate: null,
+      });
 
       const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
       const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
@@ -979,8 +988,17 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('7.3: blocks code edits when active ticket at done phase', () => {
+    it('7.3: blocks code edits when active ticket at done phase (in_progress)', () => {
+      const head = getHead(projectDirectory);
       createTicket(projectDirectory, '099', 'test', { phase: 'done', status: 'in_progress' });
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'done',
+        lastKnownTddStep: null,
+        gate: null,
+      });
 
       const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
       const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
@@ -1046,6 +1064,67 @@ describe('Quality Gates', () => {
         expect(result.status).toBe(0);
         expect(result.stdout).toBe('');
       }
+    });
+
+    it('7.8: allows edits when session ticket is done (status: done)', () => {
+      const head = getHead(projectDirectory);
+      createTicket(projectDirectory, '099', 'test', { phase: 'done', status: 'done' });
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'done',
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      // Should allow — ticket is done (not in_progress)
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('7.9: allows edits when session ticket is backlog', () => {
+      const head = getHead(projectDirectory);
+      createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'backlog' });
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        lastKnownPhase: 'intake',
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      // Should allow — ticket is backlog (not in_progress)
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('7.10: allows edits when session has no activeTicket even if planning ticket exists', () => {
+      const head = getHead(projectDirectory);
+      createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
+      // Session state has NO activeTicket — session hasn't claimed this ticket
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        lastKnownPhase: null,
+        lastKnownTddStep: null,
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      // Should allow — session has no active ticket, so phase access doesn't apply
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
     });
   });
 
