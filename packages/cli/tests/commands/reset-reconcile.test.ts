@@ -8,7 +8,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -89,7 +89,7 @@ describe('Reset Command - Reconcile Integration', () => {
         2,
       ),
     );
-    writeFileSync(nodePath.join(temporaryDirectory, '.claude/commands/lint.md'), '# Lint');
+    // Note: .claude/commands/ no longer has owned files (all moved to skills)
     writeFileSync(
       nodePath.join(temporaryDirectory, '.claude/skills/quality-review/SKILL.md'),
       '# Skill',
@@ -132,8 +132,12 @@ describe('Reset Command - Reconcile Integration', () => {
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
 
-      // .claude/commands/lint.md should be removed
-      expect(existsSync(nodePath.join(temporaryDirectory, '.claude/commands/lint.md'))).toBe(false);
+      // .claude/commands/ should be empty (all commands moved to skills)
+      const commandsDirectory = nodePath.join(temporaryDirectory, '.claude/commands');
+      const commandFiles = existsSync(commandsDirectory)
+        ? readdirSync(commandsDirectory).filter(f => f.endsWith('.md'))
+        : [];
+      expect(commandFiles.length).toBe(0);
 
       // .claude/skills/* should be removed
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/skills/quality-review'))).toBe(

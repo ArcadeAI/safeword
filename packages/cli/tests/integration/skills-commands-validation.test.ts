@@ -618,7 +618,7 @@ describe('Cursor Rules Validation (.mdc Format)', () => {
 describe('Skills-Cursor Parity', () => {
   // Mapping from skill short names to cursor rule names
   // Skills use short names (bdd, debug, etc.), cursor rules keep safeword- prefix
-  const SKILL_TO_RULE_MAP: Record<string, string | string[]> = {
+  const SKILL_TO_RULE_MAP: Record<string, string | string[] | undefined> = {
     bdd: [
       'bdd-core',
       'bdd-discovery',

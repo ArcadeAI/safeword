@@ -294,13 +294,9 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
 
       await runCli(['setup'], { cwd: temporaryDirectory });
 
-      // Commands directory should exist
-      expect(fileExists(temporaryDirectory, '.claude/commands')).toBe(true);
-
-      // Should contain markdown command files
-      const commandsDirectory = nodePath.join(temporaryDirectory, '.claude/commands');
-      const mdFiles = readdirSync(commandsDirectory).filter(f => f.endsWith('.md'));
-      expect(mdFiles.length).toBeGreaterThan(0);
+      // Commands moved to skills — .claude/commands/ is a shared dir (may or may not exist)
+      // Skills directory should have safeword skills installed
+      expect(fileExists(temporaryDirectory, '.claude/skills')).toBe(true);
     });
   });
 
