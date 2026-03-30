@@ -23,22 +23,30 @@ const EMPTY: ActiveTicketInfo = { phase: undefined, type: undefined, folder: und
 export function getTicketInfo(
   projectDirectory: string,
   ticketId: string,
-): { phase: string | undefined; status: string | undefined } {
+): {
+  phase: string | undefined;
+  status: string | undefined;
+  type: string | undefined;
+  folder: string | undefined;
+} {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
-  if (!existsSync(ticketsDirectory)) return { phase: undefined, status: undefined };
+  if (!existsSync(ticketsDirectory))
+    return { phase: undefined, status: undefined, type: undefined, folder: undefined };
 
   try {
     const folders = readdirSync(ticketsDirectory);
     const match = folders.find(f => f.startsWith(`${ticketId}-`));
-    if (!match) return { phase: undefined, status: undefined };
+    if (!match) return { phase: undefined, status: undefined, type: undefined, folder: undefined };
 
     const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
     return {
       phase: content.match(/^phase:\s*(\S+)/m)?.[1],
       status: content.match(/^status:\s*(\S+)/m)?.[1],
+      type: content.match(/^type:\s*(\S+)/m)?.[1],
+      folder: match,
     };
   } catch {
-    return { phase: undefined, status: undefined };
+    return { phase: undefined, status: undefined, type: undefined, folder: undefined };
   }
 }
 

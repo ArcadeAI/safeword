@@ -6,12 +6,14 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
-import { getActiveTicket } from './lib/active-ticket.ts';
+import { getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
+import { getStateFilePath, type QualityState } from './lib/quality-state.ts';
 import { runTests } from './lib/test-runner.ts';
 
 interface HookInput {
+  session_id?: string;
   transcript_path?: string;
   stop_hook_active?: boolean;
   last_assistant_message?: string;
@@ -51,7 +53,37 @@ interface TicketInfo {
   folder: string | undefined;
 }
 
-function getCurrentTicketInfo(): TicketInfo {
+/**
+ * Resolve the active ticket for this session.
+ * Uses session state binding first (session-scoped), falls back to global scan
+ * (needed for hierarchy navigation after done gate passes).
+ */
+function getCurrentTicketInfo(sessionId?: string): TicketInfo {
+  // Try session-scoped resolution first
+  if (sessionId) {
+    const stateFile = getStateFilePath(projectDir, sessionId);
+    if (existsSync(stateFile)) {
+      try {
+        const state: QualityState = JSON.parse(readFileSync(stateFile, 'utf8'));
+        if (state.activeTicket) {
+          const ticket = getTicketInfo(projectDir, state.activeTicket);
+          if (ticket.status === 'in_progress') {
+            return {
+              phase: ticket.phase as BddPhase | undefined,
+              type: ticket.type,
+              folder: ticket.folder,
+            };
+          }
+          // Ticket no longer in_progress — no ticket context for this session
+          return { phase: undefined, type: undefined, folder: undefined };
+        }
+      } catch {
+        // Corrupt state — fall through to global scan
+      }
+    }
+  }
+
+  // Fallback: global scan (no session state, or session has no active ticket)
   const info = getActiveTicket(projectDir);
   return {
     phase: info.phase as BddPhase | undefined,
@@ -135,7 +167,7 @@ if (!detectEditToolsUsed(lines)) {
 }
 
 // Get ticket info for phase-aware decision logic
-const ticketInfo = getCurrentTicketInfo();
+const ticketInfo = getCurrentTicketInfo(input.session_id);
 const currentPhase = ticketInfo.phase;
 
 /**

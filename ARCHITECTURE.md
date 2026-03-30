@@ -471,7 +471,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 
 **Meta-path exemption:** Files under `.safeword-project/`, `.safeword/`, `.claude/`, and `.cursor/` are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
 
-**Active ticket resolution:** `lib/active-ticket.ts` scans ticket directories for the most recently modified `in_progress` non-epic ticket. Used by both `pre-tool-quality.ts` (phase access control) and `stop-quality.ts` (phase-aware review). Reads ticket files directly rather than relying on `lastKnownPhase` in state to avoid cross-ticket contamination.
+**Active ticket resolution:** Session-scoped. Each session's state file (`quality-state-{session_id}.json`) tracks the `activeTicket` it's working on. Both `pre-tool-quality.ts` and `stop-quality.ts` read this session binding, then call `getTicketInfo()` to re-read the ticket's current phase and status from disk (stateless re-evaluation). This prevents cross-session blocking — tickets from other sessions are invisible. `getActiveTicket()` (global scan) is only used for hierarchy navigation after the done gate passes. Post-tool auto-clears `activeTicket` when the ticket reaches `done` or `backlog` status.
 
 **TDD step detection:** PostToolUse watches `test-definitions.md` in ticket directories. Each scenario has three sub-checkboxes (`- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`). The parser finds the first scenario with mixed checked/unchecked items and determines which step just completed. The act of marking a sub-checkbox IS the detection mechanism — the artifact is the single source of truth.
 

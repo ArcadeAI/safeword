@@ -140,6 +140,14 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
     if (idMatch) {
       state.activeTicket = idMatch[1];
     }
+
+    // Auto-clear binding when ticket reaches done or backlog
+    const statusMatch = content.match(/^status:\s*(\S+)/m);
+    const ticketStatus = statusMatch?.[1];
+    if (ticketStatus === 'done' || ticketStatus === 'backlog') {
+      state.activeTicket = null;
+      state.lastKnownPhase = null;
+    }
   }
 }
 
