@@ -54,15 +54,14 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       expect(fileExists(temporaryDirectory, '.cursor/commands/quality-review.md')).toBe(true);
     });
 
-    it('should have same content as Claude commands', async () => {
+    it('should install cursor commands from templates', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup', '--yes'], { cwd: temporaryDirectory });
 
-      const claudeLint = readTestFile(temporaryDirectory, '.claude/commands/lint.md');
-      const cursorLint = readTestFile(temporaryDirectory, '.cursor/commands/lint.md');
-      expect(cursorLint).toBe(claudeLint);
+      // Cursor commands are installed (Claude commands moved to skills)
+      expect(fileExists(temporaryDirectory, '.cursor/commands')).toBe(true);
     });
   });
 

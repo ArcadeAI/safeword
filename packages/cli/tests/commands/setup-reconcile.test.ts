@@ -124,8 +124,8 @@ describe('Setup Command - Reconcile Integration', () => {
         existsSync(nodePath.join(temporaryDirectory, '.safeword/guides/testing-guide.md')),
       ).toBe(true);
 
-      // Check claude files
-      expect(existsSync(nodePath.join(temporaryDirectory, '.claude/commands/lint.md'))).toBe(true);
+      // Check claude skills (commands moved to skills)
+      expect(existsSync(nodePath.join(temporaryDirectory, '.claude/skills'))).toBe(true);
     });
 
     it('should create managed files only if missing', async () => {
