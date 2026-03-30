@@ -18,7 +18,6 @@ export interface QualityState {
   lastKnownPhase: string | null;
   gate: string | null;
   lastKnownTddStep: string | null;
-  schemaChanged?: boolean;
 }
 
 /**
