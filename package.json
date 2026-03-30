@@ -30,6 +30,7 @@
     "markdownlint-cli2": "^0.22.0",
     "prettier": "^3.8.1",
     "prettier-plugin-sh": "^0.18.0",
+    "safeword": "workspace:*",
     "shellcheck": "^4.1.0"
   },
   "lint-staged": {

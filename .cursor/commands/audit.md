@@ -11,6 +11,9 @@ Run a comprehensive code audit. Execute checks and report results by severity.
 ### 1. Code Quality Checks
 
 ```bash
+# Ensure we're in the project root regardless of prior CWD state
+cd "$CLAUDE_PROJECT_DIR" || exit 1
+
 # =========================================================================
 # REFRESH CONFIG (detect current architecture)
 # =========================================================================
@@ -120,7 +123,7 @@ If all packages are up to date, report: `✅ All packages up to date`
 
 #### Knip Configuration Hints (W005)
 
-Review the `--reporter json` output from knip above. If knip reports **configuration hints** (unused entries in `ignoreDependencies`, `ignoreBinaries`, `ignoreUnresolved`, or `ignoreWorkspaces`), flag each as:
+Check the `bunx knip --fix` output above for "Configuration hints" lines. Hints appear in the default reporter output, NOT in the `--reporter json` output. If knip reports **configuration hints** (unused entries in `ignoreDependencies`, `ignoreBinaries`, `ignoreUnresolved`, or `ignoreWorkspaces`), flag each as:
 
 ```text
 - [W005] Stale config: `knip.json` — `{entry}` can be removed from {list}

@@ -27,10 +27,6 @@ Use for: bugs, improvements, internal work, refactors.
 
 - [ ] [Test scenario 1 - what behavior to verify]
 - [ ] [Test scenario 2 - edge case or secondary behavior]
-
-## Work Log
-
-- [date] Created. [context]
 ```
 
 **Location:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
@@ -57,10 +53,6 @@ Use for: typos, config changes, trivial fixes. Still scoped to prevent creep.
 **Tests:**
 
 - [ ] Existing tests pass (no new test needed)
-
-## Work Log
-
-- [date] Created. [context]
 ```
 
 **Location:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
@@ -89,10 +81,6 @@ Use for: typos, config changes, trivial fixes. Still scoped to prevent creep.
 
 - [ ] Unit: session refresh extends expiry timestamp
 - [ ] Unit: inactive session expires correctly after timeout
-
-## Work Log
-
-- 2026-03-15 Created. Users reporting forced re-login after 30 min of active use.
 ```
 
 ### task: Improvement
@@ -116,10 +104,6 @@ Use for: typos, config changes, trivial fixes. Still scoped to prevent creep.
 - [ ] Unit: retries on 5xx errors with backoff
 - [ ] Unit: does not retry on 4xx errors
 - [ ] Unit: gives up after max retries
-
-## Work Log
-
-- 2026-03-15 Created. Intermittent 503s from payment API causing checkout failures.
 ```
 
 ### patch: Micro
@@ -140,10 +124,6 @@ Use for: typos, config changes, trivial fixes. Still scoped to prevent creep.
 **Tests:**
 
 - [ ] Existing auth tests pass
-
-## Work Log
-
-- 2026-03-15 Created. Spotted during code review.
 ```
 
 ---

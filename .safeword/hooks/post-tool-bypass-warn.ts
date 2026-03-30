@@ -95,6 +95,7 @@ Found:
 ${foundPatterns.join('\n')}
 
 Per SAFEWORD policy: Fix code, don't weaken enforcement.
+Scope suppressions to the problem: line > block > file > project.
 If this is justified, document the evidence in a comment.`);
 }
 
