@@ -312,20 +312,27 @@ if (stopHookActive) {
   process.exit(0);
 }
 
-// Schema change reminder — schema.ts is a high-impact file with many implicit dependents
+// Schema change reminder — check both uncommitted and committed-but-unpushed changes
 let schemaReminder = '';
 try {
-  const diffStat = execSync('git diff --stat HEAD', {
+  // Check uncommitted changes
+  const uncommitted = execSync('git diff --stat HEAD', {
     cwd: projectDir,
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  if (diffStat.includes('schema.ts')) {
+  // Check committed-but-unpushed changes
+  const unpushed = execSync('git diff --name-only origin/main...HEAD', {
+    cwd: projectDir,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  if (uncommitted.includes('schema.ts') || unpushed.includes('schema.ts')) {
     schemaReminder =
       '\n\n⚠️ schema.ts was modified — run /verify before pushing to check for test drift.';
   }
 } catch {
-  // Ignore git errors
+  // Ignore git errors (no remote, no commits, etc.)
 }
 
 softBlock(getQualityMessage(currentPhase) + schemaReminder);
