@@ -59,31 +59,37 @@ interface TicketInfo {
  * (needed for hierarchy navigation after done gate passes).
  */
 function getCurrentTicketInfo(sessionId?: string): TicketInfo {
+  const empty: TicketInfo = { phase: undefined, type: undefined, folder: undefined };
+
   // Try session-scoped resolution first
   if (sessionId) {
     const stateFile = getStateFilePath(projectDir, sessionId);
-    if (existsSync(stateFile)) {
-      try {
-        const state: QualityState = JSON.parse(readFileSync(stateFile, 'utf8'));
-        if (state.activeTicket) {
-          const ticket = getTicketInfo(projectDir, state.activeTicket);
-          if (ticket.status === 'in_progress') {
-            return {
-              phase: ticket.phase as BddPhase | undefined,
-              type: ticket.type,
-              folder: ticket.folder,
-            };
-          }
-          // Ticket no longer in_progress — no ticket context for this session
-          return { phase: undefined, type: undefined, folder: undefined };
-        }
-      } catch {
-        // Corrupt state — fall through to global scan
-      }
+    if (!existsSync(stateFile)) return fallbackGlobalScan();
+
+    let state: QualityState;
+    try {
+      state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    } catch {
+      return fallbackGlobalScan();
     }
+
+    if (!state.activeTicket) return empty;
+
+    const ticket = getTicketInfo(projectDir, state.activeTicket);
+    if (ticket.status !== 'in_progress') return empty;
+
+    return {
+      phase: ticket.phase as BddPhase | undefined,
+      type: ticket.type,
+      folder: ticket.folder,
+    };
   }
 
-  // Fallback: global scan (no session state, or session has no active ticket)
+  return fallbackGlobalScan();
+}
+
+/** Global scan fallback — used when no session state exists */
+function fallbackGlobalScan(): TicketInfo {
   const info = getActiveTicket(projectDir);
   return {
     phase: info.phase as BddPhase | undefined,
