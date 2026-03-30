@@ -1,0 +1,9 @@
+# Schema change test gate — run targeted tests when schema.ts was modified
+# Catches test drift before it reaches CI (see ticket 096/097)
+# Skip with: git push --no-verify
+
+if git diff origin/main...HEAD --name-only 2> /dev/null | grep -q "schema.ts"; then
+  echo "⚠️  schema.ts changed — running targeted test gate..."
+  cd packages/cli && bunx vitest run tests/schema.test.ts tests/commands/setup-hooks.test.ts tests/commands/reset-reconcile.test.ts tests/integration/golden-path.test.ts tests/integration/skills-commands-validation.test.ts || exit 1
+  echo "✓ Schema-related tests passed"
+fi
