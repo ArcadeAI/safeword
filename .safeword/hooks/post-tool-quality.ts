@@ -116,6 +116,11 @@ if (state.locSinceCommit >= LOC_THRESHOLD && !state.gate?.startsWith('tdd:')) {
   state.gate = 'loc';
 }
 
+// Schema change detection — flag for stop hook reminder
+if (editedFile.includes('schema.ts')) {
+  state.schemaChanged = true;
+}
+
 // Phase change detection
 if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
   const fullPath = editedFile.startsWith('/')

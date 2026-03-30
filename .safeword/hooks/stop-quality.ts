@@ -3,6 +3,7 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 import { getActiveTicket } from './lib/active-ticket.ts';
@@ -310,4 +311,21 @@ if (currentPhase === 'done') {
 if (stopHookActive) {
   process.exit(0);
 }
-softBlock(getQualityMessage(currentPhase));
+
+// Schema change reminder — schema.ts is a high-impact file with many implicit dependents
+let schemaReminder = '';
+try {
+  const diffStat = execSync('git diff --stat HEAD', {
+    cwd: projectDir,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  if (diffStat.includes('schema.ts')) {
+    schemaReminder =
+      '\n\n⚠️ schema.ts was modified — run /verify before pushing to check for test drift.';
+  }
+} catch {
+  // Ignore git errors
+}
+
+softBlock(getQualityMessage(currentPhase) + schemaReminder);
