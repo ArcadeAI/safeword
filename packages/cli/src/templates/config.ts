@@ -328,6 +328,11 @@ function hook(command: string) {
   return { hooks: [{ type: 'command', command }] };
 }
 
+/** Create a hook entry that runs in the background without blocking */
+function asyncHook(command: string) {
+  return { hooks: [{ type: 'command', command, async: true }] };
+}
+
 /** Create a hook entry with a tool matcher (PreToolUse, PostToolUse) */
 function matchedHook(matcher: string, command: string) {
   return { matcher, hooks: [{ type: 'command', command }] };
@@ -338,10 +343,12 @@ const EDIT_TOOLS = 'Edit|Write|MultiEdit|NotebookEdit';
 export const SETTINGS_HOOKS = {
   SessionStart: [
     hook(`bash ${HOOKS_DIR}/session-bun-check.sh`),
+    hook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
     hook(`bun ${HOOKS_DIR}/session-verify-agents.ts`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
+    asyncHook(`bun ${HOOKS_DIR}/session-update-check.ts`),
   ],
   UserPromptSubmit: [
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),

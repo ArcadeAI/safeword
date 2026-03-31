@@ -305,6 +305,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
     },
+    '.safeword/hooks/session-auto-upgrade.ts': {
+      template: 'hooks/session-auto-upgrade.ts',
+    },
+    '.safeword/hooks/session-update-check.ts': {
+      template: 'hooks/session-update-check.ts',
+    },
     '.safeword/hooks/session-cleanup-quality.ts': {
       template: 'hooks/session-cleanup-quality.ts',
     },
