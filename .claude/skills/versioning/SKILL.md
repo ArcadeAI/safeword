@@ -15,7 +15,7 @@ Safeword follows strict semver. This contract enables auto-upgrade to trust patc
 - Bug fixes in hooks, reconcile, or CLI commands
 - Typo/grammar fixes in owned docs and guides
 - Performance improvements with no behavior change
-- Dependency bumps (patch-level only)
+- Bumping safeword's own dependencies (at patch level)
 
 ### Minor (0.27.0 -> 0.28.0) — Notify, user decides
 
@@ -25,6 +25,7 @@ Safeword follows strict semver. This contract enables auto-upgrade to trust patc
 - Additive schema changes (new owned/managed files)
 - New quality gates or checks
 - Changes to hook output format
+- Additive config.json fields (new optional keys with defaults)
 
 ### Major (0.x -> 1.0, 1.x -> 2.0) — Notify, user decides
 
@@ -37,9 +38,9 @@ Safeword follows strict semver. This contract enables auto-upgrade to trust patc
 
 ## The Key Test
 
-> "If a project auto-upgrades to this version at SessionStart, will the session behave identically?"
+> "If a project auto-upgrades to this version at SessionStart, will anything break?"
 >
-> **Yes** -> patch. **Adds capability but nothing breaks** -> minor. **Anything else** -> major.
+> **No, only fixes** -> patch. **No, but adds new capability** -> minor. **Possibly** -> major.
 
 ## Pre-1.0 Note
 
