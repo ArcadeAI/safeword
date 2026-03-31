@@ -41,6 +41,14 @@ Safeword follows strict semver. This contract enables auto-upgrade to trust patc
 >
 > **Yes** -> patch. **Adds capability but nothing breaks** -> minor. **Anything else** -> major.
 
+## Pre-1.0 Note
+
+Safeword is pre-1.0 but follows strict semver anyway. The ecosystem convention
+(Renovate, Dependabot) treats 0.x as inherently unstable — Renovate excludes
+0.x from auto-merge by default. Our patch-only auto-upgrade is a deliberate
+commitment backed by this skill, not an ecosystem default. Contributors are
+held to a higher standard than the ecosystem expects for 0.x packages.
+
 ## Applying This
 
 - **Auto-upgrade logic:** Only auto-apply patch bumps silently
