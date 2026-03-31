@@ -5,6 +5,7 @@
  */
 
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { readFileSafe, writeFile } from '../utils/fs.js';
 import { VERSION } from '../version.js';
@@ -14,6 +15,7 @@ const CONFIG_PATH = '.safeword/config.json';
 interface SafewordConfig {
   version: string;
   installedPacks: string[];
+  autoUpdate?: boolean;
 }
 
 function readConfig(cwd: string): SafewordConfig | undefined {
@@ -26,6 +28,18 @@ function readConfig(cwd: string): SafewordConfig | undefined {
 function writeConfig(cwd: string, config: SafewordConfig): void {
   const configPath = nodePath.join(cwd, CONFIG_PATH);
   writeFile(configPath, JSON.stringify(config, undefined, 2));
+}
+
+/**
+ * Check if auto-update is enabled for this project.
+ * Env vars override config: SAFEWORD_NO_AUTO_UPDATE or CI disables.
+ * Config file: autoUpdate defaults to true when absent.
+ */
+export function shouldAutoUpdate(cwd: string): boolean {
+  if (process.env.SAFEWORD_NO_AUTO_UPDATE) return false;
+  if (process.env.CI) return false;
+  const config = readConfig(cwd);
+  return config?.autoUpdate !== false;
 }
 
 /**
