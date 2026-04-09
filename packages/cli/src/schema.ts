@@ -603,6 +603,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       marker: '.safeword/SAFEWORD.md',
       createIfMissing: false, // Only patch if exists, don't create (AGENTS.md is primary)
     },
+    '.gitignore': {
+      operation: 'append',
+      content:
+        '\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword-project/quality-state*.json\n',
+      marker: '.safeword/.update-cache.json',
+      createIfMissing: false,
+    },
   },
 
   // NPM packages to install (JS/TS specific packages from typescript pack)
