@@ -16,9 +16,6 @@ updates:
       bun-minor-patch:
         patterns: ['*']
         update-types: ['minor', 'patch']
-      bun-major:
-        patterns: ['*']
-        update-types: ['major']
 
   - package-ecosystem: 'pip'
     directory: '/.github'
