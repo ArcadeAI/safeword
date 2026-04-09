@@ -626,6 +626,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // is functionally load-bearing.
       marker: '@./.safeword/SAFEWORD.md',
     },
+    '.gitignore': {
+      operation: 'append',
+      content:
+        '\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword-project/quality-state*.json\n',
+      marker: '.safeword/.update-cache.json',
+      createIfMissing: false,
+    },
   },
 
   // Content predicate parity — files that must contain specific strings.
