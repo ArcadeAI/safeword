@@ -133,6 +133,7 @@ try {
     '.claude/',
     '.cursor/',
     '.mcp.json',
+    '.gitignore',
     'AGENTS.md',
     'CLAUDE.md',
   ];
