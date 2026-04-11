@@ -2,7 +2,8 @@
 id: '100'
 title: Propose-and-converge interaction pattern
 type: feature
-phase: implement
+phase: done
+status: done
 created: 2026-04-10
 ---
 
