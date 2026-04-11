@@ -322,6 +322,12 @@ Cut: separate guide loading step (auto-triggers), separate announce step (folded
 
 Line 22: "prefer the highest scope that's practical" → add "with acceptable feedback speed" for consistency with DECOMPOSITION.md and TDD.md changes.
 
+### TDD.md — GREEN phase (Phase 6.2) — One addition
+
+**Add over-implementation warning** after step 1: "If you wrote more than the test requires, delete the excess. GREEN is minimal — REFACTOR adds quality." Documented agent failure mode — LLMs tend to write complete implementations at GREEN, violating the minimal principle (Beck "Canon TDD" 2023, practitioner consensus).
+
+Keep GREEN at 5 steps — no research-backed reason to simplify (unlike RED where TDAD measured regressions from verbosity).
+
 ## Open Questions
 
 - Should the prompt hook reminder include the full phase description, or just a one-line status? (Context budget tradeoff)
