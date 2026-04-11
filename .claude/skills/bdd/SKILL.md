@@ -51,25 +51,25 @@ When user references a ticket, resume work:
 
 **Resume by phase:**
 
-| Phase             | Resume action                          |
-| ----------------- | -------------------------------------- |
-| `intake`          | Start context check (Phase 0-2)        |
-| `define-behavior` | Continue drafting scenarios            |
-| `scenario-gate`   | Continue validating scenarios          |
-| `decomposition`   | Continue task breakdown                |
-| `implement`       | Find first unchecked scenario, run TDD |
-| `done`            | Run /done and /audit checks            |
+| Phase             | Resume action                              |
+| ----------------- | ------------------------------------------ |
+| `intake`          | Start understanding (propose-and-converge) |
+| `define-behavior` | Continue drafting scenarios                |
+| `scenario-gate`   | Continue validating scenarios              |
+| `decomposition`   | Continue task breakdown                    |
+| `implement`       | Find first unchecked scenario, run TDD     |
+| `done`            | Run /done and /audit checks                |
 
 ---
 
 ## Current Behavior
 
-1. Detect work level (see SAFEWORD.md "Work Level Detection")
-2. **If user references iteration/story/phase from a spec:**
+1. Understand first (see SAFEWORD.md "Understanding") — propose-and-converge until user accepts proposal with structured scope
+2. Size internally (see SAFEWORD.md "Sizing") — state scope assessment in proposal, not as a separate announcement
+3. **If user references iteration/story/phase from a spec:**
    - Check if child ticket exists for that iteration
    - If not → create ticket, run full BDD
    - If yes → resume at current phase
-3. Announce with override hint
 4. **If ticket exists:** Read phase, resume at appropriate point
 5. **Artifact-first rule:** Before doing work, create/verify the phase artifact:
    - Phase 0-2 → ticket at `.safeword-project/tickets/{id}-{slug}/ticket.md`

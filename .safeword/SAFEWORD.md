@@ -23,7 +23,7 @@
 - One open question → contribute context, surface it, resolve in 1 turn
 - Vague idea → converge over 2-3 turns of increasingly specific proposals
 
-**Backstop:** If 3 turns pass without acceptance, make your best-guess proposal: "Here's my best read — should I build this, or is something off?"
+**Backstop:** If the conversation feels circular without convergence, make your best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
 **Scope derivation:** Every resolved question produces scope. The choice = In Scope. The rejected alternatives = Out of Scope. Your final proposal should include structured scope:
 
@@ -31,9 +31,7 @@
 - **Out of Scope:** What you're not building (derived from rejected alternatives + domain-knowledge exclusions)
 - **Done When:** Observable outcomes
 
-**Exit criterion:** User accepts proposal AND structured scope is written to the ticket.
-
-**Discovery techniques available for complex features:** When contributing perspectives on complex requests, draw on failure-mode thinking ("what breaks if..."), boundary analysis ("what's the minimum/maximum"), and scenario exploration ("walk through a concrete situation"). These are contribution techniques, not mandatory sequential rounds.
+**Exit criterion:** When the user accepts your proposal → write structured scope to the ticket (Scope, Out of Scope, Done When) → proceed to sizing.
 
 ---
 
