@@ -107,6 +107,8 @@ Aligns with the Testing Trophy (Kent C. Dodds) and Google testing research favor
 
 **Implication:** Safeword's "Close" steps (update ticket status, cascade epic, commit) are all idempotent. No phase gate needed between "Finish" (quality checks) and "Close" (bookkeeping).
 
+**Source:** Saga pattern (Garcia-Molina & Salem, 1987); standard distributed systems transaction theory.
+
 ## Spec-Driven Development
 
 **Finding:** SDD (ThoughtWorks Radar "Assess" ring, 2025) gates implementation on a finalized spec artifact. Anthropic's own best practices recommend "interview me, then write a complete spec to SPEC.md."
