@@ -5,7 +5,7 @@ type: epic
 phase: intake
 created: 2026-04-11
 related: '100, 101, 107'
-children: '111, 112, 113, 114, 115'
+children: '113, 112, 114, 115, 111'
 ---
 
 ## Goal
