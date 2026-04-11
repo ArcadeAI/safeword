@@ -1,6 +1,6 @@
 ---
 id: '109'
-title: 'Enforcement redesign: Track and Remind, not Block and Gate'
+title: 'Enforcement redesign: Natural Gates, Reminders, and Output Validation'
 type: feature
 phase: intake
 created: 2026-04-11
@@ -9,7 +9,15 @@ related: '100, 101, 107'
 
 ## Goal
 
-Shift Safeword's enforcement model from hard blocking (pre-tool denies edits) to continuous reminding (prompt hook injects phase/step context). Keep output validation hard (done gate). Lean into what models are improving at (code quality), control for what they won't improve at (process sequencing, place-tracking, self-evaluation).
+Replace hard blocking (pre-tool denies edits) with a three-layer enforcement model that lets the agent follow our BDD process with its own judgment:
+
+1. **Natural gates** — artifact dependencies where the process enforces itself (can't TDD without scenarios, can't mark done without evidence)
+2. **Reminders** — prompt hook injects phase/step context to catch drift on steps without natural gates
+3. **Output validation** — done gate hard blocks until evidence proves the work is complete
+
+Lean into what models are improving at (code quality), control for what they won't improve at (process sequencing, place-tracking, self-evaluation).
+
+**Boundary:** Enforcement ensures the process is followed. Quality of each artifact's content is governed by the skills (DISCOVERY.md, SCENARIOS.md, TDD.md) and the propose-and-converge pattern (#100).
 
 ## The Problem
 
@@ -48,25 +56,69 @@ Research basis: Multi-step process adherence is scaling-resistant (Anthropic "Sl
 **Current:** Hard block at done phase until test/scenario/audit evidence.
 **Proposed:** Keep as-is. Output validation is the most defensible enforcement. Tests must actually pass (hook runs the suite). Features need scenario + audit evidence. No bypass.
 
-## Enforcement Model
+## Three Layers of Defense
 
-| Mechanism         | Current                                    | Proposed                                                 |
-| ----------------- | ------------------------------------------ | -------------------------------------------------------- |
-| Phase sequencing  | Pre-tool blocks edits in planning phases   | Prompt hook injects current phase + what's needed next   |
-| TDD step tracking | Post-tool sets gate, pre-tool blocks edits | Post-tool tracks step, prompt hook reminds "you're at X" |
-| Place tracking    | Session state in quality-state.json        | Same — but used for reminders, not gates                 |
-| Done completeness | Hard block until evidence                  | **Keep as-is** — output validation                       |
-| LOC checkpoint    | Hard block until commit                    | **Keep as-is** — blast radius control                    |
-| Auto-lint         | Auto-fix on every edit                     | **Keep as-is** — zero-cost, high-value                   |
-| Config guard      | User approval for config edits             | **Keep as-is** — protecting shared resources             |
-| Bypass warnings   | Advisory flags for suppressions            | **Keep as-is** — zero-cost awareness                     |
+### Layer 1: Natural gates (artifact dependencies)
 
-## Two Layers of Defense
+The BDD process enforces itself through structural dependencies — not rules the agent must obey, but realities it can't bypass:
 
-1. **Continuous reminders** (prompt hook re-injects phase/step every turn) — catches drift before it happens
-2. **Output validation at done** (hard gate on evidence) — catches skipping after the fact
+| Step                      | Natural gate                                                      | Type          | Why it can't be skipped                                         |
+| ------------------------- | ----------------------------------------------------------------- | ------------- | --------------------------------------------------------------- |
+| Understanding → Scenarios | PreToolUse hook checks ticket.md has Scope/Out of Scope/Done When | Hook-enforced | Can't create test-definitions.md without a complete ticket spec |
+| Scenarios → TDD           | TDD skill reads test-definitions.md                               | Inherent      | No file = nothing to implement                                  |
+| RED → GREEN               | Test must exist and fail                                          | Inherent      | Test literally fails                                            |
+| GREEN → done              | Tests must pass                                                   | Hook-enforced | Stop hook runs test suite                                       |
 
-The reminders lean into context injection (where hooks excel). The done gate is the hard backstop. Everything in between is the agent's judgment.
+**Hook-enforced gate for Understanding → Scenarios:** A PreToolUse hook on Write/Edit checks: if the target is `test-definitions.md`, validate that the ticket's `ticket.md` exists and has Scope, Out of Scope, and Done When sections. If missing, deny with actionable error: "Ticket spec is missing [section]. Complete understanding before writing scenarios."
+
+This is the ONE structural gate added by this redesign — the highest-leverage transition point. Understanding determines the quality of everything downstream. A shallow understanding produces bad scenarios, bad tests, bad implementation. Preventing scenario creation without a complete spec is the single most valuable enforcement point.
+
+**Implementation:** ~20-line check in pre-tool-quality.ts (or a dedicated hook). Parse ticket.md for required section headings. Not content quality — just structural presence. The agent has full judgment about WHAT to write in those sections.
+
+**Strongest enforcement** — physics, not policy. 3 inherent gates + 1 hook-enforced gate at the critical transition.
+
+### Layer 2: Reminders (prompt hook context injection)
+
+For steps where artifact dependencies are weak, the prompt hook injects compressed state every turn:
+
+| Step             | Why natural gate is weak                        | Reminder                                                |
+| ---------------- | ----------------------------------------------- | ------------------------------------------------------- |
+| GREEN → REFACTOR | Nothing structurally prevents skipping refactor | "TDD: GREEN. Next: refactor while keeping tests green." |
+| Phase tracking   | Agent can lose its place in long sessions       | "Phase: implement. Scenario 3/5 in progress."           |
+| Scope boundaries | Agent can drift beyond Out of Scope             | "Scope: [from ticket]. Out of Scope: [from ticket]."    |
+
+**Catches drift** — the agent is reminded where it is and what's expected. Uses the agent's intelligence rather than fighting it.
+
+### Layer 3: Output validation (done gate)
+
+The hard backstop — can't declare done without proof:
+
+- Tests must actually pass (hook runs the suite, not text-based)
+- Features: all scenarios marked complete + audit passed
+- Tasks: test evidence
+- LOC gate: commit every ~400 lines (blast radius control)
+
+**Catches everything else** — if the agent ignored reminders and skipped steps, the evidence requirements catch it at done. The backtracking cost is the penalty for ignoring reminders.
+
+### How the layers interact
+
+```
+Agent tries to create scenarios without understanding
+  → Layer 1 (natural gate): PreToolUse hook checks ticket.md → missing Out of Scope → write denied
+  → Agent must complete understanding and write spec before scenarios
+
+Agent wants to skip scenarios and jump to coding
+  → Layer 1 (natural gate): TDD skill can't find test-definitions.md → nothing to implement
+  → No hard block needed — the process doesn't have a next step without the artifact
+
+Agent is at GREEN and wants to skip REFACTOR
+  → Layer 1 (natural gate): weak — nothing structurally prevents skipping
+  → Layer 2 (reminder): "TDD: GREEN. Next: refactor"
+  → Layer 3 (output validation): REFACTOR checkbox not marked → done gate blocks
+
+Agent declares done without running tests
+  → Layer 3 (output validation): stop hook runs tests → they fail → hard block
+```
 
 ## Longevity
 
@@ -78,7 +130,7 @@ The reminders lean into context injection (where hooks excel). The done gate is 
 
 ## What Changes (Implementation)
 
-### Heavily modified: pre-tool-quality.ts (~180 lines → ~50)
+### Heavily modified: pre-tool-quality.ts (~180 lines → ~70)
 
 **Remove:**
 
@@ -91,7 +143,11 @@ The reminders lean into context injection (where hooks excel). The done gate is 
 - LOC gate — block edits when `state.gate === 'loc'` (blast radius control, not process enforcement)
 - META_PATHS exemption — `.safeword/`, `.claude/`, `.cursor/`, `.safeword-project/` never blocked
 
-**After:** This hook becomes a single-purpose LOC enforcer.
+**Add:**
+
+- Artifact prerequisite check — if target file is `test-definitions.md`, validate ticket.md exists and has Scope, Out of Scope, Done When sections. Deny with actionable error if missing. ~20 lines. This is the one structural gate at the highest-leverage transition.
+
+**After:** This hook becomes two-purpose: LOC enforcer + artifact prerequisite checker. Everything else removed.
 
 ### Modified: post-tool-quality.ts (~238 lines)
 
@@ -174,7 +230,7 @@ Also unchanged:
 - Should reminders escalate in urgency if the agent repeatedly ignores them? ("You've been in GREEN for 3 edits without refactoring")
 - How do we measure whether reminders are sufficient vs whether hard blocks need to return? (Monitoring/metrics)
 - Does the prompt hook need to inject on every turn, or can it cycle reminders (phase on turn 1, TDD step on turn 2, scope on turn 3)? See John Lindquist's `promptCount % N` pattern for Claude Code hooks.
-- Backtracking cost: if the agent ignores reminders and skips scenarios, the cumulative artifact check (stop hook) catches it — but the agent has to backtrack and write scenarios post-hoc, which is less valuable than writing them upfront. Is the reminder sufficient to prevent this, or does the cumulative artifact check need to fire earlier?
+- Backtracking cost: natural gates prevent the worst case (skipping scenarios entirely — TDD skill can't proceed without test-definitions.md). Remaining risk is steps with weak natural gates (skipping refactor). If the agent ignores refactor reminders, the done gate catches it — but the agent backtracks to refactor code it wrote turns ago, which is less effective than refactoring immediately. Is the reminder sufficient for refactor, or does this specific step need stronger enforcement?
 
 ## Origin
 
@@ -183,3 +239,5 @@ Critique of enforcement system during ticket #100 conversation (2026-04-11). Res
 ## Work Log
 
 - 2026-04-11T18:34Z Created: Captured from enforcement system critique
+- 2026-04-11T21:14Z Updated: Evolved from two-layer (remind + validate) to three-layer (natural gates + reminders + output validation). Artifact dependencies as primary enforcement — physics, not policy.
+- 2026-04-11T21:29Z Updated: Honest audit of natural gates. Understanding → Scenarios was instruction-based, not structural. Added PreToolUse artifact prerequisite check — one hook-enforced gate at the highest-leverage transition. 3 inherent + 1 hook-enforced natural gates.
