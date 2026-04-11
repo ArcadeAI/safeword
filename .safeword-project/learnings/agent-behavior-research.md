@@ -1,6 +1,8 @@
-# Enforcement & TDD Research Principles
+# AI Agent Behavior Research
 
-Research backing the enforcement redesign (ticket #109) and BDD phase file changes. Covers how AI coding agents should be guided through multi-step processes and how TDD should be structured for agents.
+Covers: TDD for agents, verification patterns, enforcement layers, context overload, instruction design, test scope, task decomposition, scenario validation.
+
+Research-backed principles for how AI coding agents should be guided through multi-step processes. Applied in tickets #109 (enforcement redesign) and #113 (BDD phase updates).
 
 ## Core Principle: Control for Persistent Weaknesses, Lean into Improving Strengths
 
