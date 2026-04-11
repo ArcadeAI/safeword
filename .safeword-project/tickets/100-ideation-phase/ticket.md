@@ -39,6 +39,31 @@ What was previously lumped as "intake" is actually four distinct steps:
 
 **Decision:** Understanding = propose-and-converge. The 6 scenarios in test-definitions.md define this step completely. No changes needed to scenarios after extensive review.
 
+### Enforcement model (decided — soft, not mechanical)
+
+Understanding and sizing are **conceptual phases defined in SAFEWORD.md**, not mechanically tracked in ticket frontmatter.
+
+**Why not mechanical phase tracking:**
+
+- Understanding and sizing happen in 0-3 turns (minutes). Phase tracking makes sense for Phase 3-7 (hours of work with distinct artifacts). The bookkeeping overhead exceeds the value for a brief conversation.
+- The prompt hook's two lines already encode the behavior: "contribute before asking" (understanding) + "include what it touches and what rigor it warrants" (sizing). These fire every turn and survive compaction.
+- Adding `phase: understanding` to ticket frontmatter would mean creating a ticket before the first contribution, then updating it mid-conversation — mechanical overhead for a conversational step.
+
+**What we do instead:**
+
+- SAFEWORD.md defines understanding and sizing as named steps with clear instructions and exit criteria
+- The prompt hook re-injects the headline principles every turn (survives compaction)
+- The ticket gets created after understanding+sizing complete (at what is currently `define-behavior` for features, or at spec creation for tasks)
+- No new hook code, no frontmatter tracking, no pre-tool blocking for these steps
+
+**What stays mechanically enforced:**
+
+- Phase 3+ (define-behavior, scenario-gate, decomposition, done) — tracked in frontmatter, pre-tool blocks code edits in planning phases
+- Done phase hard blocks (test/scenario/audit evidence)
+- LOC gate, TDD step gates
+
+**Rationale:** Gate the irreversible, nudge the qualitative. Understanding/sizing are qualitative judgment — the agent should have agency to skip for trivial requests (0-turn patches). Hard enforcement would create "learned helplessness" where the agent seeks permission before obvious actions.
+
 ### Sizing (decided)
 
 After understanding, the agent answers three concrete questions internally before proceeding:
