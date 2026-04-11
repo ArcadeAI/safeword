@@ -170,21 +170,21 @@ See [design-exploration.md](design-exploration.md) for the full log of approache
 
 ### Implementation approach
 
-Three text changes + manual evaluation:
+Text changes + manual evaluation:
 
-1. **prompt-questions.ts** — Replace current injection with:
+1. **prompt-questions.ts** — ✅ Done. Two-line injection: contribute before asking + state what it touches.
+2. **SAFEWORD.md** — ✅ Done. Understanding before sizing. Contribute-first announcements. Scope derivation.
+3. **DISCOVERY.md** — ✅ Done. Reframed as contribution techniques.
 
-   ```
-   SAFEWORD:
-   - Contribute before asking. Embed open questions in your contribution.
-   - When proposing, include what it touches and what rigor it warrants.
-   ```
+### Remaining fixes (found during post-implementation review)
 
-   Both lines universally relevant (every turn, not just turn 1). Sizing details (3 questions) and scope derivation live in SAFEWORD.md. Hook carries the headline principles that survive compaction.
-
-2. **SAFEWORD.md** — Reorder: understanding (propose-and-converge) before sizing (detection tree). Embed scoping in final proposal (derive Out of Scope from resolved questions). Change announcements to contribute-first style. Make Phase 5 decomposition optional. Note that Phase 3 scenarios draw from resolved questions as behavioral coverage areas.
-3. **DISCOVERY.md** — Reframe discovery rounds as contribution techniques within propose-and-converge, not a separate phase.
-4. **Manual evaluation** — Test conversations at each work level (patch, task, feature). Include: verify Safeword hooks execute normally under Claude Code Auto Mode (no conflict — they operate at different layers, but verify empirically).
+4. **SAFEWORD.md (understanding section)** — Trim discovery techniques duplication (already in DISCOVERY.md). Soften backstop ("3 turns" → "if conversation feels circular"). Sequence exit criterion ("user accepts → write scope → proceed" not "both at once").
+5. **DISCOVERY.md** — Trim redundant propose-and-converge restatement (lines 9-15 duplicate SAFEWORD.md). Remove "1-3 turns" specific count.
+6. **SKILL.md** — Bug: stale references from #100 implementation.
+   - Line 67: "Detect work level" as step 1 → should reference understanding first
+   - Line 69: "Announce with override hint" → removed in #100, should say contribute-first proposal
+   - Line 56: Resume for `intake` says "Start context check" → should say "Start understanding (propose-and-converge)"
+7. **Manual evaluation** — Test conversations at each work level (patch, task, feature). Verify Safeword hooks execute normally under Claude Code Auto Mode.
 
 ## Open Questions (future work)
 

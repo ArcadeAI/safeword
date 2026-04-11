@@ -4,16 +4,7 @@
 
 ## Understanding (Propose-and-Converge)
 
-Follow the propose-and-converge pattern from SAFEWORD.md:
-
-1. **Contribute** a perspective on the user's idea before asking questions
-2. **Embed open questions** inside your contribution, not before it
-3. **Each turn:** incorporate what the user confirmed, narrow remaining open questions
-4. **Converge** over 1-3 turns until the user accepts a proposal
-
-**Scope derivation:** Every resolved question produces scope. The choice = In Scope. Rejected alternatives = Out of Scope. Include structured scope in your final proposal (Scope, Out of Scope, Done When).
-
-**Exit understanding:** User accepts proposal AND structured scope written to ticket spec.
+Follow the propose-and-converge pattern from SAFEWORD.md. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
 
 ## Contribution Techniques
 
