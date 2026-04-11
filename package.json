@@ -2,6 +2,7 @@
   "name": "safeword",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.3.12",
   "workspaces": [
     "packages/*"
   ],

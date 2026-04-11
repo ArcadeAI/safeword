@@ -26,7 +26,7 @@ jobs:
         uses: withastro/action@v6
         with:
           path: packages/website
-          package-manager: bun@1.3.8
+          package-manager: bun@1.3.12
 
   deploy:
     needs: build
