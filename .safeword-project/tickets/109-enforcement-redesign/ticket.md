@@ -230,9 +230,36 @@ Changes to BDD skill files found during critical review. These reduce ceremony t
 
 ### SCENARIOS.md (Phase 3-4)
 
-**Add:** One line in Phase 3 section: "Draw from resolved questions during understanding to determine which behavioral space to cover." Connects understanding output to scenario input — currently only referenced in DISCOVERY.md's planning note, which the agent may have forgotten by Phase 3.
+**Add to Phase 3, step 1:** "Draw from resolved questions during understanding to determine which behavioral space to cover." Connects understanding output to scenario input — currently only referenced in DISCOVERY.md's planning note, which the agent may have forgotten by Phase 3.
 
-**Keep as-is:** AOD validation criteria (Atomic, Observable, Deterministic). Industry standard is BRIEF (Rose & Nagy) but AOD is more structural and mechanically checkable — better for AI agents.
+**Add to Phase 3, after step 2:** "Focus on key behaviors — happy path, critical edge cases, error cases. Avoid testing implementation details." Prevents scenario bloat (agent writing 15 scenarios for a 3-component feature).
+
+**Keep as-is:** AOD validation criteria (Atomic, Observable, Deterministic). Industry standard is BRIEF (Rose & Nagy) but AOD is more structural and mechanically checkable — better for AI agents. Phase 4 is tight — no changes needed.
+
+### test-definitions-feature.md (template) — Major simplification
+
+The current template is ~120 lines per feature with: status emojis, numbered Steps, Expected sections, Summary tables with coverage percentages, Skipped Tests Rationale, Test Execution commands, Last Updated date.
+
+**Research:** High-level behavioral specs outperform step-by-step procedures for AI agents (Osmani 2026). Presenting too many detailed fields causes the AI to overlook later items.
+
+**What the agent needs:** Given/When/Then + RED/GREEN/REFACTOR checkboxes.
+**What the template adds as ceremony:** Status emojis (redundant with checkboxes), Steps (redundant with Given/When/Then), Expected (redundant with Then), Summary tables (tracking overhead), Skipped rationale (~5% relevance), execution commands (agent knows), Last Updated (never maintained).
+
+**Proposed simplified template:**
+
+```markdown
+## Scenario: [Name]
+
+Given [context]
+When [action]
+Then [outcome]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+```
+
+Repeat per scenario. Cut everything else. If a human stakeholder needs a richer format, they can request it — don't pre-load ceremony the agent doesn't need.
 
 ### DECOMPOSITION.md (Phase 5)
 
