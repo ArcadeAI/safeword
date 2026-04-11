@@ -2,7 +2,8 @@
 id: '113'
 title: BDD skill file updates — reduce ceremony, increase agent judgment
 type: feature
-phase: intake
+phase: done
+status: done
 created: 2026-04-11
 parent: '109'
 ---

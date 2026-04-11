@@ -56,7 +56,7 @@ Answer IN ORDER. Stop at first match:
 | Partial coverage | Add characterization tests for untested parts |
 | No tests         | Add characterization tests first              |
 
-**When writing characterization tests:** Load the testing skill for test type selection (scope hierarchy), behavioral assertion patterns, and anti-patterns to avoid. Characterization tests are still tests — apply the same quality principles.
+**When writing characterization tests:** Characterization tests are still tests — apply behavioral testing principles (assert on what the system does, not how).
 
 ### Characterization Tests
 

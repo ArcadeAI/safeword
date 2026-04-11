@@ -19,7 +19,7 @@ Tests prove the system behaves correctly. Every test — unit, integration, E2E,
 
 **Why:** Tests coupled to implementation break on every refactor. Behavioral tests survive refactoring because behavior doesn't change — only the internals do.
 
-**Scope preference:** When multiple test types can verify a behavior, prefer the highest scope that's practical. Higher scope = more confidence that the real system works.
+**Scope preference:** When multiple test types can verify a behavior, prefer the highest scope that covers the behavior with acceptable feedback speed. Higher scope = more confidence that the real system works.
 
 ```text
 Prefer (highest confidence):
@@ -124,7 +124,7 @@ The most common ways AI-generated tests go wrong. Watch for all of them.
 | **Testing private methods** | Couples tests to implementation                  | Test through the public API                                                  |
 | **Exact UI text matching**  | Breaks on copy changes                           | Use regex `/submit/i` or data-testid attributes                              |
 | **Bug-locking**             | Tests written against buggy code encode the bug  | Write tests BEFORE implementation (TDD), or verify behavior is correct first |
-| **Scope defaulting**        | AI defaults to unit tests for everything         | Ask "what's the highest scope that's practical?" first                       |
+| **Scope defaulting**        | AI defaults to unit tests for everything         | Ask "what's the highest scope with acceptable feedback speed?" first         |
 
 ---
 

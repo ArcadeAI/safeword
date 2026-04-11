@@ -4,13 +4,11 @@
 
 **Iron Law:** NO IMPLEMENTATION UNTIL TEST FAILS FOR THE RIGHT REASON
 
-Announce: "Entering implementation. TDD mode for each scenario."
+Begin TDD for the first unchecked scenario.
 
-## Outside-In Test Layering
+## Test Scope
 
-1. **E2E first** — Prove user-facing behavior works end-to-end
-2. **Integration** — Test component boundaries with real dependencies
-3. **Unit** — Test isolated logic, mock only when necessary
+Start with the most constraining test — usually E2E or integration. Prefer the highest scope that covers the behavior with acceptable feedback speed.
 
 ## Walking Skeleton (first scenario only)
 
@@ -23,53 +21,43 @@ If no E2E infrastructure exists, build skeleton first:
 
 ### 6.1 RED - Write Failing Test
 
-**Before writing:** Load the testing skill and read `.safeword/guides/testing-guide.md` for test type selection, behavioral testing principles, and anti-patterns. Both sources apply — the skill for iron laws and patterns, the guide for the type hierarchy and bug detection matrix.
-
-1. Pick ONE test from test-definitions (first scenario with unchecked `[ ] RED`)
-2. **Announce test type:** "Test type: [unit/integration/E2E/eval] because [reason]" (use testing guide's decision tree)
-3. Write test code (from Given/When/Then), following testing skill's iron laws
-4. Run test → verify fails for RIGHT reason (behavior missing, not syntax)
-5. Mark `[x] RED` in test-definitions.md (triggers tdd:green quality gate)
-6. Commit: `test: [scenario name]`
+1. Pick first unchecked scenario from test-definitions
+2. Write a failing test for that behavior — state test type choice, must fail for the right reason (missing behavior, not syntax)
+3. Mark `[x] RED` in test-definitions.md, commit: `test: [scenario name]`
 
 **Red Flags → STOP:**
 
-| Flag                    | Action                           |
-| ----------------------- | -------------------------------- |
-| Test passes immediately | Rewrite - you're testing nothing |
-| Syntax error            | Fix syntax, not behavior         |
-| Wrote implementation    | Delete it, return to test        |
-| Multiple tests at once  | Pick ONE                         |
+| Flag                    | Action                                        |
+| ----------------------- | --------------------------------------------- |
+| Test passes immediately | Rewrite — you're testing nothing              |
+| Syntax error            | Fix syntax, not behavior                      |
+| Wrote implementation    | Delete it, return to test                     |
+| Multiple tests at once  | Pick ONE                                      |
+| Tautological test       | Assert on behavior, not implementation mirror |
 
 ### 6.2 GREEN - Minimal Implementation
 
 **Iron Law:** ONLY WRITE CODE THE TEST REQUIRES
 
-1. Write minimal code to pass test
+1. Write minimal code to pass test. If you wrote more than the test requires, delete the excess. GREEN is minimal — REFACTOR adds quality.
 2. Run test → verify passes
 3. Run FULL test suite → verify no regressions
-4. Mark `[x] GREEN` in test-definitions.md (triggers tdd:refactor quality gate)
+4. Mark `[x] GREEN` in test-definitions.md
 5. Commit: `feat: [scenario name]`
 
 **Evidence before claims:** Show test output, don't just claim "tests pass".
 
-### 6.3 REFACTOR - Clean Up
+### 6.3 REFACTOR - Clean Up & Iterate
 
-Run `/refactor` for cleanup after GREEN. It handles:
+Assess: is there duplication, unclear naming, or excessive length? If yes, refactor. If not, proceed.
 
-- Duplication extraction
-- Name clarity
-- Function length
-- Magic values
-
-### 6.4 Mark & Iterate
+For small changes (rename, extract helper), refactor directly. For structural changes, run `/refactor`.
 
 Before marking scenario complete:
 
 1. **Confirm refactor status** (say one of these):
    - "Refactored: [what improved]" + show refactor commit
    - "No refactoring needed: code is clean"
-2. Mark `[x] REFACTOR` in test-definitions.md (triggers tdd:red quality gate)
-3. Commit and proceed to next scenario
-4. Return to 6.1 for next scenario (first with unchecked `[ ] RED`)
-5. All done → proceed to Phase 7
+2. Mark `[x] REFACTOR` in test-definitions.md
+3. Commit and proceed to next scenario (first with unchecked `[ ] RED`)
+4. All done → proceed to Phase 7
