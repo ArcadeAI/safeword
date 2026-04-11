@@ -234,7 +234,16 @@ Changes to BDD skill files found during critical review. These reduce ceremony t
 
 **Add to Phase 3, after step 2:** "Focus on key behaviors — happy path, critical edge cases, error cases. Avoid testing implementation details." Prevents scenario bloat (agent writing 15 scenarios for a 3-component feature).
 
-**Keep as-is:** AOD validation criteria (Atomic, Observable, Deterministic). Industry standard is BRIEF (Rose & Nagy) but AOD is more structural and mechanically checkable — better for AI agents. Phase 4 is tight — no changes needed.
+**Phase 4 (validation):** Keep as separate phase — research supports distinct review step even for self-review (blind-spot gap between drafting and validation). Add Independence criterion:
+
+| Criterion         | Check                          | Red flag                        |
+| ----------------- | ------------------------------ | ------------------------------- |
+| **Atomic**        | Tests ONE behavior             | Multiple When/Then pairs        |
+| **Observable**    | Has externally visible outcome | Internal state only             |
+| **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
+| **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
+
+Keep AOD structure (now AODI). Industry standard is BRIEF (Rose & Nagy) but AODI is more structural and mechanically checkable — better for AI agents.
 
 ### test-definitions-feature.md (template) — Major simplification
 
