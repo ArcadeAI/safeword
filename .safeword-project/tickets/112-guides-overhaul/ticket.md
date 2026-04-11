@@ -82,6 +82,8 @@ Most cross-referenced guide (6 inbound links). Foundation for all other guides. 
 - Agent doesn't need process management advice — needs: "When? What template? Where?"
 - Target: ~150-200 lines covering recognition triggers, templates, location decision tree
 
+**Add learnings discoverability convention:** Every learnings file should have a one-line "Covers:" summary after the title. Agents discover learnings via `ls` + filename — the summary line enables progressive disclosure (read one line to decide relevance before reading the full file). This convention was applied to all existing learnings files in this session.
+
 ### 4. context-files-guide.md — TRIM
 
 454 lines. ~40% restates official Claude Code CLAUDE.md guidance:

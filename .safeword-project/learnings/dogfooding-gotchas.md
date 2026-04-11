@@ -1,3 +1,7 @@
+# Dogfooding Gotchas
+
+Covers: CLAUDE.md import pattern conflicts when running safeword upgrade on the safeword repo itself.
+
 ## CLAUDE.md Import Pattern
 
 **Issue:** Running `safeword upgrade` on this repo modifies `CLAUDE.md` because the CLI prepends the safeword banner to both CLAUDE.md and AGENTS.md.

@@ -1,5 +1,7 @@
 # YAML Parsing & Quality Gates: Learnings from Ticket 025
 
+Covers: YAML failsafe schema for preserving leading-zero IDs, quality-state.json gotchas, ticket hierarchy navigation edge cases.
+
 > Extracted from hierarchy navigation implementation (February 2026)
 
 ---

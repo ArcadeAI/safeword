@@ -1,5 +1,7 @@
 # Post-Tool Linting Strategies for AI Coding Assistants
 
+Covers: auto-fix vs error vs warn strategies, feedback loops, retry prevention, multi-language lint orchestration.
+
 **Principle:** Different linting categories require different feedback strategies. Auto-fix vs error vs warn depends on the tool type, failure mode, and risk of infinite retry loops.
 
 ## The Gotcha
