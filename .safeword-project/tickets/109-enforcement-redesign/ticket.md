@@ -328,6 +328,16 @@ Line 22: "prefer the highest scope that's practical" → add "with acceptable fe
 
 Keep GREEN at 5 steps — no research-backed reason to simplify (unlike RED where TDAD measured regressions from verbosity).
 
+### TDD.md — REFACTOR phase (Phase 6.3-6.4)
+
+**Merge 6.3 + 6.4 into one section.** Currently split into "REFACTOR - Clean Up" (4 lines) and "Mark & Iterate" (10 lines). These are sequential steps in one phase, not distinct activities. Merging reduces artificial separation.
+
+Note: the main REFACTOR change (conditional invocation instead of mandatory `/refactor`) is already captured above in TDD.md Change 3.
+
+### refactor/SKILL.md — One consistency fix
+
+**Remove "Load the testing skill" from PROTECT phase** (line 59). Same pattern as RED phase fix — front-loading a 280-line skill file adds context rot risk. The testing skill auto-triggers when writing tests. Consistent with the "don't front-load reference docs" principle (context rot research, arxiv 2510.05381).
+
 ## Open Questions
 
 - Should the prompt hook reminder include the full phase description, or just a one-line status? (Context budget tradeoff)
