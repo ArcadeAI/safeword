@@ -224,6 +224,36 @@ Also unchanged:
 - quality-state.json structure and per-session state files
 - Ticket frontmatter tracking (phase, type, status)
 
+## BDD Phase File Changes
+
+Changes to BDD skill files found during critical review. These reduce ceremony that doesn't earn its weight and increase agent judgment.
+
+### SCENARIOS.md (Phase 3-4)
+
+**Add:** One line in Phase 3 section: "Draw from resolved questions during understanding to determine which behavioral space to cover." Connects understanding output to scenario input — currently only referenced in DISCOVERY.md's planning note, which the agent may have forgotten by Phase 3.
+
+**Keep as-is:** AOD validation criteria (Atomic, Observable, Deterministic). Industry standard is BRIEF (Rose & Nagy) but AOD is more structural and mechanically checkable — better for AI agents.
+
+### DECOMPOSITION.md (Phase 5)
+
+**Add:** Optional note at entry: "Optional — skip if the architecture is clear from the converged proposal and the agent can sequence work naturally." The file currently reads as mandatory. DISCOVERY.md says it's optional but DECOMPOSITION.md doesn't know.
+
+### TDD.md (Phase 6)
+
+**Change 1:** Remove line 7 announcement ("Entering implementation. TDD mode for each scenario."). Stale pattern — #100 removed announcements. Replace with: "Begin TDD for the first unchecked scenario."
+
+**Change 2:** Soften outside-in ordering. Current: "E2E first → Integration → Unit." Research: no published evidence that E2E-first is optimal for AI agents. Pragmatic guidance says "most constraining test first." Change to: "Start with the most constraining test — usually E2E or integration. Test at the highest scope that covers the behavior."
+
+**Change 3:** Lighten refactor invocation. Current: "Run /refactor for cleanup after GREEN." The /refactor skill enforces "one change → test → commit" cycle — heavyweight for renaming a variable. Change to: "Refactor if needed. For small changes (rename, extract helper), refactor directly. For structural changes, run /refactor."
+
+### DONE.md (Phase 7)
+
+**Remove Step 5 (BDD Compliance Self-Check).** The agent fills in a retroactive checklist describing what it did. This is self-reporting — the pattern research says models are unreliable at. The evidence requirements (tests + scenarios + audit) already validate the work. The compliance check is the agent writing a book report about its own process.
+
+**Trim Step 2 (Flake Detection).** Move full flake detection to testing guide. Replace with one line: "If tests are flaky, investigate before proceeding."
+
+**Result:** 7 steps → 5 steps (refactor → verify → audit → parent epic → final commit). Fewer steps = less place-tracking burden for a model that's bad at place-tracking.
+
 ## Open Questions
 
 - Should the prompt hook reminder include the full phase description, or just a one-line status? (Context budget tradeoff)
@@ -241,3 +271,4 @@ Critique of enforcement system during ticket #100 conversation (2026-04-11). Res
 - 2026-04-11T18:34Z Created: Captured from enforcement system critique
 - 2026-04-11T21:14Z Updated: Evolved from two-layer (remind + validate) to three-layer (natural gates + reminders + output validation). Artifact dependencies as primary enforcement — physics, not policy.
 - 2026-04-11T21:29Z Updated: Honest audit of natural gates. Understanding → Scenarios was instruction-based, not structural. Added PreToolUse artifact prerequisite check — one hook-enforced gate at the highest-leverage transition. 3 inherent + 1 hook-enforced natural gates.
+- 2026-04-11T22:22Z Updated: Critical review of BDD phase files (SCENARIOS.md, DECOMPOSITION.md, TDD.md, DONE.md). Identified ceremony that doesn't earn its weight — removed compliance self-check, softened TDD ordering, lightened refactor invocation, connected understanding output to scenario input.
