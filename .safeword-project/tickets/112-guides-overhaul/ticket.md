@@ -5,6 +5,7 @@ status: in_progress
 type: task
 created: 2026-04-11
 parent: '109'
+children: '112a, 112b, 112c, 112d, 112e, 112f, 112g, 112h'
 ---
 
 # Audit and overhaul CLI guides
@@ -66,11 +67,11 @@ Most cross-referenced guide (6 inbound links). Foundation for all other guides. 
 **Gaps vs latest Anthropic research (2026):**
 
 - Missing: XML tag structure (`<instructions>`, `<context>`) — Anthropic explicitly recommends
-- Missing: "attention budget" concept — context rot as token count rises
+- Missing: context quality degrades with token count — keep context lean and high-signal
 - Missing: just-in-time retrieval principle (don't pre-load everything)
 - Missing: few-shot example guidance (3-5 diverse canonical > exhaustive edge cases)
 - Missing: long-context placement (20K+ docs at top, queries below)
-- Missing: emphasis tokens ("IMPORTANT", "CRITICAL") — Anthropic confirms improve adherence
+- REMOVE if present: emphasis tokens ("IMPORTANT", "CRITICAL") — Anthropic 2026 guidance says newer models overtrigger on aggressive emphasis; use normal language instead
 - "Recency bias" framing may be outdated — latest models handle long context better; position-awareness still relevant but mechanism evolved
 
 ### 3. learning-extraction.md — TRIM HARD
@@ -133,9 +134,11 @@ Needs clear separation: skill = enforceable rules during workflow; guide = refer
 
 181 lines. Clean decision tree, good template integration, concise. No issues found.
 
-### 10. data-architecture-guide.md — KEEP
+### 10. data-architecture-guide.md — KEEP (minor improvement)
 
-210 lines. Clean escalation from architecture-guide. Distinct concerns. No issues found.
+210 lines. Clean escalation from architecture-guide. Distinct concerns. Well-scoped, consistent What/Why/Document/Example format. No duplication with Claude Code (zero native data architecture guidance).
+
+One minor improvement: add a 2-line note acknowledging schema auto-generation tools exist (Prisma generators, dbt YAML, Drizzle code-first). The guide's focus on business context (validation rules, source of truth, governance policies) is correctly what auto-gen can't provide — but not mentioning auto-gen at all looks like an oversight.
 
 ## Research sources
 

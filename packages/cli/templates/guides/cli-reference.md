@@ -11,18 +11,18 @@ Commands for managing safeword in projects.
 | `bunx safeword@latest upgrade`     | Upgrade to latest version              |
 | `bunx safeword@latest diff`        | Preview changes before upgrading       |
 | `bunx safeword@latest sync-config` | Regenerate depcruise config for /audit |
-| `bunx safeword reset`              | Remove safeword from project           |
+| `bunx safeword@latest reset`       | Remove safeword from project           |
 
 ## When to Use
 
-| Situation                  | Command                            |
-| -------------------------- | ---------------------------------- |
-| New project setup          | `bunx safeword@latest setup`       |
-| Check if update available  | `bunx safeword@latest check`       |
-| Update after CLI release   | `bunx safeword@latest upgrade`     |
-| See what upgrade changes   | `bunx safeword@latest diff`        |
-| Before running /audit      | `bunx safeword@latest sync-config` |
-| Remove safeword completely | `bunx safeword reset --full`       |
+| Situation                  | Command                             |
+| -------------------------- | ----------------------------------- |
+| New project setup          | `bunx safeword@latest setup`        |
+| Check if update available  | `bunx safeword@latest check`        |
+| Update after CLI release   | `bunx safeword@latest upgrade`      |
+| See what upgrade changes   | `bunx safeword@latest diff`         |
+| Before running /audit      | `bunx safeword@latest sync-config`  |
+| Remove safeword completely | `bunx safeword@latest reset --full` |
 
 ## Options
 
@@ -30,7 +30,6 @@ Run `bunx safeword <command> --help` for command-specific options.
 
 Common flags:
 
-- `-y, --yes` - Skip confirmation (setup, reset)
 - `-v, --verbose` - Show detailed output (diff)
 - `--offline` - Skip remote version check (check)
 - `--full` - Also remove linting config + packages (reset)
@@ -39,5 +38,5 @@ Common flags:
 
 ## Key Takeaways
 
-- Always use `@latest` for setup/check/upgrade/diff to get current CLI
+- Always use `@latest` to get the current CLI
 - Use `diff` before `upgrade` to preview changes
