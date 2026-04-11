@@ -294,6 +294,34 @@ Repeat per scenario. Cut everything else. If a human stakeholder needs a richer 
 
 **Result:** 7 steps → 5 steps (refactor → verify → audit → parent epic → final commit). Fewer steps = less place-tracking burden for a model that's bad at place-tracking.
 
+### TDD.md — RED phase (Phase 6.1) — Simplification
+
+**Critical finding: TDAD "TDD Prompting Paradox"** (arxiv 2603.17973). Verbose TDD workflow prompts increased regressions from 6.08% to 9.94% — worse than no intervention. Agents don't need to be told HOW to do TDD; they need to be told WHICH tests to check. Tested on open-weight models (Qwen3-Coder 30B).
+
+**Change 1:** Remove "Load the testing skill and read testing guide" from RED step 1. Context overload degrades model accuracy (context rot research, arxiv 2510.05381). The testing skill auto-triggers when the agent writes tests. The guide should be consulted for specific questions, not front-loaded entirely.
+
+**Change 2:** Simplify RED from 6 steps to 3:
+
+1. Pick first unchecked scenario from test-definitions
+2. Write a failing test for that behavior — state test type choice, must fail for the right reason (missing behavior, not syntax)
+3. Mark `[x] RED`, commit: `test: [scenario name]`
+
+Cut: separate guide loading step (auto-triggers), separate announce step (folded into step 2), over-specified procedure that TDAD shows degrades outcomes.
+
+**Change 3:** Add tautological test to red flags table. Tests whose assertions mirror the implementation rather than specifying behavior independently — pass coverage metrics but catch no bugs. Established testing anti-pattern (Roy Williams, widely cited in AI testing literature).
+
+| Flag                    | Action                                            |
+| ----------------------- | ------------------------------------------------- |
+| Test passes immediately | Rewrite — you're testing nothing                  |
+| Syntax error            | Fix syntax, not behavior                          |
+| Wrote implementation    | Delete it, return to test                         |
+| Multiple tests at once  | Pick ONE                                          |
+| **Tautological test**   | **Assert on behavior, not implementation mirror** |
+
+### testing/SKILL.md — One consistency fix
+
+Line 22: "prefer the highest scope that's practical" → add "with acceptable feedback speed" for consistency with DECOMPOSITION.md and TDD.md changes.
+
 ## Open Questions
 
 - Should the prompt hook reminder include the full phase description, or just a one-line status? (Context budget tradeoff)
@@ -312,3 +340,4 @@ Critique of enforcement system during ticket #100 conversation (2026-04-11). Res
 - 2026-04-11T21:14Z Updated: Evolved from two-layer (remind + validate) to three-layer (natural gates + reminders + output validation). Artifact dependencies as primary enforcement — physics, not policy.
 - 2026-04-11T21:29Z Updated: Honest audit of natural gates. Understanding → Scenarios was instruction-based, not structural. Added PreToolUse artifact prerequisite check — one hook-enforced gate at the highest-leverage transition. 3 inherent + 1 hook-enforced natural gates.
 - 2026-04-11T22:22Z Updated: Critical review of BDD phase files (SCENARIOS.md, DECOMPOSITION.md, TDD.md, DONE.md). Identified ceremony that doesn't earn its weight — removed compliance self-check, softened TDD ordering, lightened refactor invocation, connected understanding output to scenario input.
+- 2026-04-11T22:40Z Updated: RED phase deep review. TDAD finding: verbose TDD prompts increase regressions. Simplified RED 6→3 steps, removed front-loading of reference docs, added tautological test red flag. Citations verified.
