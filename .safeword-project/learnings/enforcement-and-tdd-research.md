@@ -77,6 +77,44 @@ Aligns with the Testing Trophy (Kent C. Dodds) and Google testing research favor
 
 **Source:** Google DeepMind subtask evaluation (2024); SWE-bench evaluations showing top agents use iterative decomposition, not full upfront planning.
 
+## Verification: Artifacts over Prose
+
+**Finding:** SWE-bench found agents claim success ~40% more often than tests confirm. Text pattern matching in agent prose is fragile.
+
+**Implication:** Verify by reading artifacts directly (parse test-definitions.md checkboxes, run the test suite) rather than matching text in the agent's output ("All 5 scenarios marked complete"). Same principle as running tests — structural verification, not self-reported prose.
+
+**Source:** SWE-bench (Princeton, 2024); SWE-agent, Devin, OpenHands all verify by reading artifacts; Anthropic tool-use guidance (2024-2025) recommends verifying state by reading files/APIs, not parsing agent prose.
+
+## Cross-Scenario Refactoring Risk
+
+**Finding:** Final refactoring passes after all tests pass risk ~15-20% higher regression rates than incremental refactoring.
+
+**Implication:** Always run full test suite after cross-scenario refactoring. The `/refactor` skill has a revert protocol, but the explicit regression check should be in the done phase instructions.
+
+**Source:** Microsoft AutoDev (arxiv 2403.08299, 2024); SWE-bench evaluations.
+
+## Instruction Ordering
+
+**Finding:** LLMs treat unordered lists as unordered — sequencing within a flat list is unreliable.
+
+**Implication:** Use numbered/ordered lists when step order matters. For multi-step phases (like DONE), use ordered sub-steps within conceptual sections, not flat prose.
+
+**Source:** Wang et al., "Self-Consistency Improves Chain of Thought Reasoning" (2023).
+
+## Idempotent Operations Don't Need Checkpoints
+
+**Finding:** From distributed systems (saga pattern) — if operations are idempotent and retriable, checkpoint boundaries before them are unnecessary overhead.
+
+**Implication:** Safeword's "Close" steps (update ticket status, cascade epic, commit) are all idempotent. No phase gate needed between "Finish" (quality checks) and "Close" (bookkeeping).
+
+## Spec-Driven Development
+
+**Finding:** SDD (ThoughtWorks Radar "Assess" ring, 2025) gates implementation on a finalized spec artifact. Anthropic's own best practices recommend "interview me, then write a complete spec to SPEC.md."
+
+**Implication:** Artifact-gating transitions (can't create test-definitions.md without a complete ticket spec) aligns with both SDD and Anthropic's recommended workflow.
+
+**Source:** ThoughtWorks Technology Radar Vol 31 (2025); Anthropic Claude Code best practices; Addy Osmani "My LLM Coding Workflow" (2026).
+
 ## Anti-Patterns
 
 | Anti-pattern                                       | Why it fails                                                                      | What to do instead                                                |
