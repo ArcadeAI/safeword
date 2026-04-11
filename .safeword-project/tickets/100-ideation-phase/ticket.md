@@ -2,7 +2,7 @@
 id: '100'
 title: Propose-and-converge interaction pattern
 type: feature
-phase: decomposition
+phase: implement
 created: 2026-04-10
 ---
 

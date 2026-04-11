@@ -23,7 +23,7 @@
 - One open question → contribute context, surface it, resolve in 1 turn
 - Vague idea → converge over 2-3 turns of increasingly specific proposals
 
-**Backstop:** If the conversation feels circular without convergence, make your best-guess proposal: "Here's my best read — should I build this, or is something off?"
+**Backstop:** If 3 turns pass without acceptance, make your best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
 **Scope derivation:** Every resolved question produces scope. The choice = In Scope. The rejected alternatives = Out of Scope. Your final proposal should include structured scope:
 
@@ -31,7 +31,9 @@
 - **Out of Scope:** What you're not building (derived from rejected alternatives + domain-knowledge exclusions)
 - **Done When:** Observable outcomes
 
-**Exit criterion:** When the user accepts your proposal → write structured scope to the ticket (Scope, Out of Scope, Done When) → proceed to sizing.
+**Exit criterion:** User accepts proposal AND structured scope is written to the ticket.
+
+**Discovery techniques available for complex features:** When contributing perspectives on complex requests, draw on failure-mode thinking ("what breaks if..."), boundary analysis ("what's the minimum/maximum"), and scenario exploration ("walk through a concrete situation"). These are contribution techniques, not mandatory sequential rounds.
 
 ---
 
@@ -61,14 +63,24 @@ Fallback: task. User can /bdd to override.
 - **task:** Restate scope, start TDD (RED → GREEN → REFACTOR). `/bdd` to override.
 - **feature:** Include sizing in your proposal ("this touches N components with new state — I'd write scenarios"). `/tdd` to override. → Run `/bdd`
 
-**Calibration examples (non-obvious boundaries):**
+**Examples:**
 
-| Request                          | Why                                | Level   |
-| -------------------------------- | ---------------------------------- | ------- |
-| "Change button color to red"     | 1 file, no state — floor for tasks | task    |
-| "Add dark mode toggle"           | 3+ files, new state — threshold    | feature |
-| "Implement the fix for bug #123" | Bug fix despite "implement"        | task    |
-| "Build the Docker image"         | Infrastructure, not product        | patch   |
+| Request                      | Signals                         | Level   |
+| ---------------------------- | ------------------------------- | ------- |
+| "Fix typo in README"         | 1 file, no test needed          | patch   |
+| "Fix login error message"    | 1-2 files, 1 test               | task    |
+| "Change button color to red" | 1 file, 1 test, no state        | task    |
+| "Add dark mode toggle"       | 3+ files, new state, user prefs | feature |
+| "Add user authentication"    | Many files, state machine       | feature |
+| "Move onto iteration 2"      | New work chunk, scope in spec   | feature |
+| "Implement iteration 3 of X" | Iteration = sub-feature of spec | feature |
+| "Continue to phase 3"        | Phase = spec continuation       | feature |
+
+**Edge cases:**
+
+- "Add a comment to function X" → patch (not behavior change)
+- "Implement the fix for bug #123" → task (bug fix despite "implement")
+- "Build the Docker image" → patch (infrastructure, not product)
 
 ---
 
