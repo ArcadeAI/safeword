@@ -1,10 +1,11 @@
 ---
 id: '109'
 title: 'Enforcement redesign: Natural Gates, Reminders, and Output Validation'
-type: feature
+type: epic
 phase: intake
 created: 2026-04-11
 related: '100, 101, 107'
+children: '111'
 ---
 
 ## Goal
