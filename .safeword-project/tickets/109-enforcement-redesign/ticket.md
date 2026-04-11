@@ -274,11 +274,15 @@ Repeat per scenario. Cut everything else. If a human stakeholder needs a richer 
 
 **Add:** Optional note at entry: "Optional — skip if the architecture is clear from the converged proposal and the agent can sequence work naturally." The file currently reads as mandatory. DISCOVERY.md says it's optional but DECOMPOSITION.md doesn't know.
 
+**Change 1:** Replace fixed dependency ordering (data → logic → API → UI → E2E) with a principle: "Order tasks so each builds on what's already working. Avoid building layers that depend on unfinished layers." Research (SWE-bench evaluations): top agents determine order dynamically; fixed ordering assumes greenfield and removes agent judgment. Risk of loose interpretation mitigated by the dependency principle itself.
+
+**Change 2:** Soften test layer assignment. Current: static mapping (pure logic → unit, API → integration, flows → E2E). Change to: "Prefer the highest scope that covers the behavior with acceptable feedback speed." Aligns with Testing Trophy (Kent C. Dodds) and Google testing research. The feedback-speed qualifier prevents E2E drift — agent won't use E2E to test a pure function because it's unnecessarily slow.
+
 ### TDD.md (Phase 6)
 
 **Change 1:** Remove line 7 announcement ("Entering implementation. TDD mode for each scenario."). Stale pattern — #100 removed announcements. Replace with: "Begin TDD for the first unchecked scenario."
 
-**Change 2:** Soften outside-in ordering. Current: "E2E first → Integration → Unit." Research: no published evidence that E2E-first is optimal for AI agents. Pragmatic guidance says "most constraining test first." Change to: "Start with the most constraining test — usually E2E or integration. Test at the highest scope that covers the behavior."
+**Change 2:** Soften outside-in ordering. Current: "E2E first → Integration → Unit." Research: no published evidence that E2E-first is optimal for AI agents. Pragmatic guidance says "most constraining test first." Change to: "Start with the most constraining test — usually E2E or integration. Test at the highest scope that covers the behavior with acceptable feedback speed."
 
 **Change 3:** Lighten refactor invocation. Current: "Run /refactor for cleanup after GREEN." The /refactor skill enforces "one change → test → commit" cycle — heavyweight for renaming a variable. Change to: "Refactor if needed. For small changes (rename, extract helper), refactor directly. For structural changes, run /refactor."
 
