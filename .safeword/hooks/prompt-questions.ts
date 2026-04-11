@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Safeword: Pre-work reminders (UserPromptSubmit)
-// Reminds Claude to classify work level and ask clarifying questions
+// Reminds Claude to contribute before asking and assess scope in proposals
 
 import { existsSync } from 'node:fs';
 
@@ -13,5 +13,5 @@ if (!existsSync(safewordDir)) {
 }
 
 console.log(`SAFEWORD:
-- Classify patch/task/feature and announce before starting.
-- Research options, then ask 1-5 targeted questions about scope and constraints.`);
+- Contribute before asking. Embed open questions in your contribution.
+- When proposing, state what it touches and what rigor it warrants.`);

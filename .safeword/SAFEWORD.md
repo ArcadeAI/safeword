@@ -2,40 +2,66 @@
 
 ---
 
-## Work Level Detection
+## Understanding (Propose-and-Converge)
 
-**⚠️ MANDATORY: Run this decision tree on EVERY request BEFORE doing any work.**
+**⚠️ FIRST STEP: Before classifying or starting work, understand what the user is asking.**
 
 **Resuming existing work?** If user references a ticket ID/slug or says "resume"/"continue":
-→ Read ticket, use its `type:` field (feature/task/patch) instead of this tree.
+→ Read ticket, resume at current phase. Skip understanding.
 
-Stop at first match:
+**The pattern:** Contribute a perspective before asking questions. Embed open questions inside your contribution, not before it.
+
+1. **Restate** what you heard
+2. **Contribute** a perspective, sketch, or reframe
+3. **Surface open questions** as part of that contribution
+4. Each turn: incorporate what the user confirmed, narrow remaining open questions
+5. When your proposal has zero open questions and the user accepts → proceed to sizing
+
+**Depth scales with ambiguity:**
+
+- Clear request, no open questions → proceed immediately (0 turns)
+- One open question → contribute context, surface it, resolve in 1 turn
+- Vague idea → converge over 2-3 turns of increasingly specific proposals
+
+**Backstop:** If 3 turns pass without acceptance, make your best-guess proposal: "Here's my best read — should I build this, or is something off?"
+
+**Scope derivation:** Every resolved question produces scope. The choice = In Scope. The rejected alternatives = Out of Scope. Your final proposal should include structured scope:
+
+- **Scope:** What you're building (derived from accepted choices)
+- **Out of Scope:** What you're not building (derived from rejected alternatives + domain-knowledge exclusions)
+- **Done When:** Observable outcomes
+
+**Exit criterion:** User accepts proposal AND structured scope is written to the ticket.
+
+**Discovery techniques available for complex features:** When contributing perspectives on complex requests, draw on failure-mode thinking ("what breaks if..."), boundary analysis ("what's the minimum/maximum"), and scenario exploration ("walk through a concrete situation"). These are contribution techniques, not mandatory sequential rounds.
+
+---
+
+## Sizing (Work Level Detection)
+
+**After understanding, classify internally. Do not announce "Feature detected."**
+
+State your scope assessment as part of your proposal. Answer these three questions:
+
+1. How many files will this touch?
+2. Does this introduce new persistent state?
+3. Are there multiple user flows?
+
+**Routing:**
 
 ```text
-Is this explicitly a bug fix, typo, or config change?
-├─ Yes → patch
-└─ No ↓
-
-Does request mention "feature", "add", "implement", "support", "build", "iteration", "phase"?
-├─ No → task
-└─ Yes ↓
-
-Will it require 3+ files AND (new state OR multiple user flows)?
-├─ Yes → feature
-└─ No / Unsure ↓
-
-Can ONE test cover the observable change?
-├─ Yes → task
-└─ No → feature
+All no / 1 file → patch (fix directly)
+1-2 files, one testable behavior → task (TDD)
+3+ files OR new state OR multiple flows → feature (write scenarios first)
 
 Fallback: task. User can /bdd to override.
 ```
 
-**Always announce after detection:**
+**After sizing, proceed in contribute-first style:**
 
-- **patch:** "Patch. Fixing directly."
-- **task:** "Task. Writing tests first. `/bdd` to override." → TDD (RED → GREEN → REFACTOR)
-- **feature:** "Feature. `/tdd` to override." → Run `/bdd`
+- **patch:** Restate what you're fixing, fix it. `/bdd` to override.
+- **task:** Restate scope, start TDD (RED → GREEN → REFACTOR). `/bdd` to override.
+- **feature:** Include sizing in your proposal ("this touches N components with new state — I'd write scenarios"). `/tdd` to override. → Run `/bdd`
 
 **Examples:**
 
@@ -178,7 +204,7 @@ Commit after: GREEN phase, before/after refactoring, when switching tasks.
 
 1. **Clarity → Simplicity → Correctness** (in that order)
 2. **Test what you can test**—never ask user to verify
-3. **Run Work Level Detection on EVERY request**—announce patch/task/feature
+3. **Understand before sizing**—contribute a perspective, then classify internally
 4. **Commit after each GREEN phase**
 5. **Read the matching guide** when a trigger fires
 6. **Always read the latest documentation for the relevant tool**
