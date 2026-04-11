@@ -52,6 +52,8 @@ Currently injects generic: "Double check and critique your work again just in ca
 
 **Leaning:** Combine D+E — phase-aware messages are already good, fix the generic "implement" fallback to be specific rather than open-ended.
 
+**Design option to explore:** Claude Code Review (multi-agent PR review, 84% bug detection on large PRs) could replace or supplement the stop hook's self-review. Instead of the agent checking its own work (unreliable — Huang et al. 2023), a separate review agent evaluates the output. This shifts quality review from self-review to adversarial review. Explore whether Claude Code Review can be invoked from a stop hook or integrated into the done gate.
+
 ## Research backing
 
 See `.safeword-project/learnings/propose-and-converge-research.md` for full research citations.
