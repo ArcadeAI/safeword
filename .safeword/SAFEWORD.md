@@ -61,24 +61,14 @@ Fallback: task. User can /bdd to override.
 - **task:** Restate scope, start TDD (RED → GREEN → REFACTOR). `/bdd` to override.
 - **feature:** Include sizing in your proposal ("this touches N components with new state — I'd write scenarios"). `/tdd` to override. → Run `/bdd`
 
-**Examples:**
+**Calibration examples (non-obvious boundaries):**
 
-| Request                      | Signals                         | Level   |
-| ---------------------------- | ------------------------------- | ------- |
-| "Fix typo in README"         | 1 file, no test needed          | patch   |
-| "Fix login error message"    | 1-2 files, 1 test               | task    |
-| "Change button color to red" | 1 file, 1 test, no state        | task    |
-| "Add dark mode toggle"       | 3+ files, new state, user prefs | feature |
-| "Add user authentication"    | Many files, state machine       | feature |
-| "Move onto iteration 2"      | New work chunk, scope in spec   | feature |
-| "Implement iteration 3 of X" | Iteration = sub-feature of spec | feature |
-| "Continue to phase 3"        | Phase = spec continuation       | feature |
-
-**Edge cases:**
-
-- "Add a comment to function X" → patch (not behavior change)
-- "Implement the fix for bug #123" → task (bug fix despite "implement")
-- "Build the Docker image" → patch (infrastructure, not product)
+| Request                          | Why                                | Level   |
+| -------------------------------- | ---------------------------------- | ------- |
+| "Change button color to red"     | 1 file, no state — floor for tasks | task    |
+| "Add dark mode toggle"           | 3+ files, new state — threshold    | feature |
+| "Implement the fix for bug #123" | Bug fix despite "implement"        | task    |
+| "Build the Docker image"         | Infrastructure, not product        | patch   |
 
 ---
 
