@@ -287,15 +287,38 @@ Repeat per scenario. Cut everything else. If a human stakeholder needs a richer 
 
 **Change 3:** Lighten refactor invocation. Current: "Run /refactor for cleanup after GREEN." The /refactor skill enforces "one change → test → commit" cycle — heavyweight for renaming a variable. Change to: "Refactor if needed. For small changes (rename, extract helper), refactor directly. For structural changes, run /refactor."
 
-### DONE.md (Phase 7)
+### DONE.md (Phase 7) — Reorganize from 7 steps to 2 sections
 
-**Remove Step 5 (BDD Compliance Self-Check).** The agent fills in a retroactive checklist describing what it did. This is self-reporting — the pattern research says models are unreliable at. The evidence requirements (tests + scenarios + audit) already validate the work. The compliance check is the agent writing a book report about its own process.
+Current: 7 numbered steps mixing quality, correctness, completeness, and bookkeeping. Research (Wang et al. 2023): LLMs treat unordered lists as unordered; explicit ordering within sections preserves sequencing.
 
-**Trim Step 2 (Flake Detection).** Move full flake detection to testing guide. Replace with one line: "If tests are flaky, investigate before proceeding."
+**Proposed structure:**
 
-**Add to Step 1 (Cross-Scenario Refactoring):** "Run full test suite after cross-scenario refactoring to verify no regressions." This is the highest-risk refactoring point — all tests were passing, a batch refactor could break them. Research (Microsoft AutoDev): final refactoring passes risk regressions. Mitigation exists (`/refactor` skill has revert protocol), but the explicit check should be in DONE.md.
+```markdown
+## Finish
 
-**Result:** 7 steps → 5 steps (refactor → verify → audit → parent epic → final commit). Fewer steps = less place-tracking burden for a model that's bad at place-tracking.
+1. Cross-scenario refactor if clear wins exist — run full test suite after to verify no regressions
+2. Run /verify
+3. Run /audit
+
+## Close
+
+1. Update parent epic if applicable
+2. Update ticket: phase: done, status: done
+3. Final commit
+```
+
+**What's removed:**
+
+- BDD Compliance Self-Check (self-reporting unreliable — Huang et al. 2023; evidence requirements already validate)
+- Flake Detection as a full step (move to testing guide; one-line note: "If tests are flaky, investigate before proceeding")
+
+**What's reorganized:**
+
+- Two conceptual sections (Finish = quality/correctness checks; Close = bookkeeping) instead of 7 flat steps
+- Ordered lists within each section to preserve sequencing (research: LLMs reorder flat prose)
+- Cross-scenario refactor gets explicit regression check (Microsoft AutoDev: final refactoring passes risk regressions)
+
+**Result:** 7 steps → 2 sections with 3 ordered sub-steps each. Clearer cognitive model ("finish the work, then close the ticket") with reliable sequencing.
 
 ### stop-quality.ts — Scenario evidence: text matching → direct file reading
 
