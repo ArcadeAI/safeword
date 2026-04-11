@@ -29,6 +29,12 @@ This is an enhancement to Layer 2 (reminders) in the three-layer enforcement mod
 
 Connects to #109 open question: "Should reminders escalate in urgency if the agent repeatedly ignores them?"
 
+## Design option: Claude Code Review as adversarial review
+
+Instead of the agent reviewing its own failures (self-evaluation is unreliable — Huang et al. 2023), Claude Code Review (multi-agent, 84% bug detection on large PRs) could provide adversarial review. A separate review agent evaluates the coding agent's output — catching blind spots the coding agent can't see in its own work. This could feed the failure memory: the review agent identifies issues → those become structured error-action-outcome triples → future reminders reference them.
+
+See also ticket #101 where this is captured as a stop hook design option.
+
 ## Questions to explore
 
 - Where does the failure memory live? quality-state.json? A separate session artifact?
