@@ -36,7 +36,7 @@ Keep as text matching ("Audit passed") for now. Audit produces qualitative asses
 - SWE-agent, Devin: verify by reading artifacts directly, not parsing prose
 - Anthropic tool-use guidance: verify state by reading files/APIs, not agent prose
 
-See `.safeword-project/learnings/enforcement-and-tdd-research.md`
+See `.safeword-project/learnings/agent-behavior-research.md`
 
 ## Work Log
 

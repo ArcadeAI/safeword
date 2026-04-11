@@ -51,7 +51,7 @@ Update 4 BDD skill files + 2 supporting skill files + 1 template to reduce cerem
 
 ## Research basis
 
-See `.safeword-project/learnings/enforcement-and-tdd-research.md`
+See `.safeword-project/learnings/agent-behavior-research.md`
 
 ## Work Log
 

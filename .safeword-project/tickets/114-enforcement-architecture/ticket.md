@@ -54,7 +54,7 @@ Update enforcement description. Remove "edits blocked during planning phases." A
 
 ## Research basis
 
-See `.safeword-project/learnings/enforcement-and-tdd-research.md`
+See `.safeword-project/learnings/agent-behavior-research.md`
 
 Design principle: Control for what models won't improve at (process adherence). Lean into what they will (code quality).
 
