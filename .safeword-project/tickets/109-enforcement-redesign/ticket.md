@@ -293,7 +293,19 @@ Repeat per scenario. Cut everything else. If a human stakeholder needs a richer 
 
 **Trim Step 2 (Flake Detection).** Move full flake detection to testing guide. Replace with one line: "If tests are flaky, investigate before proceeding."
 
+**Add to Step 1 (Cross-Scenario Refactoring):** "Run full test suite after cross-scenario refactoring to verify no regressions." This is the highest-risk refactoring point — all tests were passing, a batch refactor could break them. Research (Microsoft AutoDev): final refactoring passes risk regressions. Mitigation exists (`/refactor` skill has revert protocol), but the explicit check should be in DONE.md.
+
 **Result:** 7 steps → 5 steps (refactor → verify → audit → parent epic → final commit). Fewer steps = less place-tracking burden for a model that's bad at place-tracking.
+
+### stop-quality.ts — Scenario evidence: text matching → direct file reading
+
+**Current:** Stop hook matches "All N scenarios marked complete" in the agent's last message (text pattern: `SCENARIO_EVIDENCE_PATTERN`). Fragile — SWE-bench found agents claim success ~40% more often than tests confirm.
+
+**Proposed:** Replace text pattern matching with direct file reading — parse test-definitions.md, count `[x]` vs `[ ]` checkboxes, verify all are checked. Same structural reliability as running the test suite. ~15 lines of code.
+
+This makes scenario verification "physics, not policy" — consistent with the natural gates philosophy. The hook reads the artifact directly, like it runs the test suite directly, rather than trusting the agent's prose.
+
+**Audit evidence:** Keep as text matching for now ("Audit passed"). Audit produces qualitative assessment, not binary executable output. Future improvement: audit could write a structured result file.
 
 ### TDD.md — RED phase (Phase 6.1) — Simplification
 
