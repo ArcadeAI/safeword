@@ -210,34 +210,6 @@ Four steps became three: Understanding+Scoping → Sizing → Planning.
 
 ---
 
-## Phase 9: Soft vs Hard Enforcement for Understanding/Sizing (2026-04-11)
-
-Should understanding and sizing be mechanically tracked phases (like define-behavior, scenario-gate) or conceptual steps defined in SAFEWORD.md?
-
-### Options debated
-
-| Option                                                       | Mechanism                                                     | Enforcement                                  |
-| ------------------------------------------------------------ | ------------------------------------------------------------- | -------------------------------------------- |
-| A. Stop hook nudge                                           | Soft block after agent responds, one-shot bypass              | Post-hoc — nudge comes after code is written |
-| B. Prompt hook phase-aware guidance                          | Inject different text based on current phase                  | Pre-emptive but adds hook complexity         |
-| C. SAFEWORD.md only                                          | Agent follows instructions, no hook enforcement               | Simplest but gets compacted                  |
-| D. Prompt hook carries principle, SAFEWORD.md carries detail | Two universal lines survive compaction, phases are conceptual | No new mechanism, no phase tracking          |
-
-### Decision: Option D
-
-The prompt hook's two lines already encode understanding ("contribute before asking") and sizing ("include what it touches and what rigor it warrants"). These fire every turn, survive compaction, and don't need to know the current phase. SAFEWORD.md defines the phases as named steps with exit criteria.
-
-Understanding and sizing happen in 0-3 turns. Mechanical phase tracking (frontmatter updates, hook reads) would be bookkeeping overhead for a brief conversation. Phase tracking is valuable for Phase 3-7 (hours of work, distinct artifacts).
-
-### Research basis
-
-- Anthropic's tiered oversight: low-risk autonomous, medium-risk flagged, high-risk blocked. Understanding/sizing are medium-risk (quality) → flagged/nudged, not blocked.
-- "Learned helplessness" in over-constrained agents — excessive gates make agents passive and permission-seeking.
-- Claude Code's trend toward configurable trust, not binary block/allow.
-- "Gate the irreversible, nudge the qualitative" — the emerging consensus for AI agent guardrails.
-
----
-
 ## Key Research Citations
 
 See `.safeword-project/learnings/propose-and-converge-research.md` for full sourced principles.

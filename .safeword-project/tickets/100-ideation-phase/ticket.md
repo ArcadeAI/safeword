@@ -2,8 +2,7 @@
 id: '100'
 title: Propose-and-converge interaction pattern
 type: feature
-phase: done
-status: done
+phase: decomposition
 created: 2026-04-10
 ---
 
@@ -39,31 +38,6 @@ What was previously lumped as "intake" is actually four distinct steps:
 **Key insight:** The natural order is Understanding → Sizing → Planning. Scoping is not a separate step — it's how understanding ends. Every open question resolved during propose-and-converge produces one In-Scope item (the choice) and one or more Out-of-Scope items (the rejected alternatives). Today, sizing happens first (detection tree), then understanding (discovery) — backwards.
 
 **Decision:** Understanding = propose-and-converge. The 6 scenarios in test-definitions.md define this step completely. No changes needed to scenarios after extensive review.
-
-### Enforcement model (decided — soft, not mechanical)
-
-Understanding and sizing are **conceptual phases defined in SAFEWORD.md**, not mechanically tracked in ticket frontmatter.
-
-**Why not mechanical phase tracking:**
-
-- Understanding and sizing happen in 0-3 turns (minutes). Phase tracking makes sense for Phase 3-7 (hours of work with distinct artifacts). The bookkeeping overhead exceeds the value for a brief conversation.
-- The prompt hook's two lines already encode the behavior: "contribute before asking" (understanding) + "include what it touches and what rigor it warrants" (sizing). These fire every turn and survive compaction.
-- Adding `phase: understanding` to ticket frontmatter would mean creating a ticket before the first contribution, then updating it mid-conversation — mechanical overhead for a conversational step.
-
-**What we do instead:**
-
-- SAFEWORD.md defines understanding and sizing as named steps with clear instructions and exit criteria
-- The prompt hook re-injects the headline principles every turn (survives compaction)
-- The ticket gets created after understanding+sizing complete (at what is currently `define-behavior` for features, or at spec creation for tasks)
-- No new hook code, no frontmatter tracking, no pre-tool blocking for these steps
-
-**What stays mechanically enforced:**
-
-- Phase 3+ (define-behavior, scenario-gate, decomposition, done) — tracked in frontmatter, pre-tool blocks code edits in planning phases
-- Done phase hard blocks (test/scenario/audit evidence)
-- LOC gate, TDD step gates
-
-**Rationale:** Gate the irreversible, nudge the qualitative. Understanding/sizing are qualitative judgment — the agent should have agency to skip for trivial requests (0-turn patches). Hard enforcement would create "learned helplessness" where the agent seeks permission before obvious actions.
 
 ### Sizing (decided)
 
@@ -170,21 +144,21 @@ See [design-exploration.md](design-exploration.md) for the full log of approache
 
 ### Implementation approach
 
-Text changes + manual evaluation:
+Three text changes + manual evaluation:
 
-1. **prompt-questions.ts** — ✅ Done. Two-line injection: contribute before asking + state what it touches.
-2. **SAFEWORD.md** — ✅ Done. Understanding before sizing. Contribute-first announcements. Scope derivation.
-3. **DISCOVERY.md** — ✅ Done. Reframed as contribution techniques.
+1. **prompt-questions.ts** — Replace current injection with:
 
-### Remaining fixes (found during post-implementation review)
+   ```
+   SAFEWORD:
+   - Contribute before asking. Embed open questions in your contribution.
+   - When proposing, include what it touches and what rigor it warrants.
+   ```
 
-4. **SAFEWORD.md (understanding section)** — Trim discovery techniques duplication (already in DISCOVERY.md). Soften backstop ("3 turns" → "if conversation feels circular"). Sequence exit criterion ("user accepts → write scope → proceed" not "both at once").
-5. **DISCOVERY.md** — Trim redundant propose-and-converge restatement (lines 9-15 duplicate SAFEWORD.md). Remove "1-3 turns" specific count.
-6. **SKILL.md** — Bug: stale references from #100 implementation.
-   - Line 67: "Detect work level" as step 1 → should reference understanding first
-   - Line 69: "Announce with override hint" → removed in #100, should say contribute-first proposal
-   - Line 56: Resume for `intake` says "Start context check" → should say "Start understanding (propose-and-converge)"
-7. **Manual evaluation** — Test conversations at each work level (patch, task, feature). Verify Safeword hooks execute normally under Claude Code Auto Mode.
+   Both lines universally relevant (every turn, not just turn 1). Sizing details (3 questions) and scope derivation live in SAFEWORD.md. Hook carries the headline principles that survive compaction.
+
+2. **SAFEWORD.md** — Reorder: understanding (propose-and-converge) before sizing (detection tree). Embed scoping in final proposal (derive Out of Scope from resolved questions). Change announcements to contribute-first style. Make Phase 5 decomposition optional. Note that Phase 3 scenarios draw from resolved questions as behavioral coverage areas.
+3. **DISCOVERY.md** — Reframe discovery rounds as contribution techniques within propose-and-converge, not a separate phase.
+4. **Manual evaluation** — Test conversations at each work level (patch, task, feature). Include: verify Safeword hooks execute normally under Claude Code Auto Mode (no conflict — they operate at different layers, but verify empirically).
 
 ## Open Questions (future work)
 
