@@ -3,8 +3,7 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
@@ -39,9 +38,10 @@ const MAX_MESSAGES_FOR_TOOLS = 5;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
-const SCENARIO_EVIDENCE_PATTERN = /all\s+\d+\s+scenarios?\s+marked/i; // "All 10 scenarios marked complete"
 const AUDIT_EVIDENCE_PATTERN = /audit\s+passed/i; // "Audit passed" or "Audit passed with warnings"
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
+/** LOC threshold for implement-phase quality review frequency reduction. */
+const LOC_REVIEW_THRESHOLD = 50;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -88,6 +88,32 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
   return fallbackGlobalScan();
 }
 
+/** Read session state file once. Returns null if unavailable. */
+function readSessionState(sessionId?: string): QualityState | null {
+  if (!sessionId) return null;
+  const stateFile = getStateFilePath(projectDir, sessionId);
+  if (!existsSync(stateFile)) return null;
+  try {
+    return JSON.parse(readFileSync(stateFile, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** Update locAtLastReview in session state after a quality review fires. */
+function updateLocAtLastReview(sessionId?: string): void {
+  if (!sessionId) return;
+  const stateFile = getStateFilePath(projectDir, sessionId);
+  if (!existsSync(stateFile)) return;
+  try {
+    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    state.locAtLastReview = state.locSinceCommit ?? 0;
+    writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  } catch {
+    // Best effort — don't crash stop hook on state write failure
+  }
+}
+
 /** Global scan fallback — used when no session state exists */
 function fallbackGlobalScan(): TicketInfo {
   const info = getActiveTicket(projectDir);
@@ -96,6 +122,25 @@ function fallbackGlobalScan(): TicketInfo {
     type: info.type,
     folder: info.folder,
   };
+}
+
+/**
+ * Check if all scenarios in test-definitions.md are complete.
+ * Reads file directly — structural verification, not prose matching.
+ * Returns true if all scenario checkboxes are checked, false otherwise.
+ */
+function checkScenariosComplete(ticketInfo: TicketInfo): boolean {
+  if (!ticketInfo.folder) return false;
+  const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
+  if (!existsSync(testDefsPath)) return false;
+
+  const content = readFileSync(testDefsPath, 'utf8');
+  // Match top-level scenario checkboxes (### Test N.N lines have [x] or [ ])
+  const checked = (content.match(/^###\s+.*\[x\]/gim) ?? []).length;
+  const unchecked = (content.match(/^###\s+.*\[\s\]/gim) ?? []).length;
+  const total = checked + unchecked;
+
+  return total > 0 && unchecked === 0;
 }
 
 /**
@@ -121,9 +166,9 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   }
 
   // File exists — verify it has at least one scenario (not empty/stub).
-  // Counts all checkbox lines (including RED/GREEN/REFACTOR sub-steps). Threshold: > 0.
+  // Matches either ### heading checkboxes or - [ ] list checkboxes. Threshold: > 0.
   const content = readFileSync(testDefsPath, 'utf8');
-  const scenarioCount = (content.match(/^\s*- \[/gm) ?? []).length;
+  const scenarioCount = (content.match(/^(###\s+.*\[.\]|\s*- \[)/gm) ?? []).length;
   if (scenarioCount === 0) {
     hardBlockDone(
       `Feature at ${ticketInfo.phase} phase: test-definitions.md has no scenarios defined. Add at least one before stopping.`,
@@ -240,15 +285,13 @@ Expected evidence format:
 Run /audit, show output, then try again.`;
   }
 
-  const scenarioLine =
-    ticketType === 'feature' ? '\n- "All N scenarios marked complete" (required for features)' : '';
   const auditLine =
     ticketType === 'feature' ? '\n- "Audit passed" (required for features — run /audit)' : '';
 
   return `SAFEWORD: Done phase requires evidence. Run /verify and show results.
 
 Expected evidence formats:
-- "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)${scenarioLine}${auditLine}
+- "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)${auditLine}
 
 Run /verify, show output, then try again.`;
 }
@@ -295,17 +338,16 @@ if (currentPhase === 'done') {
     );
   }
 
-  // Scenario + audit evidence: text-based (checked in Claude's last message).
-  // Scenarios come from /verify prose output — not Bash tool output.
-  // Audit comes from /audit skill output — not a Bash subprocess.
-  const hasScenarios = SCENARIO_EVIDENCE_PATTERN.test(combinedText);
+  // Scenario evidence: read test-definitions.md directly (structural, not prose matching).
+  // Audit evidence: text-based (audit produces qualitative assessment, not binary file output).
+  const hasScenarios = checkScenariosComplete(ticketInfo);
   const hasAudit = AUDIT_EVIDENCE_PATTERN.test(combinedText);
 
   if (isFeature) {
     // Features: require scenario + audit evidence (tests already verified above)
     if (!hasScenarios)
       hardBlockDone(
-        `SAFEWORD: Done phase requires scenario evidence. Run /verify and show results.\n\nExpected: "All N scenarios marked complete"\n\nRun /verify, show output, then try again.`,
+        `SAFEWORD: Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
       );
     if (!hasAudit) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
   } else if (testResult.skipped) {
@@ -342,35 +384,28 @@ if (currentPhase === 'done') {
   process.exit(0);
 }
 
-// Other phases: prompt quality review when edits were made.
+// Heavyweight tier: quality review prompt (judgment-based, not enforcement).
 // Loop prevention: if stop_hook_active, the previous review cycle already ran — allow stop.
-// This is intentional, not a weakness: the quality review is Claude's judgment on things
-// external tools cannot verify (elegance, abstractions, best practices). One round is the point.
 if (stopHookActive) {
   process.exit(0);
 }
 
-// Schema change reminder — check both uncommitted and committed-but-unpushed changes
-let schemaReminder = '';
-try {
-  // Check uncommitted changes
-  const uncommitted = execSync('git diff --name-only HEAD', {
-    cwd: projectDir,
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  // Check committed-but-unpushed changes
-  const unpushed = execSync('git diff --name-only origin/main...HEAD', {
-    cwd: projectDir,
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  if (uncommitted.includes('schema.ts') || unpushed.includes('schema.ts')) {
-    schemaReminder =
-      '\n\n⚠️ schema.ts was modified — run /verify before pushing to check for test drift.';
-  }
-} catch {
-  // Ignore git errors (no remote, no commits, etc.)
+// Frequency reduction: only fire quality review when meaningful.
+// - Non-implement phases: always fire (they're brief — 1-3 turns each)
+// - Implement phase: fire only when >50 LOC changed since last review
+const sessionState = readSessionState(input.session_id);
+
+const shouldFireReview = (() => {
+  if (!sessionState) return true;
+  if (currentPhase !== 'implement') return true;
+  const locDelta = (sessionState.locSinceCommit ?? 0) - (sessionState.locAtLastReview ?? 0);
+  return locDelta > LOC_REVIEW_THRESHOLD;
+})();
+
+if (!shouldFireReview) {
+  process.exit(0);
 }
 
-softBlock(getQualityMessage(currentPhase) + schemaReminder);
+updateLocAtLastReview(input.session_id);
+
+softBlock(getQualityMessage(currentPhase, sessionState?.lastKnownTddStep));

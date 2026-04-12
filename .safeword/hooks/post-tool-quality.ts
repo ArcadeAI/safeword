@@ -52,6 +52,7 @@ function loadState(): QualityState {
     lastKnownPhase: null,
     gate: null,
     lastKnownTddStep: null,
+    locAtLastReview: 0,
   };
 }
 

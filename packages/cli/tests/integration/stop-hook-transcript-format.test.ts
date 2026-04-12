@@ -272,13 +272,14 @@ describe('Stop Hook: Ticket Resolution Context', () => {
       status: 'in_progress',
     });
     writeSessionState(projectDirectory, 'test-session', {
-      locSinceCommit: 0,
+      locSinceCommit: 100,
       lastCommitHash: '',
       activeTicket: '099',
       lastKnownPhase: 'implement',
       // eslint-disable-next-line unicorn/no-null -- QualityState interface uses null
       lastKnownTddStep: null,
       gate: null, // eslint-disable-line unicorn/no-null -- QualityState interface uses null
+      locAtLastReview: 0,
     });
 
     const transcriptPath = createTranscript(projectDirectory);
@@ -288,7 +289,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
     // Should show implement-phase quality review (session's ticket), not done-phase hard block
-    expect(parsed.reason).toMatch(/quality review|double check|critique/i);
+    expect(parsed.reason).toMatch(/quality review|is it correct/i);
     expect(parsed.reason).not.toMatch(/evidence|verify/i);
   });
 
@@ -305,6 +306,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
       // eslint-disable-next-line unicorn/no-null -- QualityState interface uses null
       lastKnownTddStep: null,
       gate: null, // eslint-disable-line unicorn/no-null -- QualityState interface uses null
+      locAtLastReview: 0,
     });
 
     const transcriptPath = createTranscript(projectDirectory);
@@ -314,7 +316,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
     // Done-status ticket = no ticket context → generic quality review, not done-phase hard block
-    expect(parsed.reason).toMatch(/quality review|double check|critique/i);
+    expect(parsed.reason).toMatch(/quality review|is it correct/i);
     expect(parsed.reason).not.toMatch(/evidence|verify/i);
   });
 });

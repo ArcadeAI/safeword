@@ -73,7 +73,7 @@ console.log(lines.join('\n'));
 
 function tddNextStep(step: string): string {
   const next: Record<string, string> = {
-    red: 'Next: write minimal code to pass.',
+    red: 'Write a minimal failing test for the next scenario.',
     green: 'Next: refactor while keeping tests green.',
     refactor: 'Next: pick next unchecked scenario.',
   };

@@ -9,61 +9,51 @@ export type BddPhase =
   | 'implement'
   | 'done';
 
+/** TDD-step-specific implement messages (RED/GREEN/REFACTOR). */
+const TDD_STEP_MESSAGES: Record<string, string> = {
+  red: `SAFEWORD Quality Review (TDD: RED):
+
+- Does the test fail for the right reason? (missing behavior, not syntax)
+- Is it testing ONE observable behavior, not implementation details?
+- Is the assertion independent of the implementation? (not mirroring the code under test)`,
+
+  green: `SAFEWORD Quality Review (TDD: GREEN):
+
+- Did you write only what the test requires? (GREEN is minimal — REFACTOR adds quality)
+- Is the full test suite still passing? (show output, don't just claim)
+- Did you introduce mocks that could be real dependencies instead?`,
+
+  refactor: `SAFEWORD Quality Review (TDD: REFACTOR):
+
+- Is there duplication or unclear naming to clean up?
+- Could this be simpler without losing clarity?
+- Tests still passing after refactoring?`,
+};
+
 const PHASE_MESSAGES: Record<BddPhase, string> = {
-  intake: `SAFEWORD Quality Review (Discovery Phase):
+  intake: `SAFEWORD Quality Review (Understanding Phase):
 
-Check your discovery work:
-- Are edge cases covered?
-- Is scope clear and bounded?
-- Are failure modes identified?
-- Is there anything the user hasn't considered?
-
-Research before asking. Avoid bloat.`,
+- Verify scope is clear and bounded (scope, out_of_scope, done_when in frontmatter).
+- Confirm failure modes and edge cases were surfaced.
+- Check that open questions are resolved, not left vague.`,
 
   'define-behavior': `SAFEWORD Quality Review (Scenario Phase):
 
-Check your scenarios:
-- Is each scenario atomic (tests ONE behavior)?
-- Is each outcome observable (externally visible)?
-- Is each scenario deterministic (same result on repeat)?
-- Are happy path, failure modes, and edge cases covered?
-
-Research before asking. Avoid bloat.`,
+- Verify each scenario is AODI: Atomic (ONE behavior), Observable (externally visible), Deterministic (repeatable), Independent (no ordering dependency).
+- Confirm happy path, failure modes, and edge cases are covered.
+- Avoid testing implementation details — test behaviors.`,
 
   'scenario-gate': `SAFEWORD Quality Review (Scenario Gate):
 
-**Validate each scenario - show evidence:**
-
-1. List scenarios validated:
-   → Show: "Validated: [scenario names]"
-
-2. For each, confirm testability criteria:
-   - Atomic: Tests ONE behavior? (Red flag: multiple When/Then)
-   - Observable: Externally visible outcome? (Red flag: internal state only)
-   - Deterministic: Same result on repeat? (Red flag: time/random dependency)
-
-3. Issues found?
-   → Show: "Issues: [list with fixes]" or "No issues"
-
-If validation incomplete, continue working before proceeding to decomposition.`,
+1. List validated scenarios.
+2. Confirm each is AODI: Atomic, Observable, Deterministic, Independent.
+3. Show issues found or "No issues."`,
 
   decomposition: `SAFEWORD Quality Review (Decomposition Phase):
 
-**Show task breakdown before implementing:**
-
-1. Components identified:
-   → Show: "Components: [list]"
-
-2. Test layers assigned:
-   → Show: "Unit: [list], Integration: [list], E2E: [list]"
-
-3. Task order (by dependency):
-   → Show: "Tasks: 1. [task] 2. [task] ..."
-
-4. Missing anything?
-   → Show: "Ready" or "Missing: [gaps]"
-
-If breakdown incomplete, continue working before proceeding to implement.`,
+- Optional — skip if architecture is clear from the proposal.
+- If decomposing: verify tasks are ordered so each builds on what's working.
+- Confirm test scopes match behavior (highest scope with acceptable feedback speed).`,
 
   implement: `SAFEWORD Quality Review:
 
@@ -74,29 +64,15 @@ Review your work critically.
 - Does it follow latest docs and research? If unsure, say so — don't guess.
 - If questions remain: research first, then ask targeted questions.
 - Report findings only. No preamble.
-- State what you're most uncertain about.
-- If you asked a question above that's still relevant after review, re-ask it.`,
+- State what you're most uncertain about.`,
 
   done: `SAFEWORD Quality Review (Done Phase):
 
-**Completion Checklist - Provide evidence for each:**
-
-1. All scenarios marked [x] in test-definitions?
-   → Show: "All N scenarios marked complete" or list remaining
-
-2. Full test suite passing?
-   → Show: "✓ X/X tests pass" (run tests, show count)
-
-3. Build passing?
-   → Show: "Build succeeded" or skip if no build step
-
-4. Lint passing?
-   → Show: "Lint clean" or note issues
-
-5. Parent epic updated (if applicable)?
-   → Show: "Added entry to [parent] work log" or "No parent"
-
-If ANY item lacks evidence, continue working. Run /verify to check, then /audit before marking done.`,
+1. Check scenario coverage: did implementation reveal behaviors not in test-definitions?
+2. Check scope drift: does the final implementation match ticket scope and done_when?
+3. Cross-scenario refactoring done (if clear wins exist)?
+4. Run /verify — show "✓ X/X tests pass" and "All N scenarios marked complete."
+5. Run /audit — show "Audit passed."`,
 };
 
 /**
@@ -107,9 +83,13 @@ export const QUALITY_REVIEW_MESSAGE = PHASE_MESSAGES.implement;
 
 /**
  * Get phase-appropriate quality review message.
+ * During implement phase, uses TDD-step-specific messages when tddStep is provided.
  * Falls back to default (implement) if phase unknown.
  */
-export function getQualityMessage(phase?: BddPhase | string): string {
+export function getQualityMessage(phase?: BddPhase | string, tddStep?: string | null): string {
+  if (phase === 'implement' && tddStep && tddStep in TDD_STEP_MESSAGES) {
+    return TDD_STEP_MESSAGES[tddStep];
+  }
   if (phase && phase in PHASE_MESSAGES) {
     return PHASE_MESSAGES[phase as BddPhase];
   }

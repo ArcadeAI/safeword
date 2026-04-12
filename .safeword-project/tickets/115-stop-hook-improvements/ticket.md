@@ -146,16 +146,19 @@ SAFEWORD Quality Review (Decomposition Phase):
 - Confirm test scopes match behavior (highest scope with acceptable feedback speed).
 ```
 
-**done (4 imperatives, aligned with DONE.md Finish/Close):**
+**done (5 imperatives — process reflection + mechanical verification, aligned with DONE.md Finish/Close):**
 
 ```
 SAFEWORD Quality Review (Done Phase):
 
-1. Cross-scenario refactoring done (if clear wins exist)?
-2. Run /verify — show "✓ X/X tests pass" and "All N scenarios marked complete."
-3. Run /audit — show "Audit passed."
-4. Update parent epic if applicable.
+1. Check scenario coverage: did implementation reveal behaviors not in test-definitions?
+2. Check scope drift: does the final implementation match ticket scope and done_when?
+3. Cross-scenario refactoring done (if clear wins exist)?
+4. Run /verify — show "✓ X/X tests pass" and "All N scenarios marked complete."
+5. Run /audit — show "Audit passed."
 ```
+
+Items 1-2 are process-flow reflection (catches scenario gaps, scope drift). Item 3 is cross-cutting code quality. Items 4-5 are mechanical verification. No separate "process review" firing — folded into done to avoid alarm fatigue.
 
 ### Audit evidence (future improvement)
 
@@ -182,11 +185,13 @@ See also `.safeword-project/learnings/agent-behavior-research.md`
 - Remove schema.ts warning (pre-push hook is real enforcement)
 - LOC dirty flag for implement-phase review frequency
 - TDD-step-specific implement messages (RED/GREEN/REFACTOR)
-- Align PHASE_MESSAGES with current skills (AODI, optional decomp, simplified done)
+- Align PHASE_MESSAGES with current skills (AODI, optional decomp, done with process reflection)
 - Lightweight/heavyweight tier separation
+- Fix prompt hook RED reminder ("write minimal code" → "write a failing test")
 
 ## Work Log
 
 - 2026-04-11T23:17Z Created: Extracted from #109 epic (Group 2)
 - 2026-04-12T00:27Z Note: Parallel session already rewrote stop hook implement-phase prompt.
 - 2026-04-12T17:55Z Updated: Added frequency reduction mechanism (phase-boundary + LOC dirty flag), verified-state caching, lightweight/heavyweight separation. Backed by dogfooding data (304 fires / 5 catches) and alarm fatigue research.
+- 2026-04-12T19:30Z Updated: Added process-flow reflection to done PHASE_MESSAGE (scenario coverage gaps, scope drift). Folded into done message rather than separate firing to avoid alarm fatigue. Fixed prompt hook RED reminder. All PHASE_MESSAGES now specified with exact text.

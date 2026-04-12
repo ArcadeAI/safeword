@@ -136,7 +136,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/001a-feature/test-definitions.md',
-      '- [x] scenario 1',
+      '### Test 1.1: Scenario one [x]\n',
     );
 
     // Next sibling — not done
@@ -294,7 +294,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/025-standalone/test-definitions.md',
-      '- [x] scenario 1',
+      '### Test 1.1: Scenario one [x]\n',
     );
 
     const transcriptPath = createTranscript(projectDirectory, featureEvidence);
