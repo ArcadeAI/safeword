@@ -12,6 +12,7 @@
 
 import { execSync, spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -1270,7 +1271,32 @@ describe('Quality Gates', () => {
       expect(reason).not.toMatch(/\bscope,/); // "scope" alone isn't missing — only "out_of_scope" is
     });
 
-    it('9.5: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
+    it('9.5: editing existing test-definitions.md is allowed (gate only fires on creation)', () => {
+      // Create ticket WITHOUT scope fields
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'type: feature', '---', '# Test'].join('\n'),
+      );
+      // Create existing test-definitions.md
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+        '# Existing scenarios\n',
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Edit', testDefsPath);
+
+      // Allowed — file already exists, prerequisite only gates creation
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('9.6: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
       const ticketPath = nodePath.join(
         projectDirectory,
         '.safeword-project/tickets/099-test/ticket.md',
