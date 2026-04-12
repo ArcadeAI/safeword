@@ -60,14 +60,53 @@ Two improvements to stop-quality.ts. Independent of the enforcement architecture
 
 **Proposed:** When quality review fires during implement, check `lastKnownTddStep` and use step-specific messages:
 
-| TDD step | Quality review question                                                                               |
-| -------- | ----------------------------------------------------------------------------------------------------- |
-| red      | "Does the test fail for the right reason (missing behavior, not syntax)? Is it testing ONE behavior?" |
-| green    | "Did you write more than the test requires? Is the full suite still passing?"                         |
-| refactor | "Is there duplication to extract? Unclear naming? Could this be simpler?"                             |
-| (none)   | Current generic implement message                                                                     |
+**Exact messages (3 checks each, self-contained, grounded in TDD.md + testing SKILL.md):**
+
+**RED:**
+
+```
+SAFEWORD Quality Review (TDD: RED):
+
+- Does the test fail for the right reason? (missing behavior, not syntax)
+- Is it testing ONE observable behavior, not implementation details?
+- Is the assertion independent of the implementation? (not mirroring the code under test)
+```
+
+**GREEN:**
+
+```
+SAFEWORD Quality Review (TDD: GREEN):
+
+- Did you write only what the test requires? (GREEN is minimal — REFACTOR adds quality)
+- Is the full test suite still passing? (show output, don't just claim)
+- Did you introduce mocks that could be real dependencies instead?
+```
+
+**REFACTOR:**
+
+```
+SAFEWORD Quality Review (TDD: REFACTOR):
+
+- Is there duplication or unclear naming to clean up?
+- Could this be simpler without losing clarity?
+- Tests still passing after refactoring?
+```
+
+**(none):** Current generic implement message.
 
 Add these to `quality.ts` PHASE_MESSAGES. Low effort (~10 lines), fires 6-8 times per feature, each time more targeted than the generic message.
+
+### Align all PHASE_MESSAGES with current skills/guides
+
+Audit of quality.ts messages vs their corresponding skills found misalignments:
+
+**define-behavior:** Missing Independence criterion. Currently AOD, should be AODI. Add: "Independent (no ordering dependency between scenarios)?"
+
+**scenario-gate:** Same — missing Independence. Add to validation criteria.
+
+**decomposition:** Doesn't mention decomposition is optional. Still implies fixed task ordering. Update to: "Optional — skip if architecture is clear. If decomposing: are tasks ordered so each builds on what's working?"
+
+**done:** Lists "Lint passing?" separately — redundant with /verify which runs lint. Missing cross-scenario refactoring step (first step in Finish). Simplify to: "Cross-scenario refactoring done (if clear wins)? Run /verify then /audit. Show evidence."
 
 ### Audit evidence (future improvement)
 
@@ -91,9 +130,11 @@ See also `.safeword-project/learnings/agent-behavior-research.md`
 **Remaining work:**
 
 - Scenario evidence: text → file reading (~15 lines)
-- Quality review frequency: phase-boundary + LOC dirty flag
-- Verified-state caching: schema.ts warning
-- Lightweight/heavyweight separation
+- Remove schema.ts warning (pre-push hook is real enforcement)
+- LOC dirty flag for implement-phase review frequency
+- TDD-step-specific implement messages (RED/GREEN/REFACTOR)
+- Align PHASE_MESSAGES with current skills (AODI, optional decomp, simplified done)
+- Lightweight/heavyweight tier separation
 
 ## Work Log
 
