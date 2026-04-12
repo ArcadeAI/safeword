@@ -38,7 +38,7 @@ Define: "Browser" → Real browser (Playwright), not jsdom
 
 ### 3. Concrete Examples Over Abstract Rules
 
-For every rule, include 2-3 good vs bad examples. Use 3-5 diverse, canonical examples — not exhaustive edge cases.
+For every rule, include 2-3 good vs bad examples. Use 3-5 diverse, relevant examples — not exhaustive edge cases.
 
 ```markdown
 ❌ BAD: "Follow best practices for testing"
@@ -102,7 +102,7 @@ Tags: `<instructions>`, `<context>`, `<input>`, `<example>`, `<document>`.
 
 ### 7. Keep Context Lean
 
-Context quality degrades as token count grows. Find the smallest set of high-signal tokens that maximize the desired outcome. Don't front-load entire reference documents — load dynamically when needed.
+Structure prompts carefully with large inputs. Find the smallest set of high-signal tokens that maximize the desired outcome. Don't front-load entire reference documents — load dynamically when needed.
 
 ```markdown
 ❌ BAD: Load 3 guide files before every task (800+ lines of context)
