@@ -51,8 +51,23 @@ Two improvements to stop-quality.ts. Independent of the enforcement architecture
 
 **Proposed:** Two tiers:
 
-- **Lightweight (every stop):** Done gate evidence check, schema staleness (if not verified)
-- **Heavyweight (boundary-only):** Full quality review prompt — only at phase transitions or LOC dirty flag
+- **Lightweight (every stop):** Done gate evidence check only
+- **Heavyweight (implement-phase LOC dirty flag only):** Quality review prompt fires when >50 LOC changed since last review. Other phases fire naturally (they're brief — 1-3 turns each).
+
+### TDD-step-specific quality review messages
+
+**Current:** Implement phase uses one generic message ("Is it correct? Could this be simplified?") regardless of TDD step.
+
+**Proposed:** When quality review fires during implement, check `lastKnownTddStep` and use step-specific messages:
+
+| TDD step | Quality review question                                                                               |
+| -------- | ----------------------------------------------------------------------------------------------------- |
+| red      | "Does the test fail for the right reason (missing behavior, not syntax)? Is it testing ONE behavior?" |
+| green    | "Did you write more than the test requires? Is the full suite still passing?"                         |
+| refactor | "Is there duplication to extract? Unclear naming? Could this be simpler?"                             |
+| (none)   | Current generic implement message                                                                     |
+
+Add these to `quality.ts` PHASE_MESSAGES. Low effort (~10 lines), fires 6-8 times per feature, each time more targeted than the generic message.
 
 ### Audit evidence (future improvement)
 
