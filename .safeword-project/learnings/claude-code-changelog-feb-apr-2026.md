@@ -4,7 +4,7 @@ Covers: Hook changes, permission updates, agent workflow improvements, autonomy 
 
 ## Hook-Relevant Changes
 
-- **`"defer"` permission decision for PreToolUse hooks** (2.1.89) — new option beyond allow/deny/ask. Defers to the next hook or default behavior.
+- **`"defer"` permission decision for PreToolUse hooks** (2.1.89) — exits the process so an external caller (SDK, custom UI) can handle the tool call and resume later. Only works in headless mode (`claude -p`). NOT useful for interactive sessions — Safeword should use `deny` or `allow`, not `defer`.
 - **`PermissionDenied` hook event** (2.1.89) — fires after auto mode classifier denies an action. Can be used to log or react to denials.
 - **`TaskCreated` hook event** (2.1.84) — fires when a task is created. Documented in 2.1.89.
 - **`CwdChanged` and `FileChanged` hook events** (2.1.83) — fires when working directory changes or a file changes outside of Claude's tools.
