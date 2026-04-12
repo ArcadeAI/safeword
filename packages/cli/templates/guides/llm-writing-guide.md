@@ -38,7 +38,7 @@ Define: "Browser" → Real browser (Playwright), not jsdom
 
 ### 3. Concrete Examples Over Abstract Rules
 
-For every rule, include 2-3 good vs bad examples.
+For every rule, include 2-3 good vs bad examples. Use 3-5 diverse, canonical examples — not exhaustive edge cases.
 
 ```markdown
 ❌ BAD: "Follow best practices for testing"
@@ -75,6 +75,41 @@ Section B: "All user-facing features have E2E tests"
 
 ✅ Both sections use same definition of "critical"
 ```
+
+### 6. Use XML Tags for Structure
+
+Structure complex prompts with XML tags for unambiguous parsing.
+
+```markdown
+❌ BAD: Instructions mixed with context and examples in flat text
+
+✅ GOOD:
+<instructions>
+Write a function that validates email addresses.
+</instructions>
+
+<context>
+The system uses RFC 5322 validation.
+</context>
+
+<example>
+Input: "user@example.com" → Output: true
+Input: "not-an-email" → Output: false
+</example>
+```
+
+Tags: `<instructions>`, `<context>`, `<input>`, `<example>`, `<document>`.
+
+### 7. Keep Context Lean
+
+Context quality degrades as token count grows. Find the smallest set of high-signal tokens that maximize the desired outcome. Don't front-load entire reference documents — load dynamically when needed.
+
+```markdown
+❌ BAD: Load 3 guide files before every task (800+ lines of context)
+✅ GOOD: Reference guides by path, consult for specific questions
+```
+
+Maintain lightweight identifiers (file paths, URLs) and load content just-in-time rather than pre-loading everything.
 
 ---
 
@@ -122,9 +157,9 @@ When 3+ branches exist, provide a table.
 
 ## Document Structure
 
-### Position-Aware Writing (Recency Bias)
+### Document Placement for Optimal Comprehension
 
-LLMs retain beginning and end better than middle (<40% middle recall vs >80% start/end).
+LLMs retain beginning and end better than middle. For long documents (20K+ tokens), place the document at the top of the prompt with queries below — this can improve performance up to 30% on complex queries.
 
 | ❌ BAD                    | ✅ GOOD                  |
 | ------------------------- | ------------------------ |
@@ -133,7 +168,7 @@ LLMs retain beginning and end better than middle (<40% middle recall vs >80% sta
 | **Critical Rules ← lost** | Appendix (50 lines)      |
 | Appendix (50 lines)       | **Key Takeaways ← kept** |
 
-**Rule:** Put critical content at END of documents.
+**Rule:** Put critical content at the END of documents. Place large reference documents at the TOP of prompts with instructions below.
 
 ### Re-evaluation Paths
 
@@ -152,13 +187,15 @@ Provide concrete next steps for dead ends.
 
 ## Anti-Patterns
 
-| Don't                                 | Why                                                |
-| ------------------------------------- | -------------------------------------------------- |
-| Visual metaphors (pyramids, icebergs) | LLMs don't process visuals                         |
-| Undefined jargon                      | "Technical debt" needs definition                  |
-| Percentages without context           | "70/20/10" meaningless without adjustment guidance |
-| Caveats in tables                     | Parentheticals break pattern matching              |
-| Critical info in middle               | Lost-in-middle phenomenon                          |
+| Don't                                         | Why                                                                  |
+| --------------------------------------------- | -------------------------------------------------------------------- |
+| Visual metaphors (pyramids, icebergs)         | LLMs don't process visuals                                           |
+| Undefined jargon                              | "Technical debt" needs definition                                    |
+| Percentages without context                   | "70/20/10" meaningless without adjustment guidance                   |
+| Caveats in tables                             | Parentheticals break pattern matching                                |
+| Critical info in middle                       | Lost-in-middle phenomenon                                            |
+| Aggressive emphasis ("CRITICAL", "IMPORTANT") | Newer models overtrigger on emphasis — use specific, normal language |
+| Front-loading entire reference docs           | Context quality degrades with token count                            |
 
 ---
 
@@ -171,7 +208,9 @@ Provide concrete next steps for dead ends.
 - [ ] No contradictions between sections
 - [ ] Complex decisions have lookup tables
 - [ ] Dead-end paths have re-evaluation steps
-- [ ] Critical rules at END (recency bias)
+- [ ] Critical rules at END of documents
+- [ ] Context is lean — no unnecessary pre-loading
+- [ ] XML tags used for complex prompt structure
 
 ---
 
@@ -179,5 +218,8 @@ Provide concrete next steps for dead ends.
 
 - Decision trees: sequential, MECE, with tie-breakers
 - Every rule needs concrete examples (good vs bad)
-- Define all terms explicitly—assume nothing is obvious
-- Put critical rules at the END of documents (recency bias)
+- Define all terms explicitly — assume nothing is obvious
+- Put critical rules at the END of documents
+- Keep context lean — load just-in-time, not upfront
+- Use XML tags for complex prompt structure
+- Use specific, normal language — not aggressive emphasis
