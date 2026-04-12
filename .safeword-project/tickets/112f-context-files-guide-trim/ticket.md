@@ -1,7 +1,7 @@
 ---
 id: 112f
 slug: context-files-guide-trim
-status: backlog
+status: done
 type: task
 created: 2026-04-11
 parent: '112'
