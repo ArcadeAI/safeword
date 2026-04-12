@@ -2,7 +2,8 @@
 id: '114'
 title: Enforcement architecture — natural gates + reminders, remove hard blocks
 type: feature
-phase: implement
+phase: done
+status: done
 created: 2026-04-11
 parent: '109'
 ---
