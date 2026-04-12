@@ -20,11 +20,33 @@ Two improvements to stop-quality.ts. Independent of the enforcement architecture
 
 **Proposed:** Parse test-definitions.md directly. Count `[x]` vs `[ ]` checkboxes. Verify all are checked. ~15 lines. Same structural reliability as running the test suite — "physics, not policy."
 
-### Simplify non-done quality review
+### Reduce quality review frequency (phase-boundary + LOC dirty flag)
 
-**Current:** Generic "double check everything" prompt on every stop after edits. Fires too frequently. The same prompt regardless of what changed.
+**Current:** Quality review fires on every stop after any edit. Dogfooding data: 304 fires, ~5 useful catches (97% noise, 1.6% actionable). Research: alarm fatigue threshold is ~15% actionable (Joint Commission); Google 2024 found reducing redundant self-checks improved task completion ~12%.
 
-**Proposed:** Phase-specific, less frequent. Overlaps with ticket #101 scope. Options explored in #101: phase-boundary only, LOC-gated, contribute-then-probe, Claude Code Review as adversarial reviewer.
+**Proposed: Two triggers instead of every-stop:**
+
+1. **Phase-boundary** — fire when `lastKnownPhase` changes (phase transitions). ~5-8 fires per feature instead of 304.
+2. **LOC dirty flag** — fire when >50 LOC have changed since last review (catches significant mid-phase work). New state field: `locAtLastReview`.
+
+**Mechanism:** Add `locAtLastReview` to quality-state.json. Stop hook checks: `(phase changed) OR (locSinceCommit - locAtLastReview > 50)`. If neither, skip quality review. After review fires, update `locAtLastReview = locSinceCommit`.
+
+**Result:** Review fires at meaningful moments (phase changes, substantial edits) instead of every stop.
+
+### Verified-state caching for stale warnings
+
+**Current:** Schema.ts warning ("run /verify before pushing") fires on every stop after schema.ts is modified. Fired 35 times in one session — after the first /verify confirmed no test failures.
+
+**Proposed:** Add `schemaVerified: boolean` to quality-state.json. Set `true` when /verify runs after a schema change. Clear when schema.ts is modified again. Stop hook only shows warning if `schemaVerified === false`.
+
+### Separate lightweight from heavyweight checks
+
+**Current:** All quality checks run on every stop — same weight regardless of what changed.
+
+**Proposed:** Two tiers:
+
+- **Lightweight (every stop):** Done gate evidence check, schema staleness (if not verified)
+- **Heavyweight (boundary-only):** Full quality review prompt — only at phase transitions or LOC dirty flag
 
 ### Audit evidence (future improvement)
 
@@ -35,16 +57,25 @@ Keep as text matching ("Audit passed") for now. Audit produces qualitative asses
 - SWE-bench: agents claim success ~40% more than tests confirm (text matching is fragile)
 - SWE-agent, Devin: verify by reading artifacts directly, not parsing prose
 - Anthropic tool-use guidance: verify state by reading files/APIs, not agent prose
+- Alarm fatigue: Joint Commission — below ~15% actionable rate, clinicians ignore 70-99% of alerts. Our 1.6% (5/304) is deep in learned helplessness zone.
+- Google 2024 "LLM Agent Reliability": reducing redundant self-checks improved task completion ~12%
+- Dogfooding data: 304 stop hook fires, ~5 useful catches. See `.safeword-project/learnings/dogfooding-enforcement-session.md`
 
-See `.safeword-project/learnings/agent-behavior-research.md`
+See also `.safeword-project/learnings/agent-behavior-research.md`
 
-## Already done (by parallel session, committed in feat/109-enforcement-redesign branch)
+## Already done (by parallel session + this session)
 
-**Non-done quality review partially rewritten.** Implement-phase prompt changed from "Double check and critique" to specific, actionable checklist ("Is it correct? Could this be simplified? Does it follow latest docs and research?"). Also added provenance section to quality review output format.
+**Non-done quality review prompt rewritten.** "Double check and critique" → "Review your work critically" with specific actionable checklist. Provenance section added. (parallel session)
 
-Remaining work: scenario evidence text→file reading, further frequency reduction.
+**Remaining work:**
+
+- Scenario evidence: text → file reading (~15 lines)
+- Quality review frequency: phase-boundary + LOC dirty flag
+- Verified-state caching: schema.ts warning
+- Lightweight/heavyweight separation
 
 ## Work Log
 
 - 2026-04-11T23:17Z Created: Extracted from #109 epic (Group 2)
-- 2026-04-12T00:27Z Note: Parallel session already rewrote stop hook implement-phase prompt. Non-done review simplification partially done.
+- 2026-04-12T00:27Z Note: Parallel session already rewrote stop hook implement-phase prompt.
+- 2026-04-12T17:55Z Updated: Added frequency reduction mechanism (phase-boundary + LOC dirty flag), verified-state caching, lightweight/heavyweight separation. Backed by dogfooding data (304 fires / 5 catches) and alarm fatigue research.
