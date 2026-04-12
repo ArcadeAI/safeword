@@ -23,7 +23,7 @@ If in BDD workflow, read current ticket from `.safeword-project/tickets/` and ap
 | Phase           | Research Focus                                  |
 | --------------- | ----------------------------------------------- |
 | intake          | Similar features in ecosystem, scope patterns   |
-| define-behavior | Testing patterns, BDD best practices            |
+| define-behavior | Testing patterns, BDD research and patterns     |
 | decomposition   | Architecture patterns, test layer strategy      |
 | implement       | **Library versions, deprecated APIs, security** |
 | done            | CI/CD patterns, release checklists              |
@@ -65,6 +65,11 @@ Fetch official documentation for libraries in use.
 
 **Critical issues:** [List or "None"]
 **Suggested improvements:** [List or "None"]
+**Provenance:** For version/API claims:
+
+- (verified: [source URL or doc title]) — fetched this session
+- (training data: may be outdated) — not verified
+- (uncertain) — could not verify
 ```
 
 ## Reminders

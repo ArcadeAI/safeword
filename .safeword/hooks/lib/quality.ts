@@ -67,14 +67,14 @@ If breakdown incomplete, continue working before proceeding to implement.`,
 
   implement: `SAFEWORD Quality Review:
 
-Double check and critique your work again just in case.
-Assume you've never seen it before.
+Review your work critically.
 
 - Is it correct?
-- Is it elegant?
-- Does it follow latest docs/best practices?
+- Could this be simplified without losing clarity?
+- Does it follow latest docs and research? If unsure, say so — don't guess.
 - If questions remain: research first, then ask targeted questions.
-- Avoid bloat.
+- Report findings only. No preamble.
+- State what you're most uncertain about.
 - If you asked a question above that's still relevant after review, re-ask it.`,
 
   done: `SAFEWORD Quality Review (Done Phase):

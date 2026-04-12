@@ -153,7 +153,7 @@ Find and check all agent configuration files (excluding `.safeword/`):
 | Dead refs  | All referenced files/paths exist (skip URLs starting with http)     | error    |
 | Staleness  | Last modified 30+ days ago AND commits exist since                  | warn     |
 
-**Best practices sources:**
+**Research sources:**
 
 - [Anthropic Engineering](https://www.anthropic.com/engineering/claude-code-best-practices)
 - [Cursor Docs](https://cursor.com/docs/context/rules)

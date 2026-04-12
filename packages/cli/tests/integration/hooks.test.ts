@@ -12,6 +12,7 @@
 
 import { execSync, spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -1097,7 +1098,7 @@ describe('E2E: Python Lint Hook', () => {
       writeTestFile(projectDirectory, 'format-test.py', badCode);
 
       // Run lint hook on the file
-      const result = runPostToolLint(`${projectDirectory}/format-test.py`);
+      const result = runPostToolLint(projectDirectory, `${projectDirectory}/format-test.py`);
       expect(result.status).toBe(0);
 
       // File should now be formatted
@@ -1112,7 +1113,7 @@ describe('E2E: Python Lint Hook', () => {
       writeTestFile(projectDirectory, 'fix-test.py', codeWithUnusedImport);
 
       // Run lint hook on the file
-      const result = runPostToolLint(`${projectDirectory}/fix-test.py`);
+      const result = runPostToolLint(projectDirectory, `${projectDirectory}/fix-test.py`);
       expect(result.status).toBe(0);
 
       // Unused import should be removed
@@ -1128,7 +1129,7 @@ describe('E2E: Python Lint Hook', () => {
         const codeWithUnfixable = 'def foo():\n    return\n    x = 1\n';
         writeTestFile(projectDirectory, 'unfixable-test.py', codeWithUnfixable);
 
-        const result = runPostToolLint(`${projectDirectory}/unfixable-test.py`);
+        const result = runPostToolLint(projectDirectory, `${projectDirectory}/unfixable-test.py`);
         expect(result.status).toBe(0);
 
         // Hook should output additionalContext JSON for remaining errors
@@ -1146,7 +1147,7 @@ describe('E2E: Python Lint Hook', () => {
       const autoFixable = 'import os\nx = 1\n';
       writeTestFile(projectDirectory, 'clean-after-fix.py', autoFixable);
 
-      const result = runPostToolLint(`${projectDirectory}/clean-after-fix.py`);
+      const result = runPostToolLint(projectDirectory, `${projectDirectory}/clean-after-fix.py`);
       expect(result.status).toBe(0);
 
       // No additionalContext should be output (file is clean after fix)

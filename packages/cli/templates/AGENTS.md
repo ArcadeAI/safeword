@@ -1,6 +1,6 @@
 # Safeword
 
-AI code quality tool - enforces best practices through hooks, linting, and guided workflows.
+AI code quality tool - enforces quality standards through hooks, linting, and guided workflows.
 
 ## Do Not Edit
 

@@ -7,7 +7,7 @@ alwaysApply: false
 
 Deep quality review with web research to verify code against the latest ecosystem state.
 
-**Primary differentiator**: Web research to verify against current versions, documentation, and best practices.
+**Primary differentiator**: Web research to verify against current versions, documentation, and latest research patterns.
 
 **Triggers**:
 
@@ -85,7 +85,7 @@ Read relevant standards:
 - Does it follow established patterns?
 - Does it violate any documented principles?
 
-**Library best practices:**
+**Library research:**
 
 - Are we using libraries correctly?
 - Are we following official documentation?
