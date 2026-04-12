@@ -1,7 +1,7 @@
 ---
 id: 112c
 slug: testing-guide-dedupe
-status: backlog
+status: done
 type: task
 created: 2026-04-11
 parent: '112'
