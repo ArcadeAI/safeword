@@ -78,6 +78,13 @@ Key findings:
 - Restructuring hook architecture
 - Other hooks (lint, bypass-warn, config-guard)
 
+## Already done (by parallel session, committed in feat/109-enforcement-redesign branch)
+
+**Stop hook implement phase rewritten.** "Double check and critique your work. Assume you've never seen it before." → "Review your work critically. Is it correct? Could this be simplified? Does it follow latest docs and research? If unsure, say so — don't guess. Report findings only. No preamble."
+
+This partially implements Option D+E from this ticket. Remaining: frequency reduction (phase-boundary only vs every stop) and Claude Code Review integration.
+
 ## Work Log
 
 - 2026-04-11T03:43Z Created: Captured debate from ticket #100 conversation
+- 2026-04-12T00:27Z Note: Parallel session already rewrote stop hook implement-phase prompt (quality.ts). Partial overlap with this ticket.

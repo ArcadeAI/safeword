@@ -38,6 +38,13 @@ Keep as text matching ("Audit passed") for now. Audit produces qualitative asses
 
 See `.safeword-project/learnings/agent-behavior-research.md`
 
+## Already done (by parallel session, committed in feat/109-enforcement-redesign branch)
+
+**Non-done quality review partially rewritten.** Implement-phase prompt changed from "Double check and critique" to specific, actionable checklist ("Is it correct? Could this be simplified? Does it follow latest docs and research?"). Also added provenance section to quality review output format.
+
+Remaining work: scenario evidence text→file reading, further frequency reduction.
+
 ## Work Log
 
 - 2026-04-11T23:17Z Created: Extracted from #109 epic (Group 2)
+- 2026-04-12T00:27Z Note: Parallel session already rewrote stop hook implement-phase prompt. Non-done review simplification partially done.
