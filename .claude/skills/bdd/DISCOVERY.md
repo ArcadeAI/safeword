@@ -25,7 +25,7 @@ Use these as the **content** of your contributions — not as a separate questio
 Before proceeding to Phase 3:
 
 1. **Verify ticket exists:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
-2. **Verify spec has:** Scope, Out of Scope, Done When
+2. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
 3. **Update frontmatter:** `phase: define-behavior`
 4. **Add work log entry:**
 

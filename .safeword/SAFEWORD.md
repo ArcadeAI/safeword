@@ -31,7 +31,7 @@
 - **Out of Scope:** What you're not building (derived from rejected alternatives + domain-knowledge exclusions)
 - **Done When:** Observable outcomes
 
-**Exit criterion:** When the user accepts your proposal → write structured scope to the ticket (Scope, Out of Scope, Done When) → proceed to sizing.
+**Exit criterion:** When the user accepts your proposal → write scope to the ticket frontmatter (`scope`, `out_of_scope`, `done_when` fields) → proceed to sizing.
 
 ---
 
@@ -169,7 +169,7 @@ Commit after: GREEN phase, before/after refactoring, when switching tasks.
 
 Safeword tracks your phase and TDD step, reminding you each turn via the prompt hook. The done gate requires evidence (tests pass, scenarios complete, audit run).
 
-- **Natural gates** — you can't start TDD without test-definitions.md; you can't create test-definitions.md without a ticket spec with Scope/Out of Scope/Done When
+- **Natural gates** — you can't start TDD without test-definitions.md; you can't create test-definitions.md without ticket frontmatter fields: `scope`, `out_of_scope`, `done_when`
 - **Reminders** — the prompt hook injects your current phase and TDD step each turn
 - **Output validation** — the done gate hard-blocks until evidence proves the work is complete
 - **LOC gate** — commit every ~400 lines of code (blast radius control)
