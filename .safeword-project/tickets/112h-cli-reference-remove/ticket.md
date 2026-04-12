@@ -1,7 +1,7 @@
 ---
 id: 112h
 slug: cli-reference-remove
-status: backlog
+status: done
 type: task
 created: 2026-04-11
 parent: '112'

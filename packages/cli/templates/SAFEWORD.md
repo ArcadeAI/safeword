@@ -111,7 +111,21 @@ Training data is stale. Follow this sequence:
 | Updating CLAUDE.md, SAFEWORD.md, or any context file         | `./.safeword/guides/context-files-guide.md`     |
 | Hit same bug 3+ times OR discovered undocumented gotcha      | `./.safeword/guides/learning-extraction.md`     |
 | Process hanging, port in use, or zombie process suspected    | `./.safeword/guides/zombie-process-cleanup.md`  |
-| Using `safeword` CLI commands                                | `./.safeword/guides/cli-reference.md`           |
+
+---
+
+## CLI Commands
+
+| Situation                   | Command                             |
+| --------------------------- | ----------------------------------- |
+| New project setup           | `bunx safeword@latest setup`        |
+| Check if update available   | `bunx safeword@latest check`        |
+| Update after CLI release    | `bunx safeword@latest upgrade`      |
+| See what upgrade changes    | `bunx safeword@latest diff`         |
+| Regenerate depcruise config | `bunx safeword@latest sync-config`  |
+| Remove safeword             | `bunx safeword@latest reset --full` |
+
+Run `bunx safeword <command> --help` for options.
 
 ---
 

@@ -314,9 +314,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
     },
-    '.safeword/guides/cli-reference.md': {
-      template: 'guides/cli-reference.md',
-    },
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',
     },
