@@ -66,7 +66,8 @@ if (!EDIT_TOOLS.includes(tool)) {
 
 if (
   editedFile.endsWith('test-definitions.md') &&
-  editedFile.includes('.safeword-project/tickets/')
+  editedFile.includes('.safeword-project/tickets/') &&
+  !existsSync(editedFile) // Only gate creation, not edits to existing files
 ) {
   const ticketDirectory = nodePath.dirname(editedFile);
   const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');

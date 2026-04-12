@@ -1,5 +1,7 @@
 # Test Definitions: Continuous Quality Gates (Ticket #024)
 
+> **Note:** Phase gates and TDD gates were redesigned in #114 (enforcement redesign). Phase/TDD blocking replaced with prompt hook reminders. LOC gate and artifact prerequisite gate remain as hard blocks. See quality-gates.test.ts for current behavior.
+
 **Guide**: `.safeword/guides/testing-guide.md` - Structure, status tracking, and TDD workflow
 **Template**: `.safeword/templates/test-definitions-feature.md`
 
