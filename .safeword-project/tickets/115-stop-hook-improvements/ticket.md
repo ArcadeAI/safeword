@@ -33,11 +33,17 @@ Two improvements to stop-quality.ts. Independent of the enforcement architecture
 
 **Result:** Review fires at meaningful moments (phase changes, substantial edits) instead of every stop.
 
-### Verified-state caching for stale warnings
+### Remove schema.ts warning from stop hook
 
-**Current:** Schema.ts warning ("run /verify before pushing") fires on every stop after schema.ts is modified. Fired 35 times in one session — after the first /verify confirmed no test failures.
+**Current:** Schema.ts warning fires on every stop by running two `git diff` subprocess calls. Checks both uncommitted and committed-but-unpushed changes. Fired 35 times in one session after the schema change was already verified and committed.
 
-**Proposed:** Add `schemaVerified: boolean` to quality-state.json. Set `true` when /verify runs after a schema change. Clear when schema.ts is modified again. Stop hook only shows warning if `schemaVerified === false`.
+**Why it fires endlessly:** It checks `git diff origin/main...HEAD` — the change persists in the diff until pushed to remote. Even after committing and verifying, the warning keeps firing.
+
+**Why it's redundant:** The pre-push hook already runs targeted tests when schema.ts is modified — that's mechanical enforcement at push time. The stop hook warning is a reminder for something that's already enforced. Two `git diff` subprocess calls per stop for a redundant dogfood-only warning.
+
+**Proposed:** Remove the schema reminder entirely from stop-quality.ts (lines 353-374). The pre-push test gate is the real enforcement. Saves two subprocess calls per stop.
+
+**If the general "modified → verify" pattern is needed for other files in the future:** Build a proper mechanism at that point (file→warning→verified map in quality-state). Don't cache the current implementation — remove it.
 
 ### Separate lightweight from heavyweight checks
 
