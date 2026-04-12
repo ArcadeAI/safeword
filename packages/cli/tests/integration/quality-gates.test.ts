@@ -161,7 +161,7 @@ describe('Quality Gates', () => {
       expect(state.locSinceCommit).toBeGreaterThanOrEqual(400);
     });
 
-    it('1.3: PreToolUse blocks with TDD reminder at LOC gate', () => {
+    it('1.3: PreToolUse blocks with commit reminder at LOC gate', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 450,
@@ -179,9 +179,7 @@ describe('Quality Gates', () => {
       const reason = output.hookSpecificOutput.permissionDecisionReason;
       expect(reason).toContain('SAFEWORD');
       expect(reason).toContain('450 LOC');
-      expect(reason).toContain('RED');
-      expect(reason).toContain('GREEN');
-      expect(reason).toContain('REFACTOR');
+      expect(reason).toContain('Commit');
     });
 
     it('1.4: LOC gate clears on commit', () => {
@@ -232,19 +230,12 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.gate).toBe('phase:implement');
+      // Phase transitions no longer set gates — they update state for prompt hook reminders
+      expect(state.gate).toBeNull();
       expect(state.lastKnownPhase).toBe('implement');
     });
 
-    it('2.2: PreToolUse blocks with phase file content and quality-review instruction', () => {
-      // Create skill directory with a phase file containing known content
-      const skillDirectory = '.claude/skills/bdd';
-      writeTestFile(
-        projectDirectory,
-        `${skillDirectory}/TDD.md`,
-        '# TDD Guide\n\nRED then GREEN then REFACTOR\n',
-      );
-
+    it('2.2: PreToolUse allows edits even with phase gate set (gates are now reminders)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -256,16 +247,9 @@ describe('Quality Gates', () => {
 
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
+      // Phase gates no longer block — they're reminders via prompt hook
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      const reason = output.hookSpecificOutput.permissionDecisionReason;
-      expect(reason).toContain('SAFEWORD');
-      expect(reason).toContain('implement');
-      // Content must come from the actual file (read at runtime, not hardcoded)
-      expect(reason).toContain('TDD Guide');
-      // /quality-review instruction in additionalContext (not reason)
-      expect(output.hookSpecificOutput.additionalContext).toContain('/quality-review');
+      expect(result.stdout).toBe('');
     });
 
     it('2.3: phase gate clears on commit', () => {
@@ -304,7 +288,7 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('2.5: test-definitions.md edits also bypass TDD gate', () => {
+    it('2.5: test-definitions.md edits allowed when ticket has scope fields', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -315,13 +299,30 @@ describe('Quality Gates', () => {
         gate: 'tdd:green',
       });
 
+      // Ticket must have scope fields for artifact prerequisite to pass
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'phase: implement',
+          'status: in_progress',
+          'scope: test scope',
+          'out_of_scope: nothing',
+          'done_when: tests pass',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+
       const testDefsPath = nodePath.join(
         projectDirectory,
         '.safeword-project/tickets/099-test/test-definitions.md',
       );
       const result = runPreToolQuality(projectDirectory, 'Edit', testDefsPath);
 
-      // Should allow — all .safeword-project/ files are exempt
+      // Allowed — ticket has scope fields, TDD gate is a reminder not a block
       expect(result.status).toBe(0);
       expect(result.stdout).toBe('');
     });
@@ -436,9 +437,9 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      // Real transition — gate should fire
+      // Phase transitions update state but no longer set gates
       expect(state.lastKnownPhase).toBe('implement');
-      expect(state.gate).toBe('phase:implement');
+      expect(state.gate).toBeNull();
     });
   });
 
@@ -529,7 +530,7 @@ describe('Quality Gates', () => {
   // Suite 5: TDD Gate Namespace + additionalContext + Commit-Prefix Removal
   // =========================================================================
   describe('TDD Gate Namespace', () => {
-    it('1: deny with additionalContext includes both fields in output', () => {
+    it('1: TDD gates no longer block edits (reminders via prompt hook)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -542,11 +543,9 @@ describe('Quality Gates', () => {
 
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
+      // TDD gates are now reminders, not blocks
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      expect(output.hookSpecificOutput.permissionDecisionReason).toMatch(/.+/);
-      expect(output.hookSpecificOutput.additionalContext).toContain('/tdd-review');
+      expect(result.stdout).toBe('');
     });
 
     it('2: deny without additionalContext omits the field', () => {
@@ -568,7 +567,7 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.additionalContext).toBeUndefined();
     });
 
-    it('3: LOC gate does not override tdd: gates', () => {
+    it('3: LOC gate is the only hard gate remaining', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 500,
@@ -576,7 +575,7 @@ describe('Quality Gates', () => {
         activeTicket: '099',
         lastKnownPhase: 'implement',
         lastKnownTddStep: null,
-        gate: 'tdd:refactor',
+        gate: 'loc',
       });
 
       // Create a large file to trigger LOC threshold
@@ -593,7 +592,8 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.gate).toBe('tdd:refactor');
+      // LOC gate blocks — it's the only hard gate remaining
+      expect(state.gate).toBe('loc');
     });
 
     it('4: feat: commit no longer sets refactor gate', () => {
@@ -627,7 +627,7 @@ describe('Quality Gates', () => {
       expect(state.gate).toBeNull();
     });
 
-    it('5: PreToolUse blocks with additionalContext for tdd:refactor gate', () => {
+    it('5: PreToolUse allows edits with tdd:refactor gate (reminders, not blocks)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -640,23 +640,12 @@ describe('Quality Gates', () => {
 
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
+      // TDD gates no longer block — reminders via prompt hook
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      const reason = output.hookSpecificOutput.permissionDecisionReason;
-      expect(reason).toContain('SAFEWORD');
-      expect(reason).toContain('refactor');
-      expect(output.hookSpecificOutput.additionalContext).toContain('/tdd-review');
+      expect(result.stdout).toBe('');
     });
 
-    it('6: phase gate uses additionalContext for quality-review', () => {
-      const skillDirectory = '.claude/skills/bdd';
-      writeTestFile(
-        projectDirectory,
-        `${skillDirectory}/TDD.md`,
-        '# TDD Guide\n\nRED then GREEN then REFACTOR\n',
-      );
-
+    it('6: phase gate no longer blocks edits (reminders via prompt hook)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -670,16 +659,10 @@ describe('Quality Gates', () => {
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      const reason = output.hookSpecificOutput.permissionDecisionReason;
-      expect(reason).toContain('SAFEWORD');
-      expect(reason).toContain('implement');
-      expect(reason).toContain('TDD Guide');
-      expect(output.hookSpecificOutput.additionalContext).toContain('/quality-review');
+      expect(result.stdout).toBe('');
     });
 
-    it('14: PreToolUse blocks with step-appropriate message for tdd:green', () => {
+    it('14: PreToolUse allows edits with tdd:green gate (reminders, not blocks)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -693,12 +676,7 @@ describe('Quality Gates', () => {
       const result = runPreToolQuality(projectDirectory, 'Edit');
 
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      const reason = output.hookSpecificOutput.permissionDecisionReason;
-      expect(reason).toContain('SAFEWORD');
-      expect(reason).toContain('green');
-      expect(output.hookSpecificOutput.additionalContext).toContain('/tdd-review');
+      expect(result.stdout).toBe('');
     });
   });
 
@@ -727,7 +705,7 @@ describe('Quality Gates', () => {
       return relativePath;
     }
 
-    it('7: RED checkbox marked sets tdd:green gate', () => {
+    it('7: RED checkbox marked updates lastKnownTddStep (no gate)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -751,10 +729,12 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.gate).toBe('tdd:green');
+      // TDD step tracked for prompt hook reminders — no gate set
+      expect(state.gate).toBeNull();
+      expect(state.lastKnownTddStep).toBe('red');
     });
 
-    it('8: GREEN checkbox marked sets tdd:refactor gate', () => {
+    it('8: GREEN checkbox marked updates lastKnownTddStep (no gate)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -778,10 +758,11 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.gate).toBe('tdd:refactor');
+      expect(state.gate).toBeNull();
+      expect(state.lastKnownTddStep).toBe('green');
     });
 
-    it('9: REFACTOR checkbox marked sets tdd:red gate', () => {
+    it('9: REFACTOR checkbox marked updates lastKnownTddStep (no gate)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -806,7 +787,8 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.gate).toBe('tdd:red');
+      expect(state.gate).toBeNull();
+      expect(state.lastKnownTddStep).toBe('refactor');
     });
 
     it('10: no gate when TDD step unchanged', () => {
@@ -968,18 +950,16 @@ describe('Quality Gates', () => {
       );
     }
 
-    it('7.1: blocks code edits when active ticket at intake phase', () => {
+    it('7.1: allows code edits during planning phases (enforcement via reminders, not blocks)', () => {
       createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
       bindTicketToSession(projectDirectory, '099', 'intake');
 
       const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
       const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
 
+      // Planning phases no longer block — prompt hook reminders guide the agent instead
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('intake');
-      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('implement');
+      expect(result.stdout).toBe('');
     });
 
     it('7.2: allows code edits when active ticket at implement phase', () => {
@@ -993,17 +973,16 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('7.3: blocks code edits when active ticket at done phase (in_progress)', () => {
+    it('7.3: allows code edits at done phase (enforcement via done gate, not edit blocking)', () => {
       createTicket(projectDirectory, '099', 'test', { phase: 'done', status: 'in_progress' });
       bindTicketToSession(projectDirectory, '099', 'done');
 
       const codePath = nodePath.join(projectDirectory, 'src/foo.ts');
       const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
 
+      // Done phase no longer blocks edits — the stop hook's done gate handles completion evidence
       expect(result.status).toBe(0);
-      const output = JSON.parse(result.stdout);
-      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
-      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('done');
+      expect(result.stdout).toBe('');
     });
 
     it('7.4: allows code edits when no active ticket exists', () => {
@@ -1136,19 +1115,19 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('8.2: session-A gate does not block session-B', () => {
+    it('8.2: session-A LOC gate does not block session-B', () => {
       const head = getHead(projectDirectory);
 
-      // Session-A: phase gate set
+      // Session-A: LOC gate set (only hard gate remaining)
       writeState(
         projectDirectory,
         {
-          locSinceCommit: 0,
+          locSinceCommit: 500,
           lastCommitHash: head,
           activeTicket: '099',
           lastKnownPhase: 'implement',
           lastKnownTddStep: null,
-          gate: 'phase:implement',
+          gate: 'loc',
         },
         'session-A',
       );
@@ -1167,7 +1146,7 @@ describe('Quality Gates', () => {
         'session-B',
       );
 
-      // Session-A should be blocked
+      // Session-A should be blocked (LOC gate)
       const resultA = runPreToolQuality(projectDirectory, 'Edit', undefined, 'session-A');
       expect(resultA.status).toBe(0);
       const outputA = JSON.parse(resultA.stdout);
@@ -1197,6 +1176,112 @@ describe('Quality Gates', () => {
 
       // Default test-session state should NOT exist
       expect(fileExists(projectDirectory, stateFilePath())).toBe(false);
+    });
+  });
+
+  // =========================================================================
+  // Suite 9: Artifact Prerequisite Gate (test-definitions.md requires ticket scope)
+  // =========================================================================
+  describe('Artifact Prerequisite Gate', () => {
+    it('9.1: denies test-definitions.md creation when ticket.md is missing', () => {
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain(
+        'Cannot create test definitions',
+      );
+    });
+
+    it('9.2: denies test-definitions.md when ticket has no scope fields', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'type: feature', 'phase: intake', '---', '# Test'].join('\n'),
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('scope');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('out_of_scope');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('done_when');
+    });
+
+    it('9.3: allows test-definitions.md when ticket has all scope fields', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('9.4: denies when ticket has partial scope fields', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'scope: Build morning digest', '---', '# Test'].join('\n'),
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      // scope is present, so only out_of_scope and done_when should be missing
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('out_of_scope');
+      expect(reason).toContain('done_when');
+      // "scope" alone should NOT be in the missing list (only out_of_scope is)
+      expect(reason).toBe(
+        'SAFEWORD: Ticket frontmatter is missing: out_of_scope, done_when. Complete understanding before writing scenarios.',
+      );
+    });
+
+    it('9.5: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', ticketPath);
+
+      // ticket.md is not test-definitions.md — META_PATHS exemption applies
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
     });
   });
 });
