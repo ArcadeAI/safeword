@@ -96,17 +96,66 @@ SAFEWORD Quality Review (TDD: REFACTOR):
 
 Add these to `quality.ts` PHASE_MESSAGES. Low effort (~10 lines), fires 6-8 times per feature, each time more targeted than the generic message.
 
-### Align all PHASE_MESSAGES with current skills/guides
+### Fix prompt hook RED reminder
 
-Audit of quality.ts messages vs their corresponding skills found misalignments:
+**Current:** "TDD: RED. Next: write minimal code to pass." — describes GREEN's job during RED's turn.
 
-**define-behavior:** Missing Independence criterion. Currently AOD, should be AODI. Add: "Independent (no ordering dependency between scenarios)?"
+**Proposed:** "TDD: RED. Write a minimal failing test for the next scenario." — tells the agent what to do NOW (write a lean test, one behavior, one assertion, minimal setup).
 
-**scenario-gate:** Same — missing Independence. Add to validation criteria.
+### Rewrite all PHASE_MESSAGES (imperatives, aligned with skills)
 
-**decomposition:** Doesn't mention decomposition is optional. Still implies fixed task ordering. Update to: "Optional — skip if architecture is clear. If decomposing: are tasks ordered so each builds on what's working?"
+Research: imperatives ("Verify...", "Confirm...") outperform questions ("Is it...?") for agent compliance. 3-5 items optimal per prompt. Current messages use questions and some exceed 5 items.
 
-**done:** Lists "Lint passing?" separately — redundant with /verify which runs lint. Missing cross-scenario refactoring step (first step in Finish). Simplify to: "Cross-scenario refactoring done (if clear wins)? Run /verify then /audit. Show evidence."
+**intake → understanding (3 imperatives, aligned with DISCOVERY.md):**
+
+```
+SAFEWORD Quality Review (Understanding Phase):
+
+- Verify scope is clear and bounded (scope, out_of_scope, done_when in frontmatter).
+- Confirm failure modes and edge cases were surfaced.
+- Check that open questions are resolved, not left vague.
+```
+
+**define-behavior (3 imperatives, AODI, aligned with SCENARIOS.md):**
+
+```
+SAFEWORD Quality Review (Scenario Phase):
+
+- Verify each scenario is AODI: Atomic (ONE behavior), Observable (externally visible), Deterministic (repeatable), Independent (no ordering dependency).
+- Confirm happy path, failure modes, and edge cases are covered.
+- Avoid testing implementation details — test behaviors.
+```
+
+**scenario-gate (3 imperatives, AODI, aligned with SCENARIOS.md Phase 4):**
+
+```
+SAFEWORD Quality Review (Scenario Gate):
+
+1. List validated scenarios.
+2. Confirm each is AODI: Atomic, Observable, Deterministic, Independent.
+3. Show issues found or "No issues."
+```
+
+**decomposition (3 imperatives, aligned with updated DECOMPOSITION.md):**
+
+```
+SAFEWORD Quality Review (Decomposition Phase):
+
+- Optional — skip if architecture is clear from the proposal.
+- If decomposing: verify tasks are ordered so each builds on what's working.
+- Confirm test scopes match behavior (highest scope with acceptable feedback speed).
+```
+
+**done (4 imperatives, aligned with DONE.md Finish/Close):**
+
+```
+SAFEWORD Quality Review (Done Phase):
+
+1. Cross-scenario refactoring done (if clear wins exist)?
+2. Run /verify — show "✓ X/X tests pass" and "All N scenarios marked complete."
+3. Run /audit — show "Audit passed."
+4. Update parent epic if applicable.
+```
 
 ### Audit evidence (future improvement)
 
