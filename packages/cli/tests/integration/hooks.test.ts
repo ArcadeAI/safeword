@@ -1073,7 +1073,7 @@ describe('E2E: Python Lint Hook', () => {
 
   describe('Test 2.4: Ruff fixes Python files via lint hook', () => {
     /** Helper to run post-tool-lint hook via JSON input (actually executes the lint) */
-    function runPostToolLint(filePath: string) {
+    function runPostToolLint(cwd: string, filePath: string) {
       const hookInput = JSON.stringify({
         session_id: 'test-session',
         hook_event_name: 'PostToolUse',
@@ -1085,8 +1085,8 @@ describe('E2E: Python Lint Hook', () => {
         'bash',
         ['-c', `echo '${hookInput}' | bun .safeword/hooks/post-tool-lint.ts`],
         {
-          cwd: projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          cwd,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
           encoding: 'utf8',
         },
       );
