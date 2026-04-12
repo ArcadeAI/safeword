@@ -95,6 +95,14 @@ Aligns with the Testing Trophy (Kent C. Dodds) and Google testing research favor
 
 **Source:** Microsoft AutoDev (arxiv 2403.08299, 2024); SWE-bench evaluations.
 
+## Positional Bias (Recency Bias is Outdated)
+
+**Finding:** "Put critical rules at the END of documents" was based on Liu et al. "Lost in the Middle" (2024) showing mid-context degradation. Claude 4 models (Opus 4.5/4.6) show reduced positional bias. Anthropic's long-context tips now recommend placing large documents at TOP with queries/instructions below — for data-heavy prompts, not for exploiting recency bias in CLAUDE.md.
+
+**Implication:** Don't advise "put critical rules at END." Instead, focus on document placement for comprehension: large reference docs at top, instructions below. For CLAUDE.md-style files, position matters less with current models — focus on clarity over position tricks.
+
+**Source:** Anthropic long-context tips (docs.anthropic.com); Claude 4 best practices — "more precise instruction following" reduces need for positional hacks. Liu et al. "Lost in the Middle" (2024) findings still apply to mid-context data retrieval but not to instruction-following in short config files.
+
 ## Instruction Ordering
 
 **Finding:** LLMs treat unordered lists as unordered — sequencing within a flat list is unreliable.
