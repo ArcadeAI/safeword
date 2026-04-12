@@ -159,16 +159,9 @@ When 3+ branches exist, provide a table.
 
 ### Document Placement for Optimal Comprehension
 
-LLMs retain beginning and end better than middle. For long documents (20K+ tokens), place the document at the top of the prompt with queries below — this can improve performance up to 30% on complex queries.
+For long documents (20K+ tokens), place the document at the top of the prompt with queries/instructions below — this can improve performance up to 30% on complex queries.
 
-| ❌ BAD                    | ✅ GOOD                  |
-| ------------------------- | ------------------------ |
-| Background (100 lines)    | Background (100 lines)   |
-| Details (200 lines)       | Details (200 lines)      |
-| **Critical Rules ← lost** | Appendix (50 lines)      |
-| Appendix (50 lines)       | **Key Takeaways ← kept** |
-
-**Rule:** Put critical content at the END of documents. Place large reference documents at the TOP of prompts with instructions below.
+For shorter instruction files (CLAUDE.md, SAFEWORD.md, skills), positional bias is minimal in current models. Focus on clarity and structure over position tricks.
 
 ### Re-evaluation Paths
 
@@ -208,7 +201,7 @@ Provide concrete next steps for dead ends.
 - [ ] No contradictions between sections
 - [ ] Complex decisions have lookup tables
 - [ ] Dead-end paths have re-evaluation steps
-- [ ] Critical rules at END of documents
+- [ ] Long documents: data at top, instructions below
 - [ ] Context is lean — no unnecessary pre-loading
 - [ ] XML tags used for complex prompt structure
 
@@ -219,7 +212,7 @@ Provide concrete next steps for dead ends.
 - Decision trees: sequential, MECE, with tie-breakers
 - Every rule needs concrete examples (good vs bad)
 - Define all terms explicitly — assume nothing is obvious
-- Put critical rules at the END of documents
+- Long documents: data at top, instructions below
 - Keep context lean — load just-in-time, not upfront
 - Use XML tags for complex prompt structure
 - Use specific, normal language — not aggressive emphasis
