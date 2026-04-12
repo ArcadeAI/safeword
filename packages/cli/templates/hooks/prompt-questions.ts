@@ -3,7 +3,8 @@
 // Injects propose-and-converge principles + phase-aware status reminder
 
 import { existsSync, readFileSync } from 'node:fs';
-import nodePath from 'node:path';
+
+import { getStateFilePath } from './lib/quality-state.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDirectory = `${projectDirectory}/.safeword`;
@@ -21,10 +22,7 @@ const lines = [
 ];
 
 // Phase-aware reminder from quality state (compressed cognitive state — one line)
-const sessionId = process.env.CLAUDE_SESSION_ID;
-const stateFile = sessionId
-  ? nodePath.join(projectDirectory, '.safeword-project', `quality-state-${sessionId}.json`)
-  : nodePath.join(projectDirectory, '.safeword-project', 'quality-state.json');
+const stateFile = getStateFilePath(projectDirectory, process.env.CLAUDE_SESSION_ID);
 
 if (existsSync(stateFile)) {
   try {
@@ -43,7 +41,7 @@ if (existsSync(stateFile)) {
         decomposition:
           'Phase: decomposition (optional). Break into tasks if architecture is unclear.',
         implement: tddStep
-          ? `TDD: ${tddStep.toUpperCase()}. ${tddStep === 'red' ? 'Next: write minimal code to pass.' : tddStep === 'green' ? 'Next: refactor while keeping tests green.' : 'Next: pick next unchecked scenario.'}`
+          ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
           : 'Phase: implement. Pick first unchecked scenario, start TDD.',
         done: 'Phase: done. Finish (refactor → verify → audit), then close.',
       };
@@ -59,3 +57,12 @@ if (existsSync(stateFile)) {
 }
 
 console.log(lines.join('\n'));
+
+function tddNextStep(step: string): string {
+  const next: Record<string, string> = {
+    red: 'Next: write minimal code to pass.',
+    green: 'Next: refactor while keeping tests green.',
+    refactor: 'Next: pick next unchecked scenario.',
+  };
+  return next[step] ?? '';
+}

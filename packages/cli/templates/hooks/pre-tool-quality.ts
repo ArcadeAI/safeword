@@ -98,9 +98,8 @@ if (
     });
 
     if (missing.length > 0) {
-      const labels = { scope: 'scope', out_of_scope: 'out_of_scope', done_when: 'done_when' };
       deny(
-        `SAFEWORD: Ticket frontmatter is missing: ${missing.map(f => labels[f]).join(', ')}. Complete understanding before writing scenarios.`,
+        `SAFEWORD: Ticket frontmatter is missing: ${missing.join(', ')}. Complete understanding before writing scenarios.`,
         'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
       );
     }
