@@ -7,6 +7,8 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { parse } from 'yaml';
+
 import {
   getStateFilePath,
   LOC_THRESHOLD,
@@ -56,13 +58,9 @@ if (!EDIT_TOOLS.includes(tool)) {
   process.exit(0);
 }
 
-// Never block edits to tooling/meta files — these are not application code.
-if (META_PATHS.some(p => editedFile.includes(p))) {
-  process.exit(0);
-}
-
 // ---------------------------------------------------------------------------
 // Artifact prerequisite check: test-definitions.md requires a complete ticket spec
+// Runs BEFORE META_PATHS exemption because test-definitions.md lives in .safeword-project/
 // This is the one structural gate at the highest-leverage transition point.
 // Understanding determines the quality of everything downstream.
 // ---------------------------------------------------------------------------
@@ -82,18 +80,42 @@ if (
   }
 
   const ticketContent = readFileSync(ticketFile, 'utf8');
-  const missingFields: string[] = [];
+  const frontmatterMatch = ticketContent.match(/^---\n([\s\S]*?)\n---/);
 
-  if (!/^##\s*Scope\b/m.test(ticketContent)) missingFields.push('Scope');
-  if (!/out\s*of\s*scope/i.test(ticketContent)) missingFields.push('Out of Scope');
-  if (!/done\s*when/i.test(ticketContent)) missingFields.push('Done When');
-
-  if (missingFields.length > 0) {
+  if (!frontmatterMatch) {
     deny(
-      `SAFEWORD: Ticket spec is missing: ${missingFields.join(', ')}. Complete understanding before writing scenarios.`,
-      'Add the missing sections to ticket.md, then create test-definitions.md.',
+      'SAFEWORD: Ticket spec has no YAML frontmatter. Add scope, out_of_scope, and done_when fields.',
+      'Complete understanding (propose-and-converge) before writing scenarios.',
     );
   }
+
+  try {
+    const meta = parse(frontmatterMatch![1], { schema: 'failsafe' }) as Record<string, unknown>;
+    const required = ['scope', 'out_of_scope', 'done_when'] as const;
+    const missing = required.filter(field => {
+      const value = meta[field];
+      return !value || value === 'null';
+    });
+
+    if (missing.length > 0) {
+      const labels = { scope: 'scope', out_of_scope: 'out_of_scope', done_when: 'done_when' };
+      deny(
+        `SAFEWORD: Ticket frontmatter is missing: ${missing.map(f => labels[f]).join(', ')}. Complete understanding before writing scenarios.`,
+        'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
+      );
+    }
+  } catch {
+    deny(
+      'SAFEWORD: Ticket frontmatter is malformed. Fix YAML before writing scenarios.',
+      'Check ticket.md frontmatter syntax.',
+    );
+  }
+}
+
+// Never block edits to tooling/meta files — these are not application code.
+// (After artifact prerequisite check, which targets files in .safeword-project/)
+if (META_PATHS.some(p => editedFile.includes(p))) {
+  process.exit(0);
 }
 
 // ---------------------------------------------------------------------------
