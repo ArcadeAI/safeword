@@ -38,7 +38,7 @@ export type NextAction =
  * All scalar values are returned as raw strings (failsafe mode) so
  * leading-zero IDs like `001` are preserved as '001', not integer 1.
  */
-function parseFrontmatter(yaml: string): Record<string, string | string[]> {
+export function parseFrontmatter(yaml: string): Record<string, string | string[]> {
   const result: Record<string, string | string[]> = {};
   const lines = yaml.split('\n');
   let currentKey: string | null = null;

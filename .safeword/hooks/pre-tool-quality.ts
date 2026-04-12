@@ -7,8 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { parse } from 'yaml';
-
+import { parseFrontmatter } from './lib/hierarchy.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
@@ -89,24 +88,17 @@ if (
     );
   }
 
-  try {
-    const meta = parse(frontmatterMatch![1], { schema: 'failsafe' }) as Record<string, unknown>;
-    const required = ['scope', 'out_of_scope', 'done_when'] as const;
-    const missing = required.filter(field => {
-      const value = meta[field];
-      return !value || value === 'null';
-    });
+  const meta = parseFrontmatter(frontmatterMatch![1] ?? '');
+  const required = ['scope', 'out_of_scope', 'done_when'] as const;
+  const missing = required.filter(field => {
+    const value = meta[field];
+    return !value || value === 'null';
+  });
 
-    if (missing.length > 0) {
-      deny(
-        `SAFEWORD: Ticket frontmatter is missing: ${missing.join(', ')}. Complete understanding before writing scenarios.`,
-        'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
-      );
-    }
-  } catch {
+  if (missing.length > 0) {
     deny(
-      'SAFEWORD: Ticket frontmatter is malformed. Fix YAML before writing scenarios.',
-      'Check ticket.md frontmatter syntax.',
+      `SAFEWORD: Ticket frontmatter is missing: ${missing.join(', ')}. Complete understanding before writing scenarios.`,
+      'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
     );
   }
 }
