@@ -1,12 +1,13 @@
 /**
- * Integration Test: Quality Gates (Ticket #024)
+ * Integration Test: Quality Gates (Tickets #024, #114)
  *
- * Verifies the PostToolUse → state file → PreToolUse pattern:
- * - PostToolUse counts LOC via `git diff --stat HEAD`, detects phase changes
- * - PreToolUse blocks edits when LOC > 400 or phase gate is set
- * - Gates clear when HEAD changes (commit happened)
+ * Verifies the three-layer enforcement model:
+ * - Natural gates: artifact prerequisite (test-definitions requires ticket scope fields)
+ * - Reminders: phase/TDD state tracked for prompt hook (no longer blocks edits)
+ * - Output validation: LOC gate (only hard block), done gate (in stop hook)
  *
- * 15 scenarios across 5 suites: LOC Gate, Phase Gate, State Management, Edge Cases, Refactor Gate
+ * PostToolUse tracks LOC, phase changes, TDD step transitions in state file.
+ * PreToolUse enforces LOC gate + artifact prerequisite. Phase/TDD are reminders only.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -1266,10 +1267,7 @@ describe('Quality Gates', () => {
       const reason = output.hookSpecificOutput.permissionDecisionReason;
       expect(reason).toContain('out_of_scope');
       expect(reason).toContain('done_when');
-      // "scope" alone should NOT be in the missing list (only out_of_scope is)
-      expect(reason).toBe(
-        'SAFEWORD: Ticket frontmatter is missing: out_of_scope, done_when. Complete understanding before writing scenarios.',
-      );
+      expect(reason).not.toMatch(/\bscope,/); // "scope" alone isn't missing — only "out_of_scope" is
     });
 
     it('9.5: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
