@@ -6,12 +6,25 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import { getStateFilePath } from './lib/quality-state.ts';
 
+interface HookInput {
+  session_id?: string;
+  prompt?: string;
+}
+
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDirectory = `${projectDirectory}/.safeword`;
 
 // Not a safeword project, skip silently
 if (!existsSync(safewordDirectory)) {
   process.exit(0);
+}
+
+// Read hook input from stdin (same pattern as pre-tool and post-tool hooks)
+let input: HookInput;
+try {
+  input = await Bun.stdin.json();
+} catch {
+  input = {};
 }
 
 // Core principles (survive context compaction — re-injected every turn)
@@ -22,7 +35,7 @@ const lines = [
 ];
 
 // Phase-aware reminder from quality state (compressed cognitive state — one line)
-const stateFile = getStateFilePath(projectDirectory, process.env.CLAUDE_SESSION_ID);
+const stateFile = getStateFilePath(projectDirectory, input.session_id);
 
 if (existsSync(stateFile)) {
   try {
