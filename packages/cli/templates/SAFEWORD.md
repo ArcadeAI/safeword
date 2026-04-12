@@ -2,59 +2,73 @@
 
 ---
 
-## Work Level Detection
+## Understanding (Propose-and-Converge)
 
-**⚠️ MANDATORY: Run this decision tree on EVERY request BEFORE doing any work.**
+**⚠️ FIRST STEP: Before classifying or starting work, understand what the user is asking.**
 
 **Resuming existing work?** If user references a ticket ID/slug or says "resume"/"continue":
-→ Read ticket, use its `type:` field (feature/task/patch) instead of this tree.
+→ Read ticket, resume at current phase. Skip understanding.
 
-Stop at first match:
+**The pattern:** Contribute a perspective before asking questions. Embed open questions inside your contribution, not before it.
+
+1. **Restate** what you heard
+2. **Contribute** a perspective, sketch, or reframe
+3. **Surface open questions** as part of that contribution
+4. Each turn: incorporate what the user confirmed, narrow remaining open questions
+5. When your proposal has zero open questions and the user accepts → proceed to sizing
+
+**Depth scales with ambiguity:**
+
+- Clear request, no open questions → proceed immediately (0 turns)
+- One open question → contribute context, surface it, resolve in 1 turn
+- Vague idea → converge over 2-3 turns of increasingly specific proposals
+
+**Backstop:** If the conversation feels circular without convergence, make your best-guess proposal: "Here's my best read — should I build this, or is something off?"
+
+**Scope derivation:** Every resolved question produces scope. The choice = In Scope. The rejected alternatives = Out of Scope. Your final proposal should include structured scope:
+
+- **Scope:** What you're building (derived from accepted choices)
+- **Out of Scope:** What you're not building (derived from rejected alternatives + domain-knowledge exclusions)
+- **Done When:** Observable outcomes
+
+**Exit criterion:** When the user accepts your proposal → write structured scope to the ticket (Scope, Out of Scope, Done When) → proceed to sizing.
+
+---
+
+## Sizing (Work Level Detection)
+
+**After understanding, classify internally. Do not announce "Feature detected."**
+
+State your scope assessment as part of your proposal. Answer these three questions:
+
+1. How many files will this touch?
+2. Does this introduce new persistent state?
+3. Are there multiple user flows?
+
+**Routing:**
 
 ```text
-Is this explicitly a bug fix, typo, or config change?
-├─ Yes → patch
-└─ No ↓
-
-Does request mention "feature", "add", "implement", "support", "build", "iteration", "phase"?
-├─ No → task
-└─ Yes ↓
-
-Will it require 3+ files AND (new state OR multiple user flows)?
-├─ Yes → feature
-└─ No / Unsure ↓
-
-Can ONE test cover the observable change?
-├─ Yes → task
-└─ No → feature
+All no / 1 file → patch (fix directly)
+1-2 files, one testable behavior → task (TDD)
+3+ files OR new state OR multiple flows → feature (write scenarios first)
 
 Fallback: task. User can /bdd to override.
 ```
 
-**Always announce after detection:**
+**After sizing, proceed in contribute-first style:**
 
-- **patch:** "Patch. Fixing directly."
-- **task:** "Task. Writing tests first. `/bdd` to override." → TDD (RED → GREEN → REFACTOR)
-- **feature:** "Feature. `/tdd` to override." → Run `/bdd`
+- **patch:** Restate what you're fixing, fix it. `/bdd` to override.
+- **task:** Restate scope, start TDD (RED → GREEN → REFACTOR). `/bdd` to override.
+- **feature:** Include sizing in your proposal ("this touches N components with new state — I'd write scenarios"). `/tdd` to override. → Run `/bdd`
 
-**Examples:**
+**Calibration examples (non-obvious boundaries):**
 
-| Request                      | Signals                         | Level   |
-| ---------------------------- | ------------------------------- | ------- |
-| "Fix typo in README"         | 1 file, no test needed          | patch   |
-| "Fix login error message"    | 1-2 files, 1 test               | task    |
-| "Change button color to red" | 1 file, 1 test, no state        | task    |
-| "Add dark mode toggle"       | 3+ files, new state, user prefs | feature |
-| "Add user authentication"    | Many files, state machine       | feature |
-| "Move onto iteration 2"      | New work chunk, scope in spec   | feature |
-| "Implement iteration 3 of X" | Iteration = sub-feature of spec | feature |
-| "Continue to phase 3"        | Phase = spec continuation       | feature |
-
-**Edge cases:**
-
-- "Add a comment to function X" → patch (not behavior change)
-- "Implement the fix for bug #123" → task (bug fix despite "implement")
-- "Build the Docker image" → patch (infrastructure, not product)
+| Request                          | Why                                | Level   |
+| -------------------------------- | ---------------------------------- | ------- |
+| "Change button color to red"     | 1 file, no state — floor for tasks | task    |
+| "Add dark mode toggle"           | 3+ files, new state — threshold    | feature |
+| "Implement the fix for bug #123" | Bug fix despite "implement"        | task    |
+| "Build the Docker image"         | Infrastructure, not product        | patch   |
 
 ---
 
@@ -111,21 +125,7 @@ Training data is stale. Follow this sequence:
 | Updating CLAUDE.md, SAFEWORD.md, or any context file         | `./.safeword/guides/context-files-guide.md`     |
 | Hit same bug 3+ times OR discovered undocumented gotcha      | `./.safeword/guides/learning-extraction.md`     |
 | Process hanging, port in use, or zombie process suspected    | `./.safeword/guides/zombie-process-cleanup.md`  |
-
----
-
-## CLI Commands
-
-| Situation                   | Command                             |
-| --------------------------- | ----------------------------------- |
-| New project setup           | `bunx safeword@latest setup`        |
-| Check if update available   | `bunx safeword@latest check`        |
-| Update after CLI release    | `bunx safeword@latest upgrade`      |
-| See what upgrade changes    | `bunx safeword@latest diff`         |
-| Regenerate depcruise config | `bunx safeword@latest sync-config`  |
-| Remove safeword             | `bunx safeword@latest reset --full` |
-
-Run `bunx safeword <command> --help` for options.
+| Using `safeword` CLI commands                                | `./.safeword/guides/cli-reference.md`           |
 
 ---
 
@@ -165,6 +165,17 @@ Commit after: GREEN phase, before/after refactoring, when switching tasks.
 
 ---
 
+## Enforcement
+
+Safeword tracks your phase and TDD step, reminding you each turn via the prompt hook. The done gate requires evidence (tests pass, scenarios complete, audit run).
+
+- **Natural gates** — you can't start TDD without test-definitions.md; you can't create test-definitions.md without a ticket spec with Scope/Out of Scope/Done When
+- **Reminders** — the prompt hook injects your current phase and TDD step each turn
+- **Output validation** — the done gate hard-blocks until evidence proves the work is complete
+- **LOC gate** — commit every ~400 lines of code (blast radius control)
+
+---
+
 ## Learnings
 
 **Location:** `.safeword-project/learnings/`
@@ -192,7 +203,7 @@ Commit after: GREEN phase, before/after refactoring, when switching tasks.
 
 1. **Clarity → Simplicity → Correctness** (in that order)
 2. **Test what you can test**—never ask user to verify
-3. **Run Work Level Detection on EVERY request**—announce patch/task/feature
+3. **Understand before sizing**—contribute a perspective, then classify internally
 4. **Commit after each GREEN phase**
 5. **Read the matching guide** when a trigger fires
 6. **Always read the latest documentation for the relevant tool**

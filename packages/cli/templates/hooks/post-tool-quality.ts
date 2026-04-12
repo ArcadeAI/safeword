@@ -111,8 +111,8 @@ if (state.lastCommitHash !== currentHead) {
 // Count LOC
 state.locSinceCommit = countLoc();
 
-// LOC gate
-if (state.locSinceCommit >= LOC_THRESHOLD && !state.gate?.startsWith('tdd:')) {
+// LOC gate (only hard gate remaining — blast radius control)
+if (state.locSinceCommit >= LOC_THRESHOLD) {
   state.gate = 'loc';
 }
 
@@ -127,11 +127,7 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
     const currentPhase = phaseMatch?.[1];
 
     if (currentPhase && currentPhase !== state.lastKnownPhase) {
-      // Only gate on real phase transitions, not ticket creation (null → phase).
-      // Creating a ticket isn't a transition — there's no outgoing phase work to review.
-      if (state.lastKnownPhase !== null) {
-        state.gate = `phase:${currentPhase}`;
-      }
+      // Track phase for prompt hook reminders (no longer sets a gate)
       state.lastKnownPhase = currentPhase;
     }
 
@@ -165,9 +161,7 @@ if (
     const currentStep = parseTddStep(content);
 
     if (currentStep && currentStep !== state.lastKnownTddStep) {
-      const nextGate =
-        currentStep === 'red' ? 'tdd:green' : currentStep === 'green' ? 'tdd:refactor' : 'tdd:red';
-      state.gate = nextGate;
+      // Track TDD step for prompt hook reminders (no longer sets a gate)
       state.lastKnownTddStep = currentStep;
     }
   }

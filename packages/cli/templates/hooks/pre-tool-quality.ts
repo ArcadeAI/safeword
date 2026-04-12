@@ -1,13 +1,12 @@
 #!/usr/bin/env bun
 // Safeword: Quality Gates - PreToolUse enforcer
-// Reads quality-state.json, blocks edits when gate is set
+// Two-purpose: LOC gate (blast radius control) + artifact prerequisite check
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getTicketInfo } from './lib/active-ticket.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
@@ -16,25 +15,6 @@ import {
 } from './lib/quality-state.ts';
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
-
-// Phases that block code edits (only implement phase allows writing code)
-const PLANNING_PHASES = new Set([
-  'intake',
-  'define-behavior',
-  'scenario-gate',
-  'decomposition',
-  'done',
-]);
-
-// Phase → skill file mapping
-const PHASE_FILE_MAP: Record<string, string> = {
-  intake: 'DISCOVERY.md',
-  'define-behavior': 'SCENARIOS.md',
-  'scenario-gate': 'SCENARIOS.md',
-  decomposition: 'DECOMPOSITION.md',
-  implement: 'TDD.md',
-  done: 'DONE.md',
-};
 
 interface HookInput {
   session_id?: string;
@@ -68,7 +48,6 @@ try {
   process.exit(0);
 }
 
-const stateFile = getStateFilePath(projectDirectory, input.session_id);
 const tool = input.tool_name ?? '';
 const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
@@ -82,7 +61,47 @@ if (META_PATHS.some(p => editedFile.includes(p))) {
   process.exit(0);
 }
 
-// No state file → no enforcement (session hasn't started tracking yet)
+// ---------------------------------------------------------------------------
+// Artifact prerequisite check: test-definitions.md requires a complete ticket spec
+// This is the one structural gate at the highest-leverage transition point.
+// Understanding determines the quality of everything downstream.
+// ---------------------------------------------------------------------------
+
+if (
+  editedFile.endsWith('test-definitions.md') &&
+  editedFile.includes('.safeword-project/tickets/')
+) {
+  const ticketDirectory = nodePath.dirname(editedFile);
+  const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
+
+  if (!existsSync(ticketFile)) {
+    deny(
+      'SAFEWORD: Cannot create test definitions without a ticket spec. Create ticket.md with Scope, Out of Scope, and Done When sections first.',
+      'Complete understanding (propose-and-converge) before writing scenarios.',
+    );
+  }
+
+  const ticketContent = readFileSync(ticketFile, 'utf8');
+  const missingFields: string[] = [];
+
+  if (!/^##\s*Scope\b/m.test(ticketContent)) missingFields.push('Scope');
+  if (!/out\s*of\s*scope/i.test(ticketContent)) missingFields.push('Out of Scope');
+  if (!/done\s*when/i.test(ticketContent)) missingFields.push('Done When');
+
+  if (missingFields.length > 0) {
+    deny(
+      `SAFEWORD: Ticket spec is missing: ${missingFields.join(', ')}. Complete understanding before writing scenarios.`,
+      'Add the missing sections to ticket.md, then create test-definitions.md.',
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// LOC gate: blast radius control — commit every ~400 LOC
+// ---------------------------------------------------------------------------
+
+const stateFile = getStateFilePath(projectDirectory, input.session_id);
+
 if (!existsSync(stateFile)) {
   process.exit(0);
 }
@@ -111,70 +130,16 @@ if (state.lastCommitHash !== currentHead) {
   process.exit(0);
 }
 
-// Phase-based access control: planning phases block code edits.
-// Uses THIS session's activeTicket (from per-session state) — not a global scan.
-// This prevents tickets from other sessions from blocking this session's edits.
-if (state.activeTicket) {
-  const ticket = getTicketInfo(projectDirectory, state.activeTicket);
-  // Only enforce phase access for in_progress tickets — done/backlog tickets don't block
-  if (ticket.status === 'in_progress' && ticket.phase && PLANNING_PHASES.has(ticket.phase)) {
-    deny(
-      `SAFEWORD: Active ticket is at "${ticket.phase}" phase — code edits require "implement" phase.\n\nAdvance your ticket to implement phase before writing code.`,
-      'Update ticket.md frontmatter: phase: implement',
-    );
-  }
-}
-
-// No gate set → allow
 if (!state.gate) {
   process.exit(0);
 }
 
-// LOC gate
 if (state.gate === 'loc') {
   deny(`SAFEWORD: ${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
 
-Commit your progress before continuing.
-
-TDD reminder:
-- RED: commit test ("test: [scenario]")
-- GREEN: commit implementation ("feat: [scenario]")
-- REFACTOR: commit cleanup`);
+Commit your progress before continuing.`);
 }
 
-// TDD gates (tdd:green, tdd:refactor, tdd:red)
-if (state.gate.startsWith('tdd:')) {
-  const step = state.gate.replace('tdd:', '');
-  deny(
-    `SAFEWORD: Entering ${step} phase. Review your work before proceeding.`,
-    'Run /tdd-review to review your work. Then commit to clear this gate.',
-  );
-}
-
-// Phase gate
-if (state.gate.startsWith('phase:')) {
-  const phase = state.gate.replace('phase:', '');
-  const phaseContent = readPhaseFile(phase);
-  deny(
-    `SAFEWORD: Entering ${phase} phase.\n\n${phaseContent}`,
-    'Run /quality-review to review your outgoing phase work. Then commit to clear this gate.',
-  );
-}
-
+// All other gates (tdd:*, phase:*) are now reminders via prompt hook, not hard blocks.
+// See ticket #109 / #114 for the design rationale.
 process.exit(0);
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function readPhaseFile(phase: string): string {
-  const fileName = PHASE_FILE_MAP[phase];
-  if (!fileName) {
-    return `Phase: ${phase}`;
-  }
-  const filePath = nodePath.join(projectDirectory, '.claude', 'skills', 'bdd', fileName);
-  if (!existsSync(filePath)) {
-    return `Phase: ${phase} (phase file not found: ${fileName})`;
-  }
-  return readFileSync(filePath, 'utf8').trim();
-}

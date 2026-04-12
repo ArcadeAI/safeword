@@ -2,7 +2,7 @@
 id: '114'
 title: Enforcement architecture — natural gates + reminders, remove hard blocks
 type: feature
-phase: intake
+phase: implement
 created: 2026-04-11
 parent: '109'
 ---
@@ -58,6 +58,19 @@ See `.safeword-project/learnings/agent-behavior-research.md`
 
 Design principle: Control for what models won't improve at (process adherence). Lean into what they will (code quality).
 
+## Test Updates Required
+
+16 tests in `quality-gates.test.ts` fail because they assert the OLD blocking behavior we intentionally removed:
+
+- **Phase Access Control** (2 tests): assert edits blocked in planning → should assert edits ALLOWED
+- **Phase Gate** (3 tests): assert `phase:*` gates set → should assert state updated WITHOUT gate
+- **TDD Gate** (5 tests): assert `tdd:*` gates block edits → should assert state updated WITHOUT gate
+- **TDD Step Detection** (3 tests): assert `tdd:*` gates set → should assert `lastKnownTddStep` updated only
+- **LOC Gate** (1 test): asserts TDD reminder in LOC message → should assert simplified message
+- **Per-Session State** (1 test): depends on phase blocking → update assertion
+- **Rust Setup Idempotency** (1 test): unrelated — appears to be a pre-existing flaky test
+
 ## Work Log
 
 - 2026-04-11T23:17Z Created: Extracted from #109 epic (Group 1)
+- 2026-04-12T14:11Z Implementation started: pre-tool, post-tool, prompt-questions, SAFEWORD.md all updated. Templates synced. 16 expected test failures need test updates.
