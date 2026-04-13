@@ -2,7 +2,9 @@
 id: '118'
 title: Pre-ticket prompt gap — understanding reminder before ticket exists
 type: task
-phase: intake
+phase: done
+status: done
+resolution: won't-fix
 created: 2026-04-12
 parent: '109'
 related: '115'
@@ -37,3 +39,4 @@ One-line addition to prompt-questions.ts. Ensures the agent gets a "slow down an
 ## Work Log
 
 - 2026-04-12T20:24Z Created: Extracted from #115 design discussion. Pre-ticket gap identified during intake flow tracing.
+- 2026-04-13T14:19Z Closed won't-fix: Quality review found the premise was wrong. CLAUDE.md (which @-imports SAFEWORD.md) survives compaction — re-read from disk and re-injected. The Understanding section is always in context. The gap this ticket was designed to fill doesn't exist. See code.claude.com/docs/en/memory: "Project-root CLAUDE.md survives compaction."

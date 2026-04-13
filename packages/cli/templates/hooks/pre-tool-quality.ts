@@ -75,7 +75,7 @@ if (
 
   if (!existsSync(ticketFile)) {
     deny(
-      'SAFEWORD: Cannot create test definitions without a ticket spec. Create ticket.md with Scope, Out of Scope, and Done When sections first.',
+      'Cannot create test definitions without a ticket spec. Create ticket.md with Scope, Out of Scope, and Done When sections first.',
       'Complete understanding (propose-and-converge) before writing scenarios.',
     );
   }
@@ -85,7 +85,7 @@ if (
 
   if (!frontmatterMatch) {
     deny(
-      'SAFEWORD: Ticket spec has no YAML frontmatter. Add scope, out_of_scope, and done_when fields.',
+      'Ticket spec has no YAML frontmatter. Add scope, out_of_scope, and done_when fields.',
       'Complete understanding (propose-and-converge) before writing scenarios.',
     );
   }
@@ -99,7 +99,7 @@ if (
 
   if (missing.length > 0) {
     deny(
-      `SAFEWORD: Ticket frontmatter is missing: ${missing.join(', ')}. Complete understanding before writing scenarios.`,
+      `Ticket frontmatter is missing: ${missing.join(', ')}. Complete understanding before writing scenarios.`,
       'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
     );
   }
@@ -151,7 +151,7 @@ if (!state.gate) {
 
 if (state.gate === 'loc') {
   recordFailure(projectDirectory, input.session_id, 'loc-exceeded');
-  deny(`SAFEWORD: ${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
+  deny(`${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
 
 Commit your progress before continuing.`);
 }

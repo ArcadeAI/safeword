@@ -33,12 +33,8 @@ try {
   input = {};
 }
 
-// Core principles (survive context compaction — re-injected every turn)
-const lines = [
-  'SAFEWORD:',
-  '- Contribute before asking. Embed open questions in your contribution.',
-  '- When proposing, state what it touches and what rigor it warrants.',
-];
+// One behavioral anchor (SAFEWORD.md has the full methodology; this survives as a compressed reminder)
+const lines = ['Contribute before asking. Embed open questions in your contribution.'];
 
 // Phase-aware reminder from quality state (compressed cognitive state — one line)
 const stateFile = getStateFilePath(projectDirectory, input.session_id);

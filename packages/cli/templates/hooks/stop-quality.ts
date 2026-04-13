@@ -242,7 +242,7 @@ function checkUsageLimit(transcriptLines: string[]): void {
       textContent.length < 200 &&
       USAGE_LIMIT_PATTERN.test(textContent)
     ) {
-      console.error('SAFEWORD: Claude usage limit reached. Try again after reset.');
+      console.error('Claude usage limit reached. Try again after reset.');
       process.exit(1);
     }
   } catch {
@@ -277,7 +277,7 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
  */
 function getDoneHardBlockMessage(ticketType: string | undefined, missingAudit: boolean): string {
   if (missingAudit) {
-    return `SAFEWORD: Done phase requires audit evidence. Run /audit and show results.
+    return `Done phase requires audit evidence. Run /audit and show results.
 
 Expected evidence format:
 - "Audit passed" or "Audit passed with warnings"
@@ -288,7 +288,7 @@ Run /audit, show output, then try again.`;
   const auditLine =
     ticketType === 'feature' ? '\n- "Audit passed" (required for features — run /audit)' : '';
 
-  return `SAFEWORD: Done phase requires evidence. Run /verify and show results.
+  return `Done phase requires evidence. Run /verify and show results.
 
 Expected evidence formats:
 - "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)${auditLine}
@@ -334,9 +334,7 @@ if (currentPhase === 'done') {
   const testResult = runTests(projectDir);
   if (!testResult.skipped && !testResult.passed) {
     recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
-    hardBlockDone(
-      `SAFEWORD: Tests failed. Fix failures before marking done.\n\n${testResult.output}`,
-    );
+    hardBlockDone(`Tests failed. Fix failures before marking done.\n\n${testResult.output}`);
   }
 
   // Scenario evidence: read test-definitions.md directly (structural, not prose matching).
@@ -349,7 +347,7 @@ if (currentPhase === 'done') {
     if (!hasScenarios) {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(
-        `SAFEWORD: Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
+        `Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
       );
     }
     if (!hasAudit) {

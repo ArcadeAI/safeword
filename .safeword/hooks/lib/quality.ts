@@ -11,19 +11,19 @@ export type BddPhase =
 
 /** TDD-step-specific implement messages (RED/GREEN/REFACTOR). */
 const TDD_STEP_MESSAGES: Record<string, string> = {
-  red: `SAFEWORD Quality Review (TDD: RED):
+  red: `Quality Review (TDD: RED):
 
 - Does the test fail for the right reason? (missing behavior, not syntax)
 - Is it testing ONE observable behavior, not implementation details?
 - Is the assertion independent of the implementation? (not mirroring the code under test)`,
 
-  green: `SAFEWORD Quality Review (TDD: GREEN):
+  green: `Quality Review (TDD: GREEN):
 
 - Did you write only what the test requires? (GREEN is minimal — REFACTOR adds quality)
 - Is the full test suite still passing? (show output, don't just claim)
 - Did you introduce mocks that could be real dependencies instead?`,
 
-  refactor: `SAFEWORD Quality Review (TDD: REFACTOR):
+  refactor: `Quality Review (TDD: REFACTOR):
 
 - Is there duplication or unclear naming to clean up?
 - Could this be simpler without losing clarity?
@@ -31,31 +31,31 @@ const TDD_STEP_MESSAGES: Record<string, string> = {
 };
 
 const PHASE_MESSAGES: Record<BddPhase, string> = {
-  intake: `SAFEWORD Quality Review (Understanding Phase):
+  intake: `Quality Review (Understanding Phase):
 
 - Verify scope is clear and bounded (scope, out_of_scope, done_when in frontmatter).
 - Confirm failure modes and edge cases were surfaced.
 - Check that open questions are resolved, not left vague.`,
 
-  'define-behavior': `SAFEWORD Quality Review (Scenario Phase):
+  'define-behavior': `Quality Review (Scenario Phase):
 
 - Verify each scenario is AODI: Atomic (ONE behavior), Observable (externally visible), Deterministic (repeatable), Independent (no ordering dependency).
 - Confirm happy path, failure modes, and edge cases are covered.
 - Avoid testing implementation details — test behaviors.`,
 
-  'scenario-gate': `SAFEWORD Quality Review (Scenario Gate):
+  'scenario-gate': `Quality Review (Scenario Gate):
 
 1. List validated scenarios.
 2. Confirm each is AODI: Atomic, Observable, Deterministic, Independent.
 3. Show issues found or "No issues."`,
 
-  decomposition: `SAFEWORD Quality Review (Decomposition Phase):
+  decomposition: `Quality Review (Decomposition Phase):
 
 - Optional — skip if architecture is clear from the proposal.
 - If decomposing: verify tasks are ordered so each builds on what's working.
 - Confirm test scopes match behavior (highest scope with acceptable feedback speed).`,
 
-  implement: `SAFEWORD Quality Review:
+  implement: `Quality Review:
 
 Review your work critically.
 
@@ -66,7 +66,7 @@ Review your work critically.
 - Report findings only. No preamble.
 - State what you're most uncertain about.`,
 
-  done: `SAFEWORD Quality Review (Done Phase):
+  done: `Quality Review (Done Phase):
 
 1. Check scenario coverage: did implementation reveal behaviors not in test-definitions?
 2. Check scope drift: does the final implementation match ticket scope and done_when?

@@ -179,7 +179,6 @@ describe('Quality Gates', () => {
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
       const reason = output.hookSpecificOutput.permissionDecisionReason;
-      expect(reason).toContain('SAFEWORD');
       expect(reason).toContain('450 LOC');
       expect(reason).toContain('Commit');
     });

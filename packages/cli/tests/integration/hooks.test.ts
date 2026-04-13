@@ -302,9 +302,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
         },
       );
 
-      expect(output).toContain('SAFEWORD');
       expect(output).toContain('Contribute before asking');
-      expect(output).toContain('proposing');
     });
 
     it('exits silently for non-safeword project', () => {
@@ -498,7 +496,6 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       // Done phase uses hard block (exit 0, JSON output)
       expect(result.exitCode).toBe(0);
-      expect(result.reason).toContain('SAFEWORD');
       expect(result.reason).toContain('scenarios');
     });
 
