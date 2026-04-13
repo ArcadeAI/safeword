@@ -92,7 +92,6 @@ export function recordFailure(
       const incremented: string[] = state.incrementedPatterns ?? [];
       if (!incremented.includes(pattern)) {
         incremented.push(pattern);
-        state.incrementedPatterns = incremented;
 
         // Increment persistent counter
         const counters = readCounters(projectDirectory);
@@ -101,9 +100,8 @@ export function recordFailure(
         entry.lastSeen = new Date().toISOString().split('T')[0];
         counters[pattern] = entry;
         writeCounters(projectDirectory, counters);
-      } else {
-        state.incrementedPatterns = incremented;
       }
+      state.incrementedPatterns = incremented;
 
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
     } catch {
