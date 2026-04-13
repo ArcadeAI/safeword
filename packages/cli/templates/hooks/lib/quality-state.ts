@@ -7,6 +7,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 export const LOC_THRESHOLD = 400;
+/** Counter threshold for CLAUDE.md escalation suggestions. */
+export const ESCALATION_THRESHOLD = 3;
 
 /** Tooling/meta paths that are not application code.
  *  Used by pre-tool (skip blocking) and post-tool (skip LOC counting). */

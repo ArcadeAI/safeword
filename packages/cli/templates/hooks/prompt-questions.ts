@@ -6,6 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import {
   type CounterEntry,
+  ESCALATION_THRESHOLD,
   type FailureEntry,
   getStateFilePath,
   readCounters,
@@ -85,7 +86,6 @@ if (existsSync(stateFile)) {
 }
 
 // Layer 3: Cross-session escalation suggestion from counter file
-const ESCALATION_THRESHOLD = 3;
 try {
   const counters = readCounters(projectDirectory);
   let countersUpdated = false;
