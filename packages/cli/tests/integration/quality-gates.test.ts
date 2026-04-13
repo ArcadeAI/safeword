@@ -459,7 +459,7 @@ describe('Quality Gates', () => {
       expect(fileExists(projectDirectory, stateFilePath())).toBe(false);
     });
 
-    it('3.2: PostToolUse creates state file with 7 fields', () => {
+    it('3.2: PostToolUse creates state file with 9 fields', () => {
       // No state file — PostToolUse should create it
       writeTestFile(projectDirectory, 'src/foo.ts', 'export const x = 1;\n');
       execSync('git add src/foo.ts', { cwd: projectDirectory, stdio: 'pipe' });
@@ -475,7 +475,7 @@ describe('Quality Gates', () => {
 
       const state = readState(projectDirectory);
       const keys = Object.keys(state);
-      expect(keys).toHaveLength(7);
+      expect(keys).toHaveLength(9);
       expect(keys).toContain('locSinceCommit');
       expect(keys).toContain('lastCommitHash');
       expect(keys).toContain('activeTicket');
@@ -483,6 +483,8 @@ describe('Quality Gates', () => {
       expect(keys).toContain('gate');
       expect(keys).toContain('lastKnownTddStep');
       expect(keys).toContain('locAtLastReview');
+      expect(keys).toContain('recentFailures');
+      expect(keys).toContain('incrementedPatterns');
       expect(state.lastCommitHash).toBe(getHead(projectDirectory));
       expect(state.gate).toBeNull();
     });

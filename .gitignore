@@ -11,6 +11,7 @@ examples/
 # Safeword - Local cache and transient state
 .safeword/.update-cache.json
 .safeword-project/quality-state*.json
+.safeword-project/failure-counts.json
 packages/*/.safeword/
 packages/*/.safeword-project/
 packages/*/.claude/

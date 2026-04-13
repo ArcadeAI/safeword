@@ -2,9 +2,15 @@
 // Safeword: Pre-work reminders (UserPromptSubmit)
 // Injects propose-and-converge principles + phase-aware status reminder
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getStateFilePath } from './lib/quality-state.ts';
+import {
+  type CounterEntry,
+  type FailureEntry,
+  getStateFilePath,
+  readCounters,
+  writeCounters,
+} from './lib/quality-state.ts';
 
 interface HookInput {
   session_id?: string;
@@ -63,10 +69,45 @@ if (existsSync(stateFile)) {
       if (reminder) {
         lines.push(`- ${reminder}`);
       }
+
+      // Layer 1: Session-scoped failure injection — parenthetical from recentFailures
+      const failures: FailureEntry[] = state.recentFailures ?? [];
+      if (failures.length > 0) {
+        const injection = getFailureInjection(failures, phase);
+        if (injection) {
+          lines.push(`- ${injection}`);
+        }
+      }
     }
   } catch {
     // State file corrupted or unreadable — skip reminder, keep core principles
   }
+}
+
+// Layer 3: Cross-session escalation suggestion from counter file
+const ESCALATION_THRESHOLD = 3;
+try {
+  const counters = readCounters(projectDirectory);
+  let countersUpdated = false;
+
+  for (const [pattern, entry] of Object.entries(counters)) {
+    const counter = entry as CounterEntry;
+    const sinceLastSuggestion = counter.count - (counter.countAtLastSuggestion ?? 0);
+    if (counter.count >= ESCALATION_THRESHOLD && sinceLastSuggestion >= ESCALATION_THRESHOLD) {
+      const suggestion = getEscalationSuggestion(pattern, counter.count);
+      if (suggestion) {
+        lines.push(`- ${suggestion}`);
+        counter.countAtLastSuggestion = counter.count;
+        countersUpdated = true;
+      }
+    }
+  }
+
+  if (countersUpdated) {
+    writeCounters(projectDirectory, counters as Record<string, CounterEntry>);
+  }
+} catch {
+  // Counter file missing or corrupted — skip escalation
 }
 
 console.log(lines.join('\n'));
@@ -78,4 +119,40 @@ function tddNextStep(step: string): string {
     refactor: 'Next: pick next unchecked scenario.',
   };
   return next[step] ?? '';
+}
+
+/** Get failure injection text based on most relevant failure for current phase. */
+function getFailureInjection(failures: FailureEntry[], phase: string): string | null {
+  // Phase-relevant failure mapping
+  const relevanceMap: Record<string, string> = {
+    implement: 'loc-exceeded',
+    done: 'done-gate-tests-failed',
+  };
+
+  const relevantPattern = relevanceMap[phase];
+  const match = relevantPattern ? failures.find(f => f.pattern === relevantPattern) : null;
+
+  // Use phase-relevant match, or fall back to most recent failure
+  const failure = match ?? failures[failures.length - 1];
+  if (!failure) return null;
+
+  const messages: Record<string, string> = {
+    'loc-exceeded': '(You hit the LOC gate earlier — commit before this grows.)',
+    'done-gate-tests-failed': '(Tests failed at done last time — run /verify before stopping.)',
+  };
+
+  return messages[failure.pattern] ?? `(Previous failure: ${failure.pattern})`;
+}
+
+/** Get escalation suggestion for a repeated failure pattern. */
+function getEscalationSuggestion(pattern: string, count: number): string | null {
+  const suggestions: Record<string, string> = {
+    'loc-exceeded': 'Commit frequently during implement phase — the LOC gate fires at 400 lines.',
+    'done-gate-tests-failed': 'Run /verify before attempting to mark a ticket done.',
+  };
+
+  const suggestion = suggestions[pattern];
+  if (!suggestion) return null;
+
+  return `Pattern "${pattern}" has fired ${count} times across sessions. Consider adding to CLAUDE.md: "${suggestion}"`;
 }

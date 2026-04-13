@@ -8,7 +8,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
-import { getStateFilePath, type QualityState } from './lib/quality-state.ts';
+import { getStateFilePath, type QualityState, recordFailure } from './lib/quality-state.ts';
 import { runTests } from './lib/test-runner.ts';
 
 interface HookInput {
@@ -333,6 +333,7 @@ if (currentPhase === 'done') {
   // skipped=true means no test command found (package.json missing or no scripts.test).
   const testResult = runTests(projectDir);
   if (!testResult.skipped && !testResult.passed) {
+    recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
     hardBlockDone(
       `SAFEWORD: Tests failed. Fix failures before marking done.\n\n${testResult.output}`,
     );
@@ -345,15 +346,22 @@ if (currentPhase === 'done') {
 
   if (isFeature) {
     // Features: require scenario + audit evidence (tests already verified above)
-    if (!hasScenarios)
+    if (!hasScenarios) {
+      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(
         `SAFEWORD: Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
       );
-    if (!hasAudit) hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
+    }
+    if (!hasAudit) {
+      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
+    }
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence
-    if (!TEST_EVIDENCE_PATTERN.test(combinedText))
+    if (!TEST_EVIDENCE_PATTERN.test(combinedText)) {
+      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
+    }
   }
 
   // Evidence passed — mark current ticket done and navigate hierarchy

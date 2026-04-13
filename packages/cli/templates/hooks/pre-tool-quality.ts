@@ -13,6 +13,7 @@ import {
   LOC_THRESHOLD,
   META_PATHS,
   type QualityState,
+  recordFailure,
 } from './lib/quality-state.ts';
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
@@ -149,6 +150,7 @@ if (!state.gate) {
 }
 
 if (state.gate === 'loc') {
+  recordFailure(projectDirectory, input.session_id, 'loc-exceeded');
   deny(`SAFEWORD: ${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
 
 Commit your progress before continuing.`);
