@@ -125,7 +125,6 @@ Training data is stale. Follow this sequence:
 | Updating CLAUDE.md, SAFEWORD.md, or any context file         | `./.safeword/guides/context-files-guide.md`     |
 | Hit same bug 3+ times OR discovered undocumented gotcha      | `./.safeword/guides/learning-extraction.md`     |
 | Process hanging, port in use, or zombie process suspected    | `./.safeword/guides/zombie-process-cleanup.md`  |
-| Using `safeword` CLI commands                                | `./.safeword/guides/cli-reference.md`           |
 
 ---
 
