@@ -1,7 +1,8 @@
 ---
 id: 112
 slug: guides-overhaul
-status: in_progress
+status: done
+phase: done
 type: task
 created: 2026-04-11
 parent: '109'

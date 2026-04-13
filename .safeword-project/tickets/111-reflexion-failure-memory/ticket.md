@@ -2,8 +2,8 @@
 id: '111'
 title: Reflexion-style structured failure memory for reminders
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-04-11
 parent: '109'
 scope: Three-layer failure learning — session detection, persistent counters, CLAUDE.md escalation

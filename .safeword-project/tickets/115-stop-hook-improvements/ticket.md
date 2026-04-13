@@ -2,7 +2,8 @@
 id: '115'
 title: Stop hook improvements — structural scenario verification + simplified review
 type: feature
-phase: intake
+phase: done
+status: done
 created: 2026-04-11
 parent: '109'
 related: '101'
