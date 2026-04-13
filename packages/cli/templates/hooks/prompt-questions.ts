@@ -5,7 +5,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import {
-  type CounterEntry,
   ESCALATION_THRESHOLD,
   type FailureEntry,
   getStateFilePath,
@@ -90,8 +89,7 @@ try {
   const counters = readCounters(projectDirectory);
   let countersUpdated = false;
 
-  for (const [pattern, entry] of Object.entries(counters)) {
-    const counter = entry as CounterEntry;
+  for (const [pattern, counter] of Object.entries(counters)) {
     const sinceLastSuggestion = counter.count - (counter.countAtLastSuggestion ?? 0);
     if (counter.count >= ESCALATION_THRESHOLD && sinceLastSuggestion >= ESCALATION_THRESHOLD) {
       const suggestion = getEscalationSuggestion(pattern, counter.count);
@@ -104,7 +102,7 @@ try {
   }
 
   if (countersUpdated) {
-    writeCounters(projectDirectory, counters as Record<string, CounterEntry>);
+    writeCounters(projectDirectory, counters);
   }
 } catch {
   // Counter file missing or corrupted — skip escalation
