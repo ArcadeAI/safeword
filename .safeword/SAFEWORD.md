@@ -146,19 +146,7 @@ Training data is stale. Follow this sequence:
 
 ## Self-Testing
 
-**Never ask the user to test what you can test yourself.**
-
-| After...          | Do                       |
-| ----------------- | ------------------------ |
-| Fixes             | Run relevant tests       |
-| Features          | Run affected test suites |
-| Before completion | Verify everything passes |
-
-**Anti-patterns:**
-
-- ❌ "Please refresh and test"
-- ❌ "Can you verify it works?"
-- ✅ "Fixed. Running tests..." → "Tests pass"
+**Never ask the user to test what you can test yourself.** Run relevant tests after fixes, features, and before completion. Verify everything passes — don't ask the user to verify.
 
 ---
 
@@ -193,24 +181,7 @@ Safeword tracks your phase and TDD step, reminding you each turn via the prompt 
 
 ## Learnings
 
-**Location:** `.safeword-project/learnings/`
-
-**Check learnings FIRST when:**
-
-1. Stuck on an issue OR debugging same problem 2+ times
-2. Working with unfamiliar technology in this codebase
-3. Issue involves testing, processes, or integrations
-
-**How:** `ls .safeword-project/learnings/` then read relevant files.
-
-**Extract new learning when ANY apply:**
-
-- 5+ debug cycles on same issue
-- 3+ approaches tried
-- Undocumented gotcha discovered
-- Integration struggle between tools
-
-**Before extracting:** Check for existing similar learnings—update, don't duplicate.
+**Location:** `.safeword-project/learnings/` — check FIRST when stuck, debugging 2+ times, or working with unfamiliar technology. See `.safeword/guides/learning-extraction.md` for when and how to extract new learnings.
 
 ---
 
