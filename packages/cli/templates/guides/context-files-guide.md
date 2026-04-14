@@ -101,6 +101,39 @@ project/
 
 ---
 
+## Skills (`.claude/skills/`)
+
+Skills inject context on demand — loaded when relevant, not every session like CLAUDE.md.
+
+**When to use a skill vs. CLAUDE.md:**
+
+| Use CLAUDE.md for                        | Use a skill for                           |
+| ---------------------------------------- | ----------------------------------------- |
+| Always-on rules and conventions          | Reference material needed sometimes       |
+| Behavioral principles                    | Workflow procedures                       |
+| Things the agent must know every session | Things the agent needs for specific tasks |
+
+**Writing skill descriptions:** Claude matches semantically, not by keyword. Describe the **situation** where the skill applies, not words the user might say.
+
+```yaml
+# Bad — keyword list, brittle
+description: Use when user says 'refactor', 'clean up', 'restructure'
+
+# Good — semantic intent + natural phrases + negative constraint
+description: Improve code structure without changing behavior. Use when
+  refactoring, restructuring, or simplifying code. NOT for style/formatting,
+  features, or bug fixes.
+```
+
+**Key constraints:**
+
+- Combined description + when_to_use capped at 1,536 chars — front-load the key use case
+- Skills compete for 25K token compaction budget (most recent first) — keep under 500 tokens
+- CLAUDE.md survives compaction; skills may be dropped — critical instructions belong in CLAUDE.md
+- No priority order between skills and CLAUDE.md — avoid contradictions rather than relying on override
+
+---
+
 ## Content Guidelines
 
 **Include:**

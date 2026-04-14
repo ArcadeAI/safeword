@@ -1,6 +1,8 @@
 ---
 name: audit
-description: Run comprehensive code audit for architecture, dead code, and test quality
+description: Run comprehensive code audit for architecture, dead code, and test
+  quality. Use when reviewing overall codebase health, checking for architectural
+  violations, or before marking a feature complete.
 allowed-tools: '*'
 ---
 

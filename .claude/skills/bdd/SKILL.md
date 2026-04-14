@@ -1,6 +1,10 @@
 ---
 name: bdd
-description: BDD orchestrator for feature-level work. Use when user says 'add', 'implement', 'build', 'feature', 'iteration', 'story', 'phase', 'resume', 'continue', or references a ticket/iteration/story. Also use when work touches 3+ files with new state/flows, or when user runs /bdd. Do NOT use for bug fixes, typos, config changes, or 1-2 file tasks.
+description: Behavior-first feature development. Separates behavior discovery
+  and scenario definition from implementation — specs first, code second. Use
+  when building new capabilities, continuing feature tickets, or when work
+  introduces new state or multiple user flows. Do NOT use for bug fixes, typos,
+  or small isolated changes.
 allowed-tools: '*'
 ---
 

@@ -122,18 +122,16 @@ When 3+ branches exist, provide a table.
 
 ## Document Structure
 
-### Position-Aware Writing (Recency Bias)
+### Position-Aware Writing
 
-LLMs retain beginning and end better than middle (<40% middle recall vs >80% start/end).
+Claude 4 models show reduced positional bias — the "lost in the middle" problem is less severe. Focus on clarity over position tricks.
 
-| ❌ BAD                    | ✅ GOOD                  |
-| ------------------------- | ------------------------ |
-| Background (100 lines)    | Background (100 lines)   |
-| Details (200 lines)       | Details (200 lines)      |
-| **Critical Rules ← lost** | Appendix (50 lines)      |
-| Appendix (50 lines)       | **Key Takeaways ← kept** |
+**Guidelines:**
 
-**Rule:** Put critical content at END of documents.
+- Place large reference documents at TOP with instructions below (Anthropic long-context tips)
+- For short config files (CLAUDE.md, SAFEWORD.md), position matters less — focus on clear structure
+- Avoid burying critical rules in the middle of long documents (still the weakest position)
+- Use "Key Takeaways" sections at the end for reinforcement, not as the sole location for critical rules
 
 ### Re-evaluation Paths
 
@@ -171,7 +169,7 @@ Provide concrete next steps for dead ends.
 - [ ] No contradictions between sections
 - [ ] Complex decisions have lookup tables
 - [ ] Dead-end paths have re-evaluation steps
-- [ ] Critical rules at END (recency bias)
+- [ ] Critical rules not buried in the middle of long documents
 
 ---
 
@@ -180,4 +178,4 @@ Provide concrete next steps for dead ends.
 - Decision trees: sequential, MECE, with tie-breakers
 - Every rule needs concrete examples (good vs bad)
 - Define all terms explicitly—assume nothing is obvious
-- Put critical rules at the END of documents (recency bias)
+- Avoid burying critical rules in the middle — use clear structure over position tricks

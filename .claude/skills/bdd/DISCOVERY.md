@@ -4,21 +4,7 @@
 
 ## Understanding (Propose-and-Converge)
 
-Follow the propose-and-converge pattern from SAFEWORD.md. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
-
-## Contribution Techniques
-
-When contributing perspectives on complex features, draw on these techniques as needed — they are not mandatory sequential rounds:
-
-| Technique                | What it surfaces                              | When to use                                        |
-| ------------------------ | --------------------------------------------- | -------------------------------------------------- |
-| **Failure modes**        | "What breaks? What are the consequences?"     | When reliability or error handling is unclear      |
-| **Boundaries**           | "What's the minimum? Maximum?"                | When scope could expand indefinitely               |
-| **Scenario walkthrough** | "Walk through a concrete situation"           | When the user's description is abstract            |
-| **Regret test**          | "If we skip this, what support tickets come?" | When deciding what's in vs out of scope            |
-| **User experience**      | "What does success feel like for the user?"   | When the user hasn't described the desired outcome |
-
-Use these as the **content** of your contributions — not as a separate questioning phase. Weave them into your proposals naturally.
+Follow the understanding pattern from SAFEWORD.md — including contribution techniques and the specificity self-test. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
 
 ## Phase 0-2 Exit (REQUIRED)
 

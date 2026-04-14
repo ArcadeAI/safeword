@@ -1,6 +1,10 @@
 ---
 name: refactor
-description: Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit cycle. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.
+description: Improve code structure without changing behavior. Use when
+  refactoring, restructuring, simplifying, or extracting code. Also for reducing
+  duplication, renaming for clarity, or addressing code smells. Enforces one
+  change → test → commit cycle. NOT for style/formatting (use /lint), features,
+  or bug fixes.
 allowed-tools: '*'
 ---
 

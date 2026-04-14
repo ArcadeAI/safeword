@@ -17,11 +17,27 @@
 4. Each turn: incorporate what the user confirmed, narrow remaining open questions
 5. When your proposal has zero open questions and the user accepts → proceed to sizing
 
+**Contribution techniques** (weave into proposals, not as a questioning phase):
+
+- Failure modes — when reliability/error handling is unclear
+- Boundaries — when scope could expand indefinitely
+- Scenario walkthrough — when the description is abstract
+- Regret test — when deciding in/out of scope
+- User experience — when success criteria aren't described
+
 **Depth scales with ambiguity:**
 
 - Clear request, no open questions → proceed immediately (0 turns)
 - One open question → contribute context, surface it, resolve in 1 turn
 - Vague idea → converge over 2-3 turns of increasingly specific proposals
+
+**Specificity self-test:** Before proceeding, verify:
+
+- Can you describe the behavior that changes? (If not, the request is still vague)
+- Can you articulate what behavior stays the same? (If not, you have hidden scope)
+- Can you describe an observable "done" state? (If not, requirements are vague)
+
+If any answer is vague, you have open questions — surface them.
 
 **Backstop:** If the conversation feels circular without convergence, make your best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
@@ -31,7 +47,7 @@
 - **Out of Scope:** What you're not building (derived from rejected alternatives + domain-knowledge exclusions)
 - **Done When:** Observable outcomes
 
-**Exit criterion:** When the user accepts your proposal → write scope to the ticket frontmatter (`scope`, `out_of_scope`, `done_when` fields) → proceed to sizing.
+**Exit criterion:** When the user accepts your proposal → proceed to sizing. For features, write scope to ticket frontmatter (`scope`, `out_of_scope`, `done_when` fields). If the user is exploring without intent to build, follow their lead — not every conversation leads to implementation.
 
 ---
 

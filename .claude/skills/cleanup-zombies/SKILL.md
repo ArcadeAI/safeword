@@ -1,6 +1,7 @@
 ---
 name: cleanup-zombies
-description: Runs cleanup to kill zombie dev servers and test processes for this project
+description: Kill zombie dev servers and test processes. Use when ports are
+  blocked, processes are hanging, or test runners won't start.
 allowed-tools: '*'
 ---
 

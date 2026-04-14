@@ -67,7 +67,7 @@ The description is the **primary signal** for skill discovery. Claude uses pure 
 - Write in **third person** (injected into system prompt; first/second person causes issues)
 - Include **what it does** AND **when to use it**
 - Include **trigger phrases** users would actually say
-- Max 1024 characters
+- Combined description + when_to_use capped at 1,536 characters
 
 ### The WHEN + WHEN NOT Pattern
 
@@ -80,12 +80,11 @@ description: Helps with code quality
 # BAD - Missing triggers
 description: Performs deep code review with web research
 
-# GOOD - Specific triggers + boundaries
-description: Deep code quality review with web research. Use when user
-  requests verification against latest docs ('double check against latest',
-  'verify versions', 'check security'), needs analysis beyond automatic
-  hook, or works on projects without SAFEWORD.md. Do NOT use for quick
-  fixes or when user just wants code written.
+# GOOD - Semantic intent + boundaries
+description: Deep code review with web research. Use when double-checking
+  code against latest docs, verifying dependency versions, or reviewing
+  security concerns. Do NOT use for quick fixes or when user just wants
+  code written.
 ```
 
 ### Effective Description Anatomy
@@ -115,14 +114,20 @@ description: Stakeholder context for Test Project when discussing product
   general stakeholder discussions unrelated to Test Project.
 ```
 
-### Keywords Matter
+### Natural Phrases Over Keyword Lists
 
-Include terms users would actually say:
+Describe the situation, don't enumerate trigger words. Claude matches semantically.
 
-- File extensions: `.pdf`, `.xlsx`, `.docx`
-- Action words: "debug", "review", "verify", "check"
-- Domain terms: "commit message", "test failure", "latest docs"
-- Quoted phrases: `'double check'`, `'not working'`
+```yaml
+# Bad — keyword list, brittle
+description: Use when user says 'refactor', 'clean up', 'restructure'
+
+# Good — semantic intent + natural phrases
+description: Improve code structure without changing behavior. Use when
+  refactoring, restructuring, or simplifying code.
+```
+
+Include natural action phrases ("refactoring, restructuring") but don't quote them as keywords. The description should read like a sentence, not a grep pattern.
 
 ### Testing Selection Accuracy
 
@@ -247,7 +252,7 @@ Match specificity to task fragility:
 
 Before publishing a skill:
 
-- [ ] Name uses gerund form
+- [ ] Name is short and action-oriented
 - [ ] Description includes what + when (third person)
 - [ ] SKILL.md under 500 lines
 - [ ] References one level deep

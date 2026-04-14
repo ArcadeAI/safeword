@@ -1,6 +1,9 @@
 ---
 name: tdd-review
-description: Step-aware TDD review at RED/GREEN/REFACTOR boundaries. Triggered by TDD quality gates when sub-checkboxes change in test-definitions.md. Reviews test quality (GREEN gate), implementation correctness (REFACTOR gate), or completed scenario (RED gate).
+description: Quality checkpoint at TDD step boundaries. Reviews test quality
+  after RED, implementation correctness after GREEN, and scenario completeness
+  after REFACTOR. Use during task-level TDD or feature-level implementation
+  when completing a step and wanting a quality check before moving on.
 allowed-tools: '*'
 ---
 
