@@ -1,75 +1,38 @@
 # Phase 6: Implementation (TDD)
 
-**Entry:** Agent enters `implement` phase (after decomposition complete)
+**Entry:** Agent enters `implement` phase. Begin TDD for the first unchecked scenario.
 
-**Iron Law:** NO IMPLEMENTATION UNTIL TEST FAILS FOR THE RIGHT REASON
+## Iron Laws
 
-Announce: "Entering implementation. TDD mode for each scenario."
+1. **NO IMPLEMENTATION UNTIL TEST FAILS FOR THE RIGHT REASON** — behavior missing, not syntax error
+2. **ONLY WRITE CODE THE TEST REQUIRES** — GREEN is minimal, REFACTOR adds quality
 
-## Outside-In Test Layering
+## Test Scope
 
-1. **E2E first** — Prove user-facing behavior works end-to-end
-2. **Integration** — Test component boundaries with real dependencies
-3. **Unit** — Test isolated logic, mock only when necessary
+Start with the most constraining test — usually E2E or integration. Prefer the highest scope that covers the behavior with acceptable feedback speed.
 
-## Walking Skeleton (first scenario only)
+### Walking Skeleton (first scenario only)
 
-If no E2E infrastructure exists, build skeleton first:
-
-- Thinnest slice proving architecture works
-- Form → API → response → UI (no real logic)
+If no E2E infrastructure exists, build skeleton first: thinnest slice proving architecture works (form → API → response → UI, no real logic).
 
 ## For Each Scenario: RED → GREEN → REFACTOR
 
-### 6.1 RED - Write Failing Test
+Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit). Mark checkboxes in test-definitions.md after each step.
 
-**Before writing:** Load the testing skill and read `.safeword/guides/testing-guide.md` for test type selection, behavioral testing principles, and anti-patterns. Both sources apply — the skill for iron laws and patterns, the guide for the type hierarchy and bug detection matrix.
+**Evidence before claims:** Show test output, don't just claim "tests pass". Run FULL suite at GREEN to catch regressions.
 
-1. Pick ONE test from test-definitions (first scenario with unchecked `[ ] RED`)
-2. **Announce test type:** "Test type: [unit/integration/E2E/eval] because [reason]" (use testing guide's decision tree)
-3. Write test code (from Given/When/Then), following testing skill's iron laws
-4. Run test → verify fails for RIGHT reason (behavior missing, not syntax)
-5. Mark `[x] RED` in test-definitions.md (triggers tdd:green quality gate)
-6. Commit: `test: [scenario name]`
+### Red Flags — STOP:
 
-**Red Flags → STOP:**
+| Flag                    | Action                                        |
+| ----------------------- | --------------------------------------------- |
+| Test passes immediately | Rewrite — you're testing nothing              |
+| Syntax error            | Fix syntax, not behavior                      |
+| Wrote implementation    | Delete it, return to test                     |
+| Multiple tests at once  | Pick ONE                                      |
+| Tautological test       | Assert on behavior, not implementation mirror |
 
-| Flag                    | Action                           |
-| ----------------------- | -------------------------------- |
-| Test passes immediately | Rewrite - you're testing nothing |
-| Syntax error            | Fix syntax, not behavior         |
-| Wrote implementation    | Delete it, return to test        |
-| Multiple tests at once  | Pick ONE                         |
+### Refactor Decision
 
-### 6.2 GREEN - Minimal Implementation
+Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `/refactor`). If no, proceed to next scenario.
 
-**Iron Law:** ONLY WRITE CODE THE TEST REQUIRES
-
-1. Write minimal code to pass test
-2. Run test → verify passes
-3. Run FULL test suite → verify no regressions
-4. Mark `[x] GREEN` in test-definitions.md (triggers tdd:refactor quality gate)
-5. Commit: `feat: [scenario name]`
-
-**Evidence before claims:** Show test output, don't just claim "tests pass".
-
-### 6.3 REFACTOR - Clean Up
-
-Run `/refactor` for cleanup after GREEN. It handles:
-
-- Duplication extraction
-- Name clarity
-- Function length
-- Magic values
-
-### 6.4 Mark & Iterate
-
-Before marking scenario complete:
-
-1. **Confirm refactor status** (say one of these):
-   - "Refactored: [what improved]" + show refactor commit
-   - "No refactoring needed: code is clean"
-2. Mark `[x] REFACTOR` in test-definitions.md (triggers tdd:red quality gate)
-3. Commit and proceed to next scenario
-4. Return to 6.1 for next scenario (first with unchecked `[ ] RED`)
-5. All done → proceed to Phase 7
+All scenarios complete → proceed to Phase 7.
