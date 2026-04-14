@@ -38,7 +38,7 @@ Define: "Browser" → Real browser (Playwright), not jsdom
 
 ### 3. Concrete Examples Over Abstract Rules
 
-For every rule, include 2-3 good vs bad examples. Use 3-5 diverse, relevant examples — not exhaustive edge cases.
+For every rule, include 2-3 good vs bad examples.
 
 ```markdown
 ❌ BAD: "Follow best practices for testing"
@@ -75,41 +75,6 @@ Section B: "All user-facing features have E2E tests"
 
 ✅ Both sections use same definition of "critical"
 ```
-
-### 6. Use XML Tags for Structure
-
-Structure complex prompts with XML tags for unambiguous parsing.
-
-```markdown
-❌ BAD: Instructions mixed with context and examples in flat text
-
-✅ GOOD:
-<instructions>
-Write a function that validates email addresses.
-</instructions>
-
-<context>
-The system uses RFC 5322 validation.
-</context>
-
-<example>
-Input: "user@example.com" → Output: true
-Input: "not-an-email" → Output: false
-</example>
-```
-
-Tags: `<instructions>`, `<context>`, `<input>`, `<example>`, `<document>`.
-
-### 7. Keep Context Lean
-
-Structure prompts carefully with large inputs. Find the smallest set of high-signal tokens that maximize the desired outcome. Don't front-load entire reference documents — load dynamically when needed.
-
-```markdown
-❌ BAD: Load 3 guide files before every task (800+ lines of context)
-✅ GOOD: Reference guides by path, consult for specific questions
-```
-
-Maintain lightweight identifiers (file paths, URLs) and load content just-in-time rather than pre-loading everything.
 
 ---
 
@@ -157,11 +122,16 @@ When 3+ branches exist, provide a table.
 
 ## Document Structure
 
-### Document Placement for Optimal Comprehension
+### Position-Aware Writing
 
-For long documents (20K+ tokens), place the document at the top of the prompt with queries/instructions below — this can improve performance up to 30% on complex queries.
+Claude 4 models show reduced positional bias — the "lost in the middle" problem is less severe. Focus on clarity over position tricks.
 
-For shorter instruction files (CLAUDE.md, SAFEWORD.md, skills), positional bias is minimal in current models. Focus on clarity and structure over position tricks.
+**Guidelines:**
+
+- Place large reference documents at TOP with instructions below (Anthropic long-context tips)
+- For short config files (CLAUDE.md, SAFEWORD.md), position matters less — focus on clear structure
+- Avoid burying critical rules in the middle of long documents (still the weakest position)
+- Use "Key Takeaways" sections at the end for reinforcement, not as the sole location for critical rules
 
 ### Re-evaluation Paths
 
@@ -180,15 +150,13 @@ Provide concrete next steps for dead ends.
 
 ## Anti-Patterns
 
-| Don't                                         | Why                                                                  |
-| --------------------------------------------- | -------------------------------------------------------------------- |
-| Visual metaphors (pyramids, icebergs)         | LLMs don't process visuals                                           |
-| Undefined jargon                              | "Technical debt" needs definition                                    |
-| Percentages without context                   | "70/20/10" meaningless without adjustment guidance                   |
-| Caveats in tables                             | Parentheticals break pattern matching                                |
-| Critical info in middle                       | Lost-in-middle phenomenon                                            |
-| Aggressive emphasis ("CRITICAL", "IMPORTANT") | Newer models overtrigger on emphasis — use specific, normal language |
-| Front-loading entire reference docs           | Context quality degrades with token count                            |
+| Don't                                 | Why                                                |
+| ------------------------------------- | -------------------------------------------------- |
+| Visual metaphors (pyramids, icebergs) | LLMs don't process visuals                         |
+| Undefined jargon                      | "Technical debt" needs definition                  |
+| Percentages without context           | "70/20/10" meaningless without adjustment guidance |
+| Caveats in tables                     | Parentheticals break pattern matching              |
+| Critical info in middle               | Lost-in-middle phenomenon                          |
 
 ---
 
@@ -201,9 +169,7 @@ Provide concrete next steps for dead ends.
 - [ ] No contradictions between sections
 - [ ] Complex decisions have lookup tables
 - [ ] Dead-end paths have re-evaluation steps
-- [ ] Long documents: data at top, instructions below
-- [ ] Context is lean — no unnecessary pre-loading
-- [ ] XML tags used for complex prompt structure
+- [ ] Critical rules not buried in the middle of long documents
 
 ---
 
@@ -211,8 +177,5 @@ Provide concrete next steps for dead ends.
 
 - Decision trees: sequential, MECE, with tie-breakers
 - Every rule needs concrete examples (good vs bad)
-- Define all terms explicitly — assume nothing is obvious
-- Long documents: data at top, instructions below
-- Keep context lean — load just-in-time, not upfront
-- Use XML tags for complex prompt structure
-- Use specific, normal language — not aggressive emphasis
+- Define all terms explicitly—assume nothing is obvious
+- Avoid burying critical rules in the middle — use clear structure over position tricks

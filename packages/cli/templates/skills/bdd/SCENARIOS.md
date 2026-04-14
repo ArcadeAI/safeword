@@ -6,14 +6,15 @@
 
 ### 3.1 Draft Scenarios
 
-1. Read spec goal/scope
+1. Read spec goal/scope. Draw from resolved questions during understanding to determine which behavioral space to cover.
 2. Draft Given/When/Then scenarios covering:
    - Happy path (main success)
    - Failure modes (what can go wrong)
    - Edge cases (boundaries, empty states)
-3. Present scenarios to user
-4. User can add/modify/remove scenarios
-5. Each scenario gets `[ ]` checkbox for implementation tracking
+3. Focus on key behaviors — happy path, critical edge cases, error cases. Avoid testing implementation details.
+4. Present scenarios to user
+5. User can add/modify/remove scenarios
+6. Each scenario gets `[ ]` checkbox for implementation tracking
 
 ### 3.2 Save & Exit (REQUIRED)
 
@@ -31,17 +32,18 @@
 
 **Entry:** Agent enters `scenario-gate` phase
 
-**Validate each scenario against three criteria:**
+**Validate each scenario against four criteria (AODI):**
 
 | Criterion         | Check                          | Red flag                        |
 | ----------------- | ------------------------------ | ------------------------------- |
 | **Atomic**        | Tests ONE behavior             | Multiple When/Then pairs        |
 | **Observable**    | Has externally visible outcome | Internal state only             |
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
+| **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
 **Report issues:**
 
-- Group by type (atomicity, observability, determinism)
+- Group by type (atomicity, observability, determinism, independence)
 - Suggest fix for each issue
 - Example: "Scenario 3 tests login AND session creation. Split into two scenarios."
 
@@ -49,11 +51,11 @@
 
 Before proceeding to Phase 5:
 
-1. Each scenario validated (Atomic, Observable, Deterministic)
+1. Each scenario validated (Atomic, Observable, Deterministic, Independent)
 2. Issues reported or confirmed clean
 3. **Update frontmatter:** `phase: decomposition`
 4. **Add work log entry:**
 
    ```
-   - {timestamp} Complete: Phase 4 - Scenarios validated
+   - {timestamp} Complete: Phase 4 - Scenarios validated (AODI)
    ```

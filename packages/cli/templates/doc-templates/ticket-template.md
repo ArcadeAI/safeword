@@ -5,9 +5,6 @@ phase: intake
 status: in_progress
 created: YYYY-MM-DDTHH:MM:SSZ
 last_modified: YYYY-MM-DDTHH:MM:SSZ
-scope:
-out_of_scope:
-done_when:
 ---
 
 <!--
@@ -68,9 +65,15 @@ phase: intake | define-behavior | scenario-gate | decomposition | implement | do
 - ./spec.md (feature spec - epics only)
 - ./design.md (design doc - complex features only)
 
-### Scope Notes
+### Scope
 
-{Only if frontmatter scope fields need elaboration}
+{Only for complex features with unclear boundaries}
+
+**In scope:**
+
+- **Out of scope:**
+
+-
 
 ### Acceptance Criteria
 

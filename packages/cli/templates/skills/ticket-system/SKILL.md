@@ -1,6 +1,8 @@
 ---
 name: ticket-system
-description: Ticket system and work logs for context anchoring during complex work. Use when creating tickets, managing work logs, referencing ticket IDs, or when work needs context anchoring (multi-step tasks, debugging, investigation). Also use when user says 'create ticket', 'work log', 'resume', or references a ticket ID/slug. Do NOT use for simple patches or single-step tasks.
+description: Ticket system and work logs for context anchoring. Use when creating
+  tickets, managing work logs, or anchoring context across multi-step tasks or
+  sessions. Do NOT use for simple patches or single-step tasks.
 user-invocable: false
 allowed-tools: '*'
 ---

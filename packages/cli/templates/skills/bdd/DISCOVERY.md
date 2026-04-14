@@ -4,21 +4,7 @@
 
 ## Understanding (Propose-and-Converge)
 
-Follow the propose-and-converge pattern from SAFEWORD.md. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
-
-## Contribution Techniques
-
-When contributing perspectives on complex features, draw on these techniques as needed — they are not mandatory sequential rounds:
-
-| Technique                | What it surfaces                              | When to use                                        |
-| ------------------------ | --------------------------------------------- | -------------------------------------------------- |
-| **Failure modes**        | "What breaks? What are the consequences?"     | When reliability or error handling is unclear      |
-| **Boundaries**           | "What's the minimum? Maximum?"                | When scope could expand indefinitely               |
-| **Scenario walkthrough** | "Walk through a concrete situation"           | When the user's description is abstract            |
-| **Regret test**          | "If we skip this, what support tickets come?" | When deciding what's in vs out of scope            |
-| **User experience**      | "What does success feel like for the user?"   | When the user hasn't described the desired outcome |
-
-Use these as the **content** of your contributions — not as a separate questioning phase. Weave them into your proposals naturally.
+Follow the understanding pattern from SAFEWORD.md — including contribution techniques and the specificity self-test. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
 
 ## Phase 0-2 Exit (REQUIRED)
 
@@ -35,6 +21,6 @@ Before proceeding to Phase 3:
 
 ## Planning Note
 
-Phase 3 scenarios should draw from resolved questions during understanding — they inform which behavioral space to cover (not the exact scenarios). Add failure-mode scenarios from domain knowledge.
+Phase 3 scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed acceptance criteria. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
 
 Phase 5 (decomposition) is optional — skip if the architecture is clear from the converged proposal.

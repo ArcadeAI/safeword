@@ -223,8 +223,194 @@ Test: All existing tests pass, no new mutations
 
 ---
 
-## Test Definitions
+## Part 2: Test Definitions
 
-Use the test-definitions template: `.safeword/templates/test-definitions-feature.md`
+### How to Fill Out Test Definitions
 
-For test writing patterns (naming, assertions, structure), see the testing guide: `.safeword/guides/testing-guide.md`
+1. Read `.safeword/templates/test-definitions-feature.md`
+2. Read user story's Technical Constraints section (if exists)
+3. Fill in feature name, issue number, test file path
+4. Organize tests into logical suites
+5. Create numbered tests (Test 1.1, Test 1.2, etc.)
+6. Add status for each test
+7. Include detailed steps and expected outcomes
+8. Add summary with coverage breakdown
+9. Save to `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
+
+---
+
+## Test Status Indicators
+
+Use these consistently:
+
+- **✅ Passing** - Test is implemented and passing
+- **⏭️ Skipped** - Test is intentionally skipped (add rationale)
+- **❌ Not Implemented** - Test is defined but not yet written
+- **🔴 Failing** - Test exists but is currently failing
+
+---
+
+## Test Definition Naming
+
+**✅ GOOD - Descriptive and specific:**
+
+- "Render all three panes"
+- "Cmd+J toggles AI pane visibility"
+- "State persistence across sessions"
+
+**❌ BAD - Vague or technical:**
+
+- "Test 1" (no description)
+- "Check state" (too vague)
+- "Verify useUIStore hook" (implementation detail)
+
+---
+
+## Writing Test Steps
+
+**✅ GOOD - Clear, actionable steps:**
+
+```text
+**Steps**:
+1. Toggle AI pane visible
+2. Get bounding box for AI pane
+3. Get bounding box for Editor pane
+4. Compare X coordinates
+```
+
+**❌ BAD - Vague or incomplete:**
+
+```text
+**Steps**:
+1. Check panes
+2. Verify order
+```
+
+---
+
+## Writing Expected Outcomes
+
+**✅ GOOD - Specific, testable assertions:**
+
+```text
+**Expected**:
+- AI pane X coordinate < Editor pane X coordinate
+- Explorer pane X coordinate > Editor pane X coordinate
+- All coordinates are positive numbers
+```
+
+**❌ BAD - Vague expectations:**
+
+```text
+**Expected**:
+- Panes are in correct order
+- Everything works
+```
+
+---
+
+## Organizing Test Suites
+
+Group related tests:
+
+- **Layout/Structure** - DOM structure, element presence, positioning
+- **User Interactions** - Clicks, keyboard shortcuts, drag/drop
+- **State Management** - State changes, persistence, reactivity
+- **Accessibility** - ARIA labels, keyboard navigation, focus
+- **Edge Cases** - Error handling, boundary conditions
+- **Technical Constraints** - Non-functional requirements from user story
+
+---
+
+## Coverage Summary
+
+**Always include:**
+
+- Total test count
+- Breakdown by status (passing, skipped, not implemented, failing)
+- Percentages for each category
+- Rationale for skipped tests
+
+**Example:**
+
+```text
+**Total**: 20 tests
+**Passing**: 9 tests (45%)
+**Skipped**: 4 tests (20%)
+**Not Implemented**: 7 tests (35%)
+**Failing**: 0 tests
+```
+
+---
+
+## Testing Technical Constraints
+
+User stories include Technical Constraints. These MUST have corresponding tests.
+
+| Constraint Category | Test Type                  | What to Verify                                |
+| ------------------- | -------------------------- | --------------------------------------------- |
+| Performance         | Load/timing tests          | Response times, throughput, capacity          |
+| Security            | Security tests             | Input sanitization, auth, rate limiting       |
+| Compatibility       | Cross-browser/device tests | Browser versions, mobile, accessibility       |
+| Data                | Compliance tests           | Retention, deletion, privacy rules            |
+| Dependencies        | Integration tests          | Required services work, no forbidden packages |
+| Infrastructure      | Resource tests             | Memory limits, offline behavior               |
+
+---
+
+## Test Definition Example
+
+```markdown
+### Test 3.1: Cmd+J toggles AI pane visibility ✅
+
+**Status**: ✅ Passing
+**Description**: Verifies Cmd+J keyboard shortcut toggles AI pane
+
+**Steps**:
+
+1. Verify AI pane hidden initially (default state)
+2. Press Cmd+J (Mac) or Ctrl+J (Windows/Linux)
+3. Verify AI pane becomes visible
+4. Press Cmd+J again
+5. Verify AI pane becomes hidden
+
+**Expected**:
+
+- AI pane starts hidden
+- After first toggle: AI pane visible
+- After second toggle: AI pane hidden
+```
+
+---
+
+## Ticket Folder Naming
+
+**Structure:** `.safeword-project/tickets/{id}-{slug}/`
+
+**Good folder names:**
+
+- `001-campaign-switching/`
+- `012-fix-login-timeout/`
+
+**Bad folder names:**
+
+- `story-1/` ← Not descriptive
+- `CAMPAIGN_FINAL_v2/` ← Bloated
+
+---
+
+## Quick Reference
+
+**User Story Red Flags (INVEST Violations):**
+
+- No acceptance criteria → Too vague
+- > 5 acceptance criteria → Split into multiple stories
+- Technical implementation details → Wrong audience
+- Missing "So that" → No clear value
+
+**Test Definition Red Flags:**
+
+- Test name doesn't describe behavior → Rename
+- Steps are vague → Add detail
+- No expected outcomes → Add assertions
+- No coverage summary → Add totals

@@ -1,17 +1,53 @@
 ---
 name: testing
-description: How to write good tests. Use when writing tests in any context — 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Explicitly invoked by other skills at specific phases — BDD TDD.md at RED phase, tdd-review at GREEN gate (coverage adequacy), refactor at PROTECT phase (characterization tests), and /debug. Core knowledge for test quality across all workflows.
+description: How to write good tests. Use when writing tests, improving test
+  coverage, or evaluating test quality. Also invoked by other skills — BDD at
+  RED phase, tdd-review at GREEN gate, refactor at PROTECT phase, and debug.
+  Core test quality knowledge across all workflows.
 user-invocable: false
 allowed-tools: '*'
 ---
 
 # Writing Good Tests
 
-Tests prove the system behaves correctly. Every test must verify **observable behavior**, not implementation details.
+Tests prove the system behaves correctly. Every test — unit, integration, E2E, eval — must verify **observable behavior**, not implementation details.
 
-**Scope preference:** Prefer the highest scope that covers the behavior with acceptable feedback speed.
+**Core Principle:** TEST BEHAVIOR, NOT IMPLEMENTATION
 
-For patterns, examples, and the full test type decision tree, see `.safeword/guides/testing-guide.md`.
+---
+
+## Philosophy: Behavior-Biased Testing
+
+**What this means:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods).
+
+**Why:** Tests coupled to implementation break on every refactor. Behavioral tests survive refactoring because behavior doesn't change — only the internals do.
+
+**Scope preference:** When multiple test types can verify a behavior, prefer the highest scope that covers the behavior with acceptable feedback speed. Higher scope = more confidence that the real system works.
+
+```text
+Prefer (highest confidence):
+  E2E        → proves the user can do the thing
+  Integration → proves components work together
+  Unit        → proves the algorithm is correct
+Fallback (lowest scope):
+```
+
+**When to drop to a lower scope:**
+
+- Pure function with many edge cases (20+ combinations) → unit test
+- Internal service boundary, no UI involved → integration test
+- Algorithm with complex logic (parsing, math, state machines) → unit test
+- Only one module's contract matters → integration test
+
+**When to stay at higher scope:**
+
+- User-facing feature or workflow → E2E
+- Multiple modules must cooperate → integration or E2E
+- "If this breaks, users notice immediately" → E2E
+
+**Announce your decision:** "Test type: [unit/integration/E2E/eval] because [reason]."
+
+For the full decision tree, bug detection matrix, and edge cases: `.safeword/guides/testing-guide.md`
 
 ---
 
@@ -44,20 +80,22 @@ If your assertion would pass for ANY input, it asserts nothing.
 
 ```typescript
 // WRONG — asserts nothing useful
+expect(() => processData(input)).not.toThrow();
 expect(result).toBeTruthy();
 expect(result).toBeDefined();
 
 // RIGHT — asserts specific behavior
 expect(processData(input)).toEqual({ status: 'ok', count: 3 });
+expect(result.errors).toHaveLength(0);
 ```
 
 ### 3. Tests Must Fail First
 
-A new test that passes immediately is testing nothing. For new behavior: RED then GREEN.
+A new test that passes immediately is testing nothing — or testing something that already works (no value added). For new behavior: RED then GREEN. For existing code: if a characterization test fails, you found a bug.
 
 ### 4. One Test, One Behavior
 
-If a test name has "and" in it, split it.
+If a test name has "and" in it, split it. Each test verifies ONE observable outcome.
 
 ```typescript
 // WRONG
@@ -76,19 +114,160 @@ No test depends on another test's side effects. Fresh state per test. Run in any
 
 ## Anti-Patterns
 
-| Pattern                     | Problem                                           | Fix                                                                          |
-| --------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Coverage theater**        | High line coverage, tests catch no bugs           | Every test should fail if you break the behavior it guards                   |
-| **Mock everything**         | Tests only verify mock wiring, not real behavior  | Use real dependencies where practical; mock only external services           |
-| **Duplicate tests**         | 20 tests with same structure, different values    | Use parameterized/table-driven tests: `it.each(...)`                         |
-| **Happy-path only**         | Misses edge cases where real bugs live            | Always include: empty input, boundary values, error paths                    |
-| **Hardcoded magic values**  | Timestamps, IDs, paths break across environments  | Use builders, relative values, or factories                                  |
-| **Snapshot overuse**        | Large snapshots pass review without scrutiny      | Prefer targeted assertions; snapshots only for large stable structures       |
-| **Testing private methods** | Couples tests to implementation                   | Test through the public API                                                  |
-| **Exact UI text matching**  | Breaks on copy changes                            | Use regex `/submit/i` or data-testid attributes                              |
-| **Bug-locking**             | Tests written against buggy code encode the bug   | Write tests BEFORE implementation (TDD), or verify behavior is correct first |
-| **Scope defaulting**        | AI defaults to unit tests for everything          | Ask "what's the highest scope with acceptable feedback speed?" first         |
-| **Tautological test**       | Assertion mirrors implementation, catches nothing | Assert on behavior independently of the code under test                      |
+The most common ways AI-generated tests go wrong. Watch for all of them.
+
+| Pattern                     | Problem                                          | Fix                                                                          |
+| --------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| **Coverage theater**        | High line coverage, tests catch no bugs          | Every test should fail if you break the behavior it guards                   |
+| **Mock everything**         | Tests only verify mock wiring, not real behavior | Use real dependencies where practical; mock only external services           |
+| **Duplicate tests**         | 20 tests with same structure, different values   | Use parameterized/table-driven tests: `it.each(...)`                         |
+| **Happy-path only**         | Misses edge cases where real bugs live           | Always include: empty input, boundary values, error paths                    |
+| **Hardcoded magic values**  | Timestamps, IDs, paths break across environments | Use builders, relative values, or factories                                  |
+| **Snapshot overuse**        | Large snapshots pass review without scrutiny     | Prefer targeted assertions; snapshots only for large stable structures       |
+| **Testing private methods** | Couples tests to implementation                  | Test through the public API                                                  |
+| **Exact UI text matching**  | Breaks on copy changes                           | Use regex `/submit/i` or data-testid attributes                              |
+| **Bug-locking**             | Tests written against buggy code encode the bug  | Write tests BEFORE implementation (TDD), or verify behavior is correct first |
+| **Scope defaulting**        | AI defaults to unit tests for everything         | Ask "what's the highest scope with acceptable feedback speed?" first         |
+
+---
+
+## Behavioral Testing by Type
+
+### Unit Tests — Behavioral
+
+Test the contract (inputs → outputs), not the internals.
+
+```typescript
+// Behavioral: asserts on output
+it('applies 20% discount for VIP users', () => {
+  expect(calculateDiscount(100, { tier: 'VIP' })).toBe(80);
+});
+
+// Non-behavioral: asserts on internal call
+it('calls applyRate with 0.2', () => {
+  calculateDiscount(100, { tier: 'VIP' });
+  expect(applyRate).toHaveBeenCalledWith(0.2);
+});
+```
+
+### Integration Tests — Behavioral
+
+Test that components produce correct combined outcomes with real dependencies.
+
+```typescript
+// Behavioral: asserts on combined outcome
+it('returns user profile with computed permissions', async () => {
+  const response = await api.get('/users/1/profile');
+  expect(response.data.permissions).toContain('edit_posts');
+});
+
+// Non-behavioral: asserts on which services were called
+it('calls UserService then PermissionService', async () => { ... });
+```
+
+### E2E Tests — Behavioral
+
+Test what the user can see and do. E2E tests are naturally behavioral — lean into this.
+
+```typescript
+// Behavioral: user-visible outcome
+test('user creates account and sees dashboard', async ({ page }) => {
+  await page.goto('/signup');
+  await page.fill('[name="email"]', 'test@example.com');
+  await page.fill('[name="password"]', 'secure123');
+  await page.click('button:has-text("Sign Up")');
+  await expect(page).toHaveURL('/dashboard');
+  await expect(page.getByText('Welcome')).toBeVisible();
+});
+```
+
+### LLM Evals — Behavioral
+
+Grade what the output _achieves_, not the path the model took. Use deterministic assertions first, LLM-as-judge second.
+
+```yaml
+# Deterministic assertion (cheap, run every commit)
+- type: javascript
+  value: JSON.parse(output).intent === 'order_pizza'
+
+# LLM-as-judge (for subjective quality, run on PR/schedule)
+- type: llm-rubric
+  value: |
+    PASS: Correctly identifies pizza order, confirms size and type
+    FAIL: Wrong intent, ignores key details, or generic response
+```
+
+Eval-specific principles:
+
+- **Grade outcomes, not paths** — the LLM can take any route to the right answer
+- **Binary PASS/FAIL over scales** — "3 vs 4" is meaningless; force clarity
+- **One dimension per scorer** — don't bundle factuality + tone + completeness
+- **Deterministic checks first** — regex, schema validation, required fields before LLM-as-judge
+
+---
+
+## Writing Approach
+
+### Match Existing Style
+
+Before writing any test, find existing tests near the code under test. Match their imports, describe/it structure, helpers, and patterns. Don't introduce new conventions into an established test suite.
+
+If no existing tests: use AAA pattern (Arrange-Act-Assert).
+
+### Design Before Writing
+
+List planned tests before coding. For each test, name:
+
+- **What behavior** it verifies (not what code it calls)
+- **What the key assertion is** (not "it doesn't throw")
+- **Why this test matters** (what bug would slip through without it?)
+
+Aim for: happy path + edge cases + error cases + at least one test the implementation could plausibly get wrong.
+
+### One Test at a Time
+
+Write one test → run it → verify it fails (or passes for characterization) → move to next. Never write all tests at once then run them.
+
+---
+
+## Patterns
+
+### Test Data Builders
+
+```typescript
+function buildUser(overrides = {}) {
+  return { id: 'test-1', name: 'Test User', role: 'member', ...overrides };
+}
+
+it('applies VIP discount', () => {
+  const user = buildUser({ role: 'vip' });
+  expect(calculateDiscount(user)).toBe(0.2);
+});
+```
+
+### Async Testing — Never Use Arbitrary Timeouts
+
+```typescript
+// WRONG
+await sleep(3000);
+await page.waitForTimeout(500);
+
+// RIGHT — wait for condition
+await expect.poll(() => getStatus()).toBe('ready');
+await waitFor(() => expect(element).toBeVisible());
+```
+
+### Descriptive Test Names
+
+```typescript
+// WRONG
+it('works correctly');
+it('should handle edge case');
+
+// RIGHT — describes the behavior
+it('returns 401 when API key is missing');
+it('preserves user input after validation error');
+```
 
 ---
 

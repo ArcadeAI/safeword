@@ -26,6 +26,20 @@ Answer **IN ORDER**. Stop at the first "Yes":
 
 ---
 
+## Quick Decision Matrix
+
+| Scenario                        | Doc Type                        | Rationale                          |
+| ------------------------------- | ------------------------------- | ---------------------------------- |
+| Choosing between technologies   | Architecture                    | Tech choice affects whole project  |
+| Data model design               | Architecture                    | Schema is project-wide             |
+| Implementing a new feature      | Design                          | Feature-scoped implementation      |
+| Recording a trade-off           | Architecture                    | Trade-offs inform future decisions |
+| Project-wide principles         | Architecture                    | Principles apply everywhere        |
+| Component breakdown for feature | Design                          | Implementation detail              |
+| Feature needs new schema        | Architecture first, then Design | Schema in Arch, feature in Design  |
+
+---
+
 ## Architecture Document
 
 **Use when**: Project-wide decisions, data models, system design
@@ -128,13 +142,15 @@ Update in place with version/status tracking:
 **✅ GOOD:**
 
 ```markdown
-**Implementation**: See `src/stores/gameStore.ts`
+**Implementation**: See `src/stores/gameStore.ts:12-45`
 **Usage example**: See `src/components/GamePanel.tsx`
 ```
 
 **❌ BAD:** "We use Zustand for state management" (no reference to actual code)
 
-- Use file paths for references (line numbers go stale in long-lived docs)
+- Key patterns → file + line range
+- Simple utilities → file path only (no line numbers)
+- Frequently changing code → file path only (line numbers go stale)
 
 ### 5. Version and Track Status
 
@@ -148,6 +164,17 @@ Update in place with version/status tracking:
 **Version bumps:** Major schema changes → v1 → v2; New sections → v1.0 → v1.1; Clarifications → no bump
 
 ---
+
+## TDD Workflow Integration
+
+**Workflow Order**:
+
+1. User Stories → What we're building
+2. Test Definitions → How we'll verify
+3. Design Doc → How we'll build it
+4. Check Architecture Doc → New tech/schema needed?
+5. Implement (RED → GREEN → REFACTOR)
+6. Update Architecture Doc if needed
 
 ### When to Update Architecture Doc
 
@@ -185,6 +212,46 @@ Update in place with version/status tracking:
 **❌ BAD:** `GET /api/users → Returns users from PostgreSQL` (implementation detail)
 
 **✅ GOOD:** `API Design: RESTful routes with input validation at boundary` (principle)
+
+---
+
+## Re-evaluation Path (When Unclear)
+
+Answer **IN ORDER**:
+
+1. **Affects 2+ features?** → Architecture Doc (stop)
+2. **Technology/data model choice?** → Architecture Doc (stop)
+3. **Future developers need this for whole project?** → Architecture Doc
+4. **Only for this feature?** → Design Doc
+
+**Tie-breaker:** When still unclear, default to Design Doc. Easier to promote later than to split.
+
+### Worked Example: Adding User Notifications
+
+**Scenario:** Add email notifications when users complete a purchase.
+
+1. **Affects 2+ features?** No, only checkout → Continue
+2. **Tech choice?** Yes, need to choose email service (SendGrid vs SES) → **Architecture Doc**
+
+**Result:**
+
+- `ARCHITECTURE.md` → "Email Service: SendGrid (Why: deliverability, cost, SDK quality)"
+- `planning/design/checkout-notifications.md` → Feature implementation referencing email decision
+
+---
+
+## File Organization
+
+```plaintext
+project/
+├── ARCHITECTURE.md                    # Single comprehensive doc
+├── .safeword-project/tickets/
+│   └── {id}-{slug}/
+│       ├── ticket.md
+│       ├── test-definitions.md
+│       └── design.md                  # Feature-specific design docs
+└── src/
+```
 
 ---
 
@@ -304,8 +371,21 @@ export default defineConfig([
 
 ---
 
-## Making Architecture Visible to Agents
+## Quality Checklist
 
-Put layer rules and key constraints in your project's CLAUDE.md so agents see them every session. Architecture docs are reference material — CLAUDE.md is the active instruction set.
+**Architecture Doc:**
 
-Use file paths without line numbers for long-lived docs (line numbers go stale).
+- [ ] Sequential decision tree or clear structure
+- [ ] All decisions have What/Why/Trade-off
+- [ ] Version and Status in header
+- [ ] Code references for key patterns
+- [ ] No implementation details
+
+---
+
+## Key Takeaways
+
+- One Architecture Doc per project—not scattered ADRs
+- Every decision needs: What / Why / Trade-off / Alternatives
+- Update when adding: technology, schema, or project-wide pattern
+- Living document—update in place with version/status tracking
