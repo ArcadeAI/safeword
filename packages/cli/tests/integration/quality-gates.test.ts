@@ -1223,7 +1223,7 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('done_when');
     });
 
-    it('9.3: allows test-definitions.md when ticket has all scope fields', () => {
+    it('9.3: allows test-definitions.md when ticket has all scope fields and dimensions.md exists', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/099-test/ticket.md',
@@ -1238,6 +1238,12 @@ describe('Quality Gates', () => {
           '---',
           '# Test',
         ].join('\n'),
+      );
+      // Features require dimensions.md before test-definitions.md
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+        '| Dimension | Partitions |\n|---|---|\n| Delivery | email, slack |\n',
       );
 
       const testDefsPath = nodePath.join(
@@ -1298,7 +1304,144 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
-    it('9.6: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
+    it('9.6: denies test-definitions.md when ticket is still in intake phase', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: intake',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('intake phase');
+    });
+
+    it('9.7: denies test-definitions.md for features without dimensions.md', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+      // Remove dimensions.md if it exists from prior test
+      const dimensionsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+      );
+      try {
+        execSync(`rm -f "${dimensionsPath}"`);
+      } catch {
+        // ignore — file may not exist
+      }
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('dimensions.md');
+    });
+
+    it('9.8: allows test-definitions.md for features with dimensions.md', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+        '| Dimension | Partitions |\n|---|---|\n| Delivery | email, slack |\n',
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('9.9: allows test-definitions.md for tasks without dimensions.md (feature-only gate)', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: task',
+          'phase: define-behavior',
+          'scope: Fix button color',
+          'out_of_scope: Layout changes',
+          'done_when: Button is red',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+      // No dimensions.md — tasks don't require it
+      const dimensionsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+      );
+      try {
+        execSync(`rm -f "${dimensionsPath}"`);
+      } catch {
+        // ignore — file may not exist
+      }
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('9.10: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
       const ticketPath = nodePath.join(
         projectDirectory,
         '.safeword-project/tickets/099-test/ticket.md',

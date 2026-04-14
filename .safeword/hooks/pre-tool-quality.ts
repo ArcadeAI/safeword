@@ -103,6 +103,26 @@ if (
       'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
     );
   }
+
+  // Phase gate: must have advanced past intake before writing scenarios.
+  if (meta.phase === 'intake') {
+    deny(
+      'Ticket is still in intake phase. Update phase to define-behavior before writing scenarios.',
+      'Complete understanding, then set phase: define-behavior in ticket frontmatter.',
+    );
+  }
+
+  // Dimension artifact gate: features require dimensions.md before test-definitions.md.
+  // Natural gate — next step's input doesn't exist if prior step was skipped.
+  if (meta.type === 'feature') {
+    const dimensionsFile = nodePath.join(ticketDirectory, 'dimensions.md');
+    if (!existsSync(dimensionsFile)) {
+      deny(
+        'Features require dimensions.md before test-definitions.md. Document behavioral dimensions and partitions first.',
+        'Create dimensions.md with a dimension table, then create test-definitions.md.',
+      );
+    }
+  }
 }
 
 // Never block edits to tooling/meta files — these are not application code.

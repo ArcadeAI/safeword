@@ -126,8 +126,9 @@ function fallbackGlobalScan(): TicketInfo {
 
 /**
  * Check if all scenarios in test-definitions.md are complete.
- * Reads file directly — structural verification, not prose matching.
- * Returns true if all scenario checkboxes are checked, false otherwise.
+ * Counts GFM task list checkboxes (- [x] / - [ ]). Headings (## Rule:)
+ * are organizational only — the hook counts checkboxes, not headers.
+ * Returns true if all checkboxes are checked, false otherwise.
  */
 function checkScenariosComplete(ticketInfo: TicketInfo): boolean {
   if (!ticketInfo.folder) return false;
@@ -135,10 +136,15 @@ function checkScenariosComplete(ticketInfo: TicketInfo): boolean {
   if (!existsSync(testDefsPath)) return false;
 
   const content = readFileSync(testDefsPath, 'utf8');
-  // Match top-level scenario checkboxes (### Test N.N lines have [x] or [ ])
-  const checked = (content.match(/^###\s+.*\[x\]/gim) ?? []).length;
-  const unchecked = (content.match(/^###\s+.*\[\s\]/gim) ?? []).length;
+  const checked = (content.match(/^\s*- \[x\]/gim) ?? []).length;
+  const unchecked = (content.match(/^\s*- \[ \]/gim) ?? []).length;
   const total = checked + unchecked;
+
+  if (total === 0 && content.length > 50) {
+    hardBlockDone(
+      'test-definitions.md has content but no GFM checkboxes (- [ ] / - [x]). Unrecognized scenario format — convert to GFM task list items.',
+    );
+  }
 
   return total > 0 && unchecked === 0;
 }
@@ -166,9 +172,9 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   }
 
   // File exists — verify it has at least one scenario (not empty/stub).
-  // Matches either ### heading checkboxes or - [ ] list checkboxes. Threshold: > 0.
+  // Counts GFM task list checkboxes (- [ ] / - [x]). Threshold: > 0.
   const content = readFileSync(testDefsPath, 'utf8');
-  const scenarioCount = (content.match(/^(###\s+.*\[.\]|\s*- \[)/gm) ?? []).length;
+  const scenarioCount = (content.match(/^\s*- \[.\]/gm) ?? []).length;
   if (scenarioCount === 0) {
     hardBlockDone(
       `Feature at ${ticketInfo.phase} phase: test-definitions.md has no scenarios defined. Add at least one before stopping.`,

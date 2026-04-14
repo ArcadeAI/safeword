@@ -466,7 +466,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [x]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
 
       const result = runStopHookForPhase(projectDirectory);
@@ -489,7 +489,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [ ]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
       );
 
       const result = runStopHookForPhase(projectDirectory);
@@ -513,7 +513,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [x]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
 
       // Transcript contains audit evidence (tests run by hook, scenarios checked by file)
@@ -682,7 +682,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [ ]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
       );
 
       const result = runStopHookForPhase(projectDirectory);
@@ -727,7 +727,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [ ]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
       );
 
       const result = runStopHookForPhase(projectDirectory);
@@ -771,7 +771,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [x]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
 
       // Test + scenario + audit evidence
@@ -797,7 +797,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [x]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
 
       // Has test + scenario evidence but NO audit evidence
@@ -823,7 +823,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n### Test 1.1: Scenario one [x]\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
 
       // Has test + scenario + audit evidence
