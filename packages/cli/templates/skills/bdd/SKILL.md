@@ -1,10 +1,10 @@
 ---
 name: bdd
-description: Behavior-first feature development. Discovers desired behavior
-  through examples and scenarios before implementation. Use when building new
+description: Behavior-first feature development — use when building new
   capabilities, continuing feature work, or when work introduces new state
-  or multiple user flows. Do NOT use for bug fixes, typos, or small isolated
-  changes.
+  or multiple user flows. Discovers desired behavior through examples and
+  scenarios before implementation. Do NOT use for bug fixes, typos, or small
+  isolated changes.
 allowed-tools: '*'
 ---
 

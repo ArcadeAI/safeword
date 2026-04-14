@@ -1,8 +1,8 @@
 ---
 name: verify
-description: Verify ticket completion criteria — tests, build, lint, scenarios,
-  and dependency drift. Use when finishing a ticket, before marking work done,
-  or to check that all acceptance criteria are met.
+description: Verify ticket completion criteria — use when finishing a ticket,
+  before marking work done, or checking acceptance criteria. Runs tests, build,
+  lint, scenarios, and dependency drift checks.
 allowed-tools: '*'
 ---
 
