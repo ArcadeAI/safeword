@@ -21,6 +21,6 @@ Before proceeding to Phase 3:
 
 ## Planning Note
 
-Phase 3 scenarios should draw from resolved questions during understanding — they inform which behavioral space to cover (not the exact scenarios). Add failure-mode scenarios from domain knowledge.
+Phase 3 scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed acceptance criteria. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
 
 Phase 5 (decomposition) is optional — skip if the architecture is clear from the converged proposal.
