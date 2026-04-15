@@ -24,6 +24,8 @@ import { VERSION } from '../../version.js';
 import { detect } from './detect.js';
 import { astroConfig } from './eslint-configs/astro.js';
 import { prettierConfig } from './eslint-configs/base.js';
+import { cliOverrides } from './eslint-configs/overrides-cli.js';
+import { relaxedTypesOverrides } from './eslint-configs/overrides-relaxed-types.js';
 import { playwrightConfig } from './eslint-configs/playwright.js';
 import { recommended } from './eslint-configs/recommended.js';
 import { nextOnlyRules, recommendedTypeScriptNext } from './eslint-configs/recommended-nextjs.js';
@@ -56,6 +58,13 @@ interface SafewordEslint {
     storybook: any[];
     turbo: any[];
   };
+  /** Override presets for common false-positive categories */
+  overrides: {
+    /** Security rules that are false positives for CLI tools, build tools, and scripts */
+    cli: any;
+    /** Strict TypeScript rules that conflict with untyped external data (JSON, YAML, APIs) */
+    relaxedTypes: any;
+  };
   detect: typeof detect;
   rules: Record<string, Rule.RuleModule>;
   /** eslint-config-prettier, bundled for convenience */
@@ -85,6 +94,10 @@ export const eslintPlugin: SafewordEslint = {
     storybook: storybookConfig,
     turbo: turboConfig,
   },
+  overrides: {
+    cli: cliOverrides,
+    relaxedTypes: relaxedTypesOverrides,
+  },
   detect,
   rules,
   prettierConfig,
@@ -94,6 +107,8 @@ export const eslintPlugin: SafewordEslint = {
 export { detect } from './detect.js';
 export { astroConfig } from './eslint-configs/astro.js';
 export { prettierConfig } from './eslint-configs/base.js';
+export { cliOverrides } from './eslint-configs/overrides-cli.js';
+export { relaxedTypesOverrides } from './eslint-configs/overrides-relaxed-types.js';
 export { playwrightConfig } from './eslint-configs/playwright.js';
 export { recommended } from './eslint-configs/recommended.js';
 export { nextOnlyRules, recommendedTypeScriptNext } from './eslint-configs/recommended-nextjs.js';

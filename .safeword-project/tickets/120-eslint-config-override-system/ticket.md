@@ -1,10 +1,24 @@
 ---
 id: '120'
 slug: eslint-config-override-system
-type: feature
-phase: intake
-status: backlog
+type: task
+phase: implement
+status: in-progress
 created: 2026-04-14
+scope:
+  - Export two named override presets from safeword/eslint (overrides.cli, overrides.relaxedTypes)
+  - Dogfood presets in packages/cli/eslint.config.mjs
+  - Document both paths (presets and individual rule overrides) in config.mdx and FAQ
+out_of_scope:
+  - Auto-detection of project type (rejected — heuristics fragile in monorepos)
+  - Sidecar override file .safeword-project/eslint-overrides.mjs (deferred to ticket 019)
+  - Hook-level smart lint-error suggestions (future ticket)
+  - Test-file override preset (test relaxations already covered by configs.vitest/playwright)
+done_when:
+  - Override presets exported and typed on SafewordEslint interface
+  - packages/cli/eslint.config.mjs uses presets instead of hand-maintained overrides
+  - Unit tests verify preset shape, rule contents, and plugin export
+  - Docs show both override paths (presets and individual rules)
 ---
 
 # ESLint Config Override System
@@ -38,3 +52,5 @@ Two separate issues:
 ## Work Log
 
 - 2026-04-14 Discovered during audit: 363 lint errors in packages/cli/ from strict rules that don't apply to CLI tools. Root config has overrides, package config doesn't. Post-tool hook uses root config path so per-edit linting works correctly.
+- 2026-04-15 Researched ESLint flat config ecosystem patterns (defineConfig, extends, shareable config authoring). Debated 4 approaches: named presets, auto-detection, sidecar file, hybrid. Selected named presets — matches ecosystem convention (typescript-eslint, eslint-config-prettier), preserves additive principle, minimal code.
+- 2026-04-15 Implemented overrides.cli (5 security rules) and overrides.relaxedTypes (10 TS strict rules). Exported as objects (not arrays) matching eslint-config-prettier convention. CLI config dogfoods both presets: 363 errors → 38 (remaining are test-file-only, covered by root monorepo config). Unit tests pass (8/8). Docs updated in configuration.mdx and FAQ.

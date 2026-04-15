@@ -43,6 +43,35 @@ No. Commit the `.safeword/`, `.claude/`, and `.cursor/` directories to your repo
 
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor events). They never run when you code normally, and safeword does not install git hooks or modify your commit workflow. Safeword adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
 
+### Some lint rules are wrong for my project type
+
+Safeword ships strict rules that are correct for web apps but can be false positives for CLI tools, build scripts, or code that handles untyped data (JSON, YAML, API responses).
+
+**Option 1: Use an override preset.** Safeword exports named presets that turn off common false-positive groups:
+
+```js
+export default [
+  ...safeword.configs.recommendedTypeScript,
+  safeword.overrides.cli, // security rules that don't apply to CLI tools
+  safeword.overrides.relaxedTypes, // strict TS rules that don't apply to untyped data
+];
+```
+
+**Option 2: Override individual rules.** Add a config object after the base config — later entries win:
+
+```js
+export default [
+  ...safeword.configs.recommendedTypeScript,
+  {
+    rules: {
+      'security/detect-non-literal-fs-filename': 'off',
+    },
+  },
+];
+```
+
+Both approaches work in your project's `eslint.config.mjs`. Safeword's LLM hooks inherit your project config, so overrides apply everywhere. See [Configuration](/reference/configuration) for details.
+
 ### Can I remove Safeword later?
 
 Yes. Run `bunx safeword reset --full` to remove all Safeword files and linting packages. Your application code is unaffected. See [CLI](/reference/cli) for details.
