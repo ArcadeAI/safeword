@@ -176,11 +176,11 @@ Commit after: GREEN phase, before/after refactoring, when switching tasks.
 
 ## Enforcement
 
-Safeword tracks your phase and TDD step, reminding you each turn via the prompt hook. The done gate requires evidence (tests pass, scenarios complete, audit run).
+Safeword tracks your phase and TDD step, reminding you each turn via the prompt hook. The done gate requires verify.md artifact (written by /verify when all checks pass).
 
-- **Natural gates** — you can't start TDD without test-definitions.md; you can't create test-definitions.md without ticket frontmatter fields: `scope`, `out_of_scope`, `done_when`
+- **Natural gates** — you can't start TDD without test-definitions.md; you can't create test-definitions.md without ticket frontmatter fields: `scope`, `out_of_scope`, `done_when`; you can't close a ticket without verify.md
 - **Reminders** — the prompt hook injects your current phase and TDD step each turn
-- **Output validation** — the done gate hard-blocks until evidence proves the work is complete
+- **Artifact validation** — the done gate hard-blocks until verify.md exists in the ticket folder
 - **LOC gate** — commit every ~400 lines of code (blast radius control)
 
 ---
