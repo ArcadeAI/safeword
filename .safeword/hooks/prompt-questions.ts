@@ -63,7 +63,7 @@ if (existsSync(stateFile)) {
           'define-behavior':
             'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
-            'Phase: scenario-gate. Validate scenarios (AODI: Atomic, Observable, Deterministic, Independent).',
+            'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior.',
           decomposition:
             'Phase: decomposition (optional). Break into tasks if architecture is unclear.',
           implement: tddStep
