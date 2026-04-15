@@ -55,6 +55,83 @@ export function getTicketInfo(projectDirectory: string, ticketId: string): Ticke
   }
 }
 
+/**
+ * Parse test-definitions.md sub-checkboxes to find current TDD step.
+ * Looks for the first scenario with mixed checked/unchecked sub-items.
+ * Returns the last completed step: 'red' (1 checked), 'green' (2 checked),
+ * 'refactor' (3 checked). Returns null if no active scenario found.
+ */
+export function parseTddStep(content: string): string | null {
+  const lines = content.split('\n');
+  const steps = ['red', 'green', 'refactor'];
+  let checkedCount = 0;
+  let uncheckedCount = 0;
+  let previousScenarioComplete = false;
+
+  for (const line of lines) {
+    // Detect scenario header — reset counters
+    if (/^###\s/.test(line)) {
+      // Check previous scenario before resetting
+      if (checkedCount > 0 && uncheckedCount > 0) {
+        return steps[checkedCount - 1] ?? null;
+      }
+      // Track if previous scenario was fully complete
+      previousScenarioComplete = checkedCount === 3 && uncheckedCount === 0;
+      checkedCount = 0;
+      uncheckedCount = 0;
+      continue;
+    }
+
+    // Count sub-checkboxes (RED/GREEN/REFACTOR)
+    const checkboxMatch = line.match(/^- \[([ x])\] (RED|GREEN|REFACTOR)\s*$/i);
+    if (checkboxMatch) {
+      if (checkboxMatch[1] === 'x') {
+        checkedCount++;
+      } else {
+        uncheckedCount++;
+      }
+    }
+  }
+
+  // Check last scenario — mixed means active
+  if (checkedCount > 0 && uncheckedCount > 0) {
+    return steps[checkedCount - 1] ?? null;
+  }
+
+  // Last scenario fully complete — return 'refactor' (just finished)
+  if (checkedCount === 3 && uncheckedCount === 0) {
+    return 'refactor';
+  }
+
+  // Last scenario all unchecked but previous was complete — REFACTOR just done
+  if (checkedCount === 0 && uncheckedCount > 0 && previousScenarioComplete) {
+    return 'refactor';
+  }
+
+  return null;
+}
+
+/**
+ * Derive TDD step from a ticket's test-definitions.md.
+ * Returns null if file doesn't exist or no active scenario found.
+ */
+export function deriveTddStep(projectDirectory: string, ticketFolder: string): string | null {
+  const testDefinitionsPath = nodePath.join(
+    projectDirectory,
+    '.safeword-project',
+    'tickets',
+    ticketFolder,
+    'test-definitions.md',
+  );
+  if (!existsSync(testDefinitionsPath)) return null;
+  try {
+    const content = readFileSync(testDefinitionsPath, 'utf8');
+    return parseTddStep(content);
+  } catch {
+    return null;
+  }
+}
+
 export function getActiveTicket(projectDirectory: string): ActiveTicketInfo {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
   if (!existsSync(ticketsDirectory)) return EMPTY;

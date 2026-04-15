@@ -100,25 +100,129 @@ describe('Phase Derivation (#124)', () => {
     removeTemporaryDirectory(projectDirectory);
   });
 
+  /** Base state with no phase cache fields */
+  function baseState(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      locSinceCommit: 0,
+      lastCommitHash: 'abc123',
+      activeTicket: null,
+      gate: null,
+      locAtLastReview: 0,
+      recentFailures: [],
+      incrementedPatterns: [],
+      ...overrides,
+    };
+  }
+
   // =========================================================================
   // Rule: Prompt hook derives phase from ticket file, not cache
   // =========================================================================
   describe('Prompt hook derives phase from ticket file', () => {
     it('1.1: reads phase from ticket.md via activeTicket binding', () => {
       createTicket(projectDirectory, '099', 'test-ticket', { phase: 'implement' });
-      writeState(projectDirectory, {
-        locSinceCommit: 0,
-        lastCommitHash: 'abc123',
-        activeTicket: '099',
-        gate: null,
-        locAtLastReview: 0,
-        recentFailures: [],
-        incrementedPatterns: [],
-      });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
 
       const output = runPromptHook(projectDirectory);
 
       expect(output).toContain('implement');
+    });
+
+    it('1.2: reflects phase change between invocations', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'define-behavior' });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output1 = runPromptHook(projectDirectory);
+      expect(output1).toContain('define-behavior');
+
+      // Edit ticket.md to change phase
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'implement' });
+
+      const output2 = runPromptHook(projectDirectory);
+      expect(output2).toContain('implement');
+      expect(output2).not.toContain('define-behavior');
+    });
+  });
+
+  // =========================================================================
+  // Rule: Prompt hook derives TDD step from test-definitions.md
+  // =========================================================================
+  describe('Prompt hook derives TDD step from test-definitions', () => {
+    it('2.1: TDD step derived from test-definitions at prompt time', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'implement' });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      // Create test-definitions.md with one checked RED sub-checkbox
+      const testDefinitions = [
+        '## Rule: Some rule',
+        '',
+        '- [ ] Some scenario',
+        '',
+        '### Scenario 1.1: Test scenario',
+        '',
+        '- [x] RED',
+        '- [ ] GREEN',
+        '- [ ] REFACTOR',
+      ].join('\n');
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/test-definitions.md',
+        testDefinitions,
+      );
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('TDD: RED');
+    });
+  });
+
+  // =========================================================================
+  // Rule: Cold start shows "no active ticket"
+  // =========================================================================
+  describe('Cold start', () => {
+    it('3.1: shows "no active ticket" when activeTicket is null', () => {
+      writeState(projectDirectory, baseState({ activeTicket: null }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('No active ticket');
+    });
+  });
+
+  // =========================================================================
+  // Rule: Freshness check clears stale activeTicket binding
+  // =========================================================================
+  describe('Freshness check clears stale binding', () => {
+    it('4.1: binding cleared when ticket status is done', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', {
+        phase: 'done',
+        status: 'done',
+      });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('No active ticket');
+    });
+
+    it('4.2: binding cleared for non-standard statuses', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', {
+        phase: 'implement',
+        status: 'blocked',
+      });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('No active ticket');
+    });
+
+    it('4.3: binding cleared when ticket folder is missing', () => {
+      // activeTicket points to non-existent ticket
+      writeState(projectDirectory, baseState({ activeTicket: '999' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('No active ticket');
     });
   });
 });

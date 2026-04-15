@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getTicketInfo } from './lib/active-ticket.ts';
+import { deriveTddStep, getTicketInfo } from './lib/active-ticket.ts';
 import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
@@ -51,7 +51,11 @@ if (existsSync(stateFile)) {
       const isActive = ticketInfo.status === 'in_progress';
 
       if (phase && isActive) {
-        const tddStep: string | null = null; // TODO: derive from test-definitions.md
+        // Derive TDD step from test-definitions.md when in implement phase
+        const tddStep =
+          phase === 'implement' && ticketInfo.folder
+            ? deriveTddStep(projectDirectory, ticketInfo.folder)
+            : null;
 
         // Phase-specific one-liner
         const reminders: Record<string, string> = {
@@ -81,7 +85,11 @@ if (existsSync(stateFile)) {
             lines.push(`- ${injection}`);
           }
         }
+      } else {
+        lines.push('- No active ticket.');
       }
+    } else {
+      lines.push('- No active ticket.');
     }
 
     // One-shot reminder: verify novel research claims before building on them

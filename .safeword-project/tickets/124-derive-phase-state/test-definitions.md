@@ -19,13 +19,13 @@
 - [x] GREEN
 - [x] REFACTOR
 
-- [ ] Given activeTicket is set and ticket.md has `phase: define-behavior`, when ticket.md is edited to `phase: implement` between two prompt hook invocations, then second invocation outputs implement reminder (not define-behavior)
+- [x] Given activeTicket is set and ticket.md has `phase: define-behavior`, when ticket.md is edited to `phase: implement` between two prompt hook invocations, then second invocation outputs implement reminder (not define-behavior)
 
 ### Scenario 1.2: Prompt hook reflects phase change between invocations
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
@@ -33,13 +33,13 @@
 
 > Rationale: TDD step (RED/GREEN/REFACTOR) must be read live from test-definitions.md checkboxes, not from lastKnownTddStep in state.
 
-- [ ] Given activeTicket is set, phase is implement, and test-definitions.md has an active scenario with 1 checked sub-checkbox (RED), when prompt hook runs, then output includes "TDD: RED"
+- [x] Given activeTicket is set, phase is implement, and test-definitions.md has an active scenario with 1 checked sub-checkbox (RED), when prompt hook runs, then output includes "TDD: RED"
 
 ### Scenario 2.1: TDD step derived from test-definitions at prompt time
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
@@ -47,13 +47,13 @@
 
 > Rationale: When no ticket is bound (new session, cleared binding), the prompt hook must say so explicitly rather than silently omitting phase info.
 
-- [ ] Given session state has no activeTicket (null), when prompt hook runs, then output includes "no active ticket"
+- [x] Given session state has no activeTicket (null), when prompt hook runs, then output includes "no active ticket"
 
 ### Scenario 3.1: Cold start with no active ticket
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
@@ -61,29 +61,29 @@
 
 > Rationale: If a ticket transitions away from in_progress (done, backlog, blocked, etc.), the binding should auto-clear at consumption time, not only at write time.
 
-- [ ] Given activeTicket points to a ticket whose status is "done", when prompt hook runs, then output shows "no active ticket" (binding cleared)
+- [x] Given activeTicket points to a ticket whose status is "done", when prompt hook runs, then output shows "no active ticket" (binding cleared)
 
 ### Scenario 4.1: Binding cleared when ticket status is done
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given activeTicket points to a ticket whose status is "blocked", when prompt hook runs, then output shows "no active ticket" (binding cleared for any non-in_progress status)
+- [x] Given activeTicket points to a ticket whose status is "blocked", when prompt hook runs, then output shows "no active ticket" (binding cleared for any non-in_progress status)
 
 ### Scenario 4.2: Binding cleared for non-standard statuses
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given activeTicket points to a ticket whose folder has been deleted, when prompt hook runs, then output shows "no active ticket" (graceful degradation)
+- [x] Given activeTicket points to a ticket whose folder has been deleted, when prompt hook runs, then output shows "no active ticket" (graceful degradation)
 
 ### Scenario 4.3: Binding cleared when ticket folder is missing
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
