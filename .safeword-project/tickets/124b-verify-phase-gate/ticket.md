@@ -1,8 +1,8 @@
 ---
 id: 124b
 type: feature
-phase: scenario-gate
-status: in_progress
+phase: done
+status: done
 created: 2026-04-15T14:12:00Z
 last_modified: 2026-04-15T18:12:00Z
 scope:
@@ -60,3 +60,7 @@ done_when:
 - 2026-04-15T14:12:00Z Created: from process audit of #124 — agent skipped Phase 7 (done gate) because no hard gate prevented the transition
 - 2026-04-15T18:12:00Z Complete: Phase 0-2 — Understanding converged. 7 design decisions resolved. Scope established as feature (7 files, new phase + artifact gate).
 - 2026-04-15T18:15:00Z Complete: Phase 3 — 8 scenarios defined across 4 rules. Self-reviewed AODI: removed 2 redundant scenarios, added empty verify.md edge case, reclassified phase table check as static verification.
+- 2026-04-15T21:52:00Z Complete: Phase 4 — AODI validated, adversarial pass clean, /quality-review approved. Skipping decomposition (architecture clear from file list). Starting implement.
+- 2026-04-15T22:43:00Z Complete: Phase 6 — All 8 scenarios implemented. 132/132 tests pass. Existing done gate tests updated (7 in hooks.test.ts).
+- 2026-04-15T23:06:00Z Complete: Phase 7 — /verify passed (132/132 tests, build, lint, 30/30 checkboxes), cross-scenario refactor done (setupDoneTicket helper), verify.md written. Learning captured (instruction-attention-hierarchy.md).
+- 2026-04-15T23:06:00Z Complete: Phase 8 — Ticket closed.
