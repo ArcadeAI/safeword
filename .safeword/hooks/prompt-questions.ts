@@ -75,6 +75,13 @@ if (existsSync(stateFile)) {
         }
       }
     }
+
+    // One-shot reminder: verify novel research claims before building on them
+    if (state.novelResearchReminder) {
+      lines.push('- Novel claim detected — verify with /quality-review before building on it.');
+      state.novelResearchReminder = false;
+      writeFileSync(stateFile, JSON.stringify(state, null, 2));
+    }
   } catch {
     // State file corrupted or unreadable — skip reminder, keep core principles
   }

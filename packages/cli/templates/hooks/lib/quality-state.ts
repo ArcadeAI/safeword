@@ -29,6 +29,7 @@ export interface QualityState {
   locAtLastReview: number;
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];
+  novelResearchReminder?: boolean;
 }
 
 /**

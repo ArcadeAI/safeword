@@ -170,6 +170,11 @@ if (
   }
 }
 
+// Novel research reminder: flag when a learnings file is created
+if (editedFile.includes('.safeword-project/learnings/') && editedFile.endsWith('.md')) {
+  state.novelResearchReminder = true;
+}
+
 saveState(state);
 process.exit(0);
 
