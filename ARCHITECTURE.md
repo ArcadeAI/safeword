@@ -444,19 +444,19 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 **Status:** Accepted
 **Date:** 2026-02-07 (updated 2026-03-20: added phase access control, meta-path exemption, null→phase skip, shared active-ticket module)
 
-| Field          | Value                                                                                                                                                       |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD`, detects phase transitions, and detects TDD step transitions via test-definitions.md       |
-| Why            | Prevents 1000-line PRs; forces commit discipline; phase gate prevents skipping BDD phases; TDD gates enforce RED→GREEN→REFACTOR review at each boundary     |
-| Trade-off      | Adds ~50ms per tool call (git diff + ticket scan); state file in `.safeword-project/quality-state.json` must be cleaned on commit                           |
-| Alternatives   | LOC check in stop hook only (rejected: too late), commit-prefix detection (rejected: convention-based, bypassable), manual discipline (rejected)            |
-| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; state in `.safeword-project/quality-state.json`; shared `lib/active-ticket.ts` |
+| Field          | Value                                                                                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | PostToolUse hook counts changed lines via `git diff --stat HEAD` and binds `activeTicket` on ticket.md edits. Phase and TDD step are derived at read time from ticket files, not cached. |
+| Why            | Prevents 1000-line PRs; forces commit discipline. Phase/TDD derivation avoids stale cache in multi-session/multi-developer scenarios.                                                    |
+| Trade-off      | Adds ~50ms per tool call (git diff + ticket scan); per-session state in `.safeword-project/quality-state-{sessionId}.json`                                                               |
+| Alternatives   | LOC check in stop hook only (rejected: too late), commit-prefix detection (rejected: convention-based, bypassable), manual discipline (rejected)                                         |
+| Implementation | `packages/cli/templates/hooks/post-tool-quality.ts` + `pre-tool-quality.ts`; per-session state files; shared `lib/active-ticket.ts` (includes `deriveTddStep()`)                         |
 
 **Gate types:**
 
 - **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`.safeword/`, `.claude/`, `.cursor/`, `.safeword-project/`) are excluded from the count via git pathspec, so setup/upgrade output doesn't inflate it.
-- **Phase gate** (`phase:{name}`) — triggers on ticket phase transitions; uses `additionalContext` to reference `/quality-review` skill. Ticket creation (null→phase) is silent — only real transitions gate.
-- **TDD gates** (`tdd:green`, `tdd:refactor`, `tdd:red`) — triggers when RED/GREEN/REFACTOR sub-checkboxes change in test-definitions.md during `implement` phase; uses `additionalContext` to reference `/tdd-review` skill
+- **Phase reminders** — prompt hook derives current phase from ticket.md via `getTicketInfo()` and injects phase-specific one-liner each turn. No blocking gate — guidance only.
+- **TDD step reminders** — prompt hook derives TDD step from test-definitions.md via `deriveTddStep()` during `implement` phase. Shows RED/GREEN/REFACTOR status each turn.
 
 **Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate, decomposition) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
 

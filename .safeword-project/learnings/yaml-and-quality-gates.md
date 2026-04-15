@@ -56,12 +56,11 @@ Common renames required:
 
 ## Quality Gate Workflow
 
-### Phase Gate
+### Phase Reminders (no longer a gate)
 
-- Blocks ALL file edits (Write/Edit) until commit clears it
-- Triggered when ticket phase changes
-- Cleared when `lastCommitHash` in `quality-state.json` matches HEAD
-- **Action:** Commit immediately after phase transitions
+- Phase and TDD step are derived from ticket files at read time (not cached in state)
+- Prompt hook shows phase-specific reminder each turn via `getTicketInfo()` + `deriveTddStep()`
+- No blocking — guidance only. Commit after phase transitions is still best practice.
 
 ### LOC Gate
 

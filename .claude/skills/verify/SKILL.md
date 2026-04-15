@@ -64,7 +64,17 @@ If ticket has `parent:` field:
 3. Check each child's `status:`
 4. Report: "Siblings: X/Y done"
 
-### 5. Check Dependency Drift
+### 5. Check Documentation References (skip if no ticket)
+
+Grep documentation files for identifiers changed by the ticket:
+
+1. Identify key symbols removed or renamed (interface fields, function names, file paths)
+2. Grep `*.md` files (excluding `.safeword-project/tickets/`) for those symbols
+3. Flag any matches: `"Doc reference to removed/changed symbol: {file}:{line} — {symbol}"`
+
+This catches stale documentation that references code you just changed.
+
+### 6. Check Dependency Drift
 
 Compare `package.json` dependencies against `ARCHITECTURE.md`:
 
@@ -81,7 +91,7 @@ Do NOT flag:
 - `@types/*` packages (type-only, not architectural)
 - Packages in `devDependencies` that are tooling (eslint plugins, prettier plugins, test utils) — only flag deps that represent architectural choices
 
-### 6. Report Results
+### 7. Report Results
 
 Format results using these EXACT patterns (hook validates these):
 
