@@ -4,7 +4,15 @@
 
 ## Understanding (Propose-and-Converge)
 
-Follow the understanding pattern from SAFEWORD.md — including contribution techniques and the specificity self-test. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
+Follow the understanding pattern from SAFEWORD.md — including contribution techniques. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
+
+**Specificity self-test** — before proposing scope, verify you can answer all three:
+
+- What behavior changes?
+- What behavior stays the same?
+- What is the observable done state?
+
+If any answer is vague, you have open questions — surface them.
 
 ### Concrete example
 
@@ -36,6 +44,7 @@ Follow the understanding pattern from SAFEWORD.md — including contribution tec
 
 Before proceeding to Phase 3:
 
+0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
 1. **Verify ticket exists:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
 2. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
 3. **Update frontmatter:** `phase: define-behavior`
