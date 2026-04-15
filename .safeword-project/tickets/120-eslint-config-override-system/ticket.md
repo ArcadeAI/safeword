@@ -3,7 +3,7 @@ id: '120'
 slug: eslint-config-override-system
 type: task
 phase: implement
-status: in-progress
+status: in_progress
 created: 2026-04-14
 scope:
   - Export two named override presets from safeword/eslint (overrides.cli, overrides.relaxedTypes)
