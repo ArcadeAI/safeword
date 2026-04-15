@@ -19,9 +19,9 @@
 - [ ] GREEN
 - [ ] REFACTOR
 
-- [ ] Given activeTicket is set but ticket.md has a different phase than what was previously cached, when prompt hook runs, then output reflects the current ticket.md phase (not stale cache)
+- [ ] Given activeTicket is set and ticket.md has `phase: define-behavior`, when ticket.md is edited to `phase: implement` between two prompt hook invocations, then second invocation outputs implement reminder (not define-behavior)
 
-### Scenario 1.2: Prompt hook reflects live phase changes
+### Scenario 1.2: Prompt hook reflects phase change between invocations
 
 - [ ] RED
 - [ ] GREEN
@@ -77,6 +77,14 @@
 - [ ] GREEN
 - [ ] REFACTOR
 
+- [ ] Given activeTicket points to a ticket whose folder has been deleted, when prompt hook runs, then output shows "no active ticket" (graceful degradation)
+
+### Scenario 4.3: Binding cleared when ticket folder is missing
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ---
 
 ## Rule: Compact context uses per-session state, not legacy shared file
@@ -99,6 +107,14 @@
 - [ ] GREEN
 - [ ] REFACTOR
 
+- [ ] Given per-session state has activeTicket set but the ticket status is "done", when compact context hook runs, then it outputs no ticket context (freshness check applies to compact context too)
+
+### Scenario 5.3: Compact context skips stale ticket binding
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ---
 
 ## Rule: Post-tool no longer caches phase or TDD step
@@ -113,7 +129,7 @@
 - [ ] GREEN
 - [ ] REFACTOR
 
-- [ ] Given test-definitions.md is edited during implement phase, when post-tool hook runs, then state file does NOT contain lastKnownTddStep
+- [ ] Given test-definitions.md is edited, when post-tool hook runs, then state file does NOT contain lastKnownTddStep
 
 ### Scenario 6.2: Post-tool does not cache TDD step
 
@@ -123,13 +139,13 @@
 
 ---
 
-## Rule: QualityState interface has no phase cache fields
+## Rule: No residual cache fields or functions remain
 
-> Rationale: Type-level guarantee that no consumer can accidentally read cached phase/TDD state.
+> Rationale: Type-level and code-level guarantee that no consumer can accidentally read cached phase/TDD state or call removed helpers.
 
-- [ ] Given the QualityState interface in quality-state.ts, when inspected, then it contains no lastKnownPhase or lastKnownTddStep fields
+- [ ] Given the codebase after implementation, when grepping for `lastKnownPhase`, `lastKnownTddStep`, and `parseTddStep`, then zero matches found in hook source files
 
-### Scenario 7.1: Interface fields removed (compile-time verification)
+### Scenario 7.1: Cache fields and parseTddStep removed (static verification)
 
 - [ ] RED
 - [ ] GREEN
@@ -139,16 +155,16 @@
 
 ## Coverage Summary
 
-**Total**: 11 scenarios
+**Total**: 13 scenarios
 **Passing**: 0 (0%)
-**Not Implemented**: 11 (100%)
+**Not Implemented**: 13 (100%)
 
 **Rules**: 7
 
 - Prompt hook derives phase from ticket (2 scenarios)
 - Prompt hook derives TDD step from test-definitions (1 scenario)
 - Cold start shows no active ticket (1 scenario)
-- Freshness check clears stale binding (2 scenarios)
-- Compact context uses per-session state (2 scenarios)
+- Freshness check clears stale binding (3 scenarios — done, blocked, missing folder)
+- Compact context uses per-session state (3 scenarios — happy path, legacy fallback, stale binding)
 - Post-tool no longer caches phase/TDD (2 scenarios)
-- QualityState interface clean (1 scenario)
+- No residual cache fields or functions (1 scenario — static grep verification)
