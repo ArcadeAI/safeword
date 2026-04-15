@@ -1,7 +1,7 @@
 ---
 id: 124b
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 created: 2026-04-15T14:12:00Z
 last_modified: 2026-04-15T18:12:00Z
@@ -13,6 +13,8 @@ scope:
   - '/verify skill: write output to {ticket-folder}/verify.md'
   - 'SKILL.md: add verify to phase table + resume logic'
   - 'DONE.md: simplify to just close (verify steps moved out)'
+  - 'verify.md artifact includes timestamp for staleness detection'
+  - 'Done prompt reminder simplified: "Phase: done. Close ticket (verify.md exists)."'
 out_of_scope:
   - Pre-tool gate on phase transitions (fragile — requires parsing edit content)
   - Changing how /audit works (separate concern)
@@ -57,3 +59,4 @@ done_when:
 
 - 2026-04-15T14:12:00Z Created: from process audit of #124 — agent skipped Phase 7 (done gate) because no hard gate prevented the transition
 - 2026-04-15T18:12:00Z Complete: Phase 0-2 — Understanding converged. 7 design decisions resolved. Scope established as feature (7 files, new phase + artifact gate).
+- 2026-04-15T18:15:00Z Complete: Phase 3 — 8 scenarios defined across 4 rules. Self-reviewed AODI: removed 2 redundant scenarios, added empty verify.md edge case, reclassified phase table check as static verification.
