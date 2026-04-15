@@ -59,7 +59,8 @@ if (existsSync(stateFile)) {
 
         // Phase-specific one-liner
         const reminders: Record<string, string> = {
-          intake: 'Phase: understanding. Contribute a perspective, surface open questions.',
+          intake:
+            'Phase: understanding. Contribute a perspective, surface open questions. Self-test: what changes, what stays the same, observable done state.',
           'define-behavior':
             'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
