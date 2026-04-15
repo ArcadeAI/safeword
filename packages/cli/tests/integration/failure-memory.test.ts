@@ -184,29 +184,25 @@ describe('Failure Memory (#111)', () => {
     });
 
     it('stop hook writes recentFailures when done gate blocks for test failure', () => {
-      // Create a done-phase feature ticket
+      // Create a done-phase feature ticket (id without quotes — regex extracts literal)
       const ticketFolder = '.safeword-project/tickets/099-test';
       writeTestFile(
         projectDirectory,
         `${ticketFolder}/ticket.md`,
-        ['---', "id: '099'", 'status: in_progress', 'type: feature', 'phase: done', '---'].join(
-          '\n',
-        ),
+        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
       );
       writeTestFile(
         projectDirectory,
         `${ticketFolder}/test-definitions.md`,
-        '### Test 1.1: Scenario one [x]\n',
+        '## Rule: Test\n\n- [x] Scenario one\n',
       );
 
-      // Session state bound to this ticket
+      // Session state bound to this ticket (phase derived from ticket.md, not cached)
       writeState(projectDirectory, {
         locSinceCommit: 10,
         lastCommitHash: getHead(projectDirectory),
         activeTicket: '099',
-        lastKnownPhase: 'done',
         gate: null,
-        lastKnownTddStep: null,
         locAtLastReview: 0,
       });
 
@@ -221,13 +217,20 @@ describe('Failure Memory (#111)', () => {
     });
 
     it('prompt hook injects failure parenthetical when recentFailures has entries', () => {
+      // Create ticket so getTicketInfo() resolves (phase derived from file, not cache)
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: implement', '---'].join(
+          '\n',
+        ),
+      );
+
       writeState(projectDirectory, {
         locSinceCommit: 100,
         lastCommitHash: getHead(projectDirectory),
         activeTicket: '099',
-        lastKnownPhase: 'implement',
         gate: null,
-        lastKnownTddStep: 'green',
         locAtLastReview: 0,
         recentFailures: [{ pattern: 'loc-exceeded', timestamp: new Date().toISOString() }],
       });
