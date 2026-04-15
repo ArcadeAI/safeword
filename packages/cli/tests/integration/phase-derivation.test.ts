@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   initGitRepo,
+  readTestFile,
   removeTemporaryDirectory,
   TIMEOUT_QUICK,
   writeTestFile,
@@ -25,6 +26,7 @@ import {
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
 const COMPACT_CONTEXT = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/session-compact-context.ts');
+const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,7 +52,7 @@ function createTicket(
   const { phase = 'implement', status = 'in_progress', type = 'feature' } = options;
   const content = [
     '---',
-    `id: '${id}'`,
+    `id: ${id}`,
     `type: ${type}`,
     `phase: ${phase}`,
     `status: ${status}`,
@@ -283,6 +285,91 @@ describe('Phase Derivation (#124)', () => {
       // Should not output ticket context for done tickets
       expect(output).not.toContain('implement');
       expect(output).not.toContain('Ticket: 099');
+    });
+  });
+
+  // =========================================================================
+  // Rule: Post-tool no longer caches phase or TDD step
+  // =========================================================================
+  describe('Post-tool no longer caches phase or TDD step', () => {
+    /** Run post-tool quality hook */
+    function runPostToolQuality(
+      cwd: string,
+      toolName: string,
+      filePath: string,
+      sessionId = 'test-session',
+    ): void {
+      spawnSync('bun', [POST_TOOL_QUALITY], {
+        input: JSON.stringify({
+          session_id: sessionId,
+          hook_event_name: 'PostToolUse',
+          tool_name: toolName,
+          tool_input: { file_path: filePath },
+        }),
+        cwd,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+    }
+
+    /** Read per-session quality state */
+    function readState(cwd: string, sessionId = 'test-session'): Record<string, unknown> {
+      return JSON.parse(readTestFile(cwd, `.safeword-project/quality-state-${sessionId}.json`));
+    }
+
+    it('6.1: post-tool sets activeTicket but not phase cache', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'define-behavior' });
+      const head = execSync('git rev-parse --short HEAD', {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      }).trim();
+      writeState(projectDirectory, baseState({ lastCommitHash: head }));
+
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/ticket.md',
+      );
+      runPostToolQuality(projectDirectory, 'Edit', ticketPath);
+
+      const state = readState(projectDirectory);
+      expect(state.activeTicket).toBe('099');
+      expect(state).not.toHaveProperty('lastKnownPhase');
+    });
+
+    it('6.2: post-tool does not cache TDD step', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'implement' });
+      const head = execSync('git rev-parse --short HEAD', {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      }).trim();
+      writeState(projectDirectory, baseState({ activeTicket: '099', lastCommitHash: head }));
+
+      const testDefsContent = [
+        '## Rule: Test',
+        '',
+        '- [ ] Scenario',
+        '',
+        '### Scenario 1.1: Test',
+        '',
+        '- [x] RED',
+        '- [ ] GREEN',
+        '- [ ] REFACTOR',
+      ].join('\n');
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/test-definitions.md',
+        testDefsContent,
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/test-definitions.md',
+      );
+      runPostToolQuality(projectDirectory, 'Edit', testDefsPath);
+
+      const state = readState(projectDirectory);
+      expect(state).not.toHaveProperty('lastKnownTddStep');
     });
   });
 });

@@ -119,20 +119,13 @@ if (state.locSinceCommit >= LOC_THRESHOLD) {
   state.gate = 'loc';
 }
 
-// Phase change detection
+// Active ticket binding (phase/TDD step no longer cached — derived at read time)
 if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
   const fullPath = editedFile.startsWith('/')
     ? editedFile
     : nodePath.join(projectDirectory, editedFile);
   if (existsSync(fullPath)) {
     const content = readFileSync(fullPath, 'utf8');
-    const phaseMatch = content.match(/^phase:\s*(\S+)/m);
-    const currentPhase = phaseMatch?.[1];
-
-    if (currentPhase && currentPhase !== state.lastKnownPhase) {
-      // Track phase for prompt hook reminders (no longer sets a gate)
-      state.lastKnownPhase = currentPhase;
-    }
 
     // Track active ticket
     const idMatch = content.match(/^id:\s*(\S+)/m);
@@ -145,27 +138,6 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
     const ticketStatus = statusMatch?.[1];
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       state.activeTicket = null;
-      state.lastKnownPhase = null;
-    }
-  }
-}
-
-// TDD step detection (test-definitions.md sub-checkboxes)
-if (
-  state.lastKnownPhase === 'implement' &&
-  editedFile.includes('.safeword-project/tickets/') &&
-  editedFile.endsWith('test-definitions.md')
-) {
-  const fullPath = editedFile.startsWith('/')
-    ? editedFile
-    : nodePath.join(projectDirectory, editedFile);
-  if (existsSync(fullPath)) {
-    const content = readFileSync(fullPath, 'utf8');
-    const currentStep = parseTddStep(content);
-
-    if (currentStep && currentStep !== state.lastKnownTddStep) {
-      // Track TDD step for prompt hook reminders (no longer sets a gate)
-      state.lastKnownTddStep = currentStep;
     }
   }
 }
@@ -177,63 +149,3 @@ if (editedFile.includes('.safeword-project/learnings/') && editedFile.endsWith('
 
 saveState(state);
 process.exit(0);
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Parse test-definitions.md sub-checkboxes to find current TDD step.
- * Looks for the first scenario with mixed checked/unchecked sub-items.
- * Returns the last completed step: 'red' (1 checked), 'green' (2 checked),
- * 'refactor' (3 checked). Returns null if no active scenario found.
- */
-function parseTddStep(content: string): string | null {
-  const lines = content.split('\n');
-  const steps = ['red', 'green', 'refactor'];
-  let checkedCount = 0;
-  let uncheckedCount = 0;
-  let previousScenarioComplete = false;
-
-  for (const line of lines) {
-    // Detect scenario header — reset counters
-    if (/^###\s/.test(line)) {
-      // Check previous scenario before resetting
-      if (checkedCount > 0 && uncheckedCount > 0) {
-        return steps[checkedCount - 1] ?? null;
-      }
-      // Track if previous scenario was fully complete
-      previousScenarioComplete = checkedCount === 3 && uncheckedCount === 0;
-      checkedCount = 0;
-      uncheckedCount = 0;
-      continue;
-    }
-
-    // Count sub-checkboxes (RED/GREEN/REFACTOR)
-    const checkboxMatch = line.match(/^- \[([ x])\] (RED|GREEN|REFACTOR)\s*$/i);
-    if (checkboxMatch) {
-      if (checkboxMatch[1] === 'x') {
-        checkedCount++;
-      } else {
-        uncheckedCount++;
-      }
-    }
-  }
-
-  // Check last scenario — mixed means active
-  if (checkedCount > 0 && uncheckedCount > 0) {
-    return steps[checkedCount - 1] ?? null;
-  }
-
-  // Last scenario fully complete — return 'refactor' (just finished)
-  if (checkedCount === 3 && uncheckedCount === 0) {
-    return 'refactor';
-  }
-
-  // Last scenario all unchecked but previous was complete — REFACTOR just done
-  if (checkedCount === 0 && uncheckedCount > 0 && previousScenarioComplete) {
-    return 'refactor';
-  }
-
-  return null;
-}

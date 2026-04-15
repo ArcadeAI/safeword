@@ -121,21 +121,21 @@
 
 > Rationale: post-tool-quality.ts must stop writing lastKnownPhase and lastKnownTddStep to state. activeTicket binding remains.
 
-- [ ] Given a ticket.md is edited with a phase change, when post-tool hook runs, then state file contains activeTicket but NOT lastKnownPhase
+- [x] Given a ticket.md is edited with a phase change, when post-tool hook runs, then state file contains activeTicket but NOT lastKnownPhase
 
 ### Scenario 6.1: Post-tool sets activeTicket but not phase cache
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given test-definitions.md is edited, when post-tool hook runs, then state file does NOT contain lastKnownTddStep
+- [x] Given test-definitions.md is edited, when post-tool hook runs, then state file does NOT contain lastKnownTddStep
 
 ### Scenario 6.2: Post-tool does not cache TDD step
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 

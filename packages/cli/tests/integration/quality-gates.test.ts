@@ -203,7 +203,7 @@ describe('Quality Gates', () => {
   // Suite 2: Phase Gate
   // =========================================================================
   describe('Phase Gate', () => {
-    it('2.1: PostToolUse detects phase change in ticket.md', () => {
+    it('2.1: PostToolUse binds activeTicket but does not cache phase', () => {
       const ticketPath = '.safeword-project/tickets/099-test/ticket.md';
       writeTestFile(
         projectDirectory,
@@ -217,8 +217,7 @@ describe('Quality Gates', () => {
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
-        activeTicket: '099',
-        lastKnownPhase: 'intake',
+        activeTicket: null,
         gate: null,
       });
 
@@ -231,9 +230,10 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      // Phase transitions no longer set gates — they update state for prompt hook reminders
+      // Phase is no longer cached — derived at read time via getTicketInfo()
       expect(state.gate).toBeNull();
-      expect(state.lastKnownPhase).toBe('implement');
+      expect(state.activeTicket).toBe('099');
+      expect(state).not.toHaveProperty('lastKnownPhase');
     });
 
     it('2.2: PreToolUse allows edits even with phase gate set (gates are now reminders)', () => {
@@ -378,7 +378,7 @@ describe('Quality Gates', () => {
       expect(state.locSinceCommit).toBeGreaterThan(0);
     });
 
-    it('2.8: ticket creation (null→phase) does not set gate', () => {
+    it('2.8: ticket creation binds activeTicket without caching phase', () => {
       const ticketPath = '.safeword-project/tickets/099-test/ticket.md';
       writeTestFile(
         projectDirectory,
@@ -391,8 +391,6 @@ describe('Quality Gates', () => {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: null,
-        lastKnownPhase: null,
-        lastKnownTddStep: null,
         gate: null,
       });
 
@@ -405,13 +403,12 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      // Phase tracked but no gate — null→phase is not a transition
-      expect(state.lastKnownPhase).toBe('implement');
       expect(state.gate).toBeNull();
       expect(state.activeTicket).toBe('099');
+      expect(state).not.toHaveProperty('lastKnownPhase');
     });
 
-    it('2.9: real phase transition (non-null→phase) still sets gate', () => {
+    it('2.9: ticket edit binds activeTicket without caching phase', () => {
       const ticketPath = '.safeword-project/tickets/099-test/ticket.md';
       writeTestFile(
         projectDirectory,
@@ -424,8 +421,6 @@ describe('Quality Gates', () => {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
-        lastKnownPhase: 'intake',
-        lastKnownTddStep: null,
         gate: null,
       });
 
@@ -438,8 +433,8 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      // Phase transitions update state but no longer set gates
-      expect(state.lastKnownPhase).toBe('implement');
+      expect(state.activeTicket).toBe('099');
+      expect(state).not.toHaveProperty('lastKnownPhase');
       expect(state.gate).toBeNull();
     });
   });
@@ -709,14 +704,12 @@ describe('Quality Gates', () => {
       return relativePath;
     }
 
-    it('7: RED checkbox marked updates lastKnownTddStep (no gate)', () => {
+    it('7: RED checkbox edit does not cache TDD step in state', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
-        lastKnownPhase: 'implement',
-        lastKnownTddStep: null,
         gate: null,
       });
 
@@ -733,19 +726,16 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      // TDD step tracked for prompt hook reminders — no gate set
       expect(state.gate).toBeNull();
-      expect(state.lastKnownTddStep).toBe('red');
+      expect(state).not.toHaveProperty('lastKnownTddStep');
     });
 
-    it('8: GREEN checkbox marked updates lastKnownTddStep (no gate)', () => {
+    it('8: GREEN checkbox edit does not cache TDD step in state', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
-        lastKnownPhase: 'implement',
-        lastKnownTddStep: 'red',
         gate: null,
       });
 
@@ -763,17 +753,15 @@ describe('Quality Gates', () => {
 
       const state = readState(projectDirectory);
       expect(state.gate).toBeNull();
-      expect(state.lastKnownTddStep).toBe('green');
+      expect(state).not.toHaveProperty('lastKnownTddStep');
     });
 
-    it('9: REFACTOR checkbox marked updates lastKnownTddStep (no gate)', () => {
+    it('9: REFACTOR checkbox edit does not cache TDD step in state', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
-        lastKnownPhase: 'implement',
-        lastKnownTddStep: 'green',
         gate: null,
       });
 
@@ -792,17 +780,15 @@ describe('Quality Gates', () => {
 
       const state = readState(projectDirectory);
       expect(state.gate).toBeNull();
-      expect(state.lastKnownTddStep).toBe('refactor');
+      expect(state).not.toHaveProperty('lastKnownTddStep');
     });
 
-    it('10: no gate when TDD step unchanged', () => {
+    it('10: test-definitions edit does not set any gate', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
-        lastKnownPhase: 'implement',
-        lastKnownTddStep: 'red',
         gate: null,
       });
 
@@ -822,14 +808,12 @@ describe('Quality Gates', () => {
       expect(state.gate).toBeNull();
     });
 
-    it('11: TDD detection only during implement phase', () => {
+    it('11: test-definitions edit in non-implement phase sets no gate', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
-        lastKnownPhase: 'decomposition',
-        lastKnownTddStep: null,
         gate: null,
       });
 
@@ -855,8 +839,6 @@ describe('Quality Gates', () => {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: '099',
-        lastKnownPhase: 'implement',
-        lastKnownTddStep: null,
         gate: null,
       });
 
