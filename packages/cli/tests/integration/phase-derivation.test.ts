@@ -386,6 +386,16 @@ describe('Phase Derivation (#124)', () => {
       expect(output).toContain('verify');
       expect(output).toContain('/audit');
     });
+
+    it('1.2: done phase shows simplified reminder', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'done' });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('Close ticket');
+      expect(output).not.toContain('refactor');
+    });
   });
 
   // =========================================================================
