@@ -1,0 +1,58 @@
+---
+id: '126'
+slug: implement-phase-requires-test-definitions
+type: task
+phase: intake
+status: backlog
+created: 2026-04-15
+---
+
+# Implement phase requires test-definitions.md gate
+
+## Problem
+
+An agent can write implementation code without ever creating test-definitions.md. SAFEWORD.md states "you can't start TDD without test-definitions.md" (line 175), but this is a stated principle, not an enforced gate.
+
+The pre-tool-quality.ts hook only gates:
+
+- **test-definitions.md creation** — requires scope/out_of_scope/done_when in ticket frontmatter
+- **LOC threshold** — commit every ~400 lines
+
+No gate blocks writing application code when `phase: implement` and test-definitions.md doesn't exist.
+
+## Discovery Context
+
+Found during ticket #120 (ESLint override presets). The agent went from intake → writing implementation code → tests after the fact. The prompt hook showed "Phase: implement. Pick first unchecked scenario, start TDD" but only after implementation was already complete. The reminder was too late — a soft nudge after code was written, not a hard gate before.
+
+Contributing factors:
+
+- Phase transitions are self-reported (agent edits ticket frontmatter)
+- The agent changed phase from intake → implement in the same commit as the implementation code
+- All non-LOC gates were demoted to reminders in ticket #109 (enforcement redesign)
+
+## The Gap
+
+```
+pre-tool-quality.ts line 179:
+// All other gates (tdd:*, phase:*) are now reminders via prompt hook, not hard blocks.
+```
+
+This deliberate design choice means the prompt hook is the only TDD enforcement, and it's advisory. An agent that ignores the reminder faces no structural barrier.
+
+## Open Questions
+
+- Should this be a hard gate (deny the edit) or a graduated response (warn first, block after N edits)?
+- Should it fire in any phase with an active ticket, or only in `implement` phase?
+- What about legitimate non-TDD edits in implement phase (ticket.md updates, config changes, docs)?
+- How does this interact with ticket #124 (derive phase state) which removes lastKnownPhase caching?
+- Is the real issue that phase transitions are self-reported rather than system-enforced?
+
+## Relationship to Other Tickets
+
+- **#109** (enforcement redesign): parent decision that demoted phase gates to reminders
+- **#124** (derive phase state): changes how phase is read — gate should derive from ticket.md directly
+- **#125** (TDD step fragility): adjacent concern — #125 is about TDD step accuracy once in TDD, this is about entering TDD at all
+
+## Work Log
+
+- 2026-04-15 Created: discovered during ticket #120 post-mortem — agent skipped TDD entirely, no gate fired
