@@ -445,8 +445,8 @@ describe('Phase Derivation (#124)', () => {
       }
     }
 
-    it('3.2: done blocked without verify.md', () => {
-      // Create a done-phase feature ticket with complete scenarios but NO verify.md
+    /** Set up a done-phase feature ticket with complete scenarios */
+    function setupDoneTicket(): string {
       const ticketFolder = '.safeword-project/tickets/099-test';
       writeTestFile(
         projectDirectory,
@@ -459,6 +459,11 @@ describe('Phase Derivation (#124)', () => {
         '## Rule: Test\n\n- [x] Scenario one\n',
       );
       writeState(projectDirectory, baseState({ activeTicket: '099' }));
+      return ticketFolder;
+    }
+
+    it('3.2: done blocked without verify.md', () => {
+      setupDoneTicket();
 
       const transcriptPath = createTranscript(projectDirectory);
       const result = runStopHook(
@@ -468,51 +473,27 @@ describe('Phase Derivation (#124)', () => {
         'Audit passed. All done.',
       );
 
-      // Should block because verify.md is missing
       expect(result.decision).toBe('block');
       expect(result.reason).toContain('verify');
     });
 
     it('3.1: done allowed with valid verify.md', () => {
-      const ticketFolder = '.safeword-project/tickets/099-test';
-      writeTestFile(
-        projectDirectory,
-        `${ticketFolder}/ticket.md`,
-        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
-      );
-      writeTestFile(
-        projectDirectory,
-        `${ticketFolder}/test-definitions.md`,
-        '## Rule: Test\n\n- [x] Scenario one\n',
-      );
+      const ticketFolder = setupDoneTicket();
       writeTestFile(
         projectDirectory,
         `${ticketFolder}/verify.md`,
         'Verified: 2026-04-15T18:00:00Z\n\n## Verify Checklist\n\n**Test Suite:** ✓ 10/10 tests pass\n',
       );
-      writeState(projectDirectory, baseState({ activeTicket: '099' }));
 
       const transcriptPath = createTranscript(projectDirectory);
       const result = runStopHook(projectDirectory, transcriptPath);
 
-      // Should NOT block — verify.md exists with content
       expect(result.decision).not.toBe('block');
     });
 
     it('3.3: done blocked with empty verify.md', () => {
-      const ticketFolder = '.safeword-project/tickets/099-test';
-      writeTestFile(
-        projectDirectory,
-        `${ticketFolder}/ticket.md`,
-        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
-      );
-      writeTestFile(
-        projectDirectory,
-        `${ticketFolder}/test-definitions.md`,
-        '## Rule: Test\n\n- [x] Scenario one\n',
-      );
+      const ticketFolder = setupDoneTicket();
       writeTestFile(projectDirectory, `${ticketFolder}/verify.md`, '');
-      writeState(projectDirectory, baseState({ activeTicket: '099' }));
 
       const transcriptPath = createTranscript(projectDirectory);
       const result = runStopHook(
@@ -522,7 +503,6 @@ describe('Phase Derivation (#124)', () => {
         'Audit passed. All done.',
       );
 
-      // Should block — empty verify.md is not valid evidence
       expect(result.decision).toBe('block');
       expect(result.reason).toContain('verify');
     });
