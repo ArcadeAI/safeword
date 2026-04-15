@@ -61,7 +61,7 @@ if (existsSync(stateFile)) {
         const reminders: Record<string, string> = {
           intake: 'Phase: understanding. Contribute a perspective, surface open questions.',
           'define-behavior':
-            'Phase: define-behavior. Write scenarios from your converged proposal.',
+            'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
             'Phase: scenario-gate. Validate scenarios (AODI: Atomic, Observable, Deterministic, Independent).',
           decomposition:
