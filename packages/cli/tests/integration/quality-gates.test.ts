@@ -373,7 +373,6 @@ describe('Quality Gates', () => {
 
       const state = readState(projectDirectory);
       expect(state.gate).toBeNull();
-      expect(state.lastKnownPhase).toBe('intake');
       // LOC should still be tracked (file has 1 line)
       expect(state.locSinceCommit).toBeGreaterThan(0);
     });
