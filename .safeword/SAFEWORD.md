@@ -88,6 +88,12 @@ Fallback: task. User can /bdd to override.
 
 ---
 
+## Reasoning Discipline
+
+Before proposing a significant decision, research first. Read relevant code, docs, or patterns. Identify 2-3 options, evaluate against criteria (correctness, simplicity, no bloat), then propose with rationale — state what was considered and why you chose this one.
+
+---
+
 ## Code Philosophy
 
 **Optimize for:** Clarity → Simplicity → Correctness (in that order)
@@ -190,7 +196,8 @@ Safeword tracks your phase and TDD step, reminding you each turn via the prompt 
 1. **Clarity → Simplicity → Correctness** (in that order)
 2. **Test what you can test**—never ask user to verify
 3. **Understand before sizing**—contribute a perspective, then classify internally
-4. **Commit after each GREEN phase**
-5. **Read the matching guide** when a trigger fires
-6. **Always read the latest documentation for the relevant tool**
-7. **AVOID BLOAT**
+4. **Research before proposing**—explore options proportional to decision magnitude
+5. **Commit after each GREEN phase**
+6. **Read the matching guide** when a trigger fires
+7. **Always read the latest documentation for the relevant tool**
+8. **AVOID BLOAT**

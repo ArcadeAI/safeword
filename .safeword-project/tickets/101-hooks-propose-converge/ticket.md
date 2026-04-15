@@ -2,8 +2,10 @@
 id: '101'
 title: Apply propose-and-converge to Safeword hooks
 type: feature
-phase: intake
+phase: done
+status: done
 created: 2026-04-11
+last_modified: 2026-04-15T04:22:00Z
 related: '100'
 ---
 
