@@ -374,6 +374,21 @@ describe('Phase Derivation (#124)', () => {
   });
 
   // =========================================================================
+  // Rule: Prompt hook shows phase-appropriate reminders (#124b)
+  // =========================================================================
+  describe('Verify phase prompt reminders (#124b)', () => {
+    it('1.1: verify phase shows verify-specific reminder', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'verify' });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('verify');
+      expect(output).toContain('/audit');
+    });
+  });
+
+  // =========================================================================
   // Rule: No residual cache fields or functions remain
   // =========================================================================
   describe('No residual cache fields or functions', () => {

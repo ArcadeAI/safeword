@@ -69,7 +69,8 @@ if (existsSync(stateFile)) {
           implement: tddStep
             ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
             : 'Phase: implement. Pick first unchecked scenario, start TDD.',
-          done: 'Phase: done. Finish (refactor → verify → audit), then close.',
+          verify: 'Phase: verify. Cross-scenario refactor if needed, then run /verify and /audit.',
+          done: 'Phase: done. Close ticket (verify.md exists).',
         };
 
         const reminder = reminders[phase];
