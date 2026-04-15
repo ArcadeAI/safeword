@@ -2,7 +2,7 @@
 id: '125'
 type: task
 phase: intake
-status: backlog
+status: in_progress
 created: 2026-04-14T20:57:00Z
 last_modified: 2026-04-14T20:57:00Z
 ---
@@ -58,6 +58,52 @@ When `stop_hook_active` is true (stop hook already fired once this turn), the ho
 - **Ticket #124** (derive phase state): if parseTddStep consumers are removed, Problem 1 becomes moot — parser has no readers. But if TDD step tracking is revived (e.g., via escalating gate), the format contract still matters.
 - **Ticket #109** (enforcement redesign): parent context for this architectural discussion.
 
+## Analysis (post ticket #124)
+
+### Problem 1 reassessment
+
+**Phantom failure mode:** Ticket claims `- [x] Red` (title case) would silently misdetect. False — `parseTddStep()` regex already uses `/i` flag (case-insensitive). One of four listed failure modes is not real.
+
+**Real failure modes:**
+
+- Multi-checkbox edit: Claude marks `[x] RED` and `[x] GREEN` in one Edit → parser returns `'green'` → skips the RED→GREEN quality review. But that review is `softBlock` (advisory), so the thing being skipped is itself a speed bump.
+- Silent null return: parser returns `null` on format mismatch, prompt hook falls back gracefully to "Phase: implement. Pick first unchecked scenario, start TDD." — degraded but not broken.
+
+**Root cause:** The BDD skill (TDD.md:20) says "Mark checkboxes in test-definitions.md after each step" but never shows the format. The contract is implicit — Claude infers from existing files.
+
+**Post-124 state:** `parseTddStep()` moved from post-tool inline to shared library. Still actively called by prompt hook and stop hook via `deriveTddStep()`. Not dead code.
+
+### Problem 2 reassessment
+
+**Closed as designed.** The done gate runs actual tests (`runTests()`), checks scenario completion (`checkScenariosComplete()`), checks verify.md artifact existence (#124b), and hard-blocks. That's the wall — now stronger with the verify.md artifact gate. Mid-work quality reviews are advisory by design — `softBlock`, not `hardBlockDone`. Making them genuinely blocking creates the infinite loop problem that `stop_hook_active` was built to solve. Agent hooks (30-60s per stop) for an advisory gate is bloat.
+
+### Decision: Document the format contract (Option C + partial E)
+
+**Document the format in the BDD skill + add one-checkbox-per-edit instruction.** No new hooks, no new parser code.
+
+**Changes:**
+
+1. Add format example to TDD.md showing exact checkbox layout with valid-vs-invalid contrast
+2. Add "mark ONE checkbox per edit, commit after each step" constraint
+3. Close Problem 2 — done gate is the wall, reviews are advisory
+
+**Why this over enforcement hooks:**
+
+Anthropic's own hook guidance: "hooks for actions that must happen every time with zero exceptions" vs "instructions for guidance that applies broadly." A file format contract is guidance, not control flow. The Claude Code docs show no examples of PreToolUse hooks validating file content — all examples are coarse-grained (blocking `rm -rf`, gating `git push`).
+
+| Approach              | Docs alignment                                          | Overhead            | Verdict                            |
+| --------------------- | ------------------------------------------------------- | ------------------- | ---------------------------------- |
+| PreToolUse deny       | Against guidance (hooks are for zero-exception actions) | Subprocess per edit | Overkill                           |
+| PostToolUse feedback  | Acceptable but reactive                                 | Subprocess per edit | Catches after the fact             |
+| **Skill instruction** | **Aligned** (instructions for broad guidance)           | Zero                | Opus follows explicit format specs |
+| Agent hook on Stop    | Against guidance                                        | 30-60s per stop     | Problem 2 is closed as designed    |
+
+**Escalation path:** If multi-checkbox violations become a real problem, `"if": "Edit(test-definitions.md)"` on PreToolUse can scope a validation hook to that file with zero overhead on other edits. `updatedInput` could even normalize content before the write lands. Tooling exists — just not warranted yet.
+
+**Template finding:** `test-definitions-feature.md` already includes RED/GREEN/REFACTOR checkboxes. Claude sees the format when creating the file but not when editing later. The TDD.md instruction closes that gap.
+
 ## Work Log
 
 - 2026-04-14T20:57:00Z Created: from architecture critique session — Critiques 2 and 3
+- 2026-04-15T18:01:00Z Analysis: reviewed post-#124 state, reassessed both problems, decided Option C + partial E
+- 2026-04-15T21:49:00Z Research: verified against Claude Code hook docs, Opus instruction-following guidance, and template state. Decision confirmed — instructions over hooks for format contracts. Escalation path documented.
