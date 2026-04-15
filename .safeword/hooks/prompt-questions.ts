@@ -4,6 +4,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { getTicketInfo } from './lib/active-ticket.ts';
 import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
@@ -43,35 +44,42 @@ if (existsSync(stateFile)) {
   try {
     const state = JSON.parse(readFileSync(stateFile, 'utf8'));
 
-    if (state.activeTicket && state.lastKnownPhase) {
-      const phase = state.lastKnownPhase;
-      const tddStep = state.lastKnownTddStep;
+    if (state.activeTicket) {
+      // Derive phase from ticket file (not cache) — freshness check
+      const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
+      const phase = ticketInfo.phase;
+      const isActive = ticketInfo.status === 'in_progress';
 
-      // Phase-specific one-liner
-      const reminders: Record<string, string> = {
-        intake: 'Phase: understanding. Contribute a perspective, surface open questions.',
-        'define-behavior': 'Phase: define-behavior. Write scenarios from your converged proposal.',
-        'scenario-gate':
-          'Phase: scenario-gate. Validate scenarios (AODI: Atomic, Observable, Deterministic, Independent).',
-        decomposition:
-          'Phase: decomposition (optional). Break into tasks if architecture is unclear.',
-        implement: tddStep
-          ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
-          : 'Phase: implement. Pick first unchecked scenario, start TDD.',
-        done: 'Phase: done. Finish (refactor → verify → audit), then close.',
-      };
+      if (phase && isActive) {
+        const tddStep: string | null = null; // TODO: derive from test-definitions.md
 
-      const reminder = reminders[phase];
-      if (reminder) {
-        lines.push(`- ${reminder}`);
-      }
+        // Phase-specific one-liner
+        const reminders: Record<string, string> = {
+          intake: 'Phase: understanding. Contribute a perspective, surface open questions.',
+          'define-behavior':
+            'Phase: define-behavior. Write scenarios from your converged proposal.',
+          'scenario-gate':
+            'Phase: scenario-gate. Validate scenarios (AODI: Atomic, Observable, Deterministic, Independent).',
+          decomposition:
+            'Phase: decomposition (optional). Break into tasks if architecture is unclear.',
+          implement: tddStep
+            ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
+            : 'Phase: implement. Pick first unchecked scenario, start TDD.',
+          done: 'Phase: done. Finish (refactor → verify → audit), then close.',
+        };
 
-      // Layer 1: Session-scoped failure injection — parenthetical from recentFailures
-      const failures: FailureEntry[] = state.recentFailures ?? [];
-      if (failures.length > 0) {
-        const injection = getFailureInjection(failures, phase);
-        if (injection) {
-          lines.push(`- ${injection}`);
+        const reminder = reminders[phase];
+        if (reminder) {
+          lines.push(`- ${reminder}`);
+        }
+
+        // Layer 1: Session-scoped failure injection — parenthetical from recentFailures
+        const failures: FailureEntry[] = state.recentFailures ?? [];
+        if (failures.length > 0) {
+          const injection = getFailureInjection(failures, phase);
+          if (injection) {
+            lines.push(`- ${injection}`);
+          }
         }
       }
     }

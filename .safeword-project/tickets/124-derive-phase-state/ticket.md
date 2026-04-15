@@ -1,7 +1,7 @@
 ---
 id: '124'
 type: feature
-phase: decomposition
+phase: implement
 status: in_progress
 created: 2026-04-14T20:50:00Z
 last_modified: 2026-04-15T13:22:00Z
@@ -63,3 +63,4 @@ done_when:
 - 2026-04-15T13:20:00Z Complete: Phase 0-2 — Understanding converged, scope established. Freshness check decision: clear activeTicket at consumption when status !== in_progress (expanded from done/backlog only)
 - 2026-04-15T13:22:00Z Complete: Phase 3 — 11 scenarios defined across 7 rules
 - 2026-04-15T13:28:00Z Complete: Phase 4 — AODI validated, adversarial pass added 2 scenarios (missing folder, compact freshness). Fixed: 1.2 independence, 6.2 stale premise, 7.1 reclassified as static grep. 13 scenarios across 7 rules.
+- 2026-04-15T13:30:00Z Skipped: Phase 5 — architecture clear from proposal. Starting implement.

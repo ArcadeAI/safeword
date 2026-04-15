@@ -11,13 +11,13 @@
 
 > Rationale: The core behavioral change — prompt-questions.ts must call getTicketInfo() using activeTicket instead of reading lastKnownPhase from state.
 
-- [ ] Given activeTicket is set in session state and ticket.md has `phase: implement`, when prompt hook runs, then output includes phase-specific reminder for implement
+- [x] Given activeTicket is set in session state and ticket.md has `phase: implement`, when prompt hook runs, then output includes phase-specific reminder for implement
 
 ### Scenario 1.1: Prompt hook reads phase from ticket file
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 - [ ] Given activeTicket is set and ticket.md has `phase: define-behavior`, when ticket.md is edited to `phase: implement` between two prompt hook invocations, then second invocation outputs implement reminder (not define-behavior)
 
