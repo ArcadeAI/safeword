@@ -16,6 +16,30 @@ If tests are flaky, investigate before proceeding.
 - `All N scenarios marked complete` — proves scenarios checked
 - `Audit passed` — proves /audit ran
 
+### Concrete example
+
+**Context:** All 4 scenarios for `--verbose` lint are marked `[x]`. Agent runs the done gate.
+
+**Agent:**
+
+> Cross-scenario refactor: extracted shared `formatResult()` helper from scenarios 1-3. Full suite passes (12/12).
+>
+> Running /verify...
+> ✓ 12/12 tests pass
+> All 4 scenarios marked complete
+> No dependency drift detected
+>
+> Running /audit...
+> Architecture: 0 circular deps, 0 dead exports
+> Duplication: 0 clones above threshold
+> Audit passed
+>
+> Ready to close.
+
+**User:** "Ship it."
+
+**Result:** Evidence present → done gate passes → close ticket.
+
 ## Close
 
 1. Update parent epic if applicable (add completion entry to parent's work log; if all children done → update parent `status: done`)

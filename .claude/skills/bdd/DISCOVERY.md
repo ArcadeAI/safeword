@@ -6,6 +6,32 @@
 
 Follow the understanding pattern from SAFEWORD.md — including contribution techniques and the specificity self-test. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
 
+### Concrete example
+
+**Context:** User says "I want to add a --verbose flag to the lint command."
+
+**Agent turn 1:**
+
+> You want `--verbose` on lint to show more detail during linting. I'd frame this as: verbose mode surfaces which files are being checked, which linters ran, and any warnings that are currently suppressed.
+>
+> A couple of things to nail down — the output format (structured JSON vs human-readable lines) and whether verbose shows passing files too or just failures. My instinct is human-readable, failures + warnings only. What do you think?
+
+**User:** "Human-readable, but show passing files too — I want to see it's actually checking everything."
+
+**Agent turn 2:**
+
+> Got it. Here's the proposal:
+>
+> **Scope:** `--verbose` flag on lint command. Shows each file checked, linter used, and result (pass/warning/fail). Human-readable output.
+> **Out of Scope:** Structured JSON output, debug-level linter internals, verbose mode for other commands.
+> **Done When:** `--verbose` produces per-file output showing filename, linter, and result for every file checked.
+>
+> Ready to proceed?
+
+**User:** "Yes."
+
+**Result:** Zero open questions → proceed to sizing.
+
 ## Phase 0-2 Exit (REQUIRED)
 
 Before proceeding to Phase 3:

@@ -55,6 +55,21 @@ Full review (~2-3 minutes). The entire scenario is done. Review the complete uni
 
 If issues found: address before starting next scenario. If clean: commit and proceed to next `[ ] RED`.
 
+### Concrete example (GREEN gate)
+
+**Context:** Agent just wrote a failing test for scenario 2 (verbose shows passing files). The `tdd:green` gate fires.
+
+**Agent review:**
+
+> **Atomic?** Yes — tests one behavior (passing files appear in verbose output).
+> **Right assertions?** `expect(output).toContain('src/index.ts: pass')` — asserts on observable output, not internals. Good.
+> **Behavior, not implementation?** Yes — checks CLI output string, not internal formatter state.
+> **Fails for the right reason?** `Expected string to contain 'src/index.ts: pass'` — verbose output doesn't include passing files yet. Correct failure.
+> **Right test type?** Integration — needs real linter execution to produce output. Unit wouldn't cover the formatter→CLI pipeline. Correct scope.
+> **Coverage gaps?** Test only checks one file. Could miss edge case where zero files pass. Acceptable for now — boundary cases are in scenario 3.
+>
+> Clean. Committing test, proceeding to GREEN.
+
 ## Reminders
 
 1. **Depth matches step** — lightweight for GREEN, moderate for REFACTOR, full for RED

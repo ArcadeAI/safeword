@@ -21,6 +21,26 @@
 
 4. **Present to user** — Show components, test layers, task order
 
+### Concrete example
+
+**Context:** Feature has 4 validated scenarios for a `--verbose` flag on lint: (1) shows per-file results, (2) shows passing files, (3) shows warnings, (4) errors when no linter found.
+
+**Agent:**
+
+> Breaking this into 3 tasks:
+>
+> | Task                                   | Scenarios          | Test type   | Depends on |
+> | -------------------------------------- | ------------------ | ----------- | ---------- |
+> | 1. Add `--verbose` flag parsing to CLI | — (infrastructure) | integration | nothing    |
+> | 2. Verbose output formatter            | Scenarios 1, 2, 3  | integration | Task 1     |
+> | 3. Error handling for missing linter   | Scenario 4         | unit        | Task 1     |
+>
+> Tasks 2 and 3 are independent after Task 1. Test type is integration for the formatter because it needs real linter output, unit for the error path since it's a pure check.
+
+**User:** "Looks right, go."
+
+**Result:** Task breakdown documented → proceed to implement.
+
 ## Complex Features
 
 Features with 3+ components, new tech choices, or schema changes may warrant documentation first:
