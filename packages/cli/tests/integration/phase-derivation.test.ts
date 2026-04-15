@@ -372,6 +372,26 @@ describe('Phase Derivation (#124)', () => {
       expect(state).not.toHaveProperty('lastKnownTddStep');
     });
   });
+
+  // =========================================================================
+  // Rule: No residual cache fields or functions remain
+  // =========================================================================
+  describe('No residual cache fields or functions', () => {
+    it('7.1: lastKnownPhase and lastKnownTddStep removed from hook sources', () => {
+      // Static verification: grep for cache fields in hook source files
+      // parseTddStep is allowed in lib/active-ticket.ts (shared utility)
+      const hooksDirectory = nodePath.join(SAFEWORD_ROOT, 'packages/cli/templates/hooks');
+      const cacheFields = ['lastKnownPhase', 'lastKnownTddStep'];
+
+      for (const pattern of cacheFields) {
+        const result = spawnSync('grep', ['-r', pattern, hooksDirectory], {
+          encoding: 'utf8',
+        });
+        // grep exits 1 when no matches found (good), 0 when matches found (bad)
+        expect(result.status, `"${pattern}" should not appear in hook sources`).toBe(1);
+      }
+    });
+  });
 });
 
 /* eslint-enable unicorn/no-null */

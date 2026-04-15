@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
+import { deriveTddStep, getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
 import { getStateFilePath, type QualityState, recordFailure } from './lib/quality-state.ts';
@@ -420,4 +420,10 @@ if (!shouldFireReview) {
 
 updateLocAtLastReview(input.session_id);
 
-softBlock(getQualityMessage(currentPhase, sessionState?.lastKnownTddStep));
+// Derive TDD step from test-definitions.md (not cache)
+const tddStep =
+  currentPhase === 'implement' && ticketInfo.folder
+    ? deriveTddStep(projectDir, ticketInfo.folder)
+    : null;
+
+softBlock(getQualityMessage(currentPhase, tddStep));

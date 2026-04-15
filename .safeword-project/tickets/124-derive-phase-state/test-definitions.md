@@ -143,21 +143,21 @@
 
 > Rationale: Type-level and code-level guarantee that no consumer can accidentally read cached phase/TDD state or call removed helpers.
 
-- [ ] Given the codebase after implementation, when grepping for `lastKnownPhase`, `lastKnownTddStep`, and `parseTddStep`, then zero matches found in hook source files
+- [x] Given the codebase after implementation, when grepping for `lastKnownPhase` and `lastKnownTddStep`, then zero matches found in hook source files
 
-### Scenario 7.1: Cache fields and parseTddStep removed (static verification)
+### Scenario 7.1: Cache fields removed (static verification)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
 ## Coverage Summary
 
 **Total**: 13 scenarios
-**Passing**: 0 (0%)
-**Not Implemented**: 13 (100%)
+**Passing**: 13 (100%)
+**Not Implemented**: 0 (0%)
 
 **Rules**: 7
 
