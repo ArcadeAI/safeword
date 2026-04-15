@@ -1,0 +1,60 @@
+---
+id: '126'
+type: task
+phase: intake
+status: backlog
+created: 2026-04-15T04:14:00Z
+last_modified: 2026-04-15T04:24:00Z
+scope:
+  - Add one-shot reminder to prompt-questions.ts when agent writes a learning file
+out_of_scope:
+  - Structural gates (no new artifact prerequisites or hard blocks)
+  - Brainstorm → ticket handoff reminder (dropped — hooks can't detect skill activity, and brainstorm skill already has convergence check-in at line 32-35)
+  - Changes to the brainstorm skill itself
+  - Changes to the quality-review skill
+done_when:
+  - Post-tool hook sets novelResearchReminder flag in session state when file created in .safeword-project/learnings/
+  - Prompt hook injects "Novel claim — verify with /quality-review before building on it" when flag is set, then clears it (one-shot)
+  - Tests cover trigger and clear
+---
+
+# Prompt Hook Reminder for Research Validation
+
+**Goal:** Add one conditional reminder to the prompt hook for a moderate-risk transition that doesn't warrant a structural gate.
+
+**Why:** Dogfooding session (#121) revealed a research assumption ("prose over lists") was baked into design before validation, requiring 15 min rework when debunked. The quality review caught it, but earlier detection would have been cheaper.
+
+## Design
+
+**Reminder-tier** intervention per safeword's three-tier enforcement model (natural gates → reminders → output validation). Uses **one-shot firing with flag-and-clear**.
+
+### Firing pattern: one-shot with flag-and-clear
+
+Post-tool hook detects file creation in `.safeword-project/learnings/`. Sets `novelResearchReminder: true` in session state. Next prompt hook turn: inject reminder, clear flag. Agent sees it exactly once.
+
+**Why one-shot:**
+
+- ACE paper (arxiv 2510.04618): "naive repeated injection causes context collapse"
+- Dogfooding: 304 quality review fires → 5 useful catches (97% noise)
+- Stop hook quality review is the backstop if agent ignores the reminder
+
+### Dropped: Brainstorm → ticket handoff reminder
+
+Originally scoped as a second reminder. Dropped because:
+
+- Hooks receive `tool_name` but not `skill_name` — no way to detect brainstorm skill activity
+- Skills are prompt context, not tools. The hook system can't see which skill influenced the agent.
+- The brainstorm skill already has a convergence check-in: "Sounds like we're converging on X — want me to pull this together?" (SKILL.md line 32)
+- Adding unreliable detection duplicates an existing mechanism with worse accuracy
+
+## Research basis
+
+- ACE paper (arxiv 2510.04618): bounded state replacement, not raw accumulation
+- Anthropic "Building Effective Agents": start simple, add complexity when needed
+- TDAD (arxiv 2603.17973v2): procedural steps degrade performance — reminders are lighter weight
+- Safeword dogfooding: high-frequency reminders = 97% noise
+
+## Work Log
+
+- 2026-04-15T04:24:00Z Narrowed: Dropped brainstorm→ticket reminder. Hooks can't detect skill activity (skills are prompt context, not tools). Brainstorm skill already has convergence check-in. Kept only novel research reminder (clean structural trigger via learnings/ file creation).
+- 2026-04-15T04:14:00Z Created: From #121 dogfooding observations. Originally two reminders, narrowed to one after research.

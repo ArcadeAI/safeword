@@ -62,9 +62,9 @@ Review your work critically.
 - Is it correct?
 - Could this be simplified without losing clarity?
 - Does it follow latest docs and research? If unsure, say so — don't guess.
-- If questions remain: research first, then ask targeted questions.
+- If uncertain about correctness, research it now.
 - Report findings only. No preamble.
-- State what you're most uncertain about.`,
+- State what remains uncertain after research.`,
 
   done: `Quality Review (Done Phase):
 
