@@ -24,6 +24,7 @@ import {
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
+const COMPACT_CONTEXT = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/session-compact-context.ts');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -112,6 +113,18 @@ describe('Phase Derivation (#124)', () => {
       incrementedPatterns: [],
       ...overrides,
     };
+  }
+
+  /** Run compact context hook and return stdout */
+  function runCompactHook(cwd: string, sessionId = 'test-session'): string {
+    const result = spawnSync('bun', [COMPACT_CONTEXT], {
+      input: JSON.stringify({ session_id: sessionId }),
+      cwd,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+    return result.stdout;
   }
 
   // =========================================================================
@@ -223,6 +236,53 @@ describe('Phase Derivation (#124)', () => {
       const output = runPromptHook(projectDirectory);
 
       expect(output).toContain('No active ticket');
+    });
+  });
+
+  // =========================================================================
+  // Rule: Compact context uses per-session state, not legacy shared file
+  // =========================================================================
+  describe('Compact context uses per-session state', () => {
+    it('5.1: reads per-session state and derives context from ticket.md', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', {
+        phase: 'implement',
+        status: 'in_progress',
+      });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runCompactHook(projectDirectory);
+
+      expect(output).toContain('099');
+      expect(output).toContain('implement');
+    });
+
+    it('5.2: legacy shared file ignored gracefully', () => {
+      // Only write legacy shared quality-state.json (no per-session file)
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'implement' });
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/quality-state.json',
+        JSON.stringify({ activeTicket: '099', lastKnownPhase: 'implement' }),
+      );
+
+      const output = runCompactHook(projectDirectory);
+
+      // Should not output stale data from legacy file
+      expect(output).not.toContain('implement');
+    });
+
+    it('5.3: compact context skips stale ticket binding', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', {
+        phase: 'done',
+        status: 'done',
+      });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runCompactHook(projectDirectory);
+
+      // Should not output ticket context for done tickets
+      expect(output).not.toContain('implement');
+      expect(output).not.toContain('Ticket: 099');
     });
   });
 });

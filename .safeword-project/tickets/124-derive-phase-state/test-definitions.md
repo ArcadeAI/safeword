@@ -91,29 +91,29 @@
 
 > Rationale: session-compact-context.ts currently reads hardcoded quality-state.json. Must switch to per-session state file + getTicketInfo() for phase.
 
-- [ ] Given per-session state file exists with activeTicket set, when compact context hook runs with session_id, then output includes ticket context derived from ticket.md
+- [x] Given per-session state file exists with activeTicket set, when compact context hook runs with session_id, then output includes ticket context derived from ticket.md
 
 ### Scenario 5.1: Compact context reads per-session state
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given only legacy quality-state.json exists (no per-session file), when compact context hook runs with session_id, then it exits cleanly (no crash, no stale data)
+- [x] Given only legacy quality-state.json exists (no per-session file), when compact context hook runs with session_id, then it exits cleanly (no crash, no stale data)
 
 ### Scenario 5.2: Legacy shared file ignored gracefully
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given per-session state has activeTicket set but the ticket status is "done", when compact context hook runs, then it outputs no ticket context (freshness check applies to compact context too)
+- [x] Given per-session state has activeTicket set but the ticket status is "done", when compact context hook runs, then it outputs no ticket context (freshness check applies to compact context too)
 
 ### Scenario 5.3: Compact context skips stale ticket binding
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
