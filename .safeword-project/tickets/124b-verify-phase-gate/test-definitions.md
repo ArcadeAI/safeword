@@ -33,21 +33,17 @@
 
 > Rationale: verify.md is the evidence artifact that gates the done transition. Must include timestamp for staleness detection. Must not be written on failure (no partial evidence).
 
-- [ ] Given an active ticket, when /verify runs and all checks pass, then `verify.md` is written to the ticket folder containing timestamp and check results
+- [x] Given an active ticket, when /verify runs and all checks pass, then `verify.md` is written to the ticket folder containing timestamp and check results
 
-### Scenario 2.1: Successful verify writes artifact
+### Scenario 2.1: Successful verify writes artifact (skill instruction — manual verify)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] VERIFIED
 
-- [ ] Given an active ticket, when /verify runs and tests fail, then `verify.md` is NOT written to the ticket folder
+- [x] Given an active ticket, when /verify runs and tests fail, then `verify.md` is NOT written to the ticket folder
 
-### Scenario 2.2: Failed verify does not write artifact
+### Scenario 2.2: Failed verify does not write artifact (skill instruction — manual verify)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] VERIFIED
 
 ---
 
