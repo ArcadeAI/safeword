@@ -11,21 +11,21 @@
 
 > Rationale: Verify phase needs its own reminder so agents know to run /verify + /audit. Done phase simplifies since verification moved out.
 
-- [ ] Given phase is `verify`, when prompt hook runs, then output includes verify-specific reminder (mentioning /verify and /audit)
+- [x] Given phase is `verify`, when prompt hook runs, then output includes verify-specific reminder (mentioning /verify and /audit)
 
 ### Scenario 1.1: Verify phase prompt reminder
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given phase is `done`, when prompt hook runs, then output includes simplified done reminder (not the old multi-step message)
+- [x] Given phase is `done`, when prompt hook runs, then output includes simplified done reminder (not the old multi-step message)
 
 ### Scenario 1.2: Done phase simplified prompt reminder
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
