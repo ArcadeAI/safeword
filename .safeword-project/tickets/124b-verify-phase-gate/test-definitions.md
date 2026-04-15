@@ -89,19 +89,19 @@
 
 > Rationale: SKILL.md is the source of truth for phase flow. Must reflect the new verify phase.
 
-- [ ] SKILL.md phase table includes verify between implement and done, resume logic has verify entry
+- [x] SKILL.md phase table includes verify between implement and done, resume logic has verify entry
 
 ### Verification: Phase table includes verify
 
-- [ ] VERIFIED
+- [x] VERIFIED
 
 ---
 
 ## Coverage Summary
 
 **Total**: 8 scenarios (7 TDD-cycled + 1 static verification)
-**Passing**: 0 (0%)
-**Not Implemented**: 8 (100%)
+**Passing**: 8 (100%)
+**Not Implemented**: 0 (0%)
 
 **Rules**: 4
 

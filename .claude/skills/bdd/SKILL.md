@@ -21,26 +21,28 @@ Features progress through phases. Track in ticket frontmatter:
 ```yaml
 ---
 type: feature
-phase: implement # intake | define-behavior | scenario-gate | decomposition | implement | done
+phase: implement # intake | define-behavior | scenario-gate | decomposition | implement | verify | done
 ---
 ```
 
 **Phase meanings:**
 
-| Phase             | What happens                         | Details          |
-| ----------------- | ------------------------------------ | ---------------- |
-| `intake`          | Context check, discovery (Phase 0-2) | DISCOVERY.md     |
-| `define-behavior` | Writing Given/When/Then (Phase 3)    | SCENARIOS.md     |
-| `scenario-gate`   | Validating scenarios (Phase 4)       | SCENARIOS.md     |
-| `decomposition`   | Task breakdown (Phase 5)             | DECOMPOSITION.md |
-| `implement`       | Outside-in TDD (Phase 6)             | TDD.md           |
-| `done`            | Cleanup, verification (Phase 7)      | DONE.md          |
+| Phase             | What happens                              | Details          |
+| ----------------- | ----------------------------------------- | ---------------- |
+| `intake`          | Context check, discovery (Phase 0-2)      | DISCOVERY.md     |
+| `define-behavior` | Writing Given/When/Then (Phase 3)         | SCENARIOS.md     |
+| `scenario-gate`   | Validating scenarios (Phase 4)            | SCENARIOS.md     |
+| `decomposition`   | Task breakdown (Phase 5)                  | DECOMPOSITION.md |
+| `implement`       | Outside-in TDD (Phase 6)                  | TDD.md           |
+| `verify`          | Evidence gate: /verify + /audit (Phase 7) | VERIFY.md        |
+| `done`            | Close ticket (Phase 8)                    | DONE.md          |
 
 **Update phase when:**
 
 - Completing a BDD phase → set next phase
 - Handing off to TDD → set `implement`
-- All scenarios pass → set `done`
+- All scenarios pass → set `verify`
+- /verify + /audit complete (verify.md exists) → set `done`
 
 ---
 
@@ -62,7 +64,8 @@ When user references a ticket, resume work:
 | `scenario-gate`   | Continue validating scenarios              |
 | `decomposition`   | Continue task breakdown                    |
 | `implement`       | Find first unchecked scenario, run TDD     |
-| `done`            | Run /done and /audit checks                |
+| `verify`          | Run /verify and /audit, write verify.md    |
+| `done`            | Close ticket (verify.md must exist)        |
 
 ---
 
@@ -95,6 +98,7 @@ Load the appropriate file based on current phase:
 | `scenario-gate`   | SCENARIOS.md     |
 | `decomposition`   | DECOMPOSITION.md |
 | `implement`       | TDD.md           |
+| `verify`          | VERIFY.md        |
 | `done`            | DONE.md          |
 
 For splitting large features, see SPLITTING.md.
@@ -104,8 +108,9 @@ For splitting large features, see SPLITTING.md.
 ## Key Takeaways
 
 - **patch/task** → TDD directly (RED → GREEN → REFACTOR)
-- **feature** → full BDD flow (Phases 0-7), track in ticket `phase:` field
+- **feature** → full BDD flow (Phases 0-8), track in ticket `phase:` field
 - **Resume** → read ticket, find first unchecked scenario, continue
 - **Split** → check thresholds at Entry, Phase 3, Phase 5; user decides (see SPLITTING.md)
-- **Done gate** → run /verify then /audit before marking ticket complete
+- **Verify gate** → run /verify + /audit, writes verify.md. Stop hook blocks done without it.
+- **Done** → close ticket (trivial — verify.md must already exist)
 - When unsure → default to task, user can `/bdd` to override
