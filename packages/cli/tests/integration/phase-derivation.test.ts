@@ -27,6 +27,7 @@ const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
 const COMPACT_CONTEXT = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/session-compact-context.ts');
 const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
+const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -395,6 +396,145 @@ describe('Phase Derivation (#124)', () => {
 
       expect(output).toContain('Close ticket');
       expect(output).not.toContain('refactor');
+    });
+  });
+
+  // =========================================================================
+  // Rule: Stop hook blocks done without valid verify.md (#124b)
+  // =========================================================================
+  describe('Stop hook done gate with verify.md (#124b)', () => {
+    /** Create a transcript with Edit tool_use so stop hook sees edits */
+    function createTranscript(directory: string): string {
+      const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+      const line = JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'tool_use', name: 'Edit', id: 'toolu_1' },
+            { type: 'text', text: 'Made changes.' },
+          ],
+        },
+      });
+      writeTestFile(directory, 'transcript.jsonl', line);
+      return transcriptPath;
+    }
+
+    /** Run stop hook and return parsed JSON stdout */
+    function runStopHook(
+      cwd: string,
+      transcriptPath: string,
+      sessionId = 'test-session',
+      lastMessage = 'Made changes.',
+    ): { decision?: string; reason?: string; status: number | null } {
+      const result = spawnSync('bun', [STOP_QUALITY], {
+        input: JSON.stringify({
+          session_id: sessionId,
+          transcript_path: transcriptPath,
+          last_assistant_message: lastMessage,
+        }),
+        cwd,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+      try {
+        const parsed = JSON.parse(result.stdout.trim());
+        return { ...parsed, status: result.status };
+      } catch {
+        return { status: result.status };
+      }
+    }
+
+    it('3.2: done blocked without verify.md', () => {
+      // Create a done-phase feature ticket with complete scenarios but NO verify.md
+      const ticketFolder = '.safeword-project/tickets/099-test';
+      writeTestFile(
+        projectDirectory,
+        `${ticketFolder}/ticket.md`,
+        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        `${ticketFolder}/test-definitions.md`,
+        '## Rule: Test\n\n- [x] Scenario one\n',
+      );
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const transcriptPath = createTranscript(projectDirectory);
+      const result = runStopHook(
+        projectDirectory,
+        transcriptPath,
+        'test-session',
+        'Audit passed. All done.',
+      );
+
+      // Should block because verify.md is missing
+      expect(result.decision).toBe('block');
+      expect(result.reason).toContain('verify');
+    });
+
+    it('3.1: done allowed with valid verify.md', () => {
+      const ticketFolder = '.safeword-project/tickets/099-test';
+      writeTestFile(
+        projectDirectory,
+        `${ticketFolder}/ticket.md`,
+        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        `${ticketFolder}/test-definitions.md`,
+        '## Rule: Test\n\n- [x] Scenario one\n',
+      );
+      writeTestFile(
+        projectDirectory,
+        `${ticketFolder}/verify.md`,
+        'Verified: 2026-04-15T18:00:00Z\n\n## Verify Checklist\n\n**Test Suite:** ✓ 10/10 tests pass\n',
+      );
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const transcriptPath = createTranscript(projectDirectory);
+      const result = runStopHook(projectDirectory, transcriptPath);
+
+      // Should NOT block — verify.md exists with content
+      expect(result.decision).not.toBe('block');
+    });
+
+    it('3.3: done blocked with empty verify.md', () => {
+      const ticketFolder = '.safeword-project/tickets/099-test';
+      writeTestFile(
+        projectDirectory,
+        `${ticketFolder}/ticket.md`,
+        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        `${ticketFolder}/test-definitions.md`,
+        '## Rule: Test\n\n- [x] Scenario one\n',
+      );
+      writeTestFile(projectDirectory, `${ticketFolder}/verify.md`, '');
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const transcriptPath = createTranscript(projectDirectory);
+      const result = runStopHook(
+        projectDirectory,
+        transcriptPath,
+        'test-session',
+        'Audit passed. All done.',
+      );
+
+      // Should block — empty verify.md is not valid evidence
+      expect(result.decision).toBe('block');
+      expect(result.reason).toContain('verify');
+    });
+
+    it('3.4: no ticket skips artifact check', () => {
+      writeState(projectDirectory, baseState({ activeTicket: null }));
+
+      const transcriptPath = createTranscript(projectDirectory);
+      const result = runStopHook(projectDirectory, transcriptPath);
+
+      // Quality review may still soft-block, but reason should NOT mention verify.md
+      expect(result.reason ?? '').not.toContain('verify.md');
     });
   });
 

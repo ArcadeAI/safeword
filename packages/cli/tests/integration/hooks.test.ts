@@ -475,7 +475,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       expect(result.reason).toContain('latest docs');
     });
 
-    it('Scenario 4: Hard blocks done phase without evidence', () => {
+    it('Scenario 4: Hard blocks done phase without verify.md', () => {
       setupIssuesDirectory(projectDirectory, [
         {
           id: '001',
@@ -485,44 +485,44 @@ describe('E2E: Phase-Aware Quality Review', () => {
           lastModified: '2026-01-06T10:00:00Z',
         },
       ]);
-      // Create test-definitions.md (required artifact for done phase — scenario NOT complete)
-      writeTestFile(
-        projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
-      );
-
-      const result = runStopHookForPhase(projectDirectory);
-
-      // Done phase uses hard block (exit 0, JSON output)
-      expect(result.exitCode).toBe(0);
-      expect(result.reason).toContain('scenarios');
-    });
-
-    it('Scenario 4b: Allows done phase with evidence present', () => {
-      setupIssuesDirectory(projectDirectory, [
-        {
-          id: '001',
-          type: 'feature',
-          phase: 'done',
-          status: 'in_progress',
-          lastModified: '2026-01-06T10:00:00Z',
-        },
-      ]);
-      // Create test-definitions.md with all scenarios complete
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
+      // No verify.md — should block
 
-      // Transcript contains audit evidence (tests run by hook, scenarios checked by file)
-      const evidenceText = 'Audit passed';
-      const result = runStopHookForPhase(projectDirectory, evidenceText);
+      const result = runStopHookForPhase(projectDirectory);
 
-      // Evidence found - should allow stop (exit 0, no block)
       expect(result.exitCode).toBe(0);
-      expect(result.reason).toBe(''); // No block reason when allowed
+      expect(result.reason).toContain('verify');
+    });
+
+    it('Scenario 4b: Allows done phase with verify.md present', () => {
+      setupIssuesDirectory(projectDirectory, [
+        {
+          id: '001',
+          type: 'feature',
+          phase: 'done',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/test-definitions.md',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/verify.md',
+        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 10/10 tests pass\n',
+      );
+
+      const result = runStopHookForPhase(projectDirectory);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.reason).toBe('');
     });
   });
 
@@ -713,7 +713,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
   });
 
   describe('Type-Aware Done Gate', () => {
-    it('Scenario 14: Feature done requires all scenarios complete', () => {
+    it('Scenario 14: Feature done blocks without verify.md even with complete scenarios', () => {
       setupIssuesDirectory(projectDirectory, [
         {
           id: '001',
@@ -723,21 +723,20 @@ describe('E2E: Phase-Aware Quality Review', () => {
           lastModified: '2026-01-06T10:00:00Z',
         },
       ]);
-      // Create test-definitions.md with incomplete scenario
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
+      // No verify.md — blocks on missing artifact before checking scenarios
 
       const result = runStopHookForPhase(projectDirectory);
 
-      // Feature should require all scenarios complete (checked by file reading)
       expect(result.exitCode).toBe(0);
-      expect(result.reason).toContain('scenarios');
+      expect(result.reason).toContain('verify');
     });
 
-    it('Scenario 15: Task done does not require scenario evidence', () => {
+    it('Scenario 15: Task done requires verify.md', () => {
       setupIssuesDirectory(projectDirectory, [
         {
           id: '001',
@@ -747,17 +746,20 @@ describe('E2E: Phase-Aware Quality Review', () => {
           lastModified: '2026-01-06T10:00:00Z',
         },
       ]);
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/verify.md',
+        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
+      );
 
-      // Only test evidence, no scenario evidence
       const evidenceText = '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass';
       const result = runStopHookForPhase(projectDirectory, evidenceText);
 
-      // Task should allow with just test evidence
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });
 
-    it('Scenario 16: Feature done with test, scenario, and audit evidence passes', () => {
+    it('Scenario 16: Feature done with verify.md and complete scenarios passes', () => {
       setupIssuesDirectory(projectDirectory, [
         {
           id: '001',
@@ -767,24 +769,24 @@ describe('E2E: Phase-Aware Quality Review', () => {
           lastModified: '2026-01-06T10:00:00Z',
         },
       ]);
-      // Create test-definitions.md (required artifact for done phase)
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/verify.md',
+        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
+      );
 
-      // Test + scenario + audit evidence
-      const evidenceText =
-        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings';
-      const result = runStopHookForPhase(projectDirectory, evidenceText);
+      const result = runStopHookForPhase(projectDirectory);
 
-      // Should allow
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });
 
-    it('T7: Feature done hard blocks without audit evidence', () => {
+    it('T7: Feature done blocks with incomplete scenarios even with verify.md', () => {
       setupIssuesDirectory(projectDirectory, [
         {
           id: '001',
@@ -797,20 +799,21 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/001/test-definitions.md',
-        '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/verify.md',
+        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
       );
 
-      // Has test + scenario evidence but NO audit evidence
-      const evidenceText =
-        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete';
-      const result = runStopHookForPhase(projectDirectory, evidenceText);
+      const result = runStopHookForPhase(projectDirectory);
 
-      // Should hard block requiring /audit
       expect(result.exitCode).toBe(0);
-      expect(result.reason).toContain('audit');
+      expect(result.reason).toContain('scenarios');
     });
 
-    it('T8: Feature done passes with verify + audit evidence', () => {
+    it('T8: Feature done passes with verify.md and complete scenarios', () => {
       setupIssuesDirectory(projectDirectory, [
         {
           id: '001',
@@ -825,13 +828,14 @@ describe('E2E: Phase-Aware Quality Review', () => {
         '.safeword-project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/verify.md',
+        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
+      );
 
-      // Has test + scenario + audit evidence
-      const evidenceText =
-        '## Verify Checklist\n\n**Test Suite:** ✓ 42/42 tests pass\n**Scenarios:** All 5 scenarios marked complete\n\nAudit passed with warnings';
-      const result = runStopHookForPhase(projectDirectory, evidenceText);
+      const result = runStopHookForPhase(projectDirectory);
 
-      // Should allow
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });

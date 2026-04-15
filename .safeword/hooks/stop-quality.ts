@@ -38,7 +38,6 @@ const MAX_MESSAGES_FOR_TOOLS = 5;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
-const AUDIT_EVIDENCE_PATTERN = /audit\s+passed/i; // "Audit passed" or "Audit passed with warnings"
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 /** LOC threshold for implement-phase quality review frequency reduction. */
 const LOC_REVIEW_THRESHOLD = 50;
@@ -343,22 +342,30 @@ if (currentPhase === 'done') {
     hardBlockDone(`Tests failed. Fix failures before marking done.\n\n${testResult.output}`);
   }
 
-  // Scenario evidence: read test-definitions.md directly (structural, not prose matching).
-  // Audit evidence: text-based (audit produces qualitative assessment, not binary file output).
   const hasScenarios = checkScenariosComplete(ticketInfo);
-  const hasAudit = AUDIT_EVIDENCE_PATTERN.test(combinedText);
+
+  // Verify.md artifact gate — replaces text-pattern matching for audit evidence.
+  // verify.md is written by /verify skill when all checks pass.
+  if (ticketInfo.folder) {
+    const verifyPath = `${ticketsDir}/${ticketInfo.folder}/verify.md`;
+    const verifyExists = existsSync(verifyPath);
+    const verifyValid = verifyExists && readFileSync(verifyPath, 'utf8').trim().length > 0;
+
+    if (!verifyValid) {
+      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      hardBlockDone(
+        `No valid verify.md found in ticket folder. Run /verify to generate evidence before marking done.`,
+      );
+    }
+  }
 
   if (isFeature) {
-    // Features: require scenario + audit evidence (tests already verified above)
+    // Features: require all scenarios complete (tests already verified above, verify.md checked above)
     if (!hasScenarios) {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(
         `Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
       );
-    }
-    if (!hasAudit) {
-      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
-      hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, true));
     }
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence

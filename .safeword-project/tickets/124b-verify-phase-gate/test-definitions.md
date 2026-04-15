@@ -51,37 +51,37 @@
 
 > Rationale: The core enforcement — agent cannot close a ticket without running /verify first. Empty files rejected to prevent gaming.
 
-- [ ] Given phase is `done` and valid `verify.md` exists in ticket folder, when stop hook runs, then it does not hard-block on missing artifact
+- [x] Given phase is `done` and valid `verify.md` exists in ticket folder, when stop hook runs, then it does not hard-block on missing artifact
 
 ### Scenario 3.1: Done allowed with valid verify.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given phase is `done` and `verify.md` does NOT exist in ticket folder, when stop hook runs, then it hard-blocks with message to run /verify
+- [x] Given phase is `done` and `verify.md` does NOT exist in ticket folder, when stop hook runs, then it hard-blocks with message to run /verify
 
 ### Scenario 3.2: Done blocked without verify.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given phase is `done` and `verify.md` exists but is empty (0 bytes), when stop hook runs, then it hard-blocks (empty file is not valid evidence)
+- [x] Given phase is `done` and `verify.md` exists but is empty (0 bytes), when stop hook runs, then it hard-blocks (empty file is not valid evidence)
 
 ### Scenario 3.3: Done blocked with empty verify.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given phase is `done` and no active ticket (null), when stop hook runs, then it skips the artifact check
+- [x] Given phase is `done` and no active ticket (null), when stop hook runs, then it skips the artifact check
 
 ### Scenario 3.4: No ticket skips artifact check
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
