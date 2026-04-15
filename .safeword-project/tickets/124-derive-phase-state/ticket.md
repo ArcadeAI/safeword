@@ -1,8 +1,8 @@
 ---
 id: '124'
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-04-14T20:50:00Z
 last_modified: 2026-04-15T13:22:00Z
 scope:
@@ -64,3 +64,5 @@ done_when:
 - 2026-04-15T13:22:00Z Complete: Phase 3 — 11 scenarios defined across 7 rules
 - 2026-04-15T13:28:00Z Complete: Phase 4 — AODI validated, adversarial pass added 2 scenarios (missing folder, compact freshness). Fixed: 1.2 independence, 6.2 stale premise, 7.1 reclassified as static grep. 13 scenarios across 7 rules.
 - 2026-04-15T13:30:00Z Skipped: Phase 5 — architecture clear from proposal. Starting implement.
+- 2026-04-15T13:55:00Z Complete: Phase 6 — All 13 scenarios GREEN. 116 total tests pass (13 new + 103 existing). Implementation complete.
+- 2026-04-15T18:03:00Z Complete: Phase 7 — /verify (126/126 tests, build, lint, 13/13 scenarios), /audit (0 errors, 2 warnings), doc references updated, failure-memory test regression fixed. Ticket closed.
