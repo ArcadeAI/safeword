@@ -45,11 +45,11 @@ afterEach(() => {
   removeTemporaryDirectory(projectDirectory);
 });
 
-describe('Stop Hook: Done-phase evidence via last_assistant_message', () => {
+describe('Stop Hook: Done-phase verify.md artifact gate', () => {
   /**
    * Build a minimal JSONL transcript with one Edit tool_use so editToolsUsed=true,
    * write it to the temp dir, and run the stop hook with the given last_assistant_message.
-   * No package.json in projectDirectory → runTests skips → done-phase falls back to text evidence.
+   * No verify.md in ticket folder → done-phase hard-blocks regardless of transcript content.
    */
   function runStopHookDonePhase(directory: string, lastAssistantMessage: string) {
     // Minimal transcript: one assistant message with an Edit tool_use
@@ -83,10 +83,7 @@ describe('Stop Hook: Done-phase evidence via last_assistant_message', () => {
     });
   }
 
-  // Text-pattern evidence test removed — #124b replaced text matching with verify.md artifact gate.
-  // The verify.md gate is tested in phase-derivation.test.ts (scenarios 3.1-3.4).
-
-  it('hard blocks when last_assistant_message has no test evidence', () => {
+  it('hard blocks done-phase without verify.md regardless of transcript content', () => {
     const result = runStopHookDonePhase(projectDirectory, 'I updated the configuration file.');
     expect(result.status).toBe(0);
     const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
