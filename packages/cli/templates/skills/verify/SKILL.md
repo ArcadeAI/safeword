@@ -64,7 +64,17 @@ If ticket has `parent:` field:
 3. Check each child's `status:`
 4. Report: "Siblings: X/Y done"
 
-### 5. Check Dependency Drift
+### 5. Check Documentation References (skip if no ticket)
+
+Grep documentation files for identifiers changed by the ticket:
+
+1. Identify key symbols removed or renamed (interface fields, function names, file paths)
+2. Grep `*.md` files (excluding `.safeword-project/tickets/`) for those symbols
+3. Flag any matches: `"Doc reference to removed/changed symbol: {file}:{line} — {symbol}"`
+
+This catches stale documentation that references code you just changed.
+
+### 6. Check Dependency Drift
 
 Compare `package.json` dependencies against `ARCHITECTURE.md`:
 
@@ -81,7 +91,7 @@ Do NOT flag:
 - `@types/*` packages (type-only, not architectural)
 - Packages in `devDependencies` that are tooling (eslint plugins, prettier plugins, test utils) — only flag deps that represent architectural choices
 
-### 6. Report Results
+### 7. Report Results
 
 Format results using these EXACT patterns (hook validates these):
 
@@ -92,6 +102,7 @@ Format results using these EXACT patterns (hook validates these):
 **Build:** ✅ Success (or ❌ Failed)
 **Lint:** ✅ Clean (or ❌ 2 errors)
 **Scenarios:** All 10 scenarios marked complete (or ❌ 8/10 complete, or ⏭️ Skipped — no ticket)
+**Doc Refs:** ✅ Clean (or ⚠️ 2 stale references, or ⏭️ Skipped — no ticket)
 **Dep Drift:** ✅ Clean (or ⚠️ 2 undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
 **Parent Epic:** 006 (siblings: 2/3 done) or N/A
 
@@ -104,14 +115,24 @@ Fix these before marking done:
 - [ ] Complete remaining scenarios
 ```
 
-**Important:** The stop hook validates evidence patterns for features:
+### 8. Write verify.md Artifact (skip if no ticket OR if any check failed)
 
-- `✓ X/X tests pass` — proves test suite ran
-- `All N scenarios marked complete` — proves scenarios checked
-- `Audit passed` — proves /audit ran (run /audit separately)
+If a ticket is active AND all checks passed, write the verify checklist to the ticket folder as evidence:
 
-Without all three patterns, the done phase will hard block.
+```bash
+# Write verify.md to ticket folder
+# Path: .safeword-project/tickets/{id}-{slug}/verify.md
+```
+
+The file must contain:
+
+1. Timestamp (`Verified: {ISO timestamp}`)
+2. The verify checklist output from step 7
+
+**Do NOT write verify.md if any check failed.** Partial evidence must not gate-pass the done phase.
+
+**Important:** The stop hook requires `verify.md` to exist in the ticket folder before allowing `phase: done`. Without it, the done phase will hard block.
 
 ## Summary
 
-This command verifies ticket criteria (Phase 7 Done Gate). Use it before marking any feature ticket complete. It also works without a ticket for quick project health checks (tests + build + lint + dep drift).
+This command verifies ticket criteria (verify phase gate). Use it before marking any feature ticket complete. It also works without a ticket for quick project health checks (tests + build + lint + dep drift).
