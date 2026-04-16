@@ -83,12 +83,8 @@ describe('Stop Hook: Done-phase evidence via last_assistant_message', () => {
     });
   }
 
-  it('allows when last_assistant_message contains test evidence', () => {
-    const result = runStopHookDonePhase(projectDirectory, '156/156 tests pass — all green.');
-    expect(result.status).toBe(0);
-    // No block decision — hook exits silently (stdout empty)
-    expect(result.stdout.trim()).toBe('');
-  });
+  // Text-pattern evidence test removed — #124b replaced text matching with verify.md artifact gate.
+  // The verify.md gate is tested in phase-derivation.test.ts (scenarios 3.1-3.4).
 
   it('hard blocks when last_assistant_message has no test evidence', () => {
     const result = runStopHookDonePhase(projectDirectory, 'I updated the configuration file.');

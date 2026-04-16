@@ -136,7 +136,13 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/001a-feature/test-definitions.md',
-      '### Test 1.1: Scenario one [x]\n',
+      '## Scenario: One\n\n- [x] RED\n- [x] GREEN\n- [x] REFACTOR\n',
+    );
+    // verify.md artifact gate (#124b)
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/001a-feature/verify.md',
+      'Verified: 2026-01-01T00:00:00Z\n',
     );
 
     // Next sibling — not done
@@ -204,6 +210,12 @@ describe('hierarchy navigation in stop hook', () => {
       parent: "'013'",
       last_modified: '2026-01-01T00:00:00Z',
     });
+    // verify.md artifact gate (#124b)
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/013b-feat/verify.md',
+      'Verified: 2026-01-01T00:00:00Z\n',
+    );
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
     const result = runStopHook(projectDirectory, transcriptPath, taskEvidence);
@@ -252,6 +264,12 @@ describe('hierarchy navigation in stop hook', () => {
       parent: "'013'",
       last_modified: '2026-01-01T00:00:00Z',
     });
+    // verify.md artifact gate (#124b)
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/013a-feat/verify.md',
+      'Verified: 2026-01-01T00:00:00Z\n',
+    );
 
     // Uncle sibling — not done
     createTicket(projectDirectory, '014-epic', {
@@ -290,11 +308,17 @@ describe('hierarchy navigation in stop hook', () => {
       parent: null,
       last_modified: '2026-01-01T00:00:00Z',
     });
-    // Features at done phase require test-definitions.md
+    // Features at done phase require test-definitions.md with GFM checkboxes
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/025-standalone/test-definitions.md',
-      '### Test 1.1: Scenario one [x]\n',
+      '## Scenario: One\n\n- [x] RED\n- [x] GREEN\n- [x] REFACTOR\n',
+    );
+    // verify.md artifact gate (#124b)
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/025-standalone/verify.md',
+      'Verified: 2026-01-01T00:00:00Z\n',
     );
 
     const transcriptPath = createTranscript(projectDirectory, featureEvidence);
@@ -315,6 +339,12 @@ describe('hierarchy navigation in stop hook', () => {
       parent: "'999'",
       last_modified: '2026-01-01T00:00:00Z',
     });
+    // verify.md artifact gate (#124b)
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/050-orphan/verify.md',
+      'Verified: 2026-01-01T00:00:00Z\n',
+    );
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
     const result = runStopHook(projectDirectory, transcriptPath, taskEvidence);
@@ -341,6 +371,12 @@ describe('hierarchy navigation in stop hook', () => {
       parent: "'016'",
       last_modified: '2026-01-01T00:00:00Z',
     });
+    // verify.md artifact gate (#124b)
+    writeTestFile(
+      projectDirectory,
+      '.safeword-project/tickets/016a-feat/verify.md',
+      'Verified: 2026-01-01T00:00:00Z\n',
+    );
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
     const result = runStopHook(projectDirectory, transcriptPath, taskEvidence);
