@@ -1,10 +1,21 @@
 ---
 id: '131'
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-04-16T16:26:00Z
-last_modified: 2026-04-16T16:26:00Z
+last_modified: 2026-04-16T21:10:00Z
+scope:
+  - Move 11 helper functions from describe blocks to module scope in hooks.test.ts
+  - Fix slow regex by anchoring with literal prefix
+  - Replace hardcoded /tmp path with temp directory variable
+  - Add targetDirectory parameter to runLintHook (closes over projectDirectory)
+out_of_scope:
+  - Disabling any lint rules
+  - Changes to hook behavior or test logic
+done_when:
+  - 0 ESLint errors in hooks.test.ts
+  - 49/49 tests pass
 ---
 
 # Fix 11 ESLint errors in hooks.test.ts
@@ -56,3 +67,4 @@ Move these from inside `describe` blocks to a `// Test helpers` section between 
 ## Work Log
 
 - 2026-04-16T16:26:00Z Created: split from ticket #109 Part 4. 8 of original 19 errors already fixed in earlier sessions.
+- 2026-04-16T21:06:00Z Complete: 11 functions moved to module scope (10 as-is, 1 with param change), slow regex fixed, /tmp path replaced. 0 lint errors, 49/49 tests pass. /verify + /audit passed.
