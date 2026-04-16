@@ -1,10 +1,10 @@
 ---
 id: '126'
 type: task
-phase: implement
-status: in-progress
+phase: done
+status: done
 created: 2026-04-15T04:14:00Z
-last_modified: 2026-04-16T03:10:00Z
+last_modified: 2026-04-16T13:30:00Z
 scope:
   - Add one-shot reminder to prompt-questions.ts when agent writes a learning file
   - Tests covering flag trigger (post-tool) and inject+clear (prompt hook)
