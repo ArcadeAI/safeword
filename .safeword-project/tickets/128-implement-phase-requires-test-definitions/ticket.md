@@ -2,9 +2,12 @@
 id: '128'
 slug: implement-phase-requires-test-definitions
 type: task
-phase: intake
-status: backlog
+phase: implement
+status: in_progress
 created: 2026-04-15
+scope: Add hard gate in pre-tool-quality.ts that denies application code edits when a feature ticket is at implement phase but test-definitions.md doesn't exist. Reads ticket state directly from disk (per #124). Tasks are exempt (per #126 retro).
+out_of_scope: Graduated warnings, phase transition enforcement, task-level TDD gates, changing prompt hook reminders
+done_when: Feature at implement phase without test-definitions.md is denied app code edits; tasks are exempt; META_PATHS exempt; no ticket = no gate; tests pass
 ---
 
 # Implement phase requires test-definitions.md gate
@@ -55,5 +58,6 @@ This deliberate design choice means the prompt hook is the only TDD enforcement,
 
 ## Work Log
 
+- 2026-04-16T21:25:00Z Implemented: Hard gate in pre-tool-quality.ts after META_PATHS exemption. Reads ticket state from disk via getTicketInfo() (per #124). Features at implement phase without test-definitions.md get denied. Tasks exempt. 7 tests added to quality-gates.test.ts (Suite 11). Template synced.
 - 2026-04-16T16:04:00Z Cross-ref: Ticket #126 retro evaluated this gap for tasks. Decision: tasks without test-definitions.md intentionally get no TDD tracking — the sizing boundary (task vs feature) makes tasks lighter by design. If a task needs that rigor, it should be sized as a feature. Gate should target features only, or explicitly exempt tasks.
 - 2026-04-15 Created: discovered during ticket #120 post-mortem — agent skipped TDD entirely, no gate fired

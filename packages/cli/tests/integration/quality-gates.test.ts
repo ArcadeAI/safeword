@@ -1568,5 +1568,190 @@ describe('Quality Gates', () => {
       expect(result.stdout).not.toContain('Novel claim');
     });
   });
+
+  // =========================================================================
+  // Suite 11: Implement Phase Requires test-definitions.md (Ticket #128)
+  // Features at implement phase must have test-definitions.md before editing app code.
+  // Tasks are exempt. META_PATHS are exempt (handled earlier in hook).
+  // =========================================================================
+  describe('Implement Phase Requires test-definitions.md', () => {
+    /** Helper: create a ticket with full frontmatter */
+    function createFullTicket(
+      cwd: string,
+      id: string,
+      slug: string,
+      options: { phase: string; status: string; type: string },
+    ): void {
+      const lastModified = new Date().toISOString();
+      writeTestFile(
+        cwd,
+        `.safeword-project/tickets/${id}-${slug}/ticket.md`,
+        [
+          '---',
+          `id: ${id}`,
+          `type: ${options.type}`,
+          `phase: ${options.phase}`,
+          `status: ${options.status}`,
+          `last_modified: ${lastModified}`,
+          'scope: test scope',
+          'out_of_scope: nothing',
+          'done_when: tests pass',
+          '---',
+          `# ${slug}`,
+        ].join('\n'),
+      );
+    }
+
+    it('11.1: denies app code edit for feature at implement phase without test-definitions.md', () => {
+      createFullTicket(projectDirectory, '200', 'feat-gate', {
+        phase: 'implement',
+        status: 'in_progress',
+        type: 'feature',
+      });
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '200',
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/app.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('test-definitions.md');
+    });
+
+    it('11.2: allows app code edit for feature at implement phase WITH test-definitions.md', () => {
+      createFullTicket(projectDirectory, '201', 'feat-ok', {
+        phase: 'implement',
+        status: 'in_progress',
+        type: 'feature',
+      });
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/201-feat-ok/test-definitions.md',
+        '### Scenario: Login\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '201',
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/app.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('11.3: allows app code edit for task at implement phase without test-definitions.md', () => {
+      createFullTicket(projectDirectory, '202', 'task-exempt', {
+        phase: 'implement',
+        status: 'in_progress',
+        type: 'task',
+      });
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '202',
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/app.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('11.4: allows app code edit when no active ticket', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/app.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('11.5: allows app code edit for feature at non-implement phase', () => {
+      createFullTicket(projectDirectory, '203', 'feat-intake', {
+        phase: 'intake',
+        status: 'in_progress',
+        type: 'feature',
+      });
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '203',
+        gate: null,
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/app.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('11.6: allows app code edit when state file missing (no session context)', () => {
+      createFullTicket(projectDirectory, '204', 'feat-no-state', {
+        phase: 'implement',
+        status: 'in_progress',
+        type: 'feature',
+      });
+
+      // No state file — hook should exit cleanly
+      const codePath = nodePath.join(projectDirectory, 'src/app.ts');
+      const result = runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('11.7: records failure pattern when gate fires', () => {
+      createFullTicket(projectDirectory, '205', 'feat-record', {
+        phase: 'implement',
+        status: 'in_progress',
+        type: 'feature',
+      });
+
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '205',
+        gate: null,
+        recentFailures: [],
+        incrementedPatterns: [],
+      });
+
+      const codePath = nodePath.join(projectDirectory, 'src/app.ts');
+      runPreToolQuality(projectDirectory, 'Edit', codePath);
+
+      const state = readState(projectDirectory);
+      const failures = state.recentFailures as { pattern: string }[];
+      expect(failures.some(f => f.pattern === 'implement-without-test-definitions')).toBe(true);
+    });
+  });
 });
 /* eslint-enable unicorn/no-null */

@@ -7,6 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { getTicketInfo } from './lib/active-ticket.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import {
   getStateFilePath,
@@ -132,6 +133,44 @@ if (META_PATHS.some(p => editedFile.includes(p))) {
 }
 
 // ---------------------------------------------------------------------------
+// Implement phase gate: features need test-definitions.md before app code (#128)
+// Tasks are exempt (per #126 retro — sizing boundary makes tasks lighter).
+// Reads ticket state directly from disk (per #124 — no cached phase).
+// ---------------------------------------------------------------------------
+
+const stateFileForPhaseGate = getStateFilePath(projectDirectory, input.session_id);
+
+if (existsSync(stateFileForPhaseGate)) {
+  try {
+    const phaseState: QualityState = JSON.parse(readFileSync(stateFileForPhaseGate, 'utf8'));
+
+    if (phaseState.activeTicket) {
+      const ticketInfo = getTicketInfo(projectDirectory, phaseState.activeTicket);
+
+      if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
+        const testDefinitionsPath = nodePath.join(
+          projectDirectory,
+          '.safeword-project',
+          'tickets',
+          ticketInfo.folder,
+          'test-definitions.md',
+        );
+
+        if (!existsSync(testDefinitionsPath)) {
+          recordFailure(projectDirectory, input.session_id, 'implement-without-test-definitions');
+          deny(
+            'Feature at implement phase requires test-definitions.md before writing application code. Create test-definitions.md with scenarios first.',
+            'Write scenarios (RED/GREEN/REFACTOR checkboxes) before implementation. Tasks are exempt from this gate.',
+          );
+        }
+      }
+    }
+  } catch {
+    // Best effort — don't crash hooks on state read failure
+  }
+}
+
+// ---------------------------------------------------------------------------
 // LOC gate: blast radius control — commit every ~400 LOC
 // ---------------------------------------------------------------------------
 
@@ -176,6 +215,6 @@ if (state.gate === 'loc') {
 Commit your progress before continuing.`);
 }
 
-// All other gates (tdd:*, phase:*) are now reminders via prompt hook, not hard blocks.
-// See ticket #109 / #114 for the design rationale.
+// Remaining gates (tdd:*, phase:*) are reminders via prompt hook, not hard blocks.
+// Exception: implement-without-test-definitions gate above (#128). See #109 / #114.
 process.exit(0);
