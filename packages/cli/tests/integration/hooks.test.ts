@@ -47,6 +47,194 @@ afterAll(() => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Test helpers (moved to module scope for unicorn/consistent-function-scoping)
+// ---------------------------------------------------------------------------
+
+/** Build ticket.md frontmatter from options */
+function createTicketContent(options: {
+  id: string;
+  type?: string;
+  phase?: string;
+  status?: string;
+  lastModified: string;
+}): string {
+  const lines = ['---', `id: ${options.id}`];
+  if (options.type) lines.push(`type: ${options.type}`);
+  if (options.phase) lines.push(`phase: ${options.phase}`);
+  if (options.status) lines.push(`status: ${options.status}`);
+  lines.push(`last_modified: ${options.lastModified}`, '---', '', `# Ticket ${options.id}`, '');
+  return lines.join('\n');
+}
+
+/** Clear tickets directory */
+function clearIssuesDirectory(targetDirectory: string): void {
+  execSync(`rm -rf "${targetDirectory}/.safeword-project/tickets"/*`, {
+    cwd: targetDirectory,
+  });
+}
+
+/** Create transcript with an Edit tool_use and custom text */
+function createChangesTranscript(targetDirectory: string, customText = 'Made changes.'): string {
+  const transcriptPath = `${targetDirectory}/.safeword/test-transcript.jsonl`;
+  const message = {
+    type: 'assistant',
+    message: {
+      content: [
+        { type: 'tool_use', name: 'Edit' },
+        { type: 'text', text: customText },
+      ],
+    },
+  };
+  writeTestFile(targetDirectory, '.safeword/test-transcript.jsonl', JSON.stringify(message));
+  return transcriptPath;
+}
+
+/** Create a mock transcript with a single assistant text message */
+function createMockTranscript(targetDirectory: string, assistantText: string): string {
+  const transcriptPath = `${targetDirectory}/.safeword/test-transcript.jsonl`;
+  const message = {
+    type: 'assistant',
+    message: {
+      content: [{ type: 'text', text: assistantText }],
+    },
+  };
+  writeTestFile(targetDirectory, '.safeword/test-transcript.jsonl', JSON.stringify(message));
+  return transcriptPath;
+}
+
+/** Create a multi-message transcript (JSONL format) */
+function createMultiMessageTranscript(
+  targetDirectory: string,
+  messages: { text?: string; toolUse?: string }[],
+): string {
+  const transcriptPath = `${targetDirectory}/.safeword/test-transcript.jsonl`;
+  const lines = messages.map(message => {
+    const content: { type: string; text?: string; name?: string }[] = [];
+    if (message.text) {
+      content.push({ type: 'text', text: message.text });
+    }
+    if (message.toolUse) {
+      content.push({ type: 'tool_use', name: message.toolUse });
+    }
+    return JSON.stringify({
+      type: 'assistant',
+      message: { content },
+    });
+  });
+  writeTestFile(targetDirectory, '.safeword/test-transcript.jsonl', lines.join('\n'));
+  return transcriptPath;
+}
+
+/** Run stop hook with mock transcript */
+function runStopHook(
+  targetDirectory: string,
+  transcriptPath: string,
+): { stdout: string; stderr: string; exitCode: number } {
+  const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
+    input: JSON.stringify({ transcript_path: transcriptPath }),
+    cwd: targetDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
+    encoding: 'utf8',
+  });
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status ?? 0,
+  };
+}
+
+/** Parse JSON output from stop hook */
+function parseStopOutput(result: { stdout: string; stderr: string; exitCode: number }): {
+  decision?: string;
+  reason?: string;
+} {
+  try {
+    return JSON.parse(result.stdout.trim());
+  } catch {
+    return {};
+  }
+}
+
+/** Run lint hook on a file */
+function runLintHook(targetDirectory: string, filePath: string) {
+  return spawnSync('bun', ['.safeword/hooks/lib/lint.ts', filePath], {
+    cwd: targetDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
+    encoding: 'utf8',
+  });
+}
+
+/** Create tickets directory with ticket fixtures */
+function setupIssuesDirectory(
+  targetDirectory: string,
+  tickets: Parameters<typeof createTicketContent>[0][],
+): void {
+  const ticketsDirectory = `${targetDirectory}/.safeword-project/tickets`;
+  execSync(`mkdir -p "${ticketsDirectory}"`, { cwd: targetDirectory });
+  // Clear existing tickets
+  execSync(`rm -rf "${ticketsDirectory}"/*`, { cwd: targetDirectory });
+  for (const ticket of tickets) {
+    // Create folder structure: .safeword-project/tickets/{id}/ticket.md
+    const folderPath = `.safeword-project/tickets/${ticket.id}`;
+    execSync(`mkdir -p "${targetDirectory}/${folderPath}"`, {
+      cwd: targetDirectory,
+    });
+    writeTestFile(targetDirectory, `${folderPath}/ticket.md`, createTicketContent(ticket));
+  }
+}
+
+/** Run stop hook and extract quality message */
+function runStopHookForPhase(
+  targetDirectory: string,
+  customText?: string,
+): {
+  reason: string;
+  exitCode: number;
+  stderr: string;
+} {
+  const transcriptPath = createChangesTranscript(targetDirectory, customText);
+  const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
+    input: JSON.stringify({
+      transcript_path: transcriptPath,
+      last_assistant_message: customText ?? '',
+    }),
+    cwd: targetDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
+    encoding: 'utf8',
+  });
+  const exitCode = result.status ?? 0;
+  const stderr = result.stderr?.trim() ?? '';
+
+  // Exit 0 = soft/hard block or allow; parse JSON from stdout
+  try {
+    const parsed = JSON.parse(result.stdout.trim());
+    return { reason: parsed.reason ?? '', exitCode, stderr };
+  } catch {
+    return { reason: '', exitCode, stderr };
+  }
+}
+
+/** Run post-tool-lint hook via JSON input */
+function runPostToolLint(cwd: string, filePath: string) {
+  const hookInput = JSON.stringify({
+    session_id: 'test-session',
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Write',
+    tool_input: { file_path: filePath },
+  });
+
+  return spawnSync('bash', ['-c', `echo '${hookInput}' | bun .safeword/hooks/post-tool-lint.ts`], {
+    cwd,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 describe('E2E: SessionStart Hooks', () => {
   describe('session-bun-check.sh', () => {
     it('exits silently when bun is available', () => {
@@ -282,8 +470,8 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       });
 
       expect(output).toContain('Current time:');
-      // Check for natural language format (day of week, month, date, year)
-      expect(output).toMatch(/\w+, \w+ \d{1,2}, \d{4}/);
+      // Check for natural language date (e.g., "Wednesday, April 15, 2026")
+      expect(output).toMatch(/day, \w+ \d{1,2}, \d{4}/);
       // Check for ISO format (with milliseconds)
       expect(output).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
       // Check for local time
@@ -326,96 +514,6 @@ describe('E2E: UserPromptSubmit Hooks', () => {
 });
 
 describe('E2E: Phase-Aware Quality Review', () => {
-  // Ticket frontmatter template
-  function createTicketContent(options: {
-    id: string;
-    type?: string;
-    phase?: string;
-    status?: string;
-    lastModified: string;
-  }): string {
-    const lines = ['---', `id: ${options.id}`];
-    if (options.type) lines.push(`type: ${options.type}`);
-    if (options.phase) lines.push(`phase: ${options.phase}`);
-    if (options.status) lines.push(`status: ${options.status}`);
-    lines.push(`last_modified: ${options.lastModified}`, '---', '', `# Ticket ${options.id}`, '');
-    return lines.join('\n');
-  }
-
-  // Helper to create tickets directory with tickets
-  function setupIssuesDirectory(
-    targetDirectory: string,
-    tickets: Parameters<typeof createTicketContent>[0][],
-  ): void {
-    const ticketsDirectory = `${targetDirectory}/.safeword-project/tickets`;
-    execSync(`mkdir -p "${ticketsDirectory}"`, { cwd: targetDirectory });
-    // Clear existing tickets
-    execSync(`rm -rf "${ticketsDirectory}"/*`, { cwd: targetDirectory });
-    for (const ticket of tickets) {
-      // Create folder structure: .safeword-project/tickets/{id}/ticket.md
-      const folderPath = `.safeword-project/tickets/${ticket.id}`;
-      execSync(`mkdir -p "${targetDirectory}/${folderPath}"`, {
-        cwd: targetDirectory,
-      });
-      writeTestFile(targetDirectory, `${folderPath}/ticket.md`, createTicketContent(ticket));
-    }
-  }
-
-  // Helper to clear tickets directory
-  function clearIssuesDirectory(targetDirectory: string): void {
-    execSync(`rm -rf "${targetDirectory}/.safeword-project/tickets"/*`, {
-      cwd: targetDirectory,
-    });
-  }
-
-  // Helper to create transcript with changes
-  function createChangesTranscript(targetDirectory: string, customText = 'Made changes.'): string {
-    const transcriptPath = `${targetDirectory}/.safeword/test-transcript.jsonl`;
-    const message = {
-      type: 'assistant',
-      message: {
-        content: [
-          { type: 'tool_use', name: 'Edit' },
-          { type: 'text', text: customText },
-        ],
-      },
-    };
-    writeTestFile(targetDirectory, '.safeword/test-transcript.jsonl', JSON.stringify(message));
-    return transcriptPath;
-  }
-
-  // Helper to run stop hook and extract quality message
-  // Returns { reason, exitCode, stderr }; hook always exits 0 with JSON stdout
-  function runStopHookForPhase(
-    targetDirectory: string,
-    customText?: string,
-  ): {
-    reason: string;
-    exitCode: number;
-    stderr: string;
-  } {
-    const transcriptPath = createChangesTranscript(targetDirectory, customText);
-    const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-      input: JSON.stringify({
-        transcript_path: transcriptPath,
-        last_assistant_message: customText ?? '',
-      }),
-      cwd: targetDirectory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
-      encoding: 'utf8',
-    });
-    const exitCode = result.status ?? 0;
-    const stderr = result.stderr?.trim() ?? '';
-
-    // Exit 0 = soft/hard block or allow; parse JSON from stdout
-    try {
-      const parsed = JSON.parse(result.stdout.trim());
-      return { reason: parsed.reason ?? '', exitCode, stderr };
-    } catch {
-      return { reason: '', exitCode, stderr };
-    }
-  }
-
   describe('Happy Path - Phase Detection', () => {
     it('Scenario 1: Shows intake prompts during discovery phase', () => {
       setupIssuesDirectory(projectDirectory, [
@@ -848,73 +946,6 @@ describe('E2E: Phase-Aware Quality Review', () => {
 });
 
 describe('E2E: Stop Hook', () => {
-  // Helper to create a mock transcript with an assistant message
-  function createMockTranscript(targetDirectory: string, assistantText: string): string {
-    const transcriptPath = `${targetDirectory}/.safeword/test-transcript.jsonl`;
-    // Use 'type' at top level to match actual Claude Code transcript format
-    const message = {
-      type: 'assistant',
-      message: {
-        content: [{ type: 'text', text: assistantText }],
-      },
-    };
-    writeTestFile(targetDirectory, '.safeword/test-transcript.jsonl', JSON.stringify(message));
-    return transcriptPath;
-  }
-
-  // Helper to create a multi-message transcript (JSONL format)
-  function createMultiMessageTranscript(
-    targetDirectory: string,
-    messages: { text?: string; toolUse?: string }[],
-  ): string {
-    const transcriptPath = `${targetDirectory}/.safeword/test-transcript.jsonl`;
-    const lines = messages.map(message => {
-      const content: { type: string; text?: string; name?: string }[] = [];
-      if (message.text) {
-        content.push({ type: 'text', text: message.text });
-      }
-      if (message.toolUse) {
-        content.push({ type: 'tool_use', name: message.toolUse });
-      }
-      return JSON.stringify({
-        type: 'assistant',
-        message: { content },
-      });
-    });
-    writeTestFile(targetDirectory, '.safeword/test-transcript.jsonl', lines.join('\n'));
-    return transcriptPath;
-  }
-
-  // Helper to run stop hook with mock transcript
-  function runStopHook(
-    targetDirectory: string,
-    transcriptPath: string,
-  ): { stdout: string; stderr: string; exitCode: number } {
-    const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-      input: JSON.stringify({ transcript_path: transcriptPath }),
-      cwd: targetDirectory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
-      encoding: 'utf8',
-    });
-    return {
-      stdout: result.stdout || '',
-      stderr: result.stderr || '',
-      exitCode: result.status || 0,
-    };
-  }
-
-  // Helper to parse JSON output from stop hook (new format: exit 0 + JSON stdout)
-  function parseStopOutput(result: { stdout: string; stderr: string; exitCode: number }): {
-    decision?: string;
-    reason?: string;
-  } {
-    try {
-      return JSON.parse(result.stdout.trim());
-    } catch {
-      return {};
-    }
-  }
-
   describe('stop-quality.ts', () => {
     it('triggers quality review when edit tools are used', () => {
       const transcriptPath = createMultiMessageTranscript(projectDirectory, [
@@ -944,7 +975,9 @@ describe('E2E: Stop Hook', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {
         const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-          input: JSON.stringify({ transcript_path: '/tmp/fake.jsonl' }),
+          input: JSON.stringify({
+            transcript_path: nodePath.join(nonSafewordDirectory, 'fake.jsonl'),
+          }),
           cwd: projectDirectory,
           env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
           encoding: 'utf8',
@@ -1007,25 +1040,16 @@ describe('E2E: Stop Hook', () => {
  * Tests for Story 2 - running Ruff on Python files in the post-tool lint hook.
  */
 describe('E2E: Python Lint Hook', () => {
-  /** Helper to run lint hook and return result */
-  function runLintHook(filePath: string) {
-    return spawnSync('bun', ['.safeword/hooks/lib/lint.ts', filePath], {
-      cwd: projectDirectory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
-      encoding: 'utf8',
-    });
-  }
-
   describe('Test 2.1: Routes .py files to Ruff', () => {
     it('should handle Python files without error', () => {
       writeTestFile(projectDirectory, 'test.py', 'x = 1\n');
-      const result = runLintHook(`${projectDirectory}/test.py`);
+      const result = runLintHook(projectDirectory, `${projectDirectory}/test.py`);
       expect(result.status).toBe(0);
     });
 
     it('should handle .pyi stub files', () => {
       writeTestFile(projectDirectory, 'test.pyi', 'def foo() -> int: ...\n');
-      const result = runLintHook(`${projectDirectory}/test.pyi`);
+      const result = runLintHook(projectDirectory, `${projectDirectory}/test.pyi`);
       expect(result.status).toBe(0);
     });
   });
@@ -1033,7 +1057,7 @@ describe('E2E: Python Lint Hook', () => {
   describe('Test 2.2: Continues running ESLint for JS/TS files', () => {
     it('should run ESLint for TypeScript files', () => {
       writeTestFile(projectDirectory, 'test.ts', 'const x = 1\n');
-      const result = runLintHook(`${projectDirectory}/test.ts`);
+      const result = runLintHook(projectDirectory, `${projectDirectory}/test.ts`);
       // ESLint runs and exits successfully
       expect(result.status).toBe(0);
     });
@@ -1067,26 +1091,6 @@ describe('E2E: Python Lint Hook', () => {
   });
 
   describe('Test 2.4: Ruff fixes Python files via lint hook', () => {
-    /** Helper to run post-tool-lint hook via JSON input (actually executes the lint) */
-    function runPostToolLint(cwd: string, filePath: string) {
-      const hookInput = JSON.stringify({
-        session_id: 'test-session',
-        hook_event_name: 'PostToolUse',
-        tool_name: 'Write',
-        tool_input: { file_path: filePath },
-      });
-
-      return spawnSync(
-        'bash',
-        ['-c', `echo '${hookInput}' | bun .safeword/hooks/post-tool-lint.ts`],
-        {
-          cwd,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-          encoding: 'utf8',
-        },
-      );
-    }
-
     it.skipIf(!RUFF_AVAILABLE)('should format Python files when run through lint hook', () => {
       // Create badly formatted Python file
       const badCode = 'x=1;y=2';
