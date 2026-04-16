@@ -1,17 +1,19 @@
 ---
 id: '126'
 type: task
-phase: intake
-status: backlog
+phase: implement
+status: in-progress
 created: 2026-04-15T04:14:00Z
-last_modified: 2026-04-15T04:24:00Z
+last_modified: 2026-04-16T03:10:00Z
 scope:
   - Add one-shot reminder to prompt-questions.ts when agent writes a learning file
+  - Tests covering flag trigger (post-tool) and inject+clear (prompt hook)
 out_of_scope:
   - Structural gates (no new artifact prerequisites or hard blocks)
   - Brainstorm → ticket handoff reminder (dropped — hooks can't detect skill activity, and brainstorm skill already has convergence check-in at line 32-35)
   - Changes to the brainstorm skill itself
   - Changes to the quality-review skill
+  - Redesigning to use PostToolUse additionalContext (evaluated and rejected — see design notes)
 done_when:
   - Post-tool hook sets novelResearchReminder flag in session state when file created in .safeword-project/learnings/
   - Prompt hook injects "Novel claim — verify with /quality-review before building on it" when flag is set, then clears it (one-shot)
@@ -54,7 +56,18 @@ Originally scoped as a second reminder. Dropped because:
 - TDAD (arxiv 2603.17973v2): procedural steps degrade performance — reminders are lighter weight
 - Safeword dogfooding: high-frequency reminders = 97% noise
 
+### Evaluated and rejected: direct PostToolUse additionalContext
+
+An alternative approach would skip the state file entirely — PostToolUse outputs `{ additionalContext: "verify this claim" }` directly. Evaluated and rejected for five reasons:
+
+1. **Timing:** Direct injection fires during the Write that creates the learning file. The dangerous moment is the _next_ turn, when Claude acts on the unverified claim. Flag-and-clear fires at the decision point.
+2. **Output competition:** PostToolUse additionalContext competes with lint errors, bypass warnings, and quality gate messages on the same tool event. Prompt-questions output appears as a clean, isolated context block.
+3. **Idempotency:** If Claude writes two learning files in one turn, direct injection fires twice (context accumulation). Flag-and-clear is idempotent — setting `true` twice produces one reminder.
+4. **Debuggability:** All conditional reminders centralized in prompt-questions.ts. One file to inspect, one state file to check.
+5. **Marginal cost:** The state file is already being written (LOC counts, active ticket, gates). Net new code is 7 lines across an established pattern.
+
 ## Work Log
 
+- 2026-04-16T03:10:00Z Design review: Evaluated PostToolUse additionalContext as simpler alternative. Rejected — flag-and-clear wins on timing, idempotency, output isolation, and debuggability at ~7 lines marginal cost. Implementation already in place (post-tool-quality.ts:143-146, prompt-questions.ts:98-102, quality-state.ts:30). Remaining work: tests only.
 - 2026-04-15T04:24:00Z Narrowed: Dropped brainstorm→ticket reminder. Hooks can't detect skill activity (skills are prompt context, not tools). Brainstorm skill already has convergence check-in. Kept only novel research reminder (clean structural trigger via learnings/ file creation).
 - 2026-04-15T04:14:00Z Created: From #121 dogfooding observations. Originally two reminders, narrowed to one after research.

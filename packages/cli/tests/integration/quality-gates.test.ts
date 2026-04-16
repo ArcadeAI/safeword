@@ -1432,5 +1432,141 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
   });
+  // =========================================================================
+  // Suite 10: Novel Research Reminder (Ticket #126)
+  // =========================================================================
+  describe('Novel Research Reminder', () => {
+    it('10.1: PostToolUse sets novelResearchReminder when learnings file created', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        gate: null,
+      });
+
+      const learningPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/learnings/test-learning.md',
+      );
+      writeTestFile(projectDirectory, '.safeword-project/learnings/test-learning.md', '# Learning');
+
+      const result = runPostToolQuality(projectDirectory, 'Write', learningPath);
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.novelResearchReminder).toBe(true);
+    });
+
+    it('10.2: PostToolUse does not set flag for non-learnings files', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        gate: null,
+      });
+
+      writeTestFile(projectDirectory, 'src/foo.ts', 'export const x = 1;\n');
+      execSync('git add src/foo.ts', { cwd: projectDirectory, stdio: 'pipe' });
+
+      const result = runPostToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'src/foo.ts'),
+      );
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.novelResearchReminder).toBeUndefined();
+    });
+
+    it('10.3: flag is idempotent — two learnings files produce one flag', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        gate: null,
+        novelResearchReminder: true,
+      });
+
+      const learningPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/learnings/second-learning.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/learnings/second-learning.md',
+        '# Another',
+      );
+
+      const result = runPostToolQuality(projectDirectory, 'Write', learningPath);
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.novelResearchReminder).toBe(true);
+    });
+
+    it('10.4: prompt hook injects reminder and clears flag', () => {
+      // Prompt hook requires .safeword directory to exist
+      writeTestFile(projectDirectory, '.safeword/.gitkeep', '');
+
+      // Set up state with flag
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: getHead(projectDirectory),
+        activeTicket: null,
+        gate: null,
+        novelResearchReminder: true,
+      });
+
+      const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
+
+      const result = spawnSync('bun', [PROMPT_QUESTIONS], {
+        input: JSON.stringify({ session_id: 'test-session' }),
+        cwd: projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Novel claim detected');
+      expect(result.stdout).toContain('/quality-review');
+
+      // Flag should be cleared
+      const state = readState(projectDirectory);
+      expect(state.novelResearchReminder).toBe(false);
+    });
+
+    it('10.5: prompt hook does not inject reminder when flag is absent', () => {
+      // Prompt hook requires .safeword directory to exist
+      writeTestFile(projectDirectory, '.safeword/.gitkeep', '');
+
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: getHead(projectDirectory),
+        activeTicket: null,
+        gate: null,
+      });
+
+      const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
+
+      const result = spawnSync('bun', [PROMPT_QUESTIONS], {
+        input: JSON.stringify({ session_id: 'test-session' }),
+        cwd: projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        encoding: 'utf8',
+        timeout: TIMEOUT_QUICK,
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).not.toContain('Novel claim');
+    });
+  });
 });
 /* eslint-enable unicorn/no-null */
