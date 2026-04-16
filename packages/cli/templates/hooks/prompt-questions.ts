@@ -88,10 +88,10 @@ if (existsSync(stateFile)) {
           }
         }
       } else {
-        lines.push('- No active ticket.');
+        lines.push('- No active ticket. Classify (patch/task/feature) before starting.');
       }
     } else {
-      lines.push('- No active ticket.');
+      lines.push('- No active ticket. Classify (patch/task/feature) before starting.');
     }
 
     // One-shot reminder: verify novel research claims before building on them
