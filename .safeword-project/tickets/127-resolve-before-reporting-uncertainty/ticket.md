@@ -54,4 +54,5 @@ done_when:
 ## Work Log
 
 - 2026-04-15T04:59:00Z Tightened: Simplified diff to "If uncertain about correctness, research it now." Qualifier "correctness" is narrow enough to avoid trivial research, broad enough to catch real issues. Removed clunky "or" join. Confirmed soft-block gives full tool access (WebSearch, Agent, etc.) during quality review response.
+- 2026-04-16T16:04:00Z Cross-ref: Ticket #126 session validated the "research before reporting" behavior — stop hook fired, agent researched PostToolUse timing instead of declaring uncertainty, confirmed the claim. This is exactly the behavior 127 codifies.
 - 2026-04-15T04:53:00Z Created: One-line prompt change. Shifts quality review from passive uncertainty declaration to active resolution. Derived from #121 dogfooding pattern where human consistently pushed "go research that" on stated uncertainties.

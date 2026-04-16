@@ -81,4 +81,5 @@ last_modified: 2026-04-15T14:10:00Z
 
 ## Work Log
 
+- 2026-04-16T16:04:00Z Cross-ref: Ticket #126 added novelResearchReminder flag — fires on any .safeword-project/learnings/\*.md creation/edit. During 130's bulk file operations (splitting, renaming), this will fire repeatedly. Expected and harmless — flag is idempotent (set true N times, one reminder).
 - 2026-04-15T14:10:00Z Created: From brainstorm session exploring learnings discoverability options. Researched Anthropic context engineering guide, Claude Code rules/memory docs, Opus 4.6 context behavior. Debated 5 options (INDEX.md, rules extraction, decompose+rename, MEMORY.md promotion, skills conversion). Converged on pointer-rules + live-Covers + decomposition. Key insight: drift prevention via "no second source of truth" — rules point, don't duplicate.

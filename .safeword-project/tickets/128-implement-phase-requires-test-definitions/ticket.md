@@ -55,4 +55,5 @@ This deliberate design choice means the prompt hook is the only TDD enforcement,
 
 ## Work Log
 
+- 2026-04-16T16:04:00Z Cross-ref: Ticket #126 retro evaluated this gap for tasks. Decision: tasks without test-definitions.md intentionally get no TDD tracking — the sizing boundary (task vs feature) makes tasks lighter by design. If a task needs that rigor, it should be sized as a feature. Gate should target features only, or explicitly exempt tasks.
 - 2026-04-15 Created: discovered during ticket #120 post-mortem — agent skipped TDD entirely, no gate fired

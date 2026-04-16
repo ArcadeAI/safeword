@@ -33,4 +33,5 @@ Identified during quality review of ticket #100 (2026-04-11). Current hook archi
 
 ## Work Log
 
+- 2026-04-16T16:04:00Z Cross-ref: Ticket #126 evaluated PostToolUse additionalContext vs two-hook flag-and-clear for one-shot reminders. Existing events (PostToolUse + UserPromptSubmit) are sufficient — no new events needed for this pattern. Data point for evaluation: newer events may help elsewhere but aren't required for reminder-tier enforcement.
 - 2026-04-11T15:42Z Created: Flagged during quality review
