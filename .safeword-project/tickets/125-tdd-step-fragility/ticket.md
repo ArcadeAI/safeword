@@ -1,10 +1,23 @@
 ---
 id: '125'
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-04-14T20:57:00Z
-last_modified: 2026-04-14T20:57:00Z
+last_modified: 2026-04-15T23:10:00Z
+scope:
+  - Add explicit checkbox format example to TDD.md (valid vs invalid contrast)
+  - Add one-checkbox-per-edit constraint with commit-after-each-step instruction
+  - Sync change to both .claude/skills/bdd/TDD.md and packages/cli/templates/skills/bdd/TDD.md
+out_of_scope:
+  - PreToolUse or PostToolUse hooks for format validation (escalation path only)
+  - Changes to parseTddStep() parser code
+  - Problem 2 (stop hook quality reviews) — closed as designed
+  - Agent hooks on stop
+done_when:
+  - TDD.md contains exact checkbox format example with valid/invalid contrast
+  - TDD.md contains one-checkbox-per-edit + commit constraint
+  - Both copies (active skill + source template) are identical
 ---
 
 # TDD step detection fragility and quality review bypass
@@ -107,3 +120,4 @@ Anthropic's own hook guidance: "hooks for actions that must happen every time wi
 - 2026-04-14T20:57:00Z Created: from architecture critique session — Critiques 2 and 3
 - 2026-04-15T18:01:00Z Analysis: reviewed post-#124 state, reassessed both problems, decided Option C + partial E
 - 2026-04-15T21:49:00Z Research: verified against Claude Code hook docs, Opus instruction-following guidance, and template state. Decision confirmed — instructions over hooks for format contracts. Escalation path documented.
+- 2026-04-16T03:01:00Z Complete: All done-when criteria verified met. TDD.md has format example (lines 26-44), one-checkbox constraint (line 24), both copies identical. Ticket closed.
