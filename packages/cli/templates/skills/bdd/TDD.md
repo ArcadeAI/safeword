@@ -17,7 +17,31 @@ If no E2E infrastructure exists, build skeleton first: thinnest slice proving ar
 
 ## For Each Scenario: RED → GREEN → REFACTOR
 
-Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit). Mark checkboxes in test-definitions.md after each step.
+Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit).
+
+### Checkbox Format Contract
+
+Mark **ONE checkbox per edit, commit after each step.** The prompt hook and quality gates parse these checkboxes — multi-checkbox edits skip quality reviews.
+
+**Correct format** (matches template exactly):
+
+```markdown
+## Scenario: User logs in
+
+Given a registered user
+When they submit valid credentials
+Then they see the dashboard
+
+- [x] RED
+- [x] GREEN
+- [ ] REFACTOR
+```
+
+**Invalid — do NOT:**
+
+- `- [x] Red` / `- [x] green` — use ALL CAPS: `RED`, `GREEN`, `REFACTOR`
+- Mark `RED` and `GREEN` in the same edit — one checkbox per edit, commit between
+- Add extra checkboxes like `- [ ] REVIEW` — only RED/GREEN/REFACTOR
 
 **Evidence before claims:** Show test output, don't just claim "tests pass". Run FULL suite at GREEN to catch regressions.
 

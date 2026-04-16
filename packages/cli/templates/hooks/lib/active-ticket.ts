@@ -70,7 +70,7 @@ export function parseTddStep(content: string): string | null {
 
   for (const line of lines) {
     // Detect scenario header — reset counters
-    if (/^###\s/.test(line)) {
+    if (/^#{2,3}\s/.test(line)) {
       // Check previous scenario before resetting
       if (checkedCount > 0 && uncheckedCount > 0) {
         return steps[checkedCount - 1] ?? null;

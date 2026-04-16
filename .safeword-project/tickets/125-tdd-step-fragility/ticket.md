@@ -121,3 +121,4 @@ Anthropic's own hook guidance: "hooks for actions that must happen every time wi
 - 2026-04-15T18:01:00Z Analysis: reviewed post-#124 state, reassessed both problems, decided Option C + partial E
 - 2026-04-15T21:49:00Z Research: verified against Claude Code hook docs, Opus instruction-following guidance, and template state. Decision confirmed — instructions over hooks for format contracts. Escalation path documented.
 - 2026-04-16T03:01:00Z Complete: All done-when criteria verified met. TDD.md has format example (lines 26-44), one-checkbox constraint (line 24), both copies identical. Ticket closed.
+- 2026-04-16T13:27:00Z Fix: Quality review found parser/template heading mismatch — parseTddStep only matched ### but templates produce ##. Widened regex to /^#{2,3}\s/, added 10 unit tests, removed incorrect heading guidance from TDD.md. Both active and template copies synced.
