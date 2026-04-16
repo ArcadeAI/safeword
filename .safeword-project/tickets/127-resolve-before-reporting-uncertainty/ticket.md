@@ -1,10 +1,10 @@
 ---
 id: '127'
 type: patch
-phase: implement
-status: backlog
+phase: done
+status: done
 created: 2026-04-15T04:53:00Z
-last_modified: 2026-04-15T04:53:00Z
+last_modified: 2026-04-16T21:07:00Z
 scope:
   - Change quality review implement-phase prompt from "state uncertainty" to "resolve uncertainty, then state what remains"
 out_of_scope:
@@ -53,6 +53,7 @@ done_when:
 
 ## Work Log
 
+- 2026-04-16T21:07:00Z Closed: Code already matches spec (commit 2741ddc). Both templates/hooks/lib/quality.ts and .safeword/hooks/lib/quality.ts have the updated wording. Template synced. Done.
 - 2026-04-16T16:04:00Z Cross-ref: Ticket #126 session validated the "research before reporting" behavior — stop hook fired, agent researched PostToolUse timing instead of declaring uncertainty, confirmed the claim. This is exactly the behavior 127 codifies.
 - 2026-04-15T04:59:00Z Tightened: Simplified diff to "If uncertain about correctness, research it now." Qualifier "correctness" is narrow enough to avoid trivial research, broad enough to catch real issues. Removed clunky "or" join. Confirmed soft-block gives full tool access (WebSearch, Agent, etc.) during quality review response.
 - 2026-04-15T04:53:00Z Created: One-line prompt change. Shifts quality review from passive uncertainty declaration to active resolution. Derived from #121 dogfooding pattern where human consistently pushed "go research that" on stated uncertainties.

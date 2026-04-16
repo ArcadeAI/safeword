@@ -3,8 +3,9 @@ id: '109'
 slug: replace-best-practices-wording
 title: 'Replace "best practices" with "latest research" in quality prompts'
 type: Patch
-status: backlog
+status: done
 priority: low
+last_modified: 2026-04-16T21:11:00Z
 ---
 
 # Patch: Replace "best practices" with "latest research"
