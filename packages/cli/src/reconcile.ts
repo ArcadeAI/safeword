@@ -41,12 +41,7 @@ const HUSKY_DIR = '.husky';
  * Directories containing executable scripts that need chmod +x.
  * Used by both install and upgrade plans.
  */
-const CHMOD_PATHS = [
-  '.safeword/hooks',
-  '.safeword/hooks/cursor',
-  '.safeword/lib',
-  '.safeword/scripts',
-];
+const CHMOD_PATHS = ['.safeword/hooks', '.safeword/hooks/cursor', '.safeword/scripts'];
 
 /**
  * Prettier-related packages that should be skipped for projects with existing formatter.

@@ -189,6 +189,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/quality-review.md',
     '.claude/commands/refactor.md',
     '.claude/commands/testing.md',
+    // CLI reference inlined into SAFEWORD.md (v0.28.0, #112h)
+    '.safeword/guides/cli-reference.md',
     // Commands converted to skills (ticket 038)
     '.claude/commands/lint.md',
     '.claude/commands/verify.md',
@@ -412,6 +414,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/bdd/SPLITTING.md': {
       template: 'skills/bdd/SPLITTING.md',
     },
+    '.claude/skills/bdd/VERIFY.md': {
+      template: 'skills/bdd/VERIFY.md',
+    },
     '.claude/skills/ticket-system/SKILL.md': {
       template: 'skills/ticket-system/SKILL.md',
     },
@@ -422,6 +427,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
     '.claude/skills/cleanup-zombies/SKILL.md': {
       template: 'skills/cleanup-zombies/SKILL.md',
+    },
+    // Claude skills — contextual (auto-triggered, no slash command)
+    '.claude/skills/brainstorm/SKILL.md': {
+      template: 'skills/brainstorm/SKILL.md',
+    },
+    '.claude/skills/tdd-review/SKILL.md': {
+      template: 'skills/tdd-review/SKILL.md',
     },
 
     // Cursor rules
