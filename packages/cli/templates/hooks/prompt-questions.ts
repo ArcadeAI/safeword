@@ -69,7 +69,7 @@ if (existsSync(stateFile)) {
             'Phase: decomposition (optional). Break into tasks if architecture is unclear.',
           implement: tddStep
             ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
-            : 'Phase: implement. Pick first unchecked scenario, start TDD.',
+            : 'Phase: implement.',
           verify: 'Phase: verify. Cross-scenario refactor if needed, then run /verify and /audit.',
           done: 'Phase: done. Close ticket (verify.md exists).',
         };
