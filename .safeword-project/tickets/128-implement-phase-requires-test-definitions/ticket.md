@@ -2,8 +2,9 @@
 id: '128'
 slug: implement-phase-requires-test-definitions
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
+last_modified: 2026-04-17T13:03:00Z
 created: 2026-04-15
 scope: Add hard gate in pre-tool-quality.ts that denies application code edits when a feature ticket is at implement phase but test-definitions.md doesn't exist. Reads ticket state directly from disk (per #124). Tasks are exempt (per #126 retro).
 out_of_scope: Graduated warnings, phase transition enforcement, task-level TDD gates, changing prompt hook reminders
