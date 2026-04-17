@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
+import { SETTINGS_HOOKS } from '../src/templates/config.js';
 
 // Type guard for filtering out undefined values
 const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
@@ -334,6 +335,114 @@ describe('Schema - Single Source of Truth', () => {
       for (const cmd of claudeCommands) {
         expect(cursorCommands, `Cursor missing Claude command: ${cmd}`).toContain(cmd);
       }
+    });
+  });
+
+  describe('Drift detection', () => {
+    it('should have templates for all local skills', async () => {
+      const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+      const skillsDirectory = nodePath.join(repoRoot, '.claude/skills');
+      const skillTemplatesDirectory = nodePath.join(import.meta.dirname, '../templates/skills');
+
+      const localSkills = readdirSync(skillsDirectory, { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name);
+
+      const missing: string[] = [];
+      for (const skill of localSkills) {
+        if (!existsSync(nodePath.join(skillTemplatesDirectory, skill))) {
+          missing.push(skill);
+        }
+      }
+
+      expect(missing, `Local skills missing from templates/: ${missing.join(', ')}`).toEqual([]);
+    });
+
+    it('should have all hook files wired in SETTINGS_HOOKS', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      // Extract hook filenames from SETTINGS_HOOKS command strings
+      const wiredHooks = new Set<string>();
+      for (const entries of Object.values(SETTINGS_HOOKS)) {
+        for (const entry of entries) {
+          for (const hookDefinition of entry.hooks) {
+            const match = /\/([^/]+)$/.exec(hookDefinition.command);
+            if (match) wiredHooks.add(match[1]);
+          }
+        }
+      }
+
+      // Hook files in ownedFiles (excluding lib/ modules and cursor/ adapters)
+      const hookFiles = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
+        .filter(
+          path =>
+            path.startsWith('.safeword/hooks/') &&
+            !path.includes('/lib/') &&
+            !path.includes('/cursor/'),
+        )
+        .map(path => path.split('/').pop())
+        .filter(isDefined);
+
+      const unwired: string[] = [];
+      for (const file of hookFiles) {
+        if (!wiredHooks.has(file)) {
+          unwired.push(file);
+        }
+      }
+
+      expect(
+        unwired,
+        `Hook files in schema but not in SETTINGS_HOOKS: ${unwired.join(', ')}`,
+      ).toEqual([]);
+    });
+
+    it('should track all deployed .safeword/ files in ownedFiles or deprecatedFiles', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+      const safewordDirectory = nodePath.join(repoRoot, '.safeword');
+
+      // Generated/dynamic files not managed by schema
+      const DYNAMIC_FILES = new Set([
+        'config.json',
+        'version',
+        'depcruise-config.cjs',
+        'eslint.config.mjs',
+        '.prettierrc',
+      ]);
+
+      const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
+      const deprecatedPaths = new Set(SAFEWORD_SCHEMA.deprecatedFiles);
+
+      function collectFiles(directory: string, prefix: string): string[] {
+        const results: string[] = [];
+        if (!existsSync(directory)) return results;
+        for (const entry of readdirSync(directory, { withFileTypes: true })) {
+          if (entry.name.startsWith('.')) continue;
+          const relativePath = `${prefix}/${entry.name}`;
+          if (entry.isDirectory()) {
+            results.push(...collectFiles(nodePath.join(directory, entry.name), relativePath));
+          } else {
+            results.push(relativePath);
+          }
+        }
+        return results;
+      }
+
+      const deployedFiles = collectFiles(safewordDirectory, '.safeword');
+
+      const untracked: string[] = [];
+      for (const file of deployedFiles) {
+        const filename = file.split('/').pop() ?? '';
+        if (DYNAMIC_FILES.has(filename)) continue;
+        if (ownedPaths.has(file)) continue;
+        if (deprecatedPaths.has(file)) continue;
+        untracked.push(file);
+      }
+
+      expect(
+        untracked,
+        `Files in .safeword/ not tracked by schema ownedFiles or deprecatedFiles:\n  ${untracked.join('\n  ')}`,
+      ).toEqual([]);
     });
   });
 });
