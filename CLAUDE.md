@@ -12,4 +12,10 @@ When bumping the CLI version, update **both** files:
 
 Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. A pre-commit hook blocks commits where the two versions differ.
 
+## Test Execution
+
+- **Never run more than one vitest process.** If a test run is backgrounded, wait for the completion notification — do not retry.
+- Prefer targeted runs (`npx vitest run tests/path/to/file.test.ts`) over full suite during development.
+- Full suite only for final verification before commit.
+
 ---@./AGENTS.md
