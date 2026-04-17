@@ -9,6 +9,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { getWorkspacePatterns } from '../../utils/workspaces.js';
+
 /**
  * TanStack Query package names across all supported frameworks.
  */
@@ -77,29 +79,10 @@ function readPackageDeps(pkgPath: string): DepsRecord {
 }
 
 /**
- * Get workspace patterns from root package.json.
- */
-function getWorkspacePatternsFromPackage(rootPackagePath: string): string[] {
-  try {
-    const rootPackage = JSON.parse(readFileSync(rootPackagePath, 'utf8'));
-    if (Array.isArray(rootPackage.workspaces)) {
-      return rootPackage.workspaces;
-    }
-    if (rootPackage.workspaces?.packages) {
-      return rootPackage.workspaces.packages;
-    }
-  } catch {
-    // No workspaces defined
-  }
-  return [];
-}
-
-/**
  * Get all monorepo workspace patterns (from package.json + common directories).
  */
 function getMonorepoPatterns(rootDirectory: string): string[] {
-  const rootPackagePath = path.join(rootDirectory, 'package.json');
-  const workspacePatterns = getWorkspacePatternsFromPackage(rootPackagePath);
+  const workspacePatterns = getWorkspacePatterns(rootDirectory);
   const commonPatterns = ['apps/*', 'packages/*'];
   return [...new Set([...workspacePatterns, ...commonPatterns])];
 }
