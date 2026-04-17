@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Safeword: Quality Gates - PostToolUse observer
 // Counts LOC via git diff --stat HEAD, detects phase changes and TDD step transitions,
-// updates quality-state.json. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
+// updates per-session quality state. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
 
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
