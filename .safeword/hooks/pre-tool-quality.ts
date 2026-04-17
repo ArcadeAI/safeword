@@ -133,45 +133,7 @@ if (META_PATHS.some(p => editedFile.includes(p))) {
 }
 
 // ---------------------------------------------------------------------------
-// Implement phase gate: features need test-definitions.md before app code (#128)
-// Tasks are exempt (per #126 retro — sizing boundary makes tasks lighter).
-// Reads ticket state directly from disk (per #124 — no cached phase).
-// ---------------------------------------------------------------------------
-
-const stateFileForPhaseGate = getStateFilePath(projectDirectory, input.session_id);
-
-if (existsSync(stateFileForPhaseGate)) {
-  try {
-    const phaseState: QualityState = JSON.parse(readFileSync(stateFileForPhaseGate, 'utf8'));
-
-    if (phaseState.activeTicket) {
-      const ticketInfo = getTicketInfo(projectDirectory, phaseState.activeTicket);
-
-      if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
-        const testDefinitionsPath = nodePath.join(
-          projectDirectory,
-          '.safeword-project',
-          'tickets',
-          ticketInfo.folder,
-          'test-definitions.md',
-        );
-
-        if (!existsSync(testDefinitionsPath)) {
-          recordFailure(projectDirectory, input.session_id, 'implement-without-test-definitions');
-          deny(
-            'Feature at implement phase requires test-definitions.md before writing application code. Create test-definitions.md with scenarios first.',
-            'Write scenarios (RED/GREEN/REFACTOR checkboxes) before implementation. Tasks are exempt from this gate.',
-          );
-        }
-      }
-    }
-  } catch {
-    // Best effort — don't crash hooks on state read failure
-  }
-}
-
-// ---------------------------------------------------------------------------
-// LOC gate: blast radius control — commit every ~400 LOC
+// Shared state read — used by both implement phase gate and LOC gate below.
 // ---------------------------------------------------------------------------
 
 const stateFile = getStateFilePath(projectDirectory, input.session_id);
@@ -186,6 +148,38 @@ try {
 } catch {
   process.exit(0);
 }
+
+// ---------------------------------------------------------------------------
+// Implement phase gate: features need test-definitions.md before app code (#128)
+// Tasks are exempt (per #126 retro — sizing boundary makes tasks lighter).
+// Reads ticket state directly from disk (per #124 — no cached phase).
+// ---------------------------------------------------------------------------
+
+if (state.activeTicket) {
+  const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
+
+  if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
+    const testDefinitionsPath = nodePath.join(
+      projectDirectory,
+      '.safeword-project',
+      'tickets',
+      ticketInfo.folder,
+      'test-definitions.md',
+    );
+
+    if (!existsSync(testDefinitionsPath)) {
+      recordFailure(projectDirectory, input.session_id, 'implement-without-test-definitions');
+      deny(
+        'Feature at implement phase requires test-definitions.md before writing application code. Create test-definitions.md with scenarios first.',
+        'Write scenarios (RED/GREEN/REFACTOR checkboxes) before implementation. Tasks are exempt from this gate.',
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// LOC gate: blast radius control — commit every ~400 LOC
+// ---------------------------------------------------------------------------
 
 // Check if commit happened → gate clears
 const currentHead = (() => {
