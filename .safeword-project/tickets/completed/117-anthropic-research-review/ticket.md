@@ -3,6 +3,7 @@ id: '117'
 title: Review Anthropic research for Safeword-relevant design insights
 type: task
 phase: intake
+status: cancelled
 created: 2026-04-11
 related: '116'
 ---

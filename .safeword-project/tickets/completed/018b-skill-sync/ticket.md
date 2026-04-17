@@ -2,7 +2,7 @@
 id: 018b
 type: feature
 phase: intake
-status: ready
+status: cancelled
 parent: 018
 created: 2026-01-10T20:42:00Z
 last_modified: 2026-03-08T05:37:00Z

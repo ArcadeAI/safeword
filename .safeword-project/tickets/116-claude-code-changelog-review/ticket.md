@@ -8,13 +8,11 @@ created: 2026-04-11
 
 ## Goal
 
-Compare the Claude Code changelog between the version Safeword last cut a release against and the current latest, identify any changes relevant to Safeword's hook system, plugin interface, settings schema, or CLI behavior, and surface action items.
+Establish Claude Code version tracking for Safeword and do a one-time changelog review to surface breaking changes, opportunities, and action items.
 
 ## Context
 
-Safeword v0.27.0 ships as a Claude Code plugin. Claude Code's public changelog lives at `anthropics/claude-code` on GitHub (`CHANGELOG.md`). Multiple versions may have shipped since our last review. If Safeword doesn't periodically check upstream changes, hooks or plugin behavior can silently break or miss new capabilities.
-
-**We do not currently track which Claude Code version we build against.** This ticket establishes that tracking as part of the work.
+Safeword v0.27.0 ships as a Claude Code plugin. Claude Code's public changelog lives at `anthropics/claude-code` on GitHub (`CHANGELOG.md`). **We do not currently track which Claude Code version we build against.** This ticket establishes that tracking and does the initial review.
 
 ## Steps
 
@@ -57,7 +55,7 @@ For each relevant entry, classify as:
 
 ### 5. Update the baseline
 
-After review, bump the tracked Claude Code version to the latest we've now reviewed.
+After review, bump the tracked Claude Code version to the latest reviewed.
 
 ## Acceptance criteria
 
@@ -67,7 +65,6 @@ After review, bump the tracked Claude Code version to the latest we've now revie
 - [ ] Safeword-relevant items triaged (breaking / opportunity / watch)
 - [ ] Action items filed as sub-tickets or noted in existing tickets
 - [ ] Baseline bumped to current after review
-- [ ] Version bump process documented (e.g., note in CLAUDE.md alongside existing version management section)
 
 ## Preliminary findings (from quality review scan, 2026-04-11)
 
@@ -99,7 +96,3 @@ Claude Code is at v2.1.101 as of April 10, 2026. Scanning v2.1.92–v2.1.101 sur
 | v2.1.101 | Fixed memory leak in long sessions (virtual scroller retained historical message copies) | Users on older versions may hit this; no Safeword action needed.     |
 | v2.1.98  | Added `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` and `CLAUDE_CODE_SCRIPT_CAPS`                   | New security knobs — could be relevant for hardened deployments.     |
 | v2.1.94  | Default effort level changed from medium to high                                         | May affect how thoroughly Claude follows Safeword hook instructions. |
-
-## Future consideration
-
-This is a manual process for now. If it proves valuable, consider automating as a scheduled CI job or a `claude-code-upstream-check` command that fetches the changelog, diffs against the recorded baseline, and pre-filters for hook/plugin/settings keywords.

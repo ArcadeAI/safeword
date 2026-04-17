@@ -2,7 +2,8 @@
 id: 087
 type: task
 phase: intake
-status: backlog
+status: superseded
+superseded_by: '099'
 created: 2026-03-29T19:16:00Z
 last_modified: 2026-03-29T19:16:00Z
 ---

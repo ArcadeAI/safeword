@@ -2,7 +2,7 @@
 id: '053'
 type: task
 phase: intake
-status: pending
+status: cancelled
 created: 2026-03-26T20:56:55Z
 last_modified: 2026-03-26T20:56:55Z
 ---

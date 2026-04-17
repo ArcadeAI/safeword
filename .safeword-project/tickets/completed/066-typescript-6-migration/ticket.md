@@ -2,8 +2,9 @@
 id: 066
 slug: typescript-6-migration
 type: task
-status: backlog
+status: superseded
 phase: research
+superseded_by: '091'
 ---
 
 # Task: Evaluate TypeScript 6 migration

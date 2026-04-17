@@ -28,6 +28,12 @@ Prompt hook context injection for steps without natural gates. One compressed st
 
 **Source:** Anthropic "Effective Context Engineering for AI Agents" (2025); ACE paper (arxiv 2510.04618) — naive repeated injection causes "context collapse." Use bounded state replacement, not raw accumulation.
 
+### Anthropic's 4-layer safety model
+
+Anthropic's "Trustworthy agents in practice" (Apr 9, 2026) defines four required safety layers: model, harness, tools, environment. Safeword operates at the **harness layer** — confirms our scope is correct and that we shouldn't try to be all four layers. The paper emphasizes no single defense mechanism suffices and that multi-layer structural enforcement beats relying on model compliance alone, directly validating the "physics not policy" principle.
+
+**Source:** Anthropic "Trustworthy agents in practice" (2026-04-09), anthropic.com/research.
+
 ### Output validation (hard backstop)
 
 Evidence requirements at done — tests must pass, scenarios marked complete, audit run.

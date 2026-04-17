@@ -2,8 +2,9 @@
 id: 051
 slug: upgrade-eslint-10
 type: task
-status: backlog
+status: superseded
 phase: research
+superseded_by: '099'
 ---
 
 # Upgrade ESLint 9 → 10

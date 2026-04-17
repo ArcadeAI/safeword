@@ -2,7 +2,7 @@
 id: 018
 type: epic
 phase: intake
-status: ready
+status: cancelled
 created: 2026-01-10T20:36:00Z
 last_modified: 2026-01-10T20:42:00Z
 children: ['018a', '018b', '018c']

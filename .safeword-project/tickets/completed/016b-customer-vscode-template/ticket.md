@@ -2,7 +2,7 @@
 id: 016b
 type: task
 phase: implement
-status: ready
+status: cancelled
 parent: '016'
 created: 2026-01-10T18:40:00Z
 last_modified: 2026-01-11T03:35:00Z
