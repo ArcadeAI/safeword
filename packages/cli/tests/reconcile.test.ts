@@ -811,5 +811,62 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(result).not.toContain('knip');
       expect(result).toContain('safeword'); // Not installed, should be included
     });
+
+    it('should exclude packages provided by workspace members', async () => {
+      const { computePackagesToInstall } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      // Create a temp monorepo with a workspace member named "safeword"
+      const workspaceRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-workspace-test-'));
+      const memberDirectory = nodePath.join(workspaceRoot, 'packages', 'cli');
+      mkdirSync(memberDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(workspaceRoot, 'package.json'),
+        JSON.stringify({ name: 'my-monorepo', workspaces: ['packages/*'] }),
+      );
+      writeFileSync(
+        nodePath.join(memberDirectory, 'package.json'),
+        JSON.stringify({ name: 'safeword' }),
+      );
+
+      try {
+        const projectType = { ...DEFAULT_PROJECT_TYPE };
+        const result = computePackagesToInstall(SAFEWORD_SCHEMA, projectType, {}, workspaceRoot);
+
+        expect(result).not.toContain('safeword');
+        expect(result).toContain(ESLINT_PACKAGE); // Other packages still included
+        expect(result).toContain('knip');
+      } finally {
+        rmSync(workspaceRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('should include packages when no workspaces exist', async () => {
+      const { computePackagesToInstall } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      // Create a temp project with no workspaces
+      const projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-no-workspace-test-'));
+      writeFileSync(nodePath.join(projectRoot, 'package.json'), JSON.stringify({ name: 'my-app' }));
+
+      try {
+        const projectType = { ...DEFAULT_PROJECT_TYPE };
+        const result = computePackagesToInstall(SAFEWORD_SCHEMA, projectType, {}, projectRoot);
+
+        expect(result).toContain('safeword'); // Not a workspace member, should install from npm
+      } finally {
+        rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('should work when cwd is not provided (backward compat)', async () => {
+      const { computePackagesToInstall } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      const projectType = { ...DEFAULT_PROJECT_TYPE };
+      const result = computePackagesToInstall(SAFEWORD_SCHEMA, projectType, {});
+
+      expect(result).toContain('safeword');
+    });
   });
 });

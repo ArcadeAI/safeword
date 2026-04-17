@@ -25,6 +25,7 @@ import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { detectLanguages, type Languages } from '../utils/project-detector.js';
+import { getWorkspacePatterns } from '../utils/workspaces.js';
 import { VERSION } from '../version.js';
 import { buildArchitecture, hasArchitectureDetected, syncConfigCore } from './sync-config.js';
 
@@ -36,20 +37,6 @@ interface PackageJson {
   devDependencies?: Record<string, string>;
   'lint-staged'?: Record<string, string[]>;
   workspaces?: string[] | { packages?: string[] };
-}
-
-/**
- * Get workspace patterns from package.json.
- * Supports both array format and yarn workspaces object format.
- */
-function getWorkspacePatterns(cwd: string): string[] {
-  const packageJsonPath = nodePath.join(cwd, 'package.json');
-  const rootPackageJson = readJson(packageJsonPath) as PackageJson | undefined;
-  if (!rootPackageJson?.workspaces) return [];
-
-  return Array.isArray(rootPackageJson.workspaces)
-    ? rootPackageJson.workspaces
-    : (rootPackageJson.workspaces.packages ?? []);
 }
 
 /**

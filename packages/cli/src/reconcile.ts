@@ -29,6 +29,7 @@ import {
   writeJson,
 } from './utils/fs.js';
 import type { ProjectType } from './utils/project-detector.js';
+import { getWorkspacePackageNames } from './utils/workspaces.js';
 
 // ============================================================================
 // Constants
@@ -375,7 +376,12 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   wouldCreate.push(...patches.created);
 
   // 7. Compute packages to install
-  const packagesToInstall = computePackagesToInstall(schema, ctx.projectType, ctx.developmentDeps);
+  const packagesToInstall = computePackagesToInstall(
+    schema,
+    ctx.projectType,
+    ctx.developmentDeps,
+    ctx.cwd,
+  );
 
   return {
     actions,
@@ -492,7 +498,12 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   actions.push(...planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo));
 
   // 8. Compute packages to install
-  const packagesToInstall = computePackagesToInstall(schema, ctx.projectType, ctx.developmentDeps);
+  const packagesToInstall = computePackagesToInstall(
+    schema,
+    ctx.projectType,
+    ctx.developmentDeps,
+    ctx.cwd,
+  );
 
   // 9. Compute deprecated packages to remove (only those actually installed)
   const packagesToRemove = schema.deprecatedPackages.filter(pkg => pkg in ctx.developmentDeps);
@@ -694,6 +705,7 @@ export function computePackagesToInstall(
   schema: SafewordSchema,
   projectType: ProjectType,
   installedDevelopmentDeps: Record<string, string>,
+  cwd?: string,
 ): string[] {
   // Combine base packages with conditional packages
   const needed = [
@@ -701,8 +713,14 @@ export function computePackagesToInstall(
     ...getConditionalPackages(schema.packages.conditional, projectType),
   ];
 
+  // Skip packages provided by workspace members (prevents circular self-install in monorepos)
+  const workspaceMembers = cwd ? getWorkspacePackageNames(cwd) : new Set<string>();
+
   // Strip version specifier (e.g. 'eslint@^9' → 'eslint') when checking installed deps
-  return needed.filter(pkg => !(stripVersionSpecifier(pkg) in installedDevelopmentDeps));
+  return needed.filter(pkg => {
+    const name = stripVersionSpecifier(pkg);
+    return !workspaceMembers.has(name) && !(name in installedDevelopmentDeps);
+  });
 }
 
 function computePackagesToRemove(
