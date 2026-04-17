@@ -14,13 +14,51 @@
 - Safeword ships ESLint config as a preset — users inherit our peer dependency range (`eslint: "^9.0.0"`)
 - Bumping to ESLint 10 is a **semver-major** for the safeword package (changes peer dep range)
 
-**Blocked By:**
+**Blocked By (updated 2026-04-17):**
 
-- `@typescript-eslint/utils` must release a version supporting ESLint 10 (check `typescript-eslint` v9+)
+- `eslint-plugin-react` — **HARD BLOCKER.** Crashes at rule load: `context.getFilename()` removed in ESLint 10, shared `version.js` utility calls it for React version detection. Most rules fail. PRs #3972 and #3979 open (last updated 2026-04-12), not merged. **Wait for upstream fix — no shim.**
+
+Resolved:
+
+- ~~`typescript-eslint`~~ — supports `eslint ^8.57.0 || ^9.0.0 || ^10.0.0` (PR #12057 merged)
+- ~~`eslint-plugin-react-hooks`~~ — v7.1.0 supports ESLint 10 in peerDeps
+- ~~`@tanstack/eslint-plugin-query`~~ — v5.99.0 supports ESLint 10; issue #10141 closed
+- ~~`@vitest/eslint-plugin`~~ — v1.6.16 has `>=8.57.0` peer range, covers ESLint 10
+- ~~`eslint-plugin-jsx-a11y`~~ — peerDep only, all rules work at runtime. Override peerDep.
+- ~~`eslint-plugin-promise`~~ — vendor rules and drop dependency (see below)
+
+**Decision: vendor promise rules (2026-04-17).**
+
+`eslint-plugin-promise` is effectively unmaintained (no release in 17 months, no active maintainer with merge rights). The 6 rules safeword uses have zero alternatives in typescript-eslint, oxlint, or biome. Rather than depend on an abandoned package, vendor the 6 rules as safeword custom rules and drop the dependency. Rules to vendor: `no-multiple-resolved`, `no-callback-in-promise`, `no-nesting`, `no-promise-in-callback`, `no-return-in-finally`, `valid-params`.
+
+**Implementation Plan (2026-04-17):**
+
+Phase 1 — Vendor promise rules (can do now, independent of ESLint version):
+
+- Extract 6 rules as safeword custom rules (MIT-licensed source)
+- Remove `eslint-plugin-promise` dependency
+- Update base config to use vendored rules
+- Update tests
+
+Phase 2 — Upgrade compatible packages (can do now):
+
+- `typescript-eslint` → ESLint 10-compatible version
+- `eslint-plugin-react-hooks` → v7.1.0
+- `@tanstack/eslint-plugin-query` → v5.99.0
+- `@vitest/eslint-plugin` → v1.6.16+
+- Override `eslint-plugin-jsx-a11y` peerDep
+
+Phase 3 — ESLint 10 upgrade (blocked on `eslint-plugin-react`):
+
+- `eslint` → v10, `@eslint/js` → v10
+- Update `peerDependencies.eslint` to include `^10.0.0`
+- Semver-major release for safeword
 
 **Done When:**
 
-- [ ] ESLint 10 and `@eslint/js` 10 installed
+- [ ] Promise rules vendored, `eslint-plugin-promise` removed
+- [ ] Compatible packages upgraded to ESLint 10-ready versions
+- [ ] ESLint 10 and `@eslint/js` 10 installed (after `eslint-plugin-react` ships support)
 - [ ] `typescript-eslint` upgraded to ESLint 10-compatible version
 - [ ] All preset configs load without errors
 - [ ] `bun run lint:eslint` passes
@@ -29,6 +67,7 @@
 
 **Tests:**
 
+- [ ] Vendored promise rules pass existing tests
 - [ ] Existing ESLint rule tests pass with ESLint 10
 - [ ] Preset TypeScript config loads and lints sample files
 - [ ] No `LegacyESLint` or `Class extends value undefined` errors

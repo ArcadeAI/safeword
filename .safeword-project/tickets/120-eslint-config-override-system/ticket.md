@@ -6,19 +6,24 @@ phase: implement
 status: in_progress
 created: 2026-04-14
 scope:
-  - Export two named override presets from safeword/eslint (overrides.cli, overrides.relaxedTypes)
-  - Dogfood presets in packages/cli/eslint.config.mjs
+  - Move override presets into configs namespace (configs.cli, configs.relaxedTypes) — matches ecosystem convention
+  - Switch generated eslint.config.mjs template to use defineConfig() from eslint/config — eliminates object-vs-array spread footgun
+  - Dogfood presets in packages/cli/eslint.config.mjs using defineConfig
   - Document both paths (presets and individual rule overrides) in config.mdx and FAQ
+  - Update docs to show defineConfig + extends usage for file-scoped overrides
 out_of_scope:
   - Auto-detection of project type (rejected — heuristics fragile in monorepos)
   - Sidecar override file .safeword-project/eslint-overrides.mjs (deferred to ticket 019)
   - Hook-level smart lint-error suggestions (future ticket)
   - Test-file override preset (test relaxations already covered by configs.vitest/playwright)
+  - Changing .safeword/eslint.config.mjs hook template (extends parent config + strict rules, doesn't consume overrides)
 done_when:
-  - Override presets exported and typed on SafewordEslint interface
-  - packages/cli/eslint.config.mjs uses presets instead of hand-maintained overrides
-  - Unit tests verify preset shape, rule contents, and plugin export
-  - Docs show both override paths (presets and individual rules)
+  - Override presets exported under configs (configs.cli, configs.relaxedTypes) and typed on SafewordEslint interface
+  - overrides property removed from plugin export
+  - Generated eslint.config.mjs template uses defineConfig() instead of raw array export
+  - packages/cli/eslint.config.mjs dogfoods presets via defineConfig
+  - Unit tests verify preset shape, rule contents, and plugin export under configs namespace
+  - Docs show defineConfig usage with both preset and individual rule override paths
 ---
 
 # ESLint Config Override System
@@ -42,15 +47,31 @@ Two separate issues:
 1. **Internal:** `packages/cli/eslint.config.mjs` needs the same overrides as the root config (config drift bug)
 2. **Customer-facing:** Customers need a way to override safeword's strict rules for their project type without forking the config
 
-## Open Questions
+## Design Decisions
 
-- Should overrides be per-project-type (CLI, web app, library) or per-rule?
-- Should safeword detect project type and apply overrides automatically, or require manual config?
-- How does this interact with the additive config principle (linter configs add rules, never replace customer choices)?
-- Should `.safeword/eslint.config.mjs` support a local overrides file (e.g., `.safeword/eslint.local.mjs`) that customers can edit without it being overwritten by `safeword upgrade`?
+### Resolved: Named presets over auto-detection
+
+Per-project-type presets (cli, relaxedTypes) that users opt into explicitly. Auto-detection rejected — heuristics are fragile in monorepos. Matches ecosystem convention (typescript-eslint exposes `disableTypeChecked` as a named config).
+
+### Resolved: Presets live under `configs.*`, not `overrides.*`
+
+No major ESLint plugin uses a separate `overrides` namespace. typescript-eslint, eslint-config-prettier, eslint-plugin-security — all expose everything under `configs`. The name "overrides" also collides with the legacy eslintrc `overrides` key. Moving to `configs.cli` and `configs.relaxedTypes` enables `defineConfig` string resolution (`extends: ["safeword/cli"]`).
+
+### Resolved: `defineConfig()` for generated configs
+
+Override presets are single objects while base configs are arrays — mixed shapes in `configs` create a silent spread footgun (`...singleObject` produces garbage without errors). `defineConfig()` from `eslint/config` (ESLint ≥9.22, March 2025) flattens both shapes transparently. This is the recommended path — typescript-eslint deprecated `tseslint.config()` in favor of it. ESLint 9.22 is 13 months old; requiring it is reasonable since safeword already requires ESLint 9+ for flat config.
+
+### Resolved: Hook-level config unchanged
+
+`.safeword/eslint.config.mjs` dynamically imports the parent project config and layers strict rules on top. It doesn't consume override presets, so no changes needed. If the parent uses `defineConfig()` (which returns an array), the existing `[...projectConfig, strictRules]` pattern still works.
+
+### Additive principle preserved
+
+Override presets only turn rules `off` — they never add new rules. This aligns with the core principle: safeword adds rules, never replaces customer choices. Customers can also override individual rules directly in their config array.
 
 ## Work Log
 
 - 2026-04-14 Discovered during audit: 363 lint errors in packages/cli/ from strict rules that don't apply to CLI tools. Root config has overrides, package config doesn't. Post-tool hook uses root config path so per-edit linting works correctly.
 - 2026-04-15 Researched ESLint flat config ecosystem patterns (defineConfig, extends, shareable config authoring). Debated 4 approaches: named presets, auto-detection, sidecar file, hybrid. Selected named presets — matches ecosystem convention (typescript-eslint, eslint-config-prettier), preserves additive principle, minimal code.
 - 2026-04-15 Implemented overrides.cli (5 security rules) and overrides.relaxedTypes (10 TS strict rules). Exported as objects (not arrays) matching eslint-config-prettier convention. CLI config dogfoods both presets: 363 errors → 38 (remaining are test-file-only, covered by root monorepo config). Unit tests pass (8/8). Docs updated in configuration.mdx and FAQ.
+- 2026-04-17 Design review: identified three issues with current implementation. (1) `overrides` property has no ecosystem precedent — every major plugin uses `configs.*`. (2) Name collides with legacy eslintrc `overrides` key. (3) Mixed object/array shapes in `configs` create silent spread footgun. Resolution: move presets to `configs.*`, switch generated template to `defineConfig()`, keep hook-level config unchanged. Verified `.safeword/eslint.config.mjs` doesn't consume overrides — blast radius limited to plugin export, generated project-level template, dogfood config, tests, and docs.
