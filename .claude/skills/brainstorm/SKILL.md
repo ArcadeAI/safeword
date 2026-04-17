@@ -1,10 +1,6 @@
 ---
 name: brainstorm
-description: Collaborative brainstorming and rubber ducking. Thinking partner
-  for weighing approaches, debating tradeoffs, and working through uncertainty
-  before committing to a direction. Use when the user is unsure which approach
-  to take or wants to explore options before building. Do NOT use when the user
-  has decided what to build and wants to execute.
+description: Use when the user wants to explore options, weigh approaches, or think through uncertainty before committing to a direction. Collaborative brainstorming and rubber ducking — divergence-first thinking partner.
 ---
 
 # Brainstorming

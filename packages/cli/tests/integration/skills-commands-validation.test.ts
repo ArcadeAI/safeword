@@ -638,6 +638,9 @@ describe('Skills-Cursor Parity', () => {
     verify: undefined,
     audit: undefined,
     'cleanup-zombies': undefined,
+    // Contextual skills — Claude-only, no Cursor rule counterpart
+    brainstorm: undefined,
+    'tdd-review': undefined,
   };
 
   it('each skill should have corresponding cursor rule(s)', () => {

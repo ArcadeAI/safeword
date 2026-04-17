@@ -1,9 +1,6 @@
 ---
 name: tdd-review
-description: Quality checkpoint at TDD step boundaries. Reviews test quality
-  after RED, implementation correctness after GREEN, and scenario completeness
-  after REFACTOR. Use during task-level TDD or feature-level implementation
-  when completing a step and wanting a quality check before moving on.
+description: Use when completing a TDD step and wanting a quality check. Reviews test quality after RED, implementation correctness after GREEN, and scenario completeness after REFACTOR.
 allowed-tools: '*'
 ---
 
