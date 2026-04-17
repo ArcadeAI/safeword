@@ -1,8 +1,8 @@
 /**
- * Architecture boundaries detection and config generation
+ * Architecture boundaries detection
  *
- * Auto-detects common architecture directories and generates
- * eslint-plugin-boundaries config with sensible hierarchy rules.
+ * Auto-detects common architecture directories for use by
+ * dependency-cruiser layer enforcement.
  *
  * Supports:
  * - Standard projects (src/utils, utils/)
@@ -39,21 +39,6 @@ const ARCHITECTURE_LAYERS = [
 ] as const;
 
 type Layer = (typeof ARCHITECTURE_LAYERS)[number]['layer'];
-
-/**
- * Hierarchy rules: what each layer can import
- * Lower layers have fewer import permissions
- */
-const HIERARCHY: Record<Layer, Layer[]> = {
-  types: [],
-  utils: ['types'],
-  lib: ['utils', 'types'],
-  hooks: ['lib', 'utils', 'types'],
-  services: ['lib', 'utils', 'types'],
-  components: ['hooks', 'services', 'lib', 'utils', 'types'],
-  features: ['components', 'hooks', 'services', 'lib', 'utils', 'types'],
-  app: ['features', 'components', 'hooks', 'services', 'lib', 'utils', 'types'],
-};
 
 interface DetectedElement {
   layer: Layer;
@@ -181,110 +166,4 @@ export function detectArchitecture(projectDirectory: string): DetectedArchitectu
   });
 
   return { elements: uniqueElements, isMonorepo };
-}
-
-/**
- * Format a single element for the config
- * @param el
- */
-function formatElement(element: DetectedElement): string {
-  return `      { type: '${element.layer}', pattern: '${element.pattern}', mode: 'full' }`;
-}
-
-/**
- * Format allowed imports for a rule
- * @param allowed
- */
-function formatAllowedImports(allowed: Layer[]): string {
-  return allowed.map(d => `'${d}'`).join(', ');
-}
-
-/**
- * Generate a single rule for what a layer can import
- * @param layer
- * @param detectedLayers
- */
-function generateRule(layer: Layer, detectedLayers: Set<Layer>): string | undefined {
-  const allowedLayers = HIERARCHY[layer];
-  if (allowedLayers.length === 0) return undefined;
-
-  const allowed = allowedLayers.filter(dep => detectedLayers.has(dep));
-  if (allowed.length === 0) return undefined;
-
-  return `        { from: ['${layer}'], allow: [${formatAllowedImports(allowed)}] }`;
-}
-
-/**
- * Build description of what was detected
- * @param arch
- */
-function buildDetectedInfo(arch: DetectedArchitecture): string {
-  if (arch.elements.length === 0) {
-    return 'No architecture directories detected yet - add types/, utils/, components/, etc.';
-  }
-  const locations = arch.elements.map(element => element.location).join(', ');
-  const monorepoNote = arch.isMonorepo ? ' (monorepo)' : '';
-  return `Detected: ${locations}${monorepoNote}`;
-}
-
-/**
- *
- * @param arch
- */
-export function generateBoundariesConfig(arch: DetectedArchitecture): string {
-  const hasElements = arch.elements.length > 0;
-
-  // Generate element definitions
-  const elementsContent = arch.elements.map(element => formatElement(element)).join(',\n');
-
-  // Generate rules (what each layer can import)
-  const detectedLayers = new Set(arch.elements.map(element => element.layer));
-  const rules = [...detectedLayers]
-    .map(layer => generateRule(layer, detectedLayers))
-    .filter((rule): rule is string => rule !== undefined);
-  const rulesContent = rules.join(',\n');
-
-  const detectedInfo = buildDetectedInfo(arch);
-
-  return `/**
- * Architecture Boundaries Configuration (AUTO-GENERATED)
- *
- * ${detectedInfo}
- *
- * This enforces import boundaries between architectural layers:
- * - Lower layers (types, utils) cannot import from higher layers (components, features)
- * - Uses 'error' severity - LLMs ignore warnings, errors force compliance
- *
- * Recognized directories (in hierarchy order):
- *   types → utils → lib → hooks/services → components → features/modules → app
- *
- * To customize, override in your eslint.config.mjs:
- *   rules: { 'boundaries/element-types': ['error', { ... }] }
- */
-
-import boundaries from 'eslint-plugin-boundaries';
-
-export default {
-  plugins: { boundaries },
-  settings: {
-    'boundaries/elements': [
-${elementsContent}
-    ],
-  },
-  rules: {${
-    hasElements
-      ? `
-    'boundaries/element-types': ['error', {
-      default: 'disallow',
-      rules: [
-${rulesContent}
-      ],
-    }],`
-      : ''
-  }
-    'boundaries/no-unknown': 'off', // Allow files outside defined elements
-    'boundaries/no-unknown-files': 'off', // Allow non-matching files
-  },
-};
-`;
 }

@@ -196,7 +196,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/cleanup-zombies.md',
   ],
 
-  // Packages to uninstall on upgrade (now bundled in safeword/eslint)
+  // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
   deprecatedPackages: [
     // Individual ESLint plugins now bundled in safeword/eslint
     '@eslint/js',
@@ -204,7 +204,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     'eslint-import-resolver-typescript',
     'eslint-plugin-sonarjs',
     'eslint-plugin-unicorn',
-    'eslint-plugin-boundaries',
+    'eslint-plugin-boundaries', // replaced by dependency-cruiser
     'eslint-plugin-playwright',
     'eslint-plugin-promise',
     'eslint-plugin-regexp',
