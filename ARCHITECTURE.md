@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.11
-**Last Updated:** 2026-03-30
+**Version:** 1.12
+**Last Updated:** 2026-04-17
 **Status:** Production
 
 ---
@@ -213,22 +213,49 @@ interface ProjectContext {
 
 **Implementation:** `packages/cli/src/utils/project-detector.ts`
 
-### Framework-Specific ESLint Plugins
+### ESLint Plugin Configuration
 
-All framework ESLint plugins are **conditional** — only included when the framework is detected in the user's `package.json` dependencies. This prevents peer dependency warnings for frameworks users don't have installed.
+Safeword bundles 20+ ESLint plugins organized into three tiers. All rules use `error` severity — LLMs ignore warnings.
 
-| Plugin         | Detection                   | Peer Dep             |
-| -------------- | --------------------------- | -------------------- |
-| vitest         | `detect.hasVitest()`        | `vitest: *`          |
-| playwright     | `detect.hasPlaywright()`    | —                    |
-| storybook      | `detect.hasStorybook()`     | `storybook: ^10.3.3` |
-| tanstack-query | `detect.hasTanstackQuery()` | `typescript: ^5.4.0` |
-| tailwind       | `detect.hasTailwind()`      | —                    |
-| turbo          | `detect.hasTurbo()`         | `turbo: >2.0.0`      |
+**Base Plugins (always included):**
 
-Base plugins (sonarjs, security, unicorn, import-x, regexp, promise, jsdoc, eslint-comments) are always included.
+| Plugin                     | Purpose                             |
+| -------------------------- | ----------------------------------- |
+| sonarjs                    | Bug detection, cognitive complexity |
+| security                   | Security anti-patterns              |
+| unicorn                    | Modern JS/TS idioms                 |
+| import-x                   | Import/export validation            |
+| simple-import-sort         | Auto-fixable import ordering        |
+| import-resolver-typescript | TypeScript path alias resolution    |
+| regexp                     | Regex optimization                  |
+| promise                    | Promise anti-patterns               |
+| jsdoc                      | Documentation enforcement           |
+| eslint-comments            | Disable comment governance          |
 
-**Implementation:** `packages/cli/src/presets/typescript/detect.ts`, `packages/cli/src/templates/config.ts`
+**Framework Plugins (conditional — included when framework detected in `package.json`):**
+
+| Plugin                   | Detection                   | Peer Dep             |
+| ------------------------ | --------------------------- | -------------------- |
+| react                    | `detect.hasReact()`         | —                    |
+| react-hooks              | `detect.hasReact()`         | —                    |
+| jsx-a11y                 | `detect.hasReact()`         | —                    |
+| @next/eslint-plugin-next | `detect.hasNext()`          | —                    |
+| astro                    | `detect.hasAstro()`         | —                    |
+| storybook                | `detect.hasStorybook()`     | `storybook: ^10.3.3` |
+| tanstack-query           | `detect.hasTanstackQuery()` | `typescript: ^5.4.0` |
+| tailwind                 | `detect.hasTailwind()`      | —                    |
+| turbo                    | `detect.hasTurbo()`         | `turbo: >2.0.0`      |
+
+**Tooling Plugins (conditional — included when test runner detected):**
+
+| Plugin     | Detection                | Peer Dep    |
+| ---------- | ------------------------ | ----------- |
+| vitest     | `detect.hasVitest()`     | `vitest: *` |
+| playwright | `detect.hasPlaywright()` | —           |
+
+**Config hierarchy** (each extends the previous): `recommended` (JS) → `recommendedTypeScript` → `recommendedTypeScriptReact` → `recommendedTypeScriptNext`
+
+**Implementation:** `packages/cli/src/presets/typescript/eslint-configs/`, `packages/cli/src/presets/typescript/detect.ts`
 
 ---
 
@@ -287,15 +314,15 @@ CLI command
 
 ### Runtime (`dependencies`)
 
-| Package                                           | Purpose                             |
-| ------------------------------------------------- | ----------------------------------- |
-| `commander`                                       | CLI argument parsing                |
-| `yaml`                                            | YAML config parsing (failsafe mode) |
-| `@eslint/js`                                      | ESLint core rules                   |
-| `typescript-eslint`                               | TypeScript ESLint parser + rules    |
-| `eslint-config-prettier`                          | Disable formatting rules            |
-| `eslint-plugin-*`                                 | ESLint plugins (see package.json)   |
-| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance          |
+| Package                                           | Purpose                                 |
+| ------------------------------------------------- | --------------------------------------- |
+| `commander`                                       | CLI argument parsing                    |
+| `yaml`                                            | YAML config parsing (failsafe mode)     |
+| `@eslint/js`                                      | ESLint core rules                       |
+| `typescript-eslint`                               | TypeScript ESLint parser + rules        |
+| `eslint-config-prettier`                          | Disable formatting rules                |
+| `eslint-plugin-*`                                 | ESLint plugins (see plugin table above) |
+| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance              |
 
 ### Dev (`devDependencies`)
 
