@@ -234,24 +234,24 @@ Safeword bundles 20+ ESLint plugins organized into three tiers. All rules use `e
 
 **Framework Plugins (conditional — included when framework detected in `package.json`):**
 
-| Plugin                   | Detection                   | Peer Dep             |
-| ------------------------ | --------------------------- | -------------------- |
-| react                    | `detect.hasReact()`         | —                    |
-| react-hooks              | `detect.hasReact()`         | —                    |
-| jsx-a11y                 | `detect.hasReact()`         | —                    |
-| @next/eslint-plugin-next | `detect.hasNext()`          | —                    |
-| astro                    | `detect.hasAstro()`         | —                    |
-| storybook                | `detect.hasStorybook()`     | `storybook: ^10.3.3` |
-| tanstack-query           | `detect.hasTanstackQuery()` | `typescript: ^5.4.0` |
-| tailwind                 | `detect.hasTailwind()`      | —                    |
-| turbo                    | `detect.hasTurbo()`         | `turbo: >2.0.0`      |
+| Plugin                   | Detection                         | Peer Dep                        |
+| ------------------------ | --------------------------------- | ------------------------------- |
+| react                    | `detectFramework()` returns react | —                               |
+| react-hooks              | `detectFramework()` returns react | —                               |
+| jsx-a11y                 | `detectFramework()` returns react | —                               |
+| @next/eslint-plugin-next | `detectFramework()` returns next  | —                               |
+| astro                    | `detectFramework()` returns astro | —                               |
+| storybook                | `hasStorybook(deps)`              | `storybook: ^10.3.5`            |
+| tanstack-query           | `hasTanstackQuery(deps)`          | `typescript: ^5.0.0` (optional) |
+| tailwind                 | `hasTailwind(deps)`               | —                               |
+| turbo                    | `hasTurbo(deps)`                  | `turbo: >2.0.0`                 |
 
 **Tooling Plugins (conditional — included when test runner detected):**
 
-| Plugin     | Detection                | Peer Dep    |
-| ---------- | ------------------------ | ----------- |
-| vitest     | `detect.hasVitest()`     | `vitest: *` |
-| playwright | `detect.hasPlaywright()` | —           |
+| Plugin     | Detection             | Peer Dep    |
+| ---------- | --------------------- | ----------- |
+| vitest     | `hasVitest(deps)`     | `vitest: *` |
+| playwright | `hasPlaywright(deps)` | —           |
 
 **Config hierarchy** (each extends the previous): `recommended` (JS) → `recommendedTypeScript` → `recommendedTypeScriptReact` → `recommendedTypeScriptNext`
 
