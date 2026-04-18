@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { cliOverrides } from '../../src/presets/typescript/eslint-configs/overrides-cli.js';
-import { relaxedTypesOverrides } from '../../src/presets/typescript/eslint-configs/overrides-relaxed-types.js';
+import { cliConfig } from '../../src/presets/typescript/eslint-configs/overrides-cli.js';
+import { relaxedTypesConfig } from '../../src/presets/typescript/eslint-configs/overrides-relaxed-types.js';
 import { eslintPlugin } from '../../src/presets/typescript/index.js';
 
-describe('ESLint override presets', () => {
-  describe('overrides.cli', () => {
+describe('ESLint preset configs (cli, relaxedTypes)', () => {
+  describe('configs.cli', () => {
     it('exports a named config object with rules', () => {
-      expect(cliOverrides).toEqual(
+      expect(cliConfig).toEqual(
         expect.objectContaining({
-          name: 'safeword/overrides-cli',
+          name: 'safeword/cli',
           rules: expect.any(Object),
         }),
       );
     });
 
     it('turns off security false positives for CLI tools', () => {
-      const rules = cliOverrides.rules;
+      const rules = cliConfig.rules;
       expect(rules['security/detect-non-literal-fs-filename']).toBe('off');
       expect(rules['security/detect-object-injection']).toBe('off');
       expect(rules['sonarjs/no-os-command-from-path']).toBe('off');
@@ -25,24 +25,24 @@ describe('ESLint override presets', () => {
     });
 
     it('only contains off rules (never adds new rules)', () => {
-      for (const value of Object.values(cliOverrides.rules)) {
+      for (const value of Object.values(cliConfig.rules)) {
         expect(value).toBe('off');
       }
     });
   });
 
-  describe('overrides.relaxedTypes', () => {
+  describe('configs.relaxedTypes', () => {
     it('exports a named config object with rules', () => {
-      expect(relaxedTypesOverrides).toEqual(
+      expect(relaxedTypesConfig).toEqual(
         expect.objectContaining({
-          name: 'safeword/overrides-relaxed-types',
+          name: 'safeword/relaxed-types',
           rules: expect.any(Object),
         }),
       );
     });
 
     it('turns off strict TypeScript rules for untyped data', () => {
-      const rules = relaxedTypesOverrides.rules;
+      const rules = relaxedTypesConfig.rules;
       expect(rules['@typescript-eslint/no-unsafe-argument']).toBe('off');
       expect(rules['@typescript-eslint/no-unsafe-assignment']).toBe('off');
       expect(rules['@typescript-eslint/no-unsafe-call']).toBe('off');
@@ -53,22 +53,29 @@ describe('ESLint override presets', () => {
     });
 
     it('only contains off rules (never adds new rules)', () => {
-      for (const value of Object.values(relaxedTypesOverrides.rules)) {
+      for (const value of Object.values(relaxedTypesConfig.rules)) {
         expect(value).toBe('off');
       }
     });
   });
 
   describe('plugin export', () => {
-    it('exposes overrides on the main plugin object', () => {
-      expect(eslintPlugin.overrides).toBeDefined();
-      expect(eslintPlugin.overrides.cli).toBe(cliOverrides);
-      expect(eslintPlugin.overrides.relaxedTypes).toBe(relaxedTypesOverrides);
+    it('exposes cli and relaxedTypes under configs', () => {
+      expect(eslintPlugin.configs.cli).toBe(cliConfig);
+      expect(eslintPlugin.configs.relaxedTypes).toBe(relaxedTypesConfig);
     });
 
-    it('overrides are plain objects (not arrays)', () => {
-      expect(Array.isArray(eslintPlugin.overrides.cli)).toBe(false);
-      expect(Array.isArray(eslintPlugin.overrides.relaxedTypes)).toBe(false);
+    it('configs.cli and configs.relaxedTypes are plain objects (not arrays)', () => {
+      expect(Array.isArray(eslintPlugin.configs.cli)).toBe(false);
+      expect(Array.isArray(eslintPlugin.configs.relaxedTypes)).toBe(false);
+    });
+
+    it('legacy overrides namespace has been removed', () => {
+      expect((eslintPlugin as unknown as { overrides?: unknown }).overrides).toBeUndefined();
+    });
+
+    it('declares meta.namespace for defineConfig string-extends resolution', () => {
+      expect(eslintPlugin.meta.namespace).toBe('safeword');
     });
   });
 });

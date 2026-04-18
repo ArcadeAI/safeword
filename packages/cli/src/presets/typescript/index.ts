@@ -5,15 +5,18 @@
  * This is the main entry point for the TypeScript language preset.
  *
  * Usage in user's eslint.config.mjs:
+ *   import { defineConfig } from 'eslint/config';
  *   import safeword from 'safeword/eslint';
- *   export default [...safeword.configs.recommendedTypeScript];
+ *   export default defineConfig([
+ *     ...safeword.configs.recommendedTypeScript,
+ *   ]);
  *
  * Or with multiple configs:
- *   import safeword from 'safeword/eslint';
- *   export default [
+ *   export default defineConfig([
  *     ...safeword.configs.recommendedTypeScript,
  *     ...safeword.configs.vitest,
- *   ];
+ *     safeword.configs.cli,
+ *   ]);
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
@@ -24,8 +27,8 @@ import { VERSION } from '../../version.js';
 import { detect } from './detect.js';
 import { astroConfig } from './eslint-configs/astro.js';
 import { prettierConfig } from './eslint-configs/base.js';
-import { cliOverrides } from './eslint-configs/overrides-cli.js';
-import { relaxedTypesOverrides } from './eslint-configs/overrides-relaxed-types.js';
+import { cliConfig } from './eslint-configs/overrides-cli.js';
+import { relaxedTypesConfig } from './eslint-configs/overrides-relaxed-types.js';
 import { playwrightConfig } from './eslint-configs/playwright.js';
 import { recommended } from './eslint-configs/recommended.js';
 import { nextOnlyRules, recommendedTypeScriptNext } from './eslint-configs/recommended-nextjs.js';
@@ -42,6 +45,8 @@ interface SafewordEslint {
   meta: {
     name: string;
     version: string;
+    /** Namespace for defineConfig string-extends resolution (e.g. `extends: ["safeword/cli"]`) */
+    namespace: string;
   };
   configs: {
     recommended: any[];
@@ -57,9 +62,6 @@ interface SafewordEslint {
     playwright: any[];
     storybook: any[];
     turbo: any[];
-  };
-  /** Override presets for common false-positive categories */
-  overrides: {
     /** Security rules that are false positives for CLI tools, build tools, and scripts */
     cli: any;
     /** Strict TypeScript rules that conflict with untyped external data (JSON, YAML, APIs) */
@@ -79,6 +81,7 @@ export const eslintPlugin: SafewordEslint = {
   meta: {
     name: 'safeword',
     version: VERSION,
+    namespace: 'safeword',
   },
   configs: {
     recommended,
@@ -93,10 +96,8 @@ export const eslintPlugin: SafewordEslint = {
     playwright: playwrightConfig,
     storybook: storybookConfig,
     turbo: turboConfig,
-  },
-  overrides: {
-    cli: cliOverrides,
-    relaxedTypes: relaxedTypesOverrides,
+    cli: cliConfig,
+    relaxedTypes: relaxedTypesConfig,
   },
   detect,
   rules,
@@ -107,8 +108,8 @@ export const eslintPlugin: SafewordEslint = {
 export { detect } from './detect.js';
 export { astroConfig } from './eslint-configs/astro.js';
 export { prettierConfig } from './eslint-configs/base.js';
-export { cliOverrides } from './eslint-configs/overrides-cli.js';
-export { relaxedTypesOverrides } from './eslint-configs/overrides-relaxed-types.js';
+export { cliConfig } from './eslint-configs/overrides-cli.js';
+export { relaxedTypesConfig } from './eslint-configs/overrides-relaxed-types.js';
 export { playwrightConfig } from './eslint-configs/playwright.js';
 export { recommended } from './eslint-configs/recommended.js';
 export { nextOnlyRules, recommendedTypeScriptNext } from './eslint-configs/recommended-nextjs.js';

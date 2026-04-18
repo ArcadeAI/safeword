@@ -5,7 +5,9 @@
  * Package isolation enforced by dependency-cruiser (see .dependency-cruiser.cjs).
  */
 
+import { defineConfig } from 'eslint/config';
 import eslintConfigPrettier from 'eslint-config-prettier';
+
 import safeword from './packages/cli/dist/presets/typescript/index.js';
 
 // Ignores
@@ -25,57 +27,32 @@ const ignores = [
   'scripts/', // Monorepo dev scripts - standalone Bun scripts not in any tsconfig
 ];
 
-// Start with ignores + safeword TypeScript config
-const configs = [
+export default defineConfig([
   { ignores },
   ...safeword.configs.recommendedTypeScript,
   ...safeword.configs.vitest,
   ...safeword.configs.playwright,
   eslintConfigPrettier,
 
-  // Config files override - disable strict TS rules for dynamic imports
+  // Config files override - dynamic imports, untyped module loads
   {
     name: 'config-files-override',
     files: ['*.config.mjs', '*.config.ts', '.safeword/*.mjs', 'packages/*/tsup.config.ts'],
-    rules: {
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/no-unnecessary-boolean-literal-compare': 'off',
-      '@typescript-eslint/no-unnecessary-condition': 'off',
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      '@typescript-eslint/strict-boolean-expressions': 'off',
-    },
+    extends: [safeword.configs.relaxedTypes],
   },
 
   // CLI package overrides - disable false positives for CLI tools
   {
     name: 'cli-package-override',
     files: ['packages/cli/**/*.ts', 'packages/cli/**/*.mjs'],
+    extends: [safeword.configs.cli, safeword.configs.relaxedTypes],
     rules: {
-      // Security false positives - CLI tools work with user-provided paths by design
-      'security/detect-non-literal-fs-filename': 'off',
-      'security/detect-object-injection': 'off',
-      'sonarjs/no-os-command-from-path': 'off',
-      'sonarjs/os-command': 'off',
-      'sonarjs/different-types-comparison': 'off',
       // JSDoc not required for internal CLI code
       'jsdoc/require-param': 'off',
       'jsdoc/require-param-description': 'off',
       'jsdoc/require-returns': 'off',
       'jsdoc/require-jsdoc': 'off',
-      // CLI works with untyped external data (JSON, YAML, user input)
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      '@typescript-eslint/no-unnecessary-condition': 'off',
-      '@typescript-eslint/strict-boolean-expressions': 'off',
-      '@typescript-eslint/restrict-template-expressions': 'off',
+      // Interface conformance sometimes requires async without await
       '@typescript-eslint/require-await': 'off',
     },
   },
@@ -123,21 +100,10 @@ const configs = [
       'packages/website/**/*.astro',
       'packages/website/**/*.mjs',
     ],
+    extends: [safeword.configs.relaxedTypes],
     rules: {
       // Astro virtual modules (astro:content, @astrojs/starlight/*)
       'import-x/no-unresolved': 'off',
-      // Astro uses dynamic patterns that TS-ESLint flags
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/no-unnecessary-boolean-literal-compare': 'off',
-      '@typescript-eslint/no-unnecessary-condition': 'off',
-      '@typescript-eslint/prefer-nullish-coalescing': 'off',
-      '@typescript-eslint/strict-boolean-expressions': 'off',
     },
   },
-];
-
-export default configs;
+]);

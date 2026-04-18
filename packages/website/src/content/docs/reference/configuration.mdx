@@ -10,50 +10,62 @@ Most projects work great with the defaults. This page covers customization when 
 Safeword includes an ESLint plugin with sensible defaults. Your `eslint.config.mjs`:
 
 ```js
+import { defineConfig } from 'eslint/config';
 import safeword from 'safeword/eslint';
 
-export default [
+export default defineConfig([
   ...safeword.configs.recommendedTypeScript,
   ...safeword.configs.vitest, // if using Vitest
-];
+]);
 ```
+
+Safeword's generated config uses [`defineConfig`](https://eslint.org/docs/latest/use/configure/configuration-files#the-defineconfig-helper) (ESLint ≥9.22) — the canonical flat-config helper. It enables file-scoped `extends:` and validates the config shape at lint time.
 
 **Available configs:**
 
-| Config                       | Use case                                |
-| ---------------------------- | --------------------------------------- |
-| `recommended`                | JavaScript only                         |
-| `recommendedTypeScript`      | TypeScript                              |
-| `recommendedTypeScriptReact` | TypeScript + React                      |
-| `recommendedTypeScriptNext`  | TypeScript + Next.js                    |
-| `nextOnlyRules`              | Next.js rules for monorepo file scoping |
-| `vitest`                     | Add Vitest support                      |
-| `playwright`                 | Add Playwright support                  |
-| `astro`                      | Add Astro support                       |
-| `tailwind`                   | Add Tailwind support                    |
-| `tanstackQuery`              | Add TanStack Query                      |
-| `storybook`                  | Add Storybook support                   |
-| `turbo`                      | Add Turborepo support                   |
+| Config                       | Use case                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `recommended`                | JavaScript only                                                                                      |
+| `recommendedTypeScript`      | TypeScript                                                                                           |
+| `recommendedTypeScriptReact` | TypeScript + React                                                                                   |
+| `recommendedTypeScriptNext`  | TypeScript + Next.js                                                                                 |
+| `nextOnlyRules`              | Next.js rules for monorepo file scoping                                                              |
+| `vitest`                     | Add Vitest support                                                                                   |
+| `playwright`                 | Add Playwright support                                                                               |
+| `astro`                      | Add Astro support                                                                                    |
+| `tailwind`                   | Add Tailwind support                                                                                 |
+| `tanstackQuery`              | Add TanStack Query                                                                                   |
+| `storybook`                  | Add Storybook support                                                                                |
+| `turbo`                      | Add Turborepo support                                                                                |
+| `cli`                        | CLI tools, build tools, scripts — disables security rules that flag dynamic paths and shell commands |
+| `relaxedTypes`               | JSON/YAML parsing, API clients, config files — disables strict TypeScript rules for untyped data     |
 
-**Override presets** for common false positives:
-
-| Override                 | Use case                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `overrides.cli`          | CLI tools, build tools, scripts — disables security rules that flag dynamic paths and shell commands |
-| `overrides.relaxedTypes` | JSON/YAML parsing, API clients, config files — disables strict TypeScript rules for untyped data     |
+Apply the `cli` and `relaxedTypes` presets globally by adding them to the array:
 
 ```js
-export default [
+export default defineConfig([
   ...safeword.configs.recommendedTypeScript,
-  safeword.overrides.cli, // if building a CLI tool
-  safeword.overrides.relaxedTypes, // if handling untyped external data
-];
+  safeword.configs.cli, // if building a CLI tool
+  safeword.configs.relaxedTypes, // if handling untyped external data
+]);
 ```
 
-To add your own rules or override individual rules directly, extend the array:
+Or scope them to a subset of files using `extends:` — useful when only scripts or config loaders need the relaxations:
 
 ```js
-export default [
+export default defineConfig([
+  ...safeword.configs.recommendedTypeScript,
+  {
+    files: ['scripts/**', 'config/**'],
+    extends: [safeword.configs.cli, safeword.configs.relaxedTypes],
+  },
+]);
+```
+
+To add your own rules or override individual rules directly, add another entry to the array:
+
+```js
+export default defineConfig([
   ...safeword.configs.recommendedTypeScript,
   {
     rules: {
@@ -61,7 +73,7 @@ export default [
       'security/detect-non-literal-fs-filename': 'off', // override a single rule
     },
   },
-];
+]);
 ```
 
 ## Language Detection
