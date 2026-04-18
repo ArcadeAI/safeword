@@ -41,29 +41,29 @@
 
 > Rationale: `ruff.toml` is customer-owned. Safeword's `.safeword/ruff.toml` uses the `extend` directive to inherit from the customer config, so customer `ignore` / `per-file-ignores` / `extend-select` must pass through unchanged.
 
-- [ ] Given a safeword Python project with `[lint]\nignore = ["E501"]` in ruff.toml, when I run `safeword upgrade`, then ruff.toml is byte-identical and a 100-char line does not flag E501 in the LLM hook lint run.
+- [x] Given a safeword Python project with `[lint]\nignore = ["E501"]` in ruff.toml, when I run `safeword upgrade`, then ruff.toml is byte-identical and a 100-char line does not flag E501 in the LLM hook lint run.
 
 ### Scenario 2.1: Python — ignore rule via `lint.ignore`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given a safeword Python project with `[lint.per-file-ignores]\n"tests/**" = ["S101"]` in ruff.toml, when I run `safeword upgrade`, then ruff.toml is byte-identical and `assert x == 1` in tests/test_x.py does not flag S101 in the LLM hook lint run.
+- [x] Given a safeword Python project with `[lint.per-file-ignores]\n"tests/**" = ["S101"]` in ruff.toml, when I run `safeword upgrade`, then ruff.toml is byte-identical and `assert x == 1` in tests/test_x.py does not flag S101 in the LLM hook lint run.
 
 ### Scenario 2.2: Python — per-file-ignores
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given a safeword Python project with `[lint]\nextend-select = ["PT"]` in ruff.toml (adding flake8-pytest-style rules not in safeword defaults), when I run `safeword upgrade`, then ruff.toml is byte-identical and a PT-class violation is flagged by the LLM hook lint run.
+- [x] Given a safeword Python project with `[lint]\nextend-select = ["D"]` in ruff.toml (adding pydocstyle rules not in safeword defaults), when I run `safeword upgrade`, then ruff.toml is byte-identical and an undocumented function flags D103 in the LLM hook lint run.
 
 ### Scenario 2.3: Python — add rule via `extend-select`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
