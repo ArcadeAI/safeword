@@ -5,4 +5,11 @@ bun scripts/check-nested-configs.ts || exit 1
 # Version sync: package.json is source of truth, marketplace.json must match
 node -e 'var c=require("./packages/cli/package.json").version,m=require("./marketplace.json").plugins[0].version;if(c!=m){console.error("Version mismatch: package.json="+c+" marketplace.json="+m+". Update marketplace.json.");process.exit(1)}'
 
+# Regenerate project-learnings skill so committed state matches learnings folder (#130)
+# Runs against local source to avoid chicken-and-egg with published CLI version.
+if git diff --cached --name-only | grep -q '^\.safeword-project/learnings/.*\.md$'; then
+  bun packages/cli/src/cli.ts sync-learnings --quiet || exit 1
+  git add .claude/skills/project-learnings/SKILL.md 2> /dev/null || true
+fi
+
 lint-staged

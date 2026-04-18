@@ -311,6 +311,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/session-cleanup-quality.ts',
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
+    '.safeword/hooks/post-tool-sync-learnings.ts': {
+      template: 'hooks/post-tool-sync-learnings.ts',
+    },
+    '.safeword/hooks/session-sync-learnings.ts': {
+      template: 'hooks/session-sync-learnings.ts',
+    },
 
     // Guides
     '.safeword/guides/architecture-guide.md': {

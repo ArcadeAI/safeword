@@ -344,9 +344,14 @@ describe('Schema - Single Source of Truth', () => {
       const skillsDirectory = nodePath.join(repoRoot, '.claude/skills');
       const skillTemplatesDirectory = nodePath.join(import.meta.dirname, '../templates/skills');
 
+      // Skills auto-generated per project from project-specific content are
+      // not shipped as static templates — each customer's copy differs.
+      const generatedSkills = new Set(['project-learnings']);
+
       const localSkills = readdirSync(skillsDirectory, { withFileTypes: true })
         .filter(entry => entry.isDirectory())
-        .map(entry => entry.name);
+        .map(entry => entry.name)
+        .filter(name => !generatedSkills.has(name));
 
       const missing: string[] = [];
       for (const skill of localSkills) {
