@@ -11,29 +11,29 @@
 
 > Rationale: `eslint.config.mjs` is customer-owned and never overwritten. Flat config's "later wins" semantics should carry the customer's `rules:` block through any `safeword upgrade`.
 
-- [ ] Given a safeword TypeScript project with `rules: { 'security/detect-non-literal-fs-filename': 'off' }` in eslint.config.mjs, when I run `safeword upgrade`, then eslint.config.mjs is byte-identical and the LLM hook lint run does not flag security/detect-non-literal-fs-filename on a seeded violation.
+- [x] Given a safeword TypeScript project with `rules: { 'security/detect-non-literal-fs-filename': 'off' }` in eslint.config.mjs, when I run `safeword upgrade`, then eslint.config.mjs is byte-identical and the LLM hook lint run does not flag security/detect-non-literal-fs-filename on a seeded violation.
 
 ### Scenario 1.1: TS — disable safeword rule via `rules: { 'X': 'off' }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given a safeword TypeScript project with `rules: { 'max-lines-per-function': ['error', { max: 500 }] }` in eslint.config.mjs, when I run `safeword upgrade`, then eslint.config.mjs is byte-identical and a 400-line function does not trigger the rule.
+- [x] Given a safeword TypeScript project with `rules: { complexity: ['error', 50] }` in eslint.config.mjs (safeword sets complexity to 10 by default), when I run `safeword upgrade`, then eslint.config.mjs is byte-identical and a function with cyclomatic complexity 15 does not trigger the rule.
 
 ### Scenario 1.2: TS — change threshold via `rules: { 'X': ['error', opts] }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
-- [ ] Given a safeword TypeScript project with `rules: { 'no-console': 'error' }` in eslint.config.mjs (a rule safeword does not enable by default), when I run `safeword upgrade`, then eslint.config.mjs is byte-identical and `console.log()` is flagged by the LLM hook lint run.
+- [x] Given a safeword TypeScript project with `rules: { 'no-console': 'error' }` in eslint.config.mjs (a rule safeword does not enable by default), when I run `safeword upgrade`, then eslint.config.mjs is byte-identical and `console.log()` is flagged by the LLM hook lint run.
 
 ### Scenario 1.3: TS — add new rule via `rules: { 'no-console': 'error' }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 

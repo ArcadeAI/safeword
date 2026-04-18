@@ -92,5 +92,9 @@ Summary:
 ---
 
 - 2026-04-18T03:11:12Z Created: BDD ticket to verify the "customer-owned configs never overwritten" invariant across all 5 language packs. Q1=direct surface, Q2=better BDD (Scenario Outline + Examples, behavior-focused Thens).
+- 2026-04-18T14:30:00Z Rule 1 (TypeScript, 3/3 scenarios) GREEN. Key findings during implementation:
+  1. Customer override MUST be placed AFTER `...safeword.configs.recommendedTypeScript` in eslint.config.mjs. Flat config is "later wins" — overrides at the top get silently reverted by safeword's preset. The FAQ example already shows this correctly; tests now assert it.
+  2. macOS tmpdir returns the `/var/folders/` symlink; ESLint canonicalizes paths to `/private/var/folders/` and silently drops absolute paths with "outside of base path" warning. Tests call `realpathSync(createTemporaryDirectory())` to avoid vacuous passes. Non-issue in production (real paths passed by Claude Code).
+  3. Initial test design put override at start of `defineConfig([...])` and had 2/3 tests vacuously pass before the path-canonicalization fix exposed the real assertion.
 
 ---
