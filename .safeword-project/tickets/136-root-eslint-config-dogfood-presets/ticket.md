@@ -2,8 +2,8 @@
 id: '136'
 slug: root-eslint-config-dogfood-presets
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-04-17
 parent: '120'
 scope:

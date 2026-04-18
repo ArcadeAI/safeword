@@ -2,8 +2,8 @@
 id: '120'
 slug: eslint-config-override-system
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-04-14
 scope:
   - Move override presets into configs namespace (configs.cli, configs.relaxedTypes) — matches ecosystem convention
