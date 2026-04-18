@@ -130,7 +130,8 @@ export function getEslintConfig(hasExistingFormatter = false): string {
  * Standard ESLint config - full linting with Prettier
  */
 function getStandardEslintConfig(): string {
-  return `import safeword from "safeword/eslint";
+  return `import { defineConfig } from "eslint/config";
+import safeword from "safeword/eslint";
 
 // Prettier config is bundled with safeword
 const eslintConfigPrettier = safeword.prettierConfig;
@@ -142,13 +143,13 @@ const framework = detect.detectFramework(deps);
 
 ${getMonorepoSnippet('__dirname')}
 
-export default [
+export default defineConfig([
   { ignores: detect.getIgnores() },
   ...baseConfigs[framework],
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
   eslintConfigPrettier,
-];
+]);
 `;
 }
 
@@ -158,7 +159,8 @@ ${OPTIONAL_CONFIGS_SNIPPET}
  * Does not include eslint-config-prettier since another tool handles formatting.
  */
 function getFormatterAgnosticEslintConfig(): string {
-  return `import safeword from "safeword/eslint";
+  return `import { defineConfig } from "eslint/config";
+import safeword from "safeword/eslint";
 
 const { detect, configs } = safeword;
 const __dirname = import.meta.dirname;
@@ -167,12 +169,12 @@ const framework = detect.detectFramework(deps);
 
 ${getMonorepoSnippet('__dirname')}
 
-export default [
+export default defineConfig([
   { ignores: detect.getIgnores() },
   ...baseConfigs[framework],
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
-];
+]);
 `;
 }
 
@@ -286,6 +288,7 @@ function getSafewordEslintConfigStandalone(hasExistingFormatter: boolean): strin
   return `// Safeword ESLint config - standalone (no project config to extend)
 // Used by hooks for LLM enforcement.
 import { dirname } from "node:path";
+import { defineConfig } from "eslint/config";
 import safeword from "safeword/eslint";
 ${prettier.import}
 
@@ -300,14 +303,14 @@ ${getMonorepoSnippet('projectDir')}
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
-export default [
+export default defineConfig([
   { ignores: detect.getIgnores() },
   ...baseConfigs[framework],
   ...scopedNextConfigs,
 ${OPTIONAL_CONFIGS_SNIPPET}
   safewordStrictRules,
 ${prettier.configEntry}
-];
+]);
 `;
 }
 
