@@ -1,8 +1,9 @@
+import { defineConfig } from 'eslint/config';
 import eslintConfigPrettier from 'eslint-config-prettier';
 
 import safeword from './dist/presets/typescript/index.js';
 
-const { detect, configs, overrides } = safeword;
+const { detect, configs } = safeword;
 const deps = detect.collectAllDeps(import.meta.dirname);
 const framework = detect.detectFramework(deps);
 
@@ -17,7 +18,7 @@ const baseConfigs = {
   javascript: configs.recommended,
 };
 
-export default [
+export default defineConfig([
   { ignores: detect.getIgnores() },
 
   ...baseConfigs[framework],
@@ -25,7 +26,7 @@ export default [
   ...(detect.hasPlaywright(deps) ? configs.playwright : []),
   ...(detect.hasTailwind(deps) ? configs.tailwind : []),
   ...(detect.hasTanstackQuery(deps) ? configs.tanstackQuery : []),
-  overrides.cli,
-  overrides.relaxedTypes,
+  configs.cli,
+  configs.relaxedTypes,
   eslintConfigPrettier,
-];
+]);

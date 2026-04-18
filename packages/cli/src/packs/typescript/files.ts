@@ -431,8 +431,9 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
 // Packages
 // ============================================================================
 
-// Pin to v9 until ESLint plugin ecosystem supports v10 (released Feb 2026)
-export const ESLINT_PACKAGE = 'eslint@^9';
+// Pin to v9 until ESLint plugin ecosystem supports v10 (released Feb 2026).
+// Minimum 9.22 for `eslint/config` defineConfig helper used in generated configs.
+export const ESLINT_PACKAGE = 'eslint@^9.22.0';
 
 export const typescriptPackages = {
   base: [
