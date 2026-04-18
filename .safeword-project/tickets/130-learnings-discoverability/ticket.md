@@ -1,10 +1,10 @@
 ---
 id: 130
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-04-15T14:10:00Z
-last_modified: 2026-04-18T01:47:00Z
+last_modified: 2026-04-18T03:15:00Z
 ---
 
 # Improve learnings discoverability for Claude Code agents
@@ -97,6 +97,8 @@ Delete the `Location: .safeword-project/learnings/ — check FIRST when stuck, d
 
 ## Work Log
 
+- 2026-04-18T03:15:00Z Verified + closed. Post-hardening test suite: 1538 passed, 0 failed (up from 1536 after +3 truncation tests). Build green. Audit clean: depcruise no violations on new code, knip no dead refs, W006 check passes for all 16 learning files. verify.md written. Phase → done.
+- 2026-04-18T02:00:00Z Self-review hardening: added local-source fallback to both hooks (closes dogfood-until-release gap — hooks now prefer `packages/cli/src/cli.ts` over `bunx safeword@latest` when the local checkout exists), and `buildDescription` now returns `{description, truncated}` with stderr+warn surfacing when the topic list exceeds 1024 chars. Observed in dogfood: current corpus truncates at ~5/16 topics due to verbose Covers: lines — out-of-scope signal for a future content-tuning ticket.
 - 2026-04-18T01:47:00Z Implementation complete. 7 commits: ticket rewrite; Covers: normalization across 6 files; learning-sync module + 19 unit tests; `safeword sync-learnings` CLI command + initial generated skill at `.claude/skills/project-learnings/SKILL.md`; PostToolUse + SessionStart + pre-commit hook wiring (dogfood + templates + schema + SETTINGS_HOOKS + parity-test exception for generated skill); audit skill Covers: check (W006); SAFEWORD.md/template check-when-stuck line replaced. Full test suite: 1536 passed, 0 failed. Dogfood validation: the `project-learnings` skill is live in this session's skill list with a topic-rich description. Customer-facing activation happens after the next CLI release (hooks use `bunx safeword@latest sync-learnings`; the command ships in this changeset).
 - 2026-04-17T17:05:00Z Design rewrite: Original brainstorm design referenced `.claude/rules/` (does not exist in Claude Code) and `head -3` discovery (still conditional recall). Researched Anthropic Agent Skills docs, Karpathy LLM Wiki pattern, and progressive disclosure best practices. Converged on one umbrella `project-learnings` skill auto-generated from Covers: lines via `safeword sync-learnings`, fired by PostToolUse + SessionStart + pre-commit hooks. Content reorg (splits, renames, condensation) dropped as bloat — attention budget argument doesn't apply when files load on demand. Reclassified task → small feature (new hook + CLI + audit integration).
 - 2026-04-16T16:04:00Z Cross-ref: Ticket #126 added novelResearchReminder flag — fires on any .safeword-project/learnings/\*.md creation/edit. During 130's bulk file operations, this will fire repeatedly. Expected and harmless — flag is idempotent (set true N times, one reminder).
