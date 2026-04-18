@@ -1,6 +1,6 @@
 # E2E Test Zombie Processes
 
-Covers: zombie process prevention in E2E tests, sequential execution enforcement, cleanup scripts.
+Covers: E2E zombie processes, port conflicts, cleanup.
 
 **Principle:** E2E tests that spawn dev servers can create zombie processes if run in parallel. Always enforce sequential execution and provide clear cleanup instructions.
 

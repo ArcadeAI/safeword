@@ -1,6 +1,6 @@
 # AI Agent Behavior Research
 
-Covers: TDD for agents, verification patterns, enforcement layers, context overload, instruction design, test scope, task decomposition, scenario validation.
+Covers: agent TDD, verification, enforcement layers.
 
 Research-backed principles for how AI coding agents should be guided through multi-step processes. Applied in tickets #109 (enforcement redesign) and #113 (BDD phase updates).
 

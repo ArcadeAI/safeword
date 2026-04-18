@@ -1,6 +1,6 @@
 # Dogfooding Gotchas
 
-Covers: CLAUDE.md import pattern conflicts when running safeword upgrade on the safeword repo itself.
+Covers: CLAUDE.md import conflicts, safeword self-upgrade.
 
 ## CLAUDE.md Import Pattern
 

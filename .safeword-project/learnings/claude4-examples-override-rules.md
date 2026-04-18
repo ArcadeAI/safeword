@@ -1,6 +1,6 @@
 # Claude 4: Examples Are the Strongest Compliance Signal
 
-Covers: Examples as compliance signal in skill files, turn examples over abstract rules, Claude 4 example-following behavior, shortcut-demonstration risk.
+Covers: Claude 4 example-following, examples override rules.
 
 **Finding:** Claude 4.x models pay close attention to examples and follow them closely. Anthropic's Claude 4 best practices docs recommend ensuring examples "align with behaviors you want to encourage and minimize behaviors you want to avoid." The think-tool engineering post showed a 54% improvement in policy compliance when examples of reasoning approaches were provided vs abstract rules alone.
 

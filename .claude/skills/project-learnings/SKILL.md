@@ -1,6 +1,6 @@
 ---
 name: project-learnings
-description: Project-specific engineering lessons recorded during this codebase's development. Topics: TDD for agents, verification patterns, enforcement layers, context overload, instruction design, test scope, task decomposition, scenario validation; Agent trustworthiness, harness design, auto mode, long-running agents, and model evaluation research relevant to Safeword's enforcement and workflow design; Hook changes, permission updates, agent workflow improvements, autonomy features, plugin system, and performance fixes from Claude Code v2.1.80-2.1.101; Examples as compliance signal in skill files, turn examples over abstract rules, Claude 4 example-following behavior, shortcut-demonstration risk; Skill file instruction verbosity, conciseness over format, ordered vs unordered lists, procedural step count, fewer steps over more ceremony…. Read the matching file before related work to avoid re-making previously-solved mistakes.
+description: Project-specific engineering lessons recorded during this codebase's development. Topics: agent TDD, verification, enforcement layers; Anthropic 2026 research, trustworthy agents, harness design; Claude Code 2.1.80-2.1.101 changelog, plugins; Claude 4 example-following, examples override rules; skill file conciseness, step count, list ordering; hook fire counts, friction analysis, dogfood session; CLAUDE.md import conflicts, safeword self-upgrade; E2E zombie processes, port conflicts, cleanup; instruction placement, attention decay; ESLint for AI agents, security plugins, additive presets; natural vs self-report gates, physics-not-policy; post-tool lint, auto-fix vs error vs warn, retry loops; procedural instruction degradation, tell WHAT not HOW; propose-and-converge pattern, agent UX, ideation; skill description writing, auto-triggering, trigger phrases; YAML failsafe schema, quality-state.json, ticket hierarchy. Read the matching file before related work to avoid re-making previously-solved mistakes.
 user-invocable: false
 ---
 
@@ -8,35 +8,35 @@ user-invocable: false
 
 Match your current task to a topic, then read the matching file for full context:
 
-- **AI Agent Behavior Research** — TDD for agents, verification patterns, enforcement layers, context overload, instruction design, test scope, task decomposition, scenario validation.
+- **AI Agent Behavior Research** — agent TDD, verification, enforcement layers.
   → .safeword-project/learnings/agent-behavior-research.md
-- **Anthropic Research & Engineering: Feb-Apr 2026** — Agent trustworthiness, harness design, auto mode, long-running agents, and model evaluation research relevant to Safeword's enforcement and workflow design.
+- **Anthropic Research & Engineering: Feb-Apr 2026** — Anthropic 2026 research, trustworthy agents, harness design.
   → .safeword-project/learnings/anthropic-research-feb-apr-2026.md
-- **Claude Code Changelog: Feb-Apr 2026** — Hook changes, permission updates, agent workflow improvements, autonomy features, plugin system, and performance fixes from Claude Code v2.1.80-2.1.101.
+- **Claude Code Changelog: Feb-Apr 2026** — Claude Code 2.1.80-2.1.101 changelog, plugins.
   → .safeword-project/learnings/claude-code-changelog-feb-apr-2026.md
-- **Claude 4: Examples Are the Strongest Compliance Signal** — Examples as compliance signal in skill files, turn examples over abstract rules, Claude 4 example-following behavior, shortcut-demonstration risk.
+- **Claude 4: Examples Are the Strongest Compliance Signal** — Claude 4 example-following, examples override rules.
   → .safeword-project/learnings/claude4-examples-override-rules.md
-- **Concise Over Verbose for Skill File Instructions (Not Prose Over Lists)** — Skill file instruction verbosity, conciseness over format, ordered vs unordered lists, procedural step count, fewer steps over more ceremony.
+- **Concise Over Verbose for Skill File Instructions (Not Prose Over Lists)** — skill file conciseness, step count, list ordering.
   → .safeword-project/learnings/claude4-prose-over-lists.md
-- **Dogfooding: Enforcement Redesign Session (April 2026)** — Real hook fire counts, friction analysis, what caught bugs vs what was noise, during a 30+ commit session implementing tickets #113 and #114.
+- **Dogfooding: Enforcement Redesign Session (April 2026)** — hook fire counts, friction analysis, dogfood session.
   → .safeword-project/learnings/dogfooding-enforcement-session.md
-- **Dogfooding Gotchas** — CLAUDE.md import pattern conflicts when running safeword upgrade on the safeword repo itself.
+- **Dogfooding Gotchas** — CLAUDE.md import conflicts, safeword self-upgrade.
   → .safeword-project/learnings/dogfooding-gotchas.md
-- **E2E Test Zombie Processes** — zombie process prevention in E2E tests, sequential execution enforcement, cleanup scripts.
+- **E2E Test Zombie Processes** — E2E zombie processes, port conflicts, cleanup.
   → .safeword-project/learnings/e2e-test-zombie-processes.md
-- **Instruction Attention Hierarchy: Where to Put Critical Rules** — Instruction placement in prompt hooks vs skill files, attention decay, cross-file delegation compliance rates, lost-in-the-middle effect, critical rule positioning.
+- **Instruction Attention Hierarchy: Where to Put Critical Rules** — instruction placement, attention decay.
   → .safeword-project/learnings/instruction-attention-hierarchy.md
-- **LLM Coding Agents and Linting: Research Summary (December 2025)** — ESLint configuration for AI agents, security plugins, additive preset architecture, auto-fix strategies.
+- **LLM Coding Agents and Linting: Research Summary (December 2025)** — ESLint for AI agents, security plugins, additive presets.
   → .safeword-project/learnings/llm-coding-agents-linting.md
-- **Natural Gates vs Self-Report Gates** — Enforcement gate design for agents, natural gates vs self-report gates, physics-not-policy, artifact prerequisites, LOC threshold gates.
+- **Natural Gates vs Self-Report Gates** — natural vs self-report gates, physics-not-policy.
   → .safeword-project/learnings/natural-vs-self-report-gates.md
-- **Post-Tool Linting Strategies for AI Coding Assistants** — auto-fix vs error vs warn strategies, feedback loops, retry prevention, multi-language lint orchestration.
+- **Post-Tool Linting Strategies for AI Coding Assistants** — post-tool lint, auto-fix vs error vs warn, retry loops.
   → .safeword-project/learnings/post-tool-linting-strategies.md
-- **Verbose Procedural Gates Degrade Performance (Generalizes Beyond TDD)** — Verbose procedural instruction degradation beyond TDD, hard gates for safety vs quality, tell WHAT not HOW, procedural checklist performance.
+- **Verbose Procedural Gates Degrade Performance (Generalizes Beyond TDD)** — procedural instruction degradation, tell WHAT not HOW.
   → .safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md
-- **Propose-and-Converge: Research Principles** — Propose-and-converge interaction pattern, HCI research for AI agent UX, pair programming literature, Anthropic autonomy principles, ideation phase design.
+- **Propose-and-Converge: Research Principles** — propose-and-converge pattern, agent UX, ideation.
   → .safeword-project/learnings/propose-and-converge-research.md
-- **Skill Description Design** — How to write Claude Code skill descriptions for reliable auto-triggering. Discovered during ideation skill design (April 2026).
+- **Skill Description Design** — skill description writing, auto-triggering, trigger phrases.
   → .safeword-project/learnings/skill-description-design.md
-- **YAML Parsing & Quality Gates: Learnings from Ticket 025** — YAML failsafe schema for preserving leading-zero IDs, quality-state.json gotchas, ticket hierarchy navigation edge cases.
+- **YAML Parsing & Quality Gates: Learnings from Ticket 025** — YAML failsafe schema, quality-state.json, ticket hierarchy.
   → .safeword-project/learnings/yaml-and-quality-gates.md

@@ -1,6 +1,6 @@
 # LLM Coding Agents and Linting: Research Summary (December 2025)
 
-Covers: ESLint configuration for AI agents, security plugins, additive preset architecture, auto-fix strategies.
+Covers: ESLint for AI agents, security plugins, additive presets.
 
 > Knowledge extracted from Claude Code documentation, 2025 research papers, security plugin analysis, and practical experience configuring ESLint for AI-assisted development.
 
