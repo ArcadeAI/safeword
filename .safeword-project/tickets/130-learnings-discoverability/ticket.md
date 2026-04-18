@@ -1,10 +1,10 @@
 ---
 id: 130
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-04-15T14:10:00Z
-last_modified: 2026-04-17T17:05:00Z
+last_modified: 2026-04-18T01:47:00Z
 ---
 
 # Improve learnings discoverability for Claude Code agents
@@ -97,6 +97,7 @@ Delete the `Location: .safeword-project/learnings/ — check FIRST when stuck, d
 
 ## Work Log
 
+- 2026-04-18T01:47:00Z Implementation complete. 7 commits: ticket rewrite; Covers: normalization across 6 files; learning-sync module + 19 unit tests; `safeword sync-learnings` CLI command + initial generated skill at `.claude/skills/project-learnings/SKILL.md`; PostToolUse + SessionStart + pre-commit hook wiring (dogfood + templates + schema + SETTINGS_HOOKS + parity-test exception for generated skill); audit skill Covers: check (W006); SAFEWORD.md/template check-when-stuck line replaced. Full test suite: 1536 passed, 0 failed. Dogfood validation: the `project-learnings` skill is live in this session's skill list with a topic-rich description. Customer-facing activation happens after the next CLI release (hooks use `bunx safeword@latest sync-learnings`; the command ships in this changeset).
 - 2026-04-17T17:05:00Z Design rewrite: Original brainstorm design referenced `.claude/rules/` (does not exist in Claude Code) and `head -3` discovery (still conditional recall). Researched Anthropic Agent Skills docs, Karpathy LLM Wiki pattern, and progressive disclosure best practices. Converged on one umbrella `project-learnings` skill auto-generated from Covers: lines via `safeword sync-learnings`, fired by PostToolUse + SessionStart + pre-commit hooks. Content reorg (splits, renames, condensation) dropped as bloat — attention budget argument doesn't apply when files load on demand. Reclassified task → small feature (new hook + CLI + audit integration).
 - 2026-04-16T16:04:00Z Cross-ref: Ticket #126 added novelResearchReminder flag — fires on any .safeword-project/learnings/\*.md creation/edit. During 130's bulk file operations, this will fire repeatedly. Expected and harmless — flag is idempotent (set true N times, one reminder).
 - 2026-04-15T14:10:00Z Created: From brainstorm session. Initial design had mechanism errors (see 2026-04-17 rewrite).
