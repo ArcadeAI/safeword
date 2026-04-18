@@ -12,9 +12,13 @@ const learningsDirectory = nodePath.join(projectDir, '.safeword-project', 'learn
 // Not a safeword project with learnings, skip silently.
 if (!existsSync(learningsDirectory)) process.exit(0);
 
-// Best-effort: never block session start. If bunx is missing or the CLI
-// version doesn't yet ship sync-learnings, exit 0 quietly.
-spawnSync('bunx', ['safeword@latest', 'sync-learnings', '--quiet'], {
+// Prefer local source in dev/dogfood, fall back to published CLI.
+// Best-effort: never block session start.
+const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
+const [command, args] = existsSync(localCli)
+  ? ['bun', [localCli, 'sync-learnings', '--quiet']]
+  : ['bunx', ['safeword@latest', 'sync-learnings', '--quiet']];
+spawnSync(command as string, args as string[], {
   cwd: projectDir,
   stdio: 'inherit',
   timeout: 30_000,

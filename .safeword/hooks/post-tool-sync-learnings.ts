@@ -3,6 +3,7 @@
 // Ticket #130.
 
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 
 interface HookInput {
@@ -33,9 +34,13 @@ if (!resolvedFile.startsWith(`${nodePath.resolve(learningsDirectory)}${nodePath.
 }
 if (!resolvedFile.endsWith('.md')) process.exit(0);
 
-// Best-effort: never block an edit. If bunx is missing or the CLI
-// version doesn't yet ship sync-learnings, just exit 0.
-spawnSync('bunx', ['safeword@latest', 'sync-learnings', '--quiet'], {
+// Prefer local source in dev/dogfood, fall back to published CLI.
+// Best-effort: never block an edit.
+const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
+const [command, args] = existsSync(localCli)
+  ? ['bun', [localCli, 'sync-learnings', '--quiet']]
+  : ['bunx', ['safeword@latest', 'sync-learnings', '--quiet']];
+spawnSync(command as string, args as string[], {
   cwd: projectDir,
   stdio: 'inherit',
   timeout: 30_000,

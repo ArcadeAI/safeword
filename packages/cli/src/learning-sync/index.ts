@@ -34,6 +34,7 @@ export interface SyncResult {
   entries: LearningEntry[];
   skipped: { fileName: string; reason: string }[];
   skillPath: string;
+  descriptionTruncated: boolean;
 }
 
 /**
@@ -109,13 +110,17 @@ export function readLearnings(learningsDirectory: string): {
  * Terse joining: "<topic1>, <topic2>, ..." trimmed so the full description
  * fits under MAX_DESCRIPTION_CHARS.
  */
-function buildTopicList(entries: LearningEntry[], budget: number): string {
-  if (entries.length === 0) return '';
-  const topics = entries.map(entry => entry.covers.replace(/\.$/, ''));
-  let list = topics.join('; ');
-  if (list.length <= budget) return list;
+interface TopicList {
+  list: string;
+  truncated: boolean;
+}
 
-  // Truncate with ellipsis, preserving as many whole topic entries as possible.
+function buildTopicList(entries: LearningEntry[], budget: number): TopicList {
+  if (entries.length === 0) return { list: '', truncated: false };
+  const topics = entries.map(entry => entry.covers.replace(/\.$/, ''));
+  const joined = topics.join('; ');
+  if (joined.length <= budget) return { list: joined, truncated: false };
+
   const parts: string[] = [];
   let used = 0;
   const ellipsis = '…';
@@ -125,21 +130,30 @@ function buildTopicList(entries: LearningEntry[], budget: number): string {
     parts.push(topic);
     used += addition.length;
   }
-  list = parts.join('; ');
-  return parts.length === topics.length ? list : `${list}${ellipsis}`;
+  const list = parts.join('; ');
+  const truncated = parts.length < topics.length;
+  return { list: truncated ? `${list}${ellipsis}` : list, truncated };
 }
 
-export function buildDescription(entries: LearningEntry[]): string {
+export interface DescriptionResult {
+  description: string;
+  truncated: boolean;
+}
+
+export function buildDescription(entries: LearningEntry[]): DescriptionResult {
   const fixedLength =
     DESCRIPTION_PREFIX.length + 1 + ' Topics: '.length + 1 + DESCRIPTION_SUFFIX.length;
   const budget = Math.max(0, MAX_DESCRIPTION_CHARS - fixedLength - 1);
-  const topicList = buildTopicList(entries, budget);
+  const { list: topicList, truncated } = buildTopicList(entries, budget);
   const topicsSection = topicList.length > 0 ? ` Topics: ${topicList}.` : '';
   const description = `${DESCRIPTION_PREFIX}${topicsSection} ${DESCRIPTION_SUFFIX}`;
   if (description.length > MAX_DESCRIPTION_CHARS) {
-    return `${description.slice(0, MAX_DESCRIPTION_CHARS - 1)}…`;
+    return {
+      description: `${description.slice(0, MAX_DESCRIPTION_CHARS - 1)}…`,
+      truncated: true,
+    };
   }
-  return description;
+  return { description, truncated };
 }
 
 /**
@@ -147,7 +161,7 @@ export function buildDescription(entries: LearningEntry[]): string {
  * Deterministic: same entries → same bytes.
  */
 export function buildSkillContent(entries: LearningEntry[]): string {
-  const description = buildDescription(entries);
+  const { description } = buildDescription(entries);
   const bodyLines = ['# Project Learnings', ''];
 
   if (entries.length === 0) {
@@ -189,15 +203,16 @@ export function syncLearnings(cwd: string): SyncResult {
 
   const { entries, skipped } = readLearnings(learningsDirectory);
   const nextContent = buildSkillContent(entries);
+  const { truncated: descriptionTruncated } = buildDescription(entries);
 
   const previousContent = existsSync(skillPath) ? readFileSync(skillPath, 'utf8') : undefined;
   if (previousContent === nextContent) {
-    return { wrote: false, entries, skipped, skillPath };
+    return { wrote: false, entries, skipped, skillPath, descriptionTruncated };
   }
 
   if (!existsSync(skillDirectory)) {
     mkdirSync(skillDirectory, { recursive: true });
   }
   writeFileSync(skillPath, nextContent);
-  return { wrote: true, entries, skipped, skillPath };
+  return { wrote: true, entries, skipped, skillPath, descriptionTruncated };
 }

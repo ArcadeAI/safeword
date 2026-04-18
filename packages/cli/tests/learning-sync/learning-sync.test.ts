@@ -107,15 +107,16 @@ describe('learning-sync', () => {
 
   describe('buildDescription()', () => {
     it('produces a sub-1024-char description for a realistic corpus', () => {
-      const entries = Array.from({ length: 20 }, (_, i) => ({
+      const entries = Array.from({ length: 16 }, (_, i) => ({
         fileName: `f${i}.md`,
         relativePath: `path/f${i}.md`,
         title: `Title ${i}`,
-        covers: `topic keyword set number ${i} for this learning`,
+        covers: `topic ${i}`,
       }));
-      const description = buildDescription(entries);
+      const { description, truncated } = buildDescription(entries);
       expect(description.length).toBeLessThanOrEqual(1024);
       expect(description).toContain('Project-specific engineering lessons');
+      expect(truncated).toBe(false);
     });
 
     it('truncates gracefully when topic list overflows the budget', () => {
@@ -125,14 +126,16 @@ describe('learning-sync', () => {
         title: `Title ${i}`,
         covers: `very long topic description with many keywords number ${i}`,
       }));
-      const description = buildDescription(entries);
+      const { description, truncated } = buildDescription(entries);
       expect(description.length).toBeLessThanOrEqual(1024);
       expect(description).toMatch(/…/);
+      expect(truncated).toBe(true);
     });
 
     it('omits the Topics section when there are no entries', () => {
-      const description = buildDescription([]);
+      const { description, truncated } = buildDescription([]);
       expect(description).not.toContain('Topics:');
+      expect(truncated).toBe(false);
     });
   });
 
@@ -210,6 +213,23 @@ describe('learning-sync', () => {
       expect(result.wrote).toBe(true);
       const content = readFileSync(result.skillPath, 'utf8');
       expect(content).toContain('No learnings recorded yet');
+    });
+
+    it('reports descriptionTruncated when topic list overflows', () => {
+      for (let i = 0; i < 100; i++) {
+        writeLearning(
+          `learn-${String(i).padStart(3, '0')}.md`,
+          `# Learning ${i}\n\nCovers: topic keyword cluster number ${i} with extra verbose detail.\n\nBody.\n`,
+        );
+      }
+      const result = syncLearnings(temporaryDirectory);
+      expect(result.descriptionTruncated).toBe(true);
+    });
+
+    it('does not report truncation for a small corpus', () => {
+      writeLearning('a.md', '# A\n\nCovers: short.\n');
+      const result = syncLearnings(temporaryDirectory);
+      expect(result.descriptionTruncated).toBe(false);
     });
   });
 });

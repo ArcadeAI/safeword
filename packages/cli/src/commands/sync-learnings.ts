@@ -26,6 +26,12 @@ export function syncLearningsCommand(options: SyncLearningsOptions = {}): void {
     process.stderr.write(`skipping .safeword-project/learnings/${skip.fileName}: ${skip.reason}\n`);
   }
 
+  if (result.descriptionTruncated) {
+    process.stderr.write(
+      'description truncated: topic list exceeded 1024-char cap. Later learnings may not auto-trigger the skill — consider splitting the folder by category.\n',
+    );
+  }
+
   if (options.quiet) return;
 
   if (result.wrote) {
@@ -36,5 +42,9 @@ export function syncLearningsCommand(options: SyncLearningsOptions = {}): void {
 
   if (result.skipped.length > 0) {
     warn(`${result.skipped.length} learning file(s) skipped — see stderr for details`);
+  }
+
+  if (result.descriptionTruncated) {
+    warn('Description truncated — see stderr for details');
   }
 }
