@@ -187,7 +187,7 @@ Safeword tracks your phase and TDD step, reminding you each turn via the prompt 
 
 ## Learnings
 
-**Location:** `.safeword-project/learnings/` — check FIRST when stuck, debugging 2+ times, or working with unfamiliar technology. See `.safeword/guides/learning-extraction.md` for when and how to extract new learnings.
+**Location:** `.safeword-project/learnings/` — project-specific lessons auto-surfaced via the `project-learnings` skill (regenerated from `Covers:` topic lines by `safeword sync-learnings`). See `.safeword/guides/learning-extraction.md` for when and how to extract new learnings.
 
 ---
 
