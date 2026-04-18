@@ -162,7 +162,32 @@ Find and check all agent configuration files (excluding `.safeword/`):
 - [Anthropic Engineering](https://www.anthropic.com/engineering/claude-code-best-practices)
 - [Cursor Docs](https://cursor.com/docs/context/rules)
 
-### 3. Test Quality Review
+### 3. Learning Files Check
+
+Project learnings in `.safeword-project/learnings/*.md` must have a `Covers:` line on line 3 — the `project-learnings` skill's description and body index are built from these lines, so non-conforming files are invisible to agents.
+
+```bash
+if [ -d .safeword-project/learnings ]; then
+  for f in .safeword-project/learnings/*.md; do
+    [ -e "$f" ] || continue
+    line3=$(sed -n '3p' "$f")
+    case "$line3" in
+      Covers:*) ;;
+      *) echo "[W006] Missing Covers: line on line 3 — $f" ;;
+    esac
+  done
+fi
+```
+
+Flag each non-conforming file as:
+
+```text
+- [W006] Learning file missing Covers: — `{path}` (not discoverable via project-learnings skill)
+```
+
+If all files conform, skip this section.
+
+### 4. Test Quality Review
 
 Review existing test files for quality issues. Sample test files from the project and check against the iron laws and anti-patterns in `.claude/skills/testing/SKILL.md`.
 
@@ -196,7 +221,7 @@ Test Quality:
 - [W] file.test.ts — Happy-path only: no error case tests for `processOrder()`
 ```
 
-### 4. Project Documentation Checks
+### 5. Project Documentation Checks
 
 **ARCHITECTURE.md:**
 
@@ -236,6 +261,7 @@ Report findings by severity with codes:
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
 - [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
+- [W006] Learning file missing Covers: — `.safeword-project/learnings/foo.md` (not discoverable via project-learnings skill)
 
 ### Code Quality
 
