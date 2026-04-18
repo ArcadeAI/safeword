@@ -15,9 +15,11 @@ import nodePath from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  createPythonProject,
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
+  isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
   runCli,
@@ -177,6 +179,102 @@ export function loadUserFile(userPath: string): string {
 
         const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-3.ts');
         expect(hookOutput).toContain('no-console');
+      },
+      TIMEOUT_BUN_INSTALL,
+    );
+  });
+
+  describe.skipIf(!isRuffInstalled())('Rule: Python overrides in ruff.toml', () => {
+    let projectDirectory: string;
+    let originalRuffToml: string;
+
+    beforeAll(async () => {
+      projectDirectory = realpathSync(createTemporaryDirectory());
+      createPythonProject(projectDirectory);
+      // Pre-create ruff.toml BEFORE setup so safeword generates .safeword/ruff.toml
+      // with `extend = "../ruff.toml"` (inheriting from customer config).
+      writeTestFile(
+        projectDirectory,
+        'ruff.toml',
+        `[lint]
+select = ["E", "F"]
+`,
+      );
+      initGitRepo(projectDirectory);
+      await runCli(['setup', '--yes'], { cwd: projectDirectory });
+      originalRuffToml = readTestFile(projectDirectory, 'ruff.toml');
+    }, TIMEOUT_BUN_INSTALL);
+
+    afterAll(() => {
+      if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+    });
+
+    beforeEach(() => {
+      writeTestFile(projectDirectory, 'ruff.toml', originalRuffToml);
+    });
+
+    it(
+      'Scenario 2.1: ignore-rule override persists through upgrade and hook honors it',
+      async () => {
+        const customerRuff = `${originalRuffToml.trim()}
+ignore = ["E501"]
+`;
+        writeTestFile(projectDirectory, 'ruff.toml', customerRuff);
+        const longLine = `x = "${'a'.repeat(150)}"`;
+        writeTestFile(projectDirectory, 'src/violation_2_1.py', `${longLine}\n`);
+
+        await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
+
+        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation_2_1.py');
+        expect(hookOutput).not.toContain('E501');
+      },
+      TIMEOUT_BUN_INSTALL,
+    );
+
+    it(
+      'Scenario 2.2: per-file-ignores override persists through upgrade and hook honors it',
+      async () => {
+        const customerRuff = `${originalRuffToml.trim()}
+
+[lint.per-file-ignores]
+"tests/**" = ["S101"]
+`;
+        writeTestFile(projectDirectory, 'ruff.toml', customerRuff);
+        writeTestFile(
+          projectDirectory,
+          'tests/violation_2_2.py',
+          `def test_foo():
+    assert 1 == 1
+`,
+        );
+
+        await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
+
+        const hookOutput = runHookAndGetOutput(projectDirectory, 'tests/violation_2_2.py');
+        expect(hookOutput).not.toContain('S101');
+      },
+      TIMEOUT_BUN_INSTALL,
+    );
+
+    it(
+      'Scenario 2.3: extend-select (add new rule) override persists through upgrade and hook honors it',
+      async () => {
+        const customerRuff = `${originalRuffToml.trim()}
+extend-select = ["D"]
+`;
+        writeTestFile(projectDirectory, 'ruff.toml', customerRuff);
+        writeTestFile(
+          projectDirectory,
+          'src/violation_2_3.py',
+          `def undocumented_function(x):
+    return x + 1
+`,
+        );
+
+        await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
+
+        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation_2_3.py');
+        expect(hookOutput).toContain('D103');
       },
       TIMEOUT_BUN_INSTALL,
     );
