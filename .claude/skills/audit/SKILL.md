@@ -172,7 +172,16 @@ if [ -d .safeword-project/learnings ]; then
     [ -e "$f" ] || continue
     line3=$(sed -n '3p' "$f")
     case "$line3" in
-      Covers:*) ;;
+      Covers:*)
+        # W007: over-length Covers: eats the shared 1024-char description
+        # budget and forces `…` truncation of other learnings. Threshold is
+        # static at 150 chars — enough headroom for ~6 learnings before
+        # aggregate overflow; names the culprit when truncation happens.
+        len=${#line3}
+        if [ "$len" -gt 150 ]; then
+          echo "[W007] Covers: too long ($len chars) — $f"
+        fi
+        ;;
       *) echo "[W006] Missing Covers: line on line 3 — $f" ;;
     esac
   done
@@ -183,6 +192,7 @@ Flag each non-conforming file as:
 
 ```text
 - [W006] Learning file missing Covers: — `{path}` (not discoverable via project-learnings skill)
+- [W007] Covers: too long (N chars > 150) — `{path}` (eats skill description budget; forces truncation of other learnings)
 ```
 
 If all files conform, skip this section.
@@ -262,6 +272,7 @@ Report findings by severity with codes:
 - [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
 - [W006] Learning file missing Covers: — `.safeword-project/learnings/foo.md` (not discoverable via project-learnings skill)
+- [W007] Covers: too long (187 chars > 150) — `.safeword-project/learnings/bar.md` (eats skill description budget; forces truncation of other learnings)
 
 ### Code Quality
 
