@@ -1,85 +1,102 @@
 ---
 id: 130
-type: task
+type: feature
 phase: implement
 status: in_progress
 created: 2026-04-15T14:10:00Z
-last_modified: 2026-04-15T14:10:00Z
+last_modified: 2026-04-17T17:05:00Z
 ---
 
 # Improve learnings discoverability for Claude Code agents
 
-**Goal:** Make learnings findable through structural mechanisms (path-triggered rules, live metadata) instead of relying on "check when stuck" instructions that degrade over long sessions.
+**Goal:** Make the `.safeword-project/learnings/` folder self-discoverable via Claude Code's native Agent Skills mechanism, so relevant learnings auto-surface when the agent's task overlaps with recorded topics — with zero "check when stuck" conditional-recall instructions.
 
-**Why:** Research confirms conditional instructions ("check X when stuck") degrade after context compaction. 6 of 8 sampled principles are already baked into active system files — learnings are provenance, not primary knowledge. But when the agent does need them (ESLint config, hook authoring, debugging), the current `ls` + filename-guessing path has low hit rate for the 584-line and 156-line files.
+**Why:** Hard-won project lessons sit in `.safeword-project/learnings/` but aren't being used. Current mechanism (SAFEWORD.md line "check FIRST when stuck") is a conditional-recall instruction that decays after long sessions (per Anthropic context-engineering research and the "Lost in the Middle" literature). Even when the agent does check, it faces cryptic filenames with no cheap way to tell which files are relevant. Learnings exist; learnings aren't read; mistakes repeat.
 
-## Design (from brainstorm session)
+## Design
 
-### Principles
+### Mechanism
 
-- **No second source of truth** — pointer rules reference learnings, don't duplicate them
-- **Drift-proof** — Covers: lines are the index, generated live via `head -3`
-- **Natural gates > policy** — path-triggered rules auto-load structurally, not instructionally
-- **Respect the attention budget** — decompose large files so loaded context is focused
+Use **one auto-generated umbrella skill** at `.claude/skills/project-learnings/SKILL.md` that wraps whatever happens to live in `.safeword-project/learnings/` for this specific project. This matches Anthropic's documented [Pattern 2: Domain-specific organization](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) (cf. the `bigquery-skill` reference example).
 
-### Changes
+**Why umbrella and not per-learning skills:** per-learning would burn a skill directory per file and clutter the slash menu; Anthropic's own multi-domain-reference pattern is a single skill with a body index pointing at per-topic files.
 
-**1. SAFEWORD.md instruction update** (1 line)
+### The generated skill
 
-- Change `ls .safeword-project/learnings/` to `head -3 .safeword-project/learnings/*.md`
-- Covers: lines become the live discovery mechanism — no INDEX.md to maintain
+```yaml
+---
+name: project-learnings
+description: Project-specific engineering lessons recorded during this codebase's
+  development. Topics: <topic1>, <topic2>, ..., <topicN>. Read the matching file
+  before related work to avoid re-making previously-solved mistakes.
+user-invocable: false
+---
 
-**2. Pointer rules in `.claude/rules/`** (~5 lines each, 3-4 files)
+# Project Learnings
 
-- `eslint-guidance.md` — path: `eslint.config.*`, `packages/cli/src/presets/**` → points to learnings
-- `hook-authoring.md` — path: `.safeword/hooks/**` → points to learnings
-- `test-execution.md` — path: `packages/cli/tests/**` → points to learnings
-- Each rule is a routing pointer, not a knowledge copy. Cannot drift.
+Match your current task to a topic, then read the specific file:
 
-**3. Decompose `llm-coding-agents-linting.md`** (584 lines → 3-4 focused files)
+- <topic1> → .safeword-project/learnings/<file1>.md
+- <topic2> → .safeword-project/learnings/<file2>.md
+- ...
+```
 
-- `eslint-security-plugins.md` — security plugin analysis, config recommendations (~100 lines)
-- `eslint-llm-failure-modes.md` — type system failures, what LLMs struggle with (~80 lines)
-- `linting-research-2025.md` — research papers, benchmarks, provenance (~80 lines)
-- `eslint-hook-patterns.md` — hook enforcement, exit codes, auto-fix loops (merge with `post-tool-linting-strategies.md`) (~60 lines)
+- `user-invocable: false` — hidden from `/` menu (Anthropic's documented pattern for "background knowledge" skills)
+- Body stays tiny; actual learning content loads only when the agent reads the pointed-to file (progressive disclosure step 3)
+- Description carries the topic keywords so Claude's auto-invocation picks the skill when tasks overlap
 
-**4. Condense `e2e-test-zombie-processes.md`** (228 lines → ~50 lines)
+### Auto-generation
 
-- Core lesson is ~30 lines. Rest is verbose examples repeating the same point.
+A CLI command `safeword sync-learnings` reads each `.md` file in `.safeword-project/learnings/`, extracts the `Covers:` line (line 3), and regenerates `.claude/skills/project-learnings/SKILL.md`. Deterministic string extraction — no AI, no fuzzy matching.
 
-**5. Standardize Covers: lines** (2 files)
+Hooks invoke the command at three points:
 
-- Add Covers: to `natural-vs-self-report-gates.md`
-- Add Covers: to `claude4-examples-override-rules.md`
+| Event                                                                           | Fires on                          | Purpose                                                  |
+| ------------------------------------------------------------------------------- | --------------------------------- | -------------------------------------------------------- |
+| `PostToolUse` (Edit/Write/MultiEdit matcher `.safeword-project/learnings/*.md`) | Agent edits a learning in-session | Keep skill current within the session                    |
+| `SessionStart`                                                                  | Any new Claude Code session       | Catch out-of-band edits (git pull, external editor)      |
+| Pre-commit                                                                      | `git commit`                      | Drift-proof: regenerate + auto-stage before commit lands |
 
-**6. Rename for task-matching** (2 files)
+Claude Code's built-in `.claude/skills/` watcher hot-reloads the skill within the current session once regenerated — no restart needed.
 
-- `agent-behavior-research.md` → `enforcement-and-testing-principles.md`
-- `claude4-prose-over-lists.md` → `concise-over-verbose-instructions.md`
+### Covers: convention
 
-### Not doing
+Every learning file MUST have `Covers: <topic list>` on line 3. This is the existing convention for most files and the extraction guide already teaches it.
 
-- INDEX.md — replaced by live `head -3` convention. Zero maintenance, zero drift.
-- Extracting content into rules — drift risk. Pointers only.
-- Promoting more rules to MEMORY.md — existing one-liners are sufficient.
-- Splitting `agent-behavior-research.md` — 156 lines, well-organized, cross-references are its value. Rename only.
-- Converting learnings to skills — misuses the mechanism.
-- Date-scoped file changes — `anthropic-research-feb-apr-2026.md` and `claude-code-changelog-feb-apr-2026.md` are archive, stay as-is.
+- `safeword sync-learnings` is **lenient**: skips non-conforming files with an stderr warning, so edits never block
+- `safeword audit` (via the audit skill) gains a check that flags learning files lacking `Covers:`
+
+### SAFEWORD.md cleanup
+
+Delete the `Location: .safeword-project/learnings/ — check FIRST when stuck, debugging 2+ times, ...` line in `.safeword/SAFEWORD.md` and its template mirror. The skill system replaces it structurally. Keep the pointer to `learning-extraction.md` (the writing guide — a deliberate workflow, not conditional recall).
 
 ## Acceptance Criteria
 
-- [ ] SAFEWORD.md instruction uses `head -3` not `ls`
-- [ ] SAFEWORD.md template in `packages/cli/templates/` also updated
-- [ ] 3-4 pointer rules exist in `.claude/rules/` with correct path globs
-- [ ] `llm-coding-agents-linting.md` split into 3-4 focused files, each with Covers: line
-- [ ] `post-tool-linting-strategies.md` merged into hook patterns file
-- [ ] `e2e-test-zombie-processes.md` condensed to ~50 lines
-- [ ] All 15+ learning files have Covers: line on line 3
-- [ ] 2 files renamed for task-matching
-- [ ] No content duplication between rules and learnings
-- [ ] Existing tests pass
+- [ ] `.claude/skills/project-learnings/SKILL.md` is generated from `.safeword-project/learnings/*.md` contents
+- [ ] `safeword sync-learnings` CLI command exists and is covered by unit tests (happy path, missing Covers:, deletions, idempotency)
+- [ ] PostToolUse hook fires `safeword sync-learnings` on Edit/Write of `.safeword-project/learnings/*.md`
+- [ ] SessionStart hook fires `safeword sync-learnings` (safe no-op when nothing changed)
+- [ ] Pre-commit hook regenerates the skill and auto-stages changes
+- [ ] Templates ship all of the above: `packages/cli/templates/hooks/` and `packages/cli/templates/skills/project-learnings/` are in sync with dogfooded versions
+- [ ] `safeword audit` flags learning files missing the `Covers:` convention
+- [ ] All 16 learning files have `Covers:` on line 3 (5 currently non-conforming: `claude4-examples-override-rules.md`, `claude4-prose-over-lists.md`, `instruction-attention-hierarchy.md`, `natural-vs-self-report-gates.md`, `procedural-gates-generalize-beyond-tdd.md`)
+- [ ] SAFEWORD.md + template: "check FIRST when stuck" conditional-recall line removed
+- [ ] Full test suite passes
+- [ ] Dogfood verification: editing a learning in this repo regenerates the skill file via the hook
+
+### Not doing (with justifications)
+
+- **Split `llm-coding-agents-linting.md` (584 lines)** — cohesive; loads on demand via learning file read. Attention budget only bites if always-loaded; it isn't.
+- **Merge `post-tool-linting-strategies.md` into hook patterns** — different topics (hook retry loops vs ESLint architecture). Both stay; both discoverable via Covers: index.
+- **Condense `e2e-test-zombie-processes.md` to ~50 lines** — the pkill/lsof/playwright snippets are directly actionable; stripping them removes working code.
+- **Rename `agent-behavior-research.md` / `claude4-prose-over-lists.md`** — filenames become irrelevant once Covers: is the index; renames would break in-file cross-references.
+- **`head -3` convention in SAFEWORD.md** — still conditional recall. Deleted, not repurposed.
+- **Per-learning skills** (one SKILL.md per learning file) — creates FS clutter and menu noise; Anthropic's documented pattern is umbrella + domain-file references.
+- **`.claude/rules/` directory** — originally proposed in brainstorm; Claude Code does not recognize this path (it's a Cursor convention). Replaced by the native Agent Skill.
+- **Promote content to MEMORY.md** — existing one-line pointers are sufficient; adding more bloats the always-loaded context budget.
 
 ## Work Log
 
-- 2026-04-16T16:04:00Z Cross-ref: Ticket #126 added novelResearchReminder flag — fires on any .safeword-project/learnings/\*.md creation/edit. During 130's bulk file operations (splitting, renaming), this will fire repeatedly. Expected and harmless — flag is idempotent (set true N times, one reminder).
-- 2026-04-15T14:10:00Z Created: From brainstorm session exploring learnings discoverability options. Researched Anthropic context engineering guide, Claude Code rules/memory docs, Opus 4.6 context behavior. Debated 5 options (INDEX.md, rules extraction, decompose+rename, MEMORY.md promotion, skills conversion). Converged on pointer-rules + live-Covers + decomposition. Key insight: drift prevention via "no second source of truth" — rules point, don't duplicate.
+- 2026-04-17T17:05:00Z Design rewrite: Original brainstorm design referenced `.claude/rules/` (does not exist in Claude Code) and `head -3` discovery (still conditional recall). Researched Anthropic Agent Skills docs, Karpathy LLM Wiki pattern, and progressive disclosure best practices. Converged on one umbrella `project-learnings` skill auto-generated from Covers: lines via `safeword sync-learnings`, fired by PostToolUse + SessionStart + pre-commit hooks. Content reorg (splits, renames, condensation) dropped as bloat — attention budget argument doesn't apply when files load on demand. Reclassified task → small feature (new hook + CLI + audit integration).
+- 2026-04-16T16:04:00Z Cross-ref: Ticket #126 added novelResearchReminder flag — fires on any .safeword-project/learnings/\*.md creation/edit. During 130's bulk file operations, this will fire repeatedly. Expected and harmless — flag is idempotent (set true N times, one reminder).
+- 2026-04-15T14:10:00Z Created: From brainstorm session. Initial design had mechanism errors (see 2026-04-17 rewrite).
