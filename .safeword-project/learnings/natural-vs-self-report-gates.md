@@ -1,5 +1,7 @@
 # Natural Gates vs Self-Report Gates
 
+Covers: Enforcement gate design for agents, natural gates vs self-report gates, physics-not-policy, artifact prerequisites, LOC threshold gates.
+
 **Finding:** There are two structurally different kinds of enforcement gates for AI agents, but the distinction has no name in the research literature (verified gap, April 2026).
 
 **Natural gates:** The next step's input physically doesn't exist if the prior step was skipped. The agent cannot bypass because there's nothing to work with. Examples:

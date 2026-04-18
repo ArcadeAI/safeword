@@ -1,5 +1,7 @@
 # Instruction Attention Hierarchy: Where to Put Critical Rules
 
+Covers: Instruction placement in prompt hooks vs skill files, attention decay, cross-file delegation compliance rates, lost-in-the-middle effect, critical rule positioning.
+
 **Finding:** Instructions have different compliance rates depending on where they live. Empirically verified across tickets #124 and #124b:
 
 1. **Prompt hook reminder** (~95% compliance) — fires every turn, short, high-attention position. Agent followed "Present scenarios to user" and "AODI validation + adversarial pass" after we added them.
