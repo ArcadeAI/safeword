@@ -3,8 +3,7 @@ id: '118'
 title: Pre-ticket prompt gap — understanding reminder before ticket exists
 type: task
 phase: done
-status: done
-resolution: won't-fix
+status: wontfix
 created: 2026-04-12
 parent: '109'
 related: '115'

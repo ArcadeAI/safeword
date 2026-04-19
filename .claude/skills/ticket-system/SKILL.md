@@ -67,6 +67,11 @@ status: in_progress
 - [timestamp] Complete: [result]
 ```
 
+**Frontmatter values (enum — do not invent new keys or values):**
+
+- `status`: `in_progress | done | cancelled | superseded | wontfix | blocked`
+- `phase`: `intake | define-behavior | scenario-gate | decomposition | implement | done` (see ticket-template.md)
+
 **Rules:**
 
 - Log immediately after each action

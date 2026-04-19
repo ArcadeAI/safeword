@@ -10,8 +10,10 @@ last_modified: YYYY-MM-DDTHH:MM:SSZ
 <!--
 type: patch | task | feature
 phase: intake | define-behavior | scenario-gate | decomposition | implement | done
-  - patch/task: typically skip to 'implement' or omit phase
+  - patch/task: typically start at 'implement' or omit phase
   - feature: progresses through all phases via BDD workflow
+  - on close: status: done → phase: done; status: cancelled | superseded → preserve last-active phase
+status: in_progress | done | cancelled | superseded | wontfix | blocked
 -->
 
 # Title
