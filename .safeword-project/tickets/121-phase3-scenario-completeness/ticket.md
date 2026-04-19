@@ -1,10 +1,10 @@
 ---
 id: '121'
-type: task
-phase: intake
-status: in_progress
+type: feature
+phase: done
+status: done
 created: 2026-04-14T17:26:00Z
-last_modified: 2026-04-14T17:26:00Z
+last_modified: 2026-04-18T05:45:00Z
 scope:
   - Replace current Phase 3 "draft scenarios" step with structured pipeline (derive dimensions, partition, generate, organize under rules, card-ratio check, adversarial pass, saturation exit)
   - Update SCENARIOS.md with the full pipeline — always visible, no depth-scaling
@@ -125,6 +125,9 @@ The agent presents dimensions, partitions, and scenarios in a single turn. The u
 
 ## Work Log
 
+- 2026-04-18T07:24:00Z Closed: Post-review refactor — extracted GFM predicate from stop-quality.ts into .safeword/hooks/lib/scenario-format.ts (sync templates + schema.ts so `safeword upgrade` installs it). Added scenario-format.test.ts with 8 unit tests for direct predicate coverage. Updated test-definitions.md scenario labels to accurately attribute coverage. 771/771 integration tests pass, 8/8 unit tests pass, 24/24 schema drift tests pass. Build + lint clean.
+- 2026-04-18T05:45:00Z Verify (first pass): 1517/1519 tests pass (1 skipped, 1 flaky timeout under heavy parallel load; passed in isolation). Surfaced via self-critique that T9 tested cumulative-artifact path rather than GFM-specific code path — triggered refactor.
+- 2026-04-18T05:16:00Z Full BDD retrofit: Converted ticket type task→feature, advanced through phases. Added dimensions.md (5 behavioral dimensions: skill content, phase gate, dimension artifact gate, scenario format gate, template parity). Added test-definitions.md (15 scenarios under 5 rules with blockquote rationale). AODI + adversarial pass revealed gap — no explicit integration test for stop-quality blocking non-GFM content. Added T9 in hooks.test.ts: feature done + content without GFM checkboxes → cumulative-artifact gate blocks with "no scenarios defined" (the feature path; checkScenariosComplete's GFM-specific message is a defensive fallback for tasks and is not integration-tested because it caused a Ruff test hang). All 50 hooks tests pass in 16.58s. Template parity confirmed byte-equal.
 - 2026-04-14T20:23:00Z Implementation: Rewrote SCENARIOS.md (5-step pipeline + concrete dry-run example + adversarial pass + coverage saturation). Added 4 gate tests to quality-gates.test.ts (phase deny, dimension deny, dimension allow, task bypass). Fixed existing test 9.3 to include dimensions.md. Synced templates. 54/54 quality-gates tests pass.
 - 2026-04-14T18:12:00Z Enforcement gates: Implemented two gates in pre-tool-quality.ts — (1) phase gate: blocks test-definitions.md creation when ticket still in intake, (2) dimension artifact gate: features require dimensions.md before test-definitions.md. Synced templates. Updated from single dimension-gate to two-tier approach after research showed structural gates > procedural gates (TDAD, AgentSpec). Dimension gate is true natural gate (file must exist); phase gate is lightweight self-report reusing existing infrastructure.
 - 2026-04-14T17:59:00Z Compliance improvements: Added 3 research-backed changes — (1) prose format for SCENARIOS.md per Claude 4 prompting docs, (2) concrete turn example for compliance per think-tool research, (3) dimension-gate via pre-tool hook per safeword's natural-gate enforcement pattern. Updated scope and done-when.

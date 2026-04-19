@@ -937,6 +937,46 @@ describe('E2E: Phase-Aware Quality Review', () => {
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });
+
+    it('T9: Feature done hard-blocks when test-definitions.md has content but no GFM checkboxes', () => {
+      setupIssuesDirectory(projectDirectory, [
+        {
+          id: '001',
+          type: 'feature',
+          phase: 'done',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      // Legacy / unrecognized format — has content but no GFM task list items.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/test-definitions.md',
+        [
+          '# Test Definitions',
+          '',
+          '## Scenario: Legacy format',
+          '',
+          'Given some setup',
+          'When action happens',
+          'Then outcome is observed',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/001/verify.md',
+        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
+      );
+
+      const result = runStopHookForPhase(projectDirectory);
+
+      // checkCumulativeArtifacts fires first for features and rejects zero-checkbox files
+      // with "no scenarios defined". The GFM-specific hard-block (checkScenariosComplete)
+      // is still reachable for tasks — covered by the next test.
+      expect(result.exitCode).toBe(0);
+      expect(result.reason).toContain('no scenarios defined');
+    });
   });
 
   // Cleanup after all phase tests

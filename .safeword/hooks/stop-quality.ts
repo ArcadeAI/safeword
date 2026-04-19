@@ -9,6 +9,7 @@ import { deriveTddStep, getActiveTicket, getTicketInfo } from './lib/active-tick
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { getQualityMessage, type BddPhase } from './lib/quality.ts';
 import { getStateFilePath, type QualityState, recordFailure } from './lib/quality-state.ts';
+import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { runTests } from './lib/test-runner.ts';
 
 interface HookInput {
@@ -135,16 +136,15 @@ function checkScenariosComplete(ticketInfo: TicketInfo): boolean {
   if (!existsSync(testDefsPath)) return false;
 
   const content = readFileSync(testDefsPath, 'utf8');
-  const checked = (content.match(/^\s*- \[x\]/gim) ?? []).length;
-  const unchecked = (content.match(/^\s*- \[ \]/gim) ?? []).length;
-  const total = checked + unchecked;
+  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(content);
 
-  if (total === 0 && content.length > 50) {
+  if (isUnrecognized) {
     hardBlockDone(
       'test-definitions.md has content but no GFM checkboxes (- [ ] / - [x]). Unrecognized scenario format — convert to GFM task list items.',
     );
   }
 
+  const total = checked + unchecked;
   return total > 0 && unchecked === 0;
 }
 
