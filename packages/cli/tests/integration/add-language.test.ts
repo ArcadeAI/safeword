@@ -81,11 +81,13 @@ version = "0.1.0"
 
     it('adds Ruff config via extend pattern', () => {
       const ruffToml = readTestFile(projectDirectory, 'ruff.toml');
-      expect(ruffToml).toContain('extend = ".safeword/ruff.toml"');
+      // Ticket 138: customer's ruff.toml is bare/customer-owned.
+      expect(ruffToml).toContain('customer-owned');
 
-      // Actual strict rules in .safeword/ruff.toml
+      // Actual strict rules in .safeword/ruff.toml, which extends customer's.
       const safewordRuff = readTestFile(projectDirectory, '.safeword/ruff.toml');
       expect(safewordRuff).toContain('line-length');
+      expect(safewordRuff).toContain('extend = "../ruff.toml"');
     });
 
     it.skipIf(!RUFF_AVAILABLE)('Ruff works on Python files', () => {

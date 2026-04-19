@@ -229,9 +229,13 @@ try {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+// Composition order (ticket 138): safeword rules FIRST, customer config LAST.
+// Flat config is "later wins" — this makes the customer's project config
+// authoritative for the LLM hook. Customer overrides (e.g. 'no-unused-vars': 'off')
+// take effect here instead of being silently overridden by safeword's strict layer.
 export default [
-  ...projectConfig,
   safewordStrictRules,
+  ...projectConfig,
 ${prettier.configEntry}
 ];
 `;
@@ -269,9 +273,11 @@ try {
 
 ${SAFEWORD_STRICT_RULES_FULL}
 
+// Composition order (ticket 138): safeword rules FIRST, customer config LAST.
+// See getSafewordEslintConfigExtending for rationale.
 export default [
-  ...projectConfig,
   safewordStrictRules,
+  ...projectConfig,
 ${prettier.configEntry}
 ];
 `;

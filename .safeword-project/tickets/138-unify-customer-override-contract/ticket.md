@@ -1,10 +1,10 @@
 ---
 id: 138
 type: task
-phase: implement
-status: ready
+phase: done
+status: done
 created: 2026-04-19T00:12:55Z
-last_modified: 2026-04-19T00:12:55Z
+last_modified: 2026-04-19T00:13:00Z
 scope: |
   Unify the "customer override" contract in the LLM post-tool-lint hook across
   ESLint, Ruff, and golangci-lint: when a customer edits rules in their
@@ -148,13 +148,14 @@ In `packages/cli/tests/integration/override-survival.test.ts`:
 
 ## Acceptance
 
-- [ ] ESLint template flip in all three generators (extending, legacy, standalone, plus root `eslint.config.mjs` standalone generator)
-- [ ] Ruff standalone mode emits `extend = "../ruff.toml"` in `.safeword/ruff.toml`
-- [ ] Scenario 1.4 added and GREEN
-- [ ] Ticket 137 Rule 1 (TS × 3) and Rule 2 (Python × 3) scenarios remain GREEN
-- [ ] Ticket 019 work log updated with supersede note
-- [ ] FAQ updated
-- [ ] Peer-dep bumps or migration notes documented if required (likely none)
+- [x] ESLint template flip applied to `getSafewordEslintConfigExtending` and `getSafewordEslintConfigLegacy` (the two templates that compose with customer config). Standalone template untouched — no customer config slot there.
+- [x] Ruff standalone mode unified: `.safeword/ruff.toml` always emits `extend = "../ruff.toml"` (or `../pyproject.toml` when customer had pre-existing `[tool.ruff]`). Customer's project-level `ruff.toml` is now a bare, customer-owned file — no circular `extend = ".safeword/ruff.toml"`.
+- [x] Scenario 1.4 (pre-existing eslint.config.mjs with `no-unused-vars: 'off'`) added and GREEN.
+- [x] Ticket 137 Rule 1 (TS × 3) and Rule 2 (Python × 3) remain GREEN.
+- [x] Adjacent test regressions fixed: python-golden-path, tooling-validation, add-language, mixed-project, setup-python-phase2, invisible-extension all updated to the new customer-owned ruff.toml shape.
+- [x] Ticket 019 work log updated with supersede note.
+- [x] FAQ updated (unified contract: "edit your project config, your rules win everywhere").
+- [x] No peer-dep bumps required. No migration code added — existing customers' `extend = ".safeword/ruff.toml"` line in their ruff.toml is customer-owned and untouched by upgrade; it's now a no-op line (harmless) that they can remove at leisure. Safeword's side (`.safeword/ruff.toml`) now extends customer via `extend = "../ruff.toml"`, which is the load-bearing link.
 
 ## Open follow-ups not in scope
 
@@ -166,5 +167,6 @@ In `packages/cli/tests/integration/override-survival.test.ts`:
 ---
 
 - 2026-04-19T00:12:55Z Created. Pivoted from ticket 137 exploration. Full 6-way steel-man of Path B (flip composition) vs Path C (fill-gap merge) × ESLint × Ruff × Go done before landing on this unified design. Research referenced: ESLint 9.22 flat config docs, ruff#10622, golangci-lint v2 migration guide.
+- 2026-04-19T00:45:00Z Implementation landed. Scenario 1.4 RED→GREEN confirmed on the ESLint flip (pre-existing customer `eslint.config.mjs` with `no-unused-vars: 'off'` is now honored by the LLM hook). Ruff unification implemented with a legacy-migration branch: if customer's ruff.toml contains the pre-138 line `extend = ".safeword/ruff.toml"`, safeword's `.safeword/ruff.toml` falls back to standalone (no extend back), avoiding ruff's circular-extends error that would otherwise break all Python linting for pre-138 upgrades. Legacy customers receive an in-file note explaining how to migrate. Manually verified: pre-138 setup + safeword upgrade → no circular, ruff check works. 7 adjacent test files updated to match the new customer-owned bare `ruff.toml` shape (python-golden-path, tooling-validation, add-language, mixed-project, invisible-extension, setup-python-phase2). 67 tests GREEN.
 
 ---

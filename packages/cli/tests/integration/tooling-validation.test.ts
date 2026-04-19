@@ -72,11 +72,13 @@ requires-python = ">=3.10"
 
   it('adds Ruff config via extend pattern', () => {
     const ruffToml = readTestFile(projectDirectory, 'ruff.toml');
-    expect(ruffToml).toContain('extend = ".safeword/ruff.toml"');
+    // Ticket 138: customer's ruff.toml is bare/customer-owned.
+    expect(ruffToml).toContain('customer-owned');
 
-    // Actual strict rules in .safeword/ruff.toml
+    // Safeword's rules + extend live in .safeword/ruff.toml
     const safewordRuff = readTestFile(projectDirectory, '.safeword/ruff.toml');
     expect(safewordRuff).toContain('[lint]');
+    expect(safewordRuff).toContain('extend = "../ruff.toml"');
   });
 
   it('adds mypy config file', () => {
