@@ -263,6 +263,7 @@ safeword override --rule no-incomplete-error-handling=warn
 
 ---
 
+- 2026-04-19T00:13:00Z **Superseded by [ticket 138](../138-unify-customer-override-contract/ticket.md).** 138 unifies the customer override contract by flipping ESLint composition order (native flat-config "later wins" makes customer win) and unifying Ruff standalone mode to always extend customer config. This eliminates the need for the secondary `.safeword-project/*-overrides.*` surface proposed here. 019's design was sound for the problem it addressed, but 138's single-surface approach avoids the two-surface mental model. Keeping 019 open as historical design reference; not marking complete because the mechanism here is not being built. Cross-reference: ticket 137 exploration surfaced the deeper design issue that led to 138.
 - 2026-01-11T05:46:00Z Renumbered: 016d → 019 (standalone ticket)
 - 2026-01-11T03:36:00Z Updated: Added defineConfig() wrapper for ESLint v9+ best practices
 - 2026-01-10T19:46:00Z Added: "Why Separate Files?" design rationale (Biome comparison, native format benefits)
