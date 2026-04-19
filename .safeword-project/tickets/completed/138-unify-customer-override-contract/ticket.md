@@ -164,23 +164,63 @@ In `packages/cli/tests/integration/override-survival.test.ts`:
 
 ## Follow-ups identified during quality review (2026-04-19)
 
-Three small follow-ups surfaced after reviewing shipped changes against the uncertainties left post-implementation. All resolved via research; only implementation remains.
+Five decision points surfaced during quality review. After debate, recommendations below. All resolved via research + empirical verification. Bundle as ticket 139.
 
-1. **Delete `getSafewordEslintConfigStandalone`; always use the extending template.** Empirical check on a fresh project shows the extending template IS what gets generated (confirmed by grep for `projectConfig = (await import("../eslint.config.mjs"))` in `.safeword/eslint.config.mjs` post-setup). The standalone function appears to be dead code OR used only in an edge case I haven't identified. Cleanest answer: unify. The `try/catch` inside the extending template already handles "customer file doesn't exist" gracefully (projectConfig stays `[]`). One code path, one mental model. ~15 LOC removal. (See also item #4 below — the trace mystery is academic once the code is unified.)
+### 1. Fresh-setup latent bug — VERIFIED
 
-2. **Add Scenario 2.4 (Ruff unified-standalone end-to-end).** Manually verified post-ticket: fresh Python project → safeword setup → customer adds `ignore = ["E501"]` to generated ruff.toml → hook honors it (empty output on 150-char-line violation). Codifying this as an integration scenario (~30 LOC) pins the regression. Rule 2's existing scenarios all pre-create ruff.toml before setup (pre-existing mode); 2.4 covers the complementary path.
+**Was inferred, now empirically proven.** Fresh project → `safeword setup` (no upgrade) → customer adds `'no-unused-vars': 'off'` at end of project `eslint.config.mjs` → LLM hook on unused-var violation:
 
-3. **Tighten legacy detection in `hasLegacyCustomerRuffExtend`.** Current `content.includes('extend = ".safeword/ruff.toml"')` misses whitespace variations, single-quoted strings, etc. Replace with a regex anchored per [TOML v1.0 basic/literal string syntax](https://toml.io/en/v1.0.0#string):
+```
+1:7  error  'unused' is assigned a value but never used.
+            Allowed unused vars must match /^_/u  no-unused-vars
+```
 
-   ```ts
-   const LEGACY_RUFF_EXTEND_PATTERN = /^\s*extend\s*=\s*["']\.safeword\/ruff\.toml["']/m;
-   ```
+The `/^_/u` pattern is literally `safewordStrictRules.no-unused-vars`'s argsIgnorePattern. Hook runs standalone template, ignores customer config entirely. User-visible correctness bug for every just-installed project until the user happens to run `safeword upgrade`.
 
-   No TOML parser dependency — consistent with rest of package's string-based TOML handling. ~1-line change.
+**Root cause (confirmed via reconcile.ts trace + runtime debug):** `reconcile.ts` captures `ctx` once with `existingEslintConfig = undefined`, plans owned files first (standalone template content computed), then plans managed files (customer's `eslint.config.mjs` content computed). `ctx` is never re-detected. After execution, the file on disk is the pre-computed standalone. Only `upgrade` re-runs detection and switches to extending.
 
-4. **Configuration.mdx audit — no action required.** Read in full. Content is aligned with 138: "Never overwritten" list correct, override examples still valid for both local and LLM linting (later-wins semantics make customer's entries win post-flip). Optional one-sentence note clarifying LLM hook inheritance, but not strictly needed.
+**Action**: delete `getSafewordEslintConfigStandalone`; always use the extending template. The `await import('../eslint.config.mjs')` + try/catch handles the "customer file doesn't exist" edge case gracefully. By hook-execution time, customer's file exists regardless (setup generates it after `.safeword/`). ~15 LOC removal. One code path, one mental model.
 
-**Bundle recommendation:** land #1, #2, #3 in one follow-up ticket (139?). Tight scope, single PR, mutually reinforcing (each relates to the "unify the contract" theme).
+### 2. Narrow the extending template's catch
+
+Current catch is broad — swallows ALL errors and falls back to empty `projectConfig`, including customer syntax errors (silent correctness loss). Safeword's mission: surface errors to Claude, don't mask them.
+
+**Action**: narrow to `ERR_MODULE_NOT_FOUND` (Node.js canonical error code for "import target missing," stable since Node 12 ESM):
+
+```js
+try {
+  projectConfig = (await import('../eslint.config.mjs')).default;
+} catch (e) {
+  if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e;
+  // File genuinely absent — fall through with empty projectConfig
+}
+```
+
+Matches ticket 019's original (superseded but still sound) design. Customer syntax errors surface loud; missing-file stays graceful. ~4 LOC change.
+
+### 3. Legacy `.eslintrc.*` template — skip
+
+Out of scope for 139. ESLint 10 removes legacy support entirely; safeword's legacy path is transitional-only. Hardening it now is disproportionate. Document the decision in 139's work log for traceability.
+
+### 4. Scenario 2.4 — parameterized `Examples:` table
+
+Rule 2's pre-existing mode has 3 separate `it()` tests for ignore / per-file-ignores / extend-select. For standalone mode, a parameterized `it.each` with 3 rows matches [Cucumber BDD 2026 guidance on declarative parameterized scenarios](https://cucumber.io/docs/bdd/better-gherkin/) and gives full parity with Rule 2's coverage. Also pins ruff#10622 (child `extend-select` + parent `ignore` interaction) specifically for standalone mode.
+
+**Action**: add `Rule: Python overrides in standalone-generated ruff.toml` describe block with one parameterized `it.each` covering 3 override types. ~50 LOC. Invites future refactor of Rule 2 to the same shape for consistency (not in scope for 139).
+
+### 5. Re-run 137 tests post-implementation
+
+Not a follow-up risk per se, just a pre-merge verification step for ticket 139. Re-run `tests/integration/override-survival.test.ts` after all 139 changes to confirm Rule 1 + Rule 2 + new 2.4 + 1.4 all pass. 15 seconds.
+
+### Out of scope for 139
+
+- Tightening `hasLegacyCustomerRuffExtend` regex (originally listed as follow-up #3 pre-debate). Lower-priority than the verified bug. Can file separately as a minor hardening if it ever surfaces as a real issue.
+- Configuration.mdx audit — already confirmed no action required.
+- Legacy `.eslintrc.*` template hardening — skipped per decision above.
+
+### Bundle scope for ticket 139
+
+1 user-visible bug fix (#1) + 1 hardening (#2) + 1 test (#4) + 1 verification (#5). Single coherent PR. ~15 LOC deleted + ~4 LOC changed + ~50 LOC test added.
 
 ## Work Log
 
