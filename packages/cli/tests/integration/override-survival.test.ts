@@ -184,6 +184,65 @@ export function loadUserFile(userPath: string): string {
     );
   });
 
+  describe('Rule: Pre-existing eslint.config.mjs before safeword setup (ticket 138)', () => {
+    let projectDirectory: string;
+
+    beforeAll(async () => {
+      projectDirectory = realpathSync(createTemporaryDirectory());
+      createTypeScriptPackageJson(projectDirectory);
+      // Customer has a pre-existing eslint.config.mjs BEFORE safeword setup.
+      // The override targets `no-unused-vars` — a rule safeword's strictRules sets
+      // to 'error'. In the pre-138 composition order ([...customer, safeword, prettier])
+      // safeword wins and the hook flags the violation. In the 138 flipped order
+      // ([safeword, ...customer, prettier]) customer wins. This scenario is the
+      // regression proof.
+      writeTestFile(
+        projectDirectory,
+        'eslint.config.mjs',
+        `import { defineConfig } from 'eslint/config';
+
+// Minimal customer flat config. Explicit \`files:\` is required in flat config
+// for ESLint to consider the file in scope — otherwise it emits
+// "File ignored because no matching configuration was supplied".
+export default defineConfig([
+  {
+    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+]);
+`,
+      );
+      initGitRepo(projectDirectory);
+      await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    }, TIMEOUT_BUN_INSTALL);
+
+    afterAll(() => {
+      if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+    });
+
+    it(
+      'Scenario 1.4: customer override on rule safeword also sets is honored by LLM hook',
+      async () => {
+        writeTestFile(
+          projectDirectory,
+          'src/violation-1-4.ts',
+          `const unused = 1;
+export const used = 2;
+`,
+        );
+
+        await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
+
+        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-4.ts');
+        expect(hookOutput).not.toContain('no-unused-vars');
+      },
+      TIMEOUT_BUN_INSTALL,
+    );
+  });
+
   describe.skipIf(!isRuffInstalled())('Rule: Python overrides in ruff.toml', () => {
     let projectDirectory: string;
     let originalRuffToml: string;

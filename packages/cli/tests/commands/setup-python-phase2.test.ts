@@ -87,15 +87,16 @@ describe('Suite 1: Ruff Config Generation', () => {
         timeout: TIMEOUT_SETUP,
       });
 
-      // Assert - ruff.toml at project root extends .safeword/ruff.toml
+      // Ticket 138: customer's ruff.toml is bare/customer-owned; safeword's .safeword/ruff.toml extends it.
       expect(fileExists(projectDirectory, 'ruff.toml')).toBe(true);
       const ruffToml = readTestFile(projectDirectory, 'ruff.toml');
-      expect(ruffToml).toContain('extend = ".safeword/ruff.toml"');
+      expect(ruffToml).toContain('customer-owned');
 
-      // Actual rules are in .safeword/ruff.toml
+      // Actual rules are in .safeword/ruff.toml, which extends customer's ruff.toml.
       const safewordRuffToml = readTestFile(projectDirectory, '.safeword/ruff.toml');
       expect(safewordRuffToml).toContain('[lint]');
-      expect(safewordRuffToml).toContain('select = [');
+      expect(safewordRuffToml).toContain('extend = "../ruff.toml"');
+      expect(safewordRuffToml).toContain('extend-select = [');
       // Verify curated rules (not ALL — ALL is discouraged by ruff maintainers)
       expect(safewordRuffToml).not.toContain('"ALL"');
       expect(safewordRuffToml).toContain('"E"');

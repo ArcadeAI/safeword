@@ -53,13 +53,17 @@ describe('E2E: Python Golden Path', () => {
     const ruffToml = readTestFile(projectDirectory, 'ruff.toml');
     const safewordRuff = readTestFile(projectDirectory, '.safeword/ruff.toml');
 
-    // Project-level ruff.toml extends .safeword/ruff.toml
-    expect(ruffToml).toContain('extend = ".safeword/ruff.toml"');
+    // Ticket 138 unified extend direction: .safeword/ruff.toml extends customer's ruff.toml
+    // (previously the reverse, which bypassed customer overrides when the hook used --config).
+    expect(safewordRuff).toContain('extend = "../ruff.toml"');
 
-    // Actual strict rules are in .safeword/ruff.toml
+    // Customer's ruff.toml is now a bare, customer-owned file (safeword doesn't inject rules into it).
+    // Safeword's additive rules live in .safeword/ruff.toml.
     expect(safewordRuff).toContain('line-length');
     expect(safewordRuff).toContain('[lint]');
-    expect(safewordRuff).toContain('select');
+    expect(safewordRuff).toContain('extend-select');
+    // And customer's file is just theirs — the commented hint is evidence of the template
+    expect(ruffToml).toContain('customer-owned');
   });
 
   it.skipIf(!RUFF_AVAILABLE)('ruff config is valid and runs', () => {
@@ -157,7 +161,8 @@ describe('E2E: Python Setup Idempotency', () => {
 
   it('ruff.toml is valid after running setup twice', () => {
     const ruffToml = readTestFile(projectDirectory, 'ruff.toml');
-    expect(ruffToml).toContain('extend = ".safeword/ruff.toml"');
+    // Ticket 138: customer's ruff.toml is bare/customer-owned; extend now lives in .safeword/ruff.toml.
+    expect(ruffToml).toContain('customer-owned');
   });
 
   it.skipIf(!RUFF_AVAILABLE)('Ruff still works after running setup twice', () => {
