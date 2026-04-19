@@ -179,24 +179,31 @@ The `/^_/u` pattern is literally `safewordStrictRules.no-unused-vars`'s argsIgno
 
 **Root cause (confirmed via reconcile.ts trace + runtime debug):** `reconcile.ts` captures `ctx` once with `existingEslintConfig = undefined`, plans owned files first (standalone template content computed), then plans managed files (customer's `eslint.config.mjs` content computed). `ctx` is never re-detected. After execution, the file on disk is the pre-computed standalone. Only `upgrade` re-runs detection and switches to extending.
 
-**Action**: delete `getSafewordEslintConfigStandalone`; always use the extending template. The `await import('../eslint.config.mjs')` + try/catch handles the "customer file doesn't exist" edge case gracefully. By hook-execution time, customer's file exists regardless (setup generates it after `.safeword/`). ~15 LOC removal. One code path, one mental model.
+**Action**: delete `getSafewordEslintConfigStandalone`; always use the extending template. The `await import('../eslint.config.mjs')` + narrowed catch (see #2) handles the "customer file doesn't exist" edge case gracefully. By hook-execution time, customer's file exists regardless (setup generates it after `.safeword/`). **~35 LOC removal** (31-LOC function body + ~4-LOC dispatch branch simplification in `getSafewordEslintConfig`). One code path, one mental model.
 
 ### 2. Narrow the extending template's catch
 
 Current catch is broad — swallows ALL errors and falls back to empty `projectConfig`, including customer syntax errors (silent correctness loss). Safeword's mission: surface errors to Claude, don't mask them.
 
-**Action**: narrow to `ERR_MODULE_NOT_FOUND` (Node.js canonical error code for "import target missing," stable since Node 12 ESM):
+**Gotcha discovered during review:** a naive narrow catch on `ERR_MODULE_NOT_FOUND` is still wrong. Nested imports inside customer's `eslint.config.mjs` (e.g. `import tseslint from 'typescript-eslint'` where the plugin is uninstalled) also throw `ERR_MODULE_NOT_FOUND`. Catching on code alone would mask a missing plugin as "customer file absent."
+
+**Action**: gate with `existsSync` first; re-throw any error when the file exists:
 
 ```js
-try {
-  projectConfig = (await import('../eslint.config.mjs')).default;
-} catch (e) {
-  if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e;
-  // File genuinely absent — fall through with empty projectConfig
+import { existsSync } from 'node:fs';
+...
+let projectConfig = [];
+const projectConfigPath = new URL('../eslint.config.mjs', import.meta.url);
+if (existsSync(projectConfigPath)) {
+  // File exists — any import failure is a real error (syntax, missing plugin, etc.)
+  // Let it throw so the hook fails loud instead of silently dropping overrides.
+  projectConfig = (await import(projectConfigPath.href)).default;
+  if (!Array.isArray(projectConfig)) projectConfig = [projectConfig];
 }
+// File absent → projectConfig stays [] → hook runs with safeword defaults only.
 ```
 
-Matches ticket 019's original (superseded but still sound) design. Customer syntax errors surface loud; missing-file stays graceful. ~4 LOC change.
+Customer syntax errors surface loud. Missing plugin errors surface loud. Truly-absent file stays graceful. **~8-10 LOC change** (add `existsSync` import, add gate, remove broad catch).
 
 ### 3. Legacy `.eslintrc.*` template — skip
 
@@ -206,7 +213,7 @@ Out of scope for 139. ESLint 10 removes legacy support entirely; safeword's lega
 
 Rule 2's pre-existing mode has 3 separate `it()` tests for ignore / per-file-ignores / extend-select. For standalone mode, a parameterized `it.each` with 3 rows matches [Cucumber BDD 2026 guidance on declarative parameterized scenarios](https://cucumber.io/docs/bdd/better-gherkin/) and gives full parity with Rule 2's coverage. Also pins ruff#10622 (child `extend-select` + parent `ignore` interaction) specifically for standalone mode.
 
-**Action**: add `Rule: Python overrides in standalone-generated ruff.toml` describe block with one parameterized `it.each` covering 3 override types. ~50 LOC. Invites future refactor of Rule 2 to the same shape for consistency (not in scope for 139).
+**Action**: add `Rule: Python overrides in standalone-generated ruff.toml` describe block with one parameterized `it.each` covering 3 override types. **~80-100 LOC** (Rule 2's describe block is 95 LOC as baseline; parameterization saves some via shared setup but beforeAll/afterEach + 3 scenario bodies are similar size). Invites future refactor of Rule 2 to the same shape for consistency (not in scope for 139).
 
 ### 5. Re-run 137 tests post-implementation
 
@@ -220,7 +227,7 @@ Not a follow-up risk per se, just a pre-merge verification step for ticket 139. 
 
 ### Bundle scope for ticket 139
 
-1 user-visible bug fix (#1) + 1 hardening (#2) + 1 test (#4) + 1 verification (#5). Single coherent PR. ~15 LOC deleted + ~4 LOC changed + ~50 LOC test added.
+1 user-visible bug fix (#1) + 1 hardening (#2) + 1 test (#4) + 1 verification (#5). Single coherent PR. **~35 LOC deleted + ~8-10 LOC changed + ~80-100 LOC test added** (corrected estimates from initial ~15/~4/~50 undershoot).
 
 ## Work Log
 
