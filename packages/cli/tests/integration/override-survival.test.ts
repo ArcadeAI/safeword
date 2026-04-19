@@ -29,9 +29,14 @@ import {
 } from '../helpers';
 
 function applyOverride(existingConfig: string, overrideBlock: string): string {
-  // Insert override just before the closing `]);` so it wins over safeword's presets.
+  // Insert override just before the closing bracket so it wins over safeword's presets.
   // Flat config is "later wins" — FAQ recommends customer overrides go at the end.
-  return existingConfig.replace(/\n\]\);\s*$/, `\n${overrideBlock}]);\n`);
+  // Handles both `defineConfig([...]);` and raw `[...];` array exports (safeword's
+  // generated config uses the latter on main; defineConfig form on post-120 branches).
+  const match = /\n\](\)?);\s*$/.exec(existingConfig);
+  if (!match) throw new Error('applyOverride: could not locate closing bracket');
+  const close = match[1] ?? '';
+  return existingConfig.replace(/\n\]\)?;\s*$/, `\n${overrideBlock}]${close};\n`);
 }
 
 async function runUpgradeAndAssertFileUnchanged(
