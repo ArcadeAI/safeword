@@ -67,7 +67,9 @@
 
 ---
 
-## Rule: Go overrides in .golangci.yml survive upgrade
+## Rule: Go overrides in .golangci.yml survive upgrade — DEFERRED
+
+> **Deferred 2026-04-19** — Go's golangci-lint pack already uses Path C (generation-time merge with unionArrays + fillGapMerge), which satisfies the unified customer-override contract. Validating this under the current architecture is lower value than validating the redesign under ticket [138](../138-unify-customer-override-contract/ticket.md). If a regression gap surfaces post-138, re-open these scenarios here or spawn a dedicated ticket.
 
 > Rationale: `.golangci.yml` is customer-owned. Safeword's v2 config uses `linters.default: standard` with unionArrays for enable/disable and fill-gap merge for settings — customer values must win on conflict.
 
@@ -97,7 +99,9 @@
 
 ---
 
-## Rule: Rust overrides survive upgrade (clippy.toml + source attributes)
+## Rule: Rust overrides survive upgrade (clippy.toml + source attributes) — DEFERRED
+
+> **Deferred 2026-04-19** — Rust's clippy pack already uses Path C (fill-gap merge via CLIPPY_CONF_DIR) and source-level attributes are customer code that safeword never touches. Validating under the current architecture is lower value than validating post-redesign. Revisit after ticket [138](../138-unify-customer-override-contract/ticket.md) lands if a regression gap surfaces.
 
 > Rationale: `clippy.toml` is customer-owned. Clippy has no enable/disable in clippy.toml — disabling a lint is done via source attributes `#![allow(clippy::X)]`. Both surfaces must be preserved.
 
@@ -119,7 +123,9 @@
 
 ---
 
-## Rule: SQL overrides in .sqlfluff survive upgrade
+## Rule: SQL overrides in .sqlfluff survive upgrade — DEFERRED
+
+> **Deferred 2026-04-19** — SQL's sqlfluff pack already uses Path C (key-by-key patching). Additionally, sqlfluff is not installed on the current dev machine, so these scenarios would need CI infrastructure. Defer until ticket [138](../138-unify-customer-override-contract/ticket.md) lands OR a dedicated SQL coverage ticket is created.
 
 > Rationale: `.sqlfluff` is customer-owned. Safeword patches sqlfluff config key-by-key (additive memory) — customer's `exclude_rules` and `[sqlfluff:rules:X]` sections must be preserved.
 

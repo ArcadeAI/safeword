@@ -17,13 +17,17 @@ out_of_scope: |
   - Type-checker configs (tsconfig.json, mypy.ini) — no severity model
   - Fixing any bugs discovered; failures spawn follow-up tickets
 done_when: |
-  - test-definitions.md contains Scenario Outlines for all 5 languages with
-    Examples tables covering idiomatic override types
-  - tests/integration/override-survival.test.ts implements all scenarios
-  - All scenarios pass, OR failures are filed as separate tickets and
-    documented in this ticket's work log
-  - Ticket can be referenced from FAQ / configuration docs as evidence for
-    the "customer configs never overwritten" promise
+  Scope reduced 2026-04-19 when pivoting to ticket 138.
+  - Rule 1 (TypeScript, 3/3) and Rule 2 (Python, 3/3) are GREEN in
+    tests/integration/override-survival.test.ts — captured as regression
+    coverage for the PRE-138 composition architecture.
+  - Rule 3 (Go), Rule 4 (Rust), Rule 5 (SQL) explicitly DEFERRED. Those
+    linters already honor the unified contract via Path C (generation-time
+    merge / fill-gap merge). Adding scenarios there is lower value than
+    verifying the redesign under ticket 138.
+  - Scenario 1.4 (pre-existing eslint.config.mjs) MOVED to ticket 138 — it's
+    the regression proof for the flipped composition order.
+  - Ticket 138 filed with full design rationale, supersedes 019.
 ---
 
 # Verify customer lint rule overrides survive safeword upgrades (BDD)
@@ -96,5 +100,7 @@ Summary:
   1. Customer override MUST be placed AFTER `...safeword.configs.recommendedTypeScript` in eslint.config.mjs. Flat config is "later wins" — overrides at the top get silently reverted by safeword's preset. The FAQ example already shows this correctly; tests now assert it.
   2. macOS tmpdir returns the `/var/folders/` symlink; ESLint canonicalizes paths to `/private/var/folders/` and silently drops absolute paths with "outside of base path" warning. Tests call `realpathSync(createTemporaryDirectory())` to avoid vacuous passes. Non-issue in production (real paths passed by Claude Code).
   3. Initial test design put override at start of `defineConfig([...])` and had 2/3 tests vacuously pass before the path-canonicalization fix exposed the real assertion.
+- 2026-04-18T15:50:00Z Rule 2 (Python, 3/3 scenarios) GREEN. Customer `ignore`, `per-file-ignores`, and `extend-select` in pre-existing `ruff.toml` propagate to the LLM hook via ruff's `extend` mechanism (mode #2). One gap surfaced for followup: mode #1 (standalone — safeword generates customer's ruff.toml) does not propagate customer overrides because the hook uses `ruff check --config .safeword/ruff.toml` which bypasses the customer's file.
+- 2026-04-19T00:13:00Z **Pivoted.** Exploration of the "pre-existing eslint.config.mjs" path (Scenario 1.4 candidate) exposed a deeper design issue: safeword's LLM hook composition `[...customer, safewordStrict, prettier]` means safeword overrides the customer whenever both set a rule. The customer's `eslint.config.mjs` is NOT authoritative for the LLM hook — surprising and inconsistent with the "additive, never replaces" principle used for ruff/golangci-lint/clippy. Ticket 019 was already designed to address this via a second override surface (`.safeword-project/*-overrides.*`), but that multiplies the mental model. Decided to supersede 019 with [ticket 138](../138-unify-customer-override-contract/ticket.md), which flips ESLint composition order (Path B — native "later wins" makes customer win) and unifies ruff standalone mode to always extend customer config (Path C variant). Go/Rust/SQL already honor the contract; no change there. **This ticket's scope reduces to Rule 1 + Rule 2 as completed regression coverage for the PRE-138 architecture.** Rule 3 (Go), Rule 4 (Rust), and Rule 5 (SQL) are deferred — they'd be redundant since those linters already use Path C. Scenario 1.4 moves to ticket 138.
 
 ---
