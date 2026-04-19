@@ -34,14 +34,6 @@
         ]
       },
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-sync-learnings.ts"
-          }
-        ]
-      },
-      {
         "matcher": "compact",
         "hooks": [
           {

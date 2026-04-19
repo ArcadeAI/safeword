@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Safeword: Regenerate project-learnings skill when a learning file changes (PostToolUse)
+// Safeword: Regenerate .safeword-project/learnings/INDEX.md when a learning file changes (PostToolUse)
 // Ticket #130.
 
 import { spawnSync } from 'node:child_process';

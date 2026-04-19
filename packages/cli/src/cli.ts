@@ -68,7 +68,7 @@ program
 
 program
   .command('sync-learnings')
-  .description('Regenerate project-learnings skill from .safeword-project/learnings/')
+  .description('Regenerate .safeword-project/learnings/INDEX.md')
   .option('-q, --quiet', 'Suppress success output (still prints skipped-file warnings to stderr)')
   .action(async (options: { quiet?: boolean }) => {
     const { syncLearningsCommand } = await import('./commands/sync-learnings.js');

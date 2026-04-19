@@ -26,7 +26,7 @@ export type {
 } from './packs/types.js';
 import type { FileDefinition, JsonMergeDefinition, ManagedFileDefinition } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
-import { AGENTS_MD_LINK } from './templates/content.js';
+import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { VERSION } from './version.js';
@@ -313,9 +313,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/post-tool-sync-learnings.ts': {
       template: 'hooks/post-tool-sync-learnings.ts',
-    },
-    '.safeword/hooks/session-sync-learnings.ts': {
-      template: 'hooks/session-sync-learnings.ts',
     },
 
     // Guides
@@ -608,8 +605,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     'CLAUDE.md': {
       operation: 'prepend',
-      content: AGENTS_MD_LINK,
-      marker: '.safeword/SAFEWORD.md',
+      // Uses `@` import syntax so SAFEWORD.md inlines into CLAUDE.md's
+      // compaction-resistant context (vs. AGENTS.md's prose, which is for
+      // non-Claude agents reading the file directly).
+      content: CLAUDE_MD_IMPORT_BLOCK,
+      // Marker is the `@` import line itself so upgrades from v0.29.0 and
+      // earlier (which prepended prose containing `.safeword/SAFEWORD.md` in
+      // backticks) still trigger prepending the new `@` import block on top.
+      // Existing prose lingers harmlessly — agents skim it; only the import
+      // is functionally load-bearing.
+      marker: '@./.safeword/SAFEWORD.md',
       createIfMissing: false, // Only patch if exists, don't create (AGENTS.md is primary)
     },
   },

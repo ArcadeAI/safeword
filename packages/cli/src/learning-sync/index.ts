@@ -1,26 +1,17 @@
 /**
- * Learning sync — generates `.claude/skills/project-learnings/SKILL.md` from
- * `.safeword-project/learnings/*.md` so the folder becomes self-discoverable
- * via Claude Code's native Agent Skills mechanism (description + body index).
+ * Learning sync — generates `.safeword-project/learnings/INDEX.md` from the
+ * `*.md` files in that folder so agents can navigate learnings via a
+ * Karpathy-style LLM Wiki index (plain markdown + grep) without hitting the
+ * Claude Code skill-description 1024-char cap.
  *
  * Ticket #130.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 export const LEARNINGS_RELATIVE_PATH = '.safeword-project/learnings';
-export const SKILL_RELATIVE_DIR = '.claude/skills/project-learnings';
-export const SKILL_FILENAME = 'SKILL.md';
-
-// Anthropic's hard cap on skill description length.
-// https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
-const MAX_DESCRIPTION_CHARS = 1024;
-
-const DESCRIPTION_PREFIX =
-  "Project-specific engineering lessons recorded during this codebase's development.";
-const DESCRIPTION_SUFFIX =
-  'Read the matching file before related work to avoid re-making previously-solved mistakes.';
+export const INDEX_FILENAME = 'INDEX.md';
 
 export interface LearningEntry {
   fileName: string;
@@ -33,8 +24,7 @@ export interface SyncResult {
   wrote: boolean;
   entries: LearningEntry[];
   skipped: { fileName: string; reason: string }[];
-  skillPath: string;
-  descriptionTruncated: boolean;
+  indexPath: string;
 }
 
 /**
@@ -73,6 +63,7 @@ export function parseLearning(
 
 /**
  * Read all learning files. Files lacking Covers: on line 3 are skipped.
+ * INDEX.md itself is excluded from enumeration (it's the output, not an input).
  */
 export function readLearnings(learningsDirectory: string): {
   entries: LearningEntry[];
@@ -86,7 +77,7 @@ export function readLearnings(learningsDirectory: string): {
   const skipped: { fileName: string; reason: string }[] = [];
 
   const fileNames = readdirSync(learningsDirectory)
-    .filter(name => name.endsWith('.md'))
+    .filter(name => name.endsWith('.md') && name !== INDEX_FILENAME)
     .toSorted((a, b) => a.localeCompare(b));
 
   for (const fileName of fileNames) {
@@ -106,113 +97,59 @@ export function readLearnings(learningsDirectory: string): {
 }
 
 /**
- * Build a topic list from the entries' Covers: lines.
- * Terse joining: "<topic1>, <topic2>, ..." trimmed so the full description
- * fits under MAX_DESCRIPTION_CHARS.
+ * Render the full INDEX.md contents for the learnings folder.
+ * Deterministic: same entries → same bytes. No size cap — the agent reads
+ * this file via the Read tool, which handles long markdown fine.
  */
-interface TopicList {
-  list: string;
-  truncated: boolean;
-}
-
-function buildTopicList(entries: LearningEntry[], budget: number): TopicList {
-  if (entries.length === 0) return { list: '', truncated: false };
-  const topics = entries.map(entry => entry.covers.replace(/\.$/, ''));
-  const joined = topics.join('; ');
-  if (joined.length <= budget) return { list: joined, truncated: false };
-
-  const parts: string[] = [];
-  let used = 0;
-  const ellipsis = '…';
-  for (const topic of topics) {
-    const addition = parts.length === 0 ? topic : `; ${topic}`;
-    if (used + addition.length + ellipsis.length > budget) break;
-    parts.push(topic);
-    used += addition.length;
-  }
-  const list = parts.join('; ');
-  const truncated = parts.length < topics.length;
-  return { list: truncated ? `${list}${ellipsis}` : list, truncated };
-}
-
-export interface DescriptionResult {
-  description: string;
-  truncated: boolean;
-}
-
-export function buildDescription(entries: LearningEntry[]): DescriptionResult {
-  const fixedLength =
-    DESCRIPTION_PREFIX.length + 1 + ' Topics: '.length + 1 + DESCRIPTION_SUFFIX.length;
-  const budget = Math.max(0, MAX_DESCRIPTION_CHARS - fixedLength - 1);
-  const { list: topicList, truncated } = buildTopicList(entries, budget);
-  const topicsSection = topicList.length > 0 ? ` Topics: ${topicList}.` : '';
-  const description = `${DESCRIPTION_PREFIX}${topicsSection} ${DESCRIPTION_SUFFIX}`;
-  if (description.length > MAX_DESCRIPTION_CHARS) {
-    return {
-      description: `${description.slice(0, MAX_DESCRIPTION_CHARS - 1)}…`,
-      truncated: true,
-    };
-  }
-  return { description, truncated };
-}
-
-/**
- * Render the full SKILL.md contents for the project-learnings skill.
- * Deterministic: same entries → same bytes.
- */
-export function buildSkillContent(entries: LearningEntry[]): string {
-  const { description } = buildDescription(entries);
-  const bodyLines = ['# Project Learnings', ''];
+export function buildIndexContent(entries: LearningEntry[]): string {
+  const header = [
+    '# Project Learnings — Index',
+    '',
+    '<!-- Auto-generated by `safeword sync-learnings`. Do not edit this file by hand. -->',
+    '<!-- Edit source learning files in this folder; the index regenerates on save. -->',
+    '',
+  ];
 
   if (entries.length === 0) {
-    bodyLines.push(
-      'No learnings recorded yet. Add project-specific lessons to',
-      `\`${LEARNINGS_RELATIVE_PATH}/\` with a \`Covers:\` line on line 3 to make`,
-      'them discoverable.',
-    );
-  } else {
-    bodyLines.push(
-      'Match your current task to a topic, then read the matching file for full context:',
+    return [
+      ...header,
+      'No learnings recorded yet. Add project-specific lessons to this folder',
+      `with a \`Covers:\` line on line 3. See \`.safeword/guides/learning-extraction.md\``,
+      'for when and how to extract.',
       '',
-    );
-    for (const entry of entries) {
-      bodyLines.push(`- **${entry.title}** — ${entry.covers}`, `  → ${entry.relativePath}`);
-    }
+    ].join('\n');
   }
 
-  const frontmatter = [
-    '---',
-    'name: project-learnings',
-    `description: ${description}`,
-    'user-invocable: false',
-    '---',
-    '',
-  ].join('\n');
-
-  return `${frontmatter}${bodyLines.join('\n')}\n`;
+  const lines = [...header, `## Learnings (${entries.length})`, ''];
+  for (const entry of entries) {
+    lines.push(`- **${entry.title}** — ${entry.covers}`, `  → \`${entry.relativePath}\``);
+  }
+  lines.push('');
+  return lines.join('\n');
 }
 
 /**
- * Generate/update the project-learnings skill from the learnings folder.
- * Returns whether bytes changed and any skipped entries.
+ * Generate/update `.safeword-project/learnings/INDEX.md` from the learnings
+ * folder. Returns whether bytes changed and any skipped entries.
  */
 export function syncLearnings(cwd: string): SyncResult {
   const learningsDirectory = nodePath.join(cwd, LEARNINGS_RELATIVE_PATH);
-  const skillDirectory = nodePath.join(cwd, SKILL_RELATIVE_DIR);
-  const skillPath = nodePath.join(skillDirectory, SKILL_FILENAME);
+  const indexPath = nodePath.join(learningsDirectory, INDEX_FILENAME);
 
   const { entries, skipped } = readLearnings(learningsDirectory);
-  const nextContent = buildSkillContent(entries);
-  const { truncated: descriptionTruncated } = buildDescription(entries);
+  const nextContent = buildIndexContent(entries);
 
-  const previousContent = existsSync(skillPath) ? readFileSync(skillPath, 'utf8') : undefined;
+  // If there are no entries and the learnings directory doesn't exist, don't
+  // create it just to write an empty-state index. No-op.
+  if (entries.length === 0 && !existsSync(learningsDirectory)) {
+    return { wrote: false, entries, skipped, indexPath };
+  }
+
+  const previousContent = existsSync(indexPath) ? readFileSync(indexPath, 'utf8') : undefined;
   if (previousContent === nextContent) {
-    return { wrote: false, entries, skipped, skillPath, descriptionTruncated };
+    return { wrote: false, entries, skipped, indexPath };
   }
 
-  if (!existsSync(skillDirectory)) {
-    mkdirSync(skillDirectory, { recursive: true });
-  }
-  writeFileSync(skillPath, nextContent);
-  return { wrote: true, entries, skipped, skillPath, descriptionTruncated };
+  writeFileSync(indexPath, nextContent);
+  return { wrote: true, entries, skipped, indexPath };
 }

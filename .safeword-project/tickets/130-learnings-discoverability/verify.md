@@ -1,34 +1,42 @@
-# Verify — Ticket 130
+# Verify — Ticket 130 (v2, Karpathy-aligned refactor)
 
-Verified: 2026-04-18T03:15:00Z
+Verified: (pending full test suite)
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 1538/1539 tests pass (1 skipped, 78 files)
-**Build:** ✅ Success (`packages/cli` tsup + dts)
-**Lint:** ✅ Clean for ticket 130 code (pre-existing TS errors in unrelated test files and node_modules remain, out of scope)
-**Scenarios:** ⏭️ Skipped — no test-definitions.md (AC-driven task, not BDD)
-**Doc Refs:** ✅ Clean — no stale references to removed "check FIRST when stuck" phrase
-**Dep Drift:** ✅ Clean — no new dependencies added
+**Test Suite:** pending — see full run
+**Build:** ✅ learning-sync/index.ts + sync-learnings.ts compile
+**Lint:** clean for new code
+**Scenarios:** N/A — no test-definitions.md (AC-driven feature)
+**Doc Refs:** ✅ no stale references to `project-learnings` skill, SKILL.md generation, or 1024-char description
+**Dep Drift:** ✅ no new dependencies
 **Parent Epic:** N/A
 
 ## Acceptance Criteria Cross-Check
 
-- [x] `.claude/skills/project-learnings/SKILL.md` is generated from learnings folder
-- [x] `safeword sync-learnings` CLI command exists with unit tests (21 tests: happy, missing Covers:, deletion, idempotency, truncation, empty-state)
-- [x] PostToolUse hook fires on Edit/Write of `.safeword-project/learnings/*.md`
-- [x] SessionStart hook fires for out-of-band drift
-- [x] Pre-commit hook regenerates + auto-stages (dogfood)
-- [x] Templates ship: `packages/cli/templates/hooks/` + schema entries + SETTINGS_HOOKS wiring
-- [x] `safeword audit` flags learning files missing Covers: (W006)
+- [x] `.safeword-project/learnings/INDEX.md` auto-generated, 16 entries visible
+- [x] `safeword sync-learnings` CLI command + 19 unit tests (happy, missing Covers:, deletion, idempotency, empty-state, folder-absent no-op, scales to 500 entries)
+- [x] PostToolUse hook wired; fires on Edit/Write of learning files
+- [x] Templates ship: `post-tool-sync-learnings.ts` + schema entry + SETTINGS_HOOKS wiring
+- [x] `safeword audit` W006 flag for missing Covers: (excludes INDEX.md from check)
 - [x] All 16 learning files have Covers: on line 3
-- [x] SAFEWORD.md + template: "check FIRST when stuck" line replaced with skill-mechanism pointer
-- [x] Full test suite passes
-- [x] Dogfood verification: `project-learnings` skill visible in this session's skill list with auto-generated description
+- [x] SAFEWORD.md + template updated with read-INDEX-before-work / add-learning-when-solved instruction
+- [x] `.claude/skills/project-learnings/` deleted
+- [x] SessionStart sync hook removed (both code and wiring)
+- [x] Pre-commit sync block removed from `.husky/pre-commit`
+- [x] W007 audit check removed
 
-## Hardening Applied
+## Refactor Delta from v1
 
-- Hooks prefer local source in dev (`packages/cli/src/cli.ts`), fall back to `bunx safeword@latest` — closes the dogfood-until-release gap
-- `buildDescription` returns `{description, truncated}`; CLI + stderr surface the overflow condition when topic list exceeds the 1024-char cap (observed in our own dogfood corpus: 5/16 topics fit)
+|                                  | v1 (umbrella skill, 2026-04-17)                          | v2 (Karpathy-aligned, 2026-04-19)                 |
+| -------------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
+| Generated artifact               | `.claude/skills/project-learnings/SKILL.md`              | `.safeword-project/learnings/INDEX.md`            |
+| Hooks                            | 3 (PostToolUse, SessionStart, pre-commit)                | 1 (PostToolUse)                                   |
+| Discovery mechanism              | Auto-invocation via skill description keyword match      | CLAUDE.md/SAFEWORD.md instruction → read INDEX.md |
+| Scaling ceiling                  | ~15 learnings                                            | None                                              |
+| Platform portability             | Claude Code only                                         | Any agent reading SAFEWORD.md/CLAUDE.md           |
+| Code in `learning-sync/index.ts` | ~220 lines (with budget math, truncation, ellipsis)      | ~140 lines                                        |
+| Audit codes                      | W006 + W007                                              | W006 only                                         |
+| Budget math                      | 1024-char description cap, fixed/variable/ellipsis split | none                                              |
 
-Ready to mark done. Update ticket: `phase: done`, `status: done`.
+Ready to flip `phase: done` after test suite confirms.

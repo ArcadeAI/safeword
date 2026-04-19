@@ -5,13 +5,11 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  buildDescription,
-  buildSkillContent,
+  buildIndexContent,
+  INDEX_FILENAME,
   LEARNINGS_RELATIVE_PATH,
   parseLearning,
   readLearnings,
-  SKILL_FILENAME,
-  SKILL_RELATIVE_DIR,
   syncLearnings,
 } from '../../src/learning-sync/index.js';
 
@@ -96,6 +94,14 @@ describe('learning-sync', () => {
       expect(skipped).toHaveLength(0);
     });
 
+    it('excludes INDEX.md from enumeration so it does not try to parse itself', () => {
+      writeLearning('real.md', '# Real\n\nCovers: real.\n');
+      writeLearning('INDEX.md', '# Project Learnings — Index\n\nsome body\n');
+      const { entries, skipped } = readLearnings(learningsDirectory);
+      expect(entries.map(entry => entry.fileName)).toEqual(['real.md']);
+      expect(skipped).toHaveLength(0);
+    });
+
     it('handles missing learnings directory', () => {
       const { entries, skipped } = readLearnings(
         nodePath.join(temporaryDirectory, 'does-not-exist'),
@@ -105,78 +111,77 @@ describe('learning-sync', () => {
     });
   });
 
-  describe('buildDescription()', () => {
-    it('produces a sub-1024-char description for a realistic corpus', () => {
-      const entries = Array.from({ length: 16 }, (_, i) => ({
-        fileName: `f${i}.md`,
-        relativePath: `path/f${i}.md`,
-        title: `Title ${i}`,
-        covers: `topic ${i}`,
-      }));
-      const { description, truncated } = buildDescription(entries);
-      expect(description.length).toBeLessThanOrEqual(1024);
-      expect(description).toContain('Project-specific engineering lessons');
-      expect(truncated).toBe(false);
-    });
-
-    it('truncates gracefully when topic list overflows the budget', () => {
-      const entries = Array.from({ length: 100 }, (_, i) => ({
-        fileName: `f${i}.md`,
-        relativePath: `path/f${i}.md`,
-        title: `Title ${i}`,
-        covers: `very long topic description with many keywords number ${i}`,
-      }));
-      const { description, truncated } = buildDescription(entries);
-      expect(description.length).toBeLessThanOrEqual(1024);
-      expect(description).toMatch(/…/);
-      expect(truncated).toBe(true);
-    });
-
-    it('omits the Topics section when there are no entries', () => {
-      const { description, truncated } = buildDescription([]);
-      expect(description).not.toContain('Topics:');
-      expect(truncated).toBe(false);
-    });
-  });
-
-  describe('buildSkillContent()', () => {
-    it('renders frontmatter with user-invocable: false', () => {
-      const content = buildSkillContent([
+  describe('buildIndexContent()', () => {
+    it('renders an index with title, count, and one entry per file', () => {
+      const content = buildIndexContent([
         {
           fileName: 'x.md',
           relativePath: '.safeword-project/learnings/x.md',
           title: 'X',
           covers: 'x-topic.',
         },
+        {
+          fileName: 'y.md',
+          relativePath: '.safeword-project/learnings/y.md',
+          title: 'Y',
+          covers: 'y-topic.',
+        },
       ]);
-      expect(content).toMatch(/^---\nname: project-learnings\n/);
-      expect(content).toContain('user-invocable: false');
+      expect(content).toMatch(/^# Project Learnings — Index/);
+      expect(content).toContain('## Learnings (2)');
       expect(content).toContain('- **X** — x-topic.');
-      expect(content).toContain('→ .safeword-project/learnings/x.md');
+      expect(content).toContain('→ `.safeword-project/learnings/x.md`');
+      expect(content).toContain('- **Y** — y-topic.');
     });
 
     it('renders an empty-state body when there are no entries', () => {
-      const content = buildSkillContent([]);
+      const content = buildIndexContent([]);
       expect(content).toContain('No learnings recorded yet');
+      expect(content).not.toContain('## Learnings');
     });
 
     it('is deterministic for the same input', () => {
       const entries = [
-        { fileName: 'a.md', relativePath: 'p/a.md', title: 'A', covers: 'one.' },
-        { fileName: 'b.md', relativePath: 'p/b.md', title: 'B', covers: 'two.' },
+        {
+          fileName: 'a.md',
+          relativePath: 'p/a.md',
+          title: 'A',
+          covers: 'one.',
+        },
+        {
+          fileName: 'b.md',
+          relativePath: 'p/b.md',
+          title: 'B',
+          covers: 'two.',
+        },
       ];
-      expect(buildSkillContent(entries)).toBe(buildSkillContent(entries));
+      expect(buildIndexContent(entries)).toBe(buildIndexContent(entries));
+    });
+
+    it('scales to hundreds of entries without a size cap', () => {
+      const entries = Array.from({ length: 500 }, (_, i) => ({
+        fileName: `f${i}.md`,
+        relativePath: `path/f${i}.md`,
+        title: `Title ${i}`,
+        covers: `topic ${i} with keywords`,
+      }));
+      const content = buildIndexContent(entries);
+      // All 500 entries present — no truncation.
+      expect(content).toContain('**Title 0**');
+      expect(content).toContain('**Title 499**');
+      expect(content).toContain('## Learnings (500)');
     });
   });
 
   describe('syncLearnings()', () => {
-    it('writes the skill file on first run', () => {
+    it('writes INDEX.md on first run', () => {
       writeLearning('foo.md', '# Foo\n\nCovers: foo topic.\n');
       const result = syncLearnings(temporaryDirectory);
       expect(result.wrote).toBe(true);
-      const expectedPath = nodePath.join(temporaryDirectory, SKILL_RELATIVE_DIR, SKILL_FILENAME);
+      const expectedPath = nodePath.join(learningsDirectory, INDEX_FILENAME);
       expect(existsSync(expectedPath)).toBe(true);
       expect(readFileSync(expectedPath, 'utf8')).toContain('foo topic');
+      expect(result.indexPath).toBe(expectedPath);
     });
 
     it('is idempotent: second run reports no write', () => {
@@ -194,9 +199,9 @@ describe('learning-sync', () => {
       rmSync(nodePath.join(learningsDirectory, 'b.md'));
       const result = syncLearnings(temporaryDirectory);
       expect(result.wrote).toBe(true);
-      const skillContent = readFileSync(result.skillPath, 'utf8');
-      expect(skillContent).toContain('**A**');
-      expect(skillContent).not.toContain('**B**');
+      const content = readFileSync(result.indexPath, 'utf8');
+      expect(content).toContain('**A**');
+      expect(content).not.toContain('**B**');
     });
 
     it('surfaces skipped files in the result', () => {
@@ -208,28 +213,18 @@ describe('learning-sync', () => {
       expect(result.skipped[0]?.fileName).toBe('bad.md');
     });
 
-    it('produces a valid empty-state skill when no learnings exist', () => {
+    it('produces a valid empty-state INDEX.md when the folder exists but is empty', () => {
       const result = syncLearnings(temporaryDirectory);
       expect(result.wrote).toBe(true);
-      const content = readFileSync(result.skillPath, 'utf8');
+      const content = readFileSync(result.indexPath, 'utf8');
       expect(content).toContain('No learnings recorded yet');
     });
 
-    it('reports descriptionTruncated when topic list overflows', () => {
-      for (let i = 0; i < 100; i++) {
-        writeLearning(
-          `learn-${String(i).padStart(3, '0')}.md`,
-          `# Learning ${i}\n\nCovers: topic keyword cluster number ${i} with extra verbose detail.\n\nBody.\n`,
-        );
-      }
+    it('is a no-op when the learnings folder does not exist', () => {
+      rmSync(learningsDirectory, { recursive: true, force: true });
       const result = syncLearnings(temporaryDirectory);
-      expect(result.descriptionTruncated).toBe(true);
-    });
-
-    it('does not report truncation for a small corpus', () => {
-      writeLearning('a.md', '# A\n\nCovers: short.\n');
-      const result = syncLearnings(temporaryDirectory);
-      expect(result.descriptionTruncated).toBe(false);
+      expect(result.wrote).toBe(false);
+      expect(existsSync(result.indexPath)).toBe(false);
     });
   });
 });

@@ -164,24 +164,16 @@ Find and check all agent configuration files (excluding `.safeword/`):
 
 ### 3. Learning Files Check
 
-Project learnings in `.safeword-project/learnings/*.md` must have a `Covers:` line on line 3 — the `project-learnings` skill's description and body index are built from these lines, so non-conforming files are invisible to agents.
+Project learnings in `.safeword-project/learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index.
 
 ```bash
 if [ -d .safeword-project/learnings ]; then
   for f in .safeword-project/learnings/*.md; do
     [ -e "$f" ] || continue
+    [ "$(basename "$f")" = "INDEX.md" ] && continue
     line3=$(sed -n '3p' "$f")
     case "$line3" in
-      Covers:*)
-        # W007: over-length Covers: eats the shared 1024-char description
-        # budget and forces `…` truncation of other learnings. Threshold is
-        # static at 150 chars — enough headroom for ~6 learnings before
-        # aggregate overflow; names the culprit when truncation happens.
-        len=${#line3}
-        if [ "$len" -gt 150 ]; then
-          echo "[W007] Covers: too long ($len chars) — $f"
-        fi
-        ;;
+      Covers:*) ;;
       *) echo "[W006] Missing Covers: line on line 3 — $f" ;;
     esac
   done
@@ -191,8 +183,7 @@ fi
 Flag each non-conforming file as:
 
 ```text
-- [W006] Learning file missing Covers: — `{path}` (not discoverable via project-learnings skill)
-- [W007] Covers: too long (N chars > 150) — `{path}` (eats skill description budget; forces truncation of other learnings)
+- [W006] Learning file missing Covers: — `{path}` (absent from INDEX.md)
 ```
 
 If all files conform, skip this section.
@@ -271,8 +262,7 @@ Report findings by severity with codes:
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
 - [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
-- [W006] Learning file missing Covers: — `.safeword-project/learnings/foo.md` (not discoverable via project-learnings skill)
-- [W007] Covers: too long (187 chars > 150) — `.safeword-project/learnings/bar.md` (eats skill description budget; forces truncation of other learnings)
+- [W006] Learning file missing Covers: — `.safeword-project/learnings/foo.md` (absent from INDEX.md)
 
 ### Code Quality
 
