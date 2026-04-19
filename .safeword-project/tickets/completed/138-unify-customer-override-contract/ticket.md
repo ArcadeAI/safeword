@@ -164,15 +164,23 @@ In `packages/cli/tests/integration/override-survival.test.ts`:
 
 ## Follow-ups identified during quality review (2026-04-19)
 
-Surfaced by reviewing the shipped changes against the Rule-of-Three uncertainties left after implementation. Each is low-risk but deserves a dedicated ticket to close the gap honestly.
+Three small follow-ups surfaced after reviewing shipped changes against the uncertainties left post-implementation. All resolved via research; only implementation remains.
 
-1. **`getSafewordEslintConfigStandalone` — flip or prove unreachable.** The standalone template (`packages/cli/src/templates/config.ts:285`) was left unchanged because "no customer config slot." In practice my tests show the EXTENDING template is used even for fresh projects (customer file generated → detected → extending path taken). If standalone IS reachable via some edge case (monorepo setup, `--no-generate`, legacy pre-existing variant), customer overrides there would silently not win. **Action**: either flip for consistency OR add a pinning test that the template is unreachable.
+1. **Delete `getSafewordEslintConfigStandalone`; always use the extending template.** Empirical check on a fresh project shows the extending template IS what gets generated (confirmed by grep for `projectConfig = (await import("../eslint.config.mjs"))` in `.safeword/eslint.config.mjs` post-setup). The standalone function appears to be dead code OR used only in an edge case I haven't identified. Cleanest answer: unify. The `try/catch` inside the extending template already handles "customer file doesn't exist" gracefully (projectConfig stays `[]`). One code path, one mental model. ~15 LOC removal. (See also item #4 below — the trace mystery is academic once the code is unified.)
 
-2. **Ruff unified-standalone end-to-end test.** The path "fresh Python project → safeword setup → customer adds `ignore = ["X"]` to the GENERATED ruff.toml → hook honors the ignore" is inferred from file-shape assertions but not exercised end-to-end. Rule 2 scenarios all pre-create ruff.toml BEFORE setup (pre-existing mode). **Action**: add an integration scenario (Scenario 2.4) that exercises the post-138 standalone path.
+2. **Add Scenario 2.4 (Ruff unified-standalone end-to-end).** Manually verified post-ticket: fresh Python project → safeword setup → customer adds `ignore = ["E501"]` to generated ruff.toml → hook honors it (empty output on 150-char-line violation). Codifying this as an integration scenario (~30 LOC) pins the regression. Rule 2's existing scenarios all pre-create ruff.toml before setup (pre-existing mode); 2.4 covers the complementary path.
 
-3. **Robust legacy detection for ruff.toml.** `content.includes('extend = ".safeword/ruff.toml"')` misses whitespace variations (`extend=".safeword/ruff.toml"`), single quotes (`extend = '.safeword/ruff.toml'`), and anything a customer might do after TOML auto-formatting. Very low probability in practice, but not robust. **Action**: replace the substring check with a parsed-TOML lookup OR a regex that matches the `extend` key syntax per the [TOML spec](https://toml.io/en/v1.0.0#string).
+3. **Tighten legacy detection in `hasLegacyCustomerRuffExtend`.** Current `content.includes('extend = ".safeword/ruff.toml"')` misses whitespace variations, single-quoted strings, etc. Replace with a regex anchored per [TOML v1.0 basic/literal string syntax](https://toml.io/en/v1.0.0#string):
 
-4. **Audit `reference/configuration.mdx` for stale composition claims.** I updated the FAQ but didn't re-read the reference doc. Any text explaining "put overrides after safeword presets" is still true for local ESLint but misleading for how the LLM hook composes post-138. **Action**: read and reconcile.
+   ```ts
+   const LEGACY_RUFF_EXTEND_PATTERN = /^\s*extend\s*=\s*["']\.safeword\/ruff\.toml["']/m;
+   ```
+
+   No TOML parser dependency — consistent with rest of package's string-based TOML handling. ~1-line change.
+
+4. **Configuration.mdx audit — no action required.** Read in full. Content is aligned with 138: "Never overwritten" list correct, override examples still valid for both local and LLM linting (later-wins semantics make customer's entries win post-flip). Optional one-sentence note clarifying LLM hook inheritance, but not strictly needed.
+
+**Bundle recommendation:** land #1, #2, #3 in one follow-up ticket (139?). Tight scope, single PR, mutually reinforcing (each relates to the "unify the contract" theme).
 
 ## Work Log
 
