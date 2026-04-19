@@ -164,7 +164,9 @@ In `packages/cli/tests/integration/override-survival.test.ts`:
 
 ## Follow-ups identified during quality review (2026-04-19)
 
-Five decision points surfaced during quality review. After debate, recommendations below. All resolved via research + empirical verification. Bundle as ticket 139.
+**Actioned as [ticket 139](../../139-harden-unified-override-contract/ticket.md) (2026-04-19).** Specs and debate preserved below for archaeology.
+
+Five decision points surfaced during quality review. After debate, recommendations below. All resolved via research + empirical verification. Bundled as ticket 139.
 
 ### 1. Fresh-setup latent bug — VERIFIED
 
