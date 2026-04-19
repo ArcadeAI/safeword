@@ -162,6 +162,18 @@ In `packages/cli/tests/integration/override-survival.test.ts`:
 - If the ESLint flip weakens any specific rule enforcement customers relied on, those customers can explicitly re-enable safeword rules in their own config. No automated migration needed.
 - If customers currently edit `.safeword/eslint.config.mjs` directly (non-recommended), they lose those edits on next upgrade. Same as today — this ticket doesn't regress that surface.
 
+## Follow-ups identified during quality review (2026-04-19)
+
+Surfaced by reviewing the shipped changes against the Rule-of-Three uncertainties left after implementation. Each is low-risk but deserves a dedicated ticket to close the gap honestly.
+
+1. **`getSafewordEslintConfigStandalone` — flip or prove unreachable.** The standalone template (`packages/cli/src/templates/config.ts:285`) was left unchanged because "no customer config slot." In practice my tests show the EXTENDING template is used even for fresh projects (customer file generated → detected → extending path taken). If standalone IS reachable via some edge case (monorepo setup, `--no-generate`, legacy pre-existing variant), customer overrides there would silently not win. **Action**: either flip for consistency OR add a pinning test that the template is unreachable.
+
+2. **Ruff unified-standalone end-to-end test.** The path "fresh Python project → safeword setup → customer adds `ignore = ["X"]` to the GENERATED ruff.toml → hook honors the ignore" is inferred from file-shape assertions but not exercised end-to-end. Rule 2 scenarios all pre-create ruff.toml BEFORE setup (pre-existing mode). **Action**: add an integration scenario (Scenario 2.4) that exercises the post-138 standalone path.
+
+3. **Robust legacy detection for ruff.toml.** `content.includes('extend = ".safeword/ruff.toml"')` misses whitespace variations (`extend=".safeword/ruff.toml"`), single quotes (`extend = '.safeword/ruff.toml'`), and anything a customer might do after TOML auto-formatting. Very low probability in practice, but not robust. **Action**: replace the substring check with a parsed-TOML lookup OR a regex that matches the `extend` key syntax per the [TOML spec](https://toml.io/en/v1.0.0#string).
+
+4. **Audit `reference/configuration.mdx` for stale composition claims.** I updated the FAQ but didn't re-read the reference doc. Any text explaining "put overrides after safeword presets" is still true for local ESLint but misleading for how the LLM hook composes post-138. **Action**: read and reconcile.
+
 ## Work Log
 
 ---
