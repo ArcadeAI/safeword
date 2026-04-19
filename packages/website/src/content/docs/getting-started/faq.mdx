@@ -70,7 +70,7 @@ export default [
 ];
 ```
 
-Both approaches work in your project's `eslint.config.mjs`. Safeword's LLM hooks inherit your project config, so overrides apply everywhere. See [Configuration](/reference/configuration) for details.
+Both approaches work in your project's `eslint.config.mjs`. Safeword's LLM hook honors your project config — customer overrides win on any conflict with safeword's strict rules, so what you disable stays disabled in both your IDE/pre-commit and the LLM hook. The same contract applies to `ruff.toml` (Python) and `.golangci.yml` (Go): edit your project config, your rules win everywhere. See [Configuration](/reference/configuration) for details.
 
 ### Can I remove Safeword later?
 

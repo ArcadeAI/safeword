@@ -71,3 +71,9 @@ Phase 3 — ESLint 10 upgrade (blocked on `eslint-plugin-react`):
 - [ ] Existing ESLint rule tests pass with ESLint 10
 - [ ] Preset TypeScript config loads and lints sample files
 - [ ] No `LegacyESLint` or `Class extends value undefined` errors
+
+**Cross-references (added 2026-04-19):**
+
+- **Ticket 138** (unified customer override contract, landed): flipped composition order in `getSafewordEslintConfigExtending` and `getSafewordEslintConfigLegacy`. Touches the same `packages/cli/src/templates/config.ts`.
+- **Ticket 139** (planned follow-up to 138): will delete `getSafewordEslintConfigStandalone` and harden the extending template's catch. Recommended sequence: land 139 before 099 unblocks, so the v10 upgrade diffs against a simplified template set.
+- **Legacy template deletion:** ESLint 10 removes `.eslintrc.*` support entirely. `getSafewordEslintConfigLegacy` becomes dead code on upgrade. Delete as part of 099 once it unblocks — don't route through 139.
