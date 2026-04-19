@@ -229,6 +229,14 @@ Not a follow-up risk per se, just a pre-merge verification step for ticket 139. 
 
 1 user-visible bug fix (#1) + 1 hardening (#2) + 1 test (#4) + 1 verification (#5). Single coherent PR. **~35 LOC deleted + ~8-10 LOC changed + ~80-100 LOC test added** (corrected estimates from initial ~15/~4/~50 undershoot).
 
+### Sequencing with ticket 099 (ESLint 10 migration)
+
+Ticket [099](../../099-eslint-10-migration/ticket.md) (currently blocked on upstream `eslint-plugin-react` fix for ESLint 10) will also touch `packages/cli/src/templates/config.ts`. Recommended order: **land 139 first**, then 099 when it unblocks. Rationale:
+
+- 139's fix is user-visible (fresh-setup customer overrides silently ignored) and small — no reason to block on 099's unblock.
+- 099's diff lands cleaner on top of a simplified template set (standalone deleted by 139).
+- `getSafewordEslintConfigLegacy` deletion stays in 099's scope — ESLint 10 removes `.eslintrc.*` support entirely, so legacy template deletion is a natural part of the v10 upgrade, not a 139 concern.
+
 ## Work Log
 
 ---
