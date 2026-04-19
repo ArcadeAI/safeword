@@ -30,9 +30,9 @@
 
 > Rationale: Mixed or obsolete checkbox formats silently escape the progress check — a file looks "done" while scenarios are unchecked. Hard-blocking unrecognized formats forces conversion to GFM.
 
-- [x] `isUnrecognizedScenarioFormat` returns true for prose content without checkboxes (scenario-format.test.ts)
-- [x] `isUnrecognizedScenarioFormat` returns false when any GFM checkbox is present (scenario-format.test.ts)
-- [x] `countGfmCheckboxes` counts `- [x]`, `- [X]`, and indented boxes correctly (scenario-format.test.ts)
+- [x] `analyzeScenarioFormat.isUnrecognized` is true for prose content without checkboxes (scenario-format.test.ts)
+- [x] `analyzeScenarioFormat.isUnrecognized` is false when any GFM checkbox is present (scenario-format.test.ts)
+- [x] `analyzeScenarioFormat` counts `- [x]`, `- [X]`, and indented boxes correctly (scenario-format.test.ts)
 - [x] stop-quality allows features with all `- [x]` checkboxes (hooks.test.ts T8)
 - [x] stop-quality blocks features with any `- [ ]` unchecked (hooks.test.ts T7)
 - [x] stop-quality blocks features with content but no recognized checkboxes (hooks.test.ts T9 — via cumulative-artifact gate; unit test above covers the GFM-specific contract)
