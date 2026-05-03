@@ -190,16 +190,19 @@ export function getSafewordEslintConfig(
   existingConfig: string | undefined,
   hasExistingFormatter = false,
 ): string {
-  if (existingConfig) {
-    // Check if it's a legacy config (.eslintrc.*)
-    if (existingConfig.startsWith('.eslintrc')) {
-      return getSafewordEslintConfigLegacy(existingConfig, hasExistingFormatter);
-    }
-    return getSafewordEslintConfigExtending(existingConfig, hasExistingFormatter);
+  // Legacy `.eslintrc.*` path: use FlatCompat shim.
+  if (existingConfig?.startsWith('.eslintrc')) {
+    return getSafewordEslintConfigLegacy(existingConfig, hasExistingFormatter);
   }
-
-  // No existing config - generate standalone (same as project-level)
-  return getSafewordEslintConfigStandalone(hasExistingFormatter);
+  // Flat-config path. When customer has no pre-existing config, safeword's
+  // managedFiles generates `eslint.config.mjs` at the project root in the same
+  // setup run, so by hook execution time the file always exists. The
+  // existsSync gate in the template covers the edge case (file truly missing)
+  // gracefully — see ticket 139.
+  return getSafewordEslintConfigExtending(
+    existingConfig ?? 'eslint.config.mjs',
+    hasExistingFormatter,
+  );
 }
 
 /**
@@ -216,17 +219,22 @@ function getSafewordEslintConfigExtending(
   return `// Safeword ESLint config - extends project config with stricter rules
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // Re-run \`safeword upgrade\` to regenerate after project config changes.
+import { existsSync } from "node:fs";
 ${safewordImport}${prettier.import}
 
+// Ticket 139: existsSync gate + no try/catch.
+// - File present, import fails → real error (syntax, missing plugin, etc.) → throw,
+//   so the hook fails loud instead of silently dropping customer overrides.
+// - File absent → projectConfig stays [] → hook runs with safeword defaults only.
+//   In practice, safeword's managedFiles generates the project eslint.config.mjs
+//   in the same setup run, so this fallback only fires in degenerate cases.
 let projectConfig = [];
-try {
+const projectConfigPath = new URL("../${existingConfig}", import.meta.url);
+if (existsSync(projectConfigPath)) {
   projectConfig = (await import("../${existingConfig}")).default;
-  // Ensure it's an array
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];
   }
-} catch (e) {
-  console.warn("Safeword: Could not load project ESLint config, using defaults only");
 }
 
 ${SAFEWORD_STRICT_RULES_FULL}
@@ -282,41 +290,6 @@ export default [
   ...projectConfig,
 ${prettier.configEntry}
 ];
-`;
-}
-
-/**
- * Standalone safeword ESLint config (no project config to extend)
- */
-function getSafewordEslintConfigStandalone(hasExistingFormatter: boolean): string {
-  const prettier = getPrettierConfig(hasExistingFormatter);
-
-  return `// Safeword ESLint config - standalone (no project config to extend)
-// Used by hooks for LLM enforcement.
-import { dirname } from "node:path";
-import { defineConfig } from "eslint/config";
-import safeword from "safeword/eslint";
-${prettier.import}
-
-const { detect, configs } = safeword;
-const __dirname = import.meta.dirname;
-// Look in parent directory for deps (this file is in .safeword/)
-const projectDir = dirname(__dirname);
-const deps = detect.collectAllDeps(projectDir);
-const framework = detect.detectFramework(deps);
-
-${getMonorepoSnippet('projectDir')}
-
-${SAFEWORD_STRICT_RULES_FULL}
-
-export default defineConfig([
-  { ignores: detect.getIgnores() },
-  ...baseConfigs[framework],
-  ...scopedNextConfigs,
-${OPTIONAL_CONFIGS_SNIPPET}
-  safewordStrictRules,
-${prettier.configEntry}
-]);
 `;
 }
 

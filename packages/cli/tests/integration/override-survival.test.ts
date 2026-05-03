@@ -343,4 +343,85 @@ extend-select = ["D"]
       TIMEOUT_BUN_INSTALL,
     );
   });
+
+  describe.skipIf(!isRuffInstalled())(
+    'Rule: Python overrides in standalone-generated ruff.toml (ticket 139)',
+    () => {
+      // Rule 2 pre-creates ruff.toml BEFORE safeword setup. This rule covers the
+      // complementary path: customer has NO prior ruff.toml; safeword generates a
+      // BARE customer ruff.toml during setup; customer adds overrides AFTER. The
+      // unified-extend mechanism (post-138) means `.safeword/ruff.toml` always
+      // extends `../ruff.toml`, so customer's edits propagate to the LLM hook.
+      let projectDirectory: string;
+      let bareRuffToml: string;
+
+      beforeAll(async () => {
+        projectDirectory = realpathSync(createTemporaryDirectory());
+        createPythonProject(projectDirectory);
+        // Note: NO pre-existing ruff.toml — let safeword generate the bare one.
+        initGitRepo(projectDirectory);
+        await runCli(['setup', '--yes'], { cwd: projectDirectory });
+        bareRuffToml = readTestFile(projectDirectory, 'ruff.toml');
+      }, TIMEOUT_BUN_INSTALL);
+
+      afterAll(() => {
+        if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+      });
+
+      beforeEach(() => {
+        // Reset ruff.toml to safeword's bare-generated version between scenarios.
+        writeTestFile(projectDirectory, 'ruff.toml', bareRuffToml);
+      });
+
+      const examples = [
+        {
+          label: '2.4a: ignore-rule override',
+          customerAddition: '\n[lint]\nignore = ["E501"]\n',
+          violationPath: 'src/violation_2_4a.py',
+          violationContent: `x = "${'a'.repeat(150)}"\n`,
+          expectAbsent: 'E501',
+          expectPresent: undefined as string | undefined,
+        },
+        {
+          label: '2.4b: per-file-ignores override',
+          customerAddition: '\n[lint.per-file-ignores]\n"tests/**" = ["S101"]\n',
+          violationPath: 'tests/violation_2_4b.py',
+          violationContent: `def test_foo():\n    assert 1 == 1\n`,
+          expectAbsent: 'S101',
+          expectPresent: undefined as string | undefined,
+        },
+        {
+          label: '2.4c: extend-select adds a new rule group',
+          customerAddition: '\n[lint]\nextend-select = ["D"]\n',
+          violationPath: 'src/violation_2_4c.py',
+          violationContent: `def undocumented(x):\n    return x + 1\n`,
+          expectAbsent: undefined as string | undefined,
+          expectPresent: 'D103',
+        },
+      ];
+
+      it.each(examples)(
+        'Scenario $label persists through upgrade and hook honors it',
+        async ({
+          customerAddition,
+          violationPath,
+          violationContent,
+          expectAbsent,
+          expectPresent,
+        }) => {
+          // Customer edits the bare ruff.toml to add overrides AFTER setup.
+          const customerRuff = bareRuffToml + customerAddition;
+          writeTestFile(projectDirectory, 'ruff.toml', customerRuff);
+          writeTestFile(projectDirectory, violationPath, violationContent);
+
+          await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
+
+          const hookOutput = runHookAndGetOutput(projectDirectory, violationPath);
+          if (expectAbsent !== undefined) expect(hookOutput).not.toContain(expectAbsent);
+          if (expectPresent !== undefined) expect(hookOutput).toContain(expectPresent);
+        },
+        TIMEOUT_BUN_INSTALL,
+      );
+    },
+  );
 });
