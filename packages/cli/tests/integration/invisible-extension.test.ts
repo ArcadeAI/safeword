@@ -184,7 +184,7 @@ select = ["E", "F"]
     );
 
     it(
-      'creates standalone .safeword/ruff.toml when no existing Ruff config',
+      'creates .safeword/ruff.toml that extends safeword-generated bare ruff.toml when no existing Ruff config',
       async () => {
         projectDirectory = createTemporaryDirectory();
         createPackageJson(projectDirectory);
@@ -202,14 +202,17 @@ version = "1.0.0"
           timeout: SETUP_TIMEOUT,
         });
 
-        // .safeword/ruff.toml should exist (standalone)
+        // Ticket 138 unification: safeword generates a bare project-level ruff.toml and
+        // .safeword/ruff.toml always extends it. This keeps customer overrides authoritative
+        // whether or not they had a pre-existing ruff config.
+        expect(fileExists(projectDirectory, 'ruff.toml')).toBe(true);
+        const customerRuff = readTestFile(projectDirectory, 'ruff.toml');
+        expect(customerRuff).toContain('customer-owned');
+
         expect(fileExists(projectDirectory, '.safeword/ruff.toml')).toBe(true);
         const safewordRuff = readTestFile(projectDirectory, '.safeword/ruff.toml');
-
-        // Should NOT have extend directive (standalone)
-        expect(safewordRuff).not.toContain('extend =');
-        // Should have curated rules (not ALL)
-        expect(safewordRuff).toContain('select = [');
+        expect(safewordRuff).toContain('extend = "../ruff.toml"');
+        expect(safewordRuff).toContain('extend-select = [');
         expect(safewordRuff).not.toContain('select = ["ALL"]');
       },
       SETUP_TIMEOUT,
