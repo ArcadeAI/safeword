@@ -1,3 +1,10 @@
+# Defensive: Claude Code's parallel-worktree flow can leave parent
+# .git/config with `core.bare = true` mid-flight, which makes every
+# git op in this worktree fail with "fatal: not a work tree". Reset
+# before any subsequent git activity. Idempotent no-op when not set.
+GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2> /dev/null)
+[ -n "$GIT_COMMON_DIR" ] && git config -f "$GIT_COMMON_DIR/config" core.bare false 2> /dev/null
+
 # Fail if nested config directories/files exist (indicates setup ran from wrong directory)
 # Uses schema-derived patterns to stay in sync with what safeword creates
 bun scripts/check-nested-configs.ts || exit 1
