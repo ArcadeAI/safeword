@@ -89,6 +89,19 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Lockfile sync check
+        # --frozen-lockfile catches resolved-version drift, but lets
+        # cosmetic constraint-mirror drift slip through (e.g. package.json
+        # pins `knip: 6.4.1` while bun.lock still has `^6.4.1`). Re-running
+        # `bun install` is idempotent on a synced tree — any diff means
+        # the lockfile constraint mirror has drifted from package.json.
+        run: |
+          bun install
+          git diff --exit-code bun.lock || {
+            echo "::error::bun.lock drifted from package.json. Run 'bun install' locally and commit."
+            exit 1
+          }
+
       - name: Build CLI (required by eslint.config.mjs)
         run: bun run --cwd packages/cli build
 
