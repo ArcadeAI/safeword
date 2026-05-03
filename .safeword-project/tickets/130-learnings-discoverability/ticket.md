@@ -1,10 +1,10 @@
 ---
 id: 130
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-04-15T14:10:00Z
-last_modified: 2026-04-19T04:15:00Z
+last_modified: 2026-05-03T16:13:00Z
 ---
 
 # Improve learnings discoverability for Claude Code agents
