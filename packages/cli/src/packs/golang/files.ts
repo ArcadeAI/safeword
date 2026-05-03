@@ -158,7 +158,7 @@ function mergeLinters(projectLinters: Record<string, unknown>): Record<string, u
 
   return {
     ...projectLinters,
-    default: (projectLinters.default as string) || 'standard',
+    default: projectLinters.default || 'standard',
     enable: unionArrays((projectLinters.enable as string[]) || [], SAFEWORD_ENABLE),
     disable: unionArrays((projectLinters.disable as string[]) || [], SAFEWORD_DISABLE),
     exclusions: {
