@@ -1,5 +1,7 @@
 # Propose-and-Converge: Research Principles
 
+Covers: propose-and-converge pattern, agent UX, ideation.
+
 Design principles for how an AI agent should interact with users, derived from HCI research, pair programming literature, Anthropic's autonomy research, and conversational AI UX patterns. Applied first in ticket #100 (ideation phase).
 
 ## The Four Rules

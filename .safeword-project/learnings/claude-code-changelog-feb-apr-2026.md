@@ -1,6 +1,6 @@
 # Claude Code Changelog: Feb-Apr 2026
 
-Covers: Hook changes, permission updates, agent workflow improvements, autonomy features, plugin system, and performance fixes from Claude Code v2.1.80-2.1.101.
+Covers: Claude Code 2.1.80-2.1.101 changelog, plugins.
 
 ## Hook-Relevant Changes
 

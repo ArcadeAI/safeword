@@ -187,7 +187,11 @@ Safeword tracks your phase and TDD step, reminding you each turn via the prompt 
 
 ## Learnings
 
-**Location:** `.safeword-project/learnings/` — check FIRST when stuck, debugging 2+ times, or working with unfamiliar technology. See `.safeword/guides/learning-extraction.md` for when and how to extract new learnings.
+**Location:** `.safeword-project/learnings/` — project-specific hard-won lessons.
+
+**Before starting non-trivial work:** read `.safeword-project/learnings/INDEX.md` or grep the folder for your topic. Prior mistakes are recorded there.
+
+**When you solve something non-obvious:** add a new `<slug>.md` with `Covers:` on line 3. `INDEX.md` auto-regenerates via `safeword sync-learnings`. See `.safeword/guides/learning-extraction.md` for when and how.
 
 ---
 

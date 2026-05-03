@@ -1,5 +1,7 @@
 # Verbose Procedural Gates Degrade Performance (Generalizes Beyond TDD)
 
+Covers: procedural instruction degradation, tell WHAT not HOW.
+
 **Finding:** The TDAD paper (arxiv 2603.17973v2) found that verbose 9-phase TDD instructions increased regressions from 6.08% to 9.94%. This was already captured in agent-behavior-research.md. New finding: this generalizes beyond TDD.
 
 **Evidence for generalization:**

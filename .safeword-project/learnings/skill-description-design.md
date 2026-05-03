@@ -1,6 +1,6 @@
 # Skill Description Design
 
-Covers: How to write Claude Code skill descriptions for reliable auto-triggering. Discovered during ideation skill design (April 2026).
+Covers: skill description writing, auto-triggering, trigger phrases.
 
 ## Core Principle: Semantic Intent, Not Keyword Lists
 

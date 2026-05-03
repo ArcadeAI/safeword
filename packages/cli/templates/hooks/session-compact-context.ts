@@ -22,6 +22,17 @@ try {
   input = {};
 }
 
+// Belt-and-suspenders for ticket #130: re-inject the learnings pointer after
+// compaction in case CLAUDE.md → @./.safeword/SAFEWORD.md re-expansion didn't
+// fire reliably (GitHub #22085 reports sporadic issues). Emit only if the
+// project has learnings to point at.
+const learningsIndex = `${projectDir}/.safeword-project/learnings/INDEX.md`;
+if (existsSync(learningsIndex)) {
+  console.log(
+    'Project learnings: read `.safeword-project/learnings/INDEX.md` before non-trivial work to avoid re-making previously-solved mistakes.',
+  );
+}
+
 // Read per-session state file (not legacy shared file)
 const stateFile = getStateFilePath(projectDir, input.session_id);
 

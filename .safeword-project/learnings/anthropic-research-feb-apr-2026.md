@@ -1,6 +1,6 @@
 # Anthropic Research & Engineering: Feb-Apr 2026
 
-Covers: Agent trustworthiness, harness design, auto mode, long-running agents, and model evaluation research relevant to Safeword's enforcement and workflow design.
+Covers: Anthropic 2026 research, trustworthy agents, harness design.
 
 ## Trustworthy Agents in Practice (Apr 9, 2026)
 

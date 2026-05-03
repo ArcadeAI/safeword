@@ -1,5 +1,7 @@
 # Concise Over Verbose for Skill File Instructions (Not Prose Over Lists)
 
+Covers: skill file conciseness, step count, list ordering.
+
 **Finding:** The key variable is conciseness, not format. Fewer steps with less ceremony outperforms verbose multi-step procedures. Lists vs prose is not the differentiator — verbosity is.
 
 **Evidence for conciseness:**

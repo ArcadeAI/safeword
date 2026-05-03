@@ -1,5 +1,7 @@
 # Claude 4: Examples Are the Strongest Compliance Signal
 
+Covers: Claude 4 example-following, examples override rules.
+
 **Finding:** Claude 4.x models pay close attention to examples and follow them closely. Anthropic's Claude 4 best practices docs recommend ensuring examples "align with behaviors you want to encourage and minimize behaviors you want to avoid." The think-tool engineering post showed a 54% improvement in policy compliance when examples of reasoning approaches were provided vs abstract rules alone.
 
 **Implication:** In skill files, the concrete turn example is the strongest compliance lever — stronger than the instructions around it. If you want the agent to produce a dimension table before writing scenarios, show an example of an agent producing a dimension table. Don't just say "derive dimensions first."

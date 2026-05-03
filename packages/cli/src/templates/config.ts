@@ -338,6 +338,7 @@ export const SETTINGS_HOOKS = {
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-lint.ts`),
     matchedHook(`${EDIT_TOOLS}|Bash`, `bun ${HOOKS_DIR}/post-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-sync-learnings.ts`),
   ],
   SessionEnd: [hook(`bun ${HOOKS_DIR}/session-cleanup-quality.ts`)],
 };

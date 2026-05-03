@@ -1,6 +1,6 @@
 # Dogfooding: Enforcement Redesign Session (April 2026)
 
-Covers: Real hook fire counts, friction analysis, what caught bugs vs what was noise, during a 30+ commit session implementing tickets #113 and #114.
+Covers: hook fire counts, friction analysis, dogfood session.
 
 ## Hook Fire Counts (Single Session)
 

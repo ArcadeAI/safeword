@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import process from 'node:process';
+
 import { Command } from 'commander';
 
 import { VERSION } from './version.js';
@@ -62,6 +64,15 @@ program
   .action(async () => {
     const { syncConfig } = await import('./commands/sync-config.js');
     await syncConfig();
+  });
+
+program
+  .command('sync-learnings')
+  .description('Regenerate .safeword-project/learnings/INDEX.md')
+  .option('-q, --quiet', 'Suppress success output (still prints skipped-file warnings to stderr)')
+  .action(async (options: { quiet?: boolean }) => {
+    const { syncLearningsCommand } = await import('./commands/sync-learnings.js');
+    syncLearningsCommand({ quiet: options.quiet });
   });
 
 // Show help if no arguments provided
