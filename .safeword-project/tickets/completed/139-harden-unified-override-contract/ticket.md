@@ -1,10 +1,10 @@
 ---
 id: 139
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-04-19T13:29:51Z
-last_modified: 2026-05-03T18:32:00Z
+last_modified: 2026-05-03T19:30:00Z
 scope: |
   Harden the unified customer override contract shipped in ticket 138.
   Three concrete changes:
