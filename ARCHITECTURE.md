@@ -434,14 +434,14 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 **Status:** Accepted
 **Date:** 2026-01-07
 
-| Field          | Value                                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------------------ |
-| What           | Done phase in quality hook uses exit 2 (hard block) requiring evidence before completion                     |
-| Why            | Prevents premature "done" claims; agent must show test/scenario/audit output                                 |
-| Trade-off      | Slightly more friction at completion time                                                                    |
-| Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims)      |
-| Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching            |
-| Evidence       | Features require: `✓ X/X tests pass` + `All N scenarios marked complete` + `Audit passed`. Tasks: test only. |
+| Field          | Value                                                                                                                                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | Done phase in quality hook uses exit 2 (hard block) requiring evidence before completion                                                                                                                                              |
+| Why            | Prevents premature "done" claims; agent must show test/scenario/audit output                                                                                                                                                          |
+| Trade-off      | Slightly more friction at completion time                                                                                                                                                                                             |
+| Alternatives   | Soft block with reminder (rejected: too easy to ignore), no enforcement (rejected: allows false claims)                                                                                                                               |
+| Implementation | `packages/cli/templates/hooks/stop-quality.ts` - `hardBlockDone()` with evidence pattern matching; GFM checkbox predicate extracted to `.safeword/hooks/lib/scenario-format.ts` (`analyzeScenarioFormat`) for direct unit testability |
+| Evidence       | Features require: `✓ X/X tests pass` + `All N scenarios marked complete` + `Audit passed`. Tasks: test only.                                                                                                                          |
 
 ### Hierarchy Navigation on Ticket Completion
 
