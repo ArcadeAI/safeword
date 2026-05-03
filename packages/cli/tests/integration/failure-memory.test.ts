@@ -179,8 +179,8 @@ describe('Failure Memory (#111)', () => {
       const failures = state.recentFailures as { pattern: string; timestamp: string }[];
       expect(failures).toBeDefined();
       expect(failures.length).toBeGreaterThan(0);
-      expect(failures[0].pattern).toBe('loc-exceeded');
-      expect(failures[0].timestamp).toBeDefined();
+      expect(failures[0]?.pattern).toBe('loc-exceeded');
+      expect(failures[0]?.timestamp).toBeDefined();
     });
 
     it('stop hook writes recentFailures when done gate blocks for test failure', () => {

@@ -9,7 +9,25 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { getWorkspacePatterns } from '../../utils/workspaces.js';
+/**
+ * Read workspace glob patterns from a package.json. Inlined here (rather than
+ * importing from `utils/workspaces.ts`) so the presets package stays
+ * self-contained — see `cli-presets-self-contained` rule in
+ * `.dependency-cruiser.cjs`.
+ */
+function getWorkspacePatterns(cwd: string): string[] {
+  const pkgPath = path.join(cwd, 'package.json');
+  if (!existsSync(pkgPath)) return [];
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
+      workspaces?: string[] | { packages?: string[] };
+    };
+    if (!pkg.workspaces) return [];
+    return Array.isArray(pkg.workspaces) ? pkg.workspaces : (pkg.workspaces.packages ?? []);
+  } catch {
+    return [];
+  }
+}
 
 /**
  * TanStack Query package names across all supported frameworks.
