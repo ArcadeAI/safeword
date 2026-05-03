@@ -2,9 +2,9 @@
 id: 139
 type: task
 phase: implement
-status: ready
+status: in_progress
 created: 2026-04-19T13:29:51Z
-last_modified: 2026-04-19T13:29:51Z
+last_modified: 2026-05-03T18:32:00Z
 scope: |
   Harden the unified customer override contract shipped in ticket 138.
   Three concrete changes:
@@ -130,5 +130,10 @@ New describe block `Rule: Python overrides in standalone-generated ruff.toml (ti
 ---
 
 - 2026-04-19T13:29:51Z Filed from 138's follow-up section. Specs debated and locked in 138's ticket body; this ticket is the actionable form tooling can surface.
+- 2026-05-03T18:32:00Z Implementation landed:
+  1. Deleted `getSafewordEslintConfigStandalone` and simplified `getSafewordEslintConfig` dispatch — fresh `safeword setup` now generates `.safeword/eslint.config.mjs` using the extending template, so customer overrides reach the LLM hook from day one (no longer need a `safeword upgrade` to enable the indirection).
+  2. Replaced extending template's broad try/catch with `existsSync` gate using `new URL('../eslint.config.mjs', import.meta.url)`. Customer syntax errors / missing-plugin errors now surface loud; only legitimately-missing files are silently tolerated. Universal Node 20+ compatibility (no `import.meta.dirname` dependency).
+  3. Added Scenario 2.4 (parameterized `it.each` × 3 rows: ignore, per-file-ignores, extend-select) covering Ruff's standalone-generated mode. Codifies the manual end-to-end verification that was inferred but not pinned during ticket 138.
+     Local results: 10/10 override-survival.test.ts GREEN; invisible-extension.test.ts updated for new behavior + 8/8 GREEN; lint + typecheck + depcruise all pass.
 
 ---

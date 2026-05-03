@@ -115,7 +115,7 @@ export default [
     );
 
     it(
-      'creates standalone .safeword/eslint.config.mjs when no existing config',
+      'creates extending .safeword/eslint.config.mjs even when no pre-existing config (ticket 139)',
       async () => {
         projectDirectory = createTemporaryDirectory();
         createTypeScriptPackageJson(projectDirectory);
@@ -126,16 +126,18 @@ export default [
           timeout: SETUP_TIMEOUT,
         });
 
-        // Project-level config should be created (since no existing)
+        // Project-level config gets generated (managedFiles)
         expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(true);
 
-        // .safeword/eslint.config.mjs should also exist (standalone)
+        // .safeword/eslint.config.mjs uses the extending template now (post-139).
+        // Customer overrides reach the LLM hook from day-one of `safeword setup`,
+        // not after the next `safeword upgrade`.
         expect(fileExists(projectDirectory, '.safeword/eslint.config.mjs')).toBe(true);
         const safewordConfig = readTestFile(projectDirectory, '.safeword/eslint.config.mjs');
-
-        // Should be standalone (no import from project config)
-        expect(safewordConfig).toContain('safeword/eslint');
+        expect(safewordConfig).toContain('await import("../eslint.config.mjs")');
         expect(safewordConfig).toContain('safewordStrictRules');
+        // existsSync gate (ticket 139)
+        expect(safewordConfig).toContain('existsSync(projectConfigPath)');
       },
       SETUP_TIMEOUT,
     );
