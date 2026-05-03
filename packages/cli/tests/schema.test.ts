@@ -367,7 +367,7 @@ describe('Schema - Single Source of Truth', () => {
         for (const entry of entries) {
           for (const hookDefinition of entry.hooks) {
             const match = /\/([^/]+)$/.exec(hookDefinition.command);
-            if (match) wiredHooks.add(match[1]);
+            if (match?.[1]) wiredHooks.add(match[1]);
           }
         }
       }
