@@ -1,21 +1,22 @@
 /**
- * CLI Tool Overrides
+ * CLI Tool preset
  *
  * Disables security rules that produce false positives for CLI tools,
  * build tools, and scripts that work with dynamic file paths and
  * shell commands by design.
  *
  * Usage:
+ *   import { defineConfig } from 'eslint/config';
  *   import safeword from 'safeword/eslint';
- *   export default [
+ *   export default defineConfig([
  *     ...safeword.configs.recommendedTypeScript,
- *     safeword.overrides.cli,
- *   ];
+ *     safeword.configs.cli,
+ *   ]);
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages
-export const cliOverrides: any = {
-  name: 'safeword/overrides-cli',
+export const cliConfig: any = {
+  name: 'safeword/cli',
   rules: {
     // CLI tools read/write user-provided paths — not an injection vector
     'security/detect-non-literal-fs-filename': 'off',

@@ -47,27 +47,41 @@ No. Safeword's hooks and stricter linting rules only fire during AI agent sessio
 
 Safeword ships strict rules that are correct for web apps but can be false positives for CLI tools, build scripts, or code that handles untyped data (JSON, YAML, API responses).
 
-**Option 1: Use an override preset.** Safeword exports named presets that turn off common false-positive groups:
+Your generated `eslint.config.mjs` already imports `defineConfig` from `eslint/config` — just add an entry to the array.
+
+**Option 1: Use a preset.** Safeword exports named presets that turn off common false-positive groups:
 
 ```js
-export default [
+export default defineConfig([
   ...safeword.configs.recommendedTypeScript,
-  safeword.overrides.cli, // security rules that don't apply to CLI tools
-  safeword.overrides.relaxedTypes, // strict TS rules that don't apply to untyped data
-];
+  safeword.configs.cli, // security rules that don't apply to CLI tools
+  safeword.configs.relaxedTypes, // strict TS rules that don't apply to untyped data
+]);
+```
+
+To apply a preset only to a subpath (e.g., scripts folder), use `extends:`:
+
+```js
+export default defineConfig([
+  ...safeword.configs.recommendedTypeScript,
+  {
+    files: ['scripts/**'],
+    extends: [safeword.configs.cli],
+  },
+]);
 ```
 
 **Option 2: Override individual rules.** Add a config object after the base config — later entries win:
 
 ```js
-export default [
+export default defineConfig([
   ...safeword.configs.recommendedTypeScript,
   {
     rules: {
       'security/detect-non-literal-fs-filename': 'off',
     },
   },
-];
+]);
 ```
 
 Both approaches work in your project's `eslint.config.mjs`. Safeword's LLM hooks inherit your project config, so overrides apply everywhere. See [Configuration](/reference/configuration) for details.
