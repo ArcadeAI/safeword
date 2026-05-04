@@ -1,3 +1,12 @@
+---
+id: '099'
+type: task
+phase: implement
+status: in_progress
+created: 2026-04-11
+last_modified: 2026-05-04T05:30:00Z
+---
+
 # Task: ESLint 10 Migration
 
 **Type:** Improvement
