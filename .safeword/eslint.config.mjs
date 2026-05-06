@@ -1,18 +1,23 @@
 // Safeword ESLint config - extends project config with stricter rules
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
 // Re-run `safeword upgrade` to regenerate after project config changes.
+import { existsSync } from 'node:fs';
 import safeword from 'safeword/eslint';
 const eslintConfigPrettier = safeword.prettierConfig;
 
+// Ticket 139: existsSync gate + no try/catch.
+// - File present, import fails → real error (syntax, missing plugin, etc.) → throw,
+//   so the hook fails loud instead of silently dropping customer overrides.
+// - File absent → projectConfig stays [] → hook runs with safeword defaults only.
+//   In practice, safeword's managedFiles generates the project eslint.config.mjs
+//   in the same setup run, so this fallback only fires in degenerate cases.
 let projectConfig = [];
-try {
+const projectConfigPath = new URL('../eslint.config.mjs', import.meta.url);
+if (existsSync(projectConfigPath)) {
   projectConfig = (await import('../eslint.config.mjs')).default;
-  // Ensure it's an array
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];
   }
-} catch (e) {
-  console.warn('Safeword: Could not load project ESLint config, using defaults only');
 }
 
 // Safeword strict rules - applied after project rules (win on conflict)
@@ -44,4 +49,8 @@ const safewordStrictRules = {
   },
 };
 
-export default [...projectConfig, safewordStrictRules, eslintConfigPrettier];
+// Composition order (ticket 138): safeword rules FIRST, customer config LAST.
+// Flat config is "later wins" — this makes the customer's project config
+// authoritative for the LLM hook. Customer overrides (e.g. 'no-unused-vars': 'off')
+// take effect here instead of being silently overridden by safeword's strict layer.
+export default [safewordStrictRules, ...projectConfig, eslintConfigPrettier];
