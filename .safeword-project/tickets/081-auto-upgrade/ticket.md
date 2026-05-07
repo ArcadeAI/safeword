@@ -55,33 +55,41 @@ epic: setup-lifecycle
 
 ### 2026-05-07 Resume notes (audit of `feature/auto-upgrade` branch)
 
-Branch: `feature/auto-upgrade` (rebased onto current main locally; not pushed). 7 commits, 400 LOC across 8 files.
+Branch: `feature/auto-upgrade` (rebased onto current main locally; **not** force-pushed — origin tip is 4 weeks stale). 7 commits, 400 LOC across 8 files. Build + typecheck pass on the rebased state.
 
 **Files on the branch:**
 
 - `packages/cli/templates/hooks/session-auto-upgrade.ts` (160 LOC) — upgrade trigger hook
-- `packages/cli/templates/hooks/session-update-check.ts` (60 LOC) — update detection
+- `packages/cli/templates/hooks/session-update-check.ts` (60 LOC) — async npm registry fetch with 24h cooldown
 - `packages/cli/tests/utils/auto-upgrade.test.ts` (83 LOC) — `shouldAutoUpdate()` unit tests
-- `packages/cli/src/packs/config.ts` + `src/schema.ts` + `src/templates/config.ts` — schema/config wiring (likely `autoUpgrade` setting)
+- `packages/cli/src/packs/config.ts` + `src/schema.ts` + `src/templates/config.ts` — schema/config wiring
 - `.claude/skills/versioning/SKILL.md` (58 LOC) — semver-discipline skill
 - `scripts/check-nested-configs.ts` — whitelist for new paths
 
-**Done-when status (best read without running):**
+**Done-when status (verified by reading the hook code, not just file names):**
 
-| Criterion                          | Status                                                                        |
-| ---------------------------------- | ----------------------------------------------------------------------------- |
-| Auto-upgrade on session start      | ✅ Likely done — `session-auto-upgrade.ts` covers it                          |
-| `autoUpgrade: false` disables      | 🟡 Probably done — schema/config updates support a setting                    |
-| Non-interactive (`--yes`)          | ❓ Verify — depends on `safeword upgrade --yes` working non-interactively     |
-| Auto-commit upgrade                | ❌ **Blocked on ticket 078** — `078-auto-commit-setup` is also `status: open` |
-| Network failure gracefully skipped | ❓ Verify in `session-update-check.ts`                                        |
+| Criterion                          | Status                                                                                                                                             |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auto-upgrade on session start      | ✅ Done                                                                                                                                            |
+| `autoUpgrade: false` disables      | ⚠️ Done, but **field name in hook is `autoUpdate`, not `autoUpgrade`**. Spec uses `autoUpgrade`. Reconcile naming before PR.                       |
+| Non-interactive (`--yes`)          | ⚠️ **Verify**: hook runs `bunx safeword@${latest} upgrade` _without_ `--yes`. Either upgrade is non-interactive by default, or this is a real bug. |
+| Auto-commit upgrade                | ✅ Done — hook does inline `git add` + `git commit`. **Not blocked on ticket 078**; bypasses 078's mechanism entirely.                             |
+| Network failure gracefully skipped | ✅ Done — `session-update-check.ts` try/catches the fetch ("Network failure is fine"); auto-upgrade hook exits early if cache missing              |
 
-**Divergence from spec:** Original design said "extend `session-version.ts`". Branch instead added two NEW hooks (`session-auto-upgrade.ts` + `session-update-check.ts`). May be a deliberate split-of-concerns refactor; reconcile in PR description.
+**Spec creep (good design, but call out in PR):**
 
-**To resume:**
+- Patch-only auto-upgrade — minor/major bumps just notify, don't auto-apply
+- Dirty working tree skip
+- CI environment skip (`process.env.CI`)
+- Additional env opt-out: `SAFEWORD_NO_AUTO_UPDATE`
+- 24h cooldown between update checks
+- Two new hooks (`session-auto-upgrade.ts` + `session-update-check.ts`) instead of extending `session-version.ts` as the spec said
 
-1. Decide on auto-commit (criterion 4): ship without it (TODO ref 078), or wait until 078 lands
-2. Read `session-auto-upgrade.ts` + `session-update-check.ts` to confirm criteria 3 + 5
-3. Manual end-to-end test: install older safeword globally, trigger session, watch it auto-upgrade
-4. Reconcile two-new-hooks vs spec's "extend session-version.ts" in PR description
-5. Open PR (estimated ~half-day from this point)
+**To resume (estimated ~half-day):**
+
+1. **Decide on field name**: rename hook's `config.autoUpdate` → `autoUpgrade`, or update spec to match `autoUpdate`. Pick one. Update tests + docs accordingly.
+2. **Verify `--yes` behavior**: read `packages/cli/src/commands/upgrade.ts` to confirm it's non-interactive by default. If it prompts, fix the command or pass `--yes` from the hook.
+3. **Manual end-to-end smoke test**: install older safeword globally, populate `.safeword/.update-cache.json` with a newer version, trigger a session, watch the auto-upgrade run + commit.
+4. **Run tests**: `bun run --cwd packages/cli test`. Confirm `auto-upgrade.test.ts` passes; check no regressions.
+5. **Force-push**: `git push --force-with-lease origin feature/auto-upgrade`.
+6. **Open PR**: `feat(081): auto-upgrade safeword on session start`. Body lists the spec-creep items.
