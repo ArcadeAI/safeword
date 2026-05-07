@@ -50,3 +50,38 @@ epic: setup-lifecycle
 - [ ] Upgrade is non-interactive (no prompts)
 - [ ] Upgrade output is committed automatically (depends on 078)
 - [ ] Network failure gracefully skipped with warning
+
+## Work Log
+
+### 2026-05-07 Resume notes (audit of `feature/auto-upgrade` branch)
+
+Branch: `feature/auto-upgrade` (rebased onto current main locally; not pushed). 7 commits, 400 LOC across 8 files.
+
+**Files on the branch:**
+
+- `packages/cli/templates/hooks/session-auto-upgrade.ts` (160 LOC) — upgrade trigger hook
+- `packages/cli/templates/hooks/session-update-check.ts` (60 LOC) — update detection
+- `packages/cli/tests/utils/auto-upgrade.test.ts` (83 LOC) — `shouldAutoUpdate()` unit tests
+- `packages/cli/src/packs/config.ts` + `src/schema.ts` + `src/templates/config.ts` — schema/config wiring (likely `autoUpgrade` setting)
+- `.claude/skills/versioning/SKILL.md` (58 LOC) — semver-discipline skill
+- `scripts/check-nested-configs.ts` — whitelist for new paths
+
+**Done-when status (best read without running):**
+
+| Criterion                          | Status                                                                        |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| Auto-upgrade on session start      | ✅ Likely done — `session-auto-upgrade.ts` covers it                          |
+| `autoUpgrade: false` disables      | 🟡 Probably done — schema/config updates support a setting                    |
+| Non-interactive (`--yes`)          | ❓ Verify — depends on `safeword upgrade --yes` working non-interactively     |
+| Auto-commit upgrade                | ❌ **Blocked on ticket 078** — `078-auto-commit-setup` is also `status: open` |
+| Network failure gracefully skipped | ❓ Verify in `session-update-check.ts`                                        |
+
+**Divergence from spec:** Original design said "extend `session-version.ts`". Branch instead added two NEW hooks (`session-auto-upgrade.ts` + `session-update-check.ts`). May be a deliberate split-of-concerns refactor; reconcile in PR description.
+
+**To resume:**
+
+1. Decide on auto-commit (criterion 4): ship without it (TODO ref 078), or wait until 078 lands
+2. Read `session-auto-upgrade.ts` + `session-update-check.ts` to confirm criteria 3 + 5
+3. Manual end-to-end test: install older safeword globally, trigger session, watch it auto-upgrade
+4. Reconcile two-new-hooks vs spec's "extend session-version.ts" in PR description
+5. Open PR (estimated ~half-day from this point)
