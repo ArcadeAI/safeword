@@ -235,6 +235,47 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).toContain('.safeword/SAFEWORD.md');
     });
 
+    it('should preserve a line break between prepended separator and existing CLAUDE.md heading', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // Simulate an existing user CLAUDE.md whose first content line is a heading.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'CLAUDE.md'),
+        '# CLAUDE.md — my project\n\nSome existing notes.\n',
+      );
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, 'CLAUDE.md'), 'utf8');
+
+      // The `---` separator and the user's `# Heading` must not be glued into
+      // a single `---# Heading` line — markdown would render that as literal text.
+      expect(content).not.toMatch(/---#/);
+      expect(content).toMatch(/\n---\n\n# CLAUDE\.md/);
+    });
+
+    it('should preserve a line break between prepended AGENTS.md separator and existing heading', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'AGENTS.md'),
+        '# AGENTS.md — my project\n\nSome existing notes.\n',
+      );
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
+
+      expect(content).not.toMatch(/---#/);
+      expect(content).toMatch(/\n---\n\n# AGENTS\.md/);
+    });
+
     it('should compute packages to install', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
