@@ -109,19 +109,22 @@ function planMissingDirectories(
   return { actions, created };
 }
 
-/** Plan text-patch actions for files missing the marker */
+/**
+ * Plan text-patch actions for all targets. The executor (`executeTextPatch`)
+ * decides whether to prepend, heal a legacy `---#` artifact, or no-op based on
+ * the file's current contents — so the planner stays uniform across modes.
+ * Keeping the marker check in the executor (not here) ensures `safeword
+ * upgrade` reaches the heal path on pre-fix installs, which is what commit
+ * a304af8 promised.
+ */
 function planTextPatches(
   patches: Record<string, TextPatchDefinition>,
-  cwd: string,
   isGitRepo: boolean,
 ): Action[] {
   const actions: Action[] = [];
   for (const [filePath, definition] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
-    const content = readFileSafe(nodePath.join(cwd, filePath)) ?? '';
-    if (!content.includes(definition.marker)) {
-      actions.push({ type: 'text-patch', path: filePath, definition });
-    }
+    actions.push({ type: 'text-patch', path: filePath, definition });
   }
   return actions;
 }
@@ -490,7 +493,7 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   }
 
   // 7. Text patches (only if marker missing)
-  actions.push(...planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo));
+  actions.push(...planTextPatches(schema.textPatches, ctx.isGitRepo));
 
   // 8. Compute packages to install
   const packagesToInstall = computePackagesToInstall(
