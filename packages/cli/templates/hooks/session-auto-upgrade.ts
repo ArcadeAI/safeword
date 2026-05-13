@@ -6,6 +6,8 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+import { bumpType } from './lib/version.ts';
+
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
 
@@ -43,31 +45,16 @@ if (!cache.latestVersion) {
 const latest = cache.latestVersion;
 
 // --- Version comparison ---
-function parseVersion(v: string): [number, number, number] {
-  const parts = v.split('.').map(Number);
-  return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
+const bump = bumpType(currentVersion, latest);
+
+if (bump === 'none') {
+  process.exit(0); // No update needed (latest <= current)
 }
 
-const [curMajor, curMinor, curPatch] = parseVersion(currentVersion);
-const [latMajor, latMinor, latPatch] = parseVersion(latest);
-
-// No update needed
-if (
-  latMajor < curMajor ||
-  (latMajor === curMajor && latMinor < curMinor) ||
-  (latMajor === curMajor && latMinor === curMinor && latPatch <= curPatch)
-) {
-  process.exit(0);
-}
-
-// --- Classify bump type ---
-const isPatch = latMajor === curMajor && latMinor === curMinor && latPatch > curPatch;
-
-if (!isPatch) {
+if (bump !== 'patch') {
   // Minor or major — notify only
-  const bumpType = latMajor > curMajor ? 'major' : 'minor';
   console.log(
-    `SAFEWORD: v${latest} available (${bumpType}) — run \`bunx safeword@${latest} upgrade\` to update`,
+    `SAFEWORD: v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
   );
   process.exit(0);
 }

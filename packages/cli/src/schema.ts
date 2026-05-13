@@ -277,6 +277,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
+    '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
 
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-verify-agents.ts': {
