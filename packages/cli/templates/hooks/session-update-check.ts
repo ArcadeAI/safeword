@@ -28,14 +28,19 @@ if (await cacheFile.exists()) {
   }
 }
 
-// Fetch latest version from npm registry
+// Fetch latest version + per-version publish times from npm registry.
+// Use the full packument (not /safeword/latest) so we can read `time[version]`,
+// which is npm-generated (tamper-resistant) and lets us enforce a release-age
+// cooldown in session-auto-upgrade.ts. The cooldown blocks installation of
+// versions published <24h ago — gives the community time to detect and yank
+// malicious releases (2026 best practice; mirrors pnpm's minimumReleaseAge).
 try {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, 3000);
 
-  const response = await fetch('https://registry.npmjs.org/safeword/latest', {
+  const response = await fetch('https://registry.npmjs.org/safeword', {
     signal: controller.signal,
   });
 
@@ -45,14 +50,30 @@ try {
     process.exit(0);
   }
 
-  const data = (await response.json()) as { version?: string };
-  if (!data.version) {
+  const data = (await response.json()) as {
+    'dist-tags'?: { latest?: string };
+    time?: Record<string, string>;
+  };
+
+  const latestVersion = data['dist-tags']?.latest;
+  const publishedAtIso = latestVersion ? data.time?.[latestVersion] : undefined;
+
+  // Fail closed: if either field is missing or the timestamp is malformed,
+  // don't write a partial cache. The auto-upgrade hook treats missing
+  // publishedAt as "too new" and skips, so a partial cache would block
+  // upgrades indefinitely.
+  if (!latestVersion || !publishedAtIso) {
+    process.exit(0);
+  }
+
+  const publishedAt = Date.parse(publishedAtIso);
+  if (Number.isNaN(publishedAt)) {
     process.exit(0);
   }
 
   // Write cache atomically (temp file + rename)
   const tempPath = `${cachePath}.tmp-${Date.now()}`;
-  await Bun.write(tempPath, JSON.stringify({ latestVersion: data.version, checkedAt: Date.now() }));
+  await Bun.write(tempPath, JSON.stringify({ latestVersion, publishedAt, checkedAt: Date.now() }));
   const { renameSync } = await import('node:fs');
   renameSync(tempPath, cachePath);
 } catch {

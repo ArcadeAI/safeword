@@ -22,6 +22,8 @@ const currentVersion = existsSync(versionPath) ? readFileSync(versionPath, 'utf8
 // --- Read update cache ---
 interface UpdateCache {
   latestVersion?: string;
+  /** Unix ms timestamp of when `latestVersion` was published to npm. */
+  publishedAt?: number;
   checkedAt?: number;
 }
 
@@ -77,6 +79,29 @@ try {
   }
 } catch {
   // Config parse error, proceed with upgrade
+}
+
+// --- Check release-age cooldown ---
+// 2026 npm supply-chain best practice (mirrors pnpm's minimumReleaseAge):
+// don't install versions that were published <24h ago. Gives community time
+// to detect and yank malicious releases before they auto-propagate to users.
+// Fail-closed: missing publishedAt → treat as too new, defer to next cycle.
+const RELEASE_AGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+if (!cache.publishedAt) {
+  console.log(
+    `SAFEWORD: v${latest} available — waiting on release-age info (cache refreshes on next update check)`,
+  );
+  process.exit(0);
+}
+
+const ageMs = Date.now() - cache.publishedAt;
+if (ageMs < RELEASE_AGE_COOLDOWN_MS) {
+  const remainingHours = Math.ceil((RELEASE_AGE_COOLDOWN_MS - ageMs) / (60 * 60 * 1000));
+  console.log(
+    `SAFEWORD: v${latest} available — applying after release-age cooldown (${remainingHours}h remaining)`,
+  );
+  process.exit(0);
 }
 
 // Node's execSync defaults to a 1MB stdout/stderr buffer and kills the subprocess
