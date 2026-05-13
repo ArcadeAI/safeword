@@ -92,9 +92,19 @@ try {
   // Config parse error, proceed with upgrade
 }
 
+// Node's execSync defaults to a 1MB stdout/stderr buffer and kills the subprocess
+// with ENOBUFS on overflow. `safeword upgrade` output exceeds that on a real
+// install, so we raise the ceiling for every shell-out in this hook. 50MB is
+// generous; real upgrade output is well under 1MB but headroom is cheap.
+const EXEC_BUFFER = 50 * 1024 * 1024;
+
 // --- Check dirty working tree ---
 try {
-  const status = execSync('git status --porcelain', { cwd: projectDir, encoding: 'utf8' }).trim();
+  const status = execSync('git status --porcelain', {
+    cwd: projectDir,
+    encoding: 'utf8',
+    maxBuffer: EXEC_BUFFER,
+  }).trim();
   if (status) {
     console.log(`SAFEWORD: v${latest} available — will apply when working tree is clean`);
     process.exit(0);
@@ -113,16 +123,22 @@ try {
     cwd: projectDir,
     encoding: 'utf8',
     stdio: 'pipe',
+    maxBuffer: EXEC_BUFFER,
   });
 
   // Stage only safeword-managed files that changed
-  const changedFiles = execSync('git diff --name-only', { cwd: projectDir, encoding: 'utf8' })
+  const changedFiles = execSync('git diff --name-only', {
+    cwd: projectDir,
+    encoding: 'utf8',
+    maxBuffer: EXEC_BUFFER,
+  })
     .trim()
     .split('\n')
     .filter(Boolean);
   const untrackedFiles = execSync('git ls-files --others --exclude-standard', {
     cwd: projectDir,
     encoding: 'utf8',
+    maxBuffer: EXEC_BUFFER,
   })
     .trim()
     .split('\n')
@@ -145,11 +161,13 @@ try {
     execSync(`git add ${filesToStage.map(f => `"${f}"`).join(' ')}`, {
       cwd: projectDir,
       encoding: 'utf8',
+      maxBuffer: EXEC_BUFFER,
     });
     execSync(`git commit -m "chore: safeword auto-upgrade v${currentVersion} → v${latest}"`, {
       cwd: projectDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      maxBuffer: EXEC_BUFFER,
     });
   }
 
