@@ -28,6 +28,13 @@ export const RELEASE_AGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
  * - `unknown`: publishedAt is missing — fail closed, treat as too new
  * - `cooling`: version was published within the cooldown window
  * - `ready`: version is older than the cooldown threshold, safe to install
+ *
+ * Note: we fail closed on missing `publishedAt`. This intentionally diverges
+ * from pnpm's `minimumReleaseAgeIgnoreMissingTime: true` default (which
+ * fails open). pnpm's default is a usability concession for interactive
+ * installs; our hook runs silently at session start, so fail-closed gives
+ * the user a clear "waiting" message AND prevents an attacker who can
+ * suppress the npm `time` field from bypassing the cooldown.
  */
 export type ReleaseAgeStatus =
   | { state: 'unknown' }
