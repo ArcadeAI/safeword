@@ -257,6 +257,49 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).toMatch(/\n---\n\n# CLAUDE\.md/);
     });
 
+    it('should heal legacy ---# artifact in CLAUDE.md from pre-fix installs', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // Reproduce a CLAUDE.md as it would exist after a pre-fix safeword install:
+      // the import block is present (marker found, reconcile would skip the patch),
+      // but the `---` separator is glued to the user's first heading.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'CLAUDE.md'),
+        '@./.safeword/SAFEWORD.md\n\n---# CLAUDE.md — my project\n\nSome existing notes.\n',
+      );
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, 'CLAUDE.md'), 'utf8');
+      expect(content).not.toMatch(/---#/);
+      expect(content).toMatch(/\n---\n\n# CLAUDE\.md/);
+      // Heal must be idempotent: running reconcile again leaves the file unchanged.
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      const contentAfter = readFileSync(nodePath.join(temporaryDirectory, 'CLAUDE.md'), 'utf8');
+      expect(contentAfter).toBe(content);
+    });
+
+    it('should heal legacy ---# artifact in AGENTS.md from pre-fix installs', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'AGENTS.md'),
+        '**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`\n\n---# AGENTS.md — my project\n\nSome existing notes.\n',
+      );
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
+      expect(content).not.toMatch(/---#/);
+      expect(content).toMatch(/\n---\n\n# AGENTS\.md/);
+    });
+
     it('should preserve a line break between prepended AGENTS.md separator and existing heading', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
