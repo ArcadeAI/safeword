@@ -16,6 +16,8 @@ node -e 'var c=require("./packages/cli/package.json").version,m=require("./marke
 # binaries that actually exist on disk. Fresh git worktrees (and fresh clones)
 # don't have node_modules installed yet, so bare `lint-staged` would fail with
 # "command not found". Replace that with an actionable message.
+# See also: the core.bare reset at the top of this file (ticket #141) — both
+# defend against fresh-worktree breakage in Claude Code's parallel flow.
 if [ ! -x node_modules/.bin/lint-staged ]; then
   echo "pre-commit: node_modules not installed in this worktree. Run \`bun install\` first." >&2
   exit 1
