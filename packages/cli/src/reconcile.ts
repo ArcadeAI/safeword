@@ -170,11 +170,10 @@ function planTextPatchesWithCreation(
   patches: Record<string, TextPatchDefinition>,
   ctx: ProjectContext,
 ): { actions: Action[]; created: string[] } {
-  const actions: Action[] = [];
+  const actions = planTextPatches(patches, ctx.isGitRepo);
   const created: string[] = [];
   for (const [filePath, definition] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, ctx.isGitRepo)) continue;
-    actions.push({ type: 'text-patch', path: filePath, definition });
     if (definition.createIfMissing && !exists(nodePath.join(ctx.cwd, filePath))) {
       created.push(filePath);
     }
