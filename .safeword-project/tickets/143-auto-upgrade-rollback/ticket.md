@@ -26,9 +26,12 @@ Failure is recoverable (no data corruption — all touched paths are safeword-ma
 **In:**
 
 - Catch non-zero exit from the `execSync('bunx safeword@${latest} upgrade', ...)` call
-- Run `git checkout -- <safeword-paths>` to revert any partial writes
+- Roll back partial writes to safeword-managed paths. Needs **both**:
+  - `git checkout -- <safeword-paths>` — reverts modified tracked files
+  - `git clean -f <safeword-paths>` — removes new untracked files created by the partial upgrade (the hook stages both modified and untracked, so rollback must too)
+- The pre-upgrade `git status --porcelain` clean-check guarantees anything in safeword-managed paths after failure is upgrade output, so both rollback directions are safe.
 - Log clearly: `SAFEWORD: Auto-upgrade failed and rolled back. Run \`safeword upgrade\` manually to retry.`
-- Test: mock the subprocess to fail mid-write, assert working tree returns to pre-upgrade state
+- Test: mock the subprocess to fail mid-write (both modify-tracked and create-untracked scenarios), assert working tree returns to pre-upgrade state byte-identical
 
 **Out of Scope:**
 
