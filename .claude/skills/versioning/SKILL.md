@@ -2,6 +2,7 @@
 name: versioning
 description: Safeword semver commitment and release discipline. Use when bumping versions, cutting releases, deciding what goes in a patch vs minor vs major, or reviewing changelog entries. Also use when auto-upgrade logic needs to know what's safe to apply silently.
 allowed-tools: '*'
+audience: maintainer
 ---
 
 # Versioning

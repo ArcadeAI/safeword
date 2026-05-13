@@ -7,7 +7,7 @@
  * TDD RED phase - these tests should FAIL until src/schema.ts is implemented.
  */
 
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -339,13 +339,24 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('Drift detection', () => {
-    it('should have templates for all local skills', async () => {
+    it('should have templates for all local customer-facing skills', async () => {
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
       const skillsDirectory = nodePath.join(repoRoot, '.claude/skills');
       const skillTemplatesDirectory = nodePath.join(import.meta.dirname, '../templates/skills');
 
+      // Skills with `audience: maintainer` frontmatter are for safeword maintainers
+      // (e.g. release discipline docs) and must not ship to customer projects.
+      const isMaintainerOnly = (skillDirectory: string): boolean => {
+        const skillFile = nodePath.join(skillDirectory, 'SKILL.md');
+        if (!existsSync(skillFile)) return false;
+        const content = readFileSync(skillFile, 'utf8');
+        const frontmatter = /^---\n([\s\S]*?)\n---/.exec(content);
+        return frontmatter ? /^audience:\s*maintainer\s*$/m.test(frontmatter[1] ?? '') : false;
+      };
+
       const localSkills = readdirSync(skillsDirectory, { withFileTypes: true })
         .filter(entry => entry.isDirectory())
+        .filter(entry => !isMaintainerOnly(nodePath.join(skillsDirectory, entry.name)))
         .map(entry => entry.name);
 
       const missing: string[] = [];
