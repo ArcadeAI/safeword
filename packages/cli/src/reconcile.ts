@@ -795,7 +795,20 @@ function executeTextPatch(cwd: string, path: string, definition: TextPatchDefini
   let content = readFileSafe(fullPath) ?? '';
 
   // Check if already patched
-  if (content.includes(definition.marker)) return;
+  if (content.includes(definition.marker)) {
+    // Heal legacy artifact from safeword <=0.30.1: the prepend templates
+    // (CLAUDE_MD_IMPORT_BLOCK, AGENTS_MD_LINK) ended with bare `---` and no
+    // trailing newline, so the `---` separator glued to the user's first
+    // heading line (e.g. `---# CLAUDE.md`). Templates are fixed going
+    // forward; this pass repairs files already corrupted by past installs.
+    // Narrowly scoped: only fires when the safeword marker is present
+    // (proving the block was authored by us) and the exact artifact matches.
+    if (content.includes('\n\n---#')) {
+      const healed = content.replaceAll('\n\n---#', '\n\n---\n\n#');
+      writeFile(fullPath, healed);
+    }
+    return;
+  }
 
   // Apply patch
   content =
