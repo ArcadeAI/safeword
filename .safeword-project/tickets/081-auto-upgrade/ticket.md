@@ -3,7 +3,7 @@ id: '081'
 slug: auto-upgrade
 title: 'Auto-upgrade safeword on session start'
 type: Improvement
-status: open
+status: in_review
 epic: setup-lifecycle
 ---
 
@@ -45,11 +45,11 @@ epic: setup-lifecycle
 
 **Done When:**
 
-- [ ] Session start auto-upgrades when newer version is available
-- [ ] `autoUpgrade: false` in config.json disables auto-upgrade
-- [ ] Upgrade is non-interactive (no prompts)
-- [ ] Upgrade output is committed automatically (depends on 078)
-- [ ] Network failure gracefully skipped with warning
+- [x] Session start auto-upgrades when newer version is available
+- [x] `autoUpgrade: false` in config.json disables auto-upgrade
+- [x] Upgrade is non-interactive (no prompts) — verified `upgrade.ts` has zero prompts; `--yes` flag unnecessary
+- [x] Upgrade output is committed automatically — inline `git add`/`commit` in hook, NOT blocked on #078
+- [x] Network failure gracefully skipped with warning
 
 ## Work Log
 
@@ -85,11 +85,18 @@ Branch: `feature/auto-upgrade` (rebased onto current main locally; **not** force
 - 24h cooldown between update checks
 - Two new hooks (`session-auto-upgrade.ts` + `session-update-check.ts`) instead of extending `session-version.ts` as the spec said
 
-**To resume (estimated ~half-day):**
+### 2026-05-13 — PR opened (#81)
 
-1. **Decide on field name**: rename hook's `config.autoUpdate` → `autoUpgrade`, or update spec to match `autoUpdate`. Pick one. Update tests + docs accordingly.
-2. **Verify `--yes` behavior**: read `packages/cli/src/commands/upgrade.ts` to confirm it's non-interactive by default. If it prompts, fix the command or pass `--yes` from the hook.
-3. **Manual end-to-end smoke test**: install older safeword globally, populate `.safeword/.update-cache.json` with a newer version, trigger a session, watch the auto-upgrade run + commit.
-4. **Run tests**: `bun run --cwd packages/cli test`. Confirm `auto-upgrade.test.ts` passes; check no regressions.
-5. **Force-push**: `git push --force-with-lease origin feature/auto-upgrade`.
-6. **Open PR**: `feat(081): auto-upgrade safeword on session start`. Body lists the spec-creep items.
+PR: <https://github.com/ArcadeAI/safeword/pull/81>. Status moved to `in_review`.
+
+Resume work from 2026-05-07 audit completed:
+
+- Renamed `autoUpdate` → `autoUpgrade` across hook, config, env var, helper, and tests to match spec + CLI verb (`f603355`)
+- Verified `upgrade.ts` is non-interactive by default — no `--yes` needed
+- Full test suite green: 1562/1562 pass (`bun run --cwd packages/cli test`)
+- Manual smoke test deliberately skipped — rationale in PR body
+
+Discovered work, filed separately:
+
+- **#142** — worktree-clean dev loop (eslint config imports from `dist/`, forcing pre-build before commit)
+- **New convention** — `audience: maintainer` skill frontmatter (`20c9a5c`) so release-discipline skills don't ship to customers
