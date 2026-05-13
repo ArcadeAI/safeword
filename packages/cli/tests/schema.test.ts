@@ -11,6 +11,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import YAML from 'yaml';
 
 import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
 import { SETTINGS_HOOKS } from '../src/templates/config.js';
@@ -350,8 +351,10 @@ describe('Schema - Single Source of Truth', () => {
         const skillFile = nodePath.join(skillDirectory, 'SKILL.md');
         if (!existsSync(skillFile)) return false;
         const content = readFileSync(skillFile, 'utf8');
-        const frontmatter = /^---\n([\s\S]*?)\n---/.exec(content);
-        return frontmatter ? /^audience:\s*maintainer\s*$/m.test(frontmatter[1] ?? '') : false;
+        const frontmatterMatch = /^---\n([\s\S]*?)\n---/.exec(content);
+        if (!frontmatterMatch?.[1]) return false;
+        const frontmatter = YAML.parse(frontmatterMatch[1]) as Record<string, unknown> | undefined;
+        return frontmatter?.audience === 'maintainer';
       };
 
       const localSkills = readdirSync(skillsDirectory, { withFileTypes: true })
