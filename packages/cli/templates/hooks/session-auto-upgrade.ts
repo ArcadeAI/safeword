@@ -81,17 +81,17 @@ try {
 
 // Node's execSync defaults to a 1MB stdout/stderr buffer and kills the subprocess
 // with ENOBUFS on overflow. `safeword upgrade` output exceeds that on a real
-// install, so we raise the ceiling for every shell-out in this hook. 50MB is
-// generous; real upgrade output is well under 1MB but headroom is cheap.
-const EXEC_BUFFER = 50 * 1024 * 1024;
+// install, so we raise the ceiling for every shell-out. 50MB is generous; real
+// upgrade output is well under 1MB but headroom is cheap.
+const execOpts = {
+  cwd: projectDir,
+  encoding: 'utf8' as const,
+  maxBuffer: 50 * 1024 * 1024,
+};
 
 // --- Check dirty working tree ---
 try {
-  const status = execSync('git status --porcelain', {
-    cwd: projectDir,
-    encoding: 'utf8',
-    maxBuffer: EXEC_BUFFER,
-  }).trim();
+  const status = execSync('git status --porcelain', execOpts).trim();
   if (status) {
     console.log(`SAFEWORD: v${latest} available — will apply when working tree is clean`);
     process.exit(0);
@@ -106,27 +106,14 @@ try {
   console.log(`SAFEWORD: Auto-upgrading v${currentVersion} → v${latest}...`);
 
   // Run the exact version (not @latest) to avoid supply chain ambiguity
-  execSync(`bunx safeword@${latest} upgrade`, {
-    cwd: projectDir,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    maxBuffer: EXEC_BUFFER,
-  });
+  execSync(`bunx safeword@${latest} upgrade`, { ...execOpts, stdio: 'pipe' });
 
   // Stage only safeword-managed files that changed
-  const changedFiles = execSync('git diff --name-only', {
-    cwd: projectDir,
-    encoding: 'utf8',
-    maxBuffer: EXEC_BUFFER,
-  })
+  const changedFiles = execSync('git diff --name-only', execOpts)
     .trim()
     .split('\n')
     .filter(Boolean);
-  const untrackedFiles = execSync('git ls-files --others --exclude-standard', {
-    cwd: projectDir,
-    encoding: 'utf8',
-    maxBuffer: EXEC_BUFFER,
-  })
+  const untrackedFiles = execSync('git ls-files --others --exclude-standard', execOpts)
     .trim()
     .split('\n')
     .filter(Boolean);
@@ -145,16 +132,10 @@ try {
   );
 
   if (filesToStage.length > 0) {
-    execSync(`git add ${filesToStage.map(f => `"${f}"`).join(' ')}`, {
-      cwd: projectDir,
-      encoding: 'utf8',
-      maxBuffer: EXEC_BUFFER,
-    });
+    execSync(`git add ${filesToStage.map(f => `"${f}"`).join(' ')}`, execOpts);
     execSync(`git commit -m "chore: safeword auto-upgrade v${currentVersion} → v${latest}"`, {
-      cwd: projectDir,
-      encoding: 'utf8',
+      ...execOpts,
       stdio: 'pipe',
-      maxBuffer: EXEC_BUFFER,
     });
   }
 
