@@ -6,6 +6,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+import { releaseAgeStatus, type UpdateCache } from './lib/update-cache.ts';
 import { bumpType } from './lib/version.ts';
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -20,13 +21,6 @@ const versionPath = `${safewordDir}/version`;
 const currentVersion = existsSync(versionPath) ? readFileSync(versionPath, 'utf8').trim() : '0.0.0';
 
 // --- Read update cache ---
-interface UpdateCache {
-  latestVersion?: string;
-  /** Unix ms timestamp of when `latestVersion` was published to npm. */
-  publishedAt?: number;
-  checkedAt?: number;
-}
-
 const cachePath = `${safewordDir}/.update-cache.json`;
 const cacheFile = Bun.file(cachePath);
 if (!(await cacheFile.exists())) {
@@ -82,24 +76,18 @@ try {
 }
 
 // --- Check release-age cooldown ---
-// 2026 npm supply-chain best practice (mirrors pnpm's minimumReleaseAge):
-// don't install versions that were published <24h ago. Gives community time
-// to detect and yank malicious releases before they auto-propagate to users.
-// Fail-closed: missing publishedAt → treat as too new, defer to next cycle.
-const RELEASE_AGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-
-if (!cache.publishedAt) {
+// Supply-chain defense: don't install versions published <24h ago. See
+// lib/update-cache.ts for rationale and threat model.
+const ageStatus = releaseAgeStatus(cache.publishedAt, Date.now());
+if (ageStatus.state === 'unknown') {
   console.log(
     `SAFEWORD: v${latest} available — waiting on release-age info (cache refreshes on next update check)`,
   );
   process.exit(0);
 }
-
-const ageMs = Date.now() - cache.publishedAt;
-if (ageMs < RELEASE_AGE_COOLDOWN_MS) {
-  const remainingHours = Math.ceil((RELEASE_AGE_COOLDOWN_MS - ageMs) / (60 * 60 * 1000));
+if (ageStatus.state === 'cooling') {
   console.log(
-    `SAFEWORD: v${latest} available — applying after release-age cooldown (${remainingHours}h remaining)`,
+    `SAFEWORD: v${latest} available — applying after release-age cooldown (${ageStatus.remainingHours}h remaining)`,
   );
   process.exit(0);
 }
