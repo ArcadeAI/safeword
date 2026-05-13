@@ -347,6 +347,12 @@ describe('Schema - Single Source of Truth', () => {
 
       // Skills with `audience: maintainer` frontmatter are for safeword maintainers
       // (e.g. release discipline docs) and must not ship to customer projects.
+      //
+      // `audience` is a safeword-local convention, not an official Claude Code field.
+      // Verified against https://code.claude.com/docs/en/skills (2026-05-13): the official
+      // schema has no audience/visibility/private field — the loader tolerates unknown
+      // frontmatter, so this is safe. If Claude Code ships an official field for this
+      // someday, rename the field and update this check together.
       const isMaintainerOnly = (skillDirectory: string): boolean => {
         const skillFile = nodePath.join(skillDirectory, 'SKILL.md');
         if (!existsSync(skillFile)) return false;
