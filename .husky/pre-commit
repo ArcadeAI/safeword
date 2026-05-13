@@ -12,4 +12,13 @@ bun scripts/check-nested-configs.ts || exit 1
 # Version sync: package.json is source of truth, marketplace.json must match
 node -e 'var c=require("./packages/cli/package.json").version,m=require("./marketplace.json").plugins[0].version;if(c!=m){console.error("Version mismatch: package.json="+c+" marketplace.json="+m+". Update marketplace.json.");process.exit(1)}'
 
+# Friendly guard: husky prepends node_modules/.bin to PATH, but only resolves
+# binaries that actually exist on disk. Fresh git worktrees (and fresh clones)
+# don't have node_modules installed yet, so bare `lint-staged` would fail with
+# "command not found". Replace that with an actionable message.
+if [ ! -x node_modules/.bin/lint-staged ]; then
+  echo "pre-commit: node_modules not installed in this worktree. Run \`bun install\` first." >&2
+  exit 1
+fi
+
 lint-staged

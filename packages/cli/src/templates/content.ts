@@ -16,7 +16,9 @@ export const AGENTS_MD_LINK = `**⚠️ ALWAYS READ FIRST:** \`.safeword/SAFEWOR
 The SAFEWORD.md file contains core development patterns, workflows, and conventions.
 Read it BEFORE working on any task in this project.
 
----`;
+---
+
+`;
 
 /**
  * Import block for CLAUDE.md — uses Claude Code's \`@\` import syntax so
@@ -28,4 +30,6 @@ Read it BEFORE working on any task in this project.
  */
 export const CLAUDE_MD_IMPORT_BLOCK = `@./.safeword/SAFEWORD.md
 
----`;
+---
+
+`;
