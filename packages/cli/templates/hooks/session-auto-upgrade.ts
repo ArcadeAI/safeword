@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Safeword: Auto-upgrade at session start (SessionStart)
 // Reads .safeword/.update-cache.json, applies patch upgrades silently with a dedicated commit.
-// Skips if: not a patch bump, dirty working tree, autoUpdate disabled, or CI environment.
+// Skips if: not a patch bump, dirty working tree, autoUpgrade disabled, or CI environment.
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -73,8 +73,8 @@ if (!isPatch) {
 }
 
 // --- Check opt-out ---
-if (process.env.SAFEWORD_NO_AUTO_UPDATE || process.env.CI) {
-  console.log(`SAFEWORD: v${latest} available — auto-update disabled`);
+if (process.env.SAFEWORD_NO_AUTO_UPGRADE || process.env.CI) {
+  console.log(`SAFEWORD: v${latest} available — auto-upgrade disabled`);
   process.exit(0);
 }
 
@@ -82,9 +82,9 @@ if (process.env.SAFEWORD_NO_AUTO_UPDATE || process.env.CI) {
 try {
   const configPath = `${safewordDir}/config.json`;
   if (existsSync(configPath)) {
-    const config = JSON.parse(readFileSync(configPath, 'utf8')) as { autoUpdate?: boolean };
-    if (config.autoUpdate === false) {
-      console.log(`SAFEWORD: v${latest} available — auto-update disabled in config`);
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as { autoUpgrade?: boolean };
+    if (config.autoUpgrade === false) {
+      console.log(`SAFEWORD: v${latest} available — auto-upgrade disabled in config`);
       process.exit(0);
     }
   }

@@ -15,7 +15,7 @@ const CONFIG_PATH = '.safeword/config.json';
 interface SafewordConfig {
   version: string;
   installedPacks: string[];
-  autoUpdate?: boolean;
+  autoUpgrade?: boolean;
 }
 
 function readConfig(cwd: string): SafewordConfig | undefined {
@@ -31,15 +31,15 @@ function writeConfig(cwd: string, config: SafewordConfig): void {
 }
 
 /**
- * Check if auto-update is enabled for this project.
- * Env vars override config: SAFEWORD_NO_AUTO_UPDATE or CI disables.
- * Config file: autoUpdate defaults to true when absent.
+ * Check if auto-upgrade is enabled for this project.
+ * Env vars override config: SAFEWORD_NO_AUTO_UPGRADE or CI disables.
+ * Config file: autoUpgrade defaults to true when absent.
  */
-export function shouldAutoUpdate(cwd: string): boolean {
-  if (process.env.SAFEWORD_NO_AUTO_UPDATE) return false;
+export function shouldAutoUpgrade(cwd: string): boolean {
+  if (process.env.SAFEWORD_NO_AUTO_UPGRADE) return false;
   if (process.env.CI) return false;
   const config = readConfig(cwd);
-  return config?.autoUpdate !== false;
+  return config?.autoUpgrade !== false;
 }
 
 /**
