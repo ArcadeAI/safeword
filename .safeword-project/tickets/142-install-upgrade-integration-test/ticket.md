@@ -1,10 +1,10 @@
 ---
 id: 142
 type: task
-phase: understand
-status: open
+phase: done
+status: done
 created: 2026-05-13T20:10:00Z
-last_modified: 2026-05-13T20:10:00Z
+last_modified: 2026-05-14T01:35:00Z
 ---
 
 # End-to-end integration test for `install` / `upgrade` against a temp project
@@ -54,3 +54,5 @@ A single integration test that does `mkdir /tmp/foo && safeword install && asser
 ## Work Log
 
 - 2026-05-13T20:10:00Z Created: filed after v0.30.2 release retrospective. Two recent bugs (#77 template glue, #82 estree dual-install) both lived at the install/compose seam — neither would have been caught by unit tests alone. ~1-2 hours of work; small but high-leverage.
+- 2026-05-13T23:10:00Z Implement: added `packages/cli/tests/integration/install-upgrade.test.ts` (6 cases × CLAUDE.md and AGENTS.md). While writing case 3 (upgrade heal) discovered the heal logic from a304af8 didn't actually fire in `'upgrade'` mode: `computeUpgradePlan` planned text-patches via a marker-aware planner that skipped already-patched files, so `executeTextPatch` (where the heal lives) never ran on legacy-corrupted projects during `safeword upgrade` — contrary to the commit message. Fixed by dropping the marker check from `planTextPatches`; the executor's existing skip/heal branch is the single source of truth. Verified done-when: reverting d6dce6d flips the 2 install-over-heading tests red; reverting a304af8 flips the 2 upgrade-heal tests red.
+- 2026-05-14T01:35:00Z Done: /verify passed (1565/1566 tests, lint clean, build success); /audit passed with only pre-existing warnings (eslint 10 deferred to #099); /quality-review APPROVE. PR https://github.com/ArcadeAI/safeword/pull/85 ready for squash-merge. Out-of-scope finding noted but not filed: `createIfMissing: false` on CLAUDE.md in schema is documentation-only — `executeTextPatch` always creates.
