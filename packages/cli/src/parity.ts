@@ -3,14 +3,12 @@ import nodePath from 'node:path';
 
 import type { ContractDefinition, FileDefinition } from './schema.js';
 
-export interface ParitySchema {
+interface ParitySchema {
   ownedFiles: Record<string, FileDefinition>;
   contracts: Record<string, ContractDefinition>;
 }
 
-export type ParityMode = 'all' | 'contracts-only';
-
-export interface ParityFailure {
+interface ParityFailure {
   kind: 'pair' | 'contract';
   message: string;
 }
@@ -22,7 +20,7 @@ export interface ParityResult {
 
 export interface ParityInput {
   schema: ParitySchema;
-  mode: ParityMode;
+  mode: 'all' | 'contracts-only';
   rootDirectory: string;
   templatesDirectory: string;
 }

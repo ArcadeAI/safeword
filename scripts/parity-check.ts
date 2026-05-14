@@ -22,7 +22,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { runParity, type ParityMode } from '../packages/cli/src/parity.js';
+import { runParity, type ParityInput } from '../packages/cli/src/parity.js';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 
 const scriptDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
@@ -31,7 +31,7 @@ const templatesDirectory = nodePath.resolve(repoRoot, 'packages/cli/templates');
 
 const arguments_ = process.argv.slice(2);
 const modeFlag = arguments_.find(a => a.startsWith('--mode='))?.split('=')[1];
-const mode: ParityMode = modeFlag === 'contracts-only' ? 'contracts-only' : 'all';
+const mode: ParityInput['mode'] = modeFlag === 'contracts-only' ? 'contracts-only' : 'all';
 
 const pairCount = Object.values(SAFEWORD_SCHEMA.ownedFiles).filter(d => d.template).length;
 const contractCount = Object.keys(SAFEWORD_SCHEMA.contracts).length;
