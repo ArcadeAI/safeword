@@ -633,7 +633,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       content:
         '\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword-project/quality-state*.json\n',
       marker: '.safeword/.update-cache.json',
-      createIfMissing: false,
     },
   },
 
