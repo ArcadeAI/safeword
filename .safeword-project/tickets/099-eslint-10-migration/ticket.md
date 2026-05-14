@@ -103,13 +103,9 @@ The Apr-17 decision to vendor 6 promise rules was based on the package being 17 
 
 ### Phase 2 effectively done via dependabot
 
-PR #83 (chore(deps): bun-minor-patch group, merged 2026-05-13) picked up:
+Compat-ready versions landed across multiple dependabot PRs in April–May. Current main has all 18 plugins at ESLint-10-ready versions (verified 2026-05-14 via `npm view` on each package's peerDeps).
 
-- `typescript-eslint` 8.59.x (includes ^10.0.0 in peerDeps) ✓
-- `eslint-plugin-react-hooks` 7.1.1 (includes ^10.0.0) ✓
-- `@tanstack/eslint-plugin-query` 5.100.10 (includes ^10.0.0) ✓
-- `@vitest/eslint-plugin` 1.6.17 (>=8.57.0, covers v10) ✓
-- Other plugins already on ESLint-10-ready peerDeps (verified 2026-05-14)
+PR #83 specifically bumped: `typescript-eslint` 8.59.1 → 8.59.3, `@tanstack/eslint-plugin-query` 5.100.9 → 5.100.10, `@next/eslint-plugin-next` 16.2.4 → 16.2.6, `eslint-plugin-turbo` 2.9.8 → 2.9.12, plus `knip` and `@astrojs/starlight`. The `eslint-plugin-react-hooks 7.1.1` and `@vitest/eslint-plugin 1.6.17` bumps landed via earlier PRs (notably #66).
 
 Remaining Phase 2 action: confirm `eslint-plugin-jsx-a11y` peerDep override is wired up (it's still at 6.10.2 with peerDeps capped at `^9`, but per ticket the rules work at runtime).
 
@@ -119,12 +115,13 @@ Verified via PR #3979 diff + reading safeword's `recommended-react.ts` preset:
 
 - **`eslint-plugin-react` failure mode:** hard crash at rule load. `lib/util/version.js` calls removed `context.getFilename()`. Most rules become unusable. Losing 7 error-severity LLM-targeting rules safeword ships (`jsx-key`, `jsx-no-duplicate-props`, `no-direct-mutation-state`, `no-children-prop`, `jsx-no-target-blank` security autofix, `no-unknown-property` `class→className` autofix, `no-unescaped-entities` XSS prevention).
 - **`eslint-plugin-jsx-a11y` failure mode:** soft. peerDep warning at install only; rules work at runtime. Negligible impact.
-- **Migration tools:** `eslint-transforms` codemod + `@eslint/compat` exist, but `@eslint/compat` only patches `SourceCode` methods — RuleContext method removals aren't covered. No drop-in shim.
+- **Migration tools:** `eslint-transforms` codemod (rewrites source) and `@eslint/compat` 2.1.0 (`fixupRule()` / `fixupPluginRules()` / `fixupConfigRules()` wrappers) exist. Compat's README says "fixes the most common issues but can't fix everything" and doesn't enumerate which RuleContext methods it patches. Source-level audit needed to confirm whether `fixupRule()` would make `eslint-plugin-react@7.37.5` work under ESLint 10 — untested. Probably worth a 30-min spike before assuming "no compat shim available."
+- **Concrete crash surface in 7.37.5:** `lib/util/eslint.js` wrapper provides fallbacks for `getSourceCode`/`getAncestors`/`getScope`/`markVariableAsUsed`/`getFirstTokens`/`getText` — but **NOT `getFilename`**. 9 source files reference removed methods directly: `propTypesSort.js`, `usedPropTypes.js`, `pragma.js`, `makeNoMethodSetStateRule.js`, `version.js`, `Components.js`, `propTypes.js`, `componentUtil.js`, `variable.js`. Breakage is at shared-util level (deep imports), so rule-count failure cascades broadly.
 
 **Conclusion:** Bumping ESLint 10 without `eslint-plugin-react` upstream fix is a regression for safeword's React/Next.js users. Stay on ESLint 9 until upstream chain ships.
 
 ### Revised plan
 
 - ~~Phase 1: vendor promise rules~~ → trivial peerDep verification + version bump (the bump may already be in main)
-- ~~Phase 2: compat-bump deps~~ → already shipped via PR #83
+- ~~Phase 2: compat-bump deps~~ → already shipped via dependabot bumps across April–May (multiple PRs, not just #83)
 - **Phase 3 (the only remaining work): ESLint 10 install** — blocked on `eslint-plugin-react` upstream, which is itself blocked on `eslint-plugin-import#3227`. Monitor upstream weekly.
