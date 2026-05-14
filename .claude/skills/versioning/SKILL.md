@@ -7,7 +7,9 @@ audience: maintainer
 
 # Versioning
 
-Safeword follows strict semver. This contract enables auto-upgrade to trust patch bumps.
+Safeword follows strict semver. This contract enables auto-upgrade to trust
+patch AND minor bumps within the same major. Major bumps are the only class
+that requires user action.
 
 ## Semver Rules
 
@@ -18,17 +20,24 @@ Safeword follows strict semver. This contract enables auto-upgrade to trust patc
 - Performance improvements with no behavior change
 - Bumping safeword's own dependencies (at patch level)
 
-### Minor (0.27.0 -> 0.28.0) — Notify, user decides
+### Minor (0.27.0 -> 0.28.0) — Auto-upgradeable (additive only)
+
+Auto-applied silently at SessionStart, same as patch. The contract: minors are
+**strictly additive**. They may add capability but must not remove or change
+existing behavior. If a change can't fit this constraint, bump major instead.
 
 - New hooks, skills, guides, or templates
 - New CLI commands or flags
 - New language pack support
 - Additive schema changes (new owned/managed files)
 - New quality gates or checks
-- Changes to hook output format
-- Additive config.json fields (new optional keys with defaults)
+- **Additive** config.json fields (new optional keys with defaults)
+- Changes to hook output format (additive only — extra lines, new fields; no removal/rename)
 
 ### Major (0.x -> 1.0, 1.x -> 2.0) — Notify, user decides
+
+The only class that breaks auto-upgrade silence. User runs
+`bunx safeword@<version> upgrade` manually after reviewing the changelog.
 
 - Removed or renamed hooks, skills, or commands
 - Changed reconcile behavior (owned -> managed, file moves)
@@ -36,12 +45,13 @@ Safeword follows strict semver. This contract enables auto-upgrade to trust patc
 - Changed config file format
 - Removed language pack support
 - Hook exit code or protocol changes
+- Any change that would make an existing user's working setup behave differently
 
 ## The Key Test
 
 > "If a project auto-upgrades to this version at SessionStart, will anything break?"
 >
-> **No, only fixes** -> patch. **No, but adds new capability** -> minor. **Possibly** -> major.
+> **No, only fixes** -> patch. **No, but adds new capability** -> minor (still auto). **Possibly** -> major (notify only).
 
 ## Pre-1.0 Note
 
@@ -53,7 +63,7 @@ held to a higher standard than the ecosystem expects for 0.x packages.
 
 ## Applying This
 
-- **Auto-upgrade logic:** Only auto-apply patch bumps silently
+- **Auto-upgrade logic:** Auto-apply patch + minor bumps silently. Notify on major.
 - **Changelog:** Label every entry as patch/minor/major
-- **PR review:** Verify the version bump matches the change type
-- **When unsure:** Bump minor, not patch — false-minor is safe, false-patch breaks trust
+- **PR review:** Verify the version bump matches the change type. **Bumping minor for anything other than strict addition is now a contract break** — be especially careful here, because minors auto-propagate.
+- **When unsure:** Bump major, not minor — false-major costs users a manual upgrade; false-minor silently breaks them.

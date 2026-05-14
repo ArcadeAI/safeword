@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 // Safeword: Auto-upgrade at session start (SessionStart)
-// Reads .safeword/.update-cache.json, applies patch upgrades silently with a dedicated commit.
-// Skips if: not a patch bump, dirty working tree, autoUpgrade disabled, or CI environment.
+// Reads .safeword/.update-cache.json, applies patch + minor upgrades silently with a dedicated commit.
+// Skips if: major bump, dirty working tree, autoUpgrade disabled, or CI environment.
+// Policy reference: .claude/skills/versioning/SKILL.md
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -47,10 +48,11 @@ if (bump === 'none') {
   process.exit(0); // No update needed (latest <= current)
 }
 
-if (bump !== 'patch') {
-  // Minor or major — notify only
+if (bump === 'major') {
+  // Major — notify only. Per the versioning skill, majors may include breaking
+  // changes (renamed/removed hooks, schema breaks, etc.); user decides.
   console.log(
-    `SAFEWORD: v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
+    `SAFEWORD: v${latest} available (major) — run \`bunx safeword@${latest} upgrade\` to update`,
   );
   process.exit(0);
 }
