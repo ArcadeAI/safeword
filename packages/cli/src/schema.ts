@@ -35,7 +35,6 @@ export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   content: string;
   marker: string; // Used to detect if already applied & for removal
-  createIfMissing: boolean;
 }
 
 export interface SafewordSchema {
@@ -602,7 +601,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       operation: 'prepend',
       content: AGENTS_MD_LINK,
       marker: '.safeword/SAFEWORD.md',
-      createIfMissing: true,
     },
     'CLAUDE.md': {
       operation: 'prepend',
@@ -616,7 +614,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // Existing prose lingers harmlessly — agents skim it; only the import
       // is functionally load-bearing.
       marker: '@./.safeword/SAFEWORD.md',
-      createIfMissing: false, // Only patch if exists, don't create (AGENTS.md is primary)
     },
   },
 
