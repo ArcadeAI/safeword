@@ -14,7 +14,7 @@ import {
   compareVersions,
   parseVersion,
   upgradeDecision,
-} from '../../templates/hooks/lib/version.ts';
+} from '../../templates/hooks/lib/version.js';
 
 describe('parseVersion()', () => {
   it('parses a standard semver string', () => {

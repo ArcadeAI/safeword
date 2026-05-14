@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   RELEASE_AGE_COOLDOWN_MS,
   releaseAgeStatus,
-} from '../../templates/hooks/lib/update-cache.ts';
+} from '../../templates/hooks/lib/update-cache.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
