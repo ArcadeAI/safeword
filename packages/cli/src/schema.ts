@@ -38,6 +38,10 @@ export interface TextPatchDefinition {
   createIfMissing: boolean;
 }
 
+export interface ContractDefinition {
+  requires: string[]; // Strings that must appear verbatim in the file content
+}
+
 export interface SafewordSchema {
   version: string;
   ownedDirs: string[]; // Fully owned - create on setup, delete on reset
@@ -50,6 +54,7 @@ export interface SafewordSchema {
   managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
   jsonMerges: Record<string, JsonMergeDefinition>;
   textPatches: Record<string, TextPatchDefinition>;
+  contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
   packages: {
     base: string[];
     conditional: Record<string, string[]>;
@@ -619,6 +624,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       createIfMissing: false, // Only patch if exists, don't create (AGENTS.md is primary)
     },
   },
+
+  // Content predicate parity — files that must contain specific strings.
+  // Different from ownedFiles (which requires byte equality between two files):
+  // contracts assert one-way "this file must include these tokens" invariants.
+  // Used by runParity() in src/parity.ts for both release tests and pre-commit
+  // (see ticket 144). Path key = file relative to repo root.
+  contracts: {},
 
   // NPM packages to install (JS/TS specific packages from typescript pack)
   packages: typescriptPackages,
