@@ -1,10 +1,19 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { runParity } from '../src/parity.js';
+
+function makeFixture(): { rootDirectory: string; templatesDirectory: string } {
+  const base = mkdtempSync(nodePath.join(tmpdir(), 'parity-'));
+  const rootDirectory = nodePath.join(base, 'root');
+  const templatesDirectory = nodePath.join(base, 'templates');
+  mkdirSync(rootDirectory, { recursive: true });
+  mkdirSync(templatesDirectory, { recursive: true });
+  return { rootDirectory, templatesDirectory };
+}
 
 describe('runParity', () => {
   describe('contracts', () => {
@@ -94,6 +103,92 @@ describe('runParity', () => {
       expect(result.failures[0]?.kind).toBe('contract');
       expect(result.failures[0]?.message).toContain(target);
       expect(result.failures[0]?.message.toLowerCase()).toMatch(/missing|not found|does not exist/);
+    });
+  });
+
+  describe('pairs', () => {
+    it('passes when pair files are byte-identical', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'identical\n');
+      writeFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'identical\n');
+
+      const result = runParity({
+        schema: {
+          ownedFiles: { '.safeword/sample.ts': { template: 'sample.ts' } },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(0);
+      expect(result.passedCount).toBe(1);
+    });
+
+    it('fails with [PAIR] naming both paths when files differ in any byte', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'A\n');
+      writeFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'B\n');
+
+      const result = runParity({
+        schema: {
+          ownedFiles: { '.safeword/sample.ts': { template: 'sample.ts' } },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.kind).toBe('pair');
+      expect(result.failures[0]?.message).toContain('[PAIR]');
+      expect(result.failures[0]?.message).toContain('.safeword/sample.ts');
+      expect(result.failures[0]?.message).toContain('sample.ts');
+    });
+
+    it('fails identifying the missing path when one side of a pair is missing', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'only template\n');
+      // dogfood file intentionally not created
+
+      const result = runParity({
+        schema: {
+          ownedFiles: { '.safeword/sample.ts': { template: 'sample.ts' } },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.kind).toBe('pair');
+      expect(result.failures[0]?.message).toContain('.safeword/sample.ts');
+      expect(result.failures[0]?.message.toLowerCase()).toMatch(/missing|not found|does not exist/);
+    });
+
+    it('fails on whitespace-only differences (strict byte comparison)', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'foo\n');
+      writeFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'foo\n\n'); // extra newline
+
+      const result = runParity({
+        schema: {
+          ownedFiles: { '.safeword/sample.ts': { template: 'sample.ts' } },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.kind).toBe('pair');
     });
   });
 });
