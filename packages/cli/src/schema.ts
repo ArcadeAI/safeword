@@ -630,7 +630,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // contracts assert one-way "this file must include these tokens" invariants.
   // Used by runParity() in src/parity.ts for both release tests and pre-commit
   // (see ticket 144). Path key = file relative to repo root.
-  contracts: {},
+  contracts: {
+    'packages/cli/templates/hooks/lib/quality.ts': {
+      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The export must exist or
+      // Cursor users get a broken hook. Ticket 143 will expand `requires` to include
+      // the binary terminal marker strings (CONFIDENT, BLOCKED, Tried:, Need:).
+      requires: ['QUALITY_REVIEW_MESSAGE'],
+    },
+  },
 
   // NPM packages to install (JS/TS specific packages from typescript pack)
   packages: typescriptPackages,
