@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.12
-**Last Updated:** 2026-04-17
+**Version:** 1.13
+**Last Updated:** 2026-05-14
 **Status:** Production
 
 ---
@@ -65,7 +65,7 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 ```text
 packages/cli/
 ├── src/
-│   ├── commands/       # CLI commands (setup, upgrade, check, diff, reset, sync-config)
+│   ├── commands/       # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings)
 │   ├── packs/          # Language packs + registry
 │   │   ├── {lang}/     # index.ts, files.ts, setup.ts per language
 │   │   ├── registry.ts # Central pack registry and detection
