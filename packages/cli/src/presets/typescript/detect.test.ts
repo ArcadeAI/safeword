@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { detect } from './detect';
+import { detect } from './detect.js';
 
 describe('findNextConfigPaths', () => {
   let temporaryDirectory: string;
