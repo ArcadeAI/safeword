@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ContractDefinition, FileDefinition } from './schema.js';
@@ -33,6 +33,13 @@ export function runParity(input: ParityInput): ParityResult {
 
   for (const [path, contract] of Object.entries(input.schema.contracts)) {
     const filePath = nodePath.join(input.rootDirectory, path);
+    if (!existsSync(filePath)) {
+      failures.push({
+        kind: 'contract',
+        message: `[CONTRACT] Target file missing: ${path}`,
+      });
+      continue;
+    }
     const content = readFileSync(filePath, 'utf8');
     const missing = contract.requires.filter(s => !content.includes(s));
     if (missing.length === 0) {
