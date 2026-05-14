@@ -57,9 +57,11 @@ The only class that breaks auto-upgrade silence. User runs
 
 Safeword is pre-1.0 but follows strict semver anyway. The ecosystem convention
 (Renovate, Dependabot) treats 0.x as inherently unstable — Renovate excludes
-0.x from auto-merge by default. Our patch-only auto-upgrade is a deliberate
-commitment backed by this skill, not an ecosystem default. Contributors are
-held to a higher standard than the ecosystem expects for 0.x packages.
+0.x from auto-merge by default. Our patch + minor auto-upgrade policy is a
+deliberate commitment backed by this skill, not an ecosystem default.
+Contributors are held to a higher standard than the ecosystem expects for 0.x
+packages: minor releases must be strictly additive and pass the "auto-upgrade
+at SessionStart — does anything break?" test in the negative.
 
 ## Applying This
 

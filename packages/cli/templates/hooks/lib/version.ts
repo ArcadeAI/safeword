@@ -55,3 +55,25 @@ export function bumpType(from: string, to: string): BumpType {
   if (tMinor > fMinor) return 'minor';
   return 'patch';
 }
+
+/** Auto-upgrade policy action for a given bump type. */
+export type UpgradeDecision = 'skip' | 'apply' | 'notify';
+
+/**
+ * Safeword's auto-upgrade policy as a pure function.
+ *
+ * - `'skip'`: latest <= current, no action
+ * - `'apply'`: auto-upgrade silently (patch + minor) per the versioning
+ *   contract at `.claude/skills/versioning/SKILL.md` — minor releases are
+ *   strictly additive
+ * - `'notify'`: print manual-upgrade hint (major only) — may carry breaking
+ *   changes, user decides
+ *
+ * Pinning the policy as data means reverting it (e.g., back to patch-only)
+ * fails a test rather than silently drifting.
+ */
+export function upgradeDecision(bump: BumpType): UpgradeDecision {
+  if (bump === 'none') return 'skip';
+  if (bump === 'major') return 'notify';
+  return 'apply'; // patch + minor
+}

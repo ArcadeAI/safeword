@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 import { releaseAgeStatus, type UpdateCache } from './lib/update-cache.ts';
-import { bumpType } from './lib/version.ts';
+import { bumpType, upgradeDecision } from './lib/version.ts';
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -41,21 +41,23 @@ if (!cache.latestVersion) {
 
 const latest = cache.latestVersion;
 
-// --- Version comparison ---
+// --- Version comparison + policy decision ---
+// Policy is defined in lib/version.ts:upgradeDecision and pinned by unit tests.
 const bump = bumpType(currentVersion, latest);
+const decision = upgradeDecision(bump);
 
-if (bump === 'none') {
+if (decision === 'skip') {
   process.exit(0); // No update needed (latest <= current)
 }
 
-if (bump === 'major') {
-  // Major — notify only. Per the versioning skill, majors may include breaking
-  // changes (renamed/removed hooks, schema breaks, etc.); user decides.
+if (decision === 'notify') {
   console.log(
-    `SAFEWORD: v${latest} available (major) — run \`bunx safeword@${latest} upgrade\` to update`,
+    `SAFEWORD: v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
   );
   process.exit(0);
 }
+
+// decision === 'apply' (patch or minor) — proceed to opt-out checks and upgrade
 
 // --- Check opt-out ---
 if (process.env.SAFEWORD_NO_AUTO_UPGRADE || process.env.CI) {

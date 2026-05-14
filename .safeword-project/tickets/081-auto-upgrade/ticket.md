@@ -12,9 +12,9 @@ epic: setup-lifecycle
 **Type:** Improvement
 **Epic:** setup-lifecycle
 
-**Scope:** On Claude/Cursor session start, check if a newer version of safeword is available. If so, run `safeword upgrade` automatically. Controlled by a user setting so teams can opt out.
+**Scope:** On Claude/Cursor session start, check if a newer version of safeword is available. If so, run `safeword upgrade` automatically — silently for patch + minor bumps (per the versioning skill's additive contract), with a notification for major bumps. Controlled by a user setting so teams can opt out.
 
-**Out of Scope:** Major version upgrades (breaking changes), upgrading without network access, changing how `safeword upgrade` works internally.
+**Out of Scope:** Major version upgrades auto-applied (still notify-only), upgrading without network access, changing how `safeword upgrade` works internally.
 
 **Context:** Currently users must manually run `safeword upgrade` to get new hooks, guides, and linter configs. Most users don't know when a new version is available. The session-start hook (`session-version.ts`) already checks the installed version — extending it to trigger an upgrade is a natural progression.
 
@@ -46,10 +46,18 @@ epic: setup-lifecycle
 **Done When:**
 
 - [x] Session start auto-upgrades when newer version is available
+- [x] **Patch bumps auto-apply** (same major + same minor + higher patch)
+- [x] **Minor bumps auto-apply** within same major (additive-only contract per versioning skill)
+- [x] **Major bumps notify only** — user runs `bunx safeword@<version> upgrade` manually
+- [x] Policy is pinned by unit tests on `upgradeDecision()` so reverting fails CI rather than drifts silently
 - [x] `autoUpgrade: false` in config.json disables auto-upgrade
+- [x] `SAFEWORD_NO_AUTO_UPGRADE` env var disables auto-upgrade
 - [x] Upgrade is non-interactive (no prompts) — verified `upgrade.ts` has zero prompts; `--yes` flag unnecessary
 - [x] Upgrade output is committed automatically — inline `git add`/`commit` in hook, NOT blocked on #078
 - [x] Network failure gracefully skipped with warning
+- [x] 24h release-age cooldown — versions <24h old skip with clear "remaining hours" message
+- [x] Supply-chain: `bunx safeword@<exact-version>`, never `@latest`
+- [x] Supply-chain: CI- and publish-time guard against install lifecycle scripts in safeword's `package.json`
 
 ## Work Log
 
@@ -99,4 +107,21 @@ Resume work from 2026-05-07 audit completed:
 Discovered work, filed separately:
 
 - **#142** — worktree-clean dev loop (eslint config imports from `dist/`, forcing pre-build before commit)
+- **#143** — auto-upgrade rollback on subprocess failure (partial-upgrade stuck state)
+- **#144** — derive safeword-managed paths from `SAFEWORD_SCHEMA` at build time
+- **#145** — enable MD040 + MD036 in markdownlint config (separate PR #88)
 - **New convention** — `audience: maintainer` skill frontmatter (`20c9a5c`) so release-discipline skills don't ship to customers
+
+### 2026-05-14 — Policy shift: minor bumps now auto-apply
+
+Policy refinement landed in `06b3aa2` (hook) and reinforced in `<follow-up commit>` (extracted `upgradeDecision()` pure function + tests + skill update). Patch-only auto-upgrade was unnecessarily conservative — the versioning skill's "minor = strictly additive" contract makes minor bumps just as safe as patch bumps to auto-apply, provided the contract is honored at PR-review time.
+
+Changes:
+
+- `upgradeDecision('minor')` now returns `'apply'` (was implicit-`'notify'`); pinned by unit test
+- `upgradeDecision('major')` still returns `'notify'` — majors may carry breaking changes
+- Versioning skill: minor section flipped from "Notify, user decides" to "Auto-upgradeable (additive only)"; "When unsure" guidance inverted — prefer false-major over false-minor since miscategorizing a minor now propagates silently
+- Hook header comment + Pre-1.0 Note in skill updated to match
+- All three bump paths smoke-tested end-to-end (patch + minor on real npm, major synthetic)
+
+The shift trades reviewer burden (be very careful when bumping minor) for user UX (no more "v0.31.0 available" notifications that linger because users forget to upgrade).

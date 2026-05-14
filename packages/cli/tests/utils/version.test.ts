@@ -9,7 +9,12 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { bumpType, compareVersions, parseVersion } from '../../templates/hooks/lib/version.ts';
+import {
+  bumpType,
+  compareVersions,
+  parseVersion,
+  upgradeDecision,
+} from '../../templates/hooks/lib/version.ts';
 
 describe('parseVersion()', () => {
   it('parses a standard semver string', () => {
@@ -70,5 +75,26 @@ describe('bumpType()', () => {
 
   it('returns "major" for major bumps (even when minor/patch go down)', () => {
     expect(bumpType('0.30.5', '1.0.0')).toBe('major');
+  });
+});
+
+describe('upgradeDecision()', () => {
+  // Pins safeword's auto-upgrade policy as data. See:
+  // .claude/skills/versioning/SKILL.md
+
+  it('returns "skip" when there is no update', () => {
+    expect(upgradeDecision('none')).toBe('skip');
+  });
+
+  it('returns "apply" for patch bumps (auto-upgrade silently)', () => {
+    expect(upgradeDecision('patch')).toBe('apply');
+  });
+
+  it('returns "apply" for minor bumps (additive contract — auto-upgrade silently)', () => {
+    expect(upgradeDecision('minor')).toBe('apply');
+  });
+
+  it('returns "notify" for major bumps (may include breaking changes — user decides)', () => {
+    expect(upgradeDecision('major')).toBe('notify');
   });
 });
