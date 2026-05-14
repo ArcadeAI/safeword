@@ -1,8 +1,8 @@
 ---
 id: 144
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 related: [143]
 created: 2026-05-14T15:36:00Z
 last_modified: 2026-05-14T16:22:00Z
@@ -80,6 +80,9 @@ done_when: |
 - 2026-05-14T16:42:00Z Scenario-gate adversarial pass found 2 gaps (duplicate `name`, missing `name`). Resolved via Option B: dropped `name` field from manifest schema entirely. Paths are the natural identifier. Schema strictly smaller; two bug classes unrepresentable. Total scenarios remain 22 (Rule 5 still has 6; the duplicate/missing-name scenarios collapse). Diagnostic format updated: `[PAIR]` / `[CONTRACT]` with paths inline.
 - 2026-05-14T16:44:00Z Phase 5 (decomposition) complete: 6 tasks ordered 1 → 2 → 3 → (4, 5, 6 parallel). Tasks 1-2 unit-tested (pure functions), 3-5 integration-tested (orchestration / hooks). Task 6 seeds the manifest with the 143 marker contract — acts as acceptance test for 143's shape. Phase advanced to `implement`.
 - 2026-05-14T16:50:00Z Major pivot mid-implement: discovered `SAFEWORD_SCHEMA.ownedFiles` already declares every parity pair (including Claude/Cursor command pairs) and `dogfood-parity.release.test.ts` already byte-compares them. Avoided building a parallel JSON manifest. New design: add `contracts: Record<path, {requires:string[]}>` field to `SAFEWORD_SCHEMA`; build `runParity({schema,mode,rootDir})` function in `src/parity.ts`; three surfaces (extended release test, new pre-commit script, new slash command) call it with appropriate modes. Pre-commit only runs contracts (preserves template-iteration UX; no auto-sync command exists). Scenarios reduced 22 → 16 (Rule 5 dissolved — TS handles schema validity at compile time, file-missing cases already in Rules 1 and 2, empty-schema is a degenerate of Rule 4 format).
+- 2026-05-14T21:14:00Z All 7 tasks complete. Commits: a98eff4 (schema), 9220c04 (Rule 1), 2b5d926 (Rule 2), 17c9c97 (release test + seed), 837238a (CLI + pre-commit + slash). 8/8 unit tests pass. CLI smoke clean (88 pairs + 1 contract). Manual break-test confirmed: clean shell env, `command bun scripts/parity-check.ts --mode=contracts-only` exits 1 with `[CONTRACT] Missing` message when contract is broken. Real-git integration test inconclusive in this session due to parallel-worktree hook routing (git invoked hooks from main repo path, not the worktree's `.husky/pre-commit`). Script + husky logic verified independently. Phase advanced to `verify`.
+- 2026-05-14T21:33:00Z /verify passed: 1567/1567 tests pass, build clean, lint clean, all 16 scenarios marked complete (with qualified evidence noted for 2 Rule 3 scenarios), no doc-ref drift, no dep drift. verify.md written.
+- 2026-05-14T22:40:00Z Uncertainty #5 (reconcile.ts compat with new contracts field) resolved: reconcile.ts accesses schema fields by explicit name, never iterates as a generic record. New field benignly ignored. Schema + reconcile tests pass (65/65). Phase: done, status: done.
 
 ## Task Breakdown (post-pivot)
 
