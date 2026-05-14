@@ -6,7 +6,7 @@
     {
       "name": "safeword",
       "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring",
-      "version": "0.30.2",
+      "version": "0.30.3",
       "source": "./plugin",
       "author": { "name": "safeword" }
     }
