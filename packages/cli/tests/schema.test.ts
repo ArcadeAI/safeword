@@ -205,20 +205,20 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('textPatches', () => {
-    it('should include AGENTS.md patch (creates if missing)', async () => {
+    it('should include AGENTS.md prepend patch with safeword marker', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const agentsPatch = SAFEWORD_SCHEMA.textPatches['AGENTS.md'];
       expect(agentsPatch).toBeDefined();
       expect(agentsPatch?.operation).toBe('prepend');
-      expect(agentsPatch?.createIfMissing).toBe(true);
+      expect(agentsPatch?.marker).toBe('.safeword/SAFEWORD.md');
     });
 
-    it('should include CLAUDE.md patch (only if exists)', async () => {
+    it('should include CLAUDE.md prepend patch with @ import marker', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const claudePatch = SAFEWORD_SCHEMA.textPatches['CLAUDE.md'];
       expect(claudePatch).toBeDefined();
       expect(claudePatch?.operation).toBe('prepend');
-      expect(claudePatch?.createIfMissing).toBe(false);
+      expect(claudePatch?.marker).toBe('@./.safeword/SAFEWORD.md');
     });
   });
 

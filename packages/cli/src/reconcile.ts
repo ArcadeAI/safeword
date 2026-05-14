@@ -166,21 +166,6 @@ function planManagedFileWrites(
   return planFileWrites(files, ctx, (filePath, c) => exists(nodePath.join(c.cwd, filePath)));
 }
 
-function planTextPatchesWithCreation(
-  patches: Record<string, TextPatchDefinition>,
-  ctx: ProjectContext,
-): { actions: Action[]; created: string[] } {
-  const actions = planTextPatches(patches, ctx.isGitRepo);
-  const created: string[] = [];
-  for (const [filePath, definition] of Object.entries(patches)) {
-    if (shouldSkipForNonGit(filePath, ctx.isGitRepo)) continue;
-    if (definition.createIfMissing && !exists(nodePath.join(ctx.cwd, filePath))) {
-      created.push(filePath);
-    }
-  }
-  return { actions, created };
-}
-
 /** Plan rmdir actions for directories that exist */
 function planExistingDirectoriesRemoval(
   directories: string[],
@@ -367,10 +352,15 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
     actions.push({ type: 'json-merge', path: filePath, definition });
   }
 
-  // 6. Text patches
-  const patches = planTextPatchesWithCreation(schema.textPatches, ctx);
-  actions.push(...patches.actions);
-  wouldCreate.push(...patches.created);
+  // 6. Text patches — the executor creates absent target files unconditionally,
+  // so any text-patch path that doesn't exist now will be created.
+  const textPatchActions = planTextPatches(schema.textPatches, ctx.isGitRepo);
+  actions.push(...textPatchActions);
+  for (const action of textPatchActions) {
+    if (action.type === 'text-patch' && !exists(nodePath.join(ctx.cwd, action.path))) {
+      wouldCreate.push(action.path);
+    }
+  }
 
   // 7. Compute packages to install
   const packagesToInstall = computePackagesToInstall(
