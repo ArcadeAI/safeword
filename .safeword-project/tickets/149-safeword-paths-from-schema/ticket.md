@@ -1,10 +1,10 @@
 ---
 id: 149
 type: task
-phase: understand
+phase: tdd-red
 status: open
 created: 2026-05-13T22:21:00Z
-last_modified: 2026-05-13T22:21:00Z
+last_modified: 2026-05-15T19:30:00Z
 ---
 
 # Derive safeword-managed path list from SAFEWORD_SCHEMA at build time
