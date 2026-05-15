@@ -4,7 +4,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-05-04T15:35:00Z
-last_modified: 2026-05-04T15:35:00Z
+last_modified: 2026-05-15T05:55:00Z
 ---
 
 # File upstream Claude Code bug: parallel-worktree creation flips parent core.bare=true
@@ -61,3 +61,36 @@ Catches the race inside `git commit`. Ad-hoc `git status` calls still hit it.
 ## Work Log
 
 - 2026-05-04T15:35:00Z Created: spawned from ticket #130's verify pass; ~10 min GitHub-issue task.
+
+### 2026-05-15T05:44Z — Second live reproduction (different surface than `git commit`)
+
+Caught the race again, this time on `git status` instead of `git commit`. New evidence that strengthens the upstream filing.
+
+**Context:** 4 active worktrees in `.claude/worktrees/` (`bold-davinci-601241`, `heuristic-bouman-cb6d3c`, `kind-johnson-be334a`, `vigorous-jang-479dd0`). `kind-johnson-be334a` and `vigorous-jang-479dd0` had been actively writing files in the prior 6–11 minutes.
+
+**Sequence:**
+
+1. ~05:05Z — pulled main cleanly in the parent worktree (`git status` worked, `git pull --ff-only` worked)
+2. ~05:05Z–05:44Z — `kind-johnson-be334a` and `vigorous-jang-479dd0` continued doing work in their respective worktrees
+3. 05:44Z — `git -C /Users/alex/projects/safeword status -sb` in the parent worktree failed with `fatal: this operation must be run in a work tree`
+4. `/Users/alex/projects/safeword/.git/config` had `core.bare = true`
+5. `git config core.bare false` immediately restored function
+
+**New finding: the husky workaround has a coverage gap.**
+
+The pre-commit hook resets `core.bare = false` inside `git commit`. But this reproduction was triggered by `git status` (an ad-hoc read), not a commit. The workaround never fired. **Any tool/agent reading the parent worktree while a sibling worktree is being created or modified can hit the race and get a misleading "not a work tree" error.**
+
+This matters for:
+
+- `gh` invocations that shell out to git
+- IDEs / editors that poll `git status`
+- Shell prompts that show git state
+- Any non-commit git read
+
+**Strengthened fix-request rationale:** documenting the race or shipping a one-line reset in user docs isn't enough — the proper fix has to either eliminate the toggle (preferred) or hold a lock that ad-hoc reads respect. The husky hook is a partial mitigation that misses most invocations.
+
+**For the upstream issue body, include:**
+
+- Both reproductions (2026-05-03 around `git commit`, 2026-05-15 around `git status`)
+- The coverage-gap point about the workaround
+- That the misleading error message blames the user's CWD when the real cause is a shared-config race
