@@ -1,23 +1,34 @@
 ---
 id: 146
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
 related: [143]
 created: 2026-05-15T06:32:00Z
 last_modified: 2026-05-15T06:32:00Z
 scope: |
-  Restructure the `/verify` skill's output report so it cleanly separates
-  three concerns: (1) status facts (test counts, build/lint/scenario state),
-  (2) decisions the user needs to make (spec/scope/value questions),
-  (3) the agent's planned next actions (implementation work the agent owns).
-  Currently the report mixes all three together, producing confusion when
-  there are many unchecked scenarios or open questions.
+  Update the `/verify` skill instructions (canonical templates at
+  `packages/cli/templates/skills/verify/SKILL.md` and `packages/cli/templates/commands/verify.md`;
+  sync runtime copies; 144's parity validates) to require the agent's
+  additional commentary (when failures exist) to follow three clean sections
+  beyond the existing Verify Checklist:
 
-  Applies the same spec-vs-implementation contract encoded in 143:
-  implementation choices are the agent's to make and own; only spec/scope/
-  value ambiguities go in the "user decisions needed" section. Caps on
-  enumeration to prevent dump-style reports.
+    (1) **Status** — facts only (already covered by existing checklist;
+        the new structure makes the checklist the entire status section).
+    (2) **Decisions needed (spec / scope / value)** — only questions the
+        user must answer because they involve spec interpretation, scope
+        boundaries, or value judgments. Implementation paths NEVER go here.
+    (3) **Agent's next actions** — concrete forward motion the agent will
+        execute (implementation work). Falsifiable, single-step framing.
+
+  Hard cap of 5 items per section; aggregate the rest with count
+  ("+ N others, see test-definitions.md"). Empty sections hidden.
+  When all green and no decisions/actions needed, report collapses to a
+  single-line "Ready to mark done" verdict.
+
+  Preserves the existing evidence patterns (`✓ X/X tests pass`,
+  `All N scenarios marked complete`, `Audit passed`) — done-gate hook
+  depends on these and cannot move.
 out_of_scope: |
   - Changing the stop-hook prompt (143 already done).
   - Changing what /verify actually checks (test suite, build, lint, scenarios,
@@ -64,9 +75,21 @@ The structure that confused: triage + recommendations + decision-asks + plans we
 
 - **143** (just shipped on PR #91) — encoded the spec-vs-implementation contract in the stop-hook prompt. This ticket applies the same contract to the `/verify` surface.
 
-## Open Questions (resolve in define-behavior)
+## Resolved Open Questions (intake-final)
 
-- **Hard cap on enumerated items per section** — N=5 feels right intuitively, but could be 3 or 7. Worth empirical testing on realistic tickets. Lean: 5.
-- **When MANY items exist** — e.g., 14 unchecked scenarios as in Nate's trace — does the report list the top 5 most-load-bearing and aggregate the rest ("9 others, see test-definitions.md"), or does it always surface all 14? Lean: triage and aggregate; force the agent to identify "what does the user actually need to act on."
-- **Where the verify skill template lives** — verify if there's a templated copy that ships to customers (`packages/cli/templates/skills/verify/SKILL.md`) vs. just the local `.claude/skills/verify/SKILL.md`. Adjusts scope of edits.
-- **Whether the "Decisions needed" section should support empty state** — if no decisions are required, does the section appear with "None" or disappear entirely? Lean: disappear (no empty sections in clean reports).
+Per the spec-vs-implementation contract (these are UX/implementation choices, agent's call):
+
+- **Hard cap on enumerated items per section** → **N=5.** Research-backed: Cowan's working memory ~4 chunks; Miller's 7±2; N=3 too aggressive when many items exist; N=7 risks list-fatigue.
+- **When MANY items exist** → **Top-5 by load-bearing, aggregate rest with count** ("+ 9 others, see test-definitions.md"). Forces the agent to triage what the user actually needs to act on.
+- **Where the verify skill template lives** → confirmed via grep: three identical surfaces in SAFEWORD_SCHEMA.ownedFiles (templates/skills/verify/SKILL.md, templates/commands/verify.md, .cursor/commands/verify.md) plus runtime copies. Edit canonical templates; 144's parity validates.
+- **Empty-section handling** → **hide empty sections entirely.** When all checks pass and there are no decisions or agent-next-actions, the report collapses to a single-line "Ready to mark done" verdict. Cleaner; no ceremony when there's nothing to communicate.
+
+## Constraints discovered during investigation
+
+The existing /verify report has **evidence patterns** the done-gate hook validates:
+
+- `✓ X/X tests pass`
+- `All N scenarios marked complete`
+- `Audit passed`
+
+These cannot be moved or renamed without breaking `stop-quality.ts`'s done-phase gate. The new sectioning must preserve them in the Status section.

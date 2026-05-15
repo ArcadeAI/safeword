@@ -64,17 +64,7 @@ If ticket has `parent:` field:
 3. Check each child's `status:`
 4. Report: "Siblings: X/Y done"
 
-### 5. Check Documentation References (skip if no ticket)
-
-Grep documentation files for identifiers changed by the ticket:
-
-1. Identify key symbols removed or renamed (interface fields, function names, file paths)
-2. Grep `*.md` files (excluding `.safeword-project/tickets/`) for those symbols
-3. Flag any matches: `"Doc reference to removed/changed symbol: {file}:{line} — {symbol}"`
-
-This catches stale documentation that references code you just changed.
-
-### 6. Check Dependency Drift
+### 5. Check Dependency Drift
 
 Compare `package.json` dependencies against `ARCHITECTURE.md`:
 
@@ -91,48 +81,71 @@ Do NOT flag:
 - `@types/*` packages (type-only, not architectural)
 - Packages in `devDependencies` that are tooling (eslint plugins, prettier plugins, test utils) — only flag deps that represent architectural choices
 
-### 7. Report Results
+### 6. Report Results
 
-Format results using these EXACT patterns (hook validates these):
+Structure the report in three sections, in this order. **Empty sections are hidden entirely** — no "None" placeholders, no empty headers.
+
+#### Status (the existing Verify Checklist — facts only)
+
+The Status section uses the existing Verify Checklist format. Format with these EXACT patterns (the done-gate hook validates them):
 
 ```
 ## Verify Checklist
 
-**Test Suite:** ✓ 156/156 tests pass (or ❌ 3 failures)
+**Test Suite:** ✓ X/X tests pass (or ❌ N failures)
 **Build:** ✅ Success (or ❌ Failed)
-**Lint:** ✅ Clean (or ❌ 2 errors)
-**Scenarios:** All 10 scenarios marked complete (or ❌ 8/10 complete, or ⏭️ Skipped — no ticket)
-**Doc Refs:** ✅ Clean (or ⚠️ 2 stale references, or ⏭️ Skipped — no ticket)
-**Dep Drift:** ✅ Clean (or ⚠️ 2 undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
-**Parent Epic:** 006 (siblings: 2/3 done) or N/A
-
-[If all pass]
-Ready to mark done. Update ticket: phase: done, status: done
-
-[If failures]
-Fix these before marking done:
-- [ ] Fix failing tests
-- [ ] Complete remaining scenarios
+**Lint:** ✅ Clean (or ❌ N errors)
+**Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
+**Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
+**Parent Epic:** {id} (siblings: X/Y done) or N/A
 ```
 
-### 8. Write verify.md Artifact (skip if no ticket OR if any check failed)
+**Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 
-If a ticket is active AND all checks passed, write the verify checklist to the ticket folder as evidence:
+- `✓ X/X tests pass` — proves test suite ran
+- `All N scenarios marked complete` — proves scenarios checked
+- `Audit passed` — proves /audit ran (run /audit separately)
 
-```bash
-# Write verify.md to ticket folder
-# Path: .safeword-project/tickets/{id}-{slug}/verify.md
-```
+Without all three patterns in Status, the done phase will hard block.
 
-The file must contain:
+#### Decisions needed (spec / scope / value)
 
-1. Timestamp (`Verified: {ISO timestamp}`)
-2. The verify checklist output from step 7
+Only include this section when there are spec, scope, or value questions the USER must answer.
 
-**Do NOT write verify.md if any check failed.** Partial evidence must not gate-pass the done phase.
+**Implementation-path questions (which approach, which pattern, which library) do NOT go here — they belong in "Agent's next actions" because the agent owns implementation choices.**
 
-**Important:** The stop hook requires `verify.md` to exist in the ticket folder before allowing `phase: done`. Without it, the done phase will hard block.
+Borderline classification examples:
+
+- "Should we use NextAuth or Lucia for auth?" → implementation-path → goes in **Actions** (agent picks one with reasoning, user can override).
+- "Should this endpoint be at /v1/projects or /v2/projects?" → value decision (API contract) → goes in **Decisions**.
+- "Is R5.x in scope for this slice or punt to slice 4?" → scope decision → goes in **Decisions**.
+- "Should we extract this helper or inline it?" → implementation-path → goes in **Actions**.
+- "Is 4xx the right HTTP status for this error?" → spec decision (if the spec exists, look it up; otherwise it's a value call) → goes in **Decisions**.
+
+**Hard cap of 5 items** per section. If more exist, list the top 5 (most load-bearing) and add:
+
+> - N others, see test-definitions.md
+
+**Decisions section is hidden when empty** — no "None" placeholder. Do not surface the section at all if zero decisions exist.
+
+#### Agent's next actions
+
+Only include this section when there are concrete forward actions the agent will take. Each action must be **concrete and falsifiable** — not vague exploration ("look into X"), but a specific verb + object the agent will execute ("add integration test for R7.3 covering 404-on-uncovered-PATCH").
+
+**Hard cap of 5 items** per section. If more exist, list the top 5 and add:
+
+> - N others, see test-definitions.md
+
+**Actions section is hidden when empty** — no "None" placeholder.
+
+#### All-green collapse
+
+When **all Status checks pass AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
+
+> Ready to mark done.
+
+No sections, no ceremony. Single line.
 
 ## Summary
 
-This command verifies ticket criteria (verify phase gate). Use it before marking any feature ticket complete. It also works without a ticket for quick project health checks (tests + build + lint + dep drift).
+This command verifies ticket criteria (Phase 7 Done Gate). Use it before marking any feature ticket complete. It also works without a ticket for quick project health checks (tests + build + lint + dep drift).
