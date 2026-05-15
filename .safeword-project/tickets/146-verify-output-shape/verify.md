@@ -2,7 +2,7 @@ Verified: 2026-05-15T06:48:00Z
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 26/26 verify-skill tests pass; 106/106 across quality + parity + hooks integration + transcript-format (verified together post-change)
+**Test Suite:** ✓ 1633/1633 tests pass full suite (1 skipped — pre-existing); 26/26 verify-skill content-tests included. Audit passed (depcruise + knip + parity all clean).
 **Build:** ✅ Success (unchanged from 143's iterations; no new TS files)
 **Lint:** ✅ Clean (lint-staged ran on commits; markdownlint reformatted `+` to `-` in blockquote bullets — test updated accordingly)
 **Scenarios:** All 13 scenarios marked complete (Rule 1: 2, Rule 2: 4, Rule 3: 3, Rule 4: 2, Rule 5: 2)

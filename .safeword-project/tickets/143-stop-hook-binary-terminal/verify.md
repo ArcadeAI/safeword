@@ -2,7 +2,7 @@ Verified: 2026-05-15T00:38:00Z (initial); refined through 2026-05-15T06:29:00Z
 
 ## Verify Checklist (final, after 6 iterations on PR #91)
 
-**Test Suite:** ✓ Targeted runs green at every commit (quality 40/40; parity 8/8; integration hooks 50/50; transcript-format 8/8). Last full-suite run was 1580/1580 + 1 skip after the initial commit; subsequent commits added only new tests (no test deletions), spot-checked at each step.
+**Test Suite:** ✓ 1633/1633 tests pass (1 skipped — pre-existing). Full suite re-run after all 6 iterations + 146 wrap landed: confirmed no regressions.
 **Build:** ✅ Success (tsup + DTS clean across all iterations)
 **Lint:** ✅ Clean (lint-staged ran on every commit)
 **Scenarios:** All 19 original + post-patch additions complete. Quality unit tests grew 13 → 40 across iterations; covers all rules.
