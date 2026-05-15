@@ -2,13 +2,17 @@
 // Used by: stop-quality.ts, cursor/stop.ts
 //
 // Format: every Stop terminates in CONFIDENT or BLOCKED (binary terminal).
-// Per-phase evidence templates make CONFIDENT falsifiable; BLOCKED carries
-// "Tried:" + "Need:" so escalation is a clean handoff, not a doubt-dump.
+// Universal critical review applies at every phase (correctness, simplicity,
+// docs/research alignment). Per-phase evidence templates make CONFIDENT
+// falsifiable with phase-specific criteria. BLOCKED carries "Tried:" + "Need:"
+// so escalation is a clean handoff, not a doubt-dump.
 //
-// Research: tokenized verdicts beat free-form uncertainty for calibration
-// (Kadavath 2022, Lin 2022, Tian 2023). The "Think about evidence before
-// declaring" sentence opportunistically nudges Claude 4.7's deliberation
-// without forcing extended thinking (which a hook cannot toggle).
+// Research depth matches claim weight: code/docs for syntax/usage; primary
+// literature (peer-reviewed, lab tech reports, credible preprints) for design
+// or empirical claims. Blog posts, tweets, marketing don't count.
+//
+// Calibration grounding: Kadavath 2022, Lin 2022, Tian 2023 — tokenized
+// verdicts beat free-form uncertainty descriptions for calibration.
 
 export type BddPhase =
   | 'intake'
@@ -21,38 +25,47 @@ export type BddPhase =
 
 const UNIVERSAL_HEADER = `Quality Review.
 
-Think about evidence before declaring. End in CONFIDENT or BLOCKED.
+Think about evidence before declaring. Apply universal critical review:
+verify correctness, simplicity, and alignment with latest docs/research.
+Research uncertainty before declaring CONFIDENT. Match research depth to
+claim weight — code/docs for syntax and usage; primary literature
+(peer-reviewed papers, lab tech reports, credible preprints) for design
+choices, novel approaches, or empirical claims. Blog posts, tweets, and
+marketing don't count.
+
+End with a single verdict — not a list.
 
 CONFIDENT — <evidence>
 BLOCKED — <one specific unknown>. Tried: <concrete verb + object>. Need: <unblock>.
 
-No lists. If multiple unknowns: resolve the small ones, then BLOCKED on the load-bearing one.
+Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
 `;
 
 /** Per-phase evidence templates appended to the universal header. */
 const PHASE_EVIDENCE: Record<BddPhase, string> = {
   intake:
-    'Phase: intake. CONFIDENT evidence: cite scope, out_of_scope, and done_when fields from frontmatter.',
+    'Phase: intake. CONFIDENT cites that scope/out_of_scope/done_when are bounded, failure modes were surfaced, and open questions are resolved (or explicitly deferred).',
   'define-behavior':
-    'Phase: define-behavior. CONFIDENT evidence: cite N scenarios; AODI; happy/failure/edge covered.',
+    'Phase: define-behavior. CONFIDENT cites N scenarios, AODI for each, happy/failure/edge coverage, and that scenarios test behaviors not implementation.',
   'scenario-gate':
-    'Phase: scenario-gate. CONFIDENT evidence: cite N validated scenarios; AODI pass; issues found or "No issues."',
+    'Phase: scenario-gate. CONFIDENT cites N validated scenarios, AODI pass, and either issues found or "No issues."',
   decomposition:
-    'Phase: decomposition. CONFIDENT evidence: cite ordered tasks (A→B→C) or "Skipped — architecture clear."',
+    'Phase: decomposition. CONFIDENT cites ordered tasks (A→B→C) with test layers, or "Skipped — architecture clear."',
   implement:
-    'Phase: implement. CONFIDENT evidence: cite the passing artifact (X/X tests pass; scenario checked off).',
+    'Phase: implement. CONFIDENT cites the passing artifact (X/X tests pass; scenario checked off).',
   verify:
-    'Phase: verify. CONFIDENT evidence: cite /verify result (X/X tests; N/N scenarios complete).',
-  done: 'Phase: done. CONFIDENT evidence: /audit: passed. /verify: passed. verify.md present.',
+    'Phase: verify. CONFIDENT cites /verify result (X/X tests; N/N scenarios complete) and that no scenarios are stale.',
+  done: "Phase: done. CONFIDENT cites /audit passed, /verify passed, verify.md present, scope drift checked, scenario coverage validated (no behaviors emerged that aren't in test-definitions), and any clear-win cross-scenario refactoring done.",
 };
 
 /** TDD-step-specific evidence for implement phase (RED/GREEN/REFACTOR). */
 const TDD_STEP_EVIDENCE: Record<string, string> = {
-  red: 'Phase: implement (TDD: RED). CONFIDENT evidence: cite the failing test naming the missing behavior.',
-  green: 'Phase: implement (TDD: GREEN). CONFIDENT evidence: cite X/X tests pass; minimal impl.',
+  red: 'Phase: implement (TDD: RED). CONFIDENT cites the failing test, the missing behavior it names, and that the assertion is independent of the implementation.',
+  green:
+    'Phase: implement (TDD: GREEN). CONFIDENT cites X/X tests pass, that you wrote only what the test requires, and no mocks where real deps would work.',
   refactor:
-    'Phase: implement (TDD: REFACTOR). CONFIDENT evidence: cite the cleanup applied; X/X tests still pass.',
+    'Phase: implement (TDD: REFACTOR). CONFIDENT cites one refactoring applied (not batched), the smell it addressed (duplication / long-fn / nesting / magic / dead-code / naming), no behavior change, and X/X tests still pass.',
 };
 
 /**

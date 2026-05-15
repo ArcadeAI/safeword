@@ -1,8 +1,10 @@
 # Test Definitions — Ticket 143
 
-> 5 rules, 19 scenarios. AODI validated. Covers happy path + failure modes + boundaries.
+> 8 rules, 28 scenarios after criteria-restoration patch (was 5/19 pre-patch).
 >
-> **Test surface:** Most scenarios test `getQualityMessage(phase, tddStep)` — a pure function that returns the prompt string. Easy unit tests on substring presence/absence. Two scenarios cover the schema-contract integration (already enforced by 144's runParity).
+> **Test surface:** Most scenarios test `getQualityMessage(phase, tddStep)` — a pure function that returns the prompt string. Unit tests on substring presence/absence. Three scenarios cover the schema-contract integration (already enforced by 144's runParity).
+>
+> **Post-patch additions (criteria restoration):** 3 new rules — universal critical review applies at every phase, research depth matches claim weight, per-phase criteria fully restored. Restores all checks from legacy phase prompts that were dropped in the initial 143 implementation.
 
 ## Rule: Every Stop emits the binary terminal across phases
 
