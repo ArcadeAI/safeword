@@ -10,9 +10,9 @@ import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
   writeTestFile,
-} from '../../tests/helpers';
-import type { Languages, PackageJson, PythonProjectType } from './project-detector';
-import { detectLanguages, detectProjectType, detectPythonType } from './project-detector';
+} from '../../tests/helpers.js';
+import type { Languages, PackageJson, PythonProjectType } from './project-detector.js';
+import { detectLanguages, detectProjectType, detectPythonType } from './project-detector.js';
 
 describe('detectProjectType', () => {
   describe('Test 4.1: Detects TypeScript project', () => {

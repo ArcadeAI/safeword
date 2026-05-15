@@ -4,7 +4,12 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { getEslintConfig, SETTINGS_HOOKS } from './config';
+import { getEslintConfig, SETTINGS_HOOKS } from './config.js';
+
+// Element type of any SETTINGS_HOOKS bucket (PostToolUse, PreToolUse, etc.)
+// Each is a list of { matcher?, hooks: { type, command }[] } entries.
+type HookEntry = (typeof SETTINGS_HOOKS)[keyof typeof SETTINGS_HOOKS][number];
+type HookCommand = HookEntry['hooks'][number];
 
 describe('getEslintConfig', () => {
   it('should use import.meta.dirname for config-relative path resolution (not CWD)', () => {
@@ -140,8 +145,11 @@ describe('SETTINGS_HOOKS', () => {
   });
 
   it('should have PostToolUse quality observer matcher that includes Bash', () => {
-    const qualityHook = SETTINGS_HOOKS.PostToolUse.find(h =>
-      h.hooks.some(hook => hook.type === 'command' && hook.command.includes('post-tool-quality')),
+    const qualityHook = SETTINGS_HOOKS.PostToolUse.find((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) =>
+          hook.type === 'command' && hook.command.includes('post-tool-quality'),
+      ),
     );
     if (!qualityHook) {
       throw new Error('PostToolUse quality hook not found');
@@ -164,17 +172,19 @@ describe('SETTINGS_HOOKS', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
     expect(preToolHooks.length).toBe(2);
 
-    const commands = preToolHooks.flatMap(h =>
-      h.hooks.filter(hook => hook.type === 'command').map(hook => hook.command),
+    const commands = preToolHooks.flatMap((h: HookEntry) =>
+      h.hooks
+        .filter((hook: HookCommand) => hook.type === 'command')
+        .map((hook: HookCommand) => hook.command),
     );
 
-    expect(commands.some(c => c.includes('pre-tool-quality'))).toBe(true);
-    expect(commands.some(c => c.includes('pre-tool-config-guard'))).toBe(true);
+    expect(commands.some((c: string) => c.includes('pre-tool-quality'))).toBe(true);
+    expect(commands.some((c: string) => c.includes('pre-tool-config-guard'))).toBe(true);
   });
 
   it('should have all commands reference $CLAUDE_PROJECT_DIR', () => {
     const commands: string[] = [];
-    for (const entries of Object.values(SETTINGS_HOOKS)) {
+    for (const entries of Object.values(SETTINGS_HOOKS) as HookEntry[][]) {
       for (const entry of entries) {
         for (const hook of entry.hooks) {
           if (hook.type === 'command') {
