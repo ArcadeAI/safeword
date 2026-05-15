@@ -9,7 +9,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { computeSafewordPathPrefixes, generateOwnedPathsModule } from '../src/owned-paths.js';
+import {
+  computeSafewordPathPrefixes,
+  generateOwnedPathsModule,
+  matchesSafewordPath,
+} from '../src/owned-paths.js';
 import type { SafewordSchema } from '../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 
@@ -111,9 +115,44 @@ describe('generateOwnedPathsModule', () => {
     const expected = [...computeSafewordPathPrefixes(SAFEWORD_SCHEMA)];
     expect(emitted).toEqual(expected);
   });
+
+  it('emits an isSafewordPath function declaration alongside the constant', () => {
+    const source = generateOwnedPathsModule(stubSchema({ ownedFiles: ['.safeword/x.ts'] }));
+    expect(source).toContain('export function isSafewordPath');
+  });
+});
+
+describe('matchesSafewordPath (reference impl mirrored in generated module)', () => {
+  const prefixes = ['.safeword/', '.claude/', 'package.json', 'AGENTS.md'];
+
+  it('matches files inside a dir prefix', () => {
+    expect(matchesSafewordPath('.safeword/hooks/x.ts', prefixes)).toBe(true);
+    expect(matchesSafewordPath('.claude/skills/y.md', prefixes)).toBe(true);
+  });
+
+  it('matches bare files by exact equality', () => {
+    expect(matchesSafewordPath('package.json', prefixes)).toBe(true);
+    expect(matchesSafewordPath('AGENTS.md', prefixes)).toBe(true);
+  });
+
+  // The regression this defends against: bare-file prefixes must NOT match
+  // longer paths that share the prefix. Old hook code used startsWith for all
+  // entries, so e.g. `package.json.bak` falsely matched `package.json`.
+  it('does not falsely match bare-file siblings via prefix', () => {
+    expect(matchesSafewordPath('package.json.bak', prefixes)).toBe(false);
+    expect(matchesSafewordPath('AGENTS.md.backup', prefixes)).toBe(false);
+  });
+
+  it('rejects unrelated paths', () => {
+    expect(matchesSafewordPath('src/foo.ts', prefixes)).toBe(false);
+    expect(matchesSafewordPath('other.json', prefixes)).toBe(false);
+  });
 });
 
 // ---- helpers ----------------------------------------------------------------
+
+const toBag = (paths: string[] | undefined): Record<string, unknown> =>
+  Object.fromEntries((paths ?? []).map(p => [p, true]));
 
 function stubSchema(buckets: {
   ownedFiles?: string[];
@@ -121,9 +160,6 @@ function stubSchema(buckets: {
   jsonMerges?: string[];
   textPatches?: string[];
 }): SafewordSchema {
-  const toBag = (paths: string[] | undefined): Record<string, unknown> =>
-    Object.fromEntries((paths ?? []).map(p => [p, true]));
-
   return {
     version: '0.0.0',
     ownedDirs: [],

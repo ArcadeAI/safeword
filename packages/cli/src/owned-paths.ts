@@ -5,6 +5,11 @@
  *
  * Why this exists: the hook previously hardcoded the prefix list, which
  * silently drifts when a pack introduces a new top-level directory.
+ *
+ * Matching semantics: dir prefixes (trailing `/`) match by `startsWith`;
+ * bare file paths match by exact equality. The generated module exports
+ * both the flat list and an `isSafewordPath(file)` helper that uses these
+ * semantics.
  */
 
 import type { SafewordSchema } from './schema.js';
@@ -26,6 +31,22 @@ export function computeSafewordPathPrefixes(schema: SafewordSchema): readonly st
   return [...prefixes].toSorted((a, b) => a.localeCompare(b));
 }
 
+/**
+ * Reference implementation of the matching predicate. The generated module's
+ * `isSafewordPath` is a closure over SAFEWORD_PATHS that runs this same logic.
+ * Extracted so tests can verify semantics without evaluating generated code.
+ */
+export function matchesSafewordPath(file: string, prefixes: readonly string[]): boolean {
+  for (const prefix of prefixes) {
+    if (prefix.endsWith('/')) {
+      if (file.startsWith(prefix)) return true;
+    } else if (file === prefix) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function generateOwnedPathsModule(schema: SafewordSchema): string {
   const prefixes = computeSafewordPathPrefixes(schema);
   const entries = prefixes.map(prefix => `  '${prefix}',`).join('\n');
@@ -37,5 +58,21 @@ export function generateOwnedPathsModule(schema: SafewordSchema): string {
 export const SAFEWORD_PATHS: readonly string[] = [
 ${entries}
 ];
+
+/**
+ * Match a file path against the safeword-managed set. Directory prefixes
+ * (entries ending in \`/\`) match by \`startsWith\`; bare file paths must
+ * match exactly so e.g. \`package.json.bak\` does not match \`package.json\`.
+ */
+export function isSafewordPath(file: string): boolean {
+  for (const prefix of SAFEWORD_PATHS) {
+    if (prefix.endsWith('/')) {
+      if (file.startsWith(prefix)) return true;
+    } else if (file === prefix) {
+      return true;
+    }
+  }
+  return false;
+}
 `;
 }

@@ -24,6 +24,7 @@ export type {
   ManagedFileDefinition,
   ProjectContext,
 } from './packs/types.js';
+import { generateOwnedPathsModule } from './owned-paths.js';
 import type { FileDefinition, JsonMergeDefinition, ManagedFileDefinition } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
@@ -282,6 +283,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
     '.safeword/hooks/lib/update-cache.ts': { template: 'hooks/lib/update-cache.ts' },
     '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
+
+    // Generated at setup/upgrade from SAFEWORD_SCHEMA itself — the prefix list
+    // the auto-upgrade hook uses to decide which files to stage. See owned-paths.ts.
+    '.safeword/hooks/lib/owned-paths.ts': {
+      generator: (): string => generateOwnedPathsModule(SAFEWORD_SCHEMA),
+    },
 
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-verify-agents.ts': {
