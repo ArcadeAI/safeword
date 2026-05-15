@@ -2,7 +2,7 @@
 id: 141
 type: task
 phase: implement
-status: in_progress
+status: cancelled
 created: 2026-05-04T15:35:00Z
 last_modified: 2026-05-15T05:55:00Z
 ---
