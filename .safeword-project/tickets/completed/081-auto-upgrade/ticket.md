@@ -3,7 +3,7 @@ id: '081'
 slug: auto-upgrade
 title: 'Auto-upgrade safeword on session start'
 type: Improvement
-status: in_review
+status: done
 epic: setup-lifecycle
 ---
 
