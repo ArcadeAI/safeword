@@ -13,6 +13,7 @@ import {
   computeSafewordPathPrefixes,
   generateOwnedPathsModule,
   matchesSafewordPath,
+  referenceFilterSafewordFiles,
 } from '../src/owned-paths.js';
 import type { SafewordSchema } from '../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
@@ -119,6 +120,66 @@ describe('generateOwnedPathsModule', () => {
   it('emits an isSafewordPath function declaration alongside the constant', () => {
     const source = generateOwnedPathsModule(stubSchema({ ownedFiles: ['.safeword/x.ts'] }));
     expect(source).toContain('export function isSafewordPath');
+  });
+
+  it('emits a filterSafewordFiles helper for the auto-upgrade hook to consume', () => {
+    const source = generateOwnedPathsModule(stubSchema({ ownedFiles: ['.safeword/x.ts'] }));
+    expect(source).toContain('export function filterSafewordFiles');
+  });
+});
+
+describe('filterSafewordFiles (auto-upgrade staging behavior)', () => {
+  // These cases exercise the exact contract the hook depends on: given the
+  // outputs of `git diff --name-only` and `git ls-files --others`, return
+  // only the safeword-managed subset.
+  const prefixes = ['.safeword/', '.claude/', 'package.json', 'AGENTS.md'];
+
+  it('passes through changed files inside dir prefixes', () => {
+    const staged = referenceFilterSafewordFiles(
+      ['.safeword/hooks/x.ts', '.claude/skills/y.md'],
+      [],
+      prefixes,
+    );
+    expect(staged).toEqual(['.safeword/hooks/x.ts', '.claude/skills/y.md']);
+  });
+
+  it('passes through untracked files matching the safeword set', () => {
+    const staged = referenceFilterSafewordFiles(
+      [],
+      ['.safeword/new-hook.ts', 'AGENTS.md'],
+      prefixes,
+    );
+    expect(staged).toEqual(['.safeword/new-hook.ts', 'AGENTS.md']);
+  });
+
+  it('unions changed and untracked, preserving order', () => {
+    const staged = referenceFilterSafewordFiles(['.safeword/a.ts'], ['package.json'], prefixes);
+    expect(staged).toEqual(['.safeword/a.ts', 'package.json']);
+  });
+
+  it('filters out files outside the safeword set', () => {
+    const staged = referenceFilterSafewordFiles(
+      ['.safeword/a.ts', 'src/customer-code.ts'],
+      ['random/file.md'],
+      prefixes,
+    );
+    expect(staged).toEqual(['.safeword/a.ts']);
+  });
+
+  // The regression this defends against: the auto-upgrade hook must not stage
+  // customer files that happen to share a prefix with a safeword-managed file.
+  it('does not stage bare-file siblings (package.json.bak ≠ package.json)', () => {
+    const staged = referenceFilterSafewordFiles(
+      [],
+      ['package.json.bak', 'AGENTS.md.backup'],
+      prefixes,
+    );
+    expect(staged).toEqual([]);
+  });
+
+  it('returns empty when nothing matches (no commit will be created)', () => {
+    const staged = referenceFilterSafewordFiles(['src/foo.ts'], ['src/bar.ts'], prefixes);
+    expect(staged).toEqual([]);
   });
 });
 

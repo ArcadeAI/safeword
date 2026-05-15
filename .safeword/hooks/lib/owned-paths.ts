@@ -42,3 +42,15 @@ export function isSafewordPath(file: string): boolean {
   }
   return false;
 }
+
+/**
+ * Pick the safeword-managed subset of files reported by `git diff --name-only`
+ * (changed) and `git ls-files --others --exclude-standard` (untracked).
+ * Used by the auto-upgrade hook to decide what to stage after `safeword upgrade`.
+ */
+export function filterSafewordFiles(
+  changedFiles: readonly string[],
+  untrackedFiles: readonly string[],
+): readonly string[] {
+  return [...changedFiles, ...untrackedFiles].filter(f => isSafewordPath(f));
+}

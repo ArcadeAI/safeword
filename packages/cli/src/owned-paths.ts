@@ -47,6 +47,19 @@ export function matchesSafewordPath(file: string, prefixes: readonly string[]): 
   return false;
 }
 
+/**
+ * Reference implementation of the auto-upgrade staging filter. Mirrors the
+ * `filterSafewordFiles` exported from the generated module so tests can
+ * exercise the exact behavior the hook relies on.
+ */
+export function referenceFilterSafewordFiles(
+  changedFiles: readonly string[],
+  untrackedFiles: readonly string[],
+  prefixes: readonly string[],
+): readonly string[] {
+  return [...changedFiles, ...untrackedFiles].filter(f => matchesSafewordPath(f, prefixes));
+}
+
 export function generateOwnedPathsModule(schema: SafewordSchema): string {
   const prefixes = computeSafewordPathPrefixes(schema);
   const entries = prefixes.map(prefix => `  '${prefix}',`).join('\n');
@@ -73,6 +86,18 @@ export function isSafewordPath(file: string): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Pick the safeword-managed subset of files reported by \`git diff --name-only\`
+ * (changed) and \`git ls-files --others --exclude-standard\` (untracked).
+ * Used by the auto-upgrade hook to decide what to stage after \`safeword upgrade\`.
+ */
+export function filterSafewordFiles(
+  changedFiles: readonly string[],
+  untrackedFiles: readonly string[],
+): readonly string[] {
+  return [...changedFiles, ...untrackedFiles].filter(f => isSafewordPath(f));
 }
 `;
 }
