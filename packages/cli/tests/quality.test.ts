@@ -130,6 +130,47 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
     });
   });
 
+  describe('Rule: Universal header applies to ALL phase variants (regression guard)', () => {
+    const phaseVariants: [string, string | undefined][] = [
+      ['intake', undefined],
+      ['define-behavior', undefined],
+      ['scenario-gate', undefined],
+      ['decomposition', undefined],
+      ['implement', undefined],
+      ['implement', 'red'],
+      ['implement', 'green'],
+      ['implement', 'refactor'],
+      ['verify', undefined],
+      ['done', undefined],
+      ['unknown-phase', undefined],
+    ];
+
+    it.each(phaseVariants)(
+      'getQualityMessage(%s, %s) emits the full universal header',
+      (phase, tddStep) => {
+        const message = getQualityMessage(phase, tddStep);
+        // Verdict shape
+        expect(message).toContain('CONFIDENT');
+        expect(message).toContain('BLOCKED');
+        expect(message).toContain('Tried:');
+        expect(message).toContain('Need:');
+        expect(message).toContain('Next:');
+        // Methodology
+        expect(message.toLowerCase()).toContain('investigate primary sources');
+        expect(message.toLowerCase()).toContain('correctness/elegance/no-bloat');
+        // Research depth
+        expect(message.toLowerCase()).toMatch(/primary\s+literature/);
+        expect(message.toLowerCase()).toContain('blog posts');
+        // BLOCKED sharpening
+        expect(message.toLowerCase()).toContain('falsifiable answer');
+        // Optional Meanwhile
+        expect(message.toLowerCase()).toContain('parallel action');
+        // No legacy free-form prompt leaked through
+        expect(message).not.toContain('State what remains uncertain');
+      },
+    );
+  });
+
   describe('Rule: Research depth matches claim weight', () => {
     it('header instructs to match research depth to claim weight', () => {
       const message = getQualityMessage('intake');
