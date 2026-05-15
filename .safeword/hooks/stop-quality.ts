@@ -15,6 +15,7 @@ import {
   recordFailure,
 } from './lib/quality-state.ts';
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
+import { checkSkillInvocations, getRequiredSkillsForPhase } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
 
 interface HookInput {
@@ -360,6 +361,26 @@ if (currentPhase === 'done') {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(
         `No valid verify.md found in ticket folder. Run /verify to generate evidence before marking done.`,
+      );
+    }
+  }
+
+  // Skill-invocation gate (ticket 147) — feature tickets entering done must have
+  // current-session log entries for required skills (/verify and /audit).
+  // Bash-injection in those skills writes the log; hand-written verify.md
+  // cannot produce the entries. Honors stop_hook_active bypass for consistency.
+  if (isFeature && !stopHookActive && input.session_id) {
+    const requiredSkills = getRequiredSkillsForPhase(currentPhase);
+    const skillCheck = checkSkillInvocations({
+      sessionId: input.session_id,
+      required: requiredSkills,
+      rootDirectory: projectDir,
+    });
+    if (!skillCheck.ok) {
+      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      const missingList = skillCheck.missing.map(s => `/${s}`).join(' and ');
+      hardBlockDone(
+        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The bash-injection log at .safeword/skill-invocations.log proves invocation; hand-written verify.md does not satisfy this gate.`,
       );
     }
   }

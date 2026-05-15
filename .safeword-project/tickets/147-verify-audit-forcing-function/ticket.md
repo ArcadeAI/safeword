@@ -1,7 +1,7 @@
 ---
 id: 147
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 related: [143, 146]
 created: 2026-05-15T15:30:00Z
