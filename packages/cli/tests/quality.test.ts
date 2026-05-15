@@ -130,6 +130,19 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
     });
   });
 
+  describe('Rule: Spec-vs-implementation ambiguity contract', () => {
+    it("header states implementation choices are agent's to own", () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toContain('implementation choices are yours');
+    });
+
+    it('header states BLOCKED is for spec/scope/value decisions requiring human input', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toMatch(/blocked is for.*spec/);
+      expect(message.toLowerCase()).toContain('human input');
+    });
+  });
+
   describe('Rule: Universal header applies to ALL phase variants (regression guard)', () => {
     const phaseVariants: [string, string | undefined][] = [
       ['intake', undefined],

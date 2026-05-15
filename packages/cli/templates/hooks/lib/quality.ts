@@ -28,11 +28,13 @@ const UNIVERSAL_HEADER = `Quality Review.
 Think about evidence before declaring. Apply universal critical review:
 verify correctness, simplicity, and alignment with latest docs/research.
 On uncertainty or contested choice: investigate primary sources, enumerate
-options, debate against correctness/elegance/no-bloat, recommend. Match
-research depth to claim weight — code/docs for syntax and usage; primary
-literature (peer-reviewed papers, lab tech reports, credible preprints)
-for design choices, novel approaches, or empirical claims. Blog posts,
-tweets, and marketing don't count.
+options, debate against correctness/elegance/no-bloat, recommend.
+Implementation choices are yours to make and own. BLOCKED is for spec,
+scope, or value decisions that require human input. Match research depth
+to claim weight — code/docs for syntax and usage; primary literature
+(peer-reviewed papers, lab tech reports, credible preprints) for design
+choices, novel approaches, or empirical claims. Blog posts, tweets, and
+marketing don't count.
 
 End with a single verdict — not a list.
 
