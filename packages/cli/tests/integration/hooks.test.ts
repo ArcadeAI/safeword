@@ -528,8 +528,8 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       const result = runStopHookForPhase(projectDirectory);
 
-      expect(result.reason).toContain('Understanding Phase');
-      expect(result.reason).toContain('edge cases');
+      expect(result.reason).toContain('Phase: intake');
+      expect(result.reason).toContain('CONFIDENT');
     });
 
     it('Scenario 2: Shows scenario prompts during define-behavior phase', () => {
@@ -545,9 +545,9 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       const result = runStopHookForPhase(projectDirectory);
 
-      expect(result.reason).toContain('Scenario Phase');
-      expect(result.reason).toContain('Atomic');
-      expect(result.reason).toContain('Observable');
+      expect(result.reason).toContain('Phase: define-behavior');
+      expect(result.reason).toContain('CONFIDENT');
+      expect(result.reason).toContain('AODI');
     });
 
     it('Scenario 3: Shows implementation prompts during implement phase', () => {
@@ -569,8 +569,9 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       const result = runStopHookForPhase(projectDirectory);
 
-      expect(result.reason).toContain('Is it correct?');
-      expect(result.reason).toContain('latest docs');
+      expect(result.reason).toContain('Phase: implement');
+      expect(result.reason).toContain('CONFIDENT');
+      expect(result.reason).toContain('BLOCKED');
     });
 
     it('Scenario 4: Hard blocks done phase without verify.md', () => {
@@ -637,8 +638,9 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       const result = runStopHookForPhase(projectDirectory);
 
-      // Default implementation review
-      expect(result.reason).toContain('Is it correct?');
+      // Default implementation review (binary form)
+      expect(result.reason).toContain('CONFIDENT');
+      expect(result.reason).toContain('BLOCKED');
     });
 
     it('Scenario 6: Falls back to implement for unknown phase', () => {
@@ -654,8 +656,9 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       const result = runStopHookForPhase(projectDirectory);
 
-      // Default implementation review
-      expect(result.reason).toContain('Is it correct?');
+      // Default implementation review (binary form)
+      expect(result.reason).toContain('CONFIDENT');
+      expect(result.reason).toContain('BLOCKED');
     });
   });
 
@@ -683,7 +686,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory);
 
       // Should use intake from ticket 001, not implement from ticket 002
-      expect(result.reason).toContain('Understanding Phase');
+      expect(result.reason).toContain('Phase: intake');
     });
 
     it('Scenario 8: Ignores epic tickets (type filtering)', () => {
@@ -709,7 +712,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory);
 
       // Should use intake from feature, not implement from epic
-      expect(result.reason).toContain('Understanding Phase');
+      expect(result.reason).toContain('Phase: intake');
     });
 
     it('Scenario 9: Falls back when no in_progress tickets', () => {
@@ -733,7 +736,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory);
 
       // Default implementation review (fallback)
-      expect(result.reason).toContain('Is it correct?');
+      expect(result.reason).toContain('CONFIDENT');
     });
 
     it('Scenario 10: Falls back when issues directory empty', () => {
@@ -742,7 +745,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory);
 
       // Default implementation review (fallback)
-      expect(result.reason).toContain('Is it correct?');
+      expect(result.reason).toContain('CONFIDENT');
     });
   });
 
@@ -786,7 +789,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory);
 
       // Should show normal phase review, not artifact block
-      expect(result.reason).toContain('Scenario Gate');
+      expect(result.reason).toContain('Phase: scenario-gate');
       expect(result.reason).not.toContain('test-definitions.md');
     });
 
@@ -805,7 +808,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       const result = runStopHookForPhase(projectDirectory);
 
       // Should show normal implementation review, not artifact block
-      expect(result.reason).toContain('Is it correct?');
+      expect(result.reason).toContain('CONFIDENT');
       expect(result.reason).not.toContain('test-definitions.md');
     });
   });
@@ -998,7 +1001,7 @@ describe('E2E: Stop Hook', () => {
       expect(result.exitCode).toBe(0);
       expect(output.decision).toBe('block');
       expect(output.reason).toContain('Quality Review');
-      expect(output.reason).toContain('Is it correct?');
+      expect(output.reason).toContain('CONFIDENT');
     });
 
     it('exits silently when no edit tools are used', () => {

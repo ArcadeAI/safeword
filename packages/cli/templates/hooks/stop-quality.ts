@@ -7,8 +7,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { deriveTddStep, getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
-import { getQualityMessage, type BddPhase } from './lib/quality.ts';
-import { getStateFilePath, type QualityState, recordFailure } from './lib/quality-state.ts';
+import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
+import {
+  type FailureEntry,
+  getStateFilePath,
+  type QualityState,
+  recordFailure,
+} from './lib/quality-state.ts';
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { runTests } from './lib/test-runner.ts';
 
@@ -433,4 +438,21 @@ const tddStep =
     ? deriveTddStep(projectDir, ticketInfo.folder)
     : null;
 
-softBlock(getQualityMessage(currentPhase, tddStep));
+// Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
+// recent failure exists, append an explicit "CONFIDENT requires X first" line so
+// the agent doesn't rubber-stamp confidence (143).
+const phaseFailurePatterns: Record<string, string> = {
+  implement: 'loc-exceeded',
+  done: 'done-gate-tests-failed',
+};
+const relevantPattern = phaseFailurePatterns[currentPhase];
+const recentRelevant = relevantPattern
+  ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
+      ?.pattern
+  : undefined;
+const baseMessage = getQualityMessage(currentPhase, tddStep);
+const disqual = getDisqualificationMessage({
+  novelResearchReminderUnconsumed: sessionState?.novelResearchReminder ?? false,
+  recentRelevantFailure: recentRelevant,
+});
+softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);

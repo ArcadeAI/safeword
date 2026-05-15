@@ -1,7 +1,7 @@
 ---
 id: 143
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-05-14T15:30:00Z
 last_modified: 2026-05-14T15:30:00Z
@@ -40,8 +40,15 @@ done_when: |
   - test-definitions.md scenarios cover: shape consistency across phases, "Tried:" enforcement,
     disqualification flag behavior, done-phase artifact gate still wins over Confident,
     Cursor stop hook receives binary-shaped message.
+  - SAFEWORD_SCHEMA.contracts['packages/cli/templates/hooks/lib/quality.ts'].requires
+    expanded from ['QUALITY_REVIEW_MESSAGE'] to also include CONFIDENT, BLOCKED, Tried:, Need:.
+    This is the cross-ticket acceptance test 144 set up.
   - All scenarios marked complete; /verify passes; /audit passes.
-  - Follow-up ticket 144 (Cursor-parity audit check) created and linked.
+  - 144 (parity check) already shipped — no follow-up ticket needed for that surface.
+commit_ordering: |
+  Prompt change in templates/hooks/lib/quality.ts MUST land before (or in the same
+  commit as) the SAFEWORD_SCHEMA.contracts requires expansion. Otherwise pre-commit's
+  contracts-only gate will block — the file wouldn't yet contain the new markers.
 ---
 
 # Stop-hook binary terminal: CONFIDENT or BLOCKED
@@ -56,6 +63,8 @@ done_when: |
 - 2026-05-14T15:32:00Z Scope refined: surfaced Cursor parity (cursor/stop.ts consumes QUALITY_REVIEW_MESSAGE) + template/runtime source-of-truth split (canonical edit lives in packages/cli/templates/hooks/lib/quality.ts). Added to scope and done_when.
 - 2026-05-14T15:34:00Z Scope refined: added /audit Cursor-parity check — asserts QUALITY_REVIEW_MESSAGE export + shared-header markers (CONFIDENT/BLOCKED/Tried/Need) + templates↔runtime sync for cursor/stop.ts. Static inspection only; no per-phase phrasing assertions.
 - 2026-05-14T15:36:00Z Scope refined: user chose to split the audit-parity check into ticket 144 (depends on 143). 143 keeps only the prompt-shape change and runtime Cursor parity (the export contract). Out-of-scope updated to point at 144.
+- 2026-05-14T23:38:00Z Intake final pass: 144 has shipped (PR #91). Three deferred open questions resolved per research: Tried strict (Lin et al.), disqualification explicit (calibration honesty), RED accept-as-written. Added "Think before declaring" to prompt header (Kadavath/extended-thinking nudge). Added explicit done_when for SAFEWORD_SCHEMA.contracts requires expansion + commit_ordering note (prompt-change must precede or co-commit with schema-expansion). Phase advancing to define-behavior.
+- 2026-05-14T23:42:00Z Phase 3 (define-behavior) complete: 5 rules, 17 scenarios written. Phase 4 (scenario-gate) AODI + adversarial pass found 2 gaps (extended-thinking nudge test, unknown-phase fallback) — added to Rule 1, total 19 scenarios. Re-validated, no further gaps. Phase 5 (decomposition) skipped — architecture determined by proposal: 6 tasks ordered 1→2→3→4→5 (commit ordering matters). Phase advancing to implement.
 
 ---
 
@@ -83,13 +92,17 @@ Stop hooks cannot use `additionalContext` per Claude Code docs — only PreToolU
 **Shape (shared header, applied per phase):**
 
 ```
-End in CONFIDENT or BLOCKED.
+Think about evidence before declaring. End in CONFIDENT or BLOCKED.
 
 CONFIDENT — <phase-specific evidence>
-BLOCKED — <one specific unknown>. Tried: <concrete action>. Need: <what unblocks>.
+BLOCKED — <one specific unknown>. Tried: <concrete verb + object>. Need: <unblock>.
 
 No lists. If multiple unknowns: resolve the small ones, then BLOCKED on the load-bearing one.
 ```
+
+**Note on prompt size:** The per-phase evidence table below has 9 rows in the design notes for documentation, but only ONE row reaches Claude per Stop (selected by `getQualityMessage(phase, tddStep)`). Actual prompt-on-the-wire is the universal header + one phase line. Not 9 rows of bloat.
+
+**Research alignment:** Binary tokenized verdict + chain-of-thought nudge + no-lists rule is supported by Kadavath et al. 2022 (calibration of tokenized verdicts), Lin et al. 2022 (free-form uncertainty is systematically miscalibrated), Tian et al. 2023 (forced commitment improves calibration). The "think before declaring" sentence opportunistically engages Claude 4.7's deliberation without forcing extended thinking (which a hook can't toggle).
 
 **Marker contract:** The four shared-header tokens (`CONFIDENT`, `BLOCKED`, `Tried:`, `Need:`)
 are owned by ticket 144's audit assertion (single source of truth). 143's prompt must produce
@@ -117,8 +130,8 @@ marker list changes, 143 follows.
 
 **Mismatch to fix in passing:** `BddPhase` in `lib/quality.ts` is missing `'verify'` though `prompt-questions.ts` already routes on it. Add to enum + add a verify message under the binary shape.
 
-## Open Questions (resolve in define-behavior)
+## Resolved Open Questions (intake-final)
 
-- **"Tried:" enforcement strictness** — require a recognizable concrete verb (read, ran, fetched, grepped, tested), or accept any non-empty string? Lean: concrete verb, but allow `<verb> <object>` free-form (don't enum the verbs).
-- **Disqualification UX** — when `novelResearchReminder` blocks CONFIDENT, does the prompt say so explicitly, or just disallow it implicitly via phrasing? Lean: explicit ("CONFIDENT requires /quality-review first — research flag is unconsumed").
-- **RED edge case** — `Confident: test fails on missing behavior X` is technically confidence about incompleteness. Accept as written, or carve a RED-specific phrasing? Lean: accept; the criterion is RED-shape, not RED-doneness.
+- **"Tried:" enforcement strictness** → **Strict.** Require a recognizable concrete verb (read, ran, fetched, grepped, tested) followed by an object. Don't enumerate an exhaustive list — the prompt instructs "concrete verb + object" and the model patterns from there. Rationale: vague "tried thinking about it" defeats the discharge mechanism that serves intent (2).
+- **Disqualification UX** → **Explicit.** When `novelResearchReminder` is set or relevant `recentFailures` exist, prompt says: "CONFIDENT requires /quality-review first — novel-claim flag is unconsumed." Honesty over implicit blocking.
+- **RED edge case** → **Accept as written.** `Confident: test fails on missing behavior X` is fine. Phase criterion is RED-shape, not RED-doneness — the model is committing to "the test is shaped right," not "the feature is done."

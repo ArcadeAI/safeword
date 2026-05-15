@@ -632,10 +632,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // (see ticket 144). Path key = file relative to repo root.
   contracts: {
     'packages/cli/templates/hooks/lib/quality.ts': {
-      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The export must exist or
-      // Cursor users get a broken hook. Ticket 143 will expand `requires` to include
-      // the binary terminal marker strings (CONFIDENT, BLOCKED, Tried:, Need:).
-      requires: ['QUALITY_REVIEW_MESSAGE'],
+      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The export must exist
+      // or Cursor users get a broken hook. The four marker strings (CONFIDENT,
+      // BLOCKED, Tried:, Need:) define the binary-terminal shape from ticket 143.
+      // Removing any of them would silently regress the prompt back to legacy
+      // free-form review.
+      requires: ['QUALITY_REVIEW_MESSAGE', 'CONFIDENT', 'BLOCKED', 'Tried:', 'Need:'],
     },
   },
 
