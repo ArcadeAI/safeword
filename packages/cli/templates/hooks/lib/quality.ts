@@ -35,8 +35,9 @@ marketing don't count.
 
 End with a single verdict — not a list.
 
-CONFIDENT — <evidence>
+CONFIDENT — <evidence>. Next: <one concrete action — what you'll do or recommend>.
 BLOCKED — <one specific unknown>. Tried: <concrete verb + object>. Need: <unblock>.
+  (Optional: propose one parallel action if non-blocker work exists.)
 
 Multiple unknowns: resolve the small ones, BLOCK on the largest.
 

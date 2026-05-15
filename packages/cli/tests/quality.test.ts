@@ -82,6 +82,24 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
     });
   });
 
+  describe('Rule: Propulsive verdicts (Next: on CONFIDENT, optional Meanwhile on BLOCKED)', () => {
+    it('CONFIDENT line includes "Next:" directive for forward motion', () => {
+      const message = getQualityMessage('intake');
+      expect(message).toMatch(/CONFIDENT.*Next:/);
+    });
+
+    it('CONFIDENT Next: framing is "what you\'ll do or recommend" (not autonomous action)', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toMatch(/what you'll do or recommend|do or recommend/);
+    });
+
+    it('BLOCKED line includes optional Meanwhile parenthetical for parallel work', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toContain('parallel action');
+      expect(message.toLowerCase()).toMatch(/optional/);
+    });
+  });
+
   describe('Rule: Universal critical review applies at every phase', () => {
     it('header includes universal critical review (correctness, simplicity, latest docs/research)', () => {
       const message = getQualityMessage('intake');
