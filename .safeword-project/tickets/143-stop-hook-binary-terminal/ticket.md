@@ -1,8 +1,8 @@
 ---
 id: 143
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-14T15:30:00Z
 last_modified: 2026-05-14T15:30:00Z
 scope: |
@@ -65,6 +65,7 @@ commit_ordering: |
 - 2026-05-14T15:36:00Z Scope refined: user chose to split the audit-parity check into ticket 144 (depends on 143). 143 keeps only the prompt-shape change and runtime Cursor parity (the export contract). Out-of-scope updated to point at 144.
 - 2026-05-14T23:38:00Z Intake final pass: 144 has shipped (PR #91). Three deferred open questions resolved per research: Tried strict (Lin et al.), disqualification explicit (calibration honesty), RED accept-as-written. Added "Think before declaring" to prompt header (Kadavath/extended-thinking nudge). Added explicit done_when for SAFEWORD_SCHEMA.contracts requires expansion + commit_ordering note (prompt-change must precede or co-commit with schema-expansion). Phase advancing to define-behavior.
 - 2026-05-14T23:42:00Z Phase 3 (define-behavior) complete: 5 rules, 17 scenarios written. Phase 4 (scenario-gate) AODI + adversarial pass found 2 gaps (extended-thinking nudge test, unknown-phase fallback) — added to Rule 1, total 19 scenarios. Re-validated, no further gaps. Phase 5 (decomposition) skipped — architecture determined by proposal: 6 tasks ordered 1→2→3→4→5 (commit ordering matters). Phase advancing to implement.
+- 2026-05-15T00:38:00Z Implementation complete. Commits: 3763b93 (binary terminal + disqualification + schema expansion), 1015087 (test assertion update for new prompt shape). Full suite: 1580/1580 pass + 1 skipped. /audit: depcruise + knip clean. verify.md written. Cross-ticket acceptance test from 144 passes (88 pairs + 1 contract with 5 marker requirements all in sync). Phase: done, status: done.
 
 ---
 
