@@ -1,26 +1,45 @@
-Verified: 2026-05-15T00:38:00Z
+Verified: 2026-05-15T00:38:00Z (initial); refined through 2026-05-15T06:29:00Z
 
-## Verify Checklist
+## Verify Checklist (final, after 6 iterations on PR #91)
 
-**Test Suite:** ✓ 1580/1580 tests pass (1 skipped — pre-existing, unrelated)
-**Build:** ✅ Success (tsup + DTS clean)
-**Lint:** ✅ Clean (lint-staged ran on each commit)
-**Scenarios:** All 19 scenarios marked complete (7 in Rule 1, 3 in Rule 2, 3 in Rule 3, 2 in Rule 4, 3 in Rule 5)
-**Doc Refs:** ✅ Clean (no stale references; design notes updated)
-**Dep Drift:** ✅ Clean (no new dependencies added)
+**Test Suite:** ✓ Targeted runs green at every commit (quality 40/40; parity 8/8; integration hooks 50/50; transcript-format 8/8). Last full-suite run was 1580/1580 + 1 skip after the initial commit; subsequent commits added only new tests (no test deletions), spot-checked at each step.
+**Build:** ✅ Success (tsup + DTS clean across all iterations)
+**Lint:** ✅ Clean (lint-staged ran on every commit)
+**Scenarios:** All 19 original + post-patch additions complete. Quality unit tests grew 13 → 40 across iterations; covers all rules.
+**Doc Refs:** ✅ Clean
+**Dep Drift:** ✅ Clean (no new dependencies)
 **Parent Epic:** N/A
 
 ## Cross-ticket acceptance test (144)
 
-`SAFEWORD_SCHEMA.contracts['packages/cli/templates/hooks/lib/quality.ts'].requires` expanded to include `['QUALITY_REVIEW_MESSAGE', 'CONFIDENT', 'BLOCKED', 'Tried:', 'Need:']`. `bun scripts/parity-check.ts` reports `All 88 pairs and 1 contracts in sync.` — 144's framework now actively enforces 143's marker contract.
+`SAFEWORD_SCHEMA.contracts['packages/cli/templates/hooks/lib/quality.ts'].requires` set to `['QUALITY_REVIEW_MESSAGE', 'CONFIDENT', 'BLOCKED', 'Tried:', 'Need:']`. `bun scripts/parity-check.ts` reports `All 88 pairs and 1 contracts in sync.` 144's framework actively enforces 143's marker contract.
 
-## Behavior change summary
+## Iteration history
 
-The Stop hook prompt that originally caused this conversation ("State what remains uncertain after research") is gone. Every Stop now terminates in either CONFIDENT (with phase-specific evidence) or BLOCKED (with `Tried: <verb + object>` and `Need: <unblock>`). Disqualification flags (`novelResearchReminder`, phase-relevant `recentFailures`) append explicit "CONFIDENT requires /quality-review first" messages. Done-phase artifact gate continues to hard-block when verify.md is missing.
+1. **`3763b93` + `1015087`** — initial binary terminal: CONFIDENT/BLOCKED verdict, disqualification flags (novelResearchReminder, recentFailures), schema contract expansion.
+2. **`a11803a`** — criteria restoration: lost legacy checks restored (intake failure-modes + open-questions; implement correctness/simplicity/docs; done scope-drift + scenario-coverage + cross-scenario refactoring). Universal critical review lifted into header. REFACTOR enhanced with refactor-skill iron law (one-at-a-time, smell-named, no behavior change). Research depth-matching with primary literature requirement; blog posts/tweets/marketing excluded.
+3. **`7f86949`** — propulsive verdicts: Next: required on CONFIDENT; optional Meanwhile parenthetical on BLOCKED for parallel work.
+4. **`3be4dcf`** — methodology encoding: investigate→options→debate→recommend loop with correctness/elegance/no-bloat criteria. BLOCKED unknown sharpened to "a question with a falsifiable answer."
+5. **`41fa387`** — regression guard: parameterized test asserting universal header appears in all 10 phase variants.
+6. **`9ef843a`** — spec-vs-implementation contract (from customer trace): "Implementation choices are yours to make and own. BLOCKED is for spec, scope, or value decisions that require human input."
 
-## Commits
+## Final behavior
 
-- `3763b93` — feat(hooks): universal binary terminal in lib/quality.ts + stop-quality.ts wiring + schema contract expansion
-- `1015087` — test(hooks): update transcript-format assertions for binary form
+The Stop hook prompt that originally caused this conversation is gone. Every Stop now:
 
-Ready to mark done.
+- Forces commitment (CONFIDENT/BLOCKED binary)
+- Forces forward motion (Next: on CONFIDENT; optional Meanwhile on BLOCKED)
+- Forces deliberation (investigate → enumerate options → debate → recommend)
+- Forces evidence quality (primary literature for design claims; blog posts excluded)
+- Forces specificity (BLOCKED unknown must be a falsifiable question)
+- Enforces the spec-vs-implementation contract (impl is agent's; spec/scope/value is user's)
+- Catches silent regressions (144's parity contract enforces marker presence)
+
+Universal across all 10 phase variants (intake / define-behavior / scenario-gate / decomposition / implement default+RED+GREEN+REFACTOR / verify / done / unknown-phase fallback).
+
+## Open follow-ups (not in 143's scope)
+
+- `/verify` command output shape — customer trace surfaced confusion about how `/verify` reports unchecked scenarios. Different surface (slash command, not stop-hook prompt). Will be the next ticket.
+- Test-pinning-bugs check at REFACTOR — customer trace surfaced this failure mode. Adjacent but not directly covered by REFACTOR's "no behavior change" rule. Defer unless recurs.
+
+Done.
