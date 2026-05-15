@@ -277,6 +277,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
+    '.safeword/hooks/lib/update-cache.ts': { template: 'hooks/lib/update-cache.ts' },
+    '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
 
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-verify-agents.ts': {
@@ -311,6 +313,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
+    },
+    '.safeword/hooks/session-auto-upgrade.ts': {
+      template: 'hooks/session-auto-upgrade.ts',
+    },
+    '.safeword/hooks/session-update-check.ts': {
+      template: 'hooks/session-update-check.ts',
     },
     '.safeword/hooks/session-cleanup-quality.ts': {
       template: 'hooks/session-cleanup-quality.ts',
@@ -619,6 +627,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // Existing prose lingers harmlessly — agents skim it; only the import
       // is functionally load-bearing.
       marker: '@./.safeword/SAFEWORD.md',
+    },
+    '.gitignore': {
+      operation: 'append',
+      content:
+        '\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword-project/quality-state*.json\n',
+      marker: '.safeword/.update-cache.json',
     },
   },
 

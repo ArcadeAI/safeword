@@ -62,9 +62,12 @@ function extractPatterns(): Set<string> {
   }
 
   // Text patches (files at root)
-  // AGENTS.md, CLAUDE.md
+  // AGENTS.md, CLAUDE.md — but not standard files like .gitignore
+  const STANDARD_ROOT_FILES = new Set(['.gitignore']);
   for (const file of Object.keys(SAFEWORD_SCHEMA.textPatches)) {
-    patterns.add(file);
+    if (!STANDARD_ROOT_FILES.has(file)) {
+      patterns.add(file);
+    }
   }
 
   // NOTE: We intentionally exclude managedFiles like tsconfig.json, eslint.config.mjs,

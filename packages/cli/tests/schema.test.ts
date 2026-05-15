@@ -7,10 +7,11 @@
  * TDD RED phase - these tests should FAIL until src/schema.ts is implemented.
  */
 
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import YAML from 'yaml';
 
 import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
 import { SETTINGS_HOOKS } from '../src/templates/config.js';
@@ -339,13 +340,32 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('Drift detection', () => {
-    it('should have templates for all local skills', async () => {
+    it('should have templates for all local customer-facing skills', async () => {
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
       const skillsDirectory = nodePath.join(repoRoot, '.claude/skills');
       const skillTemplatesDirectory = nodePath.join(import.meta.dirname, '../templates/skills');
 
+      // Skills with `audience: maintainer` frontmatter are for safeword maintainers
+      // (e.g. release discipline docs) and must not ship to customer projects.
+      //
+      // `audience` is a safeword-local convention, not an official Claude Code field.
+      // Verified against https://code.claude.com/docs/en/skills (2026-05-13): the official
+      // schema has no audience/visibility/private field — the loader tolerates unknown
+      // frontmatter, so this is safe. If Claude Code ships an official field for this
+      // someday, rename the field and update this check together.
+      const isMaintainerOnly = (skillDirectory: string): boolean => {
+        const skillFile = nodePath.join(skillDirectory, 'SKILL.md');
+        if (!existsSync(skillFile)) return false;
+        const content = readFileSync(skillFile, 'utf8');
+        const frontmatterMatch = /^---\n([\s\S]*?)\n---/.exec(content);
+        if (!frontmatterMatch?.[1]) return false;
+        const frontmatter = YAML.parse(frontmatterMatch[1]) as Record<string, unknown> | undefined;
+        return frontmatter?.audience === 'maintainer';
+      };
+
       const localSkills = readdirSync(skillsDirectory, { withFileTypes: true })
         .filter(entry => entry.isDirectory())
+        .filter(entry => !isMaintainerOnly(nodePath.join(skillsDirectory, entry.name)))
         .map(entry => entry.name);
 
       const missing: string[] = [];

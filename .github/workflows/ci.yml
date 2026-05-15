@@ -75,6 +75,14 @@ jobs:
         env:
           TEST_POETRY: '1'
 
+      - name: Release-gate tests (supply-chain + dogfood parity)
+        # Runs the *.release.test.ts files excluded from the main suite.
+        # Includes the no-install-scripts.release.test.ts guard which would
+        # otherwise only fire at `bun publish` time via prepublishOnly —
+        # bypassable when publishing pre-built tarballs. Wiring to CI makes
+        # this defense per-PR and unbypassable.
+        run: bun run --cwd packages/cli test:release
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
