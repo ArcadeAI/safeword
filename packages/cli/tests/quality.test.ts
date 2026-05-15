@@ -108,9 +108,25 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
       expect(message.toLowerCase()).toMatch(/latest docs|docs\/research/);
     });
 
-    it('header instructs to research uncertainty before declaring CONFIDENT', () => {
+    it('header instructs the investigate-enumerate-debate-recommend loop on uncertainty', () => {
       const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toMatch(/research uncertainty.*before declaring/);
+      expect(message.toLowerCase()).toContain('investigate primary sources');
+      expect(message.toLowerCase()).toContain('enumerate');
+      expect(message.toLowerCase()).toContain('options');
+      expect(message.toLowerCase()).toContain('debate');
+      expect(message.toLowerCase()).toContain('recommend');
+    });
+
+    it('header debate criteria are correctness, elegance, no-bloat', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toContain('correctness/elegance/no-bloat');
+    });
+  });
+
+  describe('Rule: BLOCKED unknown must be falsifiable', () => {
+    it('BLOCKED template requires a question with a falsifiable answer', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toContain('falsifiable answer');
     });
   });
 
@@ -123,7 +139,7 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
 
     it('header names primary literature for design/empirical claims', () => {
       const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('primary literature');
+      expect(message.toLowerCase()).toMatch(/primary\s+literature/);
       expect(message.toLowerCase()).toMatch(/peer-reviewed/);
     });
 
