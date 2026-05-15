@@ -484,6 +484,13 @@ describe('Phase Derivation (#124)', () => {
         `${ticketFolder}/verify.md`,
         'Verified: 2026-04-15T18:00:00Z\n\n## Verify Checklist\n\n**Test Suite:** ✓ 10/10 tests pass\n',
       );
+      // Skill-invocation gate (ticket 147): feature ticket entering done
+      // requires current-session log entries for /verify and /audit.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/skill-invocations.log',
+        '2026-04-15T18:00:00Z test-session verify\n2026-04-15T18:00:01Z test-session audit\n',
+      );
 
       const transcriptPath = createTranscript(projectDirectory);
       const result = runStopHook(projectDirectory, transcriptPath);

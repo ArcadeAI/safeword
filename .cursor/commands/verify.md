@@ -6,6 +6,12 @@ description: Verify ticket criteria — tests, build, lint, scenarios, dep drift
 
 Prove a ticket meets its criteria. Works with or without an active ticket.
 
+## Invocation log
+
+This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `.safeword-project/skill-invocations.log` so the done-gate hook can verify /verify was actually invoked. Bash injection runs at render time — hand-writing verify.md cannot produce this entry.
+
+!`mkdir -p "${CLAUDE_PROJECT_DIR}/.safeword-project" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} verify" >> "${CLAUDE_PROJECT_DIR}/.safeword-project/skill-invocations.log"`
+
 ## Instructions
 
 ### 1. Find Current Ticket (if any)
@@ -79,34 +85,68 @@ Do NOT flag:
 
 ### 6. Report Results
 
-Format results using these EXACT patterns (hook validates these):
+Structure the report in three sections, in this order. **Empty sections are hidden entirely** — no "None" placeholders, no empty headers.
+
+#### Status (the existing Verify Checklist — facts only)
+
+The Status section uses the existing Verify Checklist format. Format with these EXACT patterns (the done-gate hook validates them):
 
 ```
 ## Verify Checklist
 
-**Test Suite:** ✓ 156/156 tests pass (or ❌ 3 failures)
+**Test Suite:** ✓ X/X tests pass (or ❌ N failures)
 **Build:** ✅ Success (or ❌ Failed)
-**Lint:** ✅ Clean (or ❌ 2 errors)
-**Scenarios:** All 10 scenarios marked complete (or ❌ 8/10 complete, or ⏭️ Skipped — no ticket)
-**Dep Drift:** ✅ Clean (or ⚠️ 2 undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
-**Parent Epic:** 006 (siblings: 2/3 done) or N/A
-
-[If all pass]
-Ready to mark done. Update ticket: phase: done, status: done
-
-[If failures]
-Fix these before marking done:
-- [ ] Fix failing tests
-- [ ] Complete remaining scenarios
+**Lint:** ✅ Clean (or ❌ N errors)
+**Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
+**Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
+**Parent Epic:** {id} (siblings: X/Y done) or N/A
 ```
 
-**Important:** The stop hook validates evidence patterns for features:
+**Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 
 - `✓ X/X tests pass` — proves test suite ran
 - `All N scenarios marked complete` — proves scenarios checked
 - `Audit passed` — proves /audit ran (run /audit separately)
 
-Without all three patterns, the done phase will hard block.
+Without all three patterns in Status, the done phase will hard block.
+
+#### Decisions needed (spec / scope / value)
+
+Only include this section when there are spec, scope, or value questions the USER must answer.
+
+**Implementation-path questions (which approach, which pattern, which library) do NOT go here — they belong in "Agent's next actions" because the agent owns implementation choices.**
+
+Borderline classification examples:
+
+- "Should we use NextAuth or Lucia for auth?" → implementation-path → goes in **Actions** (agent picks one with reasoning, user can override).
+- "Should this endpoint be at /v1/projects or /v2/projects?" → value decision (API contract) → goes in **Decisions**.
+- "Is R5.x in scope for this slice or punt to slice 4?" → scope decision → goes in **Decisions**.
+- "Should we extract this helper or inline it?" → implementation-path → goes in **Actions**.
+- "Is 4xx the right HTTP status for this error?" → spec decision (if the spec exists, look it up; otherwise it's a value call) → goes in **Decisions**.
+
+**Hard cap of 5 items** per section. If more exist, list the top 5 (most load-bearing) and add:
+
+> - N others, see test-definitions.md
+
+**Decisions section is hidden when empty** — no "None" placeholder. Do not surface the section at all if zero decisions exist.
+
+#### Agent's next actions
+
+Only include this section when there are concrete forward actions the agent will take. Each action must be **concrete and falsifiable** — not vague exploration ("look into X"), but a specific verb + object the agent will execute ("add integration test for R7.3 covering 404-on-uncovered-PATCH").
+
+**Hard cap of 5 items** per section. If more exist, list the top 5 and add:
+
+> - N others, see test-definitions.md
+
+**Actions section is hidden when empty** — no "None" placeholder.
+
+#### All-green collapse
+
+When **all Status checks pass AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
+
+> Ready to mark done.
+
+No sections, no ceremony. Single line.
 
 ## Summary
 
