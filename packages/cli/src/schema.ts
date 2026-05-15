@@ -37,6 +37,10 @@ export interface TextPatchDefinition {
   marker: string; // Used to detect if already applied & for removal
 }
 
+export interface ContractDefinition {
+  requires: string[]; // Strings that must appear verbatim in the file content
+}
+
 export interface SafewordSchema {
   version: string;
   ownedDirs: string[]; // Fully owned - create on setup, delete on reset
@@ -49,6 +53,7 @@ export interface SafewordSchema {
   managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
   jsonMerges: Record<string, JsonMergeDefinition>;
   textPatches: Record<string, TextPatchDefinition>;
+  contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
   packages: {
     base: string[];
     conditional: Record<string, string[]>;
@@ -614,6 +619,22 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // Existing prose lingers harmlessly — agents skim it; only the import
       // is functionally load-bearing.
       marker: '@./.safeword/SAFEWORD.md',
+    },
+  },
+
+  // Content predicate parity — files that must contain specific strings.
+  // Different from ownedFiles (which requires byte equality between two files):
+  // contracts assert one-way "this file must include these tokens" invariants.
+  // Used by runParity() in src/parity.ts for both release tests and pre-commit
+  // (see ticket 144). Path key = file relative to repo root.
+  contracts: {
+    'packages/cli/templates/hooks/lib/quality.ts': {
+      // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The export must exist
+      // or Cursor users get a broken hook. The four marker strings (CONFIDENT,
+      // BLOCKED, Tried:, Need:) define the binary-terminal shape from ticket 143.
+      // Removing any of them would silently regress the prompt back to legacy
+      // free-form review.
+      requires: ['QUALITY_REVIEW_MESSAGE', 'CONFIDENT', 'BLOCKED', 'Tried:', 'Need:'],
     },
   },
 

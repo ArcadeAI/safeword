@@ -282,8 +282,9 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
     // Should show implement-phase quality review (session's ticket), not done-phase hard block
-    expect(parsed.reason).toMatch(/quality review|is it correct/i);
-    expect(parsed.reason).not.toMatch(/evidence|verify/i);
+    expect(parsed.reason).toMatch(/quality review|CONFIDENT/i);
+    // Should NOT be the done-phase hard-block message (which references verify.md missing)
+    expect(parsed.reason).not.toMatch(/verify\.md/i);
   });
 
   it('shows no ticket context when session ticket is done status', () => {
@@ -309,7 +310,8 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
     // Done-status ticket = no ticket context → generic quality review, not done-phase hard block
-    expect(parsed.reason).toMatch(/quality review|is it correct/i);
-    expect(parsed.reason).not.toMatch(/evidence|verify/i);
+    expect(parsed.reason).toMatch(/quality review|CONFIDENT/i);
+    // Should NOT be the done-phase hard-block message (which references verify.md missing)
+    expect(parsed.reason).not.toMatch(/verify\.md/i);
   });
 });

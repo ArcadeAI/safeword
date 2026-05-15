@@ -1,15 +1,15 @@
 /**
  * Release gate: dogfood parity check.
  *
- * Ensures dogfood files (repo root) match their canonical templates.
- * Excluded from `bun run test` so template iteration doesn't block the main suite.
- * Run with: bun run test:release
+ * Delegates to runParity() in src/parity.ts. Excluded from `bun run test` so
+ * template iteration doesn't block the main suite; run with `bun run test:release`.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { runParity } from '../src/parity.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../templates');
 
@@ -18,28 +18,18 @@ describe('dogfood parity', () => {
     const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 
-    const mismatches: string[] = [];
+    const result = runParity({
+      schema: SAFEWORD_SCHEMA,
+      mode: 'all',
+      rootDirectory: repoRoot,
+      templatesDirectory,
+    });
 
-    for (const [destinationPath, definition] of Object.entries(SAFEWORD_SCHEMA.ownedFiles)) {
-      if (!definition.template) continue;
-
-      const templateFile = nodePath.join(templatesDirectory, definition.template);
-      const dogfoodFile = nodePath.join(repoRoot, destinationPath);
-
-      // Skip if dogfood file doesn't exist (e.g. .jscpd.json may not be in dogfood)
-      if (!existsSync(dogfoodFile)) continue;
-
-      const templateContent = readFileSync(templateFile, 'utf8');
-      const dogfoodContent = readFileSync(dogfoodFile, 'utf8');
-
-      if (templateContent !== dogfoodContent) {
-        mismatches.push(`'${destinationPath}' differs from template '${definition.template}'`);
-      }
-    }
-
-    if (mismatches.length > 0) {
+    if (result.failures.length > 0) {
       expect.fail(
-        `Dogfood files differ from templates. Copy dogfood → templates to sync:\n  - ${mismatches.join('\n  - ')}`,
+        `Parity drift detected. Run \`bunx safeword install\` or copy templates to sync:\n  - ${result.failures
+          .map(f => f.message)
+          .join('\n  - ')}`,
       );
     }
   });

@@ -1,5 +1,14 @@
 // Shared quality review message for Claude Code and Cursor hooks
 // Used by: stop-quality.ts, cursor/stop.ts
+//
+// Format: every Stop terminates in CONFIDENT or BLOCKED (binary terminal).
+// Per-phase evidence templates make CONFIDENT falsifiable; BLOCKED carries
+// "Tried:" + "Need:" so escalation is a clean handoff, not a doubt-dump.
+//
+// Research: tokenized verdicts beat free-form uncertainty for calibration
+// (Kadavath 2022, Lin 2022, Tian 2023). The "Think about evidence before
+// declaring" sentence opportunistically nudges Claude 4.7's deliberation
+// without forcing extended thinking (which a hook cannot toggle).
 
 export type BddPhase =
   | 'intake'
@@ -7,91 +16,85 @@ export type BddPhase =
   | 'scenario-gate'
   | 'decomposition'
   | 'implement'
+  | 'verify'
   | 'done';
 
-/** TDD-step-specific implement messages (RED/GREEN/REFACTOR). */
-const TDD_STEP_MESSAGES: Record<string, string> = {
-  red: `Quality Review (TDD: RED):
+const UNIVERSAL_HEADER = `Quality Review.
 
-- Does the test fail for the right reason? (missing behavior, not syntax)
-- Is it testing ONE observable behavior, not implementation details?
-- Is the assertion independent of the implementation? (not mirroring the code under test)`,
+Think about evidence before declaring. End in CONFIDENT or BLOCKED.
 
-  green: `Quality Review (TDD: GREEN):
+CONFIDENT — <evidence>
+BLOCKED — <one specific unknown>. Tried: <concrete verb + object>. Need: <unblock>.
 
-- Did you write only what the test requires? (GREEN is minimal — REFACTOR adds quality)
-- Is the full test suite still passing? (show output, don't just claim)
-- Did you introduce mocks that could be real dependencies instead?`,
+No lists. If multiple unknowns: resolve the small ones, then BLOCKED on the load-bearing one.
 
-  refactor: `Quality Review (TDD: REFACTOR):
+`;
 
-- Is there duplication or unclear naming to clean up?
-- Could this be simpler without losing clarity?
-- Tests still passing after refactoring?`,
+/** Per-phase evidence templates appended to the universal header. */
+const PHASE_EVIDENCE: Record<BddPhase, string> = {
+  intake:
+    'Phase: intake. CONFIDENT evidence: cite scope, out_of_scope, and done_when fields from frontmatter.',
+  'define-behavior':
+    'Phase: define-behavior. CONFIDENT evidence: cite N scenarios; AODI; happy/failure/edge covered.',
+  'scenario-gate':
+    'Phase: scenario-gate. CONFIDENT evidence: cite N validated scenarios; AODI pass; issues found or "No issues."',
+  decomposition:
+    'Phase: decomposition. CONFIDENT evidence: cite ordered tasks (A→B→C) or "Skipped — architecture clear."',
+  implement:
+    'Phase: implement. CONFIDENT evidence: cite the passing artifact (X/X tests pass; scenario checked off).',
+  verify:
+    'Phase: verify. CONFIDENT evidence: cite /verify result (X/X tests; N/N scenarios complete).',
+  done: 'Phase: done. CONFIDENT evidence: /audit: passed. /verify: passed. verify.md present.',
 };
 
-const PHASE_MESSAGES: Record<BddPhase, string> = {
-  intake: `Quality Review (Understanding Phase):
-
-- Verify scope is clear and bounded (scope, out_of_scope, done_when in frontmatter).
-- Confirm failure modes and edge cases were surfaced.
-- Check that open questions are resolved, not left vague.`,
-
-  'define-behavior': `Quality Review (Scenario Phase):
-
-- Verify each scenario is AODI: Atomic (ONE behavior), Observable (externally visible), Deterministic (repeatable), Independent (no ordering dependency).
-- Confirm happy path, failure modes, and edge cases are covered.
-- Avoid testing implementation details — test behaviors.`,
-
-  'scenario-gate': `Quality Review (Scenario Gate):
-
-1. List validated scenarios.
-2. Confirm each is AODI: Atomic, Observable, Deterministic, Independent.
-3. Show issues found or "No issues."`,
-
-  decomposition: `Quality Review (Decomposition Phase):
-
-- Optional — skip if architecture is clear from the proposal.
-- If decomposing: verify tasks are ordered so each builds on what's working.
-- Confirm test scopes match behavior (highest scope with acceptable feedback speed).`,
-
-  implement: `Quality Review:
-
-Review your work critically.
-
-- Is it correct?
-- Could this be simplified without losing clarity?
-- Does it follow latest docs and research? If unsure, say so — don't guess.
-- If uncertain about correctness, research it now.
-- Report findings only. No preamble.
-- State what remains uncertain after research.`,
-
-  done: `Quality Review (Done Phase):
-
-1. Check scenario coverage: did implementation reveal behaviors not in test-definitions?
-2. Check scope drift: does the final implementation match ticket scope and done_when?
-3. Cross-scenario refactoring done (if clear wins exist)?
-4. Run /verify — show "✓ X/X tests pass" and "All N scenarios marked complete."
-5. Run /audit — show "Audit passed."`,
+/** TDD-step-specific evidence for implement phase (RED/GREEN/REFACTOR). */
+const TDD_STEP_EVIDENCE: Record<string, string> = {
+  red: 'Phase: implement (TDD: RED). CONFIDENT evidence: cite the failing test naming the missing behavior.',
+  green: 'Phase: implement (TDD: GREEN). CONFIDENT evidence: cite X/X tests pass; minimal impl.',
+  refactor:
+    'Phase: implement (TDD: REFACTOR). CONFIDENT evidence: cite the cleanup applied; X/X tests still pass.',
 };
 
 /**
- * The default quality review prompt (backwards compatible).
- * Used when no phase is detected.
+ * The default quality review prompt (backwards compatible export).
+ * Used when no phase is detected. Cursor's stop hook consumes this directly.
  */
-export const QUALITY_REVIEW_MESSAGE = PHASE_MESSAGES.implement;
+export const QUALITY_REVIEW_MESSAGE = UNIVERSAL_HEADER + PHASE_EVIDENCE.implement;
 
 /**
  * Get phase-appropriate quality review message.
- * During implement phase, uses TDD-step-specific messages when tddStep is provided.
+ * During implement phase, uses TDD-step-specific evidence when tddStep is provided.
  * Falls back to default (implement) if phase unknown.
  */
 export function getQualityMessage(phase?: BddPhase | string, tddStep?: string | null): string {
-  if (phase === 'implement' && tddStep && tddStep in TDD_STEP_MESSAGES) {
-    return TDD_STEP_MESSAGES[tddStep];
+  if (phase === 'implement' && tddStep && tddStep in TDD_STEP_EVIDENCE) {
+    return UNIVERSAL_HEADER + TDD_STEP_EVIDENCE[tddStep];
   }
-  if (phase && phase in PHASE_MESSAGES) {
-    return PHASE_MESSAGES[phase as BddPhase];
+  if (phase && phase in PHASE_EVIDENCE) {
+    return UNIVERSAL_HEADER + PHASE_EVIDENCE[phase as BddPhase];
   }
   return QUALITY_REVIEW_MESSAGE;
+}
+
+/**
+ * Build a disqualification message when state flags suggest CONFIDENT shouldn't be allowed.
+ * Returns undefined if no disqualification applies.
+ *
+ * Wired by stop-quality.ts which has access to the session state. Keeps quality.ts
+ * state-agnostic (it only knows the prompt-shape contract).
+ */
+export function getDisqualificationMessage(options: {
+  novelResearchReminderUnconsumed: boolean;
+  recentRelevantFailure?: string;
+}): string | undefined {
+  const messages: string[] = [];
+  if (options.novelResearchReminderUnconsumed) {
+    messages.push('CONFIDENT requires /quality-review first — novel-claim flag is unconsumed.');
+  }
+  if (options.recentRelevantFailure) {
+    messages.push(
+      `CONFIDENT requires evidence the failure mode was checked: ${options.recentRelevantFailure}.`,
+    );
+  }
+  return messages.length > 0 ? messages.join('\n') : undefined;
 }
