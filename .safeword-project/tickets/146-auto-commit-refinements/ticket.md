@@ -31,24 +31,32 @@ Industry references researched: Dependabot (uses bot identity, respects pre-comm
 
 ## Scope
 
-### 1. Attribution via Co-Authored-By trailer
+### 1. Attribution via custom `Auto-Upgrade-By:` trailer
 
-**Change:** auto-commit message gains a trailer:
+**Change:** auto-commit message gains a custom trailer (NOT `Co-Authored-By`):
 
 ```text
 chore: safeword auto-upgrade v0.30.0 → v0.30.3
 
-Co-Authored-By: Safeword Auto-Upgrade <noreply@safeword.dev>
+Auto-Upgrade-By: safeword v0.30.3
 ```
 
-**Why this over alternatives:**
+**Why this over `Co-Authored-By` with a synthetic email:**
 
-- Keeps user as primary author (their machine did the work; their HEAD moved)
-- Adds standard GitHub-recognized co-author trailer for filterability (`git log --grep="Co-Authored-By: Safeword"`)
-- No real bot account needed — the trailer alone provides audit signal
-- Cleaner than full identity override (`-c user.email=...`) which would erase the user's hostname/machine signal
+The project doesn't own a domain. `safeword.dev` is not claimed. `arcade.dev` is the maintainer's company but doesn't run a `noreply@` mail server. `noreply@github.com` is generic and unattributed. Any `Co-Authored-By` trailer would either invent a fake identity or borrow an unrelated one — neither is honest.
 
-**Implementation:** ~2 LOC change to the `git commit -m ...` invocation. Use a multi-line message via heredoc or `\n`-escaped string.
+A custom trailer (`Auto-Upgrade-By:`) sidesteps the identity question entirely while preserving the only properties that matter for safeword's use case:
+
+- **Queryable via `git log --grep="Auto-Upgrade-By: safeword"`** — same filter capability as `Co-Authored-By` for audit/history purposes
+- **Self-documenting** — the trailer name explains itself; no need to know "Safeword Auto-Upgrade" is a fake user
+- **Honest** — no claim of a person or bot identity that doesn't exist
+- **Standard git mechanism** — custom trailers are git-supported (`git interpret-trailers` parses them); many projects use non-`Co-Authored-By` trailers (`Signed-off-by`, `Reviewed-by`, etc.)
+
+**Tradeoff vs `Co-Authored-By`:** GitHub's UI won't render the trailer as a contributor avatar or add an entry to the PR contributors list. For safeword's case (audit + filter via `git log`, not UI display), this loss doesn't matter — these commits land directly on the user's branch, not as PRs needing contributor attribution.
+
+**Implementation:** ~2 LOC change to the `git commit -m ...` invocation. Use a heredoc or `\n`-escaped multi-line string. The version after `safeword` in the trailer is the upgrade target (matches the message subject).
+
+**Out of scope for this ticket:** registering a real `safeword.dev` domain or creating a `safeword[bot]` GitHub App. Both are real future options but not justified for the trailer alone — defer until there's broader bot-driven work in the project.
 
 ### 2. Pre-commit bypass — default ON, opt-out via config
 
@@ -87,7 +95,7 @@ Co-Authored-By: Safeword Auto-Upgrade <noreply@safeword.dev>
 
 ## Done When
 
-- [ ] Auto-commit message ends with `Co-Authored-By: Safeword Auto-Upgrade <noreply@safeword.dev>` trailer
+- [ ] Auto-commit message ends with `Auto-Upgrade-By: safeword v<version>` trailer (custom; not Co-Authored-By, since the project owns no domain)
 - [ ] `autoUpgrade.bypassPreCommit: false` in `.safeword/config.json` makes the auto-commit respect pre-commit hooks; absent or `true` skips them via `--no-verify`
 - [ ] `safeword upgrade --print-changes <path>` writes a newline-separated list of files it touched
 - [ ] Hook consumes that list instead of running `git diff` / `git ls-files --others` / filtering against `safewordPaths`
