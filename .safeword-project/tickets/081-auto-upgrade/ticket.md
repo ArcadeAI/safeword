@@ -106,9 +106,9 @@ Resume work from 2026-05-07 audit completed:
 
 Discovered work, filed separately:
 
-- **#142** — worktree-clean dev loop (eslint config imports from `dist/`, forcing pre-build before commit)
-- **#143** — auto-upgrade rollback on subprocess failure (partial-upgrade stuck state)
-- **#144** — derive safeword-managed paths from `SAFEWORD_SCHEMA` at build time
+- **#147** — worktree-clean dev loop (eslint config imports from `dist/`, forcing pre-build before commit)
+- **#148** — auto-upgrade rollback on subprocess failure (partial-upgrade stuck state)
+- **#149** — derive safeword-managed paths from `SAFEWORD_SCHEMA` at build time
 - **#145** — enable MD040 + MD036 in markdownlint config (separate PR #88)
 - **New convention** — `audience: maintainer` skill frontmatter (`20c9a5c`) so release-discipline skills don't ship to customers
 

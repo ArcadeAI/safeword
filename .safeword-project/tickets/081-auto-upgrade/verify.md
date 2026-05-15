@@ -50,9 +50,9 @@ Against real `bunx safeword@<version>` invocations and synthetic cache states:
 
 ## Discovered work (filed)
 
-- #142 — worktree-clean dev loop (eslint config imports from `dist/`)
-- #143 — auto-upgrade rollback on subprocess failure (partial-upgrade stuck state)
-- #144 — derive safeword-managed paths from `SAFEWORD_SCHEMA` at build time
+- #147 — worktree-clean dev loop (eslint config imports from `dist/`)
+- #148 — auto-upgrade rollback on subprocess failure (partial-upgrade stuck state)
+- #149 — derive safeword-managed paths from `SAFEWORD_SCHEMA` at build time
 - #145 — enable MD040 + MD036 in markdownlint config
 
 ## Conventions introduced
