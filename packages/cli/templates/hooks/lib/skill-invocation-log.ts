@@ -55,7 +55,7 @@ export function checkSkillInvocations(
 ): SkillInvocationCheckResult {
   if (input.required.length === 0) return { ok: true, missing: [] };
 
-  const logPath = nodePath.join(input.rootDirectory, '.safeword', 'skill-invocations.log');
+  const logPath = nodePath.join(input.rootDirectory, '.safeword-project', 'skill-invocations.log');
   if (!existsSync(logPath)) {
     return { ok: false, missing: [...input.required] };
   }

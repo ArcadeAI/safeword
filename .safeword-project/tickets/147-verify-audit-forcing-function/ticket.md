@@ -1,8 +1,8 @@
 ---
 id: 147
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 related: [143, 146]
 created: 2026-05-15T15:30:00Z
 last_modified: 2026-05-15T15:55:00Z

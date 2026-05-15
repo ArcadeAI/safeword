@@ -12,9 +12,9 @@ import {
 
 function makeProjectWithLog(lines: string[]): string {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'gate-'));
-  mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+  mkdirSync(nodePath.join(root, '.safeword-project'), { recursive: true });
   writeFileSync(
-    nodePath.join(root, '.safeword', 'skill-invocations.log'),
+    nodePath.join(root, '.safeword-project', 'skill-invocations.log'),
     lines.length > 0 ? `${lines.join('\n')}\n` : '',
   );
   return root;

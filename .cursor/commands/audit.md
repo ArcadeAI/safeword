@@ -8,9 +8,9 @@ Run a comprehensive code audit. Execute checks and report results by severity.
 
 ## Invocation log
 
-This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `.safeword/skill-invocations.log` so the done-gate hook can verify /audit was actually invoked. Bash injection runs at render time — hand-writing audit results cannot produce this entry.
+This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `.safeword-project/skill-invocations.log` so the done-gate hook can verify /audit was actually invoked. Bash injection runs at render time — hand-writing audit results cannot produce this entry.
 
-!`mkdir -p .safeword && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} audit" >> .safeword/skill-invocations.log`
+!`mkdir -p "${CLAUDE_PROJECT_DIR}/.safeword-project" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} audit" >> "${CLAUDE_PROJECT_DIR}/.safeword-project/skill-invocations.log"`
 
 ## Instructions
 

@@ -49,14 +49,23 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
       '%s bash injection uses append (>>), not overwrite (>)',
       (_name, content) => {
         // The injection must use `>>` to preserve prior entries
-        expect(content).toMatch(/>>\s*\.safeword\/skill-invocations\.log/);
+        expect(content).toMatch(
+          />>\s*"?(\$\{CLAUDE_PROJECT_DIR\}\/)?\.safeword-project\/skill-invocations\.log/,
+        );
       },
     );
 
     it.each([...verifyForms, ...auditForms])(
-      '%s bash injection ensures .safeword/ directory exists (mkdir -p)',
+      '%s bash injection ensures .safeword-project/ directory exists (mkdir -p)',
       (_name, content) => {
-        expect(content).toMatch(/mkdir\s+-p\s+\.safeword/);
+        expect(content).toMatch(/mkdir\s+-p\s+"?(\$\{CLAUDE_PROJECT_DIR\}\/)?\.safeword-project/);
+      },
+    );
+
+    it.each([...verifyForms, ...auditForms])(
+      '%s bash injection uses absolute path via $CLAUDE_PROJECT_DIR (cwd-independent)',
+      (_name, content) => {
+        expect(content).toContain('${CLAUDE_PROJECT_DIR}');
       },
     );
   });

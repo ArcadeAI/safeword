@@ -54,7 +54,7 @@ function writeFeatureTicketAtDone(directory: string, ticketId: string): void {
 }
 
 function writeSkillLog(directory: string, entries: string[]): void {
-  const safewordDirectory = nodePath.join(directory, '.safeword');
+  const safewordDirectory = nodePath.join(directory, '.safeword-project');
   mkdirSync(safewordDirectory, { recursive: true });
   writeFileSync(
     nodePath.join(safewordDirectory, 'skill-invocations.log'),
