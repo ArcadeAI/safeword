@@ -267,7 +267,7 @@ describe('Schema - Single Source of Truth', () => {
       // Action skills have disable-model-invocation and use Cursor commands instead of rules
       const ACTION_SKILLS = new Set(['lint', 'verify', 'audit', 'cleanup-zombies']);
       // Contextual skills without Cursor rule counterparts
-      const CLAUDE_ONLY_SKILLS = new Set(['brainstorm', 'tdd-review']);
+      const CLAUDE_ONLY_SKILLS = new Set(['brainstorm', 'elicit', 'tdd-review']);
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)

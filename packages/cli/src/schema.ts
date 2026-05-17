@@ -458,6 +458,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/brainstorm/SKILL.md': {
       template: 'skills/brainstorm/SKILL.md',
     },
+    '.claude/skills/elicit/SKILL.md': {
+      template: 'skills/elicit/SKILL.md',
+    },
     '.claude/skills/tdd-review/SKILL.md': {
       template: 'skills/tdd-review/SKILL.md',
     },

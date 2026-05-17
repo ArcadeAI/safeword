@@ -640,6 +640,7 @@ describe('Skills-Cursor Parity', () => {
     'cleanup-zombies': undefined,
     // Contextual skills — Claude-only, no Cursor rule counterpart
     brainstorm: undefined,
+    elicit: undefined,
     'tdd-review': undefined,
   };
 

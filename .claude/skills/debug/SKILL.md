@@ -53,6 +53,8 @@ Don't skip past errors. They often contain the exact solution.
 | Sometimes       | Gather more data - when does it happen vs not?       |
 | Never           | Cannot debug what you cannot reproduce - gather logs |
 
+**When repro hinges on user-only context** (env, timeline, "what were you doing"), call `/elicit` — its multiple-choice format constrains the answer space better than open prompts.
+
 #### 3. Check Recent Changes
 
 ```bash

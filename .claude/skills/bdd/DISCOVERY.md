@@ -14,6 +14,8 @@ Follow the understanding pattern from SAFEWORD.md — including contribution tec
 
 If any answer is vague, you have open questions — surface them.
 
+**When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
+
 ### Concrete example
 
 **Context:** User says "I want to add a --verbose flag to the lint command."
