@@ -111,9 +111,6 @@ jobs:
             exit 1
           }
 
-      - name: Build CLI (required by eslint.config.mjs)
-        run: bun run --cwd packages/cli build
-
       - name: Lint
         run: bun run lint
 
