@@ -106,6 +106,16 @@
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-config-guard.ts"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-git-bare-fix.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [

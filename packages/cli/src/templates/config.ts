@@ -320,6 +320,20 @@ function matchedHook(matcher: string, command: string) {
   return { matcher, hooks: [{ type: 'command', command }] };
 }
 
+/**
+ * Create a hook entry with a tool matcher AND an `if` permission-rule filter.
+ *
+ * The `if` field uses Claude Code's permission-rule syntax (e.g., `Bash(git *)`)
+ * and is evaluated BEFORE spawning the hook process, so non-matching tool calls
+ * incur zero overhead. See https://code.claude.com/docs/en/hooks.
+ */
+function matchedHookWithIf(matcher: string, ifRule: string, command: string) {
+  return {
+    matcher,
+    hooks: [{ type: 'command', if: ifRule, command }],
+  };
+}
+
 const EDIT_TOOLS = 'Edit|Write|MultiEdit|NotebookEdit';
 
 export const SETTINGS_HOOKS = {
@@ -340,6 +354,10 @@ export const SETTINGS_HOOKS = {
   PreToolUse: [
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-config-guard.ts`),
+    // Defends ad-hoc git ops against Claude Code's parallel-worktree
+    // core.bare=true race (anthropics/claude-code#58345). `if` filters at the
+    // config level so non-git Bash calls incur zero hook-process spawn.
+    matchedHookWithIf('Bash', 'Bash(git *)', `bash ${HOOKS_DIR}/pre-tool-git-bare-fix.sh`),
   ],
   PostToolUse: [
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-lint.ts`),
