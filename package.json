@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "test": "bun run --cwd packages/cli test",
-    "lint": "test -f packages/cli/dist/presets/typescript/index.js || bun run --cwd packages/cli build && eslint .",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",
     "lint:sh": "shellcheck **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || true",
@@ -26,6 +26,7 @@
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
+    "jiti": "^2.7.0",
     "knip": "6.14.1",
     "lint-staged": "^17.0.5",
     "markdownlint-cli2": "^0.22.1",

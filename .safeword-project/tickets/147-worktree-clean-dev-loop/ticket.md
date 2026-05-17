@@ -1,10 +1,26 @@
 ---
 id: 147
 type: task
-phase: understand
+phase: tdd
 status: open
 created: 2026-05-13T15:55:00Z
-last_modified: 2026-05-13T15:55:00Z
+last_modified: 2026-05-17T18:10:00Z
+scope:
+  - Rename eslint.config.mjs → eslint.config.ts (root + packages/cli)
+  - Switch dist/ preset imports to src/presets/typescript/index.ts source imports
+  - Promote jiti from transitive to direct dev dependency (already in lockfile via knip)
+  - Strip the `test -f .../dist/... || bun run build` guard from root `lint` script
+out_of_scope:
+  - Fixing tsup --dts (ticket #140)
+  - Switching package manager, restructuring workspaces, moving off husky
+  - Removing the prepare-hook build (CLI binary + published package still need dist)
+  - Husky hook path handling (already investigated in #081)
+done_when:
+  - Fresh worktree (no dist/) runs `bun install && git commit` with pre-commit passing
+  - Neither eslint.config.ts references dist/
+  - Root `lint` script has no dist/-existence guard
+  - `bun run --cwd packages/cli typecheck` + targeted vitest still pass
+  - CI still passes
 ---
 
 # Worktree-clean dev loop: import ESLint presets from source
