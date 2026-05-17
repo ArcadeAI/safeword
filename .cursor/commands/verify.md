@@ -10,7 +10,9 @@ Prove a ticket meets its criteria. Works with or without an active ticket.
 
 This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `.safeword-project/skill-invocations.log` so the done-gate hook can verify /verify was actually invoked. Bash injection runs at render time — hand-writing verify.md cannot produce this entry.
 
-!`mkdir -p "${CLAUDE_PROJECT_DIR}/.safeword-project" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} verify" >> "${CLAUDE_PROJECT_DIR}/.safeword-project/skill-invocations.log"`
+!`mkdir -p "${CLAUDE_PROJECT_DIR}/.safeword-project" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} verify" >> "${CLAUDE_PROJECT_DIR}/.safeword-project/skill-invocations.log" && echo "[skill-invocation-log] verify ✓" || echo "[skill-invocation-log] FAILED — done-gate will block"`
+
+**If you see `[skill-invocation-log] FAILED` above, or no `verify ✓` line at all**: STOP. Do not run /verify manually — that line is the only proof the done-gate accepts. Report the failure to the user (most likely cause: Claude Code's bash permission denied the injection) and ask them to resolve it before re-invoking /verify.
 
 ## Instructions
 
