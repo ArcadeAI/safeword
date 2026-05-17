@@ -324,6 +324,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
     },
+    '.safeword/hooks/pre-tool-git-bare-fix.sh': {
+      template: 'hooks/pre-tool-git-bare-fix.sh',
+    },
     '.safeword/hooks/session-auto-upgrade.ts': {
       template: 'hooks/session-auto-upgrade.ts',
     },

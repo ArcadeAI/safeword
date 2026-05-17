@@ -168,9 +168,9 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Grep')).toBe(false);
   });
 
-  it('should have PreToolUse hooks for quality enforcement and config guard', () => {
+  it('should have PreToolUse hooks for quality enforcement, config guard, and git-bare-race fix', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks.length).toBe(2);
+    expect(preToolHooks.length).toBe(3);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks
@@ -180,6 +180,22 @@ describe('SETTINGS_HOOKS', () => {
 
     expect(commands.some((c: string) => c.includes('pre-tool-quality'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-config-guard'))).toBe(true);
+    expect(commands.some((c: string) => c.includes('pre-tool-git-bare-fix'))).toBe(true);
+  });
+
+  it('git-bare-race hook uses Bash matcher with if-filter to avoid spawning on non-git Bash calls', () => {
+    const bareRaceHook = SETTINGS_HOOKS.PreToolUse.find((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) =>
+          hook.type === 'command' && hook.command.includes('pre-tool-git-bare-fix'),
+      ),
+    );
+    expect(bareRaceHook).toBeDefined();
+    expect(bareRaceHook?.matcher).toBe('Bash');
+    const command = bareRaceHook?.hooks.find((h: HookCommand) => h.type === 'command') as
+      | { if?: string; command: string }
+      | undefined;
+    expect(command?.if).toBe('Bash(git *)');
   });
 
   it('should have all commands reference $CLAUDE_PROJECT_DIR', () => {
