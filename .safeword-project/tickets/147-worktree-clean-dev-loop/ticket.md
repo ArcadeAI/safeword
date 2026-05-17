@@ -1,8 +1,8 @@
 ---
 id: 147
 type: task
-phase: tdd
-status: open
+phase: done
+status: completed
 created: 2026-05-13T15:55:00Z
 last_modified: 2026-05-17T18:10:00Z
 scope:
