@@ -628,9 +628,12 @@ describe('Skills-Cursor Parity', () => {
       'bdd-done',
       'bdd-splitting',
     ],
+    brainstorm: 'safeword-brainstorming',
     debug: 'safeword-debugging',
+    elicit: 'safeword-elicitation',
     'quality-review': 'safeword-quality-reviewing',
     refactor: 'safeword-refactoring',
+    'tdd-review': 'safeword-tdd-review',
     testing: 'safeword-testing',
     'ticket-system': 'safeword-ticket-system',
     // Action skills use Cursor commands, not rules (disable-model-invocation)
@@ -638,10 +641,6 @@ describe('Skills-Cursor Parity', () => {
     verify: undefined,
     audit: undefined,
     'cleanup-zombies': undefined,
-    // Contextual skills — Claude-only, no Cursor rule counterpart
-    brainstorm: undefined,
-    elicit: undefined,
-    'tdd-review': undefined,
   };
 
   it('each skill should have corresponding cursor rule(s)', () => {

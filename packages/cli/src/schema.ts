@@ -469,14 +469,23 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules/safeword-core.mdc': {
       template: 'cursor/rules/safeword-core.mdc',
     },
+    '.cursor/rules/safeword-brainstorming.mdc': {
+      template: 'cursor/rules/safeword-brainstorming.mdc',
+    },
     '.cursor/rules/safeword-debugging.mdc': {
       template: 'cursor/rules/safeword-debugging.mdc',
+    },
+    '.cursor/rules/safeword-elicitation.mdc': {
+      template: 'cursor/rules/safeword-elicitation.mdc',
     },
     '.cursor/rules/safeword-quality-reviewing.mdc': {
       template: 'cursor/rules/safeword-quality-reviewing.mdc',
     },
     '.cursor/rules/safeword-refactoring.mdc': {
       template: 'cursor/rules/safeword-refactoring.mdc',
+    },
+    '.cursor/rules/safeword-tdd-review.mdc': {
+      template: 'cursor/rules/safeword-tdd-review.mdc',
     },
     '.cursor/rules/safeword-testing.mdc': {
       template: 'cursor/rules/safeword-testing.mdc',
