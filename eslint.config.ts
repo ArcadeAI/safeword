@@ -3,12 +3,18 @@
  *
  * Uses safeword presets for all rules.
  * Package isolation enforced by dependency-cruiser (see .dependency-cruiser.cjs).
+ *
+ * This config is `.ts` so it can import safeword presets directly from source
+ * (`packages/cli/src/...`) instead of built output (`dist/`). Lint no longer
+ * requires a prior `bun run build`, so fresh worktrees can commit after a
+ * single `bun install`. ESLint loads `.ts` configs via `jiti` on Node (declared
+ * as a direct dev dep) or natively on Bun. See ticket #147.
  */
 
 import { defineConfig } from 'eslint/config';
 import eslintConfigPrettier from 'eslint-config-prettier';
 
-import safeword from './packages/cli/dist/presets/typescript/index.js';
+import safeword from './packages/cli/src/presets/typescript/index.js';
 
 // Ignores
 const ignores = [
@@ -20,7 +26,7 @@ const ignores = [
   '**/.safeword/', // Generated hooks - linted separately by installed safeword config
   '.safeword-project/', // Project-specific hooks - not part of distributed package
   'examples/',
-  'eslint.config.mjs', // Self - JS file can't use typed rules
+  'eslint.config.ts', // Self - loaded by ESLint's own pipeline, not part of the linted tree
   'packages/cli/templates/', // Template files copied to customer projects - not part of CLI build
   '**/.dependency-cruiser.cjs', // CommonJS config file
   'packages/cli/scripts/*.js', // Node.js scripts with CommonJS globals
