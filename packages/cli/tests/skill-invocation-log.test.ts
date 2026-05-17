@@ -48,9 +48,10 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
     it.each([...verifyForms, ...auditForms])(
       '%s bash injection uses append (>>), not overwrite (>)',
       (_name, content) => {
-        // The injection must use `>>` to preserve prior entries
+        // The injection must use `>>` to preserve prior entries.
+        // Accepts ${CLAUDE_PROJECT_DIR}/ (older form) or $PROJECT_DIR/ (after PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}" indirection).
         expect(content).toMatch(
-          />>\s*"?(\$\{CLAUDE_PROJECT_DIR\}\/)?\.safeword-project\/skill-invocations\.log/,
+          />>\s*"\$(\{?CLAUDE_)?PROJECT_DIR\}?\/\.safeword-project\/skill-invocations\.log/,
         );
       },
     );
@@ -58,14 +59,15 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
     it.each([...verifyForms, ...auditForms])(
       '%s bash injection ensures .safeword-project/ directory exists (mkdir -p)',
       (_name, content) => {
-        expect(content).toMatch(/mkdir\s+-p\s+"?(\$\{CLAUDE_PROJECT_DIR\}\/)?\.safeword-project/);
+        expect(content).toMatch(/mkdir\s+-p\s+"\$(\{?CLAUDE_)?PROJECT_DIR\}?\/\.safeword-project/);
       },
     );
 
     it.each([...verifyForms, ...auditForms])(
-      '%s bash injection uses absolute path via $CLAUDE_PROJECT_DIR (cwd-independent)',
+      '%s bash injection references $CLAUDE_PROJECT_DIR (directly or via PROJECT_DIR fallback)',
       (_name, content) => {
-        expect(content).toContain('${CLAUDE_PROJECT_DIR}');
+        // Accepts bare ${CLAUDE_PROJECT_DIR} or the defensive ${CLAUDE_PROJECT_DIR:-$(pwd)} fallback.
+        expect(content).toMatch(/\$\{CLAUDE_PROJECT_DIR(:-\$\(pwd\))?\}/);
       },
     );
   });
