@@ -59,3 +59,4 @@ Is "conversation-state trigger" a sufficient reason to skip Cursor, or could the
 ## Work Log
 
 - 2026-05-17 18:55 UTC — Ticket created as follow-up while porting `elicit` skill from arcade-way (commit pending). Original work shipped under current convention; this ticket interrogates whether the convention is right.
+- 2026-05-17 19:20 UTC — Investigated [Cursor docs](https://cursor.com/docs/rules). Confirmed Agent Requested mode (`alwaysApply: false` + `description`) handles conversation-state triggers natively. Conclusion: Claude-only classification was historical drift, not principled. Resolved via the `@reference` pattern (precedent: `safeword-ticket-system.mdc`) rather than content duplication — three 7-line rules pointing at the Claude skill files. Eliminated `CLAUDE_ONLY_SKILLS` set entirely from `schema.test.ts`. Pair count: 94 → 97.

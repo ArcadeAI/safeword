@@ -266,16 +266,14 @@ describe('Schema - Single Source of Truth', () => {
 
       // Action skills have disable-model-invocation and use Cursor commands instead of rules
       const ACTION_SKILLS = new Set(['lint', 'verify', 'audit', 'cleanup-zombies']);
-      // Contextual skills without Cursor rule counterparts
-      const CLAUDE_ONLY_SKILLS = new Set(['brainstorm', 'elicit', 'tdd-review']);
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
         .filter(path => path.startsWith('.claude/skills/') && path.endsWith('/SKILL.md'))
         .map(path => path.split('/')[2])
         .filter(isDefined)
-        // Exclude BDD (split into multiple Cursor rules), action skills, and Claude-only skills
-        .filter(name => name !== 'bdd' && !ACTION_SKILLS.has(name) && !CLAUDE_ONLY_SKILLS.has(name))
+        // Exclude BDD (split into multiple Cursor rules) and action skills (Cursor commands, not rules)
+        .filter(name => name !== 'bdd' && !ACTION_SKILLS.has(name))
         .toSorted((a, b) => a.localeCompare(b));
 
       // Cursor rules still use safeword- prefix, extract the suffix
@@ -287,7 +285,9 @@ describe('Schema - Single Source of Truth', () => {
 
       // Cursor rules use gerund names, Claude skills use short names
       const CURSOR_RULE_TO_SKILL: Record<string, string> = {
+        brainstorming: 'brainstorm',
         debugging: 'debug',
+        elicitation: 'elicit',
         'quality-reviewing': 'quality-review',
         refactoring: 'refactor',
       };
