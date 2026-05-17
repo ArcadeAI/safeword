@@ -12,19 +12,9 @@
  * semantics.
  */
 
-/**
- * The structural subset of SAFEWORD_SCHEMA this module needs. Declared locally
- * (not imported from ./schema.js) to keep this file a sink in the dep graph —
- * schema.ts imports from here, so importing schema's types here would cycle.
- */
-export interface SchemaPathBuckets {
-  ownedFiles: Record<string, unknown>;
-  managedFiles: Record<string, unknown>;
-  jsonMerges: Record<string, unknown>;
-  textPatches: Record<string, unknown>;
-}
+import type { SafewordSchema } from './schema.js';
 
-export function computeSafewordPathPrefixes(schema: SchemaPathBuckets): readonly string[] {
+export function computeSafewordPathPrefixes(schema: SafewordSchema): readonly string[] {
   const allPaths = [
     ...Object.keys(schema.ownedFiles),
     ...Object.keys(schema.managedFiles),
@@ -70,7 +60,7 @@ export function referenceFilterSafewordFiles(
   return [...changedFiles, ...untrackedFiles].filter(f => matchesSafewordPath(f, prefixes));
 }
 
-export function generateOwnedPathsModule(schema: SchemaPathBuckets): string {
+export function generateOwnedPathsModule(schema: SafewordSchema): string {
   const prefixes = computeSafewordPathPrefixes(schema);
   const entries = prefixes.map(prefix => `  '${prefix}',`).join('\n');
 
