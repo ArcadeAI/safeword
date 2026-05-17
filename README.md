@@ -343,7 +343,7 @@ This section is for contributors to safeword itself.
 
 | Component | Technology                  |
 | --------- | --------------------------- |
-| Runtime   | Bun (dev), Node 20+ (users) |
+| Runtime   | Bun (dev), Node 22+ (users) |
 | CLI       | TypeScript, Commander.js    |
 | Build     | tsup (ESM-only output)      |
 | Tests     | Vitest                      |
