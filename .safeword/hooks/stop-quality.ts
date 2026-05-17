@@ -380,7 +380,7 @@ if (currentPhase === 'done') {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       const missingList = skillCheck.missing.map(s => `/${s}`).join(' and ');
       hardBlockDone(
-        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The bash-injection log at .safeword-project/skill-invocations.log proves invocation; hand-written verify.md does not satisfy this gate.`,
+        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The bash-injection log at .safeword-project/skill-invocations.log proves invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no entry was logged, the bash injection at the top of the skill was likely denied — check Claude Code permissions for Bash(mkdir:*) and Bash(echo:*).`,
       );
     }
   }
