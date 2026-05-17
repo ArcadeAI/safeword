@@ -35,6 +35,11 @@ describe('DepCruise Config Generator', () => {
       expect(config).toContain("name: 'no-circular'");
       expect(config).toContain("severity: 'error'");
       expect(config).toContain('circular: true');
+
+      // Type-only edges are erased at compile time and cannot cause runtime cycles —
+      // the rule must scope to runtime edges only, per dependency-cruiser's documented
+      // pattern. See https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md
+      expect(config).toContain("viaOnly: { dependencyTypesNot: ['type-only'] }");
     });
 
     it('generates monorepo layer rules from workspaces', () => {

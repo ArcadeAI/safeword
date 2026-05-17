@@ -7,6 +7,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+import { filterSafewordFiles } from './lib/owned-paths.ts';
 import { releaseAgeStatus, type UpdateCache } from './lib/update-cache.ts';
 import { bumpType, upgradeDecision } from './lib/version.ts';
 
@@ -135,18 +136,7 @@ try {
     .split('\n')
     .filter(Boolean);
 
-  const safewordPaths = [
-    '.safeword/',
-    '.claude/',
-    '.cursor/',
-    '.mcp.json',
-    '.gitignore',
-    'AGENTS.md',
-    'CLAUDE.md',
-  ];
-  const filesToStage = [...changedFiles, ...untrackedFiles].filter(f =>
-    safewordPaths.some(prefix => f.startsWith(prefix)),
-  );
+  const filesToStage = filterSafewordFiles(changedFiles, untrackedFiles);
 
   if (filesToStage.length > 0) {
     execSync(`git add ${filesToStage.map(f => `"${f}"`).join(' ')}`, execOpts);

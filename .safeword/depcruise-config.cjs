@@ -5,10 +5,14 @@ module.exports = {
     // =========================================================================
     {
       name: 'no-circular',
+      // Runtime cycles cause initialization-order bugs and make code hard to reason about.
+      // Type-only edges (import type) are erased at compile time and cannot cause runtime
+      // cycles — TypeScript designed import type for exactly this case, and depcruise
+      // documents viaOnly + dependencyTypesNot: ['type-only'] as the canonical opt-in.
       comment: 'Circular dependencies cause runtime issues and make code hard to reason about',
       severity: 'error',
       from: {},
-      to: { circular: true },
+      to: { circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } },
     },
     {
       name: 'no-deprecated-deps',
