@@ -333,6 +333,26 @@ No. Commit the `.safeword/`, `.claude/`, and `.cursor/` directories to git. When
 **Will it interfere with my development workflow?**
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally, and safeword does not install git hooks. It adds `lint` and `format` scripts to `package.json` that you can optionally use in CI or precommit hooks.
 
+**What Claude Code permissions does safeword need?**
+Safeword's done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, the gate hard-blocks at done-phase.
+
+To pre-approve the injection without prompts (recommended for headless / non-interactive sessions), add these two patterns to `.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": ["Bash(mkdir -p:*)", "Bash(echo:*)"]
+  }
+}
+```
+
+This is the **minimum surgical scope**:
+
+- `Bash(mkdir -p:*)` matches only `mkdir -p ...` invocations (word boundary enforced), not bare `mkdir`.
+- `Bash(echo:*)` is the only way to pre-approve `echo` — Claude Code bash patterns cannot constrain by what is being echoed or where it writes (`>>` redirects are part of the command string, not a separator).
+
+The injection itself only writes timestamped lines to `.safeword-project/skill-invocations.log` — no network calls, no file mutation outside that path. If you cannot or do not want to allow bash injection in your environment, the done-gate is currently inoperable — please open an issue if this affects you.
+
 ---
 
 ## Development
