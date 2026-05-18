@@ -18,6 +18,7 @@ import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
+import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe } from '../utils/fs.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
@@ -118,6 +119,9 @@ export async function upgrade(): Promise<void> {
 
   header('Safeword Upgrade');
   info(`Upgrading from v${projectVersion} to v${VERSION}`);
+
+  const eslintWarning = getEslintPeerMismatchWarning(cwd);
+  if (eslintWarning) warn(`\n${eslintWarning}`);
 
   try {
     const ctx = createProjectContext(cwd);

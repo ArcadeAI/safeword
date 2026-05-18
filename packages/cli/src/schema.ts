@@ -226,7 +226,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     'eslint-plugin-jsx-a11y',
     '@next/eslint-plugin-next',
     'eslint-plugin-astro',
-    '@vitest/eslint-plugin',
   ],
 
   // Directories to delete on upgrade (no longer managed by safeword)

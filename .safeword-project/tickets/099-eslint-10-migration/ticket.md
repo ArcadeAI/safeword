@@ -4,7 +4,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-04-11
-last_modified: 2026-05-14T16:35:00Z
+last_modified: 2026-05-18T02:00:00Z
 ---
 
 # Task: ESLint 10 Migration
@@ -125,3 +125,41 @@ Verified via PR #3979 diff + reading safeword's `recommended-react.ts` preset:
 - ~~Phase 1: vendor promise rules~~ → trivial peerDep verification + version bump (the bump may already be in main)
 - ~~Phase 2: compat-bump deps~~ → already shipped via dependabot bumps across April–May (multiple PRs, not just #83)
 - **Phase 3 (the only remaining work): ESLint 10 install** — blocked on `eslint-plugin-react` upstream, which is itself blocked on `eslint-plugin-import#3227`. Monitor upstream weekly.
+
+## Status refresh 2026-05-18
+
+### Phase 2 was NOT actually done — vitest migration just landed today
+
+The 2026-05-14 claim "Current main has all 18 plugins at ESLint-10-ready versions (verified via `npm view` on each package's peerDeps)" was wrong on one entry. PR #66's announcement listed `@vitest/eslint-plugin 1.6.17` as bumped but the actual diff shows it did not — and the legacy package name `eslint-plugin-vitest@0.5.4` remained in `packages/cli/package.json` and was still being imported in `packages/cli/src/presets/typescript/eslint-configs/vitest.ts`. The `npm view` verification passed because every entry that existed in package.json had a compatible peer range; the audit missed that the package itself was the abandoned name.
+
+**Real-world impact surfaced:** a separate session (2026-05-17, `www` project at `wonderful-bassi-e4f6b7`) hit the `@typescript-eslint/utils@7.18.0` `LegacyESLint` crash during a lint run after a clean `safeword@0.30.3` install on top of pre-existing ESLint 10.0.0. Stack trace verbatim: `TypeError: Class extends value undefined is not a constructor or null at .../@typescript-eslint+utils@7.18.0+.../LegacyESLint.js:12:51`. That session worked around it by downgrading ESLint to 9.39.4. Root cause was in safeword.
+
+**Fixed in commit `b93b696`:** `eslint-plugin-vitest@0.5.4` → `@vitest/eslint-plugin@1.6.17`. Drop-in replacement (same repo `vitest-dev/eslint-plugin-vitest`, rule names unchanged, plugin object key `vitest` unchanged, flat-config registration unchanged). Verified single `@typescript-eslint/utils@8.59.3` resolution across the whole lockfile (was two: 7.18.0 + 8.59.3). 1764/1764 CLI tests pass. Also removed the speculative `@vitest/eslint-plugin` entry from `deprecatedPackages` in `schema.ts` — that line was added in Dec 2025 anticipating this migration, but the import migration never landed, so it was telling customers to uninstall a package safeword never told them to install.
+
+**`peerDependencies.eslint` intentionally left at `^9.22.0`** — not expanded to include `^10.0.0` because `eslint-plugin-react@7.37.5` still crashes on v10 (see Phase 3 below). Honesty over a clean-looking peer range.
+
+### `eslint-plugin-jsx-a11y` empirically verified clean on ESLint 10
+
+The 2026-04-19 ticket entry asserted "all rules work at runtime" but the verification was source-level audit only. Done empirically today: downloaded `eslint-plugin-jsx-a11y@6.10.2` tarball from npm, grepped all 184 `.js` files for any of the seven removed-in-ESLint-10 RuleContext methods (`getFilename`, `getSourceCode`, `getScope`, `getAncestors`, `markVariableAsUsed`, `getDeclaredVariables`, `getFirstTokens`). **Zero matches.** The only `context.*` access is `context.settings`, which is not on the removal list. Confirms the "soft blocker, override peerDep" decision.
+
+### Phase 3 upstream chain unchanged
+
+Re-checked 2026-05-18:
+
+- `eslint-plugin-react` — still 7.37.5 on npm latest (the `next` dist-tag points at `7.8.0-rc.0`, a numerically older 2014-era RC unrelated to ESLint 10 — stale tag, ignore). PR [#3979](https://github.com/jsx-eslint/eslint-plugin-react/pull/3979) **OPEN, last update 2026-05-15** (3 days ago — active but not merged). PR #3972 still open, last update 2026-05-12.
+- `eslint-plugin-import#3227` — **OPEN, last update 2026-05-15**.
+
+### Genuinely remaining Phase 2 work
+
+- Wire `eslint-plugin-jsx-a11y` peerDep override (still 6.10.2, peer caps at `^9`). Defensive — only matters once Phase 3 lands and ESLint 10 is the install target.
+
+### Full plugin bundle audit (2026-05-18)
+
+Audited all 24 packages safeword ships against npm: latest version, latest-release date, repo activity, archive/deprecation status. None archived, none `npm deprecate`d. The one abandoned plugin (`eslint-plugin-vitest@0.5.4`, last released April 2024) was the cause of this whole thread and is gone as of `b93b696`.
+
+**Watch-list (not action items, but worth a recheck in ~6 months):**
+
+- `eslint-plugin-jsx-a11y@6.10.2` — **19 months since last release** (Oct 2024). Repo not archived; last commit Jan 6, 2026 (dev-dep pins + JSDoc tweaks, no rule work, no v10 prep). ARIA semantics are genuinely stable so the release gap isn't disqualifying, and we've verified empirically that the rules don't touch any removed-in-v10 RuleContext methods. **This is the most "asleep" plugin in safeword's bundle.** If it ever does become a problem, the live alternative is `@eslint-react/eslint-plugin` (jsx-a11y subset).
+- `eslint-plugin-react@7.37.5` — release stale (13mo) but **repo is very active** (5 commits in the last week as of 2026-05-18, including ESLint-v10 RuleTester work). Slow to release, not abandoned. Already tracked above as the Phase 3 upstream blocker.
+
+Everything else: active maintenance within 3 months. `eslint-config-prettier` (10mo) and `eslint-import-resolver-typescript` (11mo) are quiet but stable — a pure rule-disabler and a resolver respectively, both genuinely "done."
