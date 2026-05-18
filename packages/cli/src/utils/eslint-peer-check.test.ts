@@ -4,7 +4,7 @@
  * The guard reads the project's declared eslint version (dep or devDep) and
  * compares against safeword's own peerDependencies.eslint range. If the major
  * version is outside the supported set, returns a warning string; otherwise
- * returns null. Skips silently when nothing is declared or the range can't
+ * returns undefined. Skips silently when nothing is declared or the range can't
  * be parsed — only positively-mismatched majors warn.
  */
 
@@ -28,11 +28,11 @@ describe('getEslintPeerMismatchWarning', () => {
     removeTemporaryDirectory(temporaryDirectory);
   });
 
-  it('returns null when no package.json exists', () => {
+  it('returns undefined when no package.json exists', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
   });
 
-  it('returns null when package.json declares no eslint dependency', () => {
+  it('returns undefined when package.json declares no eslint dependency', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
@@ -41,7 +41,7 @@ describe('getEslintPeerMismatchWarning', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
   });
 
-  it('returns null when eslint is in the supported major (9.x as caret range)', () => {
+  it('returns undefined when eslint is in the supported major (9.x as caret range)', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
@@ -50,7 +50,7 @@ describe('getEslintPeerMismatchWarning', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
   });
 
-  it('returns null for a pinned 9.x version', () => {
+  it('returns undefined for a pinned 9.x version', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
@@ -98,7 +98,7 @@ describe('getEslintPeerMismatchWarning', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).not.toBeUndefined();
   });
 
-  it('returns null for unparseable ranges (workspace:*, file:, git:)', () => {
+  it('returns undefined for unparseable ranges (workspace:*, file:, git:)', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
