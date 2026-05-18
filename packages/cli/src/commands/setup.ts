@@ -21,6 +21,7 @@ import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
+import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
@@ -336,6 +337,9 @@ function setupJavaScriptProject(
   }
 
   logExistingFormatter(ctx);
+
+  const eslintWarning = getEslintPeerMismatchWarning(cwd);
+  if (eslintWarning) warn(`\n${eslintWarning}`);
 
   installDependencies(cwd, packagesToInstall, 'linting devDependencies');
   info('These are dev-only tools — your application dependencies are unchanged.');
