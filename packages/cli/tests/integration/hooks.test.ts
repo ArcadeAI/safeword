@@ -1000,7 +1000,7 @@ describe('E2E: Stop Hook', () => {
 
       expect(result.exitCode).toBe(0);
       expect(output.decision).toBe('block');
-      expect(output.reason).toContain('Quality Review');
+      expect(output.reason).toContain('critical review');
       expect(output.reason).toContain('CONFIDENT');
     });
 
@@ -1044,7 +1044,7 @@ describe('E2E: Stop Hook', () => {
 
       expect(result.exitCode).toBe(0);
       expect(output.decision).toBe('block');
-      expect(output.reason).toContain('Quality Review');
+      expect(output.reason).toContain('critical review');
     });
 
     it('exits with error when usage limit reached in last message', () => {
