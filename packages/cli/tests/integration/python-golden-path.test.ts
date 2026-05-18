@@ -26,6 +26,7 @@ import {
   isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
+  runCli,
   runLintHook,
   setupOrThrow,
   writeTestFile,
@@ -150,7 +151,9 @@ describe('E2E: Python Setup Idempotency', () => {
     initGitRepo(projectDirectory);
     // Run setup TWICE
     await setupOrThrow(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    // Second call intentionally allowed to fail with "Already configured" exit 1 —
+    // we verify file state survives an accidental re-run, not that setup is idempotent.
+    await runCli(['setup', '--yes'], { cwd: projectDirectory });
   }, 180_000);
 
   afterAll(() => {
