@@ -11,6 +11,15 @@ scope: |
   provides. The reshape is purely an output-structure change — every check
   the current /audit runs continues to run unchanged.
 
+  Implementation invariant: tools always run whole-repo. The change set is
+  used only for post-hoc partitioning of results into ticket-scope vs
+  project-scope tiers — NEVER for scoping tool execution (e.g., never use
+  `jscpd -f "<changed-files>"` or `depcruise --include-only` derived from
+  the change set). Doing so would miss span-scope findings — a clone or
+  cycle that involves both a changed file AND an unchanged file would
+  disappear because the unchanged side wasn't fed to the tool. Run wide,
+  partition narrow.
+
   Output structure (Option D from the design debate):
 
   ```
@@ -101,9 +110,12 @@ done_when: |
 
 **Why:** /audit today dumps the whole repo's findings as one undifferentiated stream. 84 pre-existing duplicate clones drown out the 2 new ones the current ticket introduced. The user has to manually filter every run. The fix is structural: partition the report into ticket-scope and project-scope tiers. The hard constraint (and the reason the original 158 "delta-aware" framing was abandoned) is that the reshape must NOT cost any of the current capabilities — per-check coherence, structured dep triage, visibility of cumulative debt, the unambiguous "audit ran on everything" guarantee. The five mitigations in scope address each loss surfaced in the design debate.
 
+**Prior art validating the pattern:** Scope-aware static analysis is industry standard. Semgrep exposes `SEMGREP_BASELINE_REF` for diff-aware scans (https://semgrep.dev/docs/kb/semgrep-appsec-platform/missing-pr-comments). The community `dependency-cruiser-report-action` visualizes dep diagrams for changed files only in PRs (https://dev.to/mh4gf/visualize-typescript-dependencies-of-changed-files-in-a-pull-request-using-127j). SonarQube has PR Analysis mode. The novel piece here is the _output partitioning_ (ticket-scope + project-scope in one report), not the change-set scoping itself.
+
 **Supersedes:** the original 158 framing ("delta-aware reporting" / baseline-relative). Baselines are unnecessary once ticket-scoping is the primary axis.
 
 ## Work Log
 
 - 2026-05-18T05:41:00Z Started: ticket created from 152 audit-skill improvement debate (original framing: delta-aware reporting)
 - 2026-05-18T05:58:00Z Pivoted: reframed from baseline-relative to ticket-scope-vs-project-scope after architectural debate showed scope-partitioning is the better primitive. Five mitigations baked in to preserve every capability of current /audit.
+- 2026-05-18T06:05:00Z Hardened: added "run wide, partition narrow" implementation invariant + prior-art citations (Semgrep, dependency-cruiser-report-action) after /quality-review flagged the span-scope correctness trap.
