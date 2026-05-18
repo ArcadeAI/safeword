@@ -11,7 +11,13 @@
  * before they auto-propagate.
  */
 
-/** Shape of `.safeword/.update-cache.json`. All fields optional for forward compat. */
+/**
+ * Shape of `.safeword/.update-cache.json`. All fields optional for forward compat.
+ *
+ * @public — consumed by session-auto-upgrade.ts via a `.ts`-extension import,
+ * which knip's resolver doesn't trace. The tag suppresses the false-positive
+ * "unused exports" finding.
+ */
 export interface UpdateCache {
   latestVersion?: string;
   /** Unix ms timestamp of when `latestVersion` was published to npm (from registry `time[version]`). */
