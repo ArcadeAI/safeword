@@ -1,7 +1,7 @@
 ---
 id: 154
-status: in_progress
-phase: implement
+status: done
+phase: done
 type: task
 scope:
   - Remove the `version` field from the `SafewordConfig` TypeScript interface in `packages/cli/src/packs/config.ts`.
