@@ -41,10 +41,10 @@ export function shouldEmitVendoredIgnoresNudge(options: VendoredIgnoresNudgeOpti
 /**
  * Print the nudge using safeword's standard output helpers.
  *
- * Called by `safeword setup` and `safeword upgrade` when
- * {@link shouldEmitVendoredIgnoresNudge} returns true.
+ * Module-internal — callers should use {@link maybePrintVendoredIgnoresNudge}
+ * which wraps the decide-then-print sequence.
  */
-export function printVendoredIgnoresNudge(): void {
+function printVendoredIgnoresNudge(): void {
   info(
     "\nSafeword vendors hook scripts under .safeword/. Add this line to your existing ESLint config so your lint doesn't flag them:",
   );

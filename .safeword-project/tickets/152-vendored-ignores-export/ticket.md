@@ -1,8 +1,8 @@
 ---
 id: 152
 type: feature
-phase: implement
-status: open
+phase: verify
+status: in_progress
 created: 2026-05-18T01:50:00Z
 last_modified: 2026-05-18T01:50:00Z
 scope:
