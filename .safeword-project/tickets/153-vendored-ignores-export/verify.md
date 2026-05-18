@@ -1,4 +1,4 @@
-# Verify — Ticket 152: vendored-ignores export + install-time nudge + hygiene pass
+# Verify — Ticket 153: vendored-ignores export + install-time nudge + hygiene pass
 
 ## Verify Checklist
 
@@ -41,4 +41,4 @@ Files touched:
 
 ## Follow-up
 
-Ticket **153 — install-time auto-patch** is queued (see `ticket.md` "Follow-up ticket 153" section). Print-only nudge in this ticket is the interim experience until 153 lands the auto-patch UX.
+Ticket **154 — install-time auto-patch** is queued (see `ticket.md` "Follow-up ticket 154" section). Print-only nudge in this ticket is the interim experience until 154 lands the auto-patch UX.

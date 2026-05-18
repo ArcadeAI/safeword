@@ -1,4 +1,4 @@
-# Dimensions — Ticket 152
+# Dimensions — Ticket 153
 
 Derived from intake: scope (new export + install-time guidance + 3-file hygiene pass), resolved open questions (name = `vendoredIgnores` under `configs.*` namespace, use `globalIgnores()` primitive, no auto-patching, no version pinning), constraints (pair-parity between `.safeword/hooks/` and `packages/cli/templates/hooks/`, no behavior change for fresh-project install path).
 

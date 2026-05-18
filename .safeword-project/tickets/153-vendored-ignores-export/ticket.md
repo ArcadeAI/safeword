@@ -1,5 +1,5 @@
 ---
-id: 152
+id: 153
 type: feature
 phase: done
 status: done
@@ -49,9 +49,9 @@ done_when:
 - Existing pattern: [eslint.config.ts:26](eslint.config.ts:26) — safeword's own monorepo ignores `**/.safeword/`
 - Existing pattern: [getIgnores()](packages/cli/src/presets/typescript/detect.ts:210) — fresh-project ignore list (already includes `.safeword/`)
 
-## Follow-up ticket 153 (intentionally split)
+## Follow-up ticket 154 (intentionally split)
 
-The print-only nudge shipped in this ticket is an interim experience. Non-technical users won't read it, won't know what ESLint is, and the 84 errors will persist for them. A follow-up ticket **153 — install-time auto-patch** will land the proper UX: detect the consumer's eslint config format (flat `.mjs/.js/.ts/.cjs`, legacy `.eslintrc.*`, `package.json#eslintConfig`), insert the `safeword.configs.vendoredIgnores` spread + import, write a `.safeword-bak` backup, run a post-edit syntax check, and fall back to the print nudge on any uncertainty. Default UX: just-do-it + clear message; opt-out via `--no-modify`. Depends on this ticket (the export must exist for auto-patch to target it).
+The print-only nudge shipped in this ticket is an interim experience. Non-technical users won't read it, won't know what ESLint is, and the 84 errors will persist for them. A follow-up ticket **154 — install-time auto-patch** will land the proper UX: detect the consumer's eslint config format (flat `.mjs/.js/.ts/.cjs`, legacy `.eslintrc.*`, `package.json#eslintConfig`), insert the `safeword.configs.vendoredIgnores` spread + import, write a `.safeword-bak` backup, run a post-edit syntax check, and fall back to the print nudge on any uncertainty. Default UX: just-do-it + clear message; opt-out via `--no-modify`. Depends on this ticket (the export must exist for auto-patch to target it).
 
 ## Decomposition
 
