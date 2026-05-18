@@ -247,7 +247,6 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
       const result = getDisqualificationMessage({
         novelResearchReminderUnconsumed: true,
       });
-      expect(result).toBeDefined();
       expect(result).toContain('CONFIDENT requires /quality-review first');
       expect(result).toContain('novel-claim flag is unconsumed');
     });
@@ -257,7 +256,6 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
         novelResearchReminderUnconsumed: false,
         recentRelevantFailure: 'loc-exceeded',
       });
-      expect(result).toBeDefined();
       expect(result).toContain('loc-exceeded');
       expect(result).toContain('CONFIDENT');
     });
