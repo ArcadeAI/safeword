@@ -38,6 +38,7 @@ import { storybookConfig } from './eslint-configs/storybook.js';
 import { tailwindConfig } from './eslint-configs/tailwind.js';
 import { tanstackQueryConfig } from './eslint-configs/tanstack-query.js';
 import { turboConfig } from './eslint-configs/turbo.js';
+import { vendoredIgnoresConfig } from './eslint-configs/vendored-ignores.js';
 import { vitestConfig } from './eslint-configs/vitest.js';
 import { rules } from './eslint-rules/index.js';
 
@@ -66,6 +67,8 @@ interface SafewordEslint {
     cli: any;
     /** Strict TypeScript rules that conflict with untyped external data (JSON, YAML, APIs) */
     relaxedTypes: any;
+    /** Global ignores for safeword's vendored content (`.safeword/**`, `.dependency-cruiser.cjs`). Spread into a downstream `eslint.config.mjs` to skip linting them. */
+    vendoredIgnores: any[];
   };
   detect: typeof detect;
   rules: Record<string, Rule.RuleModule>;
@@ -98,6 +101,7 @@ export const eslintPlugin: SafewordEslint = {
     turbo: turboConfig,
     cli: cliConfig,
     relaxedTypes: relaxedTypesConfig,
+    vendoredIgnores: vendoredIgnoresConfig,
   },
   detect,
   rules,
@@ -119,6 +123,7 @@ export { storybookConfig } from './eslint-configs/storybook.js';
 export { tailwindConfig } from './eslint-configs/tailwind.js';
 export { tanstackQueryConfig } from './eslint-configs/tanstack-query.js';
 export { turboConfig } from './eslint-configs/turbo.js';
+export { vendoredIgnoresConfig } from './eslint-configs/vendored-ignores.js';
 export { vitestConfig } from './eslint-configs/vitest.js';
 export { rules } from './eslint-rules/index.js';
 
