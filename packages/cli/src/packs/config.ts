@@ -8,12 +8,10 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { readFileSafe, writeFile } from '../utils/fs.js';
-import { VERSION } from '../version.js';
 
 const CONFIG_PATH = '.safeword/config.json';
 
 interface SafewordConfig {
-  version: string;
   installedPacks: string[];
   autoUpgrade?: boolean;
 }
@@ -83,7 +81,7 @@ export function migratePackId(cwd: string, oldId: string, newId: string): void {
  * Creates config.json if it doesn't exist.
  */
 export function addInstalledPack(cwd: string, packId: string): void {
-  const config = readConfig(cwd) ?? { version: VERSION, installedPacks: [] };
+  const config = readConfig(cwd) ?? { installedPacks: [] };
 
   if (!config.installedPacks.includes(packId)) {
     config.installedPacks.push(packId);

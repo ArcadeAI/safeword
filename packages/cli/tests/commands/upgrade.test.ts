@@ -250,4 +250,51 @@ describe('Test Suite 9: Upgrade', () => {
       expect(readSafewordConfig(temporaryDirectory).installedPacks).toContain('python');
     });
   });
+
+  // ==========================================================================
+  // Ticket 154: strip dead `version` field from .safeword/config.json
+  // Reasoning-LLMs were flagging stale `version` as drift (real incident in
+  // arcade-deep-research). Field is never read by any code — `.safeword/version`
+  // is the live source of truth. Upgrade now strips the dead key on migration.
+  // ==========================================================================
+
+  describe('Ticket 154: strips dead `version` key from .safeword/config.json', () => {
+    it('should remove `version` from existing config while preserving installedPacks', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Simulate a project written at an older safeword version
+      writeSafewordConfig(temporaryDirectory, {
+        installedPacks: ['typescript'],
+        version: '0.25.14',
+      });
+
+      await runCli(['upgrade'], { cwd: temporaryDirectory });
+
+      const raw = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as Record<
+        string,
+        unknown
+      >;
+      expect('version' in raw).toBe(false);
+      expect(raw.installedPacks).toEqual(['typescript']);
+    });
+
+    it('should be a no-op when config.json already lacks `version`', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Write config without version (the new shape)
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ installedPacks: ['typescript'] }),
+      );
+
+      const result = await runCli(['upgrade'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const raw = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as Record<
+        string,
+        unknown
+      >;
+      expect('version' in raw).toBe(false);
+      expect(raw.installedPacks).toEqual(['typescript']);
+    });
+  });
 });
