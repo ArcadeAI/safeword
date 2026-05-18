@@ -1,8 +1,8 @@
 ---
 id: 152
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-05-18T01:50:00Z
 last_modified: 2026-05-18T01:50:00Z
 scope:
