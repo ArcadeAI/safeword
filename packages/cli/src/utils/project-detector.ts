@@ -27,6 +27,8 @@ const RUSTFMT_CONFIG_FILES = ['rustfmt.toml', '.rustfmt.toml'];
 
 // ESLint config file markers (flat config and legacy)
 const ESLINT_CONFIG_FILES = [
+  'eslint.config.ts',
+  'eslint.config.mts',
   'eslint.config.mjs',
   'eslint.config.js',
   'eslint.config.cjs',

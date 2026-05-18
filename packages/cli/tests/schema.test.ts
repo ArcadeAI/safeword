@@ -178,6 +178,13 @@ describe('Schema - Single Source of Truth', () => {
       expect(SAFEWORD_SCHEMA.deprecatedFiles).toContain('.claude/commands/done.md');
       expect(SAFEWORD_SCHEMA.deprecatedFiles).toContain('.cursor/commands/done.md');
     });
+
+    it('should NOT have any path in BOTH deprecatedFiles AND ownedFiles (regression: v0.32.0 shipped with safeword-brainstorming.mdc in both, causing dogfood upgrade to delete a freshly-installed file)', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
+      const conflicts = SAFEWORD_SCHEMA.deprecatedFiles.filter(path => ownedPaths.has(path));
+      expect(conflicts).toEqual([]);
+    });
   });
 
   describe('managedFiles', () => {

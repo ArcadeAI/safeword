@@ -167,9 +167,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // BDD skill split into phase files (v0.16.0)
     '.cursor/rules/safeword-bdd-orchestrating.mdc',
     '.safeword/commands/tdd.md',
-    // Brainstorming skill removed - never used, BDD discovery phase covers this (v0.16.0)
+    // Brainstorming skill: old safeword-* skill removed (v0.16.0); cursor rule was
+    // re-introduced under same name (PR #103) for the new short-name brainstorm skill,
+    // so .cursor/rules/safeword-brainstorming.mdc is no longer deprecated.
     '.claude/skills/safeword-brainstorming/SKILL.md',
-    '.cursor/rules/safeword-brainstorming.mdc',
     // Writing-plans skill removed - redundant with BDD decomposition + Claude Code native plan mode (v0.16.0)
     '.claude/skills/safeword-writing-plans/SKILL.md',
     '.cursor/rules/safeword-writing-plans.mdc',
