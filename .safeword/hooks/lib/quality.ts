@@ -23,9 +23,7 @@ export type BddPhase =
   | 'verify'
   | 'done';
 
-const UNIVERSAL_HEADER = `Quality Review.
-
-Think about evidence before declaring. Apply universal critical review:
+const UNIVERSAL_HEADER = `Think about evidence before declaring. Apply universal critical review:
 verify correctness, simplicity, and alignment with latest docs/research.
 On uncertainty or contested choice: investigate primary sources, enumerate
 options, debate against correctness/elegance/no-bloat, recommend.
