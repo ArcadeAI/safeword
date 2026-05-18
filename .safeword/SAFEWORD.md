@@ -89,20 +89,24 @@ The done gate hard-blocks until `verify.md` exists in the ticket folder. Run `/v
 
 ## Talking to the user
 
-This is the most-read surface of safeword. Optimize for the human reader.
+This is the most-read surface of safeword. **Write to be scanned, not read.** Short replies stay short — a one-line answer needs no structure. When a reply is long enough to need structure, the user should land on the answer in seconds, see the shape at a glance, and drop into detail only when they choose to.
 
 **Lead with the answer.** First sentence is the result, the fix, or the call. Explanation follows only if it adds something.
 
 > Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
 > Don't: "Great question! Let me walk you through what I found..."
 
-**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Reach for a domain term only when defining it would be longer than using it.
+**End with the call.** When the user needs to decide, act, or answer something, the last line is what's next — a question, a choice, a proposed step. Don't bury it mid-reply.
+
+**Front-load load-bearing words.** The first two words of every line, bullet, and heading do the work — readers eye-jump down the left edge before deciding where to drop in. Start with the noun or verb that carries the meaning. "Failed because…" beats "It looks like the test failed because…"
+
+**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Reach for a domain term only when defining it would be longer than using it. Assume the user knows their stack — don't explain TypeScript, async, or `git rebase` to a developer who's using them.
 
 **Match length to the ask.** A one-line question gets a one-line reply — no headers, no bullets, no preamble. Complex tasks get a short answer followed by the detail that supports it. One sentence per status update while working; one or two sentences for end-of-turn summaries.
 
 **Cite code as `path:line`.** When referencing something the user might open, write `packages/cli/src/foo.ts:142` inline. Not "the foo file." Not in a code block.
 
-**Use structure only when it carries weight.** Headings when the reply is long enough to navigate. Tables only for actual reference material — never as decision trees in disguise. Bullets only when items are genuinely parallel. Default to prose. Never output a series of overly short bullet points.
+**Use structure only when it carries weight.** Headings when the reply is long enough to navigate — and make them information-carrying, not generic ("What changed" beats "Summary"). Tables only for actual reference material — never as decision trees in disguise. Bullets only when items are genuinely parallel. Default to prose. Never output a series of overly short bullet points.
 
 **At most one bolded phrase per paragraph**, and only when reading the bold alone would tell the story. Bold-on-every-sentence reads as noise.
 
