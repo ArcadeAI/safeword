@@ -15,9 +15,9 @@
  * install time rather than the first lint run.
  */
 
-import { createRequire } from 'node:module';
 import nodePath from 'node:path';
 
+import { SAFEWORD_PEER_DEPENDENCIES } from '../version.js';
 import { exists, readJson } from './fs.js';
 
 interface ProjectPackageJson {
@@ -25,19 +25,17 @@ interface ProjectPackageJson {
   devDependencies?: Record<string, string>;
 }
 
-interface SafewordPackageJson {
-  peerDependencies?: Record<string, string>;
-}
-
-const require = createRequire(import.meta.url);
-
 /**
  * Pull the supported eslint major versions from safeword's own peerDependencies.
  * `^9.22.0` → [9]; `^9.22.0 || ^10.0.0` → [9, 10].
+ *
+ * Reads from version.ts rather than calling require() locally — version.ts sits
+ * at src/ depth (same as the bundled dist/) so its `require('../package.json')`
+ * resolves correctly in both contexts. A direct require() here would resolve
+ * `../../package.json` to a nonexistent path post-bundling.
  */
 function getSupportedEslintMajors(): number[] {
-  const pkg = require('../../package.json') as SafewordPackageJson;
-  const range = pkg.peerDependencies?.eslint;
+  const range = SAFEWORD_PEER_DEPENDENCIES.eslint;
   if (!range) return [];
   return extractMajors(range);
 }
