@@ -33,6 +33,7 @@ packages/*/ARCHITECTURE.md
 .claude/todos/
 .claude/shell-snapshots/
 .claude/mcp/arcade.json
+.claude/scheduled_tasks.lock
 dependency-graph.svg
 .playwright-mcp/
 
