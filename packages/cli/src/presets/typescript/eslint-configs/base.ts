@@ -66,7 +66,13 @@ function scopeToFiles(configs: any[], files: string[]): any[] {
 const basePluginsUnscoped: any[] = [
   // Default ignores - always skip these directories
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/.git/**',
+      '**/.claude/worktrees/**',
+    ],
   },
 
   // ESLint core recommended

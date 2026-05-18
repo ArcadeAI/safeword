@@ -24,6 +24,7 @@ const ignores = [
   '**/coverage/',
   '**/.astro/', // Astro generated types - not our code
   '**/.safeword/', // Generated hooks - linted separately by installed safeword config
+  '**/.claude/worktrees/', // Stale worktree leftovers from Claude Code's worktree isolation
   '.safeword-project/', // Project-specific hooks - not part of distributed package
   'examples/',
   'eslint.config.ts', // Self - loaded by ESLint's own pipeline, not part of the linted tree
