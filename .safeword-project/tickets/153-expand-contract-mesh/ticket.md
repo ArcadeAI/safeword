@@ -16,15 +16,28 @@ scope: |
   - Phase ↔ artifact coupling (e.g., the phase names enumerated in
     prompt-questions.ts:62-74 must match the enum in ticket-template.md)
   Add corresponding entries in tests/parity.test.ts contract suite.
+
+  Sub-task (safeword-internal, rolled in from earlier audit-improvement debate):
+  - Add a contract-coverage report runnable as part of safeword's own /verify
+    or /audit work — not shipped to users since SAFEWORD_SCHEMA.contracts is
+    safeword source-only. Heuristic: scan source files that are imported by N
+    other files AND referenced by name in M docs/skills, but lack any contract.
+    Surface as "could be contracted" candidates so future contract additions
+    are informed by actual coupling, not guesswork.
 out_of_scope: |
   - Inventing new abstractions (only declarative `requires:` strings)
   - Runtime enforcement (contracts are release-time / pre-commit only)
   - Migrating away from text-match contracts to AST-aware checks
+  - Shipping the coverage report as a user-facing /audit feature (safeword-
+    internal only — users don't have SAFEWORD_SCHEMA to reason about)
 done_when: |
   - At least 4 new contracts added (skill handoffs + hook coupling + phase enum)
   - Each contract has a comment explaining what regression it prevents
   - Release parity passes (`bun run test:release`)
   - Removing any required token from the target file causes parity to fail
+  - Coverage-report sub-task: a script or test that enumerates candidate
+    couplings without contracts; output reviewed and any high-leverage ones
+    added as contracts in this same ticket's work
 ---
 
 # Expand schema contract mesh for cross-file drift detection
