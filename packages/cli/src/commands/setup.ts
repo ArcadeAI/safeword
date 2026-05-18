@@ -26,6 +26,7 @@ import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { detectLanguages, type Languages } from '../utils/project-detector.js';
+import { maybePrintVendoredIgnoresNudge } from '../utils/vendored-ignores-nudge.js';
 import { getWorkspacePatterns } from '../utils/workspaces.js';
 import { VERSION } from '../version.js';
 import { buildArchitecture, hasArchitectureDetected, syncConfigCore } from './sync-config.js';
@@ -482,6 +483,12 @@ export async function setup(): Promise<void> {
       pythonFiles: pythonStatus.files,
       pythonInstallFailed: pythonStatus.installFailed,
       pythonImportLinter: pythonStatus.importLinter,
+    });
+
+    maybePrintVendoredIgnoresNudge({
+      cwd,
+      existingEslintConfig: ctx.projectType.existingEslintConfig,
+      hasJavaScript: languages.javascript,
     });
   } catch (error_) {
     error(`Setup failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);

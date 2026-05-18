@@ -22,6 +22,7 @@ import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe } from '../utils/fs.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import { maybePrintVendoredIgnoresNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
@@ -147,6 +148,12 @@ export async function upgrade(): Promise<void> {
     }
 
     printUpgradeSummary(result, projectVersion, cwd);
+
+    maybePrintVendoredIgnoresNudge({
+      cwd,
+      existingEslintConfig: ctx.projectType.existingEslintConfig,
+      hasJavaScript: ctx.languages?.javascript ?? false,
+    });
   } catch (error_) {
     error(`Upgrade failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
