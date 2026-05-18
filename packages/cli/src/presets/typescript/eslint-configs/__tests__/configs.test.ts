@@ -232,6 +232,22 @@ describe('default ignores', () => {
 
     expect(hasDistributionIgnore).toBe(true);
   });
+
+  it('includes .claude/worktrees in ignores (stale worktree leftovers)', () => {
+    const hasWorktreesIgnore = recommended.some(config => {
+      if (typeof config === 'object' && config !== null && 'ignores' in config) {
+        const ignores = config.ignores;
+        if (Array.isArray(ignores)) {
+          return ignores.some(
+            pattern => typeof pattern === 'string' && pattern.includes('.claude/worktrees'),
+          );
+        }
+      }
+      return false;
+    });
+
+    expect(hasWorktreesIgnore).toBe(true);
+  });
 });
 
 describe('eslint-comments governance', () => {
