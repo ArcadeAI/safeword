@@ -157,10 +157,11 @@ Installed packs tracked in `.safeword/config.json`:
 
 ```json
 {
-  "version": "0.15.0",
   "installedPacks": ["python", "typescript", "golang", "rust"]
 }
 ```
+
+> `.safeword/version` (plaintext, regenerated every reconcile) is the source of truth for installed safeword version. `config.json` previously also carried a `version` field, but it was write-once / never-read and was removed in ticket 154.
 
 ---
 

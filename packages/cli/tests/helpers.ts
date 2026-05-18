@@ -312,18 +312,22 @@ export function measureTimeSync<T>(fn: () => T): { result: T; timeMs: number } {
 }
 
 /**
- * Writes .safeword/config.json for Language Packs tests
+ * Writes .safeword/config.json for Language Packs tests.
+ * `version` is optional — pass it only to simulate pre-ticket-154 projects
+ * carrying the dead `version` field. New configs should omit it.
  * @param dir
  * @param config
  * @param config.installedPacks - Array of installed pack IDs
- * @param config.version - Config version (defaults to '0.15.0')
+ * @param config.version - Legacy `version` field (only for migration-test fixtures)
  */
 export function writeSafewordConfig(
   dir: string,
   config: { installedPacks?: string[]; version?: string } = {},
 ): void {
-  const { installedPacks = [], version = '0.15.0' } = config;
-  writeTestFile(dir, '.safeword/config.json', JSON.stringify({ version, installedPacks }));
+  const { installedPacks = [], version } = config;
+  const payload: { installedPacks: string[]; version?: string } = { installedPacks };
+  if (version !== undefined) payload.version = version;
+  writeTestFile(dir, '.safeword/config.json', JSON.stringify(payload));
 }
 
 /**
@@ -331,8 +335,8 @@ export function writeSafewordConfig(
  * @param dir
  */
 export function readSafewordConfig(dir: string): {
-  version: string;
   installedPacks: string[];
+  version?: string;
 } {
   return JSON.parse(readTestFile(dir, '.safeword/config.json'));
 }
