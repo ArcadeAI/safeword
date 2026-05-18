@@ -30,6 +30,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   runLintHook,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -43,7 +44,7 @@ describe('E2E: Rust Golden Path', () => {
     projectDirectory = createTemporaryDirectory();
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000); // 3 min timeout for setup
 
   afterAll(() => {
@@ -178,7 +179,7 @@ cognitive-complexity-threshold = 25
 `,
     );
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -218,7 +219,7 @@ type-complexity-threshold = 300
 `,
     );
     initGitRepo(fullCoverageDirectory);
-    await runCli(['setup', '--yes'], { cwd: fullCoverageDirectory });
+    await setupOrThrow(fullCoverageDirectory);
 
     const config = readTestFile(fullCoverageDirectory, '.safeword/clippy.toml');
     // All customer thresholds preserved
@@ -248,7 +249,7 @@ tab_spaces = 4
 `,
     );
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -293,7 +294,7 @@ unwrap_used = "allow"
 `,
     );
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -340,7 +341,7 @@ describe('E2E: TypeScript + Rust Mixed Project', () => {
     );
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -379,7 +380,7 @@ describe('E2E: Pure Rust Project', () => {
     createRustProject(projectDirectory);
     // Ensure NO package.json exists
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -412,7 +413,7 @@ describe('E2E: Rust Workspace Setup', () => {
     projectDirectory = createTemporaryDirectory();
     createRustWorkspace(projectDirectory, { members: ['core', 'cli'] });
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -455,7 +456,7 @@ describe('E2E: Rust Virtual Workspace', () => {
     // createRustWorkspace creates a virtual workspace by default (no [package])
     createRustWorkspace(projectDirectory, { members: ['lib-a', 'lib-b'] });
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -504,7 +505,7 @@ unwrap_used = "allow"
     );
 
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -537,7 +538,7 @@ describe('E2E: Rust Workspace Glob Pattern', () => {
     // Creates workspace with members = ["crates/*"] and crates/alpha, crates/beta
     createRustWorkspace(projectDirectory, { members: ['alpha', 'beta', 'gamma'], useGlob: true });
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -573,7 +574,7 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup to get the hook infrastructure
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
     // Delete .safeword/rustfmt.toml to test fallback path
     const rustfmtConfig = nodePath.join(projectDirectory, '.safeword/rustfmt.toml');
     if (fileExists(projectDirectory, '.safeword/rustfmt.toml')) {
@@ -608,7 +609,7 @@ describe('E2E: Rust Lint Hook Graceful Handling', () => {
     projectDirectory = createTemporaryDirectory();
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -654,7 +655,7 @@ describe('E2E: Add Rust to Existing TypeScript Project', () => {
     );
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -718,8 +719,8 @@ describe('E2E: Rust Setup Idempotency', () => {
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -759,7 +760,7 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
     projectDirectory = createTemporaryDirectory();
     createRustWorkspace(projectDirectory, { members: ['core', 'cli'] });
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {

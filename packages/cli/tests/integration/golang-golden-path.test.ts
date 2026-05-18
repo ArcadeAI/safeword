@@ -26,8 +26,8 @@ import {
   isGolangciLintInstalled,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
   runLintHook,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -40,7 +40,7 @@ describe('E2E: Go Golden Path', () => {
     projectDirectory = createTemporaryDirectory();
     createGoProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000); // 3 min timeout for setup
 
   afterAll(() => {
@@ -163,8 +163,8 @@ describe('E2E: Go Setup Idempotency', () => {
     createGoProject(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -205,7 +205,7 @@ describe('E2E: Go Lint Hook Fallback', () => {
     projectDirectory = createTemporaryDirectory();
     createGoProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
 
     // Delete .safeword/.golangci.yml AFTER setup to test fallback path
     const golangciConfig = nodePath.join(projectDirectory, '.safeword/.golangci.yml');

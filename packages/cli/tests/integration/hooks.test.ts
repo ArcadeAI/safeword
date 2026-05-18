@@ -24,7 +24,7 @@ import {
   isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -38,7 +38,7 @@ beforeAll(async () => {
   projectDirectory = createTemporaryDirectory();
   createTypeScriptPackageJson(projectDirectory);
   initGitRepo(projectDirectory);
-  await runCli(['setup', '--yes'], { cwd: projectDirectory });
+  await setupOrThrow(projectDirectory);
 }, 180_000);
 
 afterAll(() => {

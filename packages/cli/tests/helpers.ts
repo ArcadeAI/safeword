@@ -269,6 +269,34 @@ export function initGitRepo(dir: string): void {
 }
 
 /**
+ * Run `safeword setup` (or variant) in a fixture and throw a loud, actionable
+ * error if it fails. Use this in `beforeAll`/`beforeEach` blocks where a silent
+ * setup failure would cascade into misleading test failures across the file.
+ *
+ * The most common silent-failure mode: `dist/cli.js` missing or stale in a fresh
+ * worktree. Without this assertion, every subsequent test in the file fails with
+ * "Module not found" or exit-code mismatches that look unrelated to setup.
+ * @param projectDirectory
+ * @param setupArgs CLI args including the command (default: ['setup', '--yes'])
+ */
+export async function setupOrThrow(
+  projectDirectory: string,
+  setupArguments: string[] = ['setup', '--yes'],
+  cliOptions: { env?: Record<string, string>; timeout?: number } = {},
+): Promise<CliResult> {
+  const result = await runCli(setupArguments, { cwd: projectDirectory, ...cliOptions });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `safeword ${setupArguments.join(' ')} failed (exit ${result.exitCode}) in ${projectDirectory}.\n` +
+        `Likely cause: dist/cli.js missing or stale.\n` +
+        `Run: bun install && bun run --cwd packages/cli build\n` +
+        `stderr: ${result.stderr || '(empty)'}`,
+    );
+  }
+  return result;
+}
+
+/**
  * Creates a configured project (runs setup) for tests that need pre-configured state.
  * Includes base packages in devDependencies to prevent sync attempts during tests.
  * @param dir
@@ -286,7 +314,7 @@ export async function createConfiguredProject(dir: string): Promise<void> {
     },
   });
   initGitRepo(dir);
-  await runCli(['setup'], { cwd: dir });
+  await setupOrThrow(dir, ['setup']);
 }
 
 /**

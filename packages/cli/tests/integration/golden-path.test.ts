@@ -23,8 +23,8 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
   runLintHook,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -35,7 +35,7 @@ describe('E2E: Golden Path', () => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000); // 3 min timeout for bun install
 
   afterAll(() => {
@@ -120,8 +120,8 @@ describe('E2E: TypeScript Setup Idempotency', () => {
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -171,7 +171,7 @@ describe('E2E: TypeScript Lint Hook Fallback', () => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
 
     // Delete .safeword/eslint.config.mjs AFTER setup to test fallback path
     const eslintConfig = nodePath.join(projectDirectory, '.safeword/eslint.config.mjs');

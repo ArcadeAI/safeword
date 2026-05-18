@@ -26,8 +26,8 @@ import {
   isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
   runLintHook,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -40,7 +40,7 @@ describe('E2E: Python Golden Path', () => {
     projectDirectory = createTemporaryDirectory();
     createPythonProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000); // 3 min timeout for setup
 
   afterAll(() => {
@@ -149,8 +149,8 @@ describe('E2E: Python Setup Idempotency', () => {
     createPythonProject(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
@@ -192,7 +192,7 @@ describe('E2E: Python Lint Hook Fallback', () => {
     projectDirectory = createTemporaryDirectory();
     createPythonProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
 
     // Delete BOTH configs to test fallback path
     // Python uses extend pattern (ruff.toml → .safeword/ruff.toml), so we must delete both

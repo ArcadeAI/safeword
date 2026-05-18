@@ -21,8 +21,8 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
   runEslint,
+  setupOrThrow,
   TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
@@ -39,10 +39,7 @@ describe('E2E: TypeScript Project Setup', () => {
     createTypeScriptPackageJson(projectDirectory);
     writeTestFile(projectDirectory, 'src/index.ts', 'export const hello = "world";\n');
     initGitRepo(projectDirectory);
-    await runCli(['setup'], {
-      cwd: projectDirectory,
-      timeout: TIMEOUT_SETUP,
-    });
+    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
   }, 180_000);
 
   afterAll(() => {
@@ -85,10 +82,7 @@ describe('E2E: Type-Checked ESLint Rules', () => {
     createTypeScriptPackageJson(projectDirectory);
     writeTestFile(projectDirectory, 'src/index.ts', 'export const placeholder = 1;\n');
     initGitRepo(projectDirectory);
-    await runCli(['setup'], {
-      cwd: projectDirectory,
-      timeout: TIMEOUT_SETUP,
-    });
+    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
 
     // Install dependencies so ESLint can run with type checking
     execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
@@ -198,10 +192,7 @@ describe('E2E: JavaScript-Only Project', () => {
     createPackageJson(projectDirectory);
     writeTestFile(projectDirectory, 'src/index.js', 'module.exports = { hello: "world" };\n');
     initGitRepo(projectDirectory);
-    await runCli(['setup'], {
-      cwd: projectDirectory,
-      timeout: TIMEOUT_SETUP,
-    });
+    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
   }, 180_000);
 
   afterAll(() => {

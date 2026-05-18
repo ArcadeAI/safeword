@@ -23,9 +23,9 @@ import {
   readSafewordConfig,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
   runLintHook,
   SAFEWORD_VERSION,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -60,7 +60,7 @@ version = "0.1.0"
     );
 
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {
