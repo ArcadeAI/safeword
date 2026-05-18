@@ -43,9 +43,9 @@ A previous Claude session upgrading arcade-deep-research correctly noted version
 
 ## Tests
 
-- [ ] Unit: `addInstalledPack` on a fresh project writes a config without a `version` field.
-- [ ] Unit: `upgrade` on a project whose `config.json` has `version: "0.25.14"` strips the field while preserving `installedPacks` and `autoUpgrade`.
-- [ ] Unit: `upgrade` on a project whose `config.json` already lacks `version` is a no-op for that file.
+- [x] Unit: `addInstalledPack` on a fresh project writes a config without a `version` field. → `tests/packs/packs.test.ts` "Test 1.6"
+- [x] Unit: `upgrade` on a project whose `config.json` has `version: "0.25.14"` strips the field while preserving `installedPacks`. → `tests/commands/upgrade.test.ts` "Ticket 154 › should remove `version` …"
+- [x] Unit: `upgrade` on a project whose `config.json` already lacks `version` is a no-op for that file. → `tests/commands/upgrade.test.ts` "Ticket 154 › should be a no-op …"
 
 ## Work Log
 
