@@ -77,7 +77,7 @@ Out of Scope:
 
 ### Given-When-Then Format (Behavior-Focused)
 
-For feature-level work, run `/bdd` — the BDD skill guides you through drafting scenarios with proper Given/When/Then structure in Phase 3.
+For feature-level work, run `/bdd`. The BDD skill walks Phase 3 (define behavior): derive dimensions → partition into scenarios → save to `test-definitions.md` in canonical format (Rule grouping + nested Scenario + Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR`). Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
 
 ### Job Story Format (Outcome-Focused)
 
@@ -225,127 +225,70 @@ Test: All existing tests pass, no new mutations
 
 ## Part 2: Test Definitions
 
-### How to Fill Out Test Definitions
+### Routing by ticket type
 
-1. Read `.safeword/templates/test-definitions-feature.md`
-2. Read user story's Technical Constraints section (if exists)
-3. Fill in feature name, issue number, test file path
-4. Organize tests into logical suites
-5. Create numbered tests (Test 1.1, Test 1.2, etc.)
-6. Add status for each test
-7. Include detailed steps and expected outcomes
-8. Add summary with coverage breakdown
-9. Save to `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
+| Type        | Path to test definitions                                                |
+| ----------- | ----------------------------------------------------------------------- |
+| **feature** | Run `/bdd` — Phase 3 derives dimensions and saves `test-definitions.md` |
+| **task**    | Inline test specs in the ticket spec; no separate file                  |
+| **patch**   | Existing tests cover it; no new test definitions                        |
 
----
+The rest of this section describes the canonical format the BDD skill writes to disk.
 
-## Test Status Indicators
+### Prerequisites (enforced by hooks)
 
-Use these consistently:
+Before `test-definitions.md` can be created, the ticket frontmatter must contain:
 
-- **✅ Passing** - Test is implemented and passing
-- **⏭️ Skipped** - Test is intentionally skipped (add rationale)
-- **❌ Not Implemented** - Test is defined but not yet written
-- **🔴 Failing** - Test exists but is currently failing
+- `scope:` — what this ticket builds
+- `out_of_scope:` — what it does NOT build
+- `done_when:` — the observable outcome that signals done
 
----
+`pre-tool-quality.ts` hard-blocks creation otherwise. For features, BDD additionally requires `dimensions.md` (the dimension table derived in Phase 3, partitioned into equivalence classes + boundary values) before scenarios can be written.
 
-## Test Definition Naming
+### Canonical format
 
-**✅ GOOD - Descriptive and specific:**
+Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s. Each scenario has Given/When/Then steps followed by `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during Phase 6.
 
-- "Render all three panes"
-- "Cmd+J toggles AI pane visibility"
-- "State persistence across sessions"
+```markdown
+## Rule: Dry-run shows expected output
 
-**❌ BAD - Vague or technical:**
+### Scenario: Empty directory lists would-be files
 
-- "Test 1" (no description)
-- "Check state" (too vague)
-- "Verify useUIStore hook" (implementation detail)
+Given an empty target directory
+When user runs `init --dry-run`
+Then output lists files that would be created
 
----
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
-## Writing Test Steps
+### Scenario: Existing config surfaces warning
 
-**✅ GOOD - Clear, actionable steps:**
+Given a `config.json` already exists
+When user runs `init --dry-run`
+Then output notes the file would be overwritten
 
-```text
-**Steps**:
-1. Toggle AI pane visible
-2. Get bounding box for AI pane
-3. Get bounding box for Editor pane
-4. Compare X coordinates
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 ```
 
-**❌ BAD - Vague or incomplete:**
+### Writing scenarios
 
-```text
-**Steps**:
-1. Check panes
-2. Verify order
-```
+- **Declarative, not imperative** — describe _what_ the system does, not _how_ (Cucumber best practice). Avoid UI-step recipes; describe behavior.
+- **3-5 G/W/T steps per scenario** — if you need more, the scenario is doing too much.
+- **One When/Then pair per scenario** — atomicity (BDD AODI: Atomic, Observable, Deterministic, Independent).
+- **Scenario names carry meaning** — good names make G/W/T almost redundant.
 
----
+| ✅ Good                                 | ❌ Bad                                 |
+| --------------------------------------- | -------------------------------------- |
+| "Empty directory lists would-be files"  | "Test 1.1" (no description)            |
+| "Cmd+J toggles AI pane visibility"      | "Check state" (vague)                  |
+| "Invalid credentials surface 401 error" | "Verify useUIStore hook" (impl detail) |
 
-## Writing Expected Outcomes
+### Testing Technical Constraints
 
-**✅ GOOD - Specific, testable assertions:**
-
-```text
-**Expected**:
-- AI pane X coordinate < Editor pane X coordinate
-- Explorer pane X coordinate > Editor pane X coordinate
-- All coordinates are positive numbers
-```
-
-**❌ BAD - Vague expectations:**
-
-```text
-**Expected**:
-- Panes are in correct order
-- Everything works
-```
-
----
-
-## Organizing Test Suites
-
-Group related tests:
-
-- **Layout/Structure** - DOM structure, element presence, positioning
-- **User Interactions** - Clicks, keyboard shortcuts, drag/drop
-- **State Management** - State changes, persistence, reactivity
-- **Accessibility** - ARIA labels, keyboard navigation, focus
-- **Edge Cases** - Error handling, boundary conditions
-- **Technical Constraints** - Non-functional requirements from user story
-
----
-
-## Coverage Summary
-
-**Always include:**
-
-- Total test count
-- Breakdown by status (passing, skipped, not implemented, failing)
-- Percentages for each category
-- Rationale for skipped tests
-
-**Example:**
-
-```text
-**Total**: 20 tests
-**Passing**: 9 tests (45%)
-**Skipped**: 4 tests (20%)
-**Not Implemented**: 7 tests (35%)
-**Failing**: 0 tests
-```
-
----
-
-## Testing Technical Constraints
-
-User stories include Technical Constraints. These MUST have corresponding tests.
+User stories include Technical Constraints. These MUST have corresponding scenarios.
 
 | Constraint Category | Test Type                  | What to Verify                                |
 | ------------------- | -------------------------- | --------------------------------------------- |
@@ -356,30 +299,13 @@ User stories include Technical Constraints. These MUST have corresponding tests.
 | Dependencies        | Integration tests          | Required services work, no forbidden packages |
 | Infrastructure      | Resource tests             | Memory limits, offline behavior               |
 
----
+### Status tracking is the checkbox state
 
-## Test Definition Example
+GFM checkbox state IS the status. Don't add emoji indicators (`✅ Passing`, `❌ Not Implemented`) or coverage summaries — `scenario-format.ts` computes coverage from `- [ ]` vs `- [x]` counts, and the done gate hard-blocks if any scenario remains unchecked.
 
-```markdown
-### Test 3.1: Cmd+J toggles AI pane visibility ✅
+### Saved path
 
-**Status**: ✅ Passing
-**Description**: Verifies Cmd+J keyboard shortcut toggles AI pane
-
-**Steps**:
-
-1. Verify AI pane hidden initially (default state)
-2. Press Cmd+J (Mac) or Ctrl+J (Windows/Linux)
-3. Verify AI pane becomes visible
-4. Press Cmd+J again
-5. Verify AI pane becomes hidden
-
-**Expected**:
-
-- AI pane starts hidden
-- After first toggle: AI pane visible
-- After second toggle: AI pane hidden
-```
+`.safeword-project/tickets/{id}-{slug}/test-definitions.md`
 
 ---
 
@@ -410,7 +336,9 @@ User stories include Technical Constraints. These MUST have corresponding tests.
 
 **Test Definition Red Flags:**
 
-- Test name doesn't describe behavior → Rename
-- Steps are vague → Add detail
-- No expected outcomes → Add assertions
-- No coverage summary → Add totals
+- Scenario name doesn't describe behavior → Rename
+- Imperative steps (UI clicks, internals) → Rewrite declaratively
+- More than 5 G/W/T steps in a scenario → Split into multiple scenarios
+- Multiple When/Then pairs in one scenario → Split (AODI: Atomic)
+- Missing `- [ ] RED / GREEN / REFACTOR` sub-checkboxes → Use canonical template
+- Scenarios not grouped under `## Rule:` → Add rule grouping
