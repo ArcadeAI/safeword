@@ -44,11 +44,7 @@ export type AutoPatchResult =
   | { kind: 'idempotent-skip' }
   | { kind: 'bailed'; reason: BailReason };
 
-export type BailReason =
-  | 'read-failed'
-  | 'unrecognized-shape'
-  | 'syntax-check-failed'
-  | 'write-failed';
+type BailReason = 'read-failed' | 'unrecognized-shape' | 'syntax-check-failed' | 'write-failed';
 
 /**
  * Walk a string starting at an opening `[` and return the index of the

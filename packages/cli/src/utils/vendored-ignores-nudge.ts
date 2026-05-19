@@ -55,17 +55,6 @@ function printVendoredIgnoresNudge(): void {
   listItem('...safeword.configs.vendoredIgnores,');
 }
 
-/**
- * Convenience wrapper: decide-then-print. Lets callers (setup/upgrade) keep
- * a single unconditional call site, so the branching lives here rather than
- * inflating orchestrator complexity.
- */
-export function maybePrintVendoredIgnoresNudge(options: VendoredIgnoresNudgeOptions): void {
-  if (shouldEmitVendoredIgnoresNudge(options)) {
-    printVendoredIgnoresNudge();
-  }
-}
-
 export interface AutoPatchOrNudgeOptions extends VendoredIgnoresNudgeOptions {
   /** True if the user passed `--no-modify` to setup/upgrade. Defaults to false. */
   noModify?: boolean;
