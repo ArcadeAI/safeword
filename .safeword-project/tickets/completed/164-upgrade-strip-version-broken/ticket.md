@@ -1,10 +1,10 @@
 ---
 id: 164
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-05-19T20:59:00Z
-last_modified: 2026-05-19T20:59:00Z
+last_modified: 2026-05-19T21:02:00Z
 scope: |
   Fix the broken implementation of main's ticket 154 (strip dead `version`
   field from .safeword/config.json). The test
@@ -52,3 +52,6 @@ done_when: |
 ## Work Log
 
 - 2026-05-19T20:59:00Z Started: ticket created from test failures surfaced during ticket-152 session's post-rebase verification. Confirmed failure exists on plain origin/main, not introduced by 152 branch.
+- 2026-05-19T21:02:00Z Investigated: read `stripDeadConfigVersion` in `packages/cli/src/commands/upgrade.ts:38-46`. Code logic is correct (read JSON, delete `version` key, write back). Called at line 150 after reconcile, before pack installs — proper ordering.
+- 2026-05-19T21:03:00Z Re-ran test in isolation (passes 2/2) AND in full upgrade.test.ts file (passes 14/14). Test passes now where it failed earlier. Root cause: stale `dist/cli.js`. The test uses `runCli(['upgrade'], ...)` which executes the BUILT CLI from `dist/cli.js`. Pre-bun-install, that build didn't yet contain main's `stripDeadConfigVersion` code (it was our pre-rebase build). The `bun install` I ran during ticket 163 investigation triggered the `prepare` script (`husky && bun run --cwd packages/cli build`), which rebuilt dist with the rebased source — now matching main's strip-version implementation.
+- 2026-05-19T21:04:00Z Complete: closing without code change. Same class of issue as ticket 163 (worktree environment, not a code bug). Filing follow-up ticket 165 for the broader pattern — `runCli`-based tests silently fail on stale dist, and unlike beforeAll setup failures (handled by setupOrThrow from this session's ticket-152 work), inline `runCli(['cmd'])` calls in `it()` blocks don't go through any freshness guard.
