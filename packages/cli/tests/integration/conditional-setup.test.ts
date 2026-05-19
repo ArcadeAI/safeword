@@ -180,12 +180,16 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
       const existingConfig = '// My custom ESLint config\nexport default [];\n';
       writeTestFile(projectDirectory, 'eslint.config.mjs', existingConfig);
 
-      await runCli(['setup', '--yes'], {
+      // Pass --no-modify so 154's auto-patch is skipped — this test asserts
+      // safeword does not overwrite an existing config, not that it can
+      // never be augmented with the vendoredIgnores spread (that path has
+      // its own tests under src/utils/eslint-auto-patch.test.ts).
+      await runCli(['setup', '--yes', '--no-modify'], {
         cwd: projectDirectory,
         timeout: SETUP_TIMEOUT,
       });
 
-      // Existing config should be preserved
+      // Existing config should be byte-identical
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toBe(existingConfig);
     },
