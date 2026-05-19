@@ -132,7 +132,17 @@ function findDefaultExportArrayClose(source: string): number {
 
 function skipWhitespace(source: string, start: number): number {
   let i = start;
-  while (i < source.length && /\s/.test(source[i])) i += 1;
+  while (i < source.length && /\s/.test(source[i] ?? '')) i += 1;
+  return i;
+}
+
+/**
+ * Walk backward from `start` over whitespace, returning the index of the
+ * last non-whitespace char. -1 if the entire prefix is whitespace.
+ */
+function lastNonWhitespaceIndex(source: string, start: number): number {
+  let i = start;
+  while (i >= 0 && /\s/.test(source[i] ?? '')) i -= 1;
   return i;
 }
 
@@ -229,8 +239,7 @@ export function autoPatchEslintConfig(options: AutoPatchOptions): AutoPatchResul
   // `[` (empty array) or `,` (trailing-comma style) no comma is needed.
   // Otherwise the last element lacks a trailing comma and we must add
   // one before our spread.
-  let probe = finalClose - 1;
-  while (probe >= 0 && /\s/.test(sourceWithImport[probe])) probe -= 1;
+  const probe = lastNonWhitespaceIndex(sourceWithImport, finalClose - 1);
   const charBefore = sourceWithImport[probe];
   const needsLeadingComma = charBefore !== '[' && charBefore !== ',';
 

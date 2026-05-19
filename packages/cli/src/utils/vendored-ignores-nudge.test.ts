@@ -143,7 +143,7 @@ describe('maybeAutoPatchOrNudge', () => {
     expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
       false,
     );
-    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('...safeword.configs.vendoredIgnores,');
   });
 
@@ -165,7 +165,7 @@ describe('maybeAutoPatchOrNudge', () => {
     expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
       false,
     );
-    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('...safeword.configs.vendoredIgnores,');
   });
 
@@ -184,7 +184,7 @@ describe('maybeAutoPatchOrNudge', () => {
     expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
       original,
     );
-    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).not.toContain('vendoredIgnores');
   });
 
@@ -203,7 +203,7 @@ describe('maybeAutoPatchOrNudge', () => {
     expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
       true,
     );
-    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('eslint.config.mjs');
     expect(output).toContain('.safeword-bak');
   });
@@ -225,7 +225,7 @@ describe('maybeAutoPatchOrNudge', () => {
     expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
       false,
     );
-    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain("Couldn't auto-patch");
     expect(output).toContain('...safeword.configs.vendoredIgnores,');
   });
