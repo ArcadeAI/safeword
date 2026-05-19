@@ -17,9 +17,13 @@ program
   .command('setup')
   .description('Set up safeword in the current project')
   .option('-y, --yes', 'Skip confirmation prompts (for scripting)')
-  .action(async () => {
+  .option(
+    '--no-modify',
+    'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
+  )
+  .action(async options => {
     const { setup } = await import('./commands/setup.js');
-    await setup();
+    await setup({ noModify: options.modify === false });
   });
 
 program
@@ -34,9 +38,13 @@ program
 program
   .command('upgrade')
   .description('Upgrade safeword configuration to latest version')
-  .action(async () => {
+  .option(
+    '--no-modify',
+    'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
+  )
+  .action(async options => {
     const { upgrade } = await import('./commands/upgrade.js');
-    await upgrade();
+    await upgrade({ noModify: options.modify === false });
   });
 
 program

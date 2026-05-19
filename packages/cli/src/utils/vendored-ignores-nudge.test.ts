@@ -8,13 +8,13 @@
  * - 4.2: Existing config already references `.safeword/` → no emission (idempotent)
  */
 
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { shouldEmitVendoredIgnoresNudge } from './vendored-ignores-nudge.js';
+import { maybeAutoPatchOrNudge, shouldEmitVendoredIgnoresNudge } from './vendored-ignores-nudge.js';
 
 let temporaryDirectory: string;
 
@@ -44,6 +44,22 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   it('stays silent when existing eslint config already references .safeword/', () => {
     const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
     writeFileSync(cfg, "export default [{ ignores: ['.safeword/**'] }];\n", 'utf8');
+    expect(
+      shouldEmitVendoredIgnoresNudge({
+        cwd: temporaryDirectory,
+        existingEslintConfig: 'eslint.config.mjs',
+        hasJavaScript: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('stays silent when existing eslint config already mentions vendoredIgnores (manual 153 application)', () => {
+    const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
+    writeFileSync(
+      cfg,
+      "import s from 'safeword/eslint';\nexport default [...s.configs.vendoredIgnores];\n",
+      'utf8',
+    );
     expect(
       shouldEmitVendoredIgnoresNudge({
         cwd: temporaryDirectory,
@@ -88,5 +104,129 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
     } finally {
       consoleSpy.mockRestore();
     }
+  });
+});
+
+describe('maybeAutoPatchOrNudge', () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    delete process.env.SAFEWORD_NO_MODIFY;
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    delete process.env.SAFEWORD_NO_MODIFY;
+  });
+
+  function setupConfig(filename: string, body: string): string {
+    const fullPath = nodePath.join(temporaryDirectory, filename);
+    writeFileSync(fullPath, body, 'utf8');
+    return fullPath;
+  }
+
+  it('3.1: --no-modify flag falls through to print-nudge; config untouched', () => {
+    const original = "export default [{ files: ['**/*.ts'] }];\n";
+    setupConfig('eslint.config.mjs', original);
+
+    maybeAutoPatchOrNudge({
+      cwd: temporaryDirectory,
+      existingEslintConfig: 'eslint.config.mjs',
+      hasJavaScript: true,
+      noModify: true,
+    });
+
+    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+      original,
+    );
+    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
+      false,
+    );
+    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(output).toContain('...safeword.configs.vendoredIgnores,');
+  });
+
+  it('3.2: SAFEWORD_NO_MODIFY env var has the same effect as --no-modify', () => {
+    const original = "export default [{ files: ['**/*.ts'] }];\n";
+    setupConfig('eslint.config.mjs', original);
+    process.env.SAFEWORD_NO_MODIFY = '1';
+
+    maybeAutoPatchOrNudge({
+      cwd: temporaryDirectory,
+      existingEslintConfig: 'eslint.config.mjs',
+      hasJavaScript: true,
+      noModify: false,
+    });
+
+    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+      original,
+    );
+    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
+      false,
+    );
+    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(output).toContain('...safeword.configs.vendoredIgnores,');
+  });
+
+  it('3.3: opt-out + already-patched state stays fully silent', () => {
+    const original =
+      "import safeword from 'safeword/eslint';\nexport default [...safeword.configs.vendoredIgnores];\n";
+    setupConfig('eslint.config.mjs', original);
+
+    maybeAutoPatchOrNudge({
+      cwd: temporaryDirectory,
+      existingEslintConfig: 'eslint.config.mjs',
+      hasJavaScript: true,
+      noModify: true,
+    });
+
+    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+      original,
+    );
+    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(output).not.toContain('vendoredIgnores');
+  });
+
+  it('default behavior: auto-patches and prints confirmation referencing both paths', () => {
+    setupConfig('eslint.config.mjs', "export default [{ files: ['**/*.ts'] }];\n");
+
+    maybeAutoPatchOrNudge({
+      cwd: temporaryDirectory,
+      existingEslintConfig: 'eslint.config.mjs',
+      hasJavaScript: true,
+      noModify: false,
+    });
+
+    const patched = readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8');
+    expect(patched).toContain('...safeword.configs.vendoredIgnores,');
+    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
+      true,
+    );
+    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(output).toContain('eslint.config.mjs');
+    expect(output).toContain('.safeword-bak');
+  });
+
+  it('bail path: unrecognized shape leaves config untouched, prints bail line + nudge', () => {
+    const original = "export default () => [{ files: ['**/*.ts'] }];\n";
+    setupConfig('eslint.config.mjs', original);
+
+    maybeAutoPatchOrNudge({
+      cwd: temporaryDirectory,
+      existingEslintConfig: 'eslint.config.mjs',
+      hasJavaScript: true,
+      noModify: false,
+    });
+
+    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+      original,
+    );
+    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
+      false,
+    );
+    const output = logSpy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(output).toContain("Couldn't auto-patch");
+    expect(output).toContain('...safeword.configs.vendoredIgnores,');
   });
 });

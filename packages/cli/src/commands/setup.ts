@@ -26,7 +26,7 @@ import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { detectLanguages, type Languages } from '../utils/project-detector.js';
-import { maybePrintVendoredIgnoresNudge } from '../utils/vendored-ignores-nudge.js';
+import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { getWorkspacePatterns } from '../utils/workspaces.js';
 import { VERSION } from '../version.js';
 import { buildArchitecture, hasArchitectureDetected, syncConfigCore } from './sync-config.js';
@@ -431,7 +431,12 @@ function warnIfBunMissing(): void {
   }
 }
 
-export async function setup(): Promise<void> {
+export interface SetupOptions {
+  /** When true, skip auto-editing the project's eslint config; fall through to the print-only nudge. */
+  noModify?: boolean;
+}
+
+export async function setup(options: SetupOptions): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
 
@@ -485,10 +490,11 @@ export async function setup(): Promise<void> {
       pythonImportLinter: pythonStatus.importLinter,
     });
 
-    maybePrintVendoredIgnoresNudge({
+    maybeAutoPatchOrNudge({
       cwd,
       existingEslintConfig: ctx.projectType.existingEslintConfig,
       hasJavaScript: languages.javascript,
+      noModify: options.noModify,
     });
   } catch (error_) {
     error(`Setup failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
