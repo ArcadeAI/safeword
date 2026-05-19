@@ -1,4 +1,4 @@
-# Verify — Ticket 154: install-time auto-patch of consumer's ESLint config
+# Verify — Ticket 157: install-time auto-patch of consumer's ESLint config
 
 ## Verify Checklist
 
@@ -15,7 +15,7 @@
 - **Dead code (knip):** ✅ Clean after dropping the superseded `maybePrintVendoredIgnoresNudge` wrapper and un-exporting the module-internal `BailReason` type. The `eslintPlugin|default` duplicate-export note is a pre-existing pattern in `presets/typescript/index.ts`, not introduced by this ticket.
 - **Duplication (jscpd) on `packages/cli/src/utils/`:** 1.44% lines / 1.77% tokens — well under the 5% guideline. The three clones are setup fixtures across adjacent scenarios in the same test file; acceptable noise.
 - **Test quality:** sampled the three new/extended test files (`eslint-auto-patch.test.ts`, `vendored-ignores-nudge.test.ts`, `conditional-setup.test.ts` / `invisible-extension.test.ts` updates). Specific assertions (`toBe`/`toEqual`/`toContain`), `it.each` parameterization for the 6-extension matrix, temp-dir cleanup per scenario, behavior-named tests.
-- **Outdated:** `eslint 9.39.4 → 10.4.0` (dev, major). Owned by separate in-progress ticket 099-eslint-10-migration — not in scope for 154.
+- **Outdated:** `eslint 9.39.4 → 10.4.0` (dev, major). Owned by separate in-progress ticket 099-eslint-10-migration — not in scope for 157.
 
 Audit passed.
 
@@ -43,7 +43,7 @@ Files touched:
 
 Auto-patch core (Rule 1): 5/5 scenarios — bare array, `defineConfig(...)` wrapper, six recognized filenames (`.mjs/.js/.cjs/.ts/.mts/.cts`), no-duplicate-import, CRLF preservation.
 
-Idempotency (Rule 2): 2/2 — substring-match on `vendoredIgnores` covers both prior auto-patch and manual 153 application.
+Idempotency (Rule 2): 2/2 — substring-match on `vendoredIgnores` covers both prior auto-patch and manual 156 application.
 
 Opt-out (Rule 3): 3/3 — `--no-modify` flag, `SAFEWORD_NO_MODIFY` env var, opt-out + already-patched silent path.
 
@@ -58,4 +58,4 @@ Repo health (Rule 7): 3/3 — lint, vitest, build all green.
 ## Follow-up notes
 
 - Pair-parity unchanged: no hook files touched in this ticket; the parity contract is preserved by virtue of not editing under `.safeword/hooks/` or `packages/cli/templates/hooks/`.
-- The textual heuristic intentionally bails on a class of edge cases (comments containing `export default [`, unrecognized wrappers, etc.). On bail, the user gets the 153 print-only nudge and the manual snippet. No silent corruption.
+- The textual heuristic intentionally bails on a class of edge cases (comments containing `export default [`, unrecognized wrappers, etc.). On bail, the user gets the 156 print-only nudge and the manual snippet. No silent corruption.

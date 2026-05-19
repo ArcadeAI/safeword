@@ -1,4 +1,4 @@
-# Test Definitions — Ticket 154: Install-time auto-patch of consumer's ESLint config
+# Test Definitions — Ticket 157: Install-time auto-patch of consumer's ESLint config
 
 ## Rule 1 — Recognized flat-config shapes get patched
 
@@ -53,26 +53,26 @@
       **When** the user runs `safeword setup` again
       **Then** the config is not modified a second time (mtime / content unchanged)
       **And** no confirmation line is printed
-      **And** no 153 print-nudge is emitted
+      **And** no 156 print-nudge is emitted
 
-### Scenario 2.2: Manual 153-nudge application is recognized as already-patched
+### Scenario 2.2: Manual 156-nudge application is recognized as already-patched
 
-- [x] **Given** a project whose `eslint.config.mjs` the user hand-edited last week (after reading the 153 print-nudge) to spread `vendoredIgnores` themselves
+- [x] **Given** a project whose `eslint.config.mjs` the user hand-edited last week (after reading the 156 print-nudge) to spread `vendoredIgnores` themselves
       **When** the user runs `safeword upgrade`
       **Then** the config is not modified
-      **And** the 153 print-nudge does not re-emit
+      **And** the 156 print-nudge does not re-emit
 
 ---
 
 ## Rule 3 — Opt-out short-circuits auto-patch
 
-### Scenario 3.1: `--no-modify` flag falls through to 153 print-nudge
+### Scenario 3.1: `--no-modify` flag falls through to 156 print-nudge
 
 - [x] **Given** a project with an existing `eslint.config.mjs` that does NOT contain `vendoredIgnores`
       **When** the user runs `safeword setup --no-modify`
       **Then** the config is byte-identical to its pre-command state
       **And** no `.safeword-bak` is created
-      **And** the 153 print-nudge fires (the snippet is printed for the user)
+      **And** the 156 print-nudge fires (the snippet is printed for the user)
 
 ### Scenario 3.2: `SAFEWORD_NO_MODIFY=1` env var has the same effect as the flag
 
@@ -80,14 +80,14 @@
       **When** the user runs `safeword setup`
       **Then** the config is byte-identical to its pre-command state
       **And** no `.safeword-bak` is created
-      **And** the 153 print-nudge fires
+      **And** the 156 print-nudge fires
 
 ### Scenario 3.3: Opt-out plus already-patched state stays silent
 
 - [x] **Given** a project whose `eslint.config.mjs` already contains `vendoredIgnores` AND the user passes `--no-modify`
       **When** the user runs `safeword setup`
       **Then** the config is unchanged
-      **And** the 153 print-nudge is skipped (its own substring gate fires before emission)
+      **And** the 156 print-nudge is skipped (its own substring gate fires before emission)
 
 ---
 
@@ -99,28 +99,28 @@
       **When** the user runs `safeword setup`
       **Then** the file is byte-identical to its pre-command state
       **And** no `.safeword-bak` is created
-      **And** the 153 print-nudge fires
+      **And** the 156 print-nudge fires
 
 ### Scenario 4.2: Single-imported-config bails to print
 
 - [x] **Given** a project whose `eslint.config.mjs` is `import cfg from './shared.mjs'; export default cfg;`
       **When** the user runs `safeword setup`
       **Then** the file is unchanged
-      **And** the 153 print-nudge fires
+      **And** the 156 print-nudge fires
 
 ### Scenario 4.3: `defineConfig(...)` wrapping a non-array call bails
 
 - [x] **Given** a project whose `eslint.config.mjs` is `export default defineConfig(getConfig());`
       **When** the user runs `safeword setup`
       **Then** the file is unchanged
-      **And** the 153 print-nudge fires
+      **And** the 156 print-nudge fires
 
 ### Scenario 4.4: Unrecognized custom wrapper bails
 
 - [x] **Given** a project whose `eslint.config.mjs` is `export default makeMyConfig([ /* ... */ ]);` (`makeMyConfig` is not `defineConfig`)
       **When** the user runs `safeword setup`
       **Then** the file is unchanged
-      **And** the 153 print-nudge fires
+      **And** the 156 print-nudge fires
 
 ---
 
@@ -131,7 +131,7 @@
 - [x] **Given** an edge-case config that survives the textual-insertion heuristic but the resulting file fails `node --check` (e.g., due to a comment placement quirk the heuristic doesn't catch)
       **When** the user runs `safeword setup`
       **Then** the on-disk `eslint.config.mjs` is byte-identical to its pre-command state (restored from `.safeword-bak`)
-      **And** the 153 print-nudge fires
+      **And** the 156 print-nudge fires
       **And** the command exits successfully (a botched auto-patch is not a fatal error)
 
 ### Scenario 5.2: Write failure mid-edit leaves no half-state
@@ -139,7 +139,7 @@
 - [x] **Given** a project where `eslint.config.mjs` is writeable but the directory becomes read-only between backup and write (or a similar I/O fault is simulated)
       **When** the user runs `safeword setup`
       **Then** if the original file was untouched, no backup is left orphaned
-      **And** the 153 print-nudge fires
+      **And** the 156 print-nudge fires
 
 ### Scenario 5.4: TypeScript configs skip `node --check`
 
@@ -154,7 +154,7 @@
 - [x] **Given** a project where `existingEslintConfig` is reported as `eslint.config.mjs` but the file is unreadable (permissions, mid-deletion)
       **When** the user runs `safeword setup`
       **Then** no edit is attempted
-      **And** the 153 print-nudge fires (conservatively, matching the existing 153 behavior on unreadable configs)
+      **And** the 156 print-nudge fires (conservatively, matching the existing 156 behavior on unreadable configs)
 
 ---
 
@@ -178,7 +178,7 @@
 - [x] **Given** a Python-only project with no `javascript` language detected
       **When** the user runs `safeword setup`
       **Then** auto-patch is never invoked (no file reads, no backups, no edits)
-      **And** no 153 print-nudge is emitted
+      **And** no 156 print-nudge is emitted
 
 ---
 

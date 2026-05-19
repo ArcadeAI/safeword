@@ -1,4 +1,4 @@
-# Test Definitions — Ticket 153: Vendored-ignores export + install-time guidance + hygiene pass
+# Test Definitions — Ticket 156: Vendored-ignores export + install-time guidance + hygiene pass
 
 ## Rule 1 — Export shape & primitive
 
