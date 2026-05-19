@@ -1,10 +1,10 @@
 ---
 id: 165
 type: patch
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-05-19T21:04:00Z
-last_modified: 2026-05-19T21:04:00Z
+last_modified: 2026-05-19T21:06:00Z
 scope: |
   Add a `pretest` script (or fold `tsup` into `test`) in `packages/cli/package.json`
   so `bun run test` always rebuilds `dist/cli.js` before executing. Closes the
@@ -42,3 +42,5 @@ done_when: |
 ## Work Log
 
 - 2026-05-19T21:04:00Z Started: ticket created after closing 163 and 164 with the same root cause (stale dist).
+- 2026-05-19T21:05:00Z Implemented option (a): added `"pretest": "tsup"` to packages/cli/package.json between the existing `"dev"` and `"test"` entries. Bun/npm lifecycle hook automatically runs `pretest` before `test`.
+- 2026-05-19T21:06:00Z Verified: `bun run test tests/commands/upgrade.test.ts` shows tsup rebuild output followed by vitest run; 14/14 tests pass. Pretest rebuild adds ~3s of build time. Close.
