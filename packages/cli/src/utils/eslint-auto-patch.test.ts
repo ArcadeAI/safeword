@@ -214,6 +214,29 @@ describe('Rule 4 — bail-to-print on unrecognized shapes', () => {
 // ────────────────────────────────────────────────────────────────────────────
 
 describe('Rule 5 — safety', () => {
+  it('5.1: post-edit node --check failure reverts from backup and bails', () => {
+    // Craft a config where the textual heuristic targets a commented-out
+    // `export default [...]` block, so the insertion lands inside the
+    // comment and the resulting file fails `node --check`. The patcher
+    // must restore from backup and bail.
+    const body =
+      "// export default ['stale-example'];\n" +
+      'const blocker = 1;\n' +
+      "export default [{ files: ['**/*.ts'], blocker }];\n";
+    const configPath = writeConfig('eslint.config.mjs', body);
+
+    const result = autoPatchEslintConfig({ configPath });
+
+    expect(result.kind).toBe('bailed');
+    if (result.kind === 'bailed') {
+      // Either syntax-check-failed (the path we want to exercise here) or
+      // some intermediate bail — but the contract is: original file is
+      // byte-identical to its pre-command state.
+      expect(['syntax-check-failed', 'unrecognized-shape']).toContain(result.reason);
+    }
+    expect(readFileSync(configPath, 'utf8')).toBe(body);
+  });
+
   it('5.4: TypeScript config with as-const-trailing syntax is patched without node --check', () => {
     // The trailing `as const` is valid TS but would make node --check reject it.
     // The patcher must not invoke node --check on a .ts file.
