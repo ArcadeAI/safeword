@@ -215,18 +215,16 @@ describe('Schema - Single Source of Truth', () => {
   describe('textPatches', () => {
     it('should include AGENTS.md prepend patch with safeword marker', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      const agentsPatch = SAFEWORD_SCHEMA.textPatches['AGENTS.md'];
-      expect(agentsPatch).toBeDefined();
-      expect(agentsPatch?.operation).toBe('prepend');
-      expect(agentsPatch?.marker).toBe('.safeword/SAFEWORD.md');
+      expect(SAFEWORD_SCHEMA.textPatches['AGENTS.md']).toEqual(
+        expect.objectContaining({ operation: 'prepend', marker: '.safeword/SAFEWORD.md' }),
+      );
     });
 
     it('should include CLAUDE.md prepend patch with @ import marker', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      const claudePatch = SAFEWORD_SCHEMA.textPatches['CLAUDE.md'];
-      expect(claudePatch).toBeDefined();
-      expect(claudePatch?.operation).toBe('prepend');
-      expect(claudePatch?.marker).toBe('@./.safeword/SAFEWORD.md');
+      expect(SAFEWORD_SCHEMA.textPatches['CLAUDE.md']).toEqual(
+        expect.objectContaining({ operation: 'prepend', marker: '@./.safeword/SAFEWORD.md' }),
+      );
     });
   });
 

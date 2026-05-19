@@ -169,4 +169,19 @@ describe('Pack Installation', () => {
     // Setup not called (pyproject unchanged)
     expect(readTestFile(testDirectory, 'pyproject.toml')).toBe(initialPyproject);
   });
+
+  it('Test 1.6: Fresh install writes config without `version` field (ticket 154)', () => {
+    createPythonProject(testDirectory);
+    initGitRepo(testDirectory);
+
+    installPack('python', testDirectory);
+
+    // Read raw JSON — the `version` key must not exist on disk
+    const raw = JSON.parse(readTestFile(testDirectory, '.safeword/config.json')) as Record<
+      string,
+      unknown
+    >;
+    expect(raw.installedPacks).toEqual(['python']);
+    expect('version' in raw).toBe(false);
+  });
 });

@@ -19,7 +19,7 @@ import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
-import { exists, findInTree, readFileSafe } from '../utils/fs.js';
+import { exists, findInTree, readFileSafe, writeFile } from '../utils/fs.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
@@ -29,6 +29,21 @@ import { VERSION } from '../version.js';
 function getProjectVersion(safewordDirectory: string): string {
   const versionPath = nodePath.join(safewordDirectory, 'version');
   return readFileSafe(versionPath)?.trim() ?? '0.0.0';
+}
+
+// Ticket 154: strip the inert `version` field from .safeword/config.json.
+// Plaintext `.safeword/version` is the source of truth — the JSON field was
+// only ever written, never read, and confused reasoning-LLMs into flagging
+// stale projects. Safe to delete this block once no projects-in-the-wild
+// carry the field (likely several minor versions out).
+function stripDeadConfigVersion(safewordDirectory: string): void {
+  const configPath = nodePath.join(safewordDirectory, 'config.json');
+  const content = readFileSafe(configPath);
+  if (!content) return;
+  const parsed = JSON.parse(content) as Record<string, unknown>;
+  if (!('version' in parsed)) return;
+  delete parsed.version;
+  writeFile(configPath, JSON.stringify(parsed, undefined, 2));
 }
 
 function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cwd: string): void {
@@ -136,6 +151,9 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
     // Migrate renamed pack IDs (dbt → sql)
     migratePackId(cwd, 'dbt', 'sql');
+
+    // Ticket 154: drop dead `version` field from .safeword/config.json
+    stripDeadConfigVersion(safewordDirectory);
 
     // Install missing language packs
     const missingPacks = getMissingPacks(cwd);
