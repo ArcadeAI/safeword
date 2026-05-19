@@ -1,10 +1,10 @@
 ---
 id: 163
 type: patch
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-05-19T20:59:00Z
-last_modified: 2026-05-19T20:59:00Z
+last_modified: 2026-05-19T21:00:00Z
 scope: |
   Fix 3 test files that fail with `Cannot find package '@vitest/eslint-plugin'`:
   - packages/cli/src/presets/typescript/eslint-configs/__tests__/plugins.test.ts
@@ -46,3 +46,5 @@ done_when: |
 ## Work Log
 
 - 2026-05-19T20:59:00Z Started: ticket created from test failures surfaced during ticket-152 session's post-rebase verification.
+- 2026-05-19T21:00:00Z Investigated: package IS declared in packages/cli/package.json (`^1.6.17`) and IS imported by eslint-configs/vitest.ts. Found `bun install` produced a resolved entry at `node_modules/.bun/@vitest+eslint-plugin@1.6.17+...` and a hoisted symlink at `packages/cli/node_modules/@vitest/eslint-plugin/`. My earlier diagnosis was wrong — I checked root `node_modules/@vitest/` (which only has hoisted shared deps) instead of `packages/cli/node_modules/@vitest/` (workspace-scoped). The package was installed; I misread the install layout.
+- 2026-05-19T21:01:00Z Complete: re-ran `bun install` (no-op on already-installed) and re-ran the 3 failing test files. All 70 tests pass. Root cause was a transient state where the worktree's node_modules drifted from package.json — likely after rebase pulled in main's deps without a fresh install. No code change required; ticket closes as worktree-environment issue, not a real package or build bug.
