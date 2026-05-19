@@ -24,7 +24,7 @@ interface HookOutput {
 const PROTECTED_PATTERNS: Array<{ pattern: RegExp; category: string }> = [
   // ESLint configs
   { pattern: /eslint\.config\.[mc]?[jt]s$/, category: 'ESLint config' },
-  { pattern: /\.eslintrc(\.[jy]?[sm]?[ol]?n?)?$/, category: 'ESLint config' },
+  { pattern: /\.eslintrc(?:\.(?:json|ya?ml|c?js|mjs))?$/, category: 'ESLint config' },
   { pattern: /eslint-configs\/.*\.[jt]s$/, category: 'ESLint preset' },
 
   // TypeScript configs
@@ -35,10 +35,7 @@ const PROTECTED_PATTERNS: Array<{ pattern: RegExp; category: string }> = [
   { pattern: /jest\.config\.[mc]?[jt]s$/, category: 'Jest config' },
 
   // Prettier configs
-  {
-    pattern: /\.prettierrc(\.[jy]?[sm]?[ol]?n?)?$/,
-    category: 'Prettier config',
-  },
+  { pattern: /\.prettierrc(?:\.(?:json|ya?ml|c?js|mjs))?$/, category: 'Prettier config' },
   { pattern: /prettier\.config\.[mc]?[jt]s$/, category: 'Prettier config' },
 
   // Presets (affects all customers)

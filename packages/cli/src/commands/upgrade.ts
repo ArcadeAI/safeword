@@ -22,6 +22,7 @@ import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, writeFile } from '../utils/fs.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
@@ -114,7 +115,12 @@ function installSqlTools(cwd: string): void {
   }
 }
 
-export async function upgrade(): Promise<void> {
+export interface UpgradeOptions {
+  /** When true, skip auto-editing the project's eslint config; fall through to the print-only nudge. */
+  noModify?: boolean;
+}
+
+export async function upgrade(options: UpgradeOptions): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
 
@@ -165,6 +171,13 @@ export async function upgrade(): Promise<void> {
     }
 
     printUpgradeSummary(result, projectVersion, cwd);
+
+    maybeAutoPatchOrNudge({
+      cwd,
+      existingEslintConfig: ctx.projectType.existingEslintConfig,
+      hasJavaScript: Boolean(ctx.languages?.javascript),
+      noModify: options.noModify,
+    });
   } catch (error_) {
     error(`Upgrade failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);

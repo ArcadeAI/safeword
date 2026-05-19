@@ -53,8 +53,10 @@ const convId = input.conversation_id ?? 'default';
 const markerFile = `/tmp/safeword-cursor-edited-${convId}`;
 
 if (await Bun.file(markerFile).exists()) {
-  // Clean up marker
-  await unlink(markerFile).catch(() => {});
+  // Clean up marker (best-effort; missing file or perm issue is non-fatal)
+  await unlink(markerFile).catch(error => {
+    if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);
+  });
 
   const output: StopOutput = {
     followup_message: QUALITY_REVIEW_MESSAGE,

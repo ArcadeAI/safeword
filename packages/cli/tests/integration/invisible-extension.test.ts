@@ -51,12 +51,16 @@ export default [
 `;
         writeTestFile(projectDirectory, 'eslint.config.mjs', existingConfig);
 
-        await runCli(['setup'], {
+        // Pass --no-modify so 154's auto-patch is skipped — this test
+        // asserts the .safeword/eslint.config.mjs *extension* mechanism,
+        // not the project-config-mutation behavior (which has dedicated
+        // tests in src/utils/eslint-auto-patch.test.ts).
+        await runCli(['setup', '--no-modify'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
         });
 
-        // Existing config should be preserved (not modified)
+        // Existing config should be byte-identical (not modified)
         const preservedConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
         expect(preservedConfig).toBe(existingConfig);
 
