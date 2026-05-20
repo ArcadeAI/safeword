@@ -9,7 +9,7 @@
 
 import process from 'node:process';
 
-import { cryptoIdMinter } from '../utils/id-minter.js';
+import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
 import { header, info, success } from '../utils/output.js';
 import { normalizeSlug, SlugError } from '../utils/slug.js';
 import { createTicket, TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
@@ -49,7 +49,7 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
   header('Create ticket');
 
   try {
-    const result = createTicket(process.cwd(), cryptoIdMinter(), {
+    const result = createTicket(process.cwd(), resolveMinter(), {
       slug: normalizedSlug,
       type,
       title: options.title,
@@ -69,4 +69,16 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
 function resolveType(value: string | undefined): TicketType | undefined | 'invalid' {
   if (value === undefined) return undefined;
   return VALID_TYPES.has(value as TicketType) ? (value as TicketType) : 'invalid';
+}
+
+// Test-only injection point: SAFEWORD_TICKET_ID_OVERRIDE forces a specific
+// minted ID so cross-branch collision scenarios can be exercised deterministically.
+// The override is never set in production — the env var is intentionally
+// undocumented to discourage real-world use.
+function resolveMinter(): IdMinter {
+  const override = process.env.SAFEWORD_TICKET_ID_OVERRIDE;
+  if (override !== undefined && override !== '') {
+    return { mint: () => override };
+  }
+  return cryptoIdMinter();
 }
