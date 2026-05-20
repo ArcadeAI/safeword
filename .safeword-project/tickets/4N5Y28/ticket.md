@@ -2,8 +2,8 @@
 id: 4N5Y28
 slug: monotonic-novel-claim-state
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-20T15:34:58.205Z
 last_modified: 2026-05-20T15:34:58.205Z
 ---
