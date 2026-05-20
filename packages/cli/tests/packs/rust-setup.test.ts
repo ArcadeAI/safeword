@@ -153,7 +153,11 @@ members = ["crates/*"]
     const members = parseWorkspaceMembers(cargoContent, testDirectory);
 
     // Order may vary due to filesystem, so sort for comparison
-    expect(members.toSorted()).toEqual(['crates/alpha', 'crates/beta', 'crates/gamma']);
+    expect(members.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'crates/alpha',
+      'crates/beta',
+      'crates/gamma',
+    ]);
   });
 
   it('skips non-crate directories when expanding glob', () => {

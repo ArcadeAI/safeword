@@ -254,6 +254,10 @@ export async function reconcile(
   ctx: ProjectContext,
   options?: ReconcileOptions,
 ): Promise<ReconcileResult> {
+  // Public API contract is Promise<ReconcileResult>; some plan executors are
+  // sync today, but the signature reserves room for async I/O without
+  // breaking callers. Token await keeps the contract honest.
+  await Promise.resolve();
   const dryRun = options?.dryRun ?? false;
 
   const plan = computePlan(schema, mode, ctx);

@@ -14,7 +14,8 @@ describe('Test Suite 1: Version and Help', () => {
       const result = await runCli(['--version']);
 
       expect(result.exitCode).toBe(0);
-      // Matches semver: X.Y.Z with optional prerelease/build metadata
+      // Matches semver: X.Y.Z with optional prerelease/build metadata.
+
       expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/);
     });
 

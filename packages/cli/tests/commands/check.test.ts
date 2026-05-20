@@ -40,7 +40,8 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout.toLowerCase()).toMatch(/cli|safeword/i);
-      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/); // semver pattern
+
+      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
     });
   });
 
@@ -113,6 +114,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       // Should show local versions only
+
       expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
     });
   });

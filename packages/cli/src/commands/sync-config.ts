@@ -72,6 +72,9 @@ export function hasArchitectureDetected(arch: DepCruiseArchitecture): boolean {
  */
 
 export async function syncConfig(): Promise<void> {
+  // Public CLI command contract is Promise<void>; body is sync today but the
+  // signature reserves room for async I/O. Token await keeps the contract honest.
+  await Promise.resolve();
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
 

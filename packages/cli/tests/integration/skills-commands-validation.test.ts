@@ -28,10 +28,11 @@ const MIN_BODY_LENGTH = 10;
 
 // allowed-tools patterns (Claude Code format)
 // Valid: '*', 'Read', 'Read, Grep, Glob', 'Bash(git:*)', 'mcp__server__tool'
-// eslint-disable-next-line sonarjs/regex-complexity -- intentionally complex to match Claude Code's allowed-tools format
+// eslint-disable-next-line sonarjs/regex-complexity -- intentionally complex to match Claude Code's allowed-tools format; input is a controlled frontmatter field, not adversarial.
 const ALLOWED_TOOLS_PATTERN = /^(\*|\w+(\([^)]+\))?(,\s*\w+(\([^)]+\))?)*)$/;
 
 // Markdown link pattern [text](path)
+
 const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
 
 interface ParsedFrontmatter {
@@ -297,6 +298,7 @@ describe('Skills Validation (Claude Code Format)', () => {
       it('should not contain XML tags in name or description', () => {
         const name = parsed?.frontmatter.name;
         const desc = parsed?.frontmatter.description;
+
         const xmlPattern = /<[^>]+>/;
         if (name) {
           expect(name, 'name contains XML tags').not.toMatch(xmlPattern);

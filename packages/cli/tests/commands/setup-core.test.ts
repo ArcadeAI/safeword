@@ -59,7 +59,8 @@ describe('Test Suite 2: Setup - Core Files', () => {
       await runCli(['setup'], { cwd: temporaryDirectory });
 
       const version = readTestFile(temporaryDirectory, '.safeword/version').trim();
-      // Should be semver format
+      // Should be semver format.
+
       expect(version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
     });
   });
@@ -134,7 +135,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       expect(result.exitCode).toBe(0);
 
       // Should mention what was created
-      expect(result.stdout).toMatch(/created|Created/i);
+      expect(result.stdout).toMatch(/created/i);
       expect(result.stdout).toMatch(/\.safeword|safeword/i);
     });
   });
