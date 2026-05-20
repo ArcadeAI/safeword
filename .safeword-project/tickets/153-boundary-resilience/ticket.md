@@ -1,10 +1,10 @@
 ---
 id: 153
 type: feature
-phase: intake
+phase: decomposition
 status: in_progress
 created: 2026-05-18T06:12:00Z
-last_modified: 2026-05-20T05:34:00Z
+last_modified: 2026-05-20T05:58:00Z
 scope:
   - Epic-anchor hook re-injects epic's `## Contracts` section on every UserPromptSubmit and on SessionStart:compact when sub-ticket has `epic:` frontmatter field
   - Replan-on-resume fires when `git log <ticket.last_modified>..HEAD` returns > 0 commits at activeTicket transition; the model's first action on the replan-triggered turn is the investigation
@@ -111,6 +111,49 @@ Soft, not hard. Real-world data will tell us whether hard-gating is needed; defa
 3. **Format of the auto-replan prompt template** — needs to instruct Claude to investigate codebase changes (one `git diff` since last_modified), fetch latest docs for relevant tools (Context7), and conclude with a structured proposal. Template needs to be written and tested for output quality.
 4. **`## Contracts` section parsing** — markdown heading scan. Need to decide what counts as the section boundary (next `##` heading) and how to handle nested subsections.
 
+## Decomposition
+
+Four ordered tasks. A is the dependency root; B and C can parallelize; D depends only on A.
+
+### A — `epic:` frontmatter parsing
+
+Verify [lib/hierarchy.ts](.safeword/hooks/lib/hierarchy.ts) `parseFrontmatter()` returns the new `epic:` field unchanged. The parser is already permissive; expected to be zero-code with a single unit test confirming the field round-trips.
+
+- **Test layer:** unit test for `parseFrontmatter()` reading `epic: 999`
+- **Covers:** prerequisite for B, C, D
+- **Estimate:** trivial
+
+### B — Epic-anchor hook (Mechanism 1)
+
+Extend [prompt-questions.ts](.safeword/hooks/prompt-questions.ts) and [session-compact-context.ts](.safeword/hooks/session-compact-context.ts) with: epic-file resolution by id-prefix glob, strict `## Contracts` section parser, size cap with static stub fallback, graceful no-op + stderr warning on missing file, malformed-value safety.
+
+- **Test layer:** Vitest unit tests for section parsing, size-cap boundaries (9999 / 10000 / 10001), heading-variant rejection, empty-section no-op, missing-file behavior, malformed-value safety, disk re-read on every injection
+- **Covers:** Rules 1-5, 12
+- **Estimate:** moderate; ~40 lines of hook logic + parser + tests
+
+### C — Verify-skill soft-prompt (Mechanism 3)
+
+Append a non-blocking checklist item to the verify skill that conditions on the active ticket having `epic:` field. Outputs guidance to append to the epic's `## Contracts` section if cross-ticket bindings exist.
+
+- **Test layer:** unit test of verify checklist output for `epic:`-having vs `epic:`-lacking tickets; assertion that the item is non-blocking
+- **Covers:** Rule 11
+- **Estimate:** small; ~15 lines + tests
+
+### D — Replan-on-resume (Mechanism 2)
+
+UserPromptSubmit state-diffing to detect activeTicket transitions; git-log commit-count check against `last_modified`; replan-instruction injection when count > 0; a `replanInvestigation()` wrapper module that invokes the Agent tool with `isolation: 'worktree'` and returns a condensed report; cascade-hint conditioning when invalidation found + open siblings exist; `last_modified` update on replan-complete (including failure path).
+
+- **Test layer:** unit tests for the wrapper (asserting `isolation: 'worktree'` in the invocation options), trigger-gate (non-epic + commits, non-epic + 0 commits, epic-as-activeTicket filtered upstream); integration tests for the hook → wrapper → ticket-state update flow
+- **Covers:** Rules 6-10
+- **Estimate:** largest; ~80 lines + wrapper module + tests
+
+### Order rationale
+
+- A first: blocks B/C/D, but cheap to confirm
+- B and C parallelizable after A: independent code paths, distinct test surfaces
+- D last: largest blast radius (introduces sub-agent invocation), benefits from B's parser being already-tested if D ever needs to read epic state
+- Within each task: standard RED → GREEN → REFACTOR with a commit at GREEN
+
 ## Related Tickets
 
 - [032-post-compact-context-reinject](.safeword-project/tickets/completed/032-post-compact-context-reinject) — predecessor pattern this extends
@@ -122,6 +165,9 @@ Soft, not hard. Real-world data will tell us whether hard-gating is needed; defa
 
 ## Work Log
 
+- 2026-05-20T05:58:00Z Complete: Phase 5 — Decomposition. Four ordered tasks (A→B→C→D) with A as the parsing dependency root, B and C parallelizable after A, D depending only on A and largest in blast radius. Each task names its test layer and scenario coverage from test-definitions.md. Phase advances to `implement` next.
+- 2026-05-20T05:52:00Z Complete: Phase 4 — Scenarios validated (AODI) + adversarial pass. Quality-review skill audited the draft against AODI criteria and ran an adversarial pass; the audit produced (a) three atomicity splits (missing-epic → no-op vs stderr-warning; oversized → stub-injected vs full-section-absent; no-changes-without-approval → no-action vs accepted), (b) two observability restructures (wrapper-layer assertion for `isolation: worktree`; hook-payload-layer assertion for #14281 regression), (c) five adversarial scenarios (heading variants, empty section, 10K boundary, mid-session epic edit, sub-agent failure mode), and (d) one structural relabel (parity diff moved to Invariants section, separate from RED/GREEN/REFACTOR loop). All applied to the final test-definitions.md. Phase 4 exit criteria met.
+- 2026-05-20T05:50:00Z Complete: Phase 3 — 27 scenarios defined across 12 rules + 3 invariants in test-definitions.md, derived from the 13-row dimensions table in dimensions.md. Eight open questions (stub format, missing-file behavior, sub-agent failure, partial-accept semantics, empty-Contracts handling, heading match strictness, size-cap threshold, empty vs absent equivalence) all decided and baked into dimensions.md's "Decisions baked in" table so scenarios assume them as given.
 - 2026-05-20T05:34:00Z Quality-review verification of cited primary sources flagged four miscitations. Fixed: (1) removed arXiv 2604.11378 "Task-Decoupled Planning" citation — paper at that ID is actually "Structured Graph Harness," a position paper with no 82% token-reduction claim (hallucinated by an earlier research agent). JIT-only conclusion now rests on CHI 2025 + prior art from all shipped tools, which is sufficient. (2) Reframed sub-agent justification — dropped appeal to "Anthropic harness post recommends fresh-context sub-agents for meta-tasks" since the linked post lists multi-agent architectures as Future Work, not a recommendation. Kept context-pollution argument and `isolation: worktree` availability, which stand on their own. (3) Removed "Anthropic subagent docs recommend output files as handoff between stages" from Design Rationale — phrase does not appear in the docs. (4) Reworded Investigation Needed #1 on bug #14281 — issue is CLOSED (filed 2025-12-17), so framed as regression-check on a previously-fixed bug rather than open risk. Design conclusions unchanged; evidence base now accurate.
 - 2026-05-20T05:23:00Z Re-validation pass: 5 commits landed since last touch (vendored-ignores #116, ticket-155 orphan rescue #115, config-version strip #114, release-tag gate, v0.33.0). Dispatched two parallel research agents: codebase-delta impact and latest-Anthropic-shipping check. Verdict: all 5 commits NEUTRAL to design; nothing shipped in last 2-7 days that changes the design. Applied three improvements: (1) replan investigation now runs in fresh sub-agent (`isolation: worktree`), (2) clarified trigger semantics — replan IS the model's first action on the triggered turn, not "before the first model turn", (3) explicit note that epics never trigger replan (already filtered by `getActiveTicket()` at active-ticket.ts:152). Refined investigation item 2 to specify UserPromptSubmit hook + state-diffing approach. Added 155-audit-skill-reorganize to coordination links.
 - 2026-05-18T06:12:00Z Created: feature ticket synthesizing a long design conversation. Diagnosis (truth drift + plan staleness) and design (epic-anchor hook + replan-on-resume + verify soft-prompt) anchored in research dispatched during conversation: Anthropic context-engineering + memory + subagent docs, Spec Kit Agents paper, Martin Fowler SDD survey, CHI 2025 Codellaborator, Task-Decoupled Planning paper, prior art from all shipped agentic coding tools. Anti-bloat scorecard explicit. Awaiting user review before phase transition to define-behavior.
