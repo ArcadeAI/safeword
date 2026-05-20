@@ -92,15 +92,14 @@ export function recordFailure(
     try {
       const state = JSON.parse(readFileSync(stateFile, 'utf8'));
       const failures: FailureEntry[] = state.recentFailures ?? [];
-      // Per-pattern dedup: bound the array by distinct pattern count rather
-      // than letting it grow unboundedly with repeats. Remove any prior entry
-      // for this pattern, then push with a fresh timestamp so the array stays
-      // ordered by last-occurrence (preserves `failures[last]` = most-recent
-      // semantics that prompt-questions relies on). Ticket 8CMXNG.
-      const existingIndex = failures.findIndex(f => f.pattern === pattern);
-      if (existingIndex >= 0) failures.splice(existingIndex, 1);
-      failures.push({ pattern, timestamp: new Date().toISOString() });
-      state.recentFailures = failures;
+      // Per-pattern dedup: keep entries for other patterns, then append this
+      // one with a fresh timestamp. Bounds the array by distinct pattern
+      // count instead of letting it grow with repeats, and keeps the array
+      // ordered by last-occurrence so `failures[last]` is the most-recent
+      // pattern (prompt-questions relies on this). Ticket 8CMXNG.
+      const updated = failures.filter(f => f.pattern !== pattern);
+      updated.push({ pattern, timestamp: new Date().toISOString() });
+      state.recentFailures = updated;
 
       // Per-session dedup for counter increment
       const incremented: string[] = state.incrementedPatterns ?? [];
