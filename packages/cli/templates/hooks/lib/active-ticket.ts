@@ -7,6 +7,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 export interface ActiveTicketInfo {
   phase: string | undefined;
@@ -31,8 +32,18 @@ const EMPTY_DETAILS: TicketDetails = {
 };
 
 /**
- * Look up a specific ticket's phase and status by ID (e.g., "038").
- * Re-reads the ticket file each time for stateless re-evaluation.
+ * Look up a specific ticket's phase and status by ID.
+ *
+ * Resolves two folder layouts:
+ *   - Legacy `{id}-{slug}/` — folder name starts with `${id}-` (e.g. `080-foo`,
+ *     `102a-foo`). Case-sensitive on the legacy prefix to match historical IDs.
+ *   - New `{id}/` — folder name equals the ID exactly. Crockford Base32 IDs are
+ *     canonical-uppercase on disk; lookup is case-insensitive on input.
+ *
+ * If two folders both resolve to the input ID (manual mistake or copy-paste),
+ * lookup writes a warning to stderr and returns empty details rather than
+ * silently picking one — the duplicate-ID guard (slice 5) is the loud-failure
+ * mechanism; lookup just refuses to guess.
  */
 export function getTicketInfo(projectDirectory: string, ticketId: string): TicketDetails {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
@@ -40,9 +51,15 @@ export function getTicketInfo(projectDirectory: string, ticketId: string): Ticke
 
   try {
     const folders = readdirSync(ticketsDirectory);
-    const match = folders.find(f => f.startsWith(`${ticketId}-`));
-    if (!match) return EMPTY_DETAILS;
+    const matches = findTicketFolderMatches(folders, ticketId);
+    if (matches.length === 0) return EMPTY_DETAILS;
+    if (matches.length > 1) {
+      process.stderr.write(`Ambiguous ticket ID "${ticketId}": ${matches.join(', ')}\n`);
+      return EMPTY_DETAILS;
+    }
 
+    const [match] = matches;
+    if (match === undefined) return EMPTY_DETAILS;
     const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
     return {
       phase: content.match(/^phase:\s*(\S+)/m)?.[1],
@@ -53,6 +70,12 @@ export function getTicketInfo(projectDirectory: string, ticketId: string): Ticke
   } catch {
     return EMPTY_DETAILS;
   }
+}
+
+function findTicketFolderMatches(folders: string[], ticketId: string): string[] {
+  const upperId = ticketId.toUpperCase();
+  const legacyPrefix = `${ticketId}-`;
+  return folders.filter(f => f.toUpperCase() === upperId || f.startsWith(legacyPrefix));
 }
 
 /**
