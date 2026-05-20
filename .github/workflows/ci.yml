@@ -120,6 +120,11 @@ jobs:
       - name: Architecture check
         run: bun run deps
 
+      - name: Duplicate ticket-ID guard
+        # ticket 158: two ticket folders with the same `id:` frontmatter is
+        # silent corruption — block merges if it ever lands.
+        run: bun scripts/check-ticket-ids.ts
+
       - name: Version consistency check
         run: |
           CLI_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")

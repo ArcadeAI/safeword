@@ -17,6 +17,10 @@ node -e 'var c=require("./packages/cli/package.json").version,m=require("./marke
 # iteration mid-development is normal. Bypassable with --no-verify.
 bun scripts/parity-check.ts --mode=contracts-only || exit 1
 
+# Duplicate-ID guard (ticket 158): two ticket folders with the same `id:`
+# frontmatter is silent corruption — fail loud before it lands in main.
+bun scripts/check-ticket-ids.ts || exit 1
+
 # Friendly guard: husky prepends node_modules/.bin to PATH, but only resolves
 # binaries that actually exist on disk. Fresh git worktrees (and fresh clones)
 # don't have node_modules installed yet, so bare `lint-staged` would fail with
