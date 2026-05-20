@@ -1,7 +1,7 @@
 ---
 id: 158
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-05-20T05:28:00Z
 last_modified: 2026-05-20T05:28:00Z
