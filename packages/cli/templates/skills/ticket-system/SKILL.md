@@ -11,19 +11,21 @@ allowed-tools: '*'
 
 **Purpose:** Context anchor to prevent LLM loops during complex work. Colocates all artifacts.
 
-**Location:** `.safeword-project/tickets/{id}-{slug}/`
+**Creating a ticket:** Run `safeword ticket new <slug>` (optionally with `--type=patch|task|feature` and `--title="..."`). The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches.
+
+**Location:** `.safeword-project/tickets/{ID}/` for new tickets (folder name is the ID alone; slug lives in frontmatter). Pre-existing tickets keep their legacy `{numeric-id}-{slug}/` layout and remain reachable by ID — both formats are supported forever.
 
 **Folder structure:**
 
 ```text
 .safeword-project/
 ├── tickets/
-│   ├── 001-feature-name/
+│   ├── 7K9M3P/                 # New format: folder = Crockford ID, slug in frontmatter
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
 │   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
 │   │   ├── spec.md             # Feature spec for epics (optional)
 │   │   └── design.md           # Design doc for complex features (optional)
-│   ├── 002-another-task/
+│   ├── 080-ticket-id-collision/  # Legacy format: kept readable, never created new
 │   │   └── ticket.md
 │   └── completed/              # Archive for done tickets
 ├── learnings/                  # Extracted knowledge (gotchas, discoveries)
@@ -52,7 +54,8 @@ allowed-tools: '*'
 
 ```markdown
 ---
-id: 001
+id: 7K9M3P
+slug: feature-name
 status: in_progress
 ---
 
@@ -89,11 +92,12 @@ status: in_progress
 
 **Naming convention:**
 
-| Working on...         | Log file name            |
-| --------------------- | ------------------------ |
-| Ticket `001-fix-auth` | `ticket-001-fix-auth.md` |
-| Spec `task-add-cache` | `spec-task-add-cache.md` |
-| Design doc `oauth`    | `design-oauth.md`        |
+| Working on...                | Log file name            |
+| ---------------------------- | ------------------------ |
+| Ticket `7K9M3P` (slug: foo)  | `ticket-7K9M3P-foo.md`   |
+| Legacy ticket `080-fix-auth` | `ticket-080-fix-auth.md` |
+| Spec `task-add-cache`        | `spec-task-add-cache.md` |
+| Design doc `oauth`           | `design-oauth.md`        |
 
 **One artifact = one log.** If log exists, append a new session. Don't spawn multiple logs for the same work.
 
