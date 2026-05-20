@@ -13,6 +13,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { SKILL_CURSOR_PAIRS } from '../fixtures/skill-cursor-pairs.js';
+
 const __dirname = import.meta.dirname;
 const TEMPLATES_DIR = nodePath.join(__dirname, '../../templates');
 const SKILLS_DIR = nodePath.join(TEMPLATES_DIR, 'skills');
@@ -628,33 +630,16 @@ describe('Cursor Rules Validation (.mdc Format)', () => {
 });
 
 describe('Skills-Cursor Parity', () => {
-  // Mapping from skill short names to cursor rule names
-  // Skills use short names (bdd, debug, etc.), cursor rules keep safeword- prefix
-  const SKILL_TO_RULE_MAP: Record<string, string | string[] | undefined> = {
-    bdd: [
-      'bdd-core',
-      'bdd-discovery',
-      'bdd-scenarios',
-      'bdd-decomposition',
-      'bdd-tdd',
-      'bdd-done',
-      'bdd-splitting',
-    ],
-    brainstorm: 'safeword-brainstorming',
-    debug: 'safeword-debugging',
-    elicit: 'safeword-elicitation',
-    'explore-and-debate': 'safeword-explore-and-debate',
-    'quality-review': 'safeword-quality-reviewing',
-    refactor: 'safeword-refactoring',
-    'tdd-review': 'safeword-tdd-review',
-    testing: 'safeword-testing',
-    'ticket-system': 'safeword-ticket-system',
-    // Action skills use Cursor commands, not rules (disable-model-invocation)
-    lint: undefined,
-    verify: undefined,
-    audit: undefined,
-    'cleanup-zombies': undefined,
-  };
+  // Derived from canonical SKILL_CURSOR_PAIRS fixture.
+  // Skills use short names (bdd, debug, etc.), cursor rules keep safeword- prefix.
+  // Action skills (lint, verify, etc.) use Cursor commands, not rules — null in fixture.
+  const SKILL_TO_RULE_MAP: Record<string, string | string[] | undefined> = Object.fromEntries(
+    SKILL_CURSOR_PAIRS.map(pair => {
+      if (pair.cursorRules === undefined) return [pair.skill, undefined];
+      if (pair.cursorRules.length === 1) return [pair.skill, pair.cursorRules[0]];
+      return [pair.skill, pair.cursorRules];
+    }),
+  );
 
   it('each skill should have corresponding cursor rule(s)', () => {
     const skillDirectories = getSkillDirectories();
