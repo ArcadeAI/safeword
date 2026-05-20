@@ -61,7 +61,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       const version = readTestFile(temporaryDirectory, '.safeword/version').trim();
       // Should be semver format.
 
-      expect(version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
+      expect(version).toMatch(/^\d{1,4}\.\d{1,4}\.\d{1,4}[-+\w.]{0,80}$/);
     });
   });
 

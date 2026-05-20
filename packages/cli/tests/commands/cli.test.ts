@@ -16,7 +16,7 @@ describe('Test Suite 1: Version and Help', () => {
       expect(result.exitCode).toBe(0);
       // Matches semver: X.Y.Z with optional prerelease/build metadata.
 
-      expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/);
+      expect(result.stdout.trim()).toMatch(/^\d{1,4}\.\d{1,4}\.\d{1,4}[-+\w.]{0,80}$/);
     });
 
     it('should return exit code 0', () => {

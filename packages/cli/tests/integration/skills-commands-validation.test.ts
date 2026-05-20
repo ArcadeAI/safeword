@@ -26,14 +26,23 @@ const SKILL_NAME_PATTERN = /^[a-z0-9-]+$/;
 const RESERVED_WORDS = ['anthropic', 'claude'];
 const MIN_BODY_LENGTH = 10;
 
-// allowed-tools patterns (Claude Code format)
-// Valid: '*', 'Read', 'Read, Grep, Glob', 'Bash(git:*)', 'mcp__server__tool'
-/* eslint-disable sonarjs/regex-complexity -- matches Claude Code's allowed-tools format and markdown links against controlled frontmatter and skill markdown (never adversarial); ReDoS-safe in this usage. */
-const ALLOWED_TOOLS_PATTERN = /^(\*|\w+(\([^)]+\))?(,\s*\w+(\([^)]+\))?)*)$/;
+// allowed-tools patterns (Claude Code format).
+// Valid: '*', 'Read', 'Read, Grep, Glob', 'Bash(git:*)', 'mcp__server__tool'.
+// Two-step linear validation — split on commas, then check each token for an
+// optional bracketed argument. Avoids the nested-quantifier ReDoS shape the
+// original single-regex implementation had.
+const ALLOWED_TOOL_NAME = /^\w{1,80}$/;
+const ALLOWED_TOOL_BRACKETED = /^\w{1,80}\([^)]{1,200}\)$/;
+function matchesAllowedTools(value: string): boolean {
+  if (value === '*') return true;
+  return value
+    .split(',')
+    .map(t => t.trim())
+    .every(part => ALLOWED_TOOL_NAME.test(part) || ALLOWED_TOOL_BRACKETED.test(part));
+}
 
-// Markdown link pattern [text](path)
-const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
-/* eslint-enable sonarjs/regex-complexity */
+// Markdown link pattern [text](path) — bounded char classes keep this linear.
+const MARKDOWN_LINK_PATTERN = /\[([^\]]{1,200})\]\(([^)]{1,500})\)/g;
 
 interface ParsedFrontmatter {
   name?: string;
@@ -299,7 +308,7 @@ describe('Skills Validation (Claude Code Format)', () => {
         const name = parsed?.frontmatter.name;
         const desc = parsed?.frontmatter.description;
 
-        const xmlPattern = /<[^>]+>/;
+        const xmlPattern = /<[^>]{1,200}>/;
         if (name) {
           expect(name, 'name contains XML tags').not.toMatch(xmlPattern);
         }
@@ -326,9 +335,9 @@ describe('Skills Validation (Claude Code Format)', () => {
         const allowedTools = parsed?.frontmatter['allowed-tools'];
         if (allowedTools) {
           expect(
-            allowedTools,
+            matchesAllowedTools(allowedTools),
             `Invalid allowed-tools format: "${allowedTools}". Use '*', 'Read', 'Read, Grep', or 'Bash(git:*)'`,
-          ).toMatch(ALLOWED_TOOLS_PATTERN);
+          ).toBe(true);
         }
       });
 
@@ -446,9 +455,10 @@ describe('Commands Validation (Claude Code Format)', () => {
       it('should have valid allowed-tools syntax if present', () => {
         const allowedTools = parsed?.frontmatter['allowed-tools'];
         if (allowedTools) {
-          expect(allowedTools, `Invalid allowed-tools format: "${allowedTools}"`).toMatch(
-            ALLOWED_TOOLS_PATTERN,
-          );
+          expect(
+            matchesAllowedTools(allowedTools),
+            `Invalid allowed-tools format: "${allowedTools}"`,
+          ).toBe(true);
         }
       });
 
@@ -767,14 +777,14 @@ describe('Validation Logic Tests', () => {
     it('detects invalid allowed-tools format', () => {
       const invalidFormats = ['invalid format', '***', 'Read|Write', 'Bash()'];
       for (const format of invalidFormats) {
-        expect(format, `"${format}" should be invalid`).not.toMatch(ALLOWED_TOOLS_PATTERN);
+        expect(matchesAllowedTools(format), `"${format}" should be invalid`).toBe(false);
       }
     });
 
     it('validates correct allowed-tools formats', () => {
       const validFormats = ['*', 'Read', 'Read, Grep', 'Bash(git:*)', 'Read, Bash(npm:*)'];
       for (const format of validFormats) {
-        expect(format, `"${format}" should be valid`).toMatch(ALLOWED_TOOLS_PATTERN);
+        expect(matchesAllowedTools(format), `"${format}" should be valid`).toBe(true);
       }
     });
   });

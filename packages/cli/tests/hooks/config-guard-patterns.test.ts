@@ -12,9 +12,9 @@ import { describe, expect, it } from 'vitest';
 
 // Mirror of the rewritten patterns in pre-tool-config-guard.ts:
 
-const ESLINTRC_PATTERN = /\.eslintrc(?:\.(?:json|ya?ml|c?js|mjs))?$/;
+const ESLINTRC_PATTERN = /\.eslintrc(?:\.(?:json|yaml|yml|js|cjs|mjs))?$/;
 
-const PRETTIERRC_PATTERN = /\.prettierrc(?:\.(?:json|ya?ml|c?js|mjs))?$/;
+const PRETTIERRC_PATTERN = /\.prettierrc(?:\.(?:json|yaml|yml|js|cjs|mjs))?$/;
 
 describe('eslintrc regex (rewritten)', () => {
   it.each([
