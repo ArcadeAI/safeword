@@ -118,4 +118,46 @@ describe('safeword ticket new', () => {
     },
     TIMEOUT_QUICK,
   );
+
+  it(
+    'normalizes a messy slug to lowercase kebab-case in frontmatter',
+    async () => {
+      await runCli(['ticket', 'new', 'Login Bug'], { cwd: temporaryDirectory });
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const ticketContent = readFileSync(
+        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
+        'utf8',
+      );
+      expect(ticketContent).toMatch(/^slug:\s*login-bug$/m);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'collapses non-alphanumeric runs in a messy slug',
+    async () => {
+      await runCli(['ticket', 'new', 'fix/auth-flow!'], { cwd: temporaryDirectory });
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const ticketContent = readFileSync(
+        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
+        'utf8',
+      );
+      expect(ticketContent).toMatch(/^slug:\s*fix-auth-flow$/m);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'rejects an empty slug with exit code 1',
+    async () => {
+      const result = await runCli(['ticket', 'new', ''], { cwd: temporaryDirectory });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/slug/i);
+    },
+    TIMEOUT_QUICK,
+  );
 });

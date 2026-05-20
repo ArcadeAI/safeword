@@ -11,6 +11,7 @@ import process from 'node:process';
 
 import { cryptoIdMinter } from '../utils/id-minter.js';
 import { header, info, success } from '../utils/output.js';
+import { normalizeSlug, SlugError } from '../utils/slug.js';
 import { createTicket, TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature']);
@@ -20,7 +21,12 @@ export interface TicketNewOptions {
   title?: string;
 }
 
-export async function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
+export function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
+  ticketNewSync(slug, options);
+  return Promise.resolve();
+}
+
+function ticketNewSync(slug: string, options: TicketNewOptions): void {
   const type = resolveType(options.type);
   if (type === 'invalid') {
     process.stderr.write(
@@ -29,11 +35,22 @@ export async function ticketNew(slug: string, options: TicketNewOptions): Promis
     process.exit(1);
   }
 
+  let normalizedSlug: string;
+  try {
+    normalizedSlug = normalizeSlug(slug);
+  } catch (error: unknown) {
+    if (error instanceof SlugError) {
+      process.stderr.write(`${error.message}\n`);
+      process.exit(1);
+    }
+    throw error;
+  }
+
   header('Create ticket');
 
   try {
     const result = createTicket(process.cwd(), cryptoIdMinter(), {
-      slug,
+      slug: normalizedSlug,
       type,
       title: options.title,
     });
