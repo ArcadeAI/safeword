@@ -60,7 +60,7 @@ if (existsSync(stateFile)) {
         // Phase-specific one-liner
         const reminders: Record<string, string> = {
           intake:
-            'Phase: understanding. Contribute a perspective, surface open questions. Self-test: what changes, what stays the same, observable done state. If sizing as feature, run `/bdd`.',
+            'Phase: understanding. Contribute a perspective, surface open questions. Self-test: what changes, what stays the same, observable done state.',
           'define-behavior':
             'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
@@ -88,9 +88,7 @@ if (existsSync(stateFile)) {
           }
         }
       } else {
-        lines.push(
-          '- No active ticket. Classify (patch/task/feature) before starting. For features, run `/bdd`.',
-        );
+        lines.push('- No active ticket. Classify (patch/task/feature) before starting.');
       }
     } else {
       lines.push('- No active ticket. Classify (patch/task/feature) before starting.');
