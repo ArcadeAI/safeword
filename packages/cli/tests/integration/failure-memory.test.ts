@@ -183,6 +183,48 @@ describe('Failure Memory (#111)', () => {
       expect(failures[0]?.timestamp).toBeDefined();
     });
 
+    it('per-pattern dedup: re-firing the same pattern updates timestamp instead of growing the array (ticket 8CMXNG)', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 450,
+        lastCommitHash: head,
+        activeTicket: null,
+        lastKnownPhase: 'implement',
+        gate: 'loc',
+        lastKnownTddStep: null,
+        locAtLastReview: 0,
+      });
+
+      // Fire the LOC gate three times via the pre-tool hook. Without dedup,
+      // we'd see three entries; with dedup, we see one entry whose timestamp
+      // is the most recent firing.
+      runPreTool(projectDirectory);
+      const firstTimestamp = (
+        readState(projectDirectory).recentFailures as { timestamp: string }[]
+      )[0]?.timestamp;
+
+      // Tiny delay so the timestamp can change observably.
+      const start = Date.now();
+      while (Date.now() - start < 5) {
+        /* spin */
+      }
+      runPreTool(projectDirectory);
+      runPreTool(projectDirectory);
+
+      const failures = readState(projectDirectory).recentFailures as {
+        pattern: string;
+        timestamp: string;
+      }[];
+      // Bounded by distinct pattern count, not firing count.
+      expect(failures).toHaveLength(1);
+      expect(failures[0]?.pattern).toBe('loc-exceeded');
+      // Timestamp refreshed to the most recent firing.
+      expect(failures[0]?.timestamp).not.toBe(firstTimestamp);
+      expect(new Date(failures[0]?.timestamp ?? 0).getTime()).toBeGreaterThan(
+        new Date(firstTimestamp ?? 0).getTime(),
+      );
+    });
+
     it('stop hook writes recentFailures when done gate blocks for test failure', () => {
       // Create a done-phase feature ticket (id without quotes — regex extracts literal)
       const ticketFolder = '.safeword-project/tickets/099-test';

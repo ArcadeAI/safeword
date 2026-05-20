@@ -92,8 +92,14 @@ export function recordFailure(
     try {
       const state = JSON.parse(readFileSync(stateFile, 'utf8'));
       const failures: FailureEntry[] = state.recentFailures ?? [];
-      failures.push({ pattern, timestamp: new Date().toISOString() });
-      state.recentFailures = failures;
+      // Per-pattern dedup: keep entries for other patterns, then append this
+      // one with a fresh timestamp. Bounds the array by distinct pattern
+      // count instead of letting it grow with repeats, and keeps the array
+      // ordered by last-occurrence so `failures[last]` is the most-recent
+      // pattern (prompt-questions relies on this). Ticket 8CMXNG.
+      const updated = failures.filter(f => f.pattern !== pattern);
+      updated.push({ pattern, timestamp: new Date().toISOString() });
+      state.recentFailures = updated;
 
       // Per-session dedup for counter increment
       const incremented: string[] = state.incrementedPatterns ?? [];
