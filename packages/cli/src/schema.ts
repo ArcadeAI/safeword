@@ -675,6 +675,34 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // free-form review.
       requires: ['QUALITY_REVIEW_MESSAGE', 'CONFIDENT', 'BLOCKED', 'Tried:', 'Need:'],
     },
+    'packages/cli/templates/doc-templates/test-definitions-feature.md': {
+      // Canonical test-definitions.md format. Rule grouping (Gherkin 6+
+      // Rule: keyword, Example Mapping alignment) + nested Scenario with
+      // Given/When/Then + per-scenario RED/GREEN/REFACTOR sub-checkboxes.
+      // The R/G/R checkboxes are load-bearing: parseTddStep in
+      // hooks/lib/active-ticket.ts depends on them to inject TDD-step
+      // guidance during Phase 6 implement. Removing any marker silently
+      // regresses the format the BDD skill teaches.
+      requires: [
+        '## Rule:',
+        '### Scenario:',
+        'Given',
+        'When',
+        'Then',
+        '- [ ] RED',
+        '- [ ] GREEN',
+        '- [ ] REFACTOR',
+      ],
+    },
+    'packages/cli/templates/hooks/lib/scenario-format.ts': {
+      // Runtime gate that powers done-phase scenario-completeness checks
+      // (stop-quality.ts) and progress reporting. analyzeScenarioFormat is
+      // imported by the stop hook; isUnrecognized distinguishes "no
+      // scenarios yet" from "scenarios in legacy/malformed format" so the
+      // done gate can hard-block the latter. Removing either silently
+      // regresses scenario-completeness enforcement.
+      requires: ['analyzeScenarioFormat', 'isUnrecognized', 'export function'],
+    },
   },
 
   // NPM packages to install (JS/TS specific packages from typescript pack)

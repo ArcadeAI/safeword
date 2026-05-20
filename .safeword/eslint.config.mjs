@@ -12,9 +12,9 @@ const eslintConfigPrettier = safeword.prettierConfig;
 //   In practice, safeword's managedFiles generates the project eslint.config.mjs
 //   in the same setup run, so this fallback only fires in degenerate cases.
 let projectConfig = [];
-const projectConfigPath = new URL('../eslint.config.mjs', import.meta.url);
+const projectConfigPath = new URL('../eslint.config.ts', import.meta.url);
 if (existsSync(projectConfigPath)) {
-  projectConfig = (await import('../eslint.config.mjs')).default;
+  projectConfig = (await import('../eslint.config.ts')).default;
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];
   }

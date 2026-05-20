@@ -16,7 +16,7 @@ import {
   createTypeScriptPackageJson,
   initGitRepo,
   removeTemporaryDirectory,
-  runCli,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers.js';
 
@@ -26,7 +26,7 @@ beforeAll(async () => {
   projectDirectory = createTemporaryDirectory();
   createTypeScriptPackageJson(projectDirectory);
   initGitRepo(projectDirectory);
-  await runCli(['setup', '--yes'], { cwd: projectDirectory });
+  await setupOrThrow(projectDirectory);
 });
 
 afterAll(() => {

@@ -130,7 +130,83 @@ The signal-to-noise problem this ticket addresses has existed since at least v0.
 4. **Should /verify and /audit share more substrate?** Today /verify runs build/test/lint and /audit re-runs lint. Some redundancy. Could be unified — but unification is a bigger scope decision.
 5. **Migration cadence.** Customers will see a change in /audit output shape. Should this go out as a minor version (0.33) with a release note, or a major signal? Per `versioning` skill the answer probably depends on whether the gate-evidence patterns (`✓ X/X tests pass`, `Audit passed`, etc.) change.
 
+## Design notes from parallel session (branch `pedantic-hawking-65d53c`)
+
+A separate session — same author — re-derived parts of this problem space from scratch before discovering 155 existed. The three design artifacts below are **input to this ticket's clarify phase**, not commitments. Each answers or refines one of 155's open questions/buckets.
+
+### Input for open Q1 + bucket-A output structure (was local ticket "158 audit-scope-organization")
+
+Once the categorization in this ticket settles which checks remain in /audit (bucket A), the output should partition into ticket-scope vs project-scope tiers — Option D below. Five mitigations ensure no current /audit capability is lost.
+
+**Implementation invariant: "run wide, partition narrow."** Tools always run whole-repo. The change set is used only for post-hoc partitioning of results — NEVER for scoping tool execution (e.g., never `jscpd -f <changed-files>` or `depcruise --include-only` derived from change set). Doing so would miss span-scope findings — clones/cycles between changed and unchanged files would disappear because the unchanged side wasn't fed to the tool.
+
+**Change-set derivation:** active ticket → `git diff <ticket-base>..HEAD`; no ticket → `git diff main...HEAD`; neither → all findings classified as project-scope (graceful degradation).
+
+**Option D output structure:**
+
+```
+## Audit
+
+**Summary:** N errors, M ticket warnings, K project notes — <verdict>
+
+### Ticket scope (X files changed)
+**Architecture:** <findings or "No new cycles introduced">
+**Dead code:** <findings>
+**Duplication:** <findings>
+**Docs impact:** <findings>
+**Test quality:** <findings>
+**Agent config:** <if ticket touched config files>
+**Learning files:** <if ticket touched learnings>
+
+### Project scope (repo-wide context — review periodically)
+**Outdated deps:** [STRUCTURED TABLE preserved — Package/Current/Latest/Type/Bump/Risk]
+**Architecture:** <whole-repo findings>
+**Dead code:** <pre-existing findings>
+**Duplication:** <pre-existing findings + count summary>
+**Stale tickets:** <if .safeword/ present>
+**Agent config drift:** <if not touched by ticket>
+```
+
+**Five required mitigations to preserve every current /audit capability:**
+
+1. **Per-check sub-headers within each tier.** Tiers are scope; sub-headers within are check type. Preserves coherent "show me all duplication" / "show me all dead code" grouping. No bullet soup.
+2. **Preserve the outdated-dep triage TABLE** (Package / Current / Latest / Type / Bump / Risk) — keep as a table inside project-scope, not flatten to bullets.
+3. **Span-scope findings include both filenames.** When a finding involves files from both ticket-scope AND non-ticket files (cycle, clone, doc reference), surface both paths: `[W001] Duplication: src/changed.ts ↔ src/long-standing.ts`. Anchor rule: ≥1 file in change set → ticket-scope, full file list shown.
+4. **Project-scope framing as "context, not noise."** Section header reads `### Project scope (repo-wide context — review periodically)`, not just `### Project scope`. Guards against users training themselves to skip the section.
+5. **Prose-level "always runs everything" guarantee.** Add one line to the skill's prose: "/audit always runs all checks across the whole repo; the report partitions findings by whether they touch your ticket's change set." Once in the skill, not per-run.
+
+**Prior art validating the pattern:** scope-aware static analysis is industry standard. Semgrep `SEMGREP_BASELINE_REF` for diff-aware scans (https://semgrep.dev/docs/kb/semgrep-appsec-platform/missing-pr-comments). The community `dependency-cruiser-report-action` visualizes dep diagrams for changed files only in PRs (https://dev.to/mh4gf/visualize-typescript-dependencies-of-changed-files-in-a-pull-request-using-127j). SonarQube has PR Analysis mode. The novel piece is the _output partitioning_ (ticket-scope + project-scope in one report), not the change-set scoping.
+
+### Input for bucket-B / bucket-C: docs-impact heuristic (was local ticket "157 audit-docs-impact-heuristic")
+
+/audit currently _describes_ a documentation-impact check in prose but never executes it. The check has two complementary forms that align with bucket-B and bucket-C:
+
+- **Edit-triggered form (bucket B):** PostToolUse hook fires when a doc is edited; verifies all file references in the doc still exist. Catches the doc→code direction (doc was edited; does it still point at real code?). Already mentioned in 155 bucket-B candidates.
+- **Periodic form (bucket C or A):** for each file changed in the last N commits, grep all docs/guides/skills for references to changed file paths or exported symbol names. Flag any reference that points at code that has materially changed without a corresponding doc edit. Catches the code→doc direction.
+
+The two directions are **not substitutes**. Edit-triggered misses the code-change-orphans-doc-reference case; periodic check is slow and reactive. Best to run both at different cadences.
+
+### Input for open Q2: /test-audit sibling skill (was local ticket "160 test-audit-skill")
+
+Recommendation for Q2: **yes, create a sibling skill `/test-audit`** for test quality. Spec:
+
+- Test quality is currently described in /audit prose but not executed — would be one of bucket C's discovery candidates.
+- Layered with existing skills: `/tdd-review` = per-test discipline during active cycle; **`/test-audit` = suite-wide quality sweep**; `/audit` (bucket A "test quality" entry) = smell signal in broader audit; `testing` knowledge skill = how-to reference.
+- Checks to implement (AST-based via existing eslint plugins + targeted grep):
+  - Weak assertions (toBeTruthy/toBeDefined/not.toThrow without specific value)
+  - Test independence (shared mutable state across tests)
+  - Arbitrary timeouts (sleep, waitForTimeout with hardcoded ms)
+  - Happy-path only (no error case tests for exported functions)
+  - Duplicate tests that should use it.each / parameterized
+  - Test naming describing implementation vs behavior
+  - Skipped/xfailed tests without rationale
+- Implementation route: AST-based via `eslint-plugin-vitest` / `eslint-plugin-jest`, plus targeted grep for cross-cutting patterns. Register in SAFEWORD_SCHEMA.ownedFiles. Cursor rule + command for parity with other action skills.
+- One-line differentiation to embed in the skill prose: **`/audit` answers "can I ship this?" — `/test-audit` answers "will my tests catch what I'd want them to?"**
+
+---
+
 ## Work Log
 
 - 2026-05-18T20:55Z Created from the audit-skill cleanup discussion. Triggered by recent /audit on ticket 154 producing 19 false-positive dep flags + 5 weak-assertion flags, while missing the real ARCHITECTURE.md drift on first pass. Spec is intentionally still in clarify phase — the categorization framework above is a proposal, not a decision.
 - 2026-05-18T21:55Z Expanded inventory to the 5-section structure (matching the SKILL.md headings). Added "Recent change history" — confirmed via `git log` that the past week's commits (#94, #101, #104) only touched gate plumbing, not the checks themselves. The signal-to-noise problem predates v0.30.0.
+- 2026-05-19T20:30Z Appended design notes from parallel session (branch `pedantic-hawking-65d53c`) — output structure for bucket-A (Option D + 5 mitigations + "run wide partition narrow" invariant), docs-impact spec for bucket-B/C, /test-audit sibling skill answering open Q2. Design notes are input to clarify phase, not commitments — categorization decisions in this ticket take precedence.

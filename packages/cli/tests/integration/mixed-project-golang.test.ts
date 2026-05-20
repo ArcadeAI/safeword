@@ -24,9 +24,9 @@ import {
   readSafewordConfig,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
   runLintHook,
   SAFEWORD_VERSION,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -76,7 +76,7 @@ func main() {
     );
 
     initGitRepo(projectDirectory);
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory);
   }, 180_000);
 
   afterAll(() => {

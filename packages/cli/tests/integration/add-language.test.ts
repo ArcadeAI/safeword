@@ -25,6 +25,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  setupOrThrow,
   writeTestFile,
 } from '../helpers';
 
@@ -38,7 +39,7 @@ describe('E2E: Add Language to Existing Project', () => {
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
-    await runCli(['setup'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory, ['setup']);
   }, 180_000);
 
   afterAll(() => {

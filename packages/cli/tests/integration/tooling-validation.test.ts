@@ -21,9 +21,9 @@ import {
   isMypyInstalled,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
   runEslint,
   SAFEWORD_VERSION,
+  setupOrThrow,
   TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
@@ -50,10 +50,7 @@ requires-python = ">=3.10"
     writeTestFile(projectDirectory, 'src/__init__.py', '');
     writeTestFile(projectDirectory, 'src/main.py', 'print("hello")\n');
     initGitRepo(projectDirectory);
-    await runCli(['setup'], {
-      cwd: projectDirectory,
-      timeout: TIMEOUT_SETUP,
-    });
+    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
   }, 180_000);
 
   afterAll(() => {
@@ -105,10 +102,7 @@ describe('E2E: mypy Type Error Detection', () => {
     projectDirectory = createTemporaryDirectory();
     createPythonProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup'], {
-      cwd: projectDirectory,
-      timeout: TIMEOUT_SETUP,
-    });
+    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
   }, 180_000);
 
   afterAll(() => {
@@ -243,10 +237,7 @@ describe('E2E: React ESLint Violation Detection', () => {
     // Create src directory
     writeTestFile(projectDirectory, 'src/.gitkeep', '');
     initGitRepo(projectDirectory);
-    await runCli(['setup'], {
-      cwd: projectDirectory,
-      timeout: TIMEOUT_SETUP,
-    });
+    await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
 
     // Install dependencies so ESLint can run
     execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });

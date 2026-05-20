@@ -20,7 +20,7 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  setupOrThrow,
 } from '../helpers';
 
 describe('E2E: Claude Code Hook Path Resolution', () => {
@@ -31,7 +31,7 @@ describe('E2E: Claude Code Hook Path Resolution', () => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await runCli(['setup'], { cwd: projectDirectory });
+    await setupOrThrow(projectDirectory, ['setup']);
     differentDirectory = createTemporaryDirectory();
   }, 180_000);
 

@@ -57,20 +57,48 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Result:** No new scenarios → scenario saturation → proceed to Phase 4.
 
-### Test-definitions format
+### Two formats: discovery vs saved
+
+**Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
+
+**Saved format** (`test-definitions.md` on disk): nested `## Rule:` / `### Scenario:` with Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — the prompt hook parses them to inject TDD-step guidance during Phase 6, and they enforce one-commit-per-step discipline. Keep scenarios declarative (what, not how) and aim for 3-5 G/W/T steps per scenario.
 
 ```markdown
 ## Rule: Description of business rule
 
-- [ ] Scenario covering partition A
-- [ ] Scenario covering partition B (boundary)
+### Scenario: Partition A
+
+Given [context]
+When [action]
+Then [outcome]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Partition B (boundary)
+
+Given [context]
+When [action]
+Then [outcome]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: Non-obvious rule
 
 > Rationale: Why this rule exists and why these partitions matter
 
-- [ ] Scenario covering partition C
-- [ ] Scenario covering partition D
+### Scenario: Partition C
+
+Given [context]
+When [action]
+Then [outcome]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 ```
 
 ### Phase 3 Exit (REQUIRED)

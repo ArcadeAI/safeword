@@ -24,6 +24,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   runLintHook,
+  setupOrThrow,
   TIMEOUT_BUN_INSTALL,
   writeTestFile,
 } from '../helpers';
@@ -66,7 +67,7 @@ describe('Customer override survival (#137)', () => {
       projectDirectory = realpathSync(createTemporaryDirectory());
       createTypeScriptPackageJson(projectDirectory);
       initGitRepo(projectDirectory);
-      await runCli(['setup', '--yes'], { cwd: projectDirectory });
+      await setupOrThrow(projectDirectory);
       originalConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
     }, TIMEOUT_BUN_INSTALL);
 
@@ -221,7 +222,7 @@ export default defineConfig([
 `,
       );
       initGitRepo(projectDirectory);
-      await runCli(['setup', '--yes'], { cwd: projectDirectory });
+      await setupOrThrow(projectDirectory);
     }, TIMEOUT_BUN_INSTALL);
 
     afterAll(() => {
@@ -265,7 +266,7 @@ select = ["E", "F"]
 `,
       );
       initGitRepo(projectDirectory);
-      await runCli(['setup', '--yes'], { cwd: projectDirectory });
+      await setupOrThrow(projectDirectory);
       originalRuffToml = readTestFile(projectDirectory, 'ruff.toml');
     }, TIMEOUT_BUN_INSTALL);
 
@@ -360,7 +361,7 @@ extend-select = ["D"]
         createPythonProject(projectDirectory);
         // Note: NO pre-existing ruff.toml — let safeword generate the bare one.
         initGitRepo(projectDirectory);
-        await runCli(['setup', '--yes'], { cwd: projectDirectory });
+        await setupOrThrow(projectDirectory);
         bareRuffToml = readTestFile(projectDirectory, 'ruff.toml');
       }, TIMEOUT_BUN_INSTALL);
 
