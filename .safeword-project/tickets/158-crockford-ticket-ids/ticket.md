@@ -1,8 +1,8 @@
 ---
 id: 158
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-05-20T05:28:00Z
 last_modified: 2026-05-20T05:28:00Z
 supersedes: 080
