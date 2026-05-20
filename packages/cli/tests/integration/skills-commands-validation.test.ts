@@ -28,10 +28,12 @@ const MIN_BODY_LENGTH = 10;
 
 // allowed-tools patterns (Claude Code format)
 // Valid: '*', 'Read', 'Read, Grep, Glob', 'Bash(git:*)', 'mcp__server__tool'
-const ALLOWED_TOOLS_PATTERN = /^(\*|\w+(\([^)]+\))?(,\s*\w+(\([^)]+\))?)*)$/; // eslint-disable-line sonarjs/regex-complexity -- matches Claude Code's allowed-tools format; input is controlled frontmatter, not adversarial.
+/* eslint-disable sonarjs/regex-complexity -- matches Claude Code's allowed-tools format and markdown links against controlled frontmatter and skill markdown (never adversarial); ReDoS-safe in this usage. */
+const ALLOWED_TOOLS_PATTERN = /^(\*|\w+(\([^)]+\))?(,\s*\w+(\([^)]+\))?)*)$/;
 
 // Markdown link pattern [text](path)
 const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
+/* eslint-enable sonarjs/regex-complexity */
 
 interface ParsedFrontmatter {
   name?: string;
