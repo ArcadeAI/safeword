@@ -16,6 +16,8 @@ If any answer is vague, you have open questions — surface them.
 
 **When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
 
+**When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/explore-and-debate` to weigh options against current docs and research before drafting scope.
+
 ### Concrete example
 
 **Context:** User says "I want to add a --verbose flag to the lint command."
