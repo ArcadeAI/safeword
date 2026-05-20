@@ -247,8 +247,13 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
       const result = getDisqualificationMessage({
         novelResearchReminderUnconsumed: true,
       });
-      expect(result).toContain('CONFIDENT requires /quality-review first');
-      expect(result).toContain('novel-claim flag is unconsumed');
+      // Message describes the actual gate condition (flag still active) rather than
+      // implying that /quality-review must have logged proof of invocation.
+      expect(result).toMatch(/novel.claim flag/i);
+      expect(result).toMatch(/next user prompt/i);
+      expect(result).toContain('/quality-review');
+      // Should NOT carry the prior misleading "requires /quality-review first" framing.
+      expect(result).not.toContain('requires /quality-review first');
     });
 
     it('returns explicit message naming the failure pattern when recentRelevantFailure is set', () => {

@@ -105,7 +105,9 @@ export function getDisqualificationMessage(options: {
 }): string | undefined {
   const messages: string[] = [];
   if (options.novelResearchReminderUnconsumed) {
-    messages.push('CONFIDENT requires /quality-review first — novel-claim flag is unconsumed.');
+    messages.push(
+      'Novel-claim flag is still active (a learnings file was edited this turn). The next user prompt will clear it automatically. If the claim is load-bearing, run /quality-review now to verify against primary sources before relying on it.',
+    );
   }
   if (options.recentRelevantFailure) {
     messages.push(
