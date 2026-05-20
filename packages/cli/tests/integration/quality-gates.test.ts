@@ -1463,7 +1463,7 @@ describe('Quality Gates', () => {
   // Suite 10: Novel Research Reminder (Ticket #126)
   // =========================================================================
   describe('Novel Research Reminder', () => {
-    it('10.1: PostToolUse sets novelResearchReminder when learnings file created', () => {
+    it('10.1: PostToolUse appends learnings file to pending array on first edit', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -1483,10 +1483,11 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.novelResearchReminder).toBe(true);
+      expect(state.learningsNudgesPending).toEqual([learningPath]);
+      expect(state.learningsNudgesAcknowledged ?? []).toEqual([]);
     });
 
-    it('10.2: PostToolUse does not set flag for non-learnings files', () => {
+    it('10.2: PostToolUse does not arm pending for non-learnings files', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
@@ -1507,48 +1508,69 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.novelResearchReminder).toBeUndefined();
+      expect(state.learningsNudgesPending ?? []).toEqual([]);
     });
 
-    it('10.3: flag is idempotent — two learnings files produce one flag', () => {
+    it('10.3: per-fingerprint dedup — re-editing the same file does not re-arm', () => {
       const head = getHead(projectDirectory);
+      const learningPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/learnings/already-armed.md',
+      );
+      // State already has this file in pending — second edit should not re-arm.
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: head,
         activeTicket: null,
         gate: null,
-        novelResearchReminder: true,
+        learningsNudgesPending: [learningPath],
       });
 
-      const learningPath = nodePath.join(
-        projectDirectory,
-        '.safeword-project/learnings/second-learning.md',
-      );
-      writeTestFile(
-        projectDirectory,
-        '.safeword-project/learnings/second-learning.md',
-        '# Another',
-      );
-
-      const result = runPostToolQuality(projectDirectory, 'Write', learningPath);
+      writeTestFile(projectDirectory, '.safeword-project/learnings/already-armed.md', '# Update');
+      const result = runPostToolQuality(projectDirectory, 'Edit', learningPath);
 
       expect(result.status).toBe(0);
 
       const state = readState(projectDirectory);
-      expect(state.novelResearchReminder).toBe(true);
+      // Still exactly one entry — not duplicated.
+      expect(state.learningsNudgesPending).toEqual([learningPath]);
     });
 
-    it('10.4: prompt hook injects reminder and clears flag', () => {
-      // Prompt hook requires .safeword directory to exist
+    it('10.3b: per-fingerprint dedup — editing an already-acknowledged file does not re-arm', () => {
+      const head = getHead(projectDirectory);
+      const learningPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/learnings/already-acked.md',
+      );
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        gate: null,
+        learningsNudgesPending: [],
+        learningsNudgesAcknowledged: [learningPath],
+      });
+
+      writeTestFile(projectDirectory, '.safeword-project/learnings/already-acked.md', '# Update');
+      const result = runPostToolQuality(projectDirectory, 'Edit', learningPath);
+
+      expect(result.status).toBe(0);
+
+      const state = readState(projectDirectory);
+      expect(state.learningsNudgesPending ?? []).toEqual([]);
+      expect(state.learningsNudgesAcknowledged).toEqual([learningPath]);
+    });
+
+    it('10.4: prompt hook injects reminder naming the file and moves pending → acknowledged', () => {
       writeTestFile(projectDirectory, '.safeword/.gitkeep', '');
 
-      // Set up state with flag
+      const learningPath = '.safeword-project/learnings/probe.md';
       writeState(projectDirectory, {
         locSinceCommit: 0,
         lastCommitHash: getHead(projectDirectory),
         activeTicket: null,
         gate: null,
-        novelResearchReminder: true,
+        learningsNudgesPending: [learningPath],
       });
 
       const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
@@ -1563,15 +1585,15 @@ describe('Quality Gates', () => {
 
       expect(result.status).toBe(0);
       expect(result.stdout).toContain('Novel claim detected');
+      expect(result.stdout).toContain('probe.md');
       expect(result.stdout).toContain('/quality-review');
 
-      // Flag should be cleared
       const state = readState(projectDirectory);
-      expect(state.novelResearchReminder).toBe(false);
+      expect(state.learningsNudgesPending).toEqual([]);
+      expect(state.learningsNudgesAcknowledged).toEqual([learningPath]);
     });
 
-    it('10.5: prompt hook does not inject reminder when flag is absent', () => {
-      // Prompt hook requires .safeword directory to exist
+    it('10.5: prompt hook does not inject reminder when pending is empty', () => {
       writeTestFile(projectDirectory, '.safeword/.gitkeep', '');
 
       writeState(projectDirectory, {

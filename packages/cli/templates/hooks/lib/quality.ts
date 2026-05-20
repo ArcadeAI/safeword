@@ -100,13 +100,15 @@ export function getQualityMessage(phase?: BddPhase | string, tddStep?: string | 
  * state-agnostic (it only knows the prompt-shape contract).
  */
 export function getDisqualificationMessage(options: {
-  novelResearchReminderUnconsumed: boolean;
+  pendingLearningsNudges?: string[];
   recentRelevantFailure?: string;
 }): string | undefined {
   const messages: string[] = [];
-  if (options.novelResearchReminderUnconsumed) {
+  const pending = options.pendingLearningsNudges ?? [];
+  if (pending.length > 0) {
+    const files = pending.map(f => f.split('/').pop() ?? f).join(', ');
     messages.push(
-      'Novel-claim flag is still active (a learnings file was edited this turn). The next user prompt will clear it automatically. If the claim is load-bearing, run /quality-review now to verify against primary sources before relying on it.',
+      `Novel-claim nudge pending for: ${files}. The next user prompt will clear it automatically. If any claim is load-bearing, run /quality-review now to verify against primary sources before relying on it.`,
     );
   }
   if (options.recentRelevantFailure) {

@@ -96,10 +96,18 @@ if (existsSync(stateFile)) {
       lines.push('- No active ticket. Classify (patch/task/feature) before starting.');
     }
 
-    // One-shot reminder: verify novel research claims before building on them
-    if (state.novelResearchReminder) {
-      lines.push('- Novel claim detected — verify with /quality-review before building on it.');
-      state.novelResearchReminder = false;
+    // One-shot reminder: verify novel research claims before building on them.
+    // Atomic move pending → acknowledged so the setter's dedup still works
+    // after the nudge has been shown (ticket 4N5Y28).
+    const pending = state.learningsNudgesPending ?? [];
+    if (pending.length > 0) {
+      const files = pending.map(f => f.split('/').pop() ?? f).join(', ');
+      lines.push(
+        `- Novel claim detected in ${files} — verify with /quality-review before building on it.`,
+      );
+      state.learningsNudgesAcknowledged ??= [];
+      state.learningsNudgesAcknowledged.push(...pending);
+      state.learningsNudgesPending = [];
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
     }
   } catch {

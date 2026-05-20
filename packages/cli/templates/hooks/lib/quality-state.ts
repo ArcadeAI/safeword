@@ -27,7 +27,18 @@ export interface QualityState {
   locAtLastReview: number;
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];
-  novelResearchReminder?: boolean;
+  /**
+   * Files under `.safeword-project/learnings/*.md` edited this session whose
+   * "novel claim — verify with /quality-review" nudge has not yet been shown.
+   * Append-only per-fingerprint; cleared atomically by prompt-questions when
+   * the nudge fires (entries move to `learningsNudgesAcknowledged`).
+   */
+  learningsNudgesPending?: string[];
+  /**
+   * Files whose nudge has already been shown this session. Append-only.
+   * Used by the setter to skip re-arming a file that was already nudged.
+   */
+  learningsNudgesAcknowledged?: string[];
 }
 
 /**

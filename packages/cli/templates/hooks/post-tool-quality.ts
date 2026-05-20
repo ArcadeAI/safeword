@@ -140,9 +140,19 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
   }
 }
 
-// Novel research reminder: flag when a learnings file is created
+// Novel-claim nudge: append the edited learnings file to the per-session
+// pending set. Per-fingerprint dedup — if we've already armed for this file
+// this session (whether pending or acknowledged), don't re-arm. Monotonic
+// append-only state replaces the prior single-bit boolean (ticket 4N5Y28).
 if (editedFile.includes('.safeword-project/learnings/') && editedFile.endsWith('.md')) {
-  state.novelResearchReminder = true;
+  state.learningsNudgesPending ??= [];
+  state.learningsNudgesAcknowledged ??= [];
+  const alreadyArmed =
+    state.learningsNudgesPending.includes(editedFile) ||
+    state.learningsNudgesAcknowledged.includes(editedFile);
+  if (!alreadyArmed) {
+    state.learningsNudgesPending.push(editedFile);
+  }
 }
 
 saveState(state);

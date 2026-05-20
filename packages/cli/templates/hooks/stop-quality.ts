@@ -473,7 +473,7 @@ const recentRelevant = relevantPattern
   : undefined;
 const baseMessage = getQualityMessage(currentPhase, tddStep);
 const disqual = getDisqualificationMessage({
-  novelResearchReminderUnconsumed: sessionState?.novelResearchReminder ?? false,
+  pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
   recentRelevantFailure: recentRelevant,
 });
 softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);

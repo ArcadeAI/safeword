@@ -243,13 +243,18 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
   });
 
   describe('Rule: Disqualification flags block CONFIDENT explicitly', () => {
-    it('returns explicit message when novelResearchReminder is unconsumed', () => {
+    it('surfaces filenames when learnings nudges are pending', () => {
       const result = getDisqualificationMessage({
-        novelResearchReminderUnconsumed: true,
+        pendingLearningsNudges: [
+          '.safeword-project/learnings/eslint-disable-fragility.md',
+          '.safeword-project/learnings/foo-bar.md',
+        ],
       });
-      // Message describes the actual gate condition (flag still active) rather than
-      // implying that /quality-review must have logged proof of invocation.
-      expect(result).toMatch(/novel.claim flag/i);
+      // Message names the actual files that triggered the nudge (the win the
+      // monotonic-array refactor unlocks over the prior single boolean).
+      expect(result).toContain('eslint-disable-fragility.md');
+      expect(result).toContain('foo-bar.md');
+      // And keeps the wording that names the gate's clearing condition.
       expect(result).toMatch(/next user prompt/i);
       expect(result).toContain('/quality-review');
       // Should NOT carry the prior misleading "requires /quality-review first" framing.
@@ -258,17 +263,22 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
 
     it('returns explicit message naming the failure pattern when recentRelevantFailure is set', () => {
       const result = getDisqualificationMessage({
-        novelResearchReminderUnconsumed: false,
+        pendingLearningsNudges: [],
         recentRelevantFailure: 'loc-exceeded',
       });
       expect(result).toContain('loc-exceeded');
       expect(result).toContain('CONFIDENT');
     });
 
-    it('returns undefined when neither flag is set', () => {
+    it('returns undefined when nudges are empty and no failure pattern is set', () => {
       const result = getDisqualificationMessage({
-        novelResearchReminderUnconsumed: false,
+        pendingLearningsNudges: [],
       });
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when the pendingLearningsNudges field is omitted entirely', () => {
+      const result = getDisqualificationMessage({});
       expect(result).toBeUndefined();
     });
   });
