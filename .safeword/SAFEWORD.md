@@ -70,6 +70,7 @@ Calibration the rules don't capture:
 - "Add dark mode toggle" → feature (3+ files, new state).
 - "Implement the fix for bug #123" → task (bug fix, despite "implement").
 - "Build the Docker image" → patch (infrastructure, not product).
+- "Clear pre-existing lint debt across 17 files" → task (mechanical cleanup — no behavior to discover, so the file count is noise).
 
 ### 3. Build
 
