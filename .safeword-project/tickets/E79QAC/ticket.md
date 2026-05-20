@@ -2,8 +2,8 @@
 id: E79QAC
 slug: quality-message-clarity
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-20T14:09:07.786Z
 last_modified: 2026-05-20T14:09:07.786Z
 ---
