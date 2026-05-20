@@ -345,7 +345,7 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('Drift detection', () => {
-    it('should have templates for all local customer-facing skills', async () => {
+    it('should have templates for all local customer-facing skills', () => {
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
       const skillsDirectory = nodePath.join(repoRoot, '.claude/skills');
       const skillTemplatesDirectory = nodePath.join(import.meta.dirname, '../templates/skills');

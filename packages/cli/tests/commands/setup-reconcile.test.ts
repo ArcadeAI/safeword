@@ -235,7 +235,7 @@ describe('Setup Command - Reconcile Integration', () => {
   });
 
   describe('setup command integration', () => {
-    it('should run setup successfully via CLI', async () => {
+    it('should run setup successfully via CLI', () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
@@ -266,7 +266,7 @@ describe('Setup Command - Reconcile Integration', () => {
       }
     });
 
-    it('should error on already configured project', async () => {
+    it('should error on already configured project', () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),

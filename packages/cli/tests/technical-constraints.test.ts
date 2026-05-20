@@ -35,7 +35,7 @@ describe('Test Suite 0: Technical Constraints', () => {
       const times: number[] = [];
 
       for (let i = 0; i < runs; i++) {
-        const { timeMs } = await measureTime(async () => runCliSync(['--version']));
+        const { timeMs } = await measureTime(() => Promise.resolve(runCliSync(['--version'])));
         times.push(timeMs);
       }
 

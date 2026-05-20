@@ -33,6 +33,102 @@ const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
 const FIXTURE_PATH = nodePath.join(import.meta.dirname, '../fixtures/stop-hook-transcript.jsonl');
 
+// Module-scope helpers — pure (no closure over describe-local state).
+
+function runStopHookDonePhase(directory: string, lastAssistantMessage: string) {
+  const transcriptLine = JSON.stringify({
+    type: 'assistant',
+    message: {
+      role: 'assistant',
+      content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
+    },
+  });
+  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+  writeFileSync(transcriptPath, transcriptLine);
+
+  const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', '099-done-task');
+  mkdirSync(ticketFolder, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticketFolder, 'ticket.md'),
+    ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
+  );
+
+  return spawnSync('bun', [STOP_QUALITY], {
+    input: JSON.stringify({
+      transcript_path: transcriptPath,
+      last_assistant_message: lastAssistantMessage,
+    }),
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+}
+
+function createTranscript(directory: string): string {
+  const transcriptLine = JSON.stringify({
+    type: 'assistant',
+    message: {
+      role: 'assistant',
+      content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
+    },
+  });
+  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+  writeFileSync(transcriptPath, transcriptLine);
+  return transcriptPath;
+}
+
+function createTicket(
+  directory: string,
+  id: string,
+  slug: string,
+  options: { phase: string; status: string; type?: string },
+): void {
+  const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', `${id}-${slug}`);
+  mkdirSync(ticketFolder, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticketFolder, 'ticket.md'),
+    [
+      '---',
+      `id: ${id}`,
+      `status: ${options.status}`,
+      `type: ${options.type ?? 'task'}`,
+      `phase: ${options.phase}`,
+      `last_modified: ${new Date().toISOString()}`,
+      '---',
+    ].join('\n'),
+  );
+}
+
+function writeSessionState(
+  directory: string,
+  sessionId: string,
+  state: Record<string, unknown>,
+): void {
+  const statePath = nodePath.join(
+    directory,
+    '.safeword-project',
+    `quality-state-${sessionId}.json`,
+  );
+  mkdirSync(nodePath.join(directory, '.safeword-project'), { recursive: true });
+  // eslint-disable-next-line unicorn/no-null -- JSON.stringify replacer parameter
+  writeFileSync(statePath, JSON.stringify(state, null, 2));
+}
+
+function runStopHook(directory: string, transcriptPath: string, sessionId?: string) {
+  return spawnSync('bun', [STOP_QUALITY], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      transcript_path: transcriptPath,
+      last_assistant_message: 'Here is what I changed.',
+    }),
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+}
+
 let projectDirectory: string;
 
 beforeEach(() => {
@@ -46,43 +142,6 @@ afterEach(() => {
 });
 
 describe('Stop Hook: Done-phase verify.md artifact gate', () => {
-  /**
-   * Build a minimal JSONL transcript with one Edit tool_use so editToolsUsed=true,
-   * write it to the temp dir, and run the stop hook with the given last_assistant_message.
-   * No verify.md in ticket folder → done-phase hard-blocks regardless of transcript content.
-   */
-  function runStopHookDonePhase(directory: string, lastAssistantMessage: string) {
-    // Minimal transcript: one assistant message with an Edit tool_use
-    const transcriptLine = JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
-      },
-    });
-    const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-    writeFileSync(transcriptPath, transcriptLine);
-
-    // Active done-phase task ticket
-    const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', '099-done-task');
-    mkdirSync(ticketFolder, { recursive: true });
-    writeFileSync(
-      nodePath.join(ticketFolder, 'ticket.md'),
-      ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
-    );
-
-    return spawnSync('bun', [STOP_QUALITY], {
-      input: JSON.stringify({
-        transcript_path: transcriptPath,
-        last_assistant_message: lastAssistantMessage,
-      }),
-      cwd: directory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-    });
-  }
-
   it('hard blocks done-phase without verify.md regardless of transcript content', () => {
     const result = runStopHookDonePhase(projectDirectory, 'I updated the configuration file.');
     expect(result.status).toBe(0);
@@ -144,74 +203,6 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
 });
 
 describe('Stop Hook: Ticket Resolution Context', () => {
-  /** Helper: create a minimal transcript with an Edit tool_use */
-  function createTranscript(directory: string): string {
-    const transcriptLine = JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
-      },
-    });
-    const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-    writeFileSync(transcriptPath, transcriptLine);
-    return transcriptPath;
-  }
-
-  /** Helper: create a ticket with given phase and status */
-  function createTicket(
-    directory: string,
-    id: string,
-    slug: string,
-    options: { phase: string; status: string; type?: string },
-  ): void {
-    const ticketFolder = nodePath.join(directory, '.safeword-project', 'tickets', `${id}-${slug}`);
-    mkdirSync(ticketFolder, { recursive: true });
-    writeFileSync(
-      nodePath.join(ticketFolder, 'ticket.md'),
-      [
-        '---',
-        `id: ${id}`,
-        `status: ${options.status}`,
-        `type: ${options.type ?? 'task'}`,
-        `phase: ${options.phase}`,
-        `last_modified: ${new Date().toISOString()}`,
-        '---',
-      ].join('\n'),
-    );
-  }
-
-  /** Helper: write per-session state file */
-  function writeSessionState(
-    directory: string,
-    sessionId: string,
-    state: Record<string, unknown>,
-  ): void {
-    const statePath = nodePath.join(
-      directory,
-      '.safeword-project',
-      `quality-state-${sessionId}.json`,
-    );
-    mkdirSync(nodePath.join(directory, '.safeword-project'), { recursive: true });
-    // eslint-disable-next-line unicorn/no-null -- JSON.stringify replacer parameter
-    writeFileSync(statePath, JSON.stringify(state, null, 2));
-  }
-
-  /** Helper: run the stop hook */
-  function runStopHook(directory: string, transcriptPath: string, sessionId?: string) {
-    return spawnSync('bun', [STOP_QUALITY], {
-      input: JSON.stringify({
-        session_id: sessionId,
-        transcript_path: transcriptPath,
-        last_assistant_message: 'Here is what I changed.',
-      }),
-      cwd: directory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-    });
-  }
-
   it('shows quality review when active ticket at implement phase', () => {
     createTicket(projectDirectory, '099', 'test', {
       phase: 'implement',

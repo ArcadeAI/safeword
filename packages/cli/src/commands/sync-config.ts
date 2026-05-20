@@ -70,6 +70,7 @@ export function hasArchitectureDetected(arch: DepCruiseArchitecture): boolean {
 /**
  * CLI command: Sync depcruise config with current project structure
  */
+
 export async function syncConfig(): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');

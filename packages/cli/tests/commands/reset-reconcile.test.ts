@@ -312,7 +312,7 @@ describe('Reset Command - Reconcile Integration', () => {
   });
 
   describe('reset command integration', () => {
-    it('should run reset successfully via CLI', async () => {
+    it('should run reset successfully via CLI', () => {
       createConfiguredProject();
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
@@ -338,7 +338,7 @@ describe('Reset Command - Reconcile Integration', () => {
       }
     });
 
-    it('should do nothing on unconfigured project', async () => {
+    it('should do nothing on unconfigured project', () => {
       // Just package.json, no .safeword
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),

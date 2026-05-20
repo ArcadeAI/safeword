@@ -290,7 +290,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
   });
 
   describe('upgrade command integration', () => {
-    it('should run upgrade successfully via CLI', async () => {
+    it('should run upgrade successfully via CLI', () => {
       createConfiguredProject('0.5.0');
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
@@ -316,7 +316,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       }
     });
 
-    it('should refuse downgrade when project is newer', async () => {
+    it('should refuse downgrade when project is newer', () => {
       createConfiguredProject('99.99.99');
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
@@ -334,7 +334,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       }
     });
 
-    it('should error on unconfigured project', async () => {
+    it('should error on unconfigured project', () => {
       // Just package.json, no .safeword
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
