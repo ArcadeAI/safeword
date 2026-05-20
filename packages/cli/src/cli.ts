@@ -74,6 +74,18 @@ program
     await syncConfig();
   });
 
+const ticket = program.command('ticket').description('Ticket management');
+
+ticket
+  .command('new <slug>')
+  .description('Create a new ticket with a Crockford Base32 ID')
+  .option('--type <type>', 'Ticket type: patch, task, or feature', 'task')
+  .option('--title <title>', 'Ticket title (defaults to slug)')
+  .action(async (slug: string, options: { type?: string; title?: string }) => {
+    const { ticketNew } = await import('./commands/ticket-new.js');
+    await ticketNew(slug, options);
+  });
+
 program
   .command('sync-learnings')
   .description('Regenerate .safeword-project/learnings/INDEX.md')
