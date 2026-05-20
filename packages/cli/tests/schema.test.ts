@@ -15,6 +15,7 @@ import YAML from 'yaml';
 
 import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
 import { SETTINGS_HOOKS } from '../src/templates/config.js';
+import { SKILL_CURSOR_PAIRS } from './fixtures/skill-cursor-pairs.js';
 
 // Type guard for filtering out undefined values
 const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
@@ -288,14 +289,15 @@ describe('Schema - Single Source of Truth', () => {
         .filter(isDefined)
         .toSorted((a, b) => a.localeCompare(b));
 
-      // Cursor rules use gerund names, Claude skills use short names
-      const CURSOR_RULE_TO_SKILL: Record<string, string> = {
-        brainstorming: 'brainstorm',
-        debugging: 'debug',
-        elicitation: 'elicit',
-        'quality-reviewing': 'quality-review',
-        refactoring: 'refactor',
-      };
+      // Derived from canonical SKILL_CURSOR_PAIRS fixture: cursor-rule suffix → skill name.
+      // Covers gerund-form rules (brainstorming → brainstorm) and identity cases alike.
+      const CURSOR_RULE_TO_SKILL: Record<string, string> = Object.fromEntries(
+        SKILL_CURSOR_PAIRS.flatMap(pair =>
+          (pair.cursorRules ?? [])
+            .filter(rule => rule.startsWith('safeword-'))
+            .map(rule => [rule.replace(/^safeword-/, ''), pair.skill] as const),
+        ),
+      );
       const normalizedCursorRules = cursorRules
         .map(name => CURSOR_RULE_TO_SKILL[name] ?? name)
         .toSorted((a, b) => a.localeCompare(b));
