@@ -643,6 +643,7 @@ describe('Skills-Cursor Parity', () => {
     brainstorm: 'safeword-brainstorming',
     debug: 'safeword-debugging',
     elicit: 'safeword-elicitation',
+    'explore-and-debate': 'safeword-explore-and-debate',
     'quality-review': 'safeword-quality-reviewing',
     refactor: 'safeword-refactoring',
     'tdd-review': 'safeword-tdd-review',
