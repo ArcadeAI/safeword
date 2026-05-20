@@ -18,16 +18,21 @@ export interface IdMinter {
   mint(): string;
 }
 
+/**
+ * Build an ID from a constrained-range RNG that returns indices in
+ * `[0, CROCKFORD_ALPHABET.length)`. The two exported minters differ only in
+ * which RNG they pass in.
+ */
+function buildId(nextIndex: () => number): string {
+  const chars: string[] = [];
+  for (let index = 0; index < ID_LENGTH; index++) {
+    chars.push(CROCKFORD_ALPHABET.charAt(nextIndex()));
+  }
+  return chars.join('');
+}
+
 export function cryptoIdMinter(): IdMinter {
-  return {
-    mint(): string {
-      const chars: string[] = [];
-      for (let index = 0; index < ID_LENGTH; index++) {
-        chars.push(CROCKFORD_ALPHABET.charAt(randomInt(CROCKFORD_ALPHABET.length)));
-      }
-      return chars.join('');
-    },
-  };
+  return { mint: () => buildId(() => randomInt(CROCKFORD_ALPHABET.length)) };
 }
 
 /**
@@ -43,13 +48,5 @@ export function seededIdMinter(seed: number): IdMinter {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return (t ^ (t >>> 14)) >>> 0;
   }
-  return {
-    mint(): string {
-      const chars: string[] = [];
-      for (let index = 0; index < ID_LENGTH; index++) {
-        chars.push(CROCKFORD_ALPHABET.charAt(nextUint32() % CROCKFORD_ALPHABET.length));
-      }
-      return chars.join('');
-    },
-  };
+  return { mint: () => buildId(() => nextUint32() % CROCKFORD_ALPHABET.length) };
 }
