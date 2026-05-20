@@ -89,6 +89,117 @@ function createTestProject(): string {
   return directory;
 }
 
+/** Base state with no phase cache fields */
+function baseState(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    locSinceCommit: 0,
+    lastCommitHash: 'abc123',
+    activeTicket: null,
+    gate: null,
+    locAtLastReview: 0,
+    recentFailures: [],
+    incrementedPatterns: [],
+    ...overrides,
+  };
+}
+
+/** Run compact context hook and return stdout */
+function runCompactHook(cwd: string, sessionId = 'test-session'): string {
+  const result = spawnSync('bun', [COMPACT_CONTEXT], {
+    input: JSON.stringify({ session_id: sessionId }),
+    cwd,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return result.stdout;
+}
+
+/** Run post-tool quality hook */
+function runPostToolQuality(
+  cwd: string,
+  toolName: string,
+  filePath: string,
+  sessionId = 'test-session',
+): void {
+  spawnSync('bun', [POST_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      hook_event_name: 'PostToolUse',
+      tool_name: toolName,
+      tool_input: { file_path: filePath },
+    }),
+    cwd,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+}
+
+/** Read per-session quality state */
+function readState(cwd: string, sessionId = 'test-session'): Record<string, unknown> {
+  return JSON.parse(readTestFile(cwd, `.safeword-project/quality-state-${sessionId}.json`));
+}
+
+/** Create a transcript with one Edit tool_use so stop hook sees edits */
+function createTranscript(directory: string): string {
+  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+  const line = JSON.stringify({
+    type: 'assistant',
+    message: {
+      content: [
+        { type: 'tool_use', name: 'Edit', id: 'toolu_1' },
+        { type: 'text', text: 'Made changes.' },
+      ],
+    },
+  });
+  writeTestFile(directory, 'transcript.jsonl', line);
+  return transcriptPath;
+}
+
+/** Run stop hook and return parsed JSON stdout */
+function runStopHook(
+  cwd: string,
+  transcriptPath: string,
+  sessionId = 'test-session',
+  lastMessage = 'Made changes.',
+): { decision?: string; reason?: string; status: number | null } {
+  const result = spawnSync('bun', [STOP_QUALITY], {
+    input: JSON.stringify({
+      session_id: sessionId,
+      transcript_path: transcriptPath,
+      last_assistant_message: lastMessage,
+    }),
+    cwd,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  try {
+    const parsed = JSON.parse(result.stdout.trim());
+    return { ...parsed, status: result.status };
+  } catch {
+    return { status: result.status };
+  }
+}
+
+/** Set up a done-phase feature ticket with complete scenarios; returns the folder path */
+function setupDoneTicket(projectDirectory: string): string {
+  const ticketFolder = '.safeword-project/tickets/099-test';
+  writeTestFile(
+    projectDirectory,
+    `${ticketFolder}/ticket.md`,
+    ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
+  );
+  writeTestFile(
+    projectDirectory,
+    `${ticketFolder}/test-definitions.md`,
+    '## Rule: Test\n\n- [x] Scenario one\n',
+  );
+  writeState(projectDirectory, baseState({ activeTicket: '099' }));
+  return ticketFolder;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -103,32 +214,6 @@ describe('Phase Derivation (#124)', () => {
   afterEach(() => {
     removeTemporaryDirectory(projectDirectory);
   });
-
-  /** Base state with no phase cache fields */
-  function baseState(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-    return {
-      locSinceCommit: 0,
-      lastCommitHash: 'abc123',
-      activeTicket: null,
-      gate: null,
-      locAtLastReview: 0,
-      recentFailures: [],
-      incrementedPatterns: [],
-      ...overrides,
-    };
-  }
-
-  /** Run compact context hook and return stdout */
-  function runCompactHook(cwd: string, sessionId = 'test-session'): string {
-    const result = spawnSync('bun', [COMPACT_CONTEXT], {
-      input: JSON.stringify({ session_id: sessionId }),
-      cwd,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-    });
-    return result.stdout;
-  }
 
   // =========================================================================
   // Rule: Prompt hook derives phase from ticket file, not cache
@@ -293,32 +378,6 @@ describe('Phase Derivation (#124)', () => {
   // Rule: Post-tool no longer caches phase or TDD step
   // =========================================================================
   describe('Post-tool no longer caches phase or TDD step', () => {
-    /** Run post-tool quality hook */
-    function runPostToolQuality(
-      cwd: string,
-      toolName: string,
-      filePath: string,
-      sessionId = 'test-session',
-    ): void {
-      spawnSync('bun', [POST_TOOL_QUALITY], {
-        input: JSON.stringify({
-          session_id: sessionId,
-          hook_event_name: 'PostToolUse',
-          tool_name: toolName,
-          tool_input: { file_path: filePath },
-        }),
-        cwd,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-        encoding: 'utf8',
-        timeout: TIMEOUT_QUICK,
-      });
-    }
-
-    /** Read per-session quality state */
-    function readState(cwd: string, sessionId = 'test-session'): Record<string, unknown> {
-      return JSON.parse(readTestFile(cwd, `.safeword-project/quality-state-${sessionId}.json`));
-    }
-
     it('6.1: post-tool sets activeTicket but not phase cache', () => {
       createTicket(projectDirectory, '099', 'test-ticket', { phase: 'define-behavior' });
       const head = execSync('git rev-parse --short HEAD', {
@@ -403,67 +462,8 @@ describe('Phase Derivation (#124)', () => {
   // Rule: Stop hook blocks done without valid verify.md (#124b)
   // =========================================================================
   describe('Stop hook done gate with verify.md (#124b)', () => {
-    /** Create a transcript with Edit tool_use so stop hook sees edits */
-    function createTranscript(directory: string): string {
-      const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-      const line = JSON.stringify({
-        type: 'assistant',
-        message: {
-          content: [
-            { type: 'tool_use', name: 'Edit', id: 'toolu_1' },
-            { type: 'text', text: 'Made changes.' },
-          ],
-        },
-      });
-      writeTestFile(directory, 'transcript.jsonl', line);
-      return transcriptPath;
-    }
-
-    /** Run stop hook and return parsed JSON stdout */
-    function runStopHook(
-      cwd: string,
-      transcriptPath: string,
-      sessionId = 'test-session',
-      lastMessage = 'Made changes.',
-    ): { decision?: string; reason?: string; status: number | null } {
-      const result = spawnSync('bun', [STOP_QUALITY], {
-        input: JSON.stringify({
-          session_id: sessionId,
-          transcript_path: transcriptPath,
-          last_assistant_message: lastMessage,
-        }),
-        cwd,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-        encoding: 'utf8',
-        timeout: TIMEOUT_QUICK,
-      });
-      try {
-        const parsed = JSON.parse(result.stdout.trim());
-        return { ...parsed, status: result.status };
-      } catch {
-        return { status: result.status };
-      }
-    }
-
-    /** Set up a done-phase feature ticket with complete scenarios */
-    function setupDoneTicket(): string {
-      const ticketFolder = '.safeword-project/tickets/099-test';
-      writeTestFile(
-        projectDirectory,
-        `${ticketFolder}/ticket.md`,
-        ['---', 'id: 099', 'status: in_progress', 'type: feature', 'phase: done', '---'].join('\n'),
-      );
-      writeTestFile(
-        projectDirectory,
-        `${ticketFolder}/test-definitions.md`,
-        '## Rule: Test\n\n- [x] Scenario one\n',
-      );
-      writeState(projectDirectory, baseState({ activeTicket: '099' }));
-      return ticketFolder;
-    }
-
     it('3.2: done blocked without verify.md', () => {
-      setupDoneTicket();
+      setupDoneTicket(projectDirectory);
 
       const transcriptPath = createTranscript(projectDirectory);
       const result = runStopHook(
@@ -478,7 +478,7 @@ describe('Phase Derivation (#124)', () => {
     });
 
     it('3.1: done allowed with valid verify.md', () => {
-      const ticketFolder = setupDoneTicket();
+      const ticketFolder = setupDoneTicket(projectDirectory);
       writeTestFile(
         projectDirectory,
         `${ticketFolder}/verify.md`,
@@ -499,7 +499,7 @@ describe('Phase Derivation (#124)', () => {
     });
 
     it('3.3: done blocked with empty verify.md', () => {
-      const ticketFolder = setupDoneTicket();
+      const ticketFolder = setupDoneTicket(projectDirectory);
       writeTestFile(projectDirectory, `${ticketFolder}/verify.md`, '');
 
       const transcriptPath = createTranscript(projectDirectory);

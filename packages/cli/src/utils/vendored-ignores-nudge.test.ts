@@ -18,6 +18,12 @@ import { maybeAutoPatchOrNudge, shouldEmitVendoredIgnoresNudge } from './vendore
 
 let temporaryDirectory: string;
 
+function setupConfig(filename: string, body: string): string {
+  const fullPath = nodePath.join(temporaryDirectory, filename);
+  writeFileSync(fullPath, body, 'utf8');
+  return fullPath;
+}
+
 beforeEach(() => {
   temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-nudge-'));
 });
@@ -119,12 +125,6 @@ describe('maybeAutoPatchOrNudge', () => {
     logSpy.mockRestore();
     delete process.env.SAFEWORD_NO_MODIFY;
   });
-
-  function setupConfig(filename: string, body: string): string {
-    const fullPath = nodePath.join(temporaryDirectory, filename);
-    writeFileSync(fullPath, body, 'utf8');
-    return fullPath;
-  }
 
   it('3.1: --no-modify flag falls through to print-nudge; config untouched', () => {
     const original = "export default [{ files: ['**/*.ts'] }];\n";

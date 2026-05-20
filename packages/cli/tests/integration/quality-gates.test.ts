@@ -109,6 +109,91 @@ function createTestProject(): string {
   return dir;
 }
 
+/** Write a test-definitions.md with scenario sub-checkboxes */
+function writeTestDefinitions(
+  cwd: string,
+  ticketFolder: string,
+  scenarios: { name: string; red: boolean; green: boolean; refactor: boolean }[],
+): string {
+  const lines = ['# Test Definitions', ''];
+  for (const scenario of scenarios) {
+    lines.push(
+      `### Scenario: ${scenario.name}`,
+      `- [${scenario.red ? 'x' : ' '}] RED`,
+      `- [${scenario.green ? 'x' : ' '}] GREEN`,
+      `- [${scenario.refactor ? 'x' : ' '}] REFACTOR`,
+      '',
+    );
+  }
+  const relativePath = `.safeword-project/tickets/${ticketFolder}/test-definitions.md`;
+  writeTestFile(cwd, relativePath, lines.join('\n'));
+  return relativePath;
+}
+
+/** Bind a ticket to the test session's state */
+function bindTicketToSession(cwd: string, ticketId: string, phase: string): void {
+  const head = getHead(cwd);
+  writeState(cwd, {
+    locSinceCommit: 0,
+    lastCommitHash: head,
+    activeTicket: ticketId,
+    lastKnownPhase: phase,
+    lastKnownTddStep: null,
+    gate: null,
+  });
+}
+
+/** Create a ticket at a given phase and status */
+function createTicket(
+  cwd: string,
+  id: string,
+  slug: string,
+  options: { phase: string; status: string; type?: string },
+): void {
+  const lastModified = new Date().toISOString();
+  writeTestFile(
+    cwd,
+    `.safeword-project/tickets/${id}-${slug}/ticket.md`,
+    [
+      '---',
+      `id: ${id}`,
+      `type: ${options.type ?? 'task'}`,
+      `phase: ${options.phase}`,
+      `status: ${options.status}`,
+      `last_modified: ${lastModified}`,
+      '---',
+      `# ${slug}`,
+    ].join('\n'),
+  );
+}
+
+/** Create a ticket with full frontmatter (includes scope/out_of_scope/done_when) */
+function createFullTicket(
+  cwd: string,
+  id: string,
+  slug: string,
+  options: { phase: string; status: string; type: string },
+): void {
+  const lastModified = new Date().toISOString();
+  writeTestFile(
+    cwd,
+    `.safeword-project/tickets/${id}-${slug}/ticket.md`,
+    [
+      '---',
+      `id: ${id}`,
+      `type: ${options.type}`,
+      `phase: ${options.phase}`,
+      `status: ${options.status}`,
+      `last_modified: ${lastModified}`,
+      'scope: test scope',
+      'out_of_scope: nothing',
+      'done_when: tests pass',
+      '---',
+      `# ${slug}`,
+    ].join('\n'),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -680,27 +765,6 @@ describe('Quality Gates', () => {
   // Suite 6: TDD Step Detection (test-definitions.md sub-checkboxes)
   // =========================================================================
   describe('TDD Step Detection', () => {
-    /** Helper: write a test-definitions.md with scenario sub-checkboxes */
-    function writeTestDefinitions(
-      cwd: string,
-      ticketFolder: string,
-      scenarios: { name: string; red: boolean; green: boolean; refactor: boolean }[],
-    ): string {
-      const lines = ['# Test Definitions', ''];
-      for (const scenario of scenarios) {
-        lines.push(
-          `### Scenario: ${scenario.name}`,
-          `- [${scenario.red ? 'x' : ' '}] RED`,
-          `- [${scenario.green ? 'x' : ' '}] GREEN`,
-          `- [${scenario.refactor ? 'x' : ' '}] REFACTOR`,
-          '',
-        );
-      }
-      const relativePath = `.safeword-project/tickets/${ticketFolder}/test-definitions.md`;
-      writeTestFile(cwd, relativePath, lines.join('\n'));
-      return relativePath;
-    }
-
     it('7: RED checkbox edit does not cache TDD step in state', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
@@ -896,43 +960,6 @@ describe('Quality Gates', () => {
   // Suite 7: Phase-Based Access Control
   // =========================================================================
   describe('Phase Access Control', () => {
-    /** Helper: bind a ticket to the test session's state */
-    function bindTicketToSession(cwd: string, ticketId: string, phase: string): void {
-      const head = getHead(cwd);
-      writeState(cwd, {
-        locSinceCommit: 0,
-        lastCommitHash: head,
-        activeTicket: ticketId,
-        lastKnownPhase: phase,
-        lastKnownTddStep: null,
-        gate: null,
-      });
-    }
-
-    /** Helper: create a ticket at a given phase and status */
-    function createTicket(
-      cwd: string,
-      id: string,
-      slug: string,
-      options: { phase: string; status: string; type?: string },
-    ): void {
-      const lastModified = new Date().toISOString();
-      writeTestFile(
-        cwd,
-        `.safeword-project/tickets/${id}-${slug}/ticket.md`,
-        [
-          '---',
-          `id: ${id}`,
-          `type: ${options.type ?? 'task'}`,
-          `phase: ${options.phase}`,
-          `status: ${options.status}`,
-          `last_modified: ${lastModified}`,
-          '---',
-          `# ${slug}`,
-        ].join('\n'),
-      );
-    }
-
     it('7.1: allows code edits during planning phases (enforcement via reminders, not blocks)', () => {
       createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
       bindTicketToSession(projectDirectory, '099', 'intake');
@@ -1575,33 +1602,6 @@ describe('Quality Gates', () => {
   // Tasks are exempt. META_PATHS are exempt (handled earlier in hook).
   // =========================================================================
   describe('Implement Phase Requires test-definitions.md', () => {
-    /** Helper: create a ticket with full frontmatter */
-    function createFullTicket(
-      cwd: string,
-      id: string,
-      slug: string,
-      options: { phase: string; status: string; type: string },
-    ): void {
-      const lastModified = new Date().toISOString();
-      writeTestFile(
-        cwd,
-        `.safeword-project/tickets/${id}-${slug}/ticket.md`,
-        [
-          '---',
-          `id: ${id}`,
-          `type: ${options.type}`,
-          `phase: ${options.phase}`,
-          `status: ${options.status}`,
-          `last_modified: ${lastModified}`,
-          'scope: test scope',
-          'out_of_scope: nothing',
-          'done_when: tests pass',
-          '---',
-          `# ${slug}`,
-        ].join('\n'),
-      );
-    }
-
     it('11.1: denies app code edit for feature at implement phase without test-definitions.md', () => {
       createFullTicket(projectDirectory, '200', 'feat-gate', {
         phase: 'implement',
