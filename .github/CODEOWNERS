@@ -1,0 +1,4 @@
+# Only @TheMostlyGreat can approve PRs into this repo.
+# Combined with branch protection (require code owner review + restrict push to main),
+# this makes Alex the sole merger.
+* @TheMostlyGreat
