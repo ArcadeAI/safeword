@@ -1,0 +1,226 @@
+# Test definitions — ticket J7VBGJ
+
+Per-scenario SHA-or-skip annotation on the existing RED/GREEN/REFACTOR checkboxes, plus a feature-level cross-scenario refactor row.
+
+The per-scenario `- [ ] RED / GREEN / REFACTOR` checkboxes below use the legacy bare format on purpose — this ticket implements the new annotated format, so the agent dogfoods it only once the write-time hook lands. After that, transitions to `[x]` carry `<sha>` or `skip: <reason>`.
+
+## Rule: Marking a TDD checkbox requires a SHA or skip reason
+
+### Scenario: Valid SHA annotation passes the write-time hook
+
+Given a `test-definitions.md` with `- [ ] RED`
+When the agent edits the file and the line becomes `- [x] RED abc1234`
+Then the write-time hook allows the edit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Bare checkmark transition is blocked
+
+Given a `test-definitions.md` with `- [ ] GREEN`
+When the agent edits the file and the line becomes `- [x] GREEN` (no SHA, no skip)
+Then the write-time hook blocks the edit with a message naming the offending line and the required syntax
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Skip with non-empty reason passes
+
+Given a `test-definitions.md` with `- [ ] REFACTOR`
+When the agent edits the file and the line becomes `- [x] REFACTOR skip: trivial — no structural change`
+Then the write-time hook allows the edit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Skip with empty reason is blocked at write-time
+
+Given a `test-definitions.md` with `- [ ] REFACTOR`
+When the agent edits the file and the line becomes `- [x] REFACTOR skip:`
+Then the write-time hook blocks the edit, citing the empty-reason rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Skip with whitespace-only reason is blocked at write-time
+
+Given a `test-definitions.md` with `- [ ] REFACTOR`
+When the agent edits the file and the line becomes `- [x] REFACTOR skip:` (only spaces after the colon)
+Then the write-time hook blocks the edit, citing the empty-reason rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Pre-existing bare `[x]` is silently allowed
+
+Given a `test-definitions.md` already containing `- [x] RED` (no annotation, written before this feature shipped)
+When the agent makes an unrelated edit that does not touch this line
+Then the write-time hook allows the edit (legacy checkboxes carry no validation cost)
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Commit content must match the active TDD step
+
+### Scenario: RED-step commit touching only test files passes
+
+Given the parser-derived current TDD step is RED
+And the staged changes contain only files matching the test-file glob
+When the agent runs `git commit`
+Then the commit-time hook allows the commit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: RED-step commit touching app code is blocked
+
+Given the parser-derived current TDD step is RED
+And the staged changes include at least one non-test source file
+When the agent runs `git commit`
+Then the commit-time hook blocks the commit, naming the offending non-test file and pointing the agent at GREEN
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: GREEN-step commit is unrestricted
+
+Given the parser-derived current TDD step is GREEN
+And the staged changes contain a mix of test and app files
+When the agent runs `git commit`
+Then the commit-time hook allows the commit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: REFACTOR-step commit touching only app code passes
+
+Given the parser-derived current TDD step is REFACTOR
+And the staged changes contain only non-test source files
+When the agent runs `git commit`
+Then the commit-time hook allows the commit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: REFACTOR-step commit touching any test file is blocked
+
+Given the parser-derived current TDD step is REFACTOR
+And the staged changes include at least one test file
+When the agent runs `git commit`
+Then the commit-time hook blocks the commit, naming the offending test file and citing the no-behavior-change rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Done gate validates SHAs are distinct and reachable
+
+### Scenario: Scenario with three distinct, HEAD-reachable SHAs passes
+
+Given a scenario whose RED, GREEN, and REFACTOR checkboxes each carry a distinct SHA reachable from HEAD
+When the agent invokes the done gate
+Then the gate accepts the scenario
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Scenario with RED and GREEN sharing one SHA fails
+
+Given a scenario whose RED and GREEN checkboxes carry the same SHA
+When the agent invokes the done gate
+Then the gate fails, naming the scenario and identifying the collision
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Scenario with a SHA unreachable from HEAD fails
+
+Given a scenario whose REFACTOR checkbox carries a SHA that does not exist in the current branch history
+When the agent invokes the done gate
+Then the gate fails, naming the scenario and the unreachable SHA
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Scenario with one real SHA and two skip:reason entries passes
+
+Given a scenario whose RED checkbox carries a real SHA and whose GREEN and REFACTOR checkboxes both carry `skip: <non-empty reason>`
+When the agent invokes the done gate
+Then the gate accepts the scenario
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Scenario with three skip: entries fails
+
+Given a scenario whose RED, GREEN, and REFACTOR checkboxes all carry `skip:` entries
+When the agent invokes the done gate
+Then the gate fails with the message "scenario represents work that produced no commits"
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Feature-level cross-scenario refactor row obeys the same rules
+
+### Scenario: Cross-scenario row with SHA at done passes
+
+Given a `test-definitions.md` whose feature-level row reads `- [x] cross-scenario abc1234` with the SHA reachable from HEAD
+When the agent invokes the done gate
+Then the gate accepts the feature
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Cross-scenario row with skip:reason at done passes
+
+Given a `test-definitions.md` whose feature-level row reads `- [x] cross-scenario skip: no shared fixtures emerged`
+When the agent invokes the done gate
+Then the gate accepts the feature
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Missing cross-scenario row fails done
+
+Given a `test-definitions.md` with no feature-level cross-scenario row
+When the agent invokes the done gate
+Then the gate fails with a message naming the missing row and the required syntax
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Cross-scenario row with empty skip reason fails done
+
+Given a `test-definitions.md` whose feature-level row reads `- [x] cross-scenario skip:`
+When the agent invokes the done gate
+Then the gate fails, citing the empty-reason rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+---
+
+## Feature-level cross-scenario refactor
+
+This row is enforced at the done gate per the rules above. It must be either checked with a SHA or checked with `skip: <non-empty reason>` before this feature's own done gate accepts.
+
+- [ ] cross-scenario
