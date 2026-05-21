@@ -33,3 +33,11 @@ Then [outcome]
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+---
+
+## Feature-level cross-scenario refactor
+
+Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks if this row is missing or has an empty skip reason on tickets that use the annotated checkbox format.
+
+- [ ] cross-scenario
