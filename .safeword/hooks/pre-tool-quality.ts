@@ -276,12 +276,24 @@ if (
 
   // Dimension artifact gate: features require dimensions.md before test-definitions.md.
   // Natural gate — next step's input doesn't exist if prior step was skipped.
+  // The artifact may be a real dimension table OR a single `skip: <non-empty reason>`
+  // line (ticket MKVNFB) — the escape valve for tiny features with one obvious dimension.
   if (meta.type === 'feature') {
     const dimensionsFile = nodePath.join(ticketDirectory, 'dimensions.md');
     if (!existsSync(dimensionsFile)) {
       deny(
         'Features require dimensions.md before test-definitions.md. Document behavioral dimensions and partitions first.',
-        'Create dimensions.md with a dimension table, then create test-definitions.md.',
+        'Create dimensions.md with a dimension table, or write `skip: <non-empty reason>` as the entire content to deliberately omit.',
+      );
+    }
+    // If the file is a pure `skip: <reason>` declaration, validate the reason.
+    // Multi-line content-bearing files don't match this regex and pass through.
+    const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
+    const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
+    if (skipMatch && !isValidSkipReason(skipMatch[1])) {
+      deny(
+        'dimensions.md `skip:` declaration requires a non-empty reason after the colon.',
+        'Either write a real dimension table, or use `skip: <reason>` where the reason explains why no dimensions need enumerating (e.g., `skip: single behavioral dimension, no partitioning to enumerate`).',
       );
     }
   }

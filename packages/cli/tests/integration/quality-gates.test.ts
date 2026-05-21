@@ -1458,6 +1458,104 @@ describe('Quality Gates', () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toBe('');
     });
+
+    // -----------------------------------------------------------------------
+    // Ticket MKVNFB: dimensions.md may be satisfied by `skip: <reason>` instead
+    // of a real dimension table. Reuses isValidSkipReason from J7VBGJ.
+    // -----------------------------------------------------------------------
+
+    it('9.11: allows test-definitions.md when dimensions.md is `skip: <non-empty reason>`', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'scope: One trivial behavioral dimension',
+          'out_of_scope: Nothing',
+          'done_when: Behavior works',
+          '---',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+        'skip: single behavioral dimension, no partitioning to enumerate\n',
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('9.12: denies test-definitions.md when dimensions.md is `skip:` with empty reason', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'scope: x',
+          'out_of_scope: x',
+          'done_when: x',
+          '---',
+        ].join('\n'),
+      );
+      writeTestFile(projectDirectory, '.safeword-project/tickets/099-test/dimensions.md', 'skip:');
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('non-empty reason');
+    });
+
+    it('9.13: denies test-definitions.md when dimensions.md is `skip:` with whitespace-only reason', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'scope: x',
+          'out_of_scope: x',
+          'done_when: x',
+          '---',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+        'skip:    \n',
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('non-empty reason');
+    });
   });
   // =========================================================================
   // Suite 10: Novel Research Reminder (Ticket #126)
