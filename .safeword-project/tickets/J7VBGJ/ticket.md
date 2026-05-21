@@ -2,7 +2,7 @@
 id: J7VBGJ
 slug: tdd-sha-checkbox-ledger
 type: feature
-phase: verify
+phase: done
 status: in_progress
 created: 2026-05-20T14:45:51.962Z
 last_modified: 2026-05-20T14:45:51.962Z
