@@ -2,8 +2,8 @@
 id: MKVNFB
 slug: phase-skip-reason
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-20T14:39:14.352Z
 last_modified: 2026-05-21T18:30:00.000Z
 depends_on: [J7VBGJ]
