@@ -100,9 +100,9 @@ Given a scenario whose RED, GREEN, and REFACTOR checkboxes each carry a distinct
 When the agent invokes the done gate
 Then the gate accepts the scenario
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ### Scenario: Scenario with RED and GREEN sharing one SHA fails
 
@@ -110,9 +110,9 @@ Given a scenario whose RED and GREEN checkboxes carry the same SHA
 When the agent invokes the done gate
 Then the gate fails, naming the scenario and identifying the collision
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ### Scenario: Scenario with a SHA unreachable from HEAD fails
 
@@ -120,9 +120,9 @@ Given a scenario whose REFACTOR checkbox carries a SHA that does not exist in th
 When the agent invokes the done gate
 Then the gate fails, naming the scenario and the unreachable SHA
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ### Scenario: Scenario with one real SHA and two skip:reason entries passes
 
@@ -130,9 +130,9 @@ Given a scenario whose RED checkbox carries a real SHA and whose GREEN and REFAC
 When the agent invokes the done gate
 Then the gate accepts the scenario
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ### Scenario: Scenario with three skip: entries fails
 
@@ -140,9 +140,9 @@ Given a scenario whose RED, GREEN, and REFACTOR checkboxes all carry `skip:` ent
 When the agent invokes the done gate
 Then the gate fails with the message "scenario represents work that produced no commits"
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ## Rule: Feature-level cross-scenario refactor row obeys the same rules
 
@@ -152,9 +152,9 @@ Given a `test-definitions.md` whose feature-level row reads `- [x] cross-scenari
 When the agent invokes the done gate
 Then the gate accepts the feature
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ### Scenario: Cross-scenario row with skip:reason at done passes
 
@@ -162,9 +162,9 @@ Given a `test-definitions.md` whose feature-level row reads `- [x] cross-scenari
 When the agent invokes the done gate
 Then the gate accepts the feature
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ### Scenario: Missing cross-scenario row fails done
 
@@ -172,9 +172,9 @@ Given a `test-definitions.md` with no feature-level cross-scenario row
 When the agent invokes the done gate
 Then the gate fails with a message naming the missing row and the required syntax
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ### Scenario: Cross-scenario row with empty skip reason fails done
 
@@ -182,9 +182,9 @@ Given a `test-definitions.md` whose feature-level row reads `- [x] cross-scenari
 When the agent invokes the done gate
 Then the gate fails, citing the empty-reason rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a0e1935
+- [x] GREEN 1000536
+- [x] REFACTOR skip: no structural improvement needed — validateLedger is ~110 LOC across three well-separated helpers (parseLedger, validateScenario, validateCrossScenario)
 
 ---
 
