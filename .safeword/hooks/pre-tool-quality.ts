@@ -10,6 +10,11 @@ import nodePath from 'node:path';
 import { getTicketInfo } from './lib/active-ticket.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import {
+  classifyAnnotation,
+  isValidSkipReason,
+  parseCheckboxAnnotation,
+} from './lib/parse-annotation.ts';
+import {
   getStateFilePath,
   LOC_THRESHOLD,
   META_PATHS,
@@ -25,7 +30,69 @@ interface HookInput {
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
+    old_string?: string;
+    new_string?: string;
+    content?: string;
+    edits?: Array<{ old_string?: string; new_string?: string }>;
   };
+}
+
+interface CheckboxTransition {
+  step: string;
+  annotation: string;
+}
+
+/**
+ * Find every checkbox line that transitioned from `[ ] STEP` to `[x] STEP <annotation>`
+ * in this edit. Aligned by line index — works for Edit (old_string / new_string are
+ * local replacement regions), Write (old = disk contents, new = full new content),
+ * and MultiEdit (each edit treated as Edit). If lines don't align (e.g. Write that
+ * reorders sections), some transitions may be missed; done-gate is the final arbiter.
+ */
+function findTransitionsByLineIndex(oldText: string, newText: string): CheckboxTransition[] {
+  const transitions: CheckboxTransition[] = [];
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+  const max = Math.max(oldLines.length, newLines.length);
+  for (let i = 0; i < max; i++) {
+    const newLine = newLines[i];
+    if (newLine === undefined) continue;
+    const newParsed = parseCheckboxAnnotation(newLine);
+    if (!newParsed || !newParsed.checked) continue;
+    const oldLine = oldLines[i];
+    if (oldLine === undefined) continue;
+    const oldParsed = parseCheckboxAnnotation(oldLine);
+    if (oldParsed && !oldParsed.checked && oldParsed.step === newParsed.step) {
+      transitions.push({ step: newParsed.step, annotation: newParsed.annotation });
+    }
+  }
+  return transitions;
+}
+
+function collectNewTransitions(hookInput: HookInput, filePath: string): CheckboxTransition[] {
+  const toolInput = hookInput.tool_input ?? {};
+  const toolName = hookInput.tool_name ?? '';
+
+  if (toolName === 'Edit') {
+    const oldString = toolInput.old_string ?? '';
+    const newString = toolInput.new_string ?? '';
+    return findTransitionsByLineIndex(oldString, newString);
+  }
+
+  if (toolName === 'Write') {
+    const oldText = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+    const newText = toolInput.content ?? '';
+    return findTransitionsByLineIndex(oldText, newText);
+  }
+
+  if (toolName === 'MultiEdit') {
+    const edits = toolInput.edits ?? [];
+    return edits.flatMap(edit =>
+      findTransitionsByLineIndex(edit.old_string ?? '', edit.new_string ?? ''),
+    );
+  }
+
+  return [];
 }
 
 function deny(reason: string, additionalContext?: string): never {
@@ -121,6 +188,35 @@ if (
       deny(
         'Features require dimensions.md before test-definitions.md. Document behavioral dimensions and partitions first.',
         'Create dimensions.md with a dimension table, then create test-definitions.md.',
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SHA-or-skip annotation gate (ticket J7VBGJ, Rule 1)
+// On Edit/Write/MultiEdit of test-definitions.md, any [ ] → [x] transition
+// must carry either a SHA (`- [x] RED abc1234`) or `skip: <non-empty reason>`.
+// Pre-existing [x] without annotation is silently allowed (forward-looking).
+// ---------------------------------------------------------------------------
+
+if (
+  editedFile.endsWith('test-definitions.md') &&
+  editedFile.includes('.safeword-project/tickets/')
+) {
+  const transitions = collectNewTransitions(input, editedFile);
+  for (const transition of transitions) {
+    if (transition.annotation === '') {
+      deny(
+        `Cannot mark "[x] ${transition.step}" without an annotation. Use "${transition.step} <sha>" or "${transition.step} skip: <non-empty reason>".`,
+        'Every checkbox transition needs a commit SHA (proof of the work) or a deliberate skip with reason (auditable omission).',
+      );
+    }
+    const kind = classifyAnnotation(transition.annotation);
+    if (kind.kind === 'skip' && !isValidSkipReason(kind.reason)) {
+      deny(
+        `Cannot mark "[x] ${transition.step}" with empty skip reason. Use "skip: <non-empty reason>".`,
+        'The text after "skip:" must not be empty or whitespace-only. A real reason is the audit trail.',
       );
     }
   }
