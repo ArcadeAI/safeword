@@ -12,9 +12,9 @@ Given a `test-definitions.md` with `- [ ] RED`
 When the agent edits the file and the line becomes `- [x] RED abc1234`
 Then the write-time hook allows the edit
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 149fe3e
+- [x] GREEN ee1f54c
+- [x] REFACTOR skip: no structural improvement needed — gate logic is ~60 LOC across 3 small functions with parallel dispatcher branches, no duplication
 
 ### Scenario: Bare checkmark transition is blocked
 
@@ -22,9 +22,9 @@ Given a `test-definitions.md` with `- [ ] GREEN`
 When the agent edits the file and the line becomes `- [x] GREEN` (no SHA, no skip)
 Then the write-time hook blocks the edit with a message naming the offending line and the required syntax
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 149fe3e
+- [x] GREEN ee1f54c
+- [x] REFACTOR skip: no structural improvement needed — see scenario 1 ledger above
 
 ### Scenario: Skip with non-empty reason passes
 
@@ -32,9 +32,9 @@ Given a `test-definitions.md` with `- [ ] REFACTOR`
 When the agent edits the file and the line becomes `- [x] REFACTOR skip: trivial — no structural change`
 Then the write-time hook allows the edit
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 149fe3e
+- [x] GREEN ee1f54c
+- [x] REFACTOR skip: no structural improvement needed — see scenario 1 ledger above
 
 ### Scenario: Skip with empty reason is blocked at write-time
 
@@ -42,9 +42,9 @@ Given a `test-definitions.md` with `- [ ] REFACTOR`
 When the agent edits the file and the line becomes `- [x] REFACTOR skip:`
 Then the write-time hook blocks the edit, citing the empty-reason rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 149fe3e
+- [x] GREEN ee1f54c
+- [x] REFACTOR skip: no structural improvement needed — see scenario 1 ledger above
 
 ### Scenario: Skip with whitespace-only reason is blocked at write-time
 
@@ -52,9 +52,9 @@ Given a `test-definitions.md` with `- [ ] REFACTOR`
 When the agent edits the file and the line becomes `- [x] REFACTOR skip:` (only spaces after the colon)
 Then the write-time hook blocks the edit, citing the empty-reason rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 149fe3e
+- [x] GREEN ee1f54c
+- [x] REFACTOR skip: no structural improvement needed — see scenario 1 ledger above
 
 ### Scenario: Pre-existing bare `[x]` is silently allowed
 
@@ -62,9 +62,9 @@ Given a `test-definitions.md` already containing `- [x] RED` (no annotation, wri
 When the agent makes an unrelated edit that does not touch this line
 Then the write-time hook allows the edit (legacy checkboxes carry no validation cost)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 149fe3e
+- [x] GREEN ee1f54c
+- [x] REFACTOR skip: no structural improvement needed — see scenario 1 ledger above
 
 ## Rule: REFACTOR commits must not touch test files
 
