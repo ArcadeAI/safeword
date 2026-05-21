@@ -66,40 +66,9 @@ Then the write-time hook allows the edit (legacy checkboxes carry no validation 
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: Commit content must match the active TDD step
+## Rule: REFACTOR commits must not touch test files
 
-### Scenario: RED-step commit touching only test files passes
-
-Given the parser-derived current TDD step is RED
-And the staged changes contain only files matching the test-file glob
-When the agent runs `git commit`
-Then the commit-time hook allows the commit
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: RED-step commit touching app code is blocked
-
-Given the parser-derived current TDD step is RED
-And the staged changes include at least one non-test source file
-When the agent runs `git commit`
-Then the commit-time hook blocks the commit, naming the offending non-test file and pointing the agent at GREEN
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: GREEN-step commit is unrestricted
-
-Given the parser-derived current TDD step is GREEN
-And the staged changes contain a mix of test and app files
-When the agent runs `git commit`
-Then the commit-time hook allows the commit
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+Scope-reduction note (2026-05-21): originally this rule had 5 scenarios covering RED/GREEN/REFACTOR file-path rules. After re-reading `.safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md` (TDAD finding: rigid procedural rules degrade agent performance), the RED and GREEN rules were dropped — they were not load-bearing because the SHA-distinctness check at done already catches commit bundling. The REFACTOR rule stays because it is the only file-path rule that catches something the SHA mechanism cannot: test-behavior drift during cleanup.
 
 ### Scenario: REFACTOR-step commit touching only app code passes
 

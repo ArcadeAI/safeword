@@ -11,11 +11,11 @@ scope:
   - Annotation lives on the existing per-scenario checkboxes — no new ledger structure, no new file. Matches safeword's per-scenario TDD discipline in .claude/skills/bdd/TDD.md ("Pick first unchecked scenario from test-definitions. Cycle through RED → GREEN → REFACTOR. Mark ONE checkbox per edit, commit after each step.").
   - Add a single feature-level row at the bottom of test-definitions.md for the cross-scenario refactor pass (same SHA-or-skip format).
   - PreToolUse hook on Edit/Write of test-definitions.md blocks any `[ ] → [x]` transition that lacks a SHA or `skip: <reason>`.
-  - PreToolUse hook on Bash(git commit *) during `phase: implement` reads the current step from checkbox state and inspects `git diff --cached --name-only`. Block RED commits that touch app code; block REFACTOR commits that touch test files; GREEN is unrestricted. Applies to all `git commit *` forms including `--amend`.
+  - PreToolUse hook on Bash(git commit *) during `phase: implement` reads the current step from checkbox state and inspects `git diff --cached --name-only`. Block REFACTOR commits that touch test files (prevents test-behavior drift during cleanup). RED and GREEN commits are unrestricted. Applies to all `git commit *` forms including `--amend`.
   - Done gate (stop-quality.ts) enforces, per scenario and per feature row: SHAs on non-skipped steps are distinct and reachable from HEAD; skip reasons are non-empty.
   - At least one real SHA per scenario (a scenario with three skips is rejected — represents work that produced no commits).
   - Update bdd skill (TDD.md and VERIFY.md) to teach the new format in the smallest possible diff.
-  - Tests cover: skip-accept, empty-reason-reject, SHA collision detection, RED-touches-src block, REFACTOR-touches-tests block, cross-scenario row enforcement.
+  - Tests cover: skip-accept, empty-reason-reject, SHA collision detection, REFACTOR-touches-tests block, cross-scenario row enforcement.
 out_of_scope:
   - Grandfathering / migration of pre-existing in-flight tickets. Pre-existing checkboxes without SHAs are silently ignored by the new validation (forward-looking rule only).
   - Categorized skip reasons / allowlists — free-form non-empty string is the rule.
@@ -25,6 +25,7 @@ out_of_scope:
   - Auto-filling SHAs for the agent — the agent writes them, the hook validates.
   - Tightening bdd decomposition guidance to steer non-TDD tasks out of test-definitions.md.
   - Applying the skip-with-reason pattern to other phase artifacts (decomposition section in ticket.md, dimensions.md) — that's ticket MKVNFB, blocked on this one.
+  - RED-step commit file-path restriction ("RED commits may only touch test files"). Originally in scope; dropped 2026-05-21 after revisiting `.safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md` (TDAD finding: rigid procedural rules degraded agent performance from 6.08% to 9.94% regressions). The rule is not load-bearing — bundling is already caught by SHA-on-checkbox + SHA-distinctness at done; the REFACTOR file-path rule is the only one that catches something the SHA mechanism cannot (test-behavior drift during cleanup). Also avoids the new-module-stub friction noted during Task 1.
 done_when:
   - Writing `- [x] GREEN` without a SHA or `skip:` is blocked at the Edit/Write hook with a clear message.
   - Committing test files during a REFACTOR step is blocked at the Bash hook with a clear message.
@@ -75,8 +76,8 @@ Audit findings driving scope:
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------- | ---------- |
 | 1   | Annotation parser + validators in `packages/cli/templates/hooks/lib/` (parseAnnotation, validateSkipReason, isReachableSHA)                                    | — (foundation; tested via unit tests, not test-definitions scenarios) | unit        | nothing    |
 | 2   | Write-time gate — extend `pre-tool-quality.ts` to block `[ ] → [x]` transitions on `test-definitions.md` lacking SHA or `skip:`                                | Rule 1 (scenarios 1–6)                                                | integration | Task 1     |
-| 3   | Commit-time gate — extend `pre-tool-quality.ts` on `Bash(git commit *)` to enforce per-step file-path discipline via `git diff --cached --name-only`           | Rule 2 (scenarios 7–11)                                               | integration | Task 1     |
-| 4   | Done-gate — extend `stop-quality.ts` to validate per-scenario SHA distinctness/reachability AND the feature-level cross-scenario row                           | Rule 3 (12–16) + Rule 4 (17–20)                                       | integration | Task 1     |
+| 3   | Commit-time gate — extend `pre-tool-quality.ts` on `Bash(git commit *)` to block REFACTOR commits that touch test files (only load-bearing file-path rule)     | Rule 2 (scenarios 7–8 after scope reduction)                          | integration | Task 1     |
+| 4   | Done-gate — extend `stop-quality.ts` to validate per-scenario SHA distinctness/reachability AND the feature-level cross-scenario row                           | Rule 3 (9–13) + Rule 4 (14–17) after renumbering                      | integration | Task 1     |
 | 5   | Propagation — update `.claude/skills/bdd/TDD.md` + `VERIFY.md`, sync `packages/cli/templates/skills/bdd/`, add cross-scenario row to test-definitions template | — (docs/template)                                                     | manual      | Tasks 1–4  |
 
 Within each task, TDD operates per-scenario (matching safeword discipline): pick first unchecked scenario from test-definitions.md, RED → GREEN → REFACTOR with SHA-or-skip annotation on each step's checkbox.
@@ -93,3 +94,4 @@ Within each task, TDD operates per-scenario (matching safeword discipline): pick
 - 2026-05-21T01:38:00Z Task 1 RED: commit 383587d - 24 failing tests for parseCheckboxAnnotation/classifyAnnotation/isValidSkipReason. Stub module added to satisfy lint's import-x/no-unresolved (noted as adversarial finding for Task 3 design: file-path RED rule must allow new-module stubs).
 - 2026-05-21T01:38:00Z Task 1 GREEN: commit 425a354 - 24/24 pass, full hooks suite 81/81. Pure functions, ~50 LOC.
 - 2026-05-21T01:39:00Z Task 1 REFACTOR: skip: no structural improvement needed — three pure functions under 10 lines each, no duplication or smells. Canonical skip-with-reason case the new feature is designed to handle.
+- 2026-05-21T04:07:00Z Scope reduction (mid-implement, between Task 1 and Task 2): dropped the "RED commits may only touch test files" rule from scope. Triggered by re-reading `.safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md` — the project's own captured TDAD principle says generic procedural rules degrade agent performance. The RED file-path rule turned out non-load-bearing (bundling is caught by SHA-distinctness; REFACTOR-touches-tests is the only file-path rule that catches something SHA cannot). Removed 3 scenarios from test-definitions.md Rule 2 (scenarios 7-9: RED+tests allow, RED+app block, GREEN+anything pass — now vacuously true). Total scenario count 20 → 17. Task 3 shrinks. Also resolves the new-module-stub friction surfaced in Task 1 RED commit (`383587d` notes).
