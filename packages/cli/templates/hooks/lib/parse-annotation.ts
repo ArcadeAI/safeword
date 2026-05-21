@@ -2,7 +2,7 @@
 // Used by the write-time gate, the commit-time gate, and the done gate to
 // answer one question consistently: "what does this checkbox claim?"
 
-export type LedgerStep = 'RED' | 'GREEN' | 'REFACTOR' | 'cross-scenario';
+type LedgerStep = 'RED' | 'GREEN' | 'REFACTOR' | 'cross-scenario';
 
 export interface CheckboxAnnotation {
   step: LedgerStep;
