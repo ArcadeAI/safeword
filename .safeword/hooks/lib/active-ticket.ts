@@ -105,8 +105,11 @@ export function parseTddStep(content: string): string | null {
       continue;
     }
 
-    // Count sub-checkboxes (RED/GREEN/REFACTOR)
-    const checkboxMatch = line.match(/^- \[([ x])\] (RED|GREEN|REFACTOR)\s*$/i);
+    // Count sub-checkboxes (RED/GREEN/REFACTOR). Word boundary after the step
+    // keyword tolerates annotated lines (`- [x] RED abc1234`, `- [x] REFACTOR
+    // skip: ...`) introduced by ticket J7VBGJ — annotation is irrelevant to
+    // step derivation; step comes from which positions are filled.
+    const checkboxMatch = line.match(/^- \[([ x])\] (RED|GREEN|REFACTOR)\b/i);
     if (checkboxMatch) {
       if (checkboxMatch[1] === 'x') {
         checkedCount++;

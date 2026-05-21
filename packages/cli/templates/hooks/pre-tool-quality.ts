@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getTicketInfo } from './lib/active-ticket.ts';
+import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import {
   classifyAnnotation,
@@ -34,7 +34,29 @@ interface HookInput {
     new_string?: string;
     content?: string;
     edits?: Array<{ old_string?: string; new_string?: string }>;
+    command?: string;
   };
+}
+
+/**
+ * Matches `git commit` (any flags / message after) but rejects `git commit-tree`,
+ * `git commit-graph`, etc. The trailing (?!-) lookahead is what distinguishes them.
+ */
+const GIT_COMMIT_COMMAND = /\bgit\s+commit\b(?!-)/;
+
+/**
+ * Heuristic: a path is a test file if it matches *.test.* or *.spec.*, or lives
+ * inside a tests/ or __tests__/ directory. Covers safeword's convention plus the
+ * broader JS/TS ecosystem; intentionally permissive — false negatives just mean
+ * the gate doesn't fire, false positives would block legitimate refactors.
+ */
+function isTestFile(path: string): boolean {
+  return (
+    /\.(test|spec)\.[cm]?[jt]sx?$/.test(path) ||
+    path.includes('/tests/') ||
+    path.startsWith('tests/') ||
+    path.includes('/__tests__/')
+  );
 }
 
 interface CheckboxTransition {
@@ -110,6 +132,63 @@ function deny(reason: string, additionalContext?: string): never {
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
+/**
+ * REFACTOR commit gate: if the active ticket is in `phase: implement` and the
+ * current TDD step (parsed from test-definitions.md) is REFACTOR, inspect
+ * `git diff --cached --name-only` and deny if any staged file is a test file.
+ * Permissive on every other path — missing state, missing ticket, wrong phase,
+ * wrong step, or unreachable git all silently allow.
+ */
+function enforceRefactorCommitGate(sessionId?: string): void {
+  const stateFile = getStateFilePath(projectDirectory, sessionId);
+  if (!existsSync(stateFile)) return;
+
+  let state: QualityState;
+  try {
+    state = JSON.parse(readFileSync(stateFile, 'utf8'));
+  } catch {
+    return;
+  }
+  if (!state.activeTicket) return;
+
+  const ticket = getTicketInfo(projectDirectory, state.activeTicket);
+  if (ticket.phase !== 'implement' || !ticket.folder) return;
+
+  const testDefinitionsPath = nodePath.join(
+    projectDirectory,
+    '.safeword-project',
+    'tickets',
+    ticket.folder,
+    'test-definitions.md',
+  );
+  if (!existsSync(testDefinitionsPath)) return;
+
+  // parseTddStep returns the LAST CHECKED step. The agent is doing REFACTOR
+  // work when RED + GREEN are checked and REFACTOR is still pending — i.e.,
+  // when parseTddStep returns 'green'. ('refactor' means scenario complete.)
+  const step = parseTddStep(readFileSync(testDefinitionsPath, 'utf8'));
+  if (step !== 'green') return;
+
+  let staged: string;
+  try {
+    staged = execSync('git diff --cached --name-only', {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+  } catch {
+    return; // Can't inspect staged files — be permissive rather than wrong.
+  }
+
+  const stagedFiles = staged.split('\n').filter(line => line.trim() !== '');
+  const offendingTestFile = stagedFiles.find(isTestFile);
+  if (offendingTestFile) {
+    deny(
+      `REFACTOR commit may not touch test file: ${offendingTestFile}. Refactor preserves behavior — changing tests during REFACTOR is a behavior change in disguise.`,
+      'If the refactor genuinely needs a test edit (e.g., function rename across imports), commit the test change as part of GREEN, or mark REFACTOR as skip: <reason explaining why test edits were required>.',
+    );
+  }
+}
+
 // Read hook input from stdin
 let input: HookInput;
 try {
@@ -121,7 +200,22 @@ try {
 const tool = input.tool_name ?? '';
 const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
-// Only gate edit tools
+// ---------------------------------------------------------------------------
+// Bash gate: REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2)
+// The only file-path commit rule that survived scope reduction — see
+// .safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md for why
+// the RED/GREEN file-path rules were dropped.
+// ---------------------------------------------------------------------------
+
+if (tool === 'Bash') {
+  const command = input.tool_input?.command ?? '';
+  if (GIT_COMMIT_COMMAND.test(command)) {
+    enforceRefactorCommitGate(input.session_id);
+  }
+  process.exit(0);
+}
+
+// Only gate edit tools (Bash already handled above)
 if (!EDIT_TOOLS.includes(tool)) {
   process.exit(0);
 }
