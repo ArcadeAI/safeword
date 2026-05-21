@@ -77,9 +77,9 @@ And the staged changes contain only non-test source files
 When the agent runs `git commit`
 Then the commit-time hook allows the commit
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2939941
+- [x] GREEN ba86f2b
+- [x] REFACTOR skip: no structural improvement needed — gate is ~40 LOC in a single function with a clear semantics comment
 
 ### Scenario: REFACTOR-step commit touching any test file is blocked
 
@@ -88,9 +88,9 @@ And the staged changes include at least one test file
 When the agent runs `git commit`
 Then the commit-time hook blocks the commit, naming the offending test file and citing the no-behavior-change rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2939941
+- [x] GREEN ba86f2b
+- [x] REFACTOR skip: no structural improvement needed — see scenario 7 ledger above
 
 ## Rule: Done gate validates SHAs are distinct and reachable
 
