@@ -3,9 +3,9 @@ id: J7VBGJ
 slug: tdd-sha-checkbox-ledger
 type: feature
 phase: done
-status: in_progress
+status: done
 created: 2026-05-20T14:45:51.962Z
-last_modified: 2026-05-20T14:45:51.962Z
+last_modified: 2026-05-21T16:45:32.748Z
 scope:
   - Extend the existing per-scenario `- [ ] RED / GREEN / REFACTOR` checkboxes in test-definitions.md so that the transition to `[x]` carries either a commit SHA (`- [x] RED <sha>`) or `skip: <non-empty reason>` to deliberately omit a step.
   - Annotation lives on the existing per-scenario checkboxes — no new ledger structure, no new file. Matches safeword's per-scenario TDD discipline in .claude/skills/bdd/TDD.md ("Pick first unchecked scenario from test-definitions. Cycle through RED → GREEN → REFACTOR. Mark ONE checkbox per edit, commit after each step.").
