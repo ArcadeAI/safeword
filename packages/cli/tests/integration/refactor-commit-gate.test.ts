@@ -12,10 +12,13 @@ import { execSync, spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, it } from 'vitest';
 
 import {
   createTemporaryDirectory,
+  expectHookAllow,
+  expectHookDeny,
+  type HookResult,
   initGitRepo,
   removeTemporaryDirectory,
   TIMEOUT_QUICK,
@@ -26,12 +29,6 @@ import {
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
-
-interface HookResult {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-}
 
 /** Invoke pre-tool-quality with a Bash(git commit) payload. */
 function runBashCommitHook(cwd: string, command: string, sessionId = 'test-session'): HookResult {
@@ -48,25 +45,6 @@ function runBashCommitHook(cwd: string, command: string, sessionId = 'test-sessi
     timeout: TIMEOUT_QUICK,
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
-}
-
-function expectAllow(result: HookResult): void {
-  expect(result.status).toBe(0);
-  if (result.stdout.trim() !== '') {
-    const parsed = JSON.parse(result.stdout) as {
-      hookSpecificOutput?: { permissionDecision?: string };
-    };
-    expect(parsed.hookSpecificOutput?.permissionDecision).not.toBe('deny');
-  }
-}
-
-function expectDeny(result: HookResult, reasonShouldContain: string): void {
-  expect(result.status).toBe(0);
-  const parsed = JSON.parse(result.stdout) as {
-    hookSpecificOutput: { permissionDecision: string; permissionDecisionReason: string };
-  };
-  expect(parsed.hookSpecificOutput.permissionDecision).toBe('deny');
-  expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(reasonShouldContain);
 }
 
 /**
@@ -165,7 +143,7 @@ describe('commit-time REFACTOR gate', () => {
     });
     projectDirectory = setup.cwd;
     const result = runBashCommitHook(setup.cwd, 'git commit -m "refactor: clean up foo"');
-    expectAllow(result);
+    expectHookAllow(result);
   });
 
   it('Scenario 8: REFACTOR-step commit touching any test file is blocked', () => {
@@ -175,7 +153,7 @@ describe('commit-time REFACTOR gate', () => {
     });
     projectDirectory = setup.cwd;
     const result = runBashCommitHook(setup.cwd, 'git commit -m "refactor: clean up foo"');
-    expectDeny(result, 'tests/foo.test.ts');
+    expectHookDeny(result, 'tests/foo.test.ts');
   });
 });
 

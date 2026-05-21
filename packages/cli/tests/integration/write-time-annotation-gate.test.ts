@@ -14,10 +14,13 @@ import { spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, it } from 'vitest';
 
 import {
   createTemporaryDirectory,
+  expectHookAllow,
+  expectHookDeny,
+  type HookResult,
   initGitRepo,
   removeTemporaryDirectory,
   TIMEOUT_QUICK,
@@ -26,12 +29,6 @@ import {
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
-
-interface HookResult {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-}
 
 /** Invoke pre-tool-quality with an Edit payload simulating a checkbox transition. */
 function runEditHook(
@@ -53,26 +50,6 @@ function runEditHook(
     timeout: TIMEOUT_QUICK,
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
-}
-
-function expectAllow(result: HookResult): void {
-  expect(result.status).toBe(0);
-  // Allow path: hook either prints nothing or doesn't emit a deny decision.
-  if (result.stdout.trim() !== '') {
-    const parsed = JSON.parse(result.stdout) as {
-      hookSpecificOutput?: { permissionDecision?: string };
-    };
-    expect(parsed.hookSpecificOutput?.permissionDecision).not.toBe('deny');
-  }
-}
-
-function expectDeny(result: HookResult, reasonShouldContain: string): void {
-  expect(result.status).toBe(0);
-  const parsed = JSON.parse(result.stdout) as {
-    hookSpecificOutput: { permissionDecision: string; permissionDecisionReason: string };
-  };
-  expect(parsed.hookSpecificOutput.permissionDecision).toBe('deny');
-  expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(reasonShouldContain);
 }
 
 /** Build a temp project with a ticket folder + test-definitions.md initial content. */
@@ -140,7 +117,7 @@ describe('write-time annotation gate', () => {
         '- [ ] RED',
         '- [x] RED abc1234',
       );
-      expectAllow(result);
+      expectHookAllow(result);
     });
 
     it('Scenario 2: bare checkmark transition is blocked', () => {
@@ -154,7 +131,7 @@ describe('write-time annotation gate', () => {
         '- [ ] GREEN',
         '- [x] GREEN',
       );
-      expectDeny(result, 'GREEN');
+      expectHookDeny(result, 'GREEN');
     });
 
     it('Scenario 3: skip with non-empty reason passes', () => {
@@ -168,7 +145,7 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip: trivial — no structural change',
       );
-      expectAllow(result);
+      expectHookAllow(result);
     });
 
     it('Scenario 4: skip with empty reason is blocked at write-time', () => {
@@ -182,7 +159,7 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip:',
       );
-      expectDeny(result, 'skip');
+      expectHookDeny(result, 'skip');
     });
 
     it('Scenario 5: skip with whitespace-only reason is blocked at write-time', () => {
@@ -196,7 +173,7 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip:    ',
       );
-      expectDeny(result, 'skip');
+      expectHookDeny(result, 'skip');
     });
 
     it('Scenario 6: pre-existing bare [x] is silently allowed on unrelated edits', () => {
@@ -213,7 +190,7 @@ describe('write-time annotation gate', () => {
         '### Scenario: legacy',
         '### Scenario: legacy (renamed)',
       );
-      expectAllow(result);
+      expectHookAllow(result);
     });
   });
 });
