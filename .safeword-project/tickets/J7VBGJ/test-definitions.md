@@ -192,4 +192,4 @@ Then the gate fails, citing the empty-reason rule
 
 This row is enforced at the done gate per the rules above. It must be either checked with a SHA or checked with `skip: <non-empty reason>` before this feature's own done gate accepts.
 
-- [x] cross-scenario skip: parse-annotation.ts was designed up front as the shared seam between the three gates; no other cross-cutting code emerged that would benefit from extraction
+- [x] cross-scenario a1cb8fd
