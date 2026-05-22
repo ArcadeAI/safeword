@@ -30,7 +30,7 @@ export const SKILL_CURSOR_PAIRS: readonly SkillCursorPair[] = [
   { skill: 'brainstorm', cursorRules: ['safeword-brainstorming'] },
   { skill: 'debug', cursorRules: ['safeword-debugging'] },
   { skill: 'elicit', cursorRules: ['safeword-elicitation'] },
-  { skill: 'explore-and-debate', cursorRules: ['safeword-explore-and-debate'] },
+  { skill: 'figure-it-out', cursorRules: ['safeword-figure-it-out'] },
   { skill: 'quality-review', cursorRules: ['safeword-quality-reviewing'] },
   { skill: 'refactor', cursorRules: ['safeword-refactoring'] },
   { skill: 'tdd-review', cursorRules: ['safeword-tdd-review'] },

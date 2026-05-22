@@ -153,7 +153,7 @@ Training data drifts. Memory of "how X worked" is not authority — the current 
 2. Read the docs for _that_ version. Use whichever source is wired up: Context7, the official docs site, the project README at the pinned ref, MDN, `node_modules/<pkg>/README.md`.
 3. If no source is reachable or the version is ambiguous, ask before guessing.
 
-**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/explore-and-debate`. Its iron law: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
+**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its iron law: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
 
 Blog posts, tweets, marketing, and "I remember reading…" don't count for either tier. Treat them as leads, not evidence.
 

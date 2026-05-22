@@ -16,7 +16,7 @@ If any answer is vague, you have open questions — surface them.
 
 **When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
 
-**When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/explore-and-debate` to weigh options against current docs and research before drafting scope.
+**When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/figure-it-out` to weigh options against current docs and research before drafting scope.
 
 **When the feature leans on a library or framework** — read the installed version's docs before proposing API shapes or done-when criteria. Scope baked on training memory of a different version is silently wrong. Check `package.json` / lockfile first, then the source wired up (Context7, official docs, README at the pinned ref).
 

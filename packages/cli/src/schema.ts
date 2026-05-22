@@ -469,8 +469,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/tdd-review/SKILL.md': {
       template: 'skills/tdd-review/SKILL.md',
     },
-    '.claude/skills/explore-and-debate/SKILL.md': {
-      template: 'skills/explore-and-debate/SKILL.md',
+    '.claude/skills/figure-it-out/SKILL.md': {
+      template: 'skills/figure-it-out/SKILL.md',
     },
 
     // Cursor rules
@@ -486,8 +486,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules/safeword-elicitation.mdc': {
       template: 'cursor/rules/safeword-elicitation.mdc',
     },
-    '.cursor/rules/safeword-explore-and-debate.mdc': {
-      template: 'cursor/rules/safeword-explore-and-debate.mdc',
+    '.cursor/rules/safeword-figure-it-out.mdc': {
+      template: 'cursor/rules/safeword-figure-it-out.mdc',
     },
     '.cursor/rules/safeword-quality-reviewing.mdc': {
       template: 'cursor/rules/safeword-quality-reviewing.mdc',
