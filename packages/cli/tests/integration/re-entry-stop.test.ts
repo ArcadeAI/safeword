@@ -74,4 +74,18 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     expect(logContent).toContain('Next: commit and PR');
     expect(logContent).toContain('sess_test_abc');
   });
+
+  it('writes nothing when the assistant message has no **Next:** line', () => {
+    const transcriptPath = makeTranscript(
+      projectDirectory,
+      'Plain narrative reply with no call-to-action at the end.',
+    );
+
+    const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_test_noop');
+
+    expect(result.status).toBe(0);
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    expect(existsSync(logPath)).toBe(false);
+  });
 });
