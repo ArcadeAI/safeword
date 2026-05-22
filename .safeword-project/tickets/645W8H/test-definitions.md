@@ -14,7 +14,7 @@ And that line's Next: imperative reads `commit and PR`
 
 - [x] RED e1a9f28
 - [x] GREEN 06ba40d
-- [ ] REFACTOR
+- [x] REFACTOR skip: slice 1 standalone; lib extraction lands when Slice 2 first reuses a helper.
 
 ### Scenario: Assistant message has no Next: line
 
