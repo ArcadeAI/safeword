@@ -9,7 +9,7 @@
  * reads `.safeword-project/re-entry.md`, finds the most recent entry
  * for the current session_id, and prints `Next: <imperative>`. When a
  * dirty-file conflict exists with another session, the line is
- * prepended with `⚠️ conflict: <file>` (scenarios 8.2 onward).
+ * prepended with `⚠️ conflict: <file>`.
  *
  * Not wired into settings.json automatically — Claude Code's
  * `statusLine` config slot is single-valued; auto-installing would
@@ -20,29 +20,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { detectConflictFiles, type Entry, parseLogLine } from '../hooks/lib/re-entry';
+
 interface StatusLineInput {
   session_id?: string;
   cwd?: string;
-}
-
-interface Entry {
-  timestamp: string;
-  sessionId: string;
-  ticket: string;
-  nextImperative: string;
-}
-
-const LINE_REGEX = /^(\S+)\s+(\S+)\s+(ticket=\S+)\s+Next:\s+(.+)$/;
-
-function parseLogLine(line: string): Entry | null {
-  const match = LINE_REGEX.exec(line.trim());
-  if (!match) return null;
-  return {
-    timestamp: match[1],
-    sessionId: match[2],
-    ticket: match[3],
-    nextImperative: match[4],
-  };
+  transcript_path?: string;
 }
 
 async function main(): Promise<void> {
@@ -54,7 +37,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { session_id, cwd } = input;
+  const { session_id, cwd, transcript_path } = input;
   if (!session_id || !cwd) return;
 
   const logPath = join(cwd, '.safeword-project', 're-entry.md');
@@ -72,7 +55,11 @@ async function main(): Promise<void> {
   if (entries.length === 0) return;
 
   const latest = entries[entries.length - 1];
-  process.stdout.write(`Next: ${latest.nextImperative}`);
+
+  const conflictFiles = detectConflictFiles(cwd, transcript_path);
+  const prefix = conflictFiles.length > 0 ? `⚠️ conflict: ${conflictFiles.join(', ')} — ` : '';
+
+  process.stdout.write(`${prefix}Next: ${latest.nextImperative}`);
 }
 
 main().catch((error: unknown) => {
