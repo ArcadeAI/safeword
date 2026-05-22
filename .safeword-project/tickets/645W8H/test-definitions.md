@@ -46,9 +46,9 @@ When the Stop hook runs
 Then the appended log line's session_id field equals `actual_abc`
 And the log line's timestamp equals the wall clock at write time (within 1s tolerance)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: hook-sourced fields were established in scenario 1.1's GREEN; no failing test to write — regression coverage added in GREEN commit.
+- [x] GREEN 89eeab7
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ### Scenario: Ticket field reflects active-ticket frontmatter when ticket exists
 
