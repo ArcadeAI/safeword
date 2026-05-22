@@ -339,6 +339,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/session-cleanup-quality.ts',
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
+    '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/session-start-reentry.ts': {
+      template: 'hooks/session-start-reentry.ts',
+    },
     '.safeword/hooks/post-tool-sync-learnings.ts': {
       template: 'hooks/post-tool-sync-learnings.ts',
     },
@@ -469,8 +473,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/tdd-review/SKILL.md': {
       template: 'skills/tdd-review/SKILL.md',
     },
-    '.claude/skills/explore-and-debate/SKILL.md': {
-      template: 'skills/explore-and-debate/SKILL.md',
+    '.claude/skills/figure-it-out/SKILL.md': {
+      template: 'skills/figure-it-out/SKILL.md',
     },
 
     // Cursor rules
@@ -486,8 +490,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules/safeword-elicitation.mdc': {
       template: 'cursor/rules/safeword-elicitation.mdc',
     },
-    '.cursor/rules/safeword-explore-and-debate.mdc': {
-      template: 'cursor/rules/safeword-explore-and-debate.mdc',
+    '.cursor/rules/safeword-figure-it-out.mdc': {
+      template: 'cursor/rules/safeword-figure-it-out.mdc',
     },
     '.cursor/rules/safeword-quality-reviewing.mdc': {
       template: 'cursor/rules/safeword-quality-reviewing.mdc',

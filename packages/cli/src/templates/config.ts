@@ -343,6 +343,7 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/session-verify-agents.ts`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
+    hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
     asyncHook(`bun ${HOOKS_DIR}/session-update-check.ts`),
   ],
@@ -350,7 +351,7 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),
     hook(`bun ${HOOKS_DIR}/prompt-questions.ts`),
   ],
-  Stop: [hook(`bun ${HOOKS_DIR}/stop-quality.ts`)],
+  Stop: [hook(`bun ${HOOKS_DIR}/stop-quality.ts`), hook(`bun ${HOOKS_DIR}/stop-reentry.ts`)],
   PreToolUse: [
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-config-guard.ts`),

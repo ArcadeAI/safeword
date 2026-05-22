@@ -72,7 +72,11 @@ Fetch official documentation for libraries in use.
 - (verified: [source URL or doc title]) — fetched this session
 - (training data: may be outdated) — not verified
 - (uncertain) — could not verify
+
+**Next:** [concrete action — upgrade X from a.b.c to x.y.z, refactor {file}:{line}, ask team about Z, or proceed to implementation if APPROVE]
 ```
+
+The `**Next:**` line is required. On APPROVE, name what to do now (proceed, commit, run /verify). On REQUEST CHANGES, name the specific edit and re-review trigger. On NEEDS DISCUSSION, name the question to ask. A verdict that doesn't tell the reader what to do next is incomplete.
 
 ## Reminders
 
@@ -80,3 +84,5 @@ Fetch official documentation for libraries in use.
 2. **Complement automatic hook** - Hook checks correctness/elegance/bloat, you verify ecosystem
 3. **Phase matters** - Adapt research focus to current BDD phase
 4. **Be concise** - Hook already prompts for general quality, focus on what it can't do
+
+**Voice:** plainspoken and concise — write to be scanned.

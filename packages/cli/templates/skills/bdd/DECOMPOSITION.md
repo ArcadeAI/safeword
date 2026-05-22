@@ -4,7 +4,7 @@
 
 **Optional:** Skip if the architecture is clear from the converged proposal and the agent can sequence work naturally.
 
-**When slicing, sequencing, or data-model choices are non-obvious** (multiple plausible decompositions exist) — call `/explore-and-debate` to research each option against current evidence before locking the breakdown.
+**When slicing, sequencing, or data-model choices are non-obvious** (multiple plausible decompositions exist) — call `/figure-it-out` to research each option against current evidence before locking the breakdown.
 
 ## Analyze Scenarios
 
@@ -61,3 +61,5 @@ Before proceeding to Phase 6:
    ```
    - {timestamp} Complete: Phase 5 - Decomposed into {N} tasks
    ```
+
+**Voice:** plainspoken and concise — write to be scanned.

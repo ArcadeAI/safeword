@@ -16,7 +16,9 @@ If any answer is vague, you have open questions — surface them.
 
 **When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
 
-**When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/explore-and-debate` to weigh options against current docs and research before drafting scope.
+**When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/figure-it-out` to weigh options against current docs and research before drafting scope.
+
+**When the feature leans on a library or framework** — read the installed version's docs before proposing API shapes or done-when criteria. Scope baked on training memory of a different version is silently wrong. Check `package.json` / lockfile first, then the source wired up (Context7, official docs, README at the pinned ref).
 
 ### Concrete example
 
@@ -63,3 +65,5 @@ Before proceeding to Phase 3:
 Phase 3 scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed acceptance criteria. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
 
 Phase 5 (decomposition) is optional — skip if the architecture is clear from the converged proposal.
+
+**Voice:** plainspoken and concise — write to be scanned.

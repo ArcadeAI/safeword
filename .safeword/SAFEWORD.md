@@ -97,7 +97,7 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 > Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
 > Don't: "Great question! Let me walk you through what I found..."
 
-**End with the call.** When the user needs to decide, act, or answer something, the last line is what's next — a question, a choice, a proposed step. Don't bury it mid-reply.
+**End with the call.** Last line is what's next — a question, a choice, or a proposed step. For structured replies (verdicts, reviews, recommendations, audits), use a literal `**Next:** <imperative>` line — the same discipline safeword skills enforce in their output. Short conversational replies can end with the question itself; no bold preface needed. Don't bury the call mid-reply.
 
 **Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
 
@@ -143,13 +143,19 @@ Optimize for **Clarity → Simplicity → Correctness**, in that order. When in 
 
 ---
 
-## Before Using Any Library API
+## Authority: docs and research, not memory
 
-Training data is stale. Each time:
+Training data drifts. Memory of "how X worked" is not authority — the current source is.
 
-1. Check `package.json` for the installed version.
-2. Look up docs via Context7 or the official site.
-3. If still uncertain, ask which version the project uses.
+**Library, framework, or API mechanics** (syntax, config, behavior):
+
+1. Find the installed version — `package.json`, lockfile, `requirements.txt`, `go.mod`, `Gemfile`, `Cargo.toml`, whichever the project uses.
+2. Read the docs for _that_ version. Use whichever source is wired up: Context7, the official docs site, the project README at the pinned ref, MDN, `node_modules/<pkg>/README.md`.
+3. If no source is reachable or the version is ambiguous, ask before guessing.
+
+**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its iron law: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
+
+Blog posts, tweets, marketing, and "I remember reading…" don't count for either tier. Treat them as leads, not evidence.
 
 ---
 

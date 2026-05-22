@@ -1,16 +1,16 @@
 ---
-name: explore-and-debate
+name: figure-it-out
 description: Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches — library/framework choice, architecture call, API or schema design, algorithm selection, or any communication / strategy call where being wrong has cost. Enumerates relevant research domains, looks up current docs and evidence-based methods, weighs options on correctness and elegance, resists bloat. Do NOT use for divergent ideation (brainstorm), extracting user intent (elicit), or reviewing already-written code (quality-review).
 allowed-tools: '*'
 ---
 
-# Explore and Debate: Evidence-Backed Option Weighing
+# Figure It Out: Evidence-Backed Option Weighing
 
 **Iron Law:** No recommendation without current evidence. Training data is stale; verify before staking a position.
 
 ## When to Use
 
-A real decision with two or more plausible directions: library or framework choice, architecture, API or schema design, algorithm selection, communication strategy, policy call. User invokes `/explore-and-debate`.
+A real decision with two or more plausible directions: library or framework choice, architecture, API or schema design, algorithm selection, communication strategy, policy call. User invokes `/figure-it-out`.
 
 Skip for:
 
@@ -76,7 +76,13 @@ Argue both sides. Steelman the option you don't prefer **first**. For each, writ
 Then commit. Format:
 
 > Recommend **X** because [single load-bearing reason]. Y was close on Z but loses on W. Cite: [doc or research link].
+>
+> **Next:** [concrete action to take now — install, write, edit, ask].
+
+The `**Next:**` line is required. A recommendation without a next action is incomplete — name the file to edit, the command to run, or the question to ask. One line, imperative.
 
 If two options tie on correctness and elegance, the smaller one wins.
 
 **No hedging.** If you genuinely can't pick, you're missing one input — name it and ask one question. "Either could work" is not an answer.
+
+**Voice:** plainspoken and concise — write to be scanned.

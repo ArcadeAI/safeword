@@ -45,6 +45,8 @@ Don't skip past errors. They often contain the exact solution.
 - Warnings that preceded the error
 ```
 
+**When the error mentions a library/framework symbol** (a function, class, or module from a dependency) — read the installed version's docs before forming a hypothesis. Signatures, defaults, and deprecation behavior change between versions; training memory may describe a different version than the one running. Check `package.json` / lockfile, then the source wired up (Context7, official docs, README at the pinned ref).
+
 #### 2. Reproduce Consistently
 
 | Can reproduce?  | Action                                               |
@@ -181,6 +183,13 @@ it('handles empty input without crashing', () => {
 - [ ] Existing tests still pass
 - [ ] Issue actually resolved (not just test passing)
 
+End the fix report with **Next:** on its own line — imperative, name what's now (commit message to use, ticket to mark done, follow-up issue to open for related debt the investigation surfaced). A debug session that ends without naming the next move is incomplete.
+
+Examples:
+
+- **Next:** commit with `fix(auth): release pool connection in error path`, mark ticket 234 done.
+- **Next:** commit the fix, then open a ticket for the unrelated logging gap surfaced at `src/auth.ts:88`.
+
 #### 4. If Fix Doesn't Work
 
 | Fix attempts | Action                                   |
@@ -224,3 +233,5 @@ If you catch yourself thinking:
 | 2. Pattern        | "What's different from working code?" | Identified key differences         |
 | 3. Hypothesis     | "Is my theory correct?"               | Confirmed or formed new theory     |
 | 4. Implementation | "Does the fix work?"                  | Test passes, issue resolved        |
+
+**Voice:** plainspoken and concise — write to be scanned.
