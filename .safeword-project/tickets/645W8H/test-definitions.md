@@ -1,6 +1,6 @@
 # session-reentry-brief — test definitions
 
-Ticket: 645W8H | 17 scenarios across 7 rules
+Ticket: 645W8H | 21 scenarios across 8 rules (Rule 5 rewritten + Rule 8 added post-elicit, 2026-05-22)
 
 ## Rule: Stop hook records intent when present, skips otherwise
 
@@ -134,26 +134,38 @@ And no error is raised or logged
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: Multi-session trailer surfaces other active threads
+## Rule: Conflict detection surfaces dirty-file overlap between sessions
 
-### Scenario: Trailer states accurate count and recency for N≥1 other sessions
+_Replaces the previous "multi-session trailer" rule after /elicit Q2 → silent unless conflict. Conflict = another session edited a file in its last 10 turns AND that file is dirty in `git status`._
 
-Given the current session has entries in the log
-And the log also contains entries from N other session(s) (N ≥ 1)
-And the most-recent timestamp across other sessions is `HH:MM`
-When the SessionStart hook injects additionalContext
-Then the rendered trailer line states the count N accurately
-And the trailer line includes the timestamp `HH:MM`
+### Scenario: No file overlap → no warning
+
+Given another Claude session edited files in this worktree in its last 10 turns
+And none of those files are currently dirty in `git status`
+When the SessionStart hook fires
+Then additionalContext contains no conflict warning line
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: No trailer when log contains only current session
+### Scenario: Single dirty-file overlap → warning names the file
 
-Given the log contains entries only from the current session_id
-When the SessionStart hook injects additionalContext
-Then no trailer line is rendered
+Given another Claude session edited `foo.ts` in its last 10 turns
+And `foo.ts` is currently dirty in `git status`
+When the SessionStart hook fires
+Then additionalContext includes a warning line naming `foo.ts`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Multiple dirty-file overlaps → all named
+
+Given another Claude session edited `foo.ts` and `bar.ts` in its last 10 turns
+And both files are currently dirty in `git status`
+When the SessionStart hook fires
+Then additionalContext includes a warning line naming both files
 
 - [ ] RED
 - [ ] GREEN
@@ -200,3 +212,42 @@ Given an assistant message's Next: imperative contains newlines (e.g., `**Next:*
 When the Stop hook runs
 Then the appended log line's Next: imperative is a single line
 And that line equals the first segment of the imperative before the newline
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Status-line script surfaces latest Next: with conflict prefix
+
+_Added post-elicit (Q1 = D + Q2 conflict refinement). Slice 3._
+
+### Scenario: Normal status line shows the latest Next: imperative
+
+Given the current session has entries in `.safeword-project/re-entry.md`
+When the status-line script runs with the standard Claude Code JSON input on stdin
+Then stdout includes the most recent Next: imperative for this session
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Conflict prefix appears when dirty-file overlap exists
+
+Given the current session has entries in `.safeword-project/re-entry.md`
+And a dirty-file conflict exists with another session (per Rule 5 detection)
+When the status-line script runs
+Then stdout includes `⚠️ conflict: <file>` before the Next: imperative
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Empty or missing re-entry log → no Next: indicator
+
+Given `.safeword-project/re-entry.md` is empty or missing
+When the status-line script runs
+Then stdout contains no Next: indicator (graceful absence; status line falls through to other content if any)
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
