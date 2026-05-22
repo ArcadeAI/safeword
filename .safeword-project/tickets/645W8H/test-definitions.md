@@ -251,3 +251,7 @@ Then stdout contains no Next: indicator (graceful absence; status line falls thr
 - [x] RED skip: silent-on-empty guards were part of scenario 8.1's GREEN design — no failing test to write.
 - [x] GREEN 3fea90c
 - [x] REFACTOR skip: regression test only; no production code change.
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 45c1a5b # extracted shared pure functions to `.safeword/hooks/lib/re-entry.ts` (parseLogLine + conflict-detection helpers) so Slice 2 (SessionStart) and Slice 3 (statusline) can both consume them without duplication.

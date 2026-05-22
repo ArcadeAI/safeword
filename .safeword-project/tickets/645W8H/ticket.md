@@ -2,10 +2,10 @@
 id: 645W8H
 slug: session-reentry-brief
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-05-22T15:11:24.096Z
-last_modified: 2026-05-22T15:50:00.000Z
+last_modified: 2026-05-22T19:25:00.000Z
 scope:
   - Stop hook appends one line per turn to `.safeword-project/re-entry.md` in the canonical shape `<ISO-timestamp> <session-id> ticket=<id>/<phase> Next: <imperative>` (POSIX append, atomic for sub-PIPE_BUF writes).
   - All deterministic fields (timestamp, session_id, ticket id, ticket phase) are hook-injected from Stop-hook stdin and ticket frontmatter — never typed by the agent. Only the Next: imperative is extracted from the agent's final assistant message via regex.
@@ -106,3 +106,4 @@ A second research pass validated the "+orientation" shape against current Anthro
 - 2026-05-22T15:50:00.000Z Complete: Phase 5 — light decomposition; two slices (Slice 1 Stop-hook writer = 9 scenarios; Slice 2 SessionStart reader = 8 scenarios) sharing a `re-entry.ts` lib. No deeper breakdown needed (architecture clear). Advancing to implement.
 - 2026-05-22T16:00:00.000Z Complete: Slice 1 scenarios 1.1–1.3 (RED + GREEN + REFACTOR triplets, with scenarios 1.2/1.3 covered as side effect of 1.1's bail-out logic). 969 hook+integration tests green.
 - 2026-05-22T17:55:00.000Z In-flight re-scope after /elicit: Q1 → D (silent additionalContext + status-line ambient); Q2 → silent-unless-conflict, conflict = other session edited file AND dirty in git, surfaces in both additionalContext and status-line prefix; Q3 → A (fresh shows most-recent tagged "(from another session)"). Two parallel research agents validated Q1 (Trafton & Altmann blatant-cue + IDE convention) and Q3 (Anthropic memory-tool pattern + Parnin task-aligned cues). Cascade to test-definitions.md: replaced Rule 5 (multi-session trailer, 2 scenarios) with new Rule 5 (conflict detection, 3 scenarios); added Rule 8 (status-line script, 3 scenarios). Added Slice 3 (status-line script). Total: 21 scenarios across 8 rules (was 17/7). Slice 1 unaffected; resuming scenario 2.1 RED.
+- 2026-05-22T19:25:00.000Z Complete: Phase 6 — all 21 scenarios closed across Slices 1, 2, and 3. Cross-scenario REFACTOR (45c1a5b) extracted shared pure functions to `.safeword/hooks/lib/re-entry.ts`. Re-entry test surface: 22 tests across 5 files (re-entry-stop, re-entry-session-start, re-entry-conflict-detection, re-entry-statusline, re-entry-concurrent). Parity 106 pairs + 3 contracts. Advancing to verify.
