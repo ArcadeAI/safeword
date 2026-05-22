@@ -25,7 +25,9 @@ const SKIP_PREFIX = /^skip:(.*)$/i;
 export function parseCheckboxAnnotation(line: string): CheckboxAnnotation | null {
   const match = CHECKBOX_LINE.exec(line);
   if (!match) return null;
-  const [, mark, step, rest] = match;
+  // Regex guarantees these groups exist when match succeeds; defaults satisfy
+  // tsconfig.json noUncheckedIndexedAccess without changing semantics.
+  const [, mark = '', step = '', rest = ''] = match;
   return {
     step: step as LedgerStep,
     checked: mark.toLowerCase() === 'x',
@@ -37,7 +39,7 @@ export function classifyAnnotation(annotation: string): AnnotationKind {
   if (annotation === '') return { kind: 'none' };
   const skipMatch = SKIP_PREFIX.exec(annotation);
   if (skipMatch) {
-    return { kind: 'skip', reason: skipMatch[1].trim() };
+    return { kind: 'skip', reason: (skipMatch[1] ?? '').trim() };
   }
   return { kind: 'sha', value: annotation };
 }

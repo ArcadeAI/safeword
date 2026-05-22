@@ -12,7 +12,6 @@ import { describe, expect, it } from 'vitest';
 import { validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
 
 const allReachable = (_sha: string) => true;
-const noneReachable = (_sha: string) => false;
 
 function content(scenarios: string, crossScenario = '- [x] cross-scenario abc1234'): string {
   return [

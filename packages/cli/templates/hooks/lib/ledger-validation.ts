@@ -8,7 +8,7 @@ import {
   isValidSkipReason,
   parseCheckboxAnnotation,
   type CheckboxAnnotation,
-} from './parse-annotation.ts';
+} from './parse-annotation.js';
 
 export interface LedgerValidationResult {
   ok: boolean;
@@ -34,7 +34,7 @@ function parseLedger(content: string): {
   for (const line of lines) {
     const scenarioMatch = /^#{2,3}\s+Scenario:\s*(.+)$/.exec(line);
     if (scenarioMatch) {
-      current = { name: scenarioMatch[1].trim() };
+      current = { name: (scenarioMatch[1] ?? '').trim() };
       scenarios.push(current);
       continue;
     }
