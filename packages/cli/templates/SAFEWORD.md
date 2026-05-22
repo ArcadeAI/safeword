@@ -99,6 +99,10 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 
 **End with the call.** When the user needs to decide, act, or answer something, the last line is what's next — a question, a choice, a proposed step. Don't bury it mid-reply.
 
+**Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
+
+**Frame the structural choice.** Name the architectural call ("reuse `quality-state.ts` paths vs. duplicate the list") before the surface change ("add a check"). The proposal _is_ the architectural read, not a description of what to type.
+
 **Front-load load-bearing words.** The first two words of every line, bullet, and heading do the work — readers eye-jump down the left edge before deciding where to drop in. Start with the noun or verb that carries the meaning. "Failed because…" beats "It looks like the test failed because…"
 
 **Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Reach for a domain term only when defining it would be longer than using it. Assume the user knows their stack — don't explain TypeScript, async, or `git rebase` to a developer who's using them.
@@ -120,7 +124,7 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 Optimize for **Clarity → Simplicity → Correctness**, in that order. When in doubt, choose the simpler solution that works today.
 
 - **Elegant code:** readable at a glance; clear naming; minimal cognitive load.
-- **No bloat:** delete unused code; no premature abstractions; no "just in case."
+- **No bloat:** delete unused code; no premature abstractions; no "just in case"; reuse existing patterns/tools before adding new ones.
 - **Explicit errors:** every catch re-throws with context, or logs with details.
 - **Self-documenting:** comment only the non-obvious "why" — business rules, workarounds.
 
