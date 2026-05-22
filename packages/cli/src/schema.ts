@@ -116,6 +116,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates',
     '.safeword/prompts',
     '.safeword/scripts',
+    '.safeword/statusline',
     '.cursor',
     '.cursor/rules',
     '.cursor/commands',

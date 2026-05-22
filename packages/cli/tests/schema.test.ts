@@ -81,6 +81,49 @@ describe('Schema - Single Source of Truth', () => {
         expect(SAFEWORD_SCHEMA.ownedDirs).not.toContain(dir);
       }
     });
+
+    // Regression: v0.36.x shipped with .safeword/statusline/reentry.ts owned but
+    // .safeword/statusline missing from ownedDirs — uninstall left an empty
+    // directory behind, which made removeIfEmpty('.safeword') silently fail.
+    // The bug class is "owned file under unregistered directory", so the test
+    // is structural: every dirname(ownedFile) must be removable at uninstall
+    // — either by an explicit ownedDirs/sharedDirs/preservedDirs entry, or by
+    // the .claude/* auto-cleanup path in reconcile.ts (getClaudeParentDirectoryForCleanup).
+    it('should declare a directory for every parent of every ownedFile', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const declared = new Set<string>([
+        ...SAFEWORD_SCHEMA.ownedDirs,
+        ...SAFEWORD_SCHEMA.sharedDirs,
+        ...SAFEWORD_SCHEMA.preservedDirs,
+      ]);
+
+      // Mirrors getClaudeParentDirectoryForCleanup in reconcile.ts: any
+      // .claude/* path deeper than .claude, .claude/skills, .claude/commands
+      // gets removed automatically at uninstall.
+      const isAutoCleanedClaudePath = (parent: string): boolean =>
+        parent.startsWith('.claude/') &&
+        parent !== '.claude/skills' &&
+        parent !== '.claude/commands';
+
+      const missing: { file: string; parent: string }[] = [];
+      for (const filePath of Object.keys(SAFEWORD_SCHEMA.ownedFiles)) {
+        const parent = nodePath.posix.dirname(filePath);
+        if (parent === '.' || parent === '') continue;
+        if (declared.has(parent)) continue;
+        if (isAutoCleanedClaudePath(parent)) continue;
+        missing.push({ file: filePath, parent });
+      }
+
+      if (missing.length > 0) {
+        const detail = missing
+          .map(
+            ({ file, parent }) =>
+              `  - '${file}' needs '${parent}' in ownedDirs/sharedDirs/preservedDirs`,
+          )
+          .join('\n');
+        expect.fail(`ownedFiles point to undeclared directories:\n${detail}`);
+      }
+    });
   });
 
   describe('sharedDirs', () => {

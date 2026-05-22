@@ -1,6 +1,6 @@
 {
   "ignore": [".safeword/**", ".safeword-project/**"],
-  "ignoreFiles": ["packages/cli/templates/hooks/**"],
+  "ignoreFiles": ["packages/cli/templates/hooks/**", "packages/cli/templates/statusline/**"],
   "ignoreDependencies": ["eslint-plugin-jsdoc"],
   "ignoreBinaries": ["shfmt", "dot"],
   "ignoreIssues": {
