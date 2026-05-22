@@ -227,9 +227,9 @@ Given the current session has entries in `.safeword-project/re-entry.md`
 When the status-line script runs with the standard Claude Code JSON input on stdin
 Then stdout includes the most recent Next: imperative for this session
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b10af04
+- [x] GREEN 6a4073e
+- [x] REFACTOR skip: parseLogLine duplicated from session-start hook; lib extraction will land in scenario 8.2's GREEN when conflict-detection logic must be shared.
 
 ### Scenario: Conflict prefix appears when dirty-file overlap exists
 
