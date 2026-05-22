@@ -13,6 +13,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { getActiveTicket } from './lib/active-ticket';
+
 interface HookInput {
   session_id?: string;
   transcript_path?: string;
@@ -39,6 +41,27 @@ function extractLastNextImperative(text: string): string | null {
     }
   }
   return null;
+}
+
+function readTicketIdFromFrontmatter(projectDirectory: string, folder: string): string | null {
+  const ticketPath = join(projectDirectory, '.safeword-project', 'tickets', folder, 'ticket.md');
+  try {
+    const content = readFileSync(ticketPath, 'utf8');
+    const idMatch = /^id:\s*(.+)$/m.exec(content);
+    if (!idMatch) return null;
+    // YAML failsafe schema may quote leading-zero ids; strip wrapping quotes.
+    return idMatch[1].trim().replace(/^['"]|['"]$/g, '');
+  } catch {
+    return null;
+  }
+}
+
+function resolveTicketField(projectDirectory: string): string {
+  const active = getActiveTicket(projectDirectory);
+  if (!active.folder || !active.phase) return 'ticket=∅/freeform';
+  const id = readTicketIdFromFrontmatter(projectDirectory, active.folder);
+  if (!id) return 'ticket=∅/freeform';
+  return `ticket=${id}/${active.phase}`;
 }
 
 function readLastAssistantText(transcriptPath: string): string {
@@ -79,8 +102,7 @@ async function main(): Promise<void> {
   const imperative = extractLastNextImperative(assistantText);
   if (!imperative) return;
 
-  // Slice 1 minimal: ticket resolution lands in a later GREEN. Sentinel for now.
-  const ticketField = 'ticket=∅/freeform';
+  const ticketField = resolveTicketField(cwd);
 
   const timestamp = new Date().toISOString();
   const line = `${timestamp} ${session_id} ${ticketField} Next: ${imperative}\n`;
