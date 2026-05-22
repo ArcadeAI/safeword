@@ -87,6 +87,21 @@ describe('session-start-reentry hook — Rule 4: filtered tail', () => {
     expect(ctx).not.toContain('old three');
   });
 
+  it('absent or empty log → no additionalContext injection (silent, no error)', () => {
+    // Case 1: log file does not exist at all.
+    const resultA = runSessionStartHook(projectDirectory, 'sess_any', 'startup');
+    expect(resultA.status).toBe(0);
+    expect(resultA.stdout.trim()).toBe('');
+    expect(resultA.stderr).toBe('');
+
+    // Case 2: log file exists but is empty (only whitespace).
+    makeLogFile(projectDirectory, []);
+    const resultB = runSessionStartHook(projectDirectory, 'sess_any', 'startup');
+    expect(resultB.status).toBe(0);
+    expect(resultB.stdout.trim()).toBe('');
+    expect(resultB.stderr).toBe('');
+  });
+
   it('fresh `claude` (source startup) with prior entries from other sessions → most-recent tagged', () => {
     makeLogFile(projectDirectory, [
       '2026-05-22T10:00:00Z sess_old ticket=∅/freeform Next: ancient action',
