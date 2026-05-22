@@ -9,7 +9,7 @@
   "scripts": {
     "test": "bun run --cwd packages/cli test",
     "test:done": "bun run --cwd packages/cli test:done",
-    "lint": "eslint .",
+    "lint": "eslint . && bun run --cwd packages/cli typecheck",
     "format": "prettier --write .",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",
     "lint:sh": "shellcheck **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || true",
