@@ -46,8 +46,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           # Trusted publishing requires Node >= 22.14.0 and npm >= 11.5.1.
-          # Node 22.x bundles npm 10.x — we upgrade npm explicitly below.
-          node-version: '22'
+          # Node 22.x bundles npm 10.x; even after `npm install -g npm@latest`
+          # below, the OIDC handshake at npm registry still returned 404 (5x
+          # publish attempts at v0.35.0). Node 24.x ships npm 11+ natively,
+          # which fixed the handshake for others hitting this exact symptom.
+          # See: https://medium.com/@kenricktan11/npm-trusted-publishers-the-weird-404-error-and-the-node-js-24-fix-a9f1d717a5dd
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Upgrade npm to >=11.5.1 (required for OIDC trusted publishing)
