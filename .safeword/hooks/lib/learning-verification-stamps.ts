@@ -39,13 +39,8 @@ function stripFrontmatter(content: string): string {
   if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) return content;
   const lines = content.split(/\r?\n/);
   // First line is "---"; find the closing "---" after line 0.
-  for (let index = 1; index < lines.length; index += 1) {
-    if (lines[index] === '---') {
-      return lines.slice(index + 1).join('\n');
-    }
-  }
-  // No closing fence — treat as no frontmatter.
-  return content;
+  const closingIndex = lines.findIndex((line, index) => index > 0 && line === '---');
+  return closingIndex === -1 ? content : lines.slice(closingIndex + 1).join('\n');
 }
 
 /**
