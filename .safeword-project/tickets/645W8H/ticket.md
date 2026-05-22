@@ -2,10 +2,10 @@
 id: 645W8H
 slug: session-reentry-brief
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-05-22T15:11:24.096Z
-last_modified: 2026-05-22T19:25:00.000Z
+last_modified: 2026-05-22T22:34:00.000Z
 scope:
   - Stop hook appends one line per turn to `.safeword-project/re-entry.md` in the canonical shape `<ISO-timestamp> <session-id> ticket=<id>/<phase> Next: <imperative>` (POSIX append, atomic for sub-PIPE_BUF writes).
   - All deterministic fields (timestamp, session_id, ticket id, ticket phase) are hook-injected from Stop-hook stdin and ticket frontmatter — never typed by the agent. Only the Next: imperative is extracted from the agent's final assistant message via regex.
