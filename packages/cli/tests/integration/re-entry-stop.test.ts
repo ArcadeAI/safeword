@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -127,5 +127,44 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     const writtenMs = Date.parse(tsMatch[1]);
     expect(writtenMs).toBeGreaterThanOrEqual(beforeWriteMs - 1000);
     expect(writtenMs).toBeLessThanOrEqual(afterWriteMs + 1000);
+  });
+
+  it('renders ticket=<id>/<phase> when an active ticket exists in this worktree', () => {
+    // Create an active ticket in the project directory.
+    const ticketsDirectory = nodePath.join(
+      projectDirectory,
+      '.safeword-project',
+      'tickets',
+      '645W8H',
+    );
+    mkdirSync(ticketsDirectory, { recursive: true });
+    const ticketContent = [
+      '---',
+      'id: 645W8H',
+      'slug: session-reentry-brief',
+      'type: feature',
+      'phase: scenario-gate',
+      'status: in_progress',
+      'last_modified: 2026-05-22T15:43:30.000Z',
+      '---',
+      '',
+      '# Test ticket',
+      '',
+    ].join('\n');
+    writeFileSync(nodePath.join(ticketsDirectory, 'ticket.md'), ticketContent);
+
+    const transcriptPath = makeTranscript(
+      projectDirectory,
+      'Wrapping up.\n\n**Next:** keep going on Slice 1',
+    );
+
+    const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_test_ticket');
+    expect(result.status).toBe(0);
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const line = readFileSync(logPath, 'utf8').trim();
+
+    expect(line).toContain('ticket=645W8H/scenario-gate');
+    expect(line).not.toContain('ticket=∅/freeform');
   });
 });
