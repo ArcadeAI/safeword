@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.33.0",
+  "version": "0.34.0",
   "description": "CLI for setting up and managing safeword development environments",
   "type": "module",
   "bin": {
@@ -28,13 +28,14 @@
     "dev": "tsup --watch",
     "pretest": "tsup",
     "test": "vitest run",
+    "test:done": "vitest run tests/hooks/ tests/schema.test.ts",
     "test:integration": "vitest run tests/integration/",
     "test:release": "vitest run --config vitest.release.config.ts",
     "test:slow": "vitest run --config vitest.slow.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests",
+    "lint": "eslint src tests && tsc --noEmit",
     "clean": "rm -rf dist",
     "prepublishOnly": "node scripts/check-bun-publish.js && bun run test:release && bun run build",
     "lint:eslint": "eslint .",

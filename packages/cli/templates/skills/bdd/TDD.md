@@ -32,15 +32,29 @@ Given a registered user
 When they submit valid credentials
 Then they see the dashboard
 
-- [x] RED
-- [x] GREEN
-- [ ] REFACTOR
+- [x] RED abc1234
+- [x] GREEN def5678
+- [x] REFACTOR skip: no structural improvement needed
+```
+
+**Annotation rule (enforced by hook):** every `[x]` transition must carry either a commit SHA (proving which commit did that step) or `skip: <non-empty reason>` (a deliberate, auditable omission). Bare `[x]` without an annotation is blocked at the write-time hook. Pre-existing bare `[x]` from before this rule shipped is silently allowed — the validation is forward-looking only.
+
+At the bottom of `test-definitions.md`, add one feature-level row for the cross-scenario refactor pass (same annotation rule applies):
+
+```markdown
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario <sha> # or `skip: <reason>`
 ```
 
 **Invalid — do NOT:**
 
 - `- [x] Red` / `- [x] green` — use ALL CAPS: `RED`, `GREEN`, `REFACTOR`
 - Mark `RED` and `GREEN` in the same edit — one checkbox per edit, commit between
+- `- [x] RED` with no SHA and no `skip:` — blocked at write-time
+- `- [x] REFACTOR skip:` with empty or whitespace-only reason — blocked at write-time
+- Reuse the same SHA across two steps in one scenario — caught at the done-gate (each step needs its own distinct commit)
+- Modify test files in a REFACTOR commit — blocked at commit-time (test changes during cleanup are behavior changes in disguise)
 - Add extra checkboxes like `- [ ] REVIEW` — only RED/GREEN/REFACTOR
 
 **Evidence before claims:** Show test output, don't just claim "tests pass". Run FULL suite at GREEN to catch regressions.

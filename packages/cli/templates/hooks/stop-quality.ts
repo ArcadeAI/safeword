@@ -3,10 +3,12 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { deriveTddStep, getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
+import { validateLedger } from './lib/ledger-validation.ts';
 import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
 import {
   type FailureEntry,
@@ -392,6 +394,35 @@ if (currentPhase === 'done') {
       hardBlockDone(
         `Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
       );
+    }
+
+    // Annotation ledger validation (ticket J7VBGJ, Rules 3 + 4): every
+    // [x] R/G/R checkbox must carry a SHA or skip:<reason>; SHAs distinct
+    // and reachable; at least one real SHA per scenario; cross-scenario row
+    // present and valid. Pure-legacy tickets (no annotations) are exempt.
+    if (ticketInfo.folder) {
+      const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
+      if (existsSync(testDefsPath)) {
+        const content = readFileSync(testDefsPath, 'utf8');
+        const isReachable = (sha: string): boolean => {
+          try {
+            execSync(`git cat-file -e ${sha}^{commit}`, {
+              cwd: projectDir,
+              stdio: 'pipe',
+            });
+            return true;
+          } catch {
+            return false;
+          }
+        };
+        const validation = validateLedger(content, isReachable);
+        if (!validation.ok) {
+          recordFailure(projectDir, input.session_id, 'done-gate-ledger-invalid');
+          hardBlockDone(
+            `TDD annotation ledger validation failed in test-definitions.md:\n${validation.errors.map(e => `  - ${e}`).join('\n')}`,
+          );
+        }
+      }
     }
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence

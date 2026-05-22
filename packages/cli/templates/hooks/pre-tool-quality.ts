@@ -7,8 +7,13 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getTicketInfo } from './lib/active-ticket.ts';
+import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
+import {
+  classifyAnnotation,
+  isValidSkipReason,
+  parseCheckboxAnnotation,
+} from './lib/parse-annotation.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
@@ -25,7 +30,91 @@ interface HookInput {
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
+    old_string?: string;
+    new_string?: string;
+    content?: string;
+    edits?: Array<{ old_string?: string; new_string?: string }>;
+    command?: string;
   };
+}
+
+/**
+ * Matches `git commit` (any flags / message after) but rejects `git commit-tree`,
+ * `git commit-graph`, etc. The trailing (?!-) lookahead is what distinguishes them.
+ */
+const GIT_COMMIT_COMMAND = /\bgit\s+commit\b(?!-)/;
+
+/**
+ * Heuristic: a path is a test file if it matches *.test.* or *.spec.*, or lives
+ * inside a tests/ or __tests__/ directory. Covers safeword's convention plus the
+ * broader JS/TS ecosystem; intentionally permissive — false negatives just mean
+ * the gate doesn't fire, false positives would block legitimate refactors.
+ */
+function isTestFile(path: string): boolean {
+  return (
+    /\.(test|spec)\.[cm]?[jt]sx?$/.test(path) ||
+    path.includes('/tests/') ||
+    path.startsWith('tests/') ||
+    path.includes('/__tests__/')
+  );
+}
+
+interface CheckboxTransition {
+  step: string;
+  annotation: string;
+}
+
+/**
+ * Find every checkbox line that transitioned from `[ ] STEP` to `[x] STEP <annotation>`
+ * in this edit. Aligned by line index — works for Edit (old_string / new_string are
+ * local replacement regions), Write (old = disk contents, new = full new content),
+ * and MultiEdit (each edit treated as Edit). If lines don't align (e.g. Write that
+ * reorders sections), some transitions may be missed; done-gate is the final arbiter.
+ */
+function findTransitionsByLineIndex(oldText: string, newText: string): CheckboxTransition[] {
+  const transitions: CheckboxTransition[] = [];
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+  const max = Math.max(oldLines.length, newLines.length);
+  for (let i = 0; i < max; i++) {
+    const newLine = newLines[i];
+    if (newLine === undefined) continue;
+    const newParsed = parseCheckboxAnnotation(newLine);
+    if (!newParsed || !newParsed.checked) continue;
+    const oldLine = oldLines[i];
+    if (oldLine === undefined) continue;
+    const oldParsed = parseCheckboxAnnotation(oldLine);
+    if (oldParsed && !oldParsed.checked && oldParsed.step === newParsed.step) {
+      transitions.push({ step: newParsed.step, annotation: newParsed.annotation });
+    }
+  }
+  return transitions;
+}
+
+function collectNewTransitions(hookInput: HookInput, filePath: string): CheckboxTransition[] {
+  const toolInput = hookInput.tool_input ?? {};
+  const toolName = hookInput.tool_name ?? '';
+
+  if (toolName === 'Edit') {
+    const oldString = toolInput.old_string ?? '';
+    const newString = toolInput.new_string ?? '';
+    return findTransitionsByLineIndex(oldString, newString);
+  }
+
+  if (toolName === 'Write') {
+    const oldText = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+    const newText = toolInput.content ?? '';
+    return findTransitionsByLineIndex(oldText, newText);
+  }
+
+  if (toolName === 'MultiEdit') {
+    const edits = toolInput.edits ?? [];
+    return edits.flatMap(edit =>
+      findTransitionsByLineIndex(edit.old_string ?? '', edit.new_string ?? ''),
+    );
+  }
+
+  return [];
 }
 
 function deny(reason: string, additionalContext?: string): never {
@@ -43,6 +132,63 @@ function deny(reason: string, additionalContext?: string): never {
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
+/**
+ * REFACTOR commit gate: if the active ticket is in `phase: implement` and the
+ * current TDD step (parsed from test-definitions.md) is REFACTOR, inspect
+ * `git diff --cached --name-only` and deny if any staged file is a test file.
+ * Permissive on every other path — missing state, missing ticket, wrong phase,
+ * wrong step, or unreachable git all silently allow.
+ */
+function enforceRefactorCommitGate(sessionId?: string): void {
+  const stateFile = getStateFilePath(projectDirectory, sessionId);
+  if (!existsSync(stateFile)) return;
+
+  let state: QualityState;
+  try {
+    state = JSON.parse(readFileSync(stateFile, 'utf8'));
+  } catch {
+    return;
+  }
+  if (!state.activeTicket) return;
+
+  const ticket = getTicketInfo(projectDirectory, state.activeTicket);
+  if (ticket.phase !== 'implement' || !ticket.folder) return;
+
+  const testDefinitionsPath = nodePath.join(
+    projectDirectory,
+    '.safeword-project',
+    'tickets',
+    ticket.folder,
+    'test-definitions.md',
+  );
+  if (!existsSync(testDefinitionsPath)) return;
+
+  // parseTddStep returns the LAST CHECKED step. The agent is doing REFACTOR
+  // work when RED + GREEN are checked and REFACTOR is still pending — i.e.,
+  // when parseTddStep returns 'green'. ('refactor' means scenario complete.)
+  const step = parseTddStep(readFileSync(testDefinitionsPath, 'utf8'));
+  if (step !== 'green') return;
+
+  let staged: string;
+  try {
+    staged = execSync('git diff --cached --name-only', {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    });
+  } catch {
+    return; // Can't inspect staged files — be permissive rather than wrong.
+  }
+
+  const stagedFiles = staged.split('\n').filter(line => line.trim() !== '');
+  const offendingTestFile = stagedFiles.find(isTestFile);
+  if (offendingTestFile) {
+    deny(
+      `REFACTOR commit may not touch test file: ${offendingTestFile}. Refactor preserves behavior — changing tests during REFACTOR is a behavior change in disguise.`,
+      'If the refactor genuinely needs a test edit (e.g., function rename across imports), commit the test change as part of GREEN, or mark REFACTOR as skip: <reason explaining why test edits were required>.',
+    );
+  }
+}
+
 // Read hook input from stdin
 let input: HookInput;
 try {
@@ -54,7 +200,22 @@ try {
 const tool = input.tool_name ?? '';
 const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
-// Only gate edit tools
+// ---------------------------------------------------------------------------
+// Bash gate: REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2)
+// The only file-path commit rule that survived scope reduction — see
+// .safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md for why
+// the RED/GREEN file-path rules were dropped.
+// ---------------------------------------------------------------------------
+
+if (tool === 'Bash') {
+  const command = input.tool_input?.command ?? '';
+  if (GIT_COMMIT_COMMAND.test(command)) {
+    enforceRefactorCommitGate(input.session_id);
+  }
+  process.exit(0);
+}
+
+// Only gate edit tools (Bash already handled above)
 if (!EDIT_TOOLS.includes(tool)) {
   process.exit(0);
 }
@@ -115,12 +276,53 @@ if (
 
   // Dimension artifact gate: features require dimensions.md before test-definitions.md.
   // Natural gate — next step's input doesn't exist if prior step was skipped.
+  // The artifact may be a real dimension table OR a single `skip: <non-empty reason>`
+  // line (ticket MKVNFB) — the escape valve for tiny features with one obvious dimension.
   if (meta.type === 'feature') {
     const dimensionsFile = nodePath.join(ticketDirectory, 'dimensions.md');
     if (!existsSync(dimensionsFile)) {
       deny(
         'Features require dimensions.md before test-definitions.md. Document behavioral dimensions and partitions first.',
-        'Create dimensions.md with a dimension table, then create test-definitions.md.',
+        'Create dimensions.md with a dimension table, or write `skip: <non-empty reason>` as the entire content to deliberately omit.',
+      );
+    }
+    // If the file is a pure `skip: <reason>` declaration, validate the reason.
+    // Multi-line content-bearing files don't match this regex and pass through.
+    const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
+    const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
+    if (skipMatch && !isValidSkipReason(skipMatch[1])) {
+      deny(
+        'dimensions.md `skip:` declaration requires a non-empty reason after the colon.',
+        'Either write a real dimension table, or use `skip: <reason>` where the reason explains why no dimensions need enumerating (e.g., `skip: single behavioral dimension, no partitioning to enumerate`).',
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SHA-or-skip annotation gate (ticket J7VBGJ, Rule 1)
+// On Edit/Write/MultiEdit of test-definitions.md, any [ ] → [x] transition
+// must carry either a SHA (`- [x] RED abc1234`) or `skip: <non-empty reason>`.
+// Pre-existing [x] without annotation is silently allowed (forward-looking).
+// ---------------------------------------------------------------------------
+
+if (
+  editedFile.endsWith('test-definitions.md') &&
+  editedFile.includes('.safeword-project/tickets/')
+) {
+  const transitions = collectNewTransitions(input, editedFile);
+  for (const transition of transitions) {
+    if (transition.annotation === '') {
+      deny(
+        `Cannot mark "[x] ${transition.step}" without an annotation. Use "${transition.step} <sha>" or "${transition.step} skip: <non-empty reason>".`,
+        'Every checkbox transition needs a commit SHA (proof of the work) or a deliberate skip with reason (auditable omission).',
+      );
+    }
+    const kind = classifyAnnotation(transition.annotation);
+    if (kind.kind === 'skip' && !isValidSkipReason(kind.reason)) {
+      deny(
+        `Cannot mark "[x] ${transition.step}" with empty skip reason. Use "skip: <non-empty reason>".`,
+        'The text after "skip:" must not be empty or whitespace-only. A real reason is the audit trail.',
       );
     }
   }

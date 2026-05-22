@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
+import { expect } from 'vitest';
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -728,4 +730,36 @@ edition = "${edition}"
 `,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// PreToolUse hook assertion helpers (shared by write-time and commit-time
+// gate integration tests — ticket J7VBGJ cross-scenario refactor).
+// ---------------------------------------------------------------------------
+
+export interface HookResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+/** Assert a PreToolUse hook allowed the action (exit 0, no deny in stdout). */
+export function expectHookAllow(result: HookResult): void {
+  expect(result.status).toBe(0);
+  if (result.stdout.trim() !== '') {
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { permissionDecision?: string };
+    };
+    expect(parsed.hookSpecificOutput?.permissionDecision).not.toBe('deny');
+  }
+}
+
+/** Assert a PreToolUse hook denied the action with a reason containing a substring. */
+export function expectHookDeny(result: HookResult, reasonShouldContain: string): void {
+  expect(result.status).toBe(0);
+  const parsed = JSON.parse(result.stdout) as {
+    hookSpecificOutput: { permissionDecision: string; permissionDecisionReason: string };
+  };
+  expect(parsed.hookSpecificOutput.permissionDecision).toBe('deny');
+  expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(reasonShouldContain);
 }

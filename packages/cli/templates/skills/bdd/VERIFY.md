@@ -4,7 +4,7 @@
 
 ## Steps
 
-1. **Cross-scenario refactor** if clear wins exist (shared fixtures, duplicate logic). Run full test suite after. Only refactor if clear wins exist — don't gold-plate.
+1. **Cross-scenario refactor** if clear wins exist (shared fixtures, duplicate logic). Run full test suite after. Only refactor if clear wins exist — don't gold-plate. Mark the feature-level `- [ ] cross-scenario` row at the bottom of `test-definitions.md` with either `<sha>` (the refactor commit) or `skip: <reason>` (none warranted). The done-gate hard-blocks if this row is missing or has an empty `skip:` reason on tickets using the annotated checkbox format.
 2. **Run /verify** — tests, build, lint, scenario validation, doc references, dependency drift. /verify writes `verify.md` to the ticket folder on success.
 3. **Run /audit** — architecture, dead code, duplication, outdated deps.
 

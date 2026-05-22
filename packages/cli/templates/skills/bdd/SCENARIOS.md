@@ -16,7 +16,7 @@
 4. **Organize under rules** with card-ratio self-check (too many rules? any rules with no examples? open questions?)
 5. **Present to user** (decider) — user accepts, tweaks, or adds
 
-Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features).
+Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.
 
 ### Scenario saturation
 

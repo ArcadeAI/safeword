@@ -42,17 +42,22 @@ function detectPackageManager(cwd: string): PackageManager {
 }
 
 /**
- * Detect the test command from package.json scripts.test.
- * Returns null if package.json is absent or has no test script.
+ * Detect the test command from package.json scripts. Prefers `test:done` (a
+ * gate-tuned fast subset) when present, falling back to `test`. Projects whose
+ * full test suite exceeds TEST_TIMEOUT_MS should define `test:done` as a
+ * meaningful but fast subset — unit tests + drift checks typically work.
+ * Returns null if package.json is absent or has no test script at all.
  */
 function getTestCommand(cwd: string): string | null {
   const packageJsonPath = nodePath.join(cwd, 'package.json');
   try {
     const content = readFileSync(packageJsonPath, 'utf8');
     const pkg = JSON.parse(content) as { scripts?: Record<string, string> };
-    if (!pkg.scripts?.test) return null;
+    const script = pkg.scripts?.['test:done'] ? 'test:done' : pkg.scripts?.test ? 'test' : null;
+    if (!script) return null;
     const pm = detectPackageManager(cwd);
-    return pm === 'npm' ? 'npm test' : `${pm} run test`;
+    if (pm === 'npm') return script === 'test' ? 'npm test' : `npm run ${script}`;
+    return `${pm} run ${script}`;
   } catch {
     return null;
   }
