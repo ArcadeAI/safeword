@@ -37,10 +37,12 @@ describe('hasVerificationStamp — positive cases (must flag)', () => {
 describe('hasVerificationStamp — exempt cases (must NOT flag)', () => {
   it.each([
     'verified gap, April 2026',
+    'Astro 6 closes several verified gaps in the docs (plural form).',
     'empirically verified across tickets #124a and #124b',
     'Source: verified across 2 tickets',
     'verified in the literature review',
     'This claim has not been verified.',
+    'These claims have not been verified across the cohort.',
     'Plain prose with no stamp shape at all.',
     '## Verified Examples', // section heading — not a stamp claim
     'The user has verified their email.', // product domain term

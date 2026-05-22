@@ -22,11 +22,11 @@ const STAMP_PATTERNS: RegExp[] = [
 // Idioms that look like stamps but aren't. Skipped when matched, even if a
 // stamp pattern also matches the same line.
 const EXEMPT_PATTERNS: RegExp[] = [
-  /verified gap\b/i, //                       "verified gap, April 2026"
+  /verified gaps?\b/i, //                     "verified gap" / "verified gaps in the literature"
   /verified across\b/i, //                    "verified across tickets #124a/b"
   /empirically verified\b/i, //               "empirically verified across …"
   /verified in the literature\b/i, //         literature review citations
-  /has not been verified\b/i, //              negation — explicitly unverified
+  /(has|have) not been verified\b/i, //       negation — explicitly unverified (sing. + pl.)
   /^#{1,6}\s/m, //                            markdown heading (not a claim)
 ];
 
