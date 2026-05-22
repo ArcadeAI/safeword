@@ -101,7 +101,11 @@ jobs:
           # --provenance: cryptographically attest the build came from this
           # exact workflow run + commit. Auto-enabled with OIDC but explicit.
           # --access public: safeword is a public package.
-          npm publish release-artifacts/safeword-*.tgz \
+          # ./ prefix is REQUIRED — without it, npm parses the path as a
+          # GitHub repo shorthand (release-artifacts/safeword-0.35.0.tgz →
+          # ssh://git@github.com/release-artifacts/safeword-0.35.0.tgz.git)
+          # and tries to git-clone instead of reading the local tarball.
+          npm publish ./release-artifacts/safeword-*.tgz \
             --provenance \
             --access public \
             --ignore-scripts
