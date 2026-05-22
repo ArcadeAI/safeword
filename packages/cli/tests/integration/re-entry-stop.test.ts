@@ -121,7 +121,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
     // Timestamp must be the wall clock at write time (ISO-8601, within a 1s tolerance).
     const tsMatch = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s/.exec(line);
-    if (tsMatch === null) {
+    if (tsMatch?.[1] === undefined) {
       throw new Error(`Log line missing ISO-8601 timestamp prefix: ${line}`);
     }
     const writtenMs = Date.parse(tsMatch[1]);
