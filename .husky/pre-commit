@@ -21,6 +21,11 @@ bun scripts/parity-check.ts --mode=contracts-only || exit 1
 # frontmatter is silent corruption — fail loud before it lands in main.
 bun scripts/check-ticket-ids.ts || exit 1
 
+# Dogfood-direction guard: staging only the .safeword/ side of a pair
+# means `bunx safeword install` would silently overwrite the edit.
+# Block until canonical is also staged. Bypassable with --no-verify.
+bun scripts/check-dogfood-direction.ts || exit 1
+
 # Friendly guard: husky prepends node_modules/.bin to PATH, but only resolves
 # binaries that actually exist on disk. Fresh git worktrees (and fresh clones)
 # don't have node_modules installed yet, so bare `lint-staged` would fail with
