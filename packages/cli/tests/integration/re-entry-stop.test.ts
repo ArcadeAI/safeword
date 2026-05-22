@@ -99,4 +99,33 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
     expect(existsSync(logPath)).toBe(false);
   });
+
+  it('uses hook-supplied session_id even when assistant text contains a deceptive one', () => {
+    const transcriptPath = makeTranscript(
+      projectDirectory,
+      'I am session_id=DECEPTIVE123 just kidding.\n\n**Next:** verify the line shows the real id',
+    );
+
+    const beforeWriteMs = Date.now();
+    const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_actual_xyz');
+    const afterWriteMs = Date.now();
+
+    expect(result.status).toBe(0);
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const line = readFileSync(logPath, 'utf8').trim();
+
+    // session_id must be the one from stdin, not the deceptive string in the text.
+    expect(line).toContain('sess_actual_xyz');
+    expect(line).not.toContain('DECEPTIVE123');
+
+    // Timestamp must be the wall clock at write time (ISO-8601, within a 1s tolerance).
+    const tsMatch = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s/.exec(line);
+    if (tsMatch === null) {
+      throw new Error(`Log line missing ISO-8601 timestamp prefix: ${line}`);
+    }
+    const writtenMs = Date.parse(tsMatch[1]);
+    expect(writtenMs).toBeGreaterThanOrEqual(beforeWriteMs - 1000);
+    expect(writtenMs).toBeLessThanOrEqual(afterWriteMs + 1000);
+  });
 });
