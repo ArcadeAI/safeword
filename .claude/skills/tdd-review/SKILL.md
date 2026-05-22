@@ -86,3 +86,5 @@ A review without a Next: line is incomplete.
 2. **Single source of truth** — this skill owns all TDD review content
 3. **Commit clears the gate** — review, then commit to proceed
 4. **Mark sub-checkbox** — ensure the current step's `[x]` is marked in test-definitions.md
+
+**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."

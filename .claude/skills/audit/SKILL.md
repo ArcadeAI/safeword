@@ -319,3 +319,5 @@ Errors: N | Warnings: N | Passed: N
 ```
 
 The `**Next:**` line is required, even on a clean pass. Name the immediate move (commit, mark ticket done, open a follow-up ticket for the warnings). A verdict without a concrete next action is incomplete — don't leave the user to guess which finding to address first.
+
+**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."
