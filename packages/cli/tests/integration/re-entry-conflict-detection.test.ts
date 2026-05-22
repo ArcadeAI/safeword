@@ -96,6 +96,65 @@ describe('session-start-reentry hook — Rule 5: conflict detection', () => {
     removeTemporaryDirectory(projectDirectory);
   });
 
+  it('multiple dirty-file overlaps → warning names all of them', () => {
+    initGitRepoWithDirtyFile(projectDirectory, 'foo.ts');
+    // Dirty a second file too.
+    writeFileSync(nodePath.join(projectDirectory, 'bar.ts'), 'fresh\n');
+    execSync('git add bar.ts', { cwd: projectDirectory });
+    execSync('git commit -q -m "add bar"', { cwd: projectDirectory });
+    writeFileSync(nodePath.join(projectDirectory, 'bar.ts'), 'dirty\n');
+
+    const transcriptsDirectory = nodePath.join(projectDirectory, '.fake-claude-projects');
+    // Same other-session transcript records edits on BOTH files.
+    mkdirSync(transcriptsDirectory, { recursive: true });
+    const otherLines = [
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Edit',
+              id: 'tu_foo',
+              input: { file_path: nodePath.join(projectDirectory, 'foo.ts') },
+            },
+            {
+              type: 'tool_use',
+              name: 'Edit',
+              id: 'tu_bar',
+              input: { file_path: nodePath.join(projectDirectory, 'bar.ts') },
+            },
+          ],
+        },
+      }),
+    ];
+    writeFileSync(nodePath.join(transcriptsDirectory, 'sess_other.jsonl'), otherLines.join('\n'));
+    const currentTranscript = nodePath.join(transcriptsDirectory, 'sess_current.jsonl');
+    writeFileSync(currentTranscript, '');
+
+    makeLogFile(projectDirectory, [
+      '2026-05-22T10:00:00Z sess_current ticket=∅/freeform Next: keep going',
+    ]);
+
+    const result = runSessionStartWithTranscript(
+      projectDirectory,
+      'sess_current',
+      'resume',
+      currentTranscript,
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { additionalContext?: string };
+    };
+    const ctx = parsed.hookSpecificOutput?.additionalContext ?? '';
+
+    expect(ctx).toContain('foo.ts');
+    expect(ctx).toContain('bar.ts');
+    expect(ctx.toLowerCase()).toContain('conflict');
+  });
+
   it('single dirty-file overlap → warning names the file', () => {
     // Set up: foo.ts is dirty in git, another session edited it recently.
     initGitRepoWithDirtyFile(projectDirectory, 'foo.ts');
