@@ -62,4 +62,4 @@ Before proceeding to Phase 6:
    - {timestamp} Complete: Phase 5 - Decomposed into {N} tasks
    ```
 
-**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."
+**Voice:** plainspoken and concise — write to be scanned.

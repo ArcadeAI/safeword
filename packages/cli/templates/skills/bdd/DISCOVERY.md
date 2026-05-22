@@ -66,4 +66,4 @@ Phase 3 scenarios draw from the self-test: behavior that changes seeds happy pat
 
 Phase 5 (decomposition) is optional — skip if the architecture is clear from the converged proposal.
 
-**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."
+**Voice:** plainspoken and concise — write to be scanned.

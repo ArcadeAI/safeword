@@ -85,4 +85,4 @@ If two options tie on correctness and elegance, the smaller one wins.
 
 **No hedging.** If you genuinely can't pick, you're missing one input — name it and ask one question. "Either could work" is not an answer.
 
-**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."
+**Voice:** plainspoken and concise — write to be scanned.

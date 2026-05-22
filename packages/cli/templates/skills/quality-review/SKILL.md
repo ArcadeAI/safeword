@@ -85,4 +85,4 @@ The `**Next:**` line is required. On APPROVE, name what to do now (proceed, comm
 3. **Phase matters** - Adapt research focus to current BDD phase
 4. **Be concise** - Hook already prompts for general quality, focus on what it can't do
 
-**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."
+**Voice:** plainspoken and concise — write to be scanned.

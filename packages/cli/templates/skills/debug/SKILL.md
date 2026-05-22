@@ -234,4 +234,4 @@ If you catch yourself thinking:
 | 3. Hypothesis     | "Is my theory correct?"               | Confirmed or formed new theory     |
 | 4. Implementation | "Does the fix work?"                  | Test passes, issue resolved        |
 
-**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."
+**Voice:** plainspoken and concise — write to be scanned.

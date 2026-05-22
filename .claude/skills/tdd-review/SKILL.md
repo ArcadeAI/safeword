@@ -87,4 +87,4 @@ A review without a Next: line is incomplete.
 3. **Commit clears the gate** — review, then commit to proceed
 4. **Mark sub-checkbox** — ensure the current step's `[x]` is marked in test-definitions.md
 
-**Voice:** plainspoken and concise — write to be scanned. See SAFEWORD.md → "Talking to the user."
+**Voice:** plainspoken and concise — write to be scanned.
