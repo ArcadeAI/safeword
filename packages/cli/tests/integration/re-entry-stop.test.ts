@@ -88,4 +88,15 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
     expect(existsSync(logPath)).toBe(false);
   });
+
+  it('writes nothing when the **Next:** line has only whitespace after the bold preface', () => {
+    const transcriptPath = makeTranscript(projectDirectory, 'Wrap-up paragraph.\n\n**Next:**   ');
+
+    const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_test_empty');
+
+    expect(result.status).toBe(0);
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    expect(existsSync(logPath)).toBe(false);
+  });
 });
