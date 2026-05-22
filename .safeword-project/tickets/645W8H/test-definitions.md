@@ -130,9 +130,9 @@ When the SessionStart hook fires (any resume path)
 Then no additionalContext related to re-entry is injected
 And no error is raised or logged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: silent-on-empty guards were part of scenario 4.1's GREEN design (existsSync + trim().length === 0 early returns); no failing test to write.
+- [x] GREEN 51ac2fe
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: Conflict detection surfaces dirty-file overlap between sessions
 
