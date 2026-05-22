@@ -238,9 +238,9 @@ And a dirty-file conflict exists with another session (per Rule 5 detection)
 When the status-line script runs
 Then stdout includes `⚠️ conflict: <file>` before the Next: imperative
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5d90c34
+- [x] GREEN 8e3e1a4
+- [x] REFACTOR skip: detection logic already lives in the shared lib (`detectConflictFiles`); status-line just consumes it. Render is a 2-line prefix string — nothing to extract.
 
 ### Scenario: Empty or missing re-entry log → no Next: indicator
 
@@ -248,6 +248,6 @@ Given `.safeword-project/re-entry.md` is empty or missing
 When the status-line script runs
 Then stdout contains no Next: indicator (graceful absence; status line falls through to other content if any)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: silent-on-empty guards were part of scenario 8.1's GREEN design — no failing test to write.
+- [x] GREEN 3fea90c
+- [x] REFACTOR skip: regression test only; no production code change.
