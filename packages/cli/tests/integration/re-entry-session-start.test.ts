@@ -56,6 +56,37 @@ describe('session-start-reentry hook — Rule 4: filtered tail', () => {
     removeTemporaryDirectory(projectDirectory);
   });
 
+  it('claude --continue → additionalContext shows last 3 entries from the most-recent session', () => {
+    // --continue is functionally equivalent to --resume <most-recent-session> from
+    // the hook's perspective: Claude Code picks the most-recent session and passes
+    // its session_id via stdin. The hook just filters; it doesn't pick.
+    makeLogFile(projectDirectory, [
+      '2026-05-22T10:00:00Z sess_old ticket=∅/freeform Next: old one',
+      '2026-05-22T11:00:00Z sess_old ticket=∅/freeform Next: old two',
+      '2026-05-22T12:00:00Z sess_old ticket=∅/freeform Next: old three',
+      '2026-05-22T13:00:00Z sess_recent ticket=∅/freeform Next: recent one',
+      '2026-05-22T14:00:00Z sess_recent ticket=∅/freeform Next: recent two',
+      '2026-05-22T15:00:00Z sess_recent ticket=∅/freeform Next: recent three',
+    ]);
+
+    // For this fixture, the most-recent session is sess_recent (latest timestamp).
+    const result = runSessionStartHook(projectDirectory, 'sess_recent', 'resume');
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { additionalContext?: string };
+    };
+    const ctx = parsed.hookSpecificOutput?.additionalContext ?? '';
+
+    expect(ctx).toContain('recent one');
+    expect(ctx).toContain('recent two');
+    expect(ctx).toContain('recent three');
+
+    expect(ctx).not.toContain('old one');
+    expect(ctx).not.toContain('old two');
+    expect(ctx).not.toContain('old three');
+  });
+
   it('resume by session id → additionalContext shows last 3 entries from that session, oldest first', () => {
     makeLogFile(projectDirectory, [
       '2026-05-22T10:00:00Z sess_abc ticket=∅/freeform Next: thing one',
