@@ -96,9 +96,9 @@ When the SessionStart hook fires
 Then additionalContext contains the last 3 entries tagged with session_id `abc`
 And the entries are ordered oldest first
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1019ec4
+- [x] GREEN 7fe917d
+- [x] REFACTOR skip: parseLogLine and renderBrief stay inline for now; lib extraction lands when Slice 3 (status-line script) first reuses them.
 
 ### Scenario: --continue shows the most-recent session's last 3 entries
 
