@@ -143,13 +143,19 @@ Optimize for **Clarity → Simplicity → Correctness**, in that order. When in 
 
 ---
 
-## Before Using Any Library API
+## Authority: docs and research, not memory
 
-Training data is stale. Each time:
+Training data drifts. Memory of "how X worked" is not authority — the current source is.
 
-1. Check `package.json` for the installed version.
-2. Look up docs via Context7 or the official site.
-3. If still uncertain, ask which version the project uses.
+**Library, framework, or API mechanics** (syntax, config, behavior):
+
+1. Find the installed version — `package.json`, lockfile, `requirements.txt`, `go.mod`, `Gemfile`, `Cargo.toml`, whichever the project uses.
+2. Read the docs for _that_ version. Use whichever source is wired up: Context7, the official docs site, the project README at the pinned ref, MDN, `node_modules/<pkg>/README.md`.
+3. If no source is reachable or the version is ambiguous, ask before guessing.
+
+**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/explore-and-debate`. Its iron law: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
+
+Blog posts, tweets, marketing, and "I remember reading…" don't count for either tier. Treat them as leads, not evidence.
 
 ---
 

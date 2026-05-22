@@ -45,6 +45,8 @@ Don't skip past errors. They often contain the exact solution.
 - Warnings that preceded the error
 ```
 
+**When the error mentions a library/framework symbol** (a function, class, or module from a dependency) — read the installed version's docs before forming a hypothesis. Signatures, defaults, and deprecation behavior change between versions; training memory may describe a different version than the one running. Check `package.json` / lockfile, then the source wired up (Context7, official docs, README at the pinned ref).
+
 #### 2. Reproduce Consistently
 
 | Can reproduce?  | Action                                               |
