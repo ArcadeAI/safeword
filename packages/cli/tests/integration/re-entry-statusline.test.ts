@@ -102,6 +102,30 @@ describe('statusline-reentry script — Rule 8: surface latest Next:', () => {
     expect(result.stdout.indexOf('conflict')).toBeLessThan(result.stdout.indexOf('Next:'));
   });
 
+  it('empty or missing log → no Next: indicator (graceful absence)', () => {
+    // Case 1: log file does not exist.
+    const resultA = runStatusline(projectDirectory, 'sess_any');
+    expect(resultA.status).toBe(0);
+    expect(resultA.stdout).not.toContain('Next:');
+    expect(resultA.stderr).toBe('');
+
+    // Case 2: log file exists but is empty.
+    makeLogFile(projectDirectory, []);
+    const resultB = runStatusline(projectDirectory, 'sess_any');
+    expect(resultB.status).toBe(0);
+    expect(resultB.stdout).not.toContain('Next:');
+    expect(resultB.stderr).toBe('');
+
+    // Case 3: log has entries but none for the current session.
+    makeLogFile(projectDirectory, [
+      '2026-05-22T10:00:00Z sess_someone_else ticket=∅/freeform Next: not mine',
+    ]);
+    const resultC = runStatusline(projectDirectory, 'sess_any');
+    expect(resultC.status).toBe(0);
+    expect(resultC.stdout).not.toContain('Next:');
+    expect(resultC.stdout).not.toContain('not mine');
+  });
+
   it('prints the latest Next: imperative for the current session', () => {
     makeLogFile(projectDirectory, [
       '2026-05-22T10:00:00Z sess_current ticket=∅/freeform Next: first thing',
