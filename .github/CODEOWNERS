@@ -1,5 +1,4 @@
 # PRs into this repo require approval from one of the listed code owners.
-# Combined with branch protection on main (require code owner review +
-# restrict push to main to @TheMostlyGreat), Alex is the sole merger;
-# @nbarbettini exists as a second approver to unblock Alex's own PRs.
+# Branch protection on main restricts push/merge to these same users, so
+# @TheMostlyGreat and @nbarbettini are the only people who can land changes.
 * @TheMostlyGreat @nbarbettini
