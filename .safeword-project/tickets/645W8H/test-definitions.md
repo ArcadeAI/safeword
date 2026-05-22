@@ -32,9 +32,9 @@ Given an assistant message ending with `**Next:**` (whitespace only after the bo
 When the Stop hook runs
 Then `.safeword-project/re-entry.md` is unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regex `.+` capture + post-trim `imperative.length > 0` guard from scenario 1.1's GREEN already drop empty values; nothing left to drive.
+- [x] GREEN 63b70cc
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: Hook injects every deterministic field; agent only authors the imperative
 
