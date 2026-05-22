@@ -56,9 +56,9 @@ Given a worktree with active ticket `645W8H` at phase `scenario-gate`
 When the Stop hook runs with an extractable Next:
 Then the appended log line contains `ticket=645W8H/scenario-gate`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bf878c1
+- [x] GREEN da1524c
+- [x] REFACTOR skip: ticket resolution lands cleanly inside the hook; no shared lib extraction needed yet (Slice 2 may surface the right time for that).
 
 ### Scenario: Ticket field uses sentinel when no active ticket exists
 
