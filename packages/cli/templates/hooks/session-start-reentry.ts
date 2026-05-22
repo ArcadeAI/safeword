@@ -41,9 +41,12 @@ function parseLogLine(line: string): Entry | null {
   };
 }
 
-function renderBrief(entries: Entry[]): string {
+function renderBrief(entries: Entry[], options: { fromAnotherSession?: boolean } = {}): string {
+  const header = options.fromAnotherSession
+    ? 'Re-entry brief — most recent entry (from another session):'
+    : `Re-entry brief — last ${entries.length} entries from this session:`;
   const lines = entries.map(e => `- ${e.timestamp} [${e.ticket}] ${e.nextImperative}`);
-  return `Re-entry brief — last ${entries.length} entries from this session:\n${lines.join('\n')}`;
+  return `${header}\n${lines.join('\n')}`;
 }
 
 async function main(): Promise<void> {
@@ -55,7 +58,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { session_id, cwd } = input;
+  const { session_id, cwd, source } = input;
   if (!session_id || !cwd) return;
 
   const logPath = join(cwd, '.safeword-project', 're-entry.md');
@@ -64,20 +67,31 @@ async function main(): Promise<void> {
   const content = readFileSync(logPath, 'utf8').trim();
   if (content.length === 0) return;
 
-  const entries = content
+  const allEntries = content
     .split('\n')
     .map(parseLogLine)
-    .filter((e): e is Entry => e !== null)
-    .filter(e => e.sessionId === session_id);
+    .filter((e): e is Entry => e !== null);
 
-  // Last 3 entries (already chronological — log is append-only).
-  const lastThree = entries.slice(-3);
-  if (lastThree.length === 0) return;
+  const currentEntries = allEntries.filter(e => e.sessionId === session_id);
+
+  let renderEntries: Entry[];
+  let fromAnotherSession = false;
+
+  if (currentEntries.length > 0) {
+    // Normal path: this session's last 3 (chronological — log is append-only).
+    renderEntries = currentEntries.slice(-3);
+  } else if (source === 'startup' && allEntries.length > 0) {
+    // Fresh `claude` fallback: most-recent entry across all sessions, tagged.
+    renderEntries = [allEntries[allEntries.length - 1]];
+    fromAnotherSession = true;
+  } else {
+    return;
+  }
 
   const output = {
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext: renderBrief(lastThree),
+      additionalContext: renderBrief(renderEntries, { fromAnotherSession }),
     },
   };
   process.stdout.write(`${JSON.stringify(output)}\n`);
