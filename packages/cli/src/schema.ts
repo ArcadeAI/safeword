@@ -285,6 +285,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
     '.safeword/hooks/lib/update-cache.ts': { template: 'hooks/lib/update-cache.ts' },
     '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
+    '.safeword/hooks/lib/learning-verification-stamps.ts': {
+      template: 'hooks/lib/learning-verification-stamps.ts',
+    },
 
     // Generated at setup/upgrade from SAFEWORD_SCHEMA itself — the prefix list
     // the auto-upgrade hook uses to decide which files to stage. See owned-paths.ts.
