@@ -129,6 +129,60 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     expect(writtenMs).toBeLessThanOrEqual(afterWriteMs + 1000);
   });
 
+  it('renders ticket=∅/freeform sentinel when no active ticket exists in this worktree', () => {
+    const transcriptPath = makeTranscript(projectDirectory, 'Done.\n\n**Next:** carry on');
+
+    const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_no_ticket');
+    expect(result.status).toBe(0);
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const line = readFileSync(logPath, 'utf8').trim();
+
+    expect(line).toContain('ticket=∅/freeform');
+    expect(line).toMatch(/ Next: carry on$/);
+  });
+
+  it('writes nothing when stdin lacks session_id', () => {
+    const transcriptPath = makeTranscript(
+      projectDirectory,
+      'Plain.\n\n**Next:** would not log anyway',
+    );
+
+    const result = spawnSync('bun', [STOP_REENTRY], {
+      // Note: deliberately omitting session_id to exercise the missing-field guard.
+      input: JSON.stringify({ transcript_path: transcriptPath, cwd: projectDirectory }),
+      cwd: projectDirectory,
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    expect(existsSync(logPath)).toBe(false);
+  });
+
+  it('writes only the single-line first segment when Next: imperative spans multiple lines', () => {
+    const transcriptPath = makeTranscript(
+      projectDirectory,
+      'Wrap-up.\n\n**Next:** do thing X\nthen also do Y',
+    );
+
+    const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_multi_line');
+    expect(result.status).toBe(0);
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const content = readFileSync(logPath, 'utf8');
+
+    // Exactly one log line (the file ends with a trailing newline; trim it).
+    const lines = content.trim().split('\n');
+    expect(lines).toHaveLength(1);
+
+    expect(lines[0]).toContain('Next: do thing X');
+    expect(lines[0]).not.toContain('then also do Y');
+  });
+
   it('renders ticket=<id>/<phase> when an active ticket exists in this worktree', () => {
     // Create an active ticket in the project directory.
     const ticketsDirectory = nodePath.join(
