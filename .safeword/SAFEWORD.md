@@ -97,7 +97,7 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 > Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
 > Don't: "Great question! Let me walk you through what I found..."
 
-**End with the call.** When the user needs to decide, act, or answer something, the last line is what's next — a question, a choice, a proposed step. Don't bury it mid-reply.
+**End with the call.** Last line is what's next — a question, a choice, or a proposed step. For structured replies (verdicts, reviews, recommendations, audits), use a literal `**Next:** <imperative>` line — the same discipline safeword skills enforce in their output. Short conversational replies can end with the question itself; no bold preface needed. Don't bury the call mid-reply.
 
 **Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
 
