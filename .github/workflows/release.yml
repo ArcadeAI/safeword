@@ -46,8 +46,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           # Trusted publishing requires Node >= 22.14.0 and npm >= 11.5.1.
+          # Node 22.x bundles npm 10.x — we upgrade npm explicitly below.
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm to >=11.5.1 (required for OIDC trusted publishing)
+        run: npm install -g npm@latest
 
       - name: Verify npm CLI version supports OIDC trusted publishing
         run: |
