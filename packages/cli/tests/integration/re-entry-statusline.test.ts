@@ -10,7 +10,7 @@
  * scenarios 8.2 onwards).
  */
 
-import { spawnSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -27,12 +27,13 @@ function makeLogFile(directory: string, lines: string[]): void {
   writeFileSync(nodePath.join(briefDirectory, 're-entry.md'), `${lines.join('\n')}\n`);
 }
 
-function runStatusline(directory: string, sessionId: string) {
+function runStatusline(directory: string, sessionId: string, transcriptPath?: string) {
   // Mirrors the Claude Code status-line JSON shape (subset).
   return spawnSync('bun', [STATUSLINE_REENTRY], {
     input: JSON.stringify({
       session_id: sessionId,
       cwd: directory,
+      transcript_path: transcriptPath,
       model: { id: 'claude-opus-4-7', display_name: 'Opus 4.7' },
     }),
     cwd: directory,
@@ -50,6 +51,55 @@ describe('statusline-reentry script — Rule 8: surface latest Next:', () => {
 
   afterEach(() => {
     removeTemporaryDirectory(projectDirectory);
+  });
+
+  it('prefixes ⚠️ conflict: <file> before the Next: when overlap exists', () => {
+    // Set up git with a dirty foo.ts.
+    execSync('git init -q', { cwd: projectDirectory });
+    execSync('git config user.email "test@example.com"', { cwd: projectDirectory });
+    execSync('git config user.name "Test"', { cwd: projectDirectory });
+    writeFileSync(nodePath.join(projectDirectory, 'foo.ts'), 'original\n');
+    execSync('git add .', { cwd: projectDirectory });
+    execSync('git commit -q -m "baseline"', { cwd: projectDirectory });
+    writeFileSync(nodePath.join(projectDirectory, 'foo.ts'), 'dirty\n');
+
+    // Another session edited foo.ts; current session's transcript exists.
+    const transcriptsDirectory = nodePath.join(projectDirectory, '.fake-claude-projects');
+    mkdirSync(transcriptsDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(transcriptsDirectory, 'sess_other.jsonl'),
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Edit',
+              id: 'tu_1',
+              input: { file_path: nodePath.join(projectDirectory, 'foo.ts') },
+            },
+          ],
+        },
+      }),
+    );
+    const currentTranscript = nodePath.join(transcriptsDirectory, 'sess_current.jsonl');
+    writeFileSync(currentTranscript, '');
+
+    makeLogFile(projectDirectory, [
+      '2026-05-22T10:00:00Z sess_current ticket=∅/freeform Next: keep going',
+    ]);
+
+    const result = runStatusline(projectDirectory, 'sess_current', currentTranscript);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('⚠️');
+    expect(result.stdout).toContain('conflict');
+    expect(result.stdout).toContain('foo.ts');
+    expect(result.stdout).toContain('Next: keep going');
+
+    // Order: conflict prefix appears BEFORE the Next: imperative.
+    expect(result.stdout.indexOf('conflict')).toBeLessThan(result.stdout.indexOf('Next:'));
   });
 
   it('prints the latest Next: imperative for the current session', () => {
