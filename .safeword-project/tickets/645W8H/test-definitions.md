@@ -145,9 +145,9 @@ And none of those files are currently dirty in `git status`
 When the SessionStart hook fires
 Then additionalContext contains no conflict warning line
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the no-conflict default state was preserved through scenarios 4.1–4.4 (current code never emitted a warning); no failing test to write.
+- [x] GREEN db421e2
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ### Scenario: Single dirty-file overlap → warning names the file
 
@@ -156,9 +156,9 @@ And `foo.ts` is currently dirty in `git status`
 When the SessionStart hook fires
 Then additionalContext includes a warning line naming `foo.ts`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 3b9e307
+- [x] GREEN 943021e
+- [x] REFACTOR skip: helpers are self-contained pure functions; lib extraction lands when Slice 3 (status-line) first reuses them.
 
 ### Scenario: Multiple dirty-file overlaps → all named
 
@@ -167,9 +167,9 @@ And both files are currently dirty in `git status`
 When the SessionStart hook fires
 Then additionalContext includes a warning line naming both files
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: `detectConflictFiles` returns a Set-derived list — multiple-file coverage falls out of scenario 5.2's GREEN structurally; no failing test to write.
+- [x] GREEN da659de
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: Render stays bounded
 
