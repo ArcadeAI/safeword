@@ -13,7 +13,7 @@ Then `.safeword-project/re-entry.md` gains one new appended line
 And that line's Next: imperative reads `commit and PR`
 
 - [x] RED e1a9f28
-- [ ] GREEN
+- [x] GREEN 06ba40d
 - [ ] REFACTOR
 
 ### Scenario: Assistant message has no Next: line
