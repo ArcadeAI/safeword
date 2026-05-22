@@ -436,6 +436,15 @@ Project-specific gotchas in `.safeword-project/learnings/`:
 - Update SAFEWORD.md references to point to replacement learning
 - Example: "React class components gotchas" → OBSOLETE when project migrates to hooks
 
+❌ **Verification stamps on project state**
+
+A learning describes a principle that holds across sessions. It cannot vouch for current project state — code drifts. Sentences like `✅ Verified by bun run build` or `we use path X (verified)` belong in `verify.md` for the ticket that produced them, where they're pinned to a commit. In a learning file, drop the verification verb and state the principle.
+
+- ❌ "We use `src/content.config.ts` (new Astro 6 path). ✅ Verified by `bun run build` completing cleanly."
+- ✅ "Astro 6 requires `src/content.config.ts`; the legacy `src/content/config.ts` path is removed in 6.0."
+
+The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` stamps on write — if you see the warning, either drop the verb or move the claim to `verify.md`. Legitimate research-methodology uses ("verified gap in literature", "empirically verified across tickets") are not flagged.
+
 ---
 
 ## Quick Reference
