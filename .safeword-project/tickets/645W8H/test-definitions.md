@@ -119,9 +119,9 @@ When the SessionStart hook fires
 Then additionalContext contains the most-recent entry in the log
 And that entry is tagged `(from another session)` in the rendered output
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c81986f
+- [x] GREEN ff14d6e
+- [x] REFACTOR skip: branch is small and read-once; not worth extracting yet.
 
 ### Scenario: Absent or empty log → silent injection
 
