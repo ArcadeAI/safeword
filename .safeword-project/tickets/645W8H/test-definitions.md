@@ -12,7 +12,7 @@ When the Stop hook runs
 Then `.safeword-project/re-entry.md` gains one new appended line
 And that line's Next: imperative reads `commit and PR`
 
-- [ ] RED
+- [x] RED e1a9f28
 - [ ] GREEN
 - [ ] REFACTOR
 
