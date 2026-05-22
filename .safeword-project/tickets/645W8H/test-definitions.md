@@ -179,9 +179,9 @@ Given the filter matches more than 3 entries (e.g., 5 entries from the current s
 When the SessionStart hook injects additionalContext
 Then exactly the last 3 of those entries appear in the rendered output
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: `.slice(-3)` was part of scenario 4.1's GREEN design — no failing test to write.
+- [x] GREEN 6c79061
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ### Scenario: Each entry occupies one line in rendered output
 
@@ -189,9 +189,9 @@ Given the filter matches one or more entries
 When the SessionStart hook injects additionalContext
 Then each entry appears on exactly one line (no wrapping, no multi-line entries)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: per-entry template `- <ts> [<ticket>] <imperative>` carries no embedded newlines by construction — no failing test to write.
+- [x] GREEN 6c79061
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: Resilience guards
 
