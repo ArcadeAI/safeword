@@ -34,6 +34,8 @@ The user was a bypass actor with `pull_request` bypass mode and CI was green —
 
 `gh pr merge` does a client-side mergeability check via GraphQL (`mergeStateStatus: BLOCKED`) and short-circuits before ever calling the merge API. It does not know about — or attempt to invoke — the ruleset bypass. It only offers `--admin`, which is a separate **admin-override** mechanism, not the bypass-actor path.
 
+This is a known, open limitation in the gh CLI — not user error or stale info. See [cli/cli#8971](https://github.com/cli/cli/issues/8971), [cli/cli#8746](https://github.com/cli/cli/issues/8746), and [community discussion #113172](https://github.com/orgs/community/discussions/113172). Don't waste time hunting for the right flag — there isn't one yet.
+
 The bypass is a **server-side decision** made when the merge endpoint is called. The web UI surfaces this as a "Merge without waiting for requirements to be met (bypass branch protections)" checkbox that the actor consciously ticks. There is no equivalent flag in `gh pr merge`.
 
 ---
@@ -50,13 +52,25 @@ gh api -X PUT repos/ArcadeAI/safeword/pulls/<N>/merge -f merge_method=squash
 gh api -X DELETE repos/ArcadeAI/safeword/git/refs/heads/<branch-name>
 ```
 
-Confirmed: PR #126 merged this way produced `mergedBy: TheMostlyGreat` with no admin-override audit signal, exactly as a bypass-actor merge should look.
+Confirmed empirically: PR #126 merged this way produced `mergedBy: TheMostlyGreat`, and the GitHub rule-suites endpoint records it as a bypass evaluation (see next section).
+
+---
+
+## How to verify it actually used the bypass path
+
+GitHub's own ground truth for "did this merge use the ruleset bypass" is the rule-suites endpoint:
+
+```bash
+gh api '/repos/ArcadeAI/safeword/rulesets/rule-suites?ref=refs/heads/main&time_period=day'
+```
+
+Each entry shows `actor_name`, `pushed_at`, `before_sha`/`after_sha`, and `result`. A `result: "bypass"` entry confirms the merge resolved via a bypass-actor grant, not a rule satisfaction. Use this any time you want to confirm a configuration change works without guessing.
 
 ---
 
 ## Why not `gh pr merge --admin`?
 
-`--admin` works but uses **admin privileges to override branch protection**, which is a different audit story than "this user is an approved bypass actor invoking their bypass." If the team ever audits bypass usage vs admin overrides, the two paths land in different log entries. Prefer the bypass path when the user is in fact a bypass actor.
+`--admin` works but uses **admin privileges to override branch protection**, conceptually distinct from "this user is an approved bypass actor invoking their bypass." Whether the two paths produce different rule-suites entries is empirically unverified here (we never used `--admin` under the ruleset). Either way, prefer the bypass path when the user is in fact a bypass actor — it matches intent and avoids tripping any audit signal that watches for admin overrides specifically. `--admin` may also fail outright in some configurations: see [cli/cli#8971](https://github.com/cli/cli/issues/8971).
 
 ---
 
@@ -79,4 +93,4 @@ Confirmed: PR #126 merged this way produced `mergedBy: TheMostlyGreat` with no a
 
 ---
 
-_Last updated: May 22, 2026_
+_Last updated: May 22, 2026 (light verification pass: empirical confirmation via rule-suites endpoint, cli/cli issue citations added)_
