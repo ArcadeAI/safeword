@@ -66,9 +66,9 @@ Given a worktree with no active ticket in `.safeword-project/`
 When the Stop hook runs with an extractable Next:
 Then the appended log line contains `ticket=∅/freeform`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: sentinel fallback was the original GREEN of scenario 1.1; scenario 2.2's GREEN preserved it for the no-active-ticket branch — no failing test to write.
+- [x] GREEN 232efd6
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: Concurrent writers don't interleave
 
@@ -82,9 +82,9 @@ Then the file contains both new lines
 And each line is correctly tagged with its own session's session_id
 And neither line is garbled mid-content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: atomic POSIX append + `appendFileSync` was the design choice in scenario 1.1's GREEN; correctness is structural — no failing test to write.
+- [x] GREEN 232efd6
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: SessionStart injects a filtered tail
 
@@ -202,9 +202,9 @@ When the Stop hook attempts to process
 Then no entry is written to `.safeword-project/re-entry.md`
 And no uncaught exception escapes the hook
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: missing-field early return was scenario 1.1's GREEN guard; no failing test to write.
+- [x] GREEN 232efd6
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ### Scenario: Multi-line Next: imperative sanitized to first single-line segment
 
@@ -213,9 +213,9 @@ When the Stop hook runs
 Then the appended log line's Next: imperative is a single line
 And that line equals the first segment of the imperative before the newline
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: line-by-line regex on the split message already captures only the first single-line segment after `**Next:**`; behaviour structural in scenario 1.1's GREEN.
+- [x] GREEN 232efd6
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: Status-line script surfaces latest Next: with conflict prefix
 
