@@ -22,9 +22,9 @@ Given a Claude Code session has produced an assistant message without any `**Nex
 When the Stop hook runs
 Then `.safeword-project/re-entry.md` is unchanged (no new line appended)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: behavior implemented as a side-effect of scenario 1.1's GREEN bail-out; no failing test to write — regression coverage added in GREEN commit.
+- [x] GREEN a085a1a
+- [x] REFACTOR skip: regression test only; no production code change, nothing to refactor.
 
 ### Scenario: Next: line has empty imperative
 
