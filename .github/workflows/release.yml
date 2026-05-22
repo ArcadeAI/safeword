@@ -1,0 +1,103 @@
+name: Release
+
+# OIDC trusted publishing to npm. Triggered when a v* annotated tag is
+# pushed to the repo (tag push is restricted to repo mergers via ruleset).
+#
+# Flow: tag push → manual approval in `release` environment → pack with
+# bun (preserves workspace-protocol stripping) → npm publish the tarball
+# with --provenance (npm CLI auto-detects OIDC).
+#
+# bun publish does not yet support OIDC trusted publishing — see
+# oven-sh/bun#15601. The bun-pack + npm-publish split is the documented
+# workaround until that lands.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write # required to mint OIDC token for npm
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # never cancel an in-flight publish
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: release
+      url: https://www.npmjs.com/package/safeword
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full history so tag metadata is available
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          # Trusted publishing requires Node >= 22.14.0 and npm >= 11.5.1.
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify npm CLI version supports OIDC trusted publishing
+        run: |
+          NPM_VERSION=$(npm --version)
+          echo "npm CLI: $NPM_VERSION"
+          # Minimum 11.5.1 per https://docs.npmjs.com/trusted-publishers/
+          node -e "
+            const [maj, min, patch] = '$NPM_VERSION'.split('.').map(Number);
+            if (maj < 11 || (maj === 11 && (min < 5 || (min === 5 && patch < 1)))) {
+              console.error('npm ' + '$NPM_VERSION' + ' too old — OIDC trusted publishing needs >= 11.5.1');
+              process.exit(1);
+            }
+          "
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
+          MKT_VERSION=$(node -e "console.log(require('./marketplace.json').plugins[0].version)")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION does not match packages/cli/package.json version $PKG_VERSION"
+            exit 1
+          fi
+          if [ "$PKG_VERSION" != "$MKT_VERSION" ]; then
+            echo "::error::package.json ($PKG_VERSION) and marketplace.json ($MKT_VERSION) disagree"
+            exit 1
+          fi
+          echo "All version sources agree: $PKG_VERSION"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run --cwd packages/cli build
+
+      - name: Release-gate tests (supply-chain + dogfood parity)
+        run: bun run --cwd packages/cli test:release
+
+      - name: 'Pack tarball with bun (preserves workspace-protocol stripping)'
+        working-directory: packages/cli
+        run: bun pm pack --destination ../../release-artifacts
+
+      - name: Publish to npm with provenance via OIDC
+        run: |
+          # --ignore-scripts: build + tests already ran above; prepublishOnly
+          # otherwise enforces bun (via npm_config_user_agent), which fails here.
+          # --provenance: cryptographically attest the build came from this
+          # exact workflow run + commit. Auto-enabled with OIDC but explicit.
+          # --access public: safeword is a public package.
+          npm publish release-artifacts/safeword-*.tgz \
+            --provenance \
+            --access public \
+            --ignore-scripts
