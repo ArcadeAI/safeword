@@ -2,21 +2,94 @@
 /**
  * Stop hook: append a single re-entry brief line to .safeword-project/re-entry.md.
  *
- * Ticket 645W8H. Slice 1 walking skeleton — currently does nothing.
+ * Ticket 645W8H. Slice 1 walking skeleton.
  *
- * Reads stdin (session_id, transcript_path, cwd) from Claude Code's hook input.
- * Will extract the last `**Next:** ...` line from the last assistant message in
- * the transcript and append a canonical log entry with all deterministic fields
- * (timestamp, session_id, ticket=id/phase) sourced from the hook itself.
- *
- * RED phase: stub. Behaviour is missing.
+ * Line shape: `<ISO-timestamp> <session_id> ticket=<id>/<phase> Next: <imperative>`
+ * All deterministic fields are hook-sourced; only the Next: imperative comes
+ * from the agent's final assistant message (regex on the LAST `**Next:**`
+ * occurrence). POSIX append; single-line writes are atomic under PIPE_BUF.
  */
 
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+interface HookInput {
+  session_id?: string;
+  transcript_path?: string;
+  cwd?: string;
+}
+
+interface ContentItem {
+  type: string;
+  text?: string;
+}
+
+interface TranscriptEntry {
+  type?: string;
+  message?: { role?: string; content?: ContentItem[] };
+}
+
+function extractLastNextImperative(text: string): string | null {
+  const lines = text.split('\n');
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const match = /^\*\*Next:\*\*\s+(.+)$/.exec(lines[index].trim());
+    if (match) {
+      const imperative = match[1].trim();
+      return imperative.length > 0 ? imperative : null;
+    }
+  }
+  return null;
+}
+
+function readLastAssistantText(transcriptPath: string): string {
+  const raw = readFileSync(transcriptPath, 'utf8').trim();
+  if (raw.length === 0) return '';
+  const lines = raw.split('\n');
+  for (let index = lines.length - 1; index >= 0; index--) {
+    try {
+      const entry = JSON.parse(lines[index]) as TranscriptEntry;
+      if (entry.type === 'assistant' && entry.message?.content) {
+        return entry.message.content
+          .filter(c => c.type === 'text' && typeof c.text === 'string')
+          .map(c => c.text as string)
+          .join('\n');
+      }
+    } catch {
+      // Skip malformed JSONL lines silently.
+    }
+  }
+  return '';
+}
+
 async function main(): Promise<void> {
-  // Drain stdin so the parent process doesn't block on the pipe.
-  await new Response(Bun.stdin.stream()).text();
-  // Behaviour deliberately absent — the failing test should drive the GREEN
-  // implementation in the next step.
+  const stdinText = await new Response(Bun.stdin.stream()).text();
+  let input: HookInput;
+  try {
+    input = JSON.parse(stdinText) as HookInput;
+  } catch {
+    return;
+  }
+
+  const { session_id, transcript_path, cwd } = input;
+  if (!session_id || !transcript_path || !cwd) return;
+
+  const assistantText = readLastAssistantText(transcript_path);
+  if (!assistantText) return;
+
+  const imperative = extractLastNextImperative(assistantText);
+  if (!imperative) return;
+
+  // Slice 1 minimal: ticket resolution lands in a later GREEN. Sentinel for now.
+  const ticketField = 'ticket=∅/freeform';
+
+  const timestamp = new Date().toISOString();
+  const line = `${timestamp} ${session_id} ${ticketField} Next: ${imperative}\n`;
+
+  const projectDirectory = join(cwd, '.safeword-project');
+  if (!existsSync(projectDirectory)) {
+    mkdirSync(projectDirectory, { recursive: true });
+  }
+  appendFileSync(join(projectDirectory, 're-entry.md'), line);
 }
 
 main().catch((error: unknown) => {
