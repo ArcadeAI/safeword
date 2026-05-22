@@ -87,6 +87,33 @@ describe('session-start-reentry hook — Rule 4: filtered tail', () => {
     expect(ctx).not.toContain('old three');
   });
 
+  it('fresh `claude` (source startup) with prior entries from other sessions → most-recent tagged', () => {
+    makeLogFile(projectDirectory, [
+      '2026-05-22T10:00:00Z sess_old ticket=∅/freeform Next: ancient action',
+      '2026-05-22T11:00:00Z sess_other ticket=∅/freeform Next: middle action',
+      '2026-05-22T15:00:00Z sess_other ticket=∅/freeform Next: pick this up',
+    ]);
+
+    // Fresh `claude` — Claude Code mints a brand-new session_id that won't appear
+    // in the existing log. source='startup' tells the hook to fall back to the
+    // most-recent entry across all sessions.
+    const result = runSessionStartHook(projectDirectory, 'sess_BRAND_NEW', 'startup');
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { additionalContext?: string };
+    };
+    const ctx = parsed.hookSpecificOutput?.additionalContext ?? '';
+
+    // Shows only the single most-recent entry across all sessions.
+    expect(ctx).toContain('pick this up');
+    expect(ctx).not.toContain('middle action');
+    expect(ctx).not.toContain('ancient action');
+
+    // The entry is tagged as belonging to another session.
+    expect(ctx).toContain('(from another session)');
+  });
+
   it('resume by session id → additionalContext shows last 3 entries from that session, oldest first', () => {
     makeLogFile(projectDirectory, [
       '2026-05-22T10:00:00Z sess_abc ticket=∅/freeform Next: thing one',
