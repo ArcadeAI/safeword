@@ -346,6 +346,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-start-reentry.ts': {
       template: 'hooks/session-start-reentry.ts',
     },
+    '.safeword/statusline/reentry.ts': {
+      template: 'statusline/reentry.ts',
+    },
     '.safeword/hooks/post-tool-sync-learnings.ts': {
       template: 'hooks/post-tool-sync-learnings.ts',
     },
