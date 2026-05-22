@@ -87,6 +87,57 @@ describe('session-start-reentry hook — Rule 4: filtered tail', () => {
     expect(ctx).not.toContain('old three');
   });
 
+  it('renders only the last 3 when filter matches more than 3 entries', () => {
+    makeLogFile(projectDirectory, [
+      '2026-05-22T01:00:00Z sess_long ticket=∅/freeform Next: entry one',
+      '2026-05-22T02:00:00Z sess_long ticket=∅/freeform Next: entry two',
+      '2026-05-22T03:00:00Z sess_long ticket=∅/freeform Next: entry three',
+      '2026-05-22T04:00:00Z sess_long ticket=∅/freeform Next: entry four',
+      '2026-05-22T05:00:00Z sess_long ticket=∅/freeform Next: entry five',
+    ]);
+
+    const result = runSessionStartHook(projectDirectory, 'sess_long', 'resume');
+    expect(result.status).toBe(0);
+
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { additionalContext?: string };
+    };
+    const ctx = parsed.hookSpecificOutput?.additionalContext ?? '';
+
+    expect(ctx).toContain('entry three');
+    expect(ctx).toContain('entry four');
+    expect(ctx).toContain('entry five');
+
+    expect(ctx).not.toContain('entry one');
+    expect(ctx).not.toContain('entry two');
+  });
+
+  it('each rendered entry occupies one line', () => {
+    makeLogFile(projectDirectory, [
+      '2026-05-22T10:00:00Z sess_one ticket=∅/freeform Next: alpha',
+      '2026-05-22T11:00:00Z sess_one ticket=∅/freeform Next: bravo',
+      '2026-05-22T12:00:00Z sess_one ticket=∅/freeform Next: charlie',
+    ]);
+
+    const result = runSessionStartHook(projectDirectory, 'sess_one', 'resume');
+    expect(result.status).toBe(0);
+
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { additionalContext?: string };
+    };
+    const ctx = parsed.hookSpecificOutput?.additionalContext ?? '';
+
+    // Every entry line starts with the dash bullet from renderBrief's per-entry template.
+    const entryLines = ctx.split('\n').filter(l => l.startsWith('- '));
+    expect(entryLines).toHaveLength(3);
+
+    // Each entry line contains the imperative AND is exactly one line (no embedded
+    // newlines or wrapping — verified by the split itself).
+    expect(entryLines[0]).toContain('alpha');
+    expect(entryLines[1]).toContain('bravo');
+    expect(entryLines[2]).toContain('charlie');
+  });
+
   it('absent or empty log → no additionalContext injection (silent, no error)', () => {
     // Case 1: log file does not exist at all.
     const resultA = runSessionStartHook(projectDirectory, 'sess_any', 'startup');
