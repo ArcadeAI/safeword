@@ -183,6 +183,13 @@ it('handles empty input without crashing', () => {
 - [ ] Existing tests still pass
 - [ ] Issue actually resolved (not just test passing)
 
+End the fix report with **Next:** on its own line — imperative, name what's now (commit message to use, ticket to mark done, follow-up issue to open for related debt the investigation surfaced). A debug session that ends without naming the next move is incomplete.
+
+Examples:
+
+- **Next:** commit with `fix(auth): release pool connection in error path`, mark ticket 234 done.
+- **Next:** commit the fix, then open a ticket for the unrelated logging gap surfaced at `src/auth.ts:88`.
+
 #### 4. If Fix Doesn't Work
 
 | Fix attempts | Action                                   |

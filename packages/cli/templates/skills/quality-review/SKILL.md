@@ -72,7 +72,11 @@ Fetch official documentation for libraries in use.
 - (verified: [source URL or doc title]) — fetched this session
 - (training data: may be outdated) — not verified
 - (uncertain) — could not verify
+
+**Next:** [concrete action — upgrade X from a.b.c to x.y.z, refactor {file}:{line}, ask team about Z, or proceed to implementation if APPROVE]
 ```
+
+The `**Next:**` line is required. On APPROVE, name what to do now (proceed, commit, run /verify). On REQUEST CHANGES, name the specific edit and re-review trigger. On NEEDS DISCUSSION, name the question to ask. A verdict that doesn't tell the reader what to do next is incomplete.
 
 ## Reminders
 

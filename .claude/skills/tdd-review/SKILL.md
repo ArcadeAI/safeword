@@ -65,7 +65,20 @@ If issues found: address before starting next scenario. If clean: commit and pro
 > **Right test type?** Integration — needs real linter execution to produce output. Unit wouldn't cover the formatter→CLI pipeline. Correct scope.
 > **Coverage gaps?** Test only checks one file. Could miss edge case where zero files pass. Acceptable for now — boundary cases are in scenario 3.
 >
-> Clean. Committing test, proceeding to GREEN.
+> Clean.
+>
+> **Next:** implement minimum code in `packages/cli/src/lint.ts` to make `expect(output).toContain('src/index.ts: pass')` pass, then commit.
+
+## Output discipline
+
+Every review ends with a **Next:** line on its own line — imperative, name the file/command/scenario. Don't end with "proceed" or "commit and move on" alone; name what to do.
+
+- GREEN gate clean → `**Next:** implement minimum code in {file} to make this test pass.`
+- GREEN gate issues → `**Next:** rewrite assertion in {file}:{line} to check observable output, then re-review.`
+- REFACTOR gate clean → `**Next:** run /refactor on {file}, then commit and mark next [ ] RED.`
+- RED gate clean → `**Next:** commit, then start scenario {N} — write the failing test in {file}.`
+
+A review without a Next: line is incomplete.
 
 ## Reminders
 
