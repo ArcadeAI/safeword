@@ -107,9 +107,9 @@ And the user invokes `claude --continue`
 When the SessionStart hook fires
 Then additionalContext contains the last 3 entries belonging to the session whose most-recent entry is latest in the log
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: --continue resolves to a session_id on Claude Code's side; the hook's filter code path is identical to scenario 4.1 — no failing test to write.
+- [x] GREEN 94247fa
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ### Scenario: Fresh claude start surfaces most-recent entry from another session
 
