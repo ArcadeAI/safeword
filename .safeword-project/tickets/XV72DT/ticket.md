@@ -2,8 +2,8 @@
 id: XV72DT
 slug: warn-on-learning-verification-stamps
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-05-22T17:51:44.360Z
 last_modified: 2026-05-22T17:51:44.360Z
 scope: |
