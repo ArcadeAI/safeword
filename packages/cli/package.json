@@ -2,6 +2,12 @@
   "name": "safeword",
   "version": "0.35.0",
   "description": "CLI for setting up and managing safeword development environments",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArcadeAI/safeword.git"
+  },
+  "homepage": "https://github.com/ArcadeAI/safeword",
+  "bugs": "https://github.com/ArcadeAI/safeword/issues",
   "type": "module",
   "bin": {
     "safeword": "dist/cli.js"
