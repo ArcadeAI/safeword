@@ -69,3 +69,58 @@ at SessionStart — does anything break?" test in the negative.
 - **Changelog:** Label every entry as patch/minor/major
 - **PR review:** Verify the version bump matches the change type. **Bumping minor for anything other than strict addition is now a contract break** — be especially careful here, because minors auto-propagate.
 - **When unsure:** Bump major, not minor — false-major costs users a manual upgrade; false-minor silently breaks them.
+
+## Operating: cutting a release
+
+The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub Actions `Release` workflow → npm with provenance. No local `bun publish` needed (or wanted) for normal releases.
+
+**Procedure:**
+
+1. **Decide the bump** using rules above. Patch / Minor / Major.
+
+2. **Bump version in both files** (pre-commit hook enforces they match):
+   - `packages/cli/package.json` → `version`
+   - `marketplace.json` → `plugins[0].version`
+
+3. **PR + admin-merge.** `main` is protected:
+
+   ```bash
+   git checkout -b release/vX.Y.Z
+   git add packages/cli/package.json marketplace.json
+   git commit -m "chore(release): vX.Y.Z"
+   git push -u origin release/vX.Y.Z
+   gh pr create --title "chore(release): vX.Y.Z" --body "..."
+   # after CI green:
+   gh pr merge --delete-branch --admin < num > --squash
+   ```
+
+4. **Annotated tag on the merge commit.** Body should roll up changes since the prior tag — see `git show v0.35.1` for the style.
+
+   ```bash
+   git checkout main && git pull --ff-only origin main
+   git tag -a vX.Y.Z HEAD -m "Release vX.Y.Z
+   
+   <rollup of changes since prior tag>"
+   git push origin vX.Y.Z
+   ```
+
+   Tag push triggers `.github/workflows/release.yml`.
+
+5. **Verify the publish.** Watch the run, then confirm on npm:
+
+   ```bash
+   gh run view conclusion -q '.conclusion' < id > --json # → success
+   npm view safeword version                             # → X.Y.Z
+   ```
+
+   Optional: `bunx safeword@latest upgrade` in this repo to round-trip the dogfood install.
+
+**Named failure modes** (match symptoms, then fix):
+
+- **Workflow doesn't fire after tag push** — the tagged commit lacks `.github/workflows/release.yml`. Move the tag forward to a commit that has it (`git tag -d vX.Y.Z && git tag -a vX.Y.Z origin/main ... && git push --delete origin vX.Y.Z && git push origin vX.Y.Z`).
+- **`404 Not Found - PUT /safeword` at npm publish step** — trusted-publisher config on https://www.npmjs.com/package/safeword/access doesn't match the OIDC claims. Verify Organization/Repository/Workflow filename/Environment name fields exactly match `release.yml`.
+- **`422 Unprocessable Entity ... repository.url is ""`** — `packages/cli/package.json` lost its `repository` field. Restore it.
+- **Verify-npm-version step fails** — Node 24's bundled npm dropped below 11.5.1 (rare; means Node was downgraded). Pin `node-version` higher in `release.yml`.
+- **`404 OIDC token exchange ... package not found`** — npm trusted publisher entry was deleted or never saved. Re-create on npmjs.com.
+
+**Failure-mode triage:** the workflow's `release.yml` has inline comments at each non-obvious step; read those before guessing. The publish-job step list (post-#146) is intentionally minimal — failures are localized.
