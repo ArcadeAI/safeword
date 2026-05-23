@@ -34,23 +34,24 @@ jobs:
       url: https://www.npmjs.com/package/safeword
 
     steps:
+      # Actions pinned to commit SHAs (with version comment) — this workflow
+      # runs with `id-token: write` and can mint our npm OIDC token, so a
+      # hijacked mutable tag (cf. tj-actions/changed-files Q1 2026, 23k+
+      # repos compromised) would let an attacker publish a malicious
+      # safeword. Dependabot keeps these current.
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0 # full history so tag metadata is available
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           # Trusted publishing requires Node >= 22.14.0 and npm >= 11.5.1.
-          # Node 22.x bundles npm 10.x; even after `npm install -g npm@latest`
-          # below, the OIDC handshake at npm registry still returned 404 (5x
-          # publish attempts at v0.35.0). Node 24.x ships npm 11+ natively,
-          # which fixed the handshake for others hitting this exact symptom.
-          # See: https://medium.com/@kenricktan11/npm-trusted-publishers-the-weird-404-error-and-the-node-js-24-fix-a9f1d717a5dd
+          # Node 24.x ships npm 11+ natively. Verify step below catches drift.
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
@@ -98,28 +99,6 @@ jobs:
         working-directory: packages/cli
         run: bun pm pack --destination ../../release-artifacts
 
-      - name: Debug — print OIDC claims and npm config (diagnostic for #140 404)
-        run: |
-          echo "=== npm/node versions ==="
-          which npm
-          npm --version
-          node --version
-          echo ""
-          echo "=== NPM_CONFIG_USERCONFIG path ==="
-          echo "$NPM_CONFIG_USERCONFIG"
-          echo ""
-          echo "=== .npmrc contents (auth token masked) ==="
-          if [ -f "$NPM_CONFIG_USERCONFIG" ]; then
-            sed 's/=.*$/=<masked>/' "$NPM_CONFIG_USERCONFIG"
-          else
-            echo "no .npmrc"
-          fi
-          echo ""
-          echo "=== OIDC claims for audience npm:registry.npmjs.org ==="
-          TOKEN=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" | jq -r .value)
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq . || echo "(token decode failed)"
-
       - name: Publish to npm with provenance via OIDC
         run: |
           # --ignore-scripts: build + tests already ran above; prepublishOnly
@@ -134,5 +113,4 @@ jobs:
           npm publish ./release-artifacts/safeword-*.tgz \
             --provenance \
             --access public \
-            --ignore-scripts \
-            --loglevel=verbose
+            --ignore-scripts
