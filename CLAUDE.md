@@ -11,18 +11,13 @@ When bumping the CLI version, update **both** files:
 
 Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. A pre-commit hook blocks commits where the two versions differ.
 
-### Tagging Releases
+### Releasing
 
-Every published version must have an annotated git tag (`vX.Y.Z`) on the release commit. Tag bodies should summarize what shipped — see `git show v0.32.0` for the style.
+Publish is CI-driven via OIDC trusted publishing: tag push → `.github/workflows/release.yml` → npm with provenance. No local `bun publish` for normal releases.
 
-After committing the version bump and before `bun publish`:
+Full procedure (bump → PR → admin-merge → annotated tag → workflow runs → verify on npm) lives in the `versioning` skill. Invoke `/versioning` or trust auto-trigger when cutting a release.
 
-```bash
-git tag -a vX.Y.Z -m "Release vX.Y.Z\n\n<rollup of changes since prior tag>"
-git push origin vX.Y.Z
-```
-
-`prepublishOnly` runs `packages/cli/scripts/check-bun-publish.js`, which refuses to publish if HEAD is not tagged `v$VERSION`. The error message prints the exact tag + push commands to run.
+Local `bun publish` is still gated by `packages/cli/scripts/check-bun-publish.js` (refuses without matching `v$VERSION` tag on HEAD) — defense in depth, not the canonical path.
 
 ## Test Execution
 
