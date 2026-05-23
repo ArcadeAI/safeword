@@ -87,6 +87,28 @@ describe('session-start-reentry hook — Rule 4: filtered tail', () => {
     expect(ctx).not.toContain('old three');
   });
 
+  it('no dirty-file overlap with other sessions → additionalContext has no conflict warning', () => {
+    makeLogFile(projectDirectory, [
+      '2026-05-22T10:00:00Z sess_current ticket=∅/freeform Next: do current work',
+    ]);
+
+    const result = runSessionStartHook(projectDirectory, 'sess_current', 'resume');
+    expect(result.status).toBe(0);
+
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { additionalContext?: string };
+    };
+    const ctx = parsed.hookSpecificOutput?.additionalContext ?? '';
+
+    // Brief still renders for the current session.
+    expect(ctx).toContain('do current work');
+
+    // No conflict markers when there's no overlap (no other-session edits,
+    // no dirty files — neither side has anything to flag).
+    expect(ctx).not.toContain('⚠️');
+    expect(ctx.toLowerCase()).not.toContain('conflict');
+  });
+
   it('renders only the last 3 when filter matches more than 3 entries', () => {
     makeLogFile(projectDirectory, [
       '2026-05-22T01:00:00Z sess_long ticket=∅/freeform Next: entry one',

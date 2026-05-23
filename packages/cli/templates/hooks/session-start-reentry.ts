@@ -9,36 +9,23 @@
  * (silent — not shown in chat; for Claude recall when the user asks
  * "where were we?"). The status-line script (Slice 3) is the user-facing
  * surface.
+ *
+ * Also detects conflict: when another session's transcript has Edit/Write
+ * tool calls on files that are currently dirty in `git status`, append a
+ * warning line so the agent (and via Slice 3, the user) knows to step
+ * lightly around those files.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { detectConflictFiles, type Entry, parseLogLine } from './lib/re-entry';
+
 interface HookInput {
   session_id?: string;
   source?: 'startup' | 'resume' | 'clear' | 'compact';
   cwd?: string;
-}
-
-interface Entry {
-  timestamp: string;
-  sessionId: string;
-  ticket: string;
-  nextImperative: string;
-}
-
-// Canonical log line: `<ISO-ts> <session-id> ticket=<id>/<phase> Next: <imperative>`
-const LINE_REGEX = /^(\S+)\s+(\S+)\s+(ticket=\S+)\s+Next:\s+(.+)$/;
-
-function parseLogLine(line: string): Entry | null {
-  const match = LINE_REGEX.exec(line.trim());
-  if (!match) return null;
-  return {
-    timestamp: match[1],
-    sessionId: match[2],
-    ticket: match[3],
-    nextImperative: match[4],
-  };
+  transcript_path?: string;
 }
 
 function renderBrief(entries: Entry[], options: { fromAnotherSession?: boolean } = {}): string {
@@ -47,6 +34,12 @@ function renderBrief(entries: Entry[], options: { fromAnotherSession?: boolean }
     : `Re-entry brief — last ${entries.length} entries from this session:`;
   const lines = entries.map(e => `- ${e.timestamp} [${e.ticket}] ${e.nextImperative}`);
   return `${header}\n${lines.join('\n')}`;
+}
+
+function renderConflictWarning(files: string[]): string {
+  if (files.length === 0) return '';
+  const quoted = files.map(f => `\`${f}\``).join(', ');
+  return `\n\n⚠️ Conflict: another session edited ${quoted} (still dirty in the working tree).`;
 }
 
 async function main(): Promise<void> {
@@ -58,14 +51,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { session_id, cwd, source } = input;
+  const { session_id, cwd, source, transcript_path } = input;
   if (!session_id || !cwd) return;
 
   const logPath = join(cwd, '.safeword-project', 're-entry.md');
-  if (!existsSync(logPath)) return;
-
-  const content = readFileSync(logPath, 'utf8').trim();
-  if (content.length === 0) return;
+  const logExists = existsSync(logPath);
+  const content = logExists ? readFileSync(logPath, 'utf8').trim() : '';
 
   const allEntries = content
     .split('\n')
@@ -74,24 +65,23 @@ async function main(): Promise<void> {
 
   const currentEntries = allEntries.filter(e => e.sessionId === session_id);
 
-  let renderEntries: Entry[];
-  let fromAnotherSession = false;
-
+  let briefBody = '';
   if (currentEntries.length > 0) {
-    // Normal path: this session's last 3 (chronological — log is append-only).
-    renderEntries = currentEntries.slice(-3);
+    briefBody = renderBrief(currentEntries.slice(-3));
   } else if (source === 'startup' && allEntries.length > 0) {
-    // Fresh `claude` fallback: most-recent entry across all sessions, tagged.
-    renderEntries = [allEntries[allEntries.length - 1]];
-    fromAnotherSession = true;
-  } else {
-    return;
+    briefBody = renderBrief([allEntries[allEntries.length - 1]], { fromAnotherSession: true });
   }
+
+  const conflictFiles = detectConflictFiles(cwd, transcript_path);
+  const conflictWarning = renderConflictWarning(conflictFiles);
+
+  // Nothing to inject in either channel → stay silent.
+  if (briefBody.length === 0 && conflictWarning.length === 0) return;
 
   const output = {
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext: renderBrief(renderEntries, { fromAnotherSession }),
+      additionalContext: `${briefBody}${conflictWarning}`,
     },
   };
   process.stdout.write(`${JSON.stringify(output)}\n`);

@@ -145,9 +145,9 @@ And none of those files are currently dirty in `git status`
 When the SessionStart hook fires
 Then additionalContext contains no conflict warning line
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the no-conflict default state was preserved through scenarios 4.1–4.4 (current code never emitted a warning); no failing test to write.
+- [x] GREEN db421e2
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ### Scenario: Single dirty-file overlap → warning names the file
 
@@ -156,9 +156,9 @@ And `foo.ts` is currently dirty in `git status`
 When the SessionStart hook fires
 Then additionalContext includes a warning line naming `foo.ts`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 3b9e307
+- [x] GREEN 943021e
+- [x] REFACTOR skip: helpers are self-contained pure functions; lib extraction lands when Slice 3 (status-line) first reuses them.
 
 ### Scenario: Multiple dirty-file overlaps → all named
 
@@ -167,9 +167,9 @@ And both files are currently dirty in `git status`
 When the SessionStart hook fires
 Then additionalContext includes a warning line naming both files
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: `detectConflictFiles` returns a Set-derived list — multiple-file coverage falls out of scenario 5.2's GREEN structurally; no failing test to write.
+- [x] GREEN da659de
+- [x] REFACTOR skip: regression test only; no production code change.
 
 ## Rule: Render stays bounded
 
@@ -227,9 +227,9 @@ Given the current session has entries in `.safeword-project/re-entry.md`
 When the status-line script runs with the standard Claude Code JSON input on stdin
 Then stdout includes the most recent Next: imperative for this session
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b10af04
+- [x] GREEN 6a4073e
+- [x] REFACTOR skip: parseLogLine duplicated from session-start hook; lib extraction will land in scenario 8.2's GREEN when conflict-detection logic must be shared.
 
 ### Scenario: Conflict prefix appears when dirty-file overlap exists
 
@@ -238,9 +238,9 @@ And a dirty-file conflict exists with another session (per Rule 5 detection)
 When the status-line script runs
 Then stdout includes `⚠️ conflict: <file>` before the Next: imperative
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5d90c34
+- [x] GREEN 8e3e1a4
+- [x] REFACTOR skip: detection logic already lives in the shared lib (`detectConflictFiles`); status-line just consumes it. Render is a 2-line prefix string — nothing to extract.
 
 ### Scenario: Empty or missing re-entry log → no Next: indicator
 
@@ -248,6 +248,10 @@ Given `.safeword-project/re-entry.md` is empty or missing
 When the status-line script runs
 Then stdout contains no Next: indicator (graceful absence; status line falls through to other content if any)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: silent-on-empty guards were part of scenario 8.1's GREEN design — no failing test to write.
+- [x] GREEN 3fea90c
+- [x] REFACTOR skip: regression test only; no production code change.
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 45c1a5b # extracted shared pure functions to `.safeword/hooks/lib/re-entry.ts` (parseLogLine + conflict-detection helpers) so Slice 2 (SessionStart) and Slice 3 (statusline) can both consume them without duplication.

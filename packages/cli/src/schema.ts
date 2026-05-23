@@ -116,6 +116,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates',
     '.safeword/prompts',
     '.safeword/scripts',
+    '.safeword/statusline',
     '.cursor',
     '.cursor/rules',
     '.cursor/commands',
@@ -272,6 +273,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
+    '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
@@ -345,6 +347,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
       template: 'hooks/session-start-reentry.ts',
+    },
+    '.safeword/statusline/reentry.ts': {
+      template: 'statusline/reentry.ts',
     },
     '.safeword/hooks/post-tool-sync-learnings.ts': {
       template: 'hooks/post-tool-sync-learnings.ts',
