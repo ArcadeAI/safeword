@@ -2,11 +2,11 @@
 
 Per-worktree re-entry brief (Stop-hook log + SessionStart injection + status-line ambient).
 
-Refreshed 2026-05-22T22:31Z on HEAD = bdc123a.
+Refreshed 2026-05-23T00:30Z on HEAD = a775ee1 (after rebase onto origin/main `726fc30`).
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 1981/1981 tests pass (1 skipped, 0 failed) — 114 test files, full suite `bun run test` from `packages/cli/`, duration 688s.
+**Test Suite:** ✓ 2001/2001 tests pass (1 skipped, 0 failed) — 115 test files, full suite `bun run test` from `packages/cli/`, duration 859s. Re-run after rebase onto current main; the +20 tests vs the pre-rebase 1981 are from main's PR #134 (learning-verification-stamps).
 **Build:** ✅ Success (`bun run build` in `packages/cli/` — ESM + DTS).
 **Lint:** ✅ Clean (`bun run lint:eslint`, `bun run format`, `bunx tsc --noEmit` — all silent).
 **Scenarios:** All 64 scenarios marked complete (`grep -c '^- \[x\]'` = 64; `grep -c '^- \[ \]'` = 0 in `test-definitions.md`).
@@ -15,11 +15,11 @@ Refreshed 2026-05-22T22:31Z on HEAD = bdc123a.
 
 ## Audit
 
-Audit passed.
+Audit passed. (Numbers reflect the audit at HEAD before rebase; rebase only changed the base, not this branch's diff. Full-suite re-run on post-rebase HEAD confirmed 2001/2001 green.)
 
-- **Architecture (depcruise):** no dependency violations — 114 modules, 311 dependencies cruised.
-- **Dead code (knip):** clean. The initial run flagged `packages/cli/templates/statusline/reentry.ts` because the new templates dir wasn't covered by `knip.json` `ignoreFiles`. Extended the existing `templates/hooks/**` pattern to also cover `templates/statusline/**` in commit `bdc123a`.
-- **Duplication (jscpd):** 95 clones across 988 files (1.83% lines, 2.11% tokens) — all pre-existing, none introduced by this branch's new modules.
+- **Architecture (depcruise):** no dependency violations.
+- **Dead code (knip):** clean. The initial run flagged `packages/cli/templates/statusline/reentry.ts` because the new templates dir wasn't covered by `knip.json` `ignoreFiles`. Extended the existing `templates/hooks/**` pattern to also cover `templates/statusline/**` in commit `0cde744`.
+- **Duplication (jscpd):** 95 clones, 1.83% lines / 2.11% tokens — all pre-existing, none introduced by this branch's new modules.
 - **Outdated deps:** 3 dev-only updates available — `knip` 6.14.1 → 6.14.2 (patch, Low), `eslint-plugin-jsdoc` 62 → 63 (major, Medium), `eslint` 9 → 10 (major, High). All deferred to dedicated migration tasks (matches J7VBGJ standing position).
 - **Learning files:** all conform to the `Covers:` line-3 convention (no `[W006]` flags).
 - **Agent configs:** CLAUDE.md = 33 lines, AGENTS.md = 176 lines, ARCHITECTURE.md = 525 lines, SAFEWORD.md = 198 lines — all within sane bounds.
@@ -54,11 +54,15 @@ The verify run caught a schema-completeness bug introduced by this branch:
 - At uninstall, `removeIfEmpty('.safeword/statusline')` was never planned (non-recursive `rmdirSync`), so the now-empty directory survived. That empty subdir then made `removeIfEmpty('.safeword')` fail — `.safeword/` directory survived too.
 - Symptom: 4 failing tests (`tests/commands/reset.test.ts` 11.2 / 11.4 / 11.7 plus `tests/reconcile.test.ts > uninstall mode`), all asserting `.safeword/` is gone after `safeword reset`.
 
-Fix in commit `bdc123a`:
+Fix in commit `0cde744`:
 
 1. Add `'.safeword/statusline'` to `SAFEWORD_SCHEMA.ownedDirs` (one line; the actual repair).
 2. New structural test in `packages/cli/tests/schema.test.ts` — every `dirname(ownedFile)` must be in `ownedDirs` / `sharedDirs` / `preservedDirs`, or match the `.claude/*` auto-cleanup path in `reconcile.ts`. Catches the "owned file under unregistered directory" bug class by construction. Verified by reverting the schema entry: test fails with `'.safeword/statusline/reentry.ts' needs '.safeword/statusline' in ownedDirs/sharedDirs/preservedDirs`.
 3. Extend `knip.json` `ignoreFiles` to cover `templates/statusline/**` (same pattern as the existing `templates/hooks/**` entry).
+
+## Rebase note
+
+This branch was rebased onto `origin/main` after PR #133 was squash-merged. The squash on main (commit `920b578`) was byte-identical to PR #133's tip (`be08fec`), so `git rebase --onto origin/main be08fec` cleanly replayed our 17 incremental commits with no manual conflict — git's 3-way auto-merge handled the only overlap (`packages/cli/src/schema.ts`, where main and this branch both made additive changes to different parts of the schema object).
 
 ## Out of scope (kept honest)
 
@@ -69,19 +73,21 @@ Fix in commit `bdc123a`:
 
 ## Commits on branch
 
-53 commits between `main` and HEAD (`bdc123a`). The final arc:
+17 commits between `origin/main` (`726fc30`) and HEAD (`a775ee1`). The final arc:
 
 ```
-bdc123a fix(645W8H): register .safeword/statusline in ownedDirs + guard test
-d4120e9 chore(645W8H): all 21 scenarios closed; advance phase implement → verify
-8e191a2 chore(645W8H): close Rule 8 — 8.2 GREEN, 8.3 GREEN
-3fea90c test(645W8H): scenario 8.3 — statusline silent when no entries (regression)
-8e3e1a4 feat(645W8H): GREEN scenario 8.2 — statusline conflict prefix
-5d90c34 test(645W8H): RED scenario 8.2 — statusline conflict prefix
-45c1a5b refactor(645W8H): extract shared re-entry lib (deferred from scenario 1.1)
-4b78b38 chore(645W8H): close scenario 8.1 (RED b10af04, GREEN 6a4073e, REFACTOR skip)
-6a4073e feat(645W8H): GREEN scenario 8.1 — statusline prints latest Next:
-b10af04 test(645W8H): RED scenario 8.1 — statusline surfaces latest Next:
+a775ee1 chore(645W8H): advance phase verify → done; status → done
+98540f8 chore(645W8H): verify artifact — full suite green on post-rebase HEAD
+0cde744 fix(645W8H): register .safeword/statusline in ownedDirs + guard test
+d7d4ca3 chore(645W8H): all 21 scenarios closed; advance phase implement → verify
+aa5d8d9 chore(645W8H): close Rule 8 — 8.2 GREEN, 8.3 GREEN
+f379ddc test(645W8H): scenario 8.3 — statusline silent when no entries (regression)
+b662a2e feat(645W8H): GREEN scenario 8.2 — statusline conflict prefix
+7929e0b test(645W8H): RED scenario 8.2 — statusline conflict prefix
+2db50f8 refactor(645W8H): extract shared re-entry lib (deferred from scenario 1.1)
+5fa59d8 chore(645W8H): close scenario 8.1
+2b9037c feat(645W8H): GREEN scenario 8.1 — statusline prints latest Next:
+f3f133d test(645W8H): RED scenario 8.1 — statusline surfaces latest Next:
 ```
 
-Full history: `git log main..HEAD --oneline`.
+Full history: `git log origin/main..HEAD --oneline`.
