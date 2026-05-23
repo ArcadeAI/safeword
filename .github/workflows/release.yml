@@ -1,13 +1,15 @@
 name: Release
 
 # OIDC trusted publishing to npm. Triggered when a v* annotated tag is
-# pushed to the repo (tag push is restricted to repo mergers via ruleset).
+# pushed (tag push is restricted to mergers via repo ruleset).
 #
-# Flow: tag push → manual approval in `release` environment → pack with
-# bun (preserves workspace-protocol stripping) → npm publish the tarball
-# with --provenance (npm CLI auto-detects OIDC).
+# Two-job split: build runs all project code with NO id-token permission;
+# publish has id-token: write but executes only `npm publish` against a
+# downloaded artifact. Defends against the TanStack May-2026 vector where
+# a malicious dep extracted the OIDC token from runner memory mid-test.
+# See: https://tanstack.com/blog/npm-supply-chain-compromise-postmortem
 #
-# bun publish does not yet support OIDC trusted publishing — see
+# bun publish doesn't yet support OIDC trusted publishing — see
 # oven-sh/bun#15601. The bun-pack + npm-publish split is the documented
 # workaround until that lands.
 
@@ -16,29 +18,29 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: read
-  id-token: write # required to mint OIDC token for npm
+# Default-deny at workflow level; each job opts into what it needs.
+permissions: {}
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false # never cancel an in-flight publish
 
 jobs:
-  publish:
-    name: Publish to npm
+  # --------------------------------------------------------------------------
+  # build: install, build, test, pack. Runs all project + dep code, so it
+  # MUST NOT have id-token: write — any malicious code reaching this job
+  # otherwise could mint our npm publish token (cf. TanStack May 2026).
+  # --------------------------------------------------------------------------
+  build:
+    name: Build + test + pack
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment:
-      name: release
-      url: https://www.npmjs.com/package/safeword
+    permissions:
+      contents: read
 
     steps:
-      # Actions pinned to commit SHAs (with version comment) — this workflow
-      # runs with `id-token: write` and can mint our npm OIDC token, so a
-      # hijacked mutable tag (cf. tj-actions/changed-files Q1 2026, 23k+
-      # repos compromised) would let an attacker publish a malicious
-      # safeword. Dependabot keeps these current.
+      # Third-party + GitHub actions pinned to commit SHAs (with version
+      # comment). Dependabot (.github/dependabot.yml) keeps them current.
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -50,28 +52,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          # Trusted publishing requires Node >= 22.14.0 and npm >= 11.5.1.
-          # Node 24.x ships npm 11+ natively. Verify step below catches drift.
           node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
 
-      - name: Upgrade npm to >=11.5.1 (required for OIDC trusted publishing)
-        run: npm install -g npm@latest
-
-      - name: Verify npm CLI version supports OIDC trusted publishing
-        run: |
-          NPM_VERSION=$(npm --version)
-          echo "npm CLI: $NPM_VERSION"
-          # Minimum 11.5.1 per https://docs.npmjs.com/trusted-publishers/
-          node -e "
-            const [maj, min, patch] = '$NPM_VERSION'.split('.').map(Number);
-            if (maj < 11 || (maj === 11 && (min < 5 || (min === 5 && patch < 1)))) {
-              console.error('npm ' + '$NPM_VERSION' + ' too old — OIDC trusted publishing needs >= 11.5.1');
-              process.exit(1);
-            }
-          "
-
-      - name: Verify tag matches package.json version
+      - name: Verify tag matches package.json + marketplace.json
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
           PKG_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
@@ -95,21 +78,78 @@ jobs:
       - name: Release-gate tests (supply-chain + dogfood parity)
         run: bun run --cwd packages/cli test:release
 
-      - name: 'Pack tarball with bun (preserves workspace-protocol stripping)'
+      - name: 'Pack tarball with bun (strips workspace: protocols)'
         working-directory: packages/cli
         run: bun pm pack --destination ../../release-artifacts
 
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safeword-tarball
+          path: release-artifacts/safeword-*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  # --------------------------------------------------------------------------
+  # publish: runs ONLY `npm publish` against the artifact built above.
+  # No project code, no test code, no install scripts execute here. Minimal
+  # attack surface for the id-token: write permission.
+  #
+  # Deliberately does not pass `cache:` to setup-node — per npm trusted-
+  # publishing docs, release builds should never use package-manager cache.
+  # --------------------------------------------------------------------------
+  publish:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: release
+      url: https://www.npmjs.com/package/safeword
+    permissions:
+      contents: read
+      id-token: write # required to mint OIDC token for npm
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # Node 24.15.0 ships npm 11.12.1 — well above the 11.5.1 floor
+          # required for OIDC trusted publishing. We deliberately do NOT
+          # upgrade npm here: that would run dynamic install + postinstall
+          # code (the Shai-Hulud / Axios attack vector) for no benefit.
+          # The verify step below catches drift if Node ever downgrades npm.
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify bundled npm meets OIDC trusted-publishing floor
+        run: |
+          NPM_VERSION=$(npm --version)
+          echo "npm CLI: $NPM_VERSION"
+          # Minimum 11.5.1 per https://docs.npmjs.com/trusted-publishers/
+          node -e "
+            const [maj, min, patch] = '$NPM_VERSION'.split('.').map(Number);
+            if (maj < 11 || (maj === 11 && (min < 5 || (min === 5 && patch < 1)))) {
+              console.error('npm ' + '$NPM_VERSION' + ' too old — OIDC trusted publishing needs >= 11.5.1');
+              console.error('Node 24.x normally ships npm >= 11.12 — this means Node was downgraded.');
+              process.exit(1);
+            }
+          "
+
+      - name: Download tarball artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: safeword-tarball
+          path: release-artifacts
+
       - name: Publish to npm with provenance via OIDC
         run: |
-          # --ignore-scripts: build + tests already ran above; prepublishOnly
-          # otherwise enforces bun (via npm_config_user_agent), which fails here.
-          # --provenance: cryptographically attest the build came from this
-          # exact workflow run + commit. Auto-enabled with OIDC but explicit.
+          # --ignore-scripts: build already ran in the build job; nothing to do here.
+          # --provenance: cryptographically attest the build came from this exact
+          # workflow run + commit. Auto-enabled with OIDC but explicit.
           # --access public: safeword is a public package.
-          # ./ prefix is REQUIRED — without it, npm parses the path as a
-          # GitHub repo shorthand (release-artifacts/safeword-0.35.0.tgz →
-          # ssh://git@github.com/release-artifacts/safeword-0.35.0.tgz.git)
-          # and tries to git-clone instead of reading the local tarball.
+          # ./ prefix REQUIRED — without it, npm parses the path as a GitHub repo
+          # shorthand and tries to git-clone instead of reading the local tarball.
           npm publish ./release-artifacts/safeword-*.tgz \
             --provenance \
             --access public \
