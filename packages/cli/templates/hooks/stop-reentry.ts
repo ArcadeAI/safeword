@@ -14,6 +14,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { getActiveTicket } from './lib/active-ticket';
+import { resolveProjectRoot } from './lib/re-entry';
 
 interface HookInput {
   session_id?: string;
@@ -96,18 +97,25 @@ async function main(): Promise<void> {
   const { session_id, transcript_path, cwd } = input;
   if (!session_id || !transcript_path || !cwd) return;
 
+  // Claude Code passes input.cwd = the session's current working directory,
+  // which can drift into a subdirectory. Resolve the real project root so we
+  // never write to a stray nested `.safeword-project/`. Bail silently if we
+  // can't find a git repo to anchor to.
+  const projectRoot = resolveProjectRoot(cwd);
+  if (!projectRoot) return;
+
   const assistantText = readLastAssistantText(transcript_path);
   if (!assistantText) return;
 
   const imperative = extractLastNextImperative(assistantText);
   if (!imperative) return;
 
-  const ticketField = resolveTicketField(cwd);
+  const ticketField = resolveTicketField(projectRoot);
 
   const timestamp = new Date().toISOString();
   const line = `${timestamp} ${session_id} ${ticketField} Next: ${imperative}\n`;
 
-  const projectDirectory = join(cwd, '.safeword-project');
+  const projectDirectory = join(projectRoot, '.safeword-project');
   if (!existsSync(projectDirectory)) {
     mkdirSync(projectDirectory, { recursive: true });
   }

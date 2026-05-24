@@ -19,7 +19,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { detectConflictFiles, type Entry, parseLogLine } from './lib/re-entry';
+import { detectConflictFiles, type Entry, parseLogLine, resolveProjectRoot } from './lib/re-entry';
 
 interface HookInput {
   session_id?: string;
@@ -54,7 +54,11 @@ async function main(): Promise<void> {
   const { session_id, cwd, source, transcript_path } = input;
   if (!session_id || !cwd) return;
 
-  const logPath = join(cwd, '.safeword-project', 're-entry.md');
+  // Same cwd-drift defense as stop-reentry: resolve real project root.
+  const projectRoot = resolveProjectRoot(cwd);
+  if (!projectRoot) return;
+
+  const logPath = join(projectRoot, '.safeword-project', 're-entry.md');
   const logExists = existsSync(logPath);
   const content = logExists ? readFileSync(logPath, 'utf8').trim() : '';
 
@@ -72,7 +76,7 @@ async function main(): Promise<void> {
     briefBody = renderBrief([allEntries[allEntries.length - 1]], { fromAnotherSession: true });
   }
 
-  const conflictFiles = detectConflictFiles(cwd, transcript_path);
+  const conflictFiles = detectConflictFiles(projectRoot, transcript_path);
   const conflictWarning = renderConflictWarning(conflictFiles);
 
   // Nothing to inject in either channel → stay silent.

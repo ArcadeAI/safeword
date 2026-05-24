@@ -9,8 +9,8 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
-import { basename, dirname, join, relative } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 
 export interface Entry {
   timestamp: string;
@@ -105,6 +105,34 @@ export function normalizeRelative(filePath: string, cwd: string): string {
     return relative(cwd, filePath);
   }
   return filePath;
+}
+
+/**
+ * Resolve the project root reliably, regardless of where the session's cwd drifted.
+ *
+ * Claude Code passes `input.cwd` = the session's current working directory, which
+ * is not necessarily the project root. Hooks that wrote `join(cwd, '.safeword-project')`
+ * blindly would silently mkdirSync a bogus nested `.safeword-project/` inside whatever
+ * subdir the session happened to be in (e.g. `<root>/.safeword-project/tickets/.safeword-project/`).
+ *
+ * Implementation: walk up from `cwd` looking for a `.git` marker. Pure (no subprocess),
+ * preserves the cwd path form (matters on macOS where `git rev-parse --show-toplevel`
+ * canonicalizes `/var/folders/...` symlinks to `/private/var/folders/...` and breaks
+ * downstream `startsWith` comparisons against absolute paths captured by other code).
+ *
+ * Returns null when no `.git/` ancestor exists — caller bails silently rather than
+ * write to a stray path. Note: we intentionally do NOT match on `.safeword-project/`
+ * during the walk because the bogus nested directories created by the old code would
+ * mislead the resolver.
+ */
+export function resolveProjectRoot(cwd: string): string | null {
+  let current = resolve(cwd);
+  while (true) {
+    if (existsSync(join(current, '.git'))) return current;
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
 }
 
 export function detectConflictFiles(cwd: string, transcriptPath: string | undefined): string[] {
