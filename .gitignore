@@ -13,6 +13,7 @@ examples/
 .safeword-project/quality-state*.json
 .safeword-project/failure-counts.json
 .safeword-project/skill-invocations.log
+.safeword-project/re-entry.md
 packages/*/.safeword/
 packages/*/.safeword-project/
 packages/*/.claude/
