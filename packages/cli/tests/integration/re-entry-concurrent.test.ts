@@ -7,7 +7,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -59,6 +59,8 @@ describe('stop-reentry hook — Rule 3: concurrent writers do not interleave', (
 
   beforeEach(() => {
     projectDirectory = createTemporaryDirectory();
+    // Seed .git so resolveProjectRoot anchors to projectDirectory.
+    mkdirSync(nodePath.join(projectDirectory, '.git'), { recursive: true });
   });
 
   afterEach(() => {

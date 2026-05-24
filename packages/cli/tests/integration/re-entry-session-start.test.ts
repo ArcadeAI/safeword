@@ -50,6 +50,8 @@ describe('session-start-reentry hook — Rule 4: filtered tail', () => {
 
   beforeEach(() => {
     projectDirectory = createTemporaryDirectory();
+    // Seed .git so resolveProjectRoot anchors to projectDirectory.
+    mkdirSync(nodePath.join(projectDirectory, '.git'), { recursive: true });
   });
 
   afterEach(() => {

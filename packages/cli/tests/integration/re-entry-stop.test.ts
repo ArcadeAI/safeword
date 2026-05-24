@@ -51,6 +51,9 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
   beforeEach(() => {
     projectDirectory = createTemporaryDirectory();
+    // Seed a .git marker so resolveProjectRoot anchors to projectDirectory.
+    // Mirrors real-world conditions — safeword hooks run inside git repos.
+    mkdirSync(nodePath.join(projectDirectory, '.git'), { recursive: true });
   });
 
   afterEach(() => {
@@ -181,6 +184,47 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
     expect(lines[0]).toContain('Next: do thing X');
     expect(lines[0]).not.toContain('then also do Y');
+  });
+
+  it('writes to project-root .safeword-project/ even when input.cwd is a subdirectory', () => {
+    // Repro for the nested-`.safeword-project/.safeword-project/` bug: Claude Code
+    // hooks receive input.cwd = the session's current working directory, which can
+    // be a subdirectory if the session has navigated. The hook must resolve the
+    // project root (where .safeword-project/ already lives) rather than join cwd
+    // blindly and silently mkdirSync a bogus nested path.
+    const projectRoot = projectDirectory;
+    // Initialize a fake project: real .safeword-project/ exists at the root, plus
+    // a .git marker so resolveProjectRoot can walk up to find it.
+    mkdirSync(nodePath.join(projectRoot, '.safeword-project'), { recursive: true });
+    mkdirSync(nodePath.join(projectRoot, '.git'), { recursive: true });
+
+    // Session cwd has drifted into a subdirectory.
+    const drifted = nodePath.join(projectRoot, '.safeword-project', 'tickets');
+    mkdirSync(drifted, { recursive: true });
+
+    const transcriptPath = makeTranscript(drifted, 'Done.\n\n**Next:** carry on');
+
+    const result = spawnSync('bun', [STOP_REENTRY], {
+      input: JSON.stringify({
+        session_id: 'sess_drifted_cwd',
+        transcript_path: transcriptPath,
+        cwd: drifted, // ← drifted, not projectRoot
+      }),
+      cwd: drifted,
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    expect(result.status).toBe(0);
+
+    // The log lands at the real project root, not nested inside the subdir.
+    const correctPath = nodePath.join(projectRoot, '.safeword-project', 're-entry.md');
+    expect(existsSync(correctPath)).toBe(true);
+    expect(readFileSync(correctPath, 'utf8')).toContain('sess_drifted_cwd');
+
+    // And no bogus nested .safeword-project/ got materialized under the subdir.
+    const bogus = nodePath.join(drifted, '.safeword-project');
+    expect(existsSync(bogus)).toBe(false);
   });
 
   it('renders ticket=<id>/<phase> when an active ticket exists in this worktree', () => {
