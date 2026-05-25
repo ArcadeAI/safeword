@@ -684,10 +684,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // owned-file overwrite on upgrade is the only other defense. Biome/eslint
     // already exclude .safeword/ via their own configs but don't need .cursor/
     // (JS-only linters; cursor holds .mdc/.md).
+    //
+    // Marker is intentionally specific (not just "# Safeword") to avoid
+    // false-positive skips on customers who happen to have a `# Safeword`
+    // comment for unrelated reasons.
     '.prettierignore': {
       operation: 'append',
-      content: '\n# Safeword\n.safeword/\n.cursor/\n',
-      marker: '# Safeword',
+      content: '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n',
+      marker: '# Safeword - managed prettier exclusions',
     },
   },
 

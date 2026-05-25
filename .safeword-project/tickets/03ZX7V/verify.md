@@ -14,12 +14,18 @@
 
 ### Done-when criteria — all met
 
-1. ✅ Fresh JS project setup produces `.prettierignore` containing `.safeword/` and `.cursor/` — proven by new test `idempotency-block > .prettierignore excludes safeword-owned dirs` in [golden-path.test.ts:165](packages/cli/tests/integration/golden-path.test.ts:165).
-2. ✅ Idempotent on re-run — marker `# Safeword` gates the append (executeTextPatch in [reconcile.ts](packages/cli/src/reconcile.ts) checks `content.includes(definition.marker)` and returns early). The golden-path file's existing "idempotency" describe block runs setup twice; the new assertion runs after the second pass — passes both times.
-3. ✅ Existing customer entries preserved — `operation: 'append'` adds to end; doesn't touch prior content. Same pattern as the proven `.gitignore` patch.
+1. ✅ Fresh JS project setup produces `.prettierignore` containing `.safeword/` and `.cursor/` — proven by `idempotency-block > .prettierignore excludes safeword-owned dirs` in [golden-path.test.ts:165](packages/cli/tests/integration/golden-path.test.ts:165).
+2. ✅ Idempotent on re-run AND customer entries preserved — proven directly by [upgrade-reconcile.test.ts:291](packages/cli/tests/commands/upgrade-reconcile.test.ts:291) ("should preserve customer .prettierignore entries and append idempotently"): writes customer content, runs reconcile twice, asserts customer lines survive, safeword block appended, marker appears exactly once.
+3. ✅ Existing customer entries preserved — see #2 above.
 4. ✅ Reset cleanly unmerges — uses the existing `text-unpatch` action path (same as `.gitignore`).
 5. ✅ `golden-path.test.ts` green — 12/12 in this file.
 6. ✅ Full suite passes — 2003/2004 on full sequential run with 1 transient flake (`sql-golden-path > 4.2: config exists for lint hook to use`, 30s hook timeout in `afterEach` removing temp dir). Re-running that file in isolation: 15/15 green in 108s. Flake is full-run filesystem contention, unrelated to this change (SQL/dbt golden-path test, schema change touches text-patches only).
+
+### Audit + cross-scenario follow-ups (applied in-ticket)
+
+- **Marker specificity.** Bumped from `# Safeword` → `# Safeword - managed prettier exclusions` to eliminate false-positive skips on customers with unrelated `# Safeword` comments. Zero migration risk — change predates first release.
+- **W-test gap closed.** Audit flagged that the existing assertion (`expect(content).toContain('.safeword/')`) didn't directly prove done-when criterion #2 (customer-entry preservation). Added unit test in `upgrade-reconcile.test.ts` using the fast reconcile path (158ms vs. E2E's 20s+) that exercises both preservation and idempotency.
+- **Cross-scenario refactor pass.** No clear wins — 17-line additive change across 2 files, mirrors existing `.gitignore` text-patch shape and adjacent "config files remain valid" test pattern. Recorded as `skip: additive, follows existing patterns, no duplication to extract`.
 
 ### Code surface
 
