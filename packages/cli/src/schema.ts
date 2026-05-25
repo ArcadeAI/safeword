@@ -679,6 +679,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         '\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword-project/quality-state*.json\n',
       marker: '.safeword/.update-cache.json',
     },
+    // Prettier ignores: safeword owns .safeword/ and .cursor/ (see ownedDirs).
+    // Without this, `prettier --write .` would reformat hooks and Cursor rules;
+    // owned-file overwrite on upgrade is the only other defense. Biome/eslint
+    // already exclude .safeword/ via their own configs but don't need .cursor/
+    // (JS-only linters; cursor holds .mdc/.md).
+    '.prettierignore': {
+      operation: 'append',
+      content: '\n# Safeword\n.safeword/\n.cursor/\n',
+      marker: '# Safeword',
+    },
   },
 
   // Content predicate parity — files that must contain specific strings.
