@@ -3,7 +3,6 @@ package-lock.json
 .DS_Store
 dist/
 examples/
-.prettierignore
 .env
 .env.local
 

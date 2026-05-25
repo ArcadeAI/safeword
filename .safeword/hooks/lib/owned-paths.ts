@@ -10,6 +10,7 @@ export const SAFEWORD_PATHS: readonly string[] = [
   '.importlinter',
   '.jscpd.json',
   '.mcp.json',
+  '.prettierignore',
   '.prettierrc',
   '.safeword/',
   '.sqlfluff',
