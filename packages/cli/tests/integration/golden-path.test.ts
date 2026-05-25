@@ -161,6 +161,13 @@ describe('E2E: TypeScript Setup Idempotency', () => {
     expect(fileExists(projectDirectory, '.safeword/eslint.config.mjs')).toBe(true);
     expect(fileExists(projectDirectory, '.safeword/.prettierrc')).toBe(true);
   });
+
+  it('.prettierignore excludes safeword-owned dirs', () => {
+    expect(fileExists(projectDirectory, '.prettierignore')).toBe(true);
+    const content = readTestFile(projectDirectory, '.prettierignore');
+    expect(content).toContain('.safeword/');
+    expect(content).toContain('.cursor/');
+  });
 });
 
 // =============================================================================

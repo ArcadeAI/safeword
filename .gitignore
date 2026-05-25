@@ -4,7 +4,6 @@ package-lock.json
 dist/
 examples/
 .prettierignore
-.prettierrc
 .env
 .env.local
 

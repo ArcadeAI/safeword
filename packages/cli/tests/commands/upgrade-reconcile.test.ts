@@ -287,6 +287,41 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(content).toContain('.safeword/SAFEWORD.md');
       expect(content).toContain('My Project'); // Original content preserved
     });
+
+    it('should preserve customer .prettierignore entries and append idempotently', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+
+      // Customer authored their own .prettierignore before safeword setup
+      const customerContent = 'node_modules\ndist\n# custom: never format these\nfixtures/**\n';
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), customerContent);
+
+      const ctx = createProjectContext(temporaryDirectory);
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const afterFirst = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      // Customer entries preserved
+      expect(afterFirst).toContain('node_modules');
+      expect(afterFirst).toContain('dist');
+      expect(afterFirst).toContain('# custom: never format these');
+      expect(afterFirst).toContain('fixtures/**');
+      // Safeword block appended
+      expect(afterFirst).toContain('# Safeword - managed prettier exclusions');
+      expect(afterFirst).toContain('.safeword/');
+      expect(afterFirst).toContain('.cursor/');
+
+      // Re-run must be idempotent — the marker should appear exactly once
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+      const afterSecond = readFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        'utf8',
+      );
+      const markerCount = afterSecond.split('# Safeword - managed prettier exclusions').length - 1;
+      expect(markerCount).toBe(1);
+    });
   });
 
   describe('upgrade command integration', () => {
