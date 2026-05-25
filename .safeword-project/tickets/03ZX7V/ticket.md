@@ -2,10 +2,10 @@
 id: 03ZX7V
 slug: prettierignore-textpatch
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-25T07:58:41.502Z
-last_modified: 2026-05-25T07:58:41.502Z
+last_modified: 2026-05-25T14:47:00.000Z
 scope:
   - Add `.prettierignore` entry to `SAFEWORD_SCHEMA.textPatches` in `packages/cli/src/schema.ts`.
   - Operation `append`, content `\n# Safeword\n.safeword/\n.cursor/\n`, marker `# Safeword`.
@@ -38,3 +38,5 @@ done_when:
 - 2026-05-25T08:01:00Z GREEN: added `.prettierignore` entry to `SAFEWORD_SCHEMA.textPatches` in [schema.ts:682-691](packages/cli/src/schema.ts:682). Operation `append`, content `\n# Safeword\n.safeword/\n.cursor/\n`, marker `# Safeword`. Verified executeTextPatch ([reconcile.ts](packages/cli/src/reconcile.ts)) creates the file when missing (`readFileSafe ?? ''` then append + write). Verified `shouldSkipForNonGit` only skips husky files — `.prettierignore` is always applied.
 - 2026-05-25T08:02:00Z Rebuilt dist (DTS now also clean — earlier storybook error was a stale-worktree artifact). Golden-path 12/12 green; schema + owned-paths + check-reconcile + upgrade-reconcile + setup-python-phase2 = 78/78 green; install-upgrade 6/6 green. Ready to commit GREEN and run /verify.
 - 2026-05-25T14:10:00Z Audit + cross-scenario refactor pass surfaced two easy ergonomic wins (no scope drift): (1) marker bumped from generic `# Safeword` to `# Safeword - managed prettier exclusions` to eliminate false-positive skips on customers who have unrelated `# Safeword` comments; (2) closed the W-test edge-case gap with a unit test in [upgrade-reconcile.test.ts:291-326](packages/cli/tests/commands/upgrade-reconcile.test.ts:291) that exercises customer-existing-entries-preserved + idempotent re-run via the fast reconcile path (no E2E bun-install). 24/24 green on upgrade-reconcile + golden-path; lint clean.
+- 2026-05-25T14:30:00Z Pushed branch, opened [PR #157](https://github.com/ArcadeAI/safeword/pull/157).
+- 2026-05-25T14:47:00Z CI green (lint 1m31s, test 18m26s). Flipping status → done; merging via squash; cutting v0.35.3 via /versioning next.
