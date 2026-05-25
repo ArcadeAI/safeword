@@ -7,6 +7,14 @@
  * `ls` output. Mint-time collision check rejects any minted ID already in
  * use by an existing folder, regardless of that folder's slug suffix.
  *
+ * Safety layers against duplicate IDs (PR #160 trade-off):
+ *   1. Mint-time: idsAlreadyTaken() — within one working copy, blocks re-mint.
+ *   2. Post-merge: check-ticket-ids.ts (pre-commit + CI) — across branches,
+ *      duplicate `id:` in frontmatter is the loud failure. The previous
+ *      layout (`{ID}/` alone) used identical filesystem paths as an extra
+ *      merge-time conflict layer; the slug suffix breaks that, so detection
+ *      shifts entirely to the post-merge detector.
+ *
  * Mint-collision retry + fresh-install (no tickets dir yet) handled here.
  */
 

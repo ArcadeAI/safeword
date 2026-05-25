@@ -57,6 +57,22 @@ describe('createTicket — EEXIST retry', () => {
     expect(existsSync(nodePath.join(ticketsDirectory, 'BBBBBB-foo', 'ticket.md'))).toBe(true);
   });
 
+  it('retries when an existing folder shares the ID via slug prefix', () => {
+    // Slug-aware collision check (PR #160): an existing `AAAAAA-anything/`
+    // folder must block a new mint of `AAAAAA`, even though `mkdir` of the
+    // new folder name would succeed. The ID is the unique key — slug suffix
+    // is for legibility only.
+    const ticketsDirectory = ticketsSubpath(cwd);
+    mkdirSync(nodePath.join(ticketsDirectory, 'AAAAAA-legacy-slug'), { recursive: true });
+
+    const minter = sequenceMinter(['AAAAAA', 'BBBBBB']);
+    const result = createTicket(cwd, minter, { slug: 'new-slug' });
+
+    expect(result.id).toBe('BBBBBB');
+    expect(existsSync(nodePath.join(ticketsDirectory, 'BBBBBB-new-slug', 'ticket.md'))).toBe(true);
+    expect(existsSync(nodePath.join(ticketsDirectory, 'AAAAAA-new-slug'))).toBe(false);
+  });
+
   it('succeeds within the retry budget after N-1 collisions', () => {
     const ticketsDirectory = ticketsSubpath(cwd);
     for (const id of ['AAAAAA', 'BBBBBB', 'CCCCCC', 'DDDDDD']) {
