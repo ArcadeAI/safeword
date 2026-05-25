@@ -54,7 +54,7 @@ describe('createTicket — EEXIST retry', () => {
     const result = createTicket(cwd, minter, { slug: 'foo' });
 
     expect(result.id).toBe('BBBBBB');
-    expect(existsSync(nodePath.join(ticketsDirectory, 'BBBBBB', 'ticket.md'))).toBe(true);
+    expect(existsSync(nodePath.join(ticketsDirectory, 'BBBBBB-foo', 'ticket.md'))).toBe(true);
   });
 
   it('succeeds within the retry budget after N-1 collisions', () => {
@@ -114,6 +114,8 @@ describe('createTicket — fresh install', () => {
     const result = createTicket(cwd, minter, { slug: 'kickoff' });
 
     expect(result.id).toBe('FIRSTT');
-    expect(existsSync(nodePath.join(ticketsSubpath(cwd), 'FIRSTT', 'ticket.md'))).toBe(true);
+    expect(existsSync(nodePath.join(ticketsSubpath(cwd), 'FIRSTT-kickoff', 'ticket.md'))).toBe(
+      true,
+    );
   });
 });
