@@ -8,5 +8,7 @@
   "useTabs": false,
   "bracketSpacing": true,
   "arrowParens": "avoid",
-  "plugins": ["prettier-plugin-sh"]
+  "plugins": [
+    "prettier-plugin-sh"
+  ]
 }
