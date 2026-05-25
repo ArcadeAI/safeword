@@ -2,10 +2,10 @@
 id: 2GPM47
 slug: setup-wrapper-discoverability
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-05-25T22:50:33.502Z
-last_modified: 2026-05-25T22:50:33.502Z
+last_modified: 2026-05-25T22:58:00.000Z
 scope:
   - When `safeword setup` creates `.dependency-cruiser.cjs` at the repo root for the first time, emit a one-line explainer that tells the customer (a) what the file is, (b) that it extends the auto-generated rules in `.safeword/depcruise-config.cjs`, and (c) that they can edit it to add custom rules.
   - Trigger only when `syncResult.createdMainConfig === true` (i.e., setup actually created it this run). Skip the explainer when the wrapper already existed — that customer already knows.
@@ -46,3 +46,6 @@ Two-space indent so it visually nests under the "created files" line. Verb-led f
 ## Work Log
 
 - 2026-05-25T22:50:33.502Z Started: Created ticket 2GPM47 as follow-up from /figure-it-out validating setup-time wrapper write (option A). Single-file, single-behavior change. Phase: intake — scope/out-of-scope/done-when locked, ready for TDD when picked up.
+- 2026-05-25T22:57:00Z RED: added Test 6.5 (explainer present on new wrapper) + Test 6.6 (explainer absent + custom wrapper preserved when preexisting). Test 6.5 failed as expected; Test 6.6 trivially passed (no string anywhere yet).
+- 2026-05-25T22:57:30Z GREEN: added `info()` call at `setup.ts:331-333` gated on `syncResult.createdMainConfig`. 7/7 setup-architecture tests pass. Regression check on sync-config.test.ts: 10/10 still green.
+- 2026-05-25T22:58:00Z Verify artifact written. All done-when criteria met. Ready to commit.
