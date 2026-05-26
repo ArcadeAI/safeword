@@ -18,6 +18,7 @@ import {
   derivePersonaCode,
   isValidPersonaCode,
   isValidPersonaName,
+  lookupPersonaReference,
   parsePersonas,
   PERSONA_CODE_PATTERN,
   resolvePersonaCodes,
@@ -335,19 +336,19 @@ describe('validatePersonas', () => {
   it('headerless block (empty name) produces missing-name error', () => {
     const content = '## (PO)\n**Role:** A\n';
     const errors = validatePersonas(parsePersonas(content));
-    expect(errors.some(e => e.message.includes('missing persona name'))).toBe(true);
+    expect(errors.some(error => error.message.includes('missing persona name'))).toBe(true);
   });
 
   it('single-character name produces minimum-length error', () => {
     const content = '## A\n**Role:** A\n';
     const errors = validatePersonas(parsePersonas(content));
-    expect(errors.some(e => e.message.includes('at least 2 characters'))).toBe(true);
+    expect(errors.some(error => error.message.includes('at least 2 characters'))).toBe(true);
   });
 
   it('missing Role line produces missing-role error', () => {
     const content = '## Platform Operator (PO)\n\nNo role here.\n';
     const errors = validatePersonas(parsePersonas(content));
-    expect(errors.some(e => e.message.includes('missing Role'))).toBe(true);
+    expect(errors.some(error => error.message.includes('missing Role'))).toBe(true);
   });
 
   it('duplicate explicit codes produce duplicate-code errors with both lines', () => {
@@ -359,7 +360,7 @@ describe('validatePersonas', () => {
       '**Role:** B',
     ].join('\n');
     const errors = validatePersonas(parsePersonas(content));
-    const duplicates = errors.filter(e => e.message.includes('duplicate persona code'));
+    const duplicates = errors.filter(error => error.message.includes('duplicate persona code'));
     expect(duplicates).toHaveLength(2);
     expect(duplicates[0]?.message).toContain('EU');
   });
@@ -373,14 +374,14 @@ describe('validatePersonas', () => {
       '**Role:** B',
     ].join('\n');
     const errors = validatePersonas(parsePersonas(content));
-    const duplicates = errors.filter(e => e.message.includes('duplicate persona name'));
+    const duplicates = errors.filter(error => error.message.includes('duplicate persona name'));
     expect(duplicates).toHaveLength(2);
   });
 
   it('explicit code violating pattern (lowercase) produces pattern error', () => {
     const content = '## Platform Operator (po)\n**Role:** A\n';
     const errors = validatePersonas(parsePersonas(content));
-    expect(errors.some(e => e.message.includes('violates pattern'))).toBe(true);
+    expect(errors.some(error => error.message.includes('violates pattern'))).toBe(true);
   });
 
   it('digit-first name surfaces explicit-override prompt', () => {
@@ -388,8 +389,9 @@ describe('validatePersonas', () => {
     const errors = validatePersonas(parsePersonas(content));
     expect(
       errors.some(
-        e =>
-          e.message.includes('non-conformant code') && e.message.includes('author explicit code'),
+        error =>
+          error.message.includes('non-conformant code') &&
+          error.message.includes('author explicit code'),
       ),
     ).toBe(true);
   });
@@ -398,6 +400,65 @@ describe('validatePersonas', () => {
     // When user authors `## 3 Amigos (THREE)`, explicit code is valid → no error
     const content = '## 3 Amigos (THREE)\n**Role:** A\n';
     const errors = validatePersonas(parsePersonas(content));
-    expect(errors.some(e => e.message.includes('non-conformant'))).toBe(false);
+    expect(errors.some(error => error.message.includes('non-conformant'))).toBe(false);
+  });
+});
+
+function buildResolvedFixture(content: string) {
+  return resolvePersonaCodes(parsePersonas(content));
+}
+
+describe('lookupPersonaReference', () => {
+  const fixture = buildResolvedFixture(
+    ['## Platform Operator (PO)', '**Role:** A', '', '## End User (EU)', '**Role:** B'].join('\n'),
+  );
+
+  it('matches by exact code returns valid with match', () => {
+    const result = lookupPersonaReference(fixture, 'PO');
+    expect(result.status).toBe('valid');
+    expect(result.match?.code).toBe('PO');
+    expect(result.match?.name).toBe('Platform Operator');
+  });
+
+  it('matches by exact full name returns valid with match', () => {
+    const result = lookupPersonaReference(fixture, 'Platform Operator');
+    expect(result.status).toBe('valid');
+    expect(result.match?.code).toBe('PO');
+  });
+
+  it('casing mismatch on code returns unknown with suggestion', () => {
+    const result = lookupPersonaReference(fixture, 'po');
+    expect(result.status).toBe('unknown');
+    expect(result.suggestion).toBe('PO');
+  });
+
+  it('casing mismatch on name returns unknown with suggestion (the name)', () => {
+    const result = lookupPersonaReference(fixture, 'platform operator');
+    expect(result.status).toBe('unknown');
+    expect(result.suggestion).toBe('Platform Operator');
+  });
+
+  it('unknown identifier returns unknown without suggestion', () => {
+    const result = lookupPersonaReference(fixture, 'AdminUser');
+    expect(result.status).toBe('unknown');
+    expect(result.suggestion).toBeUndefined();
+  });
+
+  it('empty input returns unknown without suggestion', () => {
+    const result = lookupPersonaReference(fixture, '');
+    expect(result.status).toBe('unknown');
+    expect(result.suggestion).toBeUndefined();
+  });
+
+  it('lookup against empty list returns unknown', () => {
+    const result = lookupPersonaReference([], 'PO');
+    expect(result.status).toBe('unknown');
+  });
+
+  it('exact code match wins over casing-suggestion match for a different persona', () => {
+    // If "PO" exists and "po" is queried, suggestion should be "PO" (not aliasing to a different persona)
+    const result = lookupPersonaReference(fixture, 'eu');
+    expect(result.status).toBe('unknown');
+    expect(result.suggestion).toBe('EU');
   });
 });

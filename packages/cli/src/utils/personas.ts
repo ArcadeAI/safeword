@@ -16,6 +16,9 @@
  * See ticket 7YN5QB for the full spec.
  */
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 /** Maximum length of a derived short code (overflow is truncated silently). */
 const MAX_CODE_LENGTH = 6;
 /** Minimum persona name length — single-char names are rejected at validation. */
@@ -285,4 +288,75 @@ export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValid
       'persona code',
     ),
   ];
+}
+
+/** Result of resolving a persona reference against the file. */
+export interface PersonaReferenceResult {
+  status: 'valid' | 'unknown';
+  /** Populated when `status === 'valid'`. */
+  match?: ResolvedPersona;
+  /** Populated when status is `'unknown'` and a casing-mismatch was detected. */
+  suggestion?: string;
+}
+
+/** Path of personas.md relative to the project root. */
+export const PERSONAS_FILE_SUBPATH = ['.safeword-project', 'personas.md'];
+
+/**
+ * Look up a persona reference against a parsed-and-resolved list.
+ *
+ * Strict on casing: `"po"` against existing `PO` returns
+ * `{ status: 'unknown', suggestion: 'PO' }`. Lenient matching would
+ * silently alias persona codes that legitimately differ by case
+ * (`PO` vs `Po` vs `PO2`).
+ *
+ * Match priority: exact code → exact name → casing-mismatch suggestion.
+ *
+ * Pure — no I/O. Wrap with {@link validatePersonaReference} for the file-reading
+ * path.
+ */
+export function lookupPersonaReference(
+  personas: readonly ResolvedPersona[],
+  input: string,
+): PersonaReferenceResult {
+  if (input.length === 0) return { status: 'unknown' };
+
+  for (const persona of personas) {
+    if (persona.code === input || persona.name === input) {
+      return { status: 'valid', match: persona };
+    }
+  }
+
+  // Casing-mismatch detection — search again with lowercase comparison.
+  const lowered = input.toLowerCase();
+  for (const persona of personas) {
+    if (persona.code.toLowerCase() === lowered) {
+      return { status: 'unknown', suggestion: persona.code };
+    }
+    if (persona.name.toLowerCase() === lowered) {
+      return { status: 'unknown', suggestion: persona.name };
+    }
+  }
+
+  return { status: 'unknown' };
+}
+
+/**
+ * Resolve a persona reference against the on-disk `.safeword-project/personas.md`.
+ *
+ * Degrades gracefully on a missing or unreadable file — returns
+ * `{ status: 'unknown' }` rather than throwing. Strict validation lives
+ * in `safeword check`; this lookup API is meant to be cheap, consistent,
+ * and side-effect-free.
+ */
+export function validatePersonaReference(cwd: string, input: string): PersonaReferenceResult {
+  let content: string;
+  try {
+    const filePath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+    content = readFileSync(filePath, 'utf8');
+  } catch {
+    return { status: 'unknown' };
+  }
+  const personas = resolvePersonaCodes(parsePersonas(content));
+  return lookupPersonaReference(personas, input);
 }
