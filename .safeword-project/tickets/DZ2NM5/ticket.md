@@ -31,6 +31,7 @@ last_modified: 2026-05-26T03:39:00.000Z
 | **31W8M3** | Add Acceptance Criteria layer between JTBD and scenarios                   | T9BNXD      | Open   | Y2HCNJ     |
 | **XT1FFM** | Adopt `slug.persona.AC.scenario` numbering for traceability                | QEKGBK      | Open   | 31W8M3     |
 | **B0JZQN** | Add structured user-signoff gates between Phase 0 sub-phases               | FFRPSC      | Open   | —          |
+| **K7N2QM** | Configurable paths for personas / glossary / architecture (per-file)       | —           | Open   | 7YN5QB     |
 | **1J6JKP** | Lint hook hygiene — prettier config detection + scope biome to edited path | —           | Open   | —          |
 
 **Note on 1J6JKP:** Not a Phase-0-merge sub-task — both fixes are unrelated to bdd or the product layer. Filed as a child of this epic because the bugs surfaced during this session's dogfooding work and the user prefers using this epic as the holding pen for safeword improvements discovered along the way. No arcade pair needed — `bunx safeword upgrade` picks up both fixes automatically.
@@ -48,6 +49,7 @@ last_modified: 2026-05-26T03:39:00.000Z
 3. **31W8M3** — depends on Y2HCNJ (ACs live under JTBDs).
 4. **XT1FFM** — depends on 31W8M3 (numbering scheme references AC).
 5. **B0JZQN** — independent conversational-pattern change; can ship anytime in parallel.
+6. **K7N2QM** — depends on 7YN5QB (refactors `validatePersonaReference` to read configured path); ships after personas but before YR6C49/Y2HCNJ if order matters (so glossary/JTBD inherit the configurable-path pattern from day one).
 
 ## Decisions required before execution
 
