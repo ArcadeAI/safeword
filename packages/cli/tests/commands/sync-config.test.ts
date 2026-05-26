@@ -135,4 +135,62 @@ describe('Sync Config Command', () => {
       expect(config).toContain('packages-cannot-import-apps');
     });
   });
+
+  describe('Test 2.7: --check exits 0 and writes nothing when in sync', () => {
+    it('should not modify .safeword/depcruise-config.cjs when on-disk matches generated', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      await runCli(['sync-config'], { cwd: temporaryDirectory });
+
+      const before = readTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs');
+
+      const result = await runCli(['sync-config', '--check'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const after = readTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs');
+      expect(after).toBe(before);
+    });
+  });
+
+  describe('Test 2.8: --check exits non-zero and writes nothing when drifted', () => {
+    it('should report drift and leave the existing file untouched', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      await runCli(['sync-config'], { cwd: temporaryDirectory });
+
+      // Simulate drift: customer's committed config diverged from what would be generated
+      const driftedContent = '// drifted - not what generator would produce\nmodule.exports = {};';
+      writeTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs', driftedContent);
+
+      const result = await runCli(['sync-config', '--check'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stdout + result.stderr).toMatch(/sync-config/);
+      const after = readTestFile(temporaryDirectory, '.safeword/depcruise-config.cjs');
+      expect(after).toBe(driftedContent);
+    });
+  });
+
+  describe('Test 2.9: --check exits non-zero and writes nothing when on-disk missing', () => {
+    it('should report drift without creating the file', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // createConfiguredProject doesn't trigger setup's arch-gated write,
+      // so the generated config doesn't exist yet
+      expect(fileExists(temporaryDirectory, '.safeword/depcruise-config.cjs')).toBe(false);
+
+      const result = await runCli(['sync-config', '--check'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).not.toBe(0);
+      expect(fileExists(temporaryDirectory, '.safeword/depcruise-config.cjs')).toBe(false);
+    });
+  });
+
+  describe('Test 2.10: --check does not create .dependency-cruiser.cjs even when missing', () => {
+    it('should leave the wrapper file alone in check mode', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      expect(fileExists(temporaryDirectory, '.dependency-cruiser.cjs')).toBe(false);
+
+      await runCli(['sync-config', '--check'], { cwd: temporaryDirectory });
+
+      expect(fileExists(temporaryDirectory, '.dependency-cruiser.cjs')).toBe(false);
+    });
+  });
 });

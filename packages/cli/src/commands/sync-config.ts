@@ -1,10 +1,11 @@
 /**
  * Sync Config command - Regenerate depcruise config from current project structure
  *
- * Used by `/audit` slash command to refresh config before running checks.
+ * Default mode writes config to disk. `--check` mode reports drift without writing —
+ * used by `/audit` to detect stale config without polluting the working tree.
  */
 
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { detectArchitecture } from '../utils/boundaries.js';
@@ -68,10 +69,28 @@ export function hasArchitectureDetected(arch: DepCruiseArchitecture): boolean {
 }
 
 /**
+ * Check if generated config matches on-disk content. No writes.
+ * Returns { matches: true } when bytes are byte-equal.
+ * Returns { matches: false, reason } when on-disk is missing or differs.
+ */
+function checkConfig(
+  cwd: string,
+  arch: DepCruiseArchitecture,
+): { matches: true } | { matches: false; reason: 'missing' | 'drifted' } {
+  const generatedConfigPath = nodePath.join(cwd, '.safeword', 'depcruise-config.cjs');
+  if (!exists(generatedConfigPath)) {
+    return { matches: false, reason: 'missing' };
+  }
+  const generated = generateDepCruiseConfigFile(arch);
+  const onDisk = readFileSync(generatedConfigPath, 'utf8');
+  return generated === onDisk ? { matches: true } : { matches: false, reason: 'drifted' };
+}
+
+/**
  * CLI command: Sync depcruise config with current project structure
  */
 
-export async function syncConfig(): Promise<void> {
+export async function syncConfig(options: { check?: boolean } = {}): Promise<void> {
   // Public CLI command contract is Promise<void>; body is sync today but the
   // signature reserves room for async I/O. Token await keeps the contract honest.
   await Promise.resolve();
@@ -84,8 +103,22 @@ export async function syncConfig(): Promise<void> {
     process.exit(1);
   }
 
-  // Detect current architecture and workspaces
   const arch = buildArchitecture(cwd);
+
+  if (options.check) {
+    const result = checkConfig(cwd, arch);
+    if (result.matches) {
+      success('Config in sync');
+      return;
+    }
+    const message =
+      result.reason === 'missing'
+        ? 'Missing .safeword/depcruise-config.cjs — run `safeword sync-config` to generate it.'
+        : 'Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh.';
+    error(message);
+    process.exit(1);
+  }
+
   const result = syncConfigCore(cwd, arch);
 
   if (result.generatedConfig) {

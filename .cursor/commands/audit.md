@@ -23,11 +23,12 @@ This skill is required at the done-gate (ticket 147). The line below appends a s
 cd "$CLAUDE_PROJECT_DIR" || exit 1
 
 # =========================================================================
-# REFRESH CONFIG (detect current architecture)
+# DETECT CONFIG DRIFT (read-only — no writes)
 # =========================================================================
 
-# 0. Regenerate depcruise config from current project structure
-bunx safeword@latest sync-config 2>&1 || true
+# 0. Compare generated vs on-disk depcruise config. Non-zero exit = drift.
+#    /audit must never mutate the working tree; surface stale config as W007.
+bunx safeword@latest sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
 
 # =========================================================================
 # ARCHITECTURE CHECKS (circular deps, layer violations)
@@ -240,6 +241,7 @@ Report findings by severity with codes:
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
 - [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
+- [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
 
 ### Code Quality
 
