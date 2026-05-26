@@ -1,0 +1,23 @@
+# Dimensions: 7YN5QB — personas.md + Phase 0 validation
+
+Derived from `done_when` + scope + domain knowledge of safeword's setup/check command surfaces and the convention-over-configuration derivation rule resolved in intake.
+
+| Dimension                                  | Partitions                                                                                                                                                                                                                             |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup scaffolding state                    | personas.md absent (scaffold from template); personas.md present empty/header-only (no-op); personas.md present with user content (preserve content verbatim)                                                                          |
+| Name shape for auto-derivation             | multi-word 2 ("Platform Operator" → PO); multi-word 3+ ("Site Reliability Engineer" → SRE); single-word regular ("Auditor" → AU); single-word ≤2 chars ("Al"); name with non-alpha ("Bob's Burger" → BB); leading/trailing whitespace  |
+| Code collision state                       | no collision (fresh code); single collision (PO taken → PO2); chain collision (PO + PO2 taken → PO3); collision against user-authored explicit code (auto-derived loses, gets suffix)                                                  |
+| User override path                         | explicit code valid (`## Name (PLATOPS)`); explicit code malformed (`(bad)` lowercase, `(2P)` leading digit, `(TOOLONGCODE)`); explicit code collides with existing code; explicit code matches pattern                                |
+| File validation outcome (`safeword check`) | well-formed file (passes); duplicate codes (exits non-zero with line ref); code violates pattern (exits non-zero with line ref); missing Role line (exits non-zero with line ref); block header has no name (exits non-zero)           |
+| validatePersonaRef input                   | matches by code (returns valid + match); matches by full name (returns valid + match); casing mismatch on code (returns unknown + suggestion); unknown identifier (returns unknown, no suggestion); empty/null input (returns unknown) |
+| Empty-file behavior at Phase 0             | file absent entirely (scaffold prompt); file present, zero persona blocks parsed (soft prompt "empty — add now or proceed without"); file present with one+ persona blocks (proceed normally)                                          |
+| Schema registration surface                | `safeword diff` shows scaffolded personas.md as managed-but-user-owned; `safeword reset` reverts to scaffold (user-content lost — destructive operation, requires confirmation per existing reset semantics)                           |
+
+## Notes
+
+- **Agent-loop behaviors out of scope for vitest:** "Agent surfaces soft prompt on empty file" and "Agent loads personas.md into context at Phase 0 start" are bdd-skill content behaviors, not testable directly via vitest. Coverage for those lives in skill-instruction prose + manual smoke testing during epic-level integration (DZ2NM5 worked-example walkthrough). They appear in done_when but not as scenarios here.
+- **Derivation is pure** — the algorithm (name → code) is a unit-testable function with no I/O. The same algorithm is invoked by both the auto-derive-on-save flow and a hypothetical CLI command later. Test the function directly; the integration test verifies it's wired into the save path.
+- **Collision logic is stateful** — depends on what's already in personas.md. Tested by constructing input fixtures with pre-existing codes and asserting the next-available choice.
+- **`safeword reset` semantics inherited** — this ticket doesn't change `safeword reset` behavior. Personas.md is destructive-revertable like any other managed-but-user-owned file. Out-of-scope to re-litigate reset semantics here.
+- **Card-ratio self-check:** 5 rules emerge (Scaffolding, Derivation, Collision, Validation, Lookup), ~15-18 scenarios across them. Rules-to-scenarios ratio ~1:3, within healthy bounds (every rule has ≥2 examples; no rule has zero scenarios).
+- **Open question:** how strict should "casing mismatch" suggestion be? If user passes `"po"` to `validatePersonaRef`, return unknown + suggest `PO`, or return valid with a warning? Lean unknown+suggest — strict matching avoids accidental cross-persona confusion when persona codes happen to look similar (`PO`, `Po`, `PO2`). Resolve during scenario authoring.
