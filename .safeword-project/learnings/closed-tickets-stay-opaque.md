@@ -1,6 +1,6 @@
 # Closed tickets stay opaque
 
-**Covers:** ticket folder retrofits, mass-renames, `.safeword-project/tickets/completed/`, scope of legibility changes.
+Covers: ticket folder retrofits, mass-renames, `.safeword-project/tickets/completed/`, scope of legibility changes.
 
 ## Decision
 

@@ -4,10 +4,11 @@
 
 **Test Suite:** ✓ 2005/2005 tests pass (1 skipped, 115/115 files, 0 failures)
 **Build:** ✅ Success (tsup, DTS build 1.5s)
-**Lint:** ❌ 3 errors — all in pre-existing untouched files (`tests/integration/re-entry-concurrent.test.ts:99`, `tests/integration/re-entry-stop.test.ts:126`, `tests/schema.test.ts:103`). CI lint passes on the same files; local-vs-CI eslint config drift, unrelated to this change.
+**Lint:** ✅ Clean on the canonical CI invocation (root `eslint . && tsc --noEmit`). Local `bun run lint` from `packages/cli/` still flags 3 pre-existing errors in untouched files — tracked in [54XH90-lint-config-unify](../54XH90-lint-config-unify/ticket.md).
 **Scenarios:** All 4 scenarios marked complete (12/12 sub-checkboxes)
 **Dep Drift:** ✅ Clean (flagged drift is all eslint plugins — tooling, not architectural per /verify rules)
 **Parent Epic:** N/A
+**Audit:** Audit passed — 0 errors, 0 warnings. Depcruise clean (223 modules), knip clean, jscpd 2.09% (below threshold), 2 low-risk patch bumps + 2 deferred major bumps (eslint v10 already in ticket 099).
 
 ## Provenance note
 
