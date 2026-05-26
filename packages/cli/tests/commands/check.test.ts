@@ -178,4 +178,105 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.stdout).not.toMatch(/pack.*not installed/i);
     });
   });
+
+  describe('personas.md validation (ticket 7YN5QB)', () => {
+    it('reports validation errors with line refs and exits non-zero', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Write a malformed personas.md — duplicate code on two blocks.
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/personas.md',
+        ['## End User (EU)', '**Role:** A', '', '## Engineering Unit (EU)', '**Role:** B', ''].join(
+          '\n',
+        ),
+      );
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas\.md:\d+:.*duplicate persona code/);
+    });
+
+    it('reports single-character-name error with line ref', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/personas.md',
+        ['## A', '**Role:** Too short.', ''].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+    });
+
+    it('reports digit-first-name with explicit-override prompt', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/personas.md',
+        ['## 3 Amigos', '**Role:** Pathological name.', ''].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/non-conformant code/);
+      expect(result.stderr).toMatch(/author explicit code/);
+    });
+
+    it('passes when personas.md is well-formed', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/personas.md',
+        [
+          '## Platform Operator (PO)',
+          '**Role:** Owns infra.',
+          '',
+          '## End User (EU)',
+          '**Role:** Signs in.',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.stderr).not.toMatch(/personas\.md:/);
+    });
+
+    it('scaffolded-but-empty personas.md (template comment only) produces no errors', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // createConfiguredProject scaffolds personas.md from the template;
+      // it contains an HTML-commented example block but no real persona
+      // entries. Should produce no validation errors.
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.stderr).not.toMatch(/personas\.md:/);
+    });
+
+    it('treats missing personas.md as absent (no error)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Delete the scaffolded personas.md to exercise the absent path.
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.stderr).not.toMatch(/personas\.md:/);
+    });
+  });
 });

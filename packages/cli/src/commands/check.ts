@@ -12,6 +12,7 @@ import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
+import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
 import { isNewerVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
@@ -32,6 +33,21 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
     }
   }
   return issues;
+}
+
+/**
+ * Validate `.safeword-project/personas.md` when present. Returns one issue
+ * string per persona validation error, formatted as
+ * `personas.md:LINE: MESSAGE` for compiler-style readability. Returns an
+ * empty array when the file is absent (not an error — the scaffold is
+ * optional until JTBDs reference personas).
+ */
+function findPersonaIssues(cwd: string): string[] {
+  const filePath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+  const content = readFileSafe(filePath);
+  if (content === undefined) return [];
+  const errors = validatePersonas(parsePersonas(content));
+  return errors.map(error => `personas.md:${error.line}: ${error.message}`);
 }
 
 /**
@@ -141,6 +157,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
   const issues: string[] = [
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
+    ...findPersonaIssues(cwd),
   ];
 
   // Check for missing .claude/settings.json

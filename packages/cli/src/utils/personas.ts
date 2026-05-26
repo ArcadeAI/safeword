@@ -131,12 +131,51 @@ function parseHeaderLine(line: string): { name: string; rawCode: string | undefi
  *
  * Pure — no I/O.
  */
+/**
+ * Mask out lines that live inside HTML comments or triple-backtick code
+ * fences — those are documentation, not real persona blocks. Returns an
+ * array of (line | null) matching the input length so line numbers stay
+ * stable through subsequent parsing.
+ */
+/**
+ * Compute a boolean[] where `true` means "skip this line during parsing"
+ * because it lives inside an HTML comment block or a triple-backtick code
+ * fence. The skip array has the same length as the input so callers can
+ * use the line index directly as a 1-indexed line number.
+ */
+function computeSkipMask(lines: readonly string[]): boolean[] {
+  const skip: boolean[] = [];
+  let insideComment = false;
+  let insideCodeFence = false;
+  for (const line of lines) {
+    if (line.trimStart().startsWith('```')) {
+      skip.push(true);
+      insideCodeFence = !insideCodeFence;
+      continue;
+    }
+    if (insideCodeFence) {
+      skip.push(true);
+      continue;
+    }
+    if (line.includes('<!--')) insideComment = true;
+    if (insideComment) {
+      skip.push(true);
+      if (line.includes('-->')) insideComment = false;
+      continue;
+    }
+    skip.push(false);
+  }
+  return skip;
+}
+
 export function parsePersonas(content: string): ParsedPersona[] {
   const lines = content.split('\n');
+  const skip = computeSkipMask(lines);
   const personas: ParsedPersona[] = [];
   let current: ParsedPersona | undefined;
 
   for (const [index, line] of lines.entries()) {
+    if (skip[index]) continue;
     const header = parseHeaderLine(line);
     if (header) {
       if (current) personas.push(current);
@@ -149,7 +188,6 @@ export function parsePersonas(content: string): ParsedPersona[] {
       };
       continue;
     }
-
     if (current && line.startsWith('**Role:**')) {
       current.hasRole = true;
     }
