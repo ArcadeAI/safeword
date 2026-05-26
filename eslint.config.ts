@@ -64,29 +64,12 @@ export default defineConfig([
     },
   },
 
-  // CLI tests overrides (includes co-located unit tests in src/)
-  {
-    name: 'cli-tests-override',
-    files: ['packages/cli/tests/**/*.ts', 'packages/cli/src/**/*.test.ts'],
-    rules: {
-      'sonarjs/no-unused-vars': 'off',
-      'sonarjs/no-dead-store': 'off',
-      'sonarjs/unused-import': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      'sonarjs/slow-regex': 'off',
-      'security/detect-unsafe-regex': 'off',
-      'sonarjs/assertions-in-tests': 'off',
-      'sonarjs/no-nested-functions': 'off',
-      'unicorn/consistent-function-scoping': 'off',
-      'sonarjs/publicly-writable-directories': 'off',
-      'sonarjs/no-alphabetical-sort': 'off',
-      'regexp/no-dupe-disjunctions': 'off',
-      // Test helpers often use callback references
-      'unicorn/no-array-callback-reference': 'off',
-      // Raise threshold for tests (base.ts uses max:3, too strict for test patterns)
-      'max-nested-callbacks': ['error', { max: 6 }],
-    },
-  },
+  // Test-file overrides now live in safeword.configs.vitest (the shipped
+  // preset) — files matching **/*.test.{ts,tsx,js,jsx}, **/*.spec.{ts,...},
+  // **/tests/**/*.{ts,...}, **/e2e/**/*.{ts,...} get the laxer rule set.
+  // Removed the old `cli-tests-override` block (was: rule set duplicated
+  // here that wasn't reaching the workspace-level eslint.config.ts);
+  // promoting into the preset closes that drift permanently.
 
   // ESLint RuleTester files - use dynamic test generation
   {
