@@ -14,6 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import type { PersonaReferenceResult } from './personas.js';
 import {
   derivePersonaCode,
   isValidPersonaCode,
@@ -24,6 +25,14 @@ import {
   resolvePersonaCodes,
   validatePersonas,
 } from './personas.js';
+
+/** Type-narrowing helper for the discriminated PersonaReferenceResult union. */
+function assertStatus<S extends PersonaReferenceResult['status']>(
+  result: PersonaReferenceResult,
+  status: S,
+): asserts result is Extract<PersonaReferenceResult, { status: S }> {
+  expect(result.status).toBe(status);
+}
 
 describe('derivePersonaCode', () => {
   describe('multi-word names use first-letter-of-each-word', () => {
@@ -442,38 +451,38 @@ describe('lookupPersonaReference', () => {
 
   it('matches by exact code returns valid with match', () => {
     const result = lookupPersonaReference(fixture, 'PO');
-    expect(result.status).toBe('valid');
-    expect(result.match?.code).toBe('PO');
-    expect(result.match?.name).toBe('Platform Operator');
+    assertStatus(result, 'valid');
+    expect(result.match.code).toBe('PO');
+    expect(result.match.name).toBe('Platform Operator');
   });
 
   it('matches by exact full name returns valid with match', () => {
     const result = lookupPersonaReference(fixture, 'Platform Operator');
-    expect(result.status).toBe('valid');
-    expect(result.match?.code).toBe('PO');
+    assertStatus(result, 'valid');
+    expect(result.match.code).toBe('PO');
   });
 
   it('casing mismatch on code returns unknown with suggestion', () => {
     const result = lookupPersonaReference(fixture, 'po');
-    expect(result.status).toBe('unknown');
+    assertStatus(result, 'unknown');
     expect(result.suggestion).toBe('PO');
   });
 
   it('casing mismatch on name returns unknown with suggestion (the name)', () => {
     const result = lookupPersonaReference(fixture, 'platform operator');
-    expect(result.status).toBe('unknown');
+    assertStatus(result, 'unknown');
     expect(result.suggestion).toBe('Platform Operator');
   });
 
   it('unknown identifier returns unknown without suggestion', () => {
     const result = lookupPersonaReference(fixture, 'AdminUser');
-    expect(result.status).toBe('unknown');
+    assertStatus(result, 'unknown');
     expect(result.suggestion).toBeUndefined();
   });
 
   it('empty input returns unknown without suggestion', () => {
     const result = lookupPersonaReference(fixture, '');
-    expect(result.status).toBe('unknown');
+    assertStatus(result, 'unknown');
     expect(result.suggestion).toBeUndefined();
   });
 
@@ -485,7 +494,7 @@ describe('lookupPersonaReference', () => {
   it('exact code match wins over casing-suggestion match for a different persona', () => {
     // If "PO" exists and "po" is queried, suggestion should be "PO" (not aliasing to a different persona)
     const result = lookupPersonaReference(fixture, 'eu');
-    expect(result.status).toBe('unknown');
+    assertStatus(result, 'unknown');
     expect(result.suggestion).toBe('EU');
   });
 });

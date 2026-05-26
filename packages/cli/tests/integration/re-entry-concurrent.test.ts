@@ -95,9 +95,15 @@ describe('stop-reentry hook — Rule 3: concurrent writers do not interleave', (
     // Each line is well-formed: canonical shape with ISO timestamp, session_id,
     // ticket field, and Next: imperative — no garbled mid-content.
     for (const line of lines) {
-      expect(line).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z sess_\S+ ticket=\S+ Next: /,
-      );
+      // Split-and-assert rather than one big regex — keeps each piece simple,
+      // makes failures easier to read, and dodges the unsafe-regex linter
+      // false-positive that the chained-bounded-quantifier form trips.
+      const [timestamp, sessionField, ticketField, ...rest] = line.split(' ');
+      expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(timestamp?.endsWith('Z')).toBe(true);
+      expect(sessionField).toMatch(/^sess_[\w-]+$/);
+      expect(ticketField).toMatch(/^ticket=/);
+      expect(rest.join(' ')).toMatch(/^Next: /);
     }
 
     // Both sessions tagged correctly, with their own imperative paired with their own id.

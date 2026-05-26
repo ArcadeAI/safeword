@@ -20,6 +20,15 @@ import { SKILL_CURSOR_PAIRS } from './fixtures/skill-cursor-pairs.js';
 // Type guard for filtering out undefined values
 const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
 
+/**
+ * Mirrors `getClaudeParentDirectoryForCleanup` in reconcile.ts: any `.claude/*`
+ * path deeper than `.claude`, `.claude/skills`, `.claude/commands` gets
+ * removed automatically at uninstall. Hoisted to file scope per
+ * unicorn/consistent-function-scoping.
+ */
+const isAutoCleanedClaudePath = (parent: string): boolean =>
+  parent.startsWith('.claude/') && parent !== '.claude/skills' && parent !== '.claude/commands';
+
 describe('Schema - Single Source of Truth', () => {
   /** Recursively collect all files in templates/ directory (skips _ prefixed dirs) */
   function collectTemplateFiles(dir: string, prefix = ''): string[] {
@@ -96,14 +105,6 @@ describe('Schema - Single Source of Truth', () => {
         ...SAFEWORD_SCHEMA.sharedDirs,
         ...SAFEWORD_SCHEMA.preservedDirs,
       ]);
-
-      // Mirrors getClaudeParentDirectoryForCleanup in reconcile.ts: any
-      // .claude/* path deeper than .claude, .claude/skills, .claude/commands
-      // gets removed automatically at uninstall.
-      const isAutoCleanedClaudePath = (parent: string): boolean =>
-        parent.startsWith('.claude/') &&
-        parent !== '.claude/skills' &&
-        parent !== '.claude/commands';
 
       const missing: { file: string; parent: string }[] = [];
       for (const filePath of Object.keys(SAFEWORD_SCHEMA.ownedFiles)) {
