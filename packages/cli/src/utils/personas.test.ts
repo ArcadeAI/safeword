@@ -273,6 +273,22 @@ describe('parsePersonas', () => {
     expect(parsed).toHaveLength(1);
     expect(parsed[0]?.name).toBe('Platform Operator');
   });
+
+  it('mid-line `<!--` in body text does not open block-comment state', () => {
+    // CommonMark: HTML block comment requires `<!--` at the start of the line.
+    // Body text with a stray inline `<!--` (even unclosed) should not put
+    // subsequent lines into skip mode; the next `## Header` must still parse.
+    const content = [
+      '## Platform Operator (PO)',
+      '**Role:** A note about <!-- some inline tag',
+      '',
+      '## End User (EU)',
+      '**Role:** B',
+    ].join('\n');
+    const parsed = parsePersonas(content);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[1]?.name).toBe('End User');
+  });
 });
 
 describe('resolvePersonaCodes', () => {
