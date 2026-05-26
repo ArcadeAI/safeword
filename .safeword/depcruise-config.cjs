@@ -16,8 +16,7 @@ module.exports = {
     },
     {
       name: 'no-deprecated-deps',
-      comment:
-        'Deprecated npm packages should be replaced - they may have security issues or be unmaintained',
+      comment: 'Deprecated npm packages should be replaced - they may have security issues or be unmaintained',
       severity: 'error',
       from: {},
       to: { dependencyTypes: ['deprecated'] },
