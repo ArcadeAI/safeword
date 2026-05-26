@@ -2,6 +2,20 @@
 
 **Entry:** Agent detects feature-level work OR resumes ticket at `intake` phase.
 
+## Load project personas
+
+At intake start, read `.safeword-project/personas.md`. This file is the project's source of truth for who features serve; later phases (JTBD authoring, AC validation, scenario numbering) reference its entries.
+
+- **If the file is missing or empty** (no persona blocks parsed — the scaffolded template comment doesn't count) — surface a soft prompt:
+
+  > _"`.safeword-project/personas.md` is empty — want to add some now, or proceed without?"_
+
+  The user can answer "proceed without" and intake continues; the prompt fires again later only if a turn tries to reference a persona that isn't in the file.
+
+- **If a persona reference comes up during intake that isn't in the file** — flag it, don't invent. Ask whether it's a new persona to add, or a typo for an existing one. Use `validatePersonaReference` semantics (case-sensitive match; offer the suggestion when only casing differs).
+
+Short codes auto-derive from names on the next `safeword check` (e.g., `Platform Operator` → `PO`). Codes can be overridden with explicit `## Name (CODE)` syntax. Never edit derived codes manually except via the override path — `safeword check` will rewrite them.
+
 ## Understanding (Propose-and-Converge)
 
 Follow the understanding pattern from SAFEWORD.md — including contribution techniques. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
