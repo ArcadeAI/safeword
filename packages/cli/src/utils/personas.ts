@@ -95,8 +95,27 @@ export interface PersonaValidationError {
   message: string;
 }
 
-const HEADER_PATTERN = /^##\s+(.*?)(?:\s*\(([^)]*)\))?\s*$/;
-const ROLE_PATTERN = /^\*\*Role:\*\*/;
+/**
+ * Extract name and (optional) code from a `## ...` header line.
+ *
+ * Parsed manually rather than with regex to avoid super-linear-backtracking
+ * vulnerabilities flagged by `regexp/no-super-linear-backtracking`. The
+ * `(CODE)` suffix is detected by checking for a trailing `)` and locating
+ * its matching `(` via `lastIndexOf` — no quantifier overlap.
+ */
+function parseHeaderLine(line: string): { name: string; rawCode: string | undefined } | undefined {
+  if (!line.startsWith('## ')) return undefined;
+  const body = line.slice(3).trimEnd();
+  if (body.endsWith(')')) {
+    const openParen = body.lastIndexOf('(');
+    if (openParen !== -1) {
+      const namePart = body.slice(0, openParen).trim();
+      const codePart = body.slice(openParen + 1, -1).trim();
+      return { name: namePart, rawCode: codePart };
+    }
+  }
+  return { name: body.trim(), rawCode: undefined };
+}
 
 /**
  * Parse persona blocks from markdown content.
@@ -115,23 +134,20 @@ export function parsePersonas(content: string): ParsedPersona[] {
   let current: ParsedPersona | undefined;
 
   for (const [index, line] of lines.entries()) {
-    if (line.startsWith('## ')) {
-      const match = HEADER_PATTERN.exec(line);
-      if (match) {
-        if (current) personas.push(current);
-        const [, rawName = '', rawCode] = match;
-        current = {
-          name: rawName.trim(),
-          rawCode: (rawCode ?? '').trim(),
-          explicit: rawCode !== undefined,
-          lineNumber: index + 1,
-          hasRole: false,
-        };
-        continue;
-      }
+    const header = parseHeaderLine(line);
+    if (header) {
+      if (current) personas.push(current);
+      current = {
+        name: header.name,
+        rawCode: header.rawCode ?? '',
+        explicit: header.rawCode !== undefined,
+        lineNumber: index + 1,
+        hasRole: false,
+      };
+      continue;
     }
 
-    if (current && ROLE_PATTERN.test(line)) {
+    if (current && line.startsWith('**Role:**')) {
       current.hasRole = true;
     }
   }
@@ -193,71 +209,80 @@ export function resolvePersonaCodes(parsed: readonly ParsedPersona[]): ResolvedP
  *   (digit-first names like "3 Amigos" derive non-conformant codes and
  *   surface here with the explicit-override prompt)
  */
-export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValidationError[] {
+function validateNameAndRole(persona: ParsedPersona): PersonaValidationError[] {
   const errors: PersonaValidationError[] = [];
-
-  // Headerless / empty-name detection runs against the raw parsed list.
-  for (const persona of parsed) {
-    if (persona.name.length === 0) {
-      errors.push({ line: persona.lineNumber, message: 'missing persona name' });
-    } else if (!isValidPersonaName(persona.name)) {
-      errors.push({
-        line: persona.lineNumber,
-        message: 'persona name must be at least 2 characters',
-      });
-    }
-    if (!persona.hasRole) {
-      errors.push({ line: persona.lineNumber, message: 'missing Role line' });
-    }
+  if (persona.name.length === 0) {
+    errors.push({ line: persona.lineNumber, message: 'missing persona name' });
+  } else if (!isValidPersonaName(persona.name)) {
+    errors.push({
+      line: persona.lineNumber,
+      message: 'persona name must be at least 2 characters',
+    });
   }
-
-  // Duplicate-name check.
-  const namesByLine = new Map<string, number[]>();
-  for (const persona of parsed) {
-    if (persona.name.length === 0) continue;
-    const existing = namesByLine.get(persona.name) ?? [];
-    existing.push(persona.lineNumber);
-    namesByLine.set(persona.name, existing);
+  if (!persona.hasRole) {
+    errors.push({ line: persona.lineNumber, message: 'missing Role line' });
   }
-  for (const [name, lines] of namesByLine.entries()) {
-    if (lines.length > 1) {
-      for (const line of lines) {
-        const others = lines.filter(other => other !== line).join(', ');
-        errors.push({ line, message: `duplicate persona name "${name}" (also at line ${others})` });
-      }
-    }
-  }
-
-  // Code validity + collision require resolution.
-  const resolved = resolvePersonaCodes(parsed);
-
-  // Pattern enforcement.
-  for (const persona of resolved) {
-    if (persona.code.length === 0) continue;
-    if (!isValidPersonaCode(persona.code)) {
-      const message = persona.explicit
-        ? `code "${persona.code}" violates pattern ${PERSONA_CODE_PATTERN.source}`
-        : `name produces non-conformant code "${persona.code}" — author explicit code via \`## Name (CODE)\``;
-      errors.push({ line: persona.lineNumber, message });
-    }
-  }
-
-  // Duplicate-code check across resolved set.
-  const codesByLine = new Map<string, number[]>();
-  for (const persona of resolved) {
-    if (persona.code.length === 0) continue;
-    const existing = codesByLine.get(persona.code) ?? [];
-    existing.push(persona.lineNumber);
-    codesByLine.set(persona.code, existing);
-  }
-  for (const [code, lines] of codesByLine.entries()) {
-    if (lines.length > 1) {
-      for (const line of lines) {
-        const others = lines.filter(other => other !== line).join(', ');
-        errors.push({ line, message: `duplicate persona code "${code}" (also at line ${others})` });
-      }
-    }
-  }
-
   return errors;
+}
+
+/** Group personas by a field, returning a map of field-value → header line numbers. */
+function groupByLine<T extends ParsedPersona>(
+  personas: readonly T[],
+  pick: (persona: T) => string,
+): Map<string, number[]> {
+  const grouped = new Map<string, number[]>();
+  for (const persona of personas) {
+    const key = pick(persona);
+    if (key.length === 0) continue;
+    const existing = grouped.get(key) ?? [];
+    existing.push(persona.lineNumber);
+    grouped.set(key, existing);
+  }
+  return grouped;
+}
+
+/** Produce duplicate-detection errors from a grouping. */
+function findDuplicates(
+  grouped: Map<string, number[]>,
+  kind: 'persona name' | 'persona code',
+): PersonaValidationError[] {
+  const errors: PersonaValidationError[] = [];
+  for (const [value, lines] of grouped.entries()) {
+    if (lines.length <= 1) continue;
+    for (const line of lines) {
+      const others = lines.filter(other => other !== line).join(', ');
+      errors.push({ line, message: `duplicate ${kind} "${value}" (also at line ${others})` });
+    }
+  }
+  return errors;
+}
+
+/** Produce pattern-violation errors for resolved personas. */
+function findPatternErrors(resolved: readonly ResolvedPersona[]): PersonaValidationError[] {
+  const errors: PersonaValidationError[] = [];
+  for (const persona of resolved) {
+    if (persona.code.length === 0) continue;
+    if (isValidPersonaCode(persona.code)) continue;
+    const message = persona.explicit
+      ? `code "${persona.code}" violates pattern ${PERSONA_CODE_PATTERN.source}`
+      : `name produces non-conformant code "${persona.code}" — author explicit code via \`## Name (CODE)\``;
+    errors.push({ line: persona.lineNumber, message });
+  }
+  return errors;
+}
+
+export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValidationError[] {
+  const resolved = resolvePersonaCodes(parsed);
+  return [
+    ...parsed.flatMap(persona => validateNameAndRole(persona)),
+    ...findDuplicates(
+      groupByLine(parsed, persona => persona.name),
+      'persona name',
+    ),
+    ...findPatternErrors(resolved),
+    ...findDuplicates(
+      groupByLine(resolved, persona => persona.code),
+      'persona code',
+    ),
+  ];
 }
