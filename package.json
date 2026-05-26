@@ -23,7 +23,7 @@
     "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err"
   },
   "devDependencies": {
-    "dependency-cruiser": "^17.4.0",
+    "dependency-cruiser": "^17.4.2",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
