@@ -18,7 +18,10 @@ import {
   derivePersonaCode,
   isValidPersonaCode,
   isValidPersonaName,
+  parsePersonas,
   PERSONA_CODE_PATTERN,
+  resolvePersonaCodes,
+  validatePersonas,
 } from './personas.js';
 
 describe('derivePersonaCode', () => {
@@ -174,5 +177,227 @@ describe('isValidPersonaCode', () => {
 describe('PERSONA_CODE_PATTERN export', () => {
   it('is a RegExp', () => {
     expect(PERSONA_CODE_PATTERN).toBeInstanceOf(RegExp);
+  });
+});
+
+describe('parsePersonas', () => {
+  it('parses a single block with explicit code', () => {
+    const content = '## Platform Operator (PO)\n\n**Role:** Owns infra.\n';
+    const parsed = parsePersonas(content);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({
+      name: 'Platform Operator',
+      rawCode: 'PO',
+      explicit: true,
+      lineNumber: 1,
+      hasRole: true,
+    });
+  });
+
+  it('parses a single block without code (explicit = false)', () => {
+    const content = '## Platform Operator\n\n**Role:** Owns infra.\n';
+    const parsed = parsePersonas(content);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({
+      name: 'Platform Operator',
+      rawCode: '',
+      explicit: false,
+      hasRole: true,
+    });
+  });
+
+  it('records line numbers (1-indexed) of headers', () => {
+    const content = [
+      '# Personas',
+      '',
+      '## Platform Operator (PO)',
+      '**Role:** A',
+      '',
+      '## End User (EU)',
+      '**Role:** B',
+    ].join('\n');
+    const parsed = parsePersonas(content);
+    expect(parsed.map(p => p.lineNumber)).toEqual([3, 6]);
+  });
+
+  it('flags missing Role line via hasRole = false', () => {
+    const content = '## Platform Operator (PO)\n\nNo role here.\n';
+    const parsed = parsePersonas(content);
+    expect(parsed[0]?.hasRole).toBe(false);
+  });
+
+  it('parses headerless block (## (PO)) with empty name', () => {
+    const content = '## (PO)\n\n**Role:** Something.\n';
+    const parsed = parsePersonas(content);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe('');
+    expect(parsed[0]?.rawCode).toBe('PO');
+  });
+
+  it('ignores ### sub-headers as persona blocks', () => {
+    const content = '## Platform Operator (PO)\n\n### Subsection\n\n**Role:** Owns infra.\n';
+    const parsed = parsePersonas(content);
+    expect(parsed).toHaveLength(1);
+  });
+
+  it('parses multiple blocks in sequence', () => {
+    const content = [
+      '## Platform Operator (PO)',
+      '**Role:** A',
+      '',
+      '## End User (EU)',
+      '**Role:** B',
+    ].join('\n');
+    const parsed = parsePersonas(content);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0]?.name).toBe('Platform Operator');
+    expect(parsed[1]?.name).toBe('End User');
+  });
+
+  it('returns empty list for content with no headers', () => {
+    expect(parsePersonas('# Personas\n\nNo personas yet.\n')).toEqual([]);
+  });
+
+  it('returns empty list for empty content', () => {
+    expect(parsePersonas('')).toEqual([]);
+  });
+});
+
+describe('resolvePersonaCodes', () => {
+  it('keeps explicit codes verbatim', () => {
+    const parsed = parsePersonas('## Platform Operator (PLATOPS)\n**Role:** A\n');
+    const resolved = resolvePersonaCodes(parsed);
+    expect(resolved[0]?.code).toBe('PLATOPS');
+  });
+
+  it('derives missing codes from names', () => {
+    const parsed = parsePersonas('## Platform Operator\n**Role:** A\n');
+    const resolved = resolvePersonaCodes(parsed);
+    expect(resolved[0]?.code).toBe('PO');
+  });
+
+  it('appends suffix on collision with existing explicit code', () => {
+    const content = [
+      '## Partner Org (PO)',
+      '**Role:** A',
+      '',
+      '## Platform Operator',
+      '**Role:** B',
+    ].join('\n');
+    const resolved = resolvePersonaCodes(parsePersonas(content));
+    expect(resolved[0]?.code).toBe('PO');
+    expect(resolved[1]?.code).toBe('PO2');
+  });
+
+  it('chains suffix when multiple derivations collide', () => {
+    const content = [
+      '## Platform Operator',
+      '**Role:** A',
+      '',
+      '## Product Owner',
+      '**Role:** B',
+      '',
+      '## Partner Org',
+      '**Role:** C',
+    ].join('\n');
+    const resolved = resolvePersonaCodes(parsePersonas(content));
+    expect(resolved.map(p => p.code)).toEqual(['PO', 'PO2', 'PO3']);
+  });
+
+  it('explicit code claims its slot regardless of file order', () => {
+    // Auto-derived Platform Operator (line 1) WOULD be PO; the explicit (PO)
+    // on Partner Org (line 4) wins because explicit codes are claimed first.
+    const content = [
+      '## Platform Operator',
+      '**Role:** A',
+      '',
+      '## Partner Org (PO)',
+      '**Role:** B',
+    ].join('\n');
+    const resolved = resolvePersonaCodes(parsePersonas(content));
+    expect(resolved[0]?.code).toBe('PO2');
+    expect(resolved[1]?.code).toBe('PO');
+  });
+});
+
+describe('validatePersonas', () => {
+  it('well-formed file produces no errors', () => {
+    const content = [
+      '## Platform Operator (PO)',
+      '**Role:** A',
+      '',
+      '## End User (EU)',
+      '**Role:** B',
+    ].join('\n');
+    expect(validatePersonas(parsePersonas(content))).toEqual([]);
+  });
+
+  it('headerless block (empty name) produces missing-name error', () => {
+    const content = '## (PO)\n**Role:** A\n';
+    const errors = validatePersonas(parsePersonas(content));
+    expect(errors.some(e => e.message.includes('missing persona name'))).toBe(true);
+  });
+
+  it('single-character name produces minimum-length error', () => {
+    const content = '## A\n**Role:** A\n';
+    const errors = validatePersonas(parsePersonas(content));
+    expect(errors.some(e => e.message.includes('at least 2 characters'))).toBe(true);
+  });
+
+  it('missing Role line produces missing-role error', () => {
+    const content = '## Platform Operator (PO)\n\nNo role here.\n';
+    const errors = validatePersonas(parsePersonas(content));
+    expect(errors.some(e => e.message.includes('missing Role'))).toBe(true);
+  });
+
+  it('duplicate explicit codes produce duplicate-code errors with both lines', () => {
+    const content = [
+      '## End User (EU)',
+      '**Role:** A',
+      '',
+      '## Engineering Unit (EU)',
+      '**Role:** B',
+    ].join('\n');
+    const errors = validatePersonas(parsePersonas(content));
+    const duplicates = errors.filter(e => e.message.includes('duplicate persona code'));
+    expect(duplicates).toHaveLength(2);
+    expect(duplicates[0]?.message).toContain('EU');
+  });
+
+  it('duplicate persona names produce duplicate-name errors', () => {
+    const content = [
+      '## Platform Operator (PO)',
+      '**Role:** A',
+      '',
+      '## Platform Operator (PO2)',
+      '**Role:** B',
+    ].join('\n');
+    const errors = validatePersonas(parsePersonas(content));
+    const duplicates = errors.filter(e => e.message.includes('duplicate persona name'));
+    expect(duplicates).toHaveLength(2);
+  });
+
+  it('explicit code violating pattern (lowercase) produces pattern error', () => {
+    const content = '## Platform Operator (po)\n**Role:** A\n';
+    const errors = validatePersonas(parsePersonas(content));
+    expect(errors.some(e => e.message.includes('violates pattern'))).toBe(true);
+  });
+
+  it('digit-first name surfaces explicit-override prompt', () => {
+    const content = '## 3 Amigos\n**Role:** A\n';
+    const errors = validatePersonas(parsePersonas(content));
+    expect(
+      errors.some(
+        e =>
+          e.message.includes('non-conformant code') && e.message.includes('author explicit code'),
+      ),
+    ).toBe(true);
+  });
+
+  it('digit-first name does NOT trigger pattern violation message for explicit codes (different message)', () => {
+    // When user authors `## 3 Amigos (THREE)`, explicit code is valid → no error
+    const content = '## 3 Amigos (THREE)\n**Role:** A\n';
+    const errors = validatePersonas(parsePersonas(content));
+    expect(errors.some(e => e.message.includes('non-conformant'))).toBe(false);
   });
 });
