@@ -2,10 +2,10 @@
 id: CXXB3P
 slug: ticket-folder-legibility
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-05-25T21:44:16.923Z
-last_modified: 2026-05-25T21:44:16.923Z
+last_modified: 2026-05-26T05:56:00.000Z
 scope:
   - Mint ticket folders as `{ID}-{slug}/` instead of opaque `{ID}/` so `ls` output is legible
   - Slug-aware ID collision check at mint time (`idsAlreadyTaken()` scans existing folders and splits on the first dash to recover the ID portion)
@@ -35,3 +35,4 @@ done_when:
 
 - 2026-05-25T21:44:16.923Z Started: Created ticket CXXB3P **post-hoc**. The actual implementation landed in commit `cc8658dd` (PR #160) before this ticket existed. Backfilled to close the safeword discipline gap flagged in self-audit.
 - 2026-05-25T21:44:16.923Z Honest provenance: TDD cycle was not run. Code + existing test expectations were edited in a single pass. Slug-aware collision behavior had no dedicated RED test — backfilled as a follow-up commit with `skip: backfilled` annotation in test-definitions.md.
+- 2026-05-26T05:56:00Z Closed: PR #160 merged as `ffdc9062`, shipped in v0.38.0 (PR #164, `e656ffa5`). npm verified: `safeword@0.38.0` published with provenance. /verify and /audit ran clean (2005/2005 tests, 0 errors, 0 warnings). Follow-ups [FM5EDA-ticket-slug-rename](../../FM5EDA-ticket-slug-rename/ticket.md) and [54XH90-lint-config-unify](../../54XH90-lint-config-unify/ticket.md) opened for the two design questions /figure-it-out surfaced. Ticket folder moved to `completed/`.
