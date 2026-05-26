@@ -83,6 +83,7 @@ When no path is configured, behavior is unchanged from current default-location 
 - Migrating existing data from default to configured location — user moves files manually.
 - A `safeword config set` CLI command — for v1 the user edits `.safeword/config.json` directly.
 - Cross-tool sync semantics for arcade-overlap users (tracked in [P8RJ4M](../P8RJ4M/ticket.md) — K7N2QM gives them the mechanism to point safeword at arcade's files, but doesn't auto-detect them).
+- **Cosmiconfig (or any config-discovery library).** `.safeword/config.json` is safeword's single fixed config location; only the `paths` values it contains are user-configurable. Cosmiconfig and its peers solve the inverse problem — discovering the tool's OWN config across many filenames and directories — which this ticket explicitly does not need. The implementation is a six-line JSON read with optional `paths.*` lookup; no new dependency required. If a future requirement is "safeword discovers its own config in multiple locations," that's a separate ticket, not K7N2QM scope creep.
 
 ## Open questions
 
@@ -104,3 +105,4 @@ When no path is configured, behavior is unchanged from current default-location 
 ## Work Log
 
 - 2026-05-26T14:37:56.704Z Started: Created ticket K7N2QM. Carved out from DZ2NM5/D3 — that decision locked `.safeword-project/` as the default ownership for personas/glossary; this ticket adds the explicit-config override that lets a user point safeword elsewhere without the `.project/` auto-discovery model the user rejected. Architecture file slot is forward-looking — the architecture.md work itself lives in [M6D315](../M6D315/ticket.md).
+- 2026-05-26T18:36:34.870Z Out-of-scope addition: cosmiconfig and config-discovery libraries explicitly rejected as scope creep. Surfaced during /quality-review pre-verify on 7YN5QB — the design intent is "single fixed config location with optional path overrides," not "discover config across many locations." The note guards against a future implementer pattern-matching "configurable paths → cosmiconfig" and pulling in the wrong tool.
