@@ -165,9 +165,14 @@ describe('Schema - Single Source of Truth', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const templateFiles = collectTemplateFiles(templatesDirectory);
 
-      // Collect all template: property values from schema
+      // Collect template: property values from both ownedFiles and managedFiles —
+      // either bucket can reference a template (ownedFiles overwrites on upgrade;
+      // managedFiles preserves user content).
       const schemaTemplatePaths = new Set(
-        Object.values(SAFEWORD_SCHEMA.ownedFiles)
+        [
+          ...Object.values(SAFEWORD_SCHEMA.ownedFiles),
+          ...Object.values(SAFEWORD_SCHEMA.managedFiles),
+        ]
           .map(definition => definition.template)
           .filter(isDefined),
       );

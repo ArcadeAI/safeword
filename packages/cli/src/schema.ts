@@ -572,6 +572,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
+
+    // Project personas — scaffolded once with format header + commented example;
+    // user authors real persona blocks thereafter (safeword reads, never overwrites
+    // user content). See ticket 7YN5QB.
+    '.safeword-project/personas.md': {
+      template: 'personas-template.md',
+    },
   },
 
   // JSON files where we merge specific keys
