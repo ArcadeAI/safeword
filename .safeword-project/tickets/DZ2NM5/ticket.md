@@ -1,14 +1,14 @@
 ---
 id: DZ2NM5
 slug: bdd-phase-zero-merge
-title: "Epic: Merge product layer (JTBD/persona/AC) into bdd Phase 0"
+title: 'Epic: Merge product layer (JTBD/persona/AC) into bdd Phase 0'
 type: feature
 phase: intake
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: DXFX02
 created: 2026-05-24T15:21:46.756Z
-last_modified: 2026-05-24T15:21:46.756Z
+last_modified: 2026-05-26T03:39:00.000Z
 ---
 
 # Epic: Merge product layer (JTBD/persona/AC) into bdd Phase 0
@@ -25,8 +25,8 @@ last_modified: 2026-05-24T15:21:46.756Z
 
 | ID         | Title                                                                      | Arcade Pair | Status | Depends On |
 | ---------- | -------------------------------------------------------------------------- | ----------- | ------ | ---------- |
-| **7YN5QB** | Add persona model (`.project/personas.md`) + validation                    | BC53PV      | Open   | —          |
-| **YR6C49** | Add glossary (`.project/glossary.md`) + vocabulary validation              | KD4BYF      | Open   | —          |
+| **7YN5QB** | Add persona model (`.safeword-project/personas.md`) + validation           | BC53PV      | Open   | —          |
+| **YR6C49** | Add glossary (`.safeword-project/glossary.md`) + vocabulary validation     | KD4BYF      | Open   | —          |
 | **Y2HCNJ** | Add JTBD as Phase 0 artifact (When-I-I-want-so-I-can)                      | 89HX2E      | Open   | 7YN5QB     |
 | **31W8M3** | Add Acceptance Criteria layer between JTBD and scenarios                   | T9BNXD      | Open   | Y2HCNJ     |
 | **XT1FFM** | Adopt `slug.persona.AC.scenario` numbering for traceability                | QEKGBK      | Open   | 31W8M3     |
@@ -36,6 +36,8 @@ last_modified: 2026-05-24T15:21:46.756Z
 **Note on 1J6JKP:** Not a Phase-0-merge sub-task — both fixes are unrelated to bdd or the product layer. Filed as a child of this epic because the bugs surfaced during this session's dogfooding work and the user prefers using this epic as the holding pen for safeword improvements discovered along the way. No arcade pair needed — `bunx safeword upgrade` picks up both fixes automatically.
 
 **Related (standalone, not a child):** [MBGQ89](../MBGQ89/ticket.md) — first-class cross-ticket dependency/pairing fields in the ticket schema. Discovered while structuring this epic (we used ad-hoc `epic:`/`paired_with:`/`blocked_on:` fields with no schema backing) but the work is generic; tracked as a standalone safeword improvement, not a child of this epic. Not blocking on it — this epic's children can ship with ad-hoc field usage; MBGQ89 will retroactively bring them under schema.
+
+**Related (standalone, not a child):** [P8RJ4M](../P8RJ4M/ticket.md) — reconcile arcade's `.project/` convention and architecture-tracking model with safeword for users running both tools. This epic locked in strict `.safeword-project/` ownership for personas/glossary; P8RJ4M covers cross-tool bridging, sync gestures, and architecture-convention alignment. Not blocking — DZ2NM5 ships first; P8RJ4M handles the coexistence story after.
 
 **Paired arcade epic:** [DXFX02](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/DXFX02/ticket.md) — arcade-side adoption/decommission for each safeword change.
 
@@ -49,17 +51,21 @@ last_modified: 2026-05-24T15:21:46.756Z
 
 ## Decisions required before execution
 
-These affect every child ticket. Resolve in this epic before any child advances past `intake`.
+These affect every child ticket. Resolved decisions are recorded with rationale; open decisions still gate progression.
 
-1. **Sub-ordering inside Phase 0** — product-first (orientation → JTBD → AC → engineering scope → self-test) or engineering-first (orientation → scope → JTBD → AC → self-test). Driver's working assumption is product-first (establishes motivation before scoping, prevents engineering-myopia); engineering-first is shorter to abandon if the work turns out not to be feature-sized. **Open.**
+### Resolved 2026-05-25 (via `/figure-it-out`)
 
-2. **Storage shape** — keep arcade's `.project/specs/<slug>.md` as a sibling to `ticket.md`, or fold spec content into a `## Spec` section inside `ticket.md`. Driver's working assumption is fold-into-ticket (ticket.md is already the home of the phase machine, work log, and hook-enforced exit criteria). **Open.**
+1. **Sub-ordering inside Phase 0** — **product-first.** Order: orientation → JTBD → AC → engineering scope/done-when → specificity self-test. Why: this epic exists because scope drift toward implementation-thinking is the failure mode; engineering-first preserves the very failure mode the merge is meant to fix. The "humans struggle with why upfront" cost is absorbed by arcade's existing patient-coaching cue (`Y2HCNJ`). Matches driver's working assumption.
 
-3. **Personas/glossary file location** — `.project/personas.md` and `.project/glossary.md` as arcade has them, or relocate under `.safeword-project/` to keep all safeword data under one root. Driver's working assumption is `.project/` (it's project-data, not safeword-data — usable independent of safeword if someone later removes it). **Open.**
+2. **Storage shape** — **`spec.md` sibling inside the ticket folder.** Path: `.safeword-project/tickets/{id}-{slug}/spec.md`. Sections: Intent → References → Personas (refs) → Vocabulary (optional) → Jobs To Be Done (with nested Acceptance Criteria) → Outcomes. `ticket.md` keeps `scope` / `out_of_scope` / `done_when` frontmatter, the phase machine, the work log, and a one-line `**Goal:**` engineering-objective stub with a `**See:** [spec.md](./spec.md)` pointer. The existing `**Why:**` section is **dropped** from the ticket template — product motivation lives in `spec.md`'s `## Intent` as the single source of truth, preventing drift during Phase 0 intent-refinement. Why this split: extends safeword's existing sibling-artifact pattern (`test-definitions.md`, `verify.md`) without bloating `ticket.md`, honors SSoT discipline on the section that actually evolves (Intent), and keeps `ticket.md` self-orienting via the stub. **Diverges from driver's working assumption** (which was fold-into-ticket).
 
-4. **Sizing classifier interaction** — does the merged Phase 0 fire only for features (current `bdd` behavior), or do tasks also get a lightweight version (JTBD optional, AC inline)? Default: features only. **Open.**
+3. **Personas/glossary file location** — **`.safeword-project/personas.md` and `.safeword-project/glossary.md`.** Safeword reads and writes only its own namespace; cross-tool reconciliation with arcade's `.project/` is tracked separately in [P8RJ4M](../P8RJ4M/ticket.md). Why: anything safeword scaffolds in a fresh customer install belongs under its own prefix; generic `.project/` is unfamiliar to safeword-only customers and risks confusion/misedits.
 
-5. **Backward compat** — existing safeword tickets have no personas/JTBDs/ACs. Do existing in-flight tickets retroactively need them, or does the new shape apply only to tickets created after merge? Default: new tickets only; existing keep their current shape. **Open.**
+### Resolved 2026-05-26
+
+4. **Sizing classifier interaction** — **features only.** Tasks and patches do not pay the persona/JTBD/AC tax. Why: tasks are typically one-file changes where the product-anchor cost outweighs benefit; users who realize a "task" should be a feature can promote via `/bdd`. Matches driver's working assumption.
+
+5. **Backward compat** — **new tickets only.** Existing in-flight tickets keep their current shape; the merged Phase 0 applies only to tickets that enter intake after the change lands. Detection mechanism: hook routes to old/new flow based on `spec.md` presence in the ticket folder. Why: avoids forced backfill of 10+ in-flight tickets at merge time; split is temporary and flushes naturally as old tickets ship. Matches driver's working assumption.
 
 ## Out of scope (this epic)
 
@@ -67,10 +73,87 @@ These affect every child ticket. Resolve in this epic before any child advances 
 - Sizing classifier changes. The patch/task/feature rules stay as they are.
 - Pre-Phase-0 work (intake routing, ticket creation). The merged work starts after a ticket exists.
 
+## Files affected (rollup)
+
+Inventory of safeword surfaces the epic's children touch. Each child ticket re-confirms and refines its slice when it kicks off; this is the planning-level rollup, not a binding contract.
+
+### 7YN5QB — Personas
+
+- `packages/cli/templates/personas-template.md` — new template (scaffold content with format header + commented example).
+- `packages/cli/src/commands/setup.ts` — scaffold `.safeword-project/personas.md` if absent.
+- `packages/cli/src/schema.ts` — register `personas.md` as a safeword-owned/managed file.
+- `packages/cli/src/commands/check.ts` — validate persona references in `spec.md` resolve against `personas.md`.
+- `.claude/skills/bdd/DISCOVERY.md` — Phase 0 reads `personas.md`; flags unknown persona references.
+- `packages/cli/tests/` — new tests: scaffolding, unknown-ref flagging, valid-ref pass-through.
+
+### YR6C49 — Glossary
+
+- `packages/cli/templates/glossary-template.md` — new template (term → definition format).
+- `packages/cli/src/commands/setup.ts` — scaffold `.safeword-project/glossary.md` if absent.
+- `packages/cli/src/schema.ts` — register `glossary.md`.
+- `packages/cli/src/commands/check.ts` — vocabulary-mismatch lint (new-term prompt).
+- `.claude/skills/bdd/DISCOVERY.md` — Phase 0 reads `glossary.md`; vocabulary mismatches surface a prompt.
+- `packages/cli/tests/` — new tests: scaffolding, new-term prompt, alias resolution.
+
+### Y2HCNJ — JTBD artifact
+
+- `packages/cli/templates/spec-template.md` — **new** spec.md template (empty section headers: Intent / References / Personas / Vocabulary / JTBDs / Outcomes).
+- `packages/cli/src/commands/ticket-new.ts` — scaffold `spec.md` alongside `ticket.md` for `type: feature`.
+- `packages/cli/src/utils/ticket-writer.ts` — write the spec.md scaffold; update the ticket.md template to use `**Goal:**` one-liner + `**See:** spec.md` pointer (drop `**Why:**`).
+- `packages/cli/src/schema.ts` — register per-ticket `spec.md` in the schema (managed at ticket creation, owned by the user thereafter).
+- `.claude/skills/bdd/DISCOVERY.md` — JTBD sub-step content with coaching cues (patient guidance, draft-from-statements, one-persona-per-JTBD).
+- `packages/cli/templates/hooks/pre-tool-quality.ts` — intake-exit gate extended: when `spec.md` exists, require ≥1 JTBD with a persona ref that resolves against `personas.md`.
+- `packages/cli/templates/SAFEWORD.md` — Phase 0 description updated to mention JTBD sub-step.
+- `packages/cli/tests/` — new tests: spec.md scaffold on ticket-new, gate behavior on missing JTBD, persona-ref enforcement.
+
+### 31W8M3 — Acceptance Criteria
+
+- `.claude/skills/bdd/DISCOVERY.md` — AC sub-step content with quality coaching (descriptive-capability, split-test heuristic, ~10-scenarios-per-AC threshold).
+- `packages/cli/templates/spec-template.md` — AC section structure under each JTBD.
+- `packages/cli/templates/hooks/pre-tool-quality.ts` — gate: validate ≥1 AC under each JTBD.
+- `.claude/skills/bdd/SCENARIOS.md` — Phase 3 update so each scenario links to a parent AC.
+- `packages/cli/tests/` — new tests: gate behavior on JTBD without AC, AC-quality coaching trigger.
+
+### XT1FFM — Cross-reference numbering
+
+- `.claude/skills/bdd/SCENARIOS.md` — document `<slug>.<persona-code><JTBD#>.AC<#>.<scenario_name>` scheme with worked example.
+- `packages/cli/templates/SAFEWORD.md` — scheme reference.
+- `packages/cli/src/commands/check.ts` — coverage check (every AC has ≥1 scenario; no orphan scenarios).
+- `packages/cli/templates/hooks/pre-tool-quality.ts` — validate scenario names follow the scheme.
+- `test-definitions.md` template (wherever it lives) — show numbering format in scaffolded scenarios.
+- `packages/cli/tests/` — new tests: scheme validation, coverage check, orphan detection.
+
+### B0JZQN — Pause-and-confirm gates
+
+- `.claude/skills/bdd/DISCOVERY.md` — gate pattern docs with closing-question template per sub-phase (orientation, JTBD, AC, scope).
+- `packages/cli/templates/hooks/prompt-questions.ts` (or new hook) — surface current sub-phase + whether the closing question has been asked. v1 is conversational only; hook-enforced sub-phase tracking deferred.
+- YOLO-mode interaction documented (auto-confirm + work-log entry).
+- `packages/cli/tests/` — new tests: closing-question trip, gate-on-resume behavior.
+
+### 1J6JKP — Lint hook hygiene (orphan; not Phase-0-related)
+
+- `packages/cli/templates/hooks/session-lint-check.ts` — extend prettier config detection set (line 31) to recognize all valid prettier config filenames + the `"prettier"` key in `package.json`.
+- `packages/cli/src/templates/config.ts` (or wherever `.claude/settings.json` template lives) — scope the PostToolUse biome invocation to `$CLAUDE_FILE_PATHS` instead of project-wide.
+- `packages/cli/tests/` — new tests: prettier-config variants, biome-scoping verification.
+
+### Epic-level (DZ2NM5 integration deliverables)
+
+- `.claude/skills/bdd/DISCOVERY.md` — worked-example walkthrough exercising all four artifact types (persona refs, JTBDs, ACs, engineering scope) end-to-end.
+- `packages/cli/templates/SAFEWORD.md` — overall Phase 0 narrative reflects the merged flow.
+- `.safeword/SAFEWORD.md` (this repo's dogfood copy) — kept in sync with the template.
+- An example feature ticket or end-to-end test demonstrates the new flow.
+
+### Files explicitly NOT touched
+
+- `.claude/skills/bdd/TDD.md`, `DECOMPOSITION.md`, `VERIFY.md`, `DONE.md` — downstream phases, unaffected.
+- `.claude/skills/bdd/SPLITTING.md` — splitting rules unchanged.
+- `packages/cli/templates/guides/architecture-guide.md` — architecture-check work lives in [M6D315](../M6D315/ticket.md), not this epic.
+- Existing ticket folders for in-flight tickets — D5 grandfathers them; no retroactive `spec.md` scaffold.
+
 ## Done when
 
 - `bdd` Phase 0 (DISCOVERY.md + skill body) captures all four artifact types (persona refs, JTBDs, ACs, engineering scope) with hook-enforced exit criteria.
-- `.project/personas.md` and `.project/glossary.md` are first-class read targets in the Phase 0 flow.
+- `.safeword-project/personas.md` and `.safeword-project/glossary.md` are first-class read targets in the Phase 0 flow.
 - Cross-reference numbering scheme is documented and used by Phase 3 scenarios.
 - All six child tickets are `done`.
 - The merged DISCOVERY.md includes a worked example walkthrough that exercises all four artifact types.
@@ -85,3 +168,7 @@ These affect every child ticket. Resolve in this epic before any child advances 
 
 - 2026-05-24T15:21:46.756Z Started: Created ticket DZ2NM5
 - 2026-05-24T15:25:00.000Z Drafted: Epic shell with 6 child tickets, sequencing, and 5 open design decisions
+- 2026-05-25T22:59:48.763Z Resolved: Decisions 1, 2, 3 via `/figure-it-out`. Product-first sub-ordering; `spec.md` sibling in ticket folder; `.safeword-project/` for personas/glossary with `.project/` fallback when present. Decisions 4 and 5 remain open (don't block 7YN5QB / YR6C49 kickoff). Architecture-check pattern also discussed — consultation-gate model (not arcade's rules-auto-load); location `.safeword-project/architecture.md` flat, `.safeword-project/architecture/<package>.md` folder for monorepos; that work belongs to Phase 2 epic [M6D315](../M6D315/ticket.md), not recorded as a child of this epic.
+- 2026-05-26T03:20:00.000Z Refined: Removed `.project/` fallback from D3 — safeword reads/writes only `.safeword-project/` for personas/glossary. Cross-tool reconciliation with arcade's `.project/` and architecture-tracking conventions extracted to standalone ticket [P8RJ4M](../P8RJ4M/ticket.md). DZ2NM5 ships without the bridge; coexistence story lives in P8RJ4M.
+- 2026-05-26T03:29:00.000Z Resolved: Decisions 4 and 5. D4 = features-only (tasks/patches skip the product layer). D5 = new-tickets-only (`spec.md` presence routes hook between old/new Phase 0 flows; existing in-flight tickets grandfathered). All five epic decisions now locked; no remaining gates on child kickoff.
+- 2026-05-26T03:39:00.000Z Refined: D2 storage shape now specifies the SSoT split between `ticket.md` (one-line `**Goal:**` stub + `spec.md` pointer; `**Why:**` dropped from template) and `spec.md` (canonical `## Intent`). Resolved via `/figure-it-out` — Option D (stub + canonical) won over keep-both and manifest-only on SSoT-vs-orientation tradeoff. Added "Files affected (rollup)" section enumerating the safeword surfaces each child touches, with explicit NOT-touched list to bound scope.
