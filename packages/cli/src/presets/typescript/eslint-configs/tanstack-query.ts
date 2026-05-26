@@ -7,7 +7,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
 
-import tanstackQueryPlugin from '@tanstack/eslint-plugin-query';
+import { createRequire } from 'node:module';
+
+import { lazyConfigArray } from './lazy.js';
+
+const requireFromHere = createRequire(import.meta.url);
 
 /**
  * TanStack Query linting config
@@ -20,21 +24,26 @@ import tanstackQueryPlugin from '@tanstack/eslint-plugin-query';
  * - no-unstable-deps: New function each render → unnecessary refetches
  * - infinite-query-property-order: Wrong order → TypeScript can't infer types
  * - mutation-property-order: Wrong order → TypeScript can't infer types
+ *
+ * Plugin is loaded lazily — only when this config is actually accessed.
  */
-export const tanstackQueryConfig: any[] = [
-  {
-    name: 'safeword/tanstack-query',
-    plugins: {
-      '@tanstack/query': tanstackQueryPlugin,
+export const tanstackQueryConfig: any[] = lazyConfigArray(() => {
+  const tanstackQueryPlugin = requireFromHere('@tanstack/eslint-plugin-query');
+  return [
+    {
+      name: 'safeword/tanstack-query',
+      plugins: {
+        '@tanstack/query': tanstackQueryPlugin,
+      },
+      rules: {
+        '@tanstack/query/exhaustive-deps': 'error',
+        '@tanstack/query/stable-query-client': 'error',
+        '@tanstack/query/no-void-query-fn': 'error',
+        '@tanstack/query/no-rest-destructuring': 'error',
+        '@tanstack/query/no-unstable-deps': 'error',
+        '@tanstack/query/infinite-query-property-order': 'error',
+        '@tanstack/query/mutation-property-order': 'error',
+      },
     },
-    rules: {
-      '@tanstack/query/exhaustive-deps': 'error',
-      '@tanstack/query/stable-query-client': 'error',
-      '@tanstack/query/no-void-query-fn': 'error',
-      '@tanstack/query/no-rest-destructuring': 'error',
-      '@tanstack/query/no-unstable-deps': 'error',
-      '@tanstack/query/infinite-query-property-order': 'error',
-      '@tanstack/query/mutation-property-order': 'error',
-    },
-  },
-];
+  ];
+});
