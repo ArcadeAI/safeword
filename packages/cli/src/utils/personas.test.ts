@@ -262,6 +262,17 @@ describe('parsePersonas', () => {
   it('returns empty list for empty content', () => {
     expect(parsePersonas('')).toEqual([]);
   });
+
+  it('strips trailing inline HTML comment from persona name (CommonMark inline rule)', () => {
+    // Per CommonMark: `<!--` mid-line is inline HTML, not a block comment.
+    // The header `## Platform Operator <!-- legacy -->` is a header whose
+    // rendered name is "Platform Operator"; the comment shouldn't leak into
+    // the parsed name or corrupt code derivation.
+    const content = '## Platform Operator <!-- legacy note -->\n\n**Role:** Owns infra.\n';
+    const parsed = parsePersonas(content);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe('Platform Operator');
+  });
 });
 
 describe('resolvePersonaCodes', () => {
