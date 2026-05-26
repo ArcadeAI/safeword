@@ -328,14 +328,17 @@ export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValid
   ];
 }
 
-/** Result of resolving a persona reference against the file. */
-export interface PersonaReferenceResult {
-  status: 'valid' | 'unknown';
-  /** Populated when `status === 'valid'`. */
-  match?: ResolvedPersona;
-  /** Populated when status is `'unknown'` and a casing-mismatch was detected. */
-  suggestion?: string;
-}
+/**
+ * Result of resolving a persona reference against the file.
+ *
+ * Discriminated union — `match` is guaranteed when `status === 'valid'`;
+ * `suggestion` is only meaningful (and only ever populated) when
+ * `status === 'unknown'`. Callers can narrow without optional chaining
+ * after checking `status`.
+ */
+export type PersonaReferenceResult =
+  | { status: 'valid'; match: ResolvedPersona }
+  | { status: 'unknown'; suggestion?: string };
 
 /** Path of personas.md relative to the project root. */
 export const PERSONAS_FILE_SUBPATH = ['.safeword-project', 'personas.md'];
