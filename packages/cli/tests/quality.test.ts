@@ -7,35 +7,33 @@ import {
   QUALITY_REVIEW_MESSAGE,
 } from '../templates/hooks/lib/quality.js';
 
-describe('getQualityMessage — universal binary terminal (143)', () => {
+describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB)', () => {
   describe('Rule: Every Stop emits the binary terminal across phases', () => {
-    it('intake includes the universal header', () => {
+    it('intake includes the universal header with bolded verdict tokens', () => {
       const message = getQualityMessage('intake');
-      expect(message).toContain('CONFIDENT');
-      expect(message).toContain('BLOCKED');
-      expect(message).toContain('Tried:');
-      expect(message).toContain('Need:');
-      expect(message.toLowerCase()).toMatch(/not a list|no lists/);
+      expect(message).toContain('**CONFIDENT**');
+      expect(message).toContain('**BLOCKED**');
+      expect(message).toContain('**Tried:**');
+      expect(message).toContain('**Need:**');
     });
 
     it('implement GREEN includes universal header AND test-pass evidence', () => {
       const message = getQualityMessage('implement', 'green');
-      expect(message).toContain('CONFIDENT');
-      expect(message).toContain('BLOCKED');
+      expect(message).toContain('**CONFIDENT**');
+      expect(message).toContain('**BLOCKED**');
       expect(message.toLowerCase()).toMatch(/test|pass/);
     });
 
     it('verify is a valid BddPhase and emits binary header', () => {
-      // BddPhase enum check (compile-time): TS would fail if 'verify' weren't valid
       const phase: BddPhase = 'verify';
       const message = getQualityMessage(phase);
-      expect(message).toContain('CONFIDENT');
-      expect(message).toContain('BLOCKED');
+      expect(message).toContain('**CONFIDENT**');
+      expect(message).toContain('**BLOCKED**');
     });
 
     it('done includes universal header AND cites /audit and /verify', () => {
       const message = getQualityMessage('done');
-      expect(message).toContain('CONFIDENT');
+      expect(message).toContain('**CONFIDENT**');
       expect(message).toContain('/audit');
       expect(message).toContain('/verify');
     });
@@ -55,78 +53,55 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
       }
     });
 
-    it('universal header includes the "Think about evidence before declaring" nudge', () => {
-      const message = getQualityMessage('intake');
-      expect(message).toContain('Think about evidence before declaring');
-    });
-
     it('unknown phase falls back to default (implement-style) binary form', () => {
       const message = getQualityMessage('unknown-phase');
-      expect(message).toContain('CONFIDENT');
-      expect(message).toContain('BLOCKED');
+      expect(message).toContain('**CONFIDENT**');
+      expect(message).toContain('**BLOCKED**');
       expect(message).toBe(QUALITY_REVIEW_MESSAGE);
     });
   });
 
-  describe('Rule: BLOCKED has required structure (Tried + Need; no lists)', () => {
-    it('universal header includes literal token Tried:', () => {
-      expect(QUALITY_REVIEW_MESSAGE).toContain('Tried:');
+  describe('Rule: CONFIDENT carries a decision brief (Decided / Open / Next; Rejected optional)', () => {
+    it('template includes bolded Decided label', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain('**Decided:**');
     });
 
-    it('universal header includes literal token Need:', () => {
-      expect(QUALITY_REVIEW_MESSAGE).toContain('Need:');
+    it('template includes bolded Open label constrained to three terminal states', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain('**Open:**');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('resolved this turn');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('deferred');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('none');
     });
 
-    it('universal header forbids lists', () => {
-      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(/not a list|no lists/);
-    });
-  });
-
-  describe('Rule: Propulsive verdicts (Next: on CONFIDENT, optional Meanwhile on BLOCKED)', () => {
-    it('CONFIDENT line includes "Next:" directive for forward motion', () => {
-      const message = getQualityMessage('intake');
-      expect(message).toMatch(/CONFIDENT.*Next:/);
+    it('template includes bolded Next label framed as "what you\'ll do or recommend"', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain('**Next:**');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(
+        /what you'll do or recommend|do or recommend/,
+      );
     });
 
-    it('CONFIDENT Next: framing is "what you\'ll do or recommend" (not autonomous action)', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toMatch(/what you'll do or recommend|do or recommend/);
-    });
-
-    it('BLOCKED line includes optional Meanwhile parenthetical for parallel work', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('parallel action');
-      expect(message.toLowerCase()).toMatch(/optional/);
+    it('template includes bolded Rejected label as omit-when-empty', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain('**Rejected:**');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(/omit.*if no real alternatives/);
     });
   });
 
-  describe('Rule: Universal critical review applies at every phase', () => {
-    it('header includes universal critical review (correctness, simplicity, latest docs/research)', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('correctness');
-      expect(message.toLowerCase()).toContain('simplicity');
-      expect(message.toLowerCase()).toMatch(/latest docs|docs\/research/);
+  describe('Rule: BLOCKED has required structure (bolded Tried + Need; falsifiable)', () => {
+    it('BLOCKED template uses bolded Tried label', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain('**Tried:**');
     });
 
-    it('header instructs the investigate-enumerate-debate-recommend loop on uncertainty', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('investigate primary sources');
-      expect(message.toLowerCase()).toContain('enumerate');
-      expect(message.toLowerCase()).toContain('options');
-      expect(message.toLowerCase()).toContain('debate');
-      expect(message.toLowerCase()).toContain('recommend');
+    it('BLOCKED template uses bolded Need label', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain('**Need:**');
     });
 
-    it('header debate criteria are correctness, elegance, no-bloat', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('correctness/elegance/no-bloat');
+    it('BLOCKED unknown must be falsifiable', () => {
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('falsifiable answer');
     });
-  });
 
-  describe('Rule: BLOCKED unknown must be falsifiable', () => {
-    it('BLOCKED template requires a question with a falsifiable answer', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('falsifiable answer');
+    it('BLOCKED template includes optional parallel-action escape hatch', () => {
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('parallel action');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(/optional/);
     });
   });
 
@@ -136,10 +111,54 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
       expect(message.toLowerCase()).toContain('implementation choices are yours');
     });
 
-    it('header states BLOCKED is for spec/scope/value decisions requiring human input', () => {
+    it('header states BLOCKED is for spec/scope/value decisions that need human input', () => {
       const message = getQualityMessage('intake');
       expect(message.toLowerCase()).toMatch(/blocked is for.*spec/);
       expect(message.toLowerCase()).toContain('human input');
+    });
+
+    it('header includes the multiple-unknowns triage rule', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toContain('multiple unknowns');
+      expect(message.toLowerCase()).toMatch(/resolve.*small.*block.*largest/);
+    });
+  });
+
+  describe('Rule: Decision-brief framing (F14BG2)', () => {
+    it('header frames the verdict as a scannable decision brief for a time-pressed reader', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toContain('scannable decision brief');
+      expect(message.toLowerCase()).toMatch(/continue.*redirect.*intervene|reader.*choosing/);
+    });
+
+    it('header instructs to reproduce the shape exactly (Opus 4.7 literalism)', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).toContain('reproduce the shape');
+    });
+
+    it('verdict line and sub-field labels are blank-line-separated in source (renders as stacked paragraphs)', () => {
+      // Structural: **CONFIDENT** line is followed by a blank line, then **Decided:** on the next paragraph.
+      expect(QUALITY_REVIEW_MESSAGE).toMatch(/\*\*CONFIDENT\*\*[^\n]*\n\n\*\*Decided:\*\*/);
+      // Same for BLOCKED → Tried.
+      expect(QUALITY_REVIEW_MESSAGE).toMatch(/\*\*BLOCKED\*\*[^\n]*\n\n\*\*Tried:\*\*/);
+    });
+  });
+
+  describe('Rule: Brevity discipline (QSNKBB) — no duplication of SAFEWORD.md', () => {
+    it('header does NOT duplicate the "Authority: docs and research" rules from SAFEWORD.md:146-158', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).not.toContain('research depth');
+      expect(message.toLowerCase()).not.toContain('claim weight');
+      expect(message.toLowerCase()).not.toContain('primary literature');
+      expect(message.toLowerCase()).not.toContain('blog posts');
+      expect(message.toLowerCase()).not.toContain('investigate primary sources');
+      expect(message.toLowerCase()).not.toContain('correctness/elegance/no-bloat');
+    });
+
+    it('header does NOT carry the prose-blob trigger ("not a list" / "End with a single verdict")', () => {
+      const message = getQualityMessage('intake');
+      expect(message.toLowerCase()).not.toContain('not a list');
+      expect(message.toLowerCase()).not.toContain('end with a single verdict');
     });
   });
 
@@ -162,47 +181,28 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
       'getQualityMessage(%s, %s) emits the full universal header',
       (phase, tddStep) => {
         const message = getQualityMessage(phase, tddStep);
-        // Verdict shape
-        expect(message).toContain('CONFIDENT');
-        expect(message).toContain('BLOCKED');
-        expect(message).toContain('Tried:');
-        expect(message).toContain('Need:');
-        expect(message).toContain('Next:');
-        // Methodology
-        expect(message.toLowerCase()).toContain('investigate primary sources');
-        expect(message.toLowerCase()).toContain('correctness/elegance/no-bloat');
-        // Research depth
-        expect(message.toLowerCase()).toMatch(/primary\s+literature/);
-        expect(message.toLowerCase()).toContain('blog posts');
-        // BLOCKED sharpening
+        // Bolded verdict tokens
+        expect(message).toContain('**CONFIDENT**');
+        expect(message).toContain('**BLOCKED**');
+        // CONFIDENT sub-fields (Decided/Open/Next required; Rejected present as optional label)
+        expect(message).toContain('**Decided:**');
+        expect(message).toContain('**Rejected:**');
+        expect(message).toContain('**Open:**');
+        expect(message).toContain('**Next:**');
+        // BLOCKED sub-fields
+        expect(message).toContain('**Tried:**');
+        expect(message).toContain('**Need:**');
+        // Sharpening + escape hatch
         expect(message.toLowerCase()).toContain('falsifiable answer');
-        // Optional Meanwhile
         expect(message.toLowerCase()).toContain('parallel action');
         // No legacy free-form prompt leaked through
         expect(message).not.toContain('State what remains uncertain');
+        // No cut prose
+        expect(message.toLowerCase()).not.toContain('research depth');
+        expect(message.toLowerCase()).not.toContain('investigate primary sources');
+        expect(message.toLowerCase()).not.toContain('not a list');
       },
     );
-  });
-
-  describe('Rule: Research depth matches claim weight', () => {
-    it('header instructs to match research depth to claim weight', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('research depth');
-      expect(message.toLowerCase()).toContain('claim weight');
-    });
-
-    it('header names primary literature for design/empirical claims', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toMatch(/primary\s+literature/);
-      expect(message.toLowerCase()).toMatch(/peer-reviewed/);
-    });
-
-    it('header explicitly excludes blog posts, tweets, marketing as research', () => {
-      const message = getQualityMessage('intake');
-      expect(message.toLowerCase()).toContain('blog posts');
-      expect(message.toLowerCase()).toContain('tweets');
-      expect(message.toLowerCase()).toContain('marketing');
-    });
   });
 
   describe('Rule: Per-phase criteria fully restored', () => {
@@ -250,14 +250,10 @@ describe('getQualityMessage — universal binary terminal (143)', () => {
           '.safeword-project/learnings/foo-bar.md',
         ],
       });
-      // Message names the actual files that triggered the nudge (the win the
-      // monotonic-array refactor unlocks over the prior single boolean).
       expect(result).toContain('eslint-disable-fragility.md');
       expect(result).toContain('foo-bar.md');
-      // And keeps the wording that names the gate's clearing condition.
       expect(result).toMatch(/next user prompt/i);
       expect(result).toContain('/quality-review');
-      // Should NOT carry the prior misleading "requires /quality-review first" framing.
       expect(result).not.toContain('requires /quality-review first');
     });
 

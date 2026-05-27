@@ -1,15 +1,20 @@
-// Shared quality review message for Claude Code and Cursor hooks
+// Shared quality review message for Claude Code and Cursor hooks.
 // Used by: stop-quality.ts, cursor/stop.ts
 //
-// Format: every Stop terminates in CONFIDENT or BLOCKED (binary terminal).
-// Universal critical review applies at every phase (correctness, simplicity,
-// docs/research alignment). Per-phase evidence templates make CONFIDENT
-// falsifiable with phase-specific criteria. BLOCKED carries "Tried:" + "Need:"
-// so escalation is a clean handoff, not a doubt-dump.
+// Contract: every Stop terminates in CONFIDENT or BLOCKED (binary terminal).
+// CONFIDENT carries a decision brief — Decided / Rejected (optional) / Open /
+// Next. BLOCKED carries Tried / Need so escalation is a clean handoff. Per-phase
+// evidence templates make CONFIDENT falsifiable with phase-specific criteria.
 //
-// Research depth matches claim weight: code/docs for syntax/usage; primary
-// literature (peer-reviewed, lab tech reports, credible preprints) for design
-// or empirical claims. Blog posts, tweets, marketing don't count.
+// Rendering: model output renders as GFM/CommonMark in Claude Code. Single
+// newlines collapse to spaces (soft-break); blank lines start new paragraphs.
+// Bold-led sub-fields separated by blank lines render as a scannable stacked
+// column. Indent inside a paragraph is a no-op.
+//
+// Style discipline: this prompt is reinjected every Stop. Keep it terse and
+// load-bearing. Project philosophy (research-depth, critical-review,
+// investigate-on-uncertainty) lives in SAFEWORD.md which loads every
+// conversation — don't duplicate it here.
 //
 // Calibration grounding: Kadavath 2022, Lin 2022, Tian 2023 — tokenized
 // verdicts beat free-form uncertainty descriptions for calibration.
@@ -23,25 +28,25 @@ export type BddPhase =
   | 'verify'
   | 'done';
 
-const UNIVERSAL_HEADER = `Think about evidence before declaring. Apply universal critical review:
-verify correctness, simplicity, and alignment with latest docs/research.
-On uncertainty or contested choice: investigate primary sources, enumerate
-options, debate against correctness/elegance/no-bloat, recommend.
-Implementation choices are yours to make and own. BLOCKED is for spec,
-scope, or value decisions that require human input. Match research depth
-to claim weight — code/docs for syntax and usage; primary literature
-(peer-reviewed papers, lab tech reports, credible preprints) for design
-choices, novel approaches, or empirical claims. Blog posts, tweets, and
-marketing don't count.
+const UNIVERSAL_HEADER = `End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn. Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
-End with a single verdict — not a list.
+Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
-CONFIDENT — <evidence>. Next: <one concrete action — what you'll do or recommend>.
-BLOCKED — <one specific unknown (a question with a falsifiable answer)>.
-  Tried: <concrete verb + object>. Need: <unblock>.
-  (Optional: propose one parallel action if non-blocker work exists.)
+**CONFIDENT** — <one-line plain-English claim>.
 
-Multiple unknowns: resolve the small ones, BLOCK on the largest.
+**Decided:** <1-2 sentences naming the actual choice and what changes>.
+
+**Rejected:** <alt — one-line reason>; <alt — one-line reason>. (Omit this paragraph entirely if no real alternatives were considered.)
+
+**Open:** <resolved this turn | deferred to <ticket-or-follow-up> | none>.
+
+**Next:** <one concrete imperative — what you'll do or recommend>.
+
+**BLOCKED** — <one specific unknown (a question with a falsifiable answer)>.
+
+**Tried:** <concrete verb + object>.
+
+**Need:** <unblock>. (Optional: propose one parallel action if non-blocker work exists.)
 
 `;
 
