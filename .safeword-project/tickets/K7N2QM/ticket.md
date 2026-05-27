@@ -3,11 +3,11 @@ id: K7N2QM
 slug: configurable-file-paths
 title: 'Configurable paths for personas / glossary / architecture (per-file, not per-folder)'
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-zero-merge
 created: 2026-05-26T14:37:56.704Z
-last_modified: 2026-05-27T04:29:01.273Z
+last_modified: 2026-05-27T19:45:12.026Z
 scope:
   - Extend `.safeword/config.json` with an optional `paths` object — keys `personas`, `glossary`, `architecture`; all values optional; absent keys fall back to default `.safeword-project/<key>.md` location.
   - Path resolution — relative paths resolve against project root (the directory containing `.safeword/config.json`); absolute paths used verbatim; symlinks followed without special handling; empty-string values treated as unset.
@@ -154,3 +154,4 @@ When no path is configured, behavior is unchanged from current default-location 
 - 2026-05-27T04:30:00.000Z Complete: Phase 4 — Scenarios validated (AODI) + adversarial pass. All 18 scenarios pass Atomic/Observable/Deterministic/Independent. Adversarial pass surfaced 8 candidate gaps (whitespace, non-string value, traversal, symlink, dir-as-path, diff command, missing config file, cross-platform separators); each ruled out as either implementation-defensive or wrong abstraction layer. Happy/failure/edge coverage confirmed across all 4 rules. No new scenarios required.
 - 2026-05-27T04:36:49.093Z Complete: Phase 5 — Decomposed into 5 tasks (decomposition.md). Task 1 (config helper + schema slot) unblocks Tasks 2 (read API) and 3 (reconcile suppression); Task 4 (check integration) depends on 1+3; Task 5 (docs) last. Tasks 2 and 3 are independent — can run in parallel. All 18 scenarios allocated. Phase → implement.
 - 2026-05-27T05:45:24.965Z Complete: Phase 6 — All 18 scenarios checked off; cross-scenario refactor skipped (no duplication worth extracting). Implementation across 5 source files: configured-paths.ts (new helper), personas.ts (route validatePersonaReference through helper), packs/types.ts (extend ManagedFileDefinition with configKey), schema.ts (tag personas entry with configKey), reconcile.ts (configKey gate at both install scaffold and uninstall-full removal sites), commands/check.ts (loud failure on configured-but-missing + zero-exit legacy-file advisory via new HealthStatus.advisories field). Five tests added: personas-ref-configured-paths.test.ts (6 scenarios), reconcile-configured-paths.test.ts (4 scenarios), check.test.ts K7N2QM block (5 scenarios). Full suite: 119 files, 2110 passed, 0 regressions. README updated with worked example. Phase → verify.
+- 2026-05-27T19:45:12.026Z Complete: Phase 7 — /verify written (verify.md) and /audit executed. Audit findings: 0 errors, 1 warning (W001 = ARCHITECTURE.md gap on configKey suppression — closed in c75703d1 with one-paragraph addition near managedFiles description). Architecture: 0 dep violations across 229 modules / 613 deps. Duplication: 0 clones in K7N2QM-touched files. Dead code: 2 pre-existing unused exports from 7YN5QB (not K7N2QM scope). Test quality: 14 new tests pass quality bar — specific value assertions, no arbitrary timeouts, scenario-ID naming, fresh state per test. Outdated packages: 3 (knip patch safe; eslint v10 deferred to 099-eslint-10-migration; eslint-plugin-jsdoc v63 deferred to separate ticket). Phase → done.
