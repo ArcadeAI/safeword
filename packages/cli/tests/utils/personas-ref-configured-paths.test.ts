@@ -50,4 +50,21 @@ describe('validatePersonaReference — configured paths (K7N2QM)', () => {
     assert(result.status === 'valid');
     expect(result.match.code).toBe('PO');
   });
+
+  it('R1.3: uses an absolute override path verbatim', () => {
+    // Override is an absolute path outside the project tree.
+    const externalDirectory = createTemporaryDirectory();
+    try {
+      const externalPersonasPath = nodePath.join(externalDirectory, 'team-personas.md');
+      writeFileSync(externalPersonasPath, PERSONA_FIXTURE);
+      writeConfig(cwd, { installedPacks: [], paths: { personas: externalPersonasPath } });
+
+      const result = validatePersonaReference(cwd, 'PO');
+
+      assert(result.status === 'valid');
+      expect(result.match.code).toBe('PO');
+    } finally {
+      removeTemporaryDirectory(externalDirectory);
+    }
+  });
 });
