@@ -66,30 +66,28 @@ describe('vitestConfig', () => {
     );
   });
 
-  it('disables production-only rules that fire on common test patterns', () => {
-    // Twelve rules were promoted into the preset from the project-local
-    // cli-tests-override block. They target test-code patterns
-    // (throwaway fixtures, regex-heavy assertions, describe-block helpers)
-    // where the rule's intent doesn't apply. If the preset is reorganized,
-    // these turn-offs need to survive — this test asserts that.
-    const expectedDisabled = [
-      'sonarjs/no-unused-vars',
-      'sonarjs/no-dead-store',
-      'sonarjs/unused-import',
-      '@typescript-eslint/no-unused-vars',
-      'sonarjs/slow-regex',
-      'security/detect-unsafe-regex',
-      'regexp/no-dupe-disjunctions',
-      'sonarjs/assertions-in-tests',
-      'unicorn/consistent-function-scoping',
-      'unicorn/no-array-callback-reference',
-      'sonarjs/publicly-writable-directories',
-      'sonarjs/no-alphabetical-sort',
-    ];
-    for (const rule of expectedDisabled) {
-      const severity = getSeverityNumber(getRuleConfig(vitestConfig, rule));
-      expect(severity, `expected rule "${rule}" to be off (severity 0)`).toBe(0);
-    }
+  // Twelve rules were promoted into the preset from the project-local
+  // cli-tests-override block. They target test-code patterns (throwaway
+  // fixtures, regex-heavy assertions, describe-block helpers) where the
+  // rule's intent doesn't apply. If the preset is reorganized, these
+  // turn-offs need to survive — table-driven so each rule gets its own
+  // test case (failure isolation: if 3 rules regress, you see all 3 at
+  // once instead of just the first).
+  it.each([
+    'sonarjs/no-unused-vars',
+    'sonarjs/no-dead-store',
+    'sonarjs/unused-import',
+    '@typescript-eslint/no-unused-vars',
+    'sonarjs/slow-regex',
+    'security/detect-unsafe-regex',
+    'regexp/no-dupe-disjunctions',
+    'sonarjs/assertions-in-tests',
+    'unicorn/consistent-function-scoping',
+    'unicorn/no-array-callback-reference',
+    'sonarjs/publicly-writable-directories',
+    'sonarjs/no-alphabetical-sort',
+  ])('disables %s for test files', rule => {
+    expect(getSeverityNumber(getRuleConfig(vitestConfig, rule))).toBe(0);
   });
 });
 
