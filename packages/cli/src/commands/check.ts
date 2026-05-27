@@ -65,6 +65,25 @@ function findPersonaIssues(cwd: string): string[] {
 }
 
 /**
+ * Surface non-blocking diagnostics about persona path configuration.
+ * Currently: when `paths.personas` is set AND the default-location file
+ * `.safeword-project/personas.md` still exists, emit an advisory naming
+ * the orphaned file. Safeword reads from the override; the legacy file
+ * is dead weight and may confuse readers who think they're editing the
+ * live file. Zero-exit — non-destructive (data-loss principle from
+ * ticket K7N2QM); user owns cleanup.
+ */
+function findPersonaAdvisories(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'personas');
+  if (override === undefined) return [];
+  const defaultPath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+  if (!exists(defaultPath)) return [];
+  return [
+    `.safeword-project/personas.md exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
+/**
  * Check for missing text patch markers
  * @param cwd
  * @param actions
@@ -97,6 +116,13 @@ interface HealthStatus {
   updateAvailable: boolean;
   latestVersion: string | undefined;
   issues: string[];
+  /**
+   * Non-blocking diagnostics — reported to the user but do NOT gate
+   * non-zero exit. Use for situations where safeword's operation is
+   * unaffected but a cleanup or attention is warranted (e.g., legacy
+   * default-location file orphaned by a configured `paths.*` override).
+   */
+  advisories: string[];
   missingPackages: string[];
   missingPacks: string[];
 }
@@ -143,6 +169,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
       updateAvailable: false,
       latestVersion: undefined,
       issues: [],
+      advisories: [],
       missingPackages: [],
       missingPacks: [],
     };
@@ -189,6 +216,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     updateAvailable: false,
     latestVersion: undefined,
     issues,
+    advisories: findPersonaAdvisories(cwd),
     missingPackages: result.packagesToInstall,
     missingPacks,
   };
@@ -266,6 +294,16 @@ function reportHealthSummary(health: HealthStatus): boolean {
     }
     info('\nRun `safeword upgrade` to repair configuration');
     return true;
+  }
+
+  // Advisories: non-blocking diagnostics. Reported even when issues
+  // exist (no early-return above this point handles them); printed
+  // here when the project is otherwise healthy.
+  if (health.advisories.length > 0) {
+    header('Advisories');
+    for (const advisory of health.advisories) {
+      warn(advisory);
+    }
   }
 
   success('\nConfiguration is healthy');

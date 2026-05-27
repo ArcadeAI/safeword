@@ -295,6 +295,39 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.stderr).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
     });
 
+    it('R2.4: passes when configured persona file is present and well-formed', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'docs/personas.md',
+        ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
+      );
+      setPersonasOverride('docs/personas.md');
+      // Remove default so the legacy advisory does not fire.
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).not.toMatch(/personas/);
+    });
+
+    it('R2.5: reports content errors when configured persona file is malformed', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'docs/personas.md',
+        ['## A', '**Role:** Too short.', ''].join('\n'),
+      );
+      setPersonasOverride('docs/personas.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+    });
+
     it('R2.6: emits zero-exit advisory when override is active AND legacy default file still exists', async () => {
       await createConfiguredProject(temporaryDirectory);
       // Write the override target so the configured-but-missing branch
@@ -315,6 +348,27 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/\.safeword-project\/personas\.md.*orphan/i);
+    });
+
+    it('R4.1: config with forward-looking glossary and architecture paths parses without error', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      const existing = JSON.parse(
+        readTestFile(temporaryDirectory, '.safeword/config.json'),
+      ) as Record<string, unknown>;
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({
+          ...existing,
+          paths: { glossary: 'docs/glossary.md', architecture: 'ARCHITECTURE.md' },
+        }),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      // No config-parse error surfaced.
+      expect(result.stderr).not.toMatch(/JSON|parse error|invalid config/i);
     });
   });
 });
