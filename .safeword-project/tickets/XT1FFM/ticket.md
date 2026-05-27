@@ -1,7 +1,7 @@
 ---
 id: XT1FFM
 slug: cross-reference-numbering
-title: "Adopt slug.persona.AC.scenario numbering for traceability"
+title: 'Adopt slug.persona.AC.scenario numbering for traceability'
 type: feature
 phase: intake
 status: in_progress

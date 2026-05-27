@@ -1,7 +1,7 @@
 ---
 id: B0JZQN
 slug: pause-and-confirm-gates
-title: "Add structured user-signoff gates between Phase 0 sub-phases"
+title: 'Add structured user-signoff gates between Phase 0 sub-phases'
 type: feature
 phase: intake
 status: in_progress

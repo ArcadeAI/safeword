@@ -1,7 +1,7 @@
 ---
 id: 62PDX1
 slug: patterns-catalog
-title: "Patterns catalog — scannable index + per-pattern detail (Rust-API-Guidelines two-part structure)"
+title: 'Patterns catalog — scannable index + per-pattern detail (Rust-API-Guidelines two-part structure)'
 type: feature
 phase: intake
 status: in_progress

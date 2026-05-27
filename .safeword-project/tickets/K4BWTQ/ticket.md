@@ -1,7 +1,7 @@
 ---
 id: K4BWTQ
 slug: adr-consultation
-title: "Add required ADR consultation step and ADR-creation prompt for new patterns"
+title: 'Add required ADR consultation step and ADR-creation prompt for new patterns'
 type: feature
 phase: intake
 status: in_progress

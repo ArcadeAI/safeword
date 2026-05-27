@@ -3,8 +3,8 @@ id: 7YN5QB
 slug: personas-file
 title: 'Add persona model (.safeword-project/personas.md) + Phase 0 validation'
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-zero-merge
 paired_with: BC53PV
 created: 2026-05-24T15:21:54.876Z
@@ -133,3 +133,4 @@ The codes appear automatically. The user can override either by writing the code
 - 2026-05-26T05:55:00.000Z Slice E complete: `.claude/skills/bdd/DISCOVERY.md` + paired template updated with a "Load project personas" section at intake start. Documents the soft-prompt on empty-file, the flag-don't-invent rule on unknown references, and the auto-derive + override semantics so future intake turns interpret persona lookups correctly. Committed as 02e6ed0e.
 - 2026-05-26T05:57:00.000Z All 5 slices landed across 10 atomic commits. 77 persona tests pass (71 unit + 6 integration); all source lint-clean. Ready for /verify.
 - 2026-05-26T21:53:59.621Z Phase 7 (verify) complete: `/verify` + `/audit` run, all checks pass. Full suite 2083/2083 (1 skipped pre-existing) in 12 minutes after the lint/type-narrowing/patch-bump sweep. Earlier 3-failure incident was system-load flakiness, not behavior — investigated across 4 partial bisects (1711 tests checked, all clean) and resolved incidentally by recent fixes. [verify.md](./verify.md) written with done-gate evidence patterns. Phase advanced to `verify`; ready to close to `done`.
+- 2026-05-26T21:54:00.000Z Phase 8 (done): Ticket closed. Phase → done, status → done. Folder moves to `.safeword-project/tickets/completed/7YN5QB/`. First child of [DZ2NM5](../DZ2NM5/ticket.md) Phase 0 merge epic to land.

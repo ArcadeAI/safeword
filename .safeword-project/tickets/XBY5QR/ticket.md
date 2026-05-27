@@ -1,7 +1,7 @@
 ---
 id: XBY5QR
 slug: negative-case-coverage
-title: "Add negative-case-coverage as explicit Phase 4 rule"
+title: 'Add negative-case-coverage as explicit Phase 4 rule'
 type: feature
 phase: intake
 status: in_progress

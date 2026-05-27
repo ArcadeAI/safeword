@@ -1,7 +1,7 @@
 ---
 id: 31W8M3
 slug: ac-layer
-title: "Add Acceptance Criteria layer between JTBD and scenarios"
+title: 'Add Acceptance Criteria layer between JTBD and scenarios'
 type: feature
 phase: intake
 status: in_progress

@@ -1,7 +1,7 @@
 ---
 id: S4997T
 slug: bdd-phase-three-merge
-title: "Epic: Absorb arcade Phase 3 — outcomes, signals skill, alert routing, two-state done"
+title: 'Epic: Absorb arcade Phase 3 — outcomes, signals skill, alert routing, two-state done'
 type: feature
 phase: intake
 status: in_progress

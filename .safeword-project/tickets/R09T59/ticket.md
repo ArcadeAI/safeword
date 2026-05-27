@@ -1,7 +1,7 @@
 ---
 id: R09T59
 slug: phase-4-findings-and-categories
-title: "Adopt structured findings format and cross-cutting review categories for Phase 4 output"
+title: 'Adopt structured findings format and cross-cutting review categories for Phase 4 output'
 type: feature
 phase: intake
 status: in_progress

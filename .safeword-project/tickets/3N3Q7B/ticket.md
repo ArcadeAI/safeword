@@ -1,7 +1,7 @@
 ---
 id: 3N3Q7B
 slug: principles-rubric
-title: "Update PRINCIPLES.md — extend existing 5 by at most 1-2 net-new principles meeting research/measurement bar"
+title: 'Update PRINCIPLES.md — extend existing 5 by at most 1-2 net-new principles meeting research/measurement bar'
 type: feature
 phase: intake
 status: in_progress

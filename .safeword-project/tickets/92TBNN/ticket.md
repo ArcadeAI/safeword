@@ -1,7 +1,7 @@
 ---
 id: 92TBNN
 slug: initiative-skill
-title: "/initiative skill — light cross-feature artifact for work spanning multiple features and quarters"
+title: '/initiative skill — light cross-feature artifact for work spanning multiple features and quarters'
 type: feature
 phase: intake
 status: in_progress

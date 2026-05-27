@@ -1,7 +1,7 @@
 ---
 id: XDNSZA
 slug: impl-plan-artifact
-title: "Impl plan as first-class artifact with Approach / Decisions / Arch alignment / Known deviations / Assessment triggers + status lifecycle"
+title: 'Impl plan as first-class artifact with Approach / Decisions / Arch alignment / Known deviations / Assessment triggers + status lifecycle'
 type: feature
 phase: intake
 status: in_progress

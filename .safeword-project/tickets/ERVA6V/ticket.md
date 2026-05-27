@@ -1,7 +1,7 @@
 ---
 id: ERVA6V
 slug: plan-actual-reconciliation
-title: "Add Phase 6 exit step to reconcile impl plan against shipped reality"
+title: 'Add Phase 6 exit step to reconcile impl plan against shipped reality'
 type: feature
 phase: intake
 status: in_progress

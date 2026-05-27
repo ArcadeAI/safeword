@@ -1,7 +1,7 @@
 ---
 id: F2QZB4
 slug: review-spec-skill
-title: "Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits"
+title: 'Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits'
 type: feature
 phase: intake
 status: in_progress

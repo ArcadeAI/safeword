@@ -1,7 +1,7 @@
 ---
 id: X59JZE
 slug: done-gate-two-state
-title: "Split done into merge-ready (verify.md) and outcome-validated (signals live) states"
+title: 'Split done into merge-ready (verify.md) and outcome-validated (signals live) states'
 type: feature
 phase: intake
 status: in_progress

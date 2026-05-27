@@ -1,7 +1,7 @@
 ---
 id: 1J6JKP
 slug: lint-hook-hygiene
-title: "Lint hook hygiene — detect all prettier config names, scope biome to edited path"
+title: 'Lint hook hygiene — detect all prettier config names, scope biome to edited path'
 type: feature
 phase: intake
 status: in_progress

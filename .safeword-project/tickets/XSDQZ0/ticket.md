@@ -1,7 +1,7 @@
 ---
 id: XSDQZ0
 slug: personal-level-extensibility
-title: "Make safeword extensible at the personal level — individual customizations on top of safeword and repo extensions, gitignored by default"
+title: 'Make safeword extensible at the personal level — individual customizations on top of safeword and repo extensions, gitignored by default'
 type: feature
 phase: intake
 status: in_progress

@@ -1,7 +1,7 @@
 ---
 id: XN5SPN
 slug: phase-3-scenario-rules
-title: "Make scenario-construction rules explicit in Phase 3"
+title: 'Make scenario-construction rules explicit in Phase 3'
 type: feature
 phase: intake
 status: in_progress

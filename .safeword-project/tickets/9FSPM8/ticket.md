@@ -1,7 +1,7 @@
 ---
 id: 9FSPM8
 slug: vacuous-pass-test
-title: "Add vacuous-pass test as Phase 4 scenario quality check"
+title: 'Add vacuous-pass test as Phase 4 scenario quality check'
 type: feature
 phase: intake
 status: in_progress

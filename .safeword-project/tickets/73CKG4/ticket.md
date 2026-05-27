@@ -1,7 +1,7 @@
 ---
 id: 73CKG4
 slug: assertion-strength-determinism
-title: "Add assertion-strength coaching and determinism-risk specifics to Phase 4"
+title: 'Add assertion-strength coaching and determinism-risk specifics to Phase 4'
 type: feature
 phase: intake
 status: in_progress

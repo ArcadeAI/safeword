@@ -1,7 +1,7 @@
 ---
 id: 1W107W
 slug: signals-skill
-title: "New /build-signals skill — four implementation options, mandatory feature tag, in-code instrumentation discipline"
+title: 'New /build-signals skill — four implementation options, mandatory feature tag, in-code instrumentation discipline'
 type: feature
 phase: intake
 status: in_progress

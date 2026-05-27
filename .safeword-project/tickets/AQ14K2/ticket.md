@@ -1,7 +1,7 @@
 ---
 id: AQ14K2
 slug: reprioritize-skill
-title: "/reprioritize skill — after signals fire, walk the practitioner through deciding what changes next"
+title: '/reprioritize skill — after signals fire, walk the practitioner through deciding what changes next'
 type: feature
 phase: intake
 status: in_progress

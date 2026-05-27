@@ -1,7 +1,7 @@
 ---
 id: MBGQ89
 slug: ticket-deps-schema
-title: "First-class cross-ticket dependency/pairing fields in ticket schema"
+title: 'First-class cross-ticket dependency/pairing fields in ticket schema'
 type: feature
 phase: define-behavior
 status: in_progress

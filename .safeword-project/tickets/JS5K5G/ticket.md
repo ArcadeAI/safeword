@@ -1,7 +1,7 @@
 ---
 id: JS5K5G
 slug: alert-routing-pluggable
-title: "Pluggable alert-routing layer (Linear-first with adapters for other ticket systems)"
+title: 'Pluggable alert-routing layer (Linear-first with adapters for other ticket systems)'
 type: feature
 phase: intake
 status: in_progress

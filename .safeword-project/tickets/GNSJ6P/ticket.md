@@ -1,7 +1,7 @@
 ---
 id: GNSJ6P
 slug: product-systems-loop-closing
-title: "Epic: Loop-closing skills for product systems (Cagan POM + Torres OST workflow layer)"
+title: 'Epic: Loop-closing skills for product systems (Cagan POM + Torres OST workflow layer)'
 type: feature
 phase: intake
 status: in_progress

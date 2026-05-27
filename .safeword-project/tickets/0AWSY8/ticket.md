@@ -1,7 +1,7 @@
 ---
 id: 0AWSY8
 slug: bdd-phase-one-merge
-title: "Epic: Absorb arcade Phase 1 — scenario rules, adversarial review, codify, /review-spec"
+title: 'Epic: Absorb arcade Phase 1 — scenario rules, adversarial review, codify, /review-spec'
 type: feature
 phase: intake
 status: in_progress

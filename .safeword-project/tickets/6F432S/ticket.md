@@ -1,7 +1,7 @@
 ---
 id: 6F432S
 slug: sunset-skill
-title: "/sunset skill — discipline the deprecation when a feature signals fall below threshold (or above hypothesis)"
+title: '/sunset skill — discipline the deprecation when a feature signals fall below threshold (or above hypothesis)'
 type: feature
 phase: intake
 status: in_progress

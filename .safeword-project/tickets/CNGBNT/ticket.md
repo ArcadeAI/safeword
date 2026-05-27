@@ -1,7 +1,7 @@
 ---
 id: CNGBNT
 slug: harness-availability-check
-title: "Test-harness availability check with graceful degradation to existing service test patterns"
+title: 'Test-harness availability check with graceful degradation to existing service test patterns'
 type: feature
 phase: intake
 status: in_progress

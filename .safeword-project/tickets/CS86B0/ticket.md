@@ -1,7 +1,7 @@
 ---
 id: CS86B0
 slug: codify-spec-absorption
-title: "Codify-spec absorption: emit .feature + step_def stubs from test-definitions.md"
+title: 'Codify-spec absorption: emit .feature + step_def stubs from test-definitions.md'
 type: feature
 phase: intake
 status: in_progress

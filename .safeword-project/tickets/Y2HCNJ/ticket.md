@@ -1,7 +1,7 @@
 ---
 id: Y2HCNJ
 slug: jtbd-format
-title: "Add JTBD as Phase 0 artifact (When-I-I-want-so-I-can)"
+title: 'Add JTBD as Phase 0 artifact (When-I-I-want-so-I-can)'
 type: feature
 phase: intake
 status: in_progress

@@ -1,7 +1,7 @@
 ---
 id: 4RD1NS
 slug: principles-product-systems-cluster
-title: "Evaluate product-systems candidates against principle bar; at most 1-2 graduate, rest go to patterns catalog"
+title: 'Evaluate product-systems candidates against principle bar; at most 1-2 graduate, rest go to patterns catalog'
 type: feature
 phase: intake
 status: in_progress

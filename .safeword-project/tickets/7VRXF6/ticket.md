@@ -1,7 +1,7 @@
 ---
 id: 7VRXF6
 slug: outcomes-spec-section
-title: "Add Outcomes as a Phase 0 spec artifact required by signals work"
+title: 'Add Outcomes as a Phase 0 spec artifact required by signals work'
 type: feature
 phase: intake
 status: in_progress

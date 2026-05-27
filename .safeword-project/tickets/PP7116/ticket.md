@@ -1,7 +1,7 @@
 ---
 id: PP7116
 slug: experiment-skill
-title: "/experiment skill — frame work as a hypothesis with kill criteria, not a feature commit"
+title: '/experiment skill — frame work as a hypothesis with kill criteria, not a feature commit'
 type: feature
 phase: intake
 status: in_progress

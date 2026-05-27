@@ -1,7 +1,7 @@
 ---
 id: M6D315
 slug: bdd-phase-two-merge
-title: "Epic: Absorb arcade Phase 2 — impl plan artifact, ADR consultation, reconciliation, harness graceful degradation"
+title: 'Epic: Absorb arcade Phase 2 — impl plan artifact, ADR consultation, reconciliation, harness graceful degradation'
 type: feature
 phase: intake
 status: in_progress

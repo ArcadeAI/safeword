@@ -1,7 +1,7 @@
 ---
 id: 70G298
 slug: repo-level-extensibility
-title: "Make safeword extensible at the repo/organization level — customer-specific rules, hooks, skills, conventions"
+title: 'Make safeword extensible at the repo/organization level — customer-specific rules, hooks, skills, conventions'
 type: feature
 phase: intake
 status: in_progress

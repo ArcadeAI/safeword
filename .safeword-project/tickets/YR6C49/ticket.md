@@ -1,7 +1,7 @@
 ---
 id: YR6C49
 slug: glossary-file
-title: "Add glossary (.project/glossary.md) + vocabulary validation"
+title: 'Add glossary (.project/glossary.md) + vocabulary validation'
 type: feature
 phase: intake
 status: in_progress

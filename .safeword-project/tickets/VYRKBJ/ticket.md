@@ -1,7 +1,7 @@
 ---
 id: VYRKBJ
 slug: impl-plan-skip-annotations
-title: "Extend skip annotation discipline to impl plan sections"
+title: 'Extend skip annotation discipline to impl plan sections'
 type: feature
 phase: intake
 status: in_progress
