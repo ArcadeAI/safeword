@@ -287,6 +287,8 @@ SAFEWORD_SCHEMA = {
 
 File definitions support three content sources: `template` (path in `templates/`), `content` (static string or factory), `generator` (dynamic function of `ProjectContext`, returns `undefined` to skip).
 
+A `managedFiles` entry may also carry an optional `configKey` (`'personas' | 'glossary' | 'architecture'`). When the user sets the matching `paths.<configKey>` in `.safeword/config.json`, reconcile suppresses the entry uniformly — install skips the scaffold, `uninstall-full` skips the removal. The user-configured path becomes the single source of truth; the default location is no longer safeword's concern (ticket K7N2QM).
+
 ### Reconciliation Modes
 
 | Mode             | Behavior                                         |

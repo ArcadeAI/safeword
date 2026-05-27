@@ -169,7 +169,8 @@ function planManagedFileWrites(
   ctx: ProjectContext,
 ): { actions: Action[]; created: string[] } {
   return planFileWrites(files, ctx, (filePath, c) => {
-    if (isConfigOverridden(files[filePath], c.cwd)) return true;
+    const definition = files[filePath];
+    if (definition && isConfigOverridden(definition, c.cwd)) return true;
     return exists(nodePath.join(c.cwd, filePath));
   });
 }
