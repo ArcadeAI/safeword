@@ -206,6 +206,14 @@ function detectFramework(
 /**
  * Standard ignore patterns for ESLint flat config.
  * Includes build output, tool caches, and non-JS ecosystems.
+ *
+ * `.safeword/` is broadly ignored — once installed in a customer repo,
+ * safeword fully owns that directory (hooks, scripts, statusline,
+ * version file). Customers can't productively modify it (safeword
+ * setup/upgrade regenerates the contents), so linting those files
+ * would just surface noise the customer can't act on. The leading
+ * glob-anywhere prefix catches the directory at any depth — important
+ * for monorepos where each workspace may have its own safeword install.
  */
 function getIgnores(): string[] {
   return [
@@ -213,8 +221,8 @@ function getIgnores(): string[] {
     '**/dist/',
     '**/build/',
     '**/coverage/',
-    // Safeword's own hook/config files (TS, not in project's tsconfig scope)
-    '.safeword/',
+    // Safeword-owned directory — customers can't affect it; ignore at any depth.
+    '**/.safeword/**/*',
     // Build output directories — always ignore even if framework not currently installed
     '**/.next/',
     '**/.astro/',
