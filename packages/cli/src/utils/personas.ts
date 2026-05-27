@@ -19,6 +19,8 @@
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveConfiguredPath } from './configured-paths.js';
+
 // The three constants below are exported for workspace-internal use (tests
 // asserting the canonical bounds, docs referencing them without hardcoding,
 // future code in the same package). They are deliberately NOT re-exported
@@ -432,17 +434,26 @@ export function lookupPersonaReference(
 }
 
 /**
- * Resolve a persona reference against the on-disk `.safeword-project/personas.md`.
+ * Resolve a persona reference against the on-disk personas file.
  *
- * Degrades gracefully on a missing or unreadable file — returns
- * `{ status: 'unknown' }` rather than throwing. Strict validation lives
- * in `safeword check`; this lookup API is meant to be cheap, consistent,
- * and side-effect-free.
+ * Reads from `paths.personas` in `.safeword/config.json` when configured;
+ * falls back to `.safeword-project/personas.md` otherwise. Degrades
+ * gracefully on a missing or unreadable file — returns
+ * `{ status: 'unknown' }` rather than throwing, regardless of whether the
+ * resolved path is the default or a configured override. Strict
+ * validation lives in `safeword check`; this lookup API is meant to be
+ * cheap, consistent, and side-effect-free. Do NOT change the unknown
+ * return to a throw for configured-but-missing — `safeword check` owns
+ * the loud signal (ticket K7N2QM).
  */
 export function validatePersonaReference(cwd: string, input: string): PersonaReferenceResult {
   let content: string;
   try {
-    const filePath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+    const filePath = resolveConfiguredPath(
+      cwd,
+      'personas',
+      nodePath.join(...PERSONAS_FILE_SUBPATH),
+    );
     content = readFileSync(filePath, 'utf8');
   } catch {
     return { status: 'unknown' };
