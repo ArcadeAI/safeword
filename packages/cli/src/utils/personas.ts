@@ -19,6 +19,16 @@
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+// The three constants below are exported for workspace-internal use (tests
+// asserting the canonical bounds, docs referencing them without hardcoding,
+// future code in the same package). They are deliberately NOT re-exported
+// from `src/presets/typescript/index.ts` — customers interact with persona
+// validation through `safeword check`, not by reading these constants
+// directly. Promoting them to safeword's public preset surface would make
+// the values part of safeword's semver contract (changing 6 → 8 would
+// become a breaking change), and there's no current consumer that needs
+// that commitment.
+
 /** Maximum length of a derived short code (overflow is truncated silently). */
 export const MAX_CODE_LENGTH = 6;
 /** Minimum persona name length — single-char names are rejected at validation. */
