@@ -20,9 +20,9 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 /** Maximum length of a derived short code (overflow is truncated silently). */
-const MAX_CODE_LENGTH = 6;
+export const MAX_CODE_LENGTH = 6;
 /** Minimum persona name length — single-char names are rejected at validation. */
-const MIN_NAME_LENGTH = 2;
+export const MIN_NAME_LENGTH = 2;
 /** Pattern for a valid persona short code. */
 export const PERSONA_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
 
