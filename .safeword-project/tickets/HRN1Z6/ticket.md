@@ -2,10 +2,10 @@
 id: HRN1Z6
 slug: upgrade-eslint-plugin-jsdoc-v63
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-27T19:51:15.569Z
-last_modified: 2026-05-27T19:52:00.000Z
+last_modified: 2026-05-27T19:55:56.518Z
 scope:
   - Bump `eslint-plugin-jsdoc` from `^62.9.0` to `^63.0.0` in both `packages/cli/package.json` (stays in `dependencies` — runtime dep of the published `safeword` package; customers consuming the preset need the plugin resolvable) and root `package.json`.
   - Move the root `package.json` jsdoc entry from `dependencies` to `devDependencies` — root is `"private": true`, eslint plugins are tooling. Mirrors the placement of `eslint-config-prettier` and `eslint` at the root. Bun's workspace hoisting is unchanged; the entry just lives in a different section.
@@ -42,3 +42,4 @@ done_when:
 
 - 2026-05-27T19:51:15.569Z Started: Created ticket HRN1Z6
 - 2026-05-27T19:52:00.000Z Investigation complete: v63 changes (Node 20 drop, require-throws constructor fix) are both safe for safeword. Bundled root `package.json` categorization fix into scope after discovering the jsdoc entry is in `dependencies` (other eslint root deps are in `devDependencies`). Phase intake → implement (architecture is one-line edits; decomposition unnecessary).
+- 2026-05-27T19:55:56.518Z Complete: All three scope items shipped in commit `cdae6bd8`. `bun install` resolved `eslint-plugin-jsdoc@63.0.0` cleanly (12 packages installed, 1 removed). `bun run lint` exits 0 with zero output — no new violations from the v63 `require-throws` fix (as predicted; safeword's two constructors don't explicitly throw). verify.md saved with full evidence. Phase → done; closes K7N2QM audit W001.
