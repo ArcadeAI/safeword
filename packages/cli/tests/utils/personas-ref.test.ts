@@ -9,24 +9,10 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it } from 'vitest';
 
-import type { PersonaReferenceResult } from '../../src/utils/personas.js';
 import { validatePersonaReference } from '../../src/utils/personas.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
-
-/**
- * Type-narrowing helper for the discriminated PersonaReferenceResult union.
- * After this call, TypeScript narrows `result` to the requested variant —
- * subsequent `result.match` or `result.suggestion` accesses are type-safe
- * without optional chaining.
- */
-function assertStatus<S extends PersonaReferenceResult['status']>(
-  result: PersonaReferenceResult,
-  status: S,
-): asserts result is Extract<PersonaReferenceResult, { status: S }> {
-  expect(result.status).toBe(status);
-}
 
 function writePersonasFile(cwd: string, content: string): void {
   const dir = nodePath.join(cwd, '.safeword-project');
@@ -48,7 +34,7 @@ describe('validatePersonaReference — filesystem I/O', () => {
   it('returns valid match when personas.md has the code', () => {
     writePersonasFile(cwd, ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'));
     const result = validatePersonaReference(cwd, 'PO');
-    assertStatus(result, 'valid');
+    assert(result.status === 'valid');
     expect(result.match.code).toBe('PO');
     expect(result.match.name).toBe('Platform Operator');
   });
@@ -56,28 +42,28 @@ describe('validatePersonaReference — filesystem I/O', () => {
   it('returns valid match for exact name lookup', () => {
     writePersonasFile(cwd, ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'));
     const result = validatePersonaReference(cwd, 'Platform Operator');
-    assertStatus(result, 'valid');
+    assert(result.status === 'valid');
     expect(result.match.code).toBe('PO');
   });
 
   it('returns unknown with suggestion on casing mismatch', () => {
     writePersonasFile(cwd, ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'));
     const result = validatePersonaReference(cwd, 'po');
-    assertStatus(result, 'unknown');
+    assert(result.status === 'unknown');
     expect(result.suggestion).toBe('PO');
   });
 
   it('returns unknown without suggestion when ref is truly unknown', () => {
     writePersonasFile(cwd, ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'));
     const result = validatePersonaReference(cwd, 'AdminUser');
-    assertStatus(result, 'unknown');
+    assert(result.status === 'unknown');
     expect(result.suggestion).toBeUndefined();
   });
 
   it('returns unknown when .safeword-project/personas.md is missing', () => {
     // No personas.md written — file does not exist.
     const result = validatePersonaReference(cwd, 'PO');
-    assertStatus(result, 'unknown');
+    assert(result.status === 'unknown');
     expect(result.suggestion).toBeUndefined();
   });
 
@@ -92,7 +78,7 @@ describe('validatePersonaReference — filesystem I/O', () => {
     // lookup by derived code "PO" should still match.
     writePersonasFile(cwd, ['## Platform Operator', '**Role:** A', ''].join('\n'));
     const result = validatePersonaReference(cwd, 'PO');
-    assertStatus(result, 'valid');
+    assert(result.status === 'valid');
     expect(result.match.code).toBe('PO');
   });
 
