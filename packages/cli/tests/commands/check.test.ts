@@ -260,4 +260,33 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.stderr).not.toMatch(/personas\.md:/);
     });
   });
+
+  describe('configurable persona path (ticket K7N2QM)', () => {
+    /**
+     * Replace the project's `.safeword/config.json` with a `paths.personas`
+     * override. Called AFTER `createConfiguredProject` (which writes a
+     * baseline config) so the override is the last writer.
+     */
+    function setPersonasOverride(personasPath: string): void {
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ installedPacks: [], paths: { personas: personasPath } }),
+      );
+    }
+
+    it('R2.3: reports loud failure when configured path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setPersonasOverride('docs/personas.md'); // file intentionally not created
+      // Remove the scaffolded default so this test isolates the override branch.
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
+    });
+  });
 });
