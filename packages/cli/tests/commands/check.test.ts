@@ -294,5 +294,27 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
     });
+
+    it('R2.6: emits zero-exit advisory when override is active AND legacy default file still exists', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Write the override target so the configured-but-missing branch
+      // does NOT fire — we want to exercise the legacy-coexistence branch.
+      writeTestFile(
+        temporaryDirectory,
+        'docs/personas.md',
+        ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
+      );
+      setPersonasOverride('docs/personas.md');
+      // The default-location file was scaffolded by createConfiguredProject
+      // and is intentionally left in place — that is the "legacy" condition.
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/\.safeword-project\/personas\.md.*orphan/i);
+    });
   });
 });
