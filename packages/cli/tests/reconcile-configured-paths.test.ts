@@ -99,4 +99,52 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
 
     expect(existsSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH))).toBe(false);
   });
+
+  it('R3.3: leaves pre-existing default file untouched when override is set', async () => {
+    const { reconcile } = await import('../src/reconcile.js');
+    const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+    // Legacy default-location file with user-authored content.
+    const userContent = '## My Persona (MP)\n**Role:** Owns the world.\n';
+    mkdirSync(nodePath.join(cwd, '.safeword-project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH), userContent);
+    writeOverrideConfig('docs/personas.md');
+
+    await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
+
+    const after = readFileSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH), 'utf8');
+    expect(after).toBe(userContent);
+  });
+
+  it('R3.4: `reset` with override set does not touch the configured-path file', async () => {
+    const { reconcile } = await import('../src/reconcile.js');
+    const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+    const userContent = '## My Persona (MP)\n**Role:** Owns the world.\n';
+    mkdirSync(nodePath.join(cwd, 'docs'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, 'docs/personas.md'), userContent);
+    writeOverrideConfig('docs/personas.md');
+
+    await reconcile(SAFEWORD_SCHEMA, 'uninstall', makeContext());
+
+    const after = readFileSync(nodePath.join(cwd, 'docs/personas.md'), 'utf8');
+    expect(after).toBe(userContent);
+  });
+
+  it('R3.5: `reset --full` with override set does not remove default-location file', async () => {
+    const { reconcile } = await import('../src/reconcile.js');
+    const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+    const userContent = '## Legacy Persona (LP)\n**Role:** Predates the override.\n';
+    mkdirSync(nodePath.join(cwd, '.safeword-project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH), userContent);
+    writeOverrideConfig('docs/personas.md');
+
+    await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', makeContext());
+
+    // configKey gate must apply to uninstall-full too — file survives.
+    expect(existsSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH))).toBe(true);
+    const after = readFileSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH), 'utf8');
+    expect(after).toBe(userContent);
+  });
 });
