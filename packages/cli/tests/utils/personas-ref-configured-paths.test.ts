@@ -67,4 +67,33 @@ describe('validatePersonaReference — configured paths (K7N2QM)', () => {
       removeTemporaryDirectory(externalDirectory);
     }
   });
+
+  it('R1.4: configured-but-missing returns unknown without throwing', () => {
+    // Override points at a nonexistent file; no default either.
+    writeConfig(cwd, { installedPacks: [], paths: { personas: 'docs/personas.md' } });
+
+    const result = validatePersonaReference(cwd, 'PO');
+
+    expect(result.status).toBe('unknown');
+  });
+
+  it('R1.5: returns unknown when override file is present but input matches no persona', () => {
+    writeFileAt(cwd, 'docs/personas.md', PERSONA_FIXTURE);
+    writeConfig(cwd, { installedPacks: [], paths: { personas: 'docs/personas.md' } });
+
+    const result = validatePersonaReference(cwd, 'NOPE');
+
+    expect(result.status).toBe('unknown');
+  });
+
+  it('R1.6: empty-string override falls back to default location', () => {
+    // Empty string is meaningless; treat as unset and read default.
+    writeFileAt(cwd, '.safeword-project/personas.md', PERSONA_FIXTURE);
+    writeConfig(cwd, { installedPacks: [], paths: { personas: '' } });
+
+    const result = validatePersonaReference(cwd, 'PO');
+
+    assert(result.status === 'valid');
+    expect(result.match.code).toBe('PO');
+  });
 });
