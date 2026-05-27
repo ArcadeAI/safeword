@@ -15,6 +15,7 @@ import type {
   SafewordSchema,
   TextPatchDefinition,
 } from './schema.js';
+import { readConfiguredPath } from './utils/configured-paths.js';
 import {
   ensureDirectory,
   exists,
@@ -158,12 +159,19 @@ function planOwnedFileWrites(
   return planFileWrites(files, ctx, (filePath, c) => shouldSkipForNonGit(filePath, c.isGitRepo));
 }
 
-/** Managed files: skip if file already exists */
+/**
+ * Managed files: skip if file already exists OR if the entry has a
+ * `configKey` whose `paths.<configKey>` override is set in
+ * `.safeword/config.json` — see ticket K7N2QM.
+ */
 function planManagedFileWrites(
-  files: Record<string, FileDefinition>,
+  files: Record<string, ManagedFileDefinition>,
   ctx: ProjectContext,
 ): { actions: Action[]; created: string[] } {
-  return planFileWrites(files, ctx, (filePath, c) => exists(nodePath.join(c.cwd, filePath)));
+  return planFileWrites(files, ctx, (filePath, c) => {
+    if (isConfigOverridden(files[filePath], c.cwd)) return true;
+    return exists(nodePath.join(c.cwd, filePath));
+  });
 }
 
 /** Plan rmdir actions for directories that exist */
@@ -422,7 +430,23 @@ function planOwnedFilesActions(
 }
 
 /**
+ * True when the managed-file entry has a `configKey` AND a corresponding
+ * `paths.<configKey>` override is set in `.safeword/config.json`. Used to
+ * suppress install scaffolding and uninstall-full removal uniformly when
+ * the user has redirected the read target (ticket K7N2QM).
+ */
+function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boolean {
+  if (!definition.configKey) return false;
+  return readConfiguredPath(cwd, definition.configKey) !== undefined;
+}
+
+/**
  * Plan actions for managed files (only create if missing).
+ *
+ * Entries with a `configKey` whose `paths.<configKey>` override is set in
+ * `.safeword/config.json` are suppressed — the user has redirected
+ * safeword to read from elsewhere, so the default location is no longer
+ * safeword's concern (ticket K7N2QM).
  */
 function planManagedFilesActions(
   managedFiles: Record<string, ManagedFileDefinition>,
@@ -432,6 +456,8 @@ function planManagedFilesActions(
   const created: string[] = [];
 
   for (const [filePath, definition] of Object.entries(managedFiles)) {
+    if (isConfigOverridden(definition, ctx.cwd)) continue;
+
     const fullPath = nodePath.join(ctx.cwd, filePath);
     const newContent = resolveFileContent(definition, ctx);
 
@@ -558,9 +584,15 @@ function computeUninstallPlan(
   actions.push(...owned.actions);
   wouldRemove.push(...owned.removed);
 
-  // 6. Full uninstall: remove managed files
+  // 6. Full uninstall: remove managed files (skip configKey-overridden entries —
+  //    when the user has set paths.<configKey>, the default location is no longer
+  //    safeword's concern, and any file there is user content we must not delete.
+  //    See ticket K7N2QM).
   if (full) {
-    const managed = planExistingFilesRemoval(Object.keys(schema.managedFiles), ctx.cwd);
+    const removable = Object.entries(schema.managedFiles)
+      .filter(([, definition]) => !isConfigOverridden(definition, ctx.cwd))
+      .map(([filePath]) => filePath);
+    const managed = planExistingFilesRemoval(removable, ctx.cwd);
     actions.push(...managed.actions);
     wouldRemove.push(...managed.removed);
   }

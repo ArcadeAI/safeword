@@ -33,8 +33,12 @@ const CONFIG_SUBPATH = ['.safeword', 'config.json'];
  * Read the override path for `key` from `.safeword/config.json`, if any.
  * Returns the raw override string (unresolved) or `undefined` when unset,
  * empty, non-string, or the config file is missing/unparseable.
+ *
+ * Exported for callers that need to know "is this overridden?" without
+ * resolving the path (e.g., reconcile's `configKey` gate, `safeword check`
+ * advisory messaging).
  */
-function readOverride(cwd: string, key: ConfiguredPathKey): string | undefined {
+export function readConfiguredPath(cwd: string, key: ConfiguredPathKey): string | undefined {
   const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
   const content = readFileSafe(configPath);
   if (content === undefined) return undefined;
@@ -64,7 +68,7 @@ export function resolveConfiguredPath(
   key: ConfiguredPathKey,
   defaultPath: string,
 ): string {
-  const override = readOverride(cwd, key);
+  const override = readConfiguredPath(cwd, key);
   if (override === undefined) {
     return nodePath.join(cwd, defaultPath);
   }

@@ -575,9 +575,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites
-    // user content). See ticket 7YN5QB.
+    // user content). See ticket 7YN5QB. `configKey: 'personas'` lets the user
+    // redirect via `paths.personas` in .safeword/config.json — when set, reconcile
+    // skips this entry uniformly (see ticket K7N2QM).
     '.safeword-project/personas.md': {
       template: 'personas-template.md',
+      configKey: 'personas',
     },
   },
 
