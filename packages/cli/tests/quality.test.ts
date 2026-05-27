@@ -124,6 +124,19 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
     });
   });
 
+  describe('Rule: SAFEWORD.md "Talking to the user" pointer (68SRC8)', () => {
+    it('header includes a pointer that re-anchors the user-facing comms rules per Stop fire', () => {
+      const message = getQualityMessage('intake');
+      expect(message).toMatch(/SAFEWORD\.md.*Talking to the user/i);
+      expect(message.toLowerCase()).toContain('scan-not-read');
+    });
+
+    it('pointer references the load-bearing pieces (lead with the answer, end with **Next:**)', () => {
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('lead with the answer');
+      expect(QUALITY_REVIEW_MESSAGE).toContain('**Next:**');
+    });
+  });
+
   describe('Rule: Decision-brief framing (F14BG2)', () => {
     it('header frames the verdict as a scannable decision brief for a time-pressed reader', () => {
       const message = getQualityMessage('intake');

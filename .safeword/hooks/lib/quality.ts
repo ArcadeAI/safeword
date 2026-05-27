@@ -28,7 +28,9 @@ export type BddPhase =
   | 'verify'
   | 'done';
 
-const UNIVERSAL_HEADER = `End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn. Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
+const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, lead with the answer, named structure only when it carries weight, end with **Next:**.
+
+End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn. Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
 Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
