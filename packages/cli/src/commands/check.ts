@@ -9,6 +9,7 @@ import nodePath from 'node:path';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
@@ -36,16 +37,29 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
 }
 
 /**
- * Validate `.safeword-project/personas.md` when present. Returns one issue
- * string per persona validation error, formatted as
- * `personas.md:LINE: MESSAGE` for compiler-style readability. Returns an
- * empty array when the file is absent (not an error — the scaffold is
- * optional until JTBDs reference personas).
+ * Validate personas.md when present, routing through any configured
+ * `paths.personas` override. Returns one issue string per persona
+ * validation error, formatted as `personas.md:LINE: MESSAGE`.
+ *
+ * Two failure modes:
+ * - Default location absent → no issue (scaffold is optional until JTBDs
+ *   reference personas).
+ * - Configured override set but file absent → loud failure (user opted
+ *   in; typo would otherwise silently strand persona references). Ticket
+ *   K7N2QM.
  */
 function findPersonaIssues(cwd: string): string[] {
-  const filePath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+  const override = readConfiguredPath(cwd, 'personas');
+  const filePath = resolveConfiguredPath(cwd, 'personas', nodePath.join(...PERSONAS_FILE_SUBPATH));
   const content = readFileSafe(filePath);
-  if (content === undefined) return [];
+
+  if (content === undefined) {
+    if (override !== undefined) {
+      return [`personas-path: ${override}: file not found`];
+    }
+    return [];
+  }
+
   const errors = validatePersonas(parsePersonas(content));
   return errors.map(error => `personas.md:${error.line}: ${error.message}`);
 }

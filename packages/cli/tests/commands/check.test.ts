@@ -263,15 +263,21 @@ describe('Test Suite 8: Health Check', () => {
 
   describe('configurable persona path (ticket K7N2QM)', () => {
     /**
-     * Replace the project's `.safeword/config.json` with a `paths.personas`
-     * override. Called AFTER `createConfiguredProject` (which writes a
-     * baseline config) so the override is the last writer.
+     * Add a `paths.personas` override to the project's existing
+     * `.safeword/config.json`. Preserves any other config keys (notably
+     * `installedPacks`) that `createConfiguredProject` wrote during
+     * setup — overwriting them would trigger spurious "missing pack"
+     * reports that short-circuit the issues section.
      */
     function setPersonasOverride(personasPath: string): void {
+      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+        installedPacks?: string[];
+        [key: string]: unknown;
+      };
       writeTestFile(
         temporaryDirectory,
         '.safeword/config.json',
-        JSON.stringify({ installedPacks: [], paths: { personas: personasPath } }),
+        JSON.stringify({ ...existing, paths: { personas: personasPath } }),
       );
     }
 
