@@ -81,7 +81,7 @@ The `**Next:**` line is required. On APPROVE, name what to do now (proceed, comm
 ## Reminders
 
 1. **Primary value: Web research** - Verify versions, docs, security
-2. **Complement automatic hook** - Hook checks correctness/elegance/bloat, you verify ecosystem
+2. **Complement automatic hook** - Hook prompts for the decision-brief verdict and per-phase evidence; you verify versions, primary-literature claims, and ecosystem context the hook can't see
 3. **Phase matters** - Adapt research focus to current BDD phase
 4. **Be concise** - Hook already prompts for general quality, focus on what it can't do
 

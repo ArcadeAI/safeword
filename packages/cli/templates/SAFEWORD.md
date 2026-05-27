@@ -88,37 +88,6 @@ The done gate hard-blocks until `verify.md` exists in the ticket folder. Run `/v
 
 ---
 
-## Talking to the user
-
-This is the most-read surface of safeword. **Write to be scanned, not read.** Short replies stay short — a one-line answer needs no structure. When a reply is long enough to need structure, the user should land on the answer in seconds, see the shape at a glance, and drop into detail only when they choose to.
-
-**Lead with the answer.** First sentence is the result, the fix, or the call. Explanation follows only if it adds something.
-
-> Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
-> Don't: "Great question! Let me walk you through what I found..."
-
-**End with the call.** Last line is what's next — a question, a choice, or a proposed step. For structured replies (verdicts, reviews, recommendations, audits), use a literal `**Next:** <imperative>` line — the same discipline safeword skills enforce in their output. Short conversational replies can end with the question itself; no bold preface needed. Don't bury the call mid-reply.
-
-**Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
-
-**Frame the structural choice.** Name the architectural call ("reuse `quality-state.ts` paths vs. duplicate the list") before the surface change ("add a check"). The proposal _is_ the architectural read, not a description of what to type.
-
-**Front-load load-bearing words.** The first two words of every line, bullet, and heading do the work — readers eye-jump down the left edge before deciding where to drop in. Start with the noun or verb that carries the meaning. "Failed because…" beats "It looks like the test failed because…"
-
-**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Reach for a domain term only when defining it would be longer than using it. Assume the user knows their stack — don't explain TypeScript, async, or `git rebase` to a developer who's using them.
-
-**Match length to the ask.** A one-line question gets a one-line reply — no headers, no bullets, no preamble. Complex tasks get a short answer followed by the detail that supports it. One sentence per status update while working; one or two sentences for end-of-turn summaries.
-
-**Cite code as `path:line`.** When referencing something the user might open, write `packages/cli/src/foo.ts:142` inline. Not "the foo file." Not in a code block.
-
-**Use structure only when it carries weight.** Headings when the reply is long enough to navigate — and make them information-carrying, not generic ("What changed" beats "Summary"). Tables only for actual reference material — never as decision trees in disguise. Bullets only when items are genuinely parallel. Default to prose. Never output a series of overly short bullet points.
-
-**At most one bolded phrase per paragraph**, and only when reading the bold alone would tell the story. Bold-on-every-sentence reads as noise.
-
-**Skip:** preambles ("I'll now..."), recaps of what the user just said, sycophantic openers ("Great question!"), hedging caveats ("It depends, but..."), restating actions the user can see in the tool log.
-
----
-
 ## Code Philosophy
 
 Optimize for **Clarity → Simplicity → Correctness**, in that order. When in doubt, choose the simpler solution that works today.
@@ -196,3 +165,34 @@ Safeword runs hooks each turn to track your phase and TDD step. Three gates hard
 - **Done gate** — can't close a ticket without `verify.md` in the ticket folder.
 
 The prompt hook injects your current phase each turn as a reminder.
+
+---
+
+## Talking to the user
+
+This is the most-read surface of safeword. **Write to be scanned, not read.** Short replies stay short — a one-line answer needs no structure. When a reply is long enough to need structure, the user should land on the answer in seconds, see the shape at a glance, and drop into detail only when they choose to.
+
+**Lead with the answer.** First sentence is the result, the fix, or the call. Explanation follows only if it adds something.
+
+> Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
+> Don't: "Great question! Let me walk you through what I found..."
+
+**End with the call.** Last line is what's next — a question, a choice, or a proposed step. For structured replies (verdicts, reviews, recommendations, audits), use a literal `**Next:** <imperative>` line — the same discipline safeword skills enforce in their output. Short conversational replies can end with the question itself; no bold preface needed. Don't bury the call mid-reply.
+
+**Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
+
+**Frame the structural choice.** Name the architectural call ("reuse `quality-state.ts` paths vs. duplicate the list") before the surface change ("add a check"). The proposal _is_ the architectural read, not a description of what to type.
+
+**Front-load load-bearing words.** The first two words of every line, bullet, and heading do the work — readers eye-jump down the left edge before deciding where to drop in. Start with the noun or verb that carries the meaning. "Failed because…" beats "It looks like the test failed because…"
+
+**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Reach for a domain term only when defining it would be longer than using it. Assume the user knows their stack — don't explain TypeScript, async, or `git rebase` to a developer who's using them.
+
+**Match length to the ask.** A one-line question gets a one-line reply — no headers, no bullets, no preamble. Complex tasks get a short answer followed by the detail that supports it. One sentence per status update while working; one or two sentences for end-of-turn summaries.
+
+**Cite code as `path:line`.** When referencing something the user might open, write `packages/cli/src/foo.ts:142` inline. Not "the foo file." Not in a code block.
+
+**Use structure only when it carries weight.** Headings when the reply is long enough to navigate — and make them information-carrying, not generic ("What changed" beats "Summary"). Tables only for actual reference material — never as decision trees in disguise. Bullets only when items are genuinely parallel. Default to prose. Never output a series of overly short bullet points.
+
+**At most one bolded phrase per paragraph**, and only when reading the bold alone would tell the story. Bold-on-every-sentence reads as noise.
+
+**Skip:** preambles ("I'll now..."), recaps of what the user just said, sycophantic openers ("Great question!"), hedging caveats ("It depends, but..."), restating actions the user can see in the tool log.

@@ -215,7 +215,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     // Should soft-block with quality review (edits were made)
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toMatch(/critical review|evidence before declaring/i);
+    expect(parsed.reason).toMatch(/\*\*CONFIDENT\*\*|decision brief/i);
   });
 
   it('shows generic quality review when no ticket exists', () => {
@@ -227,7 +227,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     // Should still soft-block with generic quality review (edits were made, no ticket context)
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toMatch(/critical review|evidence before declaring/i);
+    expect(parsed.reason).toMatch(/\*\*CONFIDENT\*\*|decision brief/i);
   });
 
   it('shows done-phase hard block when active ticket at done phase', () => {
