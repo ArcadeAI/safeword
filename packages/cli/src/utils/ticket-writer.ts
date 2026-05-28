@@ -9,9 +9,10 @@
  * up the structure; slice 2 wires the deterministic retry tests.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { getTemplatesDirectory } from './fs.js';
 import type { IdMinter } from './id-minter.js';
 
 const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
@@ -59,7 +60,19 @@ export function createTicket(
   const ticketPath = nodePath.join(folderPath, 'ticket.md');
   writeFileSync(ticketPath, renderTicketMarkdown(id, options));
 
+  // Features carry a product-framing spec.md sibling (epic DZ2NM5/D2 + D4).
+  // Tasks and patches don't pay the persona/JTBD tax.
+  if ((options.type ?? 'task') === 'feature') {
+    const title = options.title ?? options.slug;
+    writeFileSync(nodePath.join(folderPath, 'spec.md'), renderSpecMarkdown(title));
+  }
+
   return { id, folderPath, ticketPath };
+}
+
+function renderSpecMarkdown(title: string): string {
+  const template = readFileSync(nodePath.join(getTemplatesDirectory(), 'spec-template.md'), 'utf8');
+  return template.replace('{title}', title);
 }
 
 function mintAndClaim(
@@ -87,6 +100,13 @@ function renderTicketMarkdown(id: string, options: NewTicketOptions): string {
   const now = (options.now ?? (() => new Date()))().toISOString();
   const title = options.title ?? options.slug;
 
+  // Features keep motivation in spec.md's ## Intent (single source of truth)
+  // and point there; tasks/patches have no spec.md, so they keep **Why:**.
+  const motivation =
+    type === 'feature'
+      ? '**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.'
+      : '**Why:** {One sentence: why does this matter?}';
+
   return `---
 id: ${id}
 slug: ${options.slug}
@@ -101,7 +121,7 @@ last_modified: ${now}
 
 **Goal:** {One sentence: what are we trying to achieve?}
 
-**Why:** {One sentence: why does this matter?}
+${motivation}
 
 ## Work Log
 
