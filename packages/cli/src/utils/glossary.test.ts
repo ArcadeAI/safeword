@@ -37,6 +37,29 @@ describe('parseGlossary — canonical entry shapes', () => {
     });
   });
 
+  describe('R1.4: unknown **Field:** is tolerated', () => {
+    it('does not error and does not surface unknown field as parsed content', () => {
+      const content = [
+        '## Tool',
+        '',
+        '**Definition:** A single callable capability.',
+        '**SomeFutureField:** speculative value',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries).toHaveLength(1);
+      const [entry] = entries;
+      expect(entry).toBeDefined();
+      if (!entry) return;
+      // Definition still captured normally.
+      expect(entry.definition).toBe('A single callable capability.');
+      // Unknown field not surfaced on any known property.
+      expect((entry as Record<string, unknown>).someFutureField).toBeUndefined();
+      expect((entry as Record<string, unknown>).SomeFutureField).toBeUndefined();
+    });
+  });
+
   describe('R1.3: aliases line parses into list', () => {
     it('splits comma-separated aliases and trims whitespace per item', () => {
       const content = [
