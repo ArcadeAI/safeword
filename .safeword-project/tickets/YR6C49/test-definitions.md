@@ -135,9 +135,9 @@ Given a glossary file with a `## Tool` block that has no `**Definition:**` line
 When `validateGlossary(parsed)` is called
 Then the errors include one with the line of the `## Tool` header and message mentioning "missing Definition"
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b99ea22b
+- [x] GREEN f9c21ed8
+- [x] REFACTOR skip: single-loop check, no structure to extract
 
 ### Scenario: Duplicate term name produces errors pointing at both lines
 
@@ -145,9 +145,9 @@ Given a glossary file with two `## Tool` blocks
 When `validateGlossary(parsed)` is called
 Then the errors include two entries (one per duplicate) referencing each other's line numbers
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7309b0b8
+- [x] GREEN 6c50dd71
+- [x] REFACTOR skip: groupByLine + findDuplicates extracted in GREEN itself
 
 ### Scenario: Duplicate alias across terms produces errors pointing at both lines
 
@@ -155,9 +155,9 @@ Given a glossary file with `## Tool` having `**Aliases:** Function` and `## Capa
 When `validateGlossary(parsed)` is called
 Then the errors include two entries (one per duplicate alias) referencing each other's line numbers
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 20639194
+- [x] GREEN a4b02227
+- [x] REFACTOR skip: groupAliasesByLine reuses findDuplicates; no new structure
 
 ### Scenario: Alias that shadows an existing term name produces an error
 
@@ -176,9 +176,9 @@ Then the errors include one referencing the alias's entry line with message ment
 > canonical → error; resolver requires string → exactly-one-term."
 > Alias-duplicates-alias is already covered by R3.3.)_
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 849a14ad
+- [x] GREEN aa7ceb3a
+- [x] REFACTOR skip: findAliasShadowingTerms is the minimal viable shape
 
 ### Scenario: Empty term name produces an error
 
@@ -186,9 +186,9 @@ Given a glossary file with `##` (header with no name) followed by a `**Definitio
 When `validateGlossary(parsed)` is called
 Then the errors include one with the header line and message mentioning "missing term name"
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc0eaa62
+- [x] GREEN 0af1f74b
+- [x] REFACTOR skip: parseTermHeader extracted in GREEN to handle bare `##`
 
 ## Rule: Configured-path resolution inherits K7N2QM pattern
 
