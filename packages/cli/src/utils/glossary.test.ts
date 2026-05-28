@@ -36,6 +36,24 @@ describe('validateGlossary — structural errors', () => {
     });
   });
 
+  describe('R3.5: empty term name produces an error', () => {
+    it('flags a level-2 header with no name', () => {
+      const content = ['##', '**Definition:** Orphan definition with no term.'].join('\n');
+      const parsed = parseGlossary(content);
+
+      const errors = validateGlossary(parsed);
+
+      expect(errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            line: 1,
+            message: expect.stringContaining('missing term name'),
+          }),
+        ]),
+      );
+    });
+  });
+
   describe('R3.4: alias that shadows an existing term name produces an error', () => {
     it('flags an alias colliding with a declared term name', () => {
       const content = [
