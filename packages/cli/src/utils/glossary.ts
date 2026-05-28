@@ -33,14 +33,6 @@ export interface ParsedGlossaryEntry {
 }
 
 /**
- * Parse glossary entries from markdown content.
- *
- * Walks lines once, tracking the active `## Term` block. When a known
- * `**Field:**` line is encountered inside a block, the field is captured
- * on the active entry. Unknown `**Field:**` lines are silently tolerated
- * (forward-compat per ticket scope).
- */
-/**
  * Maps a `**Field:**` prefix to the corresponding property on
  * `ParsedGlossaryEntry`. Lookup is by exact-prefix; unknown prefixes are
  * silently ignored (forward-compat per ticket scope).
@@ -177,6 +169,16 @@ function stripInlineComments(text: string): string {
   return result;
 }
 
+/**
+ * Parse glossary entries from markdown content.
+ *
+ * Walks lines once, tracking the active `## Term` block. Skip-mask hides
+ * fenced code and block HTML comments. Inline HTML comments are stripped
+ * from header text before name extraction. Known `**Field:**` lines (plus
+ * the arcade colon-outside variant) populate the matching property on the
+ * active entry; unknown `**Field:**` lines are silently tolerated. Pure
+ * — no I/O.
+ */
 export function parseGlossary(content: string): ParsedGlossaryEntry[] {
   const lines = content.split('\n');
   const skip = computeSkipMask(lines);
