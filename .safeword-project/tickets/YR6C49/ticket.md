@@ -3,12 +3,39 @@ id: YR6C49
 slug: glossary-file
 title: 'Add glossary (.safeword-project/glossary.md) + structural validation'
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: KD4BYF
 created: 2026-05-24T15:21:54.923Z
-last_modified: 2026-05-28T00:58:05.000Z
+last_modified: 2026-05-28T01:08:00.000Z
+scope:
+  - Template — `packages/cli/templates/glossary-template.md` with canonical format header + commented example showing the rich shape.
+  - Canonical entry schema — `## <Term>` header + required `**Definition:**` line; optional `**Used in:**`, `**Example:**`, `**Do not confuse with:**`, `**Aliases:** foo, bar` lines parsed if present, never required. Parser tolerates additional `**Field:**` lines (forward-compat).
+  - Scaffold — `safeword setup` writes `.safeword-project/glossary.md` from the template if absent (idempotent, mirrors persona scaffold).
+  - Configurable path — register `paths.glossary` in `.safeword/config.json` schema; lookup via `resolveConfiguredPath(cwd, 'glossary', '.safeword-project/glossary.md')`. Inherits K7N2QM pattern verbatim — relative paths against project root, absolute used verbatim, empty-string treated as unset.
+  - Parser + validator — `packages/cli/src/utils/glossary.ts` parses `## Term` blocks (HTML-comment / code-fence aware); validates structural well-formedness (non-empty term, Definition present, no duplicate terms, no duplicate aliases, aliases resolve to declared terms). Pure — no I/O. Mirrors `personas.ts` parse/resolve/validate split.
+  - Lookup API — `lookupGlossaryReference(terms, input)` + `validateGlossaryReference(cwd, input)`; same shape as `lookupPersonaReference` / `validatePersonaReference`; returns `{ status: 'unknown' }` on any missing-file case, never throws.
+  - `safeword check` integration — structural-error reporting with line numbers; configured-but-missing reports loudly (K7N2QM R2.3 pattern); legacy-default advisory when override active (K7N2QM R2.6).
+  - Schema registration — `packages/cli/src/schema.ts` adds `glossary.md` managed-file entry with `configKey: 'glossary'` gate so reconcile skips default scaffold when override configured (K7N2QM R3.2).
+  - DISCOVERY.md Phase 0 hook — add "Load project glossary" sub-step parallel to the existing persona-loading block; agent reads file, holds terms in context, surfaces undefined-term questions conversationally during scope drafting. No prose extraction, no heuristic flagging.
+  - Tests — scaffold-on-setup, parser well-formedness, validator errors (missing Definition, duplicate term, duplicate alias, unresolved alias), configured-path resolution (relative / absolute / missing / no-match / empty — mirrors K7N2QM R1.2-R1.6), safeword check integration, DISCOVERY.md-reads-glossary assertion, arcade-glossary-parses-unchanged fixture.
+out_of_scope:
+  - Prose-extraction lint (every-noun or heuristic Title-Case scan) — FSE 2025 suppression evidence; promote to opt-in `[[term]]` markup only if drift observed after Y2HCNJ ships spec.md.
+  - Spec-local vocabulary — deferred to Y2HCNJ's spec.md Vocabulary section.
+  - AC quality coaching — covered in 31W8M3.
+  - Automated term-extraction or NLP — humans curate the glossary.
+  - Backfill of in-flight tickets — epic D5 grandfathers existing intake artifacts.
+  - `.project/` fallback by default — cross-tool reconciliation tracked in P8RJ4M; arcade users opt in via `paths.glossary` override.
+done_when:
+  - `packages/cli/templates/glossary-template.md` exists with format header + commented rich example.
+  - `safeword setup` scaffolds `.safeword-project/glossary.md` from template when absent; idempotent.
+  - `paths.glossary` resolves through `resolveConfiguredPath`; relative / absolute / missing / no-match / empty cases all covered by tests.
+  - `packages/cli/src/utils/glossary.ts` parses canonical entries (Definition required, others optional), validates structural well-formedness, exposes `lookupGlossaryReference` and `validateGlossaryReference`.
+  - `safeword check` reports structural errors with line numbers; configured-but-missing exits non-zero with `glossary-path: <configured>: file not found`; legacy-default advisory zero-exits when override active.
+  - `.claude/skills/bdd/DISCOVERY.md` documents the "Load project glossary" sub-step parallel to persona-loading.
+  - Arcade's existing `/Users/alex/Projects/arcade-monorepo/.project/glossary.md` parses unchanged under canonical reader (integration fixture).
+  - All new unit + integration tests pass; full suite still green.
 ---
 
 # Add glossary (`.safeword-project/glossary.md`) + structural validation
@@ -72,3 +99,4 @@ None blocking. Locked decisions:
 - 2026-05-24T15:21:54.923Z Started: Created ticket YR6C49
 - 2026-05-24T15:22:00.000Z Drafted: Scope, depends, open questions; linked to epic DZ2NM5
 - 2026-05-28T00:58:05.000Z Refreshed: Rewrote scope, out-of-scope, done-when, and open-questions to reflect epic decisions (D2/D3/D5), K7N2QM `paths.*` inheritance, and `/figure-it-out` rulings on schema richness (required Definition + optional rest) and strictness (structural-only, no prose extraction). KD4BYF arcade-pair constraint pinned to scope (arcade glossary must parse unchanged). Replaced "lint-style check" framing with agent-conversational handling that mirrors the just-shipped persona pattern. Added `packages/cli/src/utils/glossary.ts` to scope explicitly. All five original open questions resolved.
+- 2026-05-28T01:08:00.000Z Complete: Phase 0-2 - Understanding converged, scope established. Frontmatter scope/out_of_scope/done_when fields populated as condensed one-liners mirroring the markdown sections (K7N2QM/7YN5QB convention). Phase advanced to define-behavior.
