@@ -35,6 +35,28 @@ describe('validateGlossary — structural errors', () => {
       );
     });
   });
+
+  describe('R3.2: duplicate term name produces errors pointing at both lines', () => {
+    it('emits one error per duplicate, each referencing the other line', () => {
+      const content = [
+        '## Tool',
+        '**Definition:** First.',
+        '',
+        '## Tool',
+        '**Definition:** Second.',
+      ].join('\n');
+      const parsed = parseGlossary(content);
+
+      const errors = validateGlossary(parsed);
+
+      const dupeErrors = errors.filter(error => error.message.includes('duplicate term'));
+      expect(dupeErrors).toHaveLength(2);
+      expect(dupeErrors.map(error => error.line).toSorted((a, b) => a - b)).toEqual([1, 4]);
+      // Each error references the other's line.
+      expect(dupeErrors.find(error => error.line === 1)?.message).toContain('4');
+      expect(dupeErrors.find(error => error.line === 4)?.message).toContain('1');
+    });
+  });
 });
 
 describe('parseGlossary — skip-mask (non-term content)', () => {
