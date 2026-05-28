@@ -67,6 +67,36 @@ function parseFieldLine(
   return undefined;
 }
 
+/**
+ * Parse the comma-separated alias list from a `**Aliases:** foo, bar` line.
+ * Empty trailing-whitespace yields an empty list. Returns undefined when
+ * the line isn't an Aliases line.
+ */
+function parseAliasLine(line: string): string[] | undefined {
+  if (!line.startsWith('**Aliases:**')) return undefined;
+  const raw = line.slice('**Aliases:**'.length).trim();
+  return raw.length === 0 ? [] : raw.split(',').map(part => part.trim());
+}
+
+/**
+ * Apply a recognized field/alias line to the active entry. No-op when the
+ * line doesn't match a known prefix (unknown `**Field:**` lines are
+ * tolerated per ticket scope).
+ */
+function applyLineToEntry(line: string, entry: ParsedGlossaryEntry): void {
+  const aliases = parseAliasLine(line);
+  if (aliases !== undefined) {
+    entry.aliases = aliases;
+    return;
+  }
+  const field = parseFieldLine(line);
+  if (field) {
+    // Field-property values are all strings; the cast is safe because
+    // parseFieldLine only returns string-valued props.
+    (entry as Record<string, unknown>)[field.property] = field.value;
+  }
+}
+
 export function parseGlossary(content: string): ParsedGlossaryEntry[] {
   const lines = content.split('\n');
   const entries: ParsedGlossaryEntry[] = [];
@@ -84,12 +114,7 @@ export function parseGlossary(content: string): ParsedGlossaryEntry[] {
       continue;
     }
     if (!current) continue;
-    const field = parseFieldLine(line);
-    if (field) {
-      // Field-property values are all strings; the union assignment is
-      // safe because parseFieldLine only returns string-valued props.
-      (current as Record<string, unknown>)[field.property] = field.value;
-    }
+    applyLineToEntry(line, current);
   }
 
   if (current) entries.push(current);
