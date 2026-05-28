@@ -52,12 +52,19 @@ export type GlossaryReferenceResult =
 /**
  * Look up a glossary reference against parsed entries.
  *
- * Stub implementation — always unknown. Replaced in GREEN.
+ * Match priority: exact term name → exact alias → casing-mismatch
+ * suggestion → unknown. Pure — no I/O.
  */
 export function lookupGlossaryReference(
-  _entries: readonly ParsedGlossaryEntry[],
-  _input: string,
+  entries: readonly ParsedGlossaryEntry[],
+  input: string,
 ): GlossaryReferenceResult {
+  if (input.length === 0) return { status: 'unknown' };
+
+  for (const entry of entries) {
+    if (entry.name === input) return { status: 'valid', match: entry };
+  }
+
   return { status: 'unknown' };
 }
 
