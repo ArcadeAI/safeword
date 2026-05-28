@@ -3,14 +3,20 @@
  * test-definitions.md Rule 7). Spawns the real pre-tool-quality hook and
  * verifies it gates test-definitions.md creation on spec.md JTBD content,
  * and skips the gate when no spec.md is present (D5 routing).
+ *
+ * The hook signals denial the PreToolUse way — a `permissionDecision: deny`
+ * JSON object on stdout, exit 0 — so assertions go through the shared
+ * expectHookDeny / expectHookAllow helpers rather than inspecting exit codes.
  */
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, it } from 'vitest';
+
+import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 
@@ -29,18 +35,13 @@ const TICKET_FRONTMATTER = [
 
 const PERSONAS = '# Personas\n\n## Platform Operator (PO)\n\n**Role:** Owns infra.\n';
 
-function runHook(input: object): { exitCode: number; stderr: string } {
-  try {
-    execFileSync('bun', [HOOK_PATH], {
-      input: JSON.stringify(input),
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return { exitCode: 0, stderr: '' };
-  } catch (error: unknown) {
-    const execError = error as { status?: number; stderr?: string };
-    return { exitCode: execError.status ?? 1, stderr: execError.stderr ?? '' };
-  }
+function runHook(input: object): HookResult {
+  const result = spawnSync('bun', [HOOK_PATH], {
+    input: JSON.stringify(input),
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
 
 function jtbdSpec(jtbdBody: string): string {
@@ -64,7 +65,7 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
     rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  function attemptTestDefinitions(): { exitCode: number; stderr: string } {
+  function attemptTestDefinitions(): HookResult {
     return runHook({
       tool_name: 'Write',
       tool_input: {
@@ -76,9 +77,7 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
 
   it('denies when spec.md has no JTBD', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), jtbdSpec('(none yet)'));
-    const result = attemptTestDefinitions();
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toMatch(/JTBD/i);
+    expectHookDeny(attemptTestDefinitions(), 'JTBD');
   });
 
   it('allows when spec.md has a JTBD whose persona resolves', () => {
@@ -88,11 +87,11 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
         '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.',
       ),
     );
-    expect(attemptTestDefinitions().exitCode).toBe(0);
+    expectHookAllow(attemptTestDefinitions());
   });
 
   it('skips the JTBD gate when no spec.md is present (grandfathered ticket)', () => {
     // No spec.md written — old-flow routing; the JTBD gate must not fire.
-    expect(attemptTestDefinitions().exitCode).toBe(0);
+    expectHookAllow(attemptTestDefinitions());
   });
 });
