@@ -28,6 +28,7 @@ done_when:
   - Full test suite green, including the existing setup / integration / preset tests; no behavior regression for customers whose stack matches the detection rules.
   - Migration doc lives at `packages/website/src/content/docs/migrations/v1-eslint-peer-deps.md` (or equivalent path), linked from CHANGELOG.
   - safeword's own repo dogfooded: safeword's dev deps shrink (we don't use Storybook ourselves), and `bun run lint` still passes.
+  - `bunx knip` reports zero "unused dependency" false-positives for the 7 stack-specific plugins (next, tanstack-query, astro, better-tailwindcss, playwright, storybook, turbo) after the peer-dep migration. Optional peer-deps aren't flagged by knip as unused, so this should hold without any `ignoreDependencies` entries. Closes the concern from superseded ticket G8PBE6.
 ---
 
 # Move stack-specific ESLint plugins to optional peer-deps (antfu pattern)

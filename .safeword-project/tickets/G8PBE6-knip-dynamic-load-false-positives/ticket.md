@@ -3,9 +3,10 @@ id: G8PBE6
 slug: knip-dynamic-load-false-positives
 type: task
 phase: intake
-status: in_progress
+status: superseded
+superseded_by: 7JDZFF
 created: 2026-05-27T11:44:58.839Z
-last_modified: 2026-05-27T11:44:58.839Z
+last_modified: 2026-05-28T05:02:00.000Z
 scope: |
   Make `bunx knip` stop flagging the seven stack-specific ESLint plugins
   H150ZW switched to lazy-loading as "unused dependencies." They ARE used —
@@ -89,3 +90,4 @@ Today returns the seven plugins under "Unused dependencies."
 ## Work Log
 
 - 2026-05-27T11:44:58Z Started: Created ticket G8PBE6 after F14BG2/QSNKBB verify pass surfaced these as pre-existing knip noise. Bounded scope (one architectural decision in /figure-it-out, one knip-config or annotation pass, documentation note). Sized task.
+- 2026-05-28T05:02:00Z Superseded by 7JDZFF. Investigation confirmed the false-positive mechanism: the 7 plugins load via `createRequire(import.meta.url)` inside `lazyConfigArray` (H150ZW), which knip's static analyzer can't follow → flagged as unused dependencies. The cheap fix (add the 7 to `ignoreDependencies` in packages/cli/knip.json, matching the existing `eslint-plugin-jsdoc` precedent in the root knip.json) would be throwaway: 7JDZFF (in_progress) moves all 7 from `dependencies` to optional `peerDependencies`, and knip does not flag optional peer-deps as unused — so the migration dissolves these false-positives as a side effect. Fixing here now would leave stale `ignoreDependencies` entries that /audit's W005 check would flag once 7JDZFF lands. Folding into 7JDZFF instead; added a done_when line there so 7JDZFF explicitly owns closing the knip concern.

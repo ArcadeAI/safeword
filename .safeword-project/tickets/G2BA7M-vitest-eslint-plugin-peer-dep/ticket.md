@@ -3,9 +3,9 @@ id: G2BA7M
 slug: vitest-eslint-plugin-peer-dep
 type: patch
 phase: intake
-status: in_progress
+status: wontfix
 created: 2026-05-27T11:44:58.292Z
-last_modified: 2026-05-27T11:44:58.292Z
+last_modified: 2026-05-28T05:02:00.000Z
 scope: |
   Install or otherwise resolve the missing `@vitest/eslint-plugin` peer-dependency
   in `packages/cli` so that two currently-broken paths work again:
@@ -76,3 +76,4 @@ Failure trace points at [packages/cli/src/presets/typescript/eslint-configs/vite
 ## Work Log
 
 - 2026-05-27T11:44:58Z Started: Created ticket G2BA7M after F14BG2/QSNKBB verify pass surfaced this as a pre-existing blocker on lint + DTS build. Bounded scope (one decision: direct dep vs lazy-load; one install; verification). Sized patch.
+- 2026-05-28T05:02:00Z Closed wontfix — NOT A BUG. Investigation findings: `@vitest/eslint-plugin@^1.6.17` is correctly declared in `packages/cli/package.json` dependencies, installs cleanly into `packages/cli/node_modules`, ships its own types (`./dist/index.d.mts`), and resolves. With node_modules present, `bun run build` completes both ESM and DTS phases and `npx eslint --print-config` loads the config without error. CI passed lint+test on PRs #172 and #173, confirming a clean install works. The original `TS2307` / `Cannot find module` failures were purely the harness-created worktree lacking `node_modules` (the same artifact the session-start "ESLint config not found" warning points at). This is the identical class of non-bug that ticket 7JDZFF already documented in its out_of_scope ("harness-created-worktree-without-bun-install artifact, not a safeword bug"). No code fix warranted. Residual (NOT tracked here): the session-start hook's "ESLint config not found - run 'bun run lint' may fail" message is misleading — real cause is missing node_modules. Open a fresh ticket only if that diagnostic confuses someone again.
