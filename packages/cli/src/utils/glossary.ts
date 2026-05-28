@@ -38,6 +38,38 @@ export interface GlossaryValidationError {
   message: string;
 }
 
+/** Group entries by a derived key, returning key → header line numbers. */
+function groupByLine(
+  entries: readonly ParsedGlossaryEntry[],
+  pick: (entry: ParsedGlossaryEntry) => string,
+): Map<string, number[]> {
+  const grouped = new Map<string, number[]>();
+  for (const entry of entries) {
+    const key = pick(entry);
+    if (key.length === 0) continue;
+    const lines = grouped.get(key) ?? [];
+    lines.push(entry.lineNumber);
+    grouped.set(key, lines);
+  }
+  return grouped;
+}
+
+/** Produce duplicate-detection errors from a grouping. */
+function findDuplicates(
+  grouped: Map<string, number[]>,
+  kind: 'term' | 'alias',
+): GlossaryValidationError[] {
+  const errors: GlossaryValidationError[] = [];
+  for (const [value, lines] of grouped.entries()) {
+    if (lines.length <= 1) continue;
+    for (const line of lines) {
+      const others = lines.filter(other => other !== line).join(', ');
+      errors.push({ line, message: `duplicate ${kind} "${value}" (also at line ${others})` });
+    }
+  }
+  return errors;
+}
+
 /**
  * Validate parsed glossary entries. Returns a list of
  * {@link GlossaryValidationError} with 1-indexed line numbers; empty list
@@ -45,6 +77,7 @@ export interface GlossaryValidationError {
  *
  * Checks (each independent, all errors collected — never throws):
  * - Every entry has a non-empty `**Definition:**`.
+ * - Term names are unique within the file.
  */
 export function validateGlossary(
   entries: readonly ParsedGlossaryEntry[],
@@ -55,6 +88,12 @@ export function validateGlossary(
       errors.push({ line: entry.lineNumber, message: `"${entry.name}" is missing Definition` });
     }
   }
+  errors.push(
+    ...findDuplicates(
+      groupByLine(entries, entry => entry.name),
+      'term',
+    ),
+  );
   return errors;
 }
 
