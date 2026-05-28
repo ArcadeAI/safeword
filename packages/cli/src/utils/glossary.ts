@@ -43,12 +43,19 @@ export interface GlossaryValidationError {
  * {@link GlossaryValidationError} with 1-indexed line numbers; empty list
  * means the file is well-formed.
  *
- * Stub implementation — returns empty list. Replaced in GREEN.
+ * Checks (each independent, all errors collected — never throws):
+ * - Every entry has a non-empty `**Definition:**`.
  */
 export function validateGlossary(
-  _entries: readonly ParsedGlossaryEntry[],
+  entries: readonly ParsedGlossaryEntry[],
 ): GlossaryValidationError[] {
-  return [];
+  const errors: GlossaryValidationError[] = [];
+  for (const entry of entries) {
+    if (entry.definition.trim().length === 0) {
+      errors.push({ line: entry.lineNumber, message: `"${entry.name}" is missing Definition` });
+    }
+  }
+  return errors;
 }
 
 /**
