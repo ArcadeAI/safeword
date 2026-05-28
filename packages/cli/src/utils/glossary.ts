@@ -53,15 +53,34 @@ const FIELD_PROPERTY_MAP: ReadonlyMap<string, keyof ParsedGlossaryEntry> = new M
 ]);
 
 /**
+ * Normalize the colon-outside variant `**Foo**:` to the canonical
+ * colon-inside form `**Foo:**` so a single prefix lookup table covers
+ * both. Arcade's prototype glossary mixes both conventions on adjacent
+ * lines — the parser must tolerate either.
+ *
+ * Bounded: only inspects the leading `**...**:` segment; no backtracking.
+ */
+function normalizeFieldColon(line: string): string {
+  if (!line.startsWith('**')) return line;
+  const closeBold = line.indexOf('**', 2);
+  if (closeBold === -1) return line;
+  if (line.charAt(closeBold + 2) !== ':') return line;
+  // Splice: `<prefix>**` + `:**` + `<rest after `**:`>` →
+  // `**Foo**: bar` becomes `**Foo:** bar`.
+  return `${line.slice(0, closeBold)}:**${line.slice(closeBold + 3)}`;
+}
+
+/**
  * If the line begins with one of the known `**Field:**` prefixes, return
  * the property + value to assign. Otherwise return undefined.
  */
 function parseFieldLine(
   line: string,
 ): { property: keyof ParsedGlossaryEntry; value: string } | undefined {
+  const normalized = normalizeFieldColon(line);
   for (const [prefix, property] of FIELD_PROPERTY_MAP) {
-    if (line.startsWith(prefix)) {
-      return { property, value: line.slice(prefix.length).trim() };
+    if (normalized.startsWith(prefix)) {
+      return { property, value: normalized.slice(prefix.length).trim() };
     }
   }
   return undefined;
