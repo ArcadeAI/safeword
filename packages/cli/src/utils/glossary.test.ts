@@ -136,6 +136,34 @@ describe('parseGlossary — canonical entry shapes', () => {
     });
   });
 
+  describe('R1.6: multi-line field value accumulates continuation lines', () => {
+    it('joins wrapped Definition lines with spaces; blank line terminates the field', () => {
+      const content = [
+        '## Tool',
+        '',
+        '**Definition:** A single callable capability exposed by Arcade — for example,',
+        '`GitHub.CreateIssue` or `Slack.SendMessage`. Each tool has a typed input schema,',
+        'executes a specific operation, and returns a structured result.',
+        '',
+        '**Used in:** Engine, MCP servers.',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries).toHaveLength(1);
+      const [entry] = entries;
+      expect(entry).toBeDefined();
+      if (!entry) return;
+      expect(entry.definition).toBe(
+        'A single callable capability exposed by Arcade — for example, ' +
+          '`GitHub.CreateIssue` or `Slack.SendMessage`. Each tool has a typed input schema, ' +
+          'executes a specific operation, and returns a structured result.',
+      );
+      // Blank line terminated the Definition — Used in is a separate field.
+      expect(entry.usedIn).toBe('Engine, MCP servers.');
+    });
+  });
+
   describe('R1.4: unknown **Field:** is tolerated', () => {
     it('does not error and does not surface unknown field as parsed content', () => {
       const content = [

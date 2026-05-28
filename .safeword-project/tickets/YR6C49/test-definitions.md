@@ -66,6 +66,23 @@ Then the returned entry has `usedIn: 'Engine, MCP servers'` (same as the colon-i
 - [x] GREEN 818b9e42
 - [x] REFACTOR skip: normalizeFieldColon helper is the minimal viable shape
 
+### Scenario: Multi-line field value accumulates continuation lines
+
+Given a glossary file with a `## Tool` block whose `**Definition:**` text wraps across three lines, followed by a blank line and a `**Used in:**` field
+When `parseGlossary(content)` is called
+Then `definition` contains all three lines joined with single spaces
+And `usedIn` is captured separately (the blank line terminated the Definition accumulation)
+
+> _(Surfaced by `/quality-review` running the parser against arcade's
+> real `.project/glossary.md` — its definitions wrap across lines.
+> Single-line capture left `definition` truncated. Continuation rule:
+> append non-blank lines to the active field until a blank line, a new
+> `**Field:**`, or a `##` header.)_
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Parser skips non-term markdown content
 
 > Mirrors the persona-parser skip-mask semantics. Fenced code blocks and
