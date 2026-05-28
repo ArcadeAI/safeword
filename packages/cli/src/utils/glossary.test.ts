@@ -36,6 +36,28 @@ describe('validateGlossary — structural errors', () => {
     });
   });
 
+  describe('R3.4: alias that shadows an existing term name produces an error', () => {
+    it('flags an alias colliding with a declared term name', () => {
+      const content = [
+        '## Tool',
+        '**Definition:** A capability.',
+        '**Aliases:** Widget',
+        '',
+        '## Widget',
+        '**Definition:** A separate, real term.',
+      ].join('\n');
+      const parsed = parseGlossary(content);
+
+      const errors = validateGlossary(parsed);
+
+      const shadowErrors = errors.filter(error => error.message.includes('shadows term'));
+      expect(shadowErrors).toHaveLength(1);
+      // Error references Tool's entry line (where the offending alias lives).
+      expect(shadowErrors[0]?.line).toBe(1);
+      expect(shadowErrors[0]?.message).toContain('Widget');
+    });
+  });
+
   describe('R3.3: duplicate alias across terms produces errors pointing at both lines', () => {
     it('emits one error per duplicate alias, each referencing the other line', () => {
       const content = [

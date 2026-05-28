@@ -159,16 +159,22 @@ Then the errors include two entries (one per duplicate alias) referencing each o
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Alias referencing unknown term produces an error
+### Scenario: Alias that shadows an existing term name produces an error
 
-Given a glossary file with `## Tool` having `**Aliases:** Nonexistent` and no `## Nonexistent` block defined
+Given a glossary file with `## Tool` having `**Aliases:** Widget` and a separate `## Widget` term block defined
 When `validateGlossary(parsed)` is called
-Then the errors include one referencing the alias line with message mentioning "unresolved alias"
+Then the errors include one referencing the alias's entry line with message mentioning "shadows term"
 
-> _(Per X-C schema: this scenario verifies the cross-reference check
-> the dimension table describes. If unresolved-alias semantics turn out
-> to be too strict during decomposition or implementation, downgrade to
-> a warning rather than silently dropping the check.)_
+> _(**Scenario corrected during implementation.** The original R3.4
+> ("alias referencing a non-existent term → error") was semantically
+> backwards — an alias is an alternative name and by definition need not
+> have its own block, so requiring one would defeat aliases. The real
+> referential hazard the dimension table meant is the inverse: an alias
+> that collides with a declared term name makes lookup ambiguous (is
+> "Widget" the Tool-alias or the Widget-term?). This matches the
+> decomposition.md owned decision "alias collision with another term's
+> canonical → error; resolver requires string → exactly-one-term."
+> Alias-duplicates-alias is already covered by R3.3.)_
 
 - [ ] RED
 - [ ] GREEN
