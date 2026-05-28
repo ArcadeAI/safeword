@@ -149,6 +149,34 @@ function computeSkipMask(lines: readonly string[]): boolean[] {
   return skip;
 }
 
+/**
+ * Strip inline `<!-- ... -->` comments from a single line of text.
+ * Per CommonMark, an HTML comment that appears mid-line is inline HTML
+ * and doesn't appear in the rendered output. Regex-free and bounded:
+ * each `<!--` advances the scan past its matching `-->`, O(n) with no
+ * backtracking. Unclosed inline comment leaves the rest of the line
+ * intact — block-level handling lives in computeSkipMask.
+ */
+function stripInlineComments(text: string): string {
+  let result = '';
+  let pos = 0;
+  while (pos < text.length) {
+    const open = text.indexOf('<!--', pos);
+    if (open === -1) {
+      result += text.slice(pos);
+      break;
+    }
+    result += text.slice(pos, open);
+    const close = text.indexOf('-->', open + 4);
+    if (close === -1) {
+      result += text.slice(open);
+      break;
+    }
+    pos = close + 3;
+  }
+  return result;
+}
+
 export function parseGlossary(content: string): ParsedGlossaryEntry[] {
   const lines = content.split('\n');
   const skip = computeSkipMask(lines);
@@ -160,7 +188,7 @@ export function parseGlossary(content: string): ParsedGlossaryEntry[] {
     if (line.startsWith('## ')) {
       if (current) entries.push(current);
       current = {
-        name: line.slice(3).trim(),
+        name: stripInlineComments(line.slice(3)).trim(),
         definition: '',
         aliases: [],
         lineNumber: index + 1,
