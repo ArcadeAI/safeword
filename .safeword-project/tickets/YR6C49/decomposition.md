@@ -62,8 +62,31 @@ Total: 30 scenarios, 6 tasks. Tasks 2 and 4 are independent after Task 1.
   `stripInlineComments`, `computeSkipMask` — most can be lifted nearly
   verbatim from `personas.ts` with minor adjustments (field names,
   no auto-derived codes). Resist over-extracting a shared parser
-  utility until a third consumer exists (architecture.md in M6D315
-  would be the trigger).
+  utility until a third consumer exists (the `architecture.md` read
+  site — `paths.architecture` is already reserved in
+  `configured-paths.ts`; that ticket is the trigger).
+
+  **Extraction guidance for the 3rd consumer (recorded post-implementation,
+  validated via `/quality-review` against Rule-of-Three / Metz / AHA):**
+  by end of YR6C49 there are four near-duplicate persona/glossary pairs —
+  `lookupXReference`, `validateXReference`, `findXIssues`,
+  `findXAdvisories`. When the architecture read site lands, do NOT
+  reflexively extract all four. Apply the AHA "do these need to change
+  together?" test per pair:
+  - `validateXReference` / `findXIssues` / `findXAdvisories` differ only
+    by `configKey` + file subpath + parse/validate fn + message prefix —
+    they co-vary, so a single generic (e.g.
+    `configuredReadTarget({ key, subpath, parse, validate, label })`) is
+    well-justified at N=3.
+  - `lookupXReference` differs _structurally_ (personas match code+name;
+    glossary matches name+aliases; suggestion differs) — these are
+    adjacent, not shared. Likely keep duplicated unless the architecture
+    lookup happens to match the same shape.
+
+  The extraction touches shipped persona code (7YN5QB/K7N2QM), so it's
+  its own refactor ticket, not smuggled into the feature that adds the
+  3rd consumer.
+
 - **Task 2** semantics decisions (from Phase 4 adversarial pass):
   - **Repeated `**Definition:**` within one entry** — first-wins.
     Rationale: matches how persona `**Role:**` would behave (only
