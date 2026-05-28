@@ -62,7 +62,22 @@ export function lookupGlossaryReference(
   if (input.length === 0) return { status: 'unknown' };
 
   for (const entry of entries) {
-    if (entry.name === input) return { status: 'valid', match: entry };
+    if (entry.name === input || entry.aliases.includes(input)) {
+      return { status: 'valid', match: entry };
+    }
+  }
+
+  // Casing-mismatch detection — suggest the canonical spelling when the
+  // only difference is case (on a term name or an alias).
+  const lowered = input.toLowerCase();
+  for (const entry of entries) {
+    if (entry.name.toLowerCase() === lowered) {
+      return { status: 'unknown', suggestion: entry.name };
+    }
+    const aliasMatch = entry.aliases.find(alias => alias.toLowerCase() === lowered);
+    if (aliasMatch !== undefined) {
+      return { status: 'unknown', suggestion: entry.name };
+    }
   }
 
   return { status: 'unknown' };
