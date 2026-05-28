@@ -3,7 +3,7 @@ id: Y2HCNJ
 slug: jtbd-format
 title: 'Add JTBD as Phase 0 artifact (When-I-I-want-so-I-can)'
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: 89HX2E
@@ -74,3 +74,4 @@ Two inherit from the epic; two were resolved at intake via `/figure-it-out`; one
 - 2026-05-24T15:21:54.968Z Started: Created ticket Y2HCNJ
 - 2026-05-24T15:22:00.000Z Drafted: Scope, depends, open questions; linked to epic DZ2NM5
 - 2026-05-28T05:45:00.000Z Resolved Phase 0 (intake): Mapped all code surfaces (spec-template.md absent; ticket-writer.ts inline render; pre-tool-quality.ts:230-300 gate; DISCOVERY.md + paired template; validatePersonaReference from 7YN5QB). Confirmed per-ticket artifacts aren't schema-registered → spec.md follows suit (divergence from epic rollup recorded). Open questions closed via `/figure-it-out`: gate = `skip: <reason>` escape valve (consistency with dimensions.md/SHA-or-skip gates + Nielsen Norman user-control); numbering = JTBD-level id here, AC/scenario validation deferred to XT1FFM (RTM identifier-at-creation + 31W8M3 needs the anchor). Corrected stale `.project/personas.md` → `.safeword-project/personas.md`. Scope/out_of_scope/done_when written to frontmatter. Phase advanced intake → define-behavior.
+- 2026-05-28T05:46:00.000Z Phase 3+4 complete (define-behavior + scenario-gate): Wrote [dimensions.md](./dimensions.md) (9 dimensions across scaffold-by-type, ticket.md shape, JTBD-section parse, gate routing/outcome, persona resolution, doc integration) and [test-definitions.md](./test-definitions.md) (6 rules, 28 scenarios, G/W/T + R/G/R). Architectural call recorded: the hook can't import `validatePersonaReference` (lives in CLI dist, not deployed to `.safeword/hooks/`), so gate-level resolution is lightweight membership (`knownPersonaRefs`) in a new `hooks/lib/jtbd.ts` — the **3rd consumer** of the parse-`##`-blocks pattern, so M6D315 extracts here (mirror-in-place now, per epic deferred-refactor decision). Adversarial pass dropped the spec.md-idempotence scenario (createTicket always writes to a freshly-minted empty folder — unreachable state) and reframed the content scenario to verbatim-template (no slug-substitution machinery). Defined the gate's JTBD-entry unit as a `**Persona:**` line inside `## Jobs To Be Done`; the `When I…` form + id are coached, not gate-enforced (XT1FFM owns pattern enforcement). Phase → scenario-gate; pausing for user review of the behavior spec before implementation.
