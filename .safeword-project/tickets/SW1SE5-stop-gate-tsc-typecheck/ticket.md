@@ -2,7 +2,7 @@
 id: SW1SE5
 slug: stop-gate-tsc-typecheck
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 created: 2026-05-28T18:03:05.512Z
 last_modified: 2026-05-28T23:51:00.000Z
