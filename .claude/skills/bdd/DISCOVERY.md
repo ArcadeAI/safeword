@@ -16,6 +16,20 @@ At intake start, read `.safeword-project/personas.md`. This file is the project'
 
 Short codes auto-derive from names on the next `safeword check` (e.g., `Platform Operator` → `PO`). Codes can be overridden with explicit `## Name (CODE)` syntax. Never edit derived codes manually except via the override path — `safeword check` will rewrite them.
 
+## Load project glossary
+
+At intake start, read `.safeword-project/glossary.md`. This file is the project's source of truth for domain vocabulary; using terms consistently across tickets keeps specs from drifting (does "session" mean the same thing in two scenarios, or two different things?).
+
+- **If the file is missing or empty** (no term blocks parsed — the scaffolded template comment doesn't count) — surface a soft prompt:
+
+  > _"`.safeword-project/glossary.md` is empty — want to add some terms now, or proceed without?"_
+
+  The user can answer "proceed without" and intake continues; the prompt fires again later only if a turn references a domain term that isn't in the file.
+
+- **If a domain term comes up during intake that isn't in the glossary** — flag it, don't invent a definition. Ask whether it's a new term to define in `.safeword-project/glossary.md`, or a synonym for an existing one. Use `validateGlossaryReference` semantics (exact name or alias match; offer the suggestion when only casing differs).
+
+Project-wide terms live in `.safeword-project/glossary.md`; vocabulary used in only one spec stays in that ticket. Never extract terms from prose automatically — humans curate the glossary.
+
 ## Understanding (Propose-and-Converge)
 
 Follow the understanding pattern from SAFEWORD.md — including contribution techniques. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
