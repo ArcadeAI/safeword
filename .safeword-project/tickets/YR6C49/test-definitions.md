@@ -311,9 +311,9 @@ When `safeword check` runs
 Then stderr contains both line numbers and the message "duplicate term"
 And the exit code is non-zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5255c0d9
+- [x] GREEN d3cdb259
+- [x] REFACTOR skip: findGlossaryIssues mirrors findPersonaIssues; no new structure
 
 ### Scenario: Configured-but-missing → loud non-zero exit
 
@@ -323,9 +323,9 @@ When `safeword check` runs
 Then stderr contains `glossary-path: docs/glossary.md: file not found`
 And the exit code is non-zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5255c0d9
+- [x] GREEN d3cdb259
+- [x] REFACTOR skip: override-missing branch mirrors persona K7N2QM R2.3
 
 ### Scenario: Override set AND legacy default present → zero-exit advisory
 
@@ -336,9 +336,9 @@ When `safeword check` runs
 Then stderr (or stdout) contains an advisory naming `.safeword-project/glossary.md` as orphaned
 And the exit code is zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5255c0d9
+- [x] GREEN d3cdb259
+- [x] REFACTOR skip: findGlossaryAdvisories mirrors persona K7N2QM R2.6
 
 ## Rule: Lookup API supports agent reference resolution
 
