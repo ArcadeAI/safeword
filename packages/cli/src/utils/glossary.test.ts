@@ -18,6 +18,24 @@ import { describe, expect, it } from 'vitest';
 import { parseGlossary } from './glossary.js';
 
 describe('parseGlossary — skip-mask (non-term content)', () => {
+  describe('R2.3: inline <!-- ... --> on header line is stripped from name', () => {
+    it('returns clean name without comment text', () => {
+      const content = [
+        '## Tool <!-- legacy note -->',
+        '',
+        '**Definition:** A single callable capability.',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries).toHaveLength(1);
+      const [entry] = entries;
+      expect(entry).toBeDefined();
+      if (!entry) return;
+      expect(entry.name).toBe('Tool');
+    });
+  });
+
   describe('R2.2: header inside HTML comment block is not parsed as a term', () => {
     it('treats <!-- ... --> region as opaque', () => {
       const content = [
