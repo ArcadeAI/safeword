@@ -1,15 +1,18 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ContractDefinition, FileDefinition } from './schema.js';
 
 interface ParitySchema {
   ownedFiles: Record<string, FileDefinition>;
+  // Optional: personas/glossary templates are referenced here, not in ownedFiles.
+  // Included so the orphan-template scan doesn't false-flag them.
+  managedFiles?: Record<string, FileDefinition>;
   contracts: Record<string, ContractDefinition>;
 }
 
 interface ParityFailure {
-  kind: 'pair' | 'contract';
+  kind: 'pair' | 'contract' | 'orphan-template';
   message: string;
 }
 
@@ -67,6 +70,40 @@ function checkContract(
   };
 }
 
+/** Every file under templatesDirectory, recursively. Skips `_`-prefixed dirs
+ * (shared includes, not installable templates) — mirrors the schema test. */
+function collectTemplateFiles(directory: string, prefix = ''): string[] {
+  if (!existsSync(directory)) return [];
+  const files: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (entry.name.startsWith('_')) continue;
+      files.push(...collectTemplateFiles(nodePath.join(directory, entry.name), relativePath));
+    } else {
+      files.push(relativePath);
+    }
+  }
+  return files;
+}
+
+/** template → schema: every template file must be referenced by an
+ * ownedFiles/managedFiles `template:` value, else it ships but is never
+ * deployed/reconciled (the spec-template.md gap, ticket 04NKDR). */
+function checkOrphanTemplates(templatesDirectory: string, schema: ParitySchema): ParityFailure[] {
+  const referenced = new Set<string>(
+    [...Object.values(schema.ownedFiles), ...Object.values(schema.managedFiles ?? {})]
+      .map(definition => definition.template)
+      .filter((template): template is string => template !== undefined),
+  );
+  return collectTemplateFiles(templatesDirectory)
+    .filter(file => !referenced.has(file))
+    .map(file => ({
+      kind: 'orphan-template' as const,
+      message: `[TEMPLATE] Unregistered template (no ownedFiles/managedFiles entry): ${file}`,
+    }));
+}
+
 export function runParity(input: ParityInput): ParityResult {
   const failures: ParityFailure[] = [];
   let passedCount = 0;
@@ -90,6 +127,10 @@ export function runParity(input: ParityInput): ParityResult {
     if (failure) failures.push(failure);
     else passedCount += 1;
   }
+
+  // Orphan-template scan runs in BOTH modes (like contracts) — an unregistered
+  // template is a hard bug, so pre-commit's --mode=contracts-only hard-blocks it.
+  failures.push(...checkOrphanTemplates(input.templatesDirectory, input.schema));
 
   return { failures, passedCount };
 }
