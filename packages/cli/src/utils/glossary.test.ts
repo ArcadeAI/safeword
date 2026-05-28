@@ -37,6 +37,25 @@ describe('parseGlossary — canonical entry shapes', () => {
     });
   });
 
+  describe('R1.5: arcade **Used in**: (colon outside bold) parses identically', () => {
+    it('captures usedIn the same way as the colon-inside variant', () => {
+      const content = [
+        '## Tool',
+        '',
+        '**Definition:** A single callable capability.',
+        '**Used in**: Engine, MCP servers',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries).toHaveLength(1);
+      const [entry] = entries;
+      expect(entry).toBeDefined();
+      if (!entry) return;
+      expect(entry.usedIn).toBe('Engine, MCP servers');
+    });
+  });
+
   describe('R1.4: unknown **Field:** is tolerated', () => {
     it('does not error and does not surface unknown field as parsed content', () => {
       const content = [
