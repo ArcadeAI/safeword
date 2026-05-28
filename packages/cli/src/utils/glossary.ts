@@ -124,6 +124,7 @@ function findDuplicates(
  * means the file is well-formed.
  *
  * Checks (each independent, all errors collected — never throws):
+ * - Every entry has a non-empty term name.
  * - Every entry has a non-empty `**Definition:**`.
  * - Term names are unique within the file.
  * - Aliases are unique across all terms.
@@ -134,8 +135,12 @@ export function validateGlossary(
 ): GlossaryValidationError[] {
   const errors: GlossaryValidationError[] = [];
   for (const entry of entries) {
+    if (entry.name.length === 0) {
+      errors.push({ line: entry.lineNumber, message: 'header is missing term name' });
+    }
     if (entry.definition.trim().length === 0) {
-      errors.push({ line: entry.lineNumber, message: `"${entry.name}" is missing Definition` });
+      const label = entry.name.length === 0 ? 'entry' : `"${entry.name}"`;
+      errors.push({ line: entry.lineNumber, message: `${label} is missing Definition` });
     }
   }
   errors.push(
@@ -344,6 +349,19 @@ function stripInlineComments(text: string): string {
 }
 
 /**
+ * If the line is a level-2 header (`## Name`, or a bare/empty `##`),
+ * return the (possibly empty) term name with inline comments stripped.
+ * Returns undefined for non-header lines. An empty name is surfaced as a
+ * validation error downstream, not dropped here — so the bad line still
+ * produces an entry the validator can point at.
+ */
+function parseTermHeader(line: string): string | undefined {
+  if (line === '##') return '';
+  if (line.startsWith('## ')) return stripInlineComments(line.slice(3)).trim();
+  return undefined;
+}
+
+/**
  * Parse glossary entries from markdown content.
  *
  * Walks lines once, tracking the active `## Term` block. Skip-mask hides
@@ -364,10 +382,11 @@ export function parseGlossary(content: string): ParsedGlossaryEntry[] {
 
   for (const [index, line] of lines.entries()) {
     if (skip[index]) continue;
-    if (line.startsWith('## ')) {
+    const headerName = parseTermHeader(line);
+    if (headerName !== undefined) {
       if (current) entries.push(current);
       current = {
-        name: stripInlineComments(line.slice(3)).trim(),
+        name: headerName,
         definition: '',
         aliases: [],
         lineNumber: index + 1,
