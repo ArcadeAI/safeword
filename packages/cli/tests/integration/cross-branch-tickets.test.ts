@@ -23,6 +23,7 @@ import {
   initGitRepo,
   removeTemporaryDirectory,
   TIMEOUT_QUICK,
+  TIMEOUT_SYNC,
 } from '../helpers.js';
 
 const CLI_PATH = nodePath.join(import.meta.dirname, '..', '..', 'dist', 'cli.js');
@@ -141,8 +142,14 @@ describe('cross-branch ticket creation (real git fixture)', () => {
   );
 
   it(
-    'two branches forced to mint the same ID fail to merge (folder conflict)',
+    'two branches forced to mint the same ID merge cleanly but are caught by the duplicate-ID detector',
     () => {
+      // Folder layout is `{ID}-{slug}/` (PR #160), so two branches force-minting
+      // the same ID with different slugs produce different paths (`COLLID-foo/`,
+      // `COLLID-bar/`) and the second merge succeeds. The duplicate-ID detector
+      // (check-ticket-ids.ts, wired into pre-commit + CI) is the loud-failure
+      // mechanism that catches this state — see the
+      // `duplicate-ID guard last-line defense` describe below.
       const forcedId = 'COLLID';
       const overrideEnvironment = { ...process.env, SAFEWORD_TICKET_ID_OVERRIDE: forcedId };
 
@@ -168,15 +175,34 @@ describe('cross-branch ticket creation (real git fixture)', () => {
       gitSync(projectDirectory, 'checkout', 'main');
       gitSync(projectDirectory, 'merge', '--no-ff', '-m', 'merge a', 'feature-a');
 
-      // Second merge should fail with a path conflict on .safeword-project/tickets/COLLID/ticket.md.
       const secondMerge = spawnSync('git', ['merge', '--no-ff', '-m', 'merge b', 'feature-b'], {
         cwd: projectDirectory,
         encoding: 'utf8',
       });
-      expect(secondMerge.status).not.toBe(0);
-      expect(`${secondMerge.stdout}${secondMerge.stderr}`).toContain('CONFLICT');
+      expect(secondMerge.status).toBe(0);
+
+      const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+      const folders = readdirSync(ticketsDirectory).toSorted();
+      expect(folders).toEqual(['COLLID-bar', 'COLLID-foo']);
+
+      const scriptPath = nodePath.join(
+        import.meta.dirname,
+        '..',
+        '..',
+        '..',
+        '..',
+        'scripts',
+        'check-ticket-ids.ts',
+      );
+      const detectorResult = spawnSync('bun', [scriptPath], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+        timeout: 10_000,
+      });
+      expect(detectorResult.status).toBe(1);
+      expect(detectorResult.stderr).toContain('COLLID');
     },
-    TIMEOUT_QUICK,
+    TIMEOUT_SYNC,
   );
 });
 

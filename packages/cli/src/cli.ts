@@ -69,9 +69,10 @@ program
 program
   .command('sync-config')
   .description('Regenerate depcruise config from current project structure')
-  .action(async () => {
+  .option('--check', 'Report drift without writing (exits non-zero on drift)')
+  .action(async (options: { check?: boolean }) => {
     const { syncConfig } = await import('./commands/sync-config.js');
-    await syncConfig();
+    await syncConfig({ check: options.check });
   });
 
 const ticket = program.command('ticket').description('Ticket management');

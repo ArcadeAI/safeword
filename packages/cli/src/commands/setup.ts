@@ -328,6 +328,9 @@ function setupJavaScriptProject(
     }
     if (syncResult.createdMainConfig) {
       archFiles.push('.dependency-cruiser.cjs');
+      info(
+        '  ↳ .dependency-cruiser.cjs extends rules from .safeword/depcruise-config.cjs — edit to add your own.',
+      );
     }
     logArchitectureDetected(arch);
   }

@@ -136,4 +136,38 @@ describe('Setup - Architecture Integration', () => {
       expect(result.stdout).toContain('.dependency-cruiser.cjs');
     });
   });
+
+  describe('Test 6.5: Explains the wrapper file when newly created', () => {
+    it('should emit an explainer for .dependency-cruiser.cjs on first creation', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'src/utils/helper.ts', 'export const x = 1;');
+
+      const result = await runCli(['setup'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(fileExists(temporaryDirectory, '.dependency-cruiser.cjs')).toBe(true);
+      // Explainer tells the customer what the file is and how to extend it
+      expect(result.stdout).toContain('extends rules from .safeword/depcruise-config.cjs');
+    });
+  });
+
+  describe('Test 6.6: Skips explainer when wrapper already exists', () => {
+    it('should not emit the explainer when .dependency-cruiser.cjs preexists', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'src/utils/helper.ts', 'export const x = 1;');
+      // Customer (or a prior setup) already created the wrapper with custom rules
+      const customWrapper = `module.exports = { forbidden: [], options: {} };`;
+      writeTestFile(temporaryDirectory, '.dependency-cruiser.cjs', customWrapper);
+
+      const result = await runCli(['setup'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      // Wrapper preserved
+      expect(readTestFile(temporaryDirectory, '.dependency-cruiser.cjs')).toBe(customWrapper);
+      // No explainer — customer already knows about the file
+      expect(result.stdout).not.toContain('extends rules from .safeword/depcruise-config.cjs');
+    });
+  });
 });

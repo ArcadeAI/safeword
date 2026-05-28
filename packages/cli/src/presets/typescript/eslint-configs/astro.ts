@@ -7,7 +7,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
 
-import astroPlugin from 'eslint-plugin-astro';
+import { createRequire } from 'node:module';
+
+import { lazyConfigArray } from './lazy.js';
+
+const requireFromHere = createRequire(import.meta.url);
 
 /**
  * Astro config
@@ -20,26 +24,31 @@ import astroPlugin from 'eslint-plugin-astro';
  * Note: jsx-a11y rules work with Astro files because eslint-plugin-astro
  * provides wrapped versions that understand Astro's JSX-like syntax.
  * Using eslint-plugin-jsx-a11y directly on Astro files does NOT work.
+ *
+ * Plugin is loaded lazily — only when this config is actually accessed.
  */
-export const astroConfig: any[] = [
-  // Spread flat/recommended (5 config objects: plugin setup, file patterns, prettier overrides, rules)
-  ...astroPlugin.configs['flat/recommended'],
+export const astroConfig: any[] = lazyConfigArray(() => {
+  const astroPlugin = requireFromHere('eslint-plugin-astro');
+  return [
+    // Spread flat/recommended (5 config objects: plugin setup, file patterns, prettier overrides, rules)
+    ...astroPlugin.configs['flat/recommended'],
 
-  // Accessibility rules adapted for Astro (requires eslint-plugin-jsx-a11y installed)
-  ...astroPlugin.configs['flat/jsx-a11y-strict'],
+    // Accessibility rules adapted for Astro (requires eslint-plugin-jsx-a11y installed)
+    ...astroPlugin.configs['flat/jsx-a11y-strict'],
 
-  // Add LLM-critical rules
-  {
-    name: 'safeword/astro',
-    rules: {
-      // XSS prevention - LLMs often use set:html for rendering user content
-      'astro/no-set-html-directive': 'error',
+    // Add LLM-critical rules
+    {
+      name: 'safeword/astro',
+      rules: {
+        // XSS prevention - LLMs often use set:html for rendering user content
+        'astro/no-set-html-directive': 'error',
 
-      // CSP safety - inline scripts can break Content Security Policy
-      'astro/no-unsafe-inline-scripts': 'error',
+        // CSP safety - inline scripts can break Content Security Policy
+        'astro/no-unsafe-inline-scripts': 'error',
 
-      // Astro convention - LLMs try to export from .astro components (not allowed)
-      'astro/no-exports-from-components': 'error',
+        // Astro convention - LLMs try to export from .astro components (not allowed)
+        'astro/no-exports-from-components': 'error',
+      },
     },
-  },
-];
+  ];
+});

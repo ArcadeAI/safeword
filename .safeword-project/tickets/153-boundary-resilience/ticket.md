@@ -4,7 +4,7 @@ type: feature
 phase: decomposition
 status: in_progress
 created: 2026-05-18T06:12:00Z
-last_modified: 2026-05-20T05:58:00Z
+last_modified: 2026-05-24T13:17:00Z
 scope:
   - Epic-anchor hook re-injects epic's `## Contracts` section on every UserPromptSubmit and on SessionStart:compact when sub-ticket has `epic:` frontmatter field
   - Replan-on-resume fires when `git log <ticket.last_modified>..HEAD` returns > 0 commits at activeTicket transition; the model's first action on the replan-triggered turn is the investigation
@@ -107,7 +107,7 @@ Soft, not hard. Real-world data will tell us whether hard-gating is needed; defa
 ## Investigation Needed (Before Implementation)
 
 1. **Regression-check the historical additionalContext double-inject bug ([anthropics/claude-code#14281](https://github.com/anthropics/claude-code/issues/14281), filed 2025-12-17, now CLOSED).** The fix should be in any current Claude Code version, but our epic-anchor injection is exactly the shape that exercised the original regression — verify in dogfood before shipping.
-2. **Confirm `UserPromptSubmit` hook can detect `activeTicket` transition reliably.** The hook needs to compare current `quality-state.json:activeTicket` against the previous turn's value (state-diffing). Decide where to persist the previous-turn snapshot — a sibling file in `.safeword/state/` or inline within `quality-state.json` itself.
+2. **Confirm `UserPromptSubmit` hook can detect `activeTicket` transition reliably.** The hook needs to compare current `quality-state.json:activeTicket` against the previous turn's value (state-diffing). Persist the previous-turn snapshot **inline within `quality-state.json`** as a sibling field — tentatively `previousActiveTicket: string | null` — following v0.34.0's append-only state precedent (`learningsNudgesPending[]`, `learningsNudgesAcknowledged[]` shipped in #126). No sibling file in `.safeword/state/`; single state file keeps the snapshot atomic with the rest of session state.
 3. **Format of the auto-replan prompt template** — needs to instruct Claude to investigate codebase changes (one `git diff` since last_modified), fetch latest docs for relevant tools (Context7), and conclude with a structured proposal. Template needs to be written and tested for output quality.
 4. **`## Contracts` section parsing** — markdown heading scan. Need to decide what counts as the section boundary (next `##` heading) and how to handle nested subsections.
 
@@ -165,6 +165,7 @@ UserPromptSubmit state-diffing to detect activeTicket transitions; git-log commi
 
 ## Work Log
 
+- 2026-05-24T13:17:00Z Re-applied May-23 re-validation clarification (Investigation Needed #2 now specifies `previousActiveTicket` as inline sibling field in `quality-state.json`, following v0.34.0's append-only state precedent). Original May-23 commit `90f725c` landed on `chore/dogfood-bump-0.35.1` which got reset/rebased before merge; commit is now orphaned and not on any branch. The May-23 re-validation pass itself (57-commit codebase delta check) had verdict "design holds, no CONFLICTS" — that conclusion still stands; this entry just re-instates the design-clarification artifact on main.
 - 2026-05-20T05:58:00Z Complete: Phase 5 — Decomposition. Four ordered tasks (A→B→C→D) with A as the parsing dependency root, B and C parallelizable after A, D depending only on A and largest in blast radius. Each task names its test layer and scenario coverage from test-definitions.md. Phase advances to `implement` next.
 - 2026-05-20T05:52:00Z Complete: Phase 4 — Scenarios validated (AODI) + adversarial pass. Quality-review skill audited the draft against AODI criteria and ran an adversarial pass; the audit produced (a) three atomicity splits (missing-epic → no-op vs stderr-warning; oversized → stub-injected vs full-section-absent; no-changes-without-approval → no-action vs accepted), (b) two observability restructures (wrapper-layer assertion for `isolation: worktree`; hook-payload-layer assertion for #14281 regression), (c) five adversarial scenarios (heading variants, empty section, 10K boundary, mid-session epic edit, sub-agent failure mode), and (d) one structural relabel (parity diff moved to Invariants section, separate from RED/GREEN/REFACTOR loop). All applied to the final test-definitions.md. Phase 4 exit criteria met.
 - 2026-05-20T05:50:00Z Complete: Phase 3 — 27 scenarios defined across 12 rules + 3 invariants in test-definitions.md, derived from the 13-row dimensions table in dimensions.md. Eight open questions (stub format, missing-file behavior, sub-agent failure, partial-accept semantics, empty-Contracts handling, heading match strictness, size-cap threshold, empty vs absent equivalence) all decided and baked into dimensions.md's "Decisions baked in" table so scenarios assume them as given.
