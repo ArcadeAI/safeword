@@ -3,12 +3,12 @@ id: Y2HCNJ
 slug: jtbd-format
 title: 'Add JTBD as Phase 0 artifact (When-I-I-want-so-I-can)'
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-zero-merge
 paired_with: 89HX2E
 created: 2026-05-24T15:21:54.968Z
-last_modified: 2026-05-28T05:45:00.000Z
+last_modified: 2026-05-28T17:55:00.000Z
 scope:
   - 'JTBD artifact format — a quoted "When I…, I want…, so I can…" statement, one named persona validated against `.safeword-project/personas.md` via `validatePersonaReference` (from 7YN5QB), and a short title.'
   - "JTBD-level identifier `<slug>.<persona-code><JTBD#>` (e.g. `oauth-flow.PO1`). This is the fixed prefix XT1FFM's full `<slug>.<persona-code><JTBD#>.AC<#>.<scenario_name>` scheme extends downward. Y2HCNJ assigns and formats the JTBD-level id only."
