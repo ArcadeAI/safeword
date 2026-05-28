@@ -52,11 +52,17 @@ export function validateGlossary(
 }
 
 /**
+ * The string-valued fields a `**Field:**` line can populate. Aliases is
+ * excluded — it parses to an array and does not accumulate across lines.
+ */
+type StringFieldKey = 'definition' | 'usedIn' | 'example' | 'doNotConfuseWith';
+
+/**
  * Maps a `**Field:**` prefix to the corresponding property on
  * `ParsedGlossaryEntry`. Lookup is by exact-prefix; unknown prefixes are
  * silently ignored (forward-compat per ticket scope).
  */
-const FIELD_PROPERTY_MAP: ReadonlyMap<string, keyof ParsedGlossaryEntry> = new Map([
+const FIELD_PROPERTY_MAP: ReadonlyMap<string, StringFieldKey> = new Map([
   ['**Definition:**', 'definition'],
   ['**Used in:**', 'usedIn'],
   ['**Example:**', 'example'],
@@ -85,9 +91,7 @@ function normalizeFieldColon(line: string): string {
  * If the line begins with one of the known `**Field:**` prefixes, return
  * the property + value to assign. Otherwise return undefined.
  */
-function parseFieldLine(
-  line: string,
-): { property: keyof ParsedGlossaryEntry; value: string } | undefined {
+function parseFieldLine(line: string): { property: StringFieldKey; value: string } | undefined {
   const normalized = normalizeFieldColon(line);
   for (const [prefix, property] of FIELD_PROPERTY_MAP) {
     if (normalized.startsWith(prefix)) {
@@ -95,6 +99,19 @@ function parseFieldLine(
     }
   }
   return undefined;
+}
+
+/**
+ * Whether a line looks like a `**Field:**` declaration (known or not).
+ * Used to terminate continuation accumulation on an unknown field line
+ * so it isn't swallowed into the previous field's value. Accepts the
+ * colon-outside variant via normalization first.
+ */
+function looksLikeFieldDeclaration(line: string): boolean {
+  const normalized = normalizeFieldColon(line);
+  if (!normalized.startsWith('**')) return false;
+  // Require non-empty content between the opening `**` and the `:**` close.
+  return normalized.indexOf(':**') > 2;
 }
 
 /**
@@ -109,22 +126,62 @@ function parseAliasLine(line: string): string[] | undefined {
 }
 
 /**
- * Apply a recognized field/alias line to the active entry. No-op when the
- * line doesn't match a known prefix (unknown `**Field:**` lines are
- * tolerated per ticket scope).
+ * Outcome of applying one line to the active entry:
+ * - `field` — a string field was set; the caller accumulates continuation
+ *   lines into `field`.
+ * - `aliases` — the aliases line was consumed; stop accumulating.
+ * - `none` — no known prefix matched; the line is a continuation candidate.
  */
-function applyLineToEntry(line: string, entry: ParsedGlossaryEntry): void {
+type LineOutcome =
+  | { kind: 'field'; field: StringFieldKey }
+  | { kind: 'aliases' }
+  | { kind: 'none' };
+
+/**
+ * Apply a recognized field/alias line to the active entry. Unknown
+ * `**Field:**` lines are tolerated per ticket scope (returns `none`).
+ */
+function applyLineToEntry(line: string, entry: ParsedGlossaryEntry): LineOutcome {
   const aliases = parseAliasLine(line);
   if (aliases !== undefined) {
     entry.aliases = aliases;
-    return;
+    return { kind: 'aliases' };
   }
   const field = parseFieldLine(line);
   if (field) {
-    // Field-property values are all strings; the cast is safe because
-    // parseFieldLine only returns string-valued props.
-    (entry as Record<string, unknown>)[field.property] = field.value;
+    entry[field.property] = field.value;
+    return { kind: 'field', field: field.property };
   }
+  return { kind: 'none' };
+}
+
+/**
+ * Append a continuation line to the active string field, soft-wrap style:
+ * single space between the existing text and the trimmed continuation.
+ */
+function appendContinuation(entry: ParsedGlossaryEntry, field: StringFieldKey, line: string): void {
+  const existing = entry[field] ?? '';
+  const addition = line.trim();
+  entry[field] = existing.length === 0 ? addition : `${existing} ${addition}`;
+}
+
+/**
+ * Apply one body line (a line within a `## Term` block) to the active
+ * entry and return the field that should accumulate subsequent
+ * continuation lines. A blank line, an aliases line, or an unknown
+ * `**Field:**` declaration resets accumulation (returns undefined).
+ */
+function consumeBodyLine(
+  line: string,
+  entry: ParsedGlossaryEntry,
+  activeField: StringFieldKey | undefined,
+): StringFieldKey | undefined {
+  if (line.trim().length === 0) return undefined;
+  const outcome = applyLineToEntry(line, entry);
+  if (outcome.kind === 'field') return outcome.field;
+  if (outcome.kind === 'aliases' || looksLikeFieldDeclaration(line)) return undefined;
+  if (activeField !== undefined) appendContinuation(entry, activeField, line);
+  return activeField;
 }
 
 /**
@@ -203,6 +260,9 @@ export function parseGlossary(content: string): ParsedGlossaryEntry[] {
   const skip = computeSkipMask(lines);
   const entries: ParsedGlossaryEntry[] = [];
   let current: ParsedGlossaryEntry | undefined;
+  // The field currently accumulating continuation lines. Reset on a blank
+  // line, a new `## ` header, or an aliases line.
+  let activeField: StringFieldKey | undefined;
 
   for (const [index, line] of lines.entries()) {
     if (skip[index]) continue;
@@ -214,10 +274,11 @@ export function parseGlossary(content: string): ParsedGlossaryEntry[] {
         aliases: [],
         lineNumber: index + 1,
       };
+      activeField = undefined;
       continue;
     }
     if (!current) continue;
-    applyLineToEntry(line, current);
+    activeField = consumeBodyLine(line, current, activeField);
   }
 
   if (current) entries.push(current);
