@@ -41,23 +41,7 @@ personas to that file — don't invent them here. -->
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
-
-Uncomment and customize:
-
-### oauth-flow.PO1 — Rotate credentials without a flag day
-
-**Persona:** Platform Operator (PO)
-
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
--->
+skip: Internal dev-workflow tooling — SW1SE5 is a quality gate for safeword's own development, not a product feature with external personas. The repo's persona model (`.safeword-project/personas.md`) isn't bootstrapped yet, and doing so is a separate concern. (Uses the Y2HCNJ gate's skip valve.)
 
 ## Outcomes
 
