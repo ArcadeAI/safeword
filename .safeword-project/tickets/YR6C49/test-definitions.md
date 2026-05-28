@@ -270,9 +270,9 @@ And `.safeword/config.json` has no `paths.glossary` entry
 When `safeword setup` runs
 Then `.safeword-project/glossary.md` exists with content matching the template
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 60e82ad6
+- [x] GREEN e575fdf8
+- [x] REFACTOR skip: schema managedFiles entry mirrors the personas entry; scaffold logic is shared reconcile machinery
 
 ### Scenario: Glossary already present → setup does not overwrite
 
@@ -280,9 +280,9 @@ Given `.safeword-project/glossary.md` exists with user content
 When `safeword setup` runs a second time
 Then `.safeword-project/glossary.md` content is unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: idempotency is existing reconcile behavior (create-if-missing); test passes vacuously pre-entry and remains green post-entry — committed in the R5 batch (60e82ad6)
+- [x] GREEN e575fdf8
+- [x] REFACTOR skip: no glossary-specific code path
 
 ### Scenario: Override configured → reconcile skips default scaffold
 
@@ -292,9 +292,9 @@ When `safeword setup` runs
 Then `.safeword-project/glossary.md` is NOT created
 And `docs/glossary.md` is NOT created either (user owns the override path)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: configKey gate is K7N2QM reconcile machinery; the new entry's `configKey: 'glossary'` exercises it — committed in the R5 batch (60e82ad6)
+- [x] GREEN e575fdf8
+- [x] REFACTOR skip: configKey: 'glossary' is the whole change; gate logic is shared
 
 ## Rule: `safeword check` reports glossary health
 
