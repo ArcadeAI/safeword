@@ -18,6 +18,25 @@ import { describe, expect, it } from 'vitest';
 import { parseGlossary } from './glossary.js';
 
 describe('parseGlossary — skip-mask (non-term content)', () => {
+  describe('R2.2: header inside HTML comment block is not parsed as a term', () => {
+    it('treats <!-- ... --> region as opaque', () => {
+      const content = [
+        '## Tool',
+        '',
+        '**Definition:** A single callable capability.',
+        '',
+        '<!--',
+        '## CommentedTerm',
+        '**Definition:** This is commented out and should not be parsed.',
+        '-->',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries.map(entry => entry.name)).toEqual(['Tool']);
+    });
+  });
+
   describe('R2.1: header inside fenced code block is not parsed as a term', () => {
     it('treats triple-backtick fenced content as opaque', () => {
       const content = [
