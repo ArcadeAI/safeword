@@ -488,6 +488,9 @@ describe('Schema - Single Source of Truth', () => {
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
       const deprecatedPaths = new Set(SAFEWORD_SCHEMA.deprecatedFiles);
+      // preservedDirs (e.g. .safeword/logs) hold runtime/user data the schema
+      // intentionally does not own — files under them are not drift.
+      const preservedDirectories = SAFEWORD_SCHEMA.preservedDirs;
 
       function collectFiles(directory: string, prefix: string): string[] {
         const results: string[] = [];
@@ -512,6 +515,7 @@ describe('Schema - Single Source of Truth', () => {
         if (DYNAMIC_FILES.has(filename)) continue;
         if (ownedPaths.has(file)) continue;
         if (deprecatedPaths.has(file)) continue;
+        if (preservedDirectories.some(dir => file === dir || file.startsWith(`${dir}/`))) continue;
         untracked.push(file);
       }
 

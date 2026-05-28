@@ -10,7 +10,7 @@ import {
   evaluateJtbdGate,
   knownPersonaRefs as knownPersonaReferences,
   parseJtbdSection,
-} from '../../templates/hooks/lib/jtbd.ts';
+} from '../../templates/hooks/lib/jtbd.js';
 
 const PERSONAS = '# Personas\n\n## Platform Operator (PO)\n\n**Role:** Owns infra.\n';
 

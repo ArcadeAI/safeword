@@ -407,6 +407,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates/work-log-template.md': {
       template: 'doc-templates/work-log-template.md',
     },
+    // Per-ticket spec.md scaffold (ticket Y2HCNJ). ticket-writer reads this
+    // from the bundled templates dir when scaffolding a feature's spec.md;
+    // deployed here so it joins the other artifact templates and stays in the
+    // schema's ownedFiles manifest.
+    '.safeword/templates/spec-template.md': {
+      template: 'spec-template.md',
+    },
 
     // Prompts
     '.safeword/prompts/architecture.md': {

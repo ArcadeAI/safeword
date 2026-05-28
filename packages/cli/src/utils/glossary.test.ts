@@ -267,8 +267,8 @@ describe('parseGlossary — canonical entry shapes', () => {
       // Definition still captured normally.
       expect(entry.definition).toBe('A single callable capability.');
       // Unknown field not surfaced on any known property.
-      expect((entry as Record<string, unknown>).someFutureField).toBeUndefined();
-      expect((entry as Record<string, unknown>).SomeFutureField).toBeUndefined();
+      expect((entry as unknown as Record<string, unknown>).someFutureField).toBeUndefined();
+      expect((entry as unknown as Record<string, unknown>).SomeFutureField).toBeUndefined();
     });
   });
 
