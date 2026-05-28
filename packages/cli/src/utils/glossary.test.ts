@@ -36,4 +36,29 @@ describe('parseGlossary — canonical entry shapes', () => {
       expect(entry.aliases).toEqual([]);
     });
   });
+
+  describe('R1.2: rich entry (all 4 optional fields populated)', () => {
+    it('captures Definition, Used in, Example, and Do not confuse with', () => {
+      const content = [
+        '## Tool',
+        '',
+        '**Definition:** A single callable capability.',
+        '**Used in:** Engine, MCP servers.',
+        '**Example:** `When the agent calls "GitHub.CreateIssue"`',
+        '**Do not confuse with:** Toolkit — a tool is a single operation.',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries).toHaveLength(1);
+      const [entry] = entries;
+      expect(entry).toBeDefined();
+      if (!entry) return;
+      expect(entry.name).toBe('Tool');
+      expect(entry.definition).toBe('A single callable capability.');
+      expect(entry.usedIn).toBe('Engine, MCP servers.');
+      expect(entry.example).toBe('`When the agent calls "GitHub.CreateIssue"`');
+      expect(entry.doNotConfuseWith).toBe('Toolkit — a tool is a single operation.');
+    });
+  });
 });
