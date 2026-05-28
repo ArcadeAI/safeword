@@ -16,6 +16,11 @@
  * See ticket YR6C49 for the full spec.
  */
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { resolveConfiguredPath } from './configured-paths.js';
+
 /**
  * A parsed glossary entry — name + Definition (required), plus any
  * optional fields the entry authored. Aliases is always present
@@ -55,10 +60,28 @@ export const GLOSSARY_FILE_SUBPATH = ['.safeword-project', 'glossary.md'];
 /**
  * Resolve a glossary reference against the on-disk glossary file.
  *
- * Stub implementation — always unknown. Replaced in GREEN.
+ * Reads from `paths.glossary` in `.safeword/config.json` when configured;
+ * falls back to `.safeword-project/glossary.md` otherwise. Degrades
+ * gracefully on a missing or unreadable file — returns
+ * `{ status: 'unknown' }` rather than throwing, regardless of whether the
+ * resolved path is the default or a configured override. The loud signal
+ * on configured-but-missing lives in `safeword check`, not here — keep
+ * this lookup cheap and side-effect-free (mirrors
+ * `validatePersonaReference`, ticket K7N2QM).
  */
-export function validateGlossaryReference(_cwd: string, _input: string): GlossaryReferenceResult {
-  return { status: 'unknown' };
+export function validateGlossaryReference(cwd: string, input: string): GlossaryReferenceResult {
+  let content: string;
+  try {
+    const filePath = resolveConfiguredPath(
+      cwd,
+      'glossary',
+      nodePath.join(...GLOSSARY_FILE_SUBPATH),
+    );
+    content = readFileSync(filePath, 'utf8');
+  } catch {
+    return { status: 'unknown' };
+  }
+  return lookupGlossaryReference(parseGlossary(content), input);
 }
 
 /**
