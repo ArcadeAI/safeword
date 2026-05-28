@@ -36,6 +36,29 @@ describe('validateGlossary — structural errors', () => {
     });
   });
 
+  describe('R3.3: duplicate alias across terms produces errors pointing at both lines', () => {
+    it('emits one error per duplicate alias, each referencing the other line', () => {
+      const content = [
+        '## Tool',
+        '**Definition:** A capability.',
+        '**Aliases:** Function',
+        '',
+        '## Capability',
+        '**Definition:** Another thing.',
+        '**Aliases:** Function',
+      ].join('\n');
+      const parsed = parseGlossary(content);
+
+      const errors = validateGlossary(parsed);
+
+      const aliasErrors = errors.filter(error => error.message.includes('duplicate alias'));
+      expect(aliasErrors).toHaveLength(2);
+      expect(aliasErrors.map(error => error.line).toSorted((a, b) => a - b)).toEqual([1, 5]);
+      expect(aliasErrors.find(error => error.line === 1)?.message).toContain('5');
+      expect(aliasErrors.find(error => error.line === 5)?.message).toContain('1');
+    });
+  });
+
   describe('R3.2: duplicate term name produces errors pointing at both lines', () => {
     it('emits one error per duplicate, each referencing the other line', () => {
       const content = [
