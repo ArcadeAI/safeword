@@ -17,6 +17,29 @@ import { describe, expect, it } from 'vitest';
 
 import { parseGlossary } from './glossary.js';
 
+describe('parseGlossary — skip-mask (non-term content)', () => {
+  describe('R2.1: header inside fenced code block is not parsed as a term', () => {
+    it('treats triple-backtick fenced content as opaque', () => {
+      const content = [
+        '## Tool',
+        '',
+        '**Definition:** A single callable capability.',
+        '',
+        'Example markdown:',
+        '',
+        '```markdown',
+        '## Example',
+        '**Definition:** This is inside a code fence and should not be parsed.',
+        '```',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries.map(entry => entry.name)).toEqual(['Tool']);
+    });
+  });
+});
+
 describe('parseGlossary — canonical entry shapes', () => {
   describe('R1.1: minimal entry (Term + Definition only)', () => {
     it('parses to one entry with name and definition; optional fields absent', () => {
