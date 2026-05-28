@@ -37,6 +37,25 @@ describe('parseGlossary — canonical entry shapes', () => {
     });
   });
 
+  describe('R1.3: aliases line parses into list', () => {
+    it('splits comma-separated aliases and trims whitespace per item', () => {
+      const content = [
+        '## Tool',
+        '',
+        '**Definition:** A single callable capability.',
+        '**Aliases:** Function, Capability',
+      ].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries).toHaveLength(1);
+      const [entry] = entries;
+      expect(entry).toBeDefined();
+      if (!entry) return;
+      expect(entry.aliases).toEqual(['Function', 'Capability']);
+    });
+  });
+
   describe('R1.2: rich entry (all 4 optional fields populated)', () => {
     it('captures Definition, Used in, Example, and Do not confuse with', () => {
       const content = [
