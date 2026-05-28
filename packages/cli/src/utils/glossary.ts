@@ -72,6 +72,36 @@ function groupAliasesByLine(entries: readonly ParsedGlossaryEntry[]): Map<string
   return grouped;
 }
 
+/**
+ * Flag aliases that collide with a declared term name. Lookup must
+ * resolve a string to exactly one term; an alias that shadows a real
+ * term name is ambiguous. A self-alias (alias equal to its own term's
+ * name) is harmless redundancy and not flagged.
+ */
+function findAliasShadowingTerms(
+  entries: readonly ParsedGlossaryEntry[],
+): GlossaryValidationError[] {
+  const termLines = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.name.length > 0 && !termLines.has(entry.name)) {
+      termLines.set(entry.name, entry.lineNumber);
+    }
+  }
+  const errors: GlossaryValidationError[] = [];
+  for (const entry of entries) {
+    for (const alias of entry.aliases) {
+      const termLine = termLines.get(alias);
+      if (termLine !== undefined && termLine !== entry.lineNumber) {
+        errors.push({
+          line: entry.lineNumber,
+          message: `alias "${alias}" shadows term defined at line ${termLine}`,
+        });
+      }
+    }
+  }
+  return errors;
+}
+
 /** Produce duplicate-detection errors from a grouping. */
 function findDuplicates(
   grouped: Map<string, number[]>,
@@ -97,6 +127,7 @@ function findDuplicates(
  * - Every entry has a non-empty `**Definition:**`.
  * - Term names are unique within the file.
  * - Aliases are unique across all terms.
+ * - No alias shadows a declared term name (ambiguous lookup).
  */
 export function validateGlossary(
   entries: readonly ParsedGlossaryEntry[],
@@ -113,6 +144,7 @@ export function validateGlossary(
       'term',
     ),
     ...findDuplicates(groupAliasesByLine(entries), 'alias'),
+    ...findAliasShadowingTerms(entries),
   );
   return errors;
 }
