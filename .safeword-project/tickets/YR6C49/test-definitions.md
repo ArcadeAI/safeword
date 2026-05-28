@@ -21,9 +21,9 @@ When `parseGlossary(content)` is called
 Then it returns one entry with `name: 'Tool'` and `definition: '<the definition text>'`
 And all optional fields are absent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 12d52785
+- [x] GREEN 83aeabca
+- [x] REFACTOR skip: walking-skeleton minimum, no duplication to extract yet
 
 ### Scenario: Rich entry parses with all optional fields populated
 
@@ -31,9 +31,9 @@ Given a glossary file containing one `## Tool` block with `**Definition:**`, `**
 When `parseGlossary(content)` is called
 Then it returns one entry with all four fields populated and `name: 'Tool'`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b240b696
+- [x] GREEN 9073c0f0
+- [x] REFACTOR skip: FIELD_PROPERTY_MAP extracted in GREEN itself
 
 ### Scenario: Aliases line parses into list
 
@@ -41,9 +41,9 @@ Given a glossary file containing one `## Tool` block with `**Definition:**` and 
 When `parseGlossary(content)` is called
 Then the returned entry has `aliases: ['Function', 'Capability']`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 74651b8e
+- [x] GREEN 743456d9
+- [x] REFACTOR skip: parseAliasLine + applyLineToEntry extracted in GREEN to satisfy complexity ceiling
 
 ### Scenario: Unknown `**Field:**` is tolerated
 
@@ -52,9 +52,9 @@ When `parseGlossary(content)` is called
 Then it returns the entry without error
 And the unknown field is silently ignored (not surfaced as parsed content)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: behavior already implemented by R1.2 GREEN (FIELD_PROPERTY_MAP returns undefined on unknown prefix, applyLineToEntry no-ops); test added as regression-only at commit 10ebb450
+- [x] GREEN 10ebb450
+- [x] REFACTOR skip: no new code path
 
 ### Scenario: Arcade `**Used in**:` colon-outside variant parses identically
 
@@ -62,9 +62,9 @@ Given a glossary file containing one `## Tool` block with `**Used in**: Engine, 
 When `parseGlossary(content)` is called
 Then the returned entry has `usedIn: 'Engine, MCP servers'` (same as the colon-inside variant)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 638618b1
+- [x] GREEN 818b9e42
+- [x] REFACTOR skip: normalizeFieldColon helper is the minimal viable shape
 
 ## Rule: Parser skips non-term markdown content
 
@@ -80,9 +80,9 @@ Given a glossary file containing a triple-backtick code fence wrapping `## Examp
 When `parseGlossary(content)` is called
 Then the returned entries do not include `Example`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 530ac7de
+- [x] GREEN 67a4f87d
+- [x] REFACTOR skip: computeSkipMask mirrors personas pattern; extending in R2.2 GREEN
 
 ### Scenario: Header inside HTML comment block is not parsed as a term
 
@@ -90,9 +90,9 @@ Given a glossary file with a block `<!-- ... ## CommentedTerm ... -->`
 When `parseGlossary(content)` is called
 Then the returned entries do not include `CommentedTerm`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 91e44563
+- [x] GREEN 960e8765
+- [x] REFACTOR skip: extension of existing computeSkipMask, no new structure
 
 ### Scenario: Inline `<!-- ... -->` on header line is stripped from name
 
@@ -100,9 +100,9 @@ Given a glossary file with `## Tool <!-- legacy note -->`
 When `parseGlossary(content)` is called
 Then the returned entry has `name: 'Tool'` (no comment text in name)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED df548ef8
+- [x] GREEN d60dcb4f
+- [x] REFACTOR skip: stripInlineComments mirrors personas.ts:123 pattern
 
 ## Rule: Structural validator catches malformed glossaries
 
