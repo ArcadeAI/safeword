@@ -12,6 +12,7 @@ import { SAFEWORD_SCHEMA } from '../schema.js';
 import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
+import { GLOSSARY_FILE_SUBPATH, parseGlossary, validateGlossary } from '../utils/glossary.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
 import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
 import { isNewerVersion } from '../utils/version.js';
@@ -80,6 +81,46 @@ function findPersonaAdvisories(cwd: string): string[] {
   if (!exists(defaultPath)) return [];
   return [
     `.safeword-project/personas.md exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
+/**
+ * Validate glossary.md when present, routing through any configured
+ * `paths.glossary` override. Returns one issue string per glossary
+ * validation error, formatted as `glossary.md:LINE: MESSAGE`. Same two
+ * failure modes as {@link findPersonaIssues} — absent default is silent
+ * (scaffold is optional), configured-but-missing fails loudly (ticket
+ * YR6C49, mirrors K7N2QM).
+ */
+function findGlossaryIssues(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'glossary');
+  const filePath = resolveConfiguredPath(cwd, 'glossary', nodePath.join(...GLOSSARY_FILE_SUBPATH));
+  const content = readFileSafe(filePath);
+
+  if (content === undefined) {
+    if (override !== undefined) {
+      return [`glossary-path: ${override}: file not found`];
+    }
+    return [];
+  }
+
+  const errors = validateGlossary(parseGlossary(content));
+  return errors.map(error => `glossary.md:${error.line}: ${error.message}`);
+}
+
+/**
+ * Surface non-blocking diagnostics about glossary path configuration.
+ * When `paths.glossary` is set AND the default-location file still exists,
+ * emit a zero-exit advisory naming the orphaned file (mirrors
+ * {@link findPersonaAdvisories}; data-loss principle from K7N2QM).
+ */
+function findGlossaryAdvisories(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'glossary');
+  if (override === undefined) return [];
+  const defaultPath = nodePath.join(cwd, ...GLOSSARY_FILE_SUBPATH);
+  if (!exists(defaultPath)) return [];
+  return [
+    `.safeword-project/glossary.md exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
   ];
 }
 
@@ -199,6 +240,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
+    ...findGlossaryIssues(cwd),
   ];
 
   // Check for missing .claude/settings.json
@@ -216,7 +258,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     updateAvailable: false,
     latestVersion: undefined,
     issues,
-    advisories: findPersonaAdvisories(cwd),
+    advisories: [...findPersonaAdvisories(cwd), ...findGlossaryAdvisories(cwd)],
     missingPackages: result.packagesToInstall,
     missingPacks,
   };
