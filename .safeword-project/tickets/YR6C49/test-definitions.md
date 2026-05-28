@@ -79,9 +79,9 @@ And `usedIn` is captured separately (the blank line terminated the Definition ac
 > append non-blank lines to the active field until a blank line, a new
 > `**Field:**`, or a `##` header.)_
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 821bd606
+- [x] GREEN 66cdfd89
+- [x] REFACTOR skip: consumeBodyLine + LineOutcome union extracted in GREEN to satisfy complexity ceiling; verified against arcade fixture (full definition captured, 7 entries, 0 errors)
 
 ## Rule: Parser skips non-term markdown content
 
