@@ -160,8 +160,8 @@ When `parseJtbdSection(content)` is called
 Then `entries` has length 1 with `persona: 'Platform Operator (PO)'`
 And `skip` is `null`
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: stripComment + parseSectionHeading extracted during GREEN
 
 ### Scenario: Multiple entries all parse
@@ -170,8 +170,8 @@ Given a spec.md whose Jobs To Be Done section has two entries with distinct `**P
 When `parseJtbdSection(content)` is called
 Then `entries` has length 2
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: no new code path
 
 ### Scenario: Header-only section parses to zero entries
@@ -181,8 +181,8 @@ When `parseJtbdSection(content)` is called
 Then `entries` is empty
 And `skip` is `null`
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: no new code path
 
 ### Scenario: skip declaration is captured
@@ -192,8 +192,8 @@ When `parseJtbdSection(content)` is called
 Then `skip` equals `no user-facing personas for this internal refactor`
 And `entries` is empty
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: skip-line branch is the minimal viable shape
 
 ### Scenario: Entry with empty Persona value yields an empty ref
@@ -202,8 +202,8 @@ Given a spec.md whose Jobs To Be Done section has an entry with a `**Persona:**`
 When `parseJtbdSection(content)` is called
 Then `entries` has length 1 with an empty-string `persona`
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: no new code path
 
 ### Scenario: Entries outside the Jobs To Be Done section are ignored
@@ -212,8 +212,8 @@ Given a spec.md with a `**Persona:**` line under the `## Personas` section but n
 When `parseJtbdSection(content)` is called
 Then `entries` is empty
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: inSection guard already covers it
 
 ### Scenario: HTML-commented JTBD in the section is not parsed as an entry
@@ -227,8 +227,8 @@ And `skip` is `null`
 > forces real authoring. Mirrors the persona/glossary skip-mask
 > semantics — block HTML comments are skipped entirely.)_
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: stripComment handles block + inline comments; no new structure
 
 ## Rule: Gate-level persona resolution is lightweight membership
@@ -245,8 +245,8 @@ Given personas.md with a header `## Platform Operator (PO)`
 When `knownPersonaRefs(content)` is called
 Then the returned set contains `Platform Operator (PO)` and `Platform Operator` and `PO`
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: splitNameAndCode reuses parseSectionHeading; no new structure
 
 ### Scenario: Reference absent from personas.md does not resolve
@@ -255,8 +255,8 @@ Given personas.md declaring only `## Platform Operator (PO)`
 When membership of `End User` is tested against `knownPersonaRefs(content)`
 Then it is not a member
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: Set membership; no code path
 
 ### Scenario: Missing personas.md degrades to empty refs without throwing
@@ -266,8 +266,8 @@ When it is evaluated
 Then it returns an empty set
 And it does not throw
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: empty-string yields empty set naturally
 
 ## Rule: `evaluateJtbdGate` composes parse + resolution into a decision
@@ -285,8 +285,8 @@ Given a spec with one JTBD entry `**Persona:** Platform Operator (PO)` and perso
 When `evaluateJtbdGate(spec, personas)` is called
 Then it returns `{ ok: true }`
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: composes parseJtbdSection + knownPersonaRefs; no duplication
 
 ### Scenario: Non-empty skip reason passes even with zero JTBDs
@@ -295,8 +295,8 @@ Given a spec whose Jobs To Be Done section is `skip: internal plumbing, no perso
 When `evaluateJtbdGate(spec, personas)` is called
 Then it returns `{ ok: true }`
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: skip branch is one conditional
 
 ### Scenario: Zero JTBD entries (no skip) is denied
@@ -305,8 +305,8 @@ Given a spec whose Jobs To Be Done section is empty and has no skip line
 When `evaluateJtbdGate(spec, personas)` is called
 Then it returns `{ ok: false }` with a reason mentioning a missing JTBD
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: no new code path
 
 ### Scenario: JTBD naming a persona absent from personas.md is denied
@@ -315,8 +315,8 @@ Given a spec with one JTBD entry `**Persona:** Ghost Persona` and personas.md th
 When `evaluateJtbdGate(spec, personas)` is called
 Then it returns `{ ok: false }` with a reason naming the unresolved persona
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: find-first-unresolved is the minimal viable shape
 
 ### Scenario: skip with an empty reason is denied
@@ -325,8 +325,8 @@ Given a spec whose Jobs To Be Done section is `skip:` with only whitespace after
 When `evaluateJtbdGate(spec, personas)` is called
 Then it returns `{ ok: false }` with a reason about the empty skip reason
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED d261066a
+- [x] GREEN d261066a
 - [x] REFACTOR skip: empty-skip branch is one conditional
 
 ## Rule: Intake-exit hook applies the JTBD gate only when spec.md is present
@@ -344,8 +344,8 @@ Given a feature ticket folder with complete ticket.md frontmatter (phase past in
 When the hook evaluates a Write of `test-definitions.md` in that folder
 Then the hook denies the write with a JTBD-gate message
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED b908d7f1
+- [x] GREEN b908d7f1
 - [x] REFACTOR skip: gate wiring reuses evaluateJtbdGate; nothing to extract
 
 ### Scenario: Creating test-definitions.md is allowed when spec.md has a resolving JTBD
@@ -354,8 +354,8 @@ Given a feature ticket folder with complete prerequisites and a spec.md with one
 When the hook evaluates a Write of `test-definitions.md` in that folder
 Then the hook allows the write
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED b908d7f1
+- [x] GREEN b908d7f1
 - [x] REFACTOR skip: no new code path
 
 ### Scenario: JTBD gate is skipped when spec.md is absent (grandfathered ticket)
@@ -364,8 +364,8 @@ Given a feature ticket folder with complete prerequisites and NO spec.md
 When the hook evaluates a Write of `test-definitions.md` in that folder
 Then the hook does not raise any JTBD-gate denial (old-flow routing)
 
-- [x] RED 4d1c0c95
-- [x] GREEN 4d1c0c95
+- [x] RED b908d7f1
+- [x] GREEN b908d7f1
 - [x] REFACTOR skip: existsSync(spec.md) guard is the whole routing
 
 ## Rule: Phase 0 docs document the JTBD sub-step
@@ -383,9 +383,9 @@ When both files are inspected
 Then both contain a JTBD authoring sub-step positioned after "Load project glossary" and before "Understanding"
 And both reference the one-persona-per-JTBD rule and the pause-and-confirm step
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9c297252
+- [x] GREEN 9c297252
+- [x] REFACTOR skip: doc-presence assertion, nothing to extract
 
 ### Scenario: SAFEWORD.md template and dogfood copy mention the JTBD sub-step
 
@@ -393,10 +393,10 @@ Given `packages/cli/templates/SAFEWORD.md` and `.safeword/SAFEWORD.md`
 When both files are inspected
 Then both mention the JTBD sub-step within the Clarify / Phase 0 description
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a882bda0
+- [x] GREEN a882bda0
+- [x] REFACTOR skip: doc-presence assertion, nothing to extract
 
 ## Feature-level cross-scenario refactor
 
-- [ ] REFACTOR
+- [x] REFACTOR skip: jtbd.ts helpers (stripComment / parseSectionHeading / splitNameAndCode) extracted during GREEN; the parse-`##`-blocks duplication with personas.ts/glossary.ts is deferred to M6D315 per epic DZ2NM5; doc-presence test files keep the per-file CANONICAL/DOGFOOD pattern (matches the glossary sibling, no coupling worth adding)
