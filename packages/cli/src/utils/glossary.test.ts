@@ -1,0 +1,39 @@
+/**
+ * Unit tests for glossary parsing, validation, and lookup (ticket YR6C49).
+ *
+ * Covers the pure-function scenarios in
+ * `.safeword-project/tickets/YR6C49/test-definitions.md` — entry-shape
+ * parsing, skip-mask semantics, structural validation, and lookup
+ * (exact/alias/case-mismatch/unknown).
+ *
+ * Integration tests for `safeword setup` / `safeword check` glossary
+ * behavior live under `tests/commands/`. File-IO behavior for
+ * `validateGlossaryReference` lives under
+ * `tests/utils/glossary-ref.test.ts` (sibling — separate file because
+ * it needs filesystem fixtures).
+ */
+
+import { describe, expect, it } from 'vitest';
+
+import { parseGlossary } from './glossary.js';
+
+describe('parseGlossary — canonical entry shapes', () => {
+  describe('R1.1: minimal entry (Term + Definition only)', () => {
+    it('parses to one entry with name and definition; optional fields absent', () => {
+      const content = ['## Tool', '', '**Definition:** A single callable capability.'].join('\n');
+
+      const entries = parseGlossary(content);
+
+      expect(entries).toHaveLength(1);
+      const [entry] = entries;
+      expect(entry).toBeDefined();
+      if (!entry) return;
+      expect(entry.name).toBe('Tool');
+      expect(entry.definition).toBe('A single callable capability.');
+      expect(entry.usedIn).toBeUndefined();
+      expect(entry.example).toBeUndefined();
+      expect(entry.doNotConfuseWith).toBeUndefined();
+      expect(entry.aliases).toEqual([]);
+    });
+  });
+});
