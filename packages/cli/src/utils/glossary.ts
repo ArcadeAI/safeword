@@ -118,20 +118,33 @@ function applyLineToEntry(line: string, entry: ParsedGlossaryEntry): void {
 
 /**
  * Compute a per-line boolean[] where `true` means "skip during parsing"
- * because the line lives inside a triple-backtick code fence. Fence
- * markers themselves are also marked skip so they don't become spurious
- * headers if they're indented.
+ * because the line lives inside a triple-backtick code fence or a
+ * block-level HTML comment (`<!-- ... -->`). Per CommonMark, only a line
+ * that BEGINS with `<!--` (after optional indent) opens a block-level
+ * comment; inline `<!--` mid-line is inline HTML and handled separately
+ * by stripInlineComments.
  */
 function computeSkipMask(lines: readonly string[]): boolean[] {
   const skip: boolean[] = [];
   let insideCodeFence = false;
+  let insideComment = false;
   for (const line of lines) {
     if (line.trimStart().startsWith('```')) {
       skip.push(true);
       insideCodeFence = !insideCodeFence;
       continue;
     }
-    skip.push(insideCodeFence);
+    if (insideCodeFence) {
+      skip.push(true);
+      continue;
+    }
+    if (!insideComment && line.trimStart().startsWith('<!--')) insideComment = true;
+    if (insideComment) {
+      skip.push(true);
+      if (line.includes('-->')) insideComment = false;
+      continue;
+    }
+    skip.push(false);
   }
   return skip;
 }
