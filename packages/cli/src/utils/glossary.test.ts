@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { parseGlossary, validateGlossary } from './glossary.js';
+import { lookupGlossaryReference, parseGlossary, validateGlossary } from './glossary.js';
 
 describe('validateGlossary — structural errors', () => {
   describe('R3.1: missing **Definition:** produces an error', () => {
@@ -313,6 +313,28 @@ describe('parseGlossary — canonical entry shapes', () => {
       expect(entry.usedIn).toBe('Engine, MCP servers.');
       expect(entry.example).toBe('`When the agent calls "GitHub.CreateIssue"`');
       expect(entry.doNotConfuseWith).toBe('Toolkit — a tool is a single operation.');
+    });
+  });
+});
+
+describe('lookupGlossaryReference — pure resolution', () => {
+  const sample = parseGlossary(
+    [
+      '## Tool',
+      '**Definition:** A capability.',
+      '**Aliases:** Function, Capability',
+      '',
+      '## Toolkit',
+      '**Definition:** A collection of tools.',
+    ].join('\n'),
+  );
+
+  describe('R7.1: exact term match returns valid', () => {
+    it('resolves an exact name to a valid match', () => {
+      const result = lookupGlossaryReference(sample, 'Tool');
+      expect(result.status).toBe('valid');
+      if (result.status !== 'valid') return;
+      expect(result.match.name).toBe('Tool');
     });
   });
 });

@@ -38,6 +38,29 @@ export interface GlossaryValidationError {
   message: string;
 }
 
+/**
+ * Result of resolving a glossary reference against the parsed entries.
+ *
+ * Discriminated union — `match` is guaranteed when `status === 'valid'`;
+ * `suggestion` is only meaningful when `status === 'unknown'`. Callers
+ * narrow on `status` without optional chaining.
+ */
+export type GlossaryReferenceResult =
+  | { status: 'valid'; match: ParsedGlossaryEntry }
+  | { status: 'unknown'; suggestion?: string };
+
+/**
+ * Look up a glossary reference against parsed entries.
+ *
+ * Stub implementation — always unknown. Replaced in GREEN.
+ */
+export function lookupGlossaryReference(
+  _entries: readonly ParsedGlossaryEntry[],
+  _input: string,
+): GlossaryReferenceResult {
+  return { status: 'unknown' };
+}
+
 /** Group entries by a derived key, returning key → header line numbers. */
 function groupByLine(
   entries: readonly ParsedGlossaryEntry[],
