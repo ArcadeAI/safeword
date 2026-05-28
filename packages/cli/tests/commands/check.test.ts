@@ -352,6 +352,14 @@ describe('Test Suite 8: Health Check', () => {
 
     it('R4.1: config with forward-looking glossary and architecture paths parses without error', async () => {
       await createConfiguredProject(temporaryDirectory);
+      // glossary now has a live read site (YR6C49) — point it at a real file
+      // so the configured-but-missing check doesn't fire. architecture
+      // remains forward-looking (no read site yet).
+      writeTestFile(
+        temporaryDirectory,
+        'docs/glossary.md',
+        ['## Tool', '**Definition:** A capability.', ''].join('\n'),
+      );
       const existing = JSON.parse(
         readTestFile(temporaryDirectory, '.safeword/config.json'),
       ) as Record<string, unknown>;
@@ -369,6 +377,70 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       // No config-parse error surfaced.
       expect(result.stderr).not.toMatch(/JSON|parse error|invalid config/i);
+    });
+  });
+
+  describe('glossary.md validation (ticket YR6C49)', () => {
+    function setGlossaryOverride(glossaryPath: string): void {
+      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+        installedPacks?: string[];
+        [key: string]: unknown;
+      };
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ ...existing, paths: { glossary: glossaryPath } }),
+      );
+    }
+
+    it('R6.1: reports malformed glossary with line refs and exits non-zero', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Two duplicate term blocks → duplicate-term errors.
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/glossary.md',
+        ['## Tool', '**Definition:** First.', '', '## Tool', '**Definition:** Second.', ''].join(
+          '\n',
+        ),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/glossary\.md:\d+:.*duplicate term/);
+    });
+
+    it('R6.2: reports loud failure when configured glossary path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setGlossaryOverride('docs/glossary.md'); // file intentionally not created
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/glossary-path:.*docs\/glossary\.md.*file not found/);
+    });
+
+    it('R6.3: emits zero-exit advisory when override is active AND legacy default still exists', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'docs/glossary.md',
+        ['## Tool', '**Definition:** A capability.', ''].join('\n'),
+      );
+      // Explicitly create the legacy default (self-contained — does not rely on
+      // the scaffold, which only lands once dist is rebuilt with the new entry).
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/glossary.md',
+        ['## Legacy', '**Definition:** Old location.', ''].join('\n'),
+      );
+      setGlossaryOverride('docs/glossary.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/\.safeword-project\/glossary\.md.*orphan/i);
     });
   });
 });
