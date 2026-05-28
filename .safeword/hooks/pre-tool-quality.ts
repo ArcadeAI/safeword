@@ -9,6 +9,7 @@ import nodePath from 'node:path';
 
 import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
+import { evaluateJtbdGate } from './lib/jtbd.ts';
 import {
   classifyAnnotation,
   isValidSkipReason,
@@ -57,6 +58,38 @@ function isTestFile(path: string): boolean {
     path.startsWith('tests/') ||
     path.includes('/__tests__/')
   );
+}
+
+/**
+ * Read personas.md for the JTBD gate, honoring a configured `paths.personas`
+ * (ticket K7N2QM). Degrades to '' when the file or config is absent/unreadable
+ * — knownPersonaRefs('') yields an empty set, so unresolved refs are denied.
+ */
+function readPersonasForGate(ticketDirectory: string): string {
+  const projectRoot = nodePath.join(ticketDirectory, '..', '..', '..');
+  const personasPath = resolvePersonasPath(projectRoot);
+  return existsSync(personasPath) ? readFileSync(personasPath, 'utf8') : '';
+}
+
+function resolvePersonasPath(projectRoot: string): string {
+  const defaultPath = nodePath.join(projectRoot, '.safeword-project', 'personas.md');
+  const configFile = nodePath.join(projectRoot, '.safeword', 'config.json');
+  if (!existsSync(configFile)) return defaultPath;
+  const configured = readConfiguredPersonasPath(readFileSync(configFile, 'utf8'));
+  if (configured === undefined) return defaultPath;
+  return nodePath.isAbsolute(configured) ? configured : nodePath.join(projectRoot, configured);
+}
+
+function readConfiguredPersonasPath(rawConfig: string): string | undefined {
+  try {
+    const parsed = JSON.parse(rawConfig) as { paths?: { personas?: unknown } };
+    const configured = parsed.paths?.personas;
+    return typeof configured === 'string' && configured.trim() !== '' ? configured : undefined;
+  } catch {
+    // Malformed config.json is pre-tool-config-guard's concern; the JTBD gate
+    // degrades to the default personas path rather than blocking the edit.
+    return undefined;
+  }
 }
 
 interface CheckboxTransition {
@@ -294,6 +327,24 @@ if (
       deny(
         'dimensions.md `skip:` declaration requires a non-empty reason after the colon.',
         'Either write a real dimension table, or use `skip: <reason>` where the reason explains why no dimensions need enumerating (e.g., `skip: single behavioral dimension, no partitioning to enumerate`).',
+      );
+    }
+  }
+
+  // JTBD gate (ticket Y2HCNJ): when the ticket carries a spec.md (new-flow
+  // feature — epic DZ2NM5/D5 routes by spec.md presence, so grandfathered
+  // tickets without one are skipped), require ≥1 JTBD whose persona resolves
+  // against personas.md, or a `skip: <reason>` in the Jobs To Be Done section.
+  const specFile = nodePath.join(ticketDirectory, 'spec.md');
+  if (existsSync(specFile)) {
+    const verdict = evaluateJtbdGate(
+      readFileSync(specFile, 'utf8'),
+      readPersonasForGate(ticketDirectory),
+    );
+    if (!verdict.ok) {
+      deny(
+        `spec.md JTBD gate: ${verdict.reason}.`,
+        'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
       );
     }
   }

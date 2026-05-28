@@ -282,6 +282,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/lib/skill-invocation-log.ts',
     },
     '.safeword/hooks/lib/parse-annotation.ts': { template: 'hooks/lib/parse-annotation.ts' },
+    '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/ledger-validation.ts': { template: 'hooks/lib/ledger-validation.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
