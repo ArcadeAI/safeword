@@ -337,4 +337,31 @@ describe('lookupGlossaryReference — pure resolution', () => {
       expect(result.match.name).toBe('Tool');
     });
   });
+
+  describe('R7.2: alias match resolves to canonical term', () => {
+    it('resolves an alias to the term that declares it', () => {
+      const result = lookupGlossaryReference(sample, 'Function');
+      expect(result.status).toBe('valid');
+      if (result.status !== 'valid') return;
+      expect(result.match.name).toBe('Tool');
+    });
+  });
+
+  describe('R7.3: case-mismatch on name returns suggestion', () => {
+    it('suggests the canonical casing when only case differs', () => {
+      const result = lookupGlossaryReference(sample, 'tool');
+      expect(result.status).toBe('unknown');
+      if (result.status !== 'unknown') return;
+      expect(result.suggestion).toBe('Tool');
+    });
+  });
+
+  describe('R7.4: unknown reference returns unknown without suggestion', () => {
+    it('returns unknown with no suggestion for an unrelated input', () => {
+      const result = lookupGlossaryReference(sample, 'Widget');
+      expect(result.status).toBe('unknown');
+      if (result.status !== 'unknown') return;
+      expect(result.suggestion).toBeUndefined();
+    });
+  });
 });
