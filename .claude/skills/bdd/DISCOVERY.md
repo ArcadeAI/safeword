@@ -30,6 +30,20 @@ At intake start, read `.safeword-project/glossary.md`. This file is the project'
 
 Project-wide terms live in `.safeword-project/glossary.md`; vocabulary used in only one spec stays in that ticket. Never extract terms from prose automatically — humans curate the glossary.
 
+## Author Jobs To Be Done
+
+Before converging on scope, frame the product intent: what jobs does this feature do, and for whom? Write Jobs To Be Done into the ticket's `spec.md` under `## Jobs To Be Done`, one entry per job. JTBDs come first — they anchor the acceptance criteria and scope that follow.
+
+Each JTBD is:
+
+- A `### <slug>.<persona-code><n> — <title>` heading (e.g., `### oauth-flow.PO1 — rotate credentials without downtime`).
+- A `**Persona:** <ref>` line naming **exactly one** persona from `.safeword-project/personas.md` — one persona per JTBD. A job that serves two personas is two jobs.
+- A `> When I …, I want …, so I can …` statement capturing the trigger, the desired action, and the outcome.
+
+Resolve each persona reference against the loaded personas before writing it. A JTBD naming a persona absent from `personas.md` blocks the next phase — the intake-exit gate denies `test-definitions.md` until every JTBD resolves, or a `skip: <reason>` is recorded under `## Jobs To Be Done` for a deliberate omission.
+
+**Pause and confirm** the JTBD set with the user before advancing to Understanding — converge on the jobs first, then build scope on top of them.
+
 ## Understanding (Propose-and-Converge)
 
 Follow the understanding pattern from SAFEWORD.md — including contribution techniques. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.
