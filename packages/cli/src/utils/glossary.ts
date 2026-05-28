@@ -49,6 +49,18 @@ export type GlossaryReferenceResult =
   | { status: 'valid'; match: ParsedGlossaryEntry }
   | { status: 'unknown'; suggestion?: string };
 
+/** Path of glossary.md relative to the project root (default location). */
+export const GLOSSARY_FILE_SUBPATH = ['.safeword-project', 'glossary.md'];
+
+/**
+ * Resolve a glossary reference against the on-disk glossary file.
+ *
+ * Stub implementation — always unknown. Replaced in GREEN.
+ */
+export function validateGlossaryReference(_cwd: string, _input: string): GlossaryReferenceResult {
+  return { status: 'unknown' };
+}
+
 /**
  * Look up a glossary reference against parsed entries.
  *
