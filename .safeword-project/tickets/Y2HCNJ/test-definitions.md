@@ -128,12 +128,18 @@ Then they are exactly: Intent, References, Personas, Vocabulary, Jobs To Be Done
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Template's Jobs To Be Done section carries a canonical worked example
+### Scenario: Template's Jobs To Be Done section carries an HTML-commented worked example
 
 Given the file `packages/cli/templates/spec-template.md`
 When the `## Jobs To Be Done` section is inspected
-Then it contains a JTBD entry with a `**Persona:**` line and a statement matching the `When I …, I want …, so I can …` form
-And the entry heading shows a `<slug>.<persona-code><n>` id
+Then it contains, inside an HTML comment, a worked JTBD with a `**Persona:**` line and a statement matching the `When I …, I want …, so I can …` form
+And the example heading shows a `<slug>.<persona-code><n>` id
+
+> _(The example is commented so a freshly scaffolded spec.md parses to
+> zero JTBD entries — the agent fills real ones during Phase 0. Mirrors
+> personas-template.md / glossary-template.md, whose examples live in
+> HTML comments. Without this, the scaffold ships a fake JTBD that would
+> falsely pass or fail the gate.)_
 
 - [ ] RED
 - [ ] GREEN
@@ -205,6 +211,21 @@ Then `entries` has length 1 with an empty-string `persona`
 Given a spec.md with a `**Persona:**` line under the `## Personas` section but none under `## Jobs To Be Done`
 When `parseJtbdSection(content)` is called
 Then `entries` is empty
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: HTML-commented JTBD in the section is not parsed as an entry
+
+Given a spec.md whose Jobs To Be Done section contains only a worked example wrapped in an `<!-- … -->` block (the scaffolded template state)
+When `parseJtbdSection(content)` is called
+Then `entries` is empty
+And `skip` is `null`
+
+> _(The freshly scaffolded spec.md must parse to zero JTBDs so the gate
+> forces real authoring. Mirrors the persona/glossary skip-mask
+> semantics — block HTML comments are skipped entirely.)_
 
 - [ ] RED
 - [ ] GREEN

@@ -7,16 +7,16 @@ values; scenarios in `test-definitions.md` cover one per partition.
 
 ## Dimension table
 
-| Dimension                          | Partitions                                                                                                                                                                                          |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Scaffold by ticket type**        | `feature` → spec.md created next to ticket.md / `task` → no spec.md / `patch` → no spec.md / type omitted (defaults to `task`) → no spec.md                                                         |
-| **ticket.md template shape**       | `feature` → `**Goal:**` + `**See:** spec.md`, NO `**Why:**` / `task` → `**Goal:**` + `**Why:**` (unchanged) / `patch` → `**Goal:**` + `**Why:**` (unchanged)                                        |
-| **spec.md template content**       | has all six section headers (Intent → References → Personas → Vocabulary → Jobs To Be Done → Outcomes) / Jobs To Be Done section carries a worked example in the `When I…, I want…, so I can…` form |
-| **JTBD section parse**             | one entry (`**Persona:**` + statement) / multiple entries / zero entries (header only) / `skip: <reason>` declaration / entry with empty `**Persona:**` value / non-JTBD prose only                 |
-| **Gate routing (D5)**              | spec.md present → JTBD gate applies / spec.md absent (grandfathered in-flight ticket OR task/patch) → JTBD gate skipped, old flow                                                                   |
-| **Gate outcome (spec.md present)** | ≥1 JTBD whose persona resolves → allow / `skip: <non-empty reason>` → allow / zero JTBD entries → deny / persona ref not in personas.md → deny / `skip:` with empty/whitespace reason → deny        |
-| **Persona resolution at gate**     | exact persona name match in personas.md / explicit code match (`(PO)`) / ref absent from personas.md → unresolved / personas.md missing entirely → unresolved (degrade, no throw)                   |
-| **Doc integration**                | `DISCOVERY.md` + paired template both carry the JTBD sub-step after "Load project glossary" / `SAFEWORD.md` template + dogfood copy mention the JTBD sub-step in the Clarify/Phase-0 description    |
+| Dimension                          | Partitions                                                                                                                                                                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scaffold by ticket type**        | `feature` → spec.md created next to ticket.md / `task` → no spec.md / `patch` → no spec.md / type omitted (defaults to `task`) → no spec.md                                                                                             |
+| **ticket.md template shape**       | `feature` → `**Goal:**` + `**See:** spec.md`, NO `**Why:**` / `task` → `**Goal:**` + `**Why:**` (unchanged) / `patch` → `**Goal:**` + `**Why:**` (unchanged)                                                                            |
+| **spec.md template content**       | has all six section headers (Intent → References → Personas → Vocabulary → Jobs To Be Done → Outcomes) / Jobs To Be Done section carries a worked example in the `When I…, I want…, so I can…` form                                     |
+| **JTBD section parse**             | one entry (`**Persona:**` + statement) / multiple entries / zero entries (header only) / `skip: <reason>` declaration / entry with empty `**Persona:**` value / non-JTBD prose only / HTML-commented example (scaffold state) → skipped |
+| **Gate routing (D5)**              | spec.md present → JTBD gate applies / spec.md absent (grandfathered in-flight ticket OR task/patch) → JTBD gate skipped, old flow                                                                                                       |
+| **Gate outcome (spec.md present)** | ≥1 JTBD whose persona resolves → allow / `skip: <non-empty reason>` → allow / zero JTBD entries → deny / persona ref not in personas.md → deny / `skip:` with empty/whitespace reason → deny                                            |
+| **Persona resolution at gate**     | exact persona name match in personas.md / explicit code match (`(PO)`) / ref absent from personas.md → unresolved / personas.md missing entirely → unresolved (degrade, no throw)                                                       |
+| **Doc integration**                | `DISCOVERY.md` + paired template both carry the JTBD sub-step after "Load project glossary" / `SAFEWORD.md` template + dogfood copy mention the JTBD sub-step in the Clarify/Phase-0 description                                        |
 
 ## Notes on derivation
 
