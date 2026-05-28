@@ -15,7 +15,27 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { parseGlossary } from './glossary.js';
+import { parseGlossary, validateGlossary } from './glossary.js';
+
+describe('validateGlossary — structural errors', () => {
+  describe('R3.1: missing **Definition:** produces an error', () => {
+    it('error message mentions "missing Definition" and points at the header line', () => {
+      const content = ['## Tool', '', 'This block has no Definition line.'].join('\n');
+      const parsed = parseGlossary(content);
+
+      const errors = validateGlossary(parsed);
+
+      expect(errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            line: 1,
+            message: expect.stringContaining('missing Definition'),
+          }),
+        ]),
+      );
+    });
+  });
+});
 
 describe('parseGlossary — skip-mask (non-term content)', () => {
   describe('R2.3: inline <!-- ... --> on header line is stripped from name', () => {

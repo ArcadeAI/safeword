@@ -32,6 +32,25 @@ export interface ParsedGlossaryEntry {
   lineNumber: number;
 }
 
+/** A validation error with a 1-indexed line reference into the source content. */
+export interface GlossaryValidationError {
+  line: number;
+  message: string;
+}
+
+/**
+ * Validate parsed glossary entries. Returns a list of
+ * {@link GlossaryValidationError} with 1-indexed line numbers; empty list
+ * means the file is well-formed.
+ *
+ * Stub implementation — returns empty list. Replaced in GREEN.
+ */
+export function validateGlossary(
+  _entries: readonly ParsedGlossaryEntry[],
+): GlossaryValidationError[] {
+  return [];
+}
+
 /**
  * Maps a `**Field:**` prefix to the corresponding property on
  * `ParsedGlossaryEntry`. Lookup is by exact-prefix; unknown prefixes are
