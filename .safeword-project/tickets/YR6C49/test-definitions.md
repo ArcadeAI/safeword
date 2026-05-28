@@ -206,9 +206,9 @@ And `.safeword-project/glossary.md` exists with a term `Tool`
 When `validateGlossaryReference(cwd, 'Tool')` is called
 Then it returns `{ status: 'valid', match: { name: 'Tool', ... } }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9ff82fa2
+- [x] GREEN b9f8c2e7
+- [x] REFACTOR skip: validateGlossaryReference mirrors validatePersonaReference verbatim
 
 ### Scenario: Relative override resolves project-root-relative
 
@@ -218,9 +218,9 @@ And `.safeword-project/glossary.md` does not exist
 When `validateGlossaryReference(cwd, 'Tool')` is called
 Then it returns `{ status: 'valid', match: { name: 'Tool', ... } }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9ff82fa2
+- [x] GREEN b9f8c2e7
+- [x] REFACTOR skip: resolution delegated to shared resolveConfiguredPath helper
 
 ### Scenario: Absolute override is used verbatim
 
@@ -229,9 +229,9 @@ And the absolute path points to a file with a term `Tool`
 When `validateGlossaryReference(cwd, 'Tool')` is called
 Then it returns `{ status: 'valid', match: { name: 'Tool', ... } }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9ff82fa2
+- [x] GREEN b9f8c2e7
+- [x] REFACTOR skip: isAbsolute branch lives in resolveConfiguredPath (K7N2QM)
 
 ### Scenario: Empty-string override falls back to default
 
@@ -240,9 +240,9 @@ And `.safeword-project/glossary.md` exists with a term `Tool`
 When `validateGlossaryReference(cwd, 'Tool')` is called
 Then it returns `{ status: 'valid', match: { name: 'Tool', ... } }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9ff82fa2
+- [x] GREEN b9f8c2e7
+- [x] REFACTOR skip: empty-string guard lives in readConfiguredPath (K7N2QM)
 
 ### Scenario: Configured-but-missing returns unknown without throwing
 
@@ -252,9 +252,9 @@ When `validateGlossaryReference(cwd, 'Tool')` is called
 Then it returns `{ status: 'unknown' }`
 And it does not throw
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9ff82fa2
+- [x] GREEN b9f8c2e7
+- [x] REFACTOR skip: try/catch degradation is the minimal viable shape
 
 ## Rule: `safeword setup` scaffolds glossary, respects schema-ownership
 
@@ -355,9 +355,9 @@ Given a parsed glossary with term `Tool`
 When `lookupGlossaryReference(terms, 'Tool')` is called
 Then it returns `{ status: 'valid', match: { name: 'Tool', ... } }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aad07c87
+- [x] GREEN 774ae9c0
+- [x] REFACTOR skip: single exact-match loop; alias/case layered in R7.2-R7.4
 
 ### Scenario: Alias match resolves to canonical term
 
@@ -365,9 +365,9 @@ Given a parsed glossary with term `Tool` having aliases `['Function', 'Capabilit
 When `lookupGlossaryReference(terms, 'Function')` is called
 Then it returns `{ status: 'valid', match: { name: 'Tool', ... } }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a8cbda93
+- [x] GREEN 48f0abba
+- [x] REFACTOR skip: alias check folded into the exact-match loop
 
 ### Scenario: Case-mismatch on name returns suggestion
 
@@ -375,9 +375,9 @@ Given a parsed glossary with term `Tool`
 When `lookupGlossaryReference(terms, 'tool')` is called
 Then it returns `{ status: 'unknown', suggestion: 'Tool' }`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a8cbda93
+- [x] GREEN 48f0abba
+- [x] REFACTOR skip: case-insensitive pass mirrors lookupPersonaReference
 
 ### Scenario: Unknown reference returns unknown without suggestion
 
@@ -385,9 +385,9 @@ Given a parsed glossary with terms `Tool` and `Toolkit`
 When `lookupGlossaryReference(terms, 'Widget')` is called
 Then it returns `{ status: 'unknown' }` with no `suggestion`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: behavior present from R7.1 GREEN (no match → unknown, no suggestion); test added as regression cover in the R7.2-R7.4 batch (a8cbda93)
+- [x] GREEN 48f0abba
+- [x] REFACTOR skip: no new code path
 
 ## Rule: KD4BYF + DISCOVERY.md integration
 
