@@ -54,6 +54,24 @@ function groupByLine(
   return grouped;
 }
 
+/**
+ * Group alias → header line numbers across all entries. Unlike
+ * {@link groupByLine} (one key per entry), each entry contributes one key
+ * per declared alias.
+ */
+function groupAliasesByLine(entries: readonly ParsedGlossaryEntry[]): Map<string, number[]> {
+  const grouped = new Map<string, number[]>();
+  for (const entry of entries) {
+    for (const alias of entry.aliases) {
+      if (alias.length === 0) continue;
+      const lines = grouped.get(alias) ?? [];
+      lines.push(entry.lineNumber);
+      grouped.set(alias, lines);
+    }
+  }
+  return grouped;
+}
+
 /** Produce duplicate-detection errors from a grouping. */
 function findDuplicates(
   grouped: Map<string, number[]>,
@@ -78,6 +96,7 @@ function findDuplicates(
  * Checks (each independent, all errors collected — never throws):
  * - Every entry has a non-empty `**Definition:**`.
  * - Term names are unique within the file.
+ * - Aliases are unique across all terms.
  */
 export function validateGlossary(
   entries: readonly ParsedGlossaryEntry[],
@@ -93,6 +112,7 @@ export function validateGlossary(
       groupByLine(entries, entry => entry.name),
       'term',
     ),
+    ...findDuplicates(groupAliasesByLine(entries), 'alias'),
   );
   return errors;
 }
