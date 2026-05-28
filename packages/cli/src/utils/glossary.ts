@@ -116,12 +116,34 @@ function applyLineToEntry(line: string, entry: ParsedGlossaryEntry): void {
   }
 }
 
+/**
+ * Compute a per-line boolean[] where `true` means "skip during parsing"
+ * because the line lives inside a triple-backtick code fence. Fence
+ * markers themselves are also marked skip so they don't become spurious
+ * headers if they're indented.
+ */
+function computeSkipMask(lines: readonly string[]): boolean[] {
+  const skip: boolean[] = [];
+  let insideCodeFence = false;
+  for (const line of lines) {
+    if (line.trimStart().startsWith('```')) {
+      skip.push(true);
+      insideCodeFence = !insideCodeFence;
+      continue;
+    }
+    skip.push(insideCodeFence);
+  }
+  return skip;
+}
+
 export function parseGlossary(content: string): ParsedGlossaryEntry[] {
   const lines = content.split('\n');
+  const skip = computeSkipMask(lines);
   const entries: ParsedGlossaryEntry[] = [];
   let current: ParsedGlossaryEntry | undefined;
 
   for (const [index, line] of lines.entries()) {
+    if (skip[index]) continue;
     if (line.startsWith('## ')) {
       if (current) entries.push(current);
       current = {
