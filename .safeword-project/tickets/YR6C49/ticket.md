@@ -3,7 +3,7 @@ id: YR6C49
 slug: glossary-file
 title: 'Add glossary (.safeword-project/glossary.md) + structural validation'
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: KD4BYF
@@ -100,3 +100,4 @@ None blocking. Locked decisions:
 - 2026-05-24T15:22:00.000Z Drafted: Scope, depends, open questions; linked to epic DZ2NM5
 - 2026-05-28T00:58:05.000Z Refreshed: Rewrote scope, out-of-scope, done-when, and open-questions to reflect epic decisions (D2/D3/D5), K7N2QM `paths.*` inheritance, and `/figure-it-out` rulings on schema richness (required Definition + optional rest) and strictness (structural-only, no prose extraction). KD4BYF arcade-pair constraint pinned to scope (arcade glossary must parse unchanged). Replaced "lint-style check" framing with agent-conversational handling that mirrors the just-shipped persona pattern. Added `packages/cli/src/utils/glossary.ts` to scope explicitly. All five original open questions resolved.
 - 2026-05-28T01:08:00.000Z Complete: Phase 0-2 - Understanding converged, scope established. Frontmatter scope/out_of_scope/done_when fields populated as condensed one-liners mirroring the markdown sections (K7N2QM/7YN5QB convention). Phase advanced to define-behavior.
+- 2026-05-28T01:12:00.000Z Complete: Phase 3 - 26 scenarios defined across 7 rules. Dimensions table derived from intake + arcade-prototype inspection (8 dimensions). Coverage: 5 parser shapes, 3 skip-mask cases, 5 validator errors, 5 path-resolution states, 3 setup behaviors, 3 check-reporting branches, 4 lookup outcomes, 2 integration assertions (arcade fixture + DISCOVERY.md sub-step). Owned implementation decision: unresolved-alias is an error (matches strictness of duplicate-term / missing-Definition); downgrade-to-warning option recorded inline if friction observed during implementation.
