@@ -40,6 +40,33 @@ export interface ParsedGlossaryEntry {
  * on the active entry. Unknown `**Field:**` lines are silently tolerated
  * (forward-compat per ticket scope).
  */
+/**
+ * Maps a `**Field:**` prefix to the corresponding property on
+ * `ParsedGlossaryEntry`. Lookup is by exact-prefix; unknown prefixes are
+ * silently ignored (forward-compat per ticket scope).
+ */
+const FIELD_PROPERTY_MAP: ReadonlyMap<string, keyof ParsedGlossaryEntry> = new Map([
+  ['**Definition:**', 'definition'],
+  ['**Used in:**', 'usedIn'],
+  ['**Example:**', 'example'],
+  ['**Do not confuse with:**', 'doNotConfuseWith'],
+]);
+
+/**
+ * If the line begins with one of the known `**Field:**` prefixes, return
+ * the property + value to assign. Otherwise return undefined.
+ */
+function parseFieldLine(
+  line: string,
+): { property: keyof ParsedGlossaryEntry; value: string } | undefined {
+  for (const [prefix, property] of FIELD_PROPERTY_MAP) {
+    if (line.startsWith(prefix)) {
+      return { property, value: line.slice(prefix.length).trim() };
+    }
+  }
+  return undefined;
+}
+
 export function parseGlossary(content: string): ParsedGlossaryEntry[] {
   const lines = content.split('\n');
   const entries: ParsedGlossaryEntry[] = [];
@@ -57,8 +84,11 @@ export function parseGlossary(content: string): ParsedGlossaryEntry[] {
       continue;
     }
     if (!current) continue;
-    if (line.startsWith('**Definition:**')) {
-      current.definition = line.slice('**Definition:**'.length).trim();
+    const field = parseFieldLine(line);
+    if (field) {
+      // Field-property values are all strings; the union assignment is
+      // safe because parseFieldLine only returns string-valued props.
+      (current as Record<string, unknown>)[field.property] = field.value;
     }
   }
 
