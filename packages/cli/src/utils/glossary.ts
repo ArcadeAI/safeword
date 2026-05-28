@@ -35,8 +35,33 @@ export interface ParsedGlossaryEntry {
 /**
  * Parse glossary entries from markdown content.
  *
- * Stub implementation — returns empty list. Replaced in GREEN.
+ * Walks lines once, tracking the active `## Term` block. When a known
+ * `**Field:**` line is encountered inside a block, the field is captured
+ * on the active entry. Unknown `**Field:**` lines are silently tolerated
+ * (forward-compat per ticket scope).
  */
-export function parseGlossary(_content: string): ParsedGlossaryEntry[] {
-  return [];
+export function parseGlossary(content: string): ParsedGlossaryEntry[] {
+  const lines = content.split('\n');
+  const entries: ParsedGlossaryEntry[] = [];
+  let current: ParsedGlossaryEntry | undefined;
+
+  for (const [index, line] of lines.entries()) {
+    if (line.startsWith('## ')) {
+      if (current) entries.push(current);
+      current = {
+        name: line.slice(3).trim(),
+        definition: '',
+        aliases: [],
+        lineNumber: index + 1,
+      };
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith('**Definition:**')) {
+      current.definition = line.slice('**Definition:**'.length).trim();
+    }
+  }
+
+  if (current) entries.push(current);
+  return entries;
 }
