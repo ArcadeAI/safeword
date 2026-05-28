@@ -404,9 +404,9 @@ When `parseGlossary(content)` and `validateGlossary(parsed)` are called
 Then `parseGlossary` returns 7 entries
 And `validateGlossary` returns zero errors
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: acceptance/regression assertion — the parser was built across R1.5/R1.6/R2.1 to handle exactly this real-world shape; test passes on first run (fixture snapshotted at fbf4d326)
+- [x] GREEN fbf4d326
+- [x] REFACTOR skip: fixture + assertion, no production code
 
 ### Scenario: DISCOVERY.md documents glossary-loading sub-step
 
@@ -415,6 +415,10 @@ When the file contents are inspected
 Then both contain a "Load project glossary" sub-step structurally parallel to the existing "Load project personas" block
 And the empty-file soft-prompt wording mirrors the persona equivalent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5b76af2d
+- [x] GREEN 6bd20156
+- [x] REFACTOR skip: doc content mirrors the persona block; no structure to extract
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario skip: per-task /refactor passes ran at each of the 6 task boundaries (one real cleanup at Task 1 — orphan doc comment, b776c059; Tasks 2-6 assessed no-change). The dominant cross-cutting duplication (persona/glossary lookup + validateXReference + check find\* pairs) is deliberately deferred to M6D315 per decomposition.md (Rule of Three — extract at the 3rd consumer, architecture). No feature-level structural change warranted now.
