@@ -2,10 +2,24 @@
 id: 04NKDR
 slug: check-schema-parity
 type: task
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-05-28T18:03:05.577Z
-last_modified: 2026-05-28T18:03:05.577Z
+last_modified: 2026-05-28T18:31:00.000Z
+scope:
+  - Add an `orphan-template` check to `runParity` (src/parity.ts) — scan the templates dir recursively (skip `_`-prefixed dirs), flag any file not referenced by an ownedFiles/managedFiles `template:` value.
+  - Run the check in BOTH parity modes (always, like contracts) so the existing pre-commit `--mode=contracts-only` hard-blocks an unregistered template.
+  - Extend `ParitySchema` with `managedFiles` so personas/glossary templates (referenced via managedFiles, not ownedFiles) are not false-flagged.
+  - Tests in `tests/parity.test.ts`.
+out_of_scope:
+  - A new `bun run check:schema` script — `scripts/parity-check.ts` already exists and runs in pre-commit; extend it instead.
+  - Changing how PAIR drift or CONTRACT checks work.
+  - Removing the equivalent assertion in `schema.test.ts` (kept as a backstop).
+  - Warn-only treatment — decided hard-block (an unregistered template is a ship-but-never-deploy bug, not mid-dev iteration like pair drift).
+done_when:
+  - `runParity` returns an `orphan-template` failure for a templates/ file with no schema entry, and none when every template is registered.
+  - Both `parity-check.ts --mode=all` and `--mode=contracts-only` surface it; a commit adding an unregistered template is hard-blocked by pre-commit.
+  - Targeted `tests/parity.test.ts` green; `bun run lint` clean.
 ---
 
 # bun run check:schema templates-to-schema parity
