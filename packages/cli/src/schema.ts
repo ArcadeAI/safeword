@@ -582,6 +582,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'personas-template.md',
       configKey: 'personas',
     },
+
+    // Project glossary — scaffolded once with format header + commented example;
+    // user authors real term blocks thereafter (safeword reads/validates, never
+    // overwrites user content). See ticket YR6C49. `configKey: 'glossary'` lets
+    // the user redirect via `paths.glossary` in .safeword/config.json — when set,
+    // reconcile skips this entry uniformly (see ticket K7N2QM).
+    '.safeword-project/glossary.md': {
+      template: 'glossary-template.md',
+      configKey: 'glossary',
+    },
   },
 
   // JSON files where we merge specific keys
