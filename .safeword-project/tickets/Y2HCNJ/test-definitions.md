@@ -26,9 +26,9 @@ Given a fresh tickets directory
 When `createTicket(cwd, minter, { slug: 'oauth-flow', type: 'feature' })` runs
 Then `spec.md` exists in the new ticket folder next to `ticket.md`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
 ### Scenario: Task ticket does not scaffold spec.md
 
@@ -37,9 +37,9 @@ When `createTicket(cwd, minter, { slug: 'add-flag', type: 'task' })` runs
 Then `ticket.md` exists in the new ticket folder
 And `spec.md` does NOT exist in that folder
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
 ### Scenario: Patch ticket does not scaffold spec.md
 
@@ -47,9 +47,9 @@ Given a fresh tickets directory
 When `createTicket(cwd, minter, { slug: 'fix-typo', type: 'patch' })` runs
 Then `spec.md` does NOT exist in the new ticket folder
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
 ### Scenario: Omitted type defaults to task and scaffolds no spec.md
 
@@ -58,19 +58,19 @@ When `createTicket(cwd, minter, { slug: 'misc' })` runs with no `type`
 Then `ticket.md` frontmatter has `type: task`
 And `spec.md` does NOT exist in the new ticket folder
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
-### Scenario: Scaffolded spec.md content equals the template verbatim
+### Scenario: Scaffolded spec.md content equals the template with the title substituted
 
 Given a fresh tickets directory
-When `createTicket(cwd, minter, { slug: 'oauth-flow', type: 'feature' })` runs
-Then the written `spec.md` content equals `spec-template.md` verbatim (placeholders intact for the agent to fill)
+When `createTicket(cwd, minter, { slug: 'oauth-flow', type: 'feature', title: 'OAuth credential rotation' })` runs
+Then the written `spec.md` equals `spec-template.md` with `{title}` replaced by the ticket title (other guidance intact for the agent to fill)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
 ## Rule: ticket.md template shape is type-aware
 
@@ -86,9 +86,9 @@ When the `ticket.md` body is inspected
 Then it contains a `**Goal:**` line and a `**See:**` pointer to `spec.md`
 And it does NOT contain a `**Why:**` line
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
 ### Scenario: Task ticket.md keeps Goal + Why and has no spec pointer
 
@@ -97,9 +97,9 @@ When the `ticket.md` body is inspected
 Then it contains both a `**Goal:**` and a `**Why:**` line
 And it does NOT contain a `**See:**` spec.md pointer
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
 ### Scenario: Patch ticket.md keeps Goal + Why and has no spec pointer
 
@@ -108,9 +108,9 @@ When the `ticket.md` body is inspected
 Then it contains both a `**Goal:**` and a `**Why:**` line
 And it does NOT contain a `**See:**` spec.md pointer
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: no duplication — renderSpecMarkdown + type branch are minimal
 
 ## Rule: spec-template.md is well-formed
 
@@ -124,9 +124,9 @@ Given the file `packages/cli/templates/spec-template.md`
 When its headers are extracted in document order
 Then they are exactly: Intent, References, Personas, Vocabulary, Jobs To Be Done, Outcomes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: static template-content assertion, nothing to refactor
 
 ### Scenario: Template's Jobs To Be Done section carries an HTML-commented worked example
 
@@ -141,9 +141,9 @@ And the example heading shows a `<slug>.<persona-code><n>` id
 > HTML comments. Without this, the scaffold ships a fake JTBD that would
 > falsely pass or fail the gate.)_
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 44e57878
+- [x] GREEN 44e57878
+- [x] REFACTOR skip: static template-content assertion, nothing to refactor
 
 ## Rule: JTBD-section parser extracts entries and skip declaration
 
