@@ -5,13 +5,40 @@
  * run `tsc --noEmit` and which `tsconfig.json` to use (find-up).
  */
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { shouldRunTypecheck } from '../../templates/hooks/lib/typecheck-gate.js';
+import {
+  evaluateImplementStopTypecheck,
+  runIncrementalTypecheck,
+  shouldRunTypecheck,
+  type TypecheckRunResult,
+} from '../../templates/hooks/lib/typecheck-gate.js';
+
+/** Build a temp TS project whose node_modules/.bin/tsc points at the repo's real tsc. */
+function makeProjectWithRealTsc(tsFileName: string, tsFileBody: string): string {
+  const cliTsc = nodePath.resolve(import.meta.dirname, '../../node_modules/.bin/tsc');
+  expect(existsSync(cliTsc)).toBe(true); // fail loud if tsc isn't installed (not a silent skip)
+  const project = mkdtempSync(nodePath.join(tmpdir(), 'tcrun-'));
+  mkdirSync(nodePath.join(project, 'node_modules/.bin'), { recursive: true });
+  symlinkSync(realpathSync(cliTsc), nodePath.join(project, 'node_modules/.bin/tsc'));
+  writeFileSync(
+    nodePath.join(project, 'tsconfig.json'),
+    JSON.stringify({ compilerOptions: { strict: true, noEmit: true, skipLibCheck: true } }),
+  );
+  writeFileSync(nodePath.join(project, tsFileName), tsFileBody);
+  return project;
+}
 
 function makeProject(): string {
   return mkdtempSync(nodePath.join(tmpdir(), 'tcgate-'));
@@ -108,5 +135,89 @@ describe('shouldRunTypecheck (Rule 1 — run-gate)', () => {
     });
 
     expect(result.run).toBe(false);
+  });
+});
+
+describe('evaluateImplementStopTypecheck (Rules 2 + 4 — surface as advice)', () => {
+  /** A gate-passing project: tsconfig present + a changed .ts file. */
+  function gatePassingInput(): { projectDirectory: string; changedFiles: string[]; phase: string } {
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+    return { projectDirectory, changedFiles: ['src/foo.ts'], phase: 'implement' };
+  }
+
+  it('surfaces the tsc output as advice when the check fails (Rule 2)', () => {
+    const runner = (): TypecheckRunResult => ({
+      available: true,
+      ok: false,
+      output: 'src/foo.ts(1,7): error TS2322: Type "number" is not assignable to type "string".',
+    });
+
+    const { advice } = evaluateImplementStopTypecheck(gatePassingInput(), runner);
+
+    expect(advice).not.toBeNull();
+    expect(advice).toContain('error TS2322');
+    expect(advice).toContain('src/foo.ts');
+  });
+
+  it('returns no advice when tsc passes (Rule 2 — clean)', () => {
+    const runner = (): TypecheckRunResult => ({ available: true, ok: true, output: '' });
+
+    expect(evaluateImplementStopTypecheck(gatePassingInput(), runner).advice).toBeNull();
+  });
+
+  it('does not run tsc and returns no advice at done phase (Rule 4)', () => {
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+    let ran = false;
+    const runner = (): TypecheckRunResult => {
+      ran = true;
+      return { available: true, ok: false, output: 'should not be called' };
+    };
+
+    const { advice } = evaluateImplementStopTypecheck(
+      { projectDirectory, changedFiles: ['src/foo.ts'], phase: 'done' },
+      runner,
+    );
+
+    expect(advice).toBeNull();
+    expect(ran).toBe(false);
+  });
+
+  it('returns no advice when no tsc binary is available', () => {
+    const runner = (): TypecheckRunResult => ({ available: false, ok: false, output: '' });
+
+    expect(evaluateImplementStopTypecheck(gatePassingInput(), runner).advice).toBeNull();
+  });
+});
+
+describe('runIncrementalTypecheck (real tsc — integration)', () => {
+  it('reports a type error from a real tsc run', () => {
+    const project = makeProjectWithRealTsc('bad.ts', 'const x: string = 1;\nexport {};\n');
+
+    const result = runIncrementalTypecheck(project, nodePath.join(project, 'tsconfig.json'));
+
+    expect(result.available).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.output).toMatch(/bad\.ts/);
+    expect(result.output).toMatch(/error TS/);
+  });
+
+  it('reports ok for clean types', () => {
+    const project = makeProjectWithRealTsc('good.ts', 'const x: string = "ok";\nexport { x };\n');
+
+    const result = runIncrementalTypecheck(project, nodePath.join(project, 'tsconfig.json'));
+
+    expect(result.available).toBe(true);
+    expect(result.ok).toBe(true);
+  });
+
+  it('reports unavailable when no tsc binary exists in the project', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'tcrun-'));
+    writeFileSync(nodePath.join(project, 'tsconfig.json'), '{}');
+
+    const result = runIncrementalTypecheck(project, nodePath.join(project, 'tsconfig.json'));
+
+    expect(result.available).toBe(false);
   });
 });
