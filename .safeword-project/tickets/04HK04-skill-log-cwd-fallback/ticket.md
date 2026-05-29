@@ -2,10 +2,10 @@
 id: 04HK04
 slug: skill-log-cwd-fallback
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-28T23:47:12.480Z
-last_modified: 2026-05-29T19:37:00.000Z
+last_modified: 2026-05-29T20:13:00.000Z
 scope:
   - Replace the `$(pwd)` fallback with `$(git rev-parse --show-toplevel 2>/dev/null || pwd)` in the `${CLAUDE_PROJECT_DIR:-…}` resolution used by `verify/SKILL.md` and `audit/SKILL.md` (both `.claude/skills/` and `packages/cli/templates/skills/` copies) — covers the log injection AND the audit-checks `cd`.
   - Update `tests/skill-invocation-log.test.ts` — assert skill forms use the git-root fallback (not bare `$(pwd)`), plus a behavioral regression that runs the expression from a subdir and asserts it resolves to the git root.
@@ -28,3 +28,4 @@ done_when:
 
 - 2026-05-28T23:47:12.480Z Started: Created ticket 04HK04
 - 2026-05-29T19:37:00.000Z Re-validated on pickup (5JN5E4): bug present in all 4 SKILL.md forms; verified the git-root fallback resolves to repo root from `packages/cli` while `$(pwd)` resolves to the stray subdir. Found MORE than filed — an existing contract test (`skill-invocation-log.test.ts`) asserts the injection shape, and the injection also exists in command forms (bare `${CLAUDE_PROJECT_DIR}`, different/loud-fail variant → scoped out). Implemented: replace_all `$(pwd)`→git-root fallback in the 4 SKILL.md files (verify ×1, audit ×2 incl. the checks `cd`); updated the contract test + added a behavioral regression (19 tests green). Tight scope — proven silent-stray bug only.
+- 2026-05-29T20:13:00.000Z Done. /verify + /audit run (quality-review APPROVE: git-root fallback correct, degrades to pwd on bare/worktree-env edges — never worse). Full suite 2213 green (the earlier 1 flaky failure was my behavioral test inheriting live-repo git state — hardened to an isolated temp git repo, commit 65766192). **Production dogfood: invoked /verify and /audit from `packages/cli` (subdir cwd) and BOTH entries landed in the repo-root skill-invocations.log with NO stray dir** — the exact scenario that created stray dirs 3× this session. Commits: 0963d4bc fix, 65766192 test hardening. verify.md written. status → done.
