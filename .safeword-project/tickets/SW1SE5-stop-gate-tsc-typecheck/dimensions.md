@@ -3,14 +3,14 @@
 The implement-phase-stop incremental `tsc` check. Dimensions that change the
 hook's observable behavior, and the partitions of each.
 
-| #   | Dimension                     | Partitions                                 | Drives                                           |
-| --- | ----------------------------- | ------------------------------------------ | ------------------------------------------------ |
-| 1   | Project type                  | TS (root `tsconfig.json` present) / non-TS | run vs skip                                      |
-| 2   | TS files changed this session | ≥1 changed / none changed                  | run vs skip                                      |
-| 3   | Type-check result             | clean / has type error(s)                  | silent vs surface advice                         |
-| 4   | Stop phase                    | implement (non-done) / done                | gate fires only at non-done; done path unchanged |
-| 5   | Enforcement                   | soft (advice only)                         | stop always allowed — even with errors           |
-| 6   | Incremental cache             | cold (first) / warm (repeat)               | same advice; warm is fast (non-functional)       |
+| #   | Dimension                     | Partitions                                                                                | Drives                                           |
+| --- | ----------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1   | tsconfig presence             | tsconfig.json at/above ≥1 changed TS file (find-up — root OR package dir) / none anywhere | run vs skip (monorepo-aware)                     |
+| 2   | TS files changed this session | ≥1 changed (`.ts`/`.tsx`/`.mts`/`.cts`) / none changed                                    | run vs skip                                      |
+| 3   | Type-check result             | clean / has type error(s)                                                                 | silent vs surface advice                         |
+| 4   | Stop phase                    | implement (non-done) / done                                                               | gate fires only at non-done; done path unchanged |
+| 5   | Enforcement                   | soft (advice only)                                                                        | stop always allowed — even with errors           |
+| 6   | Incremental cache             | cold (first) / warm (repeat)                                                              | same advice; warm is fast (non-functional)       |
 
 ## Derivation notes
 

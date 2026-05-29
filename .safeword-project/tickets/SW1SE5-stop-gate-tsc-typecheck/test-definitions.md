@@ -15,23 +15,25 @@ Function shapes (firm up in decomposition):
 
 ## Rule: The check runs only for TS projects with changed TS files
 
-> `shouldRunTypecheck` is true iff a root `tsconfig.json` exists AND at least
-> one TypeScript file changed this session AND the stop is not the done phase.
-> Otherwise the gate skips entirely — no tsc spawn, no output.
+> `shouldRunTypecheck` is true iff a `tsconfig.json` exists at or above at
+> least one changed TypeScript file (find-up; root OR a package dir, so
+> monorepos work) AND the stop is not the done phase. "TypeScript file" means
+> `.ts` / `.tsx` / `.mts` / `.cts`. Otherwise the gate skips entirely — no
+> tsc spawn, no output.
 
-### Scenario: TS project with a changed TS file runs the check
+### Scenario: Changed TS file with a tsconfig above it runs the check
 
 Given a project with a root `tsconfig.json`, an implement-phase stop, and one changed `.ts` file
 When `shouldRunTypecheck` is evaluated
-Then it returns `true`
+Then it returns `true` with that tsconfig path
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Non-TS project skips the check
+### Scenario: Non-TS project (no tsconfig anywhere) skips the check
 
-Given a project with no `tsconfig.json` and a changed `.ts` file at an implement-phase stop
+Given a project with no `tsconfig.json` at any level above the changed `.ts` file, at an implement-phase stop
 When `shouldRunTypecheck` is evaluated
 Then it returns `false`
 
@@ -44,6 +46,26 @@ Then it returns `false`
 Given a TS project at an implement-phase stop with zero changed TS files this session
 When `shouldRunTypecheck` is evaluated
 Then it returns `false`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Monorepo — package-level tsconfig (no root tsconfig) is found via find-up
+
+Given a project with NO root `tsconfig.json` but `packages/cli/tsconfig.json` exists, a changed file `packages/cli/src/foo.ts`, and an implement-phase stop
+When `shouldRunTypecheck` is evaluated
+Then it returns `true` with the `packages/cli/tsconfig.json` path (find-up resolves from the changed file's directory)
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: `.tsx` / `.mts` / `.cts` count as TypeScript files
+
+Given a project with a `tsconfig.json` and changed files `App.tsx`, `node.mts`, `legacy.cts` (no `.ts` changed), at an implement-phase stop
+When `shouldRunTypecheck` is evaluated
+Then it returns `true`
 
 - [ ] RED
 - [ ] GREEN
