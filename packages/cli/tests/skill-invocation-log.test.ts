@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
-import { readFileSync, realpathSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -94,14 +95,21 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
     });
 
     it('the fallback expression resolves to the git root when run from a subdirectory', () => {
-      // Run the exact fallback expression with CLAUDE_PROJECT_DIR unset, cwd a
-      // subdir of the repo. It must resolve to the repo root, not the subdir.
-      const subdirectory = nodePath.join(repoRoot, 'packages/cli');
+      // Isolated temp git repo — the assertion must not depend on the live
+      // repo's git state (a worktree whose core.bare/GIT_WORK_TREE parallel
+      // sessions can disrupt mid-run; see pre-commit#2295). Deterministic.
+      const repo = mkdtempSync(nodePath.join(tmpdir(), 'tcroot-'));
+      execSync('git init -q && git config user.email t@e && git config user.name t', { cwd: repo });
+      const subdirectory = nodePath.join(repo, 'packages/cli');
+      mkdirSync(subdirectory, { recursive: true });
+
+      // The exact fallback expression with CLAUDE_PROJECT_DIR unset, cwd a
+      // subdir. It must resolve to the repo root, not the subdir.
       const resolved = execSync(
         'echo "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"',
         { cwd: subdirectory, env: { ...process.env, CLAUDE_PROJECT_DIR: '' }, encoding: 'utf8' },
       ).trim();
-      expect(realpathSync(resolved)).toBe(realpathSync(repoRoot));
+      expect(realpathSync(resolved)).toBe(realpathSync(repo));
     });
   });
 });
