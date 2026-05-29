@@ -9,8 +9,13 @@
 // stays pure so the decision logic can be unit-tested without a temp project.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+
+/** Hard cap on a single tsc run so a pathological project can't hang the stop. */
+const TYPECHECK_TIMEOUT_MS = 60_000;
 
 const TS_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 const DONE_PHASE = 'done';
@@ -100,6 +105,18 @@ function findTscBin(projectDirectory: string, tsconfigPath: string): string | nu
   return null;
 }
 
+/**
+ * Incremental-cache path in the OS temp dir, keyed by the tsconfig's absolute
+ * path. Keeps the `.tsbuildinfo` OUT of the user's repo (no stray artifact, no
+ * gitignore management) while staying warm across stops within a session.
+ */
+function tsBuildInfoPath(tsconfigPath: string): string {
+  const key = createHash('sha1').update(nodePath.resolve(tsconfigPath)).digest('hex').slice(0, 16);
+  const cacheDirectory = nodePath.join(tmpdir(), 'safeword-typecheck');
+  mkdirSync(cacheDirectory, { recursive: true });
+  return nodePath.join(cacheDirectory, `${key}.tsbuildinfo`);
+}
+
 /** Real runner: incremental `tsc --noEmit` against the given tsconfig. */
 export function runIncrementalTypecheck(
   projectDirectory: string,
@@ -110,9 +127,22 @@ export function runIncrementalTypecheck(
 
   const result = spawnSync(
     tscBin,
-    ['--noEmit', '--incremental', '--pretty', 'false', '--project', tsconfigPath],
-    { cwd: projectDirectory, encoding: 'utf8' },
+    [
+      '--noEmit',
+      '--incremental',
+      '--tsBuildInfoFile',
+      tsBuildInfoPath(tsconfigPath),
+      '--pretty',
+      'false',
+      '--project',
+      tsconfigPath,
+    ],
+    { cwd: projectDirectory, encoding: 'utf8', timeout: TYPECHECK_TIMEOUT_MS },
   );
+
+  // Timed out or failed to spawn → stay silent (can't trust partial output).
+  if (result.error || result.status === null) return { available: false, ok: false, output: '' };
+
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
   return { available: true, ok: result.status === 0, output };
 }

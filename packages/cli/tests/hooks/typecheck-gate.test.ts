@@ -9,6 +9,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   realpathSync,
   symlinkSync,
   writeFileSync,
@@ -219,5 +220,14 @@ describe('runIncrementalTypecheck (real tsc — integration)', () => {
     const result = runIncrementalTypecheck(project, nodePath.join(project, 'tsconfig.json'));
 
     expect(result.available).toBe(false);
+  });
+
+  it('does not write a .tsbuildinfo into the project (cache goes to temp)', () => {
+    const project = makeProjectWithRealTsc('good.ts', 'export const x: string = "ok";\n');
+
+    runIncrementalTypecheck(project, nodePath.join(project, 'tsconfig.json'));
+
+    const stray = readdirSync(project).filter(name => name.endsWith('.tsbuildinfo'));
+    expect(stray).toEqual([]);
   });
 });
