@@ -5,6 +5,7 @@
  * run `tsc --noEmit` and which `tsconfig.json` to use (find-up).
  */
 
+import { execSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -20,6 +21,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  changedFilesSinceHead,
   evaluateImplementStopTypecheck,
   runIncrementalTypecheck,
   shouldRunTypecheck,
@@ -229,5 +231,75 @@ describe('runIncrementalTypecheck (real tsc — integration)', () => {
 
     const stray = readdirSync(project).filter(name => name.endsWith('.tsbuildinfo'));
     expect(stray).toEqual([]);
+  });
+});
+
+describe('changedFilesSinceHead (git diff source)', () => {
+  function gitInit(directory: string): void {
+    execSync('git init -q && git config user.email t@e && git config user.name t', {
+      cwd: directory,
+    });
+  }
+
+  it('lists modified tracked files and untracked files, relative to the repo', () => {
+    const repo = mkdtempSync(nodePath.join(tmpdir(), 'tcdiff-'));
+    gitInit(repo);
+    writeFileSync(nodePath.join(repo, 'committed.ts'), 'export const a = 1;\n');
+    execSync('git add . && git commit -qm base', { cwd: repo });
+    // Modify the committed file + add a new untracked one.
+    writeFileSync(nodePath.join(repo, 'committed.ts'), 'export const a = 2;\n');
+    writeFileSync(nodePath.join(repo, 'fresh.ts'), 'export const b = 3;\n');
+
+    const changed = changedFilesSinceHead(repo);
+
+    expect(changed).toContain('committed.ts');
+    expect(changed).toContain('fresh.ts');
+  });
+
+  it('returns an empty list outside a git repo (degrades, never throws)', () => {
+    const notARepo = mkdtempSync(nodePath.join(tmpdir(), 'tcnogit-'));
+    expect(changedFilesSinceHead(notARepo)).toEqual([]);
+  });
+});
+
+describe('end-to-end: git diff → tsc → advice (Rules 2 + 4 wired)', () => {
+  /** Real git repo + real tsc; commit a clean baseline, leave an erroring file uncommitted. */
+  function repoWithUncommittedError(): string {
+    const project = makeProjectWithRealTsc('bad.ts', 'export const x: string = "ok";\n');
+    execSync('git init -q && git config user.email t@e && git config user.name t', {
+      cwd: project,
+    });
+    // Commit a clean baseline (gitignore node_modules so the symlink isn't tracked).
+    writeFileSync(nodePath.join(project, '.gitignore'), 'node_modules\n*.tsbuildinfo\n');
+    execSync('git add . && git commit -qm base', { cwd: project });
+    // Now introduce a type error in the tracked file (uncommitted).
+    writeFileSync(nodePath.join(project, 'bad.ts'), 'export const x: string = 1;\n');
+    return project;
+  }
+
+  it('surfaces the tsc error as advice when an uncommitted TS change breaks types', () => {
+    const project = repoWithUncommittedError();
+
+    const { advice } = evaluateImplementStopTypecheck({
+      projectDirectory: project,
+      changedFiles: changedFilesSinceHead(project),
+      phase: 'implement',
+    });
+
+    expect(advice).not.toBeNull();
+    expect(advice).toMatch(/bad\.ts/);
+    expect(advice).toMatch(/error TS/);
+  });
+
+  it('stays silent at done phase even with the same broken change (Rule 4)', () => {
+    const project = repoWithUncommittedError();
+
+    const { advice } = evaluateImplementStopTypecheck({
+      projectDirectory: project,
+      changedFiles: changedFilesSinceHead(project),
+      phase: 'done',
+    });
+
+    expect(advice).toBeNull();
   });
 });

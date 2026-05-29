@@ -8,7 +8,7 @@
 // The actual tsc spawn + output capture lives separately (I/O); this module
 // stays pure so the decision logic can be unit-tested without a temp project.
 
-import { spawnSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -163,4 +163,29 @@ export function evaluateImplementStopTypecheck(
   const result = runner(input.projectDirectory, gate.tsconfigPath);
   if (!result.available || result.ok) return { advice: null };
   return { advice: result.output };
+}
+
+/**
+ * Files changed since HEAD — modified-tracked + untracked (gitignore-respecting),
+ * relative to projectDirectory. This is the "changed this session" signal for
+ * the implement-stop typecheck. Empty list outside a git repo or on any git
+ * error (degrades, never throws).
+ */
+export function changedFilesSinceHead(projectDirectory: string): string[] {
+  const run = (command: string): string => {
+    try {
+      return execSync(command, {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+    } catch {
+      return '';
+    }
+  };
+  const tracked = run('git diff --name-only HEAD');
+  const untracked = run('git ls-files --others --exclude-standard');
+  return [...tracked.split('\n'), ...untracked.split('\n')]
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
 }

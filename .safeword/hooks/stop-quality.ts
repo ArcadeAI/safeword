@@ -19,6 +19,7 @@ import {
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, getRequiredSkillsForPhase } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
+import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 
 interface HookInput {
   session_id?: string;
@@ -464,6 +465,22 @@ if (currentPhase === 'done') {
 // Loop prevention: if stop_hook_active, the previous review cycle already ran — allow stop.
 if (stopHookActive) {
   process.exit(0);
+}
+
+// SW1SE5: implement-phase incremental typecheck. Runs BEFORE the LOC review
+// throttle — a small change can break types — and surfaces tsc errors as advice
+// via the soft (non-blocking) path. Silent when clean (the gate skips non-TS
+// projects, no-TS-change stops, and the done phase). The done gate stays the
+// hard backstop; this never hard-blocks.
+const typecheckAdvice = evaluateImplementStopTypecheck({
+  projectDirectory: projectDir,
+  changedFiles: changedFilesSinceHead(projectDir),
+  phase: currentPhase,
+});
+if (typecheckAdvice.advice !== null) {
+  softBlock(
+    `TypeScript errors in your changed files — advisory, not a block (fix now, or stop and address later). The done gate still requires a clean typecheck.\n\n${typecheckAdvice.advice}`,
+  );
 }
 
 // Frequency reduction: only fire quality review when meaningful.
