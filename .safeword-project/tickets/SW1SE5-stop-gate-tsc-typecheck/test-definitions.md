@@ -82,9 +82,9 @@ Given a TS project whose changed `.ts` file has a type error, at an implement-ph
 When the stop hook runs
 Then the stop output contains the tsc error (the offending file path and message)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 97a5497c
+- [x] GREEN b5dc92b5
+- [x] REFACTOR skip: surfacing logic composed behind a runner seam; nothing to extract
 
 ### Scenario: Clean types add no output
 
@@ -92,9 +92,9 @@ Given a TS project whose changed `.ts` files all type-check, at an implement-pha
 When the stop hook runs
 Then the stop output contains no tsc/type-error advice
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 97a5497c
+- [x] GREEN b5dc92b5
+- [x] REFACTOR skip: clean-path returns null advice; no code to refactor
 
 ## Rule: The check is soft — it never blocks the stop
 
@@ -106,9 +106,9 @@ Given a TS project whose changed `.ts` file has a type error, at an implement-ph
 When the stop hook runs
 Then it does not hard-block (the stop is allowed); the error is surfaced as advice, not a denial
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 69302789
+- [x] GREEN b5dc92b5
+- [x] REFACTOR skip: reuses the existing softBlock path; no new structure
 
 ## Rule: The check is scoped to non-done stops
 
@@ -121,10 +121,10 @@ Given a TS project with a changed `.ts` file containing a type error, at a `done
 When the stop hook runs
 Then the implement-stop tsc-advice path does not fire (the done-phase evidence gate governs instead)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 97a5497c
+- [x] GREEN b5dc92b5
+- [x] REFACTOR skip: done-phase suppression is the gate's phase guard; no new code
 
 ## Feature-level cross-scenario refactor
 
-- [ ] REFACTOR
+- [x] REFACTOR skip: gate decision kept pure behind a `TypecheckRunner` seam (DI-tested), runner + git-diff source each one focused function, wiring is a thin compose-and-softBlock; no cross-scenario duplication to extract
