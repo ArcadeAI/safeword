@@ -27,9 +27,9 @@ Given a project with a root `tsconfig.json`, an implement-phase stop, and one ch
 When `shouldRunTypecheck` is evaluated
 Then it returns `true` with that tsconfig path
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4fa3a94b
+- [x] GREEN 4fa3a94b
+- [x] REFACTOR skip: pure decision logic with small focused functions; nothing to extract
 
 ### Scenario: Non-TS project (no tsconfig anywhere) skips the check
 
@@ -37,9 +37,9 @@ Given a project with no `tsconfig.json` at any level above the changed `.ts` fil
 When `shouldRunTypecheck` is evaluated
 Then it returns `false`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4fa3a94b
+- [x] GREEN 4fa3a94b
+- [x] REFACTOR skip: pure decision logic with small focused functions; nothing to extract
 
 ### Scenario: No TS files changed skips the check
 
@@ -47,9 +47,9 @@ Given a TS project at an implement-phase stop with zero changed TS files this se
 When `shouldRunTypecheck` is evaluated
 Then it returns `false`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4fa3a94b
+- [x] GREEN 4fa3a94b
+- [x] REFACTOR skip: pure decision logic with small focused functions; nothing to extract
 
 ### Scenario: Monorepo — package-level tsconfig (no root tsconfig) is found via find-up
 
@@ -57,9 +57,9 @@ Given a project with NO root `tsconfig.json` but `packages/cli/tsconfig.json` ex
 When `shouldRunTypecheck` is evaluated
 Then it returns `true` with the `packages/cli/tsconfig.json` path (find-up resolves from the changed file's directory)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4fa3a94b
+- [x] GREEN 4fa3a94b
+- [x] REFACTOR skip: pure decision logic with small focused functions; nothing to extract
 
 ### Scenario: `.tsx` / `.mts` / `.cts` count as TypeScript files
 
@@ -67,9 +67,9 @@ Given a project with a `tsconfig.json` and changed files `App.tsx`, `node.mts`, 
 When `shouldRunTypecheck` is evaluated
 Then it returns `true`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4fa3a94b
+- [x] GREEN 4fa3a94b
+- [x] REFACTOR skip: pure decision logic with small focused functions; nothing to extract
 
 ## Rule: Type errors in changed code are surfaced as advice
 
