@@ -162,7 +162,16 @@ export function evaluateImplementStopTypecheck(
 
   const result = runner(input.projectDirectory, gate.tsconfigPath);
   if (!result.available || result.ok) return { advice: null };
+  // Only surface real type errors in code (`file(line,col): error TS…`). tsc can
+  // also fail for config reasons (e.g. TS18003 "no inputs found") with no file
+  // diagnostic — that's not a type error in the change, so stay silent.
+  if (!hasFileLevelTypeError(result.output)) return { advice: null };
   return { advice: result.output };
+}
+
+/** True iff tsc output has a file-level diagnostic, not just a config-level error. */
+function hasFileLevelTypeError(output: string): boolean {
+  return /\(\d+,\d+\): error TS\d+/.test(output);
 }
 
 /**

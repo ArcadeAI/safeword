@@ -192,6 +192,18 @@ describe('evaluateImplementStopTypecheck (Rules 2 + 4 — surface as advice)', (
 
     expect(evaluateImplementStopTypecheck(gatePassingInput(), runner).advice).toBeNull();
   });
+
+  it('stays silent on config-level tsc failures with no file diagnostic (e.g. TS18003)', () => {
+    // tsc can fail for non-type reasons (e.g. a tsconfig that matches no files).
+    // Those aren't type errors in the changed code — don't surface them.
+    const runner = (): TypecheckRunResult => ({
+      available: true,
+      ok: false,
+      output: "error TS18003: No inputs were found in config file 'tsconfig.json'.",
+    });
+
+    expect(evaluateImplementStopTypecheck(gatePassingInput(), runner).advice).toBeNull();
+  });
 });
 
 describe('runIncrementalTypecheck (real tsc — integration)', () => {
