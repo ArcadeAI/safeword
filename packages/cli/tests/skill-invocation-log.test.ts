@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
 
@@ -21,6 +23,13 @@ const verifyForms: [string, string][] = [
 ];
 const auditForms: [string, string][] = [
   ['audit-command', auditCommand],
+  ['audit-skill', auditSkill],
+];
+
+// Skill forms only — they own the `${CLAUDE_PROJECT_DIR:-…}` fallback that the
+// git-root fix (ticket 04HK04) hardens. (Command forms use a bare reference.)
+const skillForms: [string, string][] = [
+  ['verify-skill', verifySkill],
   ['audit-skill', auditSkill],
 ];
 
@@ -68,9 +77,31 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
     it.each([...verifyForms, ...auditForms])(
       '%s bash injection references $CLAUDE_PROJECT_DIR (directly or via PROJECT_DIR fallback)',
       (_name, content) => {
-        // Accepts bare ${CLAUDE_PROJECT_DIR} or the defensive ${CLAUDE_PROJECT_DIR:-$(pwd)} fallback.
-        expect(content).toMatch(/\$\{CLAUDE_PROJECT_DIR(:-\$\(pwd\))?\}/);
+        // Accepts bare ${CLAUDE_PROJECT_DIR} (command forms) or any
+        // ${CLAUDE_PROJECT_DIR:-<fallback>} (skill forms).
+        expect(content).toMatch(/\$\{CLAUDE_PROJECT_DIR(:-[^}]*)?\}/);
       },
     );
+  });
+
+  describe('Rule: skill-form fallback resolves to the project root from a subdir (04HK04)', () => {
+    it.each(skillForms)('%s uses the git-root fallback, not bare $(pwd)', (_name, content) => {
+      // The harness does not always set CLAUDE_PROJECT_DIR; when unset, a bare
+      // $(pwd) fallback wrote the log to a stray <cwd>/.safeword-project. The
+      // fix falls back to the git toplevel instead.
+      expect(content).toMatch(/CLAUDE_PROJECT_DIR:-\$\(git rev-parse --show-toplevel/);
+      expect(content).not.toMatch(/CLAUDE_PROJECT_DIR:-\$\(pwd\)/);
+    });
+
+    it('the fallback expression resolves to the git root when run from a subdirectory', () => {
+      // Run the exact fallback expression with CLAUDE_PROJECT_DIR unset, cwd a
+      // subdir of the repo. It must resolve to the repo root, not the subdir.
+      const subdirectory = nodePath.join(repoRoot, 'packages/cli');
+      const resolved = execSync(
+        'echo "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"',
+        { cwd: subdirectory, env: { ...process.env, CLAUDE_PROJECT_DIR: '' }, encoding: 'utf8' },
+      ).trim();
+      expect(realpathSync(resolved)).toBe(realpathSync(repoRoot));
+    });
   });
 });
