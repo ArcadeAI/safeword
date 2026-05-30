@@ -16,6 +16,7 @@ import {
   type QualityState,
   recordFailure,
 } from './lib/quality-state.ts';
+import { shouldReviewPhase, shouldReviewStep } from './lib/review-trigger.ts';
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, getRequiredSkillsForPhase } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
@@ -49,8 +50,6 @@ const MAX_MESSAGES_FOR_TOOLS = 5;
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
-/** LOC threshold for implement-phase quality review frequency reduction. */
-const LOC_REVIEW_THRESHOLD = 50;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -109,14 +108,21 @@ function readSessionState(sessionId?: string): QualityState | null {
   }
 }
 
-/** Update locAtLastReview in session state after a quality review fires. */
-function updateLocAtLastReview(sessionId?: string): void {
+/**
+ * Record which boundary the Stop backstop just reviewed, so a later Stop (or a
+ * PostToolUse review) won't re-review it. Mirrors the markers PostToolUse sets
+ * (ticket SXSCJQ).
+ */
+function recordReviewMarker(
+  sessionId: string | undefined,
+  patch: { lastReviewedStep?: string; lastReviewedPhase?: string },
+): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
   if (!existsSync(stateFile)) return;
   try {
     const state = JSON.parse(readFileSync(stateFile, 'utf8'));
-    state.locAtLastReview = state.locSinceCommit ?? 0;
+    Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
     // Best effort — don't crash stop hook on state write failure
@@ -483,29 +489,34 @@ if (typecheckAdvice.advice !== null) {
   );
 }
 
-// Frequency reduction: only fire quality review when meaningful.
-// - Non-implement phases: always fire (they're brief — 1-3 turns each)
-// - Implement phase: fire only when >50 LOC changed since last review
+// Boundary backstop (ticket SXSCJQ): the review is no longer LOC-throttled.
+// PostToolUse fires per-step/per-phase reviews at the edit (autonomous-safe);
+// this Stop path catches a boundary PostToolUse didn't see (e.g. a non-edit
+// phase bump) and the ordinary interactive stop. Dedup via lastReviewedStep /
+// lastReviewedPhase so each boundary is reviewed once across both triggers.
 const sessionState = readSessionState(input.session_id);
-
-const shouldFireReview = (() => {
-  if (!sessionState) return true;
-  if (currentPhase !== 'implement') return true;
-  const locDelta = (sessionState.locSinceCommit ?? 0) - (sessionState.locAtLastReview ?? 0);
-  return locDelta > LOC_REVIEW_THRESHOLD;
-})();
-
-if (!shouldFireReview) {
-  process.exit(0);
-}
-
-updateLocAtLastReview(input.session_id);
 
 // Derive TDD step from test-definitions.md (not cache)
 const tddStep =
   currentPhase === 'implement' && ticketInfo.folder
     ? deriveTddStep(projectDir, ticketInfo.folder)
     : null;
+
+// Implement reviews per TDD step; other phases review per phase.
+const isImplementStep = currentPhase === 'implement' && tddStep !== null;
+const fireReview = isImplementStep
+  ? shouldReviewStep(tddStep, sessionState?.lastReviewedStep)
+  : shouldReviewPhase(currentPhase, sessionState?.lastReviewedPhase);
+
+if (!fireReview) {
+  process.exit(0);
+}
+
+if (isImplementStep && tddStep) {
+  recordReviewMarker(input.session_id, { lastReviewedStep: tddStep });
+} else if (currentPhase) {
+  recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
+}
 
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
 // recent failure exists, append an explicit "CONFIDENT requires X first" line so
