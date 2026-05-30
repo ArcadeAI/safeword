@@ -4,11 +4,11 @@ slug: ac-layer
 title: 'Add Acceptance Criteria layer between JTBD and scenarios'
 type: feature
 phase: done
-status: in_progress
+status: done
 epic: bdd-phase-zero-merge
 paired_with: T9BNXD
 created: 2026-05-24T15:21:55.013Z
-last_modified: 2026-05-30T17:16:00.000Z
+last_modified: 2026-05-30T18:09:30.802Z
 scope:
   - Define the AC artifact format — a capability/guarantee statement nested under a JTBD in spec.md, id `<jtbd-id>.AC<n>` (e.g. `oauth-flow.PO1.AC1`), in descriptive product-capability language (not bare action verbs, not implementation).
   - spec-template.md — add an Acceptance Criteria subsection structure under each JTBD heading.
