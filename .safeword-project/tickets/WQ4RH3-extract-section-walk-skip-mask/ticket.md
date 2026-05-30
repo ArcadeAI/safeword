@@ -17,7 +17,7 @@ out_of_scope:
 done_when:
   - One `markdown-sections.ts` exports `computeSkipMask` + `stripInlineComments`; personas/glossary/scenario-coverage import them with zero private copies remaining (net-negative LOC).
   - Full suite + lint green; no behavior change.
-  - No code/comment/ticket still claims M6D315 owns this refactor.
+  - No live code comment or active ticket artifact (XT1FFM verify.md) still claims M6D315 owns this refactor. Completed tickets' append-only work logs (Y2HCNJ, YR6C49, 31W8M3) are left as accurate-as-of-then records; WQ4RH3 is the correcting record.
 ---
 
 # Extract src section-walk skip-mask into a shared markdown-sections util

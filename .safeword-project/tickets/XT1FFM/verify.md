@@ -17,10 +17,12 @@ Audit passed with warnings.
 - **Dead code (knip):** ✅ no new unused exports. The 2 flagged
   (`MAX_CODE_LENGTH` / `MIN_NAME_LENGTH` in `personas.ts`) predate this ticket
   and are deliberately exported.
-- **Duplication (jscpd):** ⚠️ `computeSkipMask` + comment-skip mirror across
-  `scenario-coverage.ts` / `personas.ts` / `glossary.ts` — the deliberate
-  "5th section-walk consumer, not unified" decision; unification is owned by
-  M6D315.
+- **Duplication (jscpd):** `computeSkipMask` + comment-skip mirror across
+  `scenario-coverage.ts` / `personas.ts` / `glossary.ts` — flagged at done-time
+  and **resolved in follow-up WQ4RH3** (extracted to
+  `src/utils/markdown-sections.ts`). The hook-side `jtbd.ts` copy stays by
+  design (cross-runtime boundary). (The earlier "owned by M6D315" attribution
+  was wrong — M6D315 is the arcade Phase-2 impl-plan epic.)
 - **Learnings:** ✅ all conform (`Covers:` present).
 - **Test quality:** ✅ new tests assert specific values (`toEqual` / `toBe` /
   `toBeUndefined`), use fresh per-test fixtures, and are named by behavior.

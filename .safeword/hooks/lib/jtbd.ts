@@ -4,10 +4,11 @@
 // spec.md against personas.md without importing the CLI's persona utilities
 // (those live in the published dist, not in the deployed .safeword/hooks/).
 //
-// This mirrors the `## `-block + HTML-comment-skip parsing that
-// src/utils/personas.ts and src/utils/glossary.ts already do — the 3rd
-// consumer of that pattern. Per epic DZ2NM5's deferred-refactor decision the
-// shared extraction belongs to M6D315; here it is mirrored in place.
+// This re-implements the `## `-block + HTML-comment-skip parsing that the
+// CLI now centralizes in src/utils/markdown-sections.ts (ticket WQ4RH3). It is
+// a deliberate cross-runtime copy, NOT deferred work: deployed hooks run
+// standalone from .safeword/hooks/ and cannot import the CLI dist, so the
+// src-side unification intentionally stops at the hook boundary.
 
 const JTBD_HEADING = 'jobs to be done';
 const PERSONA_PREFIX = '**Persona:**';
