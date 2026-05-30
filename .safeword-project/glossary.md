@@ -2,7 +2,7 @@
 
 <!--
 Project domain vocabulary. Specs, JTBDs, and scenarios use these terms
-consistently; the bdd Phase 0 flow reads this file so meaning doesn't
+consistently; the bdd skill's intake flow reads this file so meaning doesn't
 drift across tickets. `safeword check` validates structure only — humans
 curate what belongs. Format: packages/cli/templates/glossary-template.md.
 Scope rule: a term lives here when it recurs across more than one ticket
@@ -18,8 +18,6 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 ## Phase
 
 **Definition:** A stage in a ticket's lifecycle, tracked in ticket frontmatter: intake → define-behavior → scenario-gate → decomposition → implement → verify → done.
-
-**Do not confuse with:** The bdd skill's numbered "Phase 0–2 / Phase 3 / Phase 4" substeps, which describe steps within the define-behavior work, not the ticket's lifecycle phase field.
 
 ## Hook
 
