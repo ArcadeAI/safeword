@@ -4,9 +4,9 @@ id: 975N5T
 slug: auto-upgrade-skip-dogfood-repo
 type: task
 phase: done
-status: in_progress
+status: done
 created: 2026-05-29T22:28:18.306Z
-last_modified: 2026-05-30T15:46:00.000Z
+last_modified: 2026-05-30T16:06:47.984Z
 scope:
 
 - New pure helper `isDogfoodRepo(projectDirectory)` in `templates/hooks/lib/` — returns true when `packages/cli/templates/` exists OR a root `package.json` is named `safeword`. Plain file reads (mid-merge-safe).
