@@ -3,7 +3,7 @@ id: 31W8M3
 slug: ac-layer
 title: 'Add Acceptance Criteria layer between JTBD and scenarios'
 type: feature
-phase: verify
+phase: done
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: T9BNXD
@@ -87,3 +87,4 @@ done_when:
 - 2026-05-30T17:21:00.000Z Complete: Phase 4 — AODI pass on all 8; adversarial edges (bare AC heading, skip+AC, AC under skipped section) handled by the structural gate, no new scenarios. → decomposition.
 - 2026-05-30T17:21:30.000Z Complete: Phase 5 — 5 tasks; AC logic extends lib/jtbd.ts (reuses JTBD block walk). → implement.
 - 2026-05-30T17:42:00.000Z Complete: Phase 6 — AC gate (parseAcsByJtbd + evaluateAcGate, 230cf117) wired into pre-tool-quality (94481805); spec-template/DISCOVERY/SCENARIOS/SAFEWORD AC surfaces + spec rewrite (6d0a1290). 13 AC tests (7 unit + 6 integration). Mid-build correction: re-read personas.md (now bootstrapped — DEV/SM) and replaced 31W8M3's stale JTBD-skip with a real DEV JTBD + 2 ACs that pass both gates. 8 scenarios marked. → verify.
+- 2026-05-30T18:07:00.000Z Complete: Phase 7 — /verify (full suite 2270 pass / 1 skip / 0 fail, build + lint clean), /quality-review (caught + fixed the AC-skip↔section-skip collision, b923a402), /refactor (section-walk dup deferred to M6D315), /audit passed (un-exported dead AC helpers, 09cf3d83). verify.md written. → done.
