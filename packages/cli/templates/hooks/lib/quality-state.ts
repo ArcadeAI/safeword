@@ -24,7 +24,6 @@ export interface QualityState {
   lastCommitHash: string;
   activeTicket: string | null;
   gate: string | null;
-  locAtLastReview: number;
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];
   /**

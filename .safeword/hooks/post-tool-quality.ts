@@ -57,7 +57,6 @@ function loadState(): QualityState {
     lastCommitHash: '',
     activeTicket: null,
     gate: null,
-    locAtLastReview: 0,
     recentFailures: [],
     incrementedPatterns: [],
   };

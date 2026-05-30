@@ -11,7 +11,7 @@
  *   boundary first fires it and records it, the other skips.
  */
 
-import type { CheckboxTransition } from './checkbox-transitions.ts';
+import type { CheckboxTransition } from './checkbox-transitions.js';
 
 const STEP_RANK: Record<string, number> = { red: 0, green: 1, refactor: 2 };
 

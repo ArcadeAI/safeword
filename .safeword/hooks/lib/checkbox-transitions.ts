@@ -12,7 +12,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 
-import { parseCheckboxAnnotation } from './parse-annotation.ts';
+import { parseCheckboxAnnotation } from './parse-annotation.js';
 
 export interface CheckboxTransition {
   step: string;
