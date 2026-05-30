@@ -3,7 +3,7 @@
 id: AP3FGJ
 slug: donegate-fires-without-edits
 type: task
-phase: implement
+phase: done
 status: in_progress
 created: 2026-05-30T14:30:14.807Z
 last_modified: 2026-05-30T14:31:00.000Z
@@ -30,3 +30,4 @@ scope:
 ## Work Log
 
 - 2026-05-30T14:30:14.807Z Started: Created ticket AP3FGJ
+- 2026-05-30T14:47:00.000Z Complete: TDD fix (f151b6e3) — resolve ticket before detectEditToolsUsed gate; gate skips only when phase ≠ done. Regression test (done-phase + no-edit transcript → done-gate evaluates). /verify: full suite 2254 pass / 1 skip / 0 fail, build + lint clean. /quality-review APPROVE (no ecosystem surface), /refactor nothing-to-do (change already minimal). → done.
