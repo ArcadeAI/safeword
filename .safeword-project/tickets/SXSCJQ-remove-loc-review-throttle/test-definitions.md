@@ -142,4 +142,4 @@ Then the review is surfaced (no LOC-based suppression)
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 686efc59
+- [x] cross-scenario f049468c
