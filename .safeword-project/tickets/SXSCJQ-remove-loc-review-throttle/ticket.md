@@ -2,7 +2,7 @@
 id: SXSCJQ
 slug: remove-loc-review-throttle
 type: feature
-phase: verify
+phase: done
 status: in_progress
 created: 2026-05-29T20:32:47.138Z
 last_modified: 2026-05-30T04:25:00.000Z
@@ -58,3 +58,4 @@ done_when:
 - 2026-05-30T04:25:00.000Z Complete: Phase 4 — AODI pass on all 12; adversarial pass surfaced 3 impl notes (Write-path phase detection, re-edit no-double, Stop loop-guard coexistence), no new scenarios. → decomposition.
 - 2026-05-30T04:26:00.000Z Complete: Phase 5 — 5 tasks. Hook home = extend post-tool-quality.ts (zero new spawn). Phase review = enter-semantics (forced by Stop-must-participate constraint). → implement.
 - 2026-05-30T04:55:00.000Z Complete: Phase 6 — TDD. Extracted checkbox-transitions lib; review-trigger policy (RED 686efc59 → GREEN e0a21927); PostToolUse per-step/per-phase wiring (3d1b2b77); Stop backstop + LOC-throttle removal (1a3725de). 12 scenarios marked. Unit + 2 integration suites green. → verify.
+- 2026-05-30T14:06:00.000Z Complete: Phase 7 — /verify + /audit. Cross-scenario refactor (drop orphaned locAtLastReview, f049468c). Caught + fixed a regression (generic review over-suppressed when no ticket, 52ebd1e5). Full suite 2252 pass / 1 skip / 0 fail; build + lint clean; audit passed (2 warnings fixed in-pass: dead export, ARCHITECTURE.md gap). verify.md written. → done.
