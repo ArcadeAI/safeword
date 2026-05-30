@@ -2,10 +2,10 @@
 id: SXSCJQ
 slug: remove-loc-review-throttle
 type: feature
-phase: define-behavior
+phase: decomposition
 status: in_progress
 created: 2026-05-29T20:32:47.138Z
-last_modified: 2026-05-29T22:58:00.000Z
+last_modified: 2026-05-30T04:25:00.000Z
 scope:
   - Remove the implement-phase LOC throttle in `stop-quality.ts` (the `shouldFireReview` gate, `LOC_REVIEW_THRESHOLD`, and `locAtLastReview` review-gating) so quality-review cadence is boundary-driven, not LOC-driven.
   - Per-TDD-step reviews — a PostToolUse hook detects each `[ ]→[x]` RED/GREEN/REFACTOR flip in test-definitions.md (reusing `collectNewTransitions`) and surfaces the step-appropriate `getQualityMessage('implement', step)` via `hookSpecificOutput.additionalContext`. Fires live at the flip, so it works in autonomous runs where Stop never fires.
@@ -38,3 +38,5 @@ done_when:
 
 - 2026-05-29T20:32:47.138Z Started: Created ticket SXSCJQ
 - 2026-05-29T22:58:00.000Z Re-scoped task→feature: per-step + per-phase reviews via PostToolUse (autonomous-safe) + deduped Stop backstop; kill LOC throttle. Scope converged interactively (steelman flipped surface to additionalContext; user added "both triggers" for the autonomous-run gap). JTBD skipped (internal tooling, no personas.md). Phase 0-2 → define-behavior.
+- 2026-05-30T04:25:00.000Z Complete: Phase 3 — 12 scenarios across 4 rules (per-step PostToolUse, per-phase PostToolUse, dedup, LOC-throttle-removed). dimensions.md + test-definitions.md saved. S1.5 (batched flips → most-advanced step) resolved via figure-it-out.
+- 2026-05-30T04:25:00.000Z Complete: Phase 4 — AODI pass on all 12; adversarial pass surfaced 3 impl notes (Write-path phase detection, re-edit no-double, Stop loop-guard coexistence), no new scenarios. → decomposition.
