@@ -11,7 +11,7 @@
 
 ## Evidence
 
-- Canonical `done_when` grep empty across all 8 enumerated surfaces + `schema.ts` clean of `Phase [0-9]`.
+- `done_when` grep clean across all 8 enumerated surfaces + `schema.ts` for BOTH `Phase [0-9]` and `Phase-[0-9]`. (Correction: the original grep tested only the space form and omitted SAFEWORD.md, so it false-cleaned while the hyphenated `Phase-3` survived in DISCOVERY.md + SAFEWORD.md — de-numbered in a follow-up commit and re-verified clean.)
 - Both skill trees byte-identical; both planning-guide copies byte-identical (`dogfood-parity.release` green).
 - Audit passed with warnings.
 

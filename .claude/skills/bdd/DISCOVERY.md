@@ -46,7 +46,7 @@ Resolve each persona reference against the loaded personas before writing it. A 
 
 ## Author Acceptance Criteria
 
-Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — the rung between a job and its scenarios. An AC is a single capability or guarantee the persona gets; the Phase-3 scenarios prove its specifics, and the ACs sum to JTBD fulfillment. Write them under their JTBD in `spec.md`:
+Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — the rung between a job and its scenarios. An AC is a single capability or guarantee the persona gets; the define-behavior scenarios prove its specifics, and the ACs sum to JTBD fulfillment. Write them under their JTBD in `spec.md`:
 
 - A `#### <jtbd-id>.AC<n> — <capability>` heading (e.g., `### oauth-flow.PO1` → `#### oauth-flow.PO1.AC1 — old key keeps working for a bounded grace window`).
 - Each JTBD needs **≥1 AC**, or a `skip: <reason>` under it for a job with no user-observable capability to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has an AC or a skip).
