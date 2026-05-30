@@ -2,10 +2,10 @@
 id: WQ4RH3
 slug: extract-section-walk-skip-mask
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-30T22:30:16.117Z
-last_modified: 2026-05-30T22:33:00.000Z
+last_modified: 2026-05-30T22:55:00.000Z
 scope:
   - Extract the byte-identical-logic `computeSkipMask` (CommonMark block-comment + code-fence skip mask) and `stripInlineComments` into a new `packages/cli/src/utils/markdown-sections.ts`; have `personas.ts`, `glossary.ts`, and `scenario-coverage.ts` import them and delete their private copies.
   - Behavior-preserving refactor — the existing personas/glossary/scenario-coverage unit tests lock the skip-mask behavior; no test changes beyond import paths.
@@ -32,3 +32,4 @@ done_when:
 
 - 2026-05-30T22:30:16.117Z Started: Created ticket WQ4RH3
 - 2026-05-30T22:33:00.000Z Scoped from XT1FFM /figure-it-out (option D). Intake → implement: behavior-preserving refactor, existing tests lock the skip-mask. Extract `computeSkipMask` + `stripInlineComments` to `src/utils/markdown-sections.ts`; hook-side jtbd.ts out of scope (runtime boundary). Also corrects the stale M6D315 attribution.
+- 2026-05-30T22:55:00.000Z Done: /refactor ran one consumer per commit — scenario-coverage (951e19c8), glossary (a324e217), personas (749204b8), then attribution fix (3456c083). Suite green at each step + full suite 2284/2284 pass (1 skip, 138 files). depcruise clean (119 modules); jscpd clones among the trio 3→1 (remaining = out-of-scope findDuplicates/groupByLine validator dup). verify.md written. → done.
