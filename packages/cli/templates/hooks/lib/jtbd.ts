@@ -135,6 +135,104 @@ export function evaluateJtbdGate(specContent: string, personasContent: string): 
   return { ok: true };
 }
 
+export interface JtbdAcBlock {
+  /** The `### ` JTBD heading text (e.g. `demo.PO1 — rotate keys`). */
+  heading: string;
+  /** Count of `#### ` AC headings under this JTBD (HTML-commented ones excluded). */
+  acCount: number;
+  /** The per-JTBD AC `skip:` reason if present (possibly empty); `null` when absent. */
+  skip: string | null;
+}
+
+/**
+ * Parse Acceptance Criteria under each JTBD in a spec.md (ticket 31W8M3). Walks
+ * the `## Jobs To Be Done` section: each `### ` heading opens a JTBD block, each
+ * `#### ` heading inside it is an AC, and a `skip:` line is the block's AC-skip
+ * (or the section-level skip if it appears before any `### `). HTML-commented
+ * content is stripped first, so the template's commented example never counts.
+ */
+export function parseAcsByJtbd(specContent: string): {
+  sectionSkip: string | null;
+  jtbds: JtbdAcBlock[];
+} {
+  const lines = specContent.split('\n');
+  const jtbds: JtbdAcBlock[] = [];
+  let sectionSkip: string | null = null;
+  let inSection = false;
+  let inComment = false;
+  let current: JtbdAcBlock | null = null;
+
+  function flush(): void {
+    if (current !== null) {
+      jtbds.push(current);
+      current = null;
+    }
+  }
+
+  for (const raw of lines) {
+    const result = stripComment(raw, inComment);
+    inComment = result.inComment;
+    const trimmed = result.text.trim();
+    if (trimmed === '') continue;
+
+    const heading = parseAnyHeading(trimmed);
+    if (heading !== null) {
+      if (heading.level <= 2) {
+        flush();
+        inSection = heading.text.toLowerCase() === JTBD_HEADING;
+      } else if (inSection && heading.level === 3) {
+        flush();
+        current = { heading: heading.text, acCount: 0, skip: null };
+      } else if (inSection && heading.level >= 4 && current !== null) {
+        current.acCount++;
+      }
+      continue;
+    }
+
+    if (!inSection) continue;
+    if (trimmed.toLowerCase().startsWith(SKIP_PREFIX)) {
+      const reason = trimmed.slice(SKIP_PREFIX.length).trim();
+      if (current !== null) {
+        if (current.skip === null) current.skip = reason;
+      } else if (sectionSkip === null) {
+        sectionSkip = reason;
+      }
+    }
+  }
+  flush();
+
+  return { sectionSkip, jtbds };
+}
+
+/**
+ * AC gate (ticket 31W8M3). Requires ≥1 AC under each JTBD block, honoring a
+ * per-JTBD `skip: <non-empty reason>` valve. Vacuously passes when there are no
+ * JTBD blocks (whole-section skip, or no JTBDs) — the JTBD gate owns that case.
+ */
+export function evaluateAcGate(specContent: string): JtbdGateVerdict {
+  const { jtbds } = parseAcsByJtbd(specContent);
+
+  for (const block of jtbds) {
+    if (block.skip !== null) {
+      if (block.skip === '') {
+        return {
+          ok: false,
+          reason: `the AC \`skip:\` under JTBD "${block.heading}" has no reason after the colon`,
+        };
+      }
+      continue;
+    }
+    if (block.acCount === 0) {
+      return {
+        ok: false,
+        reason: `JTBD "${block.heading}" has no acceptance criteria — add ≥1 \`#### <id>.AC<n>\` or \`skip: <reason>\``,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 /** Returns the active (non-commented) portion of a line and the comment state after it. */
 function stripComment(line: string, inComment: boolean): { text: string; inComment: boolean } {
   let text = line;
@@ -157,6 +255,13 @@ function stripComment(line: string, inComment: boolean): { text: string; inComme
     if (close === -1) return { text: active, inComment: true };
     text = text.slice(close + 3);
   }
+}
+
+/** Any ATX heading → `{ level, text }`; null for non-heading lines. */
+function parseAnyHeading(trimmed: string): { level: number; text: string } | null {
+  const match = /^(#{1,6})\s+(.+)$/.exec(trimmed);
+  if (match === null) return null;
+  return { level: (match[1] ?? '').length, text: (match[2] ?? '').trim() };
 }
 
 /** `## Heading` → `Heading`; returns null for non-`##` lines (incl. `###`, `#`). */
