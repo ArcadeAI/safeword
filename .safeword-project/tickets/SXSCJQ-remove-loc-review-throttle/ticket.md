@@ -3,9 +3,9 @@ id: SXSCJQ
 slug: remove-loc-review-throttle
 type: feature
 phase: done
-status: in_progress
+status: done
 created: 2026-05-29T20:32:47.138Z
-last_modified: 2026-05-30T04:25:00.000Z
+last_modified: 2026-05-30T14:22:04.115Z
 scope:
   - Remove the implement-phase LOC throttle in `stop-quality.ts` (the `shouldFireReview` gate, `LOC_REVIEW_THRESHOLD`, and `locAtLastReview` review-gating) so quality-review cadence is boundary-driven, not LOC-driven.
   - Per-TDD-step reviews — a PostToolUse hook detects each `[ ]→[x]` RED/GREEN/REFACTOR flip in test-definitions.md (reusing `collectNewTransitions`) and surfaces the step-appropriate `getQualityMessage('implement', step)` via `hookSpecificOutput.additionalContext`. Fires live at the flip, so it works in autonomous runs where Stop never fires.
