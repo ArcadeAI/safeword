@@ -3,7 +3,7 @@
 id: 975N5T
 slug: auto-upgrade-skip-dogfood-repo
 type: task
-phase: implement
+phase: done
 status: in_progress
 created: 2026-05-29T22:28:18.306Z
 last_modified: 2026-05-30T15:46:00.000Z
@@ -31,3 +31,4 @@ scope:
 ## Work Log
 
 - 2026-05-29T22:28:18.306Z Started: Created ticket 975N5T
+- 2026-05-30T16:05:00.000Z Complete: TDD fix (a62872ac) — isDogfoodRepo helper (templates-dir OR package name `safeword`) gates session-auto-upgrade.ts at the top; dev repo no-ops. RED via stub (2 true-cases failed) → GREEN (5/5). /verify: full suite 2259 pass / 1 skip / 0 fail, build + lint clean. Ends the regress→block→restore loop. → done.
