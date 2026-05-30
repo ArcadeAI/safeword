@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
+import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
 
 // The three constants below are exported for workspace-internal use (tests
 // asserting the canonical bounds, docs referencing them without hardcoding,
@@ -111,39 +112,6 @@ export interface PersonaValidationError {
 }
 
 /**
- * Strip inline `<!-- ... -->` comments from a single line of text.
- *
- * Per CommonMark, an HTML comment that appears mid-line (after other content)
- * is inline HTML and doesn't appear in the rendered output. For persona
- * headers like `## Platform Operator <!-- legacy note -->` the comment is
- * cosmetic — it shouldn't leak into the parsed name or corrupt code
- * derivation. Regex-free and bounded: each `<!--` advances the scan past
- * the matching `-->`, so the function is O(n) with no backtracking.
- */
-function stripInlineComments(text: string): string {
-  let result = '';
-  let pos = 0;
-  while (pos < text.length) {
-    const open = text.indexOf('<!--', pos);
-    if (open === -1) {
-      result += text.slice(pos);
-      break;
-    }
-    result += text.slice(pos, open);
-    const close = text.indexOf('-->', open + 4);
-    if (close === -1) {
-      // Unclosed inline comment — emit the rest as-is. The line-state
-      // machine in computeSkipMask handles multi-line block comments
-      // separately.
-      result += text.slice(open);
-      break;
-    }
-    pos = close + 3;
-  }
-  return result;
-}
-
-/**
  * Extract name and (optional) code from a `## ...` header line.
  *
  * Parsed manually rather than with regex to avoid super-linear-backtracking
@@ -178,47 +146,6 @@ function parseHeaderLine(line: string): { name: string; rawCode: string | undefi
  *
  * Pure — no I/O.
  */
-/**
- * Mask out lines that live inside HTML comments or triple-backtick code
- * fences — those are documentation, not real persona blocks. Returns an
- * array of (line | null) matching the input length so line numbers stay
- * stable through subsequent parsing.
- */
-/**
- * Compute a boolean[] where `true` means "skip this line during parsing"
- * because it lives inside an HTML comment block or a triple-backtick code
- * fence. The skip array has the same length as the input so callers can
- * use the line index directly as a 1-indexed line number.
- */
-function computeSkipMask(lines: readonly string[]): boolean[] {
-  const skip: boolean[] = [];
-  let insideComment = false;
-  let insideCodeFence = false;
-  for (const line of lines) {
-    if (line.trimStart().startsWith('```')) {
-      skip.push(true);
-      insideCodeFence = !insideCodeFence;
-      continue;
-    }
-    if (insideCodeFence) {
-      skip.push(true);
-      continue;
-    }
-    // Per CommonMark: only a line that BEGINS with `<!--` (after optional
-    // indent) opens a block-level HTML comment. Inline `<!--` mid-line is
-    // inline HTML — handled by stripInlineComments in the header parser,
-    // not by this mask.
-    if (!insideComment && line.trimStart().startsWith('<!--')) insideComment = true;
-    if (insideComment) {
-      skip.push(true);
-      if (line.includes('-->')) insideComment = false;
-      continue;
-    }
-    skip.push(false);
-  }
-  return skip;
-}
-
 export function parsePersonas(content: string): ParsedPersona[] {
   const lines = content.split('\n');
   const skip = computeSkipMask(lines);
