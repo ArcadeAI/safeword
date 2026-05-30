@@ -2,7 +2,7 @@
 id: SXSCJQ
 slug: remove-loc-review-throttle
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-05-29T20:32:47.138Z
 last_modified: 2026-05-30T04:25:00.000Z
@@ -57,3 +57,4 @@ done_when:
 - 2026-05-30T04:25:00.000Z Complete: Phase 3 — 12 scenarios across 4 rules (per-step PostToolUse, per-phase PostToolUse, dedup, LOC-throttle-removed). dimensions.md + test-definitions.md saved. S1.5 (batched flips → most-advanced step) resolved via figure-it-out.
 - 2026-05-30T04:25:00.000Z Complete: Phase 4 — AODI pass on all 12; adversarial pass surfaced 3 impl notes (Write-path phase detection, re-edit no-double, Stop loop-guard coexistence), no new scenarios. → decomposition.
 - 2026-05-30T04:26:00.000Z Complete: Phase 5 — 5 tasks. Hook home = extend post-tool-quality.ts (zero new spawn). Phase review = enter-semantics (forced by Stop-must-participate constraint). → implement.
+- 2026-05-30T04:55:00.000Z Complete: Phase 6 — TDD. Extracted checkbox-transitions lib; review-trigger policy (RED 686efc59 → GREEN e0a21927); PostToolUse per-step/per-phase wiring (3d1b2b77); Stop backstop + LOC-throttle removal (1a3725de). 12 scenarios marked. Unit + 2 integration suites green. → verify.
