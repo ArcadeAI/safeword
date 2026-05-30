@@ -443,4 +443,79 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).toMatch(/\.safeword-project\/glossary\.md.*orphan/i);
     });
   });
+
+  describe('Test 8.7: Scenario-lineage coverage advisory (XT1FFM)', () => {
+    const SPEC_TWO_ACS = [
+      '# Spec',
+      '',
+      '## Jobs To Be Done',
+      '',
+      '### demo.DEV1 — Trace',
+      '',
+      '**Persona:** DEV',
+      '',
+      '#### demo.DEV1.AC1 — capability one',
+      '',
+      '#### demo.DEV1.AC2 — capability two',
+      '',
+    ].join('\n');
+
+    function scenarioTitle(title: string): string {
+      return [
+        '# Test Definitions',
+        '',
+        '## Rule: r',
+        '',
+        `### Scenario: ${title}`,
+        '',
+        'Given a',
+        'When b',
+        'Then c',
+        '',
+        '- [ ] RED',
+        '- [ ] GREEN',
+        '- [ ] REFACTOR',
+        '',
+      ].join('\n');
+    }
+
+    function writeTicket(ticketId: string, status: string, files: Record<string, string>): void {
+      const base = `.safeword-project/tickets/${ticketId}`;
+      writeTestFile(
+        temporaryDirectory,
+        `${base}/ticket.md`,
+        ['---', `id: ${ticketId}`, 'type: feature', `status: ${status}`, '---', ''].join('\n'),
+      );
+      for (const [name, content] of Object.entries(files)) {
+        writeTestFile(temporaryDirectory, `${base}/${name}`, content);
+      }
+    }
+
+    it('reports an uncovered AC for an in-progress ticket as a zero-exit advisory', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV001', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/COV001:.*demo\.DEV1\.AC2.*uncovered/i);
+    });
+
+    it('stays silent for a done ticket whose scenarios predate the scheme', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV002', 'done', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('A plain free-text scenario title'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/COV002/);
+    });
+  });
 });

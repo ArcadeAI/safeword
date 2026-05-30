@@ -4,6 +4,7 @@
  * Uses reconcile() with dryRun to detect missing files and configuration issues.
  */
 
+import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getMissingPacks } from '../packs/registry.js';
@@ -15,6 +16,7 @@ import { exists, readFileSafe } from '../utils/fs.js';
 import { GLOSSARY_FILE_SUBPATH, parseGlossary, validateGlossary } from '../utils/glossary.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
 import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
+import { buildCoverageReport, type CoverageReport } from '../utils/scenario-coverage.js';
 import { isNewerVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
@@ -121,6 +123,74 @@ function findGlossaryAdvisories(cwd: string): string[] {
   if (!exists(defaultPath)) return [];
   return [
     `.safeword-project/glossary.md exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
+const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
+
+/**
+ * Surface scenario-lineage coverage gaps as non-blocking advisories (ticket
+ * XT1FFM). Scoped to `status: in_progress` tickets that carry a spec.md —
+ * which excludes done predecessors whose pre-scheme scenarios are the
+ * out-of-scope migration case (epic DZ2NM5/D5), and keeps the report focused
+ * on the work the developer is actually building. Each in-progress ticket's
+ * (spec.md, test-definitions.md) pair is cross-referenced into uncovered ACs,
+ * stale AC refs, and orphan scenarios. Zero-exit — advisory, never a gate.
+ */
+function findCoverageAdvisories(cwd: string): string[] {
+  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  let ticketIds: string[];
+  try {
+    ticketIds = readdirSync(ticketsRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && entry.name !== 'completed')
+      .map(entry => entry.name);
+  } catch {
+    return [];
+  }
+  return ticketIds.flatMap(ticketId => coverageAdvisoriesForTicket(ticketsRoot, ticketId));
+}
+
+/** Build coverage advisories for one ticket, or none if it is not an
+ * in-progress, spec-bearing ticket. */
+function coverageAdvisoriesForTicket(ticketsRoot: string, ticketId: string): string[] {
+  const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
+  const ticketContent = readFileSafe(nodePath.join(ticketDirectory, 'ticket.md'));
+  if (ticketContent === undefined || !isInProgress(ticketContent)) return [];
+
+  const specContent = readFileSafe(nodePath.join(ticketDirectory, 'spec.md'));
+  if (specContent === undefined) return [];
+
+  const testDefinitionsContent = readFileSafe(
+    nodePath.join(ticketDirectory, 'test-definitions.md'),
+  );
+  return formatCoverageReport(ticketId, buildCoverageReport(specContent, testDefinitionsContent));
+}
+
+/** Whether a ticket.md's frontmatter declares `status: in_progress`. */
+function isInProgress(ticketContent: string): boolean {
+  const lines = ticketContent.split('\n');
+  if (lines[0]?.trim() !== '---') return false;
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = (lines[index] ?? '').trim();
+    if (line === '---') return false;
+    if (line === 'status: in_progress') return true;
+  }
+  return false;
+}
+
+/** Render a coverage report into one advisory string per finding. */
+function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
+  return [
+    ...report.uncovered.map(
+      acId => `${ticketId}: acceptance criterion ${acId} has no scenario (uncovered)`,
+    ),
+    ...report.stale.map(
+      reference =>
+        `${ticketId}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
+    ),
+    ...report.orphan.map(
+      reference => `${ticketId}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
+    ),
   ];
 }
 
@@ -258,7 +328,11 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     updateAvailable: false,
     latestVersion: undefined,
     issues,
-    advisories: [...findPersonaAdvisories(cwd), ...findGlossaryAdvisories(cwd)],
+    advisories: [
+      ...findPersonaAdvisories(cwd),
+      ...findGlossaryAdvisories(cwd),
+      ...findCoverageAdvisories(cwd),
+    ],
     missingPackages: result.packagesToInstall,
     missingPacks,
   };
