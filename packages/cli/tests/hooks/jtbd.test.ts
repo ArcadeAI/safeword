@@ -121,4 +121,14 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     expect(verdict.ok).toBe(false);
     expect(verdict).toMatchObject({ reason: expect.stringContaining('no reason') });
   });
+
+  it('still resolves personas when a later JTBD carries an AC skip (31W8M3)', () => {
+    // A per-JTBD AC `skip:` (after a `###`) must NOT leak into the section-level
+    // skip and short-circuit persona resolution for an unresolved JTBD.
+    const body =
+      '### good.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n#### good.PO1.AC1 — cap\n\n### bad.XX1 — t2\n\n**Persona:** Ghost Persona\n\nskip: no AC needed';
+    const verdict = evaluateJtbdGate(spec(body), PERSONAS);
+    expect(verdict.ok).toBe(false);
+    expect(verdict).toMatchObject({ reason: expect.stringContaining('Ghost Persona') });
+  });
 });

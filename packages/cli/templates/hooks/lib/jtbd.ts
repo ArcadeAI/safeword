@@ -37,6 +37,7 @@ export function parseJtbdSection(specContent: string): JtbdSection {
   const lines = specContent.split('\n');
   const entries: JtbdEntry[] = [];
   let skip: string | null = null;
+  let seenJtbd = false;
   let inSection = false;
   let inComment = false;
 
@@ -53,7 +54,16 @@ export function parseJtbdSection(specContent: string): JtbdSection {
     }
     if (!inSection) continue;
 
-    if (skip === null && trimmed.toLowerCase().startsWith(SKIP_PREFIX)) {
+    // A `###` (or deeper) heading opens a JTBD block. Past the first one, a
+    // `skip:` line is a per-JTBD AC skip (ticket 31W8M3) — NOT the section-level
+    // skip — so it must not short-circuit JTBD persona resolution.
+    const sub = parseAnyHeading(trimmed);
+    if (sub !== null && sub.level >= 3) {
+      if (sub.level === 3) seenJtbd = true;
+      continue;
+    }
+
+    if (skip === null && !seenJtbd && trimmed.toLowerCase().startsWith(SKIP_PREFIX)) {
       skip = trimmed.slice(SKIP_PREFIX.length).trim();
       continue;
     }
