@@ -29,7 +29,7 @@ export interface TransitionHookInput {
   };
 }
 
-export function findTransitionsByLineIndex(oldText: string, newText: string): CheckboxTransition[] {
+function findTransitionsByLineIndex(oldText: string, newText: string): CheckboxTransition[] {
   const transitions: CheckboxTransition[] = [];
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
