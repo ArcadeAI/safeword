@@ -9,9 +9,9 @@ When a PostToolUse edit flips `- [ ] RED` to `- [x] RED <sha>` in test-definitio
 Then the hook emits `getQualityMessage('implement', 'red')` as `hookSpecificOutput.additionalContext`
 And it records that the red step was reviewed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 3d1b2b77
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: GREEN flip surfaces the green step review
 
@@ -20,9 +20,9 @@ When a PostToolUse edit flips `- [ ] GREEN` to `- [x] GREEN <sha>`
 Then the hook emits `getQualityMessage('implement', 'green')` as `additionalContext`
 And it records that the green step was reviewed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 3d1b2b77
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: REFACTOR flip surfaces the refactor step review
 
@@ -31,9 +31,9 @@ When a PostToolUse edit flips `- [ ] REFACTOR` to `- [x] REFACTOR <sha>`
 Then the hook emits `getQualityMessage('implement', 'refactor')` as `additionalContext`
 And it records that the refactor step was reviewed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 3d1b2b77
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A test-definitions edit with no checkbox flip surfaces nothing
 
@@ -41,9 +41,9 @@ Given a test-definitions.md edit that changes prose but flips no `[ ]→[x]`
 When the PostToolUse hook runs
 Then no review is surfaced (no `additionalContext`, exit clean)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 3d1b2b77
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: Multiple flips in one edit review only the most-advanced step
 
@@ -52,9 +52,9 @@ When the PostToolUse hook runs
 Then only the green (most-advanced) message is surfaced
 And the green step is recorded as reviewed (red is not separately surfaced)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN e0a21927
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: Three flips across one turn surface three distinct reviews
 
@@ -63,9 +63,9 @@ When each edit triggers its own PostToolUse call
 Then three distinct step reviews are surfaced (red, then green, then refactor) — not just the last
 And this holds whether or not the turn ever reaches a Stop
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 3d1b2b77
+- [x] REFACTOR skip: no structural improvement needed
 
 ## Rule: Each phase transition surfaces its phase review (PostToolUse), no Stop required
 
@@ -77,9 +77,9 @@ Then the hook emits `getQualityMessage('scenario-gate')` as `additionalContext`
 And it records that the scenario-gate phase was reviewed
 And this fires from the edit alone, with no Stop event involved (autonomous-safe)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 3d1b2b77
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A ticket.md edit not touching phase surfaces nothing
 
@@ -87,9 +87,9 @@ Given a ticket.md edit that changes the work log or scope but leaves `phase:` un
 When the PostToolUse hook runs
 Then no review is surfaced (no `additionalContext`, exit clean)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 3d1b2b77
+- [x] REFACTOR skip: no structural improvement needed
 
 ## Rule: Each boundary is reviewed once across PostToolUse + Stop (dedup)
 
@@ -99,9 +99,9 @@ Given PostToolUse recorded the current derived step as reviewed this session
 When the Stop hook runs and derives that same step
 Then no step review is surfaced at Stop (dedup — the live review already fired)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 1a3725de
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: Stop backstops a boundary crossed without an edit
 
@@ -110,9 +110,9 @@ When the Stop hook runs
 Then the phase review is surfaced via the bypassable `decision:block`
 And it records that phase as reviewed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 1a3725de
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: Stop skips a phase already reviewed by PostToolUse
 
@@ -120,9 +120,9 @@ Given PostToolUse recorded the current phase as reviewed this session
 When the Stop hook runs in that same phase
 Then no phase review is surfaced at Stop (dedup)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 1a3725de
+- [x] REFACTOR skip: no structural improvement needed
 
 ## Rule: Implement reviews no longer gated by LOC
 
@@ -136,6 +136,10 @@ Given the implement phase with fewer than 50 LOC since the last review and a bou
 When the Stop hook runs
 Then the review is surfaced (no LOC-based suppression)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 686efc59
+- [x] GREEN 1a3725de
+- [x] REFACTOR skip: no structural improvement needed
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 686efc59
