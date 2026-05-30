@@ -288,6 +288,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/lib/checkbox-transitions.ts',
     },
     '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
+    '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
     '.safeword/hooks/lib/ledger-validation.ts': { template: 'hooks/lib/ledger-validation.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
