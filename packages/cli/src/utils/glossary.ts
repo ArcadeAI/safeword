@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
+import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
 
 /**
  * A parsed glossary entry — name + Definition (required), plus any
@@ -365,67 +366,6 @@ function consumeBodyLine(
   if (outcome.kind === 'aliases' || looksLikeFieldDeclaration(line)) return undefined;
   if (activeField !== undefined) appendContinuation(entry, activeField, line);
   return activeField;
-}
-
-/**
- * Compute a per-line boolean[] where `true` means "skip during parsing"
- * because the line lives inside a triple-backtick code fence or a
- * block-level HTML comment (`<!-- ... -->`). Per CommonMark, only a line
- * that BEGINS with `<!--` (after optional indent) opens a block-level
- * comment; inline `<!--` mid-line is inline HTML and handled separately
- * by stripInlineComments.
- */
-function computeSkipMask(lines: readonly string[]): boolean[] {
-  const skip: boolean[] = [];
-  let insideCodeFence = false;
-  let insideComment = false;
-  for (const line of lines) {
-    if (line.trimStart().startsWith('```')) {
-      skip.push(true);
-      insideCodeFence = !insideCodeFence;
-      continue;
-    }
-    if (insideCodeFence) {
-      skip.push(true);
-      continue;
-    }
-    if (!insideComment && line.trimStart().startsWith('<!--')) insideComment = true;
-    if (insideComment) {
-      skip.push(true);
-      if (line.includes('-->')) insideComment = false;
-      continue;
-    }
-    skip.push(false);
-  }
-  return skip;
-}
-
-/**
- * Strip inline `<!-- ... -->` comments from a single line of text.
- * Per CommonMark, an HTML comment that appears mid-line is inline HTML
- * and doesn't appear in the rendered output. Regex-free and bounded:
- * each `<!--` advances the scan past its matching `-->`, O(n) with no
- * backtracking. Unclosed inline comment leaves the rest of the line
- * intact — block-level handling lives in computeSkipMask.
- */
-function stripInlineComments(text: string): string {
-  let result = '';
-  let pos = 0;
-  while (pos < text.length) {
-    const open = text.indexOf('<!--', pos);
-    if (open === -1) {
-      result += text.slice(pos);
-      break;
-    }
-    result += text.slice(pos, open);
-    const close = text.indexOf('-->', open + 4);
-    if (close === -1) {
-      result += text.slice(open);
-      break;
-    }
-    pos = close + 3;
-  }
-  return result;
 }
 
 /**
