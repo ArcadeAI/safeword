@@ -1,4 +1,4 @@
-# Phase 0-2: Understanding & Scope
+# Intake: Understanding & Scope
 
 **Entry:** Agent detects feature-level work OR resumes ticket at `intake` phase.
 
@@ -56,7 +56,7 @@ Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — th
 - Descriptive guarantee, not a bare verb: "user can revoke a session and it stops working everywhere within seconds" ✓, not just "user can revoke a session."
 - Capability, not mechanism: "`DELETE /sessions/<id>` returns 204" ✗ — that's a scenario's Then, not an AC.
 - **Split-test heuristic:** could each clause of a bundled AC ship as its own complete deliverable with independent value? If yes → split into separate ACs. If the sub-operations only make sense together → keep as one.
-- If an AC starts spawning more than ~10 scenarios in Phase 3, it's probably two ACs — split it.
+- If an AC starts spawning more than ~10 scenarios in define-behavior, it's probably two ACs — split it.
 
 **Pause and confirm** the AC list grouped by JTBD with the user before advancing — iterate until they sign off. Then build engineering scope (Understanding) on top.
 
@@ -104,9 +104,9 @@ If any answer is vague, you have open questions — surface them.
 
 **Result:** Zero open questions → proceed to sizing.
 
-## Phase 0-2 Exit (REQUIRED)
+## Intake Exit (REQUIRED)
 
-Before proceeding to Phase 3:
+Before proceeding to define-behavior:
 
 0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
 1. **Verify ticket exists:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
@@ -115,13 +115,13 @@ Before proceeding to Phase 3:
 4. **Add work log entry:**
 
    ```
-   - {timestamp} Complete: Phase 0-2 - Understanding converged, scope established
+   - {timestamp} Complete: intake - Understanding converged, scope established
    ```
 
 ## Planning Note
 
-Phase 3 scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed acceptance criteria. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
+Define-behavior scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed acceptance criteria. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
 
-Phase 5 (decomposition) is optional — skip if the architecture is clear from the converged proposal.
+Decomposition is optional — skip if the architecture is clear from the converged proposal.
 
 **Voice:** plainspoken and concise — write to be scanned.

@@ -1,4 +1,4 @@
-# Phase 7: Verify
+# Verify: Evidence Gate
 
 **Entry:** All scenarios marked `[x]` in test-definitions.md.
 
@@ -10,16 +10,16 @@
 
 If tests are flaky, investigate before proceeding.
 
-## Phase 7 Exit (REQUIRED)
+## Verify Exit (REQUIRED)
 
-Before proceeding to Phase 8 (done):
+Before proceeding to done:
 
 1. **verify.md exists** in the ticket folder (written by /verify on success)
 2. **Update frontmatter:** `phase: done`
 3. **Add work log entry:**
 
    ```
-   - {timestamp} Complete: Phase 7 - /verify + /audit passed, verify.md written
+   - {timestamp} Complete: verify - /verify + /audit passed, verify.md written
    ```
 
 The stop hook hard-blocks `phase: done` if verify.md is missing or empty.

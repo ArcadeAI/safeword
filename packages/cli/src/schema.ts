@@ -160,7 +160,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Skill renamed from enforcing-tdd to tdd-enforcing (v0.16.0)
     '.claude/skills/safeword-enforcing-tdd/SKILL.md',
     '.cursor/rules/safeword-enforcing-tdd.mdc',
-    // TDD skill and command removed - BDD skill includes full TDD in Phase 6 (v0.16.0)
+    // TDD skill and command removed - BDD skill includes full TDD in the implement phase (v0.16.0)
     '.claude/skills/safeword-tdd-enforcing/SKILL.md',
     '.cursor/rules/safeword-tdd-enforcing.mdc',
     '.claude/commands/tdd.md',
@@ -749,7 +749,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // Given/When/Then + per-scenario RED/GREEN/REFACTOR sub-checkboxes.
       // The R/G/R checkboxes are load-bearing: parseTddStep in
       // hooks/lib/active-ticket.ts depends on them to inject TDD-step
-      // guidance during Phase 6 implement. Removing any marker silently
+      // guidance during the implement phase. Removing any marker silently
       // regresses the format the BDD skill teaches.
       requires: [
         '## Rule:',

@@ -77,7 +77,7 @@ Out of Scope:
 
 ### Given-When-Then Format (Behavior-Focused)
 
-For feature-level work, run `/bdd`. The BDD skill walks Phase 3 (define behavior): derive dimensions → partition into scenarios → save to `test-definitions.md` in canonical format (Rule grouping + nested Scenario + Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR`). Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
+For feature-level work, run `/bdd`. The BDD skill walks define-behavior: derive dimensions → partition into scenarios → save to `test-definitions.md` in canonical format (Rule grouping + nested Scenario + Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR`). Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
 
 ### Job Story Format (Outcome-Focused)
 
@@ -227,11 +227,11 @@ Test: All existing tests pass, no new mutations
 
 ### Routing by ticket type
 
-| Type        | Path to test definitions                                                |
-| ----------- | ----------------------------------------------------------------------- |
-| **feature** | Run `/bdd` — Phase 3 derives dimensions and saves `test-definitions.md` |
-| **task**    | Inline test specs in the ticket spec; no separate file                  |
-| **patch**   | Existing tests cover it; no new test definitions                        |
+| Type        | Path to test definitions                                                        |
+| ----------- | ------------------------------------------------------------------------------- |
+| **feature** | Run `/bdd` — define-behavior derives dimensions and saves `test-definitions.md` |
+| **task**    | Inline test specs in the ticket spec; no separate file                          |
+| **patch**   | Existing tests cover it; no new test definitions                                |
 
 The rest of this section describes the canonical format the BDD skill writes to disk.
 
@@ -243,11 +243,11 @@ Before `test-definitions.md` can be created, the ticket frontmatter must contain
 - `out_of_scope:` — what it does NOT build
 - `done_when:` — the observable outcome that signals done
 
-`pre-tool-quality.ts` hard-blocks creation otherwise. For features, BDD additionally requires `dimensions.md` (the dimension table derived in Phase 3, partitioned into equivalence classes + boundary values) before scenarios can be written.
+`pre-tool-quality.ts` hard-blocks creation otherwise. For features, BDD additionally requires `dimensions.md` (the dimension table derived in define-behavior, partitioned into equivalence classes + boundary values) before scenarios can be written.
 
 ### Canonical format
 
-Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s. Each scenario has Given/When/Then steps followed by `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during Phase 6.
+Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s. Each scenario has Given/When/Then steps followed by `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
 
 ```markdown
 ## Rule: Dry-run shows expected output

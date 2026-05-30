@@ -1,6 +1,6 @@
-# Phase 8: Done
+# Done: Close Ticket
 
-**Entry:** verify.md exists in ticket folder (written by /verify in Phase 7).
+**Entry:** verify.md exists in ticket folder (written by /verify in the verify phase).
 
 Done means the ticket is closed. All verification happened in the verify phase.
 

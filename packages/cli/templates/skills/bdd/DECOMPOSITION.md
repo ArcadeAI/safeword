@@ -1,4 +1,4 @@
-# Phase 5: Technical Decomposition
+# Decomposition: Technical Breakdown
 
 **Entry:** Agent enters `decomposition` phase (after scenarios validated)
 
@@ -50,16 +50,16 @@ Features with 3+ components, new tech choices, or schema changes may warrant doc
 - Feature-level decisions → `.safeword/guides/design-doc-guide.md`
 - Cross-cutting choices → `.safeword/guides/architecture-guide.md`
 
-## Phase 5 Exit (REQUIRED)
+## Decomposition Exit (REQUIRED)
 
-Before proceeding to Phase 6:
+Before proceeding to implement:
 
 1. Task breakdown documented in ticket
 2. **Update frontmatter:** `phase: implement`
 3. **Add work log entry:**
 
    ```
-   - {timestamp} Complete: Phase 5 - Decomposed into {N} tasks
+   - {timestamp} Complete: decomposition - Decomposed into {N} tasks
    ```
 
 **Voice:** plainspoken and concise — write to be scanned.
