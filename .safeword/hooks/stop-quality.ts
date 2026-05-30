@@ -502,11 +502,19 @@ const tddStep =
     ? deriveTddStep(projectDir, ticketInfo.folder)
     : null;
 
-// Implement reviews per TDD step; other phases review per phase.
+// No ticket/phase context (no active ticket, or a done-status ticket): fire the
+// generic review on every edit-stop, as before — there's no boundary to dedup.
+// With a phase: review per TDD step (implement) or per phase, deduped against
+// PostToolUse so each boundary is reviewed once.
 const isImplementStep = currentPhase === 'implement' && tddStep !== null;
-const fireReview = isImplementStep
-  ? shouldReviewStep(tddStep, sessionState?.lastReviewedStep)
-  : shouldReviewPhase(currentPhase, sessionState?.lastReviewedPhase);
+let fireReview: boolean;
+if (currentPhase === undefined) {
+  fireReview = true;
+} else if (isImplementStep) {
+  fireReview = shouldReviewStep(tddStep, sessionState?.lastReviewedStep);
+} else {
+  fireReview = shouldReviewPhase(currentPhase, sessionState?.lastReviewedPhase);
+}
 
 if (!fireReview) {
   process.exit(0);
