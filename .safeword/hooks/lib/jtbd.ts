@@ -145,7 +145,7 @@ export function evaluateJtbdGate(specContent: string, personasContent: string): 
   return { ok: true };
 }
 
-export interface JtbdAcBlock {
+interface JtbdAcBlock {
   /** The `### ` JTBD heading text (e.g. `demo.PO1 — rotate keys`). */
   heading: string;
   /** Count of `#### ` AC headings under this JTBD (HTML-commented ones excluded). */
@@ -161,7 +161,7 @@ export interface JtbdAcBlock {
  * (or the section-level skip if it appears before any `### `). HTML-commented
  * content is stripped first, so the template's commented example never counts.
  */
-export function parseAcsByJtbd(specContent: string): {
+function parseAcsByJtbd(specContent: string): {
   sectionSkip: string | null;
   jtbds: JtbdAcBlock[];
 } {
