@@ -44,6 +44,22 @@ Resolve each persona reference against the loaded personas before writing it. A 
 
 **Pause and confirm** the JTBD set with the user before advancing to Understanding — converge on the jobs first, then build scope on top of them.
 
+## Author Acceptance Criteria
+
+Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — the rung between a job and its scenarios. An AC is a single capability or guarantee the persona gets; the Phase-3 scenarios prove its specifics, and the ACs sum to JTBD fulfillment. Write them under their JTBD in `spec.md`:
+
+- A `#### <jtbd-id>.AC<n> — <capability>` heading (e.g., `### oauth-flow.PO1` → `#### oauth-flow.PO1.AC1 — old key keeps working for a bounded grace window`).
+- Each JTBD needs **≥1 AC**, or a `skip: <reason>` under it for a job with no user-observable capability to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has an AC or a skip).
+
+**Coaching — keep ACs at the capability level, not implementation:**
+
+- Descriptive guarantee, not a bare verb: "user can revoke a session and it stops working everywhere within seconds" ✓, not just "user can revoke a session."
+- Capability, not mechanism: "`DELETE /sessions/<id>` returns 204" ✗ — that's a scenario's Then, not an AC.
+- **Split-test heuristic:** could each clause of a bundled AC ship as its own complete deliverable with independent value? If yes → split into separate ACs. If the sub-operations only make sense together → keep as one.
+- If an AC starts spawning more than ~10 scenarios in Phase 3, it's probably two ACs — split it.
+
+**Pause and confirm** the AC list grouped by JTBD with the user before advancing — iterate until they sign off. Then build engineering scope (Understanding) on top.
+
 ## Understanding (Propose-and-Converge)
 
 Follow the understanding pattern from SAFEWORD.md — including contribution techniques. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.

@@ -12,8 +12,8 @@
 
 1. **Derive dimensions** from intake artifacts (resolved questions, done-when, scope) + domain-knowledge dimensions not surfaced during intake
 2. **Partition** each dimension into equivalence classes + boundary values
-3. **Generate scenarios** — one per partition + boundary cases
-4. **Organize under rules** with card-ratio self-check (too many rules? any rules with no examples? open questions?)
+3. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Acceptance Criterion** from Phase 0 (`spec.md`); if a scenario doesn't map to any AC, either it's testing implementation (drop it) or an AC is missing (go back and add it).
+4. **Organize under rules** with card-ratio self-check (too many rules? any rules with no examples? open questions?). Rules group scenarios by the AC they prove, so every AC has ≥1 scenario and no scenario is an orphan.
 5. **Present to user** (decider) — user accepts, tweaks, or adds
 
 Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.

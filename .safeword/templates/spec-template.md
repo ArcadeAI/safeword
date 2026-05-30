@@ -47,6 +47,16 @@ Uncomment and customize:
 > When I rotate a server's API key, I want the previous key to keep working
 > for a short grace period, so I can roll the change across my fleet without
 > coordinated downtime.
+
+Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
+in descriptive product language (a guarantee the user can observe), NOT
+implementation ("returns 204" belongs in a scenario's Then). Each Phase-3
+scenario will prove a specific AC. If a JTBD has no user-observable capability
+to enumerate, write `skip: <reason>` under it instead of ACs.
+
+#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+
+#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
 -->
 
 ## Outcomes
