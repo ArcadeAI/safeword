@@ -46,12 +46,12 @@ describe('parseAcReferenceFromTitle (R1 — title parses to its AC reference, or
   });
 
   it('cross-reference-numbering.DEV1.AC1.free_text_title_yields_no_ref', () => {
-    expect(parseAcReferenceFromTitle('A JTBD with at least one AC passes')).toBeNull();
+    expect(parseAcReferenceFromTitle('A JTBD with at least one AC passes')).toBeUndefined();
   });
 
   it('a single-token title missing the AC segment yields no ref', () => {
     // Malformed conformant-looking title folds into the no-ref partition.
-    expect(parseAcReferenceFromTitle('demo.DEV1.no_ac_here')).toBeNull();
+    expect(parseAcReferenceFromTitle('demo.DEV1.no_ac_here')).toBeUndefined();
   });
 });
 
