@@ -101,6 +101,36 @@ Then [outcome]
 - [ ] REFACTOR
 ```
 
+### Scenario naming: lineage scheme
+
+Each saved `### Scenario:` title carries the acceptance criterion it proves, so the
+link back to AC, JTBD, and persona is machine-checkable rather than eyeballed:
+
+`<jtbd-id>.AC<#>.<scenario_name>` — `scenario_name` is snake_case; the rest is the
+AC id from Phase 0 (`<slug>.<persona-code><JTBD#>.AC<#>`). Long ids are fine — no
+truncation.
+
+Worked example — feature `oauth-flow`, persona Platform Operator (PO), first JTBD:
+
+| Layer    | Id                                                                 |
+| -------- | ------------------------------------------------------------------ |
+| JTBD     | `oauth-flow.PO1`                                                   |
+| AC       | `oauth-flow.PO1.AC2`                                               |
+| Scenario | `oauth-flow.PO1.AC2.change_association_applies_to_subsequent_auth` |
+
+```text
+### Scenario: oauth-flow.PO1.AC2.change_association_applies_to_subsequent_auth
+```
+
+A free-text title (no `<jtbd-id>.AC<#>` prefix) is left alone — it simply proves no
+AC. `safeword check` reads the scheme and reports coverage gaps for in-progress
+tickets as advisories (never a gate):
+
+- **uncovered** — an AC in `spec.md` that no scenario references.
+- **stale ref** — a scenario whose JTBD exists but whose `AC<#>` does not (a typo,
+  or an AC that was renumbered).
+- **orphan** — a scenario whose JTBD is absent from `spec.md` entirely.
+
 ### Phase 3 Exit (REQUIRED)
 
 1. **Save scenarios** to `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
