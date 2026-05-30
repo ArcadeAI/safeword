@@ -110,4 +110,4 @@ Then the report is empty
 
 Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>`.
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: scenarios already share buildCoverageReport + the parser helpers; no cross-scenario duplication left to extract

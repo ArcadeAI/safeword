@@ -3,12 +3,12 @@ id: XT1FFM
 slug: cross-reference-numbering
 title: 'Adopt slug.persona.AC.scenario numbering for traceability'
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: QEKGBK
 created: 2026-05-24T15:21:55.058Z
-last_modified: 2026-05-30T18:45:00.000Z
+last_modified: 2026-05-30T18:50:00.000Z
 scope:
   - Adopt the scenario-name scheme `<slug>.<persona-code><JTBD#>.AC<#>.<scenario_name>` (snake_case `scenario_name`, arcade-exact) as the `### Scenario:` title in test-definitions.md, extending 31W8M3's AC id downward. Long IDs accepted — no truncation.
   - Coverage REPORT in `safeword check` (advisory, like persona/glossary drift — NOT a blocking gate): flag each AC in a ticket's spec.md with no matching scenario, and each scenario whose `<jtbd-id>.AC<#>` prefix matches no AC (orphan). Needs a src-side spec/AC parser mirroring the hook-side `parseAcsByJtbd`.
@@ -71,3 +71,4 @@ done_when:
 - 2026-05-30T18:42:00.000Z Complete: Phase 3 — saved dimensions.md + test-definitions.md (9 scenarios across 3 rules) with arcade-exact numbered titles (`cross-reference-numbering.DEV1.AC1|AC2.<snake>`). → scenario-gate.
 - 2026-05-30T18:43:00.000Z Complete: Phase 4 — AODI re-validated all 9 (atomic/observable/deterministic/independent); adversarial pass clean (malformed title folds into the free-text/no-ref partition — not a separate class). → decomposition. Build order: (A) AC-id parser hook-side lib/jtbd.ts (returns AC ids per JTBD, not counts) + src-side mirror in src/utils; (B) title→AC-ref parser; (C) coverage report in check.ts (three buckets) wired to the advisory channel.
 - 2026-05-30T18:45:00.000Z Phase 5/6: → implement. Report scoped to `status: in_progress` tickets with a spec.md (excludes done predecessor 31W8M3, whose AC-bearing spec + free-text scenarios are the out-of-scope migration case). Pure functions land in src/utils/scenario-coverage.ts (M6D315's 5th section-walk consumer — noted, not unified); check.ts wires them to the advisory channel (non-blocking, exit 0). Hook-side parseAcsByJtbd untouched (counts feed the AC gate).
+- 2026-05-30T18:50:00.000Z Complete: Phase 5/6 implementation. RED 4e54813f (12 tests) → GREEN 6bf6b2cd (parseAcReferenceFromTitle/parseAcIdsByJtbd/buildCoverageReport) → check.ts wiring e2eb52c5 (+2 integration tests). Docs 303a586f (SCENARIOS.md scheme+example, SAFEWORD.md ref, test-def template numbered title; both mirrors). 9/9 scenarios marked, cross-scenario skip (no shared-code duplication left). → verify.
