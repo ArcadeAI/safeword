@@ -48,6 +48,16 @@ function jtbdSpec(jtbdBody: string): string {
   return `# Spec: x\n\n## Intent\n\nWhy.\n\n## Jobs To Be Done\n\n${jtbdBody}\n\n## Outcomes\n\nDone.\n`;
 }
 
+function attemptTestDefinitions(ticketDirectory: string): HookResult {
+  return runHook({
+    tool_name: 'Write',
+    tool_input: {
+      file_path: nodePath.join(ticketDirectory, 'test-definitions.md'),
+      content: '# Test Definitions\n',
+    },
+  });
+}
+
 describe('intake-exit JTBD gate (Rule 7)', () => {
   let projectRoot: string;
   let ticketDirectory: string;
@@ -65,33 +75,61 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
     rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  function attemptTestDefinitions(): HookResult {
-    return runHook({
-      tool_name: 'Write',
-      tool_input: {
-        file_path: nodePath.join(ticketDirectory, 'test-definitions.md'),
-        content: '# Test Definitions\n',
-      },
-    });
-  }
-
   it('denies when spec.md has no JTBD', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), jtbdSpec('(none yet)'));
-    expectHookDeny(attemptTestDefinitions(), 'JTBD');
+    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'JTBD');
   });
 
-  it('allows when spec.md has a JTBD whose persona resolves', () => {
+  it('allows when spec.md has a JTBD whose persona resolves and an AC under it', () => {
     writeFileSync(
       nodePath.join(ticketDirectory, 'spec.md'),
       jtbdSpec(
-        '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.',
+        '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.\n\n#### x.PO1.AC1 — b is reliably delivered',
       ),
     );
-    expectHookAllow(attemptTestDefinitions());
+    expectHookAllow(attemptTestDefinitions(ticketDirectory));
   });
 
   it('skips the JTBD gate when no spec.md is present (grandfathered ticket)', () => {
     // No spec.md written — old-flow routing; the JTBD gate must not fire.
-    expectHookAllow(attemptTestDefinitions());
+    expectHookAllow(attemptTestDefinitions(ticketDirectory));
+  });
+});
+
+describe('intake-exit AC gate (31W8M3)', () => {
+  let projectRoot: string;
+  let ticketDirectory: string;
+
+  beforeEach(() => {
+    projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'ac-gate-'));
+    ticketDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'ABC123');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), `---\n${TICKET_FRONTMATTER}\n---\n`);
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: one obvious dimension');
+    writeFileSync(nodePath.join(projectRoot, '.safeword-project', 'personas.md'), PERSONAS);
+  });
+
+  afterEach(() => {
+    rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  const RESOLVING_JTBD =
+    '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.';
+
+  it('denies when a JTBD has no Acceptance Criteria', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), jtbdSpec(RESOLVING_JTBD));
+    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'AC');
+  });
+
+  it('allows a JTBD with an AC heading under it', () => {
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      jtbdSpec(`${RESOLVING_JTBD}\n\n#### x.PO1.AC1 — b is reliably delivered`),
+    );
+    expectHookAllow(attemptTestDefinitions(ticketDirectory));
+  });
+
+  it('does not fire the AC gate when no spec.md is present (grandfathered ticket)', () => {
+    expectHookAllow(attemptTestDefinitions(ticketDirectory));
   });
 });

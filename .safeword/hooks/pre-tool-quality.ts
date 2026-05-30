@@ -10,7 +10,7 @@ import nodePath from 'node:path';
 import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
-import { evaluateJtbdGate } from './lib/jtbd.ts';
+import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
   getStateFilePath,
@@ -276,14 +276,23 @@ if (
   // against personas.md, or a `skip: <reason>` in the Jobs To Be Done section.
   const specFile = nodePath.join(ticketDirectory, 'spec.md');
   if (existsSync(specFile)) {
-    const verdict = evaluateJtbdGate(
-      readFileSync(specFile, 'utf8'),
-      readPersonasForGate(ticketDirectory),
-    );
-    if (!verdict.ok) {
+    const specContent = readFileSync(specFile, 'utf8');
+
+    const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
+    if (!jtbdVerdict.ok) {
       deny(
-        `spec.md JTBD gate: ${verdict.reason}.`,
+        `spec.md JTBD gate: ${jtbdVerdict.reason}.`,
         'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
+      );
+    }
+
+    // AC gate (ticket 31W8M3): each JTBD needs ≥1 Acceptance Criterion — a
+    // `#### <jtbd-id>.AC<n>` heading under it — or a per-JTBD `skip: <reason>`.
+    const acVerdict = evaluateAcGate(specContent);
+    if (!acVerdict.ok) {
+      deny(
+        `spec.md AC gate: ${acVerdict.reason}.`,
+        'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n> — <capability>` (a product-level guarantee, not implementation), or `skip: <reason>` under that JTBD to omit it deliberately.',
       );
     }
   }
