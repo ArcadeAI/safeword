@@ -9,13 +9,15 @@
  *       stale     (a scenario ref whose JTBD exists but whose AC# does not),
  *       orphan    (a scenario ref whose JTBD is absent from the spec).
  *
- * The `## `-section + HTML-comment-skip walk mirrors src/utils/personas.ts,
- * src/utils/glossary.ts, and hooks/lib/jtbd.ts — the 5th consumer of that
- * pattern. Per epic DZ2NM5's deferred-refactor decision the shared extraction
- * belongs to M6D315; here it is mirrored in place, not unified.
+ * The `## `-section walk reuses `computeSkipMask` from `./markdown-sections.js`
+ * (the shared CommonMark comment/fence-skip primitive, ticket WQ4RH3). The
+ * hook-side `jtbd.ts` keeps its own copy across the deployed-hook runtime
+ * boundary — it cannot import the CLI dist.
  *
  * No I/O — callers pass file content; check.ts owns ticket discovery.
  */
+
+import { computeSkipMask } from './markdown-sections.js';
 
 const JTBD_HEADING = 'jobs to be done';
 const SCENARIO_PREFIX = '### Scenario:';
@@ -188,34 +190,3 @@ function parseHeading(line: string): { level: number; text: string } | undefined
 }
 
 const WHITESPACE_START = /^\s/;
-
-/**
- * Per-line boolean[] where `true` means "skip during parsing" because the
- * line lives inside a triple-backtick fence or a block-level HTML comment.
- * Mirrors the mask in personas.ts / glossary.ts; same length as the input so
- * line indices stay stable.
- */
-function computeSkipMask(lines: readonly string[]): boolean[] {
-  const skip: boolean[] = [];
-  let insideCodeFence = false;
-  let insideComment = false;
-  for (const line of lines) {
-    if (line.trimStart().startsWith('```')) {
-      skip.push(true);
-      insideCodeFence = !insideCodeFence;
-      continue;
-    }
-    if (insideCodeFence) {
-      skip.push(true);
-      continue;
-    }
-    if (!insideComment && line.trimStart().startsWith('<!--')) insideComment = true;
-    if (insideComment) {
-      skip.push(true);
-      if (line.includes('-->')) insideComment = false;
-      continue;
-    }
-    skip.push(false);
-  }
-  return skip;
-}
