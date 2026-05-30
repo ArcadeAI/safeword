@@ -3,12 +3,26 @@ id: XT1FFM
 slug: cross-reference-numbering
 title: 'Adopt slug.persona.AC.scenario numbering for traceability'
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: QEKGBK
 created: 2026-05-24T15:21:55.058Z
-last_modified: 2026-05-24T15:22:00.000Z
+last_modified: 2026-05-30T18:28:00.000Z
+scope:
+  - Adopt the scenario-name scheme `<slug>.<persona-code><JTBD#>.AC<#>.<scenario_name>` (snake_case `scenario_name`, arcade-exact) as the `### Scenario:` title in test-definitions.md, extending 31W8M3's AC id downward. Long IDs accepted — no truncation.
+  - Coverage REPORT in `safeword check` (advisory, like persona/glossary drift — NOT a blocking gate): flag each AC in a ticket's spec.md with no matching scenario, and each scenario whose `<jtbd-id>.AC<#>` prefix matches no AC (orphan). Needs a src-side spec/AC parser mirroring the hook-side `parseAcsByJtbd`.
+  - Docs: SCENARIOS.md documents the scheme with a worked example; SAFEWORD.md carries a one-line scheme reference; the scaffolded test-definitions scenario shows the numbered title.
+out_of_scope:
+  - `.feature` codegen / codify-spec tag-vs-name — no codegen exists in safeword; the spec-pipeline codegen is a separate epic (DZ2NM5 excludes it).
+  - Any hard gate on scenario-name format or AC coverage — report-only (converged Q2); `pre-tool-quality.ts` is untouched.
+  - Migrating existing tickets' scenarios to the scheme — new-flow only (epic D5).
+  - Changing scenario internals (Given/When/Then, RED/GREEN/REFACTOR checkboxes).
+done_when:
+  - Scheme documented in SCENARIOS.md (worked example) + SAFEWORD.md.
+  - `safeword check` reports uncovered ACs and orphan scenarios for a ticket whose spec.md has ACs and a test-definitions.md — covered by unit tests on the parser + report.
+  - The scaffolded test-definitions scenario shows the numbered scheme.
+  - Full suite + lint green; templates synced.
 ---
 
 # Adopt `slug.persona.AC.scenario` numbering for traceability
@@ -52,3 +66,4 @@ last_modified: 2026-05-24T15:22:00.000Z
 
 - 2026-05-24T15:21:55.058Z Started: Created ticket XT1FFM
 - 2026-05-24T15:22:00.000Z Drafted: Scope, depends, open questions; linked to epic DZ2NM5
+- 2026-05-30T18:28:00.000Z Re-validated on pickup: depends-on 31W8M3 done (AC id `<slug>.<persona-code><JTBD#>.AC<#>` shipped). Dropped stale `.feature`-codegen scope (no codegen in safeword; separate epic). Converged 3 design Qs: snake-exact title (arcade fidelity), coverage = `safeword check` REPORT not a gate, accept long IDs. Authored real DEV JTBD + 2 ACs (personas/glossary now bootstrapped — no skip). Phase 0-2 → define-behavior.
