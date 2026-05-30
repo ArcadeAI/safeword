@@ -232,14 +232,18 @@ checkUsageLimit(lines);
 // Claude's last response text — provided directly by the hook runtime.
 const combinedText = input.last_assistant_message ?? '';
 
-// No edit tools used → no quality review needed (conversational response)
-if (!detectEditToolsUsed(lines)) {
-  process.exit(0);
-}
-
-// Get ticket info for phase-aware decision logic
+// Get ticket info for phase-aware decision logic. Resolved BEFORE the edit-tools
+// gate so the done-phase branch runs on any stop at phase: done — closing and its
+// evidence enforcement depend on ticket state, not recent edit activity (ticket
+// AP3FGJ). The edit-tools gate below then guards only the review/backstop path.
 const ticketInfo = getCurrentTicketInfo(input.session_id);
 const currentPhase = ticketInfo.phase;
+
+// No edit tools used → skip the review path (a conversational response has
+// nothing to review). The done phase is the exception: fall through to its gate.
+if (!detectEditToolsUsed(lines) && currentPhase !== 'done') {
+  process.exit(0);
+}
 
 /**
  * Check last transcript line for usage limit phrases.
