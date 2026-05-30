@@ -3,7 +3,7 @@ id: 31W8M3
 slug: ac-layer
 title: 'Add Acceptance Criteria layer between JTBD and scenarios'
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 epic: bdd-phase-zero-merge
 paired_with: T9BNXD
@@ -66,8 +66,23 @@ done_when:
 - Does AC sign-off block scope/done-when capture, or can they be captured in parallel? Sub-ordering question — inherits epic decision #1.
 - Are ACs required, or optional for small features? Arcade requires them; safeword could allow `acs: skip` with reason for very small features.
 
+## Decomposition
+
+**AC logic home:** extend `hooks/lib/jtbd.ts` — AC headings nest under JTBD `###` blocks, so the AC parser reuses the same block-boundary + HTML-comment-skip walk `parseJtbdSection` already does. (Confirm vs. a sibling `ac.ts` at implement; lean extend for cohesion.)
+
+| Task                                                                                                                                                               | Scenarios      | Layer       | Builds on |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- | ----------- | --------- |
+| 1. `parseAcsByJtbd` + `evaluateAcGate` in `lib/jtbd.ts` (≥1 AC per JTBD or `skip:`; ignore commented examples)                                                     | S1.1–1.6, S2.1 | unit        | —         |
+| 2. spec-template.md — `#### <jtbd-id>.AC<n>` structure + HTML-commented example under the JTBD                                                                     | (S1.6 fixture) | —           | —         |
+| 3. Wire AC gate into `pre-tool-quality.ts` after the JTBD gate (spec.md-routed, per D5)                                                                            | S2.2           | integration | 1         |
+| 4. DISCOVERY.md AC sub-step (after JTBD, before scope; capability-vs-impl coaching, split-test, pause-confirm) + SCENARIOS.md "each scenario links to a parent AC" | docs           | —           | 1,2       |
+| 5. SAFEWORD.md Phase-0 mention; register nothing new (extends jtbd.ts); sync templates; full suite + lint                                                          | all            | —           | 3,4       |
+
 ## Work Log
 
 - 2026-05-24T15:21:55.013Z Started: Created ticket 31W8M3
 - 2026-05-24T15:22:00.000Z Drafted: Scope, depends, open questions; linked to epic DZ2NM5
 - 2026-05-30T17:16:00.000Z Re-validated on pickup: premise current — Y2HCNJ shipped the spec.md JTBD structure AC nests under; no staleness from this session's hook work. Open questions resolved: sub-ordering = epic D1 (product-first); AC optional via `skip:` valve (JTBD/dimensions precedent). Scope→frontmatter; spec.md with JTBD skip (internal tooling). Phase 0-2 → define-behavior.
+- 2026-05-30T17:21:00.000Z Complete: Phase 3 — AC format = `#### <jtbd-id>.AC<n>` under each JTBD; 8 gate scenarios (parse + per-JTBD ≥1-AC + skip valve + commented-example ignore + section-skip + no-spec.md routing). dimensions.md + test-definitions.md saved.
+- 2026-05-30T17:21:00.000Z Complete: Phase 4 — AODI pass on all 8; adversarial edges (bare AC heading, skip+AC, AC under skipped section) handled by the structural gate, no new scenarios. → decomposition.
+- 2026-05-30T17:21:30.000Z Complete: Phase 5 — 5 tasks; AC logic extends lib/jtbd.ts (reuses JTBD block walk). → implement.
