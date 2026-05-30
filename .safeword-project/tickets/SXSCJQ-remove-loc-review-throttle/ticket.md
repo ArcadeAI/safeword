@@ -2,7 +2,7 @@
 id: SXSCJQ
 slug: remove-loc-review-throttle
 type: feature
-phase: decomposition
+phase: implement
 status: in_progress
 created: 2026-05-29T20:32:47.138Z
 last_modified: 2026-05-30T04:25:00.000Z
@@ -34,9 +34,26 @@ done_when:
 
 **Why:** Surfaced by SW1SE5's `/figure-it-out`: the throttle gates by LOC, a poor proxy for "is there something worth reviewing" — a 5-line change can introduce a real bug while a 60-line rename is noise. But simply removing it (the original task framing) leaves a deeper gap: Stop fires once per turn with the final state, so a turn that flips RED→GREEN→REFACTOR only ever reviews the last step, and a **long autonomous run never hits Stop at all** — so phase/step reviews silently vanish exactly when unattended. Moving the trigger to PostToolUse (fires at the edit, not at stop) closes both gaps; Stop becomes a deduped backstop for non-edit boundary changes. Reviews stay soft (additionalContext / bypassable block) — the done gate remains the only hard wall.
 
+## Decomposition
+
+**Hook home:** extend `post-tool-quality.ts` (already on `Edit|Write|MultiEdit|NotebookEdit|Bash`, already parses ticket.md, already writes session state) — zero new spawn, zero settings change.
+
+**Phase semantics:** enter-semantics (review the phase now current). Forced by the "Stop must participate" requirement — Stop can't see the exited phase, only the current one, so exit-semantics would leave the Stop trigger unable to fire. Intake/done covered by their hard gates.
+
+**Detection:** per-step = edge-triggered via `collectNewTransitions` (extracted to a shared lib); per-phase = edge-triggered phase-line diff at PostToolUse + level-triggered (`currentPhase != lastReviewedPhase`) Stop backstop. Markers `lastReviewedStep`/`lastReviewedPhase` dedup across both triggers.
+
+| Task                                                                                    | Scenarios                            | Layer       | Builds on |
+| --------------------------------------------------------------------------------------- | ------------------------------------ | ----------- | --------- |
+| 1. `lib/review-trigger.ts` (step selection, phase enter-review, dedup)                  | S1.1–1.5, S2.1–2.2, S3.1, S3.3, S4.1 | unit        | —         |
+| 2. `lastReviewedStep?`/`lastReviewedPhase?` on QualityState                             | infra                                | —           | —         |
+| 3. Wire `post-tool-quality.ts` → emit `additionalContext`, update markers               | S1.6, S2.1                           | integration | 1,2       |
+| 4. `stop-quality.ts` — delete LOC throttle; level-triggered backstop → `decision:block` | S3.1, S3.2, S4.1                     | integration | 1,2       |
+| 5. Sync templates, register lib in schema.ts, full suite + lint                         | all                                  | —           | 3,4       |
+
 ## Work Log
 
 - 2026-05-29T20:32:47.138Z Started: Created ticket SXSCJQ
 - 2026-05-29T22:58:00.000Z Re-scoped task→feature: per-step + per-phase reviews via PostToolUse (autonomous-safe) + deduped Stop backstop; kill LOC throttle. Scope converged interactively (steelman flipped surface to additionalContext; user added "both triggers" for the autonomous-run gap). JTBD skipped (internal tooling, no personas.md). Phase 0-2 → define-behavior.
 - 2026-05-30T04:25:00.000Z Complete: Phase 3 — 12 scenarios across 4 rules (per-step PostToolUse, per-phase PostToolUse, dedup, LOC-throttle-removed). dimensions.md + test-definitions.md saved. S1.5 (batched flips → most-advanced step) resolved via figure-it-out.
 - 2026-05-30T04:25:00.000Z Complete: Phase 4 — AODI pass on all 12; adversarial pass surfaced 3 impl notes (Write-path phase detection, re-edit no-double, Stop loop-guard coexistence), no new scenarios. → decomposition.
+- 2026-05-30T04:26:00.000Z Complete: Phase 5 — 5 tasks. Hook home = extend post-tool-quality.ts (zero new spawn). Phase review = enter-semantics (forced by Stop-must-participate constraint). → implement.
