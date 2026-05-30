@@ -4,9 +4,9 @@ id: AP3FGJ
 slug: donegate-fires-without-edits
 type: task
 phase: done
-status: in_progress
+status: done
 created: 2026-05-30T14:30:14.807Z
-last_modified: 2026-05-30T14:31:00.000Z
+last_modified: 2026-05-30T14:48:58.473Z
 scope:
 
 - In `stop-quality.ts`, resolve the active ticket (`getCurrentTicketInfo`) BEFORE the `detectEditToolsUsed` early-exit, and scope that exit so it skips ONLY when the ticket is not at `phase: done` — the done branch (artifact check, test run, verify.md, skill-invocation gate, ledger validation, status update + navigation) must run on any stop at `phase: done`, regardless of recent edit-tool activity.
