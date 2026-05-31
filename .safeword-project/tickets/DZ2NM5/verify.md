@@ -29,13 +29,20 @@ has none of). No closed-epic precedent existed in this repo — see the close no
 - ✓ Merged DISCOVERY.md has a worked example exercising all four artifact types (E1K5ZW).
 - ✓ A test demonstrates the flow end-to-end (E1K5ZW — `tests/integration/phase0-walkthrough.test.ts`).
 
-## Aggregate evidence
+## Aggregate evidence (skill-backed retro-verification, 2026-05-31)
 
-**Test Suite:** ✓ 2314/2314 tests pass — most recent full-suite run on this branch (8BNSTE close, commit 25f8654f). This session's integration deliverable (E1K5ZW) verified at 209/209 gate subset + 11/11 demo + 13/13 parity.
+Re-run with the actual `/verify` + `/audit` skills (not hand-written) — both invocations are
+in this session's `.safeword-project/skill-invocations.log` (`verify ✓`, `audit ✓`). Project-level,
+which is the right grain for an aggregation epic (its verification = the repo is green after all
+children landed).
+
+**Test Suite:** ✓ 2325/2325 tests pass (1 skipped; 2326 total, 141 files) — full `bun run test` this session (744s).
 **Build:** ✅ Success (`bun run build` — ESM + DTS).
-**Lint:** ✅ Clean (lint-staged across all child commits).
-**Scenarios:** All N scenarios marked complete — across the children's `test-definitions.md` (the epic holds none of its own; ⏭️ N/A at epic level).
-**Audit passed** — each child passed `/audit` at its own close; E1K5ZW audited this session (0 errors, 0 warnings).
+**Lint:** ✅ Clean (`bun run lint` — eslint + `tsc --noEmit`, exit 0).
+**Scenarios:** All 0 scenarios marked complete — ⏭️ N/A at epic level (the epic holds no `test-definitions.md`; children carry the scenarios).
+**Dep Drift:** ✅ No new drift — this epic + close changed no dependencies.
+**Architecture:** ✔ no dependency violations (depcruise, 120 modules / 344 deps).
+**Audit passed** — 0 errors. Warnings are pre-existing and low-severity: 7 unused ESLint-plugin deps (expected for a lint-config-shipping tool) + 2 unused exported constants (`MAX_CODE_LENGTH`/`MIN_NAME_LENGTH` in `personas.ts`); none introduced by this epic.
 **Parent Epic:** none (DZ2NM5 is the top-level epic; paired arcade epic DXFX02 covers arcade-side adoption).
 
 ## Close note (convention gap)

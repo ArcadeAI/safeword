@@ -19,12 +19,20 @@ mechanism**, not by building a bridge. Full rationale in the ticket's
 
 ## Checklist
 
-**Test Suite:** ⏭️ N/A — decision ticket, no code.
-**Build / Lint:** ⏭️ N/A — markdown only (lint-staged runs at commit).
+**Test Suite:** ✓ 2325/2325 pass (1 skipped) — full `bun run test` this session; confirms the decision changed nothing in the codebase (this is a docs-only decision ticket).
+**Build / Lint:** ✅ Success / Clean (`bun run build`; `bun run lint` eslint + tsc, exit 0).
 **Scenarios:** ⏭️ N/A — no `test-definitions.md`; this ticket produces decisions, not behavior.
+**Audit passed** — 0 errors (depcruise clean; only pre-existing knip warnings, none from this ticket).
 **Done-when:** ✓ Each open question has a documented decision; safeword's behavior when
 `.project/personas.md` exists is specified (ignored unless `paths` points at it);
 architecture coexistence specified (ignored, single-doc); setup detection decided (none);
 customer docs explicitly deferred.
+
+## Skill-backed retro-verification (2026-05-31)
+
+Originally closed with a hand-written verify.md (a decision ticket closed by `status`, so the
+`phase: done` gate never fired). Retro-run this turn with the real `/verify` + `/audit` skills —
+both invocations recorded in `.safeword-project/skill-invocations.log` (`verify ✓`, `audit ✓`).
+Project-level evidence above (no per-ticket code to verify). The decision stands; the repo is green.
 
 Ready to mark done.
