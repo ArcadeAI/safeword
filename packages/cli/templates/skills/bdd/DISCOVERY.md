@@ -2,6 +2,27 @@
 
 **Entry:** Agent detects feature-level work OR resumes ticket at `intake` phase.
 
+## Sub-phase gates
+
+Phase 0 advances through sub-phases (load personas/glossary → JTBD → AC → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
+
+1. **Present** the captured artifact verbatim — the JTBD list, the AC list grouped by JTBD, or the Scope / Out of Scope / Done When block.
+2. **Ask** the sub-phase's closing question (below).
+3. **Wait** for confirmation. Any forward-moving reply advances — an explicit "looks good" / "proceed", or an amendment you fold in and re-present. A new concern loops back; you don't advance until it's resolved.
+
+| Sub-phase           | Closing question                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| Personas / glossary | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)              |
+| Jobs To Be Done     | _"Do these jobs cover who this serves and why? Anything missing or mis-framed?"_                    |
+| Acceptance Criteria | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_ |
+| Engineering scope   | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                 |
+
+**On resume** (picked up mid-sub-phase across sessions): re-present the captured artifact for re-confirmation rather than assuming the prior signoff still stands — context may have shifted.
+
+**Under YOLO mode** (G2E72G): gates auto-confirm and the auto-decision is recorded in the work log, so the audit trail shows what was waved through.
+
+These gates are conversational discipline the agent runs — not a hook block. (Hook-enforced sub-phase tracking is future work, coordinated with phase-step-enforcement epic 172.)
+
 ## Load project personas
 
 At intake start, read `.safeword-project/personas.md`. This file is the project's source of truth for who features serve; later phases (JTBD authoring, AC validation, scenario numbering) reference its entries.
