@@ -2,11 +2,11 @@
 id: E1K5ZW
 slug: phase0-integration-walkthrough
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-zero-merge
 created: 2026-05-31T01:35:26.075Z
-last_modified: 2026-05-31T01:36:00.000Z
+last_modified: 2026-05-31T04:39:33.277Z
 ---
 
 # DZ2NM5 integration: end-to-end Phase 0 worked example + demo
@@ -43,3 +43,4 @@ last_modified: 2026-05-31T01:36:00.000Z
 
 - 2026-05-31T01:35:26.075Z Started: Created ticket E1K5ZW
 - 2026-05-31T01:36:00.000Z Drafted: Carved out of DZ2NM5's unticketed epic-level integration deliverables (worked example + e2e demo), found during the Phase-0 revalidation pass. Sized task (docs + demo test, no new behavior). Depends only on the done product-layer children.
+- 2026-05-31T04:39:33.277Z Complete: Shipped both deliverables. (1) DISCOVERY.md "Worked example: Phase 0 end to end" capstone replaces the engineering-scope-only `--verbose` example — one feature (`oauth-flow` / Platform Operator) walked through persona ref → JTBD → AC → engineering scope → numbered Phase-3 scenario + `safeword check` coverage advisory, with B0JZQN sub-phase gates (JTBD/AC/Scope gate) at each transition. (2) SAFEWORD.md Clarify exit reordered into one arc (personas → JTBD → AC → scope → scenario lineage), `personas.md` anchor added. (3) `tests/integration/phase0-walkthrough.test.ts` drives the real pre-tool-quality hook + `safeword check` over one ticket (spec scaffold → JTBD/AC gates → numbered scenarios → coverage clears) + describe.each doc-presence guard over canonical+dogfood. Verified: test:done 209/209, demo 11/11, parity 13/13, build OK, lint clean, mirrors byte-identical; /audit + /verify passed. Committed 9a8b1631.
