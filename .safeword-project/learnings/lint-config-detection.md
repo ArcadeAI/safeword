@@ -18,6 +18,12 @@ detect presence, and one is wrong:
   prettier rc `json,yaml,yml,json5,toml,js,cjs,mjs,ts,cts,mts` + `prettier.config.*`).
   A new extension is a one-line add. The original bug was an _incomplete_ list
   (`.ts`/`.yaml` missing) — not enumeration itself.
+  - **Verified** 2026-05-31 against [prettier.io/docs/configuration](https://prettier.io/docs/configuration)
+    and [eslint.org configuration-files](https://eslint.org/docs/latest/use/configure/configuration-files):
+    the file lists above are complete. **Not covered** (separate config location,
+    deferred): the `"prettier"` key in `package.json` / `package.yaml`, and the
+    legacy `eslintConfig` key in `package.json` — a project configuring _only_
+    there still false-negatives. Filename detection ≠ full config resolution.
 
 Drift (a brand-new ext → a spurious warning) is low-harm and rare; a false
 positive (missing a real "config absent" signal) is the worse failure, and the
