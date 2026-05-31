@@ -38,11 +38,13 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, first author the Jobs To Be Done in `spec.md` — one persona per job, in the "When I…, I want…, so I can…" form — then decompose each job into Acceptance Criteria (a `#### <jtbd-id>.AC<n>` capability per AC; the rung define-behavior scenarios prove). The bdd skill's DISCOVERY.md walks both sub-steps; jobs-then-ACs anchor the scope. Each define-behavior scenario then names its lineage as `<jtbd-id>.AC<#>.<scenario_name>` (snake_case) so `safeword check` can report coverage gaps — uncovered ACs and orphan scenarios; see the bdd skill's SCENARIOS.md. Then write the structured scope to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
+Exit: user accepts your proposal. For features, Phase 0 builds four artifacts in order, each anchoring the next: author the Jobs To Be Done in `spec.md` first — one persona (from `.safeword-project/personas.md`) per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
 - **`done_when`** — observable outcomes.
+
+In define-behavior, each scenario carries its lineage `<jtbd-id>.AC<#>.<scenario_name>` (snake_case) so `safeword check` flags coverage gaps — uncovered ACs, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
 
 If the user is exploring without intent to build, follow their lead — not every conversation produces a ticket.
 

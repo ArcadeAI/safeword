@@ -99,31 +99,69 @@ If any answer is vague, you have open questions — surface them.
 
 **When the feature leans on a library or framework** — read the installed version's docs before proposing API shapes or done-when criteria. Scope baked on training memory of a different version is silently wrong. Check `package.json` / lockfile first, then the source wired up (Context7, official docs, README at the pinned ref).
 
-### Concrete example
+## Worked example: Phase 0 end to end
 
-**Context:** User says "I want to add a --verbose flag to the lint command."
+One feature walked through all four artifacts and every sub-phase gate. Slug `oauth-flow`: let an operator rotate an API key without a coordinated flag day.
 
-**Agent turn 1:**
+**1 · Personas — load and reference.** Intake reads `.safeword-project/personas.md` and finds the persona this feature serves:
 
-> You want `--verbose` on lint to show more detail during linting. I'd frame this as: verbose mode surfaces which files are being checked, which linters ran, and any warnings that are currently suppressed.
->
-> A couple of things to nail down — the output format (structured JSON vs human-readable lines) and whether verbose shows passing files too or just failures. My instinct is human-readable, failures + warnings only. What do you think?
+```markdown
+## Platform Operator (PO)
 
-**User:** "Human-readable, but show passing files too — I want to see it's actually checking everything."
+**Role:** Owns the fleet's servers and their credentials.
+```
 
-**Agent turn 2:**
+The job below names `Platform Operator (PO)`; it resolves against the file, so intake continues. An unknown reference stops here — flag it, don't invent.
 
-> Got it. Here's the proposal:
->
-> **Scope:** `--verbose` flag on lint command. Shows each file checked, linter used, and result (pass/warning/fail). Human-readable output.
-> **Out of Scope:** Structured JSON output, debug-level linter internals, verbose mode for other commands.
-> **Done When:** `--verbose` produces per-file output showing filename, linter, and result for every file checked.
->
-> Ready to proceed?
+**2 · Jobs To Be Done — motivation first.** Capture who and why before anything else, in `spec.md`:
 
-**User:** "Yes."
+```markdown
+### oauth-flow.PO1 — Rotate credentials without a flag day
 
-**Result:** Zero open questions → proceed to sizing.
+**Persona:** Platform Operator (PO)
+
+> When I rotate a server's API key, I want the previous key to keep
+> working for a short grace period, so I can roll the change across my
+> fleet without coordinated downtime.
+```
+
+**JTBD gate** → present the job, ask _"Do these jobs cover who this serves and why?"_, wait for signoff before decomposing.
+
+**3 · Acceptance Criteria — capabilities under the job.** Each AC is one guarantee the operator can observe, not a mechanism:
+
+```markdown
+#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+
+#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
+```
+
+**AC gate** → present the criteria grouped under their job, ask _"Does each job's criteria capture what 'done' means?"_, wait. (AC2 split out by the split-test — "see which keys are live" delivers value on its own.)
+
+**4 · Engineering scope — what we touch, how we'll know.** Only now converge on the engineering contract, written to ticket frontmatter:
+
+```yaml
+scope:
+  - dual-key validation with a configurable grace TTL
+  - a `keys list` view showing each key as live / grace / expired
+out_of_scope:
+  - automatic rotation scheduling (rejected alternative)
+  - per-key rate limits (rejected alternative)
+done_when:
+  - a request signed with the previous key succeeds within the TTL and fails after it
+  - `keys list` reflects each key's current state
+```
+
+**Scope gate** → present Scope / Out of Scope / Done When, ask _"ready to proceed?"_, wait. Then advance to define-behavior.
+
+**5 · Scenario lineage — the chain stays machine-checkable.** In Phase 3 each scenario title carries the criterion it proves, so persona → JTBD → AC → scenario is traceable, not eyeballed:
+
+```text
+### Scenario: oauth-flow.PO1.AC1.previous_key_authenticates_within_grace_window
+```
+
+`safeword check` reads these titles and reports coverage gaps as advisories — an AC no scenario references (AC2, until you write one) is **uncovered**; a scenario naming a renumbered or missing AC is a **stale ref** or **orphan**. The full scheme lives in the bdd skill's SCENARIOS.md.
+
+The arc end to end: a persona from `personas.md`, a job that names it, criteria under the job, an engineering contract on top, and scenarios that trace back to a criterion — each sub-phase closed by its gate.
 
 ## Intake Exit (REQUIRED)
 
