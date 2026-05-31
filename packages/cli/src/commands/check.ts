@@ -39,6 +39,13 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
   return issues;
 }
 
+// The persona/glossary find*Issues + find*Advisories pairs below (and the
+// validate*Reference / lookup* pairs in personas.ts / glossary.ts) are
+// intentionally parallel, NOT a missed extraction: the cores diverge (persona
+// matches code/name, glossary matches name/alias; different parse+validate
+// fns and messages), and where they don't, deduping two call sites into a
+// multi-param helper would cost clarity. Assessed in ticket XEP59N — leave as is.
+
 /**
  * Validate personas.md when present, routing through any configured
  * `paths.personas` override. Returns one issue string per persona
