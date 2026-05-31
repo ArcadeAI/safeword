@@ -24,4 +24,4 @@
 
 ## Out-of-scope finding (flagged separately)
 
-The same bdd lifecycle is numbered in the Cursor rules (`.cursor/rules/bdd-*.mdc` + template mirrors). They encode an older verify+done-merged model, so they need structural reconciliation, not a mechanical de-number — spun into its own ticket.
+The same bdd lifecycle is numbered in the Cursor rules (`.cursor/rules/bdd-*.mdc` + template mirrors). They encode an older verify+done-merged model, so they need structural reconciliation, not a mechanical de-number — now tracked as ticket **G1A6BS** (`bdd-cursor-rules-reference`), which converts them to thin `@reference` pointers and adds the missing verify rule. (The scaffolding-template cluster — spec/glossary/personas — is the separate ticket **MT05DF**.)
