@@ -4,9 +4,9 @@ slug: arcade-coexistence-conventions
 title: 'Reconcile arcade `.project/` and architecture-tracking conventions with safeword'
 type: feature
 phase: intake
-status: in_progress
+status: done
 created: 2026-05-26T03:20:00.000Z
-last_modified: 2026-05-26T03:20:00.000Z
+last_modified: 2026-05-31T05:27:08.539Z
 ---
 
 # Reconcile arcade `.project/` and architecture-tracking conventions with safeword
@@ -62,6 +62,34 @@ last_modified: 2026-05-26T03:20:00.000Z
 - **Sync gesture necessity** — is `safeword sync` a real need, or can users symlink themselves out of duplicate-maintenance? Driver lean: symlink for v1, build sync if it becomes a pain point.
 - **Timing** — does this ship next to DZ2NM5 (so arcade-overlap customers get a clean coexistence story from day one) or after DZ2NM5 lands and adoption surfaces real pain? Driver lean: after, with this ticket open as the known follow-up.
 
+## Resolution (2026-05-31) — closed: v1 is manual opt-in via K7N2QM
+
+Closed without building a bridge. [K7N2QM](../K7N2QM/ticket.md) (configurable `paths.*`)
+already shipped the mechanism that removes the duplicate-maintenance pain: a both-tools
+user sets `paths.personas` / `paths.glossary` in `.safeword/config.json` to point at
+arcade's `.project/` files, and safeword reads arcade's copies directly. With the
+mechanism in hand, the policy/automation work here is optional — and the driver's own v1
+leans (recorded in Open questions above) all pointed at "minimal, no magic." So each open
+question is resolved that way:
+
+- **Bridge direction** → **Independent.** No auto-detection, no magic. Coexistence is a
+  manual opt-in via the K7N2QM `paths` redirect.
+- **Detection signal** → **None built.** Sidesteps the `.project/`-presence false-positive
+  problem by not auto-detecting at all.
+- **Architecture model** → **Stay single-doc** (`architecture.md`); no per-area
+  path-scoped model. Arcade's three-surface artifacts are neither consumed nor migrated —
+  they coexist, ignored by safeword. Any architecture read-site implementation remains
+  [M6D315](../M6D315/ticket.md).
+- **Sync gesture** → **Not built.** Users symlink or use the `paths` redirect; build a
+  `safeword sync` only if a both-tools customer reports real pain.
+- **Customer-facing docs** → **Deferred (YAGNI).** A dedicated coexistence doc is premature
+  for a manual-opt-in story with one known dual-tool user. Spin a fresh ticket if adoption
+  surfaces the need.
+
+Net: every open question lands on "minimal v1 — the mechanism exists, the automation is
+YAGNI until pain shows up." Reopen a fresh ticket if a both-tools customer hits friction
+the `paths` redirect doesn't cover.
+
 ## Done when
 
 - A documented decision exists for each open question above.
@@ -79,3 +107,4 @@ last_modified: 2026-05-26T03:20:00.000Z
 ## Work Log
 
 - 2026-05-26T03:20:00.000Z Started: Created ticket P8RJ4M. Extracted from DZ2NM5 D3 resolution after the `.project/` fallback was removed in favor of strict `.safeword-project/` ownership.
+- 2026-05-31T05:27:08.339Z Closed: **DONE — resolved by K7N2QM, no bridge built.** The configurable `paths.*` mechanism (K7N2QM, shipped in DZ2NM5) already lets a both-tools user point safeword at arcade's `.project/` files, removing the duplicate-maintenance pain manually. Resolved every open question on the driver's v1 leans: independent (no auto-detection/magic), single-doc architecture, no sync gesture, customer docs deferred (YAGNI). `status: in_progress → done`; `phase` left at `intake` (decision ticket, never traversed the TDD machine — same close shape as DZ2NM5). Reopen a fresh ticket if a both-tools customer hits friction the `paths` redirect doesn't cover.
