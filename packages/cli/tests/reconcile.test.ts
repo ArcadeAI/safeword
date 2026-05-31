@@ -199,6 +199,29 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.prettierrc'))).toBe(true);
     });
 
+    it('does not write .prettierrc or .safeword/.prettierrc when project already has a prettier config', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // Customer already uses prettier via a JS-module config we can't merge into.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'prettier.config.mjs'),
+        'export default { singleQuote: false };\n',
+      );
+
+      const ctx = createContext({ projectType: { existingPrettierConfig: true } });
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      // Safeword must not drop a competing .prettierrc — it would shadow the module config.
+      expect(existsSync(nodePath.join(temporaryDirectory, '.prettierrc'))).toBe(false);
+      // ...nor its own hook config; the lint hook formats against .safeword/.prettierrc.
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/.prettierrc'))).toBe(false);
+      // Customer's config left untouched.
+      expect(existsSync(nodePath.join(temporaryDirectory, 'prettier.config.mjs'))).toBe(true);
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
