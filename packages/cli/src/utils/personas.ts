@@ -21,6 +21,7 @@ import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
 import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
+import { findDuplicates } from './validation.js';
 
 // The three constants below are exported for workspace-internal use (tests
 // asserting the canonical bounds, docs referencing them without hardcoding,
@@ -258,22 +259,6 @@ function groupByLine<T extends ParsedPersona>(
     grouped.set(key, existing);
   }
   return grouped;
-}
-
-/** Produce duplicate-detection errors from a grouping. */
-function findDuplicates(
-  grouped: Map<string, number[]>,
-  kind: 'persona name' | 'persona code',
-): PersonaValidationError[] {
-  const errors: PersonaValidationError[] = [];
-  for (const [value, lines] of grouped.entries()) {
-    if (lines.length <= 1) continue;
-    for (const line of lines) {
-      const others = lines.filter(other => other !== line).join(', ');
-      errors.push({ line, message: `duplicate ${kind} "${value}" (also at line ${others})` });
-    }
-  }
-  return errors;
 }
 
 /** Produce pattern-violation errors for resolved personas. */
