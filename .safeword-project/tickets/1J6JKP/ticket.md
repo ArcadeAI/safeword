@@ -3,8 +3,8 @@ id: 1J6JKP
 slug: lint-hook-hygiene
 title: 'Lint hook hygiene — prefix-match eslint/prettier config detection'
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-zero-merge
 created: 2026-05-24T19:10:08.683Z
 last_modified: 2026-05-31T02:30:00.000Z
@@ -96,6 +96,7 @@ This ticket isn't a Phase-0-merge sub-task — both issues are unrelated to bdd 
 
 - 2026-05-24T19:10:08.683Z Started: Created ticket 1J6JKP
 - 2026-05-24T19:10:30.000Z Drafted: Scope, both fixes, scope-membership note; linked to epic DZ2NM5
+- 2026-05-31T03:55:00.000Z Done: exact-filename detection shipped (RED be04239c → GREEN 707d826a → fix 32cddab1). Gate subset `test:done` 209/209 + 191 blast-radius tests green; lint + build clean. Full 12-min suite runs were contended by a **parallel Claude session running vitest** on the shared tree (flake/hang/SIGTERM on unrelated `detect.ts` — passes in isolation) — diagnosed, not code failures; gate evidence is test:done + isolation. verify.md written. → done. **Epic DZ2NM5 now 8/9 children done; only E1K5ZW (integration walkthrough) remains.**
 - 2026-05-31T02:53:00.000Z Correction: the /figure-it-out **prefix-match** verdict was WRONG — the full suite caught it (regression in tests/integration/hooks.test.ts, which I'd missed earlier: its E2E disables a config via `mv eslint.config.mjs eslint.config.mjs.bak`, and prefix-match treats the `.bak` as present → false positive → no warning). Switched to **exact known-filename enumeration** (complete eslint+prettier extension lists, built programmatically) — distinguishes `.prettierrc.bak` from `.prettierrc.yaml`, fixes both the original false-negative AND the false-positive. Added `.bak`-exclusion regression tests (8/8); E2E 50/50. Lessons: (1) config-presence detection must enumerate exact filenames, not prefix-match; (2) grep test _content_ for the hook name — `find -iname` missed the E2E coverage. Fix 32cddab1.
 - 2026-05-31T02:30:00.000Z Revalidate + /figure-it-out + reframe → **task**. Issue 2 (biome) confirmed dead (post-tool-lint.ts supersedes it) — dropped. Issue 1 live + **broader**: eslint list is also too narrow — dogfood repo's `eslint.config.ts` is the session-start false-negative. /figure-it-out chose **prefix-match** over enumerate-filenames (drifts; just bit us) and over invoke-the-tool's-resolver (over-engineered for a presence check + deps in a standalone-bun hook). Current config conventions verified vs prettier.io + eslint.org docs. → implement (TDD on an extracted pure detector).
 - 2026-05-31T01:36:00.000Z Revalidated (DZ2NM5 sweep): **Issue 1 still live** — `session-lint-check.ts:31` still has only `['.prettierrc', '.prettierrc.json', 'prettier.config.js']`. **Issue 2 likely superseded** — no raw `biome check --write` PostToolUse hook found in `src/templates/config.ts`; safeword now lints via the per-file `post-tool-lint.ts` hook, so the project-wide-biome bug this ticket describes may no longer exist. ACTION AT PICKUP: confirm Issue 2 against the current settings template; if gone, rescope this ticket to Issue 1 only (and drop the biome scope from the title/done-when).
