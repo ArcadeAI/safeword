@@ -3,8 +3,8 @@
 <!--
 Product-framing spec for a feature ticket. The engineering contract
 (scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it during
-intake, before engineering scope. Fill each section, then delete the
+file holds the *why and who*. The bdd intake flow authors it before
+engineering scope. Fill each section, then delete the
 guidance comments.
 -->
 
