@@ -1,13 +1,24 @@
 ---
 id: 1J6JKP
 slug: lint-hook-hygiene
-title: 'Lint hook hygiene — detect all prettier config names, scope biome to edited path'
-type: feature
-phase: intake
+title: 'Lint hook hygiene — prefix-match eslint/prettier config detection'
+type: task
+phase: implement
 status: in_progress
 epic: bdd-phase-zero-merge
 created: 2026-05-24T19:10:08.683Z
-last_modified: 2026-05-24T19:10:30.000Z
+last_modified: 2026-05-31T02:30:00.000Z
+scope:
+  - Fix `session-lint-check.ts` config detection to **prefix-match** instead of enumerating filenames — present if a project dir entry starts with `eslint.config.` / `.eslintrc` (eslint) or `.prettierrc` / `prettier.config.` (prettier), plus the package.json `"prettier"` key. Covers all current + future extensions (the drift that caused this ticket).
+  - Cover **eslint too**, not just prettier — the dogfood repo's `eslint.config.ts` is the live false-negative (the warning that opened this session). Same bug class, same file.
+  - Extract the detection into a pure, unit-tested helper (`templates/hooks/lib/lint-config.ts`); the hook reads the dir once and calls it. Sync the `.safeword/`//`templates/` hook mirror.
+out_of_scope:
+  - Issue 2 (project-wide biome PostToolUse) — **already superseded** (revalidated 2026-05-31): `config.ts` wires PostToolUse to the per-file `post-tool-lint.ts`; no raw `biome check --write` hook exists. Dropped.
+  - Invoking prettier/eslint's own config resolvers — over-engineered for a presence check in a standalone-bun SessionStart hook (rejected in /figure-it-out).
+  - Validating config *contents* — presence detection only.
+done_when:
+  - `session-lint-check.ts` no longer false-negatives on `eslint.config.ts`, `.prettierrc.yaml`, `prettier.config.mts`, etc.; the dogfood repo's session-start ESLint warning is gone.
+  - Pure detection helper is unit-tested across config-filename variants; full suite + lint green; hook mirror synced.
 ---
 
 # Lint hook hygiene — detect all prettier config names, scope biome to edited path
@@ -84,4 +95,5 @@ This ticket isn't a Phase-0-merge sub-task — both issues are unrelated to bdd 
 
 - 2026-05-24T19:10:08.683Z Started: Created ticket 1J6JKP
 - 2026-05-24T19:10:30.000Z Drafted: Scope, both fixes, scope-membership note; linked to epic DZ2NM5
+- 2026-05-31T02:30:00.000Z Revalidate + /figure-it-out + reframe → **task**. Issue 2 (biome) confirmed dead (post-tool-lint.ts supersedes it) — dropped. Issue 1 live + **broader**: eslint list is also too narrow — dogfood repo's `eslint.config.ts` is the session-start false-negative. /figure-it-out chose **prefix-match** over enumerate-filenames (drifts; just bit us) and over invoke-the-tool's-resolver (over-engineered for a presence check + deps in a standalone-bun hook). Current config conventions verified vs prettier.io + eslint.org docs. → implement (TDD on an extracted pure detector).
 - 2026-05-31T01:36:00.000Z Revalidated (DZ2NM5 sweep): **Issue 1 still live** — `session-lint-check.ts:31` still has only `['.prettierrc', '.prettierrc.json', 'prettier.config.js']`. **Issue 2 likely superseded** — no raw `biome check --write` PostToolUse hook found in `src/templates/config.ts`; safeword now lints via the per-file `post-tool-lint.ts` hook, so the project-wide-biome bug this ticket describes may no longer exist. ACTION AT PICKUP: confirm Issue 2 against the current settings template; if gone, rescope this ticket to Issue 1 only (and drop the biome scope from the title/done-when).
