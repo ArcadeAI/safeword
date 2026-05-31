@@ -3,7 +3,7 @@
 <!--
 Project-wide persona definitions. Every spec, JTBD, and scenario in this
 project references personas from this file by name or short code.
-Safeword validates these references during Phase 0 — unknown personas
+Safeword validates these references during intake — unknown personas
 surface as questions, not silent failures.
 
 FORMAT

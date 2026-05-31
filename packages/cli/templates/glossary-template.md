@@ -3,7 +3,7 @@
 <!--
 Project-wide domain vocabulary. Every spec, JTBD, and scenario in this
 project should use terms consistently with this file. Safeword validates
-the file's structure during `safeword check`; the `bdd` Phase 0 flow reads
+the file's structure during `safeword check`; the `bdd` intake flow reads
 it so domain terms stay consistent across tickets.
 
 FORMAT

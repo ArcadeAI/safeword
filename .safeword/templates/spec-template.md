@@ -3,7 +3,7 @@
 <!--
 Product-framing spec for a feature ticket. The engineering contract
 (scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd Phase 0 flow authors it during
+file holds the *why and who*. The bdd intake flow authors it during
 intake, before engineering scope. Fill each section, then delete the
 guidance comments.
 -->
@@ -50,7 +50,7 @@ Uncomment and customize:
 
 Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
 in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each Phase-3
+implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
 scenario will prove a specific AC. If a JTBD has no user-observable capability
 to enumerate, write `skip: <reason>` under it instead of ACs.
 
