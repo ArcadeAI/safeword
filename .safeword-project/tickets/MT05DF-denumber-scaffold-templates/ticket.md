@@ -2,10 +2,10 @@
 id: MT05DF
 slug: denumber-scaffold-templates
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-31T00:20:51.534Z
-last_modified: 2026-05-31T00:27:00.000Z
+last_modified: 2026-05-31T00:55:00.000Z
 scope:
   - Finish DKETNZ's bdd-lifecycle de-numbering in the scaffolding templates it left flagged. Replace numbered ticket-lifecycle "Phase N" references with their canonical named phase (Phase 0-2 → intake, 3 → define-behavior, 4 → scenario-gate, 5 → decomposition, 6 → implement, 7 → verify, 8 → done). Three template files, ~5 occurrences:
   - '`.safeword/templates/spec-template.md` + `packages/cli/templates/spec-template.md` (dual-tree, parity-locked — both copies move in lockstep): line 6 "the bdd Phase 0 flow authors it" → "the bdd intake flow authors it"; line 53 "Each Phase-3 [scenario]" → "Each define-behavior [scenario]".'
@@ -54,3 +54,4 @@ Mechanical doc-only rename — no behavior to drive via TDD. Correctness is grep
 - 2026-05-31T00:20:51.534Z Started: Created ticket MT05DF
 - 2026-05-31T00:22:00.000Z Intake: scoped from DKETNZ's flagged-but-deferred scaffolding-template cluster. Confirmed via `grep -rnE "Phase[ -][0-9]"`: spec-template (both trees, lines 6 + 53), glossary-template + personas-template (package tree only, line 6 each). Separated from noise — the cursor `bdd-*.mdc` lifecycle refs belong to the verify+done-merged reconciliation ticket, and debug/refactor/figure-it-out/elicit number their own workflows (out of scope, same as DKETNZ). Ready to execute (task).
 - 2026-05-31T00:27:00.000Z Implement: all 5 occurrences de-numbered. spec-template (dogfood) line 6 "bdd Phase 0 flow authors it" → "bdd intake flow authors it", line 53 "Each Phase-3 scenario" → "Each define-behavior scenario", then `cp`'d to the package mirror (byte-identical). glossary-template line 6 "`bdd` Phase 0 flow reads" → "`bdd` intake flow reads"; personas-template line 6 "during Phase 0" → "during intake". Verified: `grep -rnE "Phase[ -][0-9]"` clean across all 4 files; spec-template pair byte-identical; `parity.test.ts` green (13/13). Pending: /verify + done close (deferred — done-gate runs the full ~11-min suite, holding to avoid colliding with the concurrent session's vitest).
+- 2026-05-31T00:55:00.000Z Verify + close. Full suite green (138 files, 2284 passed, 1 skipped); build success; lint clean (eslint + tsc, exit 0). done_when grep clean across all 4 surfaces; spec-template pair byte-identical. /audit passed with warnings (config in sync, no architecture violations, learnings conform; knip/jscpd findings all pre-existing, not in diff). verify.md written. Phase → done, status → done. (Session activeTicket was null, so the stop-gate wouldn't auto-resolve this ticket; verified manually via /verify + /audit, matching the DKETNZ close, rather than leaving it stuck at phase:done/in_progress.)
