@@ -63,7 +63,7 @@ Each JTBD is:
 
 Resolve each persona reference against the loaded personas before writing it. A JTBD naming a persona absent from `personas.md` blocks the next phase — the intake-exit gate denies `test-definitions.md` until every JTBD resolves, or a `skip: <reason>` is recorded under `## Jobs To Be Done` for a deliberate omission.
 
-**Pause and confirm** the JTBD set with the user before advancing to Understanding — converge on the jobs first, then build scope on top of them.
+**Pause and confirm** the JTBD set with the user before advancing to Understanding — this is the JTBD **Sub-phase gate** (see above). Converge on the jobs first, then build scope on top of them.
 
 ## Author Acceptance Criteria
 
@@ -79,7 +79,7 @@ Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — th
 - **Split-test heuristic:** could each clause of a bundled AC ship as its own complete deliverable with independent value? If yes → split into separate ACs. If the sub-operations only make sense together → keep as one.
 - If an AC starts spawning more than ~10 scenarios in define-behavior, it's probably two ACs — split it.
 
-**Pause and confirm** the AC list grouped by JTBD with the user before advancing — iterate until they sign off. Then build engineering scope (Understanding) on top.
+**Pause and confirm** the AC list grouped by JTBD with the user before advancing — this is the AC **Sub-phase gate** (see above). Iterate until they sign off, then build engineering scope (Understanding) on top.
 
 ## Understanding (Propose-and-Converge)
 
