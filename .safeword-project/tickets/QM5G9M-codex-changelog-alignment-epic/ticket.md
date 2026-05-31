@@ -15,30 +15,49 @@ last_modified: 2026-05-31T21:51:00.000Z
 
 **Why:** Codex is a major coding agent with a growing user base and — crucially — a programmatic hooks system that can block actions. Safeword's whole value (enforced phase/LOC/done gates) is expressible there, so this is a real integration, not just instruction files.
 
-## Feasibility verdict: ENFORCEABLE (researched 2026-05-31)
+## Feasibility verdict: ENFORCEABLE (researched 2026-05-31; hooks doc re-verified directly)
 
-Codex CLI ships a **full programmatic hooks system that can block actions**, directly analogous to Claude Code hooks. Hooks fire at `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, plus `PermissionRequest`, `PreCompact`/`PostCompact`, `SubagentStart`/`SubagentStop`. Blocking is real: `PreToolUse` returns `permissionDecision: "deny"` (or exit code 2 → stderr) to stop a Bash command, `apply_patch` edit, or MCP tool call before it runs; `PostToolUse` supports `decision: "block"`. This covers every event safeword needs.
+Codex CLI ships a **programmatic hooks system that can block actions**. The full event set (confirmed on developers.openai.com/codex/hooks): `SessionStart`, `SubagentStart`, `PreToolUse`, `PermissionRequest`, `PostToolUse`, `PreCompact`, `PostCompact`, `UserPromptSubmit`, `SubagentStop`, `Stop`.
 
-**Caveat — trust gate.** Non-managed hooks require the user to review and trust the exact hook definition via `/hooks` before they run; a user can decline. For hard enforcement, Codex supports **managed hooks** (`requirements.toml` / MDM / cloud) that are trusted by policy and can't be disabled. So: technically enforceable, with a consumer-CLI trust caveat (see ticket JV6D1W).
+**Which events actually hard-block (verified):**
+
+- `PreToolUse` → `permissionDecision: "deny"` (or exit code 2 → stderr) stops a Bash command, `apply_patch` edit, or MCP tool call **before it runs**. ← phase/edit gate.
+- `PermissionRequest` → `behavior: "deny"`.
+- `UserPromptSubmit` → `decision: "block"` **blocks the prompt**. ← the real turn-start chokepoint.
+- `PostToolUse` → `decision: "block"` stops result handling (can't undo the side effect already done).
+
+**Correction (was wrong in the first draft):** `Stop` does **not** prevent stopping. `decision: "block"` on `Stop` tells Codex to "continue and automatically create a new continuation prompt" — i.e. auto-continue/nudge, the same family as Cursor's `stop`, not a hard block. So the **done gate cannot hard-block at `Stop`**; enforce it at `UserPromptSubmit` (refuse the next turn until `verify.md` exists) plus a `Stop` continuation nudge. Same architectural conclusion as the Cursor epic (VAX3Z2 / AKNWZK).
+
+Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSubmit` give real hard blocks covering the phase and LOC gates and the done gate's upstream chokepoint.
+
+**Caveat — trust gate.** Non-managed hooks require the user to review and trust the exact hook definition (trust recorded against the hook's hash; changed hooks re-flagged) via `/hooks`; a user can decline. Hard enforcement uses **managed hooks** (`requirements.toml` `[hooks]`, MDM, cloud) — trusted by policy, can't be disabled; `allow_managed_hooks_only = true` skips user/project/plugin hooks entirely (mirrors Claude Code's `allowManagedHooksOnly`). See ticket JV6D1W.
 
 ## Surfaces (and the safeword need each maps to)
 
 | Codex surface | Blocks? | Safeword use |
 | --- | --- | --- |
-| Hooks (`PreToolUse`/`PostToolUse`/`Stop`/`SessionStart`/`UserPromptSubmit`/`PermissionRequest`) | Yes | phase gate (PreToolUse on edits), LOC gate (PostToolUse/Stop), done gate (Stop), per-turn reminder (UserPromptSubmit), bootstrap (SessionStart) |
+| Hooks: `PreToolUse`, `PermissionRequest`, `UserPromptSubmit` | **Yes (hard)** | phase/edit gate, command gate, turn-start + done-gate chokepoint |
+| Hooks: `PostToolUse` | partial (result-handling) | LOC gate signal |
+| Hooks: `Stop` / `SubagentStop` | No — auto-continue only | done-gate **nudge** (not hard block) |
+| Hooks: `SessionStart` | No (inject context) | bootstrap |
 | `AGENTS.md` (root + dir walk-up; `project_doc_*` config) | No (advisory) | inject SAFEWORD.md/CLAUDE.md equivalent |
-| `config.toml` (`~/.codex/` + project `.codex/`) | Indirect | wire hooks inline, MCP servers, sandbox/approval defaults |
+| `config.toml` (`~/.codex/` + project `.codex/`; inline `[hooks]`) | Indirect | wire hooks, MCP servers, sandbox/approval defaults |
+| `.codex/hooks.json` (project) + `~/.codex/hooks.json` (global) | — | hook wiring; all matching layers run (no override) |
 | MCP servers | tool allow/deny | optional: expose safeword state/commands |
-| Custom prompts (`~/.codex/prompts/*.md`) — **deprecated → skills** | No | safeword slash commands; build as skills, not prompts (QGHVXZ) |
+| Skills / custom prompts (`~/.codex/prompts/*.md`) | No | safeword slash commands — surface TBD (QGHVXZ); deprecation **unverified**, see note |
+| Plugins + marketplace (default-enabled plugin hooks) | via bundled hooks | distribution path, parity with Cursor (ticket 6WJ1RS) |
 
 ## Sources
 
-- developers.openai.com/codex/hooks — events, deny/block semantics, exit codes, trust model
-- developers.openai.com/codex/config-reference and /config-advanced — AGENTS.md loading, config.toml, inline `[hooks]`, project-local `.codex/hooks.json`
-- developers.openai.com/codex/changelog — Apr–May 2026 entries (hooks enriched w/ conversation history + subagent identity v0.134.0; managed hooks via requirements.toml; custom prompts → skills)
-- releasebot.io/updates/openai/codex, releases.sh/openai/openai-codex-changelog — version timeline (0.125–0.135, Apr–May 2026)
+- developers.openai.com/codex/hooks — **re-verified directly**: full event list, deny/block semantics, exit codes, trust model, config precedence, `allow_managed_hooks_only`.
+- developers.openai.com/codex — docs index (full nav): dedicated pages exist for Hooks, Skills, Plugins, Subagents, Permissions, Sandboxing, Rules, AGENTS.md, MCP, Non-interactive Mode, SDK, MCP Server, Enterprise Managed Configuration, Feature Maturity.
+- developers.openai.com/codex/config-reference, /config-advanced — AGENTS.md loading, config.toml, inline `[hooks]`, project `.codex/hooks.json` (via first research pass).
+- developers.openai.com/codex/changelog — official page only shows back to **v0.131.0 (2026-05-18)**; recent entries: AGENTS loading reliability (v0.133.0), richer lifecycle observation incl. subagent start/stop + async approval (v0.133.0), marketplace CLI + default-enabled plugin hooks (v0.133.0), profile-migration docs (v0.134.0).
+- releasebot.io/updates/openai/codex, releases.sh/openai — third-party mirrors for the 0.125–0.135 timeline.
 
-**Research gap:** public changelog mirrors didn't expose pre-~Apr-24 (v0.125) entries, so the exact version that first introduced hooks isn't pinned — they were already established by v0.129.0 (May 9). Resolved by ticket WR4HRA against `openai/codex` releases.
+**Coverage honesty:** the load-bearing enforcement claims (hook events, deny/block, trust model) are now verified against the live hooks doc. NOT yet read end-to-end: the Skills, Plugins, Subagents, Permissions, Sandboxing, Rules, AGENTS.md, MCP, SDK, and Enterprise Managed Configuration pages — these back the commands-surface (QGHVXZ), generation (5DEJ8V), and distribution (6WJ1RS) tickets and should be confirmed when those are picked up.
+
+**Research gaps:** (1) official changelog page only reaches v0.131.0 (2026-05-18); earlier history is third-party-only — pin the hooks-support floor against `openai/codex` releases (WR4HRA). (2) The "custom prompts deprecated → skills" claim came from the first research pass and was **not** confirmed on the changelog; treat as unverified until the Skills/Slash-Commands docs are read (QGHVXZ).
 
 ## Tickets
 
@@ -50,10 +69,11 @@ Codex CLI ships a **full programmatic hooks system that can block actions**, dir
 | **QGHVXZ** | Commands surface: skills vs deprecated custom prompts | `/figure-it-out` |
 | **JV6D1W** | Enforcement strength: user-trusted vs managed hooks | value decision |
 | **WR4HRA** | Pin minimum `codex` CLI version for required hooks | baseline tracking |
+| **6WJ1RS** | Package as Codex plugin/marketplace bundle | distribution (parity w/ Cursor DXYKJX) |
 
 ## Sequencing
 
-Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → generation (5DEJ8V). QGHVXZ and JV6D1W are decisions that can run in parallel. WR4HRA is a small baseline task, do alongside.
+Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → generation (5DEJ8V). QGHVXZ and JV6D1W are decisions that can run in parallel. WR4HRA + 6WJ1RS after the gates work.
 
 ## Related
 
@@ -65,3 +85,4 @@ Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → 
 - 2026-05-31T21:09:47.366Z Started: Created ticket QM5G9M
 - 2026-05-31 Placeholder created; no existing Codex integration.
 - 2026-05-31 Researched Codex surfaces (live docs). Verdict ENFORCEABLE; filed 6 child tickets.
+- 2026-05-31 Re-verified hooks doc directly. Corrected `Stop` claim (auto-continues, does NOT hard-block — done gate moves to `UserPromptSubmit`); added `UserPromptSubmit` block + `allow_managed_hooks_only`; softened unverified custom-prompts-deprecation; added distribution ticket 6WJ1RS. Noted Skills/Plugins/Enterprise docs not yet read end-to-end.
