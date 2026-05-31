@@ -252,6 +252,47 @@ function hasExistingFormatter(cwd: string, _scripts: ScriptsRecord): boolean {
 }
 
 /**
+ * Prettier config filename prefixes — bare/extensioned `.prettierrc*` and the
+ * `prettier.config.*` module forms. Mirror of `PRETTIER_CONFIG_PREFIXES` in the
+ * session-lint-check hook (`hooks/lib/lint-config.ts`); keep the two in sync so
+ * install and the lint hook agree on what counts as "prettier is already here".
+ */
+const PRETTIER_CONFIG_PREFIXES = ['.prettierrc', 'prettier.config.'] as const;
+
+/**
+ * Check if the project already has its own Prettier config, in any form prettier
+ * recognizes: a `.prettierrc*` / `prettier.config.*` file, or a `"prettier"` key
+ * in package.json.
+ *
+ * Unlike {@link hasExistingFormatter} (alternative formatters only), this exists
+ * to stop safeword from dropping its own `.prettierrc`/`.safeword/.prettierrc`
+ * on top of a config it can't merge into — a bare `.prettierrc` resolves ahead
+ * of `prettier.config.mjs` in prettier's search order, so writing one silently
+ * shadows the customer's style.
+ */
+function hasExistingPrettierConfig(cwd: string): boolean {
+  let entries: string[];
+  try {
+    entries = readdirSync(cwd);
+  } catch {
+    entries = [];
+  }
+  const hasConfigFile = entries.some(name =>
+    PRETTIER_CONFIG_PREFIXES.some(prefix => name.startsWith(prefix)),
+  );
+  if (hasConfigFile) return true;
+
+  const pkgPath = path.join(cwd, 'package.json');
+  if (!existsSync(pkgPath)) return false;
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { prettier?: unknown };
+    return pkg.prettier !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Next.js config file names to look for.
  */
 const NEXT_CONFIG_FILES = ['next.config.js', 'next.config.mjs', 'next.config.ts'] as const;
@@ -345,4 +386,5 @@ export const detect = {
   // Existing tooling detection
   hasExistingLinter,
   hasExistingFormatter,
+  hasExistingPrettierConfig,
 };

@@ -13,8 +13,13 @@ import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
 import { findInTree } from './fs.js';
 
-const { TAILWIND_PACKAGES, TANSTACK_QUERY_PACKAGES, hasExistingLinter, hasExistingFormatter } =
-  detect;
+const {
+  TAILWIND_PACKAGES,
+  TANSTACK_QUERY_PACKAGES,
+  hasExistingLinter,
+  hasExistingFormatter,
+  hasExistingPrettierConfig,
+} = detect;
 
 // Python project file markers (used by detectPythonType and config detection)
 const PYPROJECT_TOML = 'pyproject.toml';
@@ -294,6 +299,7 @@ function detectCoreTooling(
   ProjectType,
   | 'existingLinter'
   | 'existingFormatter'
+  | 'existingPrettierConfig'
   | 'existingEslintConfig'
   | 'legacyEslint'
   | 'existingRuffConfig'
@@ -304,6 +310,7 @@ function detectCoreTooling(
   return {
     existingLinter: hasExistingLinter(scripts),
     existingFormatter: cwd ? hasExistingFormatter(cwd, scripts) : 'format' in scripts,
+    existingPrettierConfig: cwd ? hasExistingPrettierConfig(cwd) : false,
     existingEslintConfig: eslintConfig,
     legacyEslint: eslintConfig?.startsWith('.eslintrc') ?? false,
     existingRuffConfig: cwd ? findExistingRuffConfig(cwd) : undefined,
@@ -342,6 +349,7 @@ function detectExistingTooling(
   ProjectType,
   | 'existingLinter'
   | 'existingFormatter'
+  | 'existingPrettierConfig'
   | 'existingEslintConfig'
   | 'legacyEslint'
   | 'existingRuffConfig'

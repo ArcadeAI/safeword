@@ -27,6 +27,7 @@ const DEFAULT_PROJECT_TYPE = {
   shell: false,
   existingLinter: false,
   existingFormatter: false,
+  existingPrettierConfig: false,
   existingEslintConfig: undefined,
   legacyEslint: false,
   existingRuffConfig: undefined,

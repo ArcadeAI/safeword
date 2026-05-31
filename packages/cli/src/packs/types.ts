@@ -37,6 +37,12 @@ export interface ProjectType {
   existingLinter: boolean;
   /** True if project has existing format script or formatter config */
   existingFormatter: boolean;
+  /**
+   * True if project already has its own Prettier config (`.prettierrc*`,
+   * `prettier.config.*`, or a `"prettier"` key in package.json). Gates safeword's
+   * own prettier-config writes so we never shadow a config we can't merge into.
+   */
+  existingPrettierConfig: boolean;
   /** Path to existing ESLint config if present (e.g., 'eslint.config.mjs' or '.eslintrc.json') */
   existingEslintConfig: string | undefined;
   /** True if existing ESLint config is legacy format (.eslintrc.*) requiring FlatCompat */
