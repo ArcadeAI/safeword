@@ -3,8 +3,8 @@ id: B0JZQN
 slug: pause-and-confirm-gates
 title: 'Add structured user-signoff gates between Phase 0 sub-phases'
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-zero-merge
 paired_with: FFRPSC
 created: 2026-05-24T15:21:55.104Z
@@ -61,4 +61,5 @@ done_when:
 
 - 2026-05-24T15:21:55.104Z Started: Created ticket B0JZQN
 - 2026-05-24T15:22:00.000Z Drafted: Scope, depends, open questions; linked to epic DZ2NM5
+- 2026-05-31T01:55:00.000Z Done: RED b2981052 (doc-presence test) → GREEN b1b2cc22 (Sub-phase gates section, both DISCOVERY.md mirrors) → REFACTOR e0a49825 (cross-link inline pause lines, per /quality-review). Full suite 2295/2295 pass (1 skip, 139 files); build + lint green; mirror synced. verify.md written. → done. **DZ2NM5 now 7/8 children done; remaining: 1J6JKP (rescope), E1K5ZW (integration).**
 - 2026-05-31T01:42:00.000Z Intake converged + reframed → **task** (was feature). v1 is conversational-only: the enforcement hook is deferred to epic 172 (open), so there's no hook behavior to spec — only DISCOVERY.md docs + a doc-presence test (the discovery-substep precedent). Resolved the 3 open Qs: gates are soft (agent-followed) not hard blocks; confirmation = any forward-moving reply or a folded-in amendment; on resume, re-present the artifact for re-confirmation. E1K5ZW owns the full end-to-end worked example; B0JZQN owns the pattern + templates. → implement (TDD on the doc-presence test).
