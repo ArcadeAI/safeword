@@ -2,7 +2,9 @@
 // Safeword: Lint configuration sync check (SessionStart)
 // Warns if ESLint or Prettier configs are missing or out of sync
 
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+
+import { detectEslintConfig, detectPrettierConfig } from './lib/lint-config.ts';
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -14,29 +16,21 @@ if (!existsSync(safewordDir)) {
 
 const warnings: string[] = [];
 
-// Check for ESLint config
-const eslintConfigs = ['eslint.config.mjs', 'eslint.config.js', '.eslintrc.json', '.eslintrc.js'];
-const hasEslint = await Promise.all(
-  eslintConfigs.map(f =>
-    Bun.file(`${projectDir}/${f}`)
-      .exists()
-      .catch(() => false),
-  ),
-);
-if (!hasEslint.some(Boolean)) {
+// List the project dir once; detect config presence by filename prefix so new
+// eslint/prettier config extensions are covered without enumerating each.
+const entries = (() => {
+  try {
+    return readdirSync(projectDir);
+  } catch {
+    return [];
+  }
+})();
+
+if (!detectEslintConfig(entries)) {
   warnings.push("ESLint config not found - run 'bun run lint' may fail");
 }
 
-// Check for Prettier config
-const prettierConfigs = ['.prettierrc', '.prettierrc.json', 'prettier.config.js'];
-const hasPrettier = await Promise.all(
-  prettierConfigs.map(f =>
-    Bun.file(`${projectDir}/${f}`)
-      .exists()
-      .catch(() => false),
-  ),
-);
-if (!hasPrettier.some(Boolean)) {
+if (!detectPrettierConfig(entries)) {
   warnings.push('Prettier config not found - formatting may be inconsistent');
 }
 
