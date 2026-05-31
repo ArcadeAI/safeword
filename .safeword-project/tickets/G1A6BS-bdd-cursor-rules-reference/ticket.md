@@ -2,10 +2,10 @@
 id: G1A6BS
 slug: bdd-cursor-rules-reference
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-05-31T00:35:29.766Z
-last_modified: 2026-05-31T00:36:00.000Z
+last_modified: 2026-05-31T01:25:00.000Z
 scope:
   - Convert the seven `bdd-*.mdc` Cursor rules (both trees — `.cursor/rules/` dogfood + `packages/cli/templates/cursor/rules/`) from fat duplicate-content into thin `@reference` pointers at the canonical bdd skill files, the same pattern five rules already use (e.g. `safeword-tdd-review.mdc` → `@.claude/skills/tdd-review/SKILL.md`) and the direction ticket 151 takes for the four non-bdd fat rules. The `@reference` replaces the rule BODY; the `description:`/`alwaysApply:` frontmatter (the USE WHEN triggers Cursor keys off) stays per-rule.
   - 'Reconcile the rule SET to the live 7-phase model. The cursor rules currently encode the OLD 6-phase model where verify is folded into done: `bdd-done.mdc` is titled "# Phase 7: Done Gate" and bundles refactor → /verify → /audit → close. The live skill split these — `verify` is its own phase and DONE.md is close-only ("All verification happened in the verify phase"). So add a new `bdd-verify.mdc` (→ VERIFY.md) and repoint `bdd-done.mdc` at DONE.md.'
@@ -59,3 +59,5 @@ done_when:
 
 - 2026-05-31T00:35:29.766Z Started: Created ticket G1A6BS
 - 2026-05-31T00:36:00.000Z Intake: scoped from the DKETNZ /quality-review + /figure-it-out decision. Confirmed the structural gap by reading `bdd-core.mdc` (phase table lists 6 phases, verify missing — folded into done) and `bdd-done.mdc` (titled "Phase 7: Done Gate", bundles refactor→verify→audit→close). Confirmed `@reference` viability in-repo (5 live thin rules; `safeword-tdd-review.mdc:6`). Mapping fixed (8 rules incl. new bdd-verify). Ready to execute (task).
+- 2026-05-31T01:10:00.000Z Implement: thinned 6 unchanged bdd rules (core/discovery/scenarios/decomposition/tdd/splitting) to `description`+`alwaysApply`+single `@reference`, descriptions verbatim. Reconciled `bdd-done.mdc` (new close-only description → `@.claude/skills/bdd/DONE.md`) and created `bdd-verify.mdc` (→ `@.claude/skills/bdd/VERIFY.md`). Registered `bdd-verify.mdc` in `schema.ts` ownedFiles (phase order, between bdd-tdd and bdd-done) and added `'bdd-verify'` to `tests/fixtures/skill-cursor-pairs.ts`. `cp`-synced all 8 dogfood rules → template tree (byte-identical). grep for `Phase[ -]?[0-9]` returns nothing across both trees; build clean; schema + skills-commands parity tests green (539). Phase → verify.
+- 2026-05-31T01:25:00.000Z Verify + Done: ran /verify (full suite 2291 passed / 1 skipped, 138 files, 670s; build ESM+DTS clean; lint eslint+tsc exit 0; `safeword check` healthy) and /audit (architecture clean 119 modules; agent-config @references all resolve; rule sizes 6 lines; learnings W006=0; only pre-existing dead-code warnings — 7 unused eslint-plugin deps + 2 unused personas.ts exports, none introduced here). All five done_when met: grep-clean both trees, 8 thin rules + new bdd-verify, 7-phase set (verify own rule, done close-only), byte-identical trees + bdd-verify registered, suite/parity/check green. `verify.md` written. Closed manually (phase+status → done) — session activeTicket is null, so the done-gate won't auto-resolve on stop; evidence above is a real /verify + /audit pass, matching the MT05DF/DKETNZ precedent.

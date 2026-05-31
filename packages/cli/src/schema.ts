@@ -545,6 +545,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules/bdd-tdd.mdc': {
       template: 'cursor/rules/bdd-tdd.mdc',
     },
+    '.cursor/rules/bdd-verify.mdc': {
+      template: 'cursor/rules/bdd-verify.mdc',
+    },
     '.cursor/rules/bdd-done.mdc': {
       template: 'cursor/rules/bdd-done.mdc',
     },
