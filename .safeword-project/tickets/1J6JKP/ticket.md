@@ -84,3 +84,4 @@ This ticket isn't a Phase-0-merge sub-task — both issues are unrelated to bdd 
 
 - 2026-05-24T19:10:08.683Z Started: Created ticket 1J6JKP
 - 2026-05-24T19:10:30.000Z Drafted: Scope, both fixes, scope-membership note; linked to epic DZ2NM5
+- 2026-05-31T01:36:00.000Z Revalidated (DZ2NM5 sweep): **Issue 1 still live** — `session-lint-check.ts:31` still has only `['.prettierrc', '.prettierrc.json', 'prettier.config.js']`. **Issue 2 likely superseded** — no raw `biome check --write` PostToolUse hook found in `src/templates/config.ts`; safeword now lints via the per-file `post-tool-lint.ts` hook, so the project-wide-biome bug this ticket describes may no longer exist. ACTION AT PICKUP: confirm Issue 2 against the current settings template; if gone, rescope this ticket to Issue 1 only (and drop the biome scope from the title/done-when).
