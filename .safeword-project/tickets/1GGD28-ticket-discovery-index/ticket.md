@@ -4,8 +4,9 @@ slug: ticket-discovery-index
 type: feature
 phase: intake
 status: backlog
+epic: workflow-gate-hygiene
 created: 2026-05-31T18:02:49.267Z
-last_modified: 2026-05-31T18:02:49.267Z
+last_modified: 2026-05-31T18:49:35.386Z
 ---
 
 # Generated ticket INDEX.md (safeword sync-tickets) for capability discovery

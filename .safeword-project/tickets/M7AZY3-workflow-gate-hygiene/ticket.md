@@ -19,12 +19,13 @@ last_modified: 2026-05-31T18:31:15.834Z
 
 ## Tickets
 
-| ID         | Title                                                  | Type    | Status  |
-| ---------- | ------------------------------------------------------ | ------- | ------- |
-| **2JMQMX** | Explore & fix bdd/tdd workflow adherence               | feature | backlog |
-| **MT27QG** | Review LOC gates — keep, or move trigger to phase/step | feature | backlog |
+| ID         | Title                                                                        | Type    | Status  |
+| ---------- | ---------------------------------------------------------------------------- | ------- | ------- |
+| **2JMQMX** | Explore & fix bdd/tdd workflow adherence                                     | feature | backlog |
+| **MT27QG** | Review LOC gates — keep, or move trigger to phase/step                       | feature | backlog |
+| **1GGD28** | Generated ticket INDEX.md (`safeword sync-tickets`) for capability discovery | feature | backlog |
 
-(More may join — this is the cleanup holding pen. Related self-enforcement tickets already exist standalone: 1GGD28 ticket-discovery-index, MBGQ89 pairing schema, 160-audit-stale-ticket-detection.)
+(More may join — this is the cleanup holding pen. Related self-enforcement tickets that stay standalone: MBGQ89 pairing schema, 160-audit-stale-ticket-detection.)
 
 ## Out of scope
 
@@ -40,3 +41,4 @@ last_modified: 2026-05-31T18:31:15.834Z
 
 - 2026-05-31T18:31:15.834Z Started: Created ticket M7AZY3
 - 2026-05-31T18:31:15.834Z Filed (backlog): cleanup holding epic for safeword self-enforcement, with two children carved from this session's dogfooding observations — bdd/tdd adherence drift (2JMQMX) and LOC-gate placement (MT27QG). Epic carries no own spec.md; children hold their own.
+- 2026-05-31T18:49:35.386Z Attached **1GGD28** (ticket-discovery-index) as a third child — it's the same self-enforcement-hygiene class as 2JMQMX/MT27QG (it's the fix for the opaque-ticket discovery gap that caused the 7GER0P duplicate). Set its `epic: workflow-gate-hygiene`; moved it out of the "stays standalone" note.
