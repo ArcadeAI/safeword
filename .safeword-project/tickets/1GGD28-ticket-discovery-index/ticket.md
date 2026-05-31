@@ -25,7 +25,7 @@ The corpus is **134 ticket folders, 49 of them bare-ID (no slug)** — `ls` and 
 - New `safeword sync-tickets` command mirroring `sync-learnings` (`src/commands/sync-learnings.ts` is the template): scan `.safeword-project/tickets/*/ticket.md`, emit `.safeword-project/tickets/INDEX.md`, idempotent ("already current" when unchanged), `<!-- Auto-generated … do not edit -->` header.
 - Entry shape: `**<ID>** — <title> (<status>, epic: <epic-or-—>) → path`, **grouped by epic** so a capability grep ("review", "adversarial", "signals") lands on the owning epic + its children. (Epic grouping is what would have surfaced 0AWSY8.)
 - Regeneration trigger: decide at intake — a standalone command, a `safeword check` step, and/or a post-commit/Stop hook (like learnings' on-save regen).
-- Include `completed/` tickets in the index (they're accessed by capability search too), even though their folders stay opaque per the closed-tickets decision.
+- **Open question for intake — index scope:** all tickets (incl. `completed/`) or active-only? Completed tickets are searched by capability too, but with 134 folders an all-inclusive index risks growing too big to scan — reintroducing the discovery problem it solves. Options: (a) one index, active grouped first + a collapsed completed section; (b) two files (`INDEX.md` active, `INDEX-completed.md` archive); (c) active-only, accept that closed work is found by grep. Decide before building.
 
 ## Out of scope
 

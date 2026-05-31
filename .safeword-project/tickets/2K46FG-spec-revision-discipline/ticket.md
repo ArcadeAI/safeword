@@ -34,7 +34,7 @@ Safeword today has no skill that owns post-authoring spec revision with these gu
 
 ## Out of scope
 
-- Arcade's `.feature`/step-def regeneration on revision — that's the Gherkin-codification layer (safeword backlog 102-gherkin-executable-specs), not this.
+- Arcade's `.feature`/step-def regeneration on revision — that's the Gherkin-codification layer, owned by **CS86B0** (under Phase-1 epic 0AWSY8) and tracked separately in backlog **102-gherkin-executable-specs**, not this. 2K46FG only _flags_ that codified tests went stale; it doesn't regenerate them.
 
 ## Related
 

@@ -20,6 +20,8 @@ last_modified: 2026-05-31T17:09:48.891Z
 > - **F2QZB4** — extracts the upgraded Phase 4 into a standalone, reinvokable `/review-spec` skill (depends on the four above).
 >
 > All paired with arcade's `JWM8PD` (`/review-spec` decommission) under arcade epic ZPN3Z9. 7GER0P has **no unique scope** beyond this cluster. Do the work under 0AWSY8; this ticket is closed to avoid a parallel, drifting plan.
+>
+> _The Goal / Why / Scope sections below are retained for history only — they are **not** an active plan. Build under 0AWSY8's children, not here._
 
 **Goal:** Enrich safeword's scenario-gate (SCENARIOS.md) with the adversarial-review depth from arcade's `/review-spec`, so weak scenarios are caught before they become flaky tests or false-green passes.
 
