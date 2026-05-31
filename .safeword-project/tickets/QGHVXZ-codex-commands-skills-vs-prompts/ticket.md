@@ -8,25 +8,29 @@ epic: codex-changelog-alignment
 relates_to: QM5G9M
 ---
 
-# Decide Codex commands surface: skills vs deprecated custom prompts
+# Codex commands surface: skills (RESOLVED → skills)
 
-**Goal:** Choose how to ship safeword's slash commands (`/bdd`, `/verify`, …) on Codex.
+**Goal:** Ship safeword's commands/workflows on Codex as **skills** in `.agents/skills/`.
 
-**Why:** Custom prompts (`~/.codex/prompts/*.md`) are **deprecated in favor of "skills"** (`skills.config`). Building on the deprecated surface would be immediate debt.
+**Decision (researched 2026-05-31):** Build as skills, not `~/.codex/prompts/`. Skills are Codex's authoring format for reusable workflows and the unit plugins distribute; they use the **open agent skills standard** — a `SKILL.md` with `name`/`description` frontmatter, optional `scripts/`/`references/`/`assets/`/`agents/openai.yaml`. **This is the same `SKILL.md` format safeword already ships for Claude Code** (`.claude/skills/*/SKILL.md`), so the existing skills likely port with minimal change — the big synergy.
 
-## Decision (call `/figure-it-out`)
+**Correction to earlier note:** the "custom prompts deprecated" claim is **not** confirmed — the Skills doc carries no deprecation notice. Skills win on merits (modern format + plugin distribution + cross-tool standard), not because prompts are dead.
 
-- Lean: build as skills, not `~/.codex/prompts/`. Confirm the current skills format + `skills.config` semantics against live docs.
-- Note: open issue #15941 reported prompts breaking on 0.117.0 — extra reason to avoid prompts.
+## Mechanics (from /codex/skills)
+
+- Discovery precedence: repo `.agents/skills` (CWD→root), `$HOME/.agents/skills`, `/etc/codex/skills` (admin), bundled.
+- Invocation: explicit via `/skills` or `$name` mention; implicit auto-selection by description (disable per-skill with `allow_implicit_invocation: false` in `agents/openai.yaml`).
 
 ## Done when
 
-- Recorded decision (skills vs prompts) with rationale; one command ported as proof on the chosen surface.
+- One safeword skill (e.g. `verify`) ported to `.agents/skills/` and invocable in a real Codex session.
+- CLI generator targets `.agents/skills` for Codex; parity-check covers it.
 
 ## Source
 
-developers.openai.com/codex/custom-prompts, config-reference (`skills.config`)
+developers.openai.com/codex/skills
 
 ## Work Log
 
 - 2026-05-31 Created from Codex research.
+- 2026-05-31 Read Skills doc. RESOLVED: skills in `.agents/skills` (same SKILL.md as CC). Custom-prompts-deprecation NOT confirmed — corrected.

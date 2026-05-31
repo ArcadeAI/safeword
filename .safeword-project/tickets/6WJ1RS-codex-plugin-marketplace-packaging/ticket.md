@@ -10,24 +10,24 @@ relates_to: QM5G9M
 
 # Package as Codex plugin/marketplace bundle
 
-**Goal:** Ship safeword as a Codex plugin (bundling hooks + AGENTS.md + skills/commands + MCP) distributed via Codex's marketplace, parallel to the Cursor Team-Marketplace ticket (DXYKJX).
+**Goal:** Ship safeword as a Codex plugin distributed via Codex's marketplace, parallel to the Cursor packaging ticket (DXYKJX).
 
-**Why:** The Codex changelog (v0.133.0) shows "marketplace CLI commands, version-aware sharing... and default-enabled plugin hooks." A plugin bundle is a cleaner install + upgrade path than scattering `.codex/` files, and "default-enabled plugin hooks" interacts with the trust model (JV6D1W).
+**Grounded findings (researched 2026-05-31, /codex/plugins):**
 
-## Investigation (docs not yet read end-to-end)
-
-- Read developers.openai.com/codex/plugins + the Security → Plugin page: manifest format, what a plugin can bundle, install/enable modes, and how plugin-bundled hooks relate to the trust gate (are default-enabled plugin hooks auto-trusted, or still user-reviewed?).
-- Compare with the Cursor plugin packaging (DXYKJX) to share a distribution strategy.
+- A plugin is a reusable bundle. The Plugins **overview** lists **skills + apps + MCP servers** as bundleable; it does **not** mention hooks in that section. BUT the hooks doc separately documents **plugin-bundled hooks** (`hooks/hooks.json` or manifest) and the changelog cites "default-enabled plugin hooks" (v0.133.0). **Open:** confirm on the "Build plugins" subpage that a plugin can bundle hooks (manifest format/layout) — the overview excerpt was silent on it.
+- **Marketplace:** discover via the app Plugins directory (curated / shared / user-created) and the CLI `/plugins` command; install/uninstall marketplace entries.
+- **Trust:** "your existing approval settings still apply" → plugin-bundled hooks are **still subject to the trust/approval gate** (JV6D1W); a plugin is not a trust bypass.
 
 ## Done when
 
-- Decision on whether Codex distribution is plugin-based (default) vs raw `.codex/` install, with a manifest sketch if plugin-based.
-- Trust/enable semantics of plugin-bundled hooks documented (ties to JV6D1W).
+- Decision: Codex distribution = plugin (default) vs raw `.codex/` + `.agents/skills` install, with a manifest sketch if plugin-based.
+- Confirmed whether/how a plugin bundles hooks (Build-plugins subpage) and how default-enabled plugin hooks interact with trust.
 
 ## Source
 
-developers.openai.com/codex/plugins, /security/plugin; changelog v0.133.0 (marketplace, default-enabled plugin hooks)
+developers.openai.com/codex/plugins (+ Build-plugins subpage), /hooks, changelog v0.133.0
 
 ## Work Log
 
-- 2026-05-31 Created during hooks-doc verification pass; parity with Cursor DXYKJX.
+- 2026-05-31 Created during hooks verification; parity with Cursor DXYKJX.
+- 2026-05-31 Read Plugins overview. Bundles skills/apps/MCP; hooks-bundling to confirm on Build-plugins subpage; plugin hooks still trust-gated.
