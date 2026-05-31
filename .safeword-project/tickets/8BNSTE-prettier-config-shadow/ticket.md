@@ -2,7 +2,7 @@
 id: 8BNSTE
 slug: prettier-config-shadow
 type: task
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-05-31T02:58:03.132Z
 last_modified: 2026-05-31T02:58:03.132Z
@@ -62,3 +62,7 @@ Only non-`.prettierrc` forms are trapped: a bare `.prettierrc` JSON is create-if
 
 - 2026-05-31T02:58:03.132Z Started: Created ticket 8BNSTE
 - 2026-05-31T02:59:00.000Z Investigated: confirmed root cause (install-time `hasExistingFormatter` ignores prettier by design; disconnected from hook-time `detectPrettierConfig`). Verified prettier 3.8.3 config precedence via docs. Not covered by 1J6JKP (hook-warning only) or 54XH90 (CI lint drift). Chose Option B (separate `existingPrettierConfig` signal) over broadening `existingFormatter` (would wrongly drop eslint-config-prettier).
+- 2026-05-31T03:00:00.000Z RED (a15b8e58): detection unit tests + install gate test fail against unmodified install.
+- 2026-05-31T03:10:00.000Z GREEN (412005e3): added `hasExistingPrettierConfig` (detect.ts), threaded `existingPrettierConfig` through project-detector.ts → ProjectContext (types.ts), gated both prettier-config writes (files.ts). 92 targeted tests pass, tsc clean.
+- 2026-05-31T03:55:00.000Z REFACTOR: none needed — diff is minimal, comments explain the shadowing precedence. Confirmed no `.safeword/`↔`templates/` mirror drift (only `src/` copies of the touched files; `lint-config.ts` untouched, prefix constant duplicated by the `cli-presets-self-contained` rule).
+- 2026-05-31T04:06:00.000Z VERIFY: full suite 2312/2312 pass (1 skip, 140 files); eslint + tsc clean; /audit passed (depcruise 0 violations, no new dead code). verify.md written, pinned to 412005e3. Awaiting user confirmation to close.
