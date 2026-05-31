@@ -2,10 +2,10 @@
 id: JZXVKN
 slug: extract-validation-helpers
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-31T02:03:37.320Z
-last_modified: 2026-05-31T02:04:00.000Z
+last_modified: 2026-05-31T02:20:00.000Z
 scope:
   - Extract the byte-identical `findDuplicates` and near-identical `groupByLine` validator helpers from `src/utils/personas.ts` and `src/utils/glossary.ts` into a shared `src/utils/validation.ts` (`ValidationIssue` = `{ line; message }`; `groupByLine<T extends { lineNumber: number }>`). Import from both; delete the private copies.
   - Behavior-preserving — the existing personas/glossary unit tests lock duplicate detection; no test changes beyond imports.
@@ -26,4 +26,5 @@ done_when:
 
 ## Work Log
 
+- 2026-05-31T02:20:00.000Z Done: per-helper /refactor — findDuplicates (c217ce67) then groupByLine (ed3849f0) extracted to src/utils/validation.ts; personas/glossary import both, zero private copies. jscpd clone 1→0; depcruise clean; full suite 2295/2295 pass. verify.md written. → done.
 - 2026-05-31T02:03:37.320Z Started + scoped: extract findDuplicates/groupByLine to validation.ts. Behavior-preserving; existing tests lock it. Per-helper migration under /refactor.
