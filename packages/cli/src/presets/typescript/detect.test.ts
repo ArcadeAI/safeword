@@ -141,4 +141,24 @@ describe('hasExistingPrettierConfig', () => {
 
     expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
   });
+
+  it('ignores a disabled/backup config prettier will not load (.prettierrc.bak)', () => {
+    // Prettier resolves an exact set of filenames; `.prettierrc.bak` is not one,
+    // so it must read as "no config" — not suppress safeword's install. Mirrors
+    // the exact-match fix in hooks/lib/lint-config.ts (ticket 1J6JKP).
+    writeFileSync(path.join(temporaryDirectory, '.prettierrc.bak'), '{}');
+    writeFileSync(path.join(temporaryDirectory, 'package.json'), '{}');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
+  });
+
+  it('ignores a disabled prettier.config module (prettier.config.js.disabled)', () => {
+    writeFileSync(
+      path.join(temporaryDirectory, 'prettier.config.js.disabled'),
+      'module.exports={}',
+    );
+    writeFileSync(path.join(temporaryDirectory, 'package.json'), '{}');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
+  });
 });

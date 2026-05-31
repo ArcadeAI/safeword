@@ -251,18 +251,37 @@ function hasExistingFormatter(cwd: string, _scripts: ScriptsRecord): boolean {
   return ALTERNATIVE_FORMATTER_FILES.some(file => existsSync(path.join(cwd, file)));
 }
 
-/**
- * Prettier config filename prefixes — bare/extensioned `.prettierrc*` and the
- * `prettier.config.*` module forms. Mirror of `PRETTIER_CONFIG_PREFIXES` in the
- * session-lint-check hook (`hooks/lib/lint-config.ts`); keep the two in sync so
- * install and the lint hook agree on what counts as "prettier is already here".
- */
-const PRETTIER_CONFIG_PREFIXES = ['.prettierrc', 'prettier.config.'] as const;
+// Prettier config filenames, by the exact set prettier resolves — NOT a loose
+// prefix. Prefix-matching (`.prettierrc*`) false-positives on a disabled/backup
+// config (`.prettierrc.bak`, `prettier.config.js.disabled`): prettier won't load
+// those, so they must read as "no config". Mirror of `PRETTIER_CONFIG_FILES` in
+// the session-lint-check hook (`hooks/lib/lint-config.ts`, ticket 1J6JKP); the
+// `cli-presets-self-contained` rule forbids importing it, so keep the two in
+// sync. Extension lists verified against prettier 3.8 docs.
+const PRETTIER_RC_EXTENSIONS = [
+  'json',
+  'yaml',
+  'yml',
+  'json5',
+  'toml',
+  'js',
+  'cjs',
+  'mjs',
+  'ts',
+  'cts',
+  'mts',
+];
+const PRETTIER_CONFIG_EXTENSIONS = ['js', 'cjs', 'mjs', 'ts', 'cts', 'mts'];
+const PRETTIER_CONFIG_FILES = new Set<string>([
+  '.prettierrc',
+  ...PRETTIER_RC_EXTENSIONS.map(extension => `.prettierrc.${extension}`),
+  ...PRETTIER_CONFIG_EXTENSIONS.map(extension => `prettier.config.${extension}`),
+]);
 
 /**
  * Check if the project already has its own Prettier config, in any form prettier
- * recognizes: a `.prettierrc*` / `prettier.config.*` file, or a `"prettier"` key
- * in package.json.
+ * recognizes: a `.prettierrc` / `.prettierrc.*` / `prettier.config.*` file, or a
+ * `"prettier"` key in package.json.
  *
  * Unlike {@link hasExistingFormatter} (alternative formatters only), this exists
  * to stop safeword from dropping its own `.prettierrc`/`.safeword/.prettierrc`
@@ -277,10 +296,7 @@ function hasExistingPrettierConfig(cwd: string): boolean {
   } catch {
     entries = [];
   }
-  const hasConfigFile = entries.some(name =>
-    PRETTIER_CONFIG_PREFIXES.some(prefix => name.startsWith(prefix)),
-  );
-  if (hasConfigFile) return true;
+  if (entries.some(name => PRETTIER_CONFIG_FILES.has(name))) return true;
 
   const pkgPath = path.join(cwd, 'package.json');
   if (!existsSync(pkgPath)) return false;
