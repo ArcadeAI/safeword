@@ -25,16 +25,19 @@ last_modified: 2026-05-24T21:45:00.000Z
 
 ## Tickets
 
-| ID         | Title                                                                                  | Arcade Pair | Status | Depends On |
-| ---------- | -------------------------------------------------------------------------------------- | ----------- | ------ | ---------- |
-| **7VRXF6** | Add Outcomes as a Phase 0 spec artifact required by signals work                       | 5FBD29      | Open   | —          |
-| **1W107W** | New /build-signals skill with 4 impl options + mandatory tag + in-code instrumentation | 5FBD29      | Open   | 7VRXF6     |
-| **JS5K5G** | Pluggable alert-routing layer (Linear-first with adapters)                             | 5FBD29      | Open   | 1W107W     |
-| **X59JZE** | Split done into merge-ready + outcome-validated states                                 | 5FBD29      | Open   | 1W107W     |
+| ID         | Title                                                                                  | Arcade Pair | Status  | Depends On |
+| ---------- | -------------------------------------------------------------------------------------- | ----------- | ------- | ---------- |
+| **7VRXF6** | Add Outcomes as a Phase 0 spec artifact required by signals work                       | 5FBD29      | Open    | —          |
+| **1W107W** | New /build-signals skill with 4 impl options + mandatory tag + in-code instrumentation | 5FBD29      | Open    | 7VRXF6     |
+| **JS5K5G** | Pluggable alert-routing layer (Linear-first with adapters)                             | 5FBD29      | Open    | 1W107W     |
+| **X59JZE** | Split done into merge-ready + outcome-validated states                                 | 5FBD29      | Open    | 1W107W     |
+| **2K46FG** | Spec-revision discipline — safeword equivalent of arcade `/update-spec`                | — (gap)     | backlog | X59JZE     |
 
 **Paired arcade epic:** [Z6AMF0](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/Z6AMF0/ticket.md) — arcade-side decommission of `/build-signals`.
 
 **Pairing note:** Many-to-one again — four safeword tickets pair to the single arcade decommission. Same pattern as Phases 1 and 2.
+
+**2K46FG placement note:** Added 2026-05-31 as a fifth child — the cross-lifecycle `/update-spec` absorption. It lands here (not Phases 1/2) because `update-spec` closes the spec lifecycle loop: a signal/outcome breach (this epic's territory) revealing a spec gap is a named trigger, and its status-reset machinery is adjacent to X59JZE's two-state done (hence the `Depends On: X59JZE`). **No arcade pair** — arcade's roadmap has no ticket to decommission its local `/update-spec`; that arcade-side owner is an open gap (see 2K46FG).
 
 ## Sequencing
 
