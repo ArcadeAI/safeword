@@ -12,6 +12,26 @@ export interface ValidationIssue {
 }
 
 /**
+ * Group entries by a derived key → the 1-indexed header line numbers that
+ * produced it. Empty keys are skipped. Works for any parsed entry carrying a
+ * `lineNumber` (ParsedPersona, ParsedGlossaryEntry, …).
+ */
+export function groupByLine<T extends { lineNumber: number }>(
+  entries: readonly T[],
+  pick: (entry: T) => string,
+): Map<string, number[]> {
+  const grouped = new Map<string, number[]>();
+  for (const entry of entries) {
+    const key = pick(entry);
+    if (key.length === 0) continue;
+    const lines = grouped.get(key) ?? [];
+    lines.push(entry.lineNumber);
+    grouped.set(key, lines);
+  }
+  return grouped;
+}
+
+/**
  * Produce duplicate-detection issues from a grouping (key → header line
  * numbers): every key with more than one line yields one issue per line,
  * naming the others. `kind` labels the value class (e.g. "persona name",

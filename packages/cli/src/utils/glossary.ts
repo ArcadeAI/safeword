@@ -21,7 +21,7 @@ import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
 import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
-import { findDuplicates } from './validation.js';
+import { findDuplicates, groupByLine } from './validation.js';
 
 /**
  * A parsed glossary entry — name + Definition (required), plus any
@@ -118,22 +118,6 @@ export function lookupGlossaryReference(
   }
 
   return { status: 'unknown' };
-}
-
-/** Group entries by a derived key, returning key → header line numbers. */
-function groupByLine(
-  entries: readonly ParsedGlossaryEntry[],
-  pick: (entry: ParsedGlossaryEntry) => string,
-): Map<string, number[]> {
-  const grouped = new Map<string, number[]>();
-  for (const entry of entries) {
-    const key = pick(entry);
-    if (key.length === 0) continue;
-    const lines = grouped.get(key) ?? [];
-    lines.push(entry.lineNumber);
-    grouped.set(key, lines);
-  }
-  return grouped;
 }
 
 /**

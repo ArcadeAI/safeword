@@ -21,7 +21,7 @@ import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
 import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
-import { findDuplicates } from './validation.js';
+import { findDuplicates, groupByLine } from './validation.js';
 
 // The three constants below are exported for workspace-internal use (tests
 // asserting the canonical bounds, docs referencing them without hardcoding,
@@ -243,22 +243,6 @@ function validateNameAndRole(persona: ParsedPersona): PersonaValidationError[] {
     errors.push({ line: persona.lineNumber, message: 'missing Role line' });
   }
   return errors;
-}
-
-/** Group personas by a field, returning a map of field-value → header line numbers. */
-function groupByLine<T extends ParsedPersona>(
-  personas: readonly T[],
-  pick: (persona: T) => string,
-): Map<string, number[]> {
-  const grouped = new Map<string, number[]>();
-  for (const persona of personas) {
-    const key = pick(persona);
-    if (key.length === 0) continue;
-    const existing = grouped.get(key) ?? [];
-    existing.push(persona.lineNumber);
-    grouped.set(key, existing);
-  }
-  return grouped;
 }
 
 /** Produce pattern-violation errors for resolved personas. */
