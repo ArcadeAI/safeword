@@ -2,10 +2,10 @@
 id: 8BNSTE
 slug: prettier-config-shadow
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-05-31T02:58:03.132Z
-last_modified: 2026-05-31T02:58:03.132Z
+last_modified: 2026-05-31T04:55:38.264Z
 scope:
   - Add install-time detection of an existing prettier config in any form (`.prettierrc*`, `prettier.config.*`, and the `package.json` `"prettier"` key) via a new `existingPrettierConfig` signal, reusing the prefix-match patterns already in `lint-config.ts` so the install path and the lint hook share one detection rule.
   - Gate **both** safeword prettier-config writes on `!existingPrettierConfig` — the owned `.safeword/.prettierrc` (`files.ts:204`) and the managed root `.prettierrc` (`files.ts:271`) — so safeword never drops a `.prettierrc` that shadows a customer's `prettier.config.mjs`.
@@ -67,3 +67,5 @@ Only non-`.prettierrc` forms are trapped: a bare `.prettierrc` JSON is create-if
 - 2026-05-31T03:55:00.000Z REFACTOR: none needed — diff is minimal, comments explain the shadowing precedence. Confirmed no `.safeword/`↔`templates/` mirror drift (only `src/` copies of the touched files; `lint-config.ts` untouched, prefix constant duplicated by the `cli-presets-self-contained` rule).
 - 2026-05-31T04:06:00.000Z VERIFY: full suite 2312/2312 pass (1 skip, 140 files); eslint + tsc clean; /audit passed (depcruise 0 violations, no new dead code). verify.md written, pinned to 412005e3.
 - 2026-05-31T04:30:00.000Z QUALITY-REVIEW (35942a02): /quality-review caught that `hasExistingPrettierConfig` used prefix matching (`name.startsWith('.prettierrc')`) — the exact false-positive 1J6JKP fixed in lint-config.ts. A `.prettierrc.bak`/`prettier.config.js.disabled` would wrongly suppress install. Fixed to exact filename-set matching (mirrors `PRETTIER_CONFIG_FILES`); added 2 RED→GREEN tests. Set verified against prettier 3.8.3. Full suite 2314/2314 pass.
+- 2026-05-31T04:50:00.000Z SIMPLIFY (6597f02a): /simplify 4-angle pass (reuse/simplification/efficiency/altitude) — no code changes. Duplication mandated by `cli-presets-self-contained`; two-boolean model + inline guards at correct altitude; redundant package.json re-read skipped (breaks sibling-detector symmetry for negligible I/O).
+- 2026-05-31T04:55:38.264Z DONE: user confirmed close. status → done. Pre-existing knip warnings left as-is (unrelated to this ticket).
