@@ -1,24 +1,46 @@
 // Safeword: lint-config presence detection (ticket 1J6JKP).
 //
-// Prefix-match a directory listing so new eslint/prettier config extensions are
-// covered without enumerating every filename — the drift that caused this
-// ticket (eslint.config.ts and .prettierrc.yaml were missed). Presence only,
-// not contents; a rare false positive (e.g. a `.prettierrc.bak`) merely
-// suppresses a warning — far cheaper than the false negative this replaces.
+// Match the EXACT set of config filenames each tool resolves — not a loose
+// prefix. Prefix-matching was the first attempt but it false-positives on a
+// `.bak`/disabled config (`eslint.config.mjs.bak`, `.prettierrc.bak`): the tool
+// won't load those, so they must read as "missing". The extension lists below
+// are the complete current sets (eslint flat + eslintrc, prettier rc + config);
+// a new extension is a one-line add — the drift this replaces was an
+// *incomplete* list (`.ts`/`.yaml` were missing), not enumeration itself.
 
-// eslint flat config (`eslint.config.{js,mjs,cjs,ts,mts,cts}`) + legacy
-// `.eslintrc*`. prettier: `.prettierrc*` (every extension) + `prettier.config.*`.
-const ESLINT_CONFIG_PREFIXES = ['eslint.config.', '.eslintrc'];
-const PRETTIER_CONFIG_PREFIXES = ['.prettierrc', 'prettier.config.'];
+const ESLINT_FLAT_EXTENSIONS = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'];
+const ESLINT_RC_EXTENSIONS = ['js', 'cjs', 'yaml', 'yml', 'json'];
+const PRETTIER_RC_EXTENSIONS = [
+  'json',
+  'yaml',
+  'yml',
+  'json5',
+  'toml',
+  'js',
+  'cjs',
+  'mjs',
+  'ts',
+  'cts',
+  'mts',
+];
+const PRETTIER_CONFIG_EXTENSIONS = ['js', 'cjs', 'mjs', 'ts', 'cts', 'mts'];
 
-function hasPrefixMatch(entries: readonly string[], prefixes: readonly string[]): boolean {
-  return entries.some(name => prefixes.some(prefix => name.startsWith(prefix)));
-}
+const ESLINT_CONFIG_FILES = new Set<string>([
+  ...ESLINT_FLAT_EXTENSIONS.map(extension => `eslint.config.${extension}`),
+  '.eslintrc',
+  ...ESLINT_RC_EXTENSIONS.map(extension => `.eslintrc.${extension}`),
+]);
+
+const PRETTIER_CONFIG_FILES = new Set<string>([
+  '.prettierrc',
+  ...PRETTIER_RC_EXTENSIONS.map(extension => `.prettierrc.${extension}`),
+  ...PRETTIER_CONFIG_EXTENSIONS.map(extension => `prettier.config.${extension}`),
+]);
 
 export function detectEslintConfig(entries: readonly string[]): boolean {
-  return hasPrefixMatch(entries, ESLINT_CONFIG_PREFIXES);
+  return entries.some(name => ESLINT_CONFIG_FILES.has(name));
 }
 
 export function detectPrettierConfig(entries: readonly string[]): boolean {
-  return hasPrefixMatch(entries, PRETTIER_CONFIG_PREFIXES);
+  return entries.some(name => PRETTIER_CONFIG_FILES.has(name));
 }

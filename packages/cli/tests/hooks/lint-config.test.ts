@@ -60,3 +60,20 @@ describe('detectPrettierConfig', () => {
     expect(detectPrettierConfig(['foo.js', 'package.json'])).toBe(false);
   });
 });
+
+describe('disabled/backup configs are not treated as present', () => {
+  // A config renamed to `.bak` (a common "disable it" gesture, and how the E2E
+  // hook test simulates a missing config) must NOT count — the tool won't load
+  // it. This is why detection matches exact known filenames, not a loose prefix.
+  it('ignores .bak-suffixed eslint/prettier configs', () => {
+    expect(detectEslintConfig(['eslint.config.mjs.bak'])).toBe(false);
+    expect(detectEslintConfig(['.eslintrc.json.bak'])).toBe(false);
+    expect(detectPrettierConfig(['.prettierrc.bak'])).toBe(false);
+    expect(detectPrettierConfig(['prettier.config.js.bak'])).toBe(false);
+  });
+
+  it('ignores unrelated extensions on the config base', () => {
+    expect(detectPrettierConfig(['.prettierrc.local'])).toBe(false);
+    expect(detectEslintConfig(['eslint.config.backup'])).toBe(false);
+  });
+});
