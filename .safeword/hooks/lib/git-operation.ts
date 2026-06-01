@@ -40,5 +40,3 @@ export function isGitOperationInProgress(projectDirectory: string): boolean {
 
   return OPERATION_MARKERS.some(marker => existsSync(nodePath.join(base, marker)));
 }
-
-export { OPERATION_MARKERS };
