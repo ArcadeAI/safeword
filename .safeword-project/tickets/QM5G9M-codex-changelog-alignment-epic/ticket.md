@@ -34,18 +34,18 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 
 ## Surfaces (and the safeword need each maps to)
 
-| Codex surface | Blocks? | Safeword use |
-| --- | --- | --- |
-| Hooks: `PreToolUse`, `PermissionRequest`, `UserPromptSubmit` | **Yes (hard)** | phase/edit gate, command gate, turn-start + done-gate chokepoint |
-| Hooks: `PostToolUse` | partial (result-handling) | LOC gate signal |
-| Hooks: `Stop` / `SubagentStop` | No — auto-continue only | done-gate **nudge** (not hard block) |
-| Hooks: `SessionStart` | No (inject context) | bootstrap |
-| `AGENTS.md` (root + dir walk-up; `project_doc_*` config) | No (advisory) | inject SAFEWORD.md/CLAUDE.md equivalent |
-| `config.toml` (`~/.codex/` + project `.codex/`; inline `[hooks]`) | Indirect | wire hooks, MCP servers, sandbox/approval defaults |
-| `.codex/hooks.json` (project) + `~/.codex/hooks.json` (global) | — | hook wiring; all matching layers run (no override) |
-| MCP servers | tool allow/deny | optional: expose safeword state/commands |
-| Skills / custom prompts (`~/.codex/prompts/*.md`) | No | safeword slash commands — surface TBD (QGHVXZ); deprecation **unverified**, see note |
-| Plugins + marketplace (default-enabled plugin hooks) | via bundled hooks | distribution path, parity with Cursor (ticket 6WJ1RS) |
+| Codex surface                                                     | Blocks?                   | Safeword use                                                                         |
+| ----------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------ |
+| Hooks: `PreToolUse`, `PermissionRequest`, `UserPromptSubmit`      | **Yes (hard)**            | phase/edit gate, command gate, turn-start + done-gate chokepoint                     |
+| Hooks: `PostToolUse`                                              | partial (result-handling) | LOC gate signal                                                                      |
+| Hooks: `Stop` / `SubagentStop`                                    | No — auto-continue only   | done-gate **nudge** (not hard block)                                                 |
+| Hooks: `SessionStart`                                             | No (inject context)       | bootstrap                                                                            |
+| `AGENTS.md` (root + dir walk-up; `project_doc_*` config)          | No (advisory)             | inject SAFEWORD.md/CLAUDE.md equivalent                                              |
+| `config.toml` (`~/.codex/` + project `.codex/`; inline `[hooks]`) | Indirect                  | wire hooks, MCP servers, sandbox/approval defaults                                   |
+| `.codex/hooks.json` (project) + `~/.codex/hooks.json` (global)    | —                         | hook wiring; all matching layers run (no override)                                   |
+| MCP servers                                                       | tool allow/deny           | optional: expose safeword state/commands                                             |
+| Skills / custom prompts (`~/.codex/prompts/*.md`)                 | No                        | safeword slash commands — surface TBD (QGHVXZ); deprecation **unverified**, see note |
+| Plugins + marketplace (default-enabled plugin hooks)              | via bundled hooks         | distribution path, parity with Cursor (ticket 6WJ1RS)                                |
 
 ## Sources
 
@@ -61,15 +61,15 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 
 ## Tickets
 
-| ID | Title | Note |
-| --- | --- | --- |
-| **N12G95** | Spike: port one gate to a Codex `PreToolUse` deny hook | de-risk first |
-| **HPP49X** | Map safeword lifecycle events → Codex hook events (design) | design doc |
-| **5DEJ8V** | Generate `AGENTS.md` + `config.toml` hook wiring | CLI install path |
-| **QGHVXZ** | Commands surface: skills vs deprecated custom prompts | `/figure-it-out` |
-| **JV6D1W** | Enforcement strength: user-trusted vs managed hooks | value decision |
-| **WR4HRA** | Pin minimum `codex` CLI version for required hooks | baseline tracking |
-| **6WJ1RS** | Package as Codex plugin/marketplace bundle | distribution (parity w/ Cursor DXYKJX) |
+| ID         | Title                                                      | Note                                   |
+| ---------- | ---------------------------------------------------------- | -------------------------------------- |
+| **N12G95** | Spike: port one gate to a Codex `PreToolUse` deny hook     | de-risk first                          |
+| **HPP49X** | Map safeword lifecycle events → Codex hook events (design) | design doc                             |
+| **5DEJ8V** | Generate `AGENTS.md` + `config.toml` hook wiring           | CLI install path                       |
+| **QGHVXZ** | Commands surface: skills vs deprecated custom prompts      | `/figure-it-out`                       |
+| **JV6D1W** | Enforcement strength: user-trusted vs managed hooks        | value decision                         |
+| **WR4HRA** | Pin minimum `codex` CLI version for required hooks         | baseline tracking                      |
+| **6WJ1RS** | Package as Codex plugin/marketplace bundle                 | distribution (parity w/ Cursor DXYKJX) |
 
 ## Sequencing
 

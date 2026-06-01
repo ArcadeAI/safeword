@@ -10,7 +10,7 @@ relates_to: TT1MQW
 
 # Phase 2 (optional): LLM pre-triage of diffs by safeword relevance
 
-**Goal:** Optionally add an LLM step that pre-labels each diff entry by safeword relevance (Breaks/Adopt/Watch + which surface), as a *draft* in the issue.
+**Goal:** Optionally add an LLM step that pre-labels each diff entry by safeword relevance (Breaks/Adopt/Watch + which surface), as a _draft_ in the issue.
 
 **Why:** Speeds triage — but only as a draft a human verifies. This thread showed LLM triage can get load-bearing facts wrong, so it must never be the gate.
 

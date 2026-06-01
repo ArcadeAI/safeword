@@ -11,15 +11,15 @@ epic: upstream-changelog-monitor
 
 **Goal:** Automatically detect when Claude Code, Cursor, or OpenAI Codex ship changelog/docs changes, and hand a human/agent the diff to triage — turning the manual review done in this thread into a standing process.
 
-**Why:** Safeword rides three fast-moving agent platforms; an upstream hook/behavior change can silently weaken a gate (this thread found exactly that). We need to *notice* changes promptly without babysitting three changelogs.
+**Why:** Safeword rides three fast-moving agent platforms; an upstream hook/behavior change can silently weaken a gate (this thread found exactly that). We need to _notice_ changes promptly without babysitting three changelogs.
 
 ## Design decision (figure-it-out, 2026-05-31)
 
-**Automate detection; keep triage human-initiated.** Detection ("did it change?") is deterministic, cheap, and reliable. Triage ("is it safeword-relevant, and how?") needs judgment — and this thread proved that judgment needs human verification (a delegated agent got a load-bearing Codex `Stop` fact wrong). So the system reliably *surfaces* diffs and a human/agent triages on demand (our existing review flow + tickets). An LLM pre-triage step is a deliberately-additive Phase 2 (J4BTMT), never the core.
+**Automate detection; keep triage human-initiated.** Detection ("did it change?") is deterministic, cheap, and reliable. Triage ("is it safeword-relevant, and how?") needs judgment — and this thread proved that judgment needs human verification (a delegated agent got a load-bearing Codex `Stop` fact wrong). So the system reliably _surfaces_ diffs and a human/agent triages on demand (our existing review flow + tickets). An LLM pre-triage step is a deliberately-additive Phase 2 (J4BTMT), never the core.
 
 **Shape:** a scheduled GitHub Actions workflow fetches each source's most stable artifact, normalizes to text, diffs against a snapshot committed in-repo, and on change opens/updates a GitHub Issue with the diff + a relevance checklist. The committed snapshots double as the "which upstream version have we reviewed" baseline that ticket 116 wanted.
 
-**Detection ≠ closure (load-bearing — fixes the "waiting PR already covers it" case).** The snapshot on `main` *is* the "reviewed" marker, and **only the review-closing PR advances it** — detection is read-only and never writes the snapshot. So:
+**Detection ≠ closure (load-bearing — fixes the "waiting PR already covers it" case).** The snapshot on `main` _is_ the "reviewed" marker, and **only the review-closing PR advances it** — detection is read-only and never writes the snapshot. So:
 
 - A change stays flagged (issue open) until the PR that reviews it merges — correct, because until then it genuinely is unaddressed on `main`. The issue is idempotent (one per source, updated not duplicated), so re-runs don't spam.
 - The review PR bumps the source's snapshot + `Closes #<issue>`; merge advances the baseline and closes the issue. A CI gate (31B5AM) fails any closing PR that forgets the bump, so the monitor can't fire forever.
@@ -27,11 +27,11 @@ epic: upstream-changelog-monitor
 
 ## Per-source artifact (researched)
 
-| Source | Best diffable artifact | Notes |
-| --- | --- | --- |
-| Claude Code | `raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md` | git markdown — clean line diff |
-| Codex CLI | `github.com/openai/codex/releases.atom` (+ developers.openai.com/codex/changelog) | atom feed = clean; latest stable 0.135.0 (May 28 2026) |
-| Cursor | `cursor.com/changelog` (HTML) | hardest — no confirmed RSS; hash normalized text |
+| Source      | Best diffable artifact                                                            | Notes                                                  |
+| ----------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Claude Code | `raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md`              | git markdown — clean line diff                         |
+| Codex CLI   | `github.com/openai/codex/releases.atom` (+ developers.openai.com/codex/changelog) | atom feed = clean; latest stable 0.135.0 (May 28 2026) |
+| Cursor      | `cursor.com/changelog` (HTML)                                                     | hardest — no confirmed RSS; hash normalized text       |
 
 A uniform "fetch → normalize to text → hash → diff vs snapshot" works for all three; feeds are a nicer input where available.
 
@@ -44,15 +44,15 @@ A uniform "fetch → normalize to text → hash → diff vs snapshot" works for 
 
 ## Tickets
 
-| ID | Title | Phase |
-| --- | --- | --- |
-| **R6ARF5** | Detection skeleton: CC source → diff → open issue (read-only) | walking skeleton |
-| **3ZRP8G** | Cursor + Codex source adapters (HTML hash + releases.atom) | breadth |
-| **99XBFG** | Snapshot = reviewed baseline; advances only on closing PR (subsumes 116) | state |
-| **NBRWN8** | Issue: idempotent, diff + checklist + in-flight PR annotation | output |
-| **31B5AM** | CI gate: closing PR must bump the snapshot | invariant |
-| **J4BTMT** | Phase 2 (optional): LLM pre-triage of diffs | additive |
-| **ERD9BB** | Reliability: off-hour cron, 60-day heartbeat, failure alert | hardening |
+| ID         | Title                                                                    | Phase            |
+| ---------- | ------------------------------------------------------------------------ | ---------------- |
+| **R6ARF5** | Detection skeleton: CC source → diff → open issue (read-only)            | walking skeleton |
+| **3ZRP8G** | Cursor + Codex source adapters (HTML hash + releases.atom)               | breadth          |
+| **99XBFG** | Snapshot = reviewed baseline; advances only on closing PR (subsumes 116) | state            |
+| **NBRWN8** | Issue: idempotent, diff + checklist + in-flight PR annotation            | output           |
+| **31B5AM** | CI gate: closing PR must bump the snapshot                               | invariant        |
+| **J4BTMT** | Phase 2 (optional): LLM pre-triage of diffs                              | additive         |
+| **ERD9BB** | Reliability: off-hour cron, 60-day heartbeat, failure alert              | hardening        |
 
 ## Sequencing
 

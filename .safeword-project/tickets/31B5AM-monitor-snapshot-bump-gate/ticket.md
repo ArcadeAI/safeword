@@ -25,7 +25,7 @@ relates_to: TT1MQW
 
 ## Out of scope
 
-- Validating that the snapshot content *matches* the reviewed upstream version (heuristic; revisit only if drift appears).
+- Validating that the snapshot content _matches_ the reviewed upstream version (heuristic; revisit only if drift appears).
 
 ## Source
 
