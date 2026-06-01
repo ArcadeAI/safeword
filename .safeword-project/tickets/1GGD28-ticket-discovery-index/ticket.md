@@ -2,7 +2,7 @@
 id: 1GGD28
 slug: ticket-discovery-index
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 epic: workflow-gate-hygiene
 created: 2026-05-31T18:02:49.267Z
@@ -63,3 +63,6 @@ The corpus is **134 ticket folders, 49 of them bare-ID (no slug)** — `ls` and 
 - 2026-06-01T00:30:24.713Z Complete: intake — `/figure-it-out` resolved the two open questions: index scope → **two files** (active INDEX.md grouped by epic + INDEX-completed.md archive; one-file trends toward "too big to scan" as completed/ grows, active-only loses shipped-work discovery), regen trigger → **command + `safeword check` step + regen on `ticket new`, no per-edit hook** (ticket.md is append-heavy via work logs; an on-save hook would be near-all no-op rescans). Entry detail → title + Goal one-liner. spec.md (JTBD DEV1 + AC1–AC4) and scope/out_of_scope/done_when written.
 - 2026-06-01T00:30:24.713Z Complete: define-behavior — 15 scenarios across 4 rules (AC1 fields/parse, AC2 epic grouping, AC3 idempotency/drift, AC4 active/completed split), lineage-tagged. dimensions.md derived from learning-sync's known frontmatter edge cases.
 - 2026-06-01T00:30:24.713Z Complete: scenario-gate — AODI clean; adversarial pass folded 3 robustness gaps (no-ticket.md dirs ignored, both index files self-excluded, completed grouped by epic) into the build. Decomposition skipped — direct mirror of `learning-sync`. → implement.
+- 2026-06-01T01:00:00.000Z RED 99bc0aae → GREEN 0b7d835c: `ticket-sync` module (parse/read/group/build/sync) + `safeword sync-tickets` command + `safeword check` regen step. 16/16 module scenarios pass; generated real indexes (172 active / 157 completed); `grep INDEX*.md` surfaces 0AWSY8 + the workflow-gate-hygiene epic group. Two pre-existing tickets (085-bump-golangci-lint, 014-bdd-guides-consolidation) surfaced as skipped (missing `id:` frontmatter) — real data finding, out of scope.
+- 2026-06-01T01:00:00.000Z Regression caught + fixed: full suite (2332 pass, 9 fail in 2 files) flagged that an initial `ticket new` regen wrote INDEX.md into the tickets dir — breaking the cross-branch clean-merge invariant (committed on both branches → conflict) and the "tickets dir = ticket folders" invariant (`readdirSync` length). **Scope refinement to the /figure-it-out trigger decision:** dropped the `ticket new` regen; index freshness is now command + `safeword check` only. Targeted re-run green (28/28: cross-branch-tickets + ticket-new + ticket-sync). Filed the 792s suite runtime into CQJBSN (test-suite-parallelism) as its timing evidence.
+- 2026-06-01T01:00:00.000Z → verify: all scenarios RED/GREEN checked with SHAs, cross-scenario refactor assessed (skip — premature to share an abstraction with learning-sync).

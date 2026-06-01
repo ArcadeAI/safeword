@@ -1,0 +1,50 @@
+---
+id: CQJBSN
+slug: test-suite-parallelism
+type: task
+phase: intake
+status: backlog
+created: 2026-06-01T01:03:41.848Z
+last_modified: 2026-06-01T01:03:41.848Z
+---
+
+# Speed up the vitest suite — lift blanket maxWorkers:1, isolate the offenders
+
+**Goal:** Cut full-suite wall-time by removing the blanket `maxWorkers: 1` and running well-isolated test files in parallel.
+
+**Why:** The whole suite (147 files) runs strictly sequentially because of one coarse setting; most files are already parallel-safe, so the few non-isolated ones are taxing every run and slowing the dev/commit loop.
+
+## Finding (`/figure-it-out`, 2026-06-01)
+
+`packages/cli/vitest.base.ts` sets `pool: 'forks'`, `maxWorkers: 1` with the comment _"Run tests sequentially to avoid temp directory conflicts."_ That blanket serialization is the bottleneck:
+
+- **147 test files** — 44 process-spawning integration tests (`tests/integration/`) + 103 others. All forced single-worker.
+- **vitest v4 forks isolate per-file** (verified against current docs: improving-performance, config/maxworkers). Two _different_ files writing to _different_ `mkdtemp` dirs are already parallel-safe — 21+ files use unique `mkdtempSync`. The "conflict" comes from the handful of tests that write to a **shared/fixed path** (real repo `.safeword-project`, or a hardcoded tmp path), not from forks themselves.
+- So `maxWorkers: 1` is a coarse fix for a few non-isolated tests, applied to all 147.
+
+## Direction (decided; refine at intake)
+
+1. **Measure first** — capture per-file timing (`vitest run` slowest-files, or `--reporter=verbose`) to confirm where wall-time concentrates. If the 44 integration spawns dominate, weight effort there.
+2. **Audit isolation** — find tests that touch a shared/fixed path instead of a unique `mkdtemp` (and any that mutate global cwd/env without restoring). Give each its own temp dir.
+3. **Lift the cap** — set `maxWorkers: '50%'`, keep `pool: 'forks'` (child-process-spawning integration tests need fork safety; `threads` is faster for pure units but risks them). Re-run; fix any flakiness surfaced by parallelism.
+
+## Open questions (intake)
+
+- **Threads for the unit subset?** A two-tier setup (parallel `threads` pool for the 103 pure-unit files + sequential/forks pool for the 44 integration files) could beat a single forks pool — but adds config surface. Worth it, or is single-pool `forks` at 50% enough? Decide after the timing measurement.
+- **Spawn cost** — if integration tests dominate wall-time, a complementary lever is replacing real `execSync`/`bun` CLI spawns with in-process calls where behavior allows. In scope here, or a separate ticket?
+- **CI vs local** — tune `maxWorkers` for the dev machine, CI, or both (they have different core counts)?
+
+## Out of scope
+
+- The `*.slow.test.ts` real-install tests (already excluded from the default run via `vitest.config.ts`).
+- Rewriting integration tests to not spawn at all (behavior-changing; separate effort if pursued).
+
+## Evidence
+
+- `packages/cli/vitest.base.ts` — `pool: 'forks'`, `maxWorkers: 1`, the rationale comment.
+- vitest v4 docs (Context7 `/vitest-dev/vitest`): `maxWorkers: '50%'`, `pool` threads-vs-forks tradeoff, `fileParallelism`, `isolate`.
+
+## Work Log
+
+- 2026-06-01T01:03:41.848Z Started: Created ticket CQJBSN
+- 2026-06-01T01:03:41.848Z Filed (backlog): `/figure-it-out` traced the slow suite to a blanket `maxWorkers: 1` in vitest.base.ts (coarse workaround for a few non-isolated tests). Direction: measure per-file timing → audit shared-path tests for `mkdtemp` isolation → lift cap to `'50%'` keeping `pool: 'forks'`. Open questions on threads-tiering, spawn cost, and CI-vs-local left for intake. Standalone (not part of M7AZY3).
