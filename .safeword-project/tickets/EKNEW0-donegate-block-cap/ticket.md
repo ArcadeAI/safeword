@@ -47,6 +47,10 @@ After 8 consecutive `decision: "block"` returns, CC stops honoring the block and
 
 - Reworking the non-done soft-block one-shot escape (separate concern; see `.safeword-project/guides/stop-hook-research.md`).
 
+## Related
+
+- **2JMQMX** (done, epic workflow-gate-hygiene) — closed the _other_ done-gate honesty hole: a `status: done` close that bypasses the phase-keyed gate entirely. Complementary failure mode (status sidestep vs 8-block-cap exhaustion); both make "done means verified" hold. Coordinate any cap-aware escalation here with `resolveStopPhase` there. Surfaced during the M7AZY3 #178 triage.
+
 ## Work Log
 
 - 2026-05-31T21:05:09.534Z Started: Created ticket EKNEW0

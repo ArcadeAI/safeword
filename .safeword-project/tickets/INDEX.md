@@ -282,10 +282,10 @@
 - **2JMQMX** — Explore & fix bdd/tdd workflow adherence (done, epic: workflow-gate-hygiene)
   Diagnose where and why agents drift from safeword's intended bdd/tdd phase machine, then fix it — so the workflow is actually followed, not loosely approximated.
   → `.safeword-project/tickets/2JMQMX-bdd-tdd-adherence`
-- **M7AZY3** — Epic: Workflow & gate hygiene cleanup (backlog, epic: workflow-gate-hygiene)
+- **M7AZY3** — Epic: Workflow & gate hygiene cleanup (done, epic: workflow-gate-hygiene)
   Tighten how safeword enforces its own discipline — make agents actually follow the bdd/tdd phase machine, and put each gate at the right trigger — fixing drift surfaced by dogfooding.
   → `.safeword-project/tickets/M7AZY3-workflow-gate-hygiene`
-- **MT27QG** — Review LOC gates — keep, or move trigger to phase/step (backlog, epic: workflow-gate-hygiene)
+- **MT27QG** — Review LOC gates — keep, or move trigger to phase/step (done, epic: workflow-gate-hygiene)
   Audit safeword's LOC-triggered gating — the single `LOC_THRESHOLD = 400` commit gate — and decide whether a line-count threshold is the right trigger or whether a phase/step boundary would gate the same risk better.
   → `.safeword-project/tickets/MT27QG-loc-gate-vs-phase-placement`
 

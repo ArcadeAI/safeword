@@ -2,8 +2,8 @@
 id: MT27QG
 slug: loc-gate-vs-phase-placement
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: workflow-gate-hygiene
 created: 2026-05-31T18:31:15.935Z
 last_modified: 2026-06-01T04:50:00.000Z
@@ -61,3 +61,5 @@ LOC is a proxy for "you've changed enough that you should commit / a reviewer sh
 - 2026-05-31T18:37:30.834Z Revalidated against current code: confirmed `LOC_THRESHOLD = 400` (`quality-state.ts:9`) + exact `META_PATHS` (`:15`); it's **one** gate (post-tool counts `:122`, pre-tool blocks `:406`), not several — corrected the "find every gate" framing. Also corrected: the mid-merge-block failure is a project **memory** note (`project_loc_gate_blocks_merge`), not a repo learning. Scope/why/related updated to match.
 - 2026-06-01T04:50:00.000Z Complete: intake — `/figure-it-out` → **KEEP (B)**, not relocate (C): LOC is phase-agnostic so it reaches the un-phased majority a phase/step trigger can't, and it's already a natural gate; the per-step TDD ledger covers the phased path. Root cause of the deadlock confirmed: `countLoc` = `git diff --stat HEAD` counts incoming merge lines; no MERGE_HEAD detection exists. Fix: git-operation-aware suppression. spec.md (JTBD DEV1, AC1–AC2) + scope written.
 - 2026-06-01T04:50:00.000Z Complete: define-behavior — 8 scenarios (AC1 detect merge/rebase/cherry-pick/revert + gate-stands-down-mid-merge; AC2 false-when-clean / not-a-repo / gate-still-arms-normally). dimensions derived. Decomposition skipped — one pure detector + two guard clauses. → implement.
+- 2026-06-01T05:05:00.000Z Implement: RED 999be3ed (stub) → GREEN 5795409f (`isGitOperationInProgress` + post-tool/pre-tool guards; new lib registered in schema; copies synced). 6 detector + 2 integration green; quality-gates LOC suite green (no regression). REFACTOR: un-exported OPERATION_MARKERS (477ad4ea).
+- 2026-06-01T05:17:00.000Z Complete: verify + audit — full suite 2358/2358 (1 skipped), build/lint clean, jscpd 0 clones, leaf-module architecture. /verify + /audit invoked. verify.md written. → done.
