@@ -48,3 +48,4 @@ last_modified: 2026-06-01T01:03:41.848Z
 
 - 2026-06-01T01:03:41.848Z Started: Created ticket CQJBSN
 - 2026-06-01T01:03:41.848Z Filed (backlog): `/figure-it-out` traced the slow suite to a blanket `maxWorkers: 1` in vitest.base.ts (coarse workaround for a few non-isolated tests). Direction: measure per-file timing → audit shared-path tests for `mkdtemp` isolation → lift cap to `'50%'` keeping `pool: 'forks'`. Open questions on threads-tiering, spawn cost, and CI-vs-local left for intake. Standalone (not part of M7AZY3).
+- 2026-06-01T14:12:00.000Z Interim: bumped `maxWorkers: 1 → 3` (kept `pool: 'forks'`). Full suite green, 146 files / 2358 pass, **~343s vs ~750s sequential (~2.2× faster)**, no flakiness this run. NOT the full fix — the proper isolation audit (shared-path tests) + the `'50%'` / threads-tiering / CI-vs-local questions remain open. This is a low-risk floor bump to claw back wall-time now; ticket stays open for the real audit.
