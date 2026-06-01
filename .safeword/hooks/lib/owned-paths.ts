@@ -12,6 +12,7 @@ export const SAFEWORD_PATHS: readonly string[] = [
   '.mcp.json',
   '.prettierignore',
   '.prettierrc',
+  '.safeword-project/',
   '.safeword/',
   '.sqlfluff',
   'AGENTS.md',
