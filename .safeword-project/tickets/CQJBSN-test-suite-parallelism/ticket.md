@@ -24,7 +24,7 @@ last_modified: 2026-06-01T01:03:41.848Z
 
 ## Direction (decided; refine at intake)
 
-1. **Measure first** — capture per-file timing (`vitest run` slowest-files, or `--reporter=verbose`) to confirm where wall-time concentrates. If the 44 integration spawns dominate, weight effort there.
+1. **Measure first** — capture per-file timing (`vitest run` slowest-files, or `--reporter=verbose`) to confirm where wall-time concentrates. If the 44 integration spawns dominate, weight effort there. **Observed baseline (2026-06-01, 3 full runs this session):** ~748–758s wall for 146 files / ~2358 tests, sequential (`maxWorkers: 1`). `tests` phase ≈ 725–733s, `import` ≈ 11–13s, `transform` ≈ 1s — so ~97% is test execution, and the process-spawning integration tests (44 files) are the prime suspects for the bulk. Per-file breakdown still TODO at pickup.
 2. **Audit isolation** — find tests that touch a shared/fixed path instead of a unique `mkdtemp` (and any that mutate global cwd/env without restoring). Give each its own temp dir.
 3. **Lift the cap** — set `maxWorkers: '50%'`, keep `pool: 'forks'` (child-process-spawning integration tests need fork safety; `threads` is faster for pure units but risks them). Re-run; fix any flakiness surfaced by parallelism.
 
