@@ -117,7 +117,7 @@ export function parseTicket(
       folder,
       title,
       status,
-      epic: epic === undefined ? undefined : epic,
+      epic,
       goal: goalLine(bodyLines),
     },
   };
