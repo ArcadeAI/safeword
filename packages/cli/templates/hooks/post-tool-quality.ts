@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
+import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { getQualityMessage } from './lib/quality.ts';
 import {
   getStateFilePath,
@@ -118,8 +119,10 @@ if (state.lastCommitHash !== currentHead) {
 // Count LOC
 state.locSinceCommit = countLoc();
 
-// LOC gate (only hard gate remaining — blast radius control)
-if (state.locSinceCommit >= LOC_THRESHOLD) {
+// LOC gate (only hard gate remaining — blast radius control). Stands down while
+// a git merge/rebase/cherry-pick/revert is in progress: those incoming lines are
+// not agent edits and must not block conflict resolution (ticket MT27QG).
+if (state.locSinceCommit >= LOC_THRESHOLD && !isGitOperationInProgress(projectDirectory)) {
   state.gate = 'loc';
 }
 

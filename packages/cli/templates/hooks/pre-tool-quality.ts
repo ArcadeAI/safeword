@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
+import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
@@ -403,7 +404,9 @@ if (!state.gate) {
   process.exit(0);
 }
 
-if (state.gate === 'loc') {
+// LOC gate stands down during a git merge/rebase/cherry-pick/revert so it can't
+// block the edits that resolve the operation (ticket MT27QG).
+if (state.gate === 'loc' && !isGitOperationInProgress(projectDirectory)) {
   recordFailure(projectDirectory, input.session_id, 'loc-exceeded');
   deny(`${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
 

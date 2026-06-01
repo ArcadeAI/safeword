@@ -20,8 +20,25 @@ const OPERATION_MARKERS = [
   'rebase-apply',
 ];
 
-export function isGitOperationInProgress(_projectDirectory: string): boolean {
-  return false; // STUB — real implementation in GREEN
+export function isGitOperationInProgress(projectDirectory: string): boolean {
+  let gitDirectory: string;
+  try {
+    gitDirectory = execSync('git rev-parse --git-dir', {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+  } catch {
+    return false; // not a git repo (or git unavailable) — never gate-suppress
+  }
+  if (gitDirectory.length === 0) return false;
+
+  // `--git-dir` may be relative (`.git`) or absolute (worktrees, custom dirs).
+  const base = nodePath.isAbsolute(gitDirectory)
+    ? gitDirectory
+    : nodePath.join(projectDirectory, gitDirectory);
+
+  return OPERATION_MARKERS.some(marker => existsSync(nodePath.join(base, marker)));
 }
 
 export { OPERATION_MARKERS };
