@@ -261,8 +261,8 @@
 - **ERD9BB** — Reliability: off-hour cron, 60-day-inactivity heartbeat, failure alert (in_progress, epic: upstream-changelog-monitor)
   Keep the monitor from silently dying — the failure mode that would make it worse than useless.
   → `.safeword-project/tickets/ERD9BB-monitor-reliability-hardening`
-- **J4BTMT** — Phase 2 (optional): LLM pre-triage of diffs by safeword relevance (in*progress, epic: upstream-changelog-monitor)
-  Optionally add an LLM step that pre-labels each diff entry by safeword relevance (Breaks/Adopt/Watch + which surface), as a \_draft* in the issue.
+- **J4BTMT** — Phase 2 (optional): LLM pre-triage of diffs by safeword relevance (in_progress, epic: upstream-changelog-monitor)
+  Optionally add an LLM step that pre-labels each diff entry by safeword relevance (Breaks/Adopt/Watch + which surface), as a _draft_ in the issue.
   → `.safeword-project/tickets/J4BTMT-monitor-llm-triage`
 - **NBRWN8** — Issue output: idempotent, diff + relevance checklist + in-flight PR links (in_progress, epic: upstream-changelog-monitor)
   Make the opened issue actionable AND deduplicated against work already in flight: one issue per source, carrying the diff, a relevance checklist, and links to any open PR that appears to address the change.
@@ -532,8 +532,8 @@
 - **P8RJ4M** — Reconcile arcade `.project/` and architecture-tracking conventions with safeword (done, epic: —)
   Decide how safeword behaves for customers who also run arcade — specifically how shared inputs (personas, glossary) and architecture-tracking patterns reconcile when both tools want to author or read the same project knowledge.
   → `.safeword-project/tickets/P8RJ4M`
-- **QSNKBB** — Stop-hook UNIVERSAL*HEADER: cut duplicated preamble (done, epic: —)
-  Cut ~7 lines of philosophical preamble from the Stop-hook UNIVERSAL*HEADER. Every cut line is already covered (verbatim or better) in SAFEWORD.md, which loads every conversation. Keep only rules that are about the \_terminal verdict* itself and the \_spec-vs-implementation distinction* that the rest of the project doesn't sharply articulate.
+- **QSNKBB** — Stop-hook UNIVERSAL_HEADER: cut duplicated preamble (done, epic: —)
+  Cut ~7 lines of philosophical preamble from the Stop-hook UNIVERSAL*HEADER. Every cut line is already covered (verbatim or better) in SAFEWORD.md, which loads every conversation. Keep only rules that are about the \_terminal verdict* itself and the _spec-vs-implementation distinction_ that the rest of the project doesn't sharply articulate.
   → `.safeword-project/tickets/QSNKBB-prompt-brevity-cut`
 - **SW1SE5** — Stop-gate incremental tsc for TS projects (done, epic: —)
   Add an incremental whole-program `tsc --noEmit` to the stop-quality gate for TypeScript projects, so type errors surface at the stop boundary instead of riding silently to the done gate.
