@@ -21,7 +21,7 @@ last_modified: 2026-05-31T18:31:15.834Z
 
 | ID         | Title                                                                        | Type    | Status   |
 | ---------- | ---------------------------------------------------------------------------- | ------- | -------- |
-| **2JMQMX** | Explore & fix bdd/tdd workflow adherence                                     | feature | backlog  |
+| **2JMQMX** | Explore & fix bdd/tdd workflow adherence                                     | feature | **done** |
 | **MT27QG** | Review LOC gates — keep, or move trigger to phase/step                       | feature | backlog  |
 | **1GGD28** | Generated ticket INDEX.md (`safeword sync-tickets`) for capability discovery | feature | **done** |
 

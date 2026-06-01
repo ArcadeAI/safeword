@@ -2,8 +2,8 @@
 id: 2JMQMX
 slug: bdd-tdd-adherence
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: workflow-gate-hygiene
 created: 2026-05-31T18:31:15.885Z
 last_modified: 2026-06-01T04:24:02.678Z
@@ -65,3 +65,5 @@ So the question isn't "is the workflow good" — it's "why doesn't the harness m
 - 2026-05-31T18:37:30.834Z Revalidated against current code: confirmed the done-gate is phase-keyed (`stop-quality.ts:351`) and that a done-_status_ ticket is explicitly handled as no-phase-context (`:509`/`:515`) — the `status`-vs-`phase: done` sidestep is real and partly by-design, with no rule linking the two. Diagnosis sharpened with line refs. Other referenced learnings (`natural-vs-self-report-gates`, `procedural-gates-generalize-beyond-tdd`, `long-session-style-drift`, `instruction-attention-hierarchy`) confirmed present in `.safeword-project/learnings/`.
 - 2026-06-01T04:24:02.678Z Complete: intake — `/figure-it-out` resolved enforcement-vs-steering → **option A (scoped natural gate)**. Root cause sharpened: both ticket-resolution paths filter to `in_progress` (`active-ticket.ts:87`/`:179`), so `status: done` drops the ticket from context entirely. Mechanism chosen: surface a status-close into `phase: 'done'` so the existing gate runs, letting its `isFeature` branches self-tier severity. **Judgment call flagged:** include epics (the documented DZ2NM5/P8RJ4M cases) via the same path — they get the proportionate gate (verify.md + tests, no scenarios/skills since not `isFeature`); a literal "exempt epics" reading would miss the motivating cases. spec.md (JTBD SM1, AC1–AC3) + scope written.
 - 2026-06-01T04:24:02.678Z Complete: define-behavior — 8 scenarios across 3 ACs (AC1 build-ticket gated, AC2 epic proportionate, AC3 legit states untouched), 7 pure-unit + 1 end-to-end. dimensions.md decision table derived. Decomposition skipped — one pure function + wiring. → implement.
+- 2026-06-01T04:40:00.000Z Implement: RED 03998ff0 (stub) → GREEN 5f6945d0 (`resolveStopPhase` + stop-quality wiring, template + installed synced). 8 unit + 1 integration green; 114 gate tests across skill-gate/phase-derivation/quality-gates/hierarchy show no regression. REFACTOR skip (pure fn).
+- 2026-06-01T04:49:00.000Z Complete: verify + audit — full suite 2350/2350 (1 skipped), build/lint clean, jscpd 0 clones, no dead export, leaf-module architecture. /verify + /audit invoked (logged). verify.md written. The fix dogfoods itself: closing 2JMQMX routes through the new status-close gate. → done.

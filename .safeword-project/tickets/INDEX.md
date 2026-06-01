@@ -279,7 +279,7 @@
 - **1GGD28** — Generated ticket INDEX.md (safeword sync-tickets) for capability discovery (done, epic: workflow-gate-hygiene)
   Give the ticket corpus the same capability-searchable surface learnings already have — a generated `.safeword-project/tickets/INDEX.md` (`ID — title (status, epic) — one-liner → path`, grouped by epic) so "is there already a ticket for X?" is one grep, not a 134-folder hunt.
   → `.safeword-project/tickets/1GGD28-ticket-discovery-index`
-- **2JMQMX** — Explore & fix bdd/tdd workflow adherence (backlog, epic: workflow-gate-hygiene)
+- **2JMQMX** — Explore & fix bdd/tdd workflow adherence (done, epic: workflow-gate-hygiene)
   Diagnose where and why agents drift from safeword's intended bdd/tdd phase machine, then fix it — so the workflow is actually followed, not loosely approximated.
   → `.safeword-project/tickets/2JMQMX-bdd-tdd-adherence`
 - **M7AZY3** — Epic: Workflow & gate hygiene cleanup (backlog, epic: workflow-gate-hygiene)
