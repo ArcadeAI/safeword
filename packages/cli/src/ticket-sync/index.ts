@@ -11,20 +11,25 @@
  * Ticket 1GGD28.
  */
 
-// STUB — real implementation follows in GREEN.
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 export const TICKETS_RELATIVE_PATH = '.safeword-project/tickets';
 export const INDEX_FILENAME = 'INDEX.md';
 export const COMPLETED_INDEX_FILENAME = 'INDEX-completed.md';
 export const COMPLETED_DIRNAME = 'completed';
 
+const NO_EPIC_GROUP = '(no epic)';
+const SKIP_DIRECTORIES = new Set([COMPLETED_DIRNAME, 'tmp']);
+
 export interface TicketEntry {
   id: string;
-  folder: string;
-  relativePath: string;
+  folder: string; // folder name, e.g. 1GGD28-ticket-discovery-index
+  relativePath: string; // e.g. .safeword-project/tickets/1GGD28-ticket-discovery-index
   title: string;
   status: string;
-  epic: string | undefined;
-  goal: string | undefined;
+  epic: string | undefined; // undefined → grouped under "(no epic)"
+  goal: string | undefined; // the **Goal:** one-liner, when present
 }
 
 export interface TicketSyncResult {
@@ -36,35 +41,238 @@ export interface TicketSyncResult {
   completedIndexPath: string;
 }
 
-export function parseTicket(
-  _filePath: string,
-  _folder: string,
-): { ok: true; entry: Omit<TicketEntry, 'relativePath'> } | { ok: false; reason: string } {
-  return { ok: false, reason: 'stub' };
+/** Strip a single layer of matching surrounding quotes. */
+function stripQuotes(value: string): string {
+  if (
+    value.length >= 2 &&
+    ((value.startsWith("'") && value.endsWith("'")) ||
+      (value.startsWith('"') && value.endsWith('"')))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
-export function readTickets(_ticketsDirectory: string): {
+/** Parse the leading `--- … ---` frontmatter block into a key→value map. */
+function parseFrontmatter(content: string): { fields: Map<string, string>; bodyStart: number } {
+  const lines = content.split('\n');
+  const fields = new Map<string, string>();
+  if (lines[0]?.trim() !== '---') return { fields, bodyStart: 0 };
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    if (line.trim() === '---') return { fields, bodyStart: index + 1 };
+    const match = /^([a-z_][\w-]*):(.*)$/i.exec(line);
+    if (match?.[1] !== undefined) fields.set(match[1], stripQuotes((match[2] ?? '').trim()));
+  }
+  return { fields, bodyStart: 0 };
+}
+
+/** First `# H1` heading text in the body, if any. */
+function firstHeading(bodyLines: string[]): string | undefined {
+  for (const line of bodyLines) {
+    if (line.startsWith('# ')) return line.slice(2).trim();
+  }
+  return undefined;
+}
+
+/** The `**Goal:**` one-liner from the body, label stripped, if present. */
+function goalLine(bodyLines: string[]): string | undefined {
+  for (const line of bodyLines) {
+    const match = /^\*\*Goal:\*\*(.*)$/.exec(line.trim());
+    if (match?.[1] !== undefined) {
+      const goal = match[1].trim();
+      if (goal.length > 0) return goal;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Parse a single ticket.md. Returns the entry (minus relativePath) when it has
+ * an `id:`, or a skip reason. Title resolves frontmatter `title` → first H1 →
+ * frontmatter `slug` → folder name.
+ */
+export function parseTicket(
+  filePath: string,
+  folder: string,
+): { ok: true; entry: Omit<TicketEntry, 'relativePath'> } | { ok: false; reason: string } {
+  const content = readFileSync(filePath, 'utf8');
+  const { fields, bodyStart } = parseFrontmatter(content);
+
+  const id = fields.get('id');
+  if (id === undefined || id.length === 0) {
+    return { ok: false, reason: 'missing id: in frontmatter' };
+  }
+
+  const bodyLines = content.split('\n').slice(bodyStart);
+  const title = fields.get('title') ?? firstHeading(bodyLines) ?? fields.get('slug') ?? folder;
+  const status = fields.get('status') ?? '—';
+  const epic = fields.get('epic');
+
+  return {
+    ok: true,
+    entry: {
+      id,
+      folder,
+      title,
+      status,
+      epic: epic === undefined ? undefined : epic,
+      goal: goalLine(bodyLines),
+    },
+  };
+}
+
+/** Parse every ticket folder directly under `directory`, returning entries +
+ * skip reasons. Folders without a ticket.md are silently ignored (not skipped).
+ * `pathPrefix` is prepended to the folder for the entry's relativePath. */
+function readTicketFolders(
+  directory: string,
+  pathPrefix: string,
+): { entries: TicketEntry[]; skipped: { folder: string; reason: string }[] } {
+  if (!existsSync(directory)) return { entries: [], skipped: [] };
+
+  const entries: TicketEntry[] = [];
+  const skipped: { folder: string; reason: string }[] = [];
+
+  const folders = readdirSync(directory, { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory() && !SKIP_DIRECTORIES.has(dirent.name))
+    .map(dirent => dirent.name)
+    .toSorted((a, b) => a.localeCompare(b));
+
+  for (const folder of folders) {
+    const ticketPath = nodePath.join(directory, folder, 'ticket.md');
+    if (!existsSync(ticketPath)) continue; // not a ticket folder — ignore
+    const parsed = parseTicket(ticketPath, folder);
+    if (parsed.ok) {
+      entries.push({ ...parsed.entry, relativePath: `${pathPrefix}/${folder}` });
+    } else {
+      skipped.push({ folder, reason: parsed.reason });
+    }
+  }
+
+  return { entries, skipped };
+}
+
+/**
+ * Read the corpus into active (top-level) and completed (`completed/`) entries,
+ * each sorted by id, plus any skipped folders. INDEX*.md are files, so the
+ * directory filter excludes them from being parsed as tickets.
+ */
+export function readTickets(ticketsDirectory: string): {
   active: TicketEntry[];
   completed: TicketEntry[];
   skipped: { folder: string; reason: string }[];
 } {
-  return { active: [], completed: [], skipped: [] };
-}
+  const active = readTicketFolders(ticketsDirectory, TICKETS_RELATIVE_PATH);
+  const completed = readTicketFolders(
+    nodePath.join(ticketsDirectory, COMPLETED_DIRNAME),
+    `${TICKETS_RELATIVE_PATH}/${COMPLETED_DIRNAME}`,
+  );
 
-export function buildIndexContent(
-  _entries: TicketEntry[],
-  _options: { variant: 'active' | 'completed' },
-): string {
-  return '';
-}
-
-export function syncTickets(cwd: string): TicketSyncResult {
+  const byId = (a: TicketEntry, b: TicketEntry) => a.id.localeCompare(b.id);
   return {
-    wrote: false,
-    active: [],
-    completed: [],
-    skipped: [],
-    indexPath: `${cwd}/${TICKETS_RELATIVE_PATH}/${INDEX_FILENAME}`,
-    completedIndexPath: `${cwd}/${TICKETS_RELATIVE_PATH}/${COMPLETED_INDEX_FILENAME}`,
+    active: active.entries.toSorted(byId),
+    completed: completed.entries.toSorted(byId),
+    skipped: [...active.skipped, ...completed.skipped],
+  };
+}
+
+/** Render one entry as a two-or-three-line block. */
+function renderEntry(entry: TicketEntry): string[] {
+  const epic = entry.epic ?? '—';
+  const lines = [`- **${entry.id}** — ${entry.title} (${entry.status}, epic: ${epic})`];
+  if (entry.goal !== undefined) lines.push(`  ${entry.goal}`);
+  lines.push(`  → \`${entry.relativePath}\``);
+  return lines;
+}
+
+/** Group entries by epic; "(no epic)" sorts last, every other group alphabetical. */
+function groupByEpic(entries: TicketEntry[]): [string, TicketEntry[]][] {
+  const groups = new Map<string, TicketEntry[]>();
+  for (const entry of entries) {
+    const key = entry.epic ?? NO_EPIC_GROUP;
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(entry);
+    else groups.set(key, [entry]);
+  }
+  return [...groups.entries()].toSorted(([a], [b]) => {
+    if (a === NO_EPIC_GROUP) return 1;
+    if (b === NO_EPIC_GROUP) return -1;
+    return a.localeCompare(b);
+  });
+}
+
+/**
+ * Render the full index for one variant. Deterministic: same entries → same
+ * bytes. No size cap — agents Read or grep the file.
+ */
+export function buildIndexContent(
+  entries: TicketEntry[],
+  options: { variant: 'active' | 'completed' },
+): string {
+  const isActive = options.variant === 'active';
+  const header = [
+    isActive ? '# Project Tickets — Index' : '# Project Tickets — Completed Archive',
+    '',
+    '<!-- Auto-generated by `safeword sync-tickets`. Do not edit by hand. -->',
+    isActive
+      ? '<!-- Active tickets, grouped by epic. Completed tickets live in INDEX-completed.md. -->'
+      : '<!-- Completed tickets (the completed/ archive), grouped by epic. -->',
+    '',
+  ];
+
+  if (entries.length === 0) {
+    return [...header, isActive ? 'No active tickets.' : 'No completed tickets.', ''].join('\n');
+  }
+
+  const lines = [...header, `## Tickets (${entries.length})`, ''];
+  for (const [epic, group] of groupByEpic(entries)) {
+    lines.push(`### ${epic}`, '');
+    for (const entry of group) lines.push(...renderEntry(entry));
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+/** Write `content` to `path` only when it differs; report whether it wrote. */
+function writeIfChanged(path: string, content: string): boolean {
+  const previous = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+  if (previous === content) return false;
+  writeFileSync(path, content);
+  return true;
+}
+
+/**
+ * Generate/update both ticket indexes from the corpus. No-op (creates nothing)
+ * when the tickets directory is absent. The completed archive is written when
+ * a `completed/` directory exists or completed entries are present.
+ */
+export function syncTickets(cwd: string): TicketSyncResult {
+  const ticketsDirectory = nodePath.join(cwd, TICKETS_RELATIVE_PATH);
+  const indexPath = nodePath.join(ticketsDirectory, INDEX_FILENAME);
+  const completedIndexPath = nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME);
+
+  if (!existsSync(ticketsDirectory)) {
+    return { wrote: false, active: [], completed: [], skipped: [], indexPath, completedIndexPath };
+  }
+
+  const { active, completed, skipped } = readTickets(ticketsDirectory);
+
+  const wroteActive = writeIfChanged(indexPath, buildIndexContent(active, { variant: 'active' }));
+
+  const completedDirectory = nodePath.join(ticketsDirectory, COMPLETED_DIRNAME);
+  const wroteCompleted =
+    completed.length > 0 || existsSync(completedDirectory)
+      ? writeIfChanged(completedIndexPath, buildIndexContent(completed, { variant: 'completed' }))
+      : false;
+
+  return {
+    wrote: wroteActive || wroteCompleted,
+    active,
+    completed,
+    skipped,
+    indexPath,
+    completedIndexPath,
   };
 }

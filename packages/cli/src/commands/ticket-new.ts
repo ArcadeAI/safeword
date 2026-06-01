@@ -57,6 +57,10 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
     success(`Created ticket ${result.id}`);
     info(`Folder: ${result.folderPath}`);
     info(`File:   ${result.ticketPath}`);
+    // NB: deliberately no index regen here — writing INDEX.md into the tickets
+    // dir on every `ticket new` pollutes "tickets dir = ticket folders" and makes
+    // the index a cross-branch merge-conflict magnet (the most concurrent op).
+    // The index refreshes via `safeword sync-tickets` and `safeword check`. 1GGD28.
   } catch (error: unknown) {
     if (error instanceof TicketIdCollisionError) {
       process.stderr.write(`${error.message}\n`);

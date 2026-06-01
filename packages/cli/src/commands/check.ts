@@ -10,6 +10,7 @@ import nodePath from 'node:path';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { syncTickets } from '../ticket-sync/index.js';
 import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
@@ -434,6 +435,28 @@ function reportHealthSummary(health: HealthStatus): boolean {
 }
 
 /**
+ * Regenerate the ticket discovery index, swallowing any error — index
+ * freshness must never block or fail a health check. Reports only when it
+ * actually rewrote a file.
+ * @param cwd
+ */
+function regenerateTicketIndex(cwd: string): void {
+  try {
+    const result = syncTickets(cwd);
+    if (result.wrote) {
+      info('Regenerated ticket index (INDEX.md / INDEX-completed.md)');
+    }
+  } catch (error: unknown) {
+    // Best-effort: index freshness must never fail the health check. Surface
+    // under DEBUG, then return — the deliberate swallow point.
+    if (process.env.DEBUG) {
+      console.error('[check] ticket index regen failed:', error);
+    }
+    return;
+  }
+}
+
+/**
  *
  * @param options
  */
@@ -449,6 +472,10 @@ export async function check(options: CheckOptions): Promise<void> {
     info('Not configured. Run `safeword setup` to initialize.');
     return;
   }
+
+  // Keep the ticket discovery index fresh at this checkpoint (best-effort —
+  // never fail the health check on index regen). Ticket 1GGD28.
+  regenerateTicketIndex(cwd);
 
   // Show versions
   keyValue('Safeword CLI', `v${health.cliVersion}`);
