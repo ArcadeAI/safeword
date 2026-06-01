@@ -16,7 +16,7 @@ relates_to: VAX3Z2
 
 ## Approach
 
-- Move the real enforcement upstream to `beforeSubmitPrompt` (F2TKR3): refuse the *next* turn's progression until `verify.md` exists, rather than trying to block the stop.
+- Move the real enforcement upstream to `beforeSubmitPrompt` (F2TKR3): refuse the _next_ turn's progression until `verify.md` exists, rather than trying to block the stop.
 - Use `stop` `followup_message` to nudge; set `loop_limit` deliberately (`null` for persistent nudging, or a number to cap).
 - Document the Cursor-vs-Claude-Code divergence in the integration notes.
 

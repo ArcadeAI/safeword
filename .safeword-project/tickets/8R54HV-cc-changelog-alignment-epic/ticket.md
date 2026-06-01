@@ -23,18 +23,18 @@ Source: `https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG
 
 ## Tickets
 
-| ID         | Title                                                            | Tier              | Depends on |
-| ---------- | ---------------------------------------------------------------- | ----------------- | ---------- |
-| **EKNEW0** | Done gate no longer hard-blocks under Stop-hook 8-block cap      | 1 — breaks        | —          |
-| **WQQGVV** | Verify `if:` hook conditions still fire (git-bare-fix)           | 1 — breaks        | —          |
-| **625HVK** | Detect disabled/managed-only hooks; warn gates are inactive      | 1 — breaks        | —          |
-| **5ARWDG** | Verify per-turn reminders land under lean system prompt default  | 1 — watch         | —          |
-| **Z10A9Q** | Emit `reloadSkills:true` from setup/upgrade SessionStart         | 2 — adopt         | —          |
-| **XXX66G** | Lock read-only review skills with `disallowed-tools`             | 2 — adopt         | —          |
-| **9V9DVF** | Run heavy skills in forked context (`context: fork`)             | 2 — adopt         | —          |
-| **0QTXMB** | Per-skill `effort:` frontmatter + `$CLAUDE_EFFORT` gate scaling  | 2 — adopt         | —          |
-| **TDYPR0** | `sessionTitle`, `args` exec form, `updatedToolOutput`, validate  | 2 — adopt (minor) | —          |
-| **X4518B** | Position review skills vs native `/code-review`, `/simplify`     | 3 — strategic     | —          |
+| ID         | Title                                                           | Tier              | Depends on |
+| ---------- | --------------------------------------------------------------- | ----------------- | ---------- |
+| **EKNEW0** | Done gate no longer hard-blocks under Stop-hook 8-block cap     | 1 — breaks        | —          |
+| **WQQGVV** | Verify `if:` hook conditions still fire (git-bare-fix)          | 1 — breaks        | —          |
+| **625HVK** | Detect disabled/managed-only hooks; warn gates are inactive     | 1 — breaks        | —          |
+| **5ARWDG** | Verify per-turn reminders land under lean system prompt default | 1 — watch         | —          |
+| **Z10A9Q** | Emit `reloadSkills:true` from setup/upgrade SessionStart        | 2 — adopt         | —          |
+| **XXX66G** | Lock read-only review skills with `disallowed-tools`            | 2 — adopt         | —          |
+| **9V9DVF** | Run heavy skills in forked context (`context: fork`)            | 2 — adopt         | —          |
+| **0QTXMB** | Per-skill `effort:` frontmatter + `$CLAUDE_EFFORT` gate scaling | 2 — adopt         | —          |
+| **TDYPR0** | `sessionTitle`, `args` exec form, `updatedToolOutput`, validate | 2 — adopt (minor) | —          |
+| **X4518B** | Position review skills vs native `/code-review`, `/simplify`    | 3 — strategic     | —          |
 
 ## Sequencing
 

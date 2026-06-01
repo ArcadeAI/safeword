@@ -12,7 +12,7 @@ relates_to: VAX3Z2
 
 **Goal:** Mark safeword's security/gating Cursor hooks `failClosed: true` so a crashed/timed-out/invalid-JSON hook denies rather than silently letting the action through.
 
-**Why:** Cursor hooks default to **fail-open**. A safeword gating hook that throws currently fails *open* — the gate vanishes with no signal.
+**Why:** Cursor hooks default to **fail-open**. A safeword gating hook that throws currently fails _open_ — the gate vanishes with no signal.
 
 ## Done when
 

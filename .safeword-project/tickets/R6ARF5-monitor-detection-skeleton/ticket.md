@@ -16,7 +16,7 @@ relates_to: TT1MQW
 
 ## Detection ≠ closure (the snapshot rule)
 
-The snapshot on `main` means "reviewed baseline." Detection must **not** advance it — if it did, a change would be marked reviewed before anyone reviewed it. The snapshot advances only in the PR that actually does the review (`Closes #<issue>` + snapshot bump — ticket 99XBFG, enforced by 31B5AM). Consequence: a change stays detected (issue stays open) until the review PR merges, which is correct — it *is* still unaddressed on `main`.
+The snapshot on `main` means "reviewed baseline." Detection must **not** advance it — if it did, a change would be marked reviewed before anyone reviewed it. The snapshot advances only in the PR that actually does the review (`Closes #<issue>` + snapshot bump — ticket 99XBFG, enforced by 31B5AM). Consequence: a change stays detected (issue stays open) until the review PR merges, which is correct — it _is_ still unaddressed on `main`.
 
 ## Build
 

@@ -1,3 +1,6 @@
 # Safeword - managed prettier exclusions
 .safeword/
 .cursor/
+.safeword-project/tickets/INDEX.md
+.safeword-project/tickets/INDEX-completed.md
+.safeword-project/learnings/INDEX.md
