@@ -1,3 +1,9 @@
+---
+id: '085'
+type: task
+status: backlog
+---
+
 # Task: Bump golangci-lint from v2.10.1 to v2.11.4
 
 **Type:** Micro
