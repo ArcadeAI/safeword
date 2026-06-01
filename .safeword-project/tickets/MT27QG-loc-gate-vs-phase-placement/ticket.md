@@ -2,11 +2,25 @@
 id: MT27QG
 slug: loc-gate-vs-phase-placement
 type: feature
-phase: intake
-status: backlog
+phase: implement
+status: in_progress
 epic: workflow-gate-hygiene
 created: 2026-05-31T18:31:15.935Z
-last_modified: 2026-05-31T18:31:15.935Z
+last_modified: 2026-06-01T04:50:00.000Z
+scope:
+  - Decision (via /figure-it-out): KEEP the LOC trigger (it's phase-agnostic, reaching the un-phased majority a phase/step boundary can't) — do NOT relocate to phase/step.
+  - New pure `isGitOperationInProgress(projectDirectory)` in `templates/hooks/lib/git-operation.ts` — detects merge/rebase/cherry-pick/revert via markers under the resolved git dir.
+  - `post-tool-quality.ts` skips arming `gate = 'loc'` while an operation is in progress; `pre-tool-quality.ts` skips denying edits while one is in progress.
+  - Unit tests for the detector; sync template → installed hook copies.
+out_of_scope:
+  - Relocating the trigger to a phase/step boundary (rejected — loses coverage of un-phased work; the TDD ledger already gates the phased path).
+  - Removing blast-radius control (trigger placement only).
+  - Threshold tuning (400) and mechanical-vs-dense weighting — no documented harm; deferred.
+  - Non-LOC gates (phase gate, done gate).
+done_when:
+  - `isGitOperationInProgress` returns true under an active merge/rebase/cherry-pick/revert, false otherwise.
+  - The LOC gate does not arm or block during a git operation; with no operation, ≥400 non-meta LOC still arms + blocks (no regression).
+  - Detector unit-tested; template + installed copies in sync; full suite green.
 ---
 
 # Review LOC gates — keep, or move trigger to phase/step
@@ -45,3 +59,5 @@ LOC is a proxy for "you've changed enough that you should commit / a reviewer sh
 - 2026-05-31T18:31:15.935Z Started: Created ticket MT27QG
 - 2026-05-31T18:31:15.935Z Filed (backlog): carved from this session's cleanup pass. LOC is a blunt blast-radius proxy (400 mechanical lines ≠ 400 dense lines) and has a known mid-merge-block failure. Inventory the LOC gates; per gate decide keep/tune/relocate-to-phase-step via /figure-it-out. Sized feature (gate-behavior change); intake confirms.
 - 2026-05-31T18:37:30.834Z Revalidated against current code: confirmed `LOC_THRESHOLD = 400` (`quality-state.ts:9`) + exact `META_PATHS` (`:15`); it's **one** gate (post-tool counts `:122`, pre-tool blocks `:406`), not several — corrected the "find every gate" framing. Also corrected: the mid-merge-block failure is a project **memory** note (`project_loc_gate_blocks_merge`), not a repo learning. Scope/why/related updated to match.
+- 2026-06-01T04:50:00.000Z Complete: intake — `/figure-it-out` → **KEEP (B)**, not relocate (C): LOC is phase-agnostic so it reaches the un-phased majority a phase/step trigger can't, and it's already a natural gate; the per-step TDD ledger covers the phased path. Root cause of the deadlock confirmed: `countLoc` = `git diff --stat HEAD` counts incoming merge lines; no MERGE_HEAD detection exists. Fix: git-operation-aware suppression. spec.md (JTBD DEV1, AC1–AC2) + scope written.
+- 2026-06-01T04:50:00.000Z Complete: define-behavior — 8 scenarios (AC1 detect merge/rebase/cherry-pick/revert + gate-stands-down-mid-merge; AC2 false-when-clean / not-a-repo / gate-still-arms-normally). dimensions derived. Decomposition skipped — one pure detector + two guard clauses. → implement.

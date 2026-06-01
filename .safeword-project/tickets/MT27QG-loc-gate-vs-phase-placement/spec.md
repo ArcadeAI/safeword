@@ -1,65 +1,50 @@
-# Spec: Review LOC gates — keep, or move trigger to phase/step
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Keep the LOC gate, fix the mid-merge deadlock
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+The 400-LOC commit gate is safeword's blast-radius control: a natural gate that
+forces a checkpoint before an uncommitted change grows too large to review or
+revert. `/figure-it-out` confirmed it's the right _trigger_ — it's phase-agnostic,
+so it reaches the un-phased majority of editing (refactors, mechanical edits,
+config, docs, exploration) that a phase/step boundary structurally cannot, while
+the per-step TDD ledger already gates the phased path. Its one real defect: it
+can't tell agent edits from an in-progress merge, so `git diff HEAD` counts
+incoming conflict lines, trips the threshold, and blocks the edits needed to
+resolve — a deadlock that can't clear until the merge commit. Keep the gate; make
+it git-operation-aware.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- `/figure-it-out` (work log, 2026-06-01): keep (B), not relocate (C) — coverage beats precision here.
+- `natural-vs-self-report-gates` learning — LOC is a natural/physics gate, the kind to keep.
+- Project memory `project_loc_gate_blocks_merge` — the documented deadlock this fixes.
+- `quality-state.ts:9` (LOC_THRESHOLD), `post-tool-quality.ts:122` (arm), `pre-tool-quality.ts:406` (block); git markers via `git rev-parse --git-dir`.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
-
-## Vocabulary
-
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- **Safeword Maintainer (SM)** / **Agent-Driven Developer (DEV)** — both hit the gate; the deadlock strands anyone whose agent edits during a merge/rebase/cherry-pick.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### loc-gate-vs-phase-placement.DEV1 — Resolve a merge without the blast-radius gate deadlocking me
 
-Uncomment and customize:
+**Persona:** Agent-Driven Developer (DEV)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When my agent is mid-merge (or rebase/cherry-pick) and needs to edit files to
+> resolve conflicts, I want the LOC gate to stand down, so blast-radius control
+> doesn't block the very edits that finish the operation.
 
-**Persona:** Platform Operator (PO)
+#### loc-gate-vs-phase-placement.DEV1.AC1 — The LOC gate does not arm or block while a git merge/rebase/cherry-pick/revert is in progress
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### loc-gate-vs-phase-placement.DEV1.AC2 — Normal blast-radius control is unchanged when no git operation is in progress (≥400 LOC still gates)
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+## Vocabulary
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
-
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+Uses existing glossary: Gate (the LOC gate specifically), Natural gate. No new terms.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- A pure `isGitOperationInProgress(projectDirectory)` detects merge/rebase/cherry-pick/revert via the markers under the resolved git dir.
+- `post-tool-quality.ts` does not set `gate = 'loc'` while an operation is in progress; `pre-tool-quality.ts` does not deny edits while one is in progress.
+- With no operation in progress, ≥400 non-meta LOC still arms and blocks exactly as before (no regression).
+- The decision to KEEP (not relocate) the trigger is recorded; threshold-tuning and mechanical-weighting deferred (no documented harm).
