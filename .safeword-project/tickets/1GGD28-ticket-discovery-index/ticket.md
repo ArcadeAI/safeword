@@ -2,11 +2,26 @@
 id: 1GGD28
 slug: ticket-discovery-index
 type: feature
-phase: intake
-status: backlog
+phase: implement
+status: in_progress
 epic: workflow-gate-hygiene
 created: 2026-05-31T18:02:49.267Z
-last_modified: 2026-05-31T18:49:35.386Z
+last_modified: 2026-06-01T00:30:24.713Z
+scope:
+  - New `safeword sync-tickets` command + `ticket-sync` pure module mirroring `sync-learnings` / `learning-sync`.
+  - Emit `.safeword-project/tickets/INDEX.md` (active tickets, grouped by epic) and `INDEX-completed.md` (completed/ archive).
+  - Entry shape `**<ID>** — <title> (<status>, epic: <epic-or-—>)` + Goal one-liner + folder path; tolerant frontmatter parsing (Crockford or numeric id, optional title/epic).
+  - Idempotent regen with auto-generated / do-not-edit header; "already current" when unchanged.
+  - Regen wiring: standalone command + `safeword check` step + regen on `ticket new`.
+out_of_scope:
+  - Per-edit PostToolUse on-save hook — wrong cost profile for append-heavy ticket edits (rejected in /figure-it-out).
+  - Mass slug-rename of the 49 bare-ID folders — FM5EDA's job.
+  - Lexical dedup nudge at `ticket new` — MBGQ89's structured-pairing territory.
+done_when:
+  - `safeword sync-tickets` writes both index files; entries carry id/title/status/epic/goal/path, grouped by epic.
+  - Second run with no ticket change reports "already current" and writes nothing.
+  - `grep -i <kw> .safeword-project/tickets/INDEX*.md` surfaces the owning epic and its children (the 0AWSY8 case).
+  - `safeword check` and `ticket new` regenerate the index; tests cover parse / group / idempotency / scope-split.
 ---
 
 # Generated ticket INDEX.md (safeword sync-tickets) for capability discovery
@@ -45,3 +60,6 @@ The corpus is **134 ticket folders, 49 of them bare-ID (no slug)** — `ls` and 
 
 - 2026-05-31T18:02:49.267Z Started: Created ticket 1GGD28
 - 2026-05-31T18:02:49.267Z Filed (backlog): chosen via `/figure-it-out` over a mass slug-rename (decided against in the closed-tickets learning) and a lexical dedup-nudge (wouldn't catch semantic dupes; that's MBGQ89's structured-pairing territory). Scope: a generated, epic-grouped ticket INDEX mirroring `sync-learnings`. Motivated by the 7GER0P duplicate this session.
+- 2026-06-01T00:30:24.713Z Complete: intake — `/figure-it-out` resolved the two open questions: index scope → **two files** (active INDEX.md grouped by epic + INDEX-completed.md archive; one-file trends toward "too big to scan" as completed/ grows, active-only loses shipped-work discovery), regen trigger → **command + `safeword check` step + regen on `ticket new`, no per-edit hook** (ticket.md is append-heavy via work logs; an on-save hook would be near-all no-op rescans). Entry detail → title + Goal one-liner. spec.md (JTBD DEV1 + AC1–AC4) and scope/out_of_scope/done_when written.
+- 2026-06-01T00:30:24.713Z Complete: define-behavior — 15 scenarios across 4 rules (AC1 fields/parse, AC2 epic grouping, AC3 idempotency/drift, AC4 active/completed split), lineage-tagged. dimensions.md derived from learning-sync's known frontmatter edge cases.
+- 2026-06-01T00:30:24.713Z Complete: scenario-gate — AODI clean; adversarial pass folded 3 robustness gaps (no-ticket.md dirs ignored, both index files self-excluded, completed grouped by epic) into the build. Decomposition skipped — direct mirror of `learning-sync`. → implement.
