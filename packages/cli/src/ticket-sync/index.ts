@@ -93,7 +93,7 @@ function goalLine(bodyLines: string[]): string | undefined {
  * an `id:`, or a skip reason. Title resolves frontmatter `title` → first H1 →
  * frontmatter `slug` → folder name.
  */
-export function parseTicket(
+function parseTicket(
   filePath: string,
   folder: string,
 ): { ok: true; entry: Omit<TicketEntry, 'relativePath'> } | { ok: false; reason: string } {
