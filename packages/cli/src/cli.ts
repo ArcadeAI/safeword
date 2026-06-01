@@ -96,6 +96,15 @@ program
     syncLearningsCommand({ quiet: options.quiet });
   });
 
+program
+  .command('sync-tickets')
+  .description('Regenerate .safeword-project/tickets/INDEX.md and INDEX-completed.md')
+  .option('-q, --quiet', 'Suppress success output (still prints skipped-folder warnings to stderr)')
+  .action(async (options: { quiet?: boolean }) => {
+    const { syncTicketsCommand } = await import('./commands/sync-tickets.js');
+    syncTicketsCommand({ quiet: options.quiet });
+  });
+
 // Show help if no arguments provided
 if (process.argv.length === 2) {
   program.help();

@@ -20,6 +20,15 @@ import { SKILL_CURSOR_PAIRS } from './fixtures/skill-cursor-pairs.js';
 // Type guard for filtering out undefined values
 const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
 
+/**
+ * Mirrors `getClaudeParentDirectoryForCleanup` in reconcile.ts: any `.claude/*`
+ * path deeper than `.claude`, `.claude/skills`, `.claude/commands` gets
+ * removed automatically at uninstall. Hoisted to file scope per
+ * unicorn/consistent-function-scoping.
+ */
+const isAutoCleanedClaudePath = (parent: string): boolean =>
+  parent.startsWith('.claude/') && parent !== '.claude/skills' && parent !== '.claude/commands';
+
 describe('Schema - Single Source of Truth', () => {
   /** Recursively collect all files in templates/ directory (skips _ prefixed dirs) */
   function collectTemplateFiles(dir: string, prefix = ''): string[] {
@@ -97,14 +106,6 @@ describe('Schema - Single Source of Truth', () => {
         ...SAFEWORD_SCHEMA.preservedDirs,
       ]);
 
-      // Mirrors getClaudeParentDirectoryForCleanup in reconcile.ts: any
-      // .claude/* path deeper than .claude, .claude/skills, .claude/commands
-      // gets removed automatically at uninstall.
-      const isAutoCleanedClaudePath = (parent: string): boolean =>
-        parent.startsWith('.claude/') &&
-        parent !== '.claude/skills' &&
-        parent !== '.claude/commands';
-
       const missing: { file: string; parent: string }[] = [];
       for (const filePath of Object.keys(SAFEWORD_SCHEMA.ownedFiles)) {
         const parent = nodePath.posix.dirname(filePath);
@@ -165,9 +166,14 @@ describe('Schema - Single Source of Truth', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const templateFiles = collectTemplateFiles(templatesDirectory);
 
-      // Collect all template: property values from schema
+      // Collect template: property values from both ownedFiles and managedFiles —
+      // either bucket can reference a template (ownedFiles overwrites on upgrade;
+      // managedFiles preserves user content).
       const schemaTemplatePaths = new Set(
-        Object.values(SAFEWORD_SCHEMA.ownedFiles)
+        [
+          ...Object.values(SAFEWORD_SCHEMA.ownedFiles),
+          ...Object.values(SAFEWORD_SCHEMA.managedFiles),
+        ]
           .map(definition => definition.template)
           .filter(isDefined),
       );
@@ -482,6 +488,9 @@ describe('Schema - Single Source of Truth', () => {
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
       const deprecatedPaths = new Set(SAFEWORD_SCHEMA.deprecatedFiles);
+      // preservedDirs (e.g. .safeword/logs) hold runtime/user data the schema
+      // intentionally does not own — files under them are not drift.
+      const preservedDirectories = SAFEWORD_SCHEMA.preservedDirs;
 
       function collectFiles(directory: string, prefix: string): string[] {
         const results: string[] = [];
@@ -506,6 +515,7 @@ describe('Schema - Single Source of Truth', () => {
         if (DYNAMIC_FILES.has(filename)) continue;
         if (ownedPaths.has(file)) continue;
         if (deprecatedPaths.has(file)) continue;
+        if (preservedDirectories.some(dir => file === dir || file.startsWith(`${dir}/`))) continue;
         untracked.push(file);
       }
 

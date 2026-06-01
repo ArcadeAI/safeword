@@ -15,6 +15,12 @@ function makeFixture(): { rootDirectory: string; templatesDirectory: string } {
   return { rootDirectory, templatesDirectory };
 }
 
+// A fresh empty templates dir — for tests that don't exercise template parity
+// (e.g. contract-only tests), so the orphan-template scan finds nothing.
+function emptyTemplatesDirectory(): string {
+  return mkdtempSync(nodePath.join(tmpdir(), 'parity-tpl-'));
+}
+
 describe('runParity', () => {
   describe('contracts', () => {
     it('passes when all required strings are present in the target file', () => {
@@ -34,7 +40,7 @@ describe('runParity', () => {
         },
         mode: 'all',
         rootDirectory,
-        templatesDirectory: rootDirectory,
+        templatesDirectory: emptyTemplatesDirectory(),
       });
 
       expect(result.failures).toHaveLength(0);
@@ -53,7 +59,7 @@ describe('runParity', () => {
         },
         mode: 'all',
         rootDirectory,
-        templatesDirectory: rootDirectory,
+        templatesDirectory: emptyTemplatesDirectory(),
       });
 
       expect(result.failures).toHaveLength(1);
@@ -76,7 +82,7 @@ describe('runParity', () => {
         },
         mode: 'all',
         rootDirectory,
-        templatesDirectory: rootDirectory,
+        templatesDirectory: emptyTemplatesDirectory(),
       });
 
       expect(result.failures).toHaveLength(1);
@@ -96,7 +102,7 @@ describe('runParity', () => {
         },
         mode: 'all',
         rootDirectory,
-        templatesDirectory: rootDirectory,
+        templatesDirectory: emptyTemplatesDirectory(),
       });
 
       expect(result.failures).toHaveLength(1);
@@ -189,6 +195,89 @@ describe('runParity', () => {
 
       expect(result.failures).toHaveLength(1);
       expect(result.failures[0]?.kind).toBe('pair');
+    });
+  });
+
+  describe('orphan templates (template → schema)', () => {
+    it('fails with [TEMPLATE] when a templates/ file has no schema entry', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeFileSync(nodePath.join(templatesDirectory, 'unregistered.md'), 'orphan\n');
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.kind).toBe('orphan-template');
+      expect(result.failures[0]?.message).toContain('[TEMPLATE]');
+      expect(result.failures[0]?.message).toContain('unregistered.md');
+    });
+
+    it('passes when the template is registered via ownedFiles', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'reg.md'), 'x\n');
+      writeFileSync(nodePath.join(rootDirectory, '.safeword/reg.md'), 'x\n');
+
+      const result = runParity({
+        schema: { ownedFiles: { '.safeword/reg.md': { template: 'reg.md' } }, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(0);
+    });
+
+    it('passes when the template is registered via managedFiles', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeFileSync(nodePath.join(templatesDirectory, 'personas-template.md'), 'x\n');
+
+      const result = runParity({
+        schema: {
+          ownedFiles: {},
+          managedFiles: { '.safeword-project/personas.md': { template: 'personas-template.md' } },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(0);
+    });
+
+    it('skips files under _-prefixed dirs (shared includes, not installable)', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      mkdirSync(nodePath.join(templatesDirectory, '_shared'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, '_shared/include.md'), 'x\n');
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(0);
+    });
+
+    it('runs in contracts-only mode too (so pre-commit hard-blocks it)', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeFileSync(nodePath.join(templatesDirectory, 'unregistered.md'), 'orphan\n');
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'contracts-only',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.kind).toBe('orphan-template');
     });
   });
 });

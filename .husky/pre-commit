@@ -37,4 +37,10 @@ if [ ! -x node_modules/.bin/lint-staged ]; then
   exit 1
 fi
 
-lint-staged
+# Invoke by the same explicit path the guard just validated, NOT bare
+# `lint-staged` (ticket 9P3VVH). husky's _/h prepends a *relative*
+# `node_modules/.bin` to PATH; with core.hooksPath living in the main repo's
+# config, that entry doesn't reliably resolve when committing from a worktree,
+# so bare `lint-staged` fails even though the binary exists on disk. The
+# explicit path has no PATH dependency.
+node_modules/.bin/lint-staged

@@ -151,6 +151,55 @@ describe('Stop Hook: Done-phase verify.md artifact gate', () => {
   });
 });
 
+describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => {
+  /** A transcript whose only tool use is Bash (e.g. git commit) — no edit tools. */
+  function writeNoEditTranscript(directory: string): string {
+    const transcriptLine = JSON.stringify({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', name: 'Bash', id: 'b1' },
+          { type: 'text', text: 'committed and done' },
+        ],
+      },
+    });
+    const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+    writeFileSync(transcriptPath, transcriptLine);
+    return transcriptPath;
+  }
+
+  it('evaluates the done-gate on a no-edit transcript (blocks on missing verify.md)', () => {
+    const transcriptPath = writeNoEditTranscript(projectDirectory);
+    createTicket(projectDirectory, '099', 'done-task', {
+      phase: 'done',
+      status: 'in_progress',
+      type: 'task',
+    });
+
+    const result = runStopHook(projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toMatch(/verify/i);
+  });
+
+  it('still exits silently on a no-edit transcript at a non-done phase (review path unchanged)', () => {
+    const transcriptPath = writeNoEditTranscript(projectDirectory);
+    createTicket(projectDirectory, '098', 'impl-task', {
+      phase: 'implement',
+      status: 'in_progress',
+      type: 'task',
+    });
+
+    const result = runStopHook(projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+});
+
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
   it('detects edits and triggers quality review from real-format transcript', () => {
     const result = spawnSync('bun', [STOP_QUALITY], {

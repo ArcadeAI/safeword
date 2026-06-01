@@ -7,12 +7,16 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { collectNewTransitions } from './lib/checkbox-transitions.ts';
+import { isGitOperationInProgress } from './lib/git-operation.ts';
+import { getQualityMessage } from './lib/quality.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
   META_PATHS,
   type QualityState,
 } from './lib/quality-state.ts';
+import { selectMostAdvancedStep, shouldReviewPhase } from './lib/review-trigger.ts';
 
 interface HookInput {
   session_id?: string;
@@ -20,6 +24,10 @@ interface HookInput {
   tool_input?: {
     file_path?: string;
     notebook_path?: string;
+    old_string?: string;
+    new_string?: string;
+    content?: string;
+    edits?: Array<{ old_string?: string; new_string?: string }>;
   };
 }
 
@@ -50,7 +58,6 @@ function loadState(): QualityState {
     lastCommitHash: '',
     activeTicket: null,
     gate: null,
-    locAtLastReview: 0,
     recentFailures: [],
     incrementedPatterns: [],
   };
@@ -112,10 +119,17 @@ if (state.lastCommitHash !== currentHead) {
 // Count LOC
 state.locSinceCommit = countLoc();
 
-// LOC gate (only hard gate remaining — blast radius control)
-if (state.locSinceCommit >= LOC_THRESHOLD) {
+// LOC gate (only hard gate remaining — blast radius control). Stands down while
+// a git merge/rebase/cherry-pick/revert is in progress: those incoming lines are
+// not agent edits and must not block conflict resolution (ticket MT27QG).
+if (state.locSinceCommit >= LOC_THRESHOLD && !isGitOperationInProgress(projectDirectory)) {
   state.gate = 'loc';
 }
+
+// Quality review surfaced as additionalContext when a boundary is crossed
+// (ticket SXSCJQ). At most one fires per edit — an edit touches either
+// test-definitions.md (a TDD-step flip) or ticket.md (a phase change).
+let reviewMessage: string | null = null;
 
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
 if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
@@ -137,6 +151,29 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       state.activeTicket = null;
     }
+
+    // Per-phase review (enter-semantics, deduped). Fires on the first edit that
+    // brings the ticket into an un-reviewed phase — autonomous-safe, since it
+    // does not wait for a Stop. The Stop backstop covers non-edit phase bumps.
+    const phase = content.match(/^phase:\s*(\S+)/m)?.[1];
+    if (shouldReviewPhase(phase, state.lastReviewedPhase)) {
+      reviewMessage = getQualityMessage(phase);
+      state.lastReviewedPhase = phase;
+    }
+  }
+}
+
+// Per-TDD-step review. Each `[ ]→[x]` RED/GREEN/REFACTOR flip is one edit, so
+// this fires once per step boundary (structurally idempotent). Batched flips in
+// one edit surface the most-advanced step.
+if (
+  editedFile.includes('.safeword-project/tickets/') &&
+  editedFile.endsWith('test-definitions.md')
+) {
+  const step = selectMostAdvancedStep(collectNewTransitions(input, editedFile));
+  if (step) {
+    reviewMessage = getQualityMessage('implement', step);
+    state.lastReviewedStep = step;
   }
 }
 
@@ -156,4 +193,12 @@ if (editedFile.includes('.safeword-project/learnings/') && editedFile.endsWith('
 }
 
 saveState(state);
+
+if (reviewMessage) {
+  console.log(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: reviewMessage },
+    }),
+  );
+}
 process.exit(0);

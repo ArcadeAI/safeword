@@ -45,9 +45,11 @@ const result = runParity({
 
 if (result.failures.length === 0) {
   if (mode === 'all') {
-    console.log(`All ${pairCount} pairs and ${contractCount} contracts in sync.`);
+    console.log(
+      `All ${pairCount} pairs and ${contractCount} contracts in sync; no unregistered templates.`,
+    );
   } else {
-    console.log(`All ${contractCount} contracts in sync.`);
+    console.log(`All ${contractCount} contracts in sync; no unregistered templates.`);
   }
   process.exit(0);
 }

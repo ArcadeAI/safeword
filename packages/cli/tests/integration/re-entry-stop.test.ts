@@ -123,11 +123,13 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     expect(line).not.toContain('DECEPTIVE123');
 
     // Timestamp must be the wall clock at write time (ISO-8601, within a 1s tolerance).
-    const tsMatch = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s/.exec(line);
-    if (tsMatch?.[1] === undefined) {
+    // Split-and-parse rather than one big regex — the chained-bounded-quantifier
+    // form trips the unsafe-regex linter false-positive even though it's safe.
+    const [timestamp] = line.split(' ');
+    if (timestamp === undefined || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp)) {
       throw new Error(`Log line missing ISO-8601 timestamp prefix: ${line}`);
     }
-    const writtenMs = Date.parse(tsMatch[1]);
+    const writtenMs = Date.parse(timestamp);
     expect(writtenMs).toBeGreaterThanOrEqual(beforeWriteMs - 1000);
     expect(writtenMs).toBeLessThanOrEqual(afterWriteMs + 1000);
   });

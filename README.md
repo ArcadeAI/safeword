@@ -288,6 +288,33 @@ Commit `.safeword/`, `.claude/`, and `.cursor/` in your project repo for team co
 
 ---
 
+## Customizing File Locations
+
+Safeword reads project-level documentation files (personas, glossary, architecture) from `.safeword-project/` by default. If you already maintain these docs elsewhere, point safeword at your existing files via the optional `paths` block in `.safeword/config.json`:
+
+```json
+{
+  "installedPacks": ["typescript"],
+  "paths": {
+    "personas": "docs/personas.md",
+    "glossary": "docs/glossary.md",
+    "architecture": "ARCHITECTURE.md"
+  }
+}
+```
+
+**Rules:**
+
+- All `paths.*` keys are optional. Unset keys fall back to `.safeword-project/<key>.md`.
+- Relative paths resolve against project root (the directory containing `.safeword/config.json`).
+- Absolute paths are used verbatim — useful for shared monorepo setups where the file lives outside this project's tree.
+- When an override is set, `safeword setup` does NOT scaffold the default-location stub — one personas.md per project, where you named it.
+- `safeword check` validates the configured file. If the file is missing, you get a `personas-path:` error with non-zero exit (loud failure on configured-but-missing). If `.safeword-project/personas.md` still exists from a prior install, you get a zero-exit advisory naming the orphaned file (cleanup is up to you — safeword never deletes user content).
+
+Currently only `personas` is wired through to a read site; `glossary` and `architecture` slots are reserved for forthcoming sibling tickets.
+
+---
+
 ## Integration with Project Context
 
 **How it works**:

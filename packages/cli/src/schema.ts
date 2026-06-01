@@ -160,7 +160,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Skill renamed from enforcing-tdd to tdd-enforcing (v0.16.0)
     '.claude/skills/safeword-enforcing-tdd/SKILL.md',
     '.cursor/rules/safeword-enforcing-tdd.mdc',
-    // TDD skill and command removed - BDD skill includes full TDD in Phase 6 (v0.16.0)
+    // TDD skill and command removed - BDD skill includes full TDD in the implement phase (v0.16.0)
     '.claude/skills/safeword-tdd-enforcing/SKILL.md',
     '.cursor/rules/safeword-tdd-enforcing.mdc',
     '.claude/commands/tdd.md',
@@ -273,6 +273,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
+    '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
@@ -282,6 +283,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/lib/skill-invocation-log.ts',
     },
     '.safeword/hooks/lib/parse-annotation.ts': { template: 'hooks/lib/parse-annotation.ts' },
+    '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
+    '.safeword/hooks/lib/lint-config.ts': { template: 'hooks/lib/lint-config.ts' },
+    '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },
+    '.safeword/hooks/lib/checkbox-transitions.ts': {
+      template: 'hooks/lib/checkbox-transitions.ts',
+    },
+    '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
+    '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
     '.safeword/hooks/lib/ledger-validation.ts': { template: 'hooks/lib/ledger-validation.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
@@ -405,6 +414,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/templates/work-log-template.md': {
       template: 'doc-templates/work-log-template.md',
+    },
+    // Per-ticket spec.md scaffold (ticket Y2HCNJ). ticket-writer reads this
+    // from the bundled templates dir when scaffolding a feature's spec.md;
+    // deployed here so it joins the other artifact templates and stays in the
+    // schema's ownedFiles manifest.
+    '.safeword/templates/spec-template.md': {
+      template: 'spec-template.md',
     },
 
     // Prompts
@@ -531,6 +547,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules/bdd-tdd.mdc': {
       template: 'cursor/rules/bdd-tdd.mdc',
     },
+    '.cursor/rules/bdd-verify.mdc': {
+      template: 'cursor/rules/bdd-verify.mdc',
+    },
     '.cursor/rules/bdd-done.mdc': {
       template: 'cursor/rules/bdd-done.mdc',
     },
@@ -572,6 +591,26 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
+
+    // Project personas — scaffolded once with format header + commented example;
+    // user authors real persona blocks thereafter (safeword reads, never overwrites
+    // user content). See ticket 7YN5QB. `configKey: 'personas'` lets the user
+    // redirect via `paths.personas` in .safeword/config.json — when set, reconcile
+    // skips this entry uniformly (see ticket K7N2QM).
+    '.safeword-project/personas.md': {
+      template: 'personas-template.md',
+      configKey: 'personas',
+    },
+
+    // Project glossary — scaffolded once with format header + commented example;
+    // user authors real term blocks thereafter (safeword reads/validates, never
+    // overwrites user content). See ticket YR6C49. `configKey: 'glossary'` lets
+    // the user redirect via `paths.glossary` in .safeword/config.json — when set,
+    // reconcile skips this entry uniformly (see ticket K7N2QM).
+    '.safeword-project/glossary.md': {
+      template: 'glossary-template.md',
+      configKey: 'glossary',
+    },
   },
 
   // JSON files where we merge specific keys
@@ -715,7 +754,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // Given/When/Then + per-scenario RED/GREEN/REFACTOR sub-checkboxes.
       // The R/G/R checkboxes are load-bearing: parseTddStep in
       // hooks/lib/active-ticket.ts depends on them to inject TDD-step
-      // guidance during Phase 6 implement. Removing any marker silently
+      // guidance during the implement phase. Removing any marker silently
       // regresses the format the BDD skill teaches.
       requires: [
         '## Rule:',

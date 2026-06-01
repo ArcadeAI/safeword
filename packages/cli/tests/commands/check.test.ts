@@ -178,4 +178,344 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.stdout).not.toMatch(/pack.*not installed/i);
     });
   });
+
+  describe('personas.md validation (ticket 7YN5QB)', () => {
+    /**
+     * Set up a configured project, write the given content to
+     * `.safeword-project/personas.md`, run `safeword check --offline`, and
+     * return the CLI result. Used by tests that exercise the validation
+     * path against varying file contents.
+     */
+    async function runCheckWithPersonas(content: string) {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, '.safeword-project/personas.md', content);
+      return runCli(['check', '--offline'], { cwd: temporaryDirectory });
+    }
+
+    it('reports validation errors with line refs and exits non-zero', async () => {
+      const result = await runCheckWithPersonas(
+        ['## End User (EU)', '**Role:** A', '', '## Engineering Unit (EU)', '**Role:** B', ''].join(
+          '\n',
+        ),
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas\.md:\d+:.*duplicate persona code/);
+    });
+
+    it('reports single-character-name error with line ref', async () => {
+      const result = await runCheckWithPersonas(['## A', '**Role:** Too short.', ''].join('\n'));
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+    });
+
+    it('reports digit-first-name with explicit-override prompt', async () => {
+      const result = await runCheckWithPersonas(
+        ['## 3 Amigos', '**Role:** Pathological name.', ''].join('\n'),
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/non-conformant code/);
+      expect(result.stderr).toMatch(/author explicit code/);
+    });
+
+    it('passes when personas.md is well-formed', async () => {
+      const result = await runCheckWithPersonas(
+        [
+          '## Platform Operator (PO)',
+          '**Role:** Owns infra.',
+          '',
+          '## End User (EU)',
+          '**Role:** Signs in.',
+          '',
+        ].join('\n'),
+      );
+
+      expect(result.stderr).not.toMatch(/personas\.md:/);
+    });
+
+    it('scaffolded-but-empty personas.md (template comment only) produces no errors', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // createConfiguredProject scaffolds personas.md from the template;
+      // it contains an HTML-commented example block but no real persona
+      // entries. Should produce no validation errors.
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.stderr).not.toMatch(/personas\.md:/);
+    });
+
+    it('treats missing personas.md as absent (no error)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Delete the scaffolded personas.md to exercise the absent path.
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.stderr).not.toMatch(/personas\.md:/);
+    });
+  });
+
+  describe('configurable persona path (ticket K7N2QM)', () => {
+    /**
+     * Add a `paths.personas` override to the project's existing
+     * `.safeword/config.json`. Preserves any other config keys (notably
+     * `installedPacks`) that `createConfiguredProject` wrote during
+     * setup — overwriting them would trigger spurious "missing pack"
+     * reports that short-circuit the issues section.
+     */
+    function setPersonasOverride(personasPath: string): void {
+      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+        installedPacks?: string[];
+        [key: string]: unknown;
+      };
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ ...existing, paths: { personas: personasPath } }),
+      );
+    }
+
+    it('R2.3: reports loud failure when configured path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setPersonasOverride('docs/personas.md'); // file intentionally not created
+      // Remove the scaffolded default so this test isolates the override branch.
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
+    });
+
+    it('R2.4: passes when configured persona file is present and well-formed', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'docs/personas.md',
+        ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
+      );
+      setPersonasOverride('docs/personas.md');
+      // Remove default so the legacy advisory does not fire.
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).not.toMatch(/personas/);
+    });
+
+    it('R2.5: reports content errors when configured persona file is malformed', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'docs/personas.md',
+        ['## A', '**Role:** Too short.', ''].join('\n'),
+      );
+      setPersonasOverride('docs/personas.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+    });
+
+    it('R2.6: emits zero-exit advisory when override is active AND legacy default file still exists', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Write the override target so the configured-but-missing branch
+      // does NOT fire — we want to exercise the legacy-coexistence branch.
+      writeTestFile(
+        temporaryDirectory,
+        'docs/personas.md',
+        ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
+      );
+      setPersonasOverride('docs/personas.md');
+      // The default-location file was scaffolded by createConfiguredProject
+      // and is intentionally left in place — that is the "legacy" condition.
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/\.safeword-project\/personas\.md.*orphan/i);
+    });
+
+    it('R4.1: config with forward-looking glossary and architecture paths parses without error', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // glossary now has a live read site (YR6C49) — point it at a real file
+      // so the configured-but-missing check doesn't fire. architecture
+      // remains forward-looking (no read site yet).
+      writeTestFile(
+        temporaryDirectory,
+        'docs/glossary.md',
+        ['## Tool', '**Definition:** A capability.', ''].join('\n'),
+      );
+      const existing = JSON.parse(
+        readTestFile(temporaryDirectory, '.safeword/config.json'),
+      ) as Record<string, unknown>;
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({
+          ...existing,
+          paths: { glossary: 'docs/glossary.md', architecture: 'ARCHITECTURE.md' },
+        }),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      // No config-parse error surfaced.
+      expect(result.stderr).not.toMatch(/JSON|parse error|invalid config/i);
+    });
+  });
+
+  describe('glossary.md validation (ticket YR6C49)', () => {
+    function setGlossaryOverride(glossaryPath: string): void {
+      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+        installedPacks?: string[];
+        [key: string]: unknown;
+      };
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ ...existing, paths: { glossary: glossaryPath } }),
+      );
+    }
+
+    it('R6.1: reports malformed glossary with line refs and exits non-zero', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // Two duplicate term blocks → duplicate-term errors.
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/glossary.md',
+        ['## Tool', '**Definition:** First.', '', '## Tool', '**Definition:** Second.', ''].join(
+          '\n',
+        ),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/glossary\.md:\d+:.*duplicate term/);
+    });
+
+    it('R6.2: reports loud failure when configured glossary path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setGlossaryOverride('docs/glossary.md'); // file intentionally not created
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/glossary-path:.*docs\/glossary\.md.*file not found/);
+    });
+
+    it('R6.3: emits zero-exit advisory when override is active AND legacy default still exists', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'docs/glossary.md',
+        ['## Tool', '**Definition:** A capability.', ''].join('\n'),
+      );
+      // Explicitly create the legacy default (self-contained — does not rely on
+      // the scaffold, which only lands once dist is rebuilt with the new entry).
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/glossary.md',
+        ['## Legacy', '**Definition:** Old location.', ''].join('\n'),
+      );
+      setGlossaryOverride('docs/glossary.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/\.safeword-project\/glossary\.md.*orphan/i);
+    });
+  });
+
+  describe('Test 8.7: Scenario-lineage coverage advisory (XT1FFM)', () => {
+    const SPEC_TWO_ACS = [
+      '# Spec',
+      '',
+      '## Jobs To Be Done',
+      '',
+      '### demo.DEV1 — Trace',
+      '',
+      '**Persona:** DEV',
+      '',
+      '#### demo.DEV1.AC1 — capability one',
+      '',
+      '#### demo.DEV1.AC2 — capability two',
+      '',
+    ].join('\n');
+
+    function scenarioTitle(title: string): string {
+      return [
+        '# Test Definitions',
+        '',
+        '## Rule: r',
+        '',
+        `### Scenario: ${title}`,
+        '',
+        'Given a',
+        'When b',
+        'Then c',
+        '',
+        '- [ ] RED',
+        '- [ ] GREEN',
+        '- [ ] REFACTOR',
+        '',
+      ].join('\n');
+    }
+
+    function writeTicket(ticketId: string, status: string, files: Record<string, string>): void {
+      const base = `.safeword-project/tickets/${ticketId}`;
+      writeTestFile(
+        temporaryDirectory,
+        `${base}/ticket.md`,
+        ['---', `id: ${ticketId}`, 'type: feature', `status: ${status}`, '---', ''].join('\n'),
+      );
+      for (const [name, content] of Object.entries(files)) {
+        writeTestFile(temporaryDirectory, `${base}/${name}`, content);
+      }
+    }
+
+    it('reports an uncovered AC for an in-progress ticket as a zero-exit advisory', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV001', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/COV001:.*demo\.DEV1\.AC2.*uncovered/i);
+    });
+
+    it('stays silent for a done ticket whose scenarios predate the scheme', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV002', 'done', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('A plain free-text scenario title'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/COV002/);
+    });
+  });
 });

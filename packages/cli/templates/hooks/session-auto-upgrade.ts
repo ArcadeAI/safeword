@@ -7,6 +7,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+import { isDogfoodRepo } from './lib/dogfood.ts';
 import { filterSafewordFiles } from './lib/owned-paths.ts';
 import { releaseAgeStatus, type UpdateCache } from './lib/update-cache.ts';
 import { bumpType, upgradeDecision } from './lib/version.ts';
@@ -15,6 +16,15 @@ const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
 
 if (!existsSync(safewordDir)) {
+  process.exit(0);
+}
+
+// Skip the safeword dev (dogfood) repo entirely (ticket 975N5T). Its `.safeword/`
+// + `.claude/` are deployed mirrors of the LOCAL `packages/cli/templates/` source
+// (routinely ahead of npm); installing the published package would regress
+// unreleased work, and the follow-up commit is blocked by the dogfood-direction
+// pre-commit guard. No version compare, no "available" message, no install.
+if (isDogfoodRepo(projectDir)) {
   process.exit(0);
 }
 

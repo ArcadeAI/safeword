@@ -24,7 +24,6 @@ export interface QualityState {
   lastCommitHash: string;
   activeTicket: string | null;
   gate: string | null;
-  locAtLastReview: number;
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];
   /**
@@ -39,6 +38,18 @@ export interface QualityState {
    * Used by the setter to skip re-arming a file that was already nudged.
    */
   learningsNudgesAcknowledged?: string[];
+  /**
+   * The TDD step (red/green/refactor) last surfaced for review. Dedups the
+   * PostToolUse per-step review against the Stop backstop — Stop skips a step
+   * PostToolUse already reviewed this session (ticket SXSCJQ).
+   */
+  lastReviewedStep?: string;
+  /**
+   * The BDD phase last surfaced for review. Dedups the per-phase review across
+   * the PostToolUse trigger (autonomous-safe) and the Stop backstop, so each
+   * phase boundary is reviewed once (ticket SXSCJQ).
+   */
+  lastReviewedPhase?: string;
 }
 
 /**

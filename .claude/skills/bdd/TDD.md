@@ -1,4 +1,4 @@
-# Phase 6: Implementation (TDD)
+# Implement: Outside-in TDD
 
 **Entry:** Agent enters `implement` phase. Begin TDD for the first unchecked scenario.
 
@@ -73,4 +73,4 @@ At the bottom of `test-definitions.md`, add one feature-level row for the cross-
 
 Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `/refactor`). If no, proceed to next scenario.
 
-All scenarios complete → proceed to Phase 7.
+All scenarios complete → proceed to verify.

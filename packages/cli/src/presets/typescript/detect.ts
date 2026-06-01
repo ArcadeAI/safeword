@@ -206,6 +206,14 @@ function detectFramework(
 /**
  * Standard ignore patterns for ESLint flat config.
  * Includes build output, tool caches, and non-JS ecosystems.
+ *
+ * `.safeword/` is broadly ignored — once installed in a customer repo,
+ * safeword fully owns that directory (hooks, scripts, statusline,
+ * version file). Customers can't productively modify it (safeword
+ * setup/upgrade regenerates the contents), so linting those files
+ * would just surface noise the customer can't act on. The leading
+ * glob-anywhere prefix catches the directory at any depth — important
+ * for monorepos where each workspace may have its own safeword install.
  */
 function getIgnores(): string[] {
   return [
@@ -213,8 +221,8 @@ function getIgnores(): string[] {
     '**/dist/',
     '**/build/',
     '**/coverage/',
-    // Safeword's own hook/config files (TS, not in project's tsconfig scope)
-    '.safeword/',
+    // Safeword-owned directory — customers can't affect it; ignore at any depth.
+    '**/.safeword/**/*',
     // Build output directories — always ignore even if framework not currently installed
     '**/.next/',
     '**/.astro/',
@@ -241,6 +249,63 @@ function hasExistingLinter(scripts: ScriptsRecord): boolean {
  */
 function hasExistingFormatter(cwd: string, _scripts: ScriptsRecord): boolean {
   return ALTERNATIVE_FORMATTER_FILES.some(file => existsSync(path.join(cwd, file)));
+}
+
+// Prettier config filenames, by the exact set prettier resolves — NOT a loose
+// prefix. Prefix-matching (`.prettierrc*`) false-positives on a disabled/backup
+// config (`.prettierrc.bak`, `prettier.config.js.disabled`): prettier won't load
+// those, so they must read as "no config". Mirror of `PRETTIER_CONFIG_FILES` in
+// the session-lint-check hook (`hooks/lib/lint-config.ts`, ticket 1J6JKP); the
+// `cli-presets-self-contained` rule forbids importing it, so keep the two in
+// sync. Extension lists verified against prettier 3.8 docs.
+const PRETTIER_RC_EXTENSIONS = [
+  'json',
+  'yaml',
+  'yml',
+  'json5',
+  'toml',
+  'js',
+  'cjs',
+  'mjs',
+  'ts',
+  'cts',
+  'mts',
+];
+const PRETTIER_CONFIG_EXTENSIONS = ['js', 'cjs', 'mjs', 'ts', 'cts', 'mts'];
+const PRETTIER_CONFIG_FILES = new Set<string>([
+  '.prettierrc',
+  ...PRETTIER_RC_EXTENSIONS.map(extension => `.prettierrc.${extension}`),
+  ...PRETTIER_CONFIG_EXTENSIONS.map(extension => `prettier.config.${extension}`),
+]);
+
+/**
+ * Check if the project already has its own Prettier config, in any form prettier
+ * recognizes: a `.prettierrc` / `.prettierrc.*` / `prettier.config.*` file, or a
+ * `"prettier"` key in package.json.
+ *
+ * Unlike {@link hasExistingFormatter} (alternative formatters only), this exists
+ * to stop safeword from dropping its own `.prettierrc`/`.safeword/.prettierrc`
+ * on top of a config it can't merge into — a bare `.prettierrc` resolves ahead
+ * of `prettier.config.mjs` in prettier's search order, so writing one silently
+ * shadows the customer's style.
+ */
+function hasExistingPrettierConfig(cwd: string): boolean {
+  let entries: string[];
+  try {
+    entries = readdirSync(cwd);
+  } catch {
+    entries = [];
+  }
+  if (entries.some(name => PRETTIER_CONFIG_FILES.has(name))) return true;
+
+  const pkgPath = path.join(cwd, 'package.json');
+  if (!existsSync(pkgPath)) return false;
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { prettier?: unknown };
+    return pkg.prettier !== undefined;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -337,4 +402,5 @@ export const detect = {
   // Existing tooling detection
   hasExistingLinter,
   hasExistingFormatter,
+  hasExistingPrettierConfig,
 };

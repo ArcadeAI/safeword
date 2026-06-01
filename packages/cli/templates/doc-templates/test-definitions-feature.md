@@ -2,7 +2,11 @@
 
 ## Rule: [Business rule the scenarios below cover]
 
-### Scenario: [Name]
+<!-- Scenario titles use the lineage scheme `<jtbd-id>.AC<#>.<scenario_name>`
+     (snake_case) so `safeword check` maps each scenario to the AC it proves.
+     See the bdd skill's SCENARIOS.md. -->
+
+### Scenario: <jtbd-id>.AC<#>.<scenario_name>
 
 Given [context]
 When [action]

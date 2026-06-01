@@ -200,8 +200,14 @@ export const typescriptOwnedFiles: Record<string, FileDefinition> = {
   '.safeword/.prettierrc': {
     // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
-      // Skip for non-JS projects or projects with existing formatter (they use Biome, etc.)
-      if (!ctx.languages?.javascript || ctx.projectType.existingFormatter) {
+      // Skip for non-JS projects, projects with an alternative formatter (Biome,
+      // etc.), or projects that already have their own prettier config — writing
+      // our own would shadow a config we can't merge into.
+      if (
+        !ctx.languages?.javascript ||
+        ctx.projectType.existingFormatter ||
+        ctx.projectType.existingPrettierConfig
+      ) {
         return;
       }
       // Add plugins based on project type
@@ -266,9 +272,12 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
   '.prettierrc': {
     // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
-      // Skip for non-JS projects or projects with existing formatter
+      // Skip for non-JS projects, projects with an alternative formatter, or
+      // projects that already have their own prettier config — a new .prettierrc
+      // resolves ahead of prettier.config.* and would silently shadow it.
       if (!ctx.languages?.javascript) return;
       if (ctx.projectType.existingFormatter) return;
+      if (ctx.projectType.existingPrettierConfig) return;
       // Create base config with styling defaults (no plugins - those are in .safeword/.prettierrc)
       return JSON.stringify(PRETTIER_DEFAULTS, undefined, 2);
     },

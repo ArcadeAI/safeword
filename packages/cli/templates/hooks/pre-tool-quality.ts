@@ -8,12 +8,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
+import { isGitOperationInProgress } from './lib/git-operation.ts';
+import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
-import {
-  classifyAnnotation,
-  isValidSkipReason,
-  parseCheckboxAnnotation,
-} from './lib/parse-annotation.ts';
+import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
+import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
   getStateFilePath,
   LOC_THRESHOLD,
@@ -59,62 +58,36 @@ function isTestFile(path: string): boolean {
   );
 }
 
-interface CheckboxTransition {
-  step: string;
-  annotation: string;
-}
-
 /**
- * Find every checkbox line that transitioned from `[ ] STEP` to `[x] STEP <annotation>`
- * in this edit. Aligned by line index — works for Edit (old_string / new_string are
- * local replacement regions), Write (old = disk contents, new = full new content),
- * and MultiEdit (each edit treated as Edit). If lines don't align (e.g. Write that
- * reorders sections), some transitions may be missed; done-gate is the final arbiter.
+ * Read personas.md for the JTBD gate, honoring a configured `paths.personas`
+ * (ticket K7N2QM). Degrades to '' when the file or config is absent/unreadable
+ * — knownPersonaRefs('') yields an empty set, so unresolved refs are denied.
  */
-function findTransitionsByLineIndex(oldText: string, newText: string): CheckboxTransition[] {
-  const transitions: CheckboxTransition[] = [];
-  const oldLines = oldText.split('\n');
-  const newLines = newText.split('\n');
-  const max = Math.max(oldLines.length, newLines.length);
-  for (let i = 0; i < max; i++) {
-    const newLine = newLines[i];
-    if (newLine === undefined) continue;
-    const newParsed = parseCheckboxAnnotation(newLine);
-    if (!newParsed || !newParsed.checked) continue;
-    const oldLine = oldLines[i];
-    if (oldLine === undefined) continue;
-    const oldParsed = parseCheckboxAnnotation(oldLine);
-    if (oldParsed && !oldParsed.checked && oldParsed.step === newParsed.step) {
-      transitions.push({ step: newParsed.step, annotation: newParsed.annotation });
-    }
-  }
-  return transitions;
+function readPersonasForGate(ticketDirectory: string): string {
+  const projectRoot = nodePath.join(ticketDirectory, '..', '..', '..');
+  const personasPath = resolvePersonasPath(projectRoot);
+  return existsSync(personasPath) ? readFileSync(personasPath, 'utf8') : '';
 }
 
-function collectNewTransitions(hookInput: HookInput, filePath: string): CheckboxTransition[] {
-  const toolInput = hookInput.tool_input ?? {};
-  const toolName = hookInput.tool_name ?? '';
+function resolvePersonasPath(projectRoot: string): string {
+  const defaultPath = nodePath.join(projectRoot, '.safeword-project', 'personas.md');
+  const configFile = nodePath.join(projectRoot, '.safeword', 'config.json');
+  if (!existsSync(configFile)) return defaultPath;
+  const configured = readConfiguredPersonasPath(readFileSync(configFile, 'utf8'));
+  if (configured === undefined) return defaultPath;
+  return nodePath.isAbsolute(configured) ? configured : nodePath.join(projectRoot, configured);
+}
 
-  if (toolName === 'Edit') {
-    const oldString = toolInput.old_string ?? '';
-    const newString = toolInput.new_string ?? '';
-    return findTransitionsByLineIndex(oldString, newString);
+function readConfiguredPersonasPath(rawConfig: string): string | undefined {
+  try {
+    const parsed = JSON.parse(rawConfig) as { paths?: { personas?: unknown } };
+    const configured = parsed.paths?.personas;
+    return typeof configured === 'string' && configured.trim() !== '' ? configured : undefined;
+  } catch {
+    // Malformed config.json is pre-tool-config-guard's concern; the JTBD gate
+    // degrades to the default personas path rather than blocking the edit.
+    return undefined;
   }
-
-  if (toolName === 'Write') {
-    const oldText = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
-    const newText = toolInput.content ?? '';
-    return findTransitionsByLineIndex(oldText, newText);
-  }
-
-  if (toolName === 'MultiEdit') {
-    const edits = toolInput.edits ?? [];
-    return edits.flatMap(edit =>
-      findTransitionsByLineIndex(edit.old_string ?? '', edit.new_string ?? ''),
-    );
-  }
-
-  return [];
 }
 
 function deny(reason: string, additionalContext?: string): never {
@@ -297,6 +270,33 @@ if (
       );
     }
   }
+
+  // JTBD gate (ticket Y2HCNJ): when the ticket carries a spec.md (new-flow
+  // feature — epic DZ2NM5/D5 routes by spec.md presence, so grandfathered
+  // tickets without one are skipped), require ≥1 JTBD whose persona resolves
+  // against personas.md, or a `skip: <reason>` in the Jobs To Be Done section.
+  const specFile = nodePath.join(ticketDirectory, 'spec.md');
+  if (existsSync(specFile)) {
+    const specContent = readFileSync(specFile, 'utf8');
+
+    const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
+    if (!jtbdVerdict.ok) {
+      deny(
+        `spec.md JTBD gate: ${jtbdVerdict.reason}.`,
+        'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
+      );
+    }
+
+    // AC gate (ticket 31W8M3): each JTBD needs ≥1 Acceptance Criterion — a
+    // `#### <jtbd-id>.AC<n>` heading under it — or a per-JTBD `skip: <reason>`.
+    const acVerdict = evaluateAcGate(specContent);
+    if (!acVerdict.ok) {
+      deny(
+        `spec.md AC gate: ${acVerdict.reason}.`,
+        'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n> — <capability>` (a product-level guarantee, not implementation), or `skip: <reason>` under that JTBD to omit it deliberately.',
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -404,7 +404,9 @@ if (!state.gate) {
   process.exit(0);
 }
 
-if (state.gate === 'loc') {
+// LOC gate stands down during a git merge/rebase/cherry-pick/revert so it can't
+// block the edits that resolve the operation (ticket MT27QG).
+if (state.gate === 'loc' && !isGitOperationInProgress(projectDirectory)) {
   recordFailure(projectDirectory, input.session_id, 'loc-exceeded');
   deny(`${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
 

@@ -49,6 +49,46 @@ describe('vitestConfig', () => {
     );
     expect(hasTestFilePattern).toBe(true);
   });
+
+  it('also targets tests/ and e2e/ directories for test infrastructure', () => {
+    // The preset's files glob was broadened to catch test helpers
+    // (tests/helpers.ts, tests/fixtures/*.ts) and end-to-end scaffolding
+    // (e2e/**/*.ts), not just *.test.ts and *.spec.ts files. This test
+    // catches accidental regressions if someone narrows the glob.
+    const block = vitestConfig.find(
+      config => typeof config === 'object' && config !== null && Array.isArray(config.files),
+    ) as { files: string[] } | undefined;
+    expect(block?.files).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/tests\/\*\*/),
+        expect.stringMatching(/e2e\/\*\*/),
+      ]),
+    );
+  });
+
+  // Twelve rules were promoted into the preset from the project-local
+  // cli-tests-override block. They target test-code patterns (throwaway
+  // fixtures, regex-heavy assertions, describe-block helpers) where the
+  // rule's intent doesn't apply. If the preset is reorganized, these
+  // turn-offs need to survive — table-driven so each rule gets its own
+  // test case (failure isolation: if 3 rules regress, you see all 3 at
+  // once instead of just the first).
+  it.each([
+    'sonarjs/no-unused-vars',
+    'sonarjs/no-dead-store',
+    'sonarjs/unused-import',
+    '@typescript-eslint/no-unused-vars',
+    'sonarjs/slow-regex',
+    'security/detect-unsafe-regex',
+    'regexp/no-dupe-disjunctions',
+    'sonarjs/assertions-in-tests',
+    'unicorn/consistent-function-scoping',
+    'unicorn/no-array-callback-reference',
+    'sonarjs/publicly-writable-directories',
+    'sonarjs/no-alphabetical-sort',
+  ])('disables %s for test files', rule => {
+    expect(getSeverityNumber(getRuleConfig(vitestConfig, rule))).toBe(0);
+  });
 });
 
 describe('Vitest critical rules at error', () => {

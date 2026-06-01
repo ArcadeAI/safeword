@@ -160,6 +160,53 @@ export function deriveTddStep(projectDirectory: string, ticketFolder: string): s
   }
 }
 
+/**
+ * Resolve the effective Stop-hook phase context for a session's bound ticket,
+ * closing the status/phase done-gate sidestep (ticket 2JMQMX).
+ *
+ * Normally only `in_progress` tickets carry phase context, so a ticket flipped
+ * to `status: done` without passing through `phase: done` would drop out of
+ * context entirely and bypass the done-gate (tests, verify.md, /verify+/audit).
+ * This surfaces such a close as `phase: 'done'` so the existing gate runs:
+ *   - build tickets (task/feature WITH a test-definitions.md) → full gate
+ *     (tests + scenarios + verify.md + skills, via the gate's isFeature branch);
+ *   - epics → proportionate gate (tests + verify.md; epics aren't isFeature, so
+ *     scenarios/skills are not demanded).
+ * Everything else is exempt — in_progress passes its real phase through, an
+ * already-done ticket (phase already `done`) is not re-gated (no loop), and
+ * non-build closes (patches, typeless, or task/feature with no scenarios yet)
+ * keep the deliberate status escape hatch.
+ *
+ * Pure: the caller supplies `hasTestDefinitions` (filesystem check) so this
+ * stays unit-testable.
+ */
+export function resolveStopPhase(
+  details: TicketDetails,
+  hasTestDefinitions: boolean,
+): ActiveTicketInfo {
+  // in_progress: normal flow — pass the ticket's real phase through unchanged.
+  if (details.status === 'in_progress') {
+    return { phase: details.phase, type: details.type, folder: details.folder };
+  }
+
+  // A status:done close that never reached phase:done is the sidestep. Route it
+  // into the done-gate (surface phase:'done'), but only for tickets that have
+  // something to verify: build tickets (task/feature WITH scenarios) and epics.
+  // `phase !== 'done'` skips an already-gated ticket so the gate can't loop.
+  if (details.status === 'done' && details.phase !== 'done') {
+    const isBuildTicket =
+      (details.type === 'task' || details.type === 'feature') && hasTestDefinitions;
+    const isEpic = details.type === 'epic';
+    if (isBuildTicket || isEpic) {
+      return { phase: 'done', type: details.type, folder: details.folder };
+    }
+  }
+
+  // Everything else (patches, typeless, scenario-less, non-done statuses) keeps
+  // the deliberate status escape hatch — no phase context.
+  return EMPTY;
+}
+
 export function getActiveTicket(projectDirectory: string): ActiveTicketInfo {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
   if (!existsSync(ticketsDirectory)) return EMPTY;

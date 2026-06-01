@@ -311,6 +311,33 @@ describe('detectProjectType', () => {
     });
   });
 
+  describe('Detects existing prettier config (cwd-based)', () => {
+    let cwd: string;
+
+    beforeEach(() => {
+      cwd = createTemporaryDirectory();
+    });
+
+    afterEach(() => {
+      removeTemporaryDirectory(cwd);
+    });
+
+    it('sets existingPrettierConfig when a prettier.config.mjs is present', () => {
+      writeTestFile(cwd, 'package.json', '{}');
+      writeTestFile(cwd, 'prettier.config.mjs', 'export default {};\n');
+
+      const result = detectProjectType({ name: 'test', version: '1.0.0' }, cwd);
+      expect(result.existingPrettierConfig).toBe(true);
+    });
+
+    it('leaves existingPrettierConfig false when no prettier config exists', () => {
+      writeTestFile(cwd, 'package.json', '{}');
+
+      const result = detectProjectType({ name: 'test', version: '1.0.0' }, cwd);
+      expect(result.existingPrettierConfig).toBe(false);
+    });
+  });
+
   describe('Detects TanStack Query', () => {
     it('should detect @tanstack/react-query', () => {
       const packageJson: PackageJson = {

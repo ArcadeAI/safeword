@@ -91,3 +91,74 @@ describe('findNextConfigPaths', () => {
     expect(paths).toEqual(['services/frontend/**/*.{ts,tsx}']);
   });
 });
+
+describe('hasExistingPrettierConfig', () => {
+  let temporaryDirectory: string;
+
+  beforeEach(() => {
+    temporaryDirectory = mkdtempSync(path.join(tmpdir(), 'detect-prettier-'));
+  });
+
+  afterEach(() => {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it('returns false when no prettier config is present', () => {
+    writeFileSync(path.join(temporaryDirectory, 'package.json'), '{}');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
+  });
+
+  it('detects a bare .prettierrc', () => {
+    writeFileSync(path.join(temporaryDirectory, '.prettierrc'), '{}');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(true);
+  });
+
+  it('detects an extensioned .prettierrc.yaml', () => {
+    writeFileSync(path.join(temporaryDirectory, '.prettierrc.yaml'), 'singleQuote: false\n');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(true);
+  });
+
+  it('detects a prettier.config.mjs module (the form .prettierrc would shadow)', () => {
+    writeFileSync(path.join(temporaryDirectory, 'prettier.config.mjs'), 'export default {};\n');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(true);
+  });
+
+  it('detects a "prettier" key in package.json', () => {
+    writeFileSync(
+      path.join(temporaryDirectory, 'package.json'),
+      JSON.stringify({ prettier: { singleQuote: false } }),
+    );
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(true);
+  });
+
+  it('ignores an alternative-formatter-only project (biome)', () => {
+    writeFileSync(path.join(temporaryDirectory, 'biome.json'), '{}');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
+  });
+
+  it('ignores a disabled/backup config prettier will not load (.prettierrc.bak)', () => {
+    // Prettier resolves an exact set of filenames; `.prettierrc.bak` is not one,
+    // so it must read as "no config" — not suppress safeword's install. Mirrors
+    // the exact-match fix in hooks/lib/lint-config.ts (ticket 1J6JKP).
+    writeFileSync(path.join(temporaryDirectory, '.prettierrc.bak'), '{}');
+    writeFileSync(path.join(temporaryDirectory, 'package.json'), '{}');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
+  });
+
+  it('ignores a disabled prettier.config module (prettier.config.js.disabled)', () => {
+    writeFileSync(
+      path.join(temporaryDirectory, 'prettier.config.js.disabled'),
+      'module.exports={}',
+    );
+    writeFileSync(path.join(temporaryDirectory, 'package.json'), '{}');
+
+    expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
+  });
+});

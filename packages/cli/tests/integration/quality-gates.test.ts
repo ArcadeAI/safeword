@@ -553,12 +553,11 @@ describe('Quality Gates', () => {
 
       const state = readState(projectDirectory);
       const keys = Object.keys(state);
-      expect(keys).toHaveLength(7);
+      expect(keys).toHaveLength(6);
       expect(keys).toContain('locSinceCommit');
       expect(keys).toContain('lastCommitHash');
       expect(keys).toContain('activeTicket');
       expect(keys).toContain('gate');
-      expect(keys).toContain('locAtLastReview');
       expect(keys).toContain('recentFailures');
       expect(keys).toContain('incrementedPatterns');
       expect(state.lastCommitHash).toBe(getHead(projectDirectory));

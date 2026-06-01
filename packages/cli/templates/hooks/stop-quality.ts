@@ -6,7 +6,12 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { deriveTddStep, getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
+import {
+  deriveTddStep,
+  getActiveTicket,
+  getTicketInfo,
+  resolveStopPhase,
+} from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { validateLedger } from './lib/ledger-validation.ts';
 import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
@@ -16,9 +21,11 @@ import {
   type QualityState,
   recordFailure,
 } from './lib/quality-state.ts';
+import { shouldReviewPhase, shouldReviewStep } from './lib/review-trigger.ts';
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, getRequiredSkillsForPhase } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
+import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 
 interface HookInput {
   session_id?: string;
@@ -48,8 +55,6 @@ const MAX_MESSAGES_FOR_TOOLS = 5;
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
-/** LOC threshold for implement-phase quality review frequency reduction. */
-const LOC_REVIEW_THRESHOLD = 50;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -84,12 +89,18 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
     if (!state.activeTicket) return empty;
 
     const ticket = getTicketInfo(projectDir, state.activeTicket);
-    if (ticket.status !== 'in_progress') return empty;
+    // resolveStopPhase closes the status/phase done-gate sidestep (ticket
+    // 2JMQMX): a build ticket or epic flipped to status:done without reaching
+    // phase:done is surfaced as phase:'done' so the done-gate still runs.
+    const hasTestDefinitions =
+      ticket.folder !== undefined &&
+      existsSync(`${ticketsDir}/${ticket.folder}/test-definitions.md`);
+    const resolved = resolveStopPhase(ticket, hasTestDefinitions);
 
     return {
-      phase: ticket.phase as BddPhase | undefined,
-      type: ticket.type,
-      folder: ticket.folder,
+      phase: resolved.phase as BddPhase | undefined,
+      type: resolved.type,
+      folder: resolved.folder,
     };
   }
 
@@ -108,14 +119,21 @@ function readSessionState(sessionId?: string): QualityState | null {
   }
 }
 
-/** Update locAtLastReview in session state after a quality review fires. */
-function updateLocAtLastReview(sessionId?: string): void {
+/**
+ * Record which boundary the Stop backstop just reviewed, so a later Stop (or a
+ * PostToolUse review) won't re-review it. Mirrors the markers PostToolUse sets
+ * (ticket SXSCJQ).
+ */
+function recordReviewMarker(
+  sessionId: string | undefined,
+  patch: { lastReviewedStep?: string; lastReviewedPhase?: string },
+): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
   if (!existsSync(stateFile)) return;
   try {
     const state = JSON.parse(readFileSync(stateFile, 'utf8'));
-    state.locAtLastReview = state.locSinceCommit ?? 0;
+    Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
     // Best effort — don't crash stop hook on state write failure
@@ -225,14 +243,18 @@ checkUsageLimit(lines);
 // Claude's last response text — provided directly by the hook runtime.
 const combinedText = input.last_assistant_message ?? '';
 
-// No edit tools used → no quality review needed (conversational response)
-if (!detectEditToolsUsed(lines)) {
-  process.exit(0);
-}
-
-// Get ticket info for phase-aware decision logic
+// Get ticket info for phase-aware decision logic. Resolved BEFORE the edit-tools
+// gate so the done-phase branch runs on any stop at phase: done — closing and its
+// evidence enforcement depend on ticket state, not recent edit activity (ticket
+// AP3FGJ). The edit-tools gate below then guards only the review/backstop path.
 const ticketInfo = getCurrentTicketInfo(input.session_id);
 const currentPhase = ticketInfo.phase;
+
+// No edit tools used → skip the review path (a conversational response has
+// nothing to review). The done phase is the exception: fall through to its gate.
+if (!detectEditToolsUsed(lines) && currentPhase !== 'done') {
+  process.exit(0);
+}
 
 /**
  * Check last transcript line for usage limit phrases.
@@ -466,29 +488,58 @@ if (stopHookActive) {
   process.exit(0);
 }
 
-// Frequency reduction: only fire quality review when meaningful.
-// - Non-implement phases: always fire (they're brief — 1-3 turns each)
-// - Implement phase: fire only when >50 LOC changed since last review
-const sessionState = readSessionState(input.session_id);
-
-const shouldFireReview = (() => {
-  if (!sessionState) return true;
-  if (currentPhase !== 'implement') return true;
-  const locDelta = (sessionState.locSinceCommit ?? 0) - (sessionState.locAtLastReview ?? 0);
-  return locDelta > LOC_REVIEW_THRESHOLD;
-})();
-
-if (!shouldFireReview) {
-  process.exit(0);
+// SW1SE5: implement-phase incremental typecheck. Runs BEFORE the LOC review
+// throttle — a small change can break types — and surfaces tsc errors as advice
+// via the soft (non-blocking) path. Silent when clean (the gate skips non-TS
+// projects, no-TS-change stops, and the done phase). The done gate stays the
+// hard backstop; this never hard-blocks.
+const typecheckAdvice = evaluateImplementStopTypecheck({
+  projectDirectory: projectDir,
+  changedFiles: changedFilesSinceHead(projectDir),
+  phase: currentPhase,
+});
+if (typecheckAdvice.advice !== null) {
+  softBlock(
+    `TypeScript errors in your changed files — advisory, not a block (fix now, or stop and address later). The done gate still requires a clean typecheck.\n\n${typecheckAdvice.advice}`,
+  );
 }
 
-updateLocAtLastReview(input.session_id);
+// Boundary backstop (ticket SXSCJQ): the review is no longer LOC-throttled.
+// PostToolUse fires per-step/per-phase reviews at the edit (autonomous-safe);
+// this Stop path catches a boundary PostToolUse didn't see (e.g. a non-edit
+// phase bump) and the ordinary interactive stop. Dedup via lastReviewedStep /
+// lastReviewedPhase so each boundary is reviewed once across both triggers.
+const sessionState = readSessionState(input.session_id);
 
 // Derive TDD step from test-definitions.md (not cache)
 const tddStep =
   currentPhase === 'implement' && ticketInfo.folder
     ? deriveTddStep(projectDir, ticketInfo.folder)
     : null;
+
+// No ticket/phase context (no active ticket, or a done-status ticket): fire the
+// generic review on every edit-stop, as before — there's no boundary to dedup.
+// With a phase: review per TDD step (implement) or per phase, deduped against
+// PostToolUse so each boundary is reviewed once.
+const isImplementStep = currentPhase === 'implement' && tddStep !== null;
+let fireReview: boolean;
+if (currentPhase === undefined) {
+  fireReview = true;
+} else if (isImplementStep) {
+  fireReview = shouldReviewStep(tddStep, sessionState?.lastReviewedStep);
+} else {
+  fireReview = shouldReviewPhase(currentPhase, sessionState?.lastReviewedPhase);
+}
+
+if (!fireReview) {
+  process.exit(0);
+}
+
+if (isImplementStep && tddStep) {
+  recordReviewMarker(input.session_id, { lastReviewedStep: tddStep });
+} else if (currentPhase) {
+  recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
+}
 
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
 // recent failure exists, append an explicit "CONFIDENT requires X first" line so

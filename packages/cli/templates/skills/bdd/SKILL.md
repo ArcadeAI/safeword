@@ -27,15 +27,15 @@ phase: implement # intake | define-behavior | scenario-gate | decomposition | im
 
 **Phase meanings:**
 
-| Phase             | What happens                              | Details          |
-| ----------------- | ----------------------------------------- | ---------------- |
-| `intake`          | Context check, discovery (Phase 0-2)      | DISCOVERY.md     |
-| `define-behavior` | Writing Given/When/Then (Phase 3)         | SCENARIOS.md     |
-| `scenario-gate`   | Validating scenarios (Phase 4)            | SCENARIOS.md     |
-| `decomposition`   | Task breakdown (Phase 5)                  | DECOMPOSITION.md |
-| `implement`       | Outside-in TDD (Phase 6)                  | TDD.md           |
-| `verify`          | Evidence gate: /verify + /audit (Phase 7) | VERIFY.md        |
-| `done`            | Close ticket (Phase 8)                    | DONE.md          |
+| Phase             | What happens                    | Details          |
+| ----------------- | ------------------------------- | ---------------- |
+| `intake`          | Context check, discovery        | DISCOVERY.md     |
+| `define-behavior` | Writing Given/When/Then         | SCENARIOS.md     |
+| `scenario-gate`   | Validating scenarios            | SCENARIOS.md     |
+| `decomposition`   | Task breakdown                  | DECOMPOSITION.md |
+| `implement`       | Outside-in TDD                  | TDD.md           |
+| `verify`          | Evidence gate: /verify + /audit | VERIFY.md        |
+| `done`            | Close ticket                    | DONE.md          |
 
 **Update phase when:**
 
@@ -79,9 +79,9 @@ When user references a ticket, resume work:
    - If yes → resume at current phase
 4. **If ticket exists:** Read phase, resume at appropriate point
 5. **Artifact-first rule:** Before doing work, create/verify the phase artifact:
-   - Phase 0-2 → ticket at `.safeword-project/tickets/{id}-{slug}/ticket.md`
-   - Phase 3 → test-definitions at `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
-   - Phase 5 → task breakdown in ticket
+   - intake → ticket at `.safeword-project/tickets/{id}-{slug}/ticket.md`
+   - define-behavior → test-definitions at `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
+   - decomposition → task breakdown in ticket
 6. **Execute phase** using the appropriate phase file
 7. **Update phase** in ticket when transitioning
 
@@ -108,9 +108,9 @@ For splitting large features, see SPLITTING.md.
 ## Key Takeaways
 
 - **patch/task** → TDD directly (RED → GREEN → REFACTOR)
-- **feature** → full BDD flow (Phases 0-8), track in ticket `phase:` field
+- **feature** → full BDD flow, track in ticket `phase:` field
 - **Resume** → read ticket, find first unchecked scenario, continue
-- **Split** → check thresholds at Entry, Phase 3, Phase 5; user decides (see SPLITTING.md)
+- **Split** → check thresholds at Entry, define-behavior, decomposition; user decides (see SPLITTING.md)
 - **Verify gate** → run /verify + /audit, writes verify.md. Stop hook blocks done without it.
 - **Done** → close ticket (trivial — verify.md must already exist)
 - When unsure → default to task, user can `/bdd` to override

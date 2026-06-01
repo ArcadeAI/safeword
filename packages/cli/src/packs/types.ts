@@ -37,6 +37,12 @@ export interface ProjectType {
   existingLinter: boolean;
   /** True if project has existing format script or formatter config */
   existingFormatter: boolean;
+  /**
+   * True if project already has its own Prettier config (`.prettierrc*`,
+   * `prettier.config.*`, or a `"prettier"` key in package.json). Gates safeword's
+   * own prettier-config writes so we never shadow a config we can't merge into.
+   */
+  existingPrettierConfig: boolean;
   /** Path to existing ESLint config if present (e.g., 'eslint.config.mjs' or '.eslintrc.json') */
   existingEslintConfig: string | undefined;
   /** True if existing ESLint config is legacy format (.eslintrc.*) requiring FlatCompat */
@@ -98,7 +104,19 @@ export interface FileDefinition {
 }
 
 // managedFiles: created if missing, updated only if content === current template output
-export type ManagedFileDefinition = FileDefinition;
+export interface ManagedFileDefinition extends FileDefinition {
+  /**
+   * Optional logical key linking this entry to a user-configurable path
+   * override in `.safeword/config.json` (`paths.<configKey>`). When the
+   * override is set, reconcile suppresses this entry uniformly — install
+   * skips the scaffold, uninstall-full skips the removal. The user owns
+   * the file at the configured location; safeword stops treating the
+   * default location as its concern.
+   *
+   * See ticket K7N2QM for the data-loss-prevention rationale.
+   */
+  configKey?: 'personas' | 'glossary' | 'architecture';
+}
 
 export interface JsonMergeDefinition {
   keys: string[]; // Dot-notation keys we manage

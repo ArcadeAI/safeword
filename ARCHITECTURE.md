@@ -287,6 +287,8 @@ SAFEWORD_SCHEMA = {
 
 File definitions support three content sources: `template` (path in `templates/`), `content` (static string or factory), `generator` (dynamic function of `ProjectContext`, returns `undefined` to skip).
 
+A `managedFiles` entry may also carry an optional `configKey` (`'personas' | 'glossary' | 'architecture'`). When the user sets the matching `paths.<configKey>` in `.safeword/config.json`, reconcile suppresses the entry uniformly — install skips the scaffold, `uninstall-full` skips the removal. The user-configured path becomes the single source of truth; the default location is no longer safeword's concern (ticket K7N2QM).
+
 ### Reconciliation Modes
 
 | Mode             | Behavior                                         |
@@ -495,6 +497,8 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 **TDD step detection:** PostToolUse watches `test-definitions.md` in ticket directories. Each scenario has three sub-checkboxes (`- [ ] RED`, `- [ ] GREEN`, `- [ ] REFACTOR`). The parser finds the first scenario with mixed checked/unchecked items and determines which step just completed. The act of marking a sub-checkbox IS the detection mechanism — the artifact is the single source of truth.
 
 **`additionalContext` field:** PreToolUse deny output uses `additionalContext` (Claude Code v2.1.9+) to guide Claude toward skills. `permissionDecisionReason` explains WHY blocked; `additionalContext` tells WHAT TO DO. This prevents content drift — hooks reference skills by name, skills own the review content.
+
+**Quality review cadence (SXSCJQ):** The quality review fires at boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each TDD-step flip in `test-definitions.md` and each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. The Stop hook is a deduped backstop: it reviews per step (`implement`) or per phase (otherwise), but only for a boundary not already marked (`lastReviewedStep` / `lastReviewedPhase` in session state), and still fires a generic review when there is no active ticket. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts`; checkbox-flip detection in `lib/checkbox-transitions.ts`.
 
 **Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 

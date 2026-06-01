@@ -152,4 +152,4 @@ No sections, no ceremony. Single line.
 
 ## Summary
 
-This command verifies ticket criteria (Phase 7 Done Gate). Use it before marking any feature ticket complete. It also works without a ticket for quick project health checks (tests + build + lint + dep drift).
+This command verifies ticket criteria (the done gate). Use it before marking any feature ticket complete. It also works without a ticket for quick project health checks (tests + build + lint + dep drift).

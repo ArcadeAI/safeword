@@ -4,13 +4,13 @@ Splitting is **suggested, not mandatory** — user decides.
 
 ## When to Split
 
-| Checkpoint   | Trigger                               | Action                     |
-| ------------ | ------------------------------------- | -------------------------- |
-| **Entry**    | 2+ user stories OR vague scope        | Split into epic + features |
-| **Phase 3**  | >15 scenarios OR 3+ distinct clusters | Split by user journey      |
-| **Phase 5**  | >20 tasks OR 5+ major components      | Split by component/layer   |
-| **Phase 6**  | >10 tests per slice                   | Break into smaller slices  |
-| **TDD Loop** | >5 unit tests for single E2E          | Break E2E into steps       |
+| Checkpoint          | Trigger                               | Action                     |
+| ------------------- | ------------------------------------- | -------------------------- |
+| **Entry**           | 2+ user stories OR vague scope        | Split into epic + features |
+| **define-behavior** | >15 scenarios OR 3+ distinct clusters | Split by user journey      |
+| **decomposition**   | >20 tasks OR 5+ major components      | Split by component/layer   |
+| **implement**       | >10 tests per slice                   | Break into smaller slices  |
+| **TDD Loop**        | >5 unit tests for single E2E          | Break E2E into steps       |
 
 ## Entry Checkpoint Reasoning
 
@@ -41,11 +41,11 @@ STEP 2: Assess depth
 
 ## Restart Points After Split
 
-| Split At | Child Restarts From |
-| -------- | ------------------- |
-| Entry    | `intake`            |
-| Phase 3  | `scenario-gate`     |
-| Phase 5+ | `implement`         |
+| Split At        | Child Restarts From |
+| --------------- | ------------------- |
+| Entry           | `intake`            |
+| define-behavior | `scenario-gate`     |
+| decomposition+  | `implement`         |
 
 ## User Override
 

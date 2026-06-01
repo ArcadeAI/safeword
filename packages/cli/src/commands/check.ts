@@ -4,14 +4,20 @@
  * Uses reconcile() with dryRun to detect missing files and configuration issues.
  */
 
+import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { syncTickets } from '../ticket-sync/index.js';
+import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
+import { GLOSSARY_FILE_SUBPATH, parseGlossary, validateGlossary } from '../utils/glossary.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
+import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
+import { buildCoverageReport, type CoverageReport } from '../utils/scenario-coverage.js';
 import { isNewerVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
@@ -32,6 +38,168 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
     }
   }
   return issues;
+}
+
+// The persona/glossary find*Issues + find*Advisories pairs below (and the
+// validate*Reference / lookup* pairs in personas.ts / glossary.ts) are
+// intentionally parallel, NOT a missed extraction: the cores diverge (persona
+// matches code/name, glossary matches name/alias; different parse+validate
+// fns and messages), and where they don't, deduping two call sites into a
+// multi-param helper would cost clarity. Assessed in ticket XEP59N — leave as is.
+
+/**
+ * Validate personas.md when present, routing through any configured
+ * `paths.personas` override. Returns one issue string per persona
+ * validation error, formatted as `personas.md:LINE: MESSAGE`.
+ *
+ * Two failure modes:
+ * - Default location absent → no issue (scaffold is optional until JTBDs
+ *   reference personas).
+ * - Configured override set but file absent → loud failure (user opted
+ *   in; typo would otherwise silently strand persona references). Ticket
+ *   K7N2QM.
+ */
+function findPersonaIssues(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'personas');
+  const filePath = resolveConfiguredPath(cwd, 'personas', nodePath.join(...PERSONAS_FILE_SUBPATH));
+  const content = readFileSafe(filePath);
+
+  if (content === undefined) {
+    if (override !== undefined) {
+      return [`personas-path: ${override}: file not found`];
+    }
+    return [];
+  }
+
+  const errors = validatePersonas(parsePersonas(content));
+  return errors.map(error => `personas.md:${error.line}: ${error.message}`);
+}
+
+/**
+ * Surface non-blocking diagnostics about persona path configuration.
+ * Currently: when `paths.personas` is set AND the default-location file
+ * `.safeword-project/personas.md` still exists, emit an advisory naming
+ * the orphaned file. Safeword reads from the override; the legacy file
+ * is dead weight and may confuse readers who think they're editing the
+ * live file. Zero-exit — non-destructive (data-loss principle from
+ * ticket K7N2QM); user owns cleanup.
+ */
+function findPersonaAdvisories(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'personas');
+  if (override === undefined) return [];
+  const defaultPath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+  if (!exists(defaultPath)) return [];
+  return [
+    `.safeword-project/personas.md exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
+/**
+ * Validate glossary.md when present, routing through any configured
+ * `paths.glossary` override. Returns one issue string per glossary
+ * validation error, formatted as `glossary.md:LINE: MESSAGE`. Same two
+ * failure modes as {@link findPersonaIssues} — absent default is silent
+ * (scaffold is optional), configured-but-missing fails loudly (ticket
+ * YR6C49, mirrors K7N2QM).
+ */
+function findGlossaryIssues(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'glossary');
+  const filePath = resolveConfiguredPath(cwd, 'glossary', nodePath.join(...GLOSSARY_FILE_SUBPATH));
+  const content = readFileSafe(filePath);
+
+  if (content === undefined) {
+    if (override !== undefined) {
+      return [`glossary-path: ${override}: file not found`];
+    }
+    return [];
+  }
+
+  const errors = validateGlossary(parseGlossary(content));
+  return errors.map(error => `glossary.md:${error.line}: ${error.message}`);
+}
+
+/**
+ * Surface non-blocking diagnostics about glossary path configuration.
+ * When `paths.glossary` is set AND the default-location file still exists,
+ * emit a zero-exit advisory naming the orphaned file (mirrors
+ * {@link findPersonaAdvisories}; data-loss principle from K7N2QM).
+ */
+function findGlossaryAdvisories(cwd: string): string[] {
+  const override = readConfiguredPath(cwd, 'glossary');
+  if (override === undefined) return [];
+  const defaultPath = nodePath.join(cwd, ...GLOSSARY_FILE_SUBPATH);
+  if (!exists(defaultPath)) return [];
+  return [
+    `.safeword-project/glossary.md exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
+const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
+
+/**
+ * Surface scenario-lineage coverage gaps as non-blocking advisories (ticket
+ * XT1FFM). Scoped to `status: in_progress` tickets that carry a spec.md —
+ * which excludes done predecessors whose pre-scheme scenarios are the
+ * out-of-scope migration case (epic DZ2NM5/D5), and keeps the report focused
+ * on the work the developer is actually building. Each in-progress ticket's
+ * (spec.md, test-definitions.md) pair is cross-referenced into uncovered ACs,
+ * stale AC refs, and orphan scenarios. Zero-exit — advisory, never a gate.
+ */
+function findCoverageAdvisories(cwd: string): string[] {
+  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  let ticketIds: string[];
+  try {
+    ticketIds = readdirSync(ticketsRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && entry.name !== 'completed')
+      .map(entry => entry.name);
+  } catch {
+    return [];
+  }
+  return ticketIds.flatMap(ticketId => coverageAdvisoriesForTicket(ticketsRoot, ticketId));
+}
+
+/** Build coverage advisories for one ticket, or none if it is not an
+ * in-progress, spec-bearing ticket. */
+function coverageAdvisoriesForTicket(ticketsRoot: string, ticketId: string): string[] {
+  const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
+  const ticketContent = readFileSafe(nodePath.join(ticketDirectory, 'ticket.md'));
+  if (ticketContent === undefined || !isInProgress(ticketContent)) return [];
+
+  const specContent = readFileSafe(nodePath.join(ticketDirectory, 'spec.md'));
+  if (specContent === undefined) return [];
+
+  const testDefinitionsContent = readFileSafe(
+    nodePath.join(ticketDirectory, 'test-definitions.md'),
+  );
+  return formatCoverageReport(ticketId, buildCoverageReport(specContent, testDefinitionsContent));
+}
+
+/** Whether a ticket.md's frontmatter declares `status: in_progress`. */
+function isInProgress(ticketContent: string): boolean {
+  const lines = ticketContent.split('\n');
+  if (lines[0]?.trim() !== '---') return false;
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = (lines[index] ?? '').trim();
+    if (line === '---') return false;
+    if (line === 'status: in_progress') return true;
+  }
+  return false;
+}
+
+/** Render a coverage report into one advisory string per finding. */
+function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
+  return [
+    ...report.uncovered.map(
+      acId => `${ticketId}: acceptance criterion ${acId} has no scenario (uncovered)`,
+    ),
+    ...report.stale.map(
+      reference =>
+        `${ticketId}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
+    ),
+    ...report.orphan.map(
+      reference => `${ticketId}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
+    ),
+  ];
 }
 
 /**
@@ -67,6 +235,13 @@ interface HealthStatus {
   updateAvailable: boolean;
   latestVersion: string | undefined;
   issues: string[];
+  /**
+   * Non-blocking diagnostics — reported to the user but do NOT gate
+   * non-zero exit. Use for situations where safeword's operation is
+   * unaffected but a cleanup or attention is warranted (e.g., legacy
+   * default-location file orphaned by a configured `paths.*` override).
+   */
+  advisories: string[];
   missingPackages: string[];
   missingPacks: string[];
 }
@@ -113,6 +288,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
       updateAvailable: false,
       latestVersion: undefined,
       issues: [],
+      advisories: [],
       missingPackages: [],
       missingPacks: [],
     };
@@ -141,6 +317,8 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
   const issues: string[] = [
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
+    ...findPersonaIssues(cwd),
+    ...findGlossaryIssues(cwd),
   ];
 
   // Check for missing .claude/settings.json
@@ -158,6 +336,11 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     updateAvailable: false,
     latestVersion: undefined,
     issues,
+    advisories: [
+      ...findPersonaAdvisories(cwd),
+      ...findGlossaryAdvisories(cwd),
+      ...findCoverageAdvisories(cwd),
+    ],
     missingPackages: result.packagesToInstall,
     missingPacks,
   };
@@ -237,8 +420,40 @@ function reportHealthSummary(health: HealthStatus): boolean {
     return true;
   }
 
+  // Advisories: non-blocking diagnostics. Reported even when issues
+  // exist (no early-return above this point handles them); printed
+  // here when the project is otherwise healthy.
+  if (health.advisories.length > 0) {
+    header('Advisories');
+    for (const advisory of health.advisories) {
+      warn(advisory);
+    }
+  }
+
   success('\nConfiguration is healthy');
   return false;
+}
+
+/**
+ * Regenerate the ticket discovery index, swallowing any error — index
+ * freshness must never block or fail a health check. Reports only when it
+ * actually rewrote a file.
+ * @param cwd
+ */
+function regenerateTicketIndex(cwd: string): void {
+  try {
+    const result = syncTickets(cwd);
+    if (result.wrote) {
+      info('Regenerated ticket index (INDEX.md / INDEX-completed.md)');
+    }
+  } catch (error: unknown) {
+    // Best-effort: index freshness must never fail the health check. Surface
+    // under DEBUG, then return — the deliberate swallow point.
+    if (process.env.DEBUG) {
+      console.error('[check] ticket index regen failed:', error);
+    }
+    return;
+  }
 }
 
 /**
@@ -257,6 +472,10 @@ export async function check(options: CheckOptions): Promise<void> {
     info('Not configured. Run `safeword setup` to initialize.');
     return;
   }
+
+  // Keep the ticket discovery index fresh at this checkpoint (best-effort —
+  // never fail the health check on index regen). Ticket 1GGD28.
+  regenerateTicketIndex(cwd);
 
   // Show versions
   keyValue('Safeword CLI', `v${health.cliVersion}`);
