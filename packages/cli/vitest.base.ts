@@ -18,12 +18,13 @@ export const baseConfig = defineConfig({
     // Increase hook timeout for afterEach cleanup (rmSync with retries)
     // Default 10s isn't enough when bun has locked files
     hookTimeout: 30_000,
-    // Run tests sequentially to avoid temp directory conflicts.
-    // (maxWorkers: 3 was tried 2026-06-01 and flaked the pre-push gate ~2/3
-    // runs — the heavy process-spawning integration tests contend under
-    // concurrency despite unique mkdtemp dirs. Lifting this safely needs the
-    // isolation audit tracked in CQJBSN; reverted to 1 for release stability.)
+    // 3 workers (of the 4-vCPU ubuntu-latest runner). maxWorkers:1 timed the CI
+    // `test` job out (20-min cap) — sequential is too slow for the full suite +
+    // setup. The spawn-heavy integration tier can lose a timing race under CPU
+    // *saturation* (seen locally during back-to-back suites at load ~10; NOT
+    // reproducible in 35 isolated runs), but a dedicated CI runner has no
+    // competing load. Bounding that race properly (two-tier pools) is CQJBSN.
     pool: 'forks',
-    maxWorkers: 1,
+    maxWorkers: 3,
   },
 });
