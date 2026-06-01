@@ -6,7 +6,12 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { deriveTddStep, getActiveTicket, getTicketInfo } from './lib/active-ticket.ts';
+import {
+  deriveTddStep,
+  getActiveTicket,
+  getTicketInfo,
+  resolveStopPhase,
+} from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { validateLedger } from './lib/ledger-validation.ts';
 import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
@@ -84,12 +89,18 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
     if (!state.activeTicket) return empty;
 
     const ticket = getTicketInfo(projectDir, state.activeTicket);
-    if (ticket.status !== 'in_progress') return empty;
+    // resolveStopPhase closes the status/phase done-gate sidestep (ticket
+    // 2JMQMX): a build ticket or epic flipped to status:done without reaching
+    // phase:done is surfaced as phase:'done' so the done-gate still runs.
+    const hasTestDefinitions =
+      ticket.folder !== undefined &&
+      existsSync(`${ticketsDir}/${ticket.folder}/test-definitions.md`);
+    const resolved = resolveStopPhase(ticket, hasTestDefinitions);
 
     return {
-      phase: ticket.phase as BddPhase | undefined,
-      type: ticket.type,
-      folder: ticket.folder,
+      phase: resolved.phase as BddPhase | undefined,
+      type: resolved.type,
+      folder: resolved.folder,
     };
   }
 

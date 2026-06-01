@@ -181,10 +181,30 @@ export function deriveTddStep(projectDirectory: string, ticketFolder: string): s
  * stays unit-testable.
  */
 export function resolveStopPhase(
-  _details: TicketDetails,
-  _hasTestDefinitions: boolean,
+  details: TicketDetails,
+  hasTestDefinitions: boolean,
 ): ActiveTicketInfo {
-  return EMPTY; // STUB — real implementation in GREEN
+  // in_progress: normal flow — pass the ticket's real phase through unchanged.
+  if (details.status === 'in_progress') {
+    return { phase: details.phase, type: details.type, folder: details.folder };
+  }
+
+  // A status:done close that never reached phase:done is the sidestep. Route it
+  // into the done-gate (surface phase:'done'), but only for tickets that have
+  // something to verify: build tickets (task/feature WITH scenarios) and epics.
+  // `phase !== 'done'` skips an already-gated ticket so the gate can't loop.
+  if (details.status === 'done' && details.phase !== 'done') {
+    const isBuildTicket =
+      (details.type === 'task' || details.type === 'feature') && hasTestDefinitions;
+    const isEpic = details.type === 'epic';
+    if (isBuildTicket || isEpic) {
+      return { phase: 'done', type: details.type, folder: details.folder };
+    }
+  }
+
+  // Everything else (patches, typeless, scenario-less, non-done statuses) keeps
+  // the deliberate status escape hatch — no phase context.
+  return EMPTY;
 }
 
 export function getActiveTicket(projectDirectory: string): ActiveTicketInfo {
