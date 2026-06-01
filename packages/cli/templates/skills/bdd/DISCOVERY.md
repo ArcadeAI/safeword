@@ -99,6 +99,8 @@ If any answer is vague, you have open questions — surface them.
 
 **When the feature leans on a library or framework** — read the installed version's docs before proposing API shapes or done-when criteria. Scope baked on training memory of a different version is silently wrong. Check `package.json` / lockfile first, then the source wired up (Context7, official docs, README at the pinned ref).
 
+**When the feature introduces architecture or a new pattern** — design the ideal first (`/figure-it-out`), _then_ survey the existing patterns in the area and reconcile: conform by default, deviate only with a named defect and an uplevel follow-up ticket. See `.safeword/guides/architecture-guide.md` → Survey & Reconcile.
+
 ## Worked example: Phase 0 end to end
 
 One feature walked through all four artifacts and every sub-phase gate. Slug `oauth-flow`: let an operator rotate an API key without a coordinated flag day.

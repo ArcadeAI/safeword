@@ -20,7 +20,12 @@ Each turn:
 4. Incorporate what the user confirmed; narrow the open set.
 5. When zero open questions remain and the user accepts → advance.
 
-Research before proposing anything significant. Read the relevant code, docs, and prior tickets. Identify 2-3 options, weigh them on correctness, simplicity, and no-bloat, then propose one with rationale.
+Research before proposing anything significant — and the order is load-bearing:
+
+1. **Frame** the problem and its hard constraints: prior tickets, the data model, non-negotiable framework idioms. Don't read the soft conventions yet.
+2. **Design the ideal.** Run `/figure-it-out` to weigh 2-3 options on correctness, simplicity, and no-bloat, and pick the best architecture _as if the codebase didn't exist_. Computing this first gives the next step a yardstick.
+3. **Survey the existing patterns** in the area you're about to touch — now, not before. Surveying earlier anchors the design to the status quo and quietly shrinks it to match.
+4. **Reconcile.** Conform to the existing pattern by default — deviate only when the ideal is a real improvement, not taste. When your ideal diverges from what exists, record the call: to deviate, name a concrete defect of the existing pattern the ideal fixes, the call-site count you're splitting, a one-line pre-mortem ("assume this was wrong — what broke?"), and the follow-up ticket to uplevel the rest. Reversible and local → a few lines in the ticket; irreversible or cross-cutting (data model, public API) → promote to an ADR. See `./.safeword/guides/architecture-guide.md`.
 
 Depth scales with ambiguity. Clear request → 0 turns. One open question → 1 turn. Vague idea → 2-3 turns of increasingly specific proposals.
 

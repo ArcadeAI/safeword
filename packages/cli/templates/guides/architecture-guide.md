@@ -4,6 +4,48 @@
 
 ---
 
+## Survey & Reconcile (Before You Propose)
+
+The order is load-bearing (full version in `@.safeword/SAFEWORD.md` → Clarify):
+
+1. **Frame** the hard constraints — data model, non-negotiable framework idioms, prior decisions.
+2. **Design the ideal** with `/figure-it-out`, as if the codebase didn't exist. This is your yardstick.
+3. **Survey** the existing patterns in the area — _now_, not before. Surveying first anchors the design to the status quo.
+4. **Reconcile** — conform by default; record the call when your ideal diverges.
+
+### Survey: what to look for
+
+- **Sibling implementations** — grep the layer/feature for code that solves the same shape of problem. How is it structured?
+- **Prior decisions** — search `ARCHITECTURE.md` and tickets for an existing ruling on this pattern.
+- **Tests near the code** — they encode the conventions you'd be expected to match.
+- **Call-site count** — how many places use the existing pattern? Write the number down; it is the cost of deviating.
+
+### Reconcile: conform by default
+
+Default to the existing pattern. Per Google's code-review standard, conform "as long as that doesn't worsen the overall code health of the system" — deviate only when your ideal is a _real_ improvement, not your taste.
+
+**Ideal and existing agree → no decision, no record.** When they diverge, record the call (below). You can't silently conform your ideal away (that is how mediocre patterns calcify), and you can't silently deviate (that is how a codebase splits in two).
+
+### The reconcile record
+
+Required only when the ideal diverges from what exists:
+
+| Field                       | Notes                                                                                                           |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Direction**               | Conform, or deviate                                                                                             |
+| **Reason**                  | The load-bearing why                                                                                            |
+| **Health defect** (deviate) | A _named_ failure of the existing pattern the ideal fixes. "Cleaner" is not a defect.                           |
+| **Inconsistency cost**      | The call-site count you're splitting (from the survey)                                                          |
+| **Pre-mortem**              | One line: "assume deviating was wrong — what broke?" Prospective hindsight surfaces costs you're discounting.   |
+| **Uplevel ticket**          | The tracked follow-up to migrate the rest. Track it; don't migrate every call site now (avoid the rabbit-hole). |
+
+**Depth scales with reversibility:**
+
+- **Reversible + local** → the record is a few lines in the ticket.
+- **Irreversible or cross-cutting** (data model, public API) → promote to a full Architecture Doc decision (What / Why / Trade-off / Alternatives, below) and get a second opinion that tries to _refute_ the deviation before committing.
+
+---
+
 ## Document Type Decision Tree (Follow in Order)
 
 Answer **IN ORDER**. Stop at the first "Yes":
