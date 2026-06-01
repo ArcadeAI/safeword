@@ -276,7 +276,7 @@
 
 ### workflow-gate-hygiene
 
-- **1GGD28** — Generated ticket INDEX.md (safeword sync-tickets) for capability discovery (in_progress, epic: workflow-gate-hygiene)
+- **1GGD28** — Generated ticket INDEX.md (safeword sync-tickets) for capability discovery (done, epic: workflow-gate-hygiene)
   Give the ticket corpus the same capability-searchable surface learnings already have — a generated `.safeword-project/tickets/INDEX.md` (`ID — title (status, epic) — one-liner → path`, grouped by epic) so "is there already a ticket for X?" is one grep, not a 134-folder hunt.
   → `.safeword-project/tickets/1GGD28-ticket-discovery-index`
 - **2JMQMX** — Explore & fix bdd/tdd workflow adherence (backlog, epic: workflow-gate-hygiene)
@@ -531,7 +531,7 @@
   Decide how safeword behaves for customers who also run arcade — specifically how shared inputs (personas, glossary) and architecture-tracking patterns reconcile when both tools want to author or read the same project knowledge.
   → `.safeword-project/tickets/P8RJ4M`
 - **QSNKBB** — Stop-hook UNIVERSAL*HEADER: cut duplicated preamble (done, epic: —)
-  Cut ~7 lines of philosophical preamble from the Stop-hook UNIVERSAL*HEADER. Every cut line is already covered (verbatim or better) in SAFEWORD.md, which loads every conversation. Keep only rules that are about the \_terminal verdict*itself and the \_spec-vs-implementation distinction* that the rest of the project doesn't sharply articulate.
+  Cut ~7 lines of philosophical preamble from the Stop-hook UNIVERSAL*HEADER. Every cut line is already covered (verbatim or better) in SAFEWORD.md, which loads every conversation. Keep only rules that are about the \_terminal verdict* itself and the \_spec-vs-implementation distinction* that the rest of the project doesn't sharply articulate.
   → `.safeword-project/tickets/QSNKBB-prompt-brevity-cut`
 - **SW1SE5** — Stop-gate incremental tsc for TS projects (done, epic: —)
   Add an incremental whole-program `tsc --noEmit` to the stop-quality gate for TypeScript projects, so type errors surface at the stop boundary instead of riding silently to the done gate.

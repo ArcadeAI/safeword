@@ -2,8 +2,8 @@
 id: 1GGD28
 slug: ticket-discovery-index
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: workflow-gate-hygiene
 created: 2026-05-31T18:02:49.267Z
 last_modified: 2026-06-01T00:30:24.713Z
@@ -66,3 +66,5 @@ The corpus is **134 ticket folders, 49 of them bare-ID (no slug)** — `ls` and 
 - 2026-06-01T01:00:00.000Z RED 99bc0aae → GREEN 0b7d835c: `ticket-sync` module (parse/read/group/build/sync) + `safeword sync-tickets` command + `safeword check` regen step. 16/16 module scenarios pass; generated real indexes (172 active / 157 completed); `grep INDEX*.md` surfaces 0AWSY8 + the workflow-gate-hygiene epic group. Two pre-existing tickets (085-bump-golangci-lint, 014-bdd-guides-consolidation) surfaced as skipped (missing `id:` frontmatter) — real data finding, out of scope.
 - 2026-06-01T01:00:00.000Z Regression caught + fixed: full suite (2332 pass, 9 fail in 2 files) flagged that an initial `ticket new` regen wrote INDEX.md into the tickets dir — breaking the cross-branch clean-merge invariant (committed on both branches → conflict) and the "tickets dir = ticket folders" invariant (`readdirSync` length). **Scope refinement to the /figure-it-out trigger decision:** dropped the `ticket new` regen; index freshness is now command + `safeword check` only. Targeted re-run green (28/28: cross-branch-tickets + ticket-new + ticket-sync). Filed the 792s suite runtime into CQJBSN (test-suite-parallelism) as its timing evidence.
 - 2026-06-01T01:00:00.000Z → verify: all scenarios RED/GREEN checked with SHAs, cross-scenario refactor assessed (skip — premature to share an abstraction with learning-sync).
+- 2026-06-01T01:30:00.000Z Refactor pass: inlined a redundant epic ternary (a374a3d6); un-exported `parseTicket` after audit flagged it as exported-but-internal (30b3405d). Both behavior-preserving (targeted 16/16 + typecheck).
+- 2026-06-01T01:30:00.000Z Complete: verify + audit — full suite 2341/2341 (1 skipped), build/lint clean, 15/15 scenarios, jscpd 0 clones vs learning-sync, dep-drift clean. verify.md written. → done.

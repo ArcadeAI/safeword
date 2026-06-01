@@ -19,11 +19,11 @@ last_modified: 2026-05-31T18:31:15.834Z
 
 ## Tickets
 
-| ID         | Title                                                                        | Type    | Status  |
-| ---------- | ---------------------------------------------------------------------------- | ------- | ------- |
-| **2JMQMX** | Explore & fix bdd/tdd workflow adherence                                     | feature | backlog |
-| **MT27QG** | Review LOC gates — keep, or move trigger to phase/step                       | feature | backlog |
-| **1GGD28** | Generated ticket INDEX.md (`safeword sync-tickets`) for capability discovery | feature | backlog |
+| ID         | Title                                                                        | Type    | Status   |
+| ---------- | ---------------------------------------------------------------------------- | ------- | -------- |
+| **2JMQMX** | Explore & fix bdd/tdd workflow adherence                                     | feature | backlog  |
+| **MT27QG** | Review LOC gates — keep, or move trigger to phase/step                       | feature | backlog  |
+| **1GGD28** | Generated ticket INDEX.md (`safeword sync-tickets`) for capability discovery | feature | **done** |
 
 (More may join — this is the cleanup holding pen. Related self-enforcement tickets that stay standalone: MBGQ89 pairing schema, 160-audit-stale-ticket-detection.)
 
