@@ -1,65 +1,51 @@
-# Spec: Explore & fix bdd/tdd workflow adherence
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Close the status/phase done-gate sidestep
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Safeword's done-gate (run tests, require `verify.md`, require `/verify`+`/audit`)
+only fires when a ticket reaches `phase: done`. Setting `status: done` directly
+leaves `phase` untouched, and because the hook only tracks `in_progress`
+tickets, the closed ticket drops out of context — the gate never runs. This
+session used that sidestep to close epics DZ2NM5/P8RJ4M with hand-written
+`verify.md` and no test/skill enforcement. Make "done" mean verified by turning
+the status-close into a natural gate.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- `/figure-it-out` decision (work log, 2026-06-01): option A — enforce via a scoped natural gate, not steering, not strict-enforce-everything.
+- Learnings `natural-vs-self-report-gates` (prefer physics gates; phase advancement is self-report, ~40% unreliable) and `procedural-gates-generalize-beyond-tdd` (hard SAFETY gates work; verbose procedural checklists raise regressions 6%→10%).
+- `stop-quality.ts:351` done-gate; `:87` / `lib/active-ticket.ts:179` the in_progress-only filters the sidestep exploits.
+- M7AZY3 parent epic; adjacent enforcement epic 172-phase-step-enforcement.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
-
-## Vocabulary
-
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- **Safeword Maintainer (SM)** — dogfoods safeword; needs the self-enforcement to be un-bypassable so "done" tickets are actually verified.
+- (Generalizes to **DEV** — the gate ships to every safeword user.)
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### bdd-tdd-adherence.SM1 — A "done" ticket is a verified ticket
 
-Uncomment and customize:
+**Persona:** Safeword Maintainer (SM)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I (or my agent) close a ticket by marking it done, I want the system to
+> refuse the close if the done evidence was skipped, so "done" can't silently
+> mean "claimed done" — regardless of whether I reach done via `phase` or
+> `status`.
 
-**Persona:** Platform Operator (PO)
+#### bdd-tdd-adherence.SM1.AC1 — A build ticket (task/feature with scenarios) closed by `status: done` still triggers the done-gate
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### bdd-tdd-adherence.SM1.AC2 — An epic closed by `status: done` is gated proportionately — `verify.md` + passing tests required, no scenarios/skills demanded
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### bdd-tdd-adherence.SM1.AC3 — Legitimate states are untouched — in_progress tickets keep their real phase, an already-done ticket is not re-gated, and non-build closes (patches, typeless, scenario-less) keep the escape hatch
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+## Vocabulary
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+Uses existing glossary: Gate (the done gate specifically), Phase, Ticket. No new terms.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- Setting `status: done` on a task/feature that has a `test-definitions.md`, while `phase` ≠ done, makes the next Stop run the full done-gate (block until tests pass + `verify.md` + `/verify`+`/audit`).
+- Setting `status: done` on an epic makes the next Stop require `verify.md` + passing tests (no scenario/skill block).
+- An `in_progress` ticket's phase context is unchanged; a ticket already at `status: done, phase: done` is not re-gated (no loop); a patch / typeless / scenario-less close is exempt.
+- Pure decision function `resolveStopPhase` is unit-tested; one integration test proves the full hook blocks a status-close of a feature missing `verify.md`.
