@@ -5,6 +5,7 @@
 
 import {
   classifyAnnotation,
+  isValidSha,
   isValidSkipReason,
   parseCheckboxAnnotation,
   type CheckboxAnnotation,
@@ -90,6 +91,12 @@ function validateScenario(
 
     // SHA candidate
     realShaCount++;
+    if (!isValidSha(kind.value)) {
+      errors.push(
+        `Scenario "${scenario.name}" ${step.name}: "${kind.value}" is not a valid commit SHA (expected 7-40 hex chars).`,
+      );
+      continue; // malformed — don't pass it to git or track it for collisions
+    }
     if (!isReachable(kind.value)) {
       errors.push(
         `Scenario "${scenario.name}" ${step.name}: SHA ${kind.value} is not reachable from HEAD.`,
@@ -143,8 +150,14 @@ function validateCrossScenario(
     return;
   }
 
-  if (kind.kind === 'sha' && !isReachable(kind.value)) {
-    errors.push(`Cross-scenario refactor row: SHA ${kind.value} is not reachable from HEAD.`);
+  if (kind.kind === 'sha') {
+    if (!isValidSha(kind.value)) {
+      errors.push(
+        `Cross-scenario refactor row: "${kind.value}" is not a valid commit SHA (expected 7-40 hex chars).`,
+      );
+    } else if (!isReachable(kind.value)) {
+      errors.push(`Cross-scenario refactor row: SHA ${kind.value} is not reachable from HEAD.`);
+    }
   }
 }
 

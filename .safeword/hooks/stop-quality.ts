@@ -3,7 +3,7 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import {
@@ -428,7 +428,10 @@ if (currentPhase === 'done') {
         const content = readFileSync(testDefsPath, 'utf8');
         const isReachable = (sha: string): boolean => {
           try {
-            execSync(`git cat-file -e ${sha}^{commit}`, {
+            // execFileSync (no shell) — sha is a file-derived annotation value;
+            // passing it as an arg, not interpolated into a shell string, closes
+            // the command-injection sink (ledger-validation also rejects non-hex).
+            execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], {
               cwd: projectDir,
               stdio: 'pipe',
             });

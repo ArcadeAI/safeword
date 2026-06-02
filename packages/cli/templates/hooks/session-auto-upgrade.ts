@@ -4,7 +4,7 @@
 // Skips if: major bump, dirty working tree, autoUpgrade disabled, or CI environment.
 // Policy reference: .claude/skills/versioning/SKILL.md
 
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 import { isDogfoodRepo } from './lib/dogfood.ts';
@@ -149,11 +149,14 @@ try {
   const filesToStage = filterSafewordFiles(changedFiles, untrackedFiles);
 
   if (filesToStage.length > 0) {
-    execSync(`git add ${filesToStage.map(f => `"${f}"`).join(' ')}`, execOpts);
-    execSync(`git commit -m "chore: safeword auto-upgrade v${currentVersion} → v${latest}"`, {
-      ...execOpts,
-      stdio: 'pipe',
-    });
+    // execFileSync (no shell): filenames pass as args — no fragile manual
+    // quoting that breaks on a name containing a quote or shell metacharacter.
+    execFileSync('git', ['add', ...filesToStage], execOpts);
+    execFileSync(
+      'git',
+      ['commit', '-m', `chore: safeword auto-upgrade v${currentVersion} → v${latest}`],
+      { ...execOpts, stdio: 'pipe' },
+    );
   }
 
   console.log(`SAFEWORD: Auto-upgraded v${currentVersion} → v${latest}`);

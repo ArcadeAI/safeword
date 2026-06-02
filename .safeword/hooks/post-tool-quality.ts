@@ -3,7 +3,7 @@
 // Counts LOC via git diff --stat HEAD, detects phase changes and TDD step transitions,
 // updates per-session quality state. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
 
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -85,8 +85,10 @@ function getHeadHash(): string {
 
 function countLoc(): number {
   try {
-    const excludes = META_PATHS.map(p => `':!${p}'`).join(' ');
-    const diffStat = execSync(`git diff --stat HEAD -- . ${excludes}`, {
+    // execFileSync (no shell): pathspecs are args, so no shell-quoting needed
+    // (`:!path`, not the shell-escaped `':!path'`).
+    const excludes = META_PATHS.map(p => `:!${p}`);
+    const diffStat = execFileSync('git', ['diff', '--stat', 'HEAD', '--', '.', ...excludes], {
       cwd: projectDirectory,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
