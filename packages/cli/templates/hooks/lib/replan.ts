@@ -44,6 +44,15 @@ function runGit(arguments_: string, cwd: string): string {
   }
 }
 
+/** The textual relevance signal: paths named across the ticket's artifacts. */
+function readReferencedPaths(ticketDirectory: string): string[] {
+  const artifactText = ARTIFACT_FILES.map(name => {
+    const filePath = nodePath.join(ticketDirectory, name);
+    return existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+  }).join('\n');
+  return extractReferencedPaths(artifactText);
+}
+
 /**
  * Decide whether to surface the replan heads-up for the active ticket. Reads
  * the ticket's `last_modified` (the staleness baseline), the paths its
@@ -74,11 +83,7 @@ export function evaluateReplan(
       ?.trim();
     if (!lastModified) return null;
 
-    const artifactText = ARTIFACT_FILES.map(name => {
-      const filePath = nodePath.join(ticketDirectory, name);
-      return existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
-    }).join('\n');
-    const referencedPaths = extractReferencedPaths(artifactText);
+    const referencedPaths = readReferencedPaths(ticketDirectory);
     if (referencedPaths.length === 0) return null; // no signal → bias quiet
 
     const headSha = runGit('rev-parse HEAD', projectDirectory).trim();
