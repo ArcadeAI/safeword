@@ -21,7 +21,6 @@ export const SKILL_CURSOR_PAIRS: readonly SkillCursorPair[] = [
       'bdd-core',
       'bdd-discovery',
       'bdd-scenarios',
-      'bdd-decomposition',
       'bdd-tdd',
       'bdd-verify',
       'bdd-done',

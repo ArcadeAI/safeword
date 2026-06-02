@@ -463,9 +463,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/bdd/SCENARIOS.md': {
       template: 'skills/bdd/SCENARIOS.md',
     },
-    '.claude/skills/bdd/DECOMPOSITION.md': {
-      template: 'skills/bdd/DECOMPOSITION.md',
-    },
     '.claude/skills/bdd/TDD.md': {
       template: 'skills/bdd/TDD.md',
     },
@@ -542,9 +539,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.cursor/rules/bdd-scenarios.mdc': {
       template: 'cursor/rules/bdd-scenarios.mdc',
-    },
-    '.cursor/rules/bdd-decomposition.mdc': {
-      template: 'cursor/rules/bdd-decomposition.mdc',
     },
     '.cursor/rules/bdd-tdd.mdc': {
       template: 'cursor/rules/bdd-tdd.mdc',

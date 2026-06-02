@@ -1,6 +1,0 @@
----
-description: USE WHEN in BDD decomposition phase. Guides task breakdown and component analysis.
-alwaysApply: false
----
-
-@.claude/skills/bdd/DECOMPOSITION.md
