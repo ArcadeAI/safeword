@@ -2,12 +2,12 @@
 id: W9GPE7
 slug: decomposition-phase-removal
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: bdd-chain-hardening
 parent: EECVXB
 created: 2026-06-02T15:01:21.748Z
-last_modified: 2026-06-02T23:05:00Z
+last_modified: 2026-06-02T23:25:00Z
 ---
 
 # Remove deprecated decomposition phase — enum value, DECOMPOSITION.md, Cursor rule, migrate ticket 153
@@ -33,6 +33,7 @@ last_modified: 2026-06-02T23:05:00Z
 
 ## Work Log
 
+- 2026-06-02T23:25:00Z Done. Executed in 3 groups: (A) enum + hooks + tests — dropped `decomposition` from `BddPhase`/`PHASE_EVIDENCE`, `prompt-questions.ts`, `stop-quality.ts`, `quality.test.ts`; (B) deleted `DECOMPOSITION.md` + `bdd-decomposition.mdc` (both copies), dropped `schema.ts`/parity-fixture refs; (C) scrubbed skill/doc phase tables (`bdd/SKILL.md`, `SPLITTING.md`, `quality-review`, `ticket-system`, `ticket-template.md`). /verify + /audit green: 2386/2386 tests, build/lint/typecheck clean, 116 parity pairs (−2), depcruise clean, no dead refs to the deleted files. Updated the FSX1PP ADR in ARCHITECTURE.md from "staged removal (follow-up)" → "completed (W9GPE7)". Kept the ADR-citing retirement prose in DISCOVERY.md/SCENARIOS.md. verify.md present. Status → done.
 - 2026-06-02T15:01:21.748Z Started: Created ticket W9GPE7
 - 2026-06-02T15:01Z Filed as the staged follow-up to FSX1PP (decomposition removal). Backlog until ticket 153 is migrated off the phase.
 - 2026-06-02T20:36Z Unblocked: 153 migrated `decomposition → implement` (and no other active ticket parks at that phase), so the prerequisite is satisfied. Ready to execute — remove the enum value + DECOMPOSITION.md + Cursor rule + schema/parity/test references. Still backlog by choice (sequence after the live workflow test + branch PR).
