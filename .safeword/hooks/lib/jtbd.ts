@@ -37,19 +37,12 @@ export type JtbdGateVerdict = { ok: true } | { ok: false; reason: string };
  * so a fresh spec parses to zero entries). Lenient on surrounding prose.
  */
 export function parseJtbdSection(specContent: string): JtbdSection {
-  const lines = specContent.split('\n');
   const entries: JtbdEntry[] = [];
   let skip: string | null = null;
   let seenJtbd = false;
   let inSection = false;
-  let inComment = false;
 
-  for (const [index, line] of lines.entries()) {
-    const result = stripComment(line ?? '', inComment);
-    inComment = result.inComment;
-    const trimmed = result.text.trim();
-    if (trimmed === '') continue;
-
+  for (const { index, text: trimmed } of activeLines(specContent)) {
     const heading = parseSectionHeading(trimmed);
     if (heading !== null) {
       inSection = heading.toLowerCase() === JTBD_HEADING;
@@ -99,12 +92,9 @@ function addCodeForms(references: Set<string>, name: string, code: string): void
  */
 export function knownPersonaRefs(personasContent: string): Set<string> {
   const references = new Set<string>();
-  let inComment = false;
 
-  for (const raw of personasContent.split('\n')) {
-    const result = stripComment(raw, inComment);
-    inComment = result.inComment;
-    const heading = parseSectionHeading(result.text.trim());
+  for (const { text } of activeLines(personasContent)) {
+    const heading = parseSectionHeading(text);
     if (heading === null) continue;
 
     const parsed = splitNameAndCode(heading);
@@ -178,11 +168,9 @@ function parseAcsByJtbd(specContent: string): {
   sectionSkip: string | null;
   jtbds: JtbdAcBlock[];
 } {
-  const lines = specContent.split('\n');
   const jtbds: JtbdAcBlock[] = [];
   let sectionSkip: string | null = null;
   let inSection = false;
-  let inComment = false;
   let current: JtbdAcBlock | null = null;
 
   function flush(): void {
@@ -192,12 +180,7 @@ function parseAcsByJtbd(specContent: string): {
     }
   }
 
-  for (const raw of lines) {
-    const result = stripComment(raw, inComment);
-    inComment = result.inComment;
-    const trimmed = result.text.trim();
-    if (trimmed === '') continue;
-
+  for (const { text: trimmed } of activeLines(specContent)) {
     const heading = parseAnyHeading(trimmed);
     if (heading !== null) {
       if (heading.level <= 2) {
@@ -284,6 +267,24 @@ function stripComment(line: string, inComment: boolean): { text: string; inComme
     }
     text = text.slice(close + 3);
   }
+}
+
+/**
+ * Split content into lines, strip HTML comments (tracking block-comment state
+ * across lines), and return each non-empty line with its 0-based index. The
+ * single comment-aware line-walk shared by the section parsers above — the
+ * hook-side mirror of the CLI's `markdown-sections.ts` extraction (WQ4RH3).
+ */
+function activeLines(content: string): { index: number; text: string }[] {
+  const out: { index: number; text: string }[] = [];
+  let inComment = false;
+  for (const [index, line] of content.split('\n').entries()) {
+    const result = stripComment(line, inComment);
+    inComment = result.inComment;
+    const text = result.text.trim();
+    if (text !== '') out.push({ index, text });
+  }
+  return out;
 }
 
 /** Any ATX heading → `{ level, text }`; null for non-heading lines. */
