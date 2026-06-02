@@ -83,10 +83,71 @@ const PATH_TOKEN = /(?<![\w:./-])\.?[\w-]+(?:\/[\w.-]+)+\/?/g;
 
 /**
  * Extract repo-relative path-like tokens a ticket references from its text
- * (markdown links, backtick spans, bare paths), deduped. This is the textual
- * half of the relevance signal; recall is enriched by the ticket's touched
- * files (gathered separately).
+ * (markdown links, backtick spans, bare paths), deduped. This is the relevance
+ * signal at the resume boundary: a ticket's artifacts name the paths it cares
+ * about. (A history signal — files the ticket's own commits touched — was
+ * considered but deferred: at resume the ticket has usually edited nothing yet,
+ * and a `git log --grep=<id>` proxy risks the false positives this filter
+ * exists to avoid. See dimensions.md.)
  */
 export function extractReferencedPaths(text: string): string[] {
   return [...new Set(text.match(PATH_TOKEN) ?? [])];
+}
+
+/** Inputs to the surface decision — pure snapshot of ticket + git + session state. */
+export interface ReplanContext {
+  ticketType: string | undefined;
+  /** Current HEAD sha. */
+  headSha: string;
+  /** HEAD sha already prompted for this ticket this session (absent if none yet). */
+  promptedHead: string | undefined;
+  referencedPaths: readonly string[];
+  /** Commits since the ticket's `last_modified`. */
+  commits: readonly ReplanCommit[];
+}
+
+/**
+ * Decide whether to surface the replan heads-up. Epics never trigger (you work
+ * sub-tickets, not epics). The heads-up fires at most once per HEAD advance:
+ * if HEAD has not moved past the already-prompted sha, stay silent even when
+ * relevant commits exist — otherwise it would re-fire every turn. When HEAD has
+ * advanced, delegate to the relevance count.
+ */
+export function decideReplan(context: ReplanContext): ReplanDecision {
+  if (context.ticketType === 'epic') return { surface: false, relevantCommitCount: 0 };
+  if (context.headSha !== '' && context.headSha === context.promptedHead) {
+    return { surface: false, relevantCommitCount: 0 };
+  }
+  return shouldSurfaceReplan(context.commits, context.referencedPaths);
+}
+
+const COMMIT_SEPARATOR = String.fromCharCode(0x1f);
+
+/**
+ * Parse `git log --name-only --pretty=format:%x1f%H` output into commits. Each
+ * block is prefixed by a unit separator (\x1f); the block's first line is the
+ * sha (dropped) and the rest are the changed paths. Robust to the blank lines
+ * `--name-only` interleaves, since splitting keys on the separator, not layout.
+ */
+export function parseGitLogNameOnly(raw: string): ReplanCommit[] {
+  return raw
+    .split(COMMIT_SEPARATOR)
+    .map(block =>
+      block
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean),
+    )
+    .filter(lines => lines.length > 0)
+    .map(lines => ({ changedPaths: lines.slice(1) }));
+}
+
+/**
+ * The opt-in heads-up: names the relevant-commit count and offers one step to
+ * accept ("check the plan"); declining is just proceeding. Phrased so an agent
+ * runs the investigation only on explicit accept (output-safety, design B).
+ */
+export function formatReplanHeadsUp(relevantCommitCount: number): string {
+  const noun = relevantCommitCount === 1 ? 'commit' : 'commits';
+  return `Resume check: ${relevantCommitCount} ${noun} since you last touched this ticket changed files it references — the plan may be stale. Say "check the plan" and I'll investigate whether scope still holds (still-good / change / cancel / split / merge); otherwise I'll proceed as planned.`;
 }
