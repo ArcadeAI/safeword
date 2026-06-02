@@ -1,6 +1,6 @@
 # Safeword Architecture
 
-**Version:** 1.14
+**Version:** 1.15
 **Last Updated:** 2026-06-02
 **Status:** Production
 
@@ -527,6 +527,34 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Trade-off      | Longer intake for features; Phase 0 advances through structured signoff sub-gates (orientation → JTBD → AC → scope) rather than one step.                                                                                                                                                            |
 | Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                          |
 | Implementation | `packages/cli/templates/skills/bdd/DISCOVERY.md` (Phase 0 sub-phases + worked example), `SCENARIOS.md` (lineage numbering), `spec-template.md`, glossary/persona `managedFiles` entries; per-file path overrides via `.safeword/config.json` `paths.*` (ticket K7N2QM). Epic DZ2NM5.                 |
+
+### BDD as a Solo-Agent Adaptation of the Three-Practice Model (retire `decomposition` phase)
+
+**Status:** Accepted
+**Date:** 2026-06-02
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | safeword's `bdd` workflow is explicitly an adaptation of canonical BDD's three practices — Discovery → Formulation → Automation — for a **single agent + one human**, not a team: the agent plays all three "Three Amigos" roles. As part of aligning to that model, the `decomposition` phase is retired as a distinct beat — its only scenario-dependent job (per-scenario test-layer assignment + build order) folds into the `scenario-gate` exit, and its overlapping jobs (component identification, design-doc/ADR triggers) stay in `intake`, where they already happen. |
+| Why            | (1) Canonical BDD has no breakdown phase — decomposition is foreign to the model safeword is built on. (2) It is the only phase with no gate and no required artifact, so agents skip it and nothing notices. (3) ~75% of its work duplicates intake's architecture step (chain audit, epic EECVXB). Retiring it makes the pipeline match the canonical Discovery→Formulation→Automation shape: `intake` (Discovery) → `define-behavior`/`scenario-gate` (Formulation) → `implement`/`verify` (Automation).                                                                      |
+| Trade-off      | safeword runs the BDD ritual **more consistently** than a human team (enforced ordering, durable traceable artifacts, an always-on adversarial pass) but **cannot replicate the Three Amigos' core value** — independent minds whose blind spots don't overlap. One model playing all three roles has correlated errors; self-adversarial review is weaker than independent review. The mitigations below reduce but do not eliminate this.                                                                                                                                      |
+| Alternatives   | Delete the `decomposition` enum value + files outright (rejected: cross-cutting — touches the phase enum, hooks, the paired Cursor rule, `schema.ts`, the parity fixture, and tests — and a live ticket sits in the phase; staged to a follow-up). Keep `decomposition` as an optional advisory phase (rejected: preserves off-pattern dead weight).                                                                                                                                                                                                                             |
+| Implementation | Reversible step (FSX1PP): `scenario-gate` exit (`SCENARIOS.md`) absorbs test-layer assignment + sequencing; `SKILL.md` + `lib/quality.ts` mark `decomposition` deprecated; `scenario-gate` advances straight to `implement`. The enum value is kept for back-compat. Staged removal (follow-up): drop the enum value, `DECOMPOSITION.md`, the Cursor rule `bdd-decomposition.mdc`, and migrate ticket `153-boundary-resilience`. Decision via `/figure-it-out` 2026-06-02.                                                                                                       |
+
+**The Three Amigos, played by one agent.** Canonical BDD's Discovery practice convenes three _perspectives_ — business/product, development, testing — to talk through concrete examples before code. safeword has no room of three; one agent wears all three hats:
+
+- **Product/business** — split with the human: the agent frames personas → JTBD → acceptance criteria in intake and uses `/elicit` to extract intent, but the user signs off at each propose-and-converge gate.
+- **Development** — the agent's own proposal; `/figure-it-out` for design calls; the architecture survey-and-reconcile step.
+- **Testing/QA** — the `scenario-gate`: AODI checks plus the adversarial "what breaks that none of these scenarios catch?" pass and the negative-case-coverage rule.
+
+**Where the simulation is weaker than a real room** (the deliberate, accepted divergences):
+
+1. **Correlated blind spots** — three different brains catch what each misses; one model re-reading its own work inherits its own misreads across all three hats. This is the irreducible gap.
+2. **The human reacts rather than contributes** — the burden of curiosity sits on the agent; an unasked question yields an unvolunteered rule. `/elicit` softens this.
+3. **No naive-question friction and no _held_ disagreement** — the agent resolves its own debate instantly; `/figure-it-out`'s steelman-both-sides is one mind arguing with itself.
+4. **Unknowns aren't tracked** — Example Mapping's red "question cards" give a readiness signal safeword lacks; ticket V6N5PW addresses this.
+
+safeword accepts this trade — **consistency and enforcement over independent blind-spot coverage** — because an autonomous agent cannot convene independent humans, and the mitigations (adversarial pass, `/elicit`, `/figure-it-out`, user sign-off gates) recover much of the value.
 
 ---
 

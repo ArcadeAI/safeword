@@ -1,13 +1,13 @@
 ---
 id: FSX1PP
 slug: collapse-decomposition-phase
-type: feature
-phase: intake
+type: task
+phase: implement
 status: in_progress
 epic: bdd-chain-hardening
 parent: EECVXB
 created: 2026-06-02T04:58:17.754Z
-last_modified: 2026-06-02T04:58:17.754Z
+last_modified: 2026-06-02T14:25:00.000Z
 ---
 
 # Retire decomposition as a distinct bdd phase (ADR + behavior collapse)
@@ -33,3 +33,4 @@ last_modified: 2026-06-02T04:58:17.754Z
 ## Work Log
 
 - 2026-06-02T04:58:17.754Z Started: Created ticket FSX1PP
+- 2026-06-02T14:25Z Reclassified feature→task: in-scope work is an ADR + reversible skill-doc edits (no executable behavior; enum/file removal deferred to a follow-up). Running as documentation/restructuring, phase→implement. Step 1: draft the ADR in ARCHITECTURE.md Key Decisions for review.
