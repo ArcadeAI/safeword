@@ -81,6 +81,12 @@ export function parseJtbdSection(specContent: string): JtbdSection {
   return { entries, skip };
 }
 
+/** Add a persona code and its combined `Name (code)` form to the ref set. */
+function addCodeForms(references: Set<string>, name: string, code: string): void {
+  references.add(code);
+  references.add(`${name} (${code})`);
+}
+
 /**
  * The set of persona references a JTBD may resolve against. Each `## Name` or
  * `## Name (CODE)` header contributes the name, its short code — the explicit
@@ -106,14 +112,8 @@ export function knownPersonaRefs(personasContent: string): Set<string> {
     references.add(parsed.name);
 
     const derived = derivePersonaCode(parsed.name);
-    if (derived !== '') {
-      references.add(derived);
-      references.add(`${parsed.name} (${derived})`);
-    }
-    if (parsed.code !== undefined) {
-      references.add(parsed.code);
-      references.add(`${parsed.name} (${parsed.code})`);
-    }
+    if (derived !== '') addCodeForms(references, parsed.name, derived);
+    if (parsed.code !== undefined) addCodeForms(references, parsed.name, parsed.code);
   }
 
   return references;
