@@ -36,3 +36,12 @@ Re-derived 2026-06-02 after the `/figure-it-out` rescope. Epic-anchor hook + ver
 ## Invariant
 
 - `templates/hooks/` ↔ `.safeword/hooks/` byte-identical (`diff -q`).
+
+## Refinements (scenario-gate, 2026-06-02) — supersede the relevant rows above
+
+- **Relevance denylist:** exclude high-churn manifests from the intersection — `package.json`, lockfiles (`*-lock.*`, `bun.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`), `tsconfig*.json`, `.gitignore`. (figure-it-out: static denylist over research-grade IDF.)
+- **Commit query:** `git log --since=<last_modified>` (a timestamp can't be a `..HEAD` range ref).
+- **`last_modified` timing:** the HOOK bumps it once when it surfaces a heads-up (not "at replan-complete") — deterministic, one-shot even if the user ignores the prompt, and makes the trigger/`last_modified` scenarios hook-testable. Supersedes decision 4 above.
+- **Trigger granularity:** fires on activeTicket _transition_ + new relevant commits — not every turn while the same ticket stays active.
+- **Architecture split:** hook = detection + relevance + heads-up injection + `last_modified` bump (unit-tested). Agent = decide/decline, run the investigation sub-agent, proposal-safety, failure fallback (skill prose, live-verified).
+- **Build order:** (1) pure relevance fn (extract ticket path-tokens ∪ touched-files, apply denylist, intersect with changed paths); (2) trigger fn (`git --since` + transition + `last_modified` bump); (3) wire into the UserPromptSubmit hook + heads-up injection; (4) skill prose for the agent investigation.

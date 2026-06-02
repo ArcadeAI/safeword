@@ -1,10 +1,10 @@
 ---
 id: 153
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 created: 2026-05-18T06:12:00Z
-last_modified: 2026-06-02T21:18:00Z
+last_modified: 2026-06-02T21:32:00Z
 scope:
   - Replan-on-resume triggers at activeTicket transition to a non-epic ticket, but ONLY when commits since `last_modified` touch paths the ticket references (contextual relevance filter) — not "any commit" — to keep the alert-to-action ratio high
   - Tiered: a cheap inline triage runs first (relevant-path intersection + commit summary); escalate to a fresh sub-agent (`isolation: worktree`) investigation ONLY when drift is plausible; no relevant change → stay silent, no sub-agent spawned
@@ -163,6 +163,7 @@ UserPromptSubmit state-diffing to detect activeTicket transitions; git-log commi
 ## Work Log
 
 - 2026-05-24T13:17:00Z Re-applied May-23 re-validation clarification (Investigation Needed #2 now specifies `previousActiveTicket` as inline sibling field in `quality-state.json`, following v0.34.0's append-only state precedent). Original May-23 commit `90f725c` landed on `chore/dogfood-bump-0.35.1` which got reset/rebased before merge; commit is now orphaned and not on any branch. The May-23 re-validation pass itself (57-commit codebase delta check) had verdict "design holds, no CONFLICTS" — that conclusion still stands; this entry just re-instates the design-clarification artifact on main.
+- 2026-06-02T21:32:00Z Complete: scenario-gate — AODI clean; adversarial pass added 3 scenarios (denylisted-manifest-silent, no-transition-no-refire, further-relevant-commit-re-fires), trimmed the decline overlap, and split scenarios [hook] (unit-tested) vs [agent] (skill prose, live-verified). Baked: relevance denylist, `git --since`, hook-bumps-`last_modified`-on-surface, build order. Phase → implement.
 - 2026-06-02T21:18:00Z Complete: define-behavior — re-derived dimensions.md (7 baked decisions incl. the relevance-filter definition: artifact path-tokens ∪ ticket-touched-files ∩ changed paths, silent on no signal) + test-definitions.md (10 scenarios / 5 rules / 1 invariant, standard R/G/R). Phase → scenario-gate.
 - 2026-06-02T20:56:00Z Rescoped (via /figure-it-out "best for users"): cut to **replan-on-resume only** (epic-anchor + verify soft-prompt deferred), and redesigned the trigger to **design B** — relevance-filtered (commits touching ticket-referenced paths, not any commit), tiered (cheap triage → sub-agent only on plausible drift), opt-in heads-up at the resume boundary. Evidence: alert-fatigue research (cut false positives at the source) + proactive-programming UX (task-boundary intervention, opt-in alleviates disruption). Reset phase → define-behavior; dimensions.md + test-definitions.md flagged stale, to be re-derived for the new trigger. Implementation should land on its own branch (153 is standalone — not part of the bdd-chain-hardening epic on this branch).
 - 2026-06-02T20:36:00Z Revalidated (via /figure-it-out, ~10 days + intervening commits later): still valuable — the two failure modes are real (this very session is an example) and the replan mechanism is unbuilt; Claude Code 2026 ships no native plan-revalidation, so not obsolete. Reconciliation outcome: 153 is the canonical home for replan-on-resume; `5JN5E4-revalidate-ticket-on-pickup` (bare intake, same intent) is **superseded** by 153's fuller design. Dropped the `epic:`-frontmatter-field scope line — that field already shipped (sync-tickets groups by it). Migrated `phase: decomposition → implement` (decomposition phase retired per FSX1PP/ADR; 153's own log already said "advances to implement next") — this unblocks W9GPE7. Design otherwise intact; `## Contracts`-on-epics remains the net-new convention.
