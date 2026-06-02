@@ -17,6 +17,7 @@
 **Duplication:** ✅ No new clones introduced
 **Learning files:** ✅ All carry `Covers:` line
 **Test quality:** ✅ New tests assert specific values (`toEqual`, SHA `toMatch`, `toContain`), fresh per-test tmp repos, no arbitrary waits
+**Security:** ✅ `runGit` uses `execFileSync` (no shell) — the file-derived `last_modified` passed to `git --since` cannot inject shell metacharacters (quality-review finding, fixed in 22b6f074; verified empirically). A systemic follow-up was filed for the repo's other `execSync`-with-interpolation git calls (notably `stop-quality.ts` `cat-file -e ${sha}` with an unvalidated annotation sha).
 
 Errors: 0 | Warnings: 0
 
