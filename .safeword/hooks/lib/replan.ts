@@ -8,7 +8,7 @@
 // drift-catcher a false negative is harmless, but a crash in a prompt hook is
 // not.
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -32,9 +32,14 @@ export interface ReplanResult {
   headSha: string;
 }
 
-function runGit(arguments_: string, cwd: string): string {
+// execFileSync (not execSync) — runs git directly with no shell, so the
+// file-derived `last_modified` value passed to `--since` can't break out into
+// shell metacharacters. The value comes from ticket.md frontmatter, which in a
+// shared repo may originate from an untrusted PR; this hook auto-fires on
+// UserPromptSubmit, so a shell would be a command-injection sink.
+function runGit(arguments_: readonly string[], cwd: string): string {
   try {
-    return execSync(`git ${arguments_}`, {
+    return execFileSync('git', arguments_, {
       cwd,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -86,11 +91,14 @@ export function evaluateReplan(
     const referencedPaths = readReferencedPaths(ticketDirectory);
     if (referencedPaths.length === 0) return null; // no signal → bias quiet
 
-    const headSha = runGit('rev-parse HEAD', projectDirectory).trim();
+    const headSha = runGit(['rev-parse', 'HEAD'], projectDirectory).trim();
     if (headSha === '') return null;
 
     const commits = parseGitLogNameOnly(
-      runGit(`log --since="${lastModified}" --name-only --pretty=format:%x1f%H`, projectDirectory),
+      runGit(
+        ['log', `--since=${lastModified}`, '--name-only', '--pretty=format:%x1f%H'],
+        projectDirectory,
+      ),
     );
 
     const decision = decideReplan({
