@@ -9,7 +9,7 @@ last_modified: YYYY-MM-DDTHH:MM:SSZ
 
 <!--
 type: patch | task | feature
-phase: intake | define-behavior | scenario-gate | decomposition | implement | done
+phase: intake | define-behavior | scenario-gate | implement | done
   - patch/task: typically start at 'implement' or omit phase
   - feature: progresses through all phases via BDD workflow
   - on close: status: done → phase: done; status: cancelled | superseded → preserve last-active phase

@@ -26,7 +26,7 @@ If in BDD workflow, read current ticket from `.safeword-project/tickets/` and ap
 | --------------- | ----------------------------------------------- |
 | intake          | Similar features in ecosystem, scope patterns   |
 | define-behavior | Testing patterns, BDD research and patterns     |
-| decomposition   | Architecture patterns, test layer strategy      |
+| scenario-gate   | Architecture patterns, test layer strategy      |
 | implement       | **Library versions, deprecated APIs, security** |
 | done            | CI/CD patterns, release checklists              |
 
