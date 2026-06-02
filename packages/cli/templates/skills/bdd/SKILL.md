@@ -27,19 +27,20 @@ phase: implement # intake | define-behavior | scenario-gate | decomposition | im
 
 **Phase meanings:**
 
-| Phase             | What happens                    | Details          |
-| ----------------- | ------------------------------- | ---------------- |
-| `intake`          | Context check, discovery        | DISCOVERY.md     |
-| `define-behavior` | Writing Given/When/Then         | SCENARIOS.md     |
-| `scenario-gate`   | Validating scenarios            | SCENARIOS.md     |
-| `decomposition`   | Task breakdown                  | DECOMPOSITION.md |
-| `implement`       | Outside-in TDD                  | TDD.md           |
-| `verify`          | Evidence gate: /verify + /audit | VERIFY.md        |
-| `done`            | Close ticket                    | DONE.md          |
+| Phase             | What happens                                    | Details          |
+| ----------------- | ----------------------------------------------- | ---------------- |
+| `intake`          | Context check, discovery                        | DISCOVERY.md     |
+| `define-behavior` | Writing Given/When/Then                         | SCENARIOS.md     |
+| `scenario-gate`   | Validating scenarios                            | SCENARIOS.md     |
+| `decomposition`   | _(deprecated — folded into scenario-gate exit)_ | DECOMPOSITION.md |
+| `implement`       | Outside-in TDD                                  | TDD.md           |
+| `verify`          | Evidence gate: /verify + /audit                 | VERIFY.md        |
+| `done`            | Close ticket                                    | DONE.md          |
 
 **Update phase when:**
 
 - Completing a BDD phase → set next phase
+- Scenario-gate complete → set `implement` (`decomposition` is deprecated; its test-layer + sequencing step moved to the scenario-gate exit)
 - Handing off to TDD → set `implement`
 - All scenarios pass → set `verify`
 - /verify + /audit complete (verify.md exists) → set `done`
@@ -57,15 +58,15 @@ When user references a ticket, resume work:
 
 **Resume by phase:**
 
-| Phase             | Resume action                              |
-| ----------------- | ------------------------------------------ |
-| `intake`          | Start understanding (propose-and-converge) |
-| `define-behavior` | Continue drafting scenarios                |
-| `scenario-gate`   | Continue validating scenarios              |
-| `decomposition`   | Continue task breakdown                    |
-| `implement`       | Find first unchecked scenario, run TDD     |
-| `verify`          | Run /verify and /audit, write verify.md    |
-| `done`            | Close ticket (verify.md must exist)        |
+| Phase             | Resume action                                         |
+| ----------------- | ----------------------------------------------------- |
+| `intake`          | Start understanding (propose-and-converge)            |
+| `define-behavior` | Continue drafting scenarios                           |
+| `scenario-gate`   | Continue validating scenarios                         |
+| `decomposition`   | _(deprecated)_ finish breakdown, advance to implement |
+| `implement`       | Find first unchecked scenario, run TDD                |
+| `verify`          | Run /verify and /audit, write verify.md               |
+| `done`            | Close ticket (verify.md must exist)                   |
 
 ---
 

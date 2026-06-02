@@ -1,5 +1,7 @@
 # Decomposition: Technical Breakdown
 
+> **Deprecated (2026-06-02).** The standalone `decomposition` phase is retired. Its test-layer assignment + build-sequencing moved to the **scenario-gate exit** (`SCENARIOS.md`); component identification and design-doc/ADR triggers live in **intake** (`DISCOVERY.md`). See the ADR in `ARCHITECTURE.md`. This file is retained only for tickets already at `phase: decomposition` — the enum value stays for back-compat. New work routes scenario-gate → implement.
+
 **Entry:** Agent enters `decomposition` phase (after scenarios validated)
 
 **Optional:** Skip if the architecture is clear from the converged proposal and the agent can sequence work naturally.

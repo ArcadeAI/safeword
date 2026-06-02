@@ -170,9 +170,10 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 1. Each scenario validated (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass complete — issues reported or confirmed clean
-3. **Update frontmatter:** `phase: decomposition`
-4. **Add work log entry:**
+3. **Assign test layers + sequence the work** — for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
+4. **Update frontmatter:** `phase: implement`
+5. **Add work log entry:**
 
    ```
-   - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass
+   - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass; test layers + build order assigned
    ```

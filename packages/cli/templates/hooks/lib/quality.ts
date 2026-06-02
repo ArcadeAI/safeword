@@ -61,7 +61,7 @@ const PHASE_EVIDENCE: Record<BddPhase, string> = {
   'scenario-gate':
     'Phase: scenario-gate. CONFIDENT cites N validated scenarios, AODI pass, and either issues found or "No issues."',
   decomposition:
-    'Phase: decomposition. CONFIDENT cites ordered tasks (A→B→C) with test layers, or "Skipped — architecture clear."',
+    'Phase: decomposition (DEPRECATED — scenario-gate now advances straight to implement; test-layer + sequencing moved to the scenario-gate exit). Retained for back-compat: if a ticket is already here, finish any breakdown and advance to implement.',
   implement:
     'Phase: implement. CONFIDENT cites the passing artifact (X/X tests pass; scenario checked off).',
   verify:
