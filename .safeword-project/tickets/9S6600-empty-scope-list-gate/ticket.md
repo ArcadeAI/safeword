@@ -27,3 +27,4 @@ last_modified: 2026-06-02T04:58:17.705Z
 - 2026-06-02T04:58:17.705Z Started: Created ticket 9S6600
 - 2026-06-02T05:35Z RED: added quality-gates test 9.2b — empty-list scope fields (with dimensions.md present) must be denied as missing. Fails on current gate (`![]` is false → passes).
 - 2026-06-02T05:38Z GREEN: gate's `missing` filter now treats undefined/`'null'`, empty arrays, and all-blank arrays/strings as missing (pre-tool-quality.ts). Synced template → `.safeword/hooks/` (identical). 71/71 quality-gates tests pass (incl. 9.2/9.3/9.4 regression). Done-when met.
+- 2026-06-02T05:41Z REFACTOR: extracted the inline predicate into a named `isMissingFrontmatterField(value)` top-level helper; filter is now a one-liner. Behavior unchanged; 71/71 still pass; dogfood re-synced identical.
