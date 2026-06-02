@@ -185,7 +185,7 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   if (!ticketInfo.folder || !ticketInfo.phase) return;
 
   // Phases that require test-definitions.md
-  const phasesRequiringTestDefs = ['scenario-gate', 'decomposition', 'implement', 'done'];
+  const phasesRequiringTestDefs = ['scenario-gate', 'implement', 'done'];
   if (!phasesRequiringTestDefs.includes(ticketInfo.phase)) return;
 
   const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;

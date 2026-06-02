@@ -23,7 +23,6 @@ export type BddPhase =
   | 'intake'
   | 'define-behavior'
   | 'scenario-gate'
-  | 'decomposition'
   | 'implement'
   | 'verify'
   | 'done';
@@ -60,8 +59,6 @@ const PHASE_EVIDENCE: Record<BddPhase, string> = {
     'Phase: define-behavior. CONFIDENT cites N scenarios, AODI for each, happy/failure/edge coverage, and that scenarios test behaviors not implementation.',
   'scenario-gate':
     'Phase: scenario-gate. CONFIDENT cites N validated scenarios, AODI pass, and either issues found or "No issues."',
-  decomposition:
-    'Phase: decomposition (DEPRECATED — scenario-gate now advances straight to implement; test-layer + sequencing moved to the scenario-gate exit). Retained for back-compat: if a ticket is already here, finish any breakdown and advance to implement.',
   implement:
     'Phase: implement. CONFIDENT cites the passing artifact (X/X tests pass; scenario checked off).',
   verify:

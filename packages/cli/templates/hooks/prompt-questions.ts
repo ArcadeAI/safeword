@@ -66,8 +66,6 @@ if (existsSync(stateFile)) {
             'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
             'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior; else assign test layers + build order and advance to implement.',
-          decomposition:
-            'Phase: decomposition (deprecated — its work now happens at the scenario-gate exit). Finish any breakdown and advance to implement.',
           implement: tddStep
             ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
             : 'Phase: implement.',
