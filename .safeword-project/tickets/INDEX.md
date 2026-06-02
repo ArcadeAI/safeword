@@ -13,7 +13,7 @@
 - **EECVXB** — Epic: BDD intake/chain hardening — gate-parser fixes, decomposition collapse, Example-Mapping parity (in_progress, epic: bdd-chain-hardening)
   Act on the findings from the deep audit of safeword's bdd phase chain (intake → define-behavior → scenario-gate → decomposition → implement → verify): fix the latent gate/parser defects, retire the redundant non-canonical `decomposition` phase, and close the one real gap against canonical BDD's Example Mapping.
   → `.safeword-project/tickets/EECVXB-bdd-chain-hardening`
-- **FSX1PP** — Retire decomposition as a distinct bdd phase (ADR + behavior collapse) (in_progress, epic: bdd-chain-hardening)
+- **FSX1PP** — Retire decomposition as a distinct bdd phase (ADR + behavior collapse) (done, epic: bdd-chain-hardening)
   Retire `decomposition` as a distinct bdd phase — fold its one genuinely-distinct job (test-layer assignment) into scenario-gate's exit and its overlapping jobs (component-ID, ADR triggers) into intake — recorded by an ADR, implemented as a reversible behavior-collapse first, with the enum/file/Cursor-rule removal staged behind it.
   → `.safeword-project/tickets/FSX1PP-collapse-decomposition-phase`
 - **G9BXE9** — Hook JTBD gate must accept derived persona codes (align with documented behavior) (done, epic: bdd-chain-hardening)

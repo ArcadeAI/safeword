@@ -2,12 +2,12 @@
 id: FSX1PP
 slug: collapse-decomposition-phase
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: bdd-chain-hardening
 parent: EECVXB
 created: 2026-06-02T04:58:17.754Z
-last_modified: 2026-06-02T14:25:00.000Z
+last_modified: 2026-06-02T14:49:00.000Z
 ---
 
 # Retire decomposition as a distinct bdd phase (ADR + behavior collapse)
@@ -36,3 +36,4 @@ last_modified: 2026-06-02T14:25:00.000Z
 - 2026-06-02T14:25Z Reclassified feature→task: in-scope work is an ADR + reversible skill-doc edits (no executable behavior; enum/file removal deferred to a follow-up). Running as documentation/restructuring, phase→implement. Step 1: draft the ADR in ARCHITECTURE.md Key Decisions for review.
 - 2026-06-02T14:32Z ADR committed (7fa641fc) after user review.
 - 2026-06-02T14:39Z Reversible collapse done: scenario-gate exit now assigns test layers + build order and advances to `implement` (SCENARIOS.md); `decomposition` marked deprecated in SKILL.md phase tables, quality.ts + prompt-questions.ts messages, DISCOVERY.md planning note, and a deprecation header on DECOMPOSITION.md. Enum value + DECOMPOSITION.md + Cursor rule kept for back-compat (removal staged to a follow-up). Synced 6 dogfood copies (identical); 245/245 quality+hook tests pass; parity clean (116 pairs + 3 contracts). Done-when met for the reversible step.
+- 2026-06-02T14:49Z Complete: /verify green (full suite 2364/2364, lint+build clean; /audit passed earlier this session covering the code). verify.md written. Closed by user — status/phase → done. Staged enum/file removal deferred to a follow-up ticket.
