@@ -229,7 +229,10 @@ if (
   const required = ['scope', 'out_of_scope', 'done_when'] as const;
   const missing = required.filter(field => {
     const value = meta[field];
-    return !value || value === 'null';
+    if (value === undefined || value === 'null') return true;
+    // An empty block sequence parses to `[]` (truthy), and a list of only
+    // blank items is no scope either — treat both as missing, not present.
+    return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
   });
 
   if (missing.length > 0) {
