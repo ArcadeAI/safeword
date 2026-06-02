@@ -12,12 +12,15 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+// `.js` specifier (bun resolves it to the .ts source) so tsc accepts this
+// module when the test suite pulls it into the typecheck graph — matches the
+// `./checkbox-transitions.js` precedent for a tested hook importing a sibling.
 import {
   decideReplan,
   extractReferencedPaths,
   formatReplanHeadsUp,
   parseGitLogNameOnly,
-} from './replan-relevance.ts';
+} from './replan-relevance.js';
 
 /** Ticket artifacts whose prose names the paths the ticket cares about. */
 const ARTIFACT_FILES = ['ticket.md', 'spec.md', 'test-definitions.md'];
@@ -52,7 +55,7 @@ export function evaluateReplan(
   projectDirectory: string,
   ticketFolder: string,
   ticketType: string | undefined,
-  promptedHead: string | undefined,
+  promptedHead?: string,
 ): ReplanResult | null {
   try {
     if (ticketType === 'epic') return null;
