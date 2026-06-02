@@ -16,7 +16,7 @@
 - **FSX1PP** — Retire decomposition as a distinct bdd phase (ADR + behavior collapse) (in_progress, epic: bdd-chain-hardening)
   Retire `decomposition` as a distinct bdd phase — fold its one genuinely-distinct job (test-layer assignment) into scenario-gate's exit and its overlapping jobs (component-ID, ADR triggers) into intake — recorded by an ADR, implemented as a reversible behavior-collapse first, with the enum/file/Cursor-rule removal staged behind it.
   → `.safeword-project/tickets/FSX1PP-collapse-decomposition-phase`
-- **G9BXE9** — Hook JTBD gate must accept derived persona codes (align with documented behavior) (in_progress, epic: bdd-chain-hardening)
+- **G9BXE9** — Hook JTBD gate must accept derived persona codes (align with documented behavior) (done, epic: bdd-chain-hardening)
   Make the intake-exit JTBD gate resolve persona references the same way the skill documents — including auto-derived short codes — so a correctly-authored spec is never silently blocked.
   → `.safeword-project/tickets/G9BXE9-persona-gate-code-derivation`
 - **P58R22** — Differential test pinning hook vs CLI markdown-section parsers (in_progress, epic: bdd-chain-hardening)
