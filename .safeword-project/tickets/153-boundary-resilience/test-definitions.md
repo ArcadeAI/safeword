@@ -68,11 +68,11 @@ Then no heads-up is surfaced (no signal → bias quiet)
 
 ## Rule: Fires on transition, once per commit-batch **[hook]**
 
-### Scenario: same_active_ticket_no_transition_does_not_re_fire
+### Scenario: same_head_does_not_re_fire
 
-Given a relevant heads-up already surfaced and `last_modified` was bumped, and the same ticket stays active with no new commits
+Given a relevant heads-up already surfaced and the prompted HEAD recorded in session state, and HEAD has not advanced
 When the next turn fires
-Then no heads-up is surfaced (it fires on transition + new relevant commits, not every turn)
+Then no heads-up is surfaced (re-fire keys on HEAD advancing, not every turn)
 
 - [ ] RED
 - [ ] GREEN
@@ -80,21 +80,21 @@ Then no heads-up is surfaced (it fires on transition + new relevant commits, not
 
 ### Scenario: further_relevant_commit_after_replan_re_fires
 
-Given a heads-up surfaced and `last_modified` was bumped, and a _new_ relevant commit then lands
+Given a heads-up surfaced and the prompted HEAD recorded, and a _new_ relevant commit then advances HEAD
 When the ticket is resumed
-Then a fresh heads-up is surfaced (the bump silences only the already-seen commits, not future ones)
+Then a fresh heads-up is surfaced (the recorded HEAD silences only the already-seen commits, not future ones)
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: Surfacing bumps `last_modified` once **[hook]**
+## Rule: Surfacing records the prompted HEAD in session state **[hook]**
 
-### Scenario: surfacing_headsup_bumps_last_modified_once
+### Scenario: surfacing_headsup_records_prompted_head
 
 Given a relevant commit triggers a heads-up
 When the hook surfaces it
-Then `last_modified` is set to now exactly once, so resuming with no new commits is silent even if the user ignored the heads-up
+Then the current HEAD is recorded as the prompted HEAD in `quality-state.json` (and `last_modified` is left untouched), so resuming with HEAD unchanged is silent even if the user ignored the heads-up
 
 - [ ] RED
 - [ ] GREEN
