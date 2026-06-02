@@ -275,7 +275,13 @@ function stripComment(line: string, inComment: boolean): { text: string; inComme
     }
     active += text.slice(0, open);
     const close = text.indexOf('-->', open + 4);
-    if (close === -1) return { text: active, inComment: true };
+    if (close === -1) {
+      // CommonMark: an HTML comment block opens only when the line begins with
+      // `<!--` (≤3 spaces indent). A mid-line unclosed `<!--` after content is
+      // inline HTML — keep it as literal text and do NOT swallow later lines.
+      if (active.trim() === '') return { text: active, inComment: true };
+      return { text: active + text.slice(open), inComment: false };
+    }
     text = text.slice(close + 3);
   }
 }

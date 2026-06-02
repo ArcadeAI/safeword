@@ -72,6 +72,19 @@ describe('parseJtbdSection (Rule 4)', () => {
     expect(entries).toHaveLength(0);
     expect(skip).toBeNull();
   });
+
+  it('treats a mid-line unclosed <!-- as inline, not a block that swallows later JTBDs (P58R22)', () => {
+    // CommonMark: an HTML comment block starts only when the line begins with
+    // `<!--`. A trailing unclosed `<!--` mid-line is inline — it must not hide
+    // the JTBDs that follow.
+    const body = '### a\n\n**Persona:** PO <!-- TODO confirm\n\n### b\n\n**Persona:** End User';
+    expect(parseJtbdSection(spec(body)).entries).toHaveLength(2);
+  });
+
+  it('strips a closed mid-line <!-- ... --> from a persona ref (P58R22)', () => {
+    const { entries } = parseJtbdSection(spec('### a\n\n**Persona:** PO <!-- note -->'));
+    expect(entries[0]?.persona).toBe('PO');
+  });
 });
 
 describe('knownPersonaRefs (Rule 5)', () => {
