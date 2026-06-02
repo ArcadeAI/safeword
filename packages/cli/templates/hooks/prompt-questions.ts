@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { deriveTddStep, getTicketInfo } from './lib/active-ticket.ts';
+import { evaluateReplan } from './lib/replan.ts';
 import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
@@ -86,6 +87,22 @@ if (existsSync(stateFile)) {
           if (injection) {
             lines.push(`- ${injection}`);
           }
+        }
+
+        // Replan-on-resume (ticket 153): if commits since the ticket's
+        // last_modified touched paths it references, surface an opt-in heads-up.
+        // Records the prompted HEAD in session state so it fires at most once
+        // per HEAD advance (not last_modified — that is the active-ticket mtime).
+        const replan = evaluateReplan(
+          projectDirectory,
+          ticketInfo.folder ?? '',
+          ticketInfo.type,
+          state.replanPromptedHead,
+        );
+        if (replan) {
+          lines.push(`- ${replan.line}`);
+          state.replanPromptedHead = replan.headSha;
+          writeFileSync(stateFile, JSON.stringify(state, null, 2));
         }
       } else {
         lines.push(

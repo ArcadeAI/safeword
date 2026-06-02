@@ -50,6 +50,13 @@ export interface QualityState {
    * phase boundary is reviewed once (ticket SXSCJQ).
    */
   lastReviewedPhase?: string;
+  /**
+   * HEAD sha at which the replan-on-resume heads-up last fired (ticket 153).
+   * Suppresses re-firing every turn while HEAD is unchanged; a new session has
+   * no marker and re-evaluates from the ticket's `last_modified`. Stored here —
+   * never by bumping `last_modified`, which is also the active-ticket mtime.
+   */
+  replanPromptedHead?: string;
 }
 
 /**
