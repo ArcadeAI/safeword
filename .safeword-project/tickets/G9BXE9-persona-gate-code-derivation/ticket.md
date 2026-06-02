@@ -25,3 +25,5 @@ last_modified: 2026-06-02T04:58:17.608Z
 ## Work Log
 
 - 2026-06-02T04:58:17.608Z Started: Created ticket G9BXE9
+- 2026-06-02T05:04Z RED: add failing test — `knownPersonaRefs` must include the derived code for a bare-named persona (`Platform Operator` → `PO`); unknown persona still denies.
+- 2026-06-02T05:11Z GREEN: ported `derivePersonaCode` into `knownPersonaRefs` (jtbd.ts); bare-named personas now contribute their derived code + combined form. Synced template → `.safeword/hooks/` (identical). 32/32 tests pass (jtbd unit + ac-gate + jtbd-gate integration); parity-check clean (116 pairs + 3 contracts). Done-when met — awaiting user confirmation before marking done.

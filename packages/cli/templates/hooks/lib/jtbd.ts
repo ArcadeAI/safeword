@@ -13,6 +13,8 @@
 const JTBD_HEADING = 'jobs to be done';
 const PERSONA_PREFIX = '**Persona:**';
 const SKIP_PREFIX = 'skip:';
+/** Max persona short-code length — mirrors the CLI's `MAX_CODE_LENGTH`. */
+const MAX_CODE_LENGTH = 6;
 
 export interface JtbdEntry {
   /** The raw `**Persona:**` reference (name, code, or `Name (CODE)`); may be empty. */
@@ -42,8 +44,8 @@ export function parseJtbdSection(specContent: string): JtbdSection {
   let inSection = false;
   let inComment = false;
 
-  for (let index = 0; index < lines.length; index++) {
-    const result = stripComment(lines[index] ?? '', inComment);
+  for (const [index, line] of lines.entries()) {
+    const result = stripComment(line ?? '', inComment);
     inComment = result.inComment;
     const trimmed = result.text.trim();
     if (trimmed === '') continue;
@@ -80,13 +82,17 @@ export function parseJtbdSection(specContent: string): JtbdSection {
 }
 
 /**
- * The set of persona references a JTBD may resolve against: each `## Name (CODE)`
- * header contributes the name, the code, and the combined `Name (CODE)` form.
- * Exact-string membership — the richer case-suggestion contract stays in the
+ * The set of persona references a JTBD may resolve against. Each `## Name` or
+ * `## Name (CODE)` header contributes the name, its short code — the explicit
+ * `(CODE)` when present AND the auto-derived code (`Platform Operator` → `PO`,
+ * matching the CLI's `derivePersonaCode` and DISCOVERY.md's "codes auto-derive"
+ * promise) — plus the combined `Name (code)` forms. Without the derived code a
+ * bare-named persona would falsely block a JTBD that references its code.
+ * Exact-string membership; the richer case-suggestion contract stays in the
  * agent/authoring path. Empty/unreadable content yields an empty set.
  */
 export function knownPersonaRefs(personasContent: string): Set<string> {
-  const refs = new Set<string>();
+  const references = new Set<string>();
   let inComment = false;
 
   for (const raw of personasContent.split('\n')) {
@@ -97,14 +103,20 @@ export function knownPersonaRefs(personasContent: string): Set<string> {
 
     const parsed = splitNameAndCode(heading);
     if (parsed.name === '') continue;
-    refs.add(parsed.name);
+    references.add(parsed.name);
+
+    const derived = derivePersonaCode(parsed.name);
+    if (derived !== '') {
+      references.add(derived);
+      references.add(`${parsed.name} (${derived})`);
+    }
     if (parsed.code !== undefined) {
-      refs.add(parsed.code);
-      refs.add(`${parsed.name} (${parsed.code})`);
+      references.add(parsed.code);
+      references.add(`${parsed.name} (${parsed.code})`);
     }
   }
 
-  return refs;
+  return references;
 }
 
 /**
@@ -281,6 +293,32 @@ function parseSectionHeading(trimmed: string): string | null {
   const rest = trimmed.slice(3).trim();
   if (rest.startsWith('#')) return null;
   return rest;
+}
+
+/**
+ * Derive a short code from a persona name — a deliberate cross-runtime copy of
+ * the CLI's `derivePersonaCode` (src/utils/personas.ts), since deployed hooks
+ * can't import the CLI dist. Multi-word → first letter of each word ("Platform
+ * Operator" → "PO"); single-word → first 2 chars ("Auditor" → "AU"); non-
+ * alphanumerics stripped (digits kept); uppercased; truncated to MAX_CODE_LENGTH.
+ * The gate is a lenient backstop — it does NOT apply the CLI's collision
+ * suffixes (PO → PO2), so a derived code resolves to any persona deriving it.
+ * Kept in agreement with the CLI by tests (see ticket P58R22).
+ */
+function derivePersonaCode(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return '';
+
+  const cleaned = trimmed.replaceAll(/[^A-Z0-9\s]/gi, '');
+  const words = cleaned.split(/\s+/).filter(word => word.length > 0);
+
+  const [firstWord] = words;
+  if (!firstWord) return '';
+
+  const derived =
+    words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
+
+  return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
 }
 
 /** `Platform Operator (PO)` → { name, code }; bare names → { name }. */

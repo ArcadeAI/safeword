@@ -82,6 +82,13 @@ describe('knownPersonaRefs (Rule 5)', () => {
     expect(references.has('PO')).toBe(true);
   });
 
+  it('contributes the derived code for a bare-named persona (G9BXE9)', () => {
+    const references = knownPersonaReferences('## Platform Operator\n');
+    expect(references.has('Platform Operator')).toBe(true);
+    expect(references.has('PO')).toBe(true);
+    expect(references.has('Platform Operator (PO)')).toBe(true);
+  });
+
   it('does not contain an undeclared reference', () => {
     expect(knownPersonaReferences('## Platform Operator (PO)\n').has('End User')).toBe(false);
   });
@@ -114,6 +121,18 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     const verdict = evaluateJtbdGate(spec('### a\n\n**Persona:** Ghost Persona'), PERSONAS);
     expect(verdict.ok).toBe(false);
     expect(verdict).toMatchObject({ reason: expect.stringContaining('Ghost Persona') });
+  });
+
+  it('resolves a derived code against a bare-named persona (G9BXE9)', () => {
+    const personas = '## Platform Operator\n\n**Role:** Owns infra.\n';
+    const verdict = evaluateJtbdGate(spec('### x.PO1 — t\n\n**Persona:** PO'), personas);
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('still denies an unknown persona after derivation (G9BXE9)', () => {
+    const personas = '## Platform Operator\n\n**Role:** Owns infra.\n';
+    const verdict = evaluateJtbdGate(spec('### a\n\n**Persona:** Ghost Persona'), personas);
+    expect(verdict.ok).toBe(false);
   });
 
   it('denies a skip with an empty reason', () => {
