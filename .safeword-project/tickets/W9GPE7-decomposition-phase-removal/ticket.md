@@ -3,11 +3,11 @@ id: W9GPE7
 slug: decomposition-phase-removal
 type: task
 phase: implement
-status: backlog
+status: in_progress
 epic: bdd-chain-hardening
 parent: EECVXB
 created: 2026-06-02T15:01:21.748Z
-last_modified: 2026-06-02T15:01:21.748Z
+last_modified: 2026-06-02T23:05:00Z
 ---
 
 # Remove deprecated decomposition phase — enum value, DECOMPOSITION.md, Cursor rule, migrate ticket 153
@@ -16,19 +16,18 @@ last_modified: 2026-06-02T15:01:21.748Z
 
 **Why:** FSX1PP collapsed the behavior (scenario-gate → implement) and deprecated `decomposition`, but kept the enum value, `DECOMPOSITION.md`, and the Cursor rule for back-compat because a live ticket (`153-boundary-resilience`) sits at `phase: decomposition` and the removal is cross-cutting. This ticket finishes the job once that's safe.
 
-**Scope:**
+**Scope** (rescoped 2026-06-02 via the replan-on-resume investigation — see work log):
 
-- Migrate `153-boundary-resilience` off `phase: decomposition` (advance or re-home it).
-- Remove `decomposition` from the phase enum (`lib/quality.ts` `BddPhase` union + the `PHASE_EVIDENCE` map) and the `prompt-questions.ts` reminder map.
+- Remove `decomposition` from the phase enum (`lib/quality.ts` `BddPhase` union + the `PHASE_EVIDENCE` map) and the `prompt-questions.ts` reminder map (`:69`).
 - Delete `packages/cli/templates/skills/bdd/DECOMPOSITION.md` + its dogfood copy, and the Cursor rule `bdd-decomposition.mdc` + its dogfood copy.
-- Update `schema.ts` `managedFiles` (drop the removed files) and the `skill-cursor-pairs` parity fixture; update `quality.test.ts`'s phase lists and `stop-quality.ts`'s `phasesRequiringTestDefs`.
-- Update `SKILL.md` phase tables / `SPLITTING.md` references to drop the phase entirely (not just deprecate).
+- Update `schema.ts` `ownedFiles`/`managedFiles` (drop the removed files) and the `skill-cursor-pairs` parity fixture; update `quality.test.ts`'s phase lists and `stop-quality.ts`'s `phasesRequiringTestDefs` (`:188`).
+- Drop the `decomposition` enum/table row from the active phase lists the original scope missed (found by replan): `quality-review/SKILL.md:29`, `ticket-system/SKILL.md:76`, `doc-templates/ticket-template.md:12` **+** its dogfood copy `.safeword/templates/ticket-template.md:12`, and `bdd/SKILL.md` phase tables / `SPLITTING.md`.
 
-**Out of scope:** the behavior collapse + ADR (done in FSX1PP).
+**Out of scope:** the behavior collapse + ADR (done in FSX1PP). Migrating `153` off `phase: decomposition` (already done — 153 is `done`). Scrubbing the historical retirement-rationale prose that cites the ADR (`bdd/DISCOVERY.md:187`, `bdd/SCENARIOS.md:173`) — kept deliberately so the "why it's gone" survives.
 
-**Depends on:** `153-boundary-resilience` being clear of `phase: decomposition`.
+**Depends on:** ~~`153` clear of `phase: decomposition`~~ — satisfied (153 done).
 
-**Done when:** `decomposition` no longer appears in the phase enum, hooks, skill files, schema, or fixtures; full suite + parity green; no ticket references the removed phase.
+**Done when:** `decomposition` no longer appears in any **active phase list** — the enum, hooks, schema, parity fixtures, skill phase tables, or ticket-template — and the deprecated files are gone; full suite + parity + typecheck green; no ticket parks at the phase. Historical prose that references the retired phase to explain its removal (citing the ADR) may remain.
 
 **Blocked/deferred:** backlog — pick up after 153 is migrated. The deprecated machinery is harmless in the meantime (FSX1PP routes new work scenario-gate → implement).
 
@@ -37,3 +36,4 @@ last_modified: 2026-06-02T15:01:21.748Z
 - 2026-06-02T15:01:21.748Z Started: Created ticket W9GPE7
 - 2026-06-02T15:01Z Filed as the staged follow-up to FSX1PP (decomposition removal). Backlog until ticket 153 is migrated off the phase.
 - 2026-06-02T20:36Z Unblocked: 153 migrated `decomposition → implement` (and no other active ticket parks at that phase), so the prerequisite is satisfied. Ready to execute — remove the enum value + DECOMPOSITION.md + Cursor rule + schema/parity/test references. Still backlog by choice (sequence after the live workflow test + branch PR).
+- 2026-06-02T23:05Z Replan-on-resume (dogfooded the 153 feature): a fresh `isolation: worktree` sub-agent revalidated this plan → verdict **change-scope**. Findings (all grep-verified at `path:line`): (1) bullet 1 (migrate 153) already done — 153 is `done`; dropped. (2) Scope undercounted — five live `decomposition` refs it never named: `quality-review/SKILL.md:29`, `ticket-system/SKILL.md:76`, `doc-templates/ticket-template.md:12` + `.safeword/templates/ticket-template.md:12`, `bdd/DISCOVERY.md:187`. (3) Decision (keep + soften): `DISCOVERY.md:187` and `SCENARIOS.md:173` reference the phase to explain its retirement and cite the ADR — kept as historical rationale; "Done when" softened to "no active phase list" rather than literal token-absence. Status → in_progress.
