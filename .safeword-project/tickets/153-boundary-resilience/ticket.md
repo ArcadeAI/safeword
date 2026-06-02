@@ -1,10 +1,10 @@
 ---
 id: 153
 type: feature
-phase: decomposition
+phase: implement
 status: in_progress
 created: 2026-05-18T06:12:00Z
-last_modified: 2026-05-24T13:17:00Z
+last_modified: 2026-06-02T20:36:00Z
 scope:
   - Epic-anchor hook re-injects epic's `## Contracts` section on every UserPromptSubmit and on SessionStart:compact when sub-ticket has `epic:` frontmatter field
   - Replan-on-resume fires when `git log <ticket.last_modified>..HEAD` returns > 0 commits at activeTicket transition; the model's first action on the replan-triggered turn is the investigation
@@ -12,7 +12,6 @@ scope:
   - Replan output is chat-only; ticket frontmatter/body changes only with explicit user approval
   - Replan completion updates `last_modified` to now so subsequent resumes only see new commits
   - Verify-skill adds a non-blocking soft-prompt for cross-ticket contract promotion
-  - New `epic:` frontmatter field on sub-tickets, parsed by existing permissive parser
   - templates/ and .safeword/hooks/ stay byte-identical after changes
 out_of_scope:
   - Proactive sibling sweep mechanism (JIT-only per CHI 2025 evidence; per-ticket replan covers cascading invalidation through natural progression)
@@ -166,6 +165,7 @@ UserPromptSubmit state-diffing to detect activeTicket transitions; git-log commi
 ## Work Log
 
 - 2026-05-24T13:17:00Z Re-applied May-23 re-validation clarification (Investigation Needed #2 now specifies `previousActiveTicket` as inline sibling field in `quality-state.json`, following v0.34.0's append-only state precedent). Original May-23 commit `90f725c` landed on `chore/dogfood-bump-0.35.1` which got reset/rebased before merge; commit is now orphaned and not on any branch. The May-23 re-validation pass itself (57-commit codebase delta check) had verdict "design holds, no CONFLICTS" — that conclusion still stands; this entry just re-instates the design-clarification artifact on main.
+- 2026-06-02T20:36:00Z Revalidated (via /figure-it-out, ~10 days + intervening commits later): still valuable — the two failure modes are real (this very session is an example) and the replan mechanism is unbuilt; Claude Code 2026 ships no native plan-revalidation, so not obsolete. Reconciliation outcome: 153 is the canonical home for replan-on-resume; `5JN5E4-revalidate-ticket-on-pickup` (bare intake, same intent) is **superseded** by 153's fuller design. Dropped the `epic:`-frontmatter-field scope line — that field already shipped (sync-tickets groups by it). Migrated `phase: decomposition → implement` (decomposition phase retired per FSX1PP/ADR; 153's own log already said "advances to implement next") — this unblocks W9GPE7. Design otherwise intact; `## Contracts`-on-epics remains the net-new convention.
 - 2026-05-20T05:58:00Z Complete: Phase 5 — Decomposition. Four ordered tasks (A→B→C→D) with A as the parsing dependency root, B and C parallelizable after A, D depending only on A and largest in blast radius. Each task names its test layer and scenario coverage from test-definitions.md. Phase advances to `implement` next.
 - 2026-05-20T05:52:00Z Complete: Phase 4 — Scenarios validated (AODI) + adversarial pass. Quality-review skill audited the draft against AODI criteria and ran an adversarial pass; the audit produced (a) three atomicity splits (missing-epic → no-op vs stderr-warning; oversized → stub-injected vs full-section-absent; no-changes-without-approval → no-action vs accepted), (b) two observability restructures (wrapper-layer assertion for `isolation: worktree`; hook-payload-layer assertion for #14281 regression), (c) five adversarial scenarios (heading variants, empty section, 10K boundary, mid-session epic edit, sub-agent failure mode), and (d) one structural relabel (parity diff moved to Invariants section, separate from RED/GREEN/REFACTOR loop). All applied to the final test-definitions.md. Phase 4 exit criteria met.
 - 2026-05-20T05:50:00Z Complete: Phase 3 — 27 scenarios defined across 12 rules + 3 invariants in test-definitions.md, derived from the 13-row dimensions table in dimensions.md. Eight open questions (stub format, missing-file behavior, sub-agent failure, partial-accept semantics, empty-Contracts handling, heading match strictness, size-cap threshold, empty vs absent equivalence) all decided and baked into dimensions.md's "Decisions baked in" table so scenarios assume them as given.

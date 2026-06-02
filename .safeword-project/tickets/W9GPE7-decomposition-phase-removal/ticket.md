@@ -36,3 +36,4 @@ last_modified: 2026-06-02T15:01:21.748Z
 
 - 2026-06-02T15:01:21.748Z Started: Created ticket W9GPE7
 - 2026-06-02T15:01Z Filed as the staged follow-up to FSX1PP (decomposition removal). Backlog until ticket 153 is migrated off the phase.
+- 2026-06-02T20:36Z Unblocked: 153 migrated `decomposition → implement` (and no other active ticket parks at that phase), so the prerequisite is satisfied. Ready to execute — remove the enum value + DECOMPOSITION.md + Cursor rule + schema/parity/test references. Still backlog by choice (sequence after the live workflow test + branch PR).

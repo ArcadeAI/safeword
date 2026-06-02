@@ -469,7 +469,7 @@
 - **54XH90** — lint-config-unify (open, epic: —)
   Eliminate the local-vs-CI eslint config drift so devs don't ship code that passes locally then fails CI (or vice versa).
   → `.safeword-project/tickets/54XH90-lint-config-unify`
-- **5JN5E4** — Re-validate a ticket's premise when it's picked up (in_progress, epic: —)
+- **5JN5E4** — Re-validate a ticket's premise when it's picked up (superseded, epic: —)
   When a ticket is picked up or resumed, re-validate its premise before doing the work — confirm the problem still reproduces, the scope is still current, dependencies still hold, and it hasn't been fixed or obsoleted by intervening changes (e.g. a merge) — and surface any drift to the user before proceeding.
   → `.safeword-project/tickets/5JN5E4-revalidate-ticket-on-pickup`
 - **62PDX1** — Patterns catalog — scannable index + per-pattern detail (Rust-API-Guidelines two-part structure) (in_progress, epic: —)
