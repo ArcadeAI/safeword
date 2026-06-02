@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.13
-**Last Updated:** 2026-05-14
+**Version:** 1.14
+**Last Updated:** 2026-06-02
 **Status:** Production
 
 ---
@@ -410,13 +410,13 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 **Status:** Accepted
 **Date:** 2026-01-07
 
-| Field          | Value                                                                                                      |
-| -------------- | ---------------------------------------------------------------------------------------------------------- |
-| What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                            |
-| Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked |
-| Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                       |
-| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)   |
-| Implementation | `packages/cli/templates/skills/bdd/SKILL.md` Phase 6-7                                                     |
+| Field          | Value                                                                                                                                                                                                                                                            |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                                                                                                                                                                                  |
+| Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked                                                                                                                                                       |
+| Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                                                                                                                                                                             |
+| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)                                                                                                                                                         |
+| Implementation | `packages/cli/templates/skills/bdd/` — TDD runs in the `implement` phase (`TDD.md`); the skill was later split from one `SKILL.md` into per-phase files (DISCOVERY / SCENARIOS / DECOMPOSITION / TDD / VERIFY / DONE), see the 2026-05-31 Phase 0 decision below |
 
 ### Skill Consolidation (Removed Redundant Skills)
 
@@ -514,6 +514,19 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Trade-off      | Fixture must be manually updated when Claude Code's transcript format changes; no LLM API key required                                                                                                     |
 | Alternatives   | Real E2E with live API (rejected: non-deterministic, expensive), hand-crafted simplified fixtures only (rejected: doesn't catch real format drift)                                                         |
 | Implementation | `packages/cli/tests/integration/stop-hook-transcript-format.test.ts`; fixture includes thinking blocks, tool_use, tool_result, and real envelope fields (parentUuid, requestId, etc.)                      |
+
+### Product-Framing Layer in BDD Phase 0 (JTBD / Personas / Acceptance Criteria)
+
+**Status:** Accepted
+**Date:** 2026-05-31
+
+| Field          | Value                                                                                                                                                                                                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | BDD Phase 0 (`intake`) now writes a per-ticket `spec.md` with persona-anchored Jobs To Be Done → Acceptance Criteria → engineering scope, backed by a project glossary and personas file. Scenarios carry lineage `<slug>.<persona><JTBD#>.AC<#>.<scenario>` so coverage gaps are machine-checkable. |
+| Why            | Engineering scope (`scope` / `out_of_scope` / `done_when`) captured _what_ to build but not _who_ for or _why_; product framing anchors scenarios to verifiable acceptance criteria and lets `safeword check` flag uncovered ACs and orphan scenarios.                                               |
+| Trade-off      | Longer intake for features; Phase 0 advances through structured signoff sub-gates (orientation → JTBD → AC → scope) rather than one step.                                                                                                                                                            |
+| Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                          |
+| Implementation | `packages/cli/templates/skills/bdd/DISCOVERY.md` (Phase 0 sub-phases + worked example), `SCENARIOS.md` (lineage numbering), `spec-template.md`, glossary/persona `managedFiles` entries; per-file path overrides via `.safeword/config.json` `paths.*` (ticket K7N2QM). Epic DZ2NM5.                 |
 
 ---
 

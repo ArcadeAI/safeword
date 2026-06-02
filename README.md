@@ -59,11 +59,50 @@ test -f AGENTS.md && echo "AGENTS.md ✓"
 
 ## How It Works
 
-**Project-local framework**: Scripts write to `.safeword/`, `.claude/`, and `.cursor/` in your project (no global install needed)
+Every session moves through five phases, in order — and three hard gates stop your agent skipping ahead:
 
-**Team consistency**: Teammates get the framework from your project repo (no global install needed)
+```mermaid
+flowchart TD
+    start([You ask for something])
+    start --> propose
 
-**Living documentation**: Update guides as you learn, extract learnings from debugging, archive completed work
+    subgraph clarify ["1 · Clarify — propose and converge"]
+      direction TB
+      propose["Agent proposes a direction<br/>and surfaces the open questions"]
+      converged{"Converged?"}
+      propose --> converged
+      converged -->|"not yet"| propose
+    end
+
+    converged -->|"yes"| classify{"2 · Classify<br/>how big is it?"}
+
+    classify -->|"1 file, no new behavior"| patch["patch — fix it directly"]
+    classify -->|"1–2 files, one behavior"| task["task — TDD"]
+    classify -->|"3+ files · new state · many flows"| feature["feature — BDD"]
+
+    feature --> phase0["Phase 0 spec:<br/>Jobs To Be Done → Acceptance Criteria → scope"]
+    phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
+    g1 --> scenarios["Define-behavior scenarios"]
+    scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
+    g2 --> build
+
+    task --> build["3 · Build<br/>RED → GREEN → REFACTOR"]
+    patch --> verify
+
+    build --> verify["4 · Verify<br/>the agent runs the tests"]
+    verify --> g3{{"Done gate:<br/>verify.md exists"}}
+    g3 --> done([5 · Done])
+
+    loc{{"LOC gate — commit every ~400 lines"}} -.->|throughout build| build
+```
+
+- **Clarify** — the agent proposes a direction and converges with you before building. For features, this writes the product framing first: Jobs To Be Done → Acceptance Criteria → engineering scope.
+- **Classify** — sizes the work as a **patch** (fix directly), **task** (TDD), or **feature** (BDD).
+- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios first.
+- **Verify** — the agent runs the relevant tests itself, never handing you something untested.
+- **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
+
+The framework is **project-local**: it writes to `.safeword/`, `.claude/`, and `.cursor/` in your repo — no global install — so teammates get the same discipline the moment they pull. Guides and learnings live in-repo and evolve as you work.
 
 ---
 
