@@ -6,7 +6,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { relevantChangedPaths } from '../../templates/hooks/lib/replan-relevance.js';
+import {
+  relevantChangedPaths,
+  shouldSurfaceReplan,
+} from '../../templates/hooks/lib/replan-relevance.js';
 
 describe('relevantChangedPaths', () => {
   it('keeps a changed path the ticket references exactly', () => {
@@ -31,5 +34,41 @@ describe('relevantChangedPaths', () => {
 
   it('returns empty when the ticket references no paths (no signal → silent)', () => {
     expect(relevantChangedPaths([], ['packages/cli/src/foo.ts'])).toEqual([]);
+  });
+});
+
+describe('shouldSurfaceReplan', () => {
+  const references = ['packages/cli/src/'];
+
+  it('does not surface when there are no commits', () => {
+    expect(shouldSurfaceReplan([], references)).toEqual({ surface: false, relevantCommitCount: 0 });
+  });
+
+  it('does not surface when no commit touches a referenced path', () => {
+    const commits = [{ changedPaths: ['docs/a.md'] }, { changedPaths: ['README.md'] }];
+    expect(shouldSurfaceReplan(commits, references)).toEqual({
+      surface: false,
+      relevantCommitCount: 0,
+    });
+  });
+
+  it('surfaces and counts only the commits with a relevant changed path', () => {
+    const commits = [
+      { changedPaths: ['packages/cli/src/foo.ts'] },
+      { changedPaths: ['docs/a.md'] },
+      { changedPaths: ['packages/cli/src/bar.ts', 'README.md'] },
+    ];
+    expect(shouldSurfaceReplan(commits, references)).toEqual({
+      surface: true,
+      relevantCommitCount: 2,
+    });
+  });
+
+  it('does not count a commit touching only denylisted manifests', () => {
+    const commits = [{ changedPaths: ['package.json', 'bun.lock'] }];
+    expect(shouldSurfaceReplan(commits, ['package.json'])).toEqual({
+      surface: false,
+      relevantCommitCount: 0,
+    });
   });
 });

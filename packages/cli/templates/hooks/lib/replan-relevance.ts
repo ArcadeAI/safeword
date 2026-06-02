@@ -46,3 +46,29 @@ export function relevantChangedPaths(
       !isHighChurn(changed) && referencedPaths.some(reference => isCoveredBy(changed, reference)),
   );
 }
+
+/** A commit reduced to the file paths it changed (`git diff --name-only`). */
+export interface ReplanCommit {
+  changedPaths: readonly string[];
+}
+
+/** Whether to surface a replan heads-up, and how many commits warrant it. */
+export interface ReplanDecision {
+  surface: boolean;
+  relevantCommitCount: number;
+}
+
+/**
+ * Decide whether to surface a replan heads-up. A commit is relevant when any of
+ * its changed paths survive the relevance filter; we surface when ≥1 commit is
+ * relevant, and the count drives the heads-up message ("N relevant commits…").
+ */
+export function shouldSurfaceReplan(
+  commits: readonly ReplanCommit[],
+  referencedPaths: readonly string[],
+): ReplanDecision {
+  const relevantCommitCount = commits.filter(
+    commit => relevantChangedPaths(referencedPaths, commit.changedPaths).length > 0,
+  ).length;
+  return { surface: relevantCommitCount > 0, relevantCommitCount };
+}
