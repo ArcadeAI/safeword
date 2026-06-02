@@ -2,12 +2,12 @@
 id: 9S6600
 slug: empty-scope-list-gate
 type: patch
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: bdd-chain-hardening
 parent: EECVXB
 created: 2026-06-02T04:58:17.705Z
-last_modified: 2026-06-02T04:58:17.705Z
+last_modified: 2026-06-02T14:12:00.000Z
 ---
 
 # Reject empty scope/out_of_scope/done_when lists in intake-exit gate
@@ -28,3 +28,4 @@ last_modified: 2026-06-02T04:58:17.705Z
 - 2026-06-02T05:35Z RED: added quality-gates test 9.2b — empty-list scope fields (with dimensions.md present) must be denied as missing. Fails on current gate (`![]` is false → passes).
 - 2026-06-02T05:38Z GREEN: gate's `missing` filter now treats undefined/`'null'`, empty arrays, and all-blank arrays/strings as missing (pre-tool-quality.ts). Synced template → `.safeword/hooks/` (identical). 71/71 quality-gates tests pass (incl. 9.2/9.3/9.4 regression). Done-when met.
 - 2026-06-02T05:41Z REFACTOR: extracted the inline predicate into a named `isMissingFrontmatterField(value)` top-level helper; filter is now a one-liner. Behavior unchanged; 71/71 still pass; dogfood re-synced identical.
+- 2026-06-02T14:12Z Complete: /verify + /audit passed (full suite 2364/2364, lint+build clean, architecture clean, dup 0.87%). verify.md written. Closed by user — status/phase → done.

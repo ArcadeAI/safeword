@@ -7,7 +7,7 @@
 
 ### bdd-chain-hardening
 
-- **9S6600** — Reject empty scope/out_of_scope/done_when lists in intake-exit gate (in_progress, epic: bdd-chain-hardening)
+- **9S6600** — Reject empty scope/out_of_scope/done_when lists in intake-exit gate (done, epic: bdd-chain-hardening)
   Close the gate hole where an empty `scope:` (or `out_of_scope:`/`done_when:`) block sequence passes the intake-exit check.
   → `.safeword-project/tickets/9S6600-empty-scope-list-gate`
 - **EECVXB** — Epic: BDD intake/chain hardening — gate-parser fixes, decomposition collapse, Example-Mapping parity (in_progress, epic: bdd-chain-hardening)
@@ -19,7 +19,7 @@
 - **G9BXE9** — Hook JTBD gate must accept derived persona codes (align with documented behavior) (done, epic: bdd-chain-hardening)
   Make the intake-exit JTBD gate resolve persona references the same way the skill documents — including auto-derived short codes — so a correctly-authored spec is never silently blocked.
   → `.safeword-project/tickets/G9BXE9-persona-gate-code-derivation`
-- **P58R22** — Differential test pinning hook vs CLI markdown-section parsers (in_progress, epic: bdd-chain-hardening)
+- **P58R22** — Differential test pinning hook vs CLI markdown-section parsers (done, epic: bdd-chain-hardening)
   Add a differential test that feeds shared fixtures to the hook-side parser and the CLI-side parser and asserts they agree, so the deliberate cross-runtime copies can't silently drift.
   → `.safeword-project/tickets/P58R22-gate-parser-divergence-test`
 - **V6N5PW** — Tracked open-questions artifact in intake (Example-Mapping red-card parity) (in_progress, epic: bdd-chain-hardening)
