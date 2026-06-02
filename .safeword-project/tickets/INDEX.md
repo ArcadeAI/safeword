@@ -22,7 +22,7 @@
 - **P58R22** — Differential test pinning hook vs CLI markdown-section parsers (done, epic: bdd-chain-hardening)
   Add a differential test that feeds shared fixtures to the hook-side parser and the CLI-side parser and asserts they agree, so the deliberate cross-runtime copies can't silently drift.
   → `.safeword-project/tickets/P58R22-gate-parser-divergence-test`
-- **V6N5PW** — Tracked open-questions artifact in intake (Example-Mapping red-card parity) (in_progress, epic: bdd-chain-hardening)
+- **V6N5PW** — Tracked open-questions artifact in intake (Example-Mapping red-card parity) (done, epic: bdd-chain-hardening)
   Give intake a persistent, eyeball-able list of open questions — the equivalent of Example Mapping's red "question" cards — with a readiness signal, instead of leaving unknowns purely conversational.
   → `.safeword-project/tickets/V6N5PW-intake-open-questions-artifact`
 - **W9GPE7** — Remove deprecated decomposition phase — enum value, DECOMPOSITION.md, Cursor rule, migrate ticket 153 (backlog, epic: bdd-chain-hardening)
