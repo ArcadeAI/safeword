@@ -72,3 +72,21 @@ export function shouldSurfaceReplan(
   ).length;
   return { surface: relevantCommitCount > 0, relevantCommitCount };
 }
+
+/**
+ * A run of path-segment chars with ≥1 `/`. The leading negative lookbehind
+ * drops URL hosts (`://…`) and mid-word matches; the optional leading `.`
+ * captures dotfile dirs (`.safeword/…`); the optional trailing `/` keeps
+ * directory references.
+ */
+const PATH_TOKEN = /(?<![\w:./-])\.?[\w-]+(?:\/[\w.-]+)+\/?/g;
+
+/**
+ * Extract repo-relative path-like tokens a ticket references from its text
+ * (markdown links, backtick spans, bare paths), deduped. This is the textual
+ * half of the relevance signal; recall is enriched by the ticket's touched
+ * files (gathered separately).
+ */
+export function extractReferencedPaths(text: string): string[] {
+  return [...new Set(text.match(PATH_TOKEN) ?? [])];
+}

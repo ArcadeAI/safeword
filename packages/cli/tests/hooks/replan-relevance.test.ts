@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  extractReferencedPaths,
   relevantChangedPaths,
   shouldSurfaceReplan,
 } from '../../templates/hooks/lib/replan-relevance.js';
@@ -70,5 +71,31 @@ describe('shouldSurfaceReplan', () => {
       surface: false,
       relevantCommitCount: 0,
     });
+  });
+});
+
+describe('extractReferencedPaths', () => {
+  it('extracts a path from a markdown link target', () => {
+    expect(extractReferencedPaths('see [jtbd](packages/cli/src/foo.ts) here')).toEqual([
+      'packages/cli/src/foo.ts',
+    ]);
+  });
+
+  it('extracts a dotfile directory with a trailing slash', () => {
+    expect(extractReferencedPaths('the `.safeword/hooks/` dir')).toEqual(['.safeword/hooks/']);
+  });
+
+  it('ignores URLs', () => {
+    expect(extractReferencedPaths('visit https://example.com/page for docs')).toEqual([]);
+  });
+
+  it('dedupes repeated paths', () => {
+    expect(extractReferencedPaths('packages/cli/a.ts and again packages/cli/a.ts')).toEqual([
+      'packages/cli/a.ts',
+    ]);
+  });
+
+  it('returns empty for prose with no paths', () => {
+    expect(extractReferencedPaths('a sentence with no file paths at all')).toEqual([]);
   });
 });
