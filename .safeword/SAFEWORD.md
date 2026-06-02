@@ -31,6 +31,8 @@ Depth scales with ambiguity. Clear request → 0 turns. One open question → 1 
 
 If the user references a ticket ID/slug or says "resume" / "continue", skip Clarify and resume at the ticket's current phase.
 
+**Replan on resume.** When you resume and the prompt hook surfaces a `Resume check: N commit(s)…` line, sibling work since the ticket was last touched changed files it references — the plan may be stale. This is opt-in: if the user declines or just proceeds, investigate nothing. If the user accepts ("check the plan"), spawn a fresh sub-agent (`isolation: worktree`) to judge whether scope still holds and report back **in chat only** — proposing one of still-good / change-scope / cancel / split / merge, with rationale. Never edit the ticket without explicit approval. If the sub-agent errors or times out, note it in one line and proceed with the work — don't retry in a loop (the heads-up won't re-fire until new commits land).
+
 **Contribution techniques** to weave into proposals (pick the one that fits the gap):
 
 - Failure modes — when reliability or error handling is unclear.

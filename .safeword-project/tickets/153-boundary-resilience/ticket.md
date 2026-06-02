@@ -1,10 +1,10 @@
 ---
 id: 153
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-05-18T06:12:00Z
-last_modified: 2026-06-02T21:32:00Z
+last_modified: 2026-06-02T22:30:00Z
 scope:
   - Replan-on-resume triggers at activeTicket transition to a non-epic ticket, but ONLY when commits since `last_modified` touch paths the ticket references (contextual relevance filter) — not "any commit" — to keep the alert-to-action ratio high
   - Tiered: a cheap inline triage runs first (relevant-path intersection + commit summary); escalate to a fresh sub-agent (`isolation: worktree`) investigation ONLY when drift is plausible; no relevant change → stay silent, no sub-agent spawned
@@ -162,6 +162,7 @@ UserPromptSubmit state-diffing to detect activeTicket transitions; git-log commi
 
 ## Work Log
 
+- 2026-06-02T22:30:00Z Complete: implement (4 build steps). Pure core in `replan-relevance.ts` — `relevantChangedPaths`, `shouldSurfaceReplan`, `extractReferencedPaths`, `decideReplan` (epic-excluded + HEAD-marker re-fire suppression), `parseGitLogNameOnly`, `formatReplanHeadsUp` (24 unit tests). I/O shell `replan.ts` — gathers ticket `last_modified` + referenced paths + commits-since + HEAD, delegates to the pure core, returns heads-up line + HEAD to record; never throws (6 integration tests over a real git repo). Wired into `prompt-questions.ts`; new `replanPromptedHead` field on `QualityState` records the prompted HEAD (never bumps `last_modified` — that's the active-ticket mtime). Agent protocol in SAFEWORD.md → "Replan on resume" covers the [agent] scenarios (opt-in, isolated sub-agent, chat-only, no mutation without approval, fail-without-loop). Commits: 9a72e84c / 446a892f / debbf459 / 71fe8543. Scope trim: textual relevance signal only (touched-files history signal deferred — see dimensions.md). 118 parity pairs in sync, typecheck clean. Phase → verify.
 - 2026-05-24T13:17:00Z Re-applied May-23 re-validation clarification (Investigation Needed #2 now specifies `previousActiveTicket` as inline sibling field in `quality-state.json`, following v0.34.0's append-only state precedent). Original May-23 commit `90f725c` landed on `chore/dogfood-bump-0.35.1` which got reset/rebased before merge; commit is now orphaned and not on any branch. The May-23 re-validation pass itself (57-commit codebase delta check) had verdict "design holds, no CONFLICTS" — that conclusion still stands; this entry just re-instates the design-clarification artifact on main.
 - 2026-06-02T21:32:00Z Complete: scenario-gate — AODI clean; adversarial pass added 3 scenarios (denylisted-manifest-silent, no-transition-no-refire, further-relevant-commit-re-fires), trimmed the decline overlap, and split scenarios [hook] (unit-tested) vs [agent] (skill prose, live-verified). Baked: relevance denylist, `git --since`, hook-bumps-`last_modified`-on-surface, build order. Phase → implement.
 - 2026-06-02T21:18:00Z Complete: define-behavior — re-derived dimensions.md (7 baked decisions incl. the relevance-filter definition: artifact path-tokens ∪ ticket-touched-files ∩ changed paths, silent on no signal) + test-definitions.md (10 scenarios / 5 rules / 1 invariant, standard R/G/R). Phase → scenario-gate.
