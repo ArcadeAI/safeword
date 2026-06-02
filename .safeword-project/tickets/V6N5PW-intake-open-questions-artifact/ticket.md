@@ -1,13 +1,13 @@
 ---
 id: V6N5PW
 slug: intake-open-questions-artifact
-type: feature
-phase: intake
+type: task
+phase: implement
 status: in_progress
 epic: bdd-chain-hardening
 parent: EECVXB
 created: 2026-06-02T04:58:17.803Z
-last_modified: 2026-06-02T04:58:17.803Z
+last_modified: 2026-06-02T15:02:00.000Z
 ---
 
 # Tracked open-questions artifact in intake (Example-Mapping red-card parity)
@@ -27,3 +27,5 @@ last_modified: 2026-06-02T04:58:17.803Z
 ## Work Log
 
 - 2026-06-02T04:58:17.803Z Started: Created ticket V6N5PW
+- 2026-06-02T15:02Z Reclassified feature→task. Shape decided: an `## Open Questions` section in the per-ticket spec.md (consistent with JTBD/AC), maintained during intake, with a SOFT readiness signal as conversational discipline — no hook gate (matches "advisory, never a gate" + the existing Phase 0 sub-gate model). RED: update ticket-writer.test.ts to expect a 7th section.
+- 2026-06-02T15:07Z GREEN: added `## Open Questions` to spec-template.md (scaffolded comment, parses to zero); DISCOVERY.md now records unresolved questions there during Understanding and checks the section is resolved/deferred at the intake exit (soft, conversational — no hook gate). Synced spec-template + DISCOVERY dogfood copies. 55/55 spec-related tests pass (ticket-writer 7-section assertion green; phase0-walkthrough, jtbd, ac-gate, jtbd-gate unaffected); parity clean. Done-when met.

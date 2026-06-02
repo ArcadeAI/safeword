@@ -91,7 +91,7 @@ Follow the understanding pattern from SAFEWORD.md — including contribution tec
 - What behavior stays the same?
 - What is the observable done state?
 
-If any answer is vague, you have open questions — surface them.
+If any answer is vague, you have open questions — surface them, and record each unresolved one in `spec.md`'s `## Open Questions` section (the equivalent of Example Mapping's red "question" cards) so it isn't lost across turns or sessions. Delete a question when it's answered, or mark it `defer: <reason>` for a deliberate punt.
 
 **When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
 
@@ -170,10 +170,11 @@ The arc end to end: a persona from `personas.md`, a job that names it, criteria 
 Before proceeding to define-behavior:
 
 0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
-1. **Verify ticket exists:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
-2. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
-3. **Update frontmatter:** `phase: define-behavior`
-4. **Add work log entry:**
+1. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
+2. **Verify ticket exists:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
+3. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
+4. **Update frontmatter:** `phase: define-behavior`
+5. **Add work log entry:**
 
    ```
    - {timestamp} Complete: intake - Understanding converged, scope established
