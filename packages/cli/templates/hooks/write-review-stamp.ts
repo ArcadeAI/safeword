@@ -42,13 +42,23 @@ function singleLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+// A bare path component — no whitespace, separators, or `..`. The ticket and
+// artifact names index into `tickets/<folder>/<artifact>.md`, so a separator
+// would let the path escape the tickets dir; reject it at the boundary.
+function bareName(value: string, label: string): string {
+  if (/[\s/\\]/.test(value) || value.includes('..')) {
+    fail(`${label} must be a bare name (no whitespace, slashes, or "..")`);
+  }
+  return value;
+}
+
 // Optional leading `--ticket <folder>`, then the positional command.
 let positional = process.argv.slice(2);
 let explicitTicket: string | undefined;
 if (positional[0] === '--ticket') {
-  explicitTicket = positional[1];
-  if (explicitTicket === undefined || explicitTicket === '')
-    fail('--ticket requires a folder name');
+  const value = positional[1];
+  if (value === undefined || value === '') fail('--ticket requires a folder name');
+  explicitTicket = bareName(value, '--ticket');
   positional = positional.slice(2);
 }
 
@@ -76,13 +86,12 @@ const skipReason = singleLine(positional.slice(isPhase ? 2 : 1).join(' ')) || un
 
 function resolveScope(ticketFolder: string): { scope: string; label: string } {
   if (isPhase) {
-    const phase = positional[1];
-    if (phase === undefined || phase === '') fail('--phase requires a phase name');
-    if (/\s/.test(phase)) fail('phase name must not contain whitespace');
+    const value = positional[1];
+    if (value === undefined || value === '') fail('--phase requires a phase name');
+    const phase = bareName(value, 'phase name');
     return { scope: reviewScope(ticketFolder, 'phase', phase), label: `phase ${phase}` };
   }
-  const artifact = positional[0] ?? 'spec';
-  if (/\s/.test(artifact)) fail('artifact name must not contain whitespace');
+  const artifact = bareName(positional[0] ?? 'spec', 'artifact name');
   const artifactFile = nodePath.join(ticketsDirectory, ticketFolder, `${artifact}.md`);
   if (!existsSync(artifactFile)) fail(`artifact not found: ${artifact}.md in ${ticketFolder}`);
   return {

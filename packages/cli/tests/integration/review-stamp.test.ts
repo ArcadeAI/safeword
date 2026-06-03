@@ -168,6 +168,16 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(stamp.stdout).toContain('multiple in_progress tickets');
   });
 
+  it('rejects a path-separator in --ticket or the artifact (no escaping tickets/)', () => {
+    const traversedTicket = runStamp('--ticket', '../../etc', 'spec');
+    expect(traversedTicket.status).toBe(1);
+    expect(traversedTicket.stdout).toContain('bare name');
+
+    const traversedArtifact = runStamp('--ticket', TICKET_ID, '../../../secret');
+    expect(traversedArtifact.status).toBe(1);
+    expect(traversedArtifact.stdout).toContain('bare name');
+  });
+
   it('--ticket disambiguates when more than one ticket is in_progress', () => {
     const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
     mkdirSync(second, { recursive: true });
