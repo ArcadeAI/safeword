@@ -2,10 +2,10 @@
 id: NMSD94
 slug: per-asset-review-gate
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-03T03:23:27.177Z
-last_modified: 2026-06-03T04:15:00.000Z
+last_modified: 2026-06-03T17:42:00.000Z
 scope:
   - 'Tier 1 — per-asset inline review stamp: a PreToolUse gate denies authoring artifact N+1 until artifact N (Phase-0 asset or TDD step) carries a review stamp or a logged skip; the review is the working agent inline (no sub-agent)'
   - 'Tier 2 — phase-exit independent review: a context:fork reviewer runs once per phase boundary and logs a verdict stamp via the existing skill-invocation-log; the phase-advance gate blocks until the stamp exists'
@@ -62,6 +62,7 @@ Evidence the gap is real: this session needed the user to manually prompt `/qual
 
 ## Work Log
 
+- 2026-06-03T17:42:00.000Z **Done.** Both tiers built, wired (default-off), hardened (quality-review: input sanitization + multi-ticket guard), and refactored (extracted isReviewGateOn/readReviewStamps). /verify + /audit passed, verify.md written. Full suite 2485 green against a fresh build. Stamp-earning shipped as write-review-stamp.ts + /self-review skill + bdd phase-exit prose. Ships inert behind reviewGate. Follow-ups: ZRMDKD (coverage gate), reviewGate dogfood enablement (deferred).
 - 2026-06-03T04:16:00.000Z Complete: intake. spec.md authored — 3 JTBD (DEV1 early-catch, DEV2 independent-review-ran, SM1 high-signal/cheap), 6 ACs (2/job), all user-signed-off. Engineering scope/out_of_scope/done_when written to frontmatter. Phase → define-behavior.
 - 2026-06-03T04:01:00.000Z **Reshaped to the two-tier hybrid** (user accepted). Restored per-asset review (cheap inline stamp, the early-catch the original ticket wanted) after recognizing the cost trap was the fresh-sub-agent-per-asset combination, not per-asset granularity. Independent fresh-agent review kept but moved to phase exits only (amortized). Honest limit recorded: Tier 1 inline stamp is gameable (a floor), Tier 2 fork review is the strong backstop.
 - 2026-06-03T03:45:00.000Z Reshaped to phase-exit-only stamp (superseded above — it dropped the per-asset early-catch the user wanted). Original per-asset A→C scope rejected: A redundant with the existing intake-exit gate, C (fork-per-asset) over-cost.
