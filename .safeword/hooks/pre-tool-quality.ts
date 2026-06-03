@@ -331,7 +331,7 @@ if (
       if (!reviewGateForNextAsset(priorScope, stamps).ok) {
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
-          'Run the spec review, then create test-definitions.md.',
+          'Run `/self-review` (or log a skip), then create test-definitions.md.',
         );
       }
     }

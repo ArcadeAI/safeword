@@ -487,6 +487,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
+    '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },
     '.claude/skills/cleanup-zombies/SKILL.md': {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
