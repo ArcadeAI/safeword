@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  detectPhaseAdvance,
   gatePhaseAdvance,
   hashArtifact,
   isReviewGateEnabled,
@@ -154,5 +155,27 @@ describe('reviewScope + hashArtifact (ticket-qualified, content-bound stamps)', 
     const content = 'spec v1';
     const scope = reviewScope('NMSD94', 'spec', hashArtifact(content));
     expect(reviewGateForNextAsset(scope, [{ scope }]).ok).toBe(true);
+  });
+});
+
+describe('detectPhaseAdvance (Tier 2 — the phase being exited by a ticket.md edit)', () => {
+  const withPhase = (phase: string): string => `---\nid: T1\nphase: ${phase}\n---\n# T\n`;
+
+  it('returns the exited phase when the edit changes phase', () => {
+    expect(detectPhaseAdvance(withPhase('scenario-gate'), withPhase('implement'))).toBe(
+      'scenario-gate',
+    );
+  });
+
+  it('returns undefined when the phase is unchanged', () => {
+    expect(detectPhaseAdvance(withPhase('implement'), withPhase('implement'))).toBeUndefined();
+  });
+
+  it('returns undefined when the old content has no phase (nothing to exit)', () => {
+    expect(detectPhaseAdvance('---\nid: T1\n---\n', withPhase('intake'))).toBeUndefined();
+  });
+
+  it('returns undefined when the new content has no phase', () => {
+    expect(detectPhaseAdvance(withPhase('intake'), '---\nid: T1\n---\n')).toBeUndefined();
   });
 });

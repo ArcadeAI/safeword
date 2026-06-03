@@ -111,6 +111,21 @@ export function isReviewGateEnabled(rawConfig?: string): boolean {
   }
 }
 
+const PHASE_FIELD = /^phase:\s*(\S+)/m;
+
+/**
+ * The phase being EXITED by a ticket.md edit (Tier 2): the old phase, when the
+ * edit changes `phase:` to a different value. Returns undefined when the phase
+ * is unchanged or absent on either side (nothing to gate). Forward/backward
+ * ordering isn't distinguished — leaving any phase requires its exit review.
+ */
+export function detectPhaseAdvance(oldContent: string, newContent: string): string | undefined {
+  const from = PHASE_FIELD.exec(oldContent)?.[1];
+  const to = PHASE_FIELD.exec(newContent)?.[1];
+  if (from === undefined || to === undefined || from === to) return undefined;
+  return from;
+}
+
 /** Read review stamps from skill-invocation-log content (non-review lines ignored). */
 export function parseReviewStamps(logContent: string): ReviewStamp[] {
   const stamps: ReviewStamp[] = [];
