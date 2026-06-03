@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   gatePhaseAdvance,
+  isReviewGateEnabled,
   parseReviewStamps,
   reviewGateForNextAsset,
   type ReviewStamp,
@@ -93,5 +94,27 @@ describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => 
 
   it('returns empty for empty input', () => {
     expect(parseReviewStamps('')).toEqual([]);
+  });
+});
+
+describe('isReviewGateEnabled (default-off rollout guard)', () => {
+  it('defaults to off when there is no config', () => {
+    expect(isReviewGateEnabled()).toBe(false);
+  });
+
+  it('defaults to off when the flag is absent', () => {
+    expect(isReviewGateEnabled('{}')).toBe(false);
+  });
+
+  it('is on only when reviewGate is explicitly true', () => {
+    expect(isReviewGateEnabled('{"reviewGate": true}')).toBe(true);
+  });
+
+  it('is off when reviewGate is false', () => {
+    expect(isReviewGateEnabled('{"reviewGate": false}')).toBe(false);
+  });
+
+  it('is off on malformed config (fail-safe)', () => {
+    expect(isReviewGateEnabled('not json {')).toBe(false);
   });
 });

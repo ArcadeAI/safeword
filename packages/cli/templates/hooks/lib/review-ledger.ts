@@ -63,6 +63,26 @@ export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]):
  */
 const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
 
+/**
+ * Rollout guard: the review gate is OFF unless `.safeword/config.json` sets
+ * `reviewGate: true`. Default-off so this self-applying blocking gate can ship
+ * inert (no bricking the dogfood or customers) and be enabled deliberately once
+ * the stamp-earning step is in place. Fail-safe to off on missing/malformed config.
+ */
+export function isReviewGateEnabled(rawConfig: string | undefined): boolean {
+  if (rawConfig === undefined) return false;
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    return (
+      typeof config === 'object' &&
+      config !== null &&
+      (config as Record<string, unknown>).reviewGate === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Read review stamps from skill-invocation-log content (non-review lines ignored). */
 export function parseReviewStamps(logContent: string): ReviewStamp[] {
   const stamps: ReviewStamp[] = [];
