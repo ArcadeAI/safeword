@@ -1,10 +1,9 @@
 ---
 name: self-review
-description: Self-review a just-authored workflow artifact (the spec) inline and
-  earn its Tier 1 review stamp, so the next step's gate passes. Use after
-  authoring spec.md and before writing test-definitions.md, or whenever the
-  review gate blocks asking for a spec review. The review is your own inline
-  pass — do not spawn a sub-agent.
+description: Use when finishing spec.md before writing test-definitions.md, or
+  when the review gate asks for a spec review — self-reviews the just-authored
+  spec inline and earns its Tier 1 review stamp. Your own inline pass; do not
+  spawn a sub-agent.
 allowed-tools: '*'
 ---
 
