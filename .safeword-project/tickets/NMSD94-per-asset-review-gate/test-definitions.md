@@ -64,9 +64,9 @@ Given the agent reviews a just-authored asset to earn its stamp
 When the review runs
 Then it is the working agent's own inline pass — no sub-agent is spawned
 
-- [ ] RED skip: agent behavior — live-verified, not unit-tested
-- [ ] GREEN skip: agent behavior
-- [ ] REFACTOR skip: agent behavior
+- [x] RED skip: agent behavior — /self-review prose mandates the working agent's own inline pass, no sub-agent (21794b3e); not unit-testable
+- [x] GREEN skip: agent behavior — verified by the /self-review SKILL.md
+- [x] REFACTOR skip: agent behavior
 
 ## Rule: Phase advance needs an independent review stamp **[hook]**
 
@@ -108,9 +108,9 @@ Given a phase exit triggers the independent review
 When the review runs
 Then it runs as a fresh reviewer (isolation, no conversation history) and its verdict becomes the recorded stamp
 
-- [ ] RED skip: agent behavior — live-verified
-- [ ] GREEN skip: agent behavior
-- [ ] REFACTOR skip: agent behavior
+- [x] RED skip: agent behavior — bdd phase-exit prose mandates a fresh reviewer (no history) whose verdict becomes the stamp (6b35e078); not unit-testable
+- [x] GREEN skip: agent behavior — verified by the bdd SKILL.md phase-exit section
+- [x] REFACTOR skip: agent behavior
 
 ## Rule: Coverage gate fires on genuine gaps, silent otherwise **[hook]**
 
@@ -120,9 +120,9 @@ Given a test-definitions.md with an acceptance criterion no scenario covers
 When it is created
 Then the write is denied, naming the uncovered AC
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: split to ZRMDKD — coverage gate is a separate hook-side scenario-coverage port
+- [x] GREEN skip: split to ZRMDKD
+- [x] REFACTOR skip: split to ZRMDKD
 
 ### Scenario: review-gate.SM1.AC1.orphan_scenario_blocks
 
@@ -130,9 +130,9 @@ Given a scenario whose name carries no `<jtbd>.AC<n>` lineage to any AC
 When the test-definitions is created
 Then the write is denied, naming the orphan scenario
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: split to ZRMDKD
+- [x] GREEN skip: split to ZRMDKD
+- [x] REFACTOR skip: split to ZRMDKD
 
 ### Scenario: review-gate.SM1.AC1.complete_coverage_silent
 
@@ -140,9 +140,9 @@ Given every AC is covered and there are no orphan scenarios
 When the test-definitions is created
 Then it passes with no prompt
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: split to ZRMDKD
+- [x] GREEN skip: split to ZRMDKD
+- [x] REFACTOR skip: split to ZRMDKD
 
 ## Rule: Every new gate has a logged one-step skip **[hook]**
 
@@ -152,9 +152,9 @@ Given any of the new gates would deny
 When the agent supplies `skip: <non-empty reason>`
 Then the gate clears and the reason is recorded in the ledger
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 961c2b50
+- [x] GREEN 961c2b50
+- [x] REFACTOR skip: skip valve proven end-to-end for both tiers (review-stamp 961c2b50, phase-review 507b7979)
 
 ### Scenario: review-gate.SM1.AC2.empty_skip_reason_rejected
 
