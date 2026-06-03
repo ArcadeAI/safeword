@@ -30,3 +30,15 @@ Derived from the 6 ACs. Splits the same way ticket 153 did: **[hook]** = determi
 ## Invariant
 
 - `templates/hooks/` ↔ `.safeword/hooks/` byte-identical (`diff -q`).
+
+## Scenario-gate exit (2026-06-03)
+
+**AODI:** clean. **Adversarial pass:** +2 scenarios (`stamp_for_other_asset_does_not_allow`, `empty_skip_reason_rejected`). 14 total — 12 `[hook]` (unit) + 2 `[agent]` (live-verified skip).
+
+**Test layers:** all `[hook]` → unit tests over pure decision functions (no integration/E2E — the logic is pure over ledger + coverage state). `[agent]` → skill prose, live-verified.
+
+**Build order:**
+
+1. **Pure decision core** (new `lib/review-ledger.ts`): `gateNextAsset(priorAssetId, ledger)`, `gatePhaseAdvance(phase, ledger)`, `coverageGate(spec, testDefs)` (wraps the existing `scenario-coverage.ts`), reusing `parse-annotation.ts` `isValidSkipReason` for the skip valve. Unit-test the 12 `[hook]` scenarios here.
+2. **Wire into the hooks**: per-asset + coverage gates into `pre-tool-quality.ts`; phase-advance gate where the ticket `phase:` edit is seen; phase-exit stamp read via the existing `skill-invocation-log`. Sync dogfood + parity.
+3. **Skill prose** (`[agent]`): the inline per-asset review checklist (Tier 1) + the phase-exit `context: fork` review instructions (Tier 2) — written tight per the B1TWX7 constraint; live-verified.

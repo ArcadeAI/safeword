@@ -46,6 +46,16 @@ Then the write is allowed (nothing to gate on)
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: review-gate.DEV1.AC1.stamp_for_other_asset_does_not_allow
+
+Given a review stamp exists but keyed to a different asset
+When the agent tries to author the next asset
+Then the write is denied (the stamp must match the specific prior asset)
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Per-asset review is inline **[agent]**
 
 ### Scenario: review-gate.DEV1.AC2.stamping_spawns_no_subagent
@@ -141,6 +151,16 @@ Then it passes with no prompt
 Given any of the new gates would deny
 When the agent supplies `skip: <non-empty reason>`
 Then the gate clears and the reason is recorded in the ledger
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: review-gate.SM1.AC2.empty_skip_reason_rejected
+
+Given a gate would deny
+When the agent supplies `skip:` with no reason after the colon
+Then the gate still denies (an empty skip does not clear it)
 
 - [ ] RED
 - [ ] GREEN

@@ -2,7 +2,7 @@
 id: NMSD94
 slug: per-asset-review-gate
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 created: 2026-06-03T03:23:27.177Z
 last_modified: 2026-06-03T04:15:00.000Z
