@@ -124,6 +124,13 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
+// Both review gates (NMSD94, Tier 1 + Tier 2) are off unless `.safeword/config.json`
+// sets `reviewGate: true`. Shared so the two call sites can't drift on the path.
+function isReviewGateOn(): boolean {
+  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  return isReviewGateEnabled(existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined);
+}
+
 /**
  * REFACTOR commit gate: if the active ticket is in `phase: implement` and the
  * current TDD step (parsed from test-definitions.md) is REFACTOR, inspect
@@ -318,11 +325,7 @@ if (
     // stamp bound to THIS ticket's spec.md at its CURRENT content (so a stale or
     // cross-ticket review doesn't satisfy it). Inert until enabled, so it can't
     // brick a workflow before the stamp-earning step ships.
-    const reviewConfigFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
-    const reviewConfig = existsSync(reviewConfigFile)
-      ? readFileSync(reviewConfigFile, 'utf8')
-      : undefined;
-    if (isReviewGateEnabled(reviewConfig)) {
+    if (isReviewGateOn()) {
       const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
       const stamps = existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
       const priorScope = reviewScope(
@@ -363,11 +366,7 @@ function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: 
 // fresh (context:fork) reviewer and logged via `write-review-stamp.ts --phase`,
 // so the author can't grade their own phase. Inert until reviewGate is enabled.
 if (editedFile.endsWith('ticket.md') && editedFile.includes('.safeword-project/tickets/')) {
-  const reviewConfigFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
-  const reviewConfig = existsSync(reviewConfigFile)
-    ? readFileSync(reviewConfigFile, 'utf8')
-    : undefined;
-  if (isReviewGateEnabled(reviewConfig)) {
+  if (isReviewGateOn()) {
     const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
     const exitedPhase = detectPhaseAdvance(
       priorContent,
