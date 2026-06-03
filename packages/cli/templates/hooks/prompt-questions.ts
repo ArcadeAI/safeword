@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { deriveTddStep, getTicketInfo } from './lib/active-ticket.ts';
+import { evaluateReplan } from './lib/replan.ts';
 import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
@@ -64,9 +65,7 @@ if (existsSync(stateFile)) {
           'define-behavior':
             'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
-            'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior.',
-          decomposition:
-            'Phase: decomposition (optional). Break into tasks if architecture is unclear.',
+            'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior; else assign test layers + build order and advance to implement.',
           implement: tddStep
             ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
             : 'Phase: implement.',
@@ -86,6 +85,22 @@ if (existsSync(stateFile)) {
           if (injection) {
             lines.push(`- ${injection}`);
           }
+        }
+
+        // Replan-on-resume (ticket 153): if commits since the ticket's
+        // last_modified touched paths it references, surface an opt-in heads-up.
+        // Records the prompted HEAD in session state so it fires at most once
+        // per HEAD advance (not last_modified — that is the active-ticket mtime).
+        const replan = evaluateReplan(
+          projectDirectory,
+          ticketInfo.folder ?? '',
+          ticketInfo.type,
+          state.replanPromptedHead,
+        );
+        if (replan) {
+          lines.push(`- ${replan.line}`);
+          state.replanPromptedHead = replan.headSha;
+          writeFileSync(stateFile, JSON.stringify(state, null, 2));
         }
       } else {
         lines.push(

@@ -63,3 +63,12 @@ to enumerate, write `skip: <reason>` under it instead of ACs.
 
 <!-- Observable results that tell us the JTBDs are satisfied — the product
 counterpart to ticket.md's done_when. -->
+
+## Open Questions
+
+<!-- Unresolved questions surfaced during intake — the spec's running list of
+what we don't know yet (the equivalent of Example Mapping's red "question"
+cards). Add one per line as they come up; before advancing to define-behavior,
+resolve each (answer it, then delete the line) or record `defer: <reason>` for
+a deliberate punt. A long unresolved list means intake isn't done — keep
+converging. Delete this comment when you add real questions. -->

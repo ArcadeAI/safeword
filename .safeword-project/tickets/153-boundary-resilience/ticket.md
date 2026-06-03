@@ -1,44 +1,41 @@
 ---
 id: 153
 type: feature
-phase: decomposition
-status: in_progress
+phase: done
+status: done
 created: 2026-05-18T06:12:00Z
-last_modified: 2026-05-24T13:17:00Z
+last_modified: 2026-06-02T23:00:00Z
 scope:
-  - Epic-anchor hook re-injects epic's `## Contracts` section on every UserPromptSubmit and on SessionStart:compact when sub-ticket has `epic:` frontmatter field
-  - Replan-on-resume fires when `git log <ticket.last_modified>..HEAD` returns > 0 commits at activeTicket transition; the model's first action on the replan-triggered turn is the investigation
-  - Replan investigation runs in a fresh sub-agent (`isolation: worktree`) and returns a condensed report to the parent — keeps the parent's context budget for the work itself rather than the meta-investigation
+  - Replan-on-resume triggers at activeTicket transition to a non-epic ticket, but ONLY when commits since `last_modified` touch paths the ticket references (contextual relevance filter) — not "any commit" — to keep the alert-to-action ratio high
+  - Tiered: a cheap inline triage runs first (relevant-path intersection + commit summary); escalate to a fresh sub-agent (`isolation: worktree`) investigation ONLY when drift is plausible; no relevant change → stay silent, no sub-agent spawned
+  - On plausible drift, surface a concise opt-in heads-up at the resume boundary ("N relevant commits since this was planned — re-check?") rather than auto-running a mandatory investigation
   - Replan output is chat-only; ticket frontmatter/body changes only with explicit user approval
-  - Replan completion updates `last_modified` to now so subsequent resumes only see new commits
-  - Verify-skill adds a non-blocking soft-prompt for cross-ticket contract promotion
-  - New `epic:` frontmatter field on sub-tickets, parsed by existing permissive parser
+  - `last_modified` updates once at replan-complete (whether or not changes applied) so subsequent resumes don't re-debate the same commits
+  - Sub-agent failure (timeout/error) → silent fallback + stderr; `last_modified` still updates
   - templates/ and .safeword/hooks/ stay byte-identical after changes
 out_of_scope:
-  - Proactive sibling sweep mechanism (JIT-only per CHI 2025 evidence; per-ticket replan covers cascading invalidation through natural progression)
+  - Epic-anchor hook (re-inject epic `## Contracts`) and the verify soft-promotion checklist — DEFERRED to a follow-up; build only when a recurring cross-ticket-contract failure justifies the per-turn cost (was Mechanisms 1 & 3)
+  - "Any commit counts" triggering — replaced by the relevance filter above (the alert-fatigue evidence makes any-commit the core annoyance)
+  - Proactive sibling sweep (JIT-only per CHI 2025; per-ticket replan covers cascading invalidation through natural progression)
   - Auto-detection of cross-ticket interfaces from sibling code (research-grade not product-grade in 2026)
-  - Hard-gated contract promotion at verify (soft for v1; revisit with real-world data)
-  - Scope-path-aware commit filtering (any commit counts in v1)
-  - New `kind: contract` ticket subtype (reuse `type: epic`)
-  - Opt-out frontmatter (no escape hatch; if gate fires wrongly, fix the gate)
-  - Sub-agent-per-sub-ticket architecture — i.e., running whole tickets in sub-agents (doesn't fit current interactive model; v2 thinking). NOTE: the replan investigation itself IS sub-agent-based — see scope. The distinction is meta-task isolation (in) vs work isolation (out).
-  - New slash commands the user must remember
+  - New `kind: contract` ticket subtype, new slash commands, opt-out frontmatter (if the relevance filter mis-fires, fix the filter)
+  - Sub-agent-per-whole-ticket architecture — only the meta-investigation runs in a sub-agent, not the ticket's actual work
 done_when:
-  - A sub-ticket with `epic: <id>` field gets the epic ticket's `## Contracts` section auto-injected on every UserPromptSubmit
-  - The same content re-injects on SessionStart:compact
-  - Section-only injection respects the 10K-char additionalContext cap; oversized sections fall back to a file-path-and-summary stub
-  - Starting any non-epic ticket where `git log <last_modified>..HEAD` returns > 0 commits triggers an automatic replan investigation; the investigation is the model's first action on the replan-triggered turn, executed in a fresh sub-agent
-  - Replan output is chat-only and proposes one of: still good / change scope / cancel / split / merge with rationale
-  - When replan detects invalidation, the report appends a one-line cascade hint naming likely-affected sibling tickets in the same epic
-  - `last_modified` updates to current time after replan completes (whether or not the user applied changes)
-  - /verify includes a non-blocking checklist item prompting promotion of cross-ticket bindings to epic's `## Contracts` section
-  - templates/hooks/ and .safeword/hooks/ pass `diff -q` after changes
-  - Tests cover: hook injection happens, hook respects 10K cap, replan trigger gate fires/skips correctly on commit count, `last_modified` updates after replan, soft-prompt appears in /verify output for sub-tickets of epics
+  - Resuming a non-epic ticket fires nothing when no commits since `last_modified` touch paths the ticket references (the silent, common case)
+  - Resuming when relevant commits landed surfaces a concise opt-in heads-up naming the count; declining is one step and runs no investigation
+  - Accepting the heads-up runs the investigation in a fresh sub-agent (`isolation: worktree`) and returns a chat-only report proposing one of: still good / change scope / cancel / split / merge, with rationale
+  - The relevance filter compares the commits' changed paths against paths the ticket references; an irrelevant-only commit set does not fire
+  - `last_modified` updates once at replan-complete (whether or not changes applied); ticket files change only with explicit user approval
+  - Sub-agent failure (timeout/error) → silent fallback + stderr; `last_modified` still updates
+  - templates/hooks/ and .safeword/hooks/ pass `diff -q`
+  - Tests cover: silent-on-irrelevant-commits, heads-up-on-relevant-commits, opt-in-decline-does-no-work, escalation-runs-the-sub-agent, `last_modified` update timing, sub-agent-failure fallback
 ---
 
-# Boundary Resilience: Epic-Anchor Hook + Replan-on-Resume
+# Boundary Resilience: Replan-on-Resume
 
-**Goal:** Eliminate two failure modes that hit users running long Claude Code sessions through multi-sub-ticket epics: (1) the model forgets cross-ticket contracts established earlier in the conversation, and (2) ticket plans become stale relative to commits that landed since the ticket was written.
+> **Revision 2026-06-02 — supersedes the Mechanism 1/2/3 body below.** Scoped to **replan-on-resume only** (per `/figure-it-out`): the epic-anchor hook + verify soft-promotion are **deferred** to a follow-up (build only when a recurring cross-ticket-contract failure justifies the per-turn cost). The replan trigger is redesigned to **design B** — fire only on commits that touch paths the ticket references (relevance filter, not "any commit"); cheap inline triage first; escalate to the sub-agent investigation only on plausible drift; surface it as an opt-in heads-up at the resume boundary. Rationale: alert-fatigue evidence shows "any commit → auto-run heavy investigation" yields a low alert-to-action ratio and trains users to ignore it. **`dimensions.md` + `test-definitions.md` below are STALE** (built for the old any-commit trigger + epic-anchor) — being re-derived in define-behavior.
+
+**Goal:** Eliminate the plan-staleness failure mode when resuming a ticket after sibling work landed — a ticket written before its siblings shipped reflects assumptions the new commits have invalidated, and today nothing re-checks the plan at resume. (The companion failure — forgetting cross-ticket contracts mid-session — is deferred with the epic-anchor hook.)
 
 **Why:** Reported by Nate in a real Safeword session — built a Coordinator service successfully, then by the time he reached the Engine sub-ticket Claude was making "simplifying and incorrect assumptions" about the cross-service interface. Course-correctable with "the spec is the law," but the underlying cause is structural: Safeword's ticket-scoped phase gates re-read ticket artifacts each turn but never re-read epic-scoped truth, and ticket plans are treated as static once written. Both are addressable with minimal new mechanism — we already have the hook patterns and the verify checklist surface.
 
@@ -165,7 +162,13 @@ UserPromptSubmit state-diffing to detect activeTicket transitions; git-log commi
 
 ## Work Log
 
+- 2026-06-02T23:00:00Z Done. /verify + /audit green (2394/2394 tests, build/lint/typecheck clean, 39/39 scenarios, 118 parity pairs, depcruise/knip clean). /quality-review found + fixed a shell-injection in `runGit` (execSync→execFileSync; commit 22b6f074) and filed a follow-up task for the repo's other `execSync`-interpolation git calls. Reconcile: 1 justified deviation (execFileSync for free-text input), uplevel filed. Feature dogfood-confirmed itself live — the prompt hook fired its own `Resume check` heads-up on a commit touching `replan.ts`. verify.md present. Status → done.
+- 2026-06-02T22:30:00Z Complete: implement (4 build steps). Pure core in `replan-relevance.ts` — `relevantChangedPaths`, `shouldSurfaceReplan`, `extractReferencedPaths`, `decideReplan` (epic-excluded + HEAD-marker re-fire suppression), `parseGitLogNameOnly`, `formatReplanHeadsUp` (24 unit tests). I/O shell `replan.ts` — gathers ticket `last_modified` + referenced paths + commits-since + HEAD, delegates to the pure core, returns heads-up line + HEAD to record; never throws (6 integration tests over a real git repo). Wired into `prompt-questions.ts`; new `replanPromptedHead` field on `QualityState` records the prompted HEAD (never bumps `last_modified` — that's the active-ticket mtime). Agent protocol in SAFEWORD.md → "Replan on resume" covers the [agent] scenarios (opt-in, isolated sub-agent, chat-only, no mutation without approval, fail-without-loop). Commits: 9a72e84c / 446a892f / debbf459 / 71fe8543. Scope trim: textual relevance signal only (touched-files history signal deferred — see dimensions.md). 118 parity pairs in sync, typecheck clean. Phase → verify.
 - 2026-05-24T13:17:00Z Re-applied May-23 re-validation clarification (Investigation Needed #2 now specifies `previousActiveTicket` as inline sibling field in `quality-state.json`, following v0.34.0's append-only state precedent). Original May-23 commit `90f725c` landed on `chore/dogfood-bump-0.35.1` which got reset/rebased before merge; commit is now orphaned and not on any branch. The May-23 re-validation pass itself (57-commit codebase delta check) had verdict "design holds, no CONFLICTS" — that conclusion still stands; this entry just re-instates the design-clarification artifact on main.
+- 2026-06-02T21:32:00Z Complete: scenario-gate — AODI clean; adversarial pass added 3 scenarios (denylisted-manifest-silent, no-transition-no-refire, further-relevant-commit-re-fires), trimmed the decline overlap, and split scenarios [hook] (unit-tested) vs [agent] (skill prose, live-verified). Baked: relevance denylist, `git --since`, hook-bumps-`last_modified`-on-surface, build order. Phase → implement.
+- 2026-06-02T21:18:00Z Complete: define-behavior — re-derived dimensions.md (7 baked decisions incl. the relevance-filter definition: artifact path-tokens ∪ ticket-touched-files ∩ changed paths, silent on no signal) + test-definitions.md (10 scenarios / 5 rules / 1 invariant, standard R/G/R). Phase → scenario-gate.
+- 2026-06-02T20:56:00Z Rescoped (via /figure-it-out "best for users"): cut to **replan-on-resume only** (epic-anchor + verify soft-prompt deferred), and redesigned the trigger to **design B** — relevance-filtered (commits touching ticket-referenced paths, not any commit), tiered (cheap triage → sub-agent only on plausible drift), opt-in heads-up at the resume boundary. Evidence: alert-fatigue research (cut false positives at the source) + proactive-programming UX (task-boundary intervention, opt-in alleviates disruption). Reset phase → define-behavior; dimensions.md + test-definitions.md flagged stale, to be re-derived for the new trigger. Implementation should land on its own branch (153 is standalone — not part of the bdd-chain-hardening epic on this branch).
+- 2026-06-02T20:36:00Z Revalidated (via /figure-it-out, ~10 days + intervening commits later): still valuable — the two failure modes are real (this very session is an example) and the replan mechanism is unbuilt; Claude Code 2026 ships no native plan-revalidation, so not obsolete. Reconciliation outcome: 153 is the canonical home for replan-on-resume; `5JN5E4-revalidate-ticket-on-pickup` (bare intake, same intent) is **superseded** by 153's fuller design. Dropped the `epic:`-frontmatter-field scope line — that field already shipped (sync-tickets groups by it). Migrated `phase: decomposition → implement` (decomposition phase retired per FSX1PP/ADR; 153's own log already said "advances to implement next") — this unblocks W9GPE7. Design otherwise intact; `## Contracts`-on-epics remains the net-new convention.
 - 2026-05-20T05:58:00Z Complete: Phase 5 — Decomposition. Four ordered tasks (A→B→C→D) with A as the parsing dependency root, B and C parallelizable after A, D depending only on A and largest in blast radius. Each task names its test layer and scenario coverage from test-definitions.md. Phase advances to `implement` next.
 - 2026-05-20T05:52:00Z Complete: Phase 4 — Scenarios validated (AODI) + adversarial pass. Quality-review skill audited the draft against AODI criteria and ran an adversarial pass; the audit produced (a) three atomicity splits (missing-epic → no-op vs stderr-warning; oversized → stub-injected vs full-section-absent; no-changes-without-approval → no-action vs accepted), (b) two observability restructures (wrapper-layer assertion for `isolation: worktree`; hook-payload-layer assertion for #14281 regression), (c) five adversarial scenarios (heading variants, empty section, 10K boundary, mid-session epic edit, sub-agent failure mode), and (d) one structural relabel (parity diff moved to Invariants section, separate from RED/GREEN/REFACTOR loop). All applied to the final test-definitions.md. Phase 4 exit criteria met.
 - 2026-05-20T05:50:00Z Complete: Phase 3 — 27 scenarios defined across 12 rules + 3 invariants in test-definitions.md, derived from the 13-row dimensions table in dimensions.md. Eight open questions (stub format, missing-file behavior, sub-agent failure, partial-accept semantics, empty-Contracts handling, heading match strictness, size-cap threshold, empty vs absent equivalence) all decided and baked into dimensions.md's "Decisions baked in" table so scenarios assume them as given.

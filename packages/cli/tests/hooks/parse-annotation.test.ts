@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   classifyAnnotation,
+  isValidSha,
   isValidSkipReason,
   parseCheckboxAnnotation,
 } from '../../templates/hooks/lib/parse-annotation.js';
@@ -171,5 +172,36 @@ describe('isValidSkipReason', () => {
 
   it('rejects a tab-only string', () => {
     expect(isValidSkipReason('\t\t')).toBe(false);
+  });
+});
+
+describe('isValidSha', () => {
+  it('accepts a 7-char hex abbreviation', () => {
+    expect(isValidSha('abc1234')).toBe(true);
+  });
+
+  it('accepts a full 40-char hex sha', () => {
+    expect(isValidSha('a'.repeat(40))).toBe(true);
+  });
+
+  it('is case-insensitive on hex digits', () => {
+    expect(isValidSha('ABC1234')).toBe(true);
+  });
+
+  it('rejects fewer than 7 chars', () => {
+    expect(isValidSha('abc12')).toBe(false);
+  });
+
+  it('rejects non-hex letters', () => {
+    expect(isValidSha('ghi9abc')).toBe(false);
+  });
+
+  it('rejects a value carrying shell metacharacters (injection guard)', () => {
+    expect(isValidSha('abc1234"; rm -rf ~ #')).toBe(false);
+    expect(isValidSha('$(touch pwned)')).toBe(false);
+  });
+
+  it('rejects an empty string', () => {
+    expect(isValidSha('')).toBe(false);
   });
 });

@@ -21,25 +21,25 @@ Features progress through phases. Track in ticket frontmatter:
 ```yaml
 ---
 type: feature
-phase: implement # intake | define-behavior | scenario-gate | decomposition | implement | verify | done
+phase: implement # intake | define-behavior | scenario-gate | implement | verify | done
 ---
 ```
 
 **Phase meanings:**
 
-| Phase             | What happens                    | Details          |
-| ----------------- | ------------------------------- | ---------------- |
-| `intake`          | Context check, discovery        | DISCOVERY.md     |
-| `define-behavior` | Writing Given/When/Then         | SCENARIOS.md     |
-| `scenario-gate`   | Validating scenarios            | SCENARIOS.md     |
-| `decomposition`   | Task breakdown                  | DECOMPOSITION.md |
-| `implement`       | Outside-in TDD                  | TDD.md           |
-| `verify`          | Evidence gate: /verify + /audit | VERIFY.md        |
-| `done`            | Close ticket                    | DONE.md          |
+| Phase             | What happens                    | Details      |
+| ----------------- | ------------------------------- | ------------ |
+| `intake`          | Context check, discovery        | DISCOVERY.md |
+| `define-behavior` | Writing Given/When/Then         | SCENARIOS.md |
+| `scenario-gate`   | Validating scenarios            | SCENARIOS.md |
+| `implement`       | Outside-in TDD                  | TDD.md       |
+| `verify`          | Evidence gate: /verify + /audit | VERIFY.md    |
+| `done`            | Close ticket                    | DONE.md      |
 
 **Update phase when:**
 
 - Completing a BDD phase → set next phase
+- Scenario-gate complete → set `implement` (test-layer + sequencing happens at the scenario-gate exit)
 - Handing off to TDD → set `implement`
 - All scenarios pass → set `verify`
 - /verify + /audit complete (verify.md exists) → set `done`
@@ -62,7 +62,6 @@ When user references a ticket, resume work:
 | `intake`          | Start understanding (propose-and-converge) |
 | `define-behavior` | Continue drafting scenarios                |
 | `scenario-gate`   | Continue validating scenarios              |
-| `decomposition`   | Continue task breakdown                    |
 | `implement`       | Find first unchecked scenario, run TDD     |
 | `verify`          | Run /verify and /audit, write verify.md    |
 | `done`            | Close ticket (verify.md must exist)        |
@@ -81,7 +80,6 @@ When user references a ticket, resume work:
 5. **Artifact-first rule:** Before doing work, create/verify the phase artifact:
    - intake → ticket at `.safeword-project/tickets/{id}-{slug}/ticket.md`
    - define-behavior → test-definitions at `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
-   - decomposition → task breakdown in ticket
 6. **Execute phase** using the appropriate phase file
 7. **Update phase** in ticket when transitioning
 
@@ -91,15 +89,14 @@ When user references a ticket, resume work:
 
 Load the appropriate file based on current phase:
 
-| Phase             | File             |
-| ----------------- | ---------------- |
-| `intake`          | DISCOVERY.md     |
-| `define-behavior` | SCENARIOS.md     |
-| `scenario-gate`   | SCENARIOS.md     |
-| `decomposition`   | DECOMPOSITION.md |
-| `implement`       | TDD.md           |
-| `verify`          | VERIFY.md        |
-| `done`            | DONE.md          |
+| Phase             | File         |
+| ----------------- | ------------ |
+| `intake`          | DISCOVERY.md |
+| `define-behavior` | SCENARIOS.md |
+| `scenario-gate`   | SCENARIOS.md |
+| `implement`       | TDD.md       |
+| `verify`          | VERIFY.md    |
+| `done`            | DONE.md      |
 
 For splitting large features, see SPLITTING.md.
 
@@ -110,7 +107,7 @@ For splitting large features, see SPLITTING.md.
 - **patch/task** → TDD directly (RED → GREEN → REFACTOR)
 - **feature** → full BDD flow, track in ticket `phase:` field
 - **Resume** → read ticket, find first unchecked scenario, continue
-- **Split** → check thresholds at Entry, define-behavior, decomposition; user decides (see SPLITTING.md)
+- **Split** → check thresholds at Entry, define-behavior, scenario-gate; user decides (see SPLITTING.md)
 - **Verify gate** → run /verify + /audit, writes verify.md. Stop hook blocks done without it.
 - **Done** → close ticket (trivial — verify.md must already exist)
 - When unsure → default to task, user can `/bdd` to override

@@ -47,3 +47,15 @@ export function classifyAnnotation(annotation: string): AnnotationKind {
 export function isValidSkipReason(reason: string): boolean {
   return reason.trim().length > 0;
 }
+
+/**
+ * A git abbreviated-or-full object name: 7–40 hex chars. Used to reject
+ * malformed annotations before they reach `git cat-file` — both as a clearer
+ * ledger error and as defense-in-depth against shell metacharacters in a
+ * file-derived annotation (the git call itself uses execFileSync, no shell).
+ */
+const SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
+
+export function isValidSha(value: string): boolean {
+  return SHA_PATTERN.test(value);
+}

@@ -103,6 +103,16 @@ function deny(reason: string, additionalContext?: string): never {
   process.exit(0);
 }
 
+/**
+ * A required frontmatter field counts as missing when it is absent, the literal
+ * string `'null'`, or empty — including an empty block sequence (which parses to
+ * `[]`) or a list of only blank items.
+ */
+function isMissingFrontmatterField(value: string | string[] | undefined): boolean {
+  if (value === undefined || value === 'null') return true;
+  return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
+}
+
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
 /**
@@ -227,10 +237,7 @@ if (
 
   const meta = parseFrontmatter(frontmatterMatch![1] ?? '');
   const required = ['scope', 'out_of_scope', 'done_when'] as const;
-  const missing = required.filter(field => {
-    const value = meta[field];
-    return !value || value === 'null';
-  });
+  const missing = required.filter(field => isMissingFrontmatterField(meta[field]));
 
   if (missing.length > 0) {
     deny(

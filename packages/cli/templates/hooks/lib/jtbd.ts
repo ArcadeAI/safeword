@@ -13,6 +13,8 @@
 const JTBD_HEADING = 'jobs to be done';
 const PERSONA_PREFIX = '**Persona:**';
 const SKIP_PREFIX = 'skip:';
+/** Max persona short-code length — mirrors the CLI's `MAX_CODE_LENGTH`. */
+const MAX_CODE_LENGTH = 6;
 
 export interface JtbdEntry {
   /** The raw `**Persona:**` reference (name, code, or `Name (CODE)`); may be empty. */
@@ -35,19 +37,12 @@ export type JtbdGateVerdict = { ok: true } | { ok: false; reason: string };
  * so a fresh spec parses to zero entries). Lenient on surrounding prose.
  */
 export function parseJtbdSection(specContent: string): JtbdSection {
-  const lines = specContent.split('\n');
   const entries: JtbdEntry[] = [];
   let skip: string | null = null;
   let seenJtbd = false;
   let inSection = false;
-  let inComment = false;
 
-  for (let index = 0; index < lines.length; index++) {
-    const result = stripComment(lines[index] ?? '', inComment);
-    inComment = result.inComment;
-    const trimmed = result.text.trim();
-    if (trimmed === '') continue;
-
+  for (const { index, text: trimmed } of activeLines(specContent)) {
     const heading = parseSectionHeading(trimmed);
     if (heading !== null) {
       inSection = heading.toLowerCase() === JTBD_HEADING;
@@ -79,32 +74,39 @@ export function parseJtbdSection(specContent: string): JtbdSection {
   return { entries, skip };
 }
 
+/** Add a persona code and its combined `Name (code)` form to the ref set. */
+function addCodeForms(references: Set<string>, name: string, code: string): void {
+  references.add(code);
+  references.add(`${name} (${code})`);
+}
+
 /**
- * The set of persona references a JTBD may resolve against: each `## Name (CODE)`
- * header contributes the name, the code, and the combined `Name (CODE)` form.
- * Exact-string membership — the richer case-suggestion contract stays in the
+ * The set of persona references a JTBD may resolve against. Each `## Name` or
+ * `## Name (CODE)` header contributes the name, its short code — the explicit
+ * `(CODE)` when present AND the auto-derived code (`Platform Operator` → `PO`,
+ * matching the CLI's `derivePersonaCode` and DISCOVERY.md's "codes auto-derive"
+ * promise) — plus the combined `Name (code)` forms. Without the derived code a
+ * bare-named persona would falsely block a JTBD that references its code.
+ * Exact-string membership; the richer case-suggestion contract stays in the
  * agent/authoring path. Empty/unreadable content yields an empty set.
  */
 export function knownPersonaRefs(personasContent: string): Set<string> {
-  const refs = new Set<string>();
-  let inComment = false;
+  const references = new Set<string>();
 
-  for (const raw of personasContent.split('\n')) {
-    const result = stripComment(raw, inComment);
-    inComment = result.inComment;
-    const heading = parseSectionHeading(result.text.trim());
+  for (const { text } of activeLines(personasContent)) {
+    const heading = parseSectionHeading(text);
     if (heading === null) continue;
 
     const parsed = splitNameAndCode(heading);
     if (parsed.name === '') continue;
-    refs.add(parsed.name);
-    if (parsed.code !== undefined) {
-      refs.add(parsed.code);
-      refs.add(`${parsed.name} (${parsed.code})`);
-    }
+    references.add(parsed.name);
+
+    const derived = derivePersonaCode(parsed.name);
+    if (derived !== '') addCodeForms(references, parsed.name, derived);
+    if (parsed.code !== undefined) addCodeForms(references, parsed.name, parsed.code);
   }
 
-  return refs;
+  return references;
 }
 
 /**
@@ -166,11 +168,9 @@ function parseAcsByJtbd(specContent: string): {
   sectionSkip: string | null;
   jtbds: JtbdAcBlock[];
 } {
-  const lines = specContent.split('\n');
   const jtbds: JtbdAcBlock[] = [];
   let sectionSkip: string | null = null;
   let inSection = false;
-  let inComment = false;
   let current: JtbdAcBlock | null = null;
 
   function flush(): void {
@@ -180,12 +180,7 @@ function parseAcsByJtbd(specContent: string): {
     }
   }
 
-  for (const raw of lines) {
-    const result = stripComment(raw, inComment);
-    inComment = result.inComment;
-    const trimmed = result.text.trim();
-    if (trimmed === '') continue;
-
+  for (const { text: trimmed } of activeLines(specContent)) {
     const heading = parseAnyHeading(trimmed);
     if (heading !== null) {
       if (heading.level <= 2) {
@@ -244,28 +239,82 @@ export function evaluateAcGate(specContent: string): JtbdGateVerdict {
   return { ok: true };
 }
 
-/** Returns the active (non-commented) portion of a line and the comment state after it. */
-function stripComment(line: string, inComment: boolean): { text: string; inComment: boolean } {
-  let text = line;
-  let active = '';
+// The two functions below are the hook-side mirror of the CLI's
+// `src/utils/markdown-sections.ts` (computeSkipMask + stripInlineComments).
+// They cannot share a module — deployed hooks run standalone from
+// `.safeword/hooks/` and can't import the CLI's dist. The differential test
+// `tests/hooks/parser-parity.test.ts` pins this copy to the CLI so the two
+// can't drift (ticket P58R22). Keep them byte-for-byte equivalent to the CLI.
 
-  if (inComment) {
-    const close = text.indexOf('-->');
-    if (close === -1) return { text: '', inComment: true };
-    text = text.slice(close + 3);
-  }
-
-  for (;;) {
-    const open = text.indexOf('<!--');
-    if (open === -1) {
-      active += text;
-      return { text: active, inComment: false };
+/**
+ * Per-line skip mask: `true` where a line is inside a triple-backtick code
+ * fence or a block-level HTML comment (`<!-- … -->`). Per CommonMark, only a
+ * line that BEGINS with `<!--` (after optional indent) opens a block comment;
+ * a fence line toggles fence state and is itself skipped.
+ */
+function computeSkipMask(lines: readonly string[]): boolean[] {
+  const skip: boolean[] = [];
+  let insideCodeFence = false;
+  let insideComment = false;
+  for (const line of lines) {
+    if (line.trimStart().startsWith('```')) {
+      skip.push(true);
+      insideCodeFence = !insideCodeFence;
+      continue;
     }
-    active += text.slice(0, open);
-    const close = text.indexOf('-->', open + 4);
-    if (close === -1) return { text: active, inComment: true };
-    text = text.slice(close + 3);
+    if (insideCodeFence) {
+      skip.push(true);
+      continue;
+    }
+    if (!insideComment && line.trimStart().startsWith('<!--')) insideComment = true;
+    if (insideComment) {
+      skip.push(true);
+      if (line.includes('-->')) insideComment = false;
+      continue;
+    }
+    skip.push(false);
   }
+  return skip;
+}
+
+/** Strip inline `<!-- … -->` comments from a single line (block comments are
+ * handled by computeSkipMask). An unclosed inline comment leaves the rest as-is. */
+function stripInlineComments(text: string): string {
+  let result = '';
+  let pos = 0;
+  while (pos < text.length) {
+    const open = text.indexOf('<!--', pos);
+    if (open === -1) {
+      result += text.slice(pos);
+      break;
+    }
+    result += text.slice(pos, open);
+    const close = text.indexOf('-->', open + 4);
+    if (close === -1) {
+      result += text.slice(open);
+      break;
+    }
+    pos = close + 3;
+  }
+  return result;
+}
+
+/**
+ * Split content into lines, skip code-fence and block-comment lines, strip
+ * inline comments from the rest, and return each non-empty line with its
+ * 0-based index. The single line-walk shared by the section parsers above —
+ * the hook-side mirror of the CLI's `markdown-sections.ts` (WQ4RH3 / P58R22).
+ */
+export function activeLines(content: string): { index: number; text: string }[] {
+  const lines = content.split('\n');
+  const skip = computeSkipMask(lines);
+  const out: { index: number; text: string }[] = [];
+  for (const [index, line] of lines.entries()) {
+    if (skip[index]) continue;
+    const text = stripInlineComments(line).trim();
+    if (text !== '') out.push({ index, text });
+  }
+  return out;
 }
 
 /** Any ATX heading → `{ level, text }`; null for non-heading lines. */
@@ -281,6 +330,32 @@ function parseSectionHeading(trimmed: string): string | null {
   const rest = trimmed.slice(3).trim();
   if (rest.startsWith('#')) return null;
   return rest;
+}
+
+/**
+ * Derive a short code from a persona name — a deliberate cross-runtime copy of
+ * the CLI's `derivePersonaCode` (src/utils/personas.ts), since deployed hooks
+ * can't import the CLI dist. Multi-word → first letter of each word ("Platform
+ * Operator" → "PO"); single-word → first 2 chars ("Auditor" → "AU"); non-
+ * alphanumerics stripped (digits kept); uppercased; truncated to MAX_CODE_LENGTH.
+ * The gate is a lenient backstop — it does NOT apply the CLI's collision
+ * suffixes (PO → PO2), so a derived code resolves to any persona deriving it.
+ * Kept in agreement with the CLI by tests (see ticket P58R22).
+ */
+function derivePersonaCode(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return '';
+
+  const cleaned = trimmed.replaceAll(/[^A-Z0-9\s]/gi, '');
+  const words = cleaned.split(/\s+/).filter(word => word.length > 0);
+
+  const [firstWord] = words;
+  if (!firstWord) return '';
+
+  const derived =
+    words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
+
+  return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
 }
 
 /** `Platform Operator (PO)` → { name, code }; bare names → { name }. */

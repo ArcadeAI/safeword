@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
+import mermaid from 'astro-mermaid';
 
 const __dirname = import.meta.dirname;
 
@@ -12,6 +13,8 @@ export default defineConfig({
     cacheDir: path.resolve(__dirname, 'node_modules/.vite'),
   },
   integrations: [
+    // Must come before starlight so it processes ```mermaid fences first.
+    mermaid({ theme: 'neutral', autoTheme: true, enableLog: false }),
     starlight({
       title: 'Safeword',
       customCss: ['./src/styles/custom.css'],
@@ -67,6 +70,7 @@ export default defineConfig({
       ],
       sidebar: [
         { label: 'Quick Start', slug: 'getting-started/quick-start' },
+        { label: 'The Workflow', slug: 'getting-started/workflow' },
         { label: 'FAQ', slug: 'getting-started/faq' },
         {
           label: 'Reference',

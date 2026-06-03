@@ -1228,6 +1228,43 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('done_when');
     });
 
+    it('9.2b: denies when scope fields are present but empty lists (9S6600)', () => {
+      // `scope:` with no items parses to an empty array; the gate must treat
+      // that as missing, not present. dimensions.md is supplied so the only
+      // gate that can fire is the scope-fields check.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'scope:',
+          'out_of_scope:',
+          'done_when:',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+        '| Dimension | Partitions |\n|---|---|\n| D | a, b |\n',
+      );
+
+      const testDefsPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', testDefsPath);
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(output.hookSpecificOutput.permissionDecisionReason).toContain('scope');
+    });
+
     it('9.3: allows test-definitions.md when ticket has all scope fields and dimensions.md exists', () => {
       writeTestFile(
         projectDirectory,

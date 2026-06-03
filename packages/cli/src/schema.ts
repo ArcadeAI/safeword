@@ -284,6 +284,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/parse-annotation.ts': { template: 'hooks/lib/parse-annotation.ts' },
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
+    '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
+    '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
     '.safeword/hooks/lib/lint-config.ts': { template: 'hooks/lib/lint-config.ts' },
     '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },
     '.safeword/hooks/lib/checkbox-transitions.ts': {
@@ -461,9 +463,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/bdd/SCENARIOS.md': {
       template: 'skills/bdd/SCENARIOS.md',
     },
-    '.claude/skills/bdd/DECOMPOSITION.md': {
-      template: 'skills/bdd/DECOMPOSITION.md',
-    },
     '.claude/skills/bdd/TDD.md': {
       template: 'skills/bdd/TDD.md',
     },
@@ -540,9 +539,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.cursor/rules/bdd-scenarios.mdc': {
       template: 'cursor/rules/bdd-scenarios.mdc',
-    },
-    '.cursor/rules/bdd-decomposition.mdc': {
-      template: 'cursor/rules/bdd-decomposition.mdc',
     },
     '.cursor/rules/bdd-tdd.mdc': {
       template: 'cursor/rules/bdd-tdd.mdc',

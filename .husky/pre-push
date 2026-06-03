@@ -1,9 +1,23 @@
-# Schema change test gate — run targeted tests when schema.ts was modified
-# Catches test drift before it reaches CI (see ticket 096/097)
+# Schema change test gate — run the DETERMINISTIC schema/skill-drift tests when
+# schema.ts was modified (see ticket 096/097; scoped to pure tests after a
+# worktree pre-push flake — non-hermetic E2E moved to CI-only).
+#
+# Only the pure, hermetic tests run here: schema.test.ts (the schema↔template
+# manifest correspondence — ownedFiles/ownedDirs/deprecatedFiles, the exact
+# drift class this gate exists for) and skills-commands-validation.test.ts
+# (skill/command file format). Both are filesystem-read-only — no CLI spawn, no
+# `bunx` network resolution — so they're fast (~0.5s) and never flake.
+#
+# The non-hermetic E2E that USED to run here (setup-hooks, reset-reconcile,
+# golden-path) spawn `node dist/cli.js` and resolve `bunx eslint/prettier`, which
+# intermittently fail in the hook environment (no pretest rebuild, network
+# package resolution). They run in CI on the full suite in a clean env — a
+# pre-push hook is the wrong place for install/dist-dependent E2E.
+#
 # Skip with: git push --no-verify
 
 if git diff origin/main...HEAD --name-only 2> /dev/null | grep -q "schema.ts"; then
-  echo "⚠️  schema.ts changed — running targeted test gate..."
-  cd packages/cli && bunx vitest run tests/schema.test.ts tests/commands/setup-hooks.test.ts tests/commands/reset-reconcile.test.ts tests/integration/golden-path.test.ts tests/integration/skills-commands-validation.test.ts || exit 1
-  echo "✓ Schema-related tests passed"
+  echo "⚠️  schema.ts changed — running schema-drift gate (pure tests)..."
+  cd packages/cli && bunx vitest run tests/schema.test.ts tests/integration/skills-commands-validation.test.ts || exit 1
+  echo "✓ Schema-drift tests passed"
 fi

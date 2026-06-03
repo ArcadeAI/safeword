@@ -5,6 +5,7 @@
 
 import {
   classifyAnnotation,
+  isValidSha,
   isValidSkipReason,
   parseCheckboxAnnotation,
   type CheckboxAnnotation,
@@ -54,6 +55,30 @@ function parseLedger(content: string): {
   return { scenarios, crossScenario };
 }
 
+/**
+ * Validate a SHA-position annotation: format first (7-40 hex), then reachability
+ * via the injected oracle. Returns the error message plus whether it's a
+ * *format* error (so a caller can skip downstream collision tracking on a
+ * malformed value), or null if the SHA resolves. Centralizes the two wordings so
+ * the per-scenario and cross-scenario rows can't drift.
+ */
+function checkSha(
+  value: string,
+  isReachable: (sha: string) => boolean,
+  label: string,
+): { error: string; format: boolean } | null {
+  if (!isValidSha(value)) {
+    return {
+      error: `${label}: "${value}" is not a valid commit SHA (expected 7-40 hex chars).`,
+      format: true,
+    };
+  }
+  if (!isReachable(value)) {
+    return { error: `${label}: SHA ${value} is not reachable from HEAD.`, format: false };
+  }
+  return null;
+}
+
 function validateScenario(
   scenario: ScenarioLedger,
   isReachable: (sha: string) => boolean,
@@ -90,10 +115,10 @@ function validateScenario(
 
     // SHA candidate
     realShaCount++;
-    if (!isReachable(kind.value)) {
-      errors.push(
-        `Scenario "${scenario.name}" ${step.name}: SHA ${kind.value} is not reachable from HEAD.`,
-      );
+    const problem = checkSha(kind.value, isReachable, `Scenario "${scenario.name}" ${step.name}`);
+    if (problem) {
+      errors.push(problem.error);
+      if (problem.format) continue; // malformed — don't track it for collisions
     }
     const existingStep = shaToStep.get(kind.value);
     if (existingStep) {
@@ -143,8 +168,9 @@ function validateCrossScenario(
     return;
   }
 
-  if (kind.kind === 'sha' && !isReachable(kind.value)) {
-    errors.push(`Cross-scenario refactor row: SHA ${kind.value} is not reachable from HEAD.`);
+  if (kind.kind === 'sha') {
+    const problem = checkSha(kind.value, isReachable, 'Cross-scenario refactor row');
+    if (problem) errors.push(problem.error);
   }
 }
 

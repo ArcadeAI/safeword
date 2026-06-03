@@ -36,12 +36,36 @@ describe('validateLedger — Rule 3 (per-scenario SHA validity)', () => {
         '',
         '- [x] RED abc1234',
         '- [x] GREEN def5678',
-        '- [x] REFACTOR ghi9abc',
+        '- [x] REFACTOR 9abcdef',
       ].join('\n'),
     );
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
     expect(result.errors).toEqual([]);
+  });
+
+  it('Scenario T-inject: a SHA carrying shell metacharacters is rejected and never reaches the oracle', () => {
+    const seen: string[] = [];
+    const recordingOracle = (sha: string) => {
+      seen.push(sha);
+      return true;
+    };
+    const malicious = 'abc1234"; touch pwned; #';
+    const c = content(
+      [
+        '### Scenario: foo',
+        '',
+        `- [x] RED ${malicious}`,
+        '- [x] GREEN def5678',
+        '- [x] REFACTOR 9abcdef',
+      ].join('\n'),
+    );
+    const result = validateLedger(c, recordingOracle);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/not a valid commit SHA/i);
+    // The malformed value is rejected by format before the git oracle sees it —
+    // the wiring layer's git call (execFileSync) would also pass it literally.
+    expect(seen).not.toContain(malicious);
   });
 
   it('Scenario T2: RED and GREEN sharing one SHA fails, naming the scenario', () => {
@@ -51,7 +75,7 @@ describe('validateLedger — Rule 3 (per-scenario SHA validity)', () => {
         '',
         '- [x] RED abc1234',
         '- [x] GREEN abc1234',
-        '- [x] REFACTOR ghi9abc',
+        '- [x] REFACTOR 9abcdef',
       ].join('\n'),
     );
     const result = validateLedger(c, allReachable);
@@ -131,9 +155,9 @@ describe('validateLedger — Rule 4 (feature-level cross-scenario refactor row)'
         '',
         '- [x] RED abc1234',
         '- [x] GREEN def5678',
-        '- [x] REFACTOR ghi9abc',
+        '- [x] REFACTOR 9abcdef',
       ].join('\n'),
-      '- [x] cross-scenario xyz9999',
+      '- [x] cross-scenario fff9999',
     );
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
@@ -146,7 +170,7 @@ describe('validateLedger — Rule 4 (feature-level cross-scenario refactor row)'
         '',
         '- [x] RED abc1234',
         '- [x] GREEN def5678',
-        '- [x] REFACTOR ghi9abc',
+        '- [x] REFACTOR 9abcdef',
       ].join('\n'),
       '- [x] cross-scenario skip: no shared fixtures emerged',
     );
@@ -164,7 +188,7 @@ describe('validateLedger — Rule 4 (feature-level cross-scenario refactor row)'
       '',
       '- [x] RED abc1234',
       '- [x] GREEN def5678',
-      '- [x] REFACTOR ghi9abc',
+      '- [x] REFACTOR 9abcdef',
       '',
     ].join('\n');
     const result = validateLedger(c, allReachable);
@@ -180,7 +204,7 @@ describe('validateLedger — Rule 4 (feature-level cross-scenario refactor row)'
         '',
         '- [x] RED abc1234',
         '- [x] GREEN def5678',
-        '- [x] REFACTOR ghi9abc',
+        '- [x] REFACTOR 9abcdef',
       ].join('\n'),
       '- [x] cross-scenario skip:',
     );
@@ -198,7 +222,7 @@ describe('validateLedger — multiple scenarios', () => {
         '',
         '- [x] RED abc1234',
         '- [x] GREEN abc1234',
-        '- [x] REFACTOR ghi9abc',
+        '- [x] REFACTOR 9abcdef',
         '',
         '### Scenario: bar',
         '',

@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.13
-**Last Updated:** 2026-05-14
+**Version:** 1.15
+**Last Updated:** 2026-06-02
 **Status:** Production
 
 ---
@@ -410,13 +410,13 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 **Status:** Accepted
 **Date:** 2026-01-07
 
-| Field          | Value                                                                                                      |
-| -------------- | ---------------------------------------------------------------------------------------------------------- |
-| What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                            |
-| Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked |
-| Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                       |
-| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)   |
-| Implementation | `packages/cli/templates/skills/bdd/SKILL.md` Phase 6-7                                                     |
+| Field          | Value                                                                                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                                                                                                                                                                              |
+| Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked                                                                                                                                                   |
+| Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                                                                                                                                                                         |
+| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)                                                                                                                                                     |
+| Implementation | `packages/cli/templates/skills/bdd/` — TDD runs in the `implement` phase (`TDD.md`); the skill was later split from one `SKILL.md` into per-phase files (DISCOVERY / SCENARIOS / TDD / VERIFY / DONE / SPLITTING), see the 2026-05-31 Phase 0 decision below |
 
 ### Skill Consolidation (Removed Redundant Skills)
 
@@ -488,7 +488,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 - **Phase reminders** — prompt hook derives current phase from ticket.md via `getTicketInfo()` and injects phase-specific one-liner each turn. No blocking gate — guidance only.
 - **TDD step reminders** — prompt hook derives TDD step from test-definitions.md via `deriveTddStep()` during `implement` phase. Shows RED/GREEN/REFACTOR status each turn.
 
-**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate, decomposition) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
+**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
 
 **Meta-path exemption:** Files under `.safeword-project/`, `.safeword/`, `.claude/`, and `.cursor/` are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
 
@@ -514,6 +514,47 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Trade-off      | Fixture must be manually updated when Claude Code's transcript format changes; no LLM API key required                                                                                                     |
 | Alternatives   | Real E2E with live API (rejected: non-deterministic, expensive), hand-crafted simplified fixtures only (rejected: doesn't catch real format drift)                                                         |
 | Implementation | `packages/cli/tests/integration/stop-hook-transcript-format.test.ts`; fixture includes thinking blocks, tool_use, tool_result, and real envelope fields (parentUuid, requestId, etc.)                      |
+
+### Product-Framing Layer in BDD Phase 0 (JTBD / Personas / Acceptance Criteria)
+
+**Status:** Accepted
+**Date:** 2026-05-31
+
+| Field          | Value                                                                                                                                                                                                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | BDD Phase 0 (`intake`) now writes a per-ticket `spec.md` with persona-anchored Jobs To Be Done → Acceptance Criteria → engineering scope, backed by a project glossary and personas file. Scenarios carry lineage `<slug>.<persona><JTBD#>.AC<#>.<scenario>` so coverage gaps are machine-checkable. |
+| Why            | Engineering scope (`scope` / `out_of_scope` / `done_when`) captured _what_ to build but not _who_ for or _why_; product framing anchors scenarios to verifiable acceptance criteria and lets `safeword check` flag uncovered ACs and orphan scenarios.                                               |
+| Trade-off      | Longer intake for features; Phase 0 advances through structured signoff sub-gates (orientation → JTBD → AC → scope) rather than one step.                                                                                                                                                            |
+| Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                          |
+| Implementation | `packages/cli/templates/skills/bdd/DISCOVERY.md` (Phase 0 sub-phases + worked example), `SCENARIOS.md` (lineage numbering), `spec-template.md`, glossary/persona `managedFiles` entries; per-file path overrides via `.safeword/config.json` `paths.*` (ticket K7N2QM). Epic DZ2NM5.                 |
+
+### BDD as a Solo-Agent Adaptation of the Three-Practice Model (retire `decomposition` phase)
+
+**Status:** Accepted
+**Date:** 2026-06-02
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | safeword's `bdd` workflow is explicitly an adaptation of canonical BDD's three practices — Discovery → Formulation → Automation — for a **single agent + one human**, not a team: the agent plays all three "Three Amigos" roles. As part of aligning to that model, the `decomposition` phase is retired as a distinct beat — its only scenario-dependent job (per-scenario test-layer assignment + build order) folds into the `scenario-gate` exit, and its overlapping jobs (component identification, design-doc/ADR triggers) stay in `intake`, where they already happen.                                                                                                                                                 |
+| Why            | (1) Canonical BDD has no breakdown phase — decomposition is foreign to the model safeword is built on. (2) It is the only phase with no gate and no required artifact, so agents skip it and nothing notices. (3) ~75% of its work duplicates intake's architecture step (chain audit, epic EECVXB). Retiring it makes the pipeline match the canonical Discovery→Formulation→Automation shape: `intake` (Discovery) → `define-behavior`/`scenario-gate` (Formulation) → `implement`/`verify` (Automation).                                                                                                                                                                                                                      |
+| Trade-off      | safeword runs the BDD ritual **more consistently** than a human team (enforced ordering, durable traceable artifacts, an always-on adversarial pass) but **cannot replicate the Three Amigos' core value** — independent minds whose blind spots don't overlap. One model playing all three roles has correlated errors; self-adversarial review is weaker than independent review. The mitigations below reduce but do not eliminate this.                                                                                                                                                                                                                                                                                      |
+| Alternatives   | Delete the `decomposition` enum value + files outright (rejected: cross-cutting — touches the phase enum, hooks, the paired Cursor rule, `schema.ts`, the parity fixture, and tests — and a live ticket sits in the phase; staged to a follow-up). Keep `decomposition` as an optional advisory phase (rejected: preserves off-pattern dead weight).                                                                                                                                                                                                                                                                                                                                                                             |
+| Implementation | Reversible step (FSX1PP): `scenario-gate` exit (`SCENARIOS.md`) absorbs test-layer assignment + sequencing; `SKILL.md` + `lib/quality.ts` mark `decomposition` deprecated; `scenario-gate` advances straight to `implement`. Staged removal **completed (W9GPE7, 2026-06-02)**: dropped the enum value from `BddPhase`/`PHASE_EVIDENCE` and the hook phase-lists, deleted `DECOMPOSITION.md` + the Cursor rule `bdd-decomposition.mdc` (both copies), removed the `schema.ts`/parity-fixture refs and the skill/doc phase-table rows; ticket `153-boundary-resilience` reached `done`. Historical retirement-rationale prose citing this ADR is kept in `DISCOVERY.md`/`SCENARIOS.md`. Decision via `/figure-it-out` 2026-06-02. |
+
+**The Three Amigos, played by one agent.** Canonical BDD's Discovery practice convenes three _perspectives_ — business/product, development, testing — to talk through concrete examples before code. safeword has no room of three; one agent wears all three hats:
+
+- **Product/business** — split with the human: the agent frames personas → JTBD → acceptance criteria in intake and uses `/elicit` to extract intent, but the user signs off at each propose-and-converge gate.
+- **Development** — the agent's own proposal; `/figure-it-out` for design calls; the architecture survey-and-reconcile step.
+- **Testing/QA** — the `scenario-gate`: AODI checks plus the adversarial "what breaks that none of these scenarios catch?" pass and the negative-case-coverage rule.
+
+**Where the simulation is weaker than a real room** (the deliberate, accepted divergences):
+
+1. **Correlated blind spots** — three different brains catch what each misses; one model re-reading its own work inherits its own misreads across all three hats. This is the irreducible gap.
+2. **The human reacts rather than contributes** — the burden of curiosity sits on the agent; an unasked question yields an unvolunteered rule. `/elicit` softens this.
+3. **No naive-question friction and no _held_ disagreement** — the agent resolves its own debate instantly; `/figure-it-out`'s steelman-both-sides is one mind arguing with itself.
+4. **Unknowns aren't tracked** — Example Mapping's red "question cards" give a readiness signal safeword lacks; ticket V6N5PW addresses this.
+
+safeword accepts this trade — **consistency and enforcement over independent blind-spot coverage** — because an autonomous agent cannot convene independent humans, and the mitigations (adversarial pass, `/elicit`, `/figure-it-out`, user sign-off gates) recover much of the value.
 
 ---
 

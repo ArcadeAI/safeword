@@ -12,16 +12,16 @@
   font-display: swap;
 }
 
-/* Red background theme */
+/* White background theme (black text, red accents on dark elements) */
 :root {
   /* Content inset: centers content, with minimum padding for small viewports */
   --sw-content-inset: max(var(--sl-content-pad-x), calc((100vw - var(--sl-content-width)) / 2));
   /* Vertical line offset from content edge */
   --sw-line-offset: calc(var(--sw-content-inset) - 1.5rem);
 
-  --sl-color-bg: #ff0000;
-  --sl-color-bg-nav: #ff0000;
-  --sl-color-bg-sidebar: #ff0000;
+  --sl-color-bg: #fff;
+  --sl-color-bg-nav: #fff;
+  --sl-color-bg-sidebar: #fff;
   --sl-color-hairline: #000;
   --sl-color-hairline-light: #000;
   --sl-color-text: #000;
@@ -43,7 +43,7 @@ body,
 main,
 .sl-content,
 [data-theme] {
-  background: #ff0000 !important;
+  background: #fff !important;
 }
 
 /* Force black text everywhere */

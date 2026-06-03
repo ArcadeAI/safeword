@@ -72,6 +72,19 @@ describe('parseJtbdSection (Rule 4)', () => {
     expect(entries).toHaveLength(0);
     expect(skip).toBeNull();
   });
+
+  it('treats a mid-line unclosed <!-- as inline, not a block that swallows later JTBDs (P58R22)', () => {
+    // CommonMark: an HTML comment block starts only when the line begins with
+    // `<!--`. A trailing unclosed `<!--` mid-line is inline — it must not hide
+    // the JTBDs that follow.
+    const body = '### a\n\n**Persona:** PO <!-- TODO confirm\n\n### b\n\n**Persona:** End User';
+    expect(parseJtbdSection(spec(body)).entries).toHaveLength(2);
+  });
+
+  it('strips a closed mid-line <!-- ... --> from a persona ref (P58R22)', () => {
+    const { entries } = parseJtbdSection(spec('### a\n\n**Persona:** PO <!-- note -->'));
+    expect(entries[0]?.persona).toBe('PO');
+  });
 });
 
 describe('knownPersonaRefs (Rule 5)', () => {
@@ -80,6 +93,13 @@ describe('knownPersonaRefs (Rule 5)', () => {
     expect(references.has('Platform Operator (PO)')).toBe(true);
     expect(references.has('Platform Operator')).toBe(true);
     expect(references.has('PO')).toBe(true);
+  });
+
+  it('contributes the derived code for a bare-named persona (G9BXE9)', () => {
+    const references = knownPersonaReferences('## Platform Operator\n');
+    expect(references.has('Platform Operator')).toBe(true);
+    expect(references.has('PO')).toBe(true);
+    expect(references.has('Platform Operator (PO)')).toBe(true);
   });
 
   it('does not contain an undeclared reference', () => {
@@ -114,6 +134,18 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     const verdict = evaluateJtbdGate(spec('### a\n\n**Persona:** Ghost Persona'), PERSONAS);
     expect(verdict.ok).toBe(false);
     expect(verdict).toMatchObject({ reason: expect.stringContaining('Ghost Persona') });
+  });
+
+  it('resolves a derived code against a bare-named persona (G9BXE9)', () => {
+    const personas = '## Platform Operator\n\n**Role:** Owns infra.\n';
+    const verdict = evaluateJtbdGate(spec('### x.PO1 — t\n\n**Persona:** PO'), personas);
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('still denies an unknown persona after derivation (G9BXE9)', () => {
+    const personas = '## Platform Operator\n\n**Role:** Owns infra.\n';
+    const verdict = evaluateJtbdGate(spec('### a\n\n**Persona:** Ghost Persona'), personas);
+    expect(verdict.ok).toBe(false);
   });
 
   it('denies a skip with an empty reason', () => {
