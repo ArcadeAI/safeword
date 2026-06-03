@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   detectPhaseAdvance,
+  formatReviewStamp,
   gatePhaseAdvance,
   hashArtifact,
   isReviewGateEnabled,
@@ -97,6 +98,30 @@ describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => 
 
   it('returns empty for empty input', () => {
     expect(parseReviewStamps('')).toEqual([]);
+  });
+});
+
+describe('formatReviewStamp (write a stamp the gate will read — inverse of parseReviewStamps)', () => {
+  it('formats a real-review stamp as review:<scope>', () => {
+    expect(formatReviewStamp('NMSD94:spec@abc123')).toBe('review:NMSD94:spec@abc123');
+  });
+
+  it('formats a skip stamp as review:<scope> skip:<reason>', () => {
+    expect(formatReviewStamp('NMSD94:spec@abc123', 'docs-only change')).toBe(
+      'review:NMSD94:spec@abc123 skip:docs-only change',
+    );
+  });
+
+  it('round-trips through parseReviewStamps (real review)', () => {
+    const scope = reviewScope('NMSD94', 'spec', hashArtifact('spec body'));
+    const line = `2026-06-03T00:00:00Z sess ${formatReviewStamp(scope)}`;
+    expect(parseReviewStamps(line)).toEqual([{ scope }]);
+  });
+
+  it('round-trips through parseReviewStamps (skip)', () => {
+    const scope = reviewScope('NMSD94', 'spec', hashArtifact('spec body'));
+    const line = `2026-06-03T00:00:00Z sess ${formatReviewStamp(scope, 'trivial spec')}`;
+    expect(parseReviewStamps(line)).toEqual([{ scope, skipReason: 'trivial spec' }]);
   });
 });
 

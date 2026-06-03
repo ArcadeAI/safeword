@@ -126,6 +126,16 @@ export function detectPhaseAdvance(oldContent: string, newContent: string): stri
   return from;
 }
 
+/**
+ * Render a stamp token for the skill-invocation-log — the inverse of
+ * {@link parseReviewStamps}. The stamp-earning step (`write-review-stamp.ts`)
+ * prefixes `<timestamp> <session> ` and appends the result, so the gate reads
+ * back exactly this `scope`. A non-empty `skipReason` records a logged skip.
+ */
+export function formatReviewStamp(scope: string, skipReason?: string): string {
+  return skipReason === undefined ? `review:${scope}` : `review:${scope} skip:${skipReason}`;
+}
+
 /** Read review stamps from skill-invocation-log content (non-review lines ignored). */
 export function parseReviewStamps(logContent: string): ReviewStamp[] {
   const stamps: ReviewStamp[] = [];
