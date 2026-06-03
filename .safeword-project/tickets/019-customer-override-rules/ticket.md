@@ -2,9 +2,9 @@
 id: 019
 type: task
 phase: implement
-status: ready
+status: superseded
 created: 2026-01-10T19:15:00Z
-last_modified: 2026-01-11T05:46:00Z
+last_modified: 2026-06-03T19:05:00.000Z
 ---
 
 # Allow customers to override LLM-specific checker rules
@@ -260,6 +260,8 @@ safeword override --rule no-incomplete-error-handling=warn
 **Rejected:** Yet another CLI command, harder to discover than file.
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (superseded) via ticket-triage: superseded by 138 (single-surface override contract shipped instead).
 
 ---
 

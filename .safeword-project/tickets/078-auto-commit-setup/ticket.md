@@ -3,7 +3,7 @@ id: '078'
 slug: auto-commit-setup
 title: 'Auto-commit after safeword setup and upgrade'
 type: Improvement
-status: open
+status: superseded
 epic: setup-lifecycle
 ---
 
@@ -41,3 +41,7 @@ After setup/upgrade completes successfully:
 - [ ] Non-git-repo gracefully skips commit with a warning
 - [ ] User-owned files (learnings, logs, tickets) are excluded from auto-commit
 - [ ] Dead `pythonFiles` return value removed from setup flow
+
+## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (superseded) via ticket-triage: superseded by 081 (inline commit at setup/upgrade).

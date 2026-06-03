@@ -2,8 +2,8 @@
 id: 065
 slug: eslint-plugin-migrations
 type: task
-status: backlog
-phase: research
+status: done
+phase: done
 ---
 
 # Task: Migrate eslint-plugin-security 4.0 and eslint-plugin-sonarjs 4.0
@@ -24,5 +24,7 @@ phase: research
 - [ ] Customer preset tested against sample projects
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (done) via ticket-triage: eslint-plugin-security 4.0.0 + sonarjs 4.0.3 shipped (commit fe16d586).
 
 - 2026-03-28 Created from dep bump audit. Reverted to 3.x due to 128+ new errors.

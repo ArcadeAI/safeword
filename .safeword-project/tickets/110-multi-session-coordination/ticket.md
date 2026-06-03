@@ -4,6 +4,7 @@ title: Prevent concurrent agent sessions from overwriting each other's commits
 type: task
 phase: intake
 created: 2026-04-11
+status: cancelled
 ---
 
 ## Goal
@@ -36,5 +37,7 @@ No mechanism prevents concurrent pushes to main from different sessions. Each se
 Cherry-picked all 8 commits from the reflog onto current main, resolved conflicts (took our version for design files, kept their version for CI files). Pushed successfully. No work was permanently lost.
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (cancelled) via ticket-triage: moot — worktree-per-session is now standard; the concurrent-overwrite root cause is gone.
 
 - 2026-04-11T22:04Z Created: Incident during concurrent session work

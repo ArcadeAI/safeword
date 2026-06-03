@@ -1,10 +1,10 @@
 ---
 id: 016c
 type: task
-phase: implement
-status: ready
+phase: done
+status: done
 created: 2026-01-10T18:40:00Z
-last_modified: 2026-01-10T19:51:00Z
+last_modified: 2026-06-03T19:05:00.000Z
 ---
 
 # Protect config files from accidental LLM changes
@@ -81,6 +81,8 @@ Add to `.claude/settings.json` hooks configuration:
 - [ ] Integration test verifies hooks are triggered
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (done) via ticket-triage: config-guard + bypass-warn hooks are wired in .claude/settings.json.
 
 ---
 

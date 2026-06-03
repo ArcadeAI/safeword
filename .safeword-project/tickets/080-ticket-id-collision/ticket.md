@@ -3,7 +3,8 @@ id: '080'
 slug: ticket-id-collision
 title: 'Ticket system: prevent ID collisions from parallel sessions'
 type: Bug
-status: open
+status: done
+phase: done
 ---
 
 # Task: Ticket system: prevent ID collisions from parallel sessions
@@ -33,3 +34,7 @@ Option 2 is simplest and most robust — retry on `EEXIST`.
 
 - [ ] Concurrent ticket creation from parallel sessions does not produce ID collisions
 - [ ] Existing sequential ID format preserved
+
+## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (done) via ticket-triage: atomic Crockford IDs via `safeword ticket new`; legacy format documented.

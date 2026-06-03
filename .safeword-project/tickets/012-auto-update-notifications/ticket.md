@@ -2,10 +2,10 @@
 id: 012
 type: feature
 phase: intake
-status: backlog
+status: superseded
 parent: null
 created: 2026-01-07T23:11:00Z
-last_modified: 2026-01-07T23:11:00Z
+last_modified: 2026-06-03T19:05:00.000Z
 ---
 
 # Auto-Update Notifications
@@ -67,3 +67,7 @@ Store in `.safeword/.update-cache.json` (gitignored):
 - [ ] Silent failure on network errors
 - [ ] Respects `--offline` flag
 - [ ] CLI auto-adds cache file to project's `.gitignore` when creating it
+
+## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (superseded) via ticket-triage: superseded by 081 (session-start auto-upgrade absorbs the notification).

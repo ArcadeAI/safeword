@@ -5,6 +5,7 @@ type: feature
 phase: intake
 created: 2026-04-11
 related: '105'
+status: cancelled
 ---
 
 ## Goal
@@ -45,5 +46,7 @@ Tells the agent to persist decisions and reasoning before moving on. Prevents co
 Observed during ticket #100 design conversation (2026-04-11). The user's directives followed a consistent pattern across 8+ design iterations that produced demonstrably better outcomes than the agent's default explore → propose cycle.
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (cancelled) via ticket-triage: stale — intake-only open-questions doc, no scope/owner since Apr.
 
 - 2026-04-11T15:33Z Created: Captured from ticket #100 open question #2
