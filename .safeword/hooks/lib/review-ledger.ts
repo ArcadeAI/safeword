@@ -118,9 +118,7 @@ export function parseReviewStamps(logContent: string): ReviewStamp[] {
     const match = REVIEW_LINE.exec(line);
     if (match?.[1] === undefined) continue;
     const skipReason = match[2];
-    stamps.push(
-      skipReason === undefined ? { scope: match[1] } : { scope: match[1], skipReason },
-    );
+    stamps.push(skipReason === undefined ? { scope: match[1] } : { scope: match[1], skipReason });
   }
   return stamps;
 }
