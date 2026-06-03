@@ -12,9 +12,9 @@ Given the prior asset has no review stamp in the ledger
 When the agent tries to author the next asset
 Then the write is denied, naming the unreviewed prior asset
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ### Scenario: review-gate.DEV1.AC1.stamped_prior_allows_next
 
@@ -22,9 +22,9 @@ Given the prior asset carries a review stamp
 When the agent authors the next asset
 Then the write is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ### Scenario: review-gate.DEV1.AC1.skip_stamp_allows_next
 
@@ -32,9 +32,9 @@ Given the prior asset carries a `skip: <reason>` stamp
 When the agent authors the next asset
 Then the write is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ### Scenario: review-gate.DEV1.AC1.first_asset_not_gated
 
@@ -42,9 +42,9 @@ Given no prior asset exists for this ticket
 When the agent authors the first asset
 Then the write is allowed (nothing to gate on)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ### Scenario: review-gate.DEV1.AC1.stamp_for_other_asset_does_not_allow
 
@@ -52,9 +52,9 @@ Given a review stamp exists but keyed to a different asset
 When the agent tries to author the next asset
 Then the write is denied (the stamp must match the specific prior asset)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ## Rule: Per-asset review is inline **[agent]**
 
@@ -76,9 +76,9 @@ Given no phase-exit review stamp exists for the current phase
 When the agent tries to advance the ticket's phase
 Then the transition is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9631623b
+- [x] GREEN 9631623b
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ### Scenario: review-gate.DEV2.AC1.phase_stamp_allows_advance
 
@@ -86,9 +86,9 @@ Given a phase-exit review stamp exists for the current phase
 When the agent advances the phase
 Then the transition is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9631623b
+- [x] GREEN 9631623b
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ### Scenario: review-gate.DEV2.AC1.phase_skip_allows_advance
 
@@ -96,9 +96,9 @@ Given a logged `skip: <reason>` for the phase-exit review
 When the agent advances the phase
 Then the transition is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9631623b
+- [x] GREEN 9631623b
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ## Rule: Phase review is independent **[agent]**
 
@@ -162,9 +162,9 @@ Given a gate would deny
 When the agent supplies `skip:` with no reason after the colon
 Then the gate still denies (an empty skip does not clear it)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
 
 ## Invariants
 
