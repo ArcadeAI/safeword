@@ -8,9 +8,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   gatePhaseAdvance,
+  hashArtifact,
   isReviewGateEnabled,
   parseReviewStamps,
   reviewGateForNextAsset,
+  reviewScope,
   type ReviewStamp,
 } from '../../templates/hooks/lib/review-ledger.js';
 
@@ -116,5 +118,41 @@ describe('isReviewGateEnabled (default-off rollout guard)', () => {
 
   it('is off on malformed config (fail-safe)', () => {
     expect(isReviewGateEnabled('not json {')).toBe(false);
+  });
+});
+
+describe('reviewScope + hashArtifact (ticket-qualified, content-bound stamps)', () => {
+  it('hashArtifact is deterministic for the same content', () => {
+    expect(hashArtifact('hello')).toBe(hashArtifact('hello'));
+  });
+
+  it('hashArtifact changes when the content changes', () => {
+    expect(hashArtifact('v1')).not.toBe(hashArtifact('v2'));
+  });
+
+  it('reviewScope ties a stamp to a ticket + artifact + content hash', () => {
+    expect(reviewScope('NMSD94', 'spec', 'abc123')).toBe('NMSD94:spec@abc123');
+  });
+
+  it('cross-ticket: a stamp from another ticket does not satisfy this ticket', () => {
+    const stamps: ReviewStamp[] = [{ assetId: reviewScope('OTHER', 'spec', 'h1') }];
+    const here = reviewScope('NMSD94', 'spec', 'h1');
+    expect(reviewGateForNextAsset(here, stamps).ok).toBe(false);
+  });
+
+  it('stale-after-edit: a stamp for an older content hash does not satisfy the new content', () => {
+    const oldContent = 'spec v1';
+    const newContent = 'spec v2';
+    const stamps: ReviewStamp[] = [
+      { assetId: reviewScope('NMSD94', 'spec', hashArtifact(oldContent)) },
+    ];
+    const now = reviewScope('NMSD94', 'spec', hashArtifact(newContent));
+    expect(reviewGateForNextAsset(now, stamps).ok).toBe(false);
+  });
+
+  it('matching ticket + artifact + content hash satisfies the gate', () => {
+    const content = 'spec v1';
+    const scope = reviewScope('NMSD94', 'spec', hashArtifact(content));
+    expect(reviewGateForNextAsset(scope, [{ assetId: scope }]).ok).toBe(true);
   });
 });

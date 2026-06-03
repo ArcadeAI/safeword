@@ -5,13 +5,35 @@
 // `.js` specifier (bun resolves it to the .ts source) so tsc accepts this module
 // when the test suite pulls it into the typecheck graph — the tested-lib rule.
 
+import { createHash } from 'node:crypto';
+
 import { isValidSkipReason } from './parse-annotation.js';
 
 export interface ReviewStamp {
-  /** The asset (or phase) the review covers. */
+  /**
+   * The review's scope key — see {@link reviewScope}. Ticket-qualified and
+   * content-bound (`<ticket>:<artifact>@<hash>`), so a stamp matches the gate
+   * only for THIS ticket's artifact at THIS content (no cross-ticket or
+   * stale-after-edit false-allows).
+   */
   assetId: string;
   /** Present → a skip (must be non-empty to satisfy the gate); absent → a real review. */
   skipReason?: string;
+}
+
+/** Short content hash binding a stamp to the reviewed artifact's exact state. */
+export function hashArtifact(content: string): string {
+  return createHash('sha1').update(content).digest('hex').slice(0, 12);
+}
+
+/**
+ * Canonical review-stamp scope: `<ticketId>:<artifact>@<contentHash>`. Both the
+ * gate and the stamp-earning step build keys this way so a review satisfies the
+ * gate only for the same ticket + artifact + content — a review of another
+ * ticket's spec, or of a now-edited spec, no longer matches.
+ */
+export function reviewScope(ticketId: string, artifact: string, contentHash: string): string {
+  return `${ticketId}:${artifact}@${contentHash}`;
 }
 
 export type GateVerdict = { ok: true } | { ok: false; reason: string };
@@ -56,11 +78,17 @@ export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]):
   };
 }
 
-/**
- * A review entry in the skill-invocation-log: `review:<artifactId>` for a real
- * review, or `review:<artifactId> skip:<reason>` for a logged skip. The line is
- * `<timestamp> <session> <entry>`, so the review token is matched at line end.
- */
+// A review entry in the skill-invocation-log. Format contract (the
+// stamp-earning step writes exactly this): `review:<scope>` for a real review,
+// or `review:<scope> skip:<reason>` for a logged skip, where <scope> is a
+// space-free reviewScope() key. The line is `<timestamp> <session> <entry>`, so
+// the review token is matched at line end.
+//
+// Trust boundary: a stamp is only as trustworthy as the log file's integrity —
+// a crafted `review:<scope>` line satisfies this gate. That's by design: Tier 1
+// is the cheap, gameable floor; the ungameable check is Tier 2 (independent
+// fork review). The content-hash binding in <scope> at least defeats accidental
+// stale-after-edit passes, not deliberate spoofing.
 const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
 
 /**

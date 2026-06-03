@@ -14,9 +14,11 @@ import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
+  hashArtifact,
   isReviewGateEnabled,
   parseReviewStamps,
   reviewGateForNextAsset,
+  reviewScope,
 } from './lib/review-ledger.ts';
 import {
   getStateFilePath,
@@ -308,22 +310,30 @@ if (
         'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n> — <capability>` (a product-level guarantee, not implementation), or `skip: <reason>` under that JTBD to omit it deliberately.',
       );
     }
-  }
 
-  // Review gate (NMSD94, Tier 1) — DEFAULT-OFF: only fires when
-  // `.safeword/config.json` sets `reviewGate: true`. Scenarios require spec.md
-  // to carry a review stamp first; inert until enabled so it can't brick a
-  // workflow before the stamp-earning step ships.
-  const reviewConfigFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
-  const reviewConfig = existsSync(reviewConfigFile)
-    ? readFileSync(reviewConfigFile, 'utf8')
-    : undefined;
-  if (isReviewGateEnabled(reviewConfig)) {
-    const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
-    const stamps = existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
-    const reviewVerdict = reviewGateForNextAsset('spec', stamps);
-    if (!reviewVerdict.ok) {
-      deny(reviewVerdict.reason, 'Review spec.md (or log a skip with a reason) before scenarios.');
+    // Review gate (NMSD94, Tier 1) — DEFAULT-OFF: only fires when
+    // `.safeword/config.json` sets `reviewGate: true`. Scenarios require a review
+    // stamp bound to THIS ticket's spec.md at its CURRENT content (so a stale or
+    // cross-ticket review doesn't satisfy it). Inert until enabled, so it can't
+    // brick a workflow before the stamp-earning step ships.
+    const reviewConfigFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+    const reviewConfig = existsSync(reviewConfigFile)
+      ? readFileSync(reviewConfigFile, 'utf8')
+      : undefined;
+    if (isReviewGateEnabled(reviewConfig)) {
+      const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
+      const stamps = existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
+      const priorScope = reviewScope(
+        nodePath.basename(ticketDirectory),
+        'spec',
+        hashArtifact(specContent),
+      );
+      if (!reviewGateForNextAsset(priorScope, stamps).ok) {
+        deny(
+          'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
+          'Run the spec review, then create test-definitions.md.',
+        );
+      }
     }
   }
 }
