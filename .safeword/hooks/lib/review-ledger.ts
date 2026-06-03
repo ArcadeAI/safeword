@@ -69,7 +69,7 @@ const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
  * inert (no bricking the dogfood or customers) and be enabled deliberately once
  * the stamp-earning step is in place. Fail-safe to off on missing/malformed config.
  */
-export function isReviewGateEnabled(rawConfig: string | undefined): boolean {
+export function isReviewGateEnabled(rawConfig?: string): boolean {
   if (rawConfig === undefined) return false;
   try {
     const config: unknown = JSON.parse(rawConfig);
