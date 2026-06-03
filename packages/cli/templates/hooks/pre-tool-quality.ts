@@ -19,6 +19,7 @@ import {
   hashArtifact,
   isReviewGateEnabled,
   parseReviewStamps,
+  type ReviewStamp,
   reviewGateForNextAsset,
   reviewScope,
 } from './lib/review-ledger.ts';
@@ -129,6 +130,13 @@ const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 function isReviewGateOn(): boolean {
   const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
   return isReviewGateEnabled(existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined);
+}
+
+// The review stamps both gates read from the shared skill-invocation-log
+// (write-review-stamp.ts appends to the same file).
+function readReviewStamps(): ReviewStamp[] {
+  const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
+  return existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
 }
 
 /**
@@ -326,8 +334,7 @@ if (
     // cross-ticket review doesn't satisfy it). Inert until enabled, so it can't
     // brick a workflow before the stamp-earning step ships.
     if (isReviewGateOn()) {
-      const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
-      const stamps = existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
+      const stamps = readReviewStamps();
       const priorScope = reviewScope(
         nodePath.basename(ticketDirectory),
         'spec',
@@ -374,8 +381,7 @@ if (editedFile.endsWith('ticket.md') && editedFile.includes('.safeword-project/t
     );
     if (exitedPhase !== undefined) {
       const ticketDirectory = nodePath.dirname(editedFile);
-      const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
-      const stamps = existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
+      const stamps = readReviewStamps();
       const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
       if (!gatePhaseAdvance(phaseScope, stamps).ok) {
         deny(
