@@ -5,38 +5,40 @@ type: feature
 phase: intake
 status: backlog
 created: 2026-06-03T03:23:27.177Z
-last_modified: 2026-06-03T03:23:27.177Z
+last_modified: 2026-06-03T03:45:00.000Z
 ---
 
-# Per-asset review gate for Phase 0 + TDD (ledger model)
+# Phase-exit "review-ran" stamp ledger (reshaped from per-asset gate)
 
-**Goal:** Make "each asset/step is reviewed before the next is authored" a HARD gate, not a soft prompt — closing the enforcement gap where safeword hard-gates phase _boundaries_ but leaves intra-phase step order and per-asset quality-review to agent compliance.
+**Goal:** Make "a quality review actually ran before advancing" enforceable at each **phase exit**, by extending the existing `skill-invocation-log` ledger (which already gates `done` on `/verify` + `/audit` stamps) to require a `/quality-review` stamp at the other phase boundaries — closing the demonstrated gap where review is under-triggered without building new per-asset machinery.
 
-**Why:** Analysis this session + live-docs research (workflow `wf_c57312ee-82c`, 2026-06-03). Today only the boundary gates are deterministic; the per-asset (Phase 0: JTBD → ACs → scope/out*of_scope/done_when → scenarios) and per-step (TDD R/G/R) \_review* discipline rides on prompt injections. The TDD SHA-or-skip ledger already proves the ledger/gate pattern works for proof-of-work; this extends it to **quality**. Opus 4.8 is more reliable but vendor-stated + effort-coupled ("fewer/less likely", never "never") — gates still cover the residual, which is safeword's whole thesis.
+**Why (revalidated 2026-06-03 — supersedes the original A→C scope):** A `/figure-it-out` against the actual code changed the design:
 
-**Scope (staged — ship A first, then C):**
+- **Original Option A (per-asset structural gate) is largely redundant.** The existing intake-exit gate (`pre-tool-quality.ts`) already blocks scenario creation until `scope`/`out_of_scope`/`done_when` exist + are non-empty, the phase advanced, and the JTBD + AC gates pass. The only real gap is that AC↔scenario lineage coverage is computed (`scenario-coverage.ts`) but **deliberately advisory** (`check.ts`: "Zero-exit — advisory, never a gate") — made non-blocking on purpose to avoid over-fire.
+- **Original Option C (per-asset `context: fork` reviewer) is over-cost + shape-mismatched.** A fork-subagent per Phase-0 asset AND per TDD step is heavy; its verdict is itself an LLM judgment (proves review _ran_, not _correct_); and the defects review actually caught this session were cross-cutting/implementation (found by _epic-level_ `/quality-review`), not per-Phase-0-asset.
+- **The gap is real, though:** this session needed the user to manually prompt `/quality-review` three times, each finding genuine defects — soft review is under-triggered. The right fix is the _proven ledger pattern_ at the _right granularity + cost_, not a new per-asset mechanism.
 
-- **A — widen the PreToolUse gate from per-phase to per-asset (existence/structure).** Deny the Write that creates `test-definitions.md` scenarios unless `scope`/`out_of_scope`/`done_when` are present and non-trivial; deny frontmatter authoring unless ACs exist; etc. Reuse `safeword check`'s lineage validation (uncovered ACs / orphan scenarios). Deterministic, model-independent, uses machinery safeword already owns. Mirrors the ecosystem's TDD-Guard pattern one rung finer.
-- **C — add the quality layer A structurally can't do.** A `context: fork` reviewer skill (isolated subagent — doesn't grade its own work) emits a verdict artifact per asset (e.g. `.review/<asset>.pass`); the PreToolUse gate blocks the next asset's Write until that artifact exists and reads `pass`. This realizes the **plan-validate-execute** best practice (verified, Claude Code skills docs) as enforcement: reviewer = validator, hook = gate.
+**Scope:**
+
+- Extend the `skill-invocation-log` + done-gate mechanism (`stop-quality.ts` / `skill-invocation-log.ts`) to require a logged `/quality-review` stamp at each **phase exit** (define-behavior → scenario-gate → implement → verify), mirroring how `done` already requires `verify ✓` + `audit ✓`.
+- Promote the advisory AC↔scenario coverage check (`scenario-coverage.ts`) to a **skippable trial** blocking gate (deny on uncovered ACs / orphan scenarios, with a `skip: <reason>` escape), and measure its alert-to-action ratio before making it permanent.
 
 **Out of scope:**
 
-- **Option D** (lean on Opus 4.8 + sharper prompts as the _strategy_) — rejected: converts safeword's core value into a bet on vendor-stated, effort-coupled reliability. (The one good point — trimming force-it padding — is split to B1TWX7.)
-- **Dynamic Workflows** as the mechanism — preview-only, docs 404, token-heavy; not for a shipped plugin.
-- Rebuilding the TDD SHA-or-skip ledger — it already exists; extend the _concept_, don't replace it.
-- Tuning Phase 0's asset _order_ itself (that's the existing workflow).
-
-**Design constraint (verified):** an invoked `SKILL.md` stays resident and is NOT re-read per turn — so the per-asset reviewer must be a `context: fork` invocation or a hook-driven external script, never a "re-read the skill each step" assumption.
+- The per-asset `context: fork` reviewer (original C) — over-cost (fork per asset/step), gates an LLM verdict, shape-mismatched to where defects actually surfaced. Revisit only if phase-exit stamps prove insufficient.
+- Broad per-asset structural gating (original A) — redundant with the existing intake-exit gate.
+- Per-TDD-step review stamp — the SHA-or-skip ledger already proves work-per-step; adding a review stamp per step is the same over-cost as C. Phase granularity only.
 
 **Done when:**
 
-- Authoring asset N+1 is blocked until asset N passes its structural lineage check (A) — out-of-order/empty intermediate assets are denied at the Write, with a clear reason.
-- A `context: fork` reviewer's verdict artifact gates the next asset (C); a missing/`fail` verdict blocks, a `pass` allows.
-- The gate's alert-to-action ratio stays high (fires on genuine gaps, not legitimate authoring) — explicitly measured, per the alert-fatigue lesson from ticket 153.
+- Advancing past a phase boundary is blocked unless a `/quality-review` stamp for that phase exists in the session skill-invocation-log (escape: explicit skip with reason).
+- The AC-coverage trial gate blocks uncovered-AC / orphan-scenario test-definitions, with a measured alert-to-action ratio (per the 153 alert-fatigue lesson) and a skip valve.
+- Reuses existing ledger machinery — no new per-asset fork mechanism.
 - `templates/hooks/` ↔ `.safeword/hooks/` byte-identical; full suite + parity green.
 
-**Note:** This is a feature — run `/bdd` when picked up (multiple components + new gate state + the fork-reviewer flow). Consider splitting A and C into child tickets at scenario-gate if the scope proves large.
+**Note:** Material design pivot from the filed scope — surface to the user before building. Feature → run `/bdd` once the reshape is accepted.
 
 ## Work Log
 
+- 2026-06-03T03:45:00.000Z **Reshaped** via revalidate + `/figure-it-out` (grounded in pre-tool-quality.ts + check.ts + scenario-coverage.ts): original per-asset A→C scope rejected — A redundant with the existing intake-exit gate, C over-cost/shape-mismatched. Repointed at extending the existing `skill-invocation-log` to a phase-exit `/quality-review` stamp + promoting the advisory AC-coverage check to a skippable trial gate. Awaiting user acceptance of the pivot before `/bdd`.
 - 2026-06-03T03:23:27.177Z Started: Created ticket NMSD94 (follow-up from the CC/Opus/skills research workflow — staged Option A→C recommendation).
