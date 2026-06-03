@@ -42,6 +42,8 @@ Evidence the gap is real: this session needed the user to manually prompt `/qual
 - What's the concrete inline stamp surface for a Phase-0 asset (it has no R/G/R checkbox like TDD) — a frontmatter field, a review-ledger line, or a checkbox in the artifact?
 - Tier-1 stamp gameability vs. friction — is the cheap floor worth it, or does Tier 2 alone suffice? (Resolve with the alert-to-action measurement.)
 
+**Authoring constraint (carried from B1TWX7):** the new review prose this ticket writes — per-asset checklist, phase-exit review instructions, stamp/deny messages — must be written tight: state the rule once, no defensive "CRITICAL/you MUST" padding. Opus reads literally (4.8 finding), and the session evidence is that review is _under_-triggered, not over-padded — so the lever is a hard stamp gate (this ticket), not louder prompts. B1TWX7 (strip existing padding) stays wontfix — the existing prose is already tight; this is the forward application of its kernel.
+
 **Note:** Feature — run `/bdd` when picked up. Consider splitting the three pieces (Tier 1, Tier 2, coverage gate) into children at scenario-gate if scope proves large.
 
 ## Work Log
