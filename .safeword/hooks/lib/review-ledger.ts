@@ -55,3 +55,24 @@ export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]):
     reason: `phase "${phase}" has no independent review stamp — run the phase-exit review (or log a skip with a reason) before advancing`,
   };
 }
+
+/**
+ * A review entry in the skill-invocation-log: `review:<artifactId>` for a real
+ * review, or `review:<artifactId> skip:<reason>` for a logged skip. The line is
+ * `<timestamp> <session> <entry>`, so the review token is matched at line end.
+ */
+const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
+
+/** Read review stamps from skill-invocation-log content (non-review lines ignored). */
+export function parseReviewStamps(logContent: string): ReviewStamp[] {
+  const stamps: ReviewStamp[] = [];
+  for (const line of logContent.split('\n')) {
+    const match = REVIEW_LINE.exec(line);
+    if (match?.[1] === undefined) continue;
+    const skipReason = match[2];
+    stamps.push(
+      skipReason === undefined ? { assetId: match[1] } : { assetId: match[1], skipReason },
+    );
+  }
+  return stamps;
+}

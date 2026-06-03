@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   gatePhaseAdvance,
+  parseReviewStamps,
   reviewGateForNextAsset,
   type ReviewStamp,
 } from '../../templates/hooks/lib/review-ledger.js';
@@ -59,5 +60,38 @@ describe('gatePhaseAdvance (DEV2.AC1 — phase advance needs an independent revi
   it('phase_skip_allows_advance: a non-empty skip stamp for the phase allows', () => {
     const stamps: ReviewStamp[] = [{ assetId: 'define-behavior', skipReason: 'docs-only phase' }];
     expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
+  });
+});
+
+describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => {
+  // Log lines are `<timestamp> <session> <entry>`; review entries are
+  // `review:<artifactId>` or `review:<artifactId> skip:<reason>`.
+  it('parses a real-review stamp', () => {
+    const log = '2026-06-03T00:00:00Z sess-1 review:spec';
+    expect(parseReviewStamps(log)).toEqual([{ assetId: 'spec' }]);
+  });
+
+  it('parses a skip stamp with its reason', () => {
+    const log = '2026-06-03T00:00:00Z sess-1 review:scope skip:docs-only change';
+    expect(parseReviewStamps(log)).toEqual([{ assetId: 'scope', skipReason: 'docs-only change' }]);
+  });
+
+  it('ignores non-review log lines (verify/audit invocations)', () => {
+    const log = ['2026-06-03T00:00:00Z sess-1 verify', '2026-06-03T00:00:01Z sess-1 audit'].join(
+      '\n',
+    );
+    expect(parseReviewStamps(log)).toEqual([]);
+  });
+
+  it('collects multiple stamps in order', () => {
+    const log = [
+      '2026-06-03T00:00:00Z sess-1 review:spec',
+      '2026-06-03T00:00:01Z sess-1 review:scope',
+    ].join('\n');
+    expect(parseReviewStamps(log)).toEqual([{ assetId: 'spec' }, { assetId: 'scope' }]);
+  });
+
+  it('returns empty for empty input', () => {
+    expect(parseReviewStamps('')).toEqual([]);
   });
 });
