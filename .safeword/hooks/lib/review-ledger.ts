@@ -16,7 +16,7 @@ export interface ReviewStamp {
    * only for THIS ticket's artifact at THIS content (no cross-ticket or
    * stale-after-edit false-allows).
    */
-  assetId: string;
+  scope: string;
   /** Present → a skip (must be non-empty to satisfy the gate); absent → a real review. */
   skipReason?: string;
 }
@@ -45,7 +45,7 @@ function isSatisfyingStamp(stamp: ReviewStamp): boolean {
 
 /** Whether the ledger holds a satisfying review stamp for `id` (an asset or a phase). */
 function hasSatisfyingStamp(id: string, stamps: readonly ReviewStamp[]): boolean {
-  return stamps.some(stamp => stamp.assetId === id && isSatisfyingStamp(stamp));
+  return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp));
 }
 
 /**
@@ -54,14 +54,14 @@ function hasSatisfyingStamp(id: string, stamps: readonly ReviewStamp[]): boolean
  * never gated.
  */
 export function reviewGateForNextAsset(
-  priorAssetId: string | undefined,
+  priorScope: string | undefined,
   stamps: readonly ReviewStamp[],
 ): GateVerdict {
-  if (priorAssetId === undefined) return { ok: true };
-  if (hasSatisfyingStamp(priorAssetId, stamps)) return { ok: true };
+  if (priorScope === undefined) return { ok: true };
+  if (hasSatisfyingStamp(priorScope, stamps)) return { ok: true };
   return {
     ok: false,
-    reason: `"${priorAssetId}" has not been reviewed — review it (or log a skip with a reason) before authoring the next asset`,
+    reason: `"${priorScope}" has not been reviewed — review it (or log a skip with a reason) before authoring the next asset`,
   };
 }
 
@@ -119,7 +119,7 @@ export function parseReviewStamps(logContent: string): ReviewStamp[] {
     if (match?.[1] === undefined) continue;
     const skipReason = match[2];
     stamps.push(
-      skipReason === undefined ? { assetId: match[1] } : { assetId: match[1], skipReason },
+      skipReason === undefined ? { scope: match[1] } : { scope: match[1], skipReason },
     );
   }
   return stamps;

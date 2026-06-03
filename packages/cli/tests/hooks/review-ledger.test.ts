@@ -24,12 +24,12 @@ describe('reviewGateForNextAsset (DEV1.AC1 — per-asset stamp gates the next as
   });
 
   it('stamped_prior_allows_next: a real review stamp for the prior asset allows', () => {
-    const stamps: ReviewStamp[] = [{ assetId: 'jtbd' }];
+    const stamps: ReviewStamp[] = [{ scope: 'jtbd' }];
     expect(reviewGateForNextAsset('jtbd', stamps)).toEqual({ ok: true });
   });
 
   it('skip_stamp_allows_next: a non-empty skip stamp for the prior asset allows', () => {
-    const stamps: ReviewStamp[] = [{ assetId: 'jtbd', skipReason: 'trivial — boilerplate' }];
+    const stamps: ReviewStamp[] = [{ scope: 'jtbd', skipReason: 'trivial — boilerplate' }];
     expect(reviewGateForNextAsset('jtbd', stamps)).toEqual({ ok: true });
   });
 
@@ -38,12 +38,12 @@ describe('reviewGateForNextAsset (DEV1.AC1 — per-asset stamp gates the next as
   });
 
   it('stamp_for_other_asset_does_not_allow: a stamp keyed to a different asset denies', () => {
-    const stamps: ReviewStamp[] = [{ assetId: 'acs' }];
+    const stamps: ReviewStamp[] = [{ scope: 'acs' }];
     expect(reviewGateForNextAsset('jtbd', stamps).ok).toBe(false);
   });
 
   it('empty_skip_reason_rejected (SM1.AC2): an empty skip reason does not satisfy the gate', () => {
-    const stamps: ReviewStamp[] = [{ assetId: 'jtbd', skipReason: '   ' }];
+    const stamps: ReviewStamp[] = [{ scope: 'jtbd', skipReason: '   ' }];
     expect(reviewGateForNextAsset('jtbd', stamps).ok).toBe(false);
   });
 });
@@ -56,12 +56,12 @@ describe('gatePhaseAdvance (DEV2.AC1 — phase advance needs an independent revi
   });
 
   it('phase_stamp_allows_advance: a review stamp for the phase allows', () => {
-    const stamps: ReviewStamp[] = [{ assetId: 'define-behavior' }];
+    const stamps: ReviewStamp[] = [{ scope: 'define-behavior' }];
     expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
   });
 
   it('phase_skip_allows_advance: a non-empty skip stamp for the phase allows', () => {
-    const stamps: ReviewStamp[] = [{ assetId: 'define-behavior', skipReason: 'docs-only phase' }];
+    const stamps: ReviewStamp[] = [{ scope: 'define-behavior', skipReason: 'docs-only phase' }];
     expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
   });
 });
@@ -71,12 +71,12 @@ describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => 
   // `review:<artifactId>` or `review:<artifactId> skip:<reason>`.
   it('parses a real-review stamp', () => {
     const log = '2026-06-03T00:00:00Z sess-1 review:spec';
-    expect(parseReviewStamps(log)).toEqual([{ assetId: 'spec' }]);
+    expect(parseReviewStamps(log)).toEqual([{ scope: 'spec' }]);
   });
 
   it('parses a skip stamp with its reason', () => {
     const log = '2026-06-03T00:00:00Z sess-1 review:scope skip:docs-only change';
-    expect(parseReviewStamps(log)).toEqual([{ assetId: 'scope', skipReason: 'docs-only change' }]);
+    expect(parseReviewStamps(log)).toEqual([{ scope: 'scope', skipReason: 'docs-only change' }]);
   });
 
   it('ignores non-review log lines (verify/audit invocations)', () => {
@@ -91,7 +91,7 @@ describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => 
       '2026-06-03T00:00:00Z sess-1 review:spec',
       '2026-06-03T00:00:01Z sess-1 review:scope',
     ].join('\n');
-    expect(parseReviewStamps(log)).toEqual([{ assetId: 'spec' }, { assetId: 'scope' }]);
+    expect(parseReviewStamps(log)).toEqual([{ scope: 'spec' }, { scope: 'scope' }]);
   });
 
   it('returns empty for empty input', () => {
@@ -135,7 +135,7 @@ describe('reviewScope + hashArtifact (ticket-qualified, content-bound stamps)', 
   });
 
   it('cross-ticket: a stamp from another ticket does not satisfy this ticket', () => {
-    const stamps: ReviewStamp[] = [{ assetId: reviewScope('OTHER', 'spec', 'h1') }];
+    const stamps: ReviewStamp[] = [{ scope: reviewScope('OTHER', 'spec', 'h1') }];
     const here = reviewScope('NMSD94', 'spec', 'h1');
     expect(reviewGateForNextAsset(here, stamps).ok).toBe(false);
   });
@@ -144,7 +144,7 @@ describe('reviewScope + hashArtifact (ticket-qualified, content-bound stamps)', 
     const oldContent = 'spec v1';
     const newContent = 'spec v2';
     const stamps: ReviewStamp[] = [
-      { assetId: reviewScope('NMSD94', 'spec', hashArtifact(oldContent)) },
+      { scope: reviewScope('NMSD94', 'spec', hashArtifact(oldContent)) },
     ];
     const now = reviewScope('NMSD94', 'spec', hashArtifact(newContent));
     expect(reviewGateForNextAsset(now, stamps).ok).toBe(false);
@@ -153,6 +153,6 @@ describe('reviewScope + hashArtifact (ticket-qualified, content-bound stamps)', 
   it('matching ticket + artifact + content hash satisfies the gate', () => {
     const content = 'spec v1';
     const scope = reviewScope('NMSD94', 'spec', hashArtifact(content));
-    expect(reviewGateForNextAsset(scope, [{ assetId: scope }]).ok).toBe(true);
+    expect(reviewGateForNextAsset(scope, [{ scope }]).ok).toBe(true);
   });
 });
