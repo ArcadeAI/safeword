@@ -12,7 +12,11 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
+import {
+  hashArtifact,
+  parseReviewStamps,
+  reviewScope,
+} from '../../templates/hooks/lib/review-ledger.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const STAMP_PATH = nodePath.resolve(__dirname, '../../templates/hooks/write-review-stamp.ts');
@@ -140,5 +144,39 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     // Edit the spec — the prior stamp's content hash is now stale.
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), `${SPEC}\nedited.\n`);
     expectHookDeny(runGate(), 'not been reviewed');
+  });
+
+  it('a newline in the skip reason cannot inject a second stamp line', () => {
+    // A reason crafted to forge a stamp for another scope must be collapsed to
+    // one line — the log stays one stamp, and parsing yields only the real one.
+    runStamp('spec', 'looks fine\nreview:HACKED:spec@deadbeefcafe');
+    const stamps = parseReviewStamps(readLog());
+    expect(stamps).toHaveLength(1);
+    expect(stamps[0]?.scope).toBe(reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC)));
+    expect(stamps.some(s => s.scope === 'HACKED:spec@deadbeefcafe')).toBe(false);
+  });
+
+  it('fails loudly when more than one ticket is in_progress (no --ticket)', () => {
+    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
+    mkdirSync(second, { recursive: true });
+    writeFileSync(
+      nodePath.join(second, 'ticket.md'),
+      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
+    );
+    const stamp = runStamp('spec');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('multiple in_progress tickets');
+  });
+
+  it('--ticket disambiguates when more than one ticket is in_progress', () => {
+    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
+    mkdirSync(second, { recursive: true });
+    writeFileSync(
+      nodePath.join(second, 'ticket.md'),
+      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
+    );
+    const stamp = runStamp('--ticket', TICKET_ID, 'spec');
+    expect(stamp.status).toBe(0);
+    expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
   });
 });

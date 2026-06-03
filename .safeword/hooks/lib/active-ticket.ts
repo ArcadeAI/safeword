@@ -207,6 +207,32 @@ export function resolveStopPhase(
   return EMPTY;
 }
 
+/**
+ * Every in_progress, non-epic ticket folder — the build tickets a session could
+ * be working. The stamp-earning step (NMSD94) uses this to resolve which ticket
+ * to stamp and to fail loudly when more than one is active, rather than silently
+ * guessing a ticket that may differ from the one the gate is checking.
+ */
+export function getInProgressTicketFolders(projectDirectory: string): string[] {
+  const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  if (!existsSync(ticketsDirectory)) return [];
+
+  try {
+    return readdirSync(ticketsDirectory).filter(folder => {
+      if (folder === 'completed' || folder === 'tmp') return false;
+      const ticketFile = nodePath.join(ticketsDirectory, folder, 'ticket.md');
+      if (!existsSync(ticketFile)) return false;
+      const content = readFileSync(ticketFile, 'utf8');
+      return (
+        content.match(/^status:\s*(\S+)/m)?.[1] === 'in_progress' &&
+        content.match(/^type:\s*(\S+)/m)?.[1] !== 'epic'
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
 export function getActiveTicket(projectDirectory: string): ActiveTicketInfo {
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
   if (!existsSync(ticketsDirectory)) return EMPTY;
