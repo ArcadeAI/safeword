@@ -21,6 +21,11 @@ function isSatisfyingStamp(stamp: ReviewStamp): boolean {
   return stamp.skipReason === undefined || isValidSkipReason(stamp.skipReason);
 }
 
+/** Whether the ledger holds a satisfying review stamp for `id` (an asset or a phase). */
+function hasSatisfyingStamp(id: string, stamps: readonly ReviewStamp[]): boolean {
+  return stamps.some(stamp => stamp.assetId === id && isSatisfyingStamp(stamp));
+}
+
 /**
  * Per-asset gate (DEV1.AC1): authoring the next asset is allowed only when the
  * prior asset carries a satisfying review stamp. The first asset (no prior) is
@@ -31,11 +36,22 @@ export function reviewGateForNextAsset(
   stamps: readonly ReviewStamp[],
 ): GateVerdict {
   if (priorAssetId === undefined) return { ok: true };
-  if (stamps.some(stamp => stamp.assetId === priorAssetId && isSatisfyingStamp(stamp))) {
-    return { ok: true };
-  }
+  if (hasSatisfyingStamp(priorAssetId, stamps)) return { ok: true };
   return {
     ok: false,
     reason: `"${priorAssetId}" has not been reviewed — review it (or log a skip with a reason) before authoring the next asset`,
+  };
+}
+
+/**
+ * Phase-exit gate (DEV2.AC1): advancing past a phase is allowed only when an
+ * independent review stamp for that phase exists. Unlike the per-asset gate
+ * there is no "first" exemption — every phase exit needs a stamp.
+ */
+export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]): GateVerdict {
+  if (hasSatisfyingStamp(phase, stamps)) return { ok: true };
+  return {
+    ok: false,
+    reason: `phase "${phase}" has no independent review stamp — run the phase-exit review (or log a skip with a reason) before advancing`,
   };
 }

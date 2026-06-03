@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  gatePhaseAdvance,
   reviewGateForNextAsset,
   type ReviewStamp,
 } from '../../templates/hooks/lib/review-ledger.js';
@@ -40,5 +41,23 @@ describe('reviewGateForNextAsset (DEV1.AC1 — per-asset stamp gates the next as
   it('empty_skip_reason_rejected (SM1.AC2): an empty skip reason does not satisfy the gate', () => {
     const stamps: ReviewStamp[] = [{ assetId: 'jtbd', skipReason: '   ' }];
     expect(reviewGateForNextAsset('jtbd', stamps).ok).toBe(false);
+  });
+});
+
+describe('gatePhaseAdvance (DEV2.AC1 — phase advance needs an independent review stamp)', () => {
+  it('no_phase_stamp_blocks_advance: no stamp for the phase denies, naming the phase', () => {
+    const verdict = gatePhaseAdvance('define-behavior', []);
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.reason).toContain('define-behavior');
+  });
+
+  it('phase_stamp_allows_advance: a review stamp for the phase allows', () => {
+    const stamps: ReviewStamp[] = [{ assetId: 'define-behavior' }];
+    expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
+  });
+
+  it('phase_skip_allows_advance: a non-empty skip stamp for the phase allows', () => {
+    const stamps: ReviewStamp[] = [{ assetId: 'define-behavior', skipReason: 'docs-only phase' }];
+    expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
   });
 });
