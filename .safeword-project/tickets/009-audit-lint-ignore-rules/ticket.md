@@ -2,10 +2,10 @@
 id: 009
 type: feature
 phase: backlog
-status: pending
+status: cancelled
 parent: 001
 created: 2026-01-07T16:39:00Z
-last_modified: 2026-01-07T16:39:00Z
+last_modified: 2026-06-03T19:05:00.000Z
 ---
 
 # Iteration 8: Audit/Lint Ignore Rules
@@ -73,3 +73,7 @@ audit:
 
 - Changing what rules exist
 - Adding new audit/lint checks
+
+## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (cancelled) via ticket-triage: stale — three design options, never decided since Jan; abandoned.

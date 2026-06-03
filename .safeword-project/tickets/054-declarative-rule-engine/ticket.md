@@ -2,9 +2,9 @@
 id: '054'
 type: feature
 phase: define-behavior
-status: backlog
+status: cancelled
 created: 2026-03-26T20:56:55Z
-last_modified: 2026-03-26T23:23:00Z
+last_modified: 2026-06-03T19:05:00.000Z
 ---
 
 # Declarative rule engine for enforcement policies
@@ -14,6 +14,8 @@ last_modified: 2026-03-26T23:23:00Z
 **Why:** Today's enforcement logic is spread across 5+ hook files with different patterns. Users can't customize rules. Adding new gates requires modifying TypeScript. A rule engine makes policies portable, customizable, and checkable.
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (cancelled) via ticket-triage: stale — strawman rewrite of the hooks, spec-only; abandoned.
 
 - 2026-03-26T23:23:00Z Spec: wrote feature spec with 4 stories (refs: ./spec.md)
 - 2026-03-26T20:56:55Z Created: ticket from formal verification research discussion

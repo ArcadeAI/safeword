@@ -5,6 +5,7 @@ type: task
 phase: intake
 created: 2026-04-11
 related: '101'
+status: superseded
 ---
 
 ## Goal
@@ -32,6 +33,8 @@ A Haiku-based prompt hook is cheap, fast, and independent from the main agent â€
 Identified during quality review of ticket #100 (2026-04-11). Current hook architecture predates several of these events.
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (superseded) via ticket-triage: superseded by 8R54HV (CC changelog-alignment epic owns new-primitive realignment).
 
 - 2026-04-16T16:04:00Z Cross-ref: Ticket #126 evaluated PostToolUse additionalContext vs two-hook flag-and-clear for one-shot reminders. Existing events (PostToolUse + UserPromptSubmit) are sufficient â€” no new events needed for this pattern. Data point for evaluation: newer events may help elsewhere but aren't required for reminder-tier enforcement.
 - 2026-04-11T15:42Z Created: Flagged during quality review

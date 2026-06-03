@@ -2,10 +2,10 @@
 id: 011
 type: feature
 phase: intake
-status: backlog
+status: cancelled
 parent: null
 created: 2026-01-07T19:53:00Z
-last_modified: 2026-01-07T19:53:00Z
+last_modified: 2026-06-03T19:05:00.000Z
 ---
 
 # Skill Testing Infrastructure
@@ -165,6 +165,8 @@ describe('Split Artifact Creation', () => {
 - API credits for classification tests (~$0.40 per full run)
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (cancelled) via ticket-triage: stale — aspirational skill-behavior harness, never built.
 
 ---
 

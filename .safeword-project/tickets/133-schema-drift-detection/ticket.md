@@ -1,10 +1,10 @@
 ---
 id: '133'
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-04-17T13:35:00Z
-last_modified: 2026-04-17T13:35:00Z
+last_modified: 2026-06-03T19:05:00.000Z
 scope:
   - Add drift-detection tests to schema.test.ts that catch files deployed locally but missing from templates/schema/config
 out_of_scope:
@@ -73,5 +73,7 @@ Catches: cli-reference.md class of drift (file removed from ownedFiles but still
 The existing release test checks **content equality** between dogfood files and templates. Running it in the default suite would block development whenever a local file is being iterated on before syncing to templates. The three new tests check **structural completeness** (does a template exist? is the hook wired? is the file tracked?) which should always pass and won't block normal iteration.
 
 ## Work Log
+
+- 2026-06-03T19:05:00.000Z Closed (done) via ticket-triage: drift tests shipped in schema.test.ts (feat 133); ticket was never closed.
 
 - 2026-04-17T13:35:00Z Created: from audit session that found 5 drift issues (SessionEnd unwired, VERIFY.md/brainstorm/tdd-review missing from templates, cli-reference.md missing from deprecatedFiles). All 5 fixed in same session — this ticket prevents recurrence.
