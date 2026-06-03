@@ -340,6 +340,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
     },
+    '.safeword/hooks/write-review-stamp.ts': {
+      template: 'hooks/write-review-stamp.ts',
+    },
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
     },
