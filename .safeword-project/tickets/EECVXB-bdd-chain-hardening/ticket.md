@@ -2,8 +2,8 @@
 id: EECVXB
 slug: bdd-chain-hardening
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: bdd-chain-hardening
 children:
   - G9BXE9
