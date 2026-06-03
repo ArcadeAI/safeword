@@ -11,7 +11,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, it } from 'vitest';
 
 import { reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
