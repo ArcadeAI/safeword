@@ -49,9 +49,10 @@ phase: implement # intake | define-behavior | scenario-gate | implement | verify
 Leaving a phase is gated on an **independent** review of that phase's work — not
 your own pass. (Your own inline pass is Tier 1: `/self-review`, per asset, as you
 author.) The phase exit is reviewed by a _fresh reviewer with no conversation
-history_ so the author can't grade their own work: spawn one via the Agent tool
-(it starts clean), hand it only the phase's artifacts and the ticket's scope, and
-let **its** verdict decide. On a pass, record the stamp that unblocks the advance:
+history_ so the author can't grade their own work: run it in a forked subagent —
+a skill with `context: fork`, or an explicit subagent — hand it only the phase's
+artifacts and the ticket's scope, and let **its** verdict decide. On a pass,
+record the stamp that unblocks the advance:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>

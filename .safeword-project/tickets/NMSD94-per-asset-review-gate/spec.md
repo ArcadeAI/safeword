@@ -60,6 +60,8 @@ The phase-exit review is performed by a fresh reviewer with no conversation hist
 
 #### review-gate.SM1.AC1 — the coverage gate fires on genuine gaps and stays silent otherwise
 
+> **Deferred to ticket ZRMDKD.** The coverage gate needs a hook-side `scenario-coverage` port + differential test, separable from the two-tier review mechanism this ticket delivers. Its scenarios here are skip-closed; ZRMDKD owns them.
+
 Test-definitions with an uncovered acceptance criterion or an orphan scenario are blocked; complete, well-covered work passes with no prompt (bias-quiet, measured alert-to-action).
 
 #### review-gate.SM1.AC2 — every block offers a one-step skip with a recorded reason
