@@ -1,0 +1,171 @@
+# Test Definitions — NMSD94: two-tier review enforcement
+
+**Architecture split:** **[hook]** scenarios are unit-tested — deterministic functions over the review ledger + ticket/coverage state decide deny/allow. **[agent]** scenarios are skill prose (the review actually running inline / in a fresh fork) — verified by live observation like 153's FSX1PP/V6N5PW, and their R/G/R close with `skip: <reason — agent behavior>`.
+
+The per-asset and phase stamps live as lines in the session skill-invocation-log (one store, reused). The PreToolUse gate reads the ledger; the coverage gate reuses `scenario-coverage.ts`.
+
+## Rule: Per-asset stamp gates the next asset **[hook]**
+
+### Scenario: review-gate.DEV1.AC1.unstamped_prior_blocks_next
+
+Given the prior asset has no review stamp in the ledger
+When the agent tries to author the next asset
+Then the write is denied, naming the unreviewed prior asset
+
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+### Scenario: review-gate.DEV1.AC1.stamped_prior_allows_next
+
+Given the prior asset carries a review stamp
+When the agent authors the next asset
+Then the write is allowed
+
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+### Scenario: review-gate.DEV1.AC1.skip_stamp_allows_next
+
+Given the prior asset carries a `skip: <reason>` stamp
+When the agent authors the next asset
+Then the write is allowed
+
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+### Scenario: review-gate.DEV1.AC1.first_asset_not_gated
+
+Given no prior asset exists for this ticket
+When the agent authors the first asset
+Then the write is allowed (nothing to gate on)
+
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+### Scenario: review-gate.DEV1.AC1.stamp_for_other_asset_does_not_allow
+
+Given a review stamp exists but keyed to a different asset
+When the agent tries to author the next asset
+Then the write is denied (the stamp must match the specific prior asset)
+
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+## Rule: Per-asset review is inline **[agent]**
+
+### Scenario: review-gate.DEV1.AC2.stamping_spawns_no_subagent
+
+Given the agent reviews a just-authored asset to earn its stamp
+When the review runs
+Then it is the working agent's own inline pass — no sub-agent is spawned
+
+- [x] RED skip: agent behavior — /self-review prose mandates the working agent's own inline pass, no sub-agent (21794b3e); not unit-testable
+- [x] GREEN skip: agent behavior — verified by the /self-review SKILL.md
+- [x] REFACTOR skip: agent behavior
+
+## Rule: Phase advance needs an independent review stamp **[hook]**
+
+### Scenario: review-gate.DEV2.AC1.no_phase_stamp_blocks_advance
+
+Given no phase-exit review stamp exists for the current phase
+When the agent tries to advance the ticket's phase
+Then the transition is denied
+
+- [x] RED 9631623b
+- [x] GREEN 9631623b
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+### Scenario: review-gate.DEV2.AC1.phase_stamp_allows_advance
+
+Given a phase-exit review stamp exists for the current phase
+When the agent advances the phase
+Then the transition is allowed
+
+- [x] RED 9631623b
+- [x] GREEN 9631623b
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+### Scenario: review-gate.DEV2.AC1.phase_skip_allows_advance
+
+Given a logged `skip: <reason>` for the phase-exit review
+When the agent advances the phase
+Then the transition is allowed
+
+- [x] RED 9631623b
+- [x] GREEN 9631623b
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+## Rule: Phase review is independent **[agent]**
+
+### Scenario: review-gate.DEV2.AC2.phase_review_runs_fresh
+
+Given a phase exit triggers the independent review
+When the review runs
+Then it runs as a fresh reviewer (isolation, no conversation history) and its verdict becomes the recorded stamp
+
+- [x] RED skip: agent behavior — bdd phase-exit prose mandates a fresh reviewer (no history) whose verdict becomes the stamp (6b35e078); not unit-testable
+- [x] GREEN skip: agent behavior — verified by the bdd SKILL.md phase-exit section
+- [x] REFACTOR skip: agent behavior
+
+## Rule: Coverage gate fires on genuine gaps, silent otherwise **[hook]**
+
+### Scenario: review-gate.SM1.AC1.uncovered_ac_blocks
+
+Given a test-definitions.md with an acceptance criterion no scenario covers
+When it is created
+Then the write is denied, naming the uncovered AC
+
+- [x] RED skip: split to ZRMDKD — coverage gate is a separate hook-side scenario-coverage port
+- [x] GREEN skip: split to ZRMDKD
+- [x] REFACTOR skip: split to ZRMDKD
+
+### Scenario: review-gate.SM1.AC1.orphan_scenario_blocks
+
+Given a scenario whose name carries no `<jtbd>.AC<n>` lineage to any AC
+When the test-definitions is created
+Then the write is denied, naming the orphan scenario
+
+- [x] RED skip: split to ZRMDKD
+- [x] GREEN skip: split to ZRMDKD
+- [x] REFACTOR skip: split to ZRMDKD
+
+### Scenario: review-gate.SM1.AC1.complete_coverage_silent
+
+Given every AC is covered and there are no orphan scenarios
+When the test-definitions is created
+Then it passes with no prompt
+
+- [x] RED skip: split to ZRMDKD
+- [x] GREEN skip: split to ZRMDKD
+- [x] REFACTOR skip: split to ZRMDKD
+
+## Rule: Every new gate has a logged one-step skip **[hook]**
+
+### Scenario: review-gate.SM1.AC2.skip_clears_and_logs
+
+Given any of the new gates would deny
+When the agent supplies `skip: <non-empty reason>`
+Then the gate clears and the reason is recorded in the ledger
+
+- [x] RED 961c2b50
+- [x] GREEN 961c2b50
+- [x] REFACTOR skip: skip valve proven end-to-end for both tiers (review-stamp 961c2b50, phase-review 507b7979)
+
+### Scenario: review-gate.SM1.AC2.empty_skip_reason_rejected
+
+Given a gate would deny
+When the agent supplies `skip:` with no reason after the colon
+Then the gate still denies (an empty skip does not clear it)
+
+- [x] RED d60ba0c6
+- [x] GREEN d60ba0c6
+- [x] REFACTOR skip: pure decision fn, landed clean
+
+## Invariants
+
+- `templates/hooks/` and `.safeword/hooks/` are byte-identical (`diff -q`) after all changes.

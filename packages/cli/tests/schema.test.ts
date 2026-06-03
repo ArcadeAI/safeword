@@ -320,7 +320,7 @@ describe('Schema - Single Source of Truth', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       // Action skills have disable-model-invocation and use Cursor commands instead of rules
-      const ACTION_SKILLS = new Set(['lint', 'verify', 'audit', 'cleanup-zombies']);
+      const ACTION_SKILLS = new Set(['lint', 'verify', 'audit', 'cleanup-zombies', 'self-review']);
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
@@ -448,6 +448,12 @@ describe('Schema - Single Source of Truth', () => {
         }
       }
 
+      // write-review-stamp.ts is a manually-invoked utility (run by the
+      // /self-review skill injection and by the agent post-fork), not a wired
+      // event hook — it shares the hook lib and writes the log the gates read,
+      // but Claude Code never fires it on an event, so it has no SETTINGS_HOOKS entry.
+      const MANUAL_HOOK_SCRIPTS = new Set(['write-review-stamp.ts']);
+
       // Hook files in ownedFiles (excluding lib/ modules and cursor/ adapters)
       const hookFiles = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
         .filter(
@@ -457,7 +463,8 @@ describe('Schema - Single Source of Truth', () => {
             !path.includes('/cursor/'),
         )
         .map(path => path.split('/').pop())
-        .filter(isDefined);
+        .filter(isDefined)
+        .filter(file => !MANUAL_HOOK_SCRIPTS.has(file));
 
       const unwired: string[] = [];
       for (const file of hookFiles) {

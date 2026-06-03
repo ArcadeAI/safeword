@@ -1,74 +1,69 @@
-# Spec: Per-asset review gate for Phase 0 + TDD (ledger model)
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Two-tier review enforcement (per-asset stamp + phase-exit independent review)
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Make "work is reviewed before it's built on" enforceable in the safeword workflow, at two tiers — a cheap per-asset inline review stamp (early catch) and an independent fresh-agent review at each phase exit (the strong backstop) — closing the gap where review is under-triggered unless a human manually prompts it.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- CC/Opus/skills research workflow `wf_c57312ee-82c` (2026-06-03) — verified Claude Code hook/skills primitives + the plan-validate-execute pattern.
+- The TDD SHA-or-skip ledger (J7VBGJ) — the proven "stamp proves the step happened" pattern this generalizes.
+- The `skill-invocation-log` + done-gate (147) — already requires `verify ✓` + `audit ✓` at done; Tier 2 reuses it at other phase exits.
+- Ticket 153 — alert-to-action / bias-quiet lesson for the coverage-gate trial.
+- B1TWX7 (wontfix) — authoring constraint: write the new review prose tight, no force-it padding.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- **Agent-Driven Developer (DEV)** — builds features through the agent; bears the cost of a flawed early asset compounding downstream, and of review being silently skipped.
+- **Safeword Maintainer (SM)** — owns the gates; bears the cost of bloat and of low-signal gates training `--no-verify` bypass.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- **Review stamp** — a logged marker that a review ran for a given asset/phase (proof it happened, not a quality guarantee).
+- **Phase exit** — the boundary where a ticket advances from one workflow phase to the next.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### review-gate.DEV1 — catch a weak asset before downstream work is built on it
 
-Uncomment and customize:
+**Persona:** Agent-Driven Developer (DEV)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I'm building a feature and the agent produces each artifact in turn (jobs → acceptance criteria → scenarios, and each TDD step), I want a quick review forced on each one before the next is authored, so a flawed foundation is caught early instead of after the whole chain has been poured on top of it.
 
-**Persona:** Platform Operator (PO)
+#### review-gate.DEV1.AC1 — the next artifact can't be authored until the prior one is reviewed
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+Authoring artifact N+1 is denied (with a reason naming what's unreviewed) until artifact N carries a review stamp; a `skip: <reason>` stamp also clears it.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### review-gate.DEV1.AC2 — the forced per-asset review is inline, no separate agent run
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+Satisfying the per-asset stamp spawns no fresh sub-agent — the review is the working agent's own inline pass, so it adds no per-asset spin-up cost.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+### review-gate.DEV2 — guarantee an independent review actually ran at each phase
 
-## Outcomes
+**Persona:** Agent-Driven Developer (DEV)
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+> When the agent advances from one workflow phase to the next, I want proof that an independent review ran — not the author grading its own work, and not skipped — so review isn't silently dropped and I don't have to keep manually prompting for it.
 
-## Open Questions
+#### review-gate.DEV2.AC1 — a phase can't advance until an independent review of it has run
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+Advancing past a phase boundary is denied until a logged independent-review stamp for that phase exists; a recorded skip clears it.
+
+#### review-gate.DEV2.AC2 — the phase-exit review is independent, not the author
+
+The phase-exit review is performed by a fresh reviewer with no conversation history (so it can't rubber-stamp its own work), and its verdict is what the stamp records.
+
+### review-gate.SM1 — keep the enforcement high-signal and cheap
+
+**Persona:** Safeword Maintainer (SM)
+
+> When I maintain safeword's gates, I want the review enforcement to reuse the existing stamp/ledger machinery, fire only on genuine gaps, and offer a clear skip valve, so it doesn't bloat the hooks or train people to bypass it.
+
+#### review-gate.SM1.AC1 — the coverage gate fires on genuine gaps and stays silent otherwise
+
+> **Deferred to ticket ZRMDKD.** The coverage gate needs a hook-side `scenario-coverage` port + differential test, separable from the two-tier review mechanism this ticket delivers. Its scenarios here are skip-closed; ZRMDKD owns them.
+
+Test-definitions with an uncovered acceptance criterion or an orphan scenario are blocked; complete, well-covered work passes with no prompt (bias-quiet, measured alert-to-action).
+
+#### review-gate.SM1.AC2 — every block offers a one-step skip with a recorded reason
+
+Each new gate (per-asset, phase-exit, coverage) can be cleared by an explicit `skip: <reason>` that is logged, so a maintainer is never hard-stuck and the override is auditable.

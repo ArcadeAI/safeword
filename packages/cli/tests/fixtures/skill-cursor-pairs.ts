@@ -41,4 +41,5 @@ export const SKILL_CURSOR_PAIRS: readonly SkillCursorPair[] = [
   { skill: 'verify', cursorRules: undefined },
   { skill: 'audit', cursorRules: undefined },
   { skill: 'cleanup-zombies', cursorRules: undefined },
+  { skill: 'self-review', cursorRules: undefined },
 ];

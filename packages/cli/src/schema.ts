@@ -286,6 +286,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
+    '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
     '.safeword/hooks/lib/lint-config.ts': { template: 'hooks/lib/lint-config.ts' },
     '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },
     '.safeword/hooks/lib/checkbox-transitions.ts': {
@@ -338,6 +339,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/write-review-stamp.ts': {
+      template: 'hooks/write-review-stamp.ts',
     },
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
@@ -483,6 +487,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
+    '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },
     '.claude/skills/cleanup-zombies/SKILL.md': {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
@@ -557,6 +562,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
     '.cursor/commands/debug.md': { template: 'commands/debug.md' },
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
+    '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
     '.cursor/commands/audit.md': { template: 'commands/audit.md' },
     '.cursor/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',
