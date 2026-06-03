@@ -2,10 +2,24 @@
 id: NMSD94
 slug: per-asset-review-gate
 type: feature
-phase: intake
-status: backlog
+phase: define-behavior
+status: in_progress
 created: 2026-06-03T03:23:27.177Z
-last_modified: 2026-06-03T04:01:00.000Z
+last_modified: 2026-06-03T04:15:00.000Z
+scope:
+  - 'Tier 1 — per-asset inline review stamp: a PreToolUse gate denies authoring artifact N+1 until artifact N (Phase-0 asset or TDD step) carries a review stamp or a logged skip; the review is the working agent inline (no sub-agent)'
+  - 'Tier 2 — phase-exit independent review: a context:fork reviewer runs once per phase boundary and logs a verdict stamp via the existing skill-invocation-log; the phase-advance gate blocks until the stamp exists'
+  - 'Coverage gate (trial): promote the advisory AC↔scenario coverage check (scenario-coverage.ts) to a skippable blocking gate (deny on uncovered ACs / orphan scenarios), bias-quiet, with measured alert-to-action'
+out_of_scope:
+  - 'A fresh sub-agent per asset — the cost trap; independence is bought once per phase (Tier 2), not per asset'
+  - 'Making Tier 1 faking-proof — it is a deliberate cheap floor; genuine independent scrutiny lives in Tier 2'
+  - 'A per-TDD-step independent fork review — the SHA-or-skip ledger already proves work-per-step; phase granularity only for Tier 2'
+  - 'A new standalone ledger — reuse skill-invocation-log + the existing PreToolUse gate machinery'
+done_when:
+  - 'Authoring an asset is blocked until the prior asset carries a review stamp, with a one-step logged skip valve (DEV1.AC1); stamping spawns no sub-agent (DEV1.AC2)'
+  - 'Advancing a phase is blocked until an independent context:fork review stamp for that phase exists (DEV2.AC1), produced by a fresh reviewer not the author (DEV2.AC2)'
+  - 'The coverage gate blocks uncovered-AC / orphan-scenario test-definitions and passes complete work silently (SM1.AC1); every new gate has a logged skip (SM1.AC2)'
+  - 'Reuses skill-invocation-log; no per-asset sub-agent; templates/hooks ↔ .safeword/hooks byte-identical; full suite + parity green'
 ---
 
 # Two-tier review enforcement: per-asset inline stamp + phase-exit independent review
@@ -48,6 +62,7 @@ Evidence the gap is real: this session needed the user to manually prompt `/qual
 
 ## Work Log
 
+- 2026-06-03T04:16:00.000Z Complete: intake. spec.md authored — 3 JTBD (DEV1 early-catch, DEV2 independent-review-ran, SM1 high-signal/cheap), 6 ACs (2/job), all user-signed-off. Engineering scope/out_of_scope/done_when written to frontmatter. Phase → define-behavior.
 - 2026-06-03T04:01:00.000Z **Reshaped to the two-tier hybrid** (user accepted). Restored per-asset review (cheap inline stamp, the early-catch the original ticket wanted) after recognizing the cost trap was the fresh-sub-agent-per-asset combination, not per-asset granularity. Independent fresh-agent review kept but moved to phase exits only (amortized). Honest limit recorded: Tier 1 inline stamp is gameable (a floor), Tier 2 fork review is the strong backstop.
 - 2026-06-03T03:45:00.000Z Reshaped to phase-exit-only stamp (superseded above — it dropped the per-asset early-catch the user wanted). Original per-asset A→C scope rejected: A redundant with the existing intake-exit gate, C (fork-per-asset) over-cost.
 - 2026-06-03T03:23:27.177Z Started: Created ticket NMSD94 (follow-up from the CC/Opus/skills research workflow).
