@@ -3,9 +3,9 @@ id: B1TWX7
 slug: strip-forceit-prompt-padding
 type: task
 phase: intake
-status: backlog
+status: wontfix
 created: 2026-06-03T03:23:27.131Z
-last_modified: 2026-06-03T03:23:27.131Z
+last_modified: 2026-06-03T03:28:00.000Z
 ---
 
 # Strip defensive force-it prompt padding (Opus 4.8 literalism)
@@ -30,4 +30,5 @@ last_modified: 2026-06-03T03:23:27.131Z
 
 ## Work Log
 
+- 2026-06-03T03:28:00.000Z **wontfix** (revalidate + /figure-it-out before building). Premise not borne out by the code: `SAFEWORD.md` has 0 emphatic tokens, the core per-turn injections are clean one-liners, and skills carry 0–5 — all load-bearing (security-severity labels, the skill-invocation-log STOP warning, a session-start "read SAFEWORD.md" pointer), not defensive padding. safeword already practices plain-speech via its own context-files-guide + "Talking to the user" rules. The justifying evidence (Opus 4.8 literalism) is vendor-stated + model-specific, while these prompts serve every model safeword's customers run — so stripping is make-work at best, compliance-harming at worst. Reversible: revive if independent benchmarks later show real over-padding on a specific surface.
 - 2026-06-03T03:23:27.131Z Started: Created ticket B1TWX7 (follow-up from the CC/Opus/skills research workflow — the one transferable point from research Option D).
