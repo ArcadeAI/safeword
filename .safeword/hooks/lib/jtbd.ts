@@ -239,49 +239,79 @@ export function evaluateAcGate(specContent: string): JtbdGateVerdict {
   return { ok: true };
 }
 
-/** Returns the active (non-commented) portion of a line and the comment state after it. */
-function stripComment(line: string, inComment: boolean): { text: string; inComment: boolean } {
-  let text = line;
-  let active = '';
+// The two functions below are the hook-side mirror of the CLI's
+// `src/utils/markdown-sections.ts` (computeSkipMask + stripInlineComments).
+// They cannot share a module — deployed hooks run standalone from
+// `.safeword/hooks/` and can't import the CLI's dist. The differential test
+// `tests/hooks/parser-parity.test.ts` pins this copy to the CLI so the two
+// can't drift (ticket P58R22). Keep them byte-for-byte equivalent to the CLI.
 
-  if (inComment) {
-    const close = text.indexOf('-->');
-    if (close === -1) return { text: '', inComment: true };
-    text = text.slice(close + 3);
-  }
-
-  for (;;) {
-    const open = text.indexOf('<!--');
-    if (open === -1) {
-      active += text;
-      return { text: active, inComment: false };
+/**
+ * Per-line skip mask: `true` where a line is inside a triple-backtick code
+ * fence or a block-level HTML comment (`<!-- … -->`). Per CommonMark, only a
+ * line that BEGINS with `<!--` (after optional indent) opens a block comment;
+ * a fence line toggles fence state and is itself skipped.
+ */
+function computeSkipMask(lines: readonly string[]): boolean[] {
+  const skip: boolean[] = [];
+  let insideCodeFence = false;
+  let insideComment = false;
+  for (const line of lines) {
+    if (line.trimStart().startsWith('```')) {
+      skip.push(true);
+      insideCodeFence = !insideCodeFence;
+      continue;
     }
-    active += text.slice(0, open);
+    if (insideCodeFence) {
+      skip.push(true);
+      continue;
+    }
+    if (!insideComment && line.trimStart().startsWith('<!--')) insideComment = true;
+    if (insideComment) {
+      skip.push(true);
+      if (line.includes('-->')) insideComment = false;
+      continue;
+    }
+    skip.push(false);
+  }
+  return skip;
+}
+
+/** Strip inline `<!-- … -->` comments from a single line (block comments are
+ * handled by computeSkipMask). An unclosed inline comment leaves the rest as-is. */
+function stripInlineComments(text: string): string {
+  let result = '';
+  let pos = 0;
+  while (pos < text.length) {
+    const open = text.indexOf('<!--', pos);
+    if (open === -1) {
+      result += text.slice(pos);
+      break;
+    }
+    result += text.slice(pos, open);
     const close = text.indexOf('-->', open + 4);
     if (close === -1) {
-      // CommonMark: an HTML comment block opens only when the line begins with
-      // `<!--` (≤3 spaces indent). A mid-line unclosed `<!--` after content is
-      // inline HTML — keep it as literal text and do NOT swallow later lines.
-      if (active.trim() === '') return { text: active, inComment: true };
-      return { text: active + text.slice(open), inComment: false };
+      result += text.slice(open);
+      break;
     }
-    text = text.slice(close + 3);
+    pos = close + 3;
   }
+  return result;
 }
 
 /**
- * Split content into lines, strip HTML comments (tracking block-comment state
- * across lines), and return each non-empty line with its 0-based index. The
- * single comment-aware line-walk shared by the section parsers above — the
- * hook-side mirror of the CLI's `markdown-sections.ts` extraction (WQ4RH3).
+ * Split content into lines, skip code-fence and block-comment lines, strip
+ * inline comments from the rest, and return each non-empty line with its
+ * 0-based index. The single line-walk shared by the section parsers above —
+ * the hook-side mirror of the CLI's `markdown-sections.ts` (WQ4RH3 / P58R22).
  */
-function activeLines(content: string): { index: number; text: string }[] {
+export function activeLines(content: string): { index: number; text: string }[] {
+  const lines = content.split('\n');
+  const skip = computeSkipMask(lines);
   const out: { index: number; text: string }[] = [];
-  let inComment = false;
-  for (const [index, line] of content.split('\n').entries()) {
-    const result = stripComment(line, inComment);
-    inComment = result.inComment;
-    const text = result.text.trim();
+  for (const [index, line] of lines.entries()) {
+    if (skip[index]) continue;
+    const text = stripInlineComments(line).trim();
     if (text !== '') out.push({ index, text });
   }
   return out;

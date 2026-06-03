@@ -410,13 +410,13 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 **Status:** Accepted
 **Date:** 2026-01-07
 
-| Field          | Value                                                                                                                                                                                                                                                            |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                                                                                                                                                                                  |
-| Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked                                                                                                                                                       |
-| Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                                                                                                                                                                             |
-| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)                                                                                                                                                         |
-| Implementation | `packages/cli/templates/skills/bdd/` — TDD runs in the `implement` phase (`TDD.md`); the skill was later split from one `SKILL.md` into per-phase files (DISCOVERY / SCENARIOS / DECOMPOSITION / TDD / VERIFY / DONE), see the 2026-05-31 Phase 0 decision below |
+| Field          | Value                                                                                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| What           | TDD (RED→GREEN→REFACTOR) is inline in BDD skill Phase 6, not a separate handoff                                                                                                                                                                              |
+| Why            | Skill-to-skill handoffs are unreliable; agent memory doesn't guarantee the delegated skill will be invoked                                                                                                                                                   |
+| Trade-off      | BDD skill is larger; standalone TDD skill and `/tdd` command removed                                                                                                                                                                                         |
+| Alternatives   | Separate TDD skill with handoff (rejected: soft enforcement), subagent delegation (rejected: no nesting)                                                                                                                                                     |
+| Implementation | `packages/cli/templates/skills/bdd/` — TDD runs in the `implement` phase (`TDD.md`); the skill was later split from one `SKILL.md` into per-phase files (DISCOVERY / SCENARIOS / TDD / VERIFY / DONE / SPLITTING), see the 2026-05-31 Phase 0 decision below |
 
 ### Skill Consolidation (Removed Redundant Skills)
 
@@ -488,7 +488,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 - **Phase reminders** — prompt hook derives current phase from ticket.md via `getTicketInfo()` and injects phase-specific one-liner each turn. No blocking gate — guidance only.
 - **TDD step reminders** — prompt hook derives TDD step from test-definitions.md via `deriveTddStep()` during `implement` phase. Shows RED/GREEN/REFACTOR status each turn.
 
-**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate, decomposition) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
+**Phase-based access control:** PreToolUse reads the active ticket's phase directly from ticket files (via `lib/active-ticket.ts`) and restricts code edits to `implement` phase only. Planning phases (intake, define-behavior, scenario-gate) and done phase only allow edits to meta paths. No ticket or no in_progress ticket = no restriction.
 
 **Meta-path exemption:** Files under `.safeword-project/`, `.safeword/`, `.claude/`, and `.cursor/` are always editable regardless of gates or phase. These are tooling/metadata, not application code. This prevents circular dependencies where a gate blocks editing the file that caused the gate.
 

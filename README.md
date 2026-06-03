@@ -235,7 +235,7 @@ Key directories created in your project:
 
 **Skills** (in `.claude/skills/`): Specialized agent capabilities
 
-- `bdd/` - BDD orchestrator for feature-level work (Discovery, Scenarios, Decomposition, TDD, Splitting, Done)
+- `bdd/` - BDD orchestrator for feature-level work (Discovery, Scenarios, TDD, Verify, Splitting, Done)
 - `debug/` - Four-phase debugging (investigate before fixing)
 - `quality-review/` - Deep code review with web research
 - `refactor/` - Small-step refactoring with test verification
