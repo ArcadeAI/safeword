@@ -14,6 +14,8 @@ import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
+  detectPhaseAdvance,
+  gatePhaseAdvance,
   hashArtifact,
   isReviewGateEnabled,
   parseReviewStamps,
@@ -332,6 +334,54 @@ if (
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
           'Run `/self-review` (or log a skip), then create test-definitions.md.',
+        );
+      }
+    }
+  }
+}
+
+// Reconstruct the file content an Edit/Write/MultiEdit would produce, so a gate
+// can compare it against the on-disk content. Write/NotebookEdit carry the full
+// new content; Edit/MultiEdit carry replacement regions applied to the prior text.
+function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: string): string {
+  if (toolInput?.content !== undefined) return toolInput.content;
+  if (toolInput?.edits) {
+    return toolInput.edits.reduce(
+      (text, edit) => text.replace(edit.old_string ?? '', edit.new_string ?? ''),
+      priorContent,
+    );
+  }
+  if (toolInput?.old_string !== undefined) {
+    return priorContent.replace(toolInput.old_string, toolInput.new_string ?? '');
+  }
+  return priorContent;
+}
+
+// Review gate (NMSD94, Tier 2) — DEFAULT-OFF, same flag as Tier 1. On a
+// ticket.md edit that changes `phase:`, block leaving the phase until an
+// independent phase-exit review stamp exists for it. The stamp is produced by a
+// fresh (context:fork) reviewer and logged via `write-review-stamp.ts --phase`,
+// so the author can't grade their own phase. Inert until reviewGate is enabled.
+if (editedFile.endsWith('ticket.md') && editedFile.includes('.safeword-project/tickets/')) {
+  const reviewConfigFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  const reviewConfig = existsSync(reviewConfigFile)
+    ? readFileSync(reviewConfigFile, 'utf8')
+    : undefined;
+  if (isReviewGateEnabled(reviewConfig)) {
+    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+    const exitedPhase = detectPhaseAdvance(
+      priorContent,
+      nextContentAfterEdit(input.tool_input, priorContent),
+    );
+    if (exitedPhase !== undefined) {
+      const ticketDirectory = nodePath.dirname(editedFile);
+      const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
+      const stamps = existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
+      const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
+      if (!gatePhaseAdvance(phaseScope, stamps).ok) {
+        deny(
+          `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
+          `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or append a skip reason to log a deliberate skip).`,
         );
       }
     }
