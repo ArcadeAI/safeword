@@ -42,3 +42,16 @@ Derived from the 6 ACs. Splits the same way ticket 153 did: **[hook]** = determi
 1. **Pure decision core** (new `lib/review-ledger.ts`): `gateNextAsset(priorAssetId, ledger)`, `gatePhaseAdvance(phase, ledger)`, `coverageGate(spec, testDefs)` (wraps the existing `scenario-coverage.ts`), reusing `parse-annotation.ts` `isValidSkipReason` for the skip valve. Unit-test the 12 `[hook]` scenarios here.
 2. **Wire into the hooks**: per-asset + coverage gates into `pre-tool-quality.ts`; phase-advance gate where the ticket `phase:` edit is seen; phase-exit stamp read via the existing `skill-invocation-log`. Sync dogfood + parity.
 3. **Skill prose** (`[agent]`): the inline per-asset review checklist (Tier 1) + the phase-exit `context: fork` review instructions (Tier 2) — written tight per the B1TWX7 constraint; live-verified.
+
+## Asset-identity model (resolved 2026-06-03 via /figure-it-out)
+
+**The asset = the workflow artifact** (a file or a frontmatter block), keyed by name — NOT a section inferred from a Write, and NOT a sub-phase advance event. Gate the _next_ artifact's write on the _prior_ artifact carrying a review stamp. Phase-0 artifacts in order: `spec.md` (jobs + ACs together) → scope frontmatter → `test-definitions.md`; TDD steps stay on the existing SHA ledger.
+
+- **Rejected — parse the Write content** to split JTBD-write from AC-write: fragile (agents write whole files), content-inference not artifact-based.
+- **Rejected — track sub-phase advance**: pause-based, which epic 172 explicitly names "the failure mode"; and sub-phase tracking doesn't exist yet.
+- **Decisive evidence:** epic 172 (phase-step-enforcement) records the principle — _"enforcement should be artifact-based wherever possible… Pause-based enforcement is the failure mode."_ NMSD94's Tier 1 is the **first concrete instance of 172**; coordinate.
+- **Accepted cost:** jobs + ACs are reviewed together as "the spec" (both in `spec.md`); finer granularity would need a rejected option.
+
+## Coverage gate split (SM1.AC1)
+
+Split to a child ticket — enforcing it in a hook needs porting `scenario-coverage.ts` (192 lines, in `src/`, unreachable from a standalone hook) + a differential test. Separable, the "trial" piece, and the ticket pre-authorized the split. This ticket keeps the core two-tier mechanism (DEV1 + DEV2); SM1.AC1's scenarios move with it.
