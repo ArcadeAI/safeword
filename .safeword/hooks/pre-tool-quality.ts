@@ -310,7 +310,8 @@ if (
   // so this only bites pre-product-layer (epic DZ2NM5) tickets, which pay a lazy
   // two-line `## Jobs To Be Done` + `skip: <reason>` the next time they advance.
   const specFile = nodePath.join(ticketDirectory, 'spec.md');
-  if (meta.type === 'feature' && !existsSync(specFile)) {
+  const specExists = existsSync(specFile);
+  if (meta.type === 'feature' && !specExists) {
     deny(
       'Features require a spec.md before test-definitions.md. Without one the JTBD and Acceptance-Criteria gates have nothing to check.',
       'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
@@ -319,9 +320,9 @@ if (
 
   // JTBD gate (ticket Y2HCNJ): require ≥1 JTBD whose persona resolves against
   // personas.md, or a `skip: <reason>` in the Jobs To Be Done section. The
-  // existsSync guard below now only spares tasks and patches — a feature with
-  // no spec.md was already denied above.
-  if (existsSync(specFile)) {
+  // guard below now only spares tasks and patches — a feature with no spec.md
+  // was already denied above.
+  if (specExists) {
     const specContent = readFileSync(specFile, 'utf8');
 
     const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
