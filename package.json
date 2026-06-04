@@ -9,6 +9,8 @@
   "scripts": {
     "test": "bun run --cwd packages/cli test",
     "test:done": "bun run --cwd packages/cli test:done",
+    "test:smoke:fast": "bun run --cwd packages/cli test:smoke:fast",
+    "test:smoke": "bun run --cwd packages/cli test:smoke",
     "lint": "eslint . && bun run --cwd packages/cli typecheck",
     "format": "prettier --write .",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",

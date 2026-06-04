@@ -36,6 +36,8 @@
     "test": "vitest run",
     "test:done": "vitest run tests/hooks/ tests/schema.test.ts",
     "test:integration": "vitest run tests/integration/",
+    "test:smoke:fast": "vitest run tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts",
+    "test:smoke": "tsup && vitest run tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/integration/golden-path.test.ts",
     "test:release": "vitest run --config vitest.release.config.ts",
     "test:slow": "vitest run --config vitest.slow.config.ts",
     "test:watch": "vitest",
