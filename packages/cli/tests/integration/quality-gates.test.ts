@@ -1287,6 +1287,13 @@ describe('Quality Gates', () => {
         '.safeword-project/tickets/099-test/dimensions.md',
         '| Dimension | Partitions |\n|---|---|\n| Delivery | email, slack |\n',
       );
+      // ...and a spec.md (ticket 9EA27P). This suite tests the scope/dimensions
+      // prerequisite, not JTBD content, so skip the JTBD enumeration.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
+      );
 
       const testDefsPath = nodePath.join(
         projectDirectory,
@@ -1435,6 +1442,12 @@ describe('Quality Gates', () => {
         '.safeword-project/tickets/099-test/dimensions.md',
         '| Dimension | Partitions |\n|---|---|\n| Delivery | email, slack |\n',
       );
+      // Features now require spec.md too (ticket 9EA27P); skip JTBD enumeration.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
+      );
 
       const testDefsPath = nodePath.join(
         projectDirectory,
@@ -1519,6 +1532,12 @@ describe('Quality Gates', () => {
         projectDirectory,
         '.safeword-project/tickets/099-test/dimensions.md',
         'skip: single behavioral dimension, no partitioning to enumerate\n',
+      );
+      // Features now require spec.md too (ticket 9EA27P); skip JTBD enumeration.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
       );
 
       const testDefsPath = nodePath.join(

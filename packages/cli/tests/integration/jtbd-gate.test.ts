@@ -2,7 +2,8 @@
  * Integration test for the intake-exit JTBD gate (ticket Y2HCNJ, slice C,
  * test-definitions.md Rule 7). Spawns the real pre-tool-quality hook and
  * verifies it gates test-definitions.md creation on spec.md JTBD content,
- * and skips the gate when no spec.md is present (D5 routing).
+ * and (ticket 9EA27P) denies a feature that has no spec.md at all — the
+ * transitional no-spec grandfather skip is gone; features fail closed.
  *
  * The hook signals denial the PreToolUse way — a `permissionDecision: deny`
  * JSON object on stdout, exit 0 — so assertions go through the shared
@@ -90,9 +91,11 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
     expectHookAllow(attemptTestDefinitions(ticketDirectory));
   });
 
-  it('skips the JTBD gate when no spec.md is present (grandfathered ticket)', () => {
-    // No spec.md written — old-flow routing; the JTBD gate must not fire.
-    expectHookAllow(attemptTestDefinitions(ticketDirectory));
+  it('denies a feature with no spec.md — the no-spec grandfather skip is gone (9EA27P)', () => {
+    // No spec.md written. Features now fail closed: the JTBD/AC gates no longer
+    // silently skip on spec.md absence — the feature is denied until it carries
+    // a spec.md (real JTBDs, or a `skip:` under `## Jobs To Be Done`).
+    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'spec.md');
   });
 });
 
@@ -129,7 +132,8 @@ describe('intake-exit AC gate (31W8M3)', () => {
     expectHookAllow(attemptTestDefinitions(ticketDirectory));
   });
 
-  it('does not fire the AC gate when no spec.md is present (grandfathered ticket)', () => {
-    expectHookAllow(attemptTestDefinitions(ticketDirectory));
+  it('denies a feature with no spec.md — the no-spec grandfather skip is gone (9EA27P)', () => {
+    // Same fail-closed rule, reached from the AC gate's side: no spec.md ⇒ denied.
+    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'spec.md');
   });
 });
