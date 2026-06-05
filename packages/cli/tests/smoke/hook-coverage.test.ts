@@ -53,36 +53,42 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'prompt hook, fires on user turn — not assertable in a tool-based live run',
   // Auxiliary / narrow scope
   'post-tool-sync-learnings.ts':
-    'learning-sync hook, narrow scope — covered by post-tool-lint integration tests',
+    'PostToolUse learning-sync hook — no agent-blocking deny path to assert in a live run',
   'post-tool-bypass-warn.ts': 'warn-only hook, no deny path — output is informational, not a gate',
   'write-review-stamp.ts':
-    'write-review-stamp fires on PostToolUse Write of skill-invocations.log specifically; covered by review-stamp.test.ts',
+    'fires on PostToolUse Write of skill-invocations.log specifically; covered by tests/integration/review-stamp.test.ts',
   'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',
-  // Core non-gate hooks covered by other test tiers
+  // Core hooks covered deterministically elsewhere (not re-run live, to save cost)
   'post-tool-lint.ts':
-    'covered by golden-path.test.ts and tests/hooks/post-tool-lint.test.ts; excluded from live smoke to avoid double cost',
+    'PostToolUse lint hook; exercised end-to-end by tests/integration/golden-path.test.ts',
   'post-tool-quality.ts':
-    'PostToolUse quality annotation hook; no deny path — informational output only',
+    'PostToolUse quality-annotation hook — no agent-blocking deny path to assert in a live run',
   'pre-tool-config-guard.ts':
-    'guards malformed .safeword/config.json; narrow deterministic scope, no agent-steering to assert on',
+    'PreToolUse config.json guard; deterministic, covered by tests/hooks/config-guard-patterns.test.ts',
   'stop-quality.ts':
-    'stop hook (done gate); fires at session end — not assertable in a single-turn tool-call live run',
+    'stop hook (done gate); fires at session end, not on a tool call — not live-assertable in one turn',
+  // Infra shell hooks — not agent-steering gates
+  'session-bun-check.sh':
+    'infra shell hook — checks bun availability at session start, not a tool-call gate',
+  'pre-tool-git-bare-fix.sh':
+    'infra shell hook — repairs bare-repo git state, not an agent-steering gate',
 };
 
 /**
- * Extract the base filename of every top-level `.ts` hook in SAFEWORD_SCHEMA.ownedFiles.
- * (Hooks live in ownedFiles, not managedFiles — the schema uses ownedFiles for files
- * it fully owns and overwrites on upgrade.) lib/ helpers are excluded; only the
- * top-level hook scripts that wire into Claude Code's hooks config are checked.
+ * Extract the base filename of every top-level hook (`.ts` or `.sh`) in
+ * SAFEWORD_SCHEMA.ownedFiles. (Hooks live in ownedFiles, not managedFiles — the
+ * schema uses ownedFiles for files it fully owns and overwrites on upgrade.)
+ * lib/ helpers are excluded; only the top-level hook scripts that wire into
+ * Claude Code's hooks config are checked.
  */
 function shippedHooks(): string[] {
   return Object.keys(SAFEWORD_SCHEMA.ownedFiles)
-    .filter(path => /^\.safeword\/hooks\/[^/]+\.ts$/.test(path))
+    .filter(path => /^\.safeword\/hooks\/[^/]+\.(?:ts|sh)$/.test(path))
     .map(path => nodePath.basename(path));
 }
 
 describe('smoke hook coverage (drift guard)', () => {
-  it('every shipped .ts hook is covered by a smoke test or listed in EXEMPT_HOOKS', () => {
+  it('every shipped hook is covered by a smoke test or listed in EXEMPT_HOOKS', () => {
     // Collect text of all *.test.ts files directly in tests/smoke/ (no subdirs).
     const smokeText = readdirSync(SMOKE_DIR)
       .filter(f => f.endsWith('.test.ts'))
