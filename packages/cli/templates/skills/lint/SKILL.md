@@ -4,6 +4,7 @@ description: Run linters and formatters to fix code style issues. Use when
   cleaning up style violations, formatting code, or after implementation to
   ensure code meets project standards.
 allowed-tools: '*'
+effort: low
 ---
 
 # Lint
