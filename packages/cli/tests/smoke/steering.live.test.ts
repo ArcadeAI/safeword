@@ -29,9 +29,13 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-/** Pinned so a model update can't silently change the test's behavior. */
+/**
+ * Pinned so a model update can't silently change the test's behavior. Dated
+ * snapshot — when Anthropic retires it the run fails model-not-found, which is
+ * the signal to bump the pin (not a safeword regression).
+ */
 const MODEL = 'claude-haiku-4-5-20251001';
-/** The flags below (`--setting-sources`, `--permission-mode dontAsk`, `--max-budget-usd`) need claude 2.x. */
+/** The flags below (`--setting-sources`, `--max-budget-usd`) need claude 2.x. */
 const MIN_MAJOR = 2;
 /** The real shipping hook, run in place — no copy, no build. */
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
@@ -85,7 +89,7 @@ describe.skipIf(!CAN_RUN)('live smoke: safeword steers a real Claude agent', () 
       JSON.stringify({
         hooks: {
           PreToolUse: [
-            { matcher: 'Write', hooks: [{ type: 'command', command: `bun ${HOOK_PATH}` }] },
+            { matcher: 'Write', hooks: [{ type: 'command', command: `bun "${HOOK_PATH}"` }] },
           ],
         },
       }),
