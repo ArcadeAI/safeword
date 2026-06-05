@@ -7,9 +7,10 @@ export default mergeConfig(
   defineConfig({
     test: {
       include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
-      // Slow tests (real npm installs) excluded by default.
-      // Run with: bun vitest run --config vitest.slow.config.ts
-      exclude: ['tests/**/*.slow.test.ts', 'tests/**/*.release.test.ts'],
+      // Slow tests (real npm installs) and the live real-model smoke
+      // (`*.live.test.ts`, spends tokens, needs claude + ANTHROPIC_API_KEY)
+      // are excluded by default. Run via test:smoke / test:smoke:live.
+      exclude: ['tests/**/*.slow.test.ts', 'tests/**/*.release.test.ts', 'tests/**/*.live.test.ts'],
       coverage: {
         provider: 'v8',
         include: ['src/**/*.ts'],
