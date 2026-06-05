@@ -11,8 +11,10 @@
  * Costs ~1.5¢/run (pinned Haiku); `--max-budget-usd` is the hard ceiling.
  *
  * Why these choices (all verified against claude 2.1.161 this session):
- * - intake-phase gate, NOT the 9EA27P spec.md gate — intake is a stable, long-
- *   standing invariant; 9EA27P isn't on main yet and would silently allow.
+ * - intake-phase gate as the canary — it's safeword's most stable, long-standing
+ *   invariant (you can't write scenarios before leaving intake), so it's the
+ *   least likely gate to churn out from under this test. (The 9EA27P spec.md gate
+ *   also works now that it's merged, but intake is the safer long-term anchor.)
  * - point the project's hook at the real source hook (no `safeword setup`) —
  *   same shipping code, no 180s install (golden-path already covers install).
  * - `--allowedTools Write` lets the permission layer ALLOW the write, so the
