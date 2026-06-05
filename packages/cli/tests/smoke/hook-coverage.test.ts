@@ -1,0 +1,117 @@
+/**
+ * Drift guard for the smoke test suite (ticket 0WQA9V, slice 3).
+ *
+ * Reads `SAFEWORD_SCHEMA.ownedFiles` to get the canonical list of shipped
+ * `.ts` hooks, then checks that every hook is either:
+ *   (a) referenced by name in a smoke test file under tests/smoke/, OR
+ *   (b) listed in EXEMPT_HOOKS below with a justification.
+ *
+ * Fails immediately when a new hook is added to the schema without smoke
+ * coverage — so the blind-spot is caught at commit time, not in production.
+ * Adding to EXEMPT_HOOKS is the deliberate escape valve.
+ *
+ * Why here rather than an inline assertion in steering.live.test.ts:
+ * this is a structural integrity check, not a behavioral test — it should
+ * run in the normal fast suite (no tokens, no claude binary needed).
+ */
+
+import { readdirSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+
+const SMOKE_DIR = nodePath.resolve(__dirname);
+
+/**
+ * Hooks that are deliberately not covered by the smoke suite, with justification.
+ * Add here instead of silently letting a hook fall off the radar.
+ */
+const EXEMPT_HOOKS: Record<string, string> = {
+  // Session/startup hooks fire at session start, not on tool calls —
+  // there's no practical hook-level assertion to make in a single-turn live run.
+  'session-verify-agents.ts':
+    'session hook, fires at startup — not assertable in a tool-based live run',
+  'session-version.ts': 'session hook, fires at startup — not assertable in a tool-based live run',
+  'session-lint-check.ts':
+    'session hook, fires at startup — not assertable in a tool-based live run',
+  'session-compact-context.ts':
+    'session hook, fires at startup — not assertable in a tool-based live run',
+  'session-auto-upgrade.ts':
+    'session hook, fires at startup — not assertable in a tool-based live run',
+  'session-update-check.ts':
+    'session hook, fires at startup — not assertable in a tool-based live run',
+  'session-cleanup-quality.ts':
+    'session hook, fires at startup — not assertable in a tool-based live run',
+  'session-start-reentry.ts':
+    'session hook, fires at startup — not assertable in a tool-based live run',
+  // Prompt hooks fire at prompt-submit, not on tool calls.
+  'prompt-timestamp.ts':
+    'prompt hook, fires on user turn — not assertable in a tool-based live run',
+  'prompt-questions.ts':
+    'prompt hook, fires on user turn — not assertable in a tool-based live run',
+  // Auxiliary / narrow scope
+  'post-tool-sync-learnings.ts':
+    'learning-sync hook, narrow scope — covered by post-tool-lint integration tests',
+  'post-tool-bypass-warn.ts': 'warn-only hook, no deny path — output is informational, not a gate',
+  'write-review-stamp.ts':
+    'write-review-stamp fires on PostToolUse Write of skill-invocations.log specifically; covered by review-stamp.test.ts',
+  'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',
+  // Core non-gate hooks covered by other test tiers
+  'post-tool-lint.ts':
+    'covered by golden-path.test.ts and tests/hooks/post-tool-lint.test.ts; excluded from live smoke to avoid double cost',
+  'post-tool-quality.ts':
+    'PostToolUse quality annotation hook; no deny path — informational output only',
+  'pre-tool-config-guard.ts':
+    'guards malformed .safeword/config.json; narrow deterministic scope, no agent-steering to assert on',
+  'stop-quality.ts':
+    'stop hook (done gate); fires at session end — not assertable in a single-turn tool-call live run',
+};
+
+/**
+ * Extract the base filename of every top-level `.ts` hook in SAFEWORD_SCHEMA.ownedFiles.
+ * (Hooks live in ownedFiles, not managedFiles — the schema uses ownedFiles for files
+ * it fully owns and overwrites on upgrade.) lib/ helpers are excluded; only the
+ * top-level hook scripts that wire into Claude Code's hooks config are checked.
+ */
+function shippedHooks(): string[] {
+  return Object.keys(SAFEWORD_SCHEMA.ownedFiles)
+    .filter(path => /^\.safeword\/hooks\/[^/]+\.ts$/.test(path))
+    .map(path => nodePath.basename(path));
+}
+
+describe('smoke hook coverage (drift guard)', () => {
+  it('every shipped .ts hook is covered by a smoke test or listed in EXEMPT_HOOKS', () => {
+    // Collect text of all *.test.ts files directly in tests/smoke/ (no subdirs).
+    const smokeText = readdirSync(SMOKE_DIR)
+      .filter(f => f.endsWith('.test.ts'))
+      .map(f => readFileSync(nodePath.join(SMOKE_DIR, f), 'utf8'))
+      .join('\n');
+
+    const hooks = shippedHooks();
+    const uncovered: string[] = [];
+
+    for (const hook of hooks) {
+      const exempt = Object.prototype.hasOwnProperty.call(EXEMPT_HOOKS, hook);
+      const covered = smokeText.includes(hook);
+      if (!exempt && !covered) uncovered.push(hook);
+    }
+
+    const list = uncovered.map(h => `  - ${h}`).join('\n');
+    expect(
+      uncovered,
+      `These hooks are shipped in SAFEWORD_SCHEMA but have no smoke coverage and no EXEMPT_HOOKS entry:\n${list}\n\nAdd smoke coverage in tests/smoke/, or add to EXEMPT_HOOKS with a justification.`,
+    ).toHaveLength(0);
+  });
+
+  it('EXEMPT_HOOKS contains no entries for hooks that no longer exist in the schema', () => {
+    const hooks = new Set(shippedHooks());
+    const staleExemptions = Object.keys(EXEMPT_HOOKS).filter(hook => !hooks.has(hook));
+    const staleList = staleExemptions.map(h => `  - ${h}`).join('\n');
+    expect(
+      staleExemptions,
+      `These EXEMPT_HOOKS entries refer to hooks not in SAFEWORD_SCHEMA — clean them up:\n${staleList}`,
+    ).toHaveLength(0);
+  });
+});
