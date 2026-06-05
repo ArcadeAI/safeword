@@ -24,33 +24,27 @@ import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const SMOKE_DIR = nodePath.resolve(__dirname);
 
+/** Repeated justifications, named so a reword changes one place, not ten. */
+const SESSION_STARTUP = 'session hook, fires at startup — not assertable in a tool-based live run';
+const PROMPT_TURN = 'prompt hook, fires on user turn — not assertable in a tool-based live run';
+
 /**
  * Hooks that are deliberately not covered by the smoke suite, with justification.
  * Add here instead of silently letting a hook fall off the radar.
  */
 const EXEMPT_HOOKS: Record<string, string> = {
-  // Session/startup hooks fire at session start, not on tool calls —
-  // there's no practical hook-level assertion to make in a single-turn live run.
-  'session-verify-agents.ts':
-    'session hook, fires at startup — not assertable in a tool-based live run',
-  'session-version.ts': 'session hook, fires at startup — not assertable in a tool-based live run',
-  'session-lint-check.ts':
-    'session hook, fires at startup — not assertable in a tool-based live run',
-  'session-compact-context.ts':
-    'session hook, fires at startup — not assertable in a tool-based live run',
-  'session-auto-upgrade.ts':
-    'session hook, fires at startup — not assertable in a tool-based live run',
-  'session-update-check.ts':
-    'session hook, fires at startup — not assertable in a tool-based live run',
-  'session-cleanup-quality.ts':
-    'session hook, fires at startup — not assertable in a tool-based live run',
-  'session-start-reentry.ts':
-    'session hook, fires at startup — not assertable in a tool-based live run',
+  // Session/startup hooks fire at session start, not on tool calls.
+  'session-verify-agents.ts': SESSION_STARTUP,
+  'session-version.ts': SESSION_STARTUP,
+  'session-lint-check.ts': SESSION_STARTUP,
+  'session-compact-context.ts': SESSION_STARTUP,
+  'session-auto-upgrade.ts': SESSION_STARTUP,
+  'session-update-check.ts': SESSION_STARTUP,
+  'session-cleanup-quality.ts': SESSION_STARTUP,
+  'session-start-reentry.ts': SESSION_STARTUP,
   // Prompt hooks fire at prompt-submit, not on tool calls.
-  'prompt-timestamp.ts':
-    'prompt hook, fires on user turn — not assertable in a tool-based live run',
-  'prompt-questions.ts':
-    'prompt hook, fires on user turn — not assertable in a tool-based live run',
+  'prompt-timestamp.ts': PROMPT_TURN,
+  'prompt-questions.ts': PROMPT_TURN,
   // Auxiliary / narrow scope
   'post-tool-sync-learnings.ts':
     'PostToolUse learning-sync hook — no agent-blocking deny path to assert in a live run',
