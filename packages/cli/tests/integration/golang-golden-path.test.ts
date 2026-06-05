@@ -16,7 +16,7 @@ import { execSync, spawnSync } from 'node:child_process';
 import { unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   createGoProject,
@@ -33,6 +33,15 @@ import {
 } from '../helpers';
 
 const GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
+
+// golangci-lint's FIRST run cold-starts (~62s: type-checks the code, compiling
+// stdlib deps, then initializes the curated linter set and builds its cache),
+// which sits right on vitest's default 60s testTimeout and flakes on cold CI
+// runners (every CI run cold-starts — setup-go uses cache:false). Later runs
+// reuse the warm cache and finish in seconds, so only the first invocation is
+// slow; give the whole file 2× headroom rather than caching (the golangci-lint
+// GH-Action cache is slow and grows unbounded — see ticket discussion).
+vi.setConfig({ testTimeout: 120_000 });
 
 describe('E2E: Go Golden Path', () => {
   let projectDirectory: string;
