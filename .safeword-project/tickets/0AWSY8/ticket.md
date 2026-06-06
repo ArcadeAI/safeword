@@ -25,15 +25,17 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 ## Tickets
 
-| ID         | Title                                                                                                 | Arcade Pair | Status | Depends On                     |
-| ---------- | ----------------------------------------------------------------------------------------------------- | ----------- | ------ | ------------------------------ |
-| **XN5SPN** | Explicit scenario-construction rules in Phase 3 (singular Then, outcome-oriented, no-or, readability) | —           | Open   | —                              |
-| **9FSPM8** | Vacuous-pass test as Phase 4 scenario quality check                                                   | JWM8PD      | Open   | —                              |
-| **XBY5QR** | Negative-case-coverage as explicit Phase 4 rule                                                       | JWM8PD      | Open   | —                              |
-| **73CKG4** | Assertion-strength coaching + determinism-risk specifics in Phase 4                                   | JWM8PD      | Open   | —                              |
-| **R09T59** | Structured findings format + cross-cutting review categories                                          | JWM8PD      | Open   | —                              |
-| **F2QZB4** | Extract Phase 4 into standalone /review-spec skill                                                    | JWM8PD      | Open   | 9FSPM8, XBY5QR, 73CKG4, R09T59 |
-| **CS86B0** | Codify-spec absorption: emit .feature + step_def stubs                                                | JN39KG      | Open   | —                              |
+| ID         | Title                                                                            | Arcade Pair | Status | Depends On     |
+| ---------- | -------------------------------------------------------------------------------- | ----------- | ------ | -------------- |
+| **XN5SPN** | Scenario-construction rules in Define Behavior (one-behavior/When, declarative…) | —           | Impl   | —              |
+| **9FSPM8** | Vacuous-pass test in the scenario-gate                                           | JWM8PD      | Impl   | —              |
+| **XBY5QR** | Negative-case-coverage lens in the adversarial pass                              | JWM8PD      | Impl   | —              |
+| **73CKG4** | Determinism-risk specifics in the scenario-gate (assertion-strength folded)      | JWM8PD      | Open   | —              |
+| **R09T59** | Structured findings format + cross-cutting review categories                     | JWM8PD      | Open   | —              |
+| **F2QZB4** | Extract the scenario-gate into a standalone /review-spec skill                   | JWM8PD      | Open   | 73CKG4, R09T59 |
+| **CS86B0** | Codify absorption: emit native vitest test skeletons (optional)                  | JN39KG      | Open   | —              |
+
+`Impl` = implemented + committed in `bdd/SCENARIOS.md`, pending the formal `/verify` close.
 
 **Paired arcade epic:** [ZPN3Z9](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/ZPN3Z9/ticket.md) — arcade-side decommission of `/review-spec` and `/codify-spec`.
 
@@ -74,8 +76,8 @@ last_modified: 2026-05-24T21:30:00.000Z
 - `bdd` Phase 4 (scenario-gate) includes the vacuous-pass test, negative-case-coverage, assertion-strength coaching, and determinism-risk specifics — each as a named check.
 - `bdd` Phase 4 output uses the structured findings format (h4, Current/Proposed, 3-tier severity, tally, bulk template).
 - `/review-spec` exists as a re-invokable skill embodying the upgraded Phase 4 checks.
-- `/codify-spec` (or equivalent) exists as an optional skill that emits .feature + step_def stubs.
-- All 7 child tickets are `done`.
+- _(optional / stretch)_ `/codify` exists as an optional skill emitting **native vitest test skeletons** — deferrable, since `test-definitions.md`'s R/G/R checkboxes already provide the "N tests to pass" denominator.
+- All **required** child tickets are `done` (CS86B0 is optional).
 - Worked example in SCENARIOS.md exercises all the new checks against a sample scenario set.
 
 ## Related
@@ -101,13 +103,20 @@ Revalidated against the live arcade source, safeword's current `bdd` skill, and 
 - **Dedup** — of the 5 scenario rules, only **outcome-oriented** + **no-or** are genuinely new; **externally-verifiable** duplicates AODI **Observable** (reference, don't restate). Of the 4 Phase-4 checks, only **vacuous-pass** is genuinely new; negative-case / assertion-strength / determinism are named specifics layered on existing AODI + adversarial pass, not new sections.
 - **BDD correctness fix** — "Singular Then (one Then, no `and`)" is contradicted by BDD canon (Dan North's founding example, Fowler, Cucumber all `And`-join Then). Reframe to **one behavior / one When-Then pair**. (XN5SPN)
 - **Missing structural rules** to add (more fundamental than some of the 5, currently absent): one When per scenario, Given = state not action, Scenario Outline for data variation. (XN5SPN)
-- **Don't inherit arcade bugs** (if codify ported): arcade codify-spec writes `status: codified` (not canonical `asserted`) and maps from a stale "behaviors / Edge Cases" spec shape that no longer exists.
+- **Don't inherit arcade bugs** (if codify ported): arcade's own canonical status is `asserted`, but its codify-spec writes `codified` (an arcade bug) and maps from a stale "behaviors / Edge Cases" spec shape — and safeword has no spec-status field at all, so port neither.
 - **Skill placement** — an invoked skill stays resident all session (Anthropic skill docs), so rules belong in the phase file (SCENARIOS.md), not SKILL.md; new skills reference, not restate, scenario-gate logic.
 
-Build deferred — this pass amends tickets only.
+## Status — 2026-06-06 (post-implementation)
+
+The replan above is the design record; its child notes are written forward-looking — read them against this. What's actually shipped vs remaining:
+
+- **Shipped (committed, pending formal `/verify` close):** XN5SPN (construction rules), 9FSPM8 (vacuous-pass), XBY5QR (negative-case lens), plus VZK191 (post-review polish) — all in `bdd/SCENARIOS.md` (template + dogfood).
+- **Remaining:** **73CKG4** — re-scope to **determinism-only** (assertion-strength is already covered by `testing` Iron Law 2 + the shipped vacuous-pass "propose a stronger Then"); **R09T59** — structured findings format, now a retrofit onto the already-shipped checks; **F2QZB4** — extract `/review-spec`, blocked only on 73CKG4 + R09T59; **CS86B0** — optional, TS-native, low-priority.
+- **Arcade-side decommissions** (JWM8PD, JN39KG) — unchanged, still blocked on the safeword side.
 
 ## Work Log
 
 - 2026-05-24T21:27:52.411Z Started: Created ticket 0AWSY8
 - 2026-05-24T21:30:00.000Z Drafted: Epic shell with 7 children, sequencing, 5 open decisions, many-to-one pairing rationale
 - 2026-06-06T17:40:00.000Z Replan: validated epic + 7 children vs live arcade source + current docs/BDD research (/figure-it-out). Resolved 5 open decisions; recorded dedup, BDD Then-rule correction, TS-native codify, missing structural rules, vocabulary drift, arcade bugs-not-to-inherit. Tickets-only pass; build deferred.
+- 2026-06-06T22:58:00.000Z Reconciled (post-quality-review): re-tensed the replan into a shipped-vs-remaining Status section; marked XN5SPN/9FSPM8/XBY5QR `Impl` + corrected their table titles and CS86B0's (native vitest, not .feature); narrowed F2QZB4 deps to 73CKG4+R09T59; re-scoped 73CKG4 to determinism-only; demoted CS86B0 to optional in Done-when; tightened the asserted/codified wording (safeword has no spec-status field).
