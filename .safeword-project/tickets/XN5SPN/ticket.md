@@ -2,8 +2,8 @@
 id: XN5SPN
 slug: phase-3-scenario-rules
 title: 'Make scenario-construction rules explicit in Phase 3'
-type: feature
-phase: intake
+type: task
+phase: verify
 status: in_progress
 epic: bdd-phase-one-merge
 created: 2026-05-24T21:27:52.458Z
@@ -68,3 +68,4 @@ Validated via `/figure-it-out` + BDD-canon research.
 - 2026-05-24T21:27:52.458Z Started: Created ticket XN5SPN
 - 2026-05-24T21:30:00.000Z Drafted: Scope, 5 rules, open question; linked to epic 0AWSY8
 - 2026-06-06T17:40:00.000Z Replan: corrected "singular Then" (BDD-canon error) → one-behavior/one-When-Then-pair; dedup externally-verifiable vs AODI Observable; added 3 missing structural rules; form/placement per Anthropic skill docs; re-sized to task. Build deferred.
+- 2026-06-06T18:20:00.000Z Implemented: added "Scenario construction rules" to bdd SCENARIOS.md (template + dogfood mirror) — 5 fix-first rules (one-behavior/one-When, outcome-oriented Then, declarative, Given=state, no-or + Scenario Outline) with ✓/✗ micro-examples and an Observable cross-ref to the scenario-gate. Compact form (no full before/after pairs, no separate worked-example block) per skill-authoring bloat research. Verified: parity-check 120 pairs + 3 contracts in sync, markdownlint 0 errors. Formal /verify + /audit close gate still pending.

@@ -101,6 +101,18 @@ Then [outcome]
 - [ ] REFACTOR
 ```
 
+### Scenario construction rules
+
+Write each saved `Given/When/Then` to these rules — they head off at authoring time the defects the scenario-gate would otherwise catch later. Coaching, not a gate: when a scenario starts to break one, split it on the spot instead of accumulating violations.
+
+- **One behavior, one `When`** — each scenario specifies a single event and its outcome. Multiple `And`-joined `Then` lines are fine when they assert facets of the _same_ outcome (a withdrawal that debits **and** dispenses **and** returns the card); a second `When`, or a second behavior, means a second scenario.
+- **Outcome-oriented `Then`** — assert what is true after the `When`, never how the system gets there. "Then the order is rejected" ✓, not "Then `validateOrder()` returns false" ✗.
+- **Declarative, business language** — name the intent, not the UI mechanics. "When the customer submits the order" ✓, not "When the user clicks `#submit` and waits 200ms" ✗. Reads as living documentation and survives implementation changes.
+- **`Given` is state, not action** — establish the world, don't act in it. "Given the cart holds one item" ✓, not "Given the customer adds an item" ✗ (an action belongs in `When`).
+- **No `or` in the `Then`** — one outcome per scenario; "returns 200 **or** 201" is two scenarios. For one behavior across many inputs, use a `Scenario Outline` with an `Examples` table, not copy-pasted scenarios.
+
+`Then` outcomes must be externally observable too — but that is the scenario-gate's **Observable** check (AODI, below), so author for it here rather than restating it. These are construction-time guidance; the gate still validates each scenario adversarially.
+
 ### Scenario naming: lineage scheme
 
 Each saved `### Scenario:` title carries the acceptance criterion it proves, so the
