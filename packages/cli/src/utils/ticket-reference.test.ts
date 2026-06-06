@@ -21,4 +21,10 @@ describe('formatTicketReference', () => {
     expect(formatTicketReference('ZBVGPF')).toBe('ZBVGPF');
     expect(formatTicketReference('ZBVGPF', '')).toBe('ZBVGPF');
   });
+
+  it('never leads with the bare ID when a label is present (slug-first invariant)', () => {
+    const rendered = formatTicketReference('ZBVGPF', 'embed-figure-it-out');
+    expect(rendered.startsWith('ZBVGPF')).toBe(false);
+    expect(rendered.endsWith('(ZBVGPF)')).toBe(true);
+  });
 });
