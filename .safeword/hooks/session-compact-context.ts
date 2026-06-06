@@ -86,7 +86,7 @@ const gate = state.gate ?? 'none';
 
 const lines = [
   `SAFEWORD Context (restored after compaction):`,
-  `Ticket: ${state.activeTicket} — ${title}`,
+  `Ticket: ${title} (${state.activeTicket})`,
   `Type: ${type} | Phase: ${phase} | Gate: ${gate}`,
 ];
 if (goal) {
