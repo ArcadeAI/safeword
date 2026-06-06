@@ -27,15 +27,15 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 | ID         | Title                                                                            | Arcade Pair | Status | Depends On     |
 | ---------- | -------------------------------------------------------------------------------- | ----------- | ------ | -------------- |
-| **XN5SPN** | Scenario-construction rules in Define Behavior (one-behavior/When, declarative…) | —           | Impl   | —              |
-| **9FSPM8** | Vacuous-pass test in the scenario-gate                                           | JWM8PD      | Impl   | —              |
-| **XBY5QR** | Negative-case-coverage lens in the adversarial pass                              | JWM8PD      | Impl   | —              |
+| **XN5SPN** | Scenario-construction rules in Define Behavior (one-behavior/When, declarative…) | —           | Done   | —              |
+| **9FSPM8** | Vacuous-pass test in the scenario-gate                                           | JWM8PD      | Done   | —              |
+| **XBY5QR** | Negative-case-coverage lens in the adversarial pass                              | JWM8PD      | Done   | —              |
 | **73CKG4** | Determinism-risk specifics in the scenario-gate (assertion-strength folded)      | JWM8PD      | Open   | —              |
 | **R09T59** | Structured findings format + cross-cutting review categories                     | JWM8PD      | Open   | —              |
 | **F2QZB4** | Extract the scenario-gate into a standalone /review-spec skill                   | JWM8PD      | Open   | 73CKG4, R09T59 |
 | **CS86B0** | Codify absorption: emit native vitest test skeletons (optional)                  | JN39KG      | Open   | —              |
 
-`Impl` = implemented + committed in `bdd/SCENARIOS.md`, pending the formal `/verify` close.
+`Done` = shipped in `bdd/SCENARIOS.md`, verified, and closed (`verify.md` present). 3/7 children done.
 
 **Paired arcade epic:** [ZPN3Z9](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/ZPN3Z9/ticket.md) — arcade-side decommission of `/review-spec` and `/codify-spec`.
 

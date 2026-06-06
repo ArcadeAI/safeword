@@ -2,8 +2,8 @@
 id: VZK191
 slug: scenarios-polish
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-06-06T22:48:46.226Z
 last_modified: 2026-06-06T22:48:46.226Z
 ---

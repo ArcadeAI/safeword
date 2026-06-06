@@ -3,8 +3,8 @@ id: XN5SPN
 slug: phase-3-scenario-rules
 title: 'Make scenario-construction rules explicit in the Define Behavior phase'
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-one-merge
 created: 2026-05-24T21:27:52.458Z
 last_modified: 2026-05-24T21:30:00.000Z

@@ -37,7 +37,7 @@
 - **73CKG4** — Add assertion-strength coaching and determinism-risk specifics to Phase 4 (in_progress, epic: bdd-phase-one-merge)
   Add two Phase 4 enhancements: (1) assertion-strength coaching with weak→strong Then vocabulary, and (2) determinism-risk specifics with named failure patterns (time-dependent, ordering-dependent, concurrency).
   → `.safeword-project/tickets/73CKG4`
-- **9FSPM8** — Add vacuous-pass test as Phase 4 scenario quality check (in_progress, epic: bdd-phase-one-merge)
+- **9FSPM8** — Add vacuous-pass test as Phase 4 scenario quality check (done, epic: bdd-phase-one-merge)
   Add the vacuous-pass test as a named Phase 4 check — "Mentally remove the feature implementation. Could this scenario still pass?" Catches scenarios that test the test setup, where the Given pre-populates state that the Then trivially asserts.
   → `.safeword-project/tickets/9FSPM8`
 - **CS86B0** — Codify-spec absorption: emit native vitest test skeletons from test-definitions.md (in_progress, epic: bdd-phase-one-merge)
@@ -49,10 +49,10 @@
 - **R09T59** — Adopt structured findings format and cross-cutting review categories for Phase 4 output (in_progress, epic: bdd-phase-one-merge)
   Replace safeword's prose findings output with arcade's structured format (h4 per finding, Current → explanation → Proposed, 3-tier severity, lead-with-tally, bulk template), and add cross-cutting review as a named-categories section (conflict, boundary, failure, security, persona consistency).
   → `.safeword-project/tickets/R09T59`
-- **XBY5QR** — Add negative-case-coverage as explicit Phase 4 rule (in_progress, epic: bdd-phase-one-merge)
+- **XBY5QR** — Add negative-case-coverage as explicit Phase 4 rule (done, epic: bdd-phase-one-merge)
   Add a named Phase 4 rule that pairs each happy-path scenario with a rejection-path counterpart, and surfaces missing rejections as findings.
   → `.safeword-project/tickets/XBY5QR`
-- **XN5SPN** — Make scenario-construction rules explicit in the Define Behavior phase (in_progress, epic: bdd-phase-one-merge)
+- **XN5SPN** — Make scenario-construction rules explicit in the Define Behavior phase (done, epic: bdd-phase-one-merge)
   Give the `bdd` skill explicit, named scenario-construction rules at authoring time (the Define Behavior phase) so common Given/When/Then defects are prevented as scenarios are written, not only caught later in the scenario-gate review.
   → `.safeword-project/tickets/XN5SPN`
 
@@ -560,7 +560,7 @@
   Bump `eslint-plugin-jsdoc` from v62 to v63 across the monorepo and fix the root `package.json` categorization (currently in `dependencies`, belongs in `devDependencies`).
   → `.safeword-project/tickets/HRN1Z6`
 - **JNVP4W** — Auto-install deps in fresh worktrees via SessionStart hook (in_progress, epic: —)
-  A freshly created git worktree auto-installs its dependencies on session start, so commits (and tests/lint) work immediately instead of failing at the pre-commit hook with "node_modules not installed."
+  A freshly created git worktree auto-installs its dependencies on session start, so commits (and tests/lint) work immediately instead of failing at the pre-commit guard with "node_modules not installed."
   → `.safeword-project/tickets/JNVP4W-worktree-auto-deps`
 - **JZXVKN** — Extract shared findDuplicates/groupByLine validator helpers (done, epic: —)
   Collapse the duplicated `findDuplicates` (identical) and `groupByLine` (identical bar a type bound) helpers in personas.ts + glossary.ts into one `src/utils/validation.ts`.
@@ -592,7 +592,7 @@
 - **SXSCJQ** — Per-step / per-phase quality reviews (retire the LOC review throttle) (done, epic: —)
   Make the quality review fire at every TDD-step boundary (RED/GREEN/REFACTOR) and every BDD-phase boundary, driven by PostToolUse edit-detection (autonomous-safe) with the Stop hook as a deduped backstop — and retire the implement-phase LOC throttle that currently suppresses the review under 50 LOC.
   → `.safeword-project/tickets/SXSCJQ-remove-loc-review-throttle`
-- **VZK191** — Apply quality-review polish to bdd SCENARIOS.md (in_progress, epic: —)
+- **VZK191** — Apply quality-review polish to bdd SCENARIOS.md (done, epic: —)
   Apply the small content nits the quality-review surfaced in the bdd `SCENARIOS.md` (the file XN5SPN/9FSPM8/XBY5QR landed) so the shipped skill reads cleanly before those tickets close.
   → `.safeword-project/tickets/VZK191-scenarios-polish`
 - **WQ4RH3** — Extract src section-walk skip-mask into a shared markdown-sections util (done, epic: —)

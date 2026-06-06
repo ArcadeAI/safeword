@@ -3,8 +3,8 @@ id: XBY5QR
 slug: negative-case-coverage
 title: 'Add negative-case-coverage as explicit Phase 4 rule'
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-one-merge
 paired_with: JWM8PD
 created: 2026-05-24T21:27:52.550Z
