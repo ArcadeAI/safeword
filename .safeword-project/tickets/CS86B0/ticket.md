@@ -66,7 +66,7 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 **Drop:** Python/pytest-bdd, `.feature`, the `decomposition` phase reference (retired), playwright-bdd, multi-language detection. TS/vitest only in v1.
 
-**Don't inherit arcade bugs:** arcade codify-spec writes `status: codified` (canonical is `asserted`) and maps from a stale "behaviors / Edge Cases" spec shape — neither applies; safeword reads `test-definitions.md` Rule/Scenario blocks.
+**Don't inherit arcade bugs:** arcade's own canonical status is `asserted`, but its codify-spec writes `codified` (an arcade bug) and maps from a stale "behaviors / Edge Cases" spec shape — and safeword has no spec-status field at all, so port neither. (safeword reads `test-definitions.md` Rule/Scenario blocks instead.)
 
 **Priority:** marginal value is modest — `test-definitions.md` already enumerates every scenario with R/G/R checkboxes (the "N to make pass" denominator). codify only auto-scaffolds the `.test.ts` files. **Defer remains defensible**; treat CS86B0 as low-priority / optional, not a headline child.
 
