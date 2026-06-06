@@ -52,8 +52,8 @@
 - **XBY5QR** — Add negative-case-coverage as explicit Phase 4 rule (in_progress, epic: bdd-phase-one-merge)
   Add a named Phase 4 rule that pairs each happy-path scenario with a rejection-path counterpart, and surfaces missing rejections as findings.
   → `.safeword-project/tickets/XBY5QR`
-- **XN5SPN** — Make scenario-construction rules explicit in Phase 3 (in_progress, epic: bdd-phase-one-merge)
-  Add explicit named rules for scenario construction during Phase 3 authoring — singular Then, outcome-oriented, externally verifiable, no-or in Then, readability (business language not implementation) — with examples. Today these are implicit in safeword's Phase 3 and only caught downstream in Phase 4 review; making them explicit during authoring prevents the violations in the first place.
+- **XN5SPN** — Make scenario-construction rules explicit in the Define Behavior phase (in_progress, epic: bdd-phase-one-merge)
+  Give the `bdd` skill explicit, named scenario-construction rules at authoring time (the Define Behavior phase) so common Given/When/Then defects are prevented as scenarios are written, not only caught later in the scenario-gate review.
   → `.safeword-project/tickets/XN5SPN`
 
 ### bdd-phase-three-merge
