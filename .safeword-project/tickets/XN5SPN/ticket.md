@@ -43,7 +43,28 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 - Should rule violations be hook-enforced (block test-definitions.md write when a scenario violates a rule), or coaching only? Driver leans coaching only — hook-enforcement requires parsing G/W/T which is brittle.
 
+## Replan — 2026-06-06 (corrected scope supersedes the original above)
+
+Validated via `/figure-it-out` + BDD-canon research.
+
+**Correction (load-bearing):** "Singular Then — one Then, no `and`" is **wrong** by BDD canon — Dan North's founding ATM example, Fowler's Given-When-Then, and Cucumber all join Then assertions with `And`. The real rule is **one behavior = one When-Then pair**; multiple `And`-joined Then lines verifying facets of the _same_ outcome are correct. Shipping the literal form would teach an anti-pattern.
+
+**Corrected rule set** for the **Define Behavior** section (= old "Phase 3") of `bdd/SCENARIOS.md`:
+
+- **One behavior / one When-Then pair** (replaces "singular Then") — multiple `And` Then lines for one outcome OK; a second _behavior_ → split.
+- **Outcome-oriented Then** — what is true after, not how. (genuinely new)
+- **No "or" in the Then** — split; point at **Scenario Outline** for legitimate input→output variation. (genuinely new)
+- **Declarative / readable** — business language, not UI mechanics ("submits the form" ✓, "clicks submit" ✗). Subsumes old rules 2 + 5; strongest-attested idea in the literature.
+- **Externally-verifiable** — _reference_ AODI **Observable** in the scenario-gate section, don't restate. Frame as business-observable, not strict black-box.
+
+**Add the 3 structural rules the original 5 miss** (more fundamental, currently absent): **one When per scenario**, **Given = state not action**, **Scenario Outline for data variation**.
+
+**Form / placement** (Anthropic skill docs): tight named list, fix-first positive framing with a one-line "why", compressed examples (positive snippet preferred over full before/after) — in SCENARIOS.md's Define Behavior section, not SKILL.md. **Coaching-only** (open question resolved: no hook-enforcement — brittle, and Opus guidance favors light framing).
+
+**Sizing:** this is a **task** (additive skill docs, one file), not a feature — the full scenario-writing machinery shouldn't fire on a doc edit to the scenario-writing machinery. Update any skill-content contract test if present.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.458Z Started: Created ticket XN5SPN
 - 2026-05-24T21:30:00.000Z Drafted: Scope, 5 rules, open question; linked to epic 0AWSY8
+- 2026-06-06T17:40:00.000Z Replan: corrected "singular Then" (BDD-canon error) → one-behavior/one-When-Then-pair; dedup externally-verifiable vs AODI Observable; added 3 missing structural rules; form/placement per Anthropic skill docs; re-sized to task. Build deferred.

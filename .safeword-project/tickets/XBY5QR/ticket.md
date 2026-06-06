@@ -42,7 +42,12 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 - Should this be a hard "must fix" finding or "should strengthen"? Arcade treats it as should-strengthen. Driver agrees — sometimes the rejection is covered by a sibling AC's scenario; forcing one-per-happy-path produces noise.
 
+## Replan — 2026-06-06
+
+Validated: **partial overlap** — safeword's dimensions/partitions already generate rejection cases and the adversarial pass surfaces gaps; arcade's value is _naming_ the happy↔rejection pairing. Reframe as a named lens on the existing adversarial pass, not a new standalone section. "Phase 4" = the `scenario-gate` section of the current SCENARIOS.md. Open question resolved: **should-strengthen**, not must-fix (sibling-AC scenarios often cover the rejection; forcing 1:1 = noise). Point variation at Scenario Outline. Build deferred.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.550Z Started: Created ticket XBY5QR
 - 2026-05-24T21:30:00.000Z Drafted: Scope, examples, open question; linked to epic 0AWSY8
+- 2026-06-06T17:40:00.000Z Replan: reframed as named lens on existing adversarial pass (partial overlap, not new section); severity resolved → should-strengthen. Build deferred.

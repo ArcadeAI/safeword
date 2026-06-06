@@ -50,7 +50,12 @@ last_modified: 2026-05-24T21:30:00.000Z
 - Skill name — `/review-spec` (arcade's vocabulary) or `/review-scenarios` (safeword vocabulary)? Driver leans `/review-spec` to keep arcade migration clean and signal "this is the absorbed arcade skill."
 - Manual re-run after `done` phase — allowed (post-hoc spec audit) or blocked (ticket is closed)? Driver leans allowed; closed tickets are still readable.
 
+## Replan — 2026-06-06
+
+Validated: a separate skill is right (matches safeword's self-review / tdd-review / verify / audit pattern; "re-invokable after edits" is real value). **Two guardrails:** (1) the skill must **reference** scenario-gate's AODI + adversarial pass, not restate them (~60% of the content already exists) — keep the body lean; (2) **disambiguate its `description`** from the existing `self-review` skill (which reviews `spec.md` at the JTBD/AC/persona layer) to avoid trigger contention — `/review-spec` = scenario adversarial review, `self-review` = inline spec-framing self-pass. Name `/review-spec` (open question resolved). Still blocked on 9FSPM8 / XBY5QR / 73CKG4 / R09T59. Build deferred.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.722Z Started: Created ticket F2QZB4
 - 2026-05-24T21:30:00.000Z Drafted: Scope, dual-invocation modes, dependencies; linked to epic 0AWSY8
+- 2026-06-06T17:40:00.000Z Replan: confirmed separate-skill; added reference-not-restate + description-disambiguation-vs-self-review guardrails; name resolved → /review-spec. Still blocked on the 4 Phase-4 children. Build deferred.

@@ -83,7 +83,31 @@ last_modified: 2026-05-24T21:30:00.000Z
 - **DZ2NM5** (Phase 0 merge) — sibling epic. Scenario numbering, persona references, AC structure flow from Phase 0 into Phase 1.
 - **MBGQ89** (ticket-deps schema) — standalone safeword improvement that landed first; pairing/blocking fields used here.
 
+## Replan — 2026-06-06 validation pass
+
+Revalidated against the live arcade source, safeword's current `bdd` skill, and current Claude Code / Opus skill-authoring + BDD research (`/figure-it-out`). Direction holds; **calibrated absorption, not verbatim port** — children carried arcade's Python-shaped assumptions and ~40% duplication with machinery safeword already has.
+
+**Open decisions — resolved:**
+
+1. **codify placement** → standalone optional skill. "Fold into Phase 5 decomposition" is moot — safeword retired the `decomposition` phase (FSX1PP) after this epic was drafted. Emission must be **TypeScript-native** (CS86B0); arcade's Python/pytest-bdd/.feature does not run here.
+2. **/review-spec shape** → both (auto-fire from scenario-gate + re-invokable). (F2QZB4)
+3. **findings format** → adopt arcade's structured format. (R09T59)
+4. **storage shape** → resolved by DZ2NM5 shipping `spec.md`.
+5. **sizing** → features only; tasks keep the lighter inline AODI check.
+
+**Cross-cutting (applied to children):**
+
+- **Vocabulary drift** — "Phase 3 / Phase 4" here map to the **Define Behavior** and **Scenario Quality Gate** (`scenario-gate`) sections of the current `bdd/SCENARIOS.md` (named-phase migration, DKETNZ).
+- **Dedup** — of the 5 scenario rules, only **outcome-oriented** + **no-or** are genuinely new; **externally-verifiable** duplicates AODI **Observable** (reference, don't restate). Of the 4 Phase-4 checks, only **vacuous-pass** is genuinely new; negative-case / assertion-strength / determinism are named specifics layered on existing AODI + adversarial pass, not new sections.
+- **BDD correctness fix** — "Singular Then (one Then, no `and`)" is contradicted by BDD canon (Dan North's founding example, Fowler, Cucumber all `And`-join Then). Reframe to **one behavior / one When-Then pair**. (XN5SPN)
+- **Missing structural rules** to add (more fundamental than some of the 5, currently absent): one When per scenario, Given = state not action, Scenario Outline for data variation. (XN5SPN)
+- **Don't inherit arcade bugs** (if codify ported): arcade codify-spec writes `status: codified` (not canonical `asserted`) and maps from a stale "behaviors / Edge Cases" spec shape that no longer exists.
+- **Skill placement** — an invoked skill stays resident all session (Anthropic skill docs), so rules belong in the phase file (SCENARIOS.md), not SKILL.md; new skills reference, not restate, scenario-gate logic.
+
+Build deferred — this pass amends tickets only.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.411Z Started: Created ticket 0AWSY8
 - 2026-05-24T21:30:00.000Z Drafted: Epic shell with 7 children, sequencing, 5 open decisions, many-to-one pairing rationale
+- 2026-06-06T17:40:00.000Z Replan: validated epic + 7 children vs live arcade source + current docs/BDD research (/figure-it-out). Resolved 5 open decisions; recorded dedup, BDD Then-rule correction, TS-native codify, missing structural rules, vocabulary drift, arcade bugs-not-to-inherit. Tickets-only pass; build deferred.

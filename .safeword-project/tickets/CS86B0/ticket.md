@@ -1,7 +1,7 @@
 ---
 id: CS86B0
 slug: codify-spec-absorption
-title: 'Codify-spec absorption: emit .feature + step_def stubs from test-definitions.md'
+title: 'Codify-spec absorption: emit native vitest test skeletons from test-definitions.md'
 type: feature
 phase: intake
 status: in_progress
@@ -11,9 +11,9 @@ created: 2026-05-24T21:27:52.680Z
 last_modified: 2026-05-24T21:30:00.000Z
 ---
 
-# Codify-spec absorption: emit .feature + step_def stubs
+# Codify-spec absorption: emit native vitest test skeletons
 
-**Goal:** Add an optional safeword skill (working name `/codify` or `/emit-tests`) that reads a ticket's `test-definitions.md` and emits language-appropriate executable test stubs (e.g., `.feature` + pytest-bdd step defs for Python, or Vitest scenarios for TypeScript) that all fail with `NotImplementedError` / similar, providing a "N failing tests" progress metric throughout implementation.
+**Goal:** Add an optional safeword skill (working name `/codify`) that reads a ticket's `test-definitions.md` and emits **native vitest `*.test.ts` skeletons** — one `it()` per scenario, lineage-named, G/W/T as comments; default `it.todo()` pending markers, optional `--red` failing bodies — giving an "N tests to make pass" progress metric. TypeScript / vitest only; no Gherkin. See the Replan (2026-06-06) section for the full decision and rationale.
 
 **Why:** Safeword's TDD model writes one test at a time during each scenario's RED phase. Arcade's `/codify-spec` front-loads: all failing tests exist before any implementation. Both have value — front-loading gives a clear progress metric ("3/12 tests passing"), while interleaved keeps the focus tight. Making test-emission optional preserves the choice.
 
@@ -53,7 +53,25 @@ last_modified: 2026-05-24T21:30:00.000Z
 - TypeScript test framework — Vitest or playwright-bdd? Project-detected, with sensible default.
 - Idempotency on re-emission — overwrite, merge, refuse? Driver leans refuse-if-exists (user must delete first, prevents accidental overwrite of impl).
 
+## Replan — 2026-06-06 (figure-it-out; corrected scope supersedes the original above)
+
+**TypeScript-only** (user constraint). Arcade's Python/pytest-bdd/`.feature` does not run in safeword — vitest 4.1.7, no Gherkin runner.
+
+**Decision (`/figure-it-out`):** emit **native vitest `*.test.ts` skeletons, no Gherkin.** Only TS path that keeps vitest's native reporter/watch with zero new deps; `.feature` files buy nothing for a dev-internal tool with no non-technical readers. TS Gherkin runners (`@amiceli/vitest-cucumber` the only viable one) lose on a runtime dependency + a parallel two-file artifact set.
+
+**Emission shape:**
+
+- `describe('<jtbd-id>.AC#', …)` → `it('<scenario_name>', …)` per scenario, lineage-named per the SCENARIOS.md scheme, G/W/T as comments.
+- Default body **`it.todo('<scenario>')`** — pending inventory; keeps the suite green, reconciling with safeword's commit-on-GREEN + one-test-at-a-time discipline. Optional `--red` flag emits `it(…, () => { throw new Error('not implemented') })` for a true-RED board. (`it.fails` is wrong here — green-while-broken since vitest 4.1.)
+
+**Drop:** Python/pytest-bdd, `.feature`, the `decomposition` phase reference (retired), playwright-bdd, multi-language detection. TS/vitest only in v1.
+
+**Don't inherit arcade bugs:** arcade codify-spec writes `status: codified` (canonical is `asserted`) and maps from a stale "behaviors / Edge Cases" spec shape — neither applies; safeword reads `test-definitions.md` Rule/Scenario blocks.
+
+**Priority:** marginal value is modest — `test-definitions.md` already enumerates every scenario with R/G/R checkboxes (the "N to make pass" denominator). codify only auto-scaffolds the `.test.ts` files. **Defer remains defensible**; treat CS86B0 as low-priority / optional, not a headline child.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.680Z Started: Created ticket CS86B0
 - 2026-05-24T21:30:00.000Z Drafted: Scope, language coverage, RED verification, 3 open questions; linked to epic 0AWSY8
+- 2026-06-06T17:40:00.000Z Replan (/figure-it-out): re-scoped TS-only — emit native vitest skeletons (it.todo default, --red opt-in), drop Python/Gherkin/.feature/decomposition-ref/multi-lang. Noted arcade bugs not to inherit; flagged low-priority (test-definitions.md already gives the denominator). Build deferred.
