@@ -2,8 +2,8 @@
 id: 9FSPM8
 slug: vacuous-pass-test
 title: 'Add vacuous-pass test as Phase 4 scenario quality check'
-type: feature
-phase: intake
+type: task
+phase: verify
 status: in_progress
 epic: bdd-phase-one-merge
 paired_with: JWM8PD
@@ -58,3 +58,4 @@ Validated: **keep as-is — the single genuinely-new Phase-4 check** (no AODI / 
 - 2026-05-24T21:27:52.501Z Started: Created ticket 9FSPM8
 - 2026-05-24T21:30:00.000Z Drafted: Scope, vacuous patterns, open question; linked to epic 0AWSY8
 - 2026-06-06T17:40:00.000Z Replan: confirmed genuinely-new (the keeper Phase-4 check); order resolved → first; vocabulary note (scenario-gate). Build deferred.
+- 2026-06-06T18:45:00.000Z Implemented: added "### Vacuous-pass test" first in the Scenario Quality Gate of bdd SCENARIOS.md (template + dogfood mirror) — delete-the-feature procedure + 4 named vacuous patterns with fixes (existence-only, Given-echo, trivially-true setup, non-claim) + behavioral grounding (Beck Test Desiderata + mutation testing); updated the gate Exit checklist. Given-echo serves as the inline worked example (catch + fix), per the compact skill-authoring approach. Verified: parity 120 pairs + 3 contracts, markdownlint 0. Re-sized feature→task. Note: the done-when's "add a vacuous case to the DISCOVERY.md Phase-4 worked example" is moot — post-DZ2NM5 DISCOVERY.md only carries a Phase-0 worked example; the scenario-gate example lives inline in SCENARIOS.md. Formal /verify + /audit close gate pending.

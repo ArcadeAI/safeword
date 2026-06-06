@@ -159,6 +159,17 @@ tickets as advisories (never a gate):
 
 **Entry:** Agent enters `scenario-gate` phase.
 
+### Vacuous-pass test
+
+Run this **first** — a scenario that would pass without the feature invalidates every check below it. Mentally delete the implementation and ask: _could this scenario still pass?_ If yes, it is vacuous: flag it and propose a stronger `Then`, not just a warning. (A good test is _behavioral_ — if the behaviour changed, the result should change; a scenario that survives a deleted feature tests nothing.)
+
+Common vacuous patterns, each with its fix:
+
+- **Existence-only `Then`** ("a response is returned") → assert the actual value, not that _something_ came back.
+- **Given-echo** ("Given a row with X exists … Then a read returns X") → that exercises the store, not the feature; assert something the feature must compute or change.
+- **Trivially-true setup** — the `Given` already makes the `Then` true regardless of the `When` → move the real precondition out of the assertion.
+- **Non-claim `Then`** ("the system remains running") → assert a falsifiable outcome the feature produces.
+
 ### AODI Validation
 
 Validate each scenario against four criteria:
@@ -180,7 +191,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 ### Scenario Gate Exit (REQUIRED)
 
-1. Each scenario validated (Atomic, Observable, Deterministic, Independent)
+1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass complete — issues reported or confirmed clean
 3. **Assign test layers + sequence the work** — for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
 4. **Update frontmatter:** `phase: implement`
