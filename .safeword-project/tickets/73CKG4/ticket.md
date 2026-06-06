@@ -3,8 +3,8 @@ id: 73CKG4
 slug: assertion-strength-determinism
 title: 'Determinism-risk specifics in the scenario-gate (assertion-strength folded)'
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-one-merge
 paired_with: JWM8PD
 created: 2026-05-24T21:27:52.592Z
@@ -69,3 +69,4 @@ Narrowed to **determinism-only**. The assertion-strength half is now redundant: 
 - 2026-05-24T21:30:00.000Z Drafted: Scope (assertion strength + determinism risk), examples; linked to epic 0AWSY8
 - 2026-06-06T17:40:00.000Z Replan: reframed as named specifics on existing AODI Deterministic + pointer to testing Iron Law 2 (not new sections); examples count resolved → three. Build deferred.
 - 2026-06-06T23:20:00.000Z Re-scoped (post-quality-review): determinism-only; assertion-strength folded (already covered by testing Iron Law 2 + the shipped vacuous-pass check). Title updated; now consistent with the 0AWSY8 epic decision.
+- 2026-06-06T23:35:00.000Z Implemented + verified: added "Determinism risks" subsection to the scenario-gate (time-without-wait, order-dependent, unsequenced-concurrency + mitigations), grounded in Luo et al. (2014) + Fowler. Template + dogfood parity 120/120, markdownlint 0. verify.md written; closed.

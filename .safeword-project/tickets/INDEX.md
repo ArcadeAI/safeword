@@ -34,7 +34,7 @@
 - **0AWSY8** — Epic: Absorb arcade Phase 1 — scenario rules, adversarial review, codify, /review-spec (in_progress, epic: bdd-phase-one-merge)
   Absorb arcade's scenario-authoring and adversarial-review discipline into safeword's `bdd` Phases 3-4, plus arcade's `/codify-spec` test-emission as an optional safeword skill, plus extract Phase 4 into a re-invokable `/review-spec` skill. Specifically: explicit scenario-construction rules (singular Then, outcome-oriented, no-or, readability), the vacuous-pass test, negative-case-coverage, assertion-strength coaching, determinism-risk specifics, structured findings format, cross-cutting review categories, test-stub emission, and standalone review skill.
   → `.safeword-project/tickets/0AWSY8`
-- **73CKG4** — Determinism-risk specifics in the scenario-gate (assertion-strength folded) (in_progress, epic: bdd-phase-one-merge)
+- **73CKG4** — Determinism-risk specifics in the scenario-gate (assertion-strength folded) (done, epic: bdd-phase-one-merge)
   Add two Phase 4 enhancements: (1) assertion-strength coaching with weak→strong Then vocabulary, and (2) determinism-risk specifics with named failure patterns (time-dependent, ordering-dependent, concurrency).
   → `.safeword-project/tickets/73CKG4`
 - **9FSPM8** — Add vacuous-pass test as Phase 4 scenario quality check (done, epic: bdd-phase-one-merge)

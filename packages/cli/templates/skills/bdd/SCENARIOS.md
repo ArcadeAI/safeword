@@ -181,6 +181,16 @@ Validate each scenario against four criteria:
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
+### Determinism risks
+
+Sharpen AODI's **Deterministic** check with the patterns that actually flake in CI — each with its fix:
+
+- **Time without a wait** — a `Then` that depends on elapsed time, or asserts an async result after a fixed delay → wait on an observable condition (poll/await the state), never a bare `sleep`.
+- **Order-dependent comparison** — asserting an unordered collection as if it were ordered → sort, or compare as a set, before asserting.
+- **Unsequenced concurrency** — a `Then` over concurrent operations with no stated ordering → assert on the settled end-state, or name the ordering guarantee the scenario relies on.
+
+Assertion strength (weak vs strong `Then`) isn't repeated here — it is `testing` Iron Law 2, and the vacuous-pass check above already coaches a stronger `Then`.
+
 ### Adversarial pass
 
 After AODI validation, argue against your own scenario list: "What breaks that none of these scenarios catch?" Present any findings to the user.
