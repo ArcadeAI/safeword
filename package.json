@@ -26,14 +26,14 @@
     "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err"
   },
   "devDependencies": {
-    "dependency-cruiser": "^17.4.2",
+    "dependency-cruiser": "^17.4.3",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-jsdoc": "^63.0.0",
+    "eslint-plugin-jsdoc": "^63.0.2",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
-    "knip": "6.14.2",
-    "lint-staged": "^17.0.5",
+    "knip": "6.16.1",
+    "lint-staged": "^17.0.7",
     "markdownlint-cli2": "^0.22.1",
     "prettier": "^3.8.3",
     "prettier-plugin-sh": "^0.18.1",
