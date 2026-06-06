@@ -111,7 +111,7 @@ Write each saved `Given/When/Then` to these rules — they head off at authoring
 - **`Given` is state, not action** — establish the world, don't act in it. "Given the cart holds one item" ✓, not "Given the customer adds an item" ✗ (an action belongs in `When`).
 - **No `or` in the `Then`** — one outcome per scenario; "returns 200 **or** 201" is two scenarios. For one behavior across many inputs, use a `Scenario Outline` with an `Examples` table, not copy-pasted scenarios.
 
-`Then` outcomes must be externally observable too — but that is the scenario-gate's **Observable** check (AODI, below), so author for it here rather than restating it. These are construction-time guidance; the gate still validates each scenario adversarially.
+Two of these rules mirror gate checks — **one behavior** is AODI's **Atomic**, and externally-observable outcomes are its **Observable** (both in the Scenario Quality Gate below). Author for them here; the gate still validates every scenario adversarially.
 
 ### Scenario naming: lineage scheme
 
@@ -161,7 +161,7 @@ tickets as advisories (never a gate):
 
 ### Vacuous-pass test
 
-Run this **first** — a scenario that would pass without the feature invalidates every check below it. Mentally delete the implementation and ask: _could this scenario still pass?_ If yes, it is vacuous: flag it and propose a stronger `Then`, not just a warning. (A good test is _behavioral_ — if the behaviour changed, the result should change; a scenario that survives a deleted feature tests nothing.)
+Run this **first** — a scenario that would pass without the feature invalidates every check below it. Mentally delete the implementation and ask: _could this scenario still pass?_ If yes, it is vacuous: flag it and propose a stronger `Then`, not just a warning. (A good test is _behavioral_ — if the behavior changed, the result should change; a scenario that survives a deleted feature tests nothing.)
 
 Common vacuous patterns, each with its fix:
 
@@ -185,7 +185,7 @@ Validate each scenario against four criteria:
 
 After AODI validation, argue against your own scenario list: "What breaks that none of these scenarios catch?" Present any findings to the user.
 
-One lens to always run — **negative-case coverage**: for each happy-path scenario, is there a rejection-path counterpart? Partitioning should already have produced the invalid-input classes (equivalence partitioning covers invalid ranges, not only valid ones); this pass is the backstop. Common pairs — create ↔ duplicate, read ↔ not-found, update ↔ not-allowed, act ↔ precondition-failed. Treat a gap as **should-strengthen**, not must-fix — a sibling AC often already covers the rejection: _"Happy path X has no rejection counterpart — add a scenario for path Z?"_ For one behaviour across many inputs, use a `Scenario Outline`, not copy-pasted scenarios.
+One lens to always run — **negative-case coverage**: for each happy-path scenario, is there a rejection-path counterpart? Partitioning should already have produced the invalid-input classes (equivalence partitioning covers invalid ranges, not only valid ones); this pass is the backstop. Common pairs — create ↔ duplicate, read ↔ not-found, update ↔ not-allowed, act ↔ precondition-failed. Treat a gap as **should-strengthen**, not must-fix — a sibling AC often already covers the rejection: _"Happy path X has no rejection counterpart — add a scenario for path Z?"_ For one behavior across many inputs, use a `Scenario Outline`.
 
 ### Coverage saturation
 
