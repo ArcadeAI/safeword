@@ -2,8 +2,8 @@
 id: XBY5QR
 slug: negative-case-coverage
 title: 'Add negative-case-coverage as explicit Phase 4 rule'
-type: feature
-phase: intake
+type: task
+phase: verify
 status: in_progress
 epic: bdd-phase-one-merge
 paired_with: JWM8PD
@@ -51,3 +51,4 @@ Validated: **partial overlap** — safeword's dimensions/partitions already gene
 - 2026-05-24T21:27:52.550Z Started: Created ticket XBY5QR
 - 2026-05-24T21:30:00.000Z Drafted: Scope, examples, open question; linked to epic 0AWSY8
 - 2026-06-06T17:40:00.000Z Replan: reframed as named lens on existing adversarial pass (partial overlap, not new section); severity resolved → should-strengthen. Build deferred.
+- 2026-06-06T18:52:00.000Z Implemented: folded a negative-case-coverage lens into the Adversarial pass of bdd SCENARIOS.md (template + dogfood) — per-happy-path question, common pairs (create↔duplicate, read↔not-found, update↔not-allowed, act↔precondition-failed), should-strengthen severity, Scenario Outline pointer; grounded in equivalence partitioning (invalid classes). Kept as a lens, not a standalone section — no duplication of the Define-Behavior partitions discipline, no collision with R09T59's future cross-cutting categories. Verified: parity 120 pairs + 3 contracts, markdownlint 0. Re-sized feature→task. Formal /verify + /audit close gate pending.

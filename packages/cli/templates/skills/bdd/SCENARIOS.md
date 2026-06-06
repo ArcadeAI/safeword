@@ -185,6 +185,8 @@ Validate each scenario against four criteria:
 
 After AODI validation, argue against your own scenario list: "What breaks that none of these scenarios catch?" Present any findings to the user.
 
+One lens to always run — **negative-case coverage**: for each happy-path scenario, is there a rejection-path counterpart? Partitioning should already have produced the invalid-input classes (equivalence partitioning covers invalid ranges, not only valid ones); this pass is the backstop. Common pairs — create ↔ duplicate, read ↔ not-found, update ↔ not-allowed, act ↔ precondition-failed. Treat a gap as **should-strengthen**, not must-fix — a sibling AC often already covers the rejection: _"Happy path X has no rejection counterpart — add a scenario for path Z?"_ For one behaviour across many inputs, use a `Scenario Outline`, not copy-pasted scenarios.
+
 ### Coverage saturation
 
 If the adversarial pass + user feedback produced new scenarios → loop back to define-behavior. If nothing new surfaced → done.
