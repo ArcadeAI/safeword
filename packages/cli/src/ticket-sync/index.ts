@@ -14,6 +14,8 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { formatTicketReference } from '../utils/ticket-reference.js';
+
 export const TICKETS_RELATIVE_PATH = '.safeword-project/tickets';
 export const INDEX_FILENAME = 'INDEX.md';
 export const COMPLETED_INDEX_FILENAME = 'INDEX-completed.md';
@@ -181,7 +183,9 @@ export function readTickets(ticketsDirectory: string): {
 /** Render one entry as a two-or-three-line block. */
 function renderEntry(entry: TicketEntry): string[] {
   const epic = entry.epic ?? '—';
-  const lines = [`- **${entry.id}** — ${entry.title} (${entry.status}, epic: ${epic})`];
+  const lines = [
+    `- **${formatTicketReference(entry.id, entry.title)}** (${entry.status}, epic: ${epic})`,
+  ];
   if (entry.goal !== undefined) lines.push(`  ${entry.goal}`);
   lines.push(`  → \`${entry.relativePath}\``);
   return lines;

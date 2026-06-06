@@ -18,6 +18,7 @@ import { GLOSSARY_FILE_SUBPATH, parseGlossary, validateGlossary } from '../utils
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
 import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
 import { buildCoverageReport, type CoverageReport } from '../utils/scenario-coverage.js';
+import { formatTicketReference } from '../utils/ticket-reference.js';
 import { isNewerVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
@@ -188,16 +189,21 @@ function isInProgress(ticketContent: string): boolean {
 
 /** Render a coverage report into one advisory string per finding. */
 function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
+  const dashIndex = ticketId.indexOf('-');
+  const ticketLabel =
+    dashIndex === -1
+      ? ticketId
+      : formatTicketReference(ticketId.slice(0, dashIndex), ticketId.slice(dashIndex + 1));
   return [
     ...report.uncovered.map(
-      acId => `${ticketId}: acceptance criterion ${acId} has no scenario (uncovered)`,
+      acId => `${ticketLabel}: acceptance criterion ${acId} has no scenario (uncovered)`,
     ),
     ...report.stale.map(
       reference =>
-        `${ticketId}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
+        `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
     ),
     ...report.orphan.map(
-      reference => `${ticketId}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
+      reference => `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
     ),
   ];
 }
