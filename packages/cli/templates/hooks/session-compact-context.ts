@@ -74,11 +74,10 @@ if (!ticketContent) {
   process.exit(0);
 }
 
-// Extract title and goal
-const titleMatch = ticketContent.match(/^#\s+(.+)/m);
+// Read the goal from content; the ticket label is the slug (ZRXM6Q), derived
+// once in getTicketInfo and shared with the per-turn prompt hook.
 const goalMatch = ticketContent.match(/\*\*Goal:\*\*\s*(.+)/m);
 
-const title = titleMatch?.[1] ?? ticketInfo.folder;
 const goal = goalMatch?.[1] ?? '';
 const phase = ticketInfo.phase ?? 'unknown';
 const type = ticketInfo.type ?? 'task';
@@ -86,7 +85,7 @@ const gate = state.gate ?? 'none';
 
 const lines = [
   `SAFEWORD Context (restored after compaction):`,
-  `Ticket: ${title} (${state.activeTicket})`,
+  `Ticket: ${ticketInfo.slug ?? ticketInfo.folder} (${state.activeTicket})`,
   `Type: ${type} | Phase: ${phase} | Gate: ${gate}`,
 ];
 if (goal) {
