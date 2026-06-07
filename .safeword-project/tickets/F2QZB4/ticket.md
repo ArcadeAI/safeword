@@ -2,12 +2,12 @@
 id: F2QZB4
 slug: review-spec-skill
 title: 'Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits'
-type: feature
-phase: intake
-status: in_progress
+type: task
+phase: done
+status: done
 epic: bdd-phase-one-merge
 paired_with: JWM8PD
-blocked_on: [73CKG4, R09T59]
+blocked_on: []
 created: 2026-05-24T21:27:52.722Z
 last_modified: 2026-05-24T21:30:00.000Z
 ---
@@ -64,3 +64,4 @@ Narrowed `blocked_on` to `[73CKG4, R09T59]` (9FSPM8 + XBY5QR are done) and dropp
 - 2026-05-24T21:30:00.000Z Drafted: Scope, dual-invocation modes, dependencies; linked to epic 0AWSY8
 - 2026-06-06T17:40:00.000Z Replan: confirmed separate-skill; added reference-not-restate + description-disambiguation-vs-self-review guardrails; name resolved → /review-spec. Still blocked on the 4 Phase-4 children. Build deferred.
 - 2026-06-06T23:25:00.000Z Re-scope (post-quality-review): narrowed blocked_on to [73CKG4, R09T59] (9FSPM8 + XBY5QR done); dropped assertion-strength from the skill content list (folded into testing Iron Law 2). Now consistent with the 0AWSY8 epic table.
+- 2026-06-07T01:45:00.000Z Implemented + verified: extracted the scenario-gate review checks into a new `/review-spec` skill (template + dogfood); SCENARIOS.md gate → thin pointer + exit. Full action-skill wiring (cursor command, schema registration, SKILL_CURSOR_PAIRS fixture, ACTION_SKILLS, usage-context description disambiguated from self-review). Full /verify: lint clean, suite green (2517 pass; 1 unrelated python-golden-path flake, 11/11 in isolation), build ✓, parity 122 + 3 contracts, depcruise clean, knip baseline. Re-sized feature→task; verify.md written; closed.

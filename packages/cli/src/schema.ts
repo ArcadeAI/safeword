@@ -488,6 +488,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
     '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },
+    '.claude/skills/review-spec/SKILL.md': {
+      template: 'skills/review-spec/SKILL.md',
+    },
     '.claude/skills/cleanup-zombies/SKILL.md': {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
@@ -563,6 +566,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/commands/debug.md': { template: 'commands/debug.md' },
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
+    '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
     '.cursor/commands/audit.md': { template: 'commands/audit.md' },
     '.cursor/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',

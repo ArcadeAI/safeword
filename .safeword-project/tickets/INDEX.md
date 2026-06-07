@@ -43,7 +43,7 @@
 - **CS86B0** — Codify-spec absorption: emit native vitest test skeletons from test-definitions.md (in_progress, epic: bdd-phase-one-merge)
   Add an optional safeword skill (working name `/codify`) that reads a ticket's `test-definitions.md` and emits **native vitest `*.test.ts` skeletons** — one `it()` per scenario, lineage-named, G/W/T as comments; default `it.todo()` pending markers, optional `--red` failing bodies — giving an "N tests to make pass" progress metric. TypeScript / vitest only; no Gherkin. See the Replan (2026-06-06) section for the full decision and rationale.
   → `.safeword-project/tickets/CS86B0`
-- **F2QZB4** — Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits (in_progress, epic: bdd-phase-one-merge)
+- **F2QZB4** — Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits (done, epic: bdd-phase-one-merge)
   Extract the upgraded Phase 4 (scenario-gate) logic into a standalone `/review-spec` skill that is both auto-invoked by Phase 4 AND independently invokable for re-runs after scenario edits.
   → `.safeword-project/tickets/F2QZB4`
 - **R09T59** — Adopt structured findings format and cross-cutting review categories for Phase 4 output (done, epic: bdd-phase-one-merge)
