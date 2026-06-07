@@ -197,6 +197,36 @@ After AODI validation, argue against your own scenario list: "What breaks that n
 
 One lens to always run — **negative-case coverage**: for each happy-path scenario, is there a rejection-path counterpart? Partitioning should already have produced the invalid-input classes (equivalence partitioning covers invalid ranges, not only valid ones); this pass is the backstop. Common pairs — create ↔ duplicate, read ↔ not-found, update ↔ not-allowed, act ↔ precondition-failed. Treat a gap as **should-strengthen**, not must-fix — a sibling AC often already covers the rejection: _"Happy path X has no rejection counterpart — add a scenario for path Z?"_ For one behavior across many inputs, use a `Scenario Outline`.
 
+### Cross-cutting checks
+
+Five lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
+
+- **Conflict** — do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
+- **Boundary** — zero / one / max / empty / null covered where they apply?
+- **Failure** — external-dependency failures covered (timeout, 5xx, malformed, partition)? Distinct from the feature's own rejections (the negative-case lens above).
+- **Security** — authn/authz failures and abuse vectors covered?
+- **Persona consistency** — is each scenario's triggering persona clear, and would another persona experience it differently?
+
+### Findings format
+
+Report gate findings the way safeword talks to the user — lead with the answer, structure only because a multi-finding review earns it, end with the call:
+
+- **Lead with a tally** — `**Findings:** N must-fix, M should-strengthen, P looks-good.`
+- **Three tiers** — Must Fix (correctness/structure), Should Strengthen (clarity/specificity), Looks Good (specific acknowledgement, never padding).
+- **One `####` per finding** with the scenario id + a short issue; under it, **Current** (quote the G/W/T, bold the offending phrase) → why → **Proposed** (the rewrite). Fix last, so the explanation reads as the answer, not justification.
+- **Bulk** — when one pattern hits ≥3 scenarios: one header, an **Affected** id list, one **Representative** quote, one **Proposed pattern**.
+- **End with `**Next:**`** — the single fix to start.
+
+```text
+**Findings:** 1 must-fix, 0 should-strengthen.
+
+#### oauth.PO1.AC2.change_applies — Then joins two assertions with "and"
+Current: "Then the config shows B and later auths use B" — two independent observables.
+Proposed: "Then later authentications use User Source B."
+
+**Next:** split the AC2 scenario, then re-run the gate.
+```
+
 ### Coverage saturation
 
 If the adversarial pass + user feedback produced new scenarios → loop back to define-behavior. If nothing new surfaced → done.
@@ -204,7 +234,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 ### Scenario Gate Exit (REQUIRED)
 
 1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
-2. Adversarial pass complete — issues reported or confirmed clean
+2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
 3. **Assign test layers + sequence the work** — for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
 4. **Update frontmatter:** `phase: implement`
 5. **Add work log entry:**

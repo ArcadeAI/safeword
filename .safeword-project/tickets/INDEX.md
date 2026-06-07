@@ -46,7 +46,7 @@
 - **F2QZB4** — Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits (in_progress, epic: bdd-phase-one-merge)
   Extract the upgraded Phase 4 (scenario-gate) logic into a standalone `/review-spec` skill that is both auto-invoked by Phase 4 AND independently invokable for re-runs after scenario edits.
   → `.safeword-project/tickets/F2QZB4`
-- **R09T59** — Adopt structured findings format and cross-cutting review categories for Phase 4 output (in_progress, epic: bdd-phase-one-merge)
+- **R09T59** — Adopt structured findings format and cross-cutting review categories for Phase 4 output (done, epic: bdd-phase-one-merge)
   Replace safeword's prose findings output with arcade's structured format (h4 per finding, Current → explanation → Proposed, 3-tier severity, lead-with-tally, bulk template), and add cross-cutting review as a named-categories section (conflict, boundary, failure, security, persona consistency).
   → `.safeword-project/tickets/R09T59`
 - **XBY5QR** — Add negative-case-coverage as explicit Phase 4 rule (done, epic: bdd-phase-one-merge)

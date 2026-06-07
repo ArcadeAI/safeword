@@ -31,11 +31,11 @@ last_modified: 2026-05-24T21:30:00.000Z
 | **9FSPM8** | Vacuous-pass test in the scenario-gate                                           | JWM8PD      | Done   | —              |
 | **XBY5QR** | Negative-case-coverage lens in the adversarial pass                              | JWM8PD      | Done   | —              |
 | **73CKG4** | Determinism-risk specifics in the scenario-gate (assertion-strength folded)      | JWM8PD      | Done   | —              |
-| **R09T59** | Structured findings format + cross-cutting review categories                     | JWM8PD      | Open   | —              |
+| **R09T59** | Structured findings format + cross-cutting review categories                     | JWM8PD      | Done   | —              |
 | **F2QZB4** | Extract the scenario-gate into a standalone /review-spec skill                   | JWM8PD      | Open   | 73CKG4, R09T59 |
 | **CS86B0** | Codify absorption: emit native vitest test skeletons (optional)                  | JN39KG      | Open   | —              |
 
-`Done` = shipped in `bdd/SCENARIOS.md`, verified, and closed (`verify.md` present). 4/7 children done.
+`Done` = shipped in `bdd/SCENARIOS.md`, verified, and closed (`verify.md` present). 5/7 children done.
 
 **Paired arcade epic:** [ZPN3Z9](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/ZPN3Z9/ticket.md) — arcade-side decommission of `/review-spec` and `/codify-spec`.
 
@@ -110,8 +110,8 @@ Revalidated against the live arcade source, safeword's current `bdd` skill, and 
 
 The replan above is the design record; its child notes are written forward-looking — read them against this. What's actually shipped vs remaining:
 
-- **Shipped (verified + closed):** XN5SPN (construction rules), 9FSPM8 (vacuous-pass), XBY5QR (negative-case lens), 73CKG4 (determinism risks), plus VZK191 (post-review polish) — all in `bdd/SCENARIOS.md` (template + dogfood).
-- **Remaining:** **R09T59** — structured findings format, now a retrofit onto the already-shipped checks; **F2QZB4** — extract `/review-spec`, now blocked only on R09T59 (73CKG4 done); **CS86B0** — optional, TS-native, low-priority.
+- **Shipped (verified + closed):** XN5SPN (construction rules), 9FSPM8 (vacuous-pass), XBY5QR (negative-case lens), 73CKG4 (determinism risks), R09T59 (findings format + cross-cutting), plus VZK191 (post-review polish) — all in `bdd/SCENARIOS.md` (template + dogfood).
+- **Remaining:** **F2QZB4** — extract `/review-spec` into a standalone skill; **now unblocked** (73CKG4 + R09T59 done) — the next buildable child, and the first that adds a real skill file (not just SCENARIOS.md prose). **CS86B0** — optional, TS-native, low-priority.
 - **Arcade-side decommissions** (JWM8PD, JN39KG) — unchanged, still blocked on the safeword side.
 
 ## Work Log
@@ -121,3 +121,4 @@ The replan above is the design record; its child notes are written forward-looki
 - 2026-06-06T17:40:00.000Z Replan: validated epic + 7 children vs live arcade source + current docs/BDD research (/figure-it-out). Resolved 5 open decisions; recorded dedup, BDD Then-rule correction, TS-native codify, missing structural rules, vocabulary drift, arcade bugs-not-to-inherit. Tickets-only pass; build deferred.
 - 2026-06-06T22:58:00.000Z Reconciled (post-quality-review): re-tensed the replan into a shipped-vs-remaining Status section; marked XN5SPN/9FSPM8/XBY5QR `Impl` + corrected their table titles and CS86B0's (native vitest, not .feature); narrowed F2QZB4 deps to 73CKG4+R09T59; re-scoped 73CKG4 to determinism-only; demoted CS86B0 to optional in Done-when; tightened the asserted/codified wording (safeword has no spec-status field).
 - 2026-06-06T23:35:00.000Z 73CKG4 closed: Determinism risks subsection added to the scenario-gate (Luo et al. + Fowler grounding), verified, marked Done. Epic 4/7 children done; remaining R09T59 + F2QZB4 (+ optional CS86B0).
+- 2026-06-07T01:05:00.000Z R09T59 closed: findings format (compact house-style convention) + cross-cutting checks added to the scenario-gate, verified, marked Done. Epic 5/7. F2QZB4 now unblocked (both deps done) — next buildable child; CS86B0 optional.
