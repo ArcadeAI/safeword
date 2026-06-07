@@ -105,6 +105,16 @@ program
     syncTicketsCommand({ quiet: options.quiet });
   });
 
+program
+  .command('codify <ticket>')
+  .description("Emit a vitest test skeleton from a ticket's test-definitions.md")
+  .option('--red', 'Emit throwing it(...) bodies (true-RED board) instead of pending it.todo stubs')
+  .option('--out <path>', 'Write to a file (refuses to overwrite) instead of stdout')
+  .action(async (ticketId: string, options: { red?: boolean; out?: string }) => {
+    const { codify } = await import('./commands/codify.js');
+    await codify(ticketId, options);
+  });
+
 // Show help if no arguments provided
 if (process.argv.length === 2) {
   program.help();
