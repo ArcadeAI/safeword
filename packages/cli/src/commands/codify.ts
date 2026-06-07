@@ -87,7 +87,9 @@ function resolveTicketDirectory(cwd: string, ticket: string): string | undefined
   } catch {
     return undefined;
   }
-  const match = entries.find(name => name === ticket || name.startsWith(`${ticket}-`));
+  // Exact id wins over a `${id}-slug` prefix, independent of readdir order.
+  const match =
+    entries.find(name => name === ticket) ?? entries.find(name => name.startsWith(`${ticket}-`));
   return match === undefined ? undefined : nodePath.join(ticketsRoot, match);
 }
 
