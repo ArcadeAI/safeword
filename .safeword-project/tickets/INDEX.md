@@ -40,7 +40,7 @@
 - **9FSPM8** — Add vacuous-pass test as Phase 4 scenario quality check (done, epic: bdd-phase-one-merge)
   Add the vacuous-pass test as a named Phase 4 check — "Mentally remove the feature implementation. Could this scenario still pass?" Catches scenarios that test the test setup, where the Given pre-populates state that the Then trivially asserts.
   → `.safeword-project/tickets/9FSPM8`
-- **CS86B0** — Codify-spec absorption: emit native vitest test skeletons from test-definitions.md (in_progress, epic: bdd-phase-one-merge)
+- **CS86B0** — Codify-spec absorption: emit native vitest test skeletons from test-definitions.md (done, epic: bdd-phase-one-merge)
   Add an optional safeword skill (working name `/codify`) that reads a ticket's `test-definitions.md` and emits **native vitest `*.test.ts` skeletons** — one `it()` per scenario, lineage-named, G/W/T as comments; default `it.todo()` pending markers, optional `--red` failing bodies — giving an "N tests to make pass" progress metric. TypeScript / vitest only; no Gherkin. See the Replan (2026-06-06) section for the full decision and rationale.
   → `.safeword-project/tickets/CS86B0`
 - **F2QZB4** — Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits (done, epic: bdd-phase-one-merge)

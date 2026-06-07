@@ -3,8 +3,8 @@ id: CS86B0
 slug: codify-spec-absorption
 title: 'Codify-spec absorption: emit native vitest test skeletons from test-definitions.md'
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-one-merge
 paired_with: JN39KG
 created: 2026-05-24T21:27:52.680Z
@@ -96,3 +96,4 @@ done_when:
 - 2026-06-07T02:45:00.000Z Complete: define-behavior — 14 scenarios across 4 rules in test-definitions.md (AC1 mapping/grouping/robustness ×7, AC2 body-style ×2, AC3 output-sink/bad-input ×5); dimensions.md saved. Phase → scenario-gate.
 - 2026-06-07T03:00:00.000Z Complete: scenario-gate — independent review (forked subagent, /review-spec procedure) returned CHANGES: 2 must-fix, 5 should-strengthen. Applied all: pinned describe-name transform (heading minus `Rule:`, JSON.stringify-escaped) + added valid-module/special-chars scenario; broadened G/W/T to And-lines + added no-body stub; added one-to-one count; strengthened stdout/--out to assert content not existence; softened the --red message assertion; added --out parent-dir-missing I/O failure. 14 → 17 scenarios. AODI + determinism confirmed clean by the reviewer. Test layers: AC1/AC2 → unit (pure emitter, assert emitted string); AC3 → command-level (temp dir). Build order: emitter unit-first, then the thin command composing it. Phase → implement.
 - 2026-06-07T03:30:00.000Z Complete: implement — TDD'd the pure emitter src/utils/test-skeleton.ts (parseScenarios + emitVitestSkeleton; reuses computeSkipMask, parseHeading local) RED→GREEN, 11/11 unit tests (AC1+AC2), commit 0fa7bc1d; then the thin command src/commands/codify.ts + cli.ts registration RED→GREEN, 6/6 command tests (AC3), commit e4fc8d91. JSON.stringify escaping makes every emitted name a valid literal (no-eval validity assertion). Dogfooded on CS86B0: default it.todo board, --red throwing board, unknown-ticket error. All 17 R/G/R marked (RED/GREEN per-layer sha, REFACTOR + cross-scenario skip). Phase → verify.
+- 2026-06-07T03:45:00.000Z Complete: verify + done — /verify (full suite 2535 pass / 1 skip / 156 files, build ✓, lint clean) and /audit (depcruise ✔ no violations, knip baseline-only, jscpd no new clones) both invoked explicitly; verify.md written with the three done-gate patterns. CS86B0 done. Closes the final (optional) child of epic 0AWSY8 — all 7 children complete.

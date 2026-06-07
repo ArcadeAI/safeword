@@ -33,9 +33,9 @@ last_modified: 2026-05-24T21:30:00.000Z
 | **73CKG4** | Determinism-risk specifics in the scenario-gate (assertion-strength folded)      | JWM8PD      | Done   | —          |
 | **R09T59** | Structured findings format + cross-cutting review categories                     | JWM8PD      | Done   | —          |
 | **F2QZB4** | Extract the scenario-gate into a standalone /review-spec skill                   | JWM8PD      | Done   | —          |
-| **CS86B0** | Codify absorption: emit native vitest test skeletons (optional)                  | JN39KG      | Open   | —          |
+| **CS86B0** | Codify absorption: emit native vitest test skeletons (optional)                  | JN39KG      | Done   | —          |
 
-`Done` = shipped in `bdd/SCENARIOS.md`, verified, and closed (`verify.md` present). 6/7 children done.
+`Done` = shipped in `bdd/SCENARIOS.md`, verified, and closed (`verify.md` present). 7/7 children done.
 
 **Paired arcade epic:** [ZPN3Z9](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/ZPN3Z9/ticket.md) — arcade-side decommission of `/review-spec` and `/codify-spec`.
 
@@ -76,8 +76,8 @@ last_modified: 2026-05-24T21:30:00.000Z
 - `bdd` Phase 4 (scenario-gate) includes the vacuous-pass test, negative-case-coverage, assertion-strength coaching, and determinism-risk specifics — each as a named check.
 - `bdd` Phase 4 output uses the structured findings format (h4, Current/Proposed, 3-tier severity, tally, bulk template).
 - `/review-spec` exists as a re-invokable skill embodying the upgraded Phase 4 checks.
-- _(optional / stretch)_ `/codify` exists as an optional skill emitting **native vitest test skeletons** — deferrable, since `test-definitions.md`'s R/G/R checkboxes already provide the "N tests to pass" denominator.
-- All **required** child tickets are `done` (CS86B0 is optional).
+- ✅ `/codify` shipped as the optional **`safeword codify <ticket>` command** (not a skill — the full-TDD ask required testable code; figure-it-out refinement) emitting **native vitest test skeletons** (`it.todo` default, `--red` opt-in, stdout/`--out`).
+- ✅ All child tickets are `done` (including the optional CS86B0).
 - Worked example in SCENARIOS.md exercises all the new checks against a sample scenario set.
 
 ## Related
@@ -106,13 +106,13 @@ Revalidated against the live arcade source, safeword's current `bdd` skill, and 
 - **Don't inherit arcade bugs** (if codify ported): arcade's own canonical status is `asserted`, but its codify-spec writes `codified` (an arcade bug) and maps from a stale "behaviors / Edge Cases" spec shape — and safeword has no spec-status field at all, so port neither.
 - **Skill placement** — an invoked skill stays resident all session (Anthropic skill docs), so rules belong in the phase file (SCENARIOS.md), not SKILL.md; new skills reference, not restate, scenario-gate logic.
 
-## Status — 2026-06-06 (post-implementation)
+## Status — 2026-06-07 (all children complete)
 
-The replan above is the design record; its child notes are written forward-looking — read them against this. What's actually shipped vs remaining:
+The replan above is the design record; its child notes are written forward-looking — read them against this. What's actually shipped:
 
-- **Shipped (verified + closed):** XN5SPN, 9FSPM8, XBY5QR, 73CKG4, R09T59 (the scenario-gate checks in `bdd/SCENARIOS.md`), F2QZB4 (gate extracted into the standalone `/review-spec` skill), plus VZK191 (post-review polish).
-- **Remaining:** **CS86B0** — optional, TS-native, low-priority (the only child left; `test-definitions.md`'s R/G/R checkboxes already give the "N to pass" denominator, so deferring stays defensible). All **required** children are done.
-- **Arcade-side decommissions** (JWM8PD, JN39KG) — unchanged, still blocked on the safeword side.
+- **Shipped (verified + closed):** XN5SPN, 9FSPM8, XBY5QR, 73CKG4, R09T59 (the scenario-gate checks in `bdd/SCENARIOS.md`), F2QZB4 (gate extracted into the standalone `/review-spec` skill), CS86B0 (`safeword codify` command + pure emitter), plus VZK191 (post-review polish).
+- **Remaining:** none on the safeword side — all 7 children done. The epic's safeword scope is complete.
+- **Arcade-side decommissions** (JWM8PD, JN39KG) — external (arcade repo); both now unblocked (safeword has absorbed all their checks + codify). Flip them in arcade, then this epic can close. Left `in_progress` here pending that cross-repo step.
 
 ## Work Log
 
@@ -123,3 +123,4 @@ The replan above is the design record; its child notes are written forward-looki
 - 2026-06-06T23:35:00.000Z 73CKG4 closed: Determinism risks subsection added to the scenario-gate (Luo et al. + Fowler grounding), verified, marked Done. Epic 4/7 children done; remaining R09T59 + F2QZB4 (+ optional CS86B0).
 - 2026-06-07T01:05:00.000Z R09T59 closed: findings format (compact house-style convention) + cross-cutting checks added to the scenario-gate, verified, marked Done. Epic 5/7. F2QZB4 now unblocked (both deps done) — next buildable child; CS86B0 optional.
 - 2026-06-07T01:45:00.000Z F2QZB4 closed: extracted the scenario-gate into the `/review-spec` skill (+ full action-skill wiring — cursor command, schema, SKILL_CURSOR_PAIRS fixture, ACTION_SKILLS); SCENARIOS.md gate → thin pointer. Full /verify green (2517 pass; 1 unrelated flake). Epic 6/7 — all required children done; only optional CS86B0 remains.
+- 2026-06-07T03:45:00.000Z CS86B0 closed: shipped `/codify` as the `safeword codify <ticket>` command + pure `emitVitestSkeleton` (TS-native vitest skeletons; it.todo default, --red opt-in, stdout/--out refuse-on-exist) via full BDD/TDD — 17 scenarios, independent scenario-gate review applied, 17 new tests, /verify (2535 pass) + /audit clean. Epic 7/7 — all children done; safeword scope complete. Only the external arcade decommissions (JN39KG, JWM8PD) remain, now unblocked.
