@@ -61,12 +61,15 @@ function writeSkeleton(
   skeleton: string,
   count: number,
 ): void {
-  if (existsSync(outPath)) {
-    fail(`Refusing to overwrite ${displayPath} — delete it first or choose another path.`);
-  }
   try {
-    writeFileSync(outPath, skeleton);
+    // `wx` = write but fail atomically if the path exists — no check-then-write TOCTOU gap.
+    writeFileSync(outPath, skeleton, { flag: 'wx' });
   } catch (writeError: unknown) {
+    const code =
+      writeError instanceof Error ? (writeError as NodeJS.ErrnoException).code : undefined;
+    if (code === 'EEXIST') {
+      fail(`Refusing to overwrite ${displayPath} — delete it first or choose another path.`);
+    }
     const reason = writeError instanceof Error ? writeError.message : 'unknown error';
     fail(`Failed to write ${displayPath}: ${reason}`);
   }
