@@ -73,6 +73,16 @@ if (existsSync(stateFile)) {
           done: 'Phase: done. Close ticket (verify.md exists).',
         };
 
+        // Name the active ticket slug-first (ZRXM6Q) so the per-turn reminder
+        // reads in names, not the opaque ID — recognition over recall.
+        const ticketFolder = ticketInfo.folder ?? state.activeTicket;
+        const ticketSlug = ticketFolder.startsWith(`${state.activeTicket}-`)
+          ? ticketFolder.slice(state.activeTicket.length + 1)
+          : '';
+        lines.push(
+          `- Ticket: ${ticketSlug ? `${ticketSlug} (${state.activeTicket})` : state.activeTicket}`,
+        );
+
         const reminder = reminders[phase];
         if (reminder) {
           lines.push(`- ${reminder}`);
