@@ -351,6 +351,7 @@ describe('Phase Derivation (#124)', () => {
 
       expect(output).toContain('099');
       expect(output).toContain('implement');
+      expect(output).toContain('Ticket: test-ticket (099)');
     });
 
     it('5.2: legacy shared file ignored gracefully', () => {
