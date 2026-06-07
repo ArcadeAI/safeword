@@ -3,12 +3,29 @@ id: CS86B0
 slug: codify-spec-absorption
 title: 'Codify-spec absorption: emit native vitest test skeletons from test-definitions.md'
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 epic: bdd-phase-one-merge
 paired_with: JN39KG
 created: 2026-05-24T21:27:52.680Z
-last_modified: 2026-05-24T21:30:00.000Z
+last_modified: 2026-06-07T02:30:00.000Z
+scope:
+  - 'CLI command `safeword codify <ticket>`: resolve the ticket folder, read its test-definitions.md'
+  - 'Pure `emitVitestSkeleton(content, { red })` in src/utils — parse `## Rule:`/`### Scenario:` blocks (reuse computeSkipMask + parseAcReferenceFromTitle); emit one describe per rule, one it per scenario, G/W/T as comments'
+  - 'Default `it.todo()` pending stubs; `--red` emits `it(…, () => { throw new Error("not implemented") })`'
+  - 'stdout by default; `--out <path>` writes a file, refusing to overwrite an existing one'
+  - 'Clear errors when test-definitions.md is missing or contains no scenarios'
+out_of_scope:
+  - 'Python / pytest-bdd / .feature output (vitest-only, no Gherkin runner)'
+  - 'Re-codify / merge after scenario edits (refuse-if-exists is the guard; merge is a future ticket)'
+  - 'Auto-implementing test bodies (stubs only; implementation is TDD Phase 6)'
+  - 'Hook auto-fire on phase transitions (opt-in via command invocation only)'
+  - 'Languages beyond TypeScript; multi-language project detection'
+done_when:
+  - 'emitVitestSkeleton emits one test per scenario, grouped by rule, full-lineage names, G/W/T comments (unit-tested against a fixture)'
+  - 'Default output uses it.todo; --red output uses a throwing it body'
+  - 'codify command prints to stdout, --out writes + refuses-on-exist, missing/empty input errors (command-tested)'
+  - 'command registered in cli.ts; full /verify + /audit pass; verify.md written'
 ---
 
 # Codify-spec absorption: emit native vitest test skeletons
@@ -75,3 +92,6 @@ last_modified: 2026-05-24T21:30:00.000Z
 - 2026-05-24T21:27:52.680Z Started: Created ticket CS86B0
 - 2026-05-24T21:30:00.000Z Drafted: Scope, language coverage, RED verification, 3 open questions; linked to epic 0AWSY8
 - 2026-06-06T17:40:00.000Z Replan (/figure-it-out): re-scoped TS-only — emit native vitest skeletons (it.todo default, --red opt-in), drop Python/Gherkin/.feature/decomposition-ref/multi-lang. Noted arcade bugs not to inherit; flagged low-priority (test-definitions.md already gives the denominator). Build deferred.
+- 2026-06-07T02:30:00.000Z Complete: intake — authored spec.md (JTBD codify.DEV1 + AC1/2/3 for the DEV persona); added scope/out_of_scope/done_when frontmatter. Verdict refined: describe-per-`## Rule:` (rule = readable AC label, no free-text fallback) instead of describe-per-AC; lineage stays in each it() name. Build as CLI command + pure emitter (TDD target). Phase → define-behavior.
+- 2026-06-07T02:45:00.000Z Complete: define-behavior — 14 scenarios across 4 rules in test-definitions.md (AC1 mapping/grouping/robustness ×7, AC2 body-style ×2, AC3 output-sink/bad-input ×5); dimensions.md saved. Phase → scenario-gate.
+- 2026-06-07T03:00:00.000Z Complete: scenario-gate — independent review (forked subagent, /review-spec procedure) returned CHANGES: 2 must-fix, 5 should-strengthen. Applied all: pinned describe-name transform (heading minus `Rule:`, JSON.stringify-escaped) + added valid-module/special-chars scenario; broadened G/W/T to And-lines + added no-body stub; added one-to-one count; strengthened stdout/--out to assert content not existence; softened the --red message assertion; added --out parent-dir-missing I/O failure. 14 → 17 scenarios. AODI + determinism confirmed clean by the reviewer. Test layers: AC1/AC2 → unit (pure emitter, assert emitted string); AC3 → command-level (temp dir). Build order: emitter unit-first, then the thin command composing it. Phase → implement.
