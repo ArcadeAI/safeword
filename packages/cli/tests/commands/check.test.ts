@@ -505,6 +505,22 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).toMatch(/COV001:.*demo\.DEV1\.AC2.*uncovered/i);
     });
 
+    it('renders the coverage advisory slug-first when the folder carries a slug (ZRXM6Q)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // check derives the advisory label from the ticket folder name (id-slug),
+      // so a slugged folder must lead with the slug: `slug (ID):`, not bare ID.
+      writeTicket('COV003-trace-thing', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/trace-thing \(COV003\):.*demo\.DEV1\.AC2.*uncovered/i);
+    });
+
     it('stays silent for a done ticket whose scenarios predate the scheme', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV002', 'done', {
