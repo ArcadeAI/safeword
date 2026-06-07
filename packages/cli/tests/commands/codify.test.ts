@@ -8,7 +8,6 @@
  */
 
 import { readdirSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
