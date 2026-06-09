@@ -2,10 +2,26 @@
 id: '102a'
 slug: gherkin-typescript
 title: 'Executable Gherkin specs for TypeScript projects'
-type: Feature
-status: backlog
-priority: low
+type: feature
+status: in_progress
+phase: implement
+priority: high
 parent: '102'
+epic: bdd-phase-one-merge
+scope:
+  - '`safeword codify --format gherkin <ticket>`: render a `.feature` (Feature + one Scenario per scenario, G/W/T → Given/When/Then steps, lineage → `@tags`) from test-definitions.md — extends the CS86B0 emitter as an additive renderer'
+  - 'Wire cucumber-js as a separate acceptance runner in safeword’s own repo: `@cucumber/cucumber` + `tsx` devDeps, a `cucumber.mjs` (import `tsx/esm` + steps glob; paths `features/**/*.feature`), and a `test:bdd` script; the vitest unit suite stays untouched'
+  - 'One dogfood `.feature` + step defs (driving the built CLI via the existing `runCli` helper) that runs green under cucumber-js — proves the setup end to end'
+out_of_scope:
+  - '`.feature` replacing test-definitions.md as the scenario source of truth (the bdd-flow change) — follow-on slice / separate ticket'
+  - '`/review-spec` + `safeword check` reading `.feature`; R-G-R rehoming — follow-on'
+  - 'Customer-project scaffolding of cucumber-js via `safeword setup` — follow-on'
+  - 'Non-TS apps (102b); native-language step defs (102c, cancelled)'
+  - 'Scenario Outline / Examples emission (no outline construct in test-definitions.md yet)'
+done_when:
+  - '`safeword codify --format gherkin` emits a valid `.feature` (Feature/Scenario/steps/@tags), unit-tested against a fixture; default (no flag) still emits vitest'
+  - '`bun run test:bdd` runs the dogfood `.feature` green via cucumber-js, separate from the vitest `test` script'
+  - 'full /verify + /audit pass; verify.md written'
 ---
 
 # Feature: Gherkin for TypeScript Projects
