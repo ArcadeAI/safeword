@@ -3,22 +3,38 @@ id: '102'
 slug: gherkin-executable-specs
 title: 'Epic: Executable Gherkin specifications'
 type: Epic
-status: backlog
-priority: low
-children: ['102a', '102b', '102c']
+status: in_progress
+priority: high
+parent: '0AWSY8'
+epic: bdd-phase-one-merge
+children: ['102a', '102b']
 ---
 
 # Epic: Executable Gherkin Specifications
 
-SafeWord orchestrates BDD but has no executable specs — internally or for customers. This epic adds real Gherkin execution in three stages, each removing one compromise.
+SafeWord orchestrates BDD but has no executable specs — internally or for customers. This epic adds real Gherkin execution, all in TypeScript.
+
+## Replan — 2026-06-09 (folded into Phase 1; cucumber-js; all-TypeScript)
+
+**Folded into Phase 1 (0AWSY8).** Executable Gherkin is core BDD absorption, not a side track — it's the merge requirement that lets arcade-monorepo adopt safeword. `parent: 0AWSY8`; Phase 1 no longer closes until 102a + 102b ship.
+
+**Runner: cucumber-js (reverses the QuickPickle choice in the children below).** Decided after a live-docs deep-dive: cucumber-js wins on the three axes that matter for a cross-team, customer-facing harness — org-maintained (no solo-maintainer bus factor), native Cucumber JSON/HTML reporting (the living-documentation payoff QuickPickle lacks — vitest-reports only), and the same Cucumber family as arcade's pytest-bdd (shared tag canon + report format + mental model). Accepted cost: a **separate acceptance-test runner** alongside vitest — reframed as the normal two-layer split (fast units in vitest; human-readable `.feature` acceptance tests in cucumber-js). QuickPickle's only edge (single-runner DX in safeword's own repo) doesn't serve the merge and doesn't travel to customers.
+
+**All TypeScript (102c cancelled).** Step defs are uniformly TypeScript. Non-TS apps stay covered by TS step defs that shell out or hit HTTP (102b). Native-language step defs (godog/pytest-bdd/cucumber-rs) are dropped — see cancelled 102c.
+
+**CS86B0 is the seed — not a from-scratch build.** Safeword already shipped `safeword codify` (a pure emitter + CLI turning `test-definitions.md` into native vitest). 102a **retargets that emitter** to emit `.feature` files + cucumber-js step stubs instead — same parse/emit architecture, different output.
+
+**Grounded in arcade's real usage.** arcade-monorepo already authors tagged `.feature` files (`tests/behaviors/<service>/<spec>.feature`) with a tag taxonomy `@service:` / `@spec:<id>` / `@B-<behavior-id>` / `@smoke`/`@fast` and persona-driven Scenario Outlines hitting HTTP — but **has not wired a runner yet**, so building cucumber-js is greenfield for both. Safeword should adopt arcade's tag taxonomy (derive `@spec:`/`@B-` from its existing `<jtbd>.AC#` lineage; drop `@service:` — single-package).
+
+The QuickPickle-specific sections further below (file structure, install steps) are **historical design context** — the concrete cucumber-js architecture is set per-child at intake + `/figure-it-out`.
 
 ## Children
 
-| Ticket   | Scope                   | Step defs              | Runner                  |
-| -------- | ----------------------- | ---------------------- | ----------------------- |
-| **102a** | TypeScript projects     | TypeScript             | QuickPickle/Vitest      |
-| **102b** | Non-TypeScript projects | TypeScript (shell out) | QuickPickle/Vitest      |
-| **102c** | Customer choice         | Native language        | godog, pytest-bdd, etc. |
+| Ticket   | Scope                          | Step defs  | Runner                          |
+| -------- | ------------------------------ | ---------- | ------------------------------- |
+| **102a** | TypeScript projects + safeword | TypeScript | **cucumber-js**                 |
+| **102b** | Non-TS apps (shell-out / HTTP) | TypeScript | **cucumber-js**                 |
+| ~~102c~~ | ~~Customer native-lang steps~~ | ~~native~~ | _cancelled 2026-06-09 (all-TS)_ |
 
 ## Progression
 

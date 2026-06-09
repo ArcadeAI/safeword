@@ -11,7 +11,9 @@ depends_on: 102a
 
 # Feature: Gherkin for Non-TypeScript Projects (TS Step Defs)
 
-**Type:** Feature | **Priority:** Backlog | **Parent:** Epic 102 | **Depends on:** 102a
+**Type:** Feature | **Priority:** Medium | **Parent:** Epic 102 (under Phase 1 / 0AWSY8) | **Depends on:** 102a
+
+> **Decision update — 2026-06-09.** Still in scope, and now load-bearing for the arcade merge: arcade is a polyglot monorepo whose services are tested over HTTP, so **TypeScript cucumber-js step defs drive non-TS services** (shell-out _or_ HTTP client). Swap QuickPickle → **cucumber-js** throughout. The all-TS decision keeps step defs uniformly TypeScript — this ticket is exactly that path. (Native-language step defs were 102c, now cancelled.)
 
 ## Problem
 

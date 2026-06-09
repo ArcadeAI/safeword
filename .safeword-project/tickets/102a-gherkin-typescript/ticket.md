@@ -10,7 +10,9 @@ parent: '102'
 
 # Feature: Gherkin for TypeScript Projects
 
-**Type:** Feature | **Priority:** Backlog | **Parent:** Epic 102
+**Type:** Feature | **Priority:** High | **Parent:** Epic 102 (under Phase 1 / 0AWSY8)
+
+> **Decision update — 2026-06-09 (supersedes the QuickPickle plan below).** Runner is **cucumber-js**, not QuickPickle — see epic 102's Replan for the deep-dive rationale (org-maintained vs solo-maintainer bus factor; native Cucumber JSON/HTML living-doc reporting; same Cucumber family as arcade's pytest-bdd). It runs as a **separate acceptance-test runner alongside vitest** (units stay vitest) — not the in-vitest single-runner model described below. The concrete cucumber-js architecture (config, World, step layout, `.feature` location, retargeting CS86B0's `safeword codify` emitter from vitest → `.feature` + step stubs, tag taxonomy `@spec:`/`@B-`) is set at this ticket's intake + `/figure-it-out`. The QuickPickle-specific sections below are kept as historical design context, **not** the build plan.
 
 ## Problem
 
