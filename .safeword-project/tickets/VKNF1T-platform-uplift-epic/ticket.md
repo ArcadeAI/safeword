@@ -27,6 +27,7 @@ last_modified: 2026-06-06T21:18:25.265Z
 | **C2F601** | Audit Claude Code/Cowork skills, absorb (adopt/adapt/ref/skip)      | intake (research) |
 | **9BDDGP** | Dynamic workflows: mechanism (which skills) + positioning           | intake (research) |
 | **NTT094** | Explain-in-English: plain-language view of safeword artifacts/state | intake            |
+| **PHATHE** | Catch-me-up: on-demand session recap (where you are + what's next)  | intake            |
 
 **B — Sharpen the audit surface**
 
@@ -40,7 +41,7 @@ last_modified: 2026-06-06T21:18:25.265Z
 | ---------- | ------------------------------------------------------------------------------ | ------------------ |
 | **469YSR** | Styled output orphans its glyph on a leading-newline message                   | task (build-ready) |
 | **3293WH** | Auto-run health verification after setup/upgrade; demote `check`               | intake (feature)   |
-| **ZRXM6Q** | Render ticket references slug-first (slug + ID locator) across hooks/CLI/INDEX | task (build-ready) |
+| **ZRXM6Q** | Render ticket references slug-first (slug + ID locator) across hooks/CLI/INDEX | ✅ done            |
 
 ## Cross-cutting threads (why one epic)
 
