@@ -50,6 +50,22 @@ describe('listArchitectureRecords (Rule 1)', () => {
     );
   });
 
+  it('reports an absent location with zero records', () => {
+    const result = listArchitectureRecords(nodePath.join(directory, 'does-not-exist'));
+
+    expect(result.kind).toBe('absent');
+    expect(result.records).toEqual([]);
+  });
+
+  it('reports a README-only directory with zero records', () => {
+    writeFileSync(nodePath.join(directory, 'README.md'), '# ADR conventions\n');
+
+    const result = listArchitectureRecords(directory);
+
+    expect(result.kind).toBe('directory');
+    expect(result.records).toEqual([]);
+  });
+
   it('excludes README.md from directory records', () => {
     writeFileSync(nodePath.join(directory, 'README.md'), '# ADR conventions\n');
     writeFileSync(nodePath.join(directory, '0001-storage.md'), '# ADR-001\n');

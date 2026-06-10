@@ -29,8 +29,8 @@ When the helper lists architecture records
 Then the records contain `0001-storage.md` only
 
 - [x] RED bff235e7
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN bf956576
+- [x] REFACTOR skip: one filter condition added, chain still reads at a glance
 
 ### Scenario: adr-consultation.DEV1.AC2.absent_location_reports_no_records
 
