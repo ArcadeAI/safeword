@@ -60,10 +60,35 @@ describe('parseImplPlan status lifecycle (Rule 1)', () => {
   });
 });
 
+const SECTION_BODIES: Record<string, string> = {
+  Approach: 'Build the thing in one slice.',
+  Decisions:
+    '| Decision | Choice | Alternatives considered | Rejected because |\n| - | - | - | - |\n| Storage | File | DB | Overkill |',
+  'Arch alignment': 'Honors the sibling-artifact pattern.',
+  'Known deviations': 'None.',
+  'Assessment triggers': 'Revisit past 10x load.',
+};
+
+/** The five sections with selected bodies overridden (empty string = blank section). */
+function sectionsWith(overrides: Record<string, string> = {}): string {
+  return Object.entries({ ...SECTION_BODIES, ...overrides })
+    .map(([name, body]) => (body === '' ? `## ${name}\n` : `## ${name}\n\n${body}\n`))
+    .join('\n');
+}
+
 describe('parseImplPlan section validation (Rule 2)', () => {
   it('reports a populated section as satisfied', () => {
     const result = parseImplPlan(plan('planned'));
     expect(result.sections.Decisions?.satisfied).toBe(true);
     expect(result.sections.Decisions?.skip).toBeNull();
+  });
+
+  it('reports a skip-annotated section as satisfied with its reason preserved', () => {
+    const result = parseImplPlan(
+      plan('planned', sectionsWith({ 'Arch alignment': 'skip: no ADRs in this project yet' })),
+    );
+    expect(result.sections['Arch alignment']?.satisfied).toBe(true);
+    expect(result.sections['Arch alignment']?.skip).toBe('no ADRs in this project yet');
+    expect(result.errors).toEqual([]);
   });
 });

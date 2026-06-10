@@ -50,9 +50,9 @@ Given an impl-plan.md whose `## Decisions` section contains a table row
 When the parser validates sections
 Then the Decisions section is reported satisfied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07ade4a6
+- [x] GREEN f6a2af46
+- [x] REFACTOR skip: activeLines helper extracted at GREEN; no further duplication
 
 ### Scenario: impl-plan-artifact.DEV1.AC2.skip_with_reason_satisfies
 
