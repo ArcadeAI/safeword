@@ -18,7 +18,7 @@ Given the location is a directory containing `0001-storage.md`, `ADR-queue.md`, 
 When the helper lists architecture records
 Then it reports kind `directory` and the record set equals exactly the three top-level `.md` files (order-insensitive; accept-any naming, no recursion, non-markdown excluded)
 
-- [ ] RED
+- [x] RED 1ace2ffa
 - [ ] GREEN
 - [ ] REFACTOR
 

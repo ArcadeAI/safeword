@@ -8,7 +8,8 @@
  * separate ADR-location field.
  */
 
-import { statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
+import nodePath from 'node:path';
 
 export type ArchitectureLocationKind = 'file' | 'directory' | 'absent';
 
@@ -22,6 +23,12 @@ export function listArchitectureRecords(resolvedPath: string): ArchitectureRecor
   const stats = statSync(resolvedPath, { throwIfNoEntry: false });
   if (stats?.isFile()) {
     return { kind: 'file', records: [resolvedPath] };
+  }
+  if (stats?.isDirectory()) {
+    const records = readdirSync(resolvedPath, { withFileTypes: true })
+      .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+      .map(entry => nodePath.join(resolvedPath, entry.name));
+    return { kind: 'directory', records };
   }
   throw new Error('not implemented');
 }
