@@ -163,4 +163,48 @@ describe('safeword codify', () => {
     },
     TIMEOUT_QUICK,
   );
+
+  it(
+    'gherkin-typescript.DEV1.AC2.default_emits_vitest',
+    async () => {
+      scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
+      const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('describe(');
+      expect(result.stdout).not.toContain('Feature:');
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'gherkin-typescript.DEV1.AC2.format_gherkin_emits_feature',
+    async () => {
+      scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
+      const result = await runCli(['codify', TICKET_ID, '--format', 'gherkin'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Feature:');
+      expect(result.stdout).not.toContain('describe(');
+      expect((result.stdout.match(/^\s*Scenario:/gm) ?? []).length).toBe(2);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'gherkin-typescript.DEV1.AC2.unknown_format_errors',
+    async () => {
+      scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
+      const result = await runCli(['codify', TICKET_ID, '--format', 'bogus'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/gherkin/);
+      expect(result.stderr).toMatch(/vitest/);
+    },
+    TIMEOUT_QUICK,
+  );
 });

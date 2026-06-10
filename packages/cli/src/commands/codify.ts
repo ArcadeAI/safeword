@@ -11,10 +11,12 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { error, success } from '../utils/output.js';
-import { emitVitestSkeleton, parseScenarios } from '../utils/test-skeleton.js';
+import { emitGherkinFeature, emitVitestSkeleton, parseScenarios } from '../utils/test-skeleton.js';
 
 export interface CodifyOptions {
-  /** Emit throwing `it(...)` bodies (a true-RED board) instead of pending stubs. */
+  /** Output format: `vitest` (default) or `gherkin`. */
+  format?: string;
+  /** Emit throwing `it(...)` bodies (a true-RED board) instead of pending stubs (vitest only). */
   red?: boolean;
   /** Write to this path (refusing to overwrite) instead of stdout. */
   out?: string;
@@ -27,6 +29,7 @@ export function codify(ticket: string, options: CodifyOptions): Promise<void> {
 
 function codifySync(ticket: string, options: CodifyOptions): void {
   const cwd = process.cwd();
+  const format = resolveFormat(options.format);
 
   const ticketDirectory = resolveTicketDirectory(cwd, ticket);
   if (ticketDirectory === undefined) {
@@ -46,12 +49,23 @@ function codifySync(ticket: string, options: CodifyOptions): void {
     fail(`No scenarios found in ${nodePath.relative(cwd, testDefinitionsPath)}.`);
   }
 
-  const skeleton = emitVitestSkeleton(content, { red: options.red, source: ticket });
+  const skeleton =
+    format === 'gherkin'
+      ? emitGherkinFeature(content, { source: ticket })
+      : emitVitestSkeleton(content, { red: options.red, source: ticket });
   if (options.out === undefined) {
     process.stdout.write(skeleton);
     return;
   }
   writeSkeleton(nodePath.resolve(cwd, options.out), options.out, skeleton, scenarios.length);
+}
+
+/** Validate `--format`, defaulting to vitest; fail on an unknown value. */
+function resolveFormat(format = 'vitest'): 'gherkin' | 'vitest' {
+  if (format !== 'gherkin' && format !== 'vitest') {
+    fail(`Invalid --format=${format}. Must be one of: vitest, gherkin.`);
+  }
+  return format;
 }
 
 /** Write the skeleton to a fresh path; refuse to clobber, report write failures with context. */
