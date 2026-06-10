@@ -9,6 +9,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { listArchitectureRecords } from '../../src/utils/architecture-records.js';
+import { resolveConfiguredPath } from '../../src/utils/configured-paths.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 let directory: string;
@@ -64,6 +65,28 @@ describe('listArchitectureRecords (Rule 1)', () => {
 
     expect(result.kind).toBe('directory');
     expect(result.records).toEqual([]);
+  });
+
+  it('consumes a configured paths.architecture override directory (seam with resolveConfiguredPath)', () => {
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ version: 1, paths: { architecture: 'docs/docs/arch' } }),
+    );
+    mkdirSync(nodePath.join(directory, 'docs', 'docs', 'arch'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'docs', 'docs', 'arch', '0001-foo.md'), '# ADR\n');
+
+    const resolved = resolveConfiguredPath(
+      directory,
+      'architecture',
+      '.safeword-project/architecture.md',
+    );
+    const result = listArchitectureRecords(resolved);
+
+    expect(result.kind).toBe('directory');
+    expect(result.records).toEqual([
+      nodePath.join(directory, 'docs', 'docs', 'arch', '0001-foo.md'),
+    ]);
   });
 
   it('excludes README.md from directory records', () => {

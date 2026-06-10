@@ -39,8 +39,8 @@ When the helper lists architecture records
 Then it reports kind `absent` with zero records
 
 - [x] RED 4c18a4d5
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 62dcee19
+- [x] REFACTOR skip: stub line replaced with the absent return, function complete at 12 lines
 
 ### Scenario: adr-consultation.DEV1.AC2.readme_only_directory_reports_no_records
 
@@ -48,9 +48,9 @@ Given the location is a directory containing only `README.md`
 When the helper lists architecture records
 Then it reports kind `directory` with zero records
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — README exclusion (bf956576) already yields zero records for a README-only directory; characterization test
+- [x] GREEN 4c18a4d5
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: adr-consultation.DEV1.AC1.configured_override_directory_is_consumed
 
