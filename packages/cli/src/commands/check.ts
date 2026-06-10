@@ -11,6 +11,7 @@ import { getMissingPacks } from '../packs/registry.js';
 import { reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { syncTickets } from '../ticket-sync/index.js';
+import { listArchitectureRecords } from '../utils/architecture-records.js';
 import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
@@ -135,6 +136,59 @@ function findGlossaryAdvisories(cwd: string): string[] {
 }
 
 const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
+
+const ARCHITECTURE_DEFAULT_SUBPATH = nodePath.join('.safeword-project', 'architecture.md');
+
+/**
+ * Surface architecture-claim mismatches as non-blocking advisories (ticket
+ * K4BWTQ). Structural only — no prose extraction (YR6C49 ruling): when an
+ * in-progress ticket's impl-plan.md Arch alignment section carries content
+ * (not `skip:`) but the resolved `paths.architecture` location does not
+ * exist, the claim cannot be honoring anything recorded. Zero-exit.
+ */
+function findArchitectureAdvisories(cwd: string): string[] {
+  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  let ticketIds: string[];
+  try {
+    ticketIds = readdirSync(ticketsRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && entry.name !== 'completed')
+      .map(entry => entry.name);
+  } catch {
+    return [];
+  }
+
+  const resolved = resolveConfiguredPath(cwd, 'architecture', ARCHITECTURE_DEFAULT_SUBPATH);
+  if (listArchitectureRecords(resolved).kind !== 'absent') return [];
+
+  return ticketIds.flatMap(ticketId => {
+    const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
+    const ticketContent = readFileSafe(nodePath.join(ticketDirectory, 'ticket.md'));
+    if (ticketContent === undefined || !isInProgress(ticketContent)) return [];
+    const implPlan = readFileSafe(nodePath.join(ticketDirectory, 'impl-plan.md'));
+    if (implPlan === undefined) return [];
+    if (!archAlignmentHasContent(implPlan)) return [];
+    return [
+      `${ticketId}: impl-plan.md Arch alignment claims alignment, but no architecture record exists at ${resolved} — record the decision or mark the section skip:`,
+    ];
+  });
+}
+
+/** Whether the impl plan's `## Arch alignment` section carries real content
+ * (non-empty, not a `skip:` annotation). */
+function archAlignmentHasContent(implPlanContent: string): boolean {
+  let inSection = false;
+  const body: string[] = [];
+  for (const raw of implPlanContent.split('\n')) {
+    const line = raw.trim();
+    if (line.startsWith('## ')) {
+      inSection = line.slice(3).trim().toLowerCase() === 'arch alignment';
+      continue;
+    }
+    if (inSection && line !== '') body.push(line);
+  }
+  if (body.length === 0) return false;
+  return !(body.length === 1 && (body[0] ?? '').toLowerCase().startsWith('skip:'));
+}
 
 /**
  * Surface scenario-lineage coverage gaps as non-blocking advisories (ticket
@@ -340,6 +394,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
       ...findCoverageAdvisories(cwd),
+      ...findArchitectureAdvisories(cwd),
     ],
     missingPackages: result.packagesToInstall,
     missingPacks,
