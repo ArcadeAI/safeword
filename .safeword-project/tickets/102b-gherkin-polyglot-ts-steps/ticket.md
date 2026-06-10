@@ -4,7 +4,7 @@ slug: gherkin-polyglot-ts-steps
 title: 'Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS)'
 type: feature
 status: in_progress
-phase: intake
+phase: scenario-gate
 priority: high
 parent: '102'
 epic: bdd-phase-one-merge
