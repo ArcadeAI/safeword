@@ -14,9 +14,9 @@ Then it reports kind `file` with that file as the single record
 
 ### Scenario: adr-consultation.DEV1.AC1.directory_location_lists_each_md_as_adr
 
-Given the location is a directory containing `0001-storage.md`, `ADR-queue.md`, and `naming-freeform.md`
+Given the location is a directory containing `0001-storage.md`, `ADR-queue.md`, `naming-freeform.md`, a non-markdown `notes.txt`, and a subdirectory `nested/` holding `0002-deep.md`
 When the helper lists architecture records
-Then it reports kind `directory` with all three files as records (accept-any naming)
+Then it reports kind `directory` and the record set equals exactly the three top-level `.md` files (order-insensitive; accept-any naming, no recursion, non-markdown excluded)
 
 - [ ] RED
 - [ ] GREEN
@@ -103,7 +103,7 @@ Then no architecture question is surfaced for that ticket
 
 Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogfood copies (.claude/skills/bdd)
 When SCENARIOS.md's scenario-gate exit is scanned in both copies
-Then each copy documents the consultation procedure (read records at the configured location), the "None recorded yet" canonical copy, and the first-ADR prompt with both branches in the worked example
+Then each copy contains, as three separately-asserted markers: (a) the consultation procedure step (list/read records at the resolved location), (b) the canonical "None recorded yet" copy, and (c) the first-ADR prompt with both branches in the worked example
 
 - [ ] RED
 - [ ] GREEN
