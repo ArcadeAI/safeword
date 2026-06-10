@@ -3,7 +3,7 @@ id: K4BWTQ
 slug: adr-consultation
 title: 'Add required ADR consultation step and ADR-creation prompt for new patterns'
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
@@ -96,4 +96,5 @@ Wait for the user's answer before proceeding.
 - 2026-05-24T21:37:59.788Z Started: Created ticket K4BWTQ
 - 2026-05-24T21:39:00.000Z Drafted: Scope (location + consultation step + prompt), hook integration, 3 open questions; linked to epic M6D315
 - 2026-06-10T22:20:00.000Z Replan: paths.architecture file-or-dir reuse (no adrLocation field); consultation runs at impl-plan authoring (scenario-gate exit); naming questions resolved accept-any.
+- 2026-06-10T23:45:00.000Z Define-behavior exit: dimensions.md (6 dimensions, pruning recorded incl. the deliberate skip+present non-check) + test-definitions.md with 10 lineage-numbered scenarios across 3 rules. Phase → scenario-gate.
 - 2026-06-10T23:40:00.000Z Intake exit: /figure-it-out settled the validation design — structural advisory only (Arch alignment content + absent location → check question), per the YR6C49 no-prose-extraction ruling; per-reference validation deferred to MBGQ89. XDNSZA dependency satisfied (done). spec.md authored (2 JTBDs, 3 ACs, /self-review stamped); scope/out_of_scope/done_when written. Autonomous session — sub-phase gates auto-confirmed. Phase → define-behavior.
