@@ -40,11 +40,12 @@ last_modified: 2026-06-06T21:18:25.265Z
 
 **C — Harden the surfaces** (output legibility + robustness)
 
-| ID         | Title                                                                          | State              |
-| ---------- | ------------------------------------------------------------------------------ | ------------------ |
-| **469YSR** | Styled output orphans its glyph on a leading-newline message                   | task (build-ready) |
-| **3293WH** | Auto-run health verification after setup/upgrade; demote `check`               | intake (feature)   |
-| **ZRXM6Q** | Render ticket references slug-first (slug + ID locator) across hooks/CLI/INDEX | ✅ done            |
+| ID         | Title                                                                              | State              |
+| ---------- | ---------------------------------------------------------------------------------- | ------------------ |
+| **469YSR** | Styled output orphans its glyph on a leading-newline message                       | task (build-ready) |
+| **3293WH** | Auto-run health verification after setup/upgrade; demote `check`                   | intake (feature)   |
+| **ZRXM6Q** | Render ticket references slug-first (slug + ID locator) across hooks/CLI/INDEX     | ✅ done            |
+| **P30CRP** | Load SAFEWORD.md via SessionStart + compact hooks, not CLAUDE.md/AGENTS.md @import | intake (feature)   |
 
 ## Cross-cutting threads (why one epic)
 
