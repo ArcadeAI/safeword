@@ -17,7 +17,7 @@
  * valid string literal and the emitted module always parses.
  */
 
-import { computeSkipMask } from './markdown-sections.js';
+import { computeSkipMask, parseHeading } from './markdown-sections.js';
 import { parseAcReferenceFromTitle } from './scenario-coverage.js';
 
 const RULE_PREFIX = 'Rule:';
@@ -224,19 +224,4 @@ function firstHeading(content: string): string | undefined {
     }
   }
   return undefined;
-}
-
-/**
- * An ATX heading → `{ level, text }`, or undefined for a non-heading line.
- * Counts leading `#` without a quantifier-over-quantifier regex and requires a
- * whitespace separator before the text (mirrors scenario-coverage.ts).
- */
-function parseHeading(line: string): { level: number; text: string } | undefined {
-  const trimmed = line.trim();
-  let level = 0;
-  while (level < trimmed.length && trimmed.charAt(level) === '#') level += 1;
-  if (level === 0 || level > 6) return undefined;
-  const rest = trimmed.slice(level);
-  if (rest.length === 0 || !rest.startsWith(' ')) return undefined;
-  return { level, text: rest.trim() };
 }
