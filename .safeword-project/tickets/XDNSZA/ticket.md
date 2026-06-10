@@ -3,7 +3,7 @@ id: XDNSZA
 slug: impl-plan-artifact
 title: 'Impl plan as first-class artifact with Approach / Decisions / Arch alignment / Known deviations / Assessment triggers + status lifecycle'
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
@@ -105,4 +105,5 @@ Inherited decisions now resolved — see M6D315 replan:
 - 2026-06-10T22:20:00.000Z Replan: storage + authoring point resolved (impl-plan.md sibling, scenario-gate exit); VYRKBJ skip-discipline scope folded in; named-phase vocabulary applied.
 - 2026-06-10T22:30:00.000Z Intake exit: /figure-it-out settled remaining design (Decisions table; **Status:** bold-label line; Approach includes task breakdown; uniform non-empty skip rule; gate phases implement+done, routed on spec.md presence for grandfathering). scope/out_of_scope/done_when written. Autonomous session — user sub-phase gates auto-confirmed per standing instruction ("proceed as you see fit"). Phase → define-behavior.
 - 2026-06-10T22:45:00.000Z Define-behavior exit: spec.md authored (2 JTBDs, 4 ACs, /self-review stamped), dimensions.md (8 dimensions, pruning recorded), test-definitions.md with 20 lineage-numbered scenarios across 4 rules. Phase → scenario-gate.
+- 2026-06-11T00:15:00.000Z Implement complete: 20/20 scenarios R/G/R-annotated (parser lib hooks/lib/impl-plan.ts, stop-quality checkImplPlanArtifact gate, impl-plan-template.md + schema registration, SCENARIOS.md/TDD.md both copies). Skipped REDs logged where behavior shipped with a prior scenario's minimal GREEN (closed-set status, trim, gate characterization cells). Phase → verify.
 - 2026-06-10T23:05:00.000Z Scenario-gate exit: independent Tier-2 review (fresh subagent, /review-spec) returned BLOCK on MF1 (incomplete Givens on exemption scenarios → unattributable Thens) + SS1-SS3; all four applied (Givens completed, Thens → "permits the stop", docs scenario actor fixed, done-block lineage → SM1.AC1, done-pass pruning recorded in dimensions.md); re-review PASS. Layers: parser scenarios → unit tests on templates/hooks/lib/impl-plan.ts; gate scenarios → stop-quality hook tests; template/docs → doc-presence tests. Sequence: parser status → parser sections → template → gate → docs. Review stamp written. Phase → implement.

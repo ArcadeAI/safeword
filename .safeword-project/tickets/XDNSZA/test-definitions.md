@@ -204,9 +204,9 @@ Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogf
 When the SCENARIOS.md scenario-gate exit step and the TDD.md entry step are scanned in both copies
 Then each scanned file references impl-plan.md authoring and its five sections
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 21b99617
+- [x] GREEN ee70af86
+- [x] REFACTOR skip: docs edit, prose already house-style
 
 ---
 
@@ -214,4 +214,4 @@ Then each scanned file references impl-plan.md authoring and its five sections
 
 Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks if this row is missing or has an empty skip reason on tickets that use the annotated checkbox format.
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: fixtures were consolidated as they grew (sectionsWith/sectionsWithout shared across Rule 2; writeTicket/runStopHook shared across Rule 3); the parser is one cohesive 120-line module with no duplication left to extract
