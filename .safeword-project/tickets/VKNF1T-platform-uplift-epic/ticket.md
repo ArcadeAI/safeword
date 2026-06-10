@@ -30,6 +30,7 @@ last_modified: 2026-06-06T21:18:25.265Z
 | **PHATHE** | Catch-me-up: on-demand session recap (where you are + what's next)      | intake            |
 | **PV5K6D** | Embed brainstorm + elicit at the right workflow points (ties to ZBVGPF) | intake            |
 | **Z4Q24Q** | Model-tier policy: opus / sonnet / fable per task                       | intake            |
+| **AKZJXC** | Structured ticket relations (depends_on/blocks), absorbed from Linear   | intake            |
 
 **B — Sharpen the audit surface**
 
