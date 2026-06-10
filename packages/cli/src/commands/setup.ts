@@ -378,21 +378,6 @@ function logExistingFormatter(ctx: ProjectContext): void {
 }
 
 /**
- * Log detected language and skip message
- */
-function logDetectedLanguage(languages: Languages): void {
-  if (languages.python && !languages.javascript) {
-    info('Python project detected (skipping JS tooling)');
-  }
-  if (languages.golang && !languages.javascript) {
-    info('Go project detected (skipping JS tooling)');
-  }
-  if (languages.rust && !languages.javascript) {
-    info('Rust project detected (skipping JS tooling)');
-  }
-}
-
-/**
  * Register and setup detected language packs
  */
 function registerLanguagePacks(cwd: string): void {
@@ -465,18 +450,17 @@ export async function setup(options: SetupOptions): Promise<void> {
       rust: false,
       sql: false,
     };
-    const isNonJsOnly =
-      (languages.python || languages.golang || languages.rust) && !languages.javascript;
-
-    logDetectedLanguage(languages);
-
     const result = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
     success('Created .safeword directory and configuration');
 
-    // Language-specific setup
-    const { archFiles, workspaceUpdates } = isNonJsOnly
-      ? { archFiles: [], workspaceUpdates: [] }
-      : setupJavaScriptProject(cwd, ctx, result.packagesToInstall);
+    // Language-specific setup. The JS path runs unconditionally: ensurePackageJson
+    // guarantees a package.json (the BDD lane's home, ticket 102b), which is what
+    // language detection keys "javascript" on — every project is a JS project now.
+    const { archFiles, workspaceUpdates } = setupJavaScriptProject(
+      cwd,
+      ctx,
+      result.packagesToInstall,
+    );
     const pythonStatus = setupPythonProject(languages, cwd);
     setupGoProject(languages);
     registerLanguagePacks(cwd);
