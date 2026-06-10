@@ -123,8 +123,8 @@ When the stop hook runs its cumulative artifact checks
 Then it hard-blocks with a message naming impl-plan.md and the authoring point (scenario-gate exit)
 
 - [x] RED 524eb02c
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 2e8f5373
+- [x] REFACTOR skip: gate function mirrors checkCumulativeArtifacts shape by design
 
 ### Scenario: impl-plan-artifact.DEV1.AC1.implement_with_valid_impl_plan_passes
 

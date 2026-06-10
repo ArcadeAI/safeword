@@ -136,4 +136,55 @@ describe('impl-plan cumulative gate (Rule 3)', () => {
     expect(reason).toContain('impl-plan.md');
     expect(reason).toContain('scenario-gate exit');
   });
+
+  it('permits the stop for a new-flow feature at implement with a valid impl-plan.md', () => {
+    writeTicket({
+      id: 'IPG002',
+      type: 'feature',
+      phase: 'implement',
+      spec: true,
+      implPlan: VALID_PLAN,
+    });
+    const reason = runStopHook('IPG002');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+
+  it('blocks at implement when the impl-plan has an empty unskipped Decisions section', () => {
+    writeTicket({
+      id: 'IPG003',
+      type: 'feature',
+      phase: 'implement',
+      spec: true,
+      implPlan: VALID_PLAN.replace(
+        /## Decisions[\s\S]*?## Arch alignment/u,
+        '## Decisions\n\n## Arch alignment',
+      ),
+    });
+    const reason = runStopHook('IPG003');
+    expect(reason).toContain('Decisions');
+  });
+
+  it('exempts a grandfathered feature (no spec.md) at implement', () => {
+    writeTicket({ id: 'IPG004', type: 'feature', phase: 'implement' });
+    const reason = runStopHook('IPG004');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+
+  it('exempts a task ticket at implement', () => {
+    writeTicket({ id: 'IPG005', type: 'task', phase: 'implement' });
+    const reason = runStopHook('IPG005');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+
+  it('exempts a new-flow feature before implement (scenario-gate)', () => {
+    writeTicket({ id: 'IPG006', type: 'feature', phase: 'scenario-gate', spec: true });
+    const reason = runStopHook('IPG006');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+
+  it('blocks a new-flow feature at done with no impl-plan.md', () => {
+    writeTicket({ id: 'IPG007', type: 'feature', phase: 'done', spec: true });
+    const reason = runStopHook('IPG007');
+    expect(reason).toContain('impl-plan.md');
+  });
 });
