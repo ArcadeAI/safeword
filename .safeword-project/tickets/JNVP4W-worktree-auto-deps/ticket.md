@@ -3,7 +3,7 @@ id: JNVP4W
 slug: worktree-auto-deps
 type: task
 phase: intake
-status: in_progress
+status: backlog
 created: 2026-06-06T18:13:21.754Z
 last_modified: 2026-06-06T18:13:21.754Z
 ---
@@ -52,3 +52,4 @@ last_modified: 2026-06-06T18:13:21.754Z
 - 2026-06-06T18:13:21.754Z Started: Created ticket JNVP4W
 - 2026-06-06T18:14:00.000Z Drafted: Goal/Why/Scope/Done-when + /figure-it-out decision (SessionStart auto-install, --frozen-lockfile) and rejected alternatives. Sourced from the 0AWSY8 replan session where the block was hit.
 - 2026-06-06T22:55:00.000Z Corrected (quality-review + /figure-it-out): fixed the WorktreeCreate rationale — it DOES fire for isolation:"worktree"; real reasons to reject are VCS-adapter/replaces-git + drops .worktreeinclude (#27744 open). Recorded the blocking-not-async decision (SessionStart blocks init; order early so the chain + first commit see node_modules), degrade-exits-0, and the CLAUDE_PROJECT_DIR gate. Softened "offline" → "offline from a warm cache." Still build-deferred.
+- 2026-06-10T20:18:00.000Z Status → backlog (was in_progress since filing): build stays deferred; in_progress was polluting active-ticket detection for the whole Phase-1 session. Plan is converged — pick up from the figure-it-out decisions above.

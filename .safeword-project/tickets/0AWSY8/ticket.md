@@ -73,13 +73,13 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 ## Done when
 
-- `bdd` Phase 3 (SCENARIOS.md) includes explicit scenario-construction rules with examples.
-- `bdd` Phase 4 (scenario-gate) includes the vacuous-pass test, negative-case-coverage, assertion-strength coaching, and determinism-risk specifics — each as a named check.
-- `bdd` Phase 4 output uses the structured findings format (h4, Current/Proposed, 3-tier severity, tally, bulk template).
-- `/review-spec` exists as a re-invokable skill embodying the upgraded Phase 4 checks.
-- ✅ `/codify` shipped as the optional **`safeword codify <ticket>` command** (not a skill — the full-TDD ask required testable code; figure-it-out refinement) emitting **native vitest test skeletons** (`it.todo` default, `--red` opt-in, stdout/`--out`).
-- ✅ All child tickets are `done` (including the optional CS86B0).
-- Worked example in SCENARIOS.md exercises all the new checks against a sample scenario set.
+- ✅ `bdd` define-behavior (SCENARIOS.md) includes explicit scenario-construction rules with examples.
+- ✅ The scenario-gate includes the vacuous-pass test, negative-case-coverage, and determinism-risk specifics — each as a named check (assertion-strength folded into `testing` Iron Law 2 per the 73CKG4 re-scope).
+- ✅ Gate output uses the structured findings format (h4, Current/Proposed, 3-tier severity, tally, bulk template).
+- ✅ `/review-spec` exists as a re-invokable skill embodying the upgraded gate checks.
+- ✅ `/codify` shipped as the **`safeword codify <ticket>` command** (not a skill — the full-TDD ask required testable code) emitting **native vitest skeletons** (`it.todo` default, `--red` opt-in) and, per the 102 extension, **`--format gherkin`** `.feature` files for the scaffolded acceptance lane.
+- ✅ All child tickets are `done` (including the optional CS86B0 and the folded-in epic 102: 102a + 102b done, 102c cancelled).
+- ✅ Worked example — resolved as not-needed (F2QZB4 resident-cost call: the findings-format example + mode docs suffice; a separate worked block would duplicate). DISCOVERY.md's intake worked example covers the upstream chain.
 
 ## Related
 

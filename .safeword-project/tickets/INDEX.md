@@ -565,7 +565,7 @@
 - **HRN1Z6** — Upgrade eslint-plugin-jsdoc v62 → v63 (done, epic: —)
   Bump `eslint-plugin-jsdoc` from v62 to v63 across the monorepo and fix the root `package.json` categorization (currently in `dependencies`, belongs in `devDependencies`).
   → `.safeword-project/tickets/HRN1Z6`
-- **JNVP4W** — Auto-install deps in fresh worktrees via SessionStart hook (in_progress, epic: —)
+- **JNVP4W** — Auto-install deps in fresh worktrees via SessionStart hook (backlog, epic: —)
   A freshly created git worktree auto-installs its dependencies on session start, so commits (and tests/lint) work immediately instead of failing at the pre-commit guard with "node_modules not installed."
   → `.safeword-project/tickets/JNVP4W-worktree-auto-deps`
 - **JZXVKN** — Extract shared findDuplicates/groupByLine validator helpers (done, epic: —)
