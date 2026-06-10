@@ -59,3 +59,11 @@ describe('parseImplPlan status lifecycle (Rule 1)', () => {
     ).toBe(true);
   });
 });
+
+describe('parseImplPlan section validation (Rule 2)', () => {
+  it('reports a populated section as satisfied', () => {
+    const result = parseImplPlan(plan('planned'));
+    expect(result.sections.Decisions?.satisfied).toBe(true);
+    expect(result.sections.Decisions?.skip).toBeNull();
+  });
+});

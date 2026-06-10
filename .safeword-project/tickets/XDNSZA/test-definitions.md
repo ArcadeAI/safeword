@@ -39,8 +39,8 @@ When the parser reads the file content
 Then it reports a validation error listing the allowed values `planned` and `implemented`
 
 - [x] RED 64c67f25
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN bc11f88b
+- [x] REFACTOR skip: one else-branch, status block complete and readable
 
 ## Rule: Each of the five sections must carry content or an auditable skip
 
