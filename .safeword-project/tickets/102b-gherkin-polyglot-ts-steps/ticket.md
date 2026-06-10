@@ -1,17 +1,37 @@
 ---
 id: '102b'
 slug: gherkin-polyglot-ts-steps
-title: 'Executable Gherkin specs for non-TS projects via TypeScript step defs'
-type: Feature
-status: backlog
-priority: low
+title: 'Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS)'
+type: feature
+status: in_progress
+phase: intake
+priority: high
 parent: '102'
+epic: bdd-phase-one-merge
 depends_on: 102a
+scope:
+  - '`safeword setup` scaffolds the cucumber-js acceptance lane as standard output (BDD is core, not opt-in): cucumber.mjs, a steps/ scaffold (world + shared shell-out steps + barrel), a features/ dir with a runnable starter, the @cucumber/cucumber + tsx devDeps, and a test:bdd script'
+  - 'Lane files registered as templates in SAFEWORD_SCHEMA ownedFiles (owned like other core files); the deps added to the base package set'
+  - 'Extend ensurePackageJson to create a minimal package.json for pure-non-JS repos (Go/Rust/Python) — reversing its current refusal — so the JS-based runner has a home; the only TS-vs-non-TS divergence'
+  - 'Golden-path tests: a freshly set-up TS project and a pure-non-JS (Go) project both get the lane, and `bun run test:bdd` runs the scaffolded starter green'
+out_of_scope:
+  - '`safeword check` verification of the lane wiring — follow-on'
+  - 'The `.feature`-as-source bdd-flow change (test-definitions.md → .feature as the authoring output) — separate slice'
+  - 'Language-specific convenience steps — thin shared shell-out core only; grow on real duplication'
+  - 'codify populating a real `.feature` into the scaffold — the developer runs codify separately'
+  - 'An opt-out / disable mechanism — BDD is core (per the 2026-06-10 decision)'
+done_when:
+  - '`safeword setup` writes the full cucumber-js lane (config + steps scaffold + features/ starter + deps + test:bdd script), verified on a TS fixture'
+  - 'A pure-non-JS (Go) fixture gets a minimal package.json + the lane, verified'
+  - 'The scaffolded lane runs its starter feature green via `bun run test:bdd`, out of the box (golden-path)'
+  - 'full /verify + /audit pass; verify.md written'
 ---
 
 # Feature: Gherkin for Non-TypeScript Projects (TS Step Defs)
 
 **Type:** Feature | **Priority:** Medium | **Parent:** Epic 102 (under Phase 1 / 0AWSY8) | **Depends on:** 102a
+
+> **Reframed — 2026-06-10 (supersedes the QuickPickle / non-TS-only plan below).** Runner is **cucumber-js**, all-TypeScript; the lane is **core safeword setup, not opt-in** (BDD is what safeword is). Scope widened to the **combined customer scaffold** (TS + non-TS), subsuming the TS-customer scaffold 102a deferred — the non-TS case is just "create a minimal `package.json` so the JS runner has a home." Mechanism: `SAFEWORD_SCHEMA.ownedFiles` templates + base deps + an `ensurePackageJson` change (not a language pack, not an opt-in flag). The QuickPickle-specific plan below is historical; the real plan is `spec.md`.
 
 > **Decision update — 2026-06-09.** Still in scope, and now load-bearing for the arcade merge: arcade is a polyglot monorepo whose services are tested over HTTP, so **TypeScript cucumber-js step defs drive non-TS services** (shell-out _or_ HTTP client). Swap QuickPickle → **cucumber-js** throughout. The all-TS decision keeps step defs uniformly TypeScript — this ticket is exactly that path. (Native-language step defs were 102c, now cancelled.)
 
