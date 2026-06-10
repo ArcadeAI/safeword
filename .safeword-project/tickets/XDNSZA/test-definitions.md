@@ -128,9 +128,9 @@ Then it hard-blocks with a message naming impl-plan.md and the authoring point (
 
 ### Scenario: impl-plan-artifact.DEV1.AC1.implement_with_valid_impl_plan_passes
 
-Given a feature ticket at phase `implement` whose folder contains spec.md and an impl-plan.md with five satisfied sections and a status line
+Given a feature ticket at phase `implement` whose folder contains spec.md, a test-definitions.md with scenarios, and an impl-plan.md with five satisfied sections and a status line
 When the stop hook runs its cumulative artifact checks
-Then it does not block on the impl plan
+Then it permits the stop (no hard-block emitted)
 
 - [ ] RED
 - [ ] GREEN
@@ -148,9 +148,9 @@ Then it hard-blocks with a message naming the Decisions section
 
 ### Scenario: impl-plan-artifact.SM1.AC1.grandfathered_ticket_without_spec_is_exempt
 
-Given a feature ticket at phase `implement` whose folder contains no spec.md and no impl-plan.md
+Given a feature ticket at phase `implement` whose folder contains a test-definitions.md with scenarios but no spec.md and no impl-plan.md
 When the stop hook runs its cumulative artifact checks
-Then it does not block on the impl plan
+Then it permits the stop (no hard-block emitted)
 
 - [ ] RED
 - [ ] GREEN
@@ -160,7 +160,7 @@ Then it does not block on the impl plan
 
 Given a task ticket at phase `implement` with no impl-plan.md
 When the stop hook runs its cumulative artifact checks
-Then it does not block on the impl plan
+Then it permits the stop (no hard-block emitted)
 
 - [ ] RED
 - [ ] GREEN
@@ -168,15 +168,15 @@ Then it does not block on the impl plan
 
 ### Scenario: impl-plan-artifact.SM1.AC1.pre_implement_phase_is_exempt
 
-Given a new-flow feature ticket at phase `scenario-gate` with no impl-plan.md
+Given a new-flow feature ticket at phase `scenario-gate` whose folder contains spec.md and a test-definitions.md with scenarios but no impl-plan.md
 When the stop hook runs its cumulative artifact checks
-Then it does not block on the impl plan
+Then it permits the stop (no hard-block emitted)
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: impl-plan-artifact.DEV1.AC1.done_phase_requires_impl_plan
+### Scenario: impl-plan-artifact.SM1.AC1.done_phase_requires_impl_plan
 
 Given a new-flow feature ticket at phase `done` whose folder contains spec.md but no impl-plan.md
 When the stop hook runs its cumulative artifact checks
@@ -201,8 +201,8 @@ Then all five sections are reported empty (guidance comments do not count as con
 ### Scenario: impl-plan-artifact.DEV1.AC1.docs_reference_impl_plan_in_both_copies
 
 Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogfood copies (.claude/skills/bdd)
-When the doc-presence test scans SCENARIOS.md scenario-gate exit and TDD.md entry
-Then both copies reference impl-plan.md authoring and the five sections
+When the SCENARIOS.md scenario-gate exit step and the TDD.md entry step are scanned in both copies
+Then each scanned file references impl-plan.md authoring and its five sections
 
 - [ ] RED
 - [ ] GREEN
