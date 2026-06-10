@@ -73,3 +73,21 @@ export function stripInlineComments(text: string): string {
   }
   return result;
 }
+
+const HEADING_WHITESPACE = /^\s/;
+
+/**
+ * An ATX heading → `{ level, text }`, or undefined for a non-heading line.
+ * Counts leading `#` manually (no quantifier-over-quantifier regex) and requires
+ * a whitespace separator (space or tab, per CommonMark) before the heading text.
+ * Shared by the `## `-block parsers (scenario-coverage, test-skeleton).
+ */
+export function parseHeading(line: string): { level: number; text: string } | undefined {
+  const trimmed = line.trim();
+  let level = 0;
+  while (level < trimmed.length && trimmed.charAt(level) === '#') level += 1;
+  if (level === 0 || level > 6) return undefined;
+  const rest = trimmed.slice(level);
+  if (rest.length === 0 || !HEADING_WHITESPACE.test(rest)) return undefined;
+  return { level, text: rest.trim() };
+}

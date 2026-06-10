@@ -1,49 +1,52 @@
 ---
 id: XN5SPN
 slug: phase-3-scenario-rules
-title: 'Make scenario-construction rules explicit in Phase 3'
-type: feature
-phase: intake
-status: in_progress
+title: 'Make scenario-construction rules explicit in the Define Behavior phase'
+type: task
+phase: done
+status: done
 epic: bdd-phase-one-merge
 created: 2026-05-24T21:27:52.458Z
 last_modified: 2026-05-24T21:30:00.000Z
 ---
 
-# Make scenario-construction rules explicit in Phase 3
+# Make scenario-construction rules explicit in the Define Behavior phase
 
-**Goal:** Add explicit named rules for scenario construction during Phase 3 authoring — singular Then, outcome-oriented, externally verifiable, no-or in Then, readability (business language not implementation) — with examples. Today these are implicit in safeword's Phase 3 and only caught downstream in Phase 4 review; making them explicit during authoring prevents the violations in the first place.
+**Goal:** Give the `bdd` skill explicit, named scenario-construction rules at authoring time (the Define Behavior phase) so common Given/When/Then defects are prevented as scenarios are written, not only caught later in the scenario-gate review.
 
 **Parent epic:** 0AWSY8
 **Depends on:** —
 
 ## Scope
 
-- Update `bdd/SCENARIOS.md` Phase 3 section to add a "Scenario construction rules" subsection with:
-  - **Singular Then** — "One Then assertion. No 'and' joining two outcomes. Multi-line Given with `And` is fine — the rule applies to the Then." Example pair (violation + fix).
-  - **Outcome-oriented Then** — "describes what is true after the When, not how the system gets there." Example pair.
-  - **Externally verifiable Then** — "what an outside observer would see — a response code, a returned value, a visible state change." Example pair.
-  - **No 'or' in Then** — "Pick one outcome and split off the other into its own scenario." Example.
-  - **Readability** — "Business language, not implementation. 'When the user submits the form' ✓; 'When the user clicks the submit button' ✗." Example pair.
-- Coaching: if a scenario starts to violate these rules, split it on the spot — don't accumulate violations and clean up later.
-- These are authoring-time guidelines (Phase 3); Phase 4 review still checks them adversarially (covered by other Phase 1 children).
+Add a **"Scenario construction rules"** subsection to the Define Behavior section of `bdd/SCENARIOS.md` — the shipped template (`packages/cli/templates/skills/bdd/SCENARIOS.md`) plus safeword's dogfood mirror (`.claude/skills/bdd/SCENARIOS.md`), kept in parity. A compact, fix-first named list with ✓/✗ micro-examples:
+
+- **One behavior, one `When`** — a single event and its outcome. Multiple `And`-joined `Then` lines for facets of the _same_ outcome are fine; a second behavior or `When` means a second scenario.
+- **Outcome-oriented `Then`** — assert what is true after the `When`, not how the system gets there.
+- **Declarative, business language** — name the intent, not the UI mechanics ("submits the form" ✓, "clicks `#submit`" ✗). Subsumes the original "outcome-oriented + readability" pair.
+- **`Given` is state, not action** — establish the world; actions belong in `When`.
+- **No `or` in the `Then`** — one outcome per scenario; use a `Scenario Outline` for legitimate input→output variation.
+
+External verifiability cross-references the scenario-gate's **Observable** check (AODI) rather than restating it. Coaching only — no hook enforcement (parsing G/W/T is brittle, and Opus guidance favors light framing).
+
+**Correction baked in:** the original plan's "Singular Then — one `Then` line, no `and`" was wrong by BDD canon (Dan North, Fowler, and Cucumber all join `Then` assertions with `And`); the real rule is one behavior / one When-Then pair. The set also adds three structural rules the original five missed: one `When`, `Given` = state, and `Scenario Outline` for variation.
 
 ## Out of scope
 
-- Vacuous-pass, assertion strength, negative-case coverage, determinism — those are Phase 4 review checks (separate tickets).
-- Findings format changes — covered by R09T59.
+- Vacuous-pass, assertion strength, negative-case coverage, determinism — scenario-gate review checks (separate Phase 1 tickets).
+- Findings-format changes — R09T59.
+- Hook-enforcement of the rules — coaching only.
 
 ## Done when
 
-- SCENARIOS.md Phase 3 documents the 5 rules with violation/fix example pairs each.
-- A worked example shows in-flight rule application (catch + split during authoring).
-- Phase 4's existing AODI section remains; the new rules don't duplicate AODI — they catch construction-time issues, not post-hoc validation issues.
-
-## Open questions
-
-- Should rule violations be hook-enforced (block test-definitions.md write when a scenario violates a rule), or coaching only? Driver leans coaching only — hook-enforcement requires parsing G/W/T which is brittle.
+- The Define Behavior section of `SCENARIOS.md` documents the rules as a compact fix-first list with ✓/✗ examples, in both the template and the dogfood mirror, with parity intact.
+- External verifiability points to the scenario-gate **Observable** check instead of duplicating AODI.
+- markdownlint clean; the new rules neither contradict nor duplicate the existing AODI table.
 
 ## Work Log
 
 - 2026-05-24T21:27:52.458Z Started: Created ticket XN5SPN
 - 2026-05-24T21:30:00.000Z Drafted: Scope, 5 rules, open question; linked to epic 0AWSY8
+- 2026-06-06T17:40:00.000Z Replan: corrected "singular Then" (BDD-canon error) → one-behavior/one-When-Then-pair; dedup externally-verifiable vs AODI Observable; added 3 missing structural rules; form/placement per Anthropic skill docs; re-sized to task. Build deferred.
+- 2026-06-06T18:20:00.000Z Implemented: added "Scenario construction rules" to bdd SCENARIOS.md (template + dogfood mirror) — 5 fix-first rules (one-behavior/one-When, outcome-oriented Then, declarative, Given=state, no-or + Scenario Outline) with ✓/✗ micro-examples and an Observable cross-ref to the scenario-gate. Compact form (no full before/after pairs, no separate worked-example block) per skill-authoring bloat research. Verified: parity-check 120 pairs + 3 contracts in sync, markdownlint 0 errors. Formal /verify + /audit close gate still pending.
+- 2026-06-06T18:36:00.000Z Refactored ticket: consolidated original scope + replan + implementation into one coherent current spec — folded corrections into Goal/Scope/Done-when, dropped the superseded original text and the resolved open question, retitled "Phase 3" → "Define Behavior". Work Log preserved; decisions unchanged.

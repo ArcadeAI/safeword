@@ -4,7 +4,7 @@ slug: spec-revision-discipline
 type: feature
 phase: intake
 status: backlog
-epic: bdd-phase-three-merge
+epic: bdd-phase-two-merge
 created: 2026-05-31T15:49:36.570Z
 last_modified: 2026-05-31T17:31:02.318Z
 ---
@@ -53,3 +53,4 @@ Safeword today has no skill that owns post-authoring spec revision with these gu
 - 2026-05-31T15:49:36.570Z Filed (backlog): Carved out of the DXFX02 revalidation as a safeword-side gap — no equivalent to arcade's `/update-spec` post-authoring revision discipline. Sized feature (new capability), but intake should first decide whether the phase machine already covers it. Not started.
 - 2026-05-31T17:09:48.891Z Revalidated (cross-repo investigation): **stands — genuinely unhomed.** update-spec is the only arcade spec skill with no owner in either the safeword Phase-1 absorption epic 0AWSY8 (review-spec + codify-spec) or the arcade Phase 0–3 adopt roadmap. Sharpened scope: the phase machine does NOT cover this (forward-only gate, no reset-on-edit), so the status-reset guarantee likely needs a hook (keeps `feature` sizing). Cross-linked 5JN5E4 as the detection half of the same seam. Flagged a roadmap gap: no arcade ticket retires arcade's local `/update-spec` once this ships.
 - 2026-05-31T17:31:02.318Z Placed under epic **S4997T** (`bdd-phase-three-merge`, Absorb arcade Phase 3). Rationale: `update-spec` is the lifecycle feedback-loop closer — a signal/outcome breach (Phase 3 territory) revealing a spec gap is one of its named triggers; it depends on the artifacts every earlier phase produces (so it's the capstone); and it shares S4997T's lifecycle-state machinery (the two-state done work in X59JZE). Runner-up was M6D315 (Phase 2, implement-era reconciliation). No arcade pair — the arcade-side decommission of `/update-spec` is the unowned roadmap step noted above.
+- 2026-06-10T17:42:00.000Z Re-parented → **M6D315** (`bdd-phase-two-merge`): the user skipped Phase 3 (signals/outcomes) outright, which orphaned this under S4997T. The original runner-up home wins. Urgency rose with the 2026-06-10 flow review: codify (vitest + gherkin emission, shipped) means scenario edits can now silently stale derived artifacts — exactly the downstream-staleness flagging this ticket owns. Sibling: 1DT29X (.feature-as-source), same epic.

@@ -2,12 +2,12 @@
 id: F2QZB4
 slug: review-spec-skill
 title: 'Extract Phase 4 logic into standalone /review-spec skill, reinvokable after edits'
-type: feature
-phase: intake
-status: in_progress
+type: task
+phase: done
+status: done
 epic: bdd-phase-one-merge
 paired_with: JWM8PD
-blocked_on: [9FSPM8, XBY5QR, 73CKG4, R09T59]
+blocked_on: []
 created: 2026-05-24T21:27:52.722Z
 last_modified: 2026-05-24T21:30:00.000Z
 ---
@@ -20,12 +20,12 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 **Parent epic:** 0AWSY8
 **Paired with:** JWM8PD in arcade
-**Depends on:** 9FSPM8, XBY5QR, 73CKG4, R09T59 (all the Phase 4 check enhancements need to land first; the skill embodies their upgraded behavior)
+**Depends on:** 73CKG4, R09T59 (9FSPM8 + XBY5QR already shipped; the skill embodies the upgraded scenario-gate behavior)
 
 ## Scope
 
 - New skill: `packages/cli/templates/skills/review-spec/SKILL.md`.
-- Skill content: the full Phase 4 protocol — vacuous-pass, AODI, assertion-strength, determinism-risk, negative-case-coverage, cross-cutting categories, structured findings format.
+- Skill content: the full scenario-gate protocol — vacuous-pass, AODI, determinism-risk, negative-case-coverage, cross-cutting categories, structured findings format (assertion-strength is covered by `testing` Iron Law 2, not a standalone check — see 73CKG4 re-scope).
 - Skill invocation modes:
   1. **Auto-fire** from bdd at phase transition into `scenario-gate`.
   2. **Manual re-run** via `/review-spec` from any phase after `define-behavior`.
@@ -50,7 +50,18 @@ last_modified: 2026-05-24T21:30:00.000Z
 - Skill name — `/review-spec` (arcade's vocabulary) or `/review-scenarios` (safeword vocabulary)? Driver leans `/review-spec` to keep arcade migration clean and signal "this is the absorbed arcade skill."
 - Manual re-run after `done` phase — allowed (post-hoc spec audit) or blocked (ticket is closed)? Driver leans allowed; closed tickets are still readable.
 
+## Replan — 2026-06-06
+
+Validated: a separate skill is right (matches safeword's self-review / tdd-review / verify / audit pattern; "re-invokable after edits" is real value). **Two guardrails:** (1) the skill must **reference** scenario-gate's AODI + adversarial pass, not restate them (~60% of the content already exists) — keep the body lean; (2) **disambiguate its `description`** from the existing `self-review` skill (which reviews `spec.md` at the JTBD/AC/persona layer) to avoid trigger contention — `/review-spec` = scenario adversarial review, `self-review` = inline spec-framing self-pass. Name `/review-spec` (open question resolved). Now blocked only on 73CKG4 + R09T59 (9FSPM8 + XBY5QR shipped). Build deferred.
+
+## Re-scope — 2026-06-06 (post-quality-review)
+
+Narrowed `blocked_on` to `[73CKG4, R09T59]` (9FSPM8 + XBY5QR are done) and dropped standalone assertion-strength from the skill's content list (folded into `testing` Iron Law 2 per the 73CKG4 re-scope). Keeps F2QZB4 consistent with the 0AWSY8 epic table.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.722Z Started: Created ticket F2QZB4
 - 2026-05-24T21:30:00.000Z Drafted: Scope, dual-invocation modes, dependencies; linked to epic 0AWSY8
+- 2026-06-06T17:40:00.000Z Replan: confirmed separate-skill; added reference-not-restate + description-disambiguation-vs-self-review guardrails; name resolved → /review-spec. Still blocked on the 4 Phase-4 children. Build deferred.
+- 2026-06-06T23:25:00.000Z Re-scope (post-quality-review): narrowed blocked_on to [73CKG4, R09T59] (9FSPM8 + XBY5QR done); dropped assertion-strength from the skill content list (folded into testing Iron Law 2). Now consistent with the 0AWSY8 epic table.
+- 2026-06-07T01:45:00.000Z Implemented + verified: extracted the scenario-gate review checks into a new `/review-spec` skill (template + dogfood); SCENARIOS.md gate → thin pointer + exit. Full action-skill wiring (cursor command, schema registration, SKILL_CURSOR_PAIRS fixture, ACTION_SKILLS, usage-context description disambiguated from self-review). Full /verify: lint clean, suite green (2517 pass; 1 unrelated python-golden-path flake, 11/11 in isolation), build ✓, parity 122 + 3 contracts, depcruise clean, knip baseline. Re-sized feature→task; verify.md written; closed.

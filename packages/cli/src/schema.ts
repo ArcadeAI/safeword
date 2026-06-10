@@ -249,6 +249,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ownedFiles: {
     // Project root config files (for audit/quality tools)
     '.jscpd.json': { template: '.jscpd.json' },
+    // BDD acceptance lane config (ticket 102b) — safeword-owned; the lane's
+    // working files (features/, steps/) are customer-owned in managedFiles.
+    'cucumber.mjs': { template: 'cucumber/cucumber.mjs' },
     // Note: knip.json is in typescriptManagedFiles (with context-aware ignoreDependencies)
 
     // Core files
@@ -488,6 +491,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
     '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },
+    '.claude/skills/review-spec/SKILL.md': {
+      template: 'skills/review-spec/SKILL.md',
+    },
     '.claude/skills/cleanup-zombies/SKILL.md': {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
@@ -563,6 +569,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/commands/debug.md': { template: 'commands/debug.md' },
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
+    '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
     '.cursor/commands/audit.md': { template: 'commands/audit.md' },
     '.cursor/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',
@@ -583,6 +590,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Files created if missing, updated only if content matches current template
   managedFiles: {
+    // BDD acceptance lane working files (ticket 102b) — scaffolded once; the
+    // customer owns them thereafter (created if missing, updated only while
+    // still safeword's template content). The lane config (cucumber.mjs) is
+    // safeword-owned in ownedFiles.
+    'features/safeword-lane.feature': { template: 'cucumber/safeword-lane.feature' },
+    'steps/world.ts': { template: 'cucumber/world.ts' },
+    'steps/shared.steps.ts': { template: 'cucumber/shared.steps.ts' },
+
     // TypeScript/JavaScript managed files (ESLint, tsconfig, Knip, Prettier configs)
     ...typescriptManagedFiles,
     // Python managed files (ruff.toml, mypy.ini, .importlinter)

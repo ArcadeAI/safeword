@@ -25,15 +25,18 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 ## Tickets
 
-| ID         | Title                                                                                                 | Arcade Pair | Status | Depends On                     |
-| ---------- | ----------------------------------------------------------------------------------------------------- | ----------- | ------ | ------------------------------ |
-| **XN5SPN** | Explicit scenario-construction rules in Phase 3 (singular Then, outcome-oriented, no-or, readability) | —           | Open   | —                              |
-| **9FSPM8** | Vacuous-pass test as Phase 4 scenario quality check                                                   | JWM8PD      | Open   | —                              |
-| **XBY5QR** | Negative-case-coverage as explicit Phase 4 rule                                                       | JWM8PD      | Open   | —                              |
-| **73CKG4** | Assertion-strength coaching + determinism-risk specifics in Phase 4                                   | JWM8PD      | Open   | —                              |
-| **R09T59** | Structured findings format + cross-cutting review categories                                          | JWM8PD      | Open   | —                              |
-| **F2QZB4** | Extract Phase 4 into standalone /review-spec skill                                                    | JWM8PD      | Open   | 9FSPM8, XBY5QR, 73CKG4, R09T59 |
-| **CS86B0** | Codify-spec absorption: emit .feature + step_def stubs                                                | JN39KG      | Open   | —                              |
+| ID         | Title                                                                              | Arcade Pair | Status | Depends On |
+| ---------- | ---------------------------------------------------------------------------------- | ----------- | ------ | ---------- |
+| **XN5SPN** | Scenario-construction rules in Define Behavior (one-behavior/When, declarative…)   | —           | Done   | —          |
+| **9FSPM8** | Vacuous-pass test in the scenario-gate                                             | JWM8PD      | Done   | —          |
+| **XBY5QR** | Negative-case-coverage lens in the adversarial pass                                | JWM8PD      | Done   | —          |
+| **73CKG4** | Determinism-risk specifics in the scenario-gate (assertion-strength folded)        | JWM8PD      | Done   | —          |
+| **R09T59** | Structured findings format + cross-cutting review categories                       | JWM8PD      | Done   | —          |
+| **F2QZB4** | Extract the scenario-gate into a standalone /review-spec skill                     | JWM8PD      | Done   | —          |
+| **CS86B0** | Codify absorption: `safeword codify` emitter (seed for the Gherkin retarget, 102a) | JN39KG      | Done   | —          |
+| **102**    | Executable Gherkin specs — child epic (cucumber-js, all-TS; folded in 2026-06-09)  | —           | Active | CS86B0     |
+
+`Done` = shipped in `bdd/SCENARIOS.md`, verified, and closed (`verify.md` present). 7/7 original children done; **102 (executable Gherkin) folded in 2026-06-09 — Phase 1 closes only when 102a + 102b ship.** See the Extension note below.
 
 **Paired arcade epic:** [ZPN3Z9](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/ZPN3Z9/ticket.md) — arcade-side decommission of `/review-spec` and `/codify-spec`.
 
@@ -70,20 +73,71 @@ last_modified: 2026-05-24T21:30:00.000Z
 
 ## Done when
 
-- `bdd` Phase 3 (SCENARIOS.md) includes explicit scenario-construction rules with examples.
-- `bdd` Phase 4 (scenario-gate) includes the vacuous-pass test, negative-case-coverage, assertion-strength coaching, and determinism-risk specifics — each as a named check.
-- `bdd` Phase 4 output uses the structured findings format (h4, Current/Proposed, 3-tier severity, tally, bulk template).
-- `/review-spec` exists as a re-invokable skill embodying the upgraded Phase 4 checks.
-- `/codify-spec` (or equivalent) exists as an optional skill that emits .feature + step_def stubs.
-- All 7 child tickets are `done`.
-- Worked example in SCENARIOS.md exercises all the new checks against a sample scenario set.
+- ✅ `bdd` define-behavior (SCENARIOS.md) includes explicit scenario-construction rules with examples.
+- ✅ The scenario-gate includes the vacuous-pass test, negative-case-coverage, and determinism-risk specifics — each as a named check (assertion-strength folded into `testing` Iron Law 2 per the 73CKG4 re-scope).
+- ✅ Gate output uses the structured findings format (h4, Current/Proposed, 3-tier severity, tally, bulk template).
+- ✅ `/review-spec` exists as a re-invokable skill embodying the upgraded gate checks.
+- ✅ `/codify` shipped as the **`safeword codify <ticket>` command** (not a skill — the full-TDD ask required testable code) emitting **native vitest skeletons** (`it.todo` default, `--red` opt-in) and, per the 102 extension, **`--format gherkin`** `.feature` files for the scaffolded acceptance lane.
+- ✅ All child tickets are `done` (including the optional CS86B0 and the folded-in epic 102: 102a + 102b done, 102c cancelled).
+- ✅ Worked example — resolved as not-needed (F2QZB4 resident-cost call: the findings-format example + mode docs suffice; a separate worked block would duplicate). DISCOVERY.md's intake worked example covers the upstream chain.
 
 ## Related
 
 - **DZ2NM5** (Phase 0 merge) — sibling epic. Scenario numbering, persona references, AC structure flow from Phase 0 into Phase 1.
 - **MBGQ89** (ticket-deps schema) — standalone safeword improvement that landed first; pairing/blocking fields used here.
 
+## Replan — 2026-06-06 validation pass
+
+Revalidated against the live arcade source, safeword's current `bdd` skill, and current Claude Code / Opus skill-authoring + BDD research (`/figure-it-out`). Direction holds; **calibrated absorption, not verbatim port** — children carried arcade's Python-shaped assumptions and ~40% duplication with machinery safeword already has.
+
+**Open decisions — resolved:**
+
+1. **codify placement** → standalone optional skill. "Fold into Phase 5 decomposition" is moot — safeword retired the `decomposition` phase (FSX1PP) after this epic was drafted. Emission must be **TypeScript-native** (CS86B0); arcade's Python/pytest-bdd/.feature does not run here.
+2. **/review-spec shape** → both (auto-fire from scenario-gate + re-invokable). (F2QZB4)
+3. **findings format** → adopt arcade's structured format. (R09T59)
+4. **storage shape** → resolved by DZ2NM5 shipping `spec.md`.
+5. **sizing** → features only; tasks keep the lighter inline AODI check.
+
+**Cross-cutting (applied to children):**
+
+- **Vocabulary drift** — "Phase 3 / Phase 4" here map to the **Define Behavior** and **Scenario Quality Gate** (`scenario-gate`) sections of the current `bdd/SCENARIOS.md` (named-phase migration, DKETNZ).
+- **Dedup** — of the 5 scenario rules, only **outcome-oriented** + **no-or** are genuinely new; **externally-verifiable** duplicates AODI **Observable** (reference, don't restate). Of the 4 Phase-4 checks, only **vacuous-pass** is genuinely new; negative-case / assertion-strength / determinism are named specifics layered on existing AODI + adversarial pass, not new sections.
+- **BDD correctness fix** — "Singular Then (one Then, no `and`)" is contradicted by BDD canon (Dan North's founding example, Fowler, Cucumber all `And`-join Then). Reframe to **one behavior / one When-Then pair**. (XN5SPN)
+- **Missing structural rules** to add (more fundamental than some of the 5, currently absent): one When per scenario, Given = state not action, Scenario Outline for data variation. (XN5SPN)
+- **Don't inherit arcade bugs** (if codify ported): arcade's own canonical status is `asserted`, but its codify-spec writes `codified` (an arcade bug) and maps from a stale "behaviors / Edge Cases" spec shape — and safeword has no spec-status field at all, so port neither.
+- **Skill placement** — an invoked skill stays resident all session (Anthropic skill docs), so rules belong in the phase file (SCENARIOS.md), not SKILL.md; new skills reference, not restate, scenario-gate logic.
+
+## Status — 2026-06-07 (all children complete)
+
+The replan above is the design record; its child notes are written forward-looking — read them against this. What's actually shipped:
+
+- **Shipped (verified + closed):** XN5SPN, 9FSPM8, XBY5QR, 73CKG4, R09T59 (the scenario-gate checks in `bdd/SCENARIOS.md`), F2QZB4 (gate extracted into the standalone `/review-spec` skill), CS86B0 (`safeword codify` command + pure emitter), plus VZK191 (post-review polish).
+- **Remaining (re-opened 2026-06-09):** the original 7 discipline-absorption children are all done, but **executable Gherkin (epic 102) is now folded into Phase 1** — see the Extension below. Phase 1 closes only when 102a + 102b ship.
+- **Arcade-side decommissions** (JWM8PD, JN39KG) — external (arcade repo); both now unblocked (safeword has absorbed all their checks + codify). Flip them in arcade, then this epic can close. Left `in_progress` here pending that cross-repo step.
+
+## Extension — 2026-06-09: executable Gherkin folded into Phase 1
+
+**What changed.** Epic **102 (Executable Gherkin specifications)** — previously a parked, low-priority standalone — is now a **child epic of Phase 1**. Real Gherkin execution is the load-bearing capability that lets **arcade-monorepo adopt safeword** (the harness merge): arcade already authors tagged `.feature` acceptance tests but has no runner. It belongs with the codify/BDD-core absorption, not on a side track.
+
+**Decisions (full rationale in 102's Replan — 2026-06-09):**
+
+- **Runner: cucumber-js, all-TypeScript** — reverses 102's earlier QuickPickle lean _and_ the 2026-06-06 replan note below that said "`.feature` does not run here." Live-docs deep-dive: cucumber-js wins on bus factor (org-maintained vs solo), native living-doc reporting, and arcade pytest-bdd-family parity. A separate acceptance runner alongside vitest (units stay vitest).
+- **CS86B0 is the seed** — 102a retargets the shipped `safeword codify` emitter from native-vitest → `.feature` + cucumber-js step stubs (same parse/emit architecture).
+- **102c cancelled** (native-language step defs) — all-TS.
+- **In scope:** 102a (TS + safeword's own repo), 102b (non-TS apps via TS steps). Adopt arcade's tag taxonomy (`@spec:`/`@B-`; drop `@service:`).
+
+**Supersedes** the 2026-06-06 replan line "Emission must be TypeScript-native; arcade's Python/pytest-bdd/.feature does not run here" — still all-TS, but we now **do** emit + run `.feature` via cucumber-js.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.411Z Started: Created ticket 0AWSY8
 - 2026-05-24T21:30:00.000Z Drafted: Epic shell with 7 children, sequencing, 5 open decisions, many-to-one pairing rationale
+- 2026-06-06T17:40:00.000Z Replan: validated epic + 7 children vs live arcade source + current docs/BDD research (/figure-it-out). Resolved 5 open decisions; recorded dedup, BDD Then-rule correction, TS-native codify, missing structural rules, vocabulary drift, arcade bugs-not-to-inherit. Tickets-only pass; build deferred.
+- 2026-06-06T22:58:00.000Z Reconciled (post-quality-review): re-tensed the replan into a shipped-vs-remaining Status section; marked XN5SPN/9FSPM8/XBY5QR `Impl` + corrected their table titles and CS86B0's (native vitest, not .feature); narrowed F2QZB4 deps to 73CKG4+R09T59; re-scoped 73CKG4 to determinism-only; demoted CS86B0 to optional in Done-when; tightened the asserted/codified wording (safeword has no spec-status field).
+- 2026-06-06T23:35:00.000Z 73CKG4 closed: Determinism risks subsection added to the scenario-gate (Luo et al. + Fowler grounding), verified, marked Done. Epic 4/7 children done; remaining R09T59 + F2QZB4 (+ optional CS86B0).
+- 2026-06-07T01:05:00.000Z R09T59 closed: findings format (compact house-style convention) + cross-cutting checks added to the scenario-gate, verified, marked Done. Epic 5/7. F2QZB4 now unblocked (both deps done) — next buildable child; CS86B0 optional.
+- 2026-06-07T01:45:00.000Z F2QZB4 closed: extracted the scenario-gate into the `/review-spec` skill (+ full action-skill wiring — cursor command, schema, SKILL_CURSOR_PAIRS fixture, ACTION_SKILLS); SCENARIOS.md gate → thin pointer. Full /verify green (2517 pass; 1 unrelated flake). Epic 6/7 — all required children done; only optional CS86B0 remains.
+- 2026-06-07T03:45:00.000Z CS86B0 closed: shipped `/codify` as the `safeword codify <ticket>` command + pure `emitVitestSkeleton` (TS-native vitest skeletons; it.todo default, --red opt-in, stdout/--out refuse-on-exist) via full BDD/TDD — 17 scenarios, independent scenario-gate review applied, 17 new tests, /verify (2535 pass) + /audit clean. Epic 7/7 — all children done; safeword scope complete. Only the external arcade decommissions (JN39KG, JWM8PD) remain, now unblocked.
+- 2026-06-09T21:20:00.000Z Extended: folded epic **102 (executable Gherkin)** into Phase 1 as a child epic (re-opens the epic). Decisions: runner **cucumber-js** + all-TypeScript (deep-dive supersedes QuickPickle); CS86B0 emitter is the seed for the 102a retarget; **102c cancelled** (native-language steps); adopt arcade's `@spec:`/`@B-` tag taxonomy. Phase 1 closes only when 102a + 102b ship.
+- 2026-06-09T23:58:00.000Z 102a closed: shipped the cucumber-js Gherkin foundation via full BDD/TDD — `safeword codify --format gherkin` (additive renderer reusing the CS86B0 parser; 8 unit tests, official-parser-validated) + a cucumber-js acceptance lane + dogfood `.feature` (13 scenarios, /verify 2548 pass + acceptance lane green + /audit clean). Phase 1's executable-Gherkin extension is **1/2** — 102a done; 102b (non-TS apps via TS steps) remains.
+- 2026-06-10T05:55:00.000Z 102b closed → **epic 102 complete → Phase 1's safeword scope fully complete (2/2)**. 102b shipped the lane as core `safeword setup` output for every project (Option A — uniform TS toolchain; pure non-JS repos get a minimal private package.json). Full BDD/TDD: 11 scenarios, independent gate review, golden paths green in TS + pure-Go, full suite 2566 ✓, /verify + /audit clean. The first suite run caught two real bugs (Gherkin features/ vs architecture detection; missing @types/node) — both fixed (89094511). Remaining outside this epic: the `.feature`-as-source bdd-flow slice, `safeword check` lane verification, and the external arcade decommissions (JN39KG, JWM8PD).

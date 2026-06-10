@@ -4,7 +4,7 @@
 
 ## Sub-phase gates
 
-Phase 0 advances through sub-phases (load personas/glossary → JTBD → AC → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
+Intake advances through sub-phases (load personas/glossary → JTBD → AC → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
 
 1. **Present** the captured artifact verbatim — the JTBD list, the AC list grouped by JTBD, or the Scope / Out of Scope / Done When block.
 2. **Ask** the sub-phase's closing question (below).
@@ -101,7 +101,7 @@ If any answer is vague, you have open questions — surface them, and record eac
 
 **When the feature introduces architecture or a new pattern** — design the ideal first (`/figure-it-out`), _then_ survey the existing patterns in the area and reconcile: conform by default, deviate only with a named defect and an uplevel follow-up ticket. See `.safeword/guides/architecture-guide.md` → Survey & Reconcile.
 
-## Worked example: Phase 0 end to end
+## Worked example: intake end to end
 
 One feature walked through all four artifacts and every sub-phase gate. Slug `oauth-flow`: let an operator rotate an API key without a coordinated flag day.
 
@@ -155,7 +155,7 @@ done_when:
 
 **Scope gate** → present Scope / Out of Scope / Done When, ask _"ready to proceed?"_, wait. Then advance to define-behavior.
 
-**5 · Scenario lineage — the chain stays machine-checkable.** In Phase 3 each scenario title carries the criterion it proves, so persona → JTBD → AC → scenario is traceable, not eyeballed:
+**5 · Scenario lineage — the chain stays machine-checkable.** In define-behavior each scenario title carries the criterion it proves, so persona → JTBD → AC → scenario is traceable, not eyeballed:
 
 ```text
 ### Scenario: oauth-flow.PO1.AC1.previous_key_authenticates_within_grace_window

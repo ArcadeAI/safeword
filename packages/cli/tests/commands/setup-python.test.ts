@@ -10,6 +10,7 @@ import {
   createTemporaryDirectory,
   fileExists,
   initGitRepo,
+  readTestFile,
   removeTemporaryDirectory,
   runCli,
   TIMEOUT_BUN_INSTALL,
@@ -55,34 +56,39 @@ function createPolyglotProject(dir: string): void {
 }
 
 describe('Test Suite 3: Conditional Setup for Python Projects', () => {
-  describe('Test 3.1: Skips ESLint install for Python-only projects', () => {
+  describe('Test 3.1: Installs the JS toolchain for Python-only projects (BDD lane, ticket 102b)', () => {
     it(
-      'should not install eslint in node_modules for Python-only project',
+      'should install eslint and cucumber for Python-only project (the lane ships TS step files)',
       async () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
         await runCli(['setup'], { cwd: projectDirectory });
 
-        // Should NOT have node_modules with eslint
-        expect(fileExists(projectDirectory, 'node_modules/eslint')).toBe(false);
-        expect(fileExists(projectDirectory, 'node_modules/prettier')).toBe(false);
+        // BDD is core (Option A): the lane's step files are TypeScript, so the
+        // TS toolchain comes along even in non-JS repos.
+        expect(fileExists(projectDirectory, 'node_modules/eslint')).toBe(true);
+        expect(fileExists(projectDirectory, 'node_modules/@cucumber/cucumber')).toBe(true);
       },
-      TIMEOUT_SETUP,
+      TIMEOUT_BUN_INSTALL,
     );
   });
 
-  describe('Test 3.2: Skips package.json creation for Python-only', () => {
+  describe('Test 3.2: Creates a lane-host package.json for Python-only', () => {
     it(
-      'should not create package.json for pure Python project',
+      'should create a minimal private package.json for pure Python project',
       async () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
         await runCli(['setup'], { cwd: projectDirectory });
 
-        // package.json should NOT be created
-        expect(fileExists(projectDirectory, 'package.json')).toBe(false);
+        // Created to host the BDD acceptance lane (ticket 102b).
+        expect(fileExists(projectDirectory, 'package.json')).toBe(true);
+        const packageJson = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+          private?: boolean;
+        };
+        expect(packageJson.private).toBe(true);
       },
       TIMEOUT_SETUP,
     );
@@ -99,10 +105,8 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
           cwd: projectDirectory,
         });
 
-        // Should mention Python tooling
+        // Should mention Python tooling (JS toolchain now also installs — BDD lane, 102b)
         expect(result.stdout).toMatch(/pip install|ruff|mypy/i);
-        // Should NOT mention npm install for dependencies
-        expect(result.stdout).not.toMatch(/npm install.*eslint/i);
       },
       TIMEOUT_SETUP,
     );

@@ -44,9 +44,12 @@ function extractPatterns(): Set<string> {
 
   // Root-level owned files (not in .safeword/)
   // .jscpd.json
+  // cucumber.mjs is exempt: like tsconfig/eslint configs, a monorepo package may
+  // legitimately run its own BDD lane (packages/cli does — ticket 102a/102b).
+  const STANDARD_PACKAGE_CONFIGS = new Set(['cucumber.mjs']);
   for (const file of Object.keys(SAFEWORD_SCHEMA.ownedFiles)) {
     // Only top-level files, not those inside .safeword/
-    if (!file.includes('/')) {
+    if (!file.includes('/') && !STANDARD_PACKAGE_CONFIGS.has(file)) {
       patterns.add(file);
     }
   }

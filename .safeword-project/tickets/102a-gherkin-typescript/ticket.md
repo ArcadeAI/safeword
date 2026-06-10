@@ -2,15 +2,33 @@
 id: '102a'
 slug: gherkin-typescript
 title: 'Executable Gherkin specs for TypeScript projects'
-type: Feature
-status: backlog
-priority: low
+type: feature
+status: done
+phase: done
+priority: high
 parent: '102'
+epic: bdd-phase-one-merge
+scope:
+  - '`safeword codify --format gherkin <ticket>`: render a `.feature` (Feature + one Scenario per scenario, G/W/T → Given/When/Then steps, lineage → `@tags`) from test-definitions.md — extends the CS86B0 emitter as an additive renderer'
+  - 'Wire cucumber-js as a separate acceptance runner in safeword’s own repo: `@cucumber/cucumber` + `tsx` devDeps, a `cucumber.mjs` (import `tsx/esm` + steps glob; paths `features/**/*.feature`), and a `test:bdd` script; the vitest unit suite stays untouched'
+  - 'One dogfood `.feature` + step defs (driving the built CLI via the existing `runCli` helper) that runs green under cucumber-js — proves the setup end to end'
+out_of_scope:
+  - '`.feature` replacing test-definitions.md as the scenario source of truth (the bdd-flow change) — follow-on slice / separate ticket'
+  - '`/review-spec` + `safeword check` reading `.feature`; R-G-R rehoming — follow-on'
+  - 'Customer-project scaffolding of cucumber-js via `safeword setup` — follow-on'
+  - 'Non-TS apps (102b); native-language step defs (102c, cancelled)'
+  - 'Scenario Outline / Examples emission (no outline construct in test-definitions.md yet)'
+done_when:
+  - '`safeword codify --format gherkin` emits a valid `.feature` (Feature/Scenario/steps/@tags), unit-tested against a fixture; default (no flag) still emits vitest'
+  - '`bun run test:bdd` runs the dogfood `.feature` green via cucumber-js, separate from the vitest `test` script'
+  - 'full /verify + /audit pass; verify.md written'
 ---
 
 # Feature: Gherkin for TypeScript Projects
 
-**Type:** Feature | **Priority:** Backlog | **Parent:** Epic 102
+**Type:** Feature | **Priority:** High | **Parent:** Epic 102 (under Phase 1 / 0AWSY8)
+
+> **Decision update — 2026-06-09 (supersedes the QuickPickle plan below).** Runner is **cucumber-js**, not QuickPickle — see epic 102's Replan for the deep-dive rationale (org-maintained vs solo-maintainer bus factor; native Cucumber JSON/HTML living-doc reporting; same Cucumber family as arcade's pytest-bdd). It runs as a **separate acceptance-test runner alongside vitest** (units stay vitest) — not the in-vitest single-runner model described below. The concrete cucumber-js architecture (config, World, step layout, `.feature` location, retargeting CS86B0's `safeword codify` emitter from vitest → `.feature` + step stubs, tag taxonomy `@spec:`/`@B-`) is set at this ticket's intake + `/figure-it-out`. The QuickPickle-specific sections below are kept as historical design context, **not** the build plan.
 
 ## Problem
 
@@ -167,3 +185,9 @@ Then stderr should contain {string}
 - [Example Mapping](https://cucumber.io/blog/bdd/example-mapping-introduction/) — discovery technique
 - [Outside-In Diamond TDD](http://tpierrain.blogspot.com/2021/03/outside-in-diamond-tdd-1-style-made.html) — double-loop architecture
 - [The Wrong Abstraction](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction) — shared steps growth
+
+## Work Log
+
+- 2026-06-09T21:05:00.000Z Intake + define-behavior + scenario-gate: re-scoped to the cucumber-js foundation slice (supersedes the QuickPickle plan above); spec.md (JTBD DEV1 generate / SM1 run + AC1/AC2/SM1.AC1); 13 scenarios across 3 rules; independent scenario-gate review applied. (commit 96d27d28)
+- 2026-06-09T23:20:00.000Z Implemented (full TDD): AC1 `emitGherkinFeature` renderer — 8 unit tests, each validating the emitted `.feature` with the official `@cucumber/gherkin` parser (incl. hostile-title + bodyless) — commit 4a9afd94. AC2 `codify --format gherkin` (additive; default stays vitest) — 3 command tests — f4fb8374. SM1 cucumber-js acceptance lane: `cucumber.mjs` (tsx/esm) + `test:bdd` + dogfood `features/codify.feature` + TS step defs + integration test (dogfood runs green; vitest partition holds) — a088da1d. All 13 scenarios green; R/G/R marked per-AC. Phase → verify.
+- 2026-06-09T23:55:00.000Z Verify + done: /verify (full suite 2548 pass / 1 skip / 158 files, build ✓, lint clean) + acceptance lane `test:bdd` green (1 scenario), and /audit (depcruise clean, knip baseline — tsx false-positive ignored, jscpd: only the pre-existing parseHeading clone, deferred to a follow-up) both invoked; ARCHITECTURE test:bdd lane documented; verify.md written. 102a done — first child of epic 102 shipped: safeword now emits + runs Gherkin in its own repo.

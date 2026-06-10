@@ -17,7 +17,7 @@
  * No I/O — callers pass file content; check.ts owns ticket discovery.
  */
 
-import { computeSkipMask } from './markdown-sections.js';
+import { computeSkipMask, parseHeading } from './markdown-sections.js';
 
 const JTBD_HEADING = 'jobs to be done';
 const SCENARIO_PREFIX = '### Scenario:';
@@ -173,20 +173,3 @@ function parseScenarioTitles(content: string): string[] {
 function firstToken(text: string): string {
   return text.split(/\s+/)[0] ?? '';
 }
-
-/**
- * An ATX heading → `{ level, text }`; undefined for non-heading lines. Counts
- * leading `#` manually (no quantifier-over-quantifier regex) and requires a
- * whitespace separator before the heading text.
- */
-function parseHeading(line: string): { level: number; text: string } | undefined {
-  const trimmed = line.trim();
-  let level = 0;
-  while (level < trimmed.length && trimmed.charAt(level) === '#') level += 1;
-  if (level === 0 || level > 6) return undefined;
-  const rest = trimmed.slice(level);
-  if (rest.length === 0 || !WHITESPACE_START.test(rest)) return undefined;
-  return { level, text: rest.trim() };
-}
-
-const WHITESPACE_START = /^\s/;
