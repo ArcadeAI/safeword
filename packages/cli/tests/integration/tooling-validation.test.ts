@@ -59,8 +59,8 @@ requires-python = ">=3.10"
     }
   });
 
-  it('does NOT create package.json', () => {
-    expect(fileExists(projectDirectory, 'package.json')).toBe(false);
+  it('creates a lane-host package.json (BDD lane is core, ticket 102b)', () => {
+    expect(fileExists(projectDirectory, 'package.json')).toBe(true);
   });
 
   it('creates .safeword directory', () => {
@@ -83,9 +83,10 @@ requires-python = ">=3.10"
     expect(mypyConfig).toContain('[mypy]');
   });
 
-  it('does NOT create eslint.config.mjs (no JS tooling)', () => {
-    // Pure Python projects should not have JS linting configured
-    expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(false);
+  it('creates eslint.config.mjs (the lane ships TS step files — Option A, ticket 102b)', () => {
+    // BDD is core: even pure Python projects get the TS toolchain so the
+    // scaffolded steps are linted.
+    expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(true);
   });
 });
 

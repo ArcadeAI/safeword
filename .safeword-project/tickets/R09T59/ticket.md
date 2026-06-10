@@ -2,9 +2,9 @@
 id: R09T59
 slug: phase-4-findings-and-categories
 title: 'Adopt structured findings format and cross-cutting review categories for Phase 4 output'
-type: feature
-phase: intake
-status: in_progress
+type: task
+phase: done
+status: done
 epic: bdd-phase-one-merge
 paired_with: JWM8PD
 created: 2026-05-24T21:27:52.636Z
@@ -74,7 +74,13 @@ Each category is a pass through the full scenario set looking for gaps, not a pe
 
 - Looks-Good entries — should they be specific ("scenarios are outcome-oriented; no implementation leakage") or omitted entirely if the only purpose is to soften criticism? Driver leans specific-only (no padding allowed) — generic praise is noise.
 
+## Replan — 2026-06-06
+
+Validated: **mostly additive** — safeword has no structured scenario-gate findings format today, so adopting arcade's (h4 / Current→Proposed / 3-tier severity / lead-with-tally / bulk template) is real value (decision #3 = adopt). **Reconcile with safeword's house output style** (SAFEWORD.md "Talking to the user": lead-with-answer, `**Next:**` line) so the two don't conflict. This format is what the other checks output INTO. "Phase 4" = the `scenario-gate` section. Looks-Good entries specific-only (open question resolved). Build deferred.
+
 ## Work Log
 
 - 2026-05-24T21:27:52.636Z Started: Created ticket R09T59
 - 2026-05-24T21:30:00.000Z Drafted: Scope (findings format + bulk template + cross-cutting), open question on Looks-Good; linked to epic 0AWSY8
+- 2026-06-06T17:40:00.000Z Replan: confirmed mostly-additive (adopt arcade structured format); added reconcile-with-house-output-style guardrail; Looks-Good resolved → specific-only. Build deferred.
+- 2026-06-07T01:05:00.000Z Implemented + verified: added "Findings format" (compact house-style convention — tally/3-tier/h4 Current→Proposed/bulk/**Next:**, not arcade's ~130-line copy) + "Cross-cutting checks" (5 lenses) to the scenario-gate; exit checklist updated. Template + dogfood parity 120/120, markdownlint 0. Re-sized feature→task. verify.md written; closed. Unblocks F2QZB4 (its last blocker).

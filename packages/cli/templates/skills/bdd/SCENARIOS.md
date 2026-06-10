@@ -61,7 +61,7 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
 
-**Saved format** (`test-definitions.md` on disk): nested `## Rule:` / `### Scenario:` with Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — the prompt hook parses them to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Keep scenarios declarative (what, not how) and aim for 3-5 G/W/T steps per scenario.
+**Saved format** (`test-definitions.md` on disk): nested `## Rule:` / `### Scenario:` with Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — the prompt hook parses them to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Aim for 3-5 G/W/T steps per scenario, and write each to the **Scenario construction rules** below.
 
 ```markdown
 ## Rule: Description of business rule
@@ -100,6 +100,18 @@ Then [outcome]
 - [ ] GREEN
 - [ ] REFACTOR
 ```
+
+### Scenario construction rules
+
+Write each saved `Given/When/Then` to these rules — they head off at authoring time the defects the scenario-gate would otherwise catch later. Coaching, not a gate: when a scenario starts to break one, split it on the spot instead of accumulating violations.
+
+- **One behavior, one `When`** — each scenario specifies a single event and its outcome. Multiple `And`-joined `Then` lines are fine when they assert facets of the _same_ outcome (a withdrawal that debits **and** dispenses **and** returns the card); a second `When`, or a second behavior, means a second scenario.
+- **Outcome-oriented `Then`** — assert what is true after the `When`, never how the system gets there. "Then the order is rejected" ✓, not "Then `validateOrder()` returns false" ✗.
+- **Declarative, business language** — name the intent, not the UI mechanics. "When the customer submits the order" ✓, not "When the user clicks `#submit` and waits 200ms" ✗. Reads as living documentation and survives implementation changes.
+- **`Given` is state, not action** — establish the world, don't act in it. "Given the cart holds one item" ✓, not "Given the customer adds an item" ✗ (an action belongs in `When`).
+- **No `or` in the `Then`** — one outcome per scenario; "returns 200 **or** 201" is two scenarios. For one behavior across many inputs, use a `Scenario Outline` with an `Examples` table, not copy-pasted scenarios.
+
+Two of these rules mirror gate checks — **one behavior** is AODI's **Atomic**, and externally-observable outcomes are its **Observable** (both in the Scenario Quality Gate below). Author for them here; the gate still validates every scenario adversarially.
 
 ### Scenario naming: lineage scheme
 
@@ -147,20 +159,7 @@ tickets as advisories (never a gate):
 
 **Entry:** Agent enters `scenario-gate` phase.
 
-### AODI Validation
-
-Validate each scenario against four criteria:
-
-| Criterion         | Check                          | Red flag                        |
-| ----------------- | ------------------------------ | ------------------------------- |
-| **Atomic**        | Tests ONE behavior             | Multiple When/Then pairs        |
-| **Observable**    | Has externally visible outcome | Internal state only             |
-| **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
-| **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
-
-### Adversarial pass
-
-After AODI validation, argue against your own scenario list: "What breaks that none of these scenarios catch?" Present any findings to the user.
+Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `test-definitions.md`, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the saturation check and exit below.
 
 ### Coverage saturation
 
@@ -168,8 +167,8 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 ### Scenario Gate Exit (REQUIRED)
 
-1. Each scenario validated (Atomic, Observable, Deterministic, Independent)
-2. Adversarial pass complete — issues reported or confirmed clean
+1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
+2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
 3. **Assign test layers + sequence the work** — for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
 4. **Update frontmatter:** `phase: implement`
 5. **Add work log entry:**
@@ -177,3 +176,12 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
    ```
    - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass; test layers + build order assigned
    ```
+
+### Optional: codify the scenarios
+
+After the gate, `safeword codify <ticket>` turns the saved scenarios into runnable stubs — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step:
+
+- Default: a native vitest skeleton — one `describe` per rule, `it.todo` per scenario (`--red` for failing bodies); print to stdout or `--out <path>`.
+- `--format gherkin`: a `.feature` file for the scaffolded acceptance lane — write it under `features/` and run it with the `test:bdd` script (cucumber-js; TypeScript step definitions live in `steps/`).
+
+Either way `test-definitions.md` stays the source of truth — the R/G/R checkboxes and hooks read it, never the generated files. If scenarios change later, regenerate: codify refuses to overwrite, so delete the stale file first.

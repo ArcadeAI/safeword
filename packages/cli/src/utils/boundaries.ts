@@ -99,6 +99,20 @@ function hasLayerForPrefix(elements: DetectedElement[], layer: Layer, pathPrefix
  * @param pathPrefix
  * @param elements
  */
+/**
+ * A `features/` directory holding Gherkin `.feature` files is safeword's BDD
+ * acceptance lane (scaffolded by setup, ticket 102b), not a feature-sliced
+ * architecture layer — without this guard every safeword project would
+ * "detect" architecture and get depcruise configs it doesn't need.
+ */
+function isGherkinDirectory(fullPath: string): boolean {
+  try {
+    return readdirSync(fullPath).some(entry => entry.endsWith('.feature'));
+  } catch {
+    return false;
+  }
+}
+
 function scanSearchPath(
   projectDirectory: string,
   searchPath: string,
@@ -108,7 +122,11 @@ function scanSearchPath(
   for (const layerDefinition of ARCHITECTURE_LAYERS) {
     for (const dirName of layerDefinition.dirs) {
       const fullPath = nodePath.join(projectDirectory, searchPath, dirName);
-      if (exists(fullPath) && !hasLayerForPrefix(elements, layerDefinition.layer, pathPrefix)) {
+      if (
+        exists(fullPath) &&
+        !isGherkinDirectory(fullPath) &&
+        !hasLayerForPrefix(elements, layerDefinition.layer, pathPrefix)
+      ) {
         elements.push({
           layer: layerDefinition.layer,
           pattern: `${pathPrefix}${dirName}/**`,

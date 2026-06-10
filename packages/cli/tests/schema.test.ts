@@ -341,7 +341,14 @@ describe('Schema - Single Source of Truth', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       // Action skills have disable-model-invocation and use Cursor commands instead of rules
-      const ACTION_SKILLS = new Set(['lint', 'verify', 'audit', 'cleanup-zombies', 'self-review']);
+      const ACTION_SKILLS = new Set([
+        'lint',
+        'verify',
+        'audit',
+        'cleanup-zombies',
+        'self-review',
+        'review-spec',
+      ]);
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)

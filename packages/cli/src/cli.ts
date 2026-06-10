@@ -105,6 +105,20 @@ program
     syncTicketsCommand({ quiet: options.quiet });
   });
 
+program
+  .command('codify <ticket>')
+  .description("Emit a test skeleton from a ticket's test-definitions.md (vitest or gherkin)")
+  .option('--format <format>', 'Output format: vitest (default) or gherkin', 'vitest')
+  .option(
+    '--red',
+    'Emit throwing it(...) bodies (true-RED board) instead of pending stubs (vitest only)',
+  )
+  .option('--out <path>', 'Write to a file (refuses to overwrite) instead of stdout')
+  .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
+    const { codify } = await import('./commands/codify.js');
+    await codify(ticketId, options);
+  });
+
 // Show help if no arguments provided
 if (process.argv.length === 2) {
   program.help();

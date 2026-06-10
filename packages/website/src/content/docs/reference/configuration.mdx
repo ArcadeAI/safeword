@@ -126,15 +126,20 @@ Safeword has two types of files:
 
 **Never overwritten** (safe to customize):
 
-- `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`
+- `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `cucumber.mjs`
 - Language-specific configs: `ruff.toml`, `mypy.ini`, `.golangci.yml`, `clippy.toml`, `rustfmt.toml`, `.sqlfluff`
+
+**Created once, yours afterward** (scaffolded if missing, never overwritten once you've edited them):
+
+- `features/` — Gherkin `.feature` files (a runnable starter is scaffolded)
+- `steps/` — TypeScript step definitions for the acceptance lane
 
 **Partially updated** (your customizations preserved, safeword keys re-merged):
 
 - `AGENTS.md`, `CLAUDE.md` — safeword link block re-ensured, your content preserved
 - `.claude/settings.json` — safeword hooks updated, your custom hooks preserved
 - `.cursor/hooks.json` — safeword hooks updated, your custom hooks preserved
-- `package.json` — lint/format scripts and devDependencies merged (JS/TS only)
+- `package.json` — lint/format/`test:bdd` scripts and devDependencies merged (every project; created minimal + private if missing)
 - `.mcp.json`, `.cursor/mcp.json` — MCP server config merged
 - `biome.json` — safeword ignore patterns merged (if Biome detected)
 

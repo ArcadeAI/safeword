@@ -49,11 +49,11 @@ test -f AGENTS.md && echo "AGENTS.md ✓"
 
 **Your agent config stays yours** — Safeword uses `AGENTS.md` as the primary entry point. If you have an existing `CLAUDE.md`, it adds one import line at the top — your content is untouched.
 
-**Dev-only tools** — For JS/TS projects, safeword installs ESLint, Prettier, and supporting plugins as `devDependencies`. These are code quality tools for development — they never ship with your application or affect your runtime.
+**Dev-only tools** — Safeword installs ESLint, Prettier, and supporting plugins, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
 **AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor events). They never run during normal human development. Safeword does not install git hooks or modify your commit workflow.
 
-**Use in CI if you want** — Safeword adds `lint` and `format` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
+**Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
 ---
 
@@ -397,7 +397,7 @@ Safeword detects biome/dprint and skips Prettier installation. ESLint is still i
 No. Commit the `.safeword/`, `.claude/`, and `.cursor/` directories to git. When teammates pull, they get the full setup. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally, and safeword does not install git hooks. It adds `lint` and `format` scripts to `package.json` that you can optionally use in CI or precommit hooks.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally, and safeword does not install git hooks. It adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
 
 **What Claude Code permissions does safeword need?**
 Safeword's done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, the gate hard-blocks at done-phase.

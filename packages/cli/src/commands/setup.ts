@@ -25,7 +25,7 @@ import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
-import { detectLanguages, type Languages } from '../utils/project-detector.js';
+import { type Languages } from '../utils/project-detector.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { getWorkspacePatterns } from '../utils/workspaces.js';
 import { VERSION } from '../version.js';
@@ -34,6 +34,7 @@ import { buildArchitecture, hasArchitectureDetected, syncConfigCore } from './sy
 interface PackageJson {
   name?: string;
   version?: string;
+  private?: boolean;
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -130,22 +131,21 @@ function addFormatScriptIfMissing(packageDirectory: string): boolean {
 }
 
 /**
- * Create package.json if missing, unless non-JS-only project (Python, Go).
- * Returns true if created, false if already exists or skipped.
+ * Create package.json if missing. Every safeword project gets one — BDD is
+ * core, and the cucumber-js acceptance lane (TypeScript step definitions) needs
+ * a JS home even in pure Go/Rust/Python repos (ticket 102b, Option A: the full
+ * TS toolchain comes along so the lane's .ts files are themselves linted).
+ * Returns true if created, false if one already exists.
  */
 function ensurePackageJson(cwd: string): boolean {
   const packageJsonPath = nodePath.join(cwd, 'package.json');
   if (exists(packageJsonPath)) return false;
 
-  // Skip for non-JS-only projects (no JS tooling needed)
-  const languages = detectLanguages(cwd);
-  const hasNonJs = languages.python || languages.golang || languages.rust;
-  if (hasNonJs && !languages.javascript) return false;
-
   const dirName = nodePath.basename(cwd) || 'project';
   const defaultPackageJson: PackageJson = {
     name: dirName,
     version: '0.1.0',
+    private: true,
     scripts: {},
   };
   writeJson(packageJsonPath, defaultPackageJson);
@@ -378,21 +378,6 @@ function logExistingFormatter(ctx: ProjectContext): void {
 }
 
 /**
- * Log detected language and skip message
- */
-function logDetectedLanguage(languages: Languages): void {
-  if (languages.python && !languages.javascript) {
-    info('Python project detected (skipping JS tooling)');
-  }
-  if (languages.golang && !languages.javascript) {
-    info('Go project detected (skipping JS tooling)');
-  }
-  if (languages.rust && !languages.javascript) {
-    info('Rust project detected (skipping JS tooling)');
-  }
-}
-
-/**
  * Register and setup detected language packs
  */
 function registerLanguagePacks(cwd: string): void {
@@ -465,18 +450,17 @@ export async function setup(options: SetupOptions): Promise<void> {
       rust: false,
       sql: false,
     };
-    const isNonJsOnly =
-      (languages.python || languages.golang || languages.rust) && !languages.javascript;
-
-    logDetectedLanguage(languages);
-
     const result = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
     success('Created .safeword directory and configuration');
 
-    // Language-specific setup
-    const { archFiles, workspaceUpdates } = isNonJsOnly
-      ? { archFiles: [], workspaceUpdates: [] }
-      : setupJavaScriptProject(cwd, ctx, result.packagesToInstall);
+    // Language-specific setup. The JS path runs unconditionally: ensurePackageJson
+    // guarantees a package.json (the BDD lane's home, ticket 102b), which is what
+    // language detection keys "javascript" on — every project is a JS project now.
+    const { archFiles, workspaceUpdates } = setupJavaScriptProject(
+      cwd,
+      ctx,
+      result.packagesToInstall,
+    );
     const pythonStatus = setupPythonProject(languages, cwd);
     setupGoProject(languages);
     registerLanguagePacks(cwd);

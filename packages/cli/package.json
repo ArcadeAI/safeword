@@ -34,6 +34,8 @@
     "dev": "tsup --watch",
     "pretest": "tsup",
     "test": "vitest run",
+    "pretest:bdd": "tsup",
+    "test:bdd": "cucumber-js",
     "test:done": "vitest run tests/hooks/ tests/schema.test.ts",
     "test:integration": "vitest run tests/integration/",
     "test:smoke:fast": "vitest run tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts",
@@ -83,6 +85,9 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^13.0.0",
+    "@cucumber/gherkin": "^39.1.0",
+    "@cucumber/messages": "^32.3.1",
     "@types/estree": "^1.0.9",
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^4.1.7",
@@ -91,6 +96,7 @@
     "prettier": "^3.8.3",
     "publint": "^0.3.21",
     "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vitest": "^4.1.7"
   },

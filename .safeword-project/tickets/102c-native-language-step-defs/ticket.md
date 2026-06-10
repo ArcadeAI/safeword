@@ -3,7 +3,7 @@ id: '102c'
 slug: native-language-step-defs
 title: 'Customer choice of native-language Gherkin step definitions'
 type: Feature
-status: backlog
+status: cancelled
 priority: low
 parent: '102'
 depends_on: 102b
@@ -12,6 +12,8 @@ depends_on: 102b
 # Feature: Native-Language Step Definitions
 
 **Type:** Feature | **Priority:** Backlog | **Parent:** Epic 102 | **Depends on:** 102b
+
+> **Cancelled — 2026-06-09.** The merged harness standardizes on **all-TypeScript step definitions** (cucumber-js); customers writing step defs in Go/Python/Rust (godog/pytest-bdd/cucumber-rs) is explicitly out of scope. Non-TS _apps_ are still covered — by TS step defs that shell out or hit HTTP (102b) — so this ticket's capability is intentionally dropped, not deferred. Retained for history; do not build.
 
 ## Problem
 
