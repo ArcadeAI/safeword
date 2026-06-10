@@ -2,7 +2,7 @@
 id: CNGBNT
 slug: harness-availability-check
 title: 'Test-harness availability check with graceful degradation to existing service test patterns'
-type: feature
+type: task
 phase: intake
 status: in_progress
 epic: bdd-phase-two-merge
@@ -68,7 +68,18 @@ Also: scaffold a follow-up ticket (or surface a recommendation to create one) ti
 - **What's the canonical probe per language?** Need a default list — Python uses pytest-bdd, TS uses ??? (playwright-bdd vs Cucumber.js), Go uses ??? (godog? bare \*\_test.go?). Driver leans configurable-with-defaults and let users override.
 - **Follow-up ticket auto-creation** — silent (mention in work log), prompt (ask user), or auto (mint via CLI)? Driver leans prompt.
 
+## Replan — 2026-06-10 (epic validation pass) — RESCOPED feature → task
+
+**Premise weakened:** epic 102b (0AWSY8) now scaffolds a cucumber-js acceptance lane into **every** project at `safeword setup` — including non-JS repos (minimal private package.json hosts the TS toolchain). Harness absence is now the edge case (pre-102 installs, arcade's pytest-bdd, brownfield repos that removed the lane), not the norm.
+
+**Keep:** TDD.md degraded-path branch (the quoted copy), work-log annotation when degrading, follow-up-ticket recommendation (prompt, don't auto-create).
+
+**Drop:** `harnessCheck`/`harnessPath` config fields and per-language probe machinery — YAGNI. Detection reuses existing signals (`features/` dir with `.feature` files per boundaries.ts, project test script presence); the agent judges at implement entry, no hook probe.
+
+Both open questions dissolve with the config fields. Sized as a **task** (TDD.md + template sync + small test), not a feature.
+
 ## Work Log
 
 - 2026-05-24T21:37:59.876Z Started: Created ticket CNGBNT
 - 2026-05-24T21:39:00.000Z Drafted: Scope (probe, two branches, hook integration); linked to epic M6D315
+- 2026-06-10T22:20:00.000Z Replan: rescoped feature → task. 102b universal lane scaffolding makes harness absence the edge case; config fields dropped; docs-level degradation branch kept.

@@ -68,7 +68,14 @@ Wait for the user's answer before proceeding.
 - **Subdirectory recursion** — recurse into `docs/arch/subdir/`? Driver leans no for v1 (flat directory); revisit if real projects need nested structure.
 - **What counts as an ADR?** Arcade matches `[0-9]*.md`. Should safeword match the same, or be more permissive? Driver leans match arcade for consistency, but with the config override for projects that want a different pattern.
 
+## Replan — 2026-06-10 (epic validation pass)
+
+- **ADR location rescoped:** no new `adrLocation` field. Reuse the shipped `paths.architecture` config (K7N2QM/P8RJ4M), extended to accept **file or directory**. File → the single architecture record (safeword default `.safeword-project/architecture.md`). Directory → each `.md` (any name; README.md excluded) is an ADR. Arcade sets `paths.architecture: docs/docs/arch`. This resolves open questions 1 and 3: accept-any-`.md` naming, no pattern enforcement, no `docs/arch/` default.
+- **Authoring point:** the consultation step runs while authoring `impl-plan.md` at scenario-gate exit (XDNSZA replan), populating its Arch alignment section.
+- Open question 2 (subdirectory recursion) stands: flat, no recursion for v1.
+
 ## Work Log
 
 - 2026-05-24T21:37:59.788Z Started: Created ticket K4BWTQ
 - 2026-05-24T21:39:00.000Z Drafted: Scope (location + consultation step + prompt), hook integration, 3 open questions; linked to epic M6D315
+- 2026-06-10T22:20:00.000Z Replan: paths.architecture file-or-dir reuse (no adrLocation field); consultation runs at impl-plan authoring (scenario-gate exit); naming questions resolved accept-any.

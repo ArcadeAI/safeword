@@ -7,7 +7,7 @@ phase: intake
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
-blocked_on: XDNSZA
+blocked_on: [XDNSZA, K4BWTQ]
 created: 2026-05-24T21:37:59.832Z
 last_modified: 2026-05-24T21:39:00.000Z
 ---
@@ -63,7 +63,14 @@ The reconciled impl plan IS the artifact — no separate reconciliation document
 - **Granularity of reconciliation** — per-Decision-row review, or one big "have you re-read the plan" prompt? Driver leans per-Decision (forces specificity).
 - **When the impl plan was never written** (e.g., legacy ticket, skipped section) — does reconciliation skip cleanly, or warn? Driver leans warn (call out that there's nothing to reconcile, encourage drafting one retroactively).
 
+## Replan — 2026-06-10 (epic validation pass)
+
+- **Vocabulary:** "Phase 6 exit" = the `implement` → `verify` transition in the named-phase machine; "Phase 7" = `verify`. Doc surface is TDD.md (implement phase file).
+- **Now also depends on K4BWTQ** — reconciliation step 2 walks the Arch alignment section whose shape K4BWTQ defines; build after it to avoid reworking the copy.
+- **Hook surface:** the implement→verify status check slots into stop-quality.ts cumulative-artifact gates alongside the existing all-checkboxes-complete check.
+
 ## Work Log
 
 - 2026-05-24T21:37:59.832Z Started: Created ticket ERVA6V
 - 2026-05-24T21:39:00.000Z Drafted: Scope (4-step reconciliation, hook integration, work log entry); linked to epic M6D315
+- 2026-06-10T22:20:00.000Z Replan: named-phase vocabulary applied; dependency on K4BWTQ added; gate slots into stop-quality.ts.

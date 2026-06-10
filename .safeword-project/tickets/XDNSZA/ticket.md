@@ -71,7 +71,17 @@ Add a template to `packages/cli/templates/doc-templates/impl-plan-template.md` (
 - **Decisions section format** — table per decision (Choice | Alternatives considered | Rejected because) or per-decision sub-section? Driver leans table for scannability, but complex decisions might warrant prose.
 - **Approach section vs decomposition table** — does Approach include the task breakdown table (test layer assignments, ordering), or is the task breakdown a separate sub-section? Driver leans included — they're inseparable.
 
+## Replan — 2026-06-10 (epic validation pass)
+
+Inherited decisions now resolved — see M6D315 replan:
+
+- **Storage:** sibling file `impl-plan.md` in the ticket folder (DZ2NM5's sibling-artifact pattern won; the "## Implementation section in ticket.md" branch is dead).
+- **Authoring point:** scenario-gate exit — SCENARIOS.md's exit step 3 (test-layer assignment + sequencing, absorbed from the retired decomposition phase) becomes "write impl-plan.md"; that output is the Approach section. "Phase 6" in this ticket reads as the named `implement` phase.
+- **VYRKBJ folded in:** this ticket also ships the `skip: <non-empty reason>` convention for sections (template callout + gate accepts content-or-skip + `safeword check` validation: bare `skip:` error, whitespace-only reason error, empty section without skip error). The implement-entry gate must accept skips from day one.
+- **Hook surface:** gates live in the stop-quality.ts cumulative-artifact checks (not pre-tool-quality); integrate with the existing BddPhase machine and Tier-2 review stamps, don't build parallel machinery.
+
 ## Work Log
 
 - 2026-05-24T21:37:59.745Z Started: Created ticket XDNSZA
 - 2026-05-24T21:39:00.000Z Drafted: Scope (5 sections + lifecycle + storage), template, hook integration; linked to epic M6D315
+- 2026-06-10T22:20:00.000Z Replan: storage + authoring point resolved (impl-plan.md sibling, scenario-gate exit); VYRKBJ skip-discipline scope folded in; named-phase vocabulary applied.
