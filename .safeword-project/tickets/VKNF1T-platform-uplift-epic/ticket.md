@@ -32,6 +32,7 @@ last_modified: 2026-06-06T21:18:25.265Z
 | **Z4Q24Q** | Model-tier policy: opus / sonnet / fable per task                        | intake            |
 | **AKZJXC** | Structured ticket relations (depends_on/blocks), absorbed from Linear    | intake            |
 | **THSPA5** | Optional one-way coordination mirror → Linear/GitHub/Jira via Arcade MCP | intake            |
+| **SKQR0G** | Optimize safeword for Fable 5 — capability-tier harness (umbrella)       | intake            |
 
 **B — Sharpen the audit surface**
 
