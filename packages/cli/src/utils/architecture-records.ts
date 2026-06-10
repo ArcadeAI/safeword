@@ -30,5 +30,5 @@ export function listArchitectureRecords(resolvedPath: string): ArchitectureRecor
       .map(entry => nodePath.join(resolvedPath, entry.name));
     return { kind: 'directory', records };
   }
-  throw new Error('not implemented');
+  return { kind: 'absent', records: [] };
 }

@@ -38,7 +38,7 @@ Given the resolved location does not exist
 When the helper lists architecture records
 Then it reports kind `absent` with zero records
 
-- [ ] RED
+- [x] RED 4c18a4d5
 - [ ] GREEN
 - [ ] REFACTOR
 
