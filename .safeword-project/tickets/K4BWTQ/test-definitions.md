@@ -9,8 +9,8 @@ When the helper lists architecture records
 Then it reports kind `file` with that file as the single record
 
 - [x] RED 27e34f04
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 9d113675
+- [x] REFACTOR skip: 5-line file branch, nothing to restructure
 
 ### Scenario: adr-consultation.DEV1.AC1.directory_location_lists_each_md_as_adr
 

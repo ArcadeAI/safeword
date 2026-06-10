@@ -31,4 +31,22 @@ describe('listArchitectureRecords (Rule 1)', () => {
     expect(result.kind).toBe('file');
     expect(result.records).toEqual([filePath]);
   });
+
+  it('lists top-level .md files in a directory — accept-any naming, no recursion, non-markdown excluded', () => {
+    writeFileSync(nodePath.join(directory, '0001-storage.md'), '# ADR-001\n');
+    writeFileSync(nodePath.join(directory, 'ADR-queue.md'), '# Queue\n');
+    writeFileSync(nodePath.join(directory, 'naming-freeform.md'), '# Freeform\n');
+    writeFileSync(nodePath.join(directory, 'notes.txt'), 'not an ADR\n');
+    mkdirSync(nodePath.join(directory, 'nested'));
+    writeFileSync(nodePath.join(directory, 'nested', '0002-deep.md'), '# Deep\n');
+
+    const result = listArchitectureRecords(directory);
+
+    expect(result.kind).toBe('directory');
+    expect(result.records.toSorted()).toEqual(
+      ['0001-storage.md', 'ADR-queue.md', 'naming-freeform.md']
+        .map(name => nodePath.join(directory, name))
+        .toSorted(),
+    );
+  });
 });
