@@ -3,7 +3,13 @@
 <!-- Lineage: gherkin-setup.DEV1.AC#.<name>. AC1 = setup scaffolds the lane
      (integration: built CLI on temp fixtures); AC2 = the non-JS package.json
      delta (integration); AC3 = the lane runs green out of the box (golden-path,
-     TS + Go fixtures). Re-run safety scenarios protect customer edits. -->
+     TS + Go fixtures). Customer-ownership scenarios protect customer edits.
+     Strengthened at the scenario-gate (independent review, 2026-06-10):
+     de-vacuumed the feature-survival scenario (Given anchored to the scaffolded
+     starter); polyglot merge made observable via a name-mismatch fixture; Go
+     golden-path Then matched to its TS twin (zero undefined/pending); pure-go
+     compound Then split into package.json-delta + lane-lands scenarios; added
+     the pre-existing test:bdd collision scenario (additive: existing wins). -->
 
 ## Rule: `safeword setup` scaffolds the cucumber-js lane as standard output
 
@@ -37,13 +43,33 @@ Then those existing entries are unchanged alongside the added lane entries
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: gherkin-setup.DEV1.AC1.existing_test_bdd_script_is_not_overwritten
+
+Given a package.json whose `test:bdd` script already points at the customer's own command
+When `safeword setup` runs
+Then that script keeps the customer's command — the lane's script is added only when the key is absent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: A repo with no package.json gets a minimal one to host the lane
 
 ### Scenario: gherkin-setup.DEV1.AC2.pure_go_repo_gets_a_minimal_package_json
 
 Given a pure Go project (a `go.mod`, no package.json)
 When `safeword setup` runs
-Then a minimal private package.json is created and the lane files are scaffolded
+Then a package.json with `private: true` is created
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: gherkin-setup.DEV1.AC2.pure_go_repo_gets_the_lane_files
+
+Given a pure Go project (a `go.mod`, no package.json)
+When `safeword setup` runs
+Then the project gains `cucumber.mjs`, the `features/` starter, and the `steps/` scaffold
 
 - [ ] RED
 - [ ] GREEN
@@ -51,9 +77,9 @@ Then a minimal private package.json is created and the lane files are scaffolded
 
 ### Scenario: gherkin-setup.DEV1.AC2.polyglot_repo_merges_into_its_existing_package_json
 
-Given a project with both a `go.mod` and a package.json
+Given a project with a `go.mod` and a package.json whose `name` differs from the directory name
 When `safeword setup` runs
-Then no new package.json is created — the lane's deps and script merge into the existing one
+Then the package.json keeps its original `name` and gains the lane devDependencies and `test:bdd` script
 
 - [ ] RED
 - [ ] GREEN
@@ -75,7 +101,7 @@ Then cucumber-js reports the starter scenario passing with zero undefined or pen
 
 Given a freshly set-up pure Go project with dependencies installed
 When the `test:bdd` script runs
-Then cucumber-js reports the starter scenario passing and exits zero
+Then cucumber-js reports the starter scenario passing with zero undefined or pending steps and exits zero
 
 - [ ] RED
 - [ ] GREEN
@@ -97,9 +123,9 @@ Then the edited steps file keeps the developer's content
 
 ### Scenario: gherkin-setup.DEV1.AC1.customer_feature_files_survive_a_rerun
 
-Given a set-up project where the developer has added their own `.feature` file
+Given a set-up project whose `features/` contains the scaffolded starter and a developer-added `.feature` file
 When `safeword setup` runs again
-Then that `.feature` file is untouched
+Then the developer's `.feature` file keeps its content
 
 - [ ] RED
 - [ ] GREEN

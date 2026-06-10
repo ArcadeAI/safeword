@@ -4,14 +4,14 @@ slug: gherkin-polyglot-ts-steps
 title: 'Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS)'
 type: feature
 status: in_progress
-phase: scenario-gate
+phase: implement
 priority: high
 parent: '102'
 epic: bdd-phase-one-merge
 depends_on: 102a
 scope:
   - '`safeword setup` scaffolds the cucumber-js acceptance lane as standard output (BDD is core, not opt-in): cucumber.mjs, a steps/ scaffold (world + shared shell-out steps + barrel), a features/ dir with a runnable starter, the @cucumber/cucumber + tsx devDeps, and a test:bdd script'
-  - 'Lane files registered as templates in SAFEWORD_SCHEMA ownedFiles (owned like other core files); the deps added to the base package set'
+  - 'File ownership split (per the scenario-gate review): `cucumber.mjs` is a safeword-owned template (overwritten on upgrade); `features/` + `steps/` are scaffolded create-once and customer-owned thereafter (never overwritten); the deps join the base package set; `test:bdd` added only when absent'
   - 'Extend ensurePackageJson to create a minimal package.json for pure-non-JS repos (Go/Rust/Python) — reversing its current refusal — so the JS-based runner has a home; the only TS-vs-non-TS divergence'
   - 'Golden-path tests: a freshly set-up TS project and a pure-non-JS (Go) project both get the lane, and `bun run test:bdd` runs the scaffolded starter green'
 out_of_scope:
@@ -20,6 +20,8 @@ out_of_scope:
   - 'Language-specific convenience steps — thin shared shell-out core only; grow on real duplication'
   - 'codify populating a real `.feature` into the scaffold — the developer runs codify separately'
   - 'An opt-out / disable mechanism — BDD is core (per the 2026-06-10 decision)'
+  - 'reset/uninstall semantics for customer features/ + steps/ — deferred to the `safeword check` lane-verification follow-on'
+  - 'A pre-existing customer-authored cucumber.mjs on first setup — safeword-owned config wins (rare collision; documented, not scenario-ized)'
 done_when:
   - '`safeword setup` writes the full cucumber-js lane (config + steps scaffold + features/ starter + deps + test:bdd script), verified on a TS fixture'
   - 'A pure-non-JS (Go) fixture gets a minimal package.json + the lane, verified'
@@ -123,5 +125,11 @@ customer-go-project/
 
 ## References
 
-- Ticket 102a — prerequisite (QuickPickle setup, shared step vocabulary)
-- Ticket 102c — follow-on (native-language step definitions)
+- Ticket 102a — prerequisite (cucumber-js lane proven in safeword's own repo)
+- Ticket 102c — cancelled (all-TS decision; TS step defs cover non-TS apps)
+
+## Work Log
+
+- 2026-06-10T04:20:00.000Z Complete: intake — reframed to the combined core scaffold (cucumber-js, TS + non-TS, no opt-in flag; BDD is core per user decision); spec.md authored (JTBD gherkin-setup.DEV1, AC1 scaffold / AC2 non-JS package.json / AC3 runs-green); scope/out_of_scope/done_when in frontmatter. (commit 8dff0e4c)
+- 2026-06-10T04:35:00.000Z Complete: define-behavior — dimensions.md + 9 scenarios across 4 rules. (commit deab7a89)
+- 2026-06-10T04:50:00.000Z Complete: scenario-gate — independent review (forked subagent, /review-spec procedure) returned CHANGES: 1 must-fix (feature-survival scenario was vacuous — Given now anchored to the scaffolded starter), 5 should-strengthen (polyglot merge observable via name-mismatch fixture; Go golden-path Then matched to TS twin; pure-go compound Then split into package.json-delta + lane-lands; added the pre-existing test:bdd collision scenario; ownedFiles-vs-customer-owned scope conflict fixed — cucumber.mjs owned, features/+steps/ create-once). 9 → 11 scenarios. Test layers: AC1/AC2 integration (built CLI on temp fixtures), AC3 golden-path (TS + Go). Build order: templates + schema registration → ensurePackageJson change → setup wiring → integration tests → golden-path. Phase → implement.
