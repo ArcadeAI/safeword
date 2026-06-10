@@ -172,7 +172,14 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 3. **Write `impl-plan.md`** (sibling to `ticket.md`; scaffold from `.safeword/templates/impl-plan-template.md`) — the implementation design record, status `planned`. Five sections, each with content or `skip: <non-empty reason>`:
    - **Approach** — assign test layers + sequence the work: for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
    - **Decisions** — one table row per significant technical choice: choice, alternatives considered, rejected because.
-   - **Arch alignment** — which recorded architecture decisions this honors (or `skip: no ADRs in this project yet`).
+   - **Arch alignment** — consult the project's architecture record before filling this in. Resolve the location from `paths.architecture` in `.safeword/config.json` (default `.safeword-project/architecture.md`); a file is the record itself, a directory holds one ADR per `.md` file (README.md excluded, any naming).
+     - **Records exist:** read them; populate this section with the titles of the decisions this implementation honors.
+     - **None recorded yet:** write `skip: no ADRs in this project yet` (the canonical "None recorded yet" state), then prompt the user before proceeding: _"No architectural decisions have been recorded yet. Consider whether this implementation introduces patterns worth documenting as the first ADR — technology choices spanning multiple features, data ownership, cross-service contracts. Draft the first ADR now, or continue and document afterward?"_ Wait for the answer (under autonomous runs: auto-continue and note the prompt in the work log).
+
+     `safeword check` flags the stale combination structurally — content in this section while no record exists at the resolved location.
+
+     _Worked example (both branches):_ a project with `docs/adr/0001-event-sourcing.md` writes "Honors 0001 (event sourcing): new writes append to the ledger"; a fresh project with no records writes the skip line, and the agent asks the first-ADR question before starting TDD.
+
    - **Known deviations** — where this deviates from arch guidance and why that's acceptable.
    - **Assessment triggers** — future changes that would prompt revisiting these choices.
 
