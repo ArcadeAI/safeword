@@ -70,7 +70,7 @@ Given an impl-plan.md whose `## Known deviations` section contains only `skip:`
 When the parser validates sections
 Then it reports a validation error naming Known deviations and the empty-reason rule
 
-- [ ] RED
+- [x] RED 60a690e3
 - [ ] GREEN
 - [ ] REFACTOR
 

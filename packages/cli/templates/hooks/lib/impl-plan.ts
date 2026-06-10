@@ -122,6 +122,9 @@ export function parseImplPlan(content: string): ImplPlanResult {
       body.length === 1 && body[0]?.toLowerCase().startsWith('skip:') ? body[0] : null;
     if (skipLine !== null) {
       const reason = skipLine.slice('skip:'.length).trim();
+      if (reason === '') {
+        errors.push(`Section "${name}": skip requires a non-empty reason (\`skip: <why>\`).`);
+      }
       sections[name] = { satisfied: reason !== '', skip: reason };
       continue;
     }
