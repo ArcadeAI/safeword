@@ -49,4 +49,13 @@ describe('listArchitectureRecords (Rule 1)', () => {
         .toSorted(),
     );
   });
+
+  it('excludes README.md from directory records', () => {
+    writeFileSync(nodePath.join(directory, 'README.md'), '# ADR conventions\n');
+    writeFileSync(nodePath.join(directory, '0001-storage.md'), '# ADR-001\n');
+
+    const result = listArchitectureRecords(directory);
+
+    expect(result.records).toEqual([nodePath.join(directory, '0001-storage.md')]);
+  });
 });

@@ -19,8 +19,8 @@ When the helper lists architecture records
 Then it reports kind `directory` and the record set equals exactly the three top-level `.md` files (order-insensitive; accept-any naming, no recursion, non-markdown excluded)
 
 - [x] RED 1ace2ffa
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN ff8fa6b8
+- [x] REFACTOR skip: directory branch is one filter chain, readable as-is
 
 ### Scenario: adr-consultation.DEV1.AC1.readme_is_excluded_from_directory_records
 
