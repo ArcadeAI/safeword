@@ -18,9 +18,9 @@ Given an impl-plan.md whose body contains a `**Status:** implemented` line
 When the parser reads the file content
 Then it reports status `implemented`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — status values are one closed-set check, both shipped in eb0fee1b
+- [x] GREEN 709b62c8
+- [x] REFACTOR skip: no structural change since eb0fee1b
 
 ### Scenario: impl-plan-artifact.SM1.AC2.missing_status_line_is_invalid
 

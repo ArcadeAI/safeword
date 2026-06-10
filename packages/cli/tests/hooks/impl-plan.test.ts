@@ -44,4 +44,10 @@ describe('parseImplPlan status lifecycle (Rule 1)', () => {
     const result = parseImplPlan(plan('implemented'));
     expect(result.status).toBe('implemented');
   });
+
+  it('reports a validation error when the status line is missing', () => {
+    const result = parseImplPlan(`# Impl Plan: x\n\n${FIVE_SECTIONS}`);
+    expect(result.status).toBeNull();
+    expect(result.errors.some(error => error.includes('**Status:**'))).toBe(true);
+  });
 });
