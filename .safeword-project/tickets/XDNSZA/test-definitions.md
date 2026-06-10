@@ -100,7 +100,7 @@ Given an impl-plan.md that omits the `## Assessment triggers` heading entirely
 When the parser validates sections
 Then it reports a validation error naming the missing section
 
-- [ ] RED
+- [x] RED fea69959
 - [ ] GREEN
 - [ ] REFACTOR
 

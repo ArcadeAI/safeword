@@ -117,7 +117,10 @@ export function parseImplPlan(content: string): ImplPlanResult {
   const sections: Partial<Record<ImplPlanSectionName, ImplPlanSectionVerdict>> = {};
   for (const name of IMPL_PLAN_SECTIONS) {
     const body = bodies.get(name);
-    if (body === undefined) continue;
+    if (body === undefined) {
+      errors.push(`Missing section heading \`## ${name}\` — all five sections are required.`);
+      continue;
+    }
     const skipLine =
       body.length === 1 && body[0]?.toLowerCase().startsWith('skip:') ? body[0] : null;
     if (skipLine !== null) {
