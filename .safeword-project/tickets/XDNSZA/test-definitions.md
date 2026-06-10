@@ -28,7 +28,7 @@ Given an impl-plan.md with five populated sections but no `**Status:**` line
 When the parser reads the file content
 Then it reports a validation error naming the missing status line
 
-- [ ] RED
+- [x] RED 9d6abaf5
 - [ ] GREEN
 - [ ] REFACTOR
 

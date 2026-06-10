@@ -19,14 +19,22 @@ export function parseImplPlan(content: string): ImplPlanResult {
   const errors: string[] = [];
   let status: ImplPlanStatus | null = null;
 
+  let sawStatusLine = false;
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed.startsWith(STATUS_PREFIX)) continue;
+    sawStatusLine = true;
     const value = trimmed.slice(STATUS_PREFIX.length).trim();
     if (value === 'planned' || value === 'implemented') {
       status = value;
     }
     break;
+  }
+
+  if (!sawStatusLine) {
+    errors.push(
+      `Missing \`${STATUS_PREFIX}\` line — add \`${STATUS_PREFIX} planned\` near the top.`,
+    );
   }
 
   return { status, errors };
