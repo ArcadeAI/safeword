@@ -8,7 +8,7 @@ Given `paths.architecture` resolves to an existing markdown file
 When the helper lists architecture records
 Then it reports kind `file` with that file as the single record
 
-- [ ] RED
+- [x] RED 27e34f04
 - [ ] GREEN
 - [ ] REFACTOR
 

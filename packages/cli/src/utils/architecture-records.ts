@@ -8,6 +8,8 @@
  * separate ADR-location field.
  */
 
+import { statSync } from 'node:fs';
+
 export type ArchitectureLocationKind = 'file' | 'directory' | 'absent';
 
 export interface ArchitectureRecords {
@@ -16,6 +18,10 @@ export interface ArchitectureRecords {
   records: string[];
 }
 
-export function listArchitectureRecords(_resolvedPath: string): ArchitectureRecords {
+export function listArchitectureRecords(resolvedPath: string): ArchitectureRecords {
+  const stats = statSync(resolvedPath, { throwIfNoEntry: false });
+  if (stats?.isFile()) {
+    return { kind: 'file', records: [resolvedPath] };
+  }
   throw new Error('not implemented');
 }
