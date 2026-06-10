@@ -249,6 +249,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ownedFiles: {
     // Project root config files (for audit/quality tools)
     '.jscpd.json': { template: '.jscpd.json' },
+    // BDD acceptance lane config (ticket 102b) — safeword-owned; the lane's
+    // working files (features/, steps/) are customer-owned in managedFiles.
+    'cucumber.mjs': { template: 'cucumber/cucumber.mjs' },
     // Note: knip.json is in typescriptManagedFiles (with context-aware ignoreDependencies)
 
     // Core files
@@ -587,6 +590,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Files created if missing, updated only if content matches current template
   managedFiles: {
+    // BDD acceptance lane working files (ticket 102b) — scaffolded once; the
+    // customer owns them thereafter (created if missing, updated only while
+    // still safeword's template content). The lane config (cucumber.mjs) is
+    // safeword-owned in ownedFiles.
+    'features/safeword-lane.feature': { template: 'cucumber/safeword-lane.feature' },
+    'steps/world.ts': { template: 'cucumber/world.ts' },
+    'steps/shared.steps.ts': { template: 'cucumber/shared.steps.ts' },
+
     // TypeScript/JavaScript managed files (ESLint, tsconfig, Knip, Prettier configs)
     ...typescriptManagedFiles,
     // Python managed files (ruff.toml, mypy.ini, .importlinter)

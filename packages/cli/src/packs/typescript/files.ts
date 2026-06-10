@@ -325,8 +325,14 @@ function mergeFormatScripts(
 
 export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
   'package.json': {
-    keys: ['scripts.lint', 'scripts.format', 'scripts.format:check', 'scripts.knip'],
-    skipIfMissing: true, // Don't create for Python-only projects (no JS tooling)
+    keys: [
+      'scripts.lint',
+      'scripts.format',
+      'scripts.format:check',
+      'scripts.knip',
+      'scripts.test:bdd',
+    ],
+    skipIfMissing: true, // Setup creates package.json first (ensurePackageJson), so this only skips outside setup
     conditionalKeys: {
       existingLinter: ['scripts.lint:eslint'], // Projects with existing linter get separate ESLint script
       publishableLibrary: ['scripts.publint'],
@@ -339,6 +345,9 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       mergeLintScripts(scripts, ctx.projectType);
       mergeFormatScripts(scripts, ctx.projectType);
       addScriptIfMissing(scripts, 'knip', 'knip');
+      // BDD acceptance lane (ticket 102b) — add-if-absent: an existing
+      // customer test:bdd script always wins.
+      addScriptIfMissing(scripts, 'test:bdd', 'cucumber-js');
 
       // Conditional scripts based on project type
       if (ctx.projectType.publishableLibrary) {
@@ -361,6 +370,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       delete scripts['format:check'];
       delete scripts.knip;
       delete scripts.publint;
+      delete scripts['test:bdd'];
 
       if (Object.keys(scripts).length > 0) {
         result.scripts = scripts;
@@ -453,6 +463,10 @@ export const typescriptPackages = {
     // Architecture and dead code tools (used by /audit)
     'dependency-cruiser',
     'knip',
+    // BDD acceptance lane (ticket 102b) — cucumber-js runs the scaffolded
+    // .feature files; tsx transpiles the TypeScript step definitions.
+    '@cucumber/cucumber',
+    'tsx',
   ],
   conditional: {
     // Prettier (only for projects without existing formatter)

@@ -56,34 +56,39 @@ function createJsGoProject(dir: string): void {
 }
 
 describe('Test Suite: Conditional Setup for Go Projects', () => {
-  describe('Test: Skips ESLint install for Go-only projects', () => {
+  describe('Test: Installs the JS toolchain for Go-only projects (BDD lane, ticket 102b)', () => {
     it(
-      'should not install eslint in node_modules for Go-only project',
+      'should install eslint and cucumber for Go-only project (the lane ships TS step files)',
       async () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
         await runCli(['setup'], { cwd: projectDirectory });
 
-        // Should NOT have node_modules with eslint
-        expect(fileExists(projectDirectory, 'node_modules/eslint')).toBe(false);
-        expect(fileExists(projectDirectory, 'node_modules/prettier')).toBe(false);
+        // BDD is core (Option A): the lane's step files are TypeScript, so the
+        // TS toolchain comes along even in non-JS repos.
+        expect(fileExists(projectDirectory, 'node_modules/eslint')).toBe(true);
+        expect(fileExists(projectDirectory, 'node_modules/@cucumber/cucumber')).toBe(true);
       },
-      TIMEOUT_SETUP,
+      TIMEOUT_BUN_INSTALL,
     );
   });
 
-  describe('Test: Skips package.json creation for Go-only', () => {
+  describe('Test: Creates a lane-host package.json for Go-only', () => {
     it(
-      'should not create package.json for pure Go project',
+      'should create a minimal private package.json for pure Go project',
       async () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
         await runCli(['setup'], { cwd: projectDirectory });
 
-        // package.json should NOT be created
-        expect(fileExists(projectDirectory, 'package.json')).toBe(false);
+        // Created to host the BDD acceptance lane (ticket 102b).
+        expect(fileExists(projectDirectory, 'package.json')).toBe(true);
+        const packageJson = JSON.parse(readTestFile(projectDirectory, 'package.json')) as {
+          private?: boolean;
+        };
+        expect(packageJson.private).toBe(true);
       },
       TIMEOUT_SETUP,
     );
@@ -120,10 +125,8 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
           cwd: projectDirectory,
         });
 
-        // Should mention Go tooling
+        // Should mention Go tooling (JS toolchain now also installs — BDD lane, 102b)
         expect(result.stdout).toMatch(/golangci-lint/i);
-        // Should NOT mention npm install for dependencies
-        expect(result.stdout).not.toMatch(/npm install.*eslint/i);
       },
       TIMEOUT_SETUP,
     );
