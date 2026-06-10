@@ -464,9 +464,11 @@ export const typescriptPackages = {
     'dependency-cruiser',
     'knip',
     // BDD acceptance lane (ticket 102b) — cucumber-js runs the scaffolded
-    // .feature files; tsx transpiles the TypeScript step definitions.
+    // .feature files; tsx transpiles the TypeScript step definitions, and
+    // @types/node lets the scaffolded steps (node: imports) pass typechecks.
     '@cucumber/cucumber',
     'tsx',
+    '@types/node',
   ],
   conditional: {
     // Prettier (only for projects without existing formatter)

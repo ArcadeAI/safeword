@@ -389,12 +389,12 @@ describe('E2E: Pure Rust Project', () => {
     }
   });
 
-  it('does NOT create package.json', () => {
-    expect(fileExists(projectDirectory, 'package.json')).toBe(false);
+  it('creates a lane-host package.json (BDD lane is core, ticket 102b)', () => {
+    expect(fileExists(projectDirectory, 'package.json')).toBe(true);
   });
 
-  it('does NOT create eslint.config.mjs', () => {
-    expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(false);
+  it('creates eslint.config.mjs (the lane ships TS step files — Option A)', () => {
+    expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(true);
   });
 
   it('creates Rust configs', () => {
