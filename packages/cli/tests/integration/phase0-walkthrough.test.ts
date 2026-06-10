@@ -218,18 +218,18 @@ const DOGFOOD = fileURLToPath(
 describe.each([
   ['canonical template', CANONICAL],
   ['dogfood copy', DOGFOOD],
-])('DISCOVERY.md Phase 0 worked example — %s', (_label, filePath) => {
+])('DISCOVERY.md intake worked example — %s', (_label, filePath) => {
   const content = readFileSync(filePath, 'utf8');
-  const exampleAt = content.indexOf('## Worked example: Phase 0 end to end');
+  const exampleAt = content.indexOf('## Worked example: intake end to end');
   const afterExample = content.indexOf('## Intake Exit', exampleAt + 1);
   const exampleEnd = afterExample === -1 ? content.length : afterExample;
   const section = exampleAt === -1 ? '' : content.slice(exampleAt, exampleEnd);
 
-  it('has a "Worked example: Phase 0 end to end" capstone section', () => {
+  it('has a "Worked example: intake end to end" capstone section', () => {
     expect(exampleAt).toBeGreaterThan(-1);
   });
 
-  it('exercises all four Phase 0 artifact types in one walkthrough', () => {
+  it('exercises all four intake artifact types in one walkthrough', () => {
     // 1 — persona reference (from personas.md)
     expect(section).toMatch(/Platform Operator \(PO\)/);
     // 2 — JTBD: the id plus the "When I…, I want…, so I can…" form
@@ -245,7 +245,7 @@ describe.each([
     expect(section).toMatch(/done_when:/);
   });
 
-  it('shows the numbered Phase-3 scenario lineage and the coverage report', () => {
+  it('shows the numbered define-behavior scenario lineage and the coverage report', () => {
     expect(section).toMatch(/oauth-flow\.PO1\.AC1\.[a-z_]+/);
     expect(section).toMatch(/safeword check/);
     expect(section).toMatch(/uncovered/);
