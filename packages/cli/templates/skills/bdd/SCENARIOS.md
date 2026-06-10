@@ -176,3 +176,12 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
    ```
    - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass; test layers + build order assigned
    ```
+
+### Optional: codify the scenarios
+
+After the gate, `safeword codify <ticket>` turns the saved scenarios into runnable stubs — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step:
+
+- Default: a native vitest skeleton — one `describe` per rule, `it.todo` per scenario (`--red` for failing bodies); print to stdout or `--out <path>`.
+- `--format gherkin`: a `.feature` file for the scaffolded acceptance lane — write it under `features/` and run it with the `test:bdd` script (cucumber-js; TypeScript step definitions live in `steps/`).
+
+Either way `test-definitions.md` stays the source of truth — the R/G/R checkboxes and hooks read it, never the generated files. If scenarios change later, regenerate: codify refuses to overwrite, so delete the stale file first.
