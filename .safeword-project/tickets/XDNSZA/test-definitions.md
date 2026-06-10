@@ -60,7 +60,7 @@ Given an impl-plan.md whose `## Arch alignment` section contains only `skip: no 
 When the parser validates sections
 Then the Arch alignment section is reported satisfied with its skip reason preserved
 
-- [ ] RED
+- [x] RED bb2406d9
 - [ ] GREEN
 - [ ] REFACTOR
 

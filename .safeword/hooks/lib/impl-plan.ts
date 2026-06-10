@@ -118,6 +118,13 @@ export function parseImplPlan(content: string): ImplPlanResult {
   for (const name of IMPL_PLAN_SECTIONS) {
     const body = bodies.get(name);
     if (body === undefined) continue;
+    const skipLine =
+      body.length === 1 && body[0]?.toLowerCase().startsWith('skip:') ? body[0] : null;
+    if (skipLine !== null) {
+      const reason = skipLine.slice('skip:'.length).trim();
+      sections[name] = { satisfied: reason !== '', skip: reason };
+      continue;
+    }
     sections[name] = { satisfied: body.length > 0, skip: null };
   }
 
