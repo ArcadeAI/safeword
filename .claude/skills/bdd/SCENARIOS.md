@@ -169,12 +169,20 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
-3. **Assign test layers + sequence the work** — for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
+3. **Write `impl-plan.md`** (sibling to `ticket.md`; scaffold from `.safeword/templates/impl-plan-template.md`) — the implementation design record, status `planned`. Five sections, each with content or `skip: <non-empty reason>`:
+   - **Approach** — assign test layers + sequence the work: for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
+   - **Decisions** — one table row per significant technical choice: choice, alternatives considered, rejected because.
+   - **Arch alignment** — which recorded architecture decisions this honors (or `skip: no ADRs in this project yet`).
+   - **Known deviations** — where this deviates from arch guidance and why that's acceptable.
+   - **Assessment triggers** — future changes that would prompt revisiting these choices.
+
+   The stop hook blocks the `implement` phase for new-flow features until this file exists with all five sections satisfied.
+
 4. **Update frontmatter:** `phase: implement`
 5. **Add work log entry:**
 
    ```
-   - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass; test layers + build order assigned
+   - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass; impl-plan.md written (test layers + build order in Approach)
    ```
 
 ### Optional: codify the scenarios
