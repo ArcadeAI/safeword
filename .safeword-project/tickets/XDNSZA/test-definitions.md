@@ -80,9 +80,9 @@ Given an impl-plan.md whose `## Assessment triggers` section contains only `skip
 When the parser validates sections
 Then it reports a validation error naming Assessment triggers and the empty-reason rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — the GREEN for bare_skip (10b9c1d9) trims the reason, so whitespace is the same code path
+- [x] GREEN 2600e550
+- [x] REFACTOR skip: no code change in this scenario
 
 ### Scenario: impl-plan-artifact.SM1.AC2.empty_section_without_skip_is_invalid
 

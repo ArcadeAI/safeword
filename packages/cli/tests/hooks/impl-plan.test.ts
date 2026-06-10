@@ -92,6 +92,14 @@ describe('parseImplPlan section validation (Rule 2)', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('reports an empty unskipped section as invalid, naming it', () => {
+    const result = parseImplPlan(plan('planned', sectionsWith({ Approach: '' })));
+    expect(result.sections.Approach?.satisfied).toBe(false);
+    expect(result.errors.some(error => error.includes('Approach') && error.includes('empty'))).toBe(
+      true,
+    );
+  });
+
   it('reports a whitespace-only skip reason as invalid, naming the section', () => {
     const result = parseImplPlan(
       plan('planned', sectionsWith({ 'Assessment triggers': 'skip:   ' })),
