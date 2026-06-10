@@ -4,7 +4,7 @@ slug: gherkin-polyglot-ts-steps
 title: 'Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS)'
 type: feature
 status: in_progress
-phase: implement
+phase: verify
 priority: high
 parent: '102'
 epic: bdd-phase-one-merge
@@ -133,3 +133,5 @@ customer-go-project/
 - 2026-06-10T04:20:00.000Z Complete: intake — reframed to the combined core scaffold (cucumber-js, TS + non-TS, no opt-in flag; BDD is core per user decision); spec.md authored (JTBD gherkin-setup.DEV1, AC1 scaffold / AC2 non-JS package.json / AC3 runs-green); scope/out_of_scope/done_when in frontmatter. (commit 8dff0e4c)
 - 2026-06-10T04:35:00.000Z Complete: define-behavior — dimensions.md + 9 scenarios across 4 rules. (commit deab7a89)
 - 2026-06-10T04:50:00.000Z Complete: scenario-gate — independent review (forked subagent, /review-spec procedure) returned CHANGES: 1 must-fix (feature-survival scenario was vacuous — Given now anchored to the scaffolded starter), 5 should-strengthen (polyglot merge observable via name-mismatch fixture; Go golden-path Then matched to TS twin; pure-go compound Then split into package.json-delta + lane-lands; added the pre-existing test:bdd collision scenario; ownedFiles-vs-customer-owned scope conflict fixed — cucumber.mjs owned, features/+steps/ create-once). 9 → 11 scenarios. Test layers: AC1/AC2 integration (built CLI on temp fixtures), AC3 golden-path (TS + Go). Build order: templates + schema registration → ensurePackageJson change → setup wiring → integration tests → golden-path. Phase → implement.
+- 2026-06-10T05:10:00.000Z Decision (user): **Option A — uniform toolchain.** Pure non-JS repos get the full TS toolchain (eslint etc.) alongside the lane, because the lane ships TS step files that safeword's own lint hooks must be able to lint, and the alternative (lane-only) decays into A at first upgrade without a marker (javascript detection = package.json existence).
+- 2026-06-10T05:25:00.000Z Complete: implement — RED verified in-session (6 failed | 1 trivially-green | 2 anchored-skip), then GREEN in one commit f11d63b2: templates/cucumber/ ×4 (config, starter feature, world, shared shell-out steps — glob-loaded, no barrel); schema ownedFiles (cucumber.mjs) + managedFiles ×3 (customer-owned working files); base packages += @cucumber/cucumber + tsx; package.json merge += test:bdd add-if-absent (+ unmerge); ensurePackageJson creates a minimal private package.json everywhere (refusal removed). 11/11 scenarios green (9 integration + 2 golden-path: '1 scenario (1 passed)', zero undefined, TS + pure-Go). Updated 6 setup-python/golang tests encoding the old skip-JS spec; nested-config guard exempts cucumber.mjs (packages may run their own lane). Phase → verify.

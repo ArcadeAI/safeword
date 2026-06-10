@@ -17,11 +17,11 @@
 
 Given a TypeScript project with a package.json
 When `safeword setup` runs
-Then the project gains `cucumber.mjs`, a `features/` starter feature, and a `steps/` scaffold (world, shared steps, barrel)
+Then the project gains `cucumber.mjs`, a `features/` starter feature, and a `steps/` scaffold (world, shared steps — glob-loaded, no barrel needed)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ### Scenario: gherkin-setup.DEV1.AC1.deps_and_script_are_added
 
@@ -29,9 +29,9 @@ Given a TypeScript project with a package.json
 When `safeword setup` runs
 Then the package.json gains `@cucumber/cucumber` and `tsx` as devDependencies and a `test:bdd` script that invokes cucumber-js
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ### Scenario: gherkin-setup.DEV1.AC1.existing_package_json_content_is_preserved
 
@@ -39,9 +39,9 @@ Given a package.json with an existing `test` script and an existing devDependenc
 When `safeword setup` runs
 Then those existing entries are unchanged alongside the added lane entries
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ### Scenario: gherkin-setup.DEV1.AC1.existing_test_bdd_script_is_not_overwritten
 
@@ -49,9 +49,9 @@ Given a package.json whose `test:bdd` script already points at the customer's ow
 When `safeword setup` runs
 Then that script keeps the customer's command — the lane's script is added only when the key is absent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ## Rule: A repo with no package.json gets a minimal one to host the lane
 
@@ -61,9 +61,9 @@ Given a pure Go project (a `go.mod`, no package.json)
 When `safeword setup` runs
 Then a package.json with `private: true` is created
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ### Scenario: gherkin-setup.DEV1.AC2.pure_go_repo_gets_the_lane_files
 
@@ -71,9 +71,9 @@ Given a pure Go project (a `go.mod`, no package.json)
 When `safeword setup` runs
 Then the project gains `cucumber.mjs`, the `features/` starter, and the `steps/` scaffold
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ### Scenario: gherkin-setup.DEV1.AC2.polyglot_repo_merges_into_its_existing_package_json
 
@@ -81,9 +81,9 @@ Given a project with a `go.mod` and a package.json whose `name` differs from the
 When `safeword setup` runs
 Then the package.json keeps its original `name` and gains the lane devDependencies and `test:bdd` script
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ## Rule: The scaffolded lane runs green out of the box
 
@@ -93,9 +93,9 @@ Given a freshly set-up TypeScript project with dependencies installed
 When the `test:bdd` script runs
 Then cucumber-js reports the starter scenario passing with zero undefined or pending steps and exits zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ### Scenario: gherkin-setup.DEV1.AC3.starter_feature_runs_green_in_a_pure_go_project
 
@@ -103,9 +103,9 @@ Given a freshly set-up pure Go project with dependencies installed
 When the `test:bdd` script runs
 Then cucumber-js reports the starter scenario passing with zero undefined or pending steps and exits zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ## Rule: The lane's working files belong to the customer after creation
 
@@ -117,9 +117,9 @@ Given a set-up project where the developer has edited a scaffolded steps file
 When `safeword setup` runs again
 Then the edited steps file keeps the developer's content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ### Scenario: gherkin-setup.DEV1.AC1.customer_feature_files_survive_a_rerun
 
@@ -127,9 +127,9 @@ Given a set-up project whose `features/` contains the scaffolded starter and a d
 When `safeword setup` runs again
 Then the developer's `.feature` file keeps its content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f11d63b2
+- [x] GREEN f11d63b2
+- [x] REFACTOR skip: declarative schema entries + template files; cleanup folded into GREEN
 
 ---
 
@@ -137,4 +137,4 @@ Then the developer's `.feature` file keeps its content
 
 Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>`.
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: scenarios share the schema/template machinery and the two golden-path fixtures; no cross-scenario duplication to extract
