@@ -13,6 +13,21 @@ export interface ImplPlanResult {
   errors: string[];
 }
 
-export function parseImplPlan(_content: string): ImplPlanResult {
-  throw new Error('not implemented');
+const STATUS_PREFIX = '**Status:**';
+
+export function parseImplPlan(content: string): ImplPlanResult {
+  const errors: string[] = [];
+  let status: ImplPlanStatus | null = null;
+
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith(STATUS_PREFIX)) continue;
+    const value = trimmed.slice(STATUS_PREFIX.length).trim();
+    if (value === 'planned' || value === 'implemented') {
+      status = value;
+    }
+    break;
+  }
+
+  return { status, errors };
 }
