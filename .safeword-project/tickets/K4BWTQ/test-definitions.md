@@ -58,9 +58,9 @@ Given `.safeword/config.json` sets `paths.architecture` to a project-relative di
 When the helper lists architecture records for the project
 Then the override directory's `.md` files are the records
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — composes two shipped functions (resolveConfiguredPath from K7N2QM, listArchitectureRecords from this ticket); seam characterization
+- [x] GREEN 73f527ae
+- [x] REFACTOR skip: characterization test, no code change
 
 ## Rule: safeword check flags architecture claims structurally
 
