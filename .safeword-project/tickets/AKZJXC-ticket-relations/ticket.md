@@ -33,7 +33,7 @@ last_modified: 2026-06-10T04:00:49.011Z
 
 ## Conditional sibling — the Linear coordination mirror (not now)
 
-The other half of the figure-it-out: a one-way `file → Linear` mirror of the **epic/portfolio view** (initiatives + status + what's-next) so a PM gets a board/roadmap/notifications, file staying source of truth. **Only worth building if safeword targets teams, not solo devs** — no team need established, so it stays a noted direction, not a ticket.
+The other half of the figure-it-out: a one-way `file → Linear` mirror of the **epic/portfolio view** (initiatives + status + what's-next) so a PM gets a board/roadmap/notifications, file staying source of truth. **Only worth building if safeword targets teams, not solo devs.** Now filed and made provider-agnostic (Linear / GitHub / Jira via Arcade.dev MCP) as [external-tracker-mirror](../THSPA5-external-tracker-mirror/ticket.md) (THSPA5).
 
 ## Related
 
