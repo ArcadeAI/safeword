@@ -90,7 +90,7 @@ Given an impl-plan.md whose `## Approach` section has no content and no skip lin
 When the parser validates sections
 Then it reports a validation error naming Approach as empty and unskipped
 
-- [ ] RED
+- [x] RED ffdde45f
 - [ ] GREEN
 - [ ] REFACTOR
 

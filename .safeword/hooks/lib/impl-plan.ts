@@ -128,6 +128,9 @@ export function parseImplPlan(content: string): ImplPlanResult {
       sections[name] = { satisfied: reason !== '', skip: reason };
       continue;
     }
+    if (body.length === 0) {
+      errors.push(`Section "${name}" is empty — add content or \`skip: <why>\`.`);
+    }
     sections[name] = { satisfied: body.length > 0, skip: null };
   }
 
