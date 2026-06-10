@@ -1,6 +1,7 @@
 {
   "ignore": ["templates/**"],
   "ignoreBinaries": ["shellcheck"],
+  "ignoreDependencies": ["tsx"],
   "rules": {
     "duplicates": "off"
   }
