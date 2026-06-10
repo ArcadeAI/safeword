@@ -7,7 +7,8 @@
      Strengthened at the scenario-gate (independent review, 2026-06-09): de-vacuumed the
      vitest-exclusion scenario (tied to the dogfood feature, not vitest's glob), added a
      hostile-title parser-validity scenario (Gherkin has no JSON.stringify escape) + a
-     bodyless-scenario edge, and made the dogfood green-path assert cucumber's summary. -->
+     bodyless-scenario edge, and made the dogfood green-path assert cucumber's summary.
+     R/G/R shas: AC1 → 4a9afd94 (renderer); AC2 → f4fb8374 (--format); SM1 → a088da1d (runner). -->
 
 ## Rule: Each scenario becomes a tagged Gherkin scenario under a Feature/Rule
 
@@ -17,9 +18,9 @@ Given a test-definitions.md with a title and two `## Rule:` sections
 When the skeleton is emitted as Gherkin
 Then the output is one `Feature:` named for the title, with one `Rule:` per rule section
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC1.scenario_becomes_a_named_scenario
 
@@ -27,9 +28,9 @@ Given a rule holding one scenario titled `gherkin-typescript.DEV1.AC1.example`
 When the skeleton is emitted as Gherkin
 Then the output contains a `Scenario:` whose name is `gherkin-typescript.DEV1.AC1.example`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC1.steps_render_as_given_when_then_and
 
@@ -37,9 +38,9 @@ Given a scenario whose body has a Given, a When, a Then, and an And line
 When the skeleton is emitted as Gherkin
 Then those lines render in order as Gherkin `Given` / `When` / `Then` / `And` steps
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC1.lineage_becomes_a_tag
 
@@ -47,9 +48,9 @@ Given a scenario titled `gherkin-typescript.DEV1.AC1.example`
 When the skeleton is emitted as Gherkin
 Then the line directly above its `Scenario:` is exactly `@gherkin-typescript.DEV1.AC1`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC1.free_text_scenario_emits_untagged
 
@@ -57,9 +58,9 @@ Given a scenario whose title is free text with no AC lineage
 When the skeleton is emitted as Gherkin
 Then it is still emitted as a `Scenario:` with no lineage tag
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC1.hostile_title_emits_a_valid_feature
 
@@ -67,9 +68,9 @@ Given a scenario titled `gherkin-typescript.DEV1.AC1.has spaces (parens) and @at
 When the skeleton is emitted as Gherkin
 Then the feature parses with the official `@cucumber/gherkin` parser, and the scenario's tag is exactly `@gherkin-typescript.DEV1.AC1` (the parsed AC ref, never the raw title)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC1.bodyless_scenario_emits_a_stepless_scenario
 
@@ -77,9 +78,9 @@ Given a scenario with a title but no Given/When/Then lines
 When the skeleton is emitted as Gherkin
 Then it emits a `Scenario:` with no step lines and the feature still parses
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC1.emitted_feature_parses_with_official_parser
 
@@ -87,9 +88,9 @@ Given a test-definitions.md with at least one rule and scenario
 When the skeleton is emitted as Gherkin
 Then the output parses without error using the official `@cucumber/gherkin` parser
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4a9afd94
+- [x] GREEN 4a9afd94
+- [x] REFACTOR skip: pure renderer; cleanup folded into GREEN, no per-scenario refactor
 
 ## Rule: Gherkin is opt-in; the default stays native vitest
 
@@ -99,9 +100,9 @@ Given a test-definitions.md
 When codify runs with no `--format`
 Then the output is native vitest — it contains `describe(` and no `Feature:`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4fb8374
+- [x] GREEN f4fb8374
+- [x] REFACTOR skip: additive flag on the command; no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC2.format_gherkin_emits_feature
 
@@ -109,9 +110,9 @@ Given a test-definitions.md with two scenarios
 When codify runs with `--format gherkin`
 Then the output is a Gherkin feature — it contains `Feature:`, one `Scenario:` per scenario, and no `describe(`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4fb8374
+- [x] GREEN f4fb8374
+- [x] REFACTOR skip: additive flag on the command; no per-scenario refactor
 
 ### Scenario: gherkin-typescript.DEV1.AC2.unknown_format_errors
 
@@ -119,9 +120,9 @@ Given a test-definitions.md
 When codify runs with `--format bogus`
 Then it exits non-zero with a message naming the allowed formats
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4fb8374
+- [x] GREEN f4fb8374
+- [x] REFACTOR skip: additive flag on the command; no per-scenario refactor
 
 ## Rule: safeword's own repo runs .feature via cucumber-js, separate from vitest
 
@@ -131,9 +132,9 @@ Given safeword's repo with cucumber-js wired and a dogfood `.feature` bound to r
 When `bun run test:bdd` runs
 Then cucumber-js reports `1 scenario (1 passed)` with zero undefined or pending steps and exits zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a088da1d
+- [x] GREEN a088da1d
+- [x] REFACTOR skip: thin runner wiring; no per-scenario refactor
 
 ### Scenario: gherkin-typescript.SM1.AC1.vitest_excludes_the_dogfood_feature
 
@@ -141,9 +142,9 @@ Given the dogfood `.feature` that `test:bdd` runs green
 When the vitest `test` script runs
 Then that `.feature` is not among vitest's collected tests — the acceptance layer and the unit suite partition the tree, neither double-runs it
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a088da1d
+- [x] GREEN a088da1d
+- [x] REFACTOR skip: thin runner wiring; no per-scenario refactor
 
 ---
 
@@ -151,4 +152,4 @@ Then that `.feature` is not among vitest's collected tests — the acceptance la
 
 Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>`.
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: AC1 renderer + AC2 flag + SM1 runner share parseScenarios + the codify command — no cross-scenario duplication to extract

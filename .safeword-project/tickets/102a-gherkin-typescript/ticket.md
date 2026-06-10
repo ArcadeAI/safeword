@@ -4,7 +4,7 @@ slug: gherkin-typescript
 title: 'Executable Gherkin specs for TypeScript projects'
 type: feature
 status: in_progress
-phase: implement
+phase: verify
 priority: high
 parent: '102'
 epic: bdd-phase-one-merge
@@ -185,3 +185,8 @@ Then stderr should contain {string}
 - [Example Mapping](https://cucumber.io/blog/bdd/example-mapping-introduction/) — discovery technique
 - [Outside-In Diamond TDD](http://tpierrain.blogspot.com/2021/03/outside-in-diamond-tdd-1-style-made.html) — double-loop architecture
 - [The Wrong Abstraction](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction) — shared steps growth
+
+## Work Log
+
+- 2026-06-09T21:05:00.000Z Intake + define-behavior + scenario-gate: re-scoped to the cucumber-js foundation slice (supersedes the QuickPickle plan above); spec.md (JTBD DEV1 generate / SM1 run + AC1/AC2/SM1.AC1); 13 scenarios across 3 rules; independent scenario-gate review applied. (commit 96d27d28)
+- 2026-06-09T23:20:00.000Z Implemented (full TDD): AC1 `emitGherkinFeature` renderer — 8 unit tests, each validating the emitted `.feature` with the official `@cucumber/gherkin` parser (incl. hostile-title + bodyless) — commit 4a9afd94. AC2 `codify --format gherkin` (additive; default stays vitest) — 3 command tests — f4fb8374. SM1 cucumber-js acceptance lane: `cucumber.mjs` (tsx/esm) + `test:bdd` + dogfood `features/codify.feature` + TS step defs + integration test (dogfood runs green; vitest partition holds) — a088da1d. All 13 scenarios green; R/G/R marked per-AC. Phase → verify.
