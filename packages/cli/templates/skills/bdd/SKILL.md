@@ -46,22 +46,26 @@ phase: implement # intake | define-behavior | scenario-gate | implement | verify
 
 ### Phase-exit review (Tier 2)
 
-Leaving a phase is gated on an **independent** review of that phase's work — not
+The **scenario-gate exit requires** an independent review of the scenarios — not
 your own pass. (Your own inline pass is Tier 1: `/self-review`, per asset, as you
-author.) The phase exit is reviewed by a _fresh reviewer with no conversation
-history_ so the author can't grade their own work: run it in a forked subagent —
-a skill with `context: fork`, or an explicit subagent — hand it only the phase's
-artifacts and the ticket's scope, and let **its** verdict decide. On a pass,
-record the stamp that unblocks the advance:
+author.) Run it as a _fresh reviewer with no conversation history_ so the author
+can't grade their own work: a forked subagent — a skill with `context: fork`, or
+an explicit subagent — handed only the phase's artifacts and the ticket's scope,
+applying the `/review-spec` procedure; **its** verdict decides. On a pass, record
+the stamp:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
 ```
 
-If the reviewer finds blocking issues, fix them and re-review — don't stamp. To
-skip a trivial or docs-only phase, append a reason
-(`… --phase <phase> "<why no independent review is needed>"`). The phase-advance
-gate enforces this when the review gate is enabled, and is inert otherwise.
+If the reviewer finds blocking issues, fix them and re-review — don't stamp.
+
+Other phase exits don't need an independent review by default — they carry their
+own guards (intake's user sub-phase gates, implement's tests, the done-gate's
+evidence checks). When the **review gate** is enabled (`reviewGate` in
+`.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
+ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
+(`… --phase <phase> "<why no independent review is needed>"`).
 
 ---
 
