@@ -29,8 +29,8 @@ When the parser reads the file content
 Then it reports a validation error naming the missing status line
 
 - [x] RED 9d6abaf5
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 2d12b720
+- [x] REFACTOR skip: single boolean guard added, nothing to restructure
 
 ### Scenario: impl-plan-artifact.SM1.AC2.unknown_status_value_is_invalid
 

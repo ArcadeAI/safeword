@@ -50,4 +50,12 @@ describe('parseImplPlan status lifecycle (Rule 1)', () => {
     expect(result.status).toBeNull();
     expect(result.errors.some(error => error.includes('**Status:**'))).toBe(true);
   });
+
+  it('reports a validation error listing allowed values for an unknown status', () => {
+    const result = parseImplPlan(plan('shipped'));
+    expect(result.status).toBeNull();
+    expect(
+      result.errors.some(error => error.includes('planned') && error.includes('implemented')),
+    ).toBe(true);
+  });
 });
