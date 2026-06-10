@@ -422,6 +422,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates/feature-spec-template.md': {
       template: 'doc-templates/feature-spec-template.md',
     },
+    // Per-ticket impl-plan.md scaffold (ticket XDNSZA) — authored at
+    // scenario-gate exit, validated by the stop hook's impl-plan gate.
+    '.safeword/templates/impl-plan-template.md': {
+      template: 'doc-templates/impl-plan-template.md',
+    },
     '.safeword/templates/work-log-template.md': {
       template: 'doc-templates/work-log-template.md',
     },
