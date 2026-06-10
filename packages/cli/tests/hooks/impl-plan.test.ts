@@ -3,9 +3,12 @@
  * Covers test-definitions.md Rules 1-2. Pure functions — no filesystem.
  */
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { parseImplPlan } from '../../templates/hooks/lib/impl-plan.js';
+import { IMPL_PLAN_SECTIONS, parseImplPlan } from '../../templates/hooks/lib/impl-plan.js';
 
 const FIVE_SECTIONS = `## Approach
 
@@ -148,5 +151,18 @@ describe('parseImplPlan section validation (Rule 2)', () => {
         error => error.includes('Known deviations') && error.includes('non-empty reason'),
       ),
     ).toBe(true);
+  });
+});
+
+describe('impl-plan template (Rule 4)', () => {
+  it('parses the shipped template as unfilled — guidance comments are not content', () => {
+    const template = readFileSync(
+      nodePath.join(__dirname, '../../templates/doc-templates/impl-plan-template.md'),
+      'utf8',
+    );
+    const result = parseImplPlan(template);
+    for (const name of IMPL_PLAN_SECTIONS) {
+      expect(result.sections[name]?.satisfied, `section ${name}`).toBe(false);
+    }
   });
 });

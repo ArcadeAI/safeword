@@ -132,9 +132,9 @@ Given a feature ticket at phase `implement` whose folder contains spec.md, a tes
 When the stop hook runs its cumulative artifact checks
 Then it permits the stop (no hard-block emitted)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — pass cell of the gate shipped in 2e8f5373; no-block is the default before implementation
+- [x] GREEN 1e93e777
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: impl-plan-artifact.SM1.AC1.invalid_impl_plan_blocks_with_named_section
 
@@ -142,9 +142,9 @@ Given a feature ticket at phase `implement` whose impl-plan.md has an empty unsk
 When the stop hook runs its cumulative artifact checks
 Then it hard-blocks with a message naming the Decisions section
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — error propagation shipped with the gate in 2e8f5373 (parser errors fold into the block message)
+- [x] GREEN 1e93e777
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: impl-plan-artifact.SM1.AC1.grandfathered_ticket_without_spec_is_exempt
 
@@ -152,9 +152,9 @@ Given a feature ticket at phase `implement` whose folder contains a test-definit
 When the stop hook runs its cumulative artifact checks
 Then it permits the stop (no hard-block emitted)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — exemption is the no-gate default; spec.md routing shipped in 2e8f5373
+- [x] GREEN 1e93e777
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: impl-plan-artifact.SM1.AC1.task_ticket_is_exempt
 
@@ -162,9 +162,9 @@ Given a task ticket at phase `implement` with no impl-plan.md
 When the stop hook runs its cumulative artifact checks
 Then it permits the stop (no hard-block emitted)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — the type guard returns before any artifact check (2e8f5373)
+- [x] GREEN 1e93e777
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: impl-plan-artifact.SM1.AC1.pre_implement_phase_is_exempt
 
@@ -172,9 +172,9 @@ Given a new-flow feature ticket at phase `scenario-gate` whose folder contains s
 When the stop hook runs its cumulative artifact checks
 Then it permits the stop (no hard-block emitted)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — phase-list guard shipped in 2e8f5373; pre-implement is the no-gate default
+- [x] GREEN 1e93e777
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: impl-plan-artifact.SM1.AC1.done_phase_requires_impl_plan
 
@@ -182,9 +182,9 @@ Given a new-flow feature ticket at phase `done` whose folder contains spec.md bu
 When the stop hook runs its cumulative artifact checks
 Then it hard-blocks naming impl-plan.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — done is in the gate's phase list from 2e8f5373 (one shared code path with implement)
+- [x] GREEN 1e93e777
+- [x] REFACTOR skip: characterization test, no code change
 
 ## Rule: The template and skill docs ship the artifact end to end
 
