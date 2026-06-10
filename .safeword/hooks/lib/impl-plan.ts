@@ -27,6 +27,8 @@ export function parseImplPlan(content: string): ImplPlanResult {
     const value = trimmed.slice(STATUS_PREFIX.length).trim();
     if (value === 'planned' || value === 'implemented') {
       status = value;
+    } else {
+      errors.push(`Unknown status "${value}" — allowed values: planned, implemented.`);
     }
     break;
   }

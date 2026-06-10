@@ -38,7 +38,7 @@ Given an impl-plan.md containing `**Status:** shipped`
 When the parser reads the file content
 Then it reports a validation error listing the allowed values `planned` and `implemented`
 
-- [ ] RED
+- [x] RED 64c67f25
 - [ ] GREEN
 - [ ] REFACTOR
 
