@@ -154,6 +154,26 @@ describe('parseImplPlan section validation (Rule 2)', () => {
   });
 });
 
+describe('impl-plan docs (Rule 4)', () => {
+  const repoRoot = nodePath.join(__dirname, '../../../..');
+  const copies = [
+    nodePath.join(repoRoot, 'packages/cli/templates/skills/bdd'),
+    nodePath.join(repoRoot, '.claude/skills/bdd'),
+  ];
+
+  it('SCENARIOS.md gate exit and TDD.md entry reference impl-plan.md in both copies', () => {
+    for (const skillDirectory of copies) {
+      const scenarios = readFileSync(nodePath.join(skillDirectory, 'SCENARIOS.md'), 'utf8');
+      const tdd = readFileSync(nodePath.join(skillDirectory, 'TDD.md'), 'utf8');
+      expect(scenarios, `${skillDirectory}/SCENARIOS.md`).toContain('impl-plan.md');
+      for (const section of IMPL_PLAN_SECTIONS) {
+        expect(scenarios, `${skillDirectory}/SCENARIOS.md section ${section}`).toContain(section);
+      }
+      expect(tdd, `${skillDirectory}/TDD.md`).toContain('impl-plan.md');
+    }
+  });
+});
+
 describe('impl-plan template (Rule 4)', () => {
   it('parses the shipped template as unfilled — guidance comments are not content', () => {
     const template = readFileSync(

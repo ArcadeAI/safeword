@@ -194,9 +194,9 @@ Given the shipped impl-plan-template.md with its HTML comments intact
 When the parser validates it as-is
 Then all five sections are reported empty (guidance comments do not count as content)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ffbb9f8b
+- [x] GREEN 6c29b8c4
+- [x] REFACTOR skip: template is content, not code
 
 ### Scenario: impl-plan-artifact.DEV1.AC1.docs_reference_impl_plan_in_both_copies
 
