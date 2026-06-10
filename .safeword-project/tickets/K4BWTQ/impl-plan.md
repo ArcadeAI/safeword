@@ -1,6 +1,6 @@
 # Impl Plan: ADR consultation step + ADR-creation prompt
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -25,7 +25,7 @@ skip: no project-local ADR directory yet — safeword's own architecture record 
 
 ## Known deviations
 
-skip: no deviations planned — every surface follows an existing sibling pattern (configured-paths util, check advisory, doc-presence test)
+skip: no deviations — reconciled at implement exit: all four Decisions rows held as planned; one Approach refinement (check reads the Arch alignment section with a local content-or-skip scan rather than markdown-sections utilities — smaller than wiring the shared parser for one section)
 
 ## Assessment triggers
 

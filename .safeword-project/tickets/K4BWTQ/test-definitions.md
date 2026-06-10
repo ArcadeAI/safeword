@@ -105,9 +105,9 @@ Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogf
 When SCENARIOS.md's scenario-gate exit is scanned in both copies
 Then each copy contains, as three separately-asserted markers: (a) the consultation procedure step (list/read records at the resolved location), (b) the canonical "None recorded yet" copy, and (c) the first-ADR prompt with both branches in the worked example
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83854195
+- [x] GREEN 10d7c922
+- [x] REFACTOR skip: docs edit, prose already house-style
 
 ---
 
@@ -115,4 +115,4 @@ Then each copy contains, as three separately-asserted markers: (a) the consultat
 
 Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks if this row is missing or has an empty skip reason on tickets that use the annotated checkbox format.
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: fixtures already shared per rule (temp-dir helpers in the unit file, implPlan/writeArchTicket in check.test.ts); helper is 12 cohesive lines, advisory mirrors its siblings — no duplication to extract
