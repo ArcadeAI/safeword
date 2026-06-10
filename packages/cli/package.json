@@ -83,6 +83,9 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^13.0.0",
+    "@cucumber/gherkin": "^39.1.0",
+    "@cucumber/messages": "^32.3.1",
     "@types/estree": "^1.0.9",
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^4.1.7",
@@ -91,6 +94,7 @@
     "prettier": "^3.8.3",
     "publint": "^0.3.21",
     "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vitest": "^4.1.7"
   },

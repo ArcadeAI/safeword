@@ -18,6 +18,7 @@
  */
 
 import { computeSkipMask } from './markdown-sections.js';
+import { parseAcReferenceFromTitle } from './scenario-coverage.js';
 
 const RULE_PREFIX = 'Rule:';
 const SCENARIO_PREFIX = 'Scenario:';
@@ -170,6 +171,59 @@ function indent(text: string, spaces = 2): string {
     .split('\n')
     .map(line => (line === '' ? line : `${pad}${line}`))
     .join('\n');
+}
+
+export interface GherkinOptions {
+  /** Feature name to use when the doc has no `# ` heading. */
+  source?: string;
+}
+
+/**
+ * Render a Gherkin `.feature` from a test-definitions.md: `Feature:` from the
+ * doc's `# ` title, one `Rule:` per `## Rule:`, one `Scenario:` per scenario
+ * (Given/When/Then lines pass through verbatim — they are already Gherkin steps).
+ * The `<jtbd>.AC#` lineage becomes a `@tag` derived from the parsed AC reference
+ * (never the raw title), so any title — spaces, parens, `@` — yields a feature
+ * that parses.
+ */
+export function emitGherkinFeature(
+  testDefinitionsContent: string,
+  options: GherkinOptions = {},
+): string {
+  const scenarios = parseScenarios(testDefinitionsContent);
+  const featureName = firstHeading(testDefinitionsContent) ?? options.source ?? 'Feature';
+  const ruleBlocks = [...groupByRule(scenarios)].map(([ruleName, ruleScenarios]) =>
+    renderGherkinRule(ruleName, ruleScenarios),
+  );
+  const body = ruleBlocks.length === 0 ? '' : `\n${ruleBlocks.join('\n\n')}\n`;
+  return `Feature: ${featureName}${body}`;
+}
+
+/** One `Rule:` block with its scenarios indented beneath it. */
+function renderGherkinRule(ruleName: string, scenarios: readonly ParsedScenario[]): string {
+  const blocks = scenarios.map(scenario => indent(renderGherkinScenario(scenario), 4)).join('\n\n');
+  return `  Rule: ${ruleName}\n\n${blocks}`;
+}
+
+/** One `Scenario:` — its lineage `@tag` (if any) above the title, then the steps verbatim. */
+function renderGherkinScenario(scenario: ParsedScenario): string {
+  const acReference = parseAcReferenceFromTitle(scenario.title);
+  const tag = acReference === undefined ? '' : `@${acReference}\n`;
+  const steps = scenario.steps.map(step => `  ${step}`).join('\n');
+  const stepBlock = steps === '' ? '' : `\n${steps}`;
+  return `${tag}Scenario: ${scenario.title}${stepBlock}`;
+}
+
+/** The text of the first ATX `# ` heading (the document title), or undefined. */
+function firstHeading(content: string): string | undefined {
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('# ')) {
+      const text = trimmed.slice(2).trim();
+      if (text !== '') return text;
+    }
+  }
+  return undefined;
 }
 
 /**
