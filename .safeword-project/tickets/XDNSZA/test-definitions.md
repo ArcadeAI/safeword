@@ -110,9 +110,9 @@ Given an impl-plan.md section containing only the template's HTML-comment guidan
 When the parser validates sections
 Then that section is reported empty and unskipped
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — activeLines comment stripping shipped with the section walk (f6a2af46)
+- [x] GREEN 31eebfc7
+- [x] REFACTOR skip: no code change in this scenario
 
 ## Rule: The stop-hook cumulative gate requires a valid impl plan for new-flow features at implement and done
 
