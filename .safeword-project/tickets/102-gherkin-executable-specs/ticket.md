@@ -3,7 +3,7 @@ id: '102'
 slug: gherkin-executable-specs
 title: 'Epic: Executable Gherkin specifications'
 type: Epic
-status: in_progress
+status: done
 priority: high
 parent: '0AWSY8'
 epic: bdd-phase-one-merge
@@ -54,6 +54,6 @@ The QuickPickle-specific sections further below (file structure, install steps) 
 ## Status — 2026-06-09
 
 - **102a — done** (commit 12f59d77): safeword's own repo now emits **and** runs Gherkin — `safeword codify --format gherkin` (additive renderer beside the vitest one) + a cucumber-js acceptance lane (`test:bdd`) + a dogfood `.feature`. Full `/verify` (2548 pass) + `/audit` clean. The runner-agnostic "re-evaluate QuickPickle" note above resolved → **cucumber-js** (see the Replan at top).
-- **102b** — backlog: non-TS apps via TS step defs; 102a's foundation (runner + step-def pattern) is now in place.
+- **102b — done** (commits f11d63b2 + 89094511): the lane is now **core `safeword setup` output for every project** — cucumber.mjs (owned) + features/steps starters (customer-owned) + cucumber/tsx/@types/node in base packages + test:bdd (add-if-absent); pure non-JS repos get a minimal private package.json (Option A: full TS toolchain comes along). 11/11 scenarios; golden paths green in TS + pure-Go fixtures; full suite 2566 ✓. Reframed from "non-TS only" to the combined scaffold (subsumed 102a's deferred customer-scaffold).
 - **102c** — cancelled (all-TS).
-- Epic stays `in_progress` until 102b ships. The QuickPickle-specific sections above are the superseded original plan.
+- **Epic complete (2026-06-10)** — safeword both _generates_ (.feature via codify) and _executes_ (cucumber-js lane) Gherkin, in its own repo and in every customer project. Remaining related work lives outside this epic: the `.feature`-as-source bdd-flow change (separate slice) and `safeword check` lane verification (follow-on). The QuickPickle-specific sections above are the superseded original plan.

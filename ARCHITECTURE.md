@@ -359,6 +359,8 @@ CLI command
 
 The vitest lanes extend `vitest.base.ts` (sequential execution, `maxWorkers: 1`). `test:bdd` is a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx/esm`). Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lane and the unit suite partition the tree, neither double-runs a spec.
 
+The lane is also **core customer scaffolding** (102b): `safeword setup` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` in base packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b).
+
 ---
 
 ## Build & Distribution

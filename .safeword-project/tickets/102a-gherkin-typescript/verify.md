@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 2548/2548 tests pass (1 skipped) — full vitest suite, 158 files. Includes the 8 Gherkin-renderer unit tests (`src/utils/test-skeleton-gherkin.test.ts`, validated by the official `@cucumber/gherkin` parser), the 3 `--format` command tests, and the 2 SM1 cucumber integration tests. Plus the **acceptance lane**: `bun run test:bdd` → cucumber-js `1 scenario (1 passed), 5 steps`.
+**Test Suite:** ✓ 2548/2548 tests pass (1 skipped) — full vitest suite, 158 files at close; re-confirmed post-102b at 2566/2566 (161 files, exit 0). Includes the 8 Gherkin-renderer unit tests (`src/utils/test-skeleton-gherkin.test.ts`, validated by the official `@cucumber/gherkin` parser), the 3 `--format` command tests, and the 2 SM1 cucumber integration tests. Plus the **acceptance lane**: `bun run test:bdd` → cucumber-js `1 scenario (1 passed), 5 steps`.
 **Build:** ✅ Success (tsup ESM + DTS) — the `codify` chunk carries the Gherkin path.
 **Lint:** ✅ Clean (eslint src tests && tsc --noEmit) — `features/` is in tsconfig, so the step defs are type-checked.
 **Scenarios:** All 13 scenarios marked complete (40/40 R-G-R + cross-scenario checkboxes; RED/GREEN carry per-AC shas 4a9afd94 / f4fb8374 / a088da1d).
@@ -14,7 +14,7 @@
 
 **Architecture (depcruise):** ✅ No violations (126 modules, 360 deps) — the Gherkin renderer's new `scenario-coverage` import adds no cycle; the `features/` step defs add no layer violation.
 **Dead code (knip):** baseline only — 7 stack ESLint plugins + 2 `personas.ts` constants. The new exports (`emitGherkinFeature`, `GherkinOptions`) are consumed. `tsx` was a false positive (used via the `cucumber.mjs` loader string, not a traced import) → added to `knip.json` `ignoreDependencies`.
-**Duplication (jscpd):** one 15-line clone — `parseHeading` shared between `scenario-coverage.ts` and `test-skeleton.ts`. **Pre-existing (CS86B0); 102a's renderer reuses it, didn't add it.** Now at the Rule-of-Three boundary; extracting it touches `safeword check`'s parser (forces a full re-verify), so deferred to a follow-up task (hoist to `markdown-sections.ts`). The Gherkin renderer itself added no new clones.
+**Duplication (jscpd):** one 15-line clone — `parseHeading` shared between `scenario-coverage.ts` and `test-skeleton.ts`. **Pre-existing (CS86B0); 102a's renderer reuses it, didn't add it.** Follow-up landed in this branch: hoisted to `markdown-sections.ts` (d6762f11) with direct unit tests (8c81c9cf); full suite re-verified after the hoist. The Gherkin renderer itself added no new clones.
 **Test quality:** new tests use specific assertions (parsed Gherkin AST — names/tags/steps; exit codes; output content — not `toBeTruthy`), are independent (inline fixtures / per-test temp dirs), use no arbitrary sleeps, and cover edge + error cases (hostile title, bodyless scenario, free-text untagged, unknown `--format`).
 
 **Audit passed** — baseline noise + one deferred pre-existing clone; no new findings from this change.
