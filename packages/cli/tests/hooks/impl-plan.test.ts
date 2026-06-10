@@ -39,4 +39,9 @@ describe('parseImplPlan status lifecycle (Rule 1)', () => {
     const result = parseImplPlan(plan('planned'));
     expect(result.status).toBe('planned');
   });
+
+  it('reports status implemented', () => {
+    const result = parseImplPlan(plan('implemented'));
+    expect(result.status).toBe('implemented');
+  });
 });

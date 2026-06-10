@@ -8,9 +8,9 @@ Given an impl-plan.md whose body contains a `**Status:** planned` line
 When the parser reads the file content
 Then it reports status `planned`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 51fe3381
+- [x] GREEN eb0fee1b
+- [x] REFACTOR skip: 12-line parser, no duplication or naming debt yet
 
 ### Scenario: impl-plan-artifact.SM1.AC2.status_implemented_parses
 
