@@ -16,10 +16,11 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, writeFile } from '../utils/fs.js';
+import { untrackIgnoredFiles } from '../utils/git.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
@@ -154,6 +155,12 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
     // Ticket 154: drop dead `version` field from .safeword/config.json
     stripDeadConfigVersion(safewordDirectory);
+
+    // Untrack transient state files a customer may have committed before the
+    // gitignore rule existed (keep them on disk) — stops the perpetual-dirty
+    // churn and the blocked branch switches it causes. Behaviour-neutral: the
+    // hooks read/write these paths from the working tree, not from git.
+    untrackIgnoredFiles(cwd, SAFEWORD_TRANSIENT_PATHS);
 
     // Install missing language packs
     const missingPacks = getMissingPacks(cwd);

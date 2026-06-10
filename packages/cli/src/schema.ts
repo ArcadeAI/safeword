@@ -103,6 +103,22 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
 // SAFEWORD_SCHEMA - The Single Source of Truth
 // ============================================================================
 
+/**
+ * Runtime/transient state files safeword's hooks write to the working tree
+ * every turn (update-cache, quality-state, failure-counts, skill-invocations,
+ * re-entry). They must be gitignored — and untracked on upgrade if a customer
+ * committed them before the ignore rule existed — because the hooks read/write
+ * these paths directly, so git tracking is never consulted. Single source for
+ * the managed `.gitignore` block (below) and the upgrade-time untrack.
+ */
+export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+  '.safeword/.update-cache.json',
+  '.safeword-project/quality-state*.json',
+  '.safeword-project/failure-counts.json',
+  '.safeword-project/skill-invocations.log',
+  '.safeword-project/re-entry.md',
+];
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -731,8 +747,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.gitignore': {
       operation: 'append',
-      content:
-        '\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword-project/quality-state*.json\n.safeword-project/failure-counts.json\n.safeword-project/skill-invocations.log\n.safeword-project/re-entry.md\n',
+      content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
       // Marker is a NEW line (re-entry.md) so customers who already have the
       // older 2-line block re-apply on upgrade and pick up the three additions
       // (re-entry.md / failure-counts.json / skill-invocations.log). Without
