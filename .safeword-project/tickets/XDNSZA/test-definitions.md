@@ -91,8 +91,8 @@ When the parser validates sections
 Then it reports a validation error naming Approach as empty and unskipped
 
 - [x] RED ffdde45f
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 3229c70b
+- [x] REFACTOR skip: 2-line guard mirrors the skip-reason guard, consistent shape
 
 ### Scenario: impl-plan-artifact.SM1.AC2.missing_section_heading_is_invalid
 

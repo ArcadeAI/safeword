@@ -76,6 +76,14 @@ function sectionsWith(overrides: Record<string, string> = {}): string {
     .join('\n');
 }
 
+/** The five sections minus one heading entirely. */
+function sectionsWithout(omitted: string): string {
+  return Object.entries(SECTION_BODIES)
+    .filter(([name]) => name !== omitted)
+    .map(([name, body]) => `## ${name}\n\n${body}\n`)
+    .join('\n');
+}
+
 describe('parseImplPlan section validation (Rule 2)', () => {
   it('reports a populated section as satisfied', () => {
     const result = parseImplPlan(plan('planned'));
@@ -90,6 +98,16 @@ describe('parseImplPlan section validation (Rule 2)', () => {
     expect(result.sections['Arch alignment']?.satisfied).toBe(true);
     expect(result.sections['Arch alignment']?.skip).toBe('no ADRs in this project yet');
     expect(result.errors).toEqual([]);
+  });
+
+  it('reports a missing section heading as invalid, naming it', () => {
+    const result = parseImplPlan(plan('planned', sectionsWithout('Assessment triggers')));
+    expect(result.sections['Assessment triggers']).toBeUndefined();
+    expect(
+      result.errors.some(
+        error => error.includes('Assessment triggers') && error.includes('Missing'),
+      ),
+    ).toBe(true);
   });
 
   it('reports an empty unskipped section as invalid, naming it', () => {
