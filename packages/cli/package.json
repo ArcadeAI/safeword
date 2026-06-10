@@ -34,6 +34,8 @@
     "dev": "tsup --watch",
     "pretest": "tsup",
     "test": "vitest run",
+    "pretest:bdd": "tsup",
+    "test:bdd": "cucumber-js",
     "test:done": "vitest run tests/hooks/ tests/schema.test.ts",
     "test:integration": "vitest run tests/integration/",
     "test:smoke:fast": "vitest run tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts",
