@@ -35,12 +35,50 @@ export interface ImplPlanResult {
 
 const STATUS_PREFIX = '**Status:**';
 
+const SECTION_NAMES = new Map<string, ImplPlanSectionName>(
+  IMPL_PLAN_SECTIONS.map(name => [name.toLowerCase(), name]),
+);
+
+/**
+ * Lines outside HTML comments. Mirrors jtbd.ts's comment handling — the
+ * scaffolded template's guidance is commented, so a fresh scaffold parses
+ * to empty sections.
+ */
+function activeLines(content: string): string[] {
+  const lines: string[] = [];
+  let inComment = false;
+  for (const raw of content.split('\n')) {
+    let line = raw;
+    if (inComment) {
+      const end = line.indexOf('-->');
+      if (end === -1) continue;
+      inComment = false;
+      line = line.slice(end + 3);
+    }
+    let start = line.indexOf('<!--');
+    while (start !== -1) {
+      const end = line.indexOf('-->', start + 4);
+      if (end === -1) {
+        line = line.slice(0, start);
+        inComment = true;
+        break;
+      }
+      line = line.slice(0, start) + line.slice(end + 3);
+      start = line.indexOf('<!--');
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
 export function parseImplPlan(content: string): ImplPlanResult {
   const errors: string[] = [];
   let status: ImplPlanStatus | null = null;
 
+  const lines = activeLines(content);
+
   let sawStatusLine = false;
-  for (const line of content.split('\n')) {
+  for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed.startsWith(STATUS_PREFIX)) continue;
     sawStatusLine = true;
@@ -59,5 +97,29 @@ export function parseImplPlan(content: string): ImplPlanResult {
     );
   }
 
-  return { status, sections: {}, errors };
+  // Accumulate non-empty body lines per known `## ` section.
+  const bodies = new Map<ImplPlanSectionName, string[]>();
+  let current: ImplPlanSectionName | null = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('## ')) {
+      current = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase()) ?? null;
+      if (current && !bodies.has(current)) bodies.set(current, []);
+      continue;
+    }
+    if (trimmed.startsWith('# ')) {
+      current = null;
+      continue;
+    }
+    if (current && trimmed !== '') bodies.get(current)?.push(trimmed);
+  }
+
+  const sections: Partial<Record<ImplPlanSectionName, ImplPlanSectionVerdict>> = {};
+  for (const name of IMPL_PLAN_SECTIONS) {
+    const body = bodies.get(name);
+    if (body === undefined) continue;
+    sections[name] = { satisfied: body.length > 0, skip: null };
+  }
+
+  return { status, sections, errors };
 }
