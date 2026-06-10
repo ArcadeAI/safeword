@@ -114,9 +114,8 @@ export function emitVitestSkeleton(
   testDefinitionsContent: string,
   options: EmitOptions = {},
 ): string {
-  const scenarios = parseScenarios(testDefinitionsContent);
-  const blocks = [...groupByRule(scenarios)].map(([ruleName, ruleScenarios]) =>
-    renderDescribe(ruleName, ruleScenarios, options.red ?? false),
+  const blocks = renderRuleBlocks(testDefinitionsContent, (ruleName, scenarios) =>
+    renderDescribe(ruleName, scenarios, options.red ?? false),
   );
   const body = blocks.length === 0 ? '' : `${blocks.join('\n\n')}\n`;
   return `${buildHeader(options.source)}${body}`;
@@ -131,6 +130,16 @@ function groupByRule(scenarios: readonly ParsedScenario[]): Map<string, ParsedSc
     byRule.set(scenario.rule, group);
   }
   return byRule;
+}
+
+/** Parse, group scenarios by rule, and render each rule block with `renderRule`. */
+function renderRuleBlocks(
+  testDefinitionsContent: string,
+  renderRule: (ruleName: string, scenarios: readonly ParsedScenario[]) => string,
+): string[] {
+  return [...groupByRule(parseScenarios(testDefinitionsContent))].map(([ruleName, ruleScenarios]) =>
+    renderRule(ruleName, ruleScenarios),
+  );
 }
 
 /** The leading comment + vitest import. No `it(`/`describe(`, so it adds no tests. */
@@ -190,12 +199,9 @@ export function emitGherkinFeature(
   testDefinitionsContent: string,
   options: GherkinOptions = {},
 ): string {
-  const scenarios = parseScenarios(testDefinitionsContent);
   const featureName = firstHeading(testDefinitionsContent) ?? options.source ?? 'Feature';
-  const ruleBlocks = [...groupByRule(scenarios)].map(([ruleName, ruleScenarios]) =>
-    renderGherkinRule(ruleName, ruleScenarios),
-  );
-  const body = ruleBlocks.length === 0 ? '' : `\n${ruleBlocks.join('\n\n')}\n`;
+  const blocks = renderRuleBlocks(testDefinitionsContent, renderGherkinRule);
+  const body = blocks.length === 0 ? '' : `\n${blocks.join('\n\n')}\n`;
   return `Feature: ${featureName}${body}`;
 }
 
