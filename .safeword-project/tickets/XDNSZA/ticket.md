@@ -3,12 +3,30 @@ id: XDNSZA
 slug: impl-plan-artifact
 title: 'Impl plan as first-class artifact with Approach / Decisions / Arch alignment / Known deviations / Assessment triggers + status lifecycle'
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
 created: 2026-05-24T21:37:59.745Z
-last_modified: 2026-05-24T21:39:00.000Z
+last_modified: 2026-06-10T22:30:00.000Z
+scope:
+  - 'impl-plan-template.md in packages/cli/templates/doc-templates/ — 5 sections (Approach, Decisions table, Arch alignment, Known deviations, Assessment triggers), **Status:** planned|implemented line, HTML-comment guidance, skip: callout per section'
+  - 'hooks/lib/impl-plan.ts parser (jtbd.ts cross-runtime-copy pattern): parse status line + per-section content-or-skip with non-empty trimmed reason (parse-annotation rule)'
+  - 'stop-quality.ts cumulative gate: features at implement/done phases require impl-plan.md with all 5 sections content-or-skip'
+  - 'SCENARIOS.md scenario-gate exit step rewritten: test-layer assignment + sequencing output lands in impl-plan.md Approach; TDD.md entry references the plan'
+  - 'Template↔dogfood sync: packages/cli/templates/skills/bdd ↔ .claude/skills/bdd, hooks templates ↔ .safeword/hooks'
+  - 'Worked example: populated impl-plan.md for a small feature in SCENARIOS.md or TDD.md'
+out_of_scope:
+  - 'ADR consultation content for Arch alignment — K4BWTQ (template ships the section; consultation step populates it later)'
+  - 'Reconciliation logic + implement→verify status gate — ERVA6V'
+  - 'Harness degraded path — CNGBNT'
+  - 'safeword check coverage validators beyond the hook gate (lineage/coverage checks unchanged)'
+  - 'Retrofitting impl-plan.md onto in-flight tickets — forward-looking only, same grandfathering as DZ2NM5 D5'
+done_when:
+  - 'Template exists and scaffolds cleanly; skip: convention documented inline'
+  - 'Hook blocks stop for features at implement/done without a valid impl-plan.md (5 sections content-or-skip, status line present); pre-existing tickets without the artifact are exempt (grandfathered)'
+  - 'SCENARIOS.md exit + TDD.md entry reference impl-plan.md; dogfood copies in sync (parity green)'
+  - 'Tests cover parser (status, sections, skip variants) and gate (missing file, missing section, bare skip, whitespace reason, grandfathered ticket)'
 ---
 
 # Impl plan as first-class artifact
@@ -85,3 +103,4 @@ Inherited decisions now resolved — see M6D315 replan:
 - 2026-05-24T21:37:59.745Z Started: Created ticket XDNSZA
 - 2026-05-24T21:39:00.000Z Drafted: Scope (5 sections + lifecycle + storage), template, hook integration; linked to epic M6D315
 - 2026-06-10T22:20:00.000Z Replan: storage + authoring point resolved (impl-plan.md sibling, scenario-gate exit); VYRKBJ skip-discipline scope folded in; named-phase vocabulary applied.
+- 2026-06-10T22:30:00.000Z Intake exit: /figure-it-out settled remaining design (Decisions table; **Status:** bold-label line; Approach includes task breakdown; uniform non-empty skip rule; gate phases implement+done, routed on spec.md presence for grandfathering). scope/out_of_scope/done_when written. Autonomous session — user sub-phase gates auto-confirmed per standing instruction ("proceed as you see fit"). Phase → define-behavior.
