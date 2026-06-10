@@ -91,4 +91,14 @@ describe('parseImplPlan section validation (Rule 2)', () => {
     expect(result.sections['Arch alignment']?.skip).toBe('no ADRs in this project yet');
     expect(result.errors).toEqual([]);
   });
+
+  it('reports a bare skip: as invalid, naming the section and the empty-reason rule', () => {
+    const result = parseImplPlan(plan('planned', sectionsWith({ 'Known deviations': 'skip:' })));
+    expect(result.sections['Known deviations']?.satisfied).toBe(false);
+    expect(
+      result.errors.some(
+        error => error.includes('Known deviations') && error.includes('non-empty reason'),
+      ),
+    ).toBe(true);
+  });
 });

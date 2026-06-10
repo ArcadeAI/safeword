@@ -61,8 +61,8 @@ When the parser validates sections
 Then the Arch alignment section is reported satisfied with its skip reason preserved
 
 - [x] RED bb2406d9
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN a1b987a9
+- [x] REFACTOR skip: skip-line branch is 6 lines, no smell to address
 
 ### Scenario: impl-plan-artifact.DEV1.AC2.bare_skip_is_invalid
 
