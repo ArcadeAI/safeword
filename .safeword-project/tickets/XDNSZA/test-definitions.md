@@ -1,0 +1,217 @@
+# Test Definitions: Impl plan as first-class artifact
+
+## Rule: The impl-plan parser reads the status lifecycle
+
+### Scenario: impl-plan-artifact.SM1.AC2.status_planned_parses
+
+Given an impl-plan.md whose body contains a `**Status:** planned` line
+When the parser reads the file content
+Then it reports status `planned`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC2.status_implemented_parses
+
+Given an impl-plan.md whose body contains a `**Status:** implemented` line
+When the parser reads the file content
+Then it reports status `implemented`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC2.missing_status_line_is_invalid
+
+Given an impl-plan.md with five populated sections but no `**Status:**` line
+When the parser reads the file content
+Then it reports a validation error naming the missing status line
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC2.unknown_status_value_is_invalid
+
+Given an impl-plan.md containing `**Status:** shipped`
+When the parser reads the file content
+Then it reports a validation error listing the allowed values `planned` and `implemented`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Each of the five sections must carry content or an auditable skip
+
+### Scenario: impl-plan-artifact.SM1.AC2.populated_section_satisfies
+
+Given an impl-plan.md whose `## Decisions` section contains a table row
+When the parser validates sections
+Then the Decisions section is reported satisfied
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.DEV1.AC2.skip_with_reason_satisfies
+
+Given an impl-plan.md whose `## Arch alignment` section contains only `skip: no ADRs in this project yet`
+When the parser validates sections
+Then the Arch alignment section is reported satisfied with its skip reason preserved
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.DEV1.AC2.bare_skip_is_invalid
+
+Given an impl-plan.md whose `## Known deviations` section contains only `skip:`
+When the parser validates sections
+Then it reports a validation error naming Known deviations and the empty-reason rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.DEV1.AC2.whitespace_skip_reason_is_invalid
+
+Given an impl-plan.md whose `## Assessment triggers` section contains only `skip:` followed by spaces
+When the parser validates sections
+Then it reports a validation error naming Assessment triggers and the empty-reason rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC2.empty_section_without_skip_is_invalid
+
+Given an impl-plan.md whose `## Approach` section has no content and no skip line
+When the parser validates sections
+Then it reports a validation error naming Approach as empty and unskipped
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC2.missing_section_heading_is_invalid
+
+Given an impl-plan.md that omits the `## Assessment triggers` heading entirely
+When the parser validates sections
+Then it reports a validation error naming the missing section
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC2.html_comment_content_counts_as_empty
+
+Given an impl-plan.md section containing only the template's HTML-comment guidance
+When the parser validates sections
+Then that section is reported empty and unskipped
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: The stop-hook cumulative gate requires a valid impl plan for new-flow features at implement and done
+
+### Scenario: impl-plan-artifact.DEV1.AC1.implement_without_impl_plan_blocks
+
+Given a feature ticket at phase `implement` whose folder contains spec.md but no impl-plan.md
+When the stop hook runs its cumulative artifact checks
+Then it hard-blocks with a message naming impl-plan.md and the authoring point (scenario-gate exit)
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.DEV1.AC1.implement_with_valid_impl_plan_passes
+
+Given a feature ticket at phase `implement` whose folder contains spec.md and an impl-plan.md with five satisfied sections and a status line
+When the stop hook runs its cumulative artifact checks
+Then it does not block on the impl plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC1.invalid_impl_plan_blocks_with_named_section
+
+Given a feature ticket at phase `implement` whose impl-plan.md has an empty unskipped `## Decisions` section
+When the stop hook runs its cumulative artifact checks
+Then it hard-blocks with a message naming the Decisions section
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC1.grandfathered_ticket_without_spec_is_exempt
+
+Given a feature ticket at phase `implement` whose folder contains no spec.md and no impl-plan.md
+When the stop hook runs its cumulative artifact checks
+Then it does not block on the impl plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC1.task_ticket_is_exempt
+
+Given a task ticket at phase `implement` with no impl-plan.md
+When the stop hook runs its cumulative artifact checks
+Then it does not block on the impl plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.SM1.AC1.pre_implement_phase_is_exempt
+
+Given a new-flow feature ticket at phase `scenario-gate` with no impl-plan.md
+When the stop hook runs its cumulative artifact checks
+Then it does not block on the impl plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.DEV1.AC1.done_phase_requires_impl_plan
+
+Given a new-flow feature ticket at phase `done` whose folder contains spec.md but no impl-plan.md
+When the stop hook runs its cumulative artifact checks
+Then it hard-blocks naming impl-plan.md
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: The template and skill docs ship the artifact end to end
+
+### Scenario: impl-plan-artifact.SM1.AC2.template_scaffold_parses_as_unfilled
+
+Given the shipped impl-plan-template.md with its HTML comments intact
+When the parser validates it as-is
+Then all five sections are reported empty (guidance comments do not count as content)
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: impl-plan-artifact.DEV1.AC1.docs_reference_impl_plan_in_both_copies
+
+Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogfood copies (.claude/skills/bdd)
+When the doc-presence test scans SCENARIOS.md scenario-gate exit and TDD.md entry
+Then both copies reference impl-plan.md authoring and the five sections
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+---
+
+## Feature-level cross-scenario refactor
+
+Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks if this row is missing or has an empty skip reason on tickets that use the annotated checkbox format.
+
+- [ ] cross-scenario

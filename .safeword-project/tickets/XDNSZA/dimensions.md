@@ -1,0 +1,14 @@
+# Dimensions: Impl plan artifact
+
+| Dimension              | Partitions                                                                                                                 | Notes                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Status line            | `planned` / `implemented` / missing / unknown value                                                                        | Parser surface; lifecycle values are a closed set                   |
+| Section content state  | populated / `skip: <reason>` / bare `skip:` / whitespace-only reason / empty no-skip / heading missing / HTML-comment-only | One partition per failure mode of the content-or-skip rule          |
+| Which section          | Approach / Decisions / Arch alignment / Known deviations / Assessment triggers                                             | Rule is uniform — sample across sections rather than ×5 every state |
+| Ticket type            | feature / task (patch behaves as task)                                                                                     | Gate fires for features only                                        |
+| Ticket flow generation | new-flow (spec.md present) / grandfathered (no spec.md)                                                                    | DZ2NM5 D5 routing reused                                            |
+| Phase at gate time     | pre-implement (scenario-gate) / implement / done                                                                           | Artifact authored at scenario-gate exit → required from implement   |
+| Artifact presence      | impl-plan.md present-valid / present-invalid / absent                                                                      | Gate outcome differs per cell                                       |
+| Doc surfaces           | canonical templates copy / dogfood copy                                                                                    | Parity pair — both must reference the artifact                      |
+
+**Pruning:** section × content-state full cross-product (5×7=35) collapsed — the rule is one code path, so each content state is exercised once on a representative section. Phase × flow × presence sampled at the decision boundaries (implement entry, done, grandfathered exemption) rather than full cross-product.

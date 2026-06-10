@@ -3,7 +3,7 @@ id: XDNSZA
 slug: impl-plan-artifact
 title: 'Impl plan as first-class artifact with Approach / Decisions / Arch alignment / Known deviations / Assessment triggers + status lifecycle'
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
@@ -104,3 +104,4 @@ Inherited decisions now resolved — see M6D315 replan:
 - 2026-05-24T21:39:00.000Z Drafted: Scope (5 sections + lifecycle + storage), template, hook integration; linked to epic M6D315
 - 2026-06-10T22:20:00.000Z Replan: storage + authoring point resolved (impl-plan.md sibling, scenario-gate exit); VYRKBJ skip-discipline scope folded in; named-phase vocabulary applied.
 - 2026-06-10T22:30:00.000Z Intake exit: /figure-it-out settled remaining design (Decisions table; **Status:** bold-label line; Approach includes task breakdown; uniform non-empty skip rule; gate phases implement+done, routed on spec.md presence for grandfathering). scope/out_of_scope/done_when written. Autonomous session — user sub-phase gates auto-confirmed per standing instruction ("proceed as you see fit"). Phase → define-behavior.
+- 2026-06-10T22:45:00.000Z Define-behavior exit: spec.md authored (2 JTBDs, 4 ACs, /self-review stamped), dimensions.md (8 dimensions, pruning recorded), test-definitions.md with 20 lineage-numbered scenarios across 4 rules. Phase → scenario-gate.
