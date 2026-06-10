@@ -50,3 +50,10 @@ The QuickPickle-specific sections further below (file structure, install steps) 
 - Gherkin at the **acceptance layer only** — unit/integration tests stay in native frameworks
 - Domain-grouped step definitions, thin shared core, grow organically
 - Re-evaluate QuickPickle at implementation time (50 stars, solo maintainer as of 2026-04 — architecture is runner-agnostic)
+
+## Status — 2026-06-09
+
+- **102a — done** (commit 12f59d77): safeword's own repo now emits **and** runs Gherkin — `safeword codify --format gherkin` (additive renderer beside the vitest one) + a cucumber-js acceptance lane (`test:bdd`) + a dogfood `.feature`. Full `/verify` (2548 pass) + `/audit` clean. The runner-agnostic "re-evaluate QuickPickle" note above resolved → **cucumber-js** (see the Replan at top).
+- **102b** — backlog: non-TS apps via TS step defs; 102a's foundation (runner + step-def pattern) is now in place.
+- **102c** — cancelled (all-TS).
+- Epic stays `in_progress` until 102b ships. The QuickPickle-specific sections above are the superseded original plan.

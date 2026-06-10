@@ -34,6 +34,10 @@
 - **0AWSY8** — Epic: Absorb arcade Phase 1 — scenario rules, adversarial review, codify, /review-spec (in_progress, epic: bdd-phase-one-merge)
   Absorb arcade's scenario-authoring and adversarial-review discipline into safeword's `bdd` Phases 3-4, plus arcade's `/codify-spec` test-emission as an optional safeword skill, plus extract Phase 4 into a re-invokable `/review-spec` skill. Specifically: explicit scenario-construction rules (singular Then, outcome-oriented, no-or, readability), the vacuous-pass test, negative-case-coverage, assertion-strength coaching, determinism-risk specifics, structured findings format, cross-cutting review categories, test-stub emission, and standalone review skill.
   → `.safeword-project/tickets/0AWSY8`
+- **102** — Epic: Executable Gherkin specifications (in_progress, epic: bdd-phase-one-merge)
+  → `.safeword-project/tickets/102-gherkin-executable-specs`
+- **102a** — Executable Gherkin specs for TypeScript projects (done, epic: bdd-phase-one-merge)
+  → `.safeword-project/tickets/102a-gherkin-typescript`
 - **73CKG4** — Determinism-risk specifics in the scenario-gate (assertion-strength folded) (done, epic: bdd-phase-one-merge)
   Add two Phase 4 enhancements: (1) assertion-strength coaching with weak→strong Then vocabulary, and (2) determinism-risk specifics with named failure patterns (time-dependent, ordering-dependent, concurrency).
   → `.safeword-project/tickets/73CKG4`
@@ -381,13 +385,9 @@
 - **0ZKYJD** — Done-gate refuses if commits land after last /verify or /audit (in_progress, epic: —)
   Close the staleness gap surfaced in the J7VBGJ session — /verify and /audit evidence becomes stale silently if the agent commits more code afterward. The done-gate currently checks "was the skill invoked this session?" not "was it invoked since the last code change?"
   → `.safeword-project/tickets/0ZKYJD-donegate-skill-log-freshness`
-- **102** — Epic: Executable Gherkin specifications (backlog, epic: —)
-  → `.safeword-project/tickets/102-gherkin-executable-specs`
-- **102a** — Executable Gherkin specs for TypeScript projects (backlog, epic: —)
-  → `.safeword-project/tickets/102a-gherkin-typescript`
 - **102b** — Executable Gherkin specs for non-TS projects via TypeScript step defs (backlog, epic: —)
   → `.safeword-project/tickets/102b-gherkin-polyglot-ts-steps`
-- **102c** — Customer choice of native-language Gherkin step definitions (backlog, epic: —)
+- **102c** — Customer choice of native-language Gherkin step definitions (cancelled, epic: —)
   → `.safeword-project/tickets/102c-native-language-step-defs`
 - **106** — User guide for driving the explore-debate-steelman loop (cancelled, epic: —)
   → `.safeword-project/tickets/106-user-collaboration-guide`
