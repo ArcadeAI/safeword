@@ -101,8 +101,8 @@ When the parser validates sections
 Then it reports a validation error naming the missing section
 
 - [x] RED fea69959
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN fb2c8055
+- [x] REFACTOR skip: guard clause matches the section-loop shape, no smell
 
 ### Scenario: impl-plan-artifact.SM1.AC2.html_comment_content_counts_as_empty
 

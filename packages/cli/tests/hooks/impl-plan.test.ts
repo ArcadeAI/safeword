@@ -100,6 +100,16 @@ describe('parseImplPlan section validation (Rule 2)', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('treats HTML-comment-only content as empty', () => {
+    const result = parseImplPlan(
+      plan('planned', sectionsWith({ Approach: '<!-- guidance comment\nspanning lines -->' })),
+    );
+    expect(result.sections.Approach?.satisfied).toBe(false);
+    expect(result.errors.some(error => error.includes('Approach') && error.includes('empty'))).toBe(
+      true,
+    );
+  });
+
   it('reports a missing section heading as invalid, naming it', () => {
     const result = parseImplPlan(plan('planned', sectionsWithout('Assessment triggers')));
     expect(result.sections['Assessment triggers']).toBeUndefined();
