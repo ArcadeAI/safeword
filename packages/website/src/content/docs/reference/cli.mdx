@@ -17,29 +17,34 @@ bunx safeword@latest setup
 
 ### What gets installed
 
-| What                    | Action               | Purpose                         |
-| ----------------------- | -------------------- | ------------------------------- |
-| `.safeword/`            | Creates directory    | Hooks, guides, templates        |
-| `.claude/settings.json` | Creates or merges    | Hook configuration              |
-| `.claude/skills/`       | Creates directory    | Workflow skills                 |
-| `.claude/commands/`     | Creates directory    | Slash commands                  |
-| `.cursor/hooks.json`    | Creates or merges    | Hook configuration              |
-| `.cursor/rules/`        | Creates directory    | Behavior rules                  |
-| `.cursor/commands/`     | Creates directory    | Slash commands                  |
-| `eslint.config.mjs`     | Creates file         | Linting config (JS/TS)          |
-| `package.json`          | Adds devDependencies | Code quality tools (JS/TS only) |
-| `.golangci.yml`         | Creates file         | Linting config (Go)             |
-| `ruff.toml`             | Creates file         | Linting config (Python)         |
-| `mypy.ini`              | Creates file         | Type checking (Python)          |
-| `clippy.toml`           | Creates file         | Linting config (Rust)           |
-| `rustfmt.toml`          | Creates file         | Formatting config (Rust)        |
-| `Cargo.toml`            | Adds lints section   | clippy lints (Rust)             |
-| `.sqlfluff`             | Creates file         | Linting config (SQL/dbt)        |
-| `AGENTS.md`             | Creates or prepends  | Links to SAFEWORD.md            |
-| `.mcp.json`             | Creates or merges    | MCP server config               |
-| `.cursor/mcp.json`      | Creates or merges    | MCP server config (Cursor)      |
+| What                    | Action                                             | Purpose                                            |
+| ----------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| `.safeword/`            | Creates directory                                  | Hooks, guides, templates                           |
+| `.claude/settings.json` | Creates or merges                                  | Hook configuration                                 |
+| `.claude/skills/`       | Creates directory                                  | Workflow skills                                    |
+| `.claude/commands/`     | Creates directory                                  | Slash commands                                     |
+| `.cursor/hooks.json`    | Creates or merges                                  | Hook configuration                                 |
+| `.cursor/rules/`        | Creates directory                                  | Behavior rules                                     |
+| `.cursor/commands/`     | Creates directory                                  | Slash commands                                     |
+| `eslint.config.mjs`     | Creates file                                       | Linting config (JS/TS)                             |
+| `package.json`          | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)            |
+| `cucumber.mjs`          | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)     |
+| `features/`             | Creates starter                                    | Gherkin `.feature` files — yours after creation    |
+| `steps/`                | Creates starter                                    | TypeScript step definitions — yours after creation |
+| `.golangci.yml`         | Creates file                                       | Linting config (Go)                                |
+| `ruff.toml`             | Creates file                                       | Linting config (Python)                            |
+| `mypy.ini`              | Creates file                                       | Type checking (Python)                             |
+| `clippy.toml`           | Creates file                                       | Linting config (Rust)                              |
+| `rustfmt.toml`          | Creates file                                       | Formatting config (Rust)                           |
+| `Cargo.toml`            | Adds lints section                                 | clippy lints (Rust)                                |
+| `.sqlfluff`             | Creates file                                       | Linting config (SQL/dbt)                           |
+| `AGENTS.md`             | Creates or prepends                                | Links to SAFEWORD.md                               |
+| `.mcp.json`             | Creates or merges                                  | MCP server config                                  |
+| `.cursor/mcp.json`      | Creates or merges                                  | MCP server config (Cursor)                         |
 
 Setup auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
+
+The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
 ## safeword upgrade
 
