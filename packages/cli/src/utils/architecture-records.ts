@@ -26,7 +26,7 @@ export function listArchitectureRecords(resolvedPath: string): ArchitectureRecor
   }
   if (stats?.isDirectory()) {
     const records = readdirSync(resolvedPath, { withFileTypes: true })
-      .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+      .filter(entry => entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md')
       .map(entry => nodePath.join(resolvedPath, entry.name));
     return { kind: 'directory', records };
   }

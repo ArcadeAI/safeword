@@ -28,7 +28,7 @@ Given the location is a directory containing `README.md` and `0001-storage.md`
 When the helper lists architecture records
 Then the records contain `0001-storage.md` only
 
-- [ ] RED
+- [x] RED bff235e7
 - [ ] GREEN
 - [ ] REFACTOR
 
