@@ -122,7 +122,7 @@ Given a feature ticket at phase `implement` whose folder contains spec.md but no
 When the stop hook runs its cumulative artifact checks
 Then it hard-blocks with a message naming impl-plan.md and the authoring point (scenario-gate exit)
 
-- [ ] RED
+- [x] RED 524eb02c
 - [ ] GREEN
 - [ ] REFACTOR
 
