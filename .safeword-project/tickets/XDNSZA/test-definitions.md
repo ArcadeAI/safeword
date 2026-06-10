@@ -71,8 +71,8 @@ When the parser validates sections
 Then it reports a validation error naming Known deviations and the empty-reason rule
 
 - [x] RED 60a690e3
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 10b9c1d9
+- [x] REFACTOR skip: 3-line guard, nothing to restructure
 
 ### Scenario: impl-plan-artifact.DEV1.AC2.whitespace_skip_reason_is_invalid
 

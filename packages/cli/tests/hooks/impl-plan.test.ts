@@ -92,6 +92,18 @@ describe('parseImplPlan section validation (Rule 2)', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('reports a whitespace-only skip reason as invalid, naming the section', () => {
+    const result = parseImplPlan(
+      plan('planned', sectionsWith({ 'Assessment triggers': 'skip:   ' })),
+    );
+    expect(result.sections['Assessment triggers']?.satisfied).toBe(false);
+    expect(
+      result.errors.some(
+        error => error.includes('Assessment triggers') && error.includes('non-empty reason'),
+      ),
+    ).toBe(true);
+  });
+
   it('reports a bare skip: as invalid, naming the section and the empty-reason rule', () => {
     const result = parseImplPlan(plan('planned', sectionsWith({ 'Known deviations': 'skip:' })));
     expect(result.sections['Known deviations']?.satisfied).toBe(false);
