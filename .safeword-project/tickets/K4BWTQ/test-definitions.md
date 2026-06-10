@@ -71,9 +71,9 @@ And the resolved architecture location does not exist
 When `safeword check` runs
 Then it surfaces a question naming the ticket and the missing architecture location
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 892b5ccd
+- [x] GREEN 0bb59971
+- [x] REFACTOR skip: advisory mirrors findCoverageAdvisories shape by design
 
 ### Scenario: adr-consultation.SM1.AC1.skip_with_absent_location_is_clean
 
@@ -82,9 +82,9 @@ And the architecture location does not exist
 When `safeword check` runs
 Then no architecture question is surfaced for that ticket
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — silence is the no-advisory default; the skip branch shipped with 0bb59971
+- [x] GREEN 0bb59971
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: adr-consultation.SM1.AC1.content_with_present_location_is_clean
 
@@ -93,9 +93,9 @@ And the architecture location exists with at least one record
 When `safeword check` runs
 Then no architecture question is surfaced for that ticket
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — silence is the no-advisory default; the present-location early return shipped with 0bb59971
+- [x] GREEN 0bb59971
+- [x] REFACTOR skip: characterization test, no code change
 
 ## Rule: The skill docs teach the consultation procedure end to end
 
