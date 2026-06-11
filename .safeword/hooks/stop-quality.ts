@@ -209,16 +209,18 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
 }
 
 /**
- * Check the impl-plan artifact for new-flow features (ticket XDNSZA).
- * Features with spec.md (post-DZ2NM5 flow) at implement/done require an
- * impl-plan.md whose five sections are content-or-skip valid. Authored at
- * scenario-gate exit; grandfathered tickets (no spec.md) and tasks are exempt.
+ * Check the impl-plan artifact for new-flow features (tickets XDNSZA + ERVA6V).
+ * Features with spec.md (post-DZ2NM5 flow) at implement+ require an
+ * impl-plan.md whose five sections are content-or-skip valid; from verify
+ * onward its status must be `implemented` — the plan-vs-actual reconciliation
+ * at implement exit flips it. Authored at scenario-gate exit; grandfathered
+ * tickets (no spec.md) and tasks are exempt.
  */
 function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
   if (ticketInfo.type !== 'feature') return;
   if (!ticketInfo.folder || !ticketInfo.phase) return;
 
-  const phasesRequiringImplPlan = ['implement', 'done'];
+  const phasesRequiringImplPlan = ['implement', 'verify', 'done'];
   if (!phasesRequiringImplPlan.includes(ticketInfo.phase)) return;
 
   // Grandfathering: spec.md presence routes new-flow vs pre-spec tickets (DZ2NM5 D5).
@@ -231,9 +233,18 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
     );
   }
 
-  const { errors } = parseImplPlan(readFileSync(implPlanPath, 'utf8'));
+  const { status, errors } = parseImplPlan(readFileSync(implPlanPath, 'utf8'));
   if (errors.length > 0) {
     hardBlockDone(`impl-plan.md validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+  }
+
+  // Reconciliation gate (ERVA6V): the plan must reflect shipped reality
+  // before the ticket advances past implement.
+  const phasesRequiringImplemented = ['verify', 'done'];
+  if (phasesRequiringImplemented.includes(ticketInfo.phase) && status !== 'implemented') {
+    hardBlockDone(
+      `Impl plan reconciliation incomplete: impl-plan.md status is "${status ?? 'unknown'}". Walk Decisions, Arch alignment, and Known deviations against what shipped, then set **Status:** implemented (see TDD.md "Implement exit: reconcile the plan").`,
+    );
   }
 }
 
