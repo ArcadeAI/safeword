@@ -1,6 +1,6 @@
 # Impl Plan: Plan-vs-actual reconciliation at implement exit
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -23,7 +23,7 @@ skip: no project-local ADR directory yet — extends the impl-plan gate pattern 
 
 ## Known deviations
 
-skip: none planned — single-function extension plus docs, both following sibling patterns
+skip: none — reconciled at implement exit: all three Decisions rows held as planned (same-function gate, verify extension per review F1, conversational depth); zero deviations
 
 ## Assessment triggers
 

@@ -82,9 +82,9 @@ Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogf
 When TDD.md is scanned in both copies
 Then each copy contains, as separately-asserted markers: (a) the implement-exit reconciliation step walking Decisions, Arch alignment, and Assessment triggers, (b) the `**Status:** planned` → `implemented` flip, and (c) a worked example showing a planned decision that changed mid-implementation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 25b400ab
+- [x] GREEN 78a2c1c1
+- [x] REFACTOR skip: docs edit, prose already house-style
 
 ---
 
@@ -92,4 +92,4 @@ Then each copy contains, as separately-asserted markers: (a) the implement-exit 
 
 Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks if this row is missing or has an empty skip reason on tickets that use the annotated checkbox format.
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: gate scenarios reuse impl-plan-gate.test.ts fixtures (writeTicket/runStopHook/VALID_PLAN) — consolidation already shared; docs test mirrors the established doc-presence shape; no duplication left to extract
