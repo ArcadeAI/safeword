@@ -3,8 +3,8 @@ id: K4BWTQ
 slug: adr-consultation
 title: 'Add required ADR consultation step and ADR-creation prompt for new patterns'
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
 blocked_on: XDNSZA
@@ -96,6 +96,7 @@ Wait for the user's answer before proceeding.
 - 2026-05-24T21:37:59.788Z Started: Created ticket K4BWTQ
 - 2026-05-24T21:39:00.000Z Drafted: Scope (location + consultation step + prompt), hook integration, 3 open questions; linked to epic M6D315
 - 2026-06-10T22:20:00.000Z Replan: paths.architecture file-or-dir reuse (no adrLocation field); consultation runs at impl-plan authoring (scenario-gate exit); naming questions resolved accept-any.
+- 2026-06-11T00:45:00.000Z Closed: /verify green (2598/2598; one flaky run triaged via clean re-run) + /audit passed; /quality-review found+fixed the ENOTDIR through-file crash (nodejs/node#56993, regression-tested); /refactor applied 2 improvements (extract helpers, hoist SKIP_PREFIX). verify.md written. Second M6D315 child done — ERVA6V unblocked (both deps done).
 - 2026-06-11T00:30:00.000Z Complete: implement — 10/10 scenarios R/G/R-annotated (architecture-records helper, check advisory findArchitectureAdvisories, consultation procedure + first-ADR prompt in SCENARIOS.md both copies); reconciled impl plan: 4 decisions held, 1 Approach refinement noted, status → implemented (ERVA6V discipline dogfooded pre-hook). Phase → verify.
 - 2026-06-10T23:55:00.000Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass (independent Tier-2 review: PASS, 4 strengthen findings all applied — order-insensitive set assertion, non-md/no-recursion pinned in Given, empty-section impossibility recorded, docs Then itemized); impl-plan.md written (test layers + build order in Approach) — first dogfood of the XDNSZA artifact. Review stamp written. Phase → implement.
 - 2026-06-10T23:45:00.000Z Define-behavior exit: dimensions.md (6 dimensions, pruning recorded incl. the deliberate skip+present non-check) + test-definitions.md with 10 lineage-numbered scenarios across 3 rules. Phase → scenario-gate.
