@@ -28,7 +28,7 @@ last_modified: 2026-05-24T21:39:00.000Z
 | ID         | Title                                                                           | Arcade Pair | Status    | Depends On     |
 | ---------- | ------------------------------------------------------------------------------- | ----------- | --------- | -------------- |
 | **XDNSZA** | Impl plan artifact (5 sections + lifecycle + skip discipline, VYRKBJ folded in) | SXNV8N      | Done      | —              |
-| **K4BWTQ** | ADR consultation step + ADR-creation prompt for new patterns                    | SXNV8N      | Open      | XDNSZA         |
+| **K4BWTQ** | ADR consultation step + ADR-creation prompt for new patterns                    | SXNV8N      | Done      | XDNSZA         |
 | **ERVA6V** | Plan-vs-actual reconciliation at implement-phase exit                           | SXNV8N      | Open      | XDNSZA, K4BWTQ |
 | **CNGBNT** | Harness degraded-path branch in TDD.md (rescoped to task)                       | SXNV8N      | Open      | —              |
 | **VYRKBJ** | ~~Skip annotations on impl plan sections~~ — folded into XDNSZA                 | —           | Cancelled | —              |
@@ -108,5 +108,6 @@ Revalidated epic + children against current docs and codebase (`/figure-it-out`)
 
 - 2026-05-24T21:37:59.696Z Started: Created ticket M6D315
 - 2026-05-24T21:39:00.000Z Drafted: Epic shell with 5 children, sequencing, 5 open decisions, many-to-one pairing rationale
+- 2026-06-11T00:50:00.000Z Child done: **K4BWTQ** (ADR consultation) shipped via full BDD/TDD — architecture-records helper (file-or-dir paths.architecture, arcade docs/docs/arch seam-tested), check structural advisory, consultation procedure + first-ADR prompt in SCENARIOS.md both copies. 10 scenarios, Tier-2 review PASS (4 strengthens applied), /quality-review (ENOTDIR fix) + /refactor (2 improvements), /verify 2598/2598 + /audit clean. First end-to-end dogfood of the impl-plan artifact. **Epic progress: 2/4 buildable children done.** Next: ERVA6V (reconciliation), both deps now satisfied.
 - 2026-06-10T23:25:00.000Z Child done: **XDNSZA** (impl plan artifact) shipped via full BDD/TDD — parser lib (hooks/lib/impl-plan.ts), stop-hook gate (checkImplPlanArtifact, spec.md-routed grandfathering), impl-plan-template.md, SCENARIOS.md/TDD.md authoring step in both copies. 20 scenarios, independent gate review applied, /verify 2586/2586 + /audit clean. **Epic progress: 1/4 buildable children done.** Next: K4BWTQ (ADR consultation).
 - 2026-06-10T22:15:00.000Z Replan: validated epic + 5 children vs current docs/codebase. All 5 open decisions resolved (impl-plan.md sibling at scenario-gate exit; paths.architecture file-or-dir; required-with-skips; implement-exit reconciliation). VYRKBJ folded into XDNSZA; CNGBNT rescoped to task. Build order locked: XDNSZA → K4BWTQ → ERVA6V → CNGBNT.
