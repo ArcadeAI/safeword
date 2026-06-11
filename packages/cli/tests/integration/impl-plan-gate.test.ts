@@ -188,3 +188,69 @@ describe('impl-plan cumulative gate (Rule 3)', () => {
     expect(reason).toContain('impl-plan.md');
   });
 });
+
+const IMPLEMENTED_PLAN = VALID_PLAN.replace('**Status:** planned', '**Status:** implemented');
+
+describe('reconciliation status gate (ERVA6V, test-definitions Rules 1-2)', () => {
+  it('blocks a new-flow feature at verify whose plan is still planned, naming reconciliation', () => {
+    writeTicket({
+      id: 'RSG001',
+      type: 'feature',
+      phase: 'verify',
+      spec: true,
+      implPlan: VALID_PLAN,
+    });
+    const reason = runStopHook('RSG001');
+    expect(reason).toContain('impl-plan.md');
+    expect(reason.toLowerCase()).toContain('reconcil');
+  });
+
+  it('blocks a new-flow feature at verify with no impl-plan.md (existence extends to verify)', () => {
+    writeTicket({ id: 'RSG002', type: 'feature', phase: 'verify', spec: true });
+    const reason = runStopHook('RSG002');
+    expect(reason).toContain('impl-plan.md');
+  });
+
+  it('permits the stop at verify once the plan is implemented', () => {
+    writeTicket({
+      id: 'RSG003',
+      type: 'feature',
+      phase: 'verify',
+      spec: true,
+      implPlan: IMPLEMENTED_PLAN,
+    });
+    const reason = runStopHook('RSG003');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+
+  it('allows a planned plan during implement (status check fires at verify+ only)', () => {
+    writeTicket({
+      id: 'RSG004',
+      type: 'feature',
+      phase: 'implement',
+      spec: true,
+      implPlan: VALID_PLAN,
+    });
+    const reason = runStopHook('RSG004');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+
+  it('blocks a new-flow feature at done whose plan is still planned', () => {
+    writeTicket({ id: 'RSG005', type: 'feature', phase: 'done', spec: true, implPlan: VALID_PLAN });
+    const reason = runStopHook('RSG005');
+    expect(reason).toContain('impl-plan.md');
+    expect(reason.toLowerCase()).toContain('reconcil');
+  });
+
+  it('exempts a grandfathered feature (no spec.md) at verify', () => {
+    writeTicket({ id: 'RSG006', type: 'feature', phase: 'verify' });
+    const reason = runStopHook('RSG006');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+
+  it('exempts a task ticket at verify', () => {
+    writeTicket({ id: 'RSG007', type: 'task', phase: 'verify' });
+    const reason = runStopHook('RSG007');
+    expect(reason).not.toContain('impl-plan.md');
+  });
+});
