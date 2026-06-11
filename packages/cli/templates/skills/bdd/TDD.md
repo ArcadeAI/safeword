@@ -73,4 +73,19 @@ At the bottom of `test-definitions.md`, add one feature-level row for the cross-
 
 Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `/refactor`). If no, proceed to next scenario.
 
-All scenarios complete → proceed to verify.
+## Implement exit: reconcile the plan
+
+All scenarios complete → reconcile `impl-plan.md` against what actually shipped, **before** advancing to verify (the stop hook blocks `verify`/`done` while the plan still says `planned`):
+
+1. **Walk the Decisions table** — for each row ask "did we actually do this, or did we change our mind?" Update changed rows: new choice, new rationale, the abandoned choice moves into Alternatives considered.
+2. **Walk Arch alignment** — for each claim ask "did the implementation honor this?" Move anything that deviated into **Known deviations** with the reason.
+3. **Refresh Assessment triggers** — add triggers the implementation surfaced (e.g., "works at current scale, degrades past 10x").
+4. **Flip the status line** to `**Status:** implemented`, then add the work log entry:
+
+   ```
+   - {timestamp} Complete: implement — reconciled impl plan; {N} decisions updated, {M} deviations recorded
+   ```
+
+_Worked example:_ the plan said "Decisions: parse with the shared markdown utility"; during implementation a local scan proved smaller, so the choice changed mid-implementation — the row now reads choice "local content-or-skip scan", with the shared utility recorded under Alternatives considered and the reason it lost. That update (not a rewrite of history — the alternatives column preserves it) is what reconciliation produces.
+
+Reconciled → set `phase: verify`.
