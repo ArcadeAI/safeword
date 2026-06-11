@@ -8,9 +8,9 @@ Given a new-flow feature ticket at phase `verify` whose folder contains spec.md,
 When the stop hook runs its cumulative artifact checks
 Then it hard-blocks with a message naming the reconciliation step and impl-plan.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bace9a39
+- [x] GREEN fbedc0a5
+- [x] REFACTOR skip: status check is a 6-line phase-conditional block, mirrors the existence check
 
 ### Scenario: plan-reconciliation.SM1.AC1.missing_plan_at_verify_blocks
 
@@ -18,9 +18,9 @@ Given a new-flow feature ticket at phase `verify` whose folder contains spec.md 
 When the stop hook runs its cumulative artifact checks
 Then it hard-blocks requiring impl-plan.md (the existence gate extends to verify with this ticket)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bace9a39
+- [x] GREEN fbedc0a5
+- [x] REFACTOR skip: one phase added to the existing list, no structure change
 
 ### Scenario: plan-reconciliation.SM1.AC1.implemented_at_verify_passes
 
@@ -28,9 +28,9 @@ Given a new-flow feature ticket at phase `verify` whose folder contains spec.md,
 When the stop hook runs its cumulative artifact checks
 Then it does not block on the impl-plan status
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — no-block is the default before the status check exists; pass cell shipped with fbedc0a5
+- [x] GREEN fbedc0a5
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: plan-reconciliation.SM1.AC1.planned_at_implement_is_allowed
 
@@ -38,9 +38,9 @@ Given a new-flow feature ticket at phase `implement` with a valid impl-plan.md w
 When the stop hook runs its cumulative artifact checks
 Then it does not block on the impl-plan status (the plan is legitimately planned during implementation)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — implement was never status-checked; boundary pinned as characterization with fbedc0a5
+- [x] GREEN fbedc0a5
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: plan-reconciliation.SM1.AC1.planned_at_done_blocks
 
@@ -48,9 +48,9 @@ Given a new-flow feature ticket at phase `done` whose folder contains spec.md an
 When the stop hook runs its cumulative artifact checks
 Then it hard-blocks with a message naming the reconciliation step and impl-plan.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bace9a39
+- [x] GREEN fbedc0a5
+- [x] REFACTOR skip: shares the verify code path, no separate code
 
 ## Rule: Exemptions mirror the impl-plan existence gate
 
@@ -60,9 +60,9 @@ Given a feature ticket at phase `verify` whose folder contains a test-definition
 When the stop hook runs its cumulative artifact checks
 Then it does not block on the impl-plan status
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — spec.md routing guard predates this ticket (XDNSZA); characterization at the new verify phase
+- [x] GREEN fbedc0a5
+- [x] REFACTOR skip: characterization test, no code change
 
 ### Scenario: plan-reconciliation.SM1.AC2.task_ticket_is_exempt
 
@@ -70,9 +70,9 @@ Given a task ticket at phase `verify` with no impl-plan.md
 When the stop hook runs its cumulative artifact checks
 Then it does not block on the impl-plan status
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: cannot fail first — the type guard predates this ticket (XDNSZA); characterization at the new verify phase
+- [x] GREEN fbedc0a5
+- [x] REFACTOR skip: characterization test, no code change
 
 ## Rule: TDD.md teaches the reconciliation procedure end to end
 
