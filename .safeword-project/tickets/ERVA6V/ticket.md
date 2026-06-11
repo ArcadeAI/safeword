@@ -3,7 +3,7 @@ id: ERVA6V
 slug: plan-actual-reconciliation
 title: 'Add Phase 6 exit step to reconcile impl plan against shipped reality'
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
@@ -85,6 +85,8 @@ The reconciled impl plan IS the artifact — no separate reconciliation document
 
 ## Work Log
 
+- 2026-06-11T23:45:00.000Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass (independent Tier-2 review: BLOCK on F1 — verify-phase existence cell unpinned, pruning note factually wrong; F1-F3 applied, re-review PASS); impl-plan.md written (test layers + build order in Approach). Review stamp written. Autonomous session — sub-phase gates auto-confirmed. Phase → implement.
+- 2026-06-11T23:40:00.000Z Intake + define-behavior: spec.md (2 JTBDs, 3 ACs, /self-review stamped), dimensions.md, 8 scenarios across 3 rules.
 - 2026-05-24T21:37:59.832Z Started: Created ticket ERVA6V
 - 2026-05-24T21:39:00.000Z Drafted: Scope (4-step reconciliation, hook integration, work log entry); linked to epic M6D315
 - 2026-06-10T22:20:00.000Z Replan: named-phase vocabulary applied; dependency on K4BWTQ added; gate slots into stop-quality.ts.

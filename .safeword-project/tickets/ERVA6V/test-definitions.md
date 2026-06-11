@@ -12,9 +12,19 @@ Then it hard-blocks with a message naming the reconciliation step and impl-plan.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: plan-reconciliation.SM1.AC1.missing_plan_at_verify_blocks
+
+Given a new-flow feature ticket at phase `verify` whose folder contains spec.md and a test-definitions.md with scenarios but no impl-plan.md
+When the stop hook runs its cumulative artifact checks
+Then it hard-blocks requiring impl-plan.md (the existence gate extends to verify with this ticket)
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: plan-reconciliation.SM1.AC1.implemented_at_verify_passes
 
-Given the same ticket with `**Status:** implemented`
+Given a new-flow feature ticket at phase `verify` whose folder contains spec.md, a test-definitions.md with scenarios, and a valid impl-plan.md with `**Status:** implemented`
 When the stop hook runs its cumulative artifact checks
 Then it does not block on the impl-plan status
 
@@ -34,9 +44,9 @@ Then it does not block on the impl-plan status (the plan is legitimately planned
 
 ### Scenario: plan-reconciliation.SM1.AC1.planned_at_done_blocks
 
-Given a new-flow feature ticket at phase `done` whose impl-plan.md status is `planned`
+Given a new-flow feature ticket at phase `done` whose folder contains spec.md and a valid impl-plan.md with `**Status:** planned`
 When the stop hook runs its cumulative artifact checks
-Then it hard-blocks naming the reconciliation step
+Then it hard-blocks with a message naming the reconciliation step and impl-plan.md
 
 - [ ] RED
 - [ ] GREEN
