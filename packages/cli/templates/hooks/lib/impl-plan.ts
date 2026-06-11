@@ -34,6 +34,7 @@ export interface ImplPlanResult {
 }
 
 const STATUS_PREFIX = '**Status:**';
+const SKIP_PREFIX = 'skip:';
 
 const SECTION_NAMES = new Map<string, ImplPlanSectionName>(
   IMPL_PLAN_SECTIONS.map(name => [name.toLowerCase(), name]),
@@ -119,9 +120,9 @@ export function parseImplPlan(content: string): ImplPlanResult {
       continue;
     }
     const skipLine =
-      body.length === 1 && body[0]?.toLowerCase().startsWith('skip:') ? body[0] : null;
+      body.length === 1 && body[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? body[0] : null;
     if (skipLine !== null) {
-      const reason = skipLine.slice('skip:'.length).trim();
+      const reason = skipLine.slice(SKIP_PREFIX.length).trim();
       if (reason === '') {
         errors.push(`Section "${name}": skip requires a non-empty reason (\`skip: <why>\`).`);
       }
