@@ -3,13 +3,27 @@ id: ERVA6V
 slug: plan-actual-reconciliation
 title: 'Add Phase 6 exit step to reconcile impl plan against shipped reality'
 type: feature
-phase: intake
+phase: scenario-gate
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
 blocked_on: [XDNSZA, K4BWTQ]
 created: 2026-05-24T21:37:59.832Z
-last_modified: 2026-05-24T21:39:00.000Z
+last_modified: 2026-06-11T00:55:00.000Z
+scope:
+  - 'TDD.md (both copies): documented reconciliation step at implement exit — walk Decisions (did we change our mind?), walk Arch alignment (did we honor it? move drift to Known deviations), refresh Assessment triggers, flip **Status:** planned → implemented; work-log entry format.'
+  - 'stop-quality.ts: new-flow features at verify/done phases additionally require impl-plan.md status implemented — block message names the reconciliation step and the file.'
+  - 'Reconciliation-skip path: ticket with no impl-plan.md (grandfathered) reconciles nothing and is exempt (same spec.md routing as XDNSZA).'
+  - 'Tests: gate cells (planned-at-verify blocks, implemented-at-verify passes, grandfathered exempt, task exempt) + doc-presence for the TDD.md step in both copies.'
+out_of_scope:
+  - 'Auto-detecting plan-vs-code drift — humans drive reconciliation.'
+  - 'Behavior-vs-scenario reconciliation — verify phase owns that.'
+  - 'Blocking deviations — Known deviations are documented, not forbidden.'
+  - 'Per-Decision-row machine validation — structural status check only (YR6C49 ruling).'
+done_when:
+  - 'TDD.md documents the 4-step reconciliation at implement exit in canonical + dogfood copies (doc-presence tested).'
+  - 'Stop hook blocks new-flow features at verify/done while impl-plan status is planned; implemented passes; grandfathered/tasks exempt.'
+  - 'Worked example shows a reconciled decision (planned choice changed mid-implementation).'
 ---
 
 # Plan-vs-actual reconciliation at Phase 6 exit
