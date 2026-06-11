@@ -11,7 +11,7 @@
 import { readdirSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
-export type ArchitectureLocationKind = 'file' | 'directory' | 'absent';
+type ArchitectureLocationKind = 'file' | 'directory' | 'absent';
 
 export interface ArchitectureRecords {
   kind: ArchitectureLocationKind;
@@ -20,7 +20,15 @@ export interface ArchitectureRecords {
 }
 
 export function listArchitectureRecords(resolvedPath: string): ArchitectureRecords {
-  const stats = statSync(resolvedPath, { throwIfNoEntry: false });
+  // try/catch in addition to throwIfNoEntry: statSync still throws ENOTDIR
+  // when a path *component* is a file (nodejs/node#56993) — reachable here
+  // via a misconfigured paths.architecture; treat it as absent, not a crash.
+  let stats;
+  try {
+    stats = statSync(resolvedPath, { throwIfNoEntry: false });
+  } catch {
+    return { kind: 'absent', records: [] };
+  }
   if (stats?.isFile()) {
     return { kind: 'file', records: [resolvedPath] };
   }

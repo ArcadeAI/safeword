@@ -51,6 +51,16 @@ describe('listArchitectureRecords (Rule 1)', () => {
     );
   });
 
+  it('reports a path routed through a file as absent instead of throwing (ENOTDIR, nodejs#56993)', () => {
+    const filePath = nodePath.join(directory, 'architecture.md');
+    writeFileSync(filePath, '# Architecture\n');
+
+    const result = listArchitectureRecords(nodePath.join(filePath, 'nested'));
+
+    expect(result.kind).toBe('absent');
+    expect(result.records).toEqual([]);
+  });
+
   it('reports an absent location with zero records', () => {
     const result = listArchitectureRecords(nodePath.join(directory, 'does-not-exist'));
 
