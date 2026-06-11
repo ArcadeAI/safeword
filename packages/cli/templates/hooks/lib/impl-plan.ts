@@ -71,33 +71,22 @@ function activeLines(content: string): string[] {
   return lines;
 }
 
-export function parseImplPlan(content: string): ImplPlanResult {
-  const errors: string[] = [];
-  let status: ImplPlanStatus | null = null;
-
-  const lines = activeLines(content);
-
-  let sawStatusLine = false;
+/** Scan for the `**Status:**` line; report its value or push the matching error. */
+function parseStatus(lines: string[], errors: string[]): ImplPlanStatus | null {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed.startsWith(STATUS_PREFIX)) continue;
-    sawStatusLine = true;
     const value = trimmed.slice(STATUS_PREFIX.length).trim();
-    if (value === 'planned' || value === 'implemented') {
-      status = value;
-    } else {
-      errors.push(`Unknown status "${value}" — allowed values: planned, implemented.`);
-    }
-    break;
+    if (value === 'planned' || value === 'implemented') return value;
+    errors.push(`Unknown status "${value}" — allowed values: planned, implemented.`);
+    return null;
   }
+  errors.push(`Missing \`${STATUS_PREFIX}\` line — add \`${STATUS_PREFIX} planned\` near the top.`);
+  return null;
+}
 
-  if (!sawStatusLine) {
-    errors.push(
-      `Missing \`${STATUS_PREFIX}\` line — add \`${STATUS_PREFIX} planned\` near the top.`,
-    );
-  }
-
-  // Accumulate non-empty body lines per known `## ` section.
+/** Accumulate non-empty body lines per known `## ` section. */
+function collectSectionBodies(lines: string[]): Map<ImplPlanSectionName, string[]> {
   const bodies = new Map<ImplPlanSectionName, string[]>();
   let current: ImplPlanSectionName | null = null;
   for (const line of lines) {
@@ -113,6 +102,14 @@ export function parseImplPlan(content: string): ImplPlanResult {
     }
     if (current && trimmed !== '') bodies.get(current)?.push(trimmed);
   }
+  return bodies;
+}
+
+export function parseImplPlan(content: string): ImplPlanResult {
+  const errors: string[] = [];
+  const lines = activeLines(content);
+  const status = parseStatus(lines, errors);
+  const bodies = collectSectionBodies(lines);
 
   const sections: Partial<Record<ImplPlanSectionName, ImplPlanSectionVerdict>> = {};
   for (const name of IMPL_PLAN_SECTIONS) {
