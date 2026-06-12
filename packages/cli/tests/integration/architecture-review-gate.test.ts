@@ -231,4 +231,65 @@ describe('architecture review gate (MR5M3A)', () => {
     expect(reason).not.toContain(CITATION_MSG);
     expect(reason).not.toContain(REVIEW_MSG);
   });
+
+  it('exempts a grandfathered feature with no spec.md', () => {
+    setConfig({ architectureReviewGate: true });
+    writeTicket('ARG010', 'feature', UNCITED, false);
+    const reason = runStopHook('ARG010');
+    expect(reason).not.toContain(CITATION_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
+  });
+
+  it('allows when the evidence half is a skip with a reason and a stamp exists', () => {
+    setConfig({ architectureReviewGate: true });
+    const skipPlan = plan('skip: one obvious choice, nothing to weigh');
+    writeTicket('ARG011', 'feature', skipPlan);
+    writeStamp('ARG011', skipPlan);
+    const reason = runStopHook('ARG011');
+    expect(reason).not.toContain(CITATION_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
+  });
+
+  it('allows when the design review is logged as a skip with a reason', () => {
+    setConfig({ architectureReviewGate: true });
+    writeTicket('ARG012', 'feature', CITED);
+    writeStamp('ARG012', CITED, { skip: 'no independent reviewer available this run' });
+    const reason = runStopHook('ARG012');
+    expect(reason).not.toContain(CITATION_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
+  });
+
+  it('allows when both halves are skipped with reasons', () => {
+    setConfig({ architectureReviewGate: true });
+    const skipPlan = plan('skip: one obvious choice');
+    writeTicket('ARG013', 'feature', skipPlan);
+    writeStamp('ARG013', skipPlan, { skip: 'tiny, low-risk design' });
+    const reason = runStopHook('ARG013');
+    expect(reason).not.toContain(CITATION_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
+  });
+
+  it('blocks when the only matching-hash stamp is scoped to a different ticket', () => {
+    setConfig({ architectureReviewGate: true });
+    writeTicket('ARG014', 'feature', CITED);
+    writeStamp('ARG014', CITED, { scopeId: 'SOME-OTHER-TICKET' });
+    expect(runStopHook('ARG014')).toContain(REVIEW_MSG);
+  });
+
+  it('allows under cross-model OFF even when the stamp model equals the author model', () => {
+    setConfig({ architectureReviewGate: true });
+    writeTicket('ARG015', 'feature', CITED);
+    writeStamp('ARG015', CITED, { model: 'claude-opus-4-8' });
+    const reason = runStopHook('ARG015', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
+    expect(reason).not.toContain(CROSS_MODEL_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
+  });
+
+  it('blocks under cross-model when the author model is unknown (fails closed)', () => {
+    setConfig({ architectureReviewGate: true, crossModelReview: true });
+    writeTicket('ARG016', 'feature', CITED);
+    writeStamp('ARG016', CITED, { model: 'claude-sonnet-4-6' });
+    // SAFEWORD_AUTHOR_MODEL deliberately unset.
+    expect(runStopHook('ARG016')).toContain(CROSS_MODEL_MSG);
+  });
 });
