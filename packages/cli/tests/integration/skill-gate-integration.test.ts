@@ -34,7 +34,7 @@ afterAll(() => {
 });
 
 function writeFeatureTicketAtDone(directory: string, ticketId: string): void {
-  const folder = `.safeword-project/tickets/${ticketId}`;
+  const folder = `.project/tickets/${ticketId}`;
   execSync(`mkdir -p "${directory}/${folder}"`, { cwd: directory });
   writeTestFile(
     directory,
@@ -54,7 +54,7 @@ function writeFeatureTicketAtDone(directory: string, ticketId: string): void {
 }
 
 function writeSkillLog(directory: string, entries: string[]): void {
-  const safewordDirectory = nodePath.join(directory, '.safeword-project');
+  const safewordDirectory = nodePath.join(directory, '.project');
   mkdirSync(safewordDirectory, { recursive: true });
   writeFileSync(
     nodePath.join(safewordDirectory, 'skill-invocations.log'),

@@ -41,7 +41,7 @@ import {
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 
 const TICKET_ID = 'E2E001';
-const TICKET_RELATIVE = `.safeword-project/tickets/${TICKET_ID}`;
+const TICKET_RELATIVE = `.project/tickets/${TICKET_ID}`;
 
 // One persona the JTBD reference resolves against at the gate.
 const PERSONAS = ['## Platform Operator (PO)', '', '**Role:** Owns the fleet servers.', ''].join(
@@ -137,10 +137,10 @@ describe('Phase 0 end-to-end walkthrough (E1K5ZW): oauth-flow composes across al
     await createConfiguredProject(projectRoot);
     // Overwrite the scaffolded (comment-only) personas.md with a real entry so
     // the JTBD's persona reference resolves at the gate.
-    writeTestFile(projectRoot, '.safeword-project/personas.md', PERSONAS);
+    writeTestFile(projectRoot, '.project/personas.md', PERSONAS);
     writeTestFile(projectRoot, `${TICKET_RELATIVE}/ticket.md`, TICKET);
     writeTestFile(projectRoot, `${TICKET_RELATIVE}/dimensions.md`, 'skip: one obvious dimension');
-    absTicketDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', TICKET_ID);
+    absTicketDirectory = nodePath.join(projectRoot, '.project', 'tickets', TICKET_ID);
   });
 
   afterEach(() => {

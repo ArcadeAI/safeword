@@ -87,13 +87,11 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/guides'))).toBe(true);
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/learnings'))).toBe(
+      expect(existsSync(nodePath.join(temporaryDirectory, '.project/learnings'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.project/tickets'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.project/tickets/completed'))).toBe(
         true,
       );
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/tickets'))).toBe(true);
-      expect(
-        existsSync(nodePath.join(temporaryDirectory, '.safeword-project/tickets/completed')),
-      ).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/commands'))).toBe(true);
     });

@@ -38,7 +38,7 @@ afterAll(() => {
 /** A feature closed by the sidestep: status:done but phase still intake, with
  * complete scenarios and (deliberately) NO verify.md. */
 function writeFeatureClosedByStatus(directory: string, ticketId: string): void {
-  const folder = `.safeword-project/tickets/${ticketId}`;
+  const folder = `.project/tickets/${ticketId}`;
   execSync(`mkdir -p "${directory}/${folder}"`, { cwd: directory });
   writeTestFile(
     directory,
@@ -56,7 +56,7 @@ function writeFeatureClosedByStatus(directory: string, ticketId: string): void {
  * (the sidestep only drops the ticket from the global in_progress scan). */
 function writeSessionState(directory: string, sessionId: string, ticketId: string): void {
   writeFileSync(
-    nodePath.join(directory, '.safeword-project', `quality-state-${sessionId}.json`),
+    nodePath.join(directory, '.project', `quality-state-${sessionId}.json`),
     JSON.stringify({ activeTicket: ticketId }),
   );
 }

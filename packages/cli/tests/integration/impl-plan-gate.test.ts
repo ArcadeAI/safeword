@@ -70,7 +70,7 @@ interface TicketFixture {
 }
 
 function writeTicket(fixture: TicketFixture): void {
-  const folder = `.safeword-project/tickets/${fixture.id}`;
+  const folder = `.project/tickets/${fixture.id}`;
   mkdirSync(nodePath.join(projectDirectory, folder), { recursive: true });
   writeTestFile(
     projectDirectory,
@@ -113,7 +113,7 @@ function runStopHook(ticketId: string): string {
     })}\n`,
   );
   writeFileSync(
-    nodePath.join(projectDirectory, '.safeword-project', `quality-state-${sessionId}.json`),
+    nodePath.join(projectDirectory, '.project', `quality-state-${sessionId}.json`),
     JSON.stringify({ activeTicket: ticketId }),
   );
   const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
