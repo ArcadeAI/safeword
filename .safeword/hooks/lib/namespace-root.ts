@@ -10,7 +10,7 @@
 // customer repos with no import path to the CLI. A differential test pins
 // the two copies against shared fixtures (P58R22 pattern).
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 export const NAMESPACE_ROOT_DEFAULT = '.project';
@@ -44,6 +44,15 @@ export function isNamespacePath(filePath: string, subpath: string): boolean {
   );
 }
 
+/** True when `path` exists and is a directory (a stray file is not a root). */
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 /** Absolute path of the resolved namespace root for `projectDirectory`. */
 export function resolveNamespaceRoot(projectDirectory: string): string {
   const configured = readConfiguredProjectRoot(projectDirectory);
@@ -54,10 +63,10 @@ export function resolveNamespaceRoot(projectDirectory: string): string {
   }
 
   const defaultRoot = nodePath.join(projectDirectory, NAMESPACE_ROOT_DEFAULT);
-  if (existsSync(defaultRoot)) return defaultRoot;
+  if (isDirectory(defaultRoot)) return defaultRoot;
 
   const legacyRoot = nodePath.join(projectDirectory, NAMESPACE_ROOT_LEGACY);
-  if (existsSync(legacyRoot)) return legacyRoot;
+  if (isDirectory(legacyRoot)) return legacyRoot;
 
   return defaultRoot;
 }

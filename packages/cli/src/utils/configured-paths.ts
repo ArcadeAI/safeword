@@ -16,10 +16,19 @@
  * logical-filesystem abstraction.
  */
 
-import { existsSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readFileSafe } from './fs.js';
+
+/** True when `path` exists and is a directory (a stray file is not a root). */
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
 
 /** Logical keys safeword knows how to override via `paths.*`. */
 export type ConfiguredPathKey = 'personas' | 'glossary' | 'architecture';
@@ -81,10 +90,10 @@ export function resolveNamespaceRoot(cwd: string): string {
   }
 
   const defaultRoot = nodePath.join(cwd, NAMESPACE_ROOT_DEFAULT);
-  if (existsSync(defaultRoot)) return defaultRoot;
+  if (isDirectory(defaultRoot)) return defaultRoot;
 
   const legacyRoot = nodePath.join(cwd, NAMESPACE_ROOT_LEGACY);
-  if (existsSync(legacyRoot)) return legacyRoot;
+  if (isDirectory(legacyRoot)) return legacyRoot;
 
   return defaultRoot;
 }

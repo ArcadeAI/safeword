@@ -116,4 +116,12 @@ describe('resolveNamespaceRoot — precedence (TAGWZ8)', () => {
 
     expect(resolveNamespaceRoot(cwd)).toBe(nodePath.join(cwd, '.project'));
   });
+
+  it('SM1.AC1.stray_file_named_project_is_not_a_root', () => {
+    // A FILE named .project must not shadow a legacy directory.
+    writeFileSync(nodePath.join(cwd, '.project'), 'not a directory');
+    mkdirSync(nodePath.join(cwd, '.safeword-project'));
+
+    expect(resolveNamespaceRoot(cwd)).toBe(nodePath.join(cwd, '.safeword-project'));
+  });
 });
