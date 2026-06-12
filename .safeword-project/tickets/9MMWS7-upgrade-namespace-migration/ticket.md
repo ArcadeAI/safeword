@@ -2,7 +2,7 @@
 id: 9MMWS7
 slug: upgrade-namespace-migration
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 epic: project-namespace-default
 parent: AQJ95G
@@ -35,7 +35,12 @@ done_when:
 
 **See:** epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) for personas, JTBDs, and outcomes.
 
+## Deliberate gaps (scenario-gate)
+
+- **Post-move, pre-reconcile failure recovery** — if reconcile throws after a successful move, the tree is moved-but-unreconciled; recovery is re-running upgrade (resolver finds `.project/`). Not scenarioed; reviewer agreed acceptable as a recorded gap.
+
 ## Work Log
 
 - 2026-06-12T17:35:11.138Z Started: Created ticket 9MMWS7
+- 2026-06-12T22:50:00.000Z Complete: scenario-gate — review 1 FAIL (2 must-fix: custom-root vacuity, missing move-failure cell; both applied + 5 strengthens), review 2 PASS (0 must-fix; 2 cosmetic strengthens applied). 14 scenarios. Stamped. impl-plan.md written. Phase → implement.
 - 2026-06-12T22:30:00.000Z Intake: scoped as final epic child. Migration runs pre-reconcile in upgrade; consent via flags/TTY-prompt-default-yes/nudge; git-aware move; config rewrite; both-dirs check advisory. Phase → define-behavior.

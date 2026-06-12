@@ -21,9 +21,14 @@ Then `.safeword-project/` is renamed to `.project/` with git history preserved (
 
 ### Scenario: upgrade-namespace-migration.DEV1.AC1.prompt_accept_migrates
 
-Given a legacy-only install and an interactive upgrade where the user accepts the default (Enter)
-When the migration prompt is answered
-Then the namespace is moved to `.project/` and the upgrade continues
+> Test seam: the prompt is an injected confirm function (unit layer) — a CI
+> subprocess has no TTY, so the interactive pair is proven against the seam,
+> not a pseudo-terminal. stdin EOF during the prompt resolves to a clean
+> decline (never hangs, never crashes).
+
+Given a legacy-only install whose migration prompt will be answered with the default (yes)
+When `safeword upgrade` runs interactively
+Then the namespace is moved to `.project/` and the upgrade continues on the new root
 
 - [ ] RED
 - [ ] GREEN
@@ -46,15 +51,15 @@ Then the namespace is moved to `.project/` via filesystem rename with all conten
 
 ### Scenario: upgrade-namespace-migration.DEV1.AC2.prompt_decline_leaves_legacy_untouched
 
-Given a legacy-only install and an interactive upgrade where the user answers `n`
-When the migration prompt is answered
+Given a legacy-only install whose migration prompt will be answered `n`
+When `safeword upgrade` runs interactively
 Then `.safeword-project/` is byte-unchanged, no `.project/` exists, and the upgrade completes normally on the legacy root
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: upgrade-namespace-migration.DEV1.AC2.no_flag_declines_without_prompt
+### Scenario: upgrade-namespace-migration.DEV1.AC2.decline_flag_skips_prompt_and_move
 
 Given a legacy-only install
 When `safeword upgrade --no-migrate-namespace` runs
@@ -69,6 +74,16 @@ Then no prompt is shown, no move happens, and the upgrade completes on the legac
 Given a legacy-only install and a non-interactive upgrade (no TTY, no migration flag)
 When `safeword upgrade` runs
 Then the output contains a one-line nudge naming `--migrate-namespace`, and no directories are moved
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: upgrade-namespace-migration.DEV1.AC2.move_failure_reports_and_changes_nothing
+
+Given a legacy-only install where the rename target is blocked (a file named `.project` exists)
+When `safeword upgrade --migrate-namespace` runs
+Then the failure is reported naming the cause, `.safeword-project/` is byte-unchanged, and the upgrade completes on the legacy root
 
 - [ ] RED
 - [ ] GREEN
@@ -111,9 +126,9 @@ Then `paths.personas` reads `.project/personas.md` after the move
 
 ### Scenario: upgrade-namespace-migration.DEV1.AC3.configured_custom_root_not_offered
 
-Given an install whose `.safeword/config.json` sets `paths.projectRoot` to a custom directory
+Given an install with `.safeword-project/` present on disk AND `.safeword/config.json` setting `paths.projectRoot` to a custom directory
 When `safeword upgrade --migrate-namespace` runs
-Then no move occurs and the upgrade operates on the configured root
+Then `.safeword-project/` is untouched, no `.project/` is created, and reconcile scaffolds into the configured root
 
 - [ ] RED
 - [ ] GREEN
@@ -126,9 +141,9 @@ Then no move occurs and the upgrade operates on the configured root
 
 ### Scenario: upgrade-namespace-migration.DEV1.AC4.both_dirs_refuses_move_and_advises
 
-Given a repo with both `.project/` and `.safeword-project/` present
+Given a repo with both `.project/` (containing a pre-existing user file) and `.safeword-project/` present
 When `safeword upgrade --migrate-namespace` runs
-Then no move occurs, both directories are byte-unchanged by migration, and the output explains `.project/` already exists (manual merge needed)
+Then `.safeword-project/` is byte-unchanged, the pre-existing `.project/` file is byte-unchanged, and the output explains `.project/` already exists (manual merge needed)
 
 - [ ] RED
 - [ ] GREEN
@@ -146,9 +161,9 @@ Then a zero-exit advisory names the both-dirs state and the action to finish con
 
 ### Scenario: upgrade-namespace-migration.DEV1.AC4.check_silent_on_single_root
 
-Given a repo with only `.project/` present
+Given a repo with only one namespace root present (either `.project/` only or `.safeword-project/` only)
 When `safeword check` runs
-Then no namespace advisory is emitted
+Then no namespace advisory is emitted — declining migration never becomes a nag
 
 - [ ] RED
 - [ ] GREEN
