@@ -1,74 +1,46 @@
 # Spec: Fresh safeword setup scaffolds .project/
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+> Child of epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md). This
+> child implements **DEV1.AC1** (fresh install scaffolds `.project/`) plus the
+> seamlessness guarantees around it (driver steer 2026-06-12: the experience
+> must be seamless for the end developer in every starting state). Sibling
+> 9MMWS7 owns legacy migration; TAGWZ8 (done) provides the resolver.
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
-
-## References
-
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+`safeword setup` scaffolds the project namespace at the resolved root —
+`.project/` for fresh repos — adopting an existing arcade `.project/` without
+touching user content, and leaving legacy `.safeword-project/` installs
+exactly as they are. The developer never sees two namespace directories and
+never has a file clobbered.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
-
-## Vocabulary
-
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- **Agent-Driven Developer (DEV)** — runs `safeword setup` on a fresh repo, an arcade repo, or an old safeword repo, and gets one correct namespace with zero questions asked.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### setup-scaffolds-project-dir.DEV1 — Set up into the right namespace, whatever my repo looks like
 
-Uncomment and customize:
+**Persona:** Agent-Driven Developer (DEV)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I run `safeword setup`, I want the namespace scaffolded at the right
+> root for my repo's state — new, arcade, or legacy — so setup just works and
+> I never end up with two namespace directories or clobbered files.
 
-**Persona:** Platform Operator (PO)
+#### setup-scaffolds-project-dir.DEV1.AC1 — A fresh repo gets `.project/` with all namespace directories and starter files
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### setup-scaffolds-project-dir.DEV1.AC2 — A repo with an existing `.project/` is adopted: missing pieces are added, existing user files are never overwritten
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### setup-scaffolds-project-dir.DEV1.AC3 — A legacy-only repo keeps operating entirely in `.safeword-project/`; no `.project/` appears
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
-
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### setup-scaffolds-project-dir.DEV1.AC4 — Every lifecycle command (setup, upgrade, diff, reset) agrees on the same resolved root
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- Zero new-install support questions about "which directory" — one namespace, correctly placed, in all three starting states.
+- Arcade + safeword repos share `.project/` from day one with no manual reconciliation.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+_None — design (context-carried root + planning-time path translation) settled at intake; epic decisions inherited._
