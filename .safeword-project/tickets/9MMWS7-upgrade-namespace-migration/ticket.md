@@ -2,8 +2,8 @@
 id: 9MMWS7
 slug: upgrade-namespace-migration
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: project-namespace-default
 parent: AQJ95G
 depends_on: TAGWZ8
@@ -41,6 +41,7 @@ done_when:
 
 ## Work Log
 
+- 2026-06-12T23:25:00.000Z Complete: verify — /verify + /audit run (invocation-logged); verify.md written; audit passed (0 errors). Ticket closed — epic's last child.
 - 2026-06-12T23:17:00.000Z Complete: implement — full suite 2731 passed / 0 failed / 1 skipped on fresh build + frozen tree. Phase → verify.
 - 2026-06-12T23:05:00.000Z Implement: 14/14 scenarios green (11 unit incl. prompt seam + 9 integration on real-setup fixtures). Latent check bug fixed en route: advisories were swallowed by issue early-returns (code contradicted its own comment) — hoisted above the chain.
 - 2026-06-12T17:35:11.138Z Started: Created ticket 9MMWS7

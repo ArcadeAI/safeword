@@ -2,8 +2,8 @@
 id: AQJ95G
 slug: project-namespace-default
 type: feature
-phase: define-behavior
-status: in_progress
+phase: done
+status: done
 created: 2026-06-12T04:08:06.464Z
 last_modified: 2026-06-12T17:19:00.000Z
 scope:
@@ -51,6 +51,7 @@ done_when:
 
 ## Work Log
 
+- 2026-06-12T23:25:00.000Z Complete: epic — all three children done (TAGWZ8 resolver, N9S5XG setup scaffold, 9MMWS7 upgrade migration + advisory). Every epic done_when discharged by child verify.md evidence; P8RJ4M supersession effective. Ships as 0.45.0.
 - 2026-06-12T04:08:06.464Z Started: Created ticket AQJ95G
 - 2026-06-12T04:09:00.000Z Drafted: epic shell with 4 locked decisions (driver-confirmed: .project/ singular + configurable root), scope notes, sequencing after 0.44.0. Supersedes P8RJ4M.
 - 2026-06-12T17:19:00.000Z Complete: intake — 5 JTBDs (4 DEV + SM1 single-resolver), ACs incl. architecture under resolved root (DEV1.AC3), both open questions resolved (both-dirs transient; migration folded into `upgrade` default-recommended, never silent/forced). Scope/out_of_scope/done_when written to frontmatter. Phase → define-behavior.
