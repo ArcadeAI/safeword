@@ -145,7 +145,7 @@ tickets as advisories (never a gate):
 
 ### Define Behavior Exit (REQUIRED)
 
-1. **Save scenarios** to `.safeword-project/tickets/{id}-{slug}/test-definitions.md`
+1. **Save scenarios** to `.project/tickets/{id}-{slug}/test-definitions.md`
 2. **Update frontmatter:** `phase: scenario-gate`
 3. **Add work log entry:**
 
@@ -172,7 +172,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 3. **Write `impl-plan.md`** (sibling to `ticket.md`; scaffold from `.safeword/templates/impl-plan-template.md`) — the implementation design record, status `planned`. Five sections, each with content or `skip: <non-empty reason>`:
    - **Approach** — assign test layers + sequence the work: for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
    - **Decisions** — one table row per significant technical choice: choice, alternatives considered, rejected because.
-   - **Arch alignment** — consult the project's architecture record before filling this in. Resolve the location from `paths.architecture` in `.safeword/config.json` (default `.safeword-project/architecture.md`); a file is the record itself, a directory holds one ADR per `.md` file (README.md excluded, any naming).
+   - **Arch alignment** — consult the project's architecture record before filling this in. Resolve the location from `paths.architecture` in `.safeword/config.json` (default `.project/architecture.md`); a file is the record itself, a directory holds one ADR per `.md` file (README.md excluded, any naming).
      - **Records exist:** read them; populate this section with the titles of the decisions this implementation honors.
      - **None recorded yet:** write `skip: no ADRs in this project yet` (the canonical "None recorded yet" state), then prompt the user before proceeding: _"No architectural decisions have been recorded yet. Consider whether this implementation introduces patterns worth documenting as the first ADR — technology choices spanning multiple features, data ownership, cross-service contracts. Draft the first ADR now, or continue and document afterward?"_ Wait for the answer (under autonomous runs: auto-continue and note the prompt in the work log).
 

@@ -145,13 +145,38 @@ Safeword has two types of files:
 
 **To customize something that gets overwritten:**
 
-1. Copy it to `.safeword-project/` (e.g., `.safeword-project/my-hook.ts`)
+1. Copy it to your namespace root (e.g., `.project/my-hook.ts` — see [Project Namespace Root](#project-namespace-root))
 2. Update `.claude/settings.json` to point to your copy
 3. Your version won't be touched by upgrades
 
+## Project Namespace Root
+
+Safeword's project knowledge — tickets, learnings, personas, glossary, architecture record — lives under a single **namespace root** directory, resolved in this order:
+
+1. `paths.projectRoot` in `.safeword/config.json`, if set
+2. `.project/` — the default for new installs
+3. `.safeword-project/` — the legacy root, honored where it already exists
+
+A project with neither directory resolves to `.project/`.
+
+The `paths` object also supports per-file overrides — `personas`, `glossary`, and `architecture` — which default to `<root>/personas.md`, `<root>/glossary.md`, and `<root>/architecture.md` under the resolved root. A per-file key wins over the root for its file:
+
+```json
+{
+  "paths": {
+    "projectRoot": ".project",
+    "personas": "docs/personas.md",
+    "glossary": "docs/glossary.md",
+    "architecture": "docs/adr/"
+  }
+}
+```
+
+Relative paths resolve against the project root (the directory containing `.safeword/`); absolute paths are used verbatim.
+
 ## Project-Specific Content
 
-Put custom content in `.safeword-project/`:
+Put custom content in your namespace root (`.project/` by default):
 
 - Custom hooks
 - Project-specific guides

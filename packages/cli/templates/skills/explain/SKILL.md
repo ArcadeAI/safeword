@@ -42,9 +42,9 @@ Gather the durable trail safeword already keeps, then narrate it. Run:
 
 ```bash
 # What you're on now: the last re-entry line names the current ticket + Next
-tail -3 .safeword-project/re-entry.md 2> /dev/null
+tail -3 .project/re-entry.md 2> /dev/null
 # Fallback when re-entry is empty: in_progress tickets (not epics)
-for f in .safeword-project/tickets/*/ticket.md; do
+for f in .project/tickets/*/ticket.md; do
   [ -f "$f" ] || continue
   grep -q "^status: in_progress" "$f" && ! grep -q "^type: epic" "$f" && echo "$f"
 done
@@ -66,7 +66,7 @@ plus the recent commits. Keep it to a few lines.
 
 ### A named ticket or artifact
 
-Read `.safeword-project/tickets/<id-or-slug>*/ticket.md` and translate, in order:
+Read `.project/tickets/<id-or-slug>*/ticket.md` and translate, in order:
 
 - **What it is** — the goal in one plain sentence (no "scope / done_when" labels).
 - **Why it matters** — the problem it removes.

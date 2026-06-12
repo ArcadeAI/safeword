@@ -39,7 +39,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     Default hooks get overwritten on `safeword upgrade`. To customize:
 
-    1. Copy the hook to `.safeword-project/` (e.g., `my-lint.ts`)
+    1. Copy the hook to your project namespace root (`.project/` by default — see [Configuration](/reference/configuration#project-namespace-root))
     2. Update `.claude/settings.json` to point to your copy
     3. Your custom hook stays safe from upgrades
 
@@ -73,7 +73,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     Default hooks and rules get overwritten on `safeword upgrade`. To customize:
 
-    1. Copy the file to `.safeword-project/`
+    1. Copy the file to your project namespace root (`.project/` by default)
     2. For rules: reference your copy in your workflow
     3. For hooks: update `.cursor/hooks.json` to point to your copy
 
@@ -156,7 +156,7 @@ Your agent will choose the right test type (unit, integration, E2E), write focus
 
 ### Ticket System
 
-Context anchoring for complex, multi-step work. Creates tickets with colocated artifacts (specs, test definitions, work logs) in `.safeword-project/tickets/`.
+Context anchoring for complex, multi-step work. Creates tickets with colocated artifacts (specs, test definitions, work logs) in `.project/tickets/` (legacy installs: `.safeword-project/tickets/`).
 
 **Example:** "Create a ticket for the auth refactor"
 
