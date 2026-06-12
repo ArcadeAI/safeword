@@ -40,10 +40,10 @@ interface SafewordConfigShape {
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
 
 /** Default namespace root for fresh contexts (epic AQJ95G). */
-export const NAMESPACE_ROOT_DEFAULT = '.project';
+const NAMESPACE_ROOT_DEFAULT = '.project';
 
 /** Legacy namespace root, honored where it already exists (pre-AQJ95G installs). */
-export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
+const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
 /**
  * Read the override path for `key` from `.safeword/config.json`, if any.
