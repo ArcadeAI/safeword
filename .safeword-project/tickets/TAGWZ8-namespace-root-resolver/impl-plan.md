@@ -1,6 +1,6 @@
 # Impl Plan: Single namespace-root resolver with legacy detection + literal migration
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -33,7 +33,11 @@ Consulted `ARCHITECTURE.md` (repo root — note: the configured-default location
 
 ## Known deviations
 
-`skip: no deviations planned` — the resolver conforms to the existing configured-paths pattern; the literal sweep is mechanical consumption of it.
+Recorded at reconciliation (implement-phase exit):
+
+- **Schema entries are additive, not parameterized.** The plan said runtime-read schema entries would be "parameterized by the resolved root"; what shipped lists BOTH roots statically (transient-state globs, managed `.gitignore` block with marker bump, prettier exclusions). Simpler, and correct for both install kinds — parameterizing a static manifest would have fought the schema-as-manifest design.
+- **Shell-level surfaces don't honor `paths.projectRoot`.** The verify/audit bash injections (skills + command shims) and the statusline script resolve the root by directory presence only (prefer `.project/`, else legacy) — no config read in shell. A configured-root install would log/read at `.project/` while hooks use the configured root. Acceptable: config override is a niche case; follow-up belongs to the epic if it materializes.
+- **Helpers grew beyond the plan:** `defaultConfiguredPath`, `resolveTicketsDirectory`, `resolveLearningsDirectory` (CLI) and `isNamespacePath` (hook side) — extracted so call sites stay one-liners.
 
 ## Assessment triggers
 
