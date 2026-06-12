@@ -271,11 +271,11 @@
 
 ### project-namespace-default
 
-- **Upgrade-vehicle migration to .project/ + both-dirs advisory (9MMWS7)** (backlog, epic: project-namespace-default)
-  `safeword upgrade` offers a legacy install the move to `.project/` as the default-recommended action (git-aware, consent-gated, never silent), and `safeword check` flags the transient both-dirs state (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV4 + DEV3.AC2). Blocked on TAGWZ8 (the resolver) landing first.
+- **Upgrade-vehicle migration to .project/ + both-dirs advisory (9MMWS7)** (in_progress, epic: project-namespace-default)
+  `safeword upgrade` offers a legacy install the move to `.project/` as the default-recommended action (git-aware, consent-gated, never silent), and `safeword check` flags the transient both-dirs state (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV4 + DEV3.AC2). TAGWZ8 (resolver) and N9S5XG (scaffold) are done — this completes the epic.
   blocked by: Single namespace-root resolver with legacy detection + literal migration (TAGWZ8)
   → `.safeword-project/tickets/9MMWS7-upgrade-namespace-migration`
-- **Fresh safeword setup scaffolds .project/ (N9S5XG)** (in_progress, epic: project-namespace-default)
+- **Fresh safeword setup scaffolds .project/ (N9S5XG)** (done, epic: project-namespace-default)
   A fresh `safeword setup` scaffolds the namespace at `.project/` (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV1.AC1), adopting an existing arcade `.project/` without clobbering it, and leaving legacy installs untouched — seamless for the developer in all three states.
   blocked by: Single namespace-root resolver with legacy detection + literal migration (TAGWZ8)
   → `.safeword-project/tickets/N9S5XG-setup-scaffolds-project-dir`

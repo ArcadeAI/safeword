@@ -1,74 +1,47 @@
 # Spec: Upgrade-vehicle migration to .project/ + both-dirs advisory
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+> Final child of epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md),
+> implementing **DEV4** (converge via upgrade) and **DEV3.AC2** (no new
+> required migration step). TAGWZ8 (resolver) and N9S5XG (setup scaffold) are
+> done. Driver steer: seamless — the move is the default and recommended,
+> never silent, never forced.
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
-
-## References
-
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+A routine `safeword upgrade` is the moment an existing `.safeword-project/`
+install converges on `.project/`: it offers the move as the recommended
+default, performs it git-aware on consent, rewrites stale config overrides,
+and continues the upgrade on the new root. Declining keeps everything working
+where it is; `safeword check` nudges only when a half-finished state exists.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
-
-## Vocabulary
-
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- **Agent-Driven Developer (DEV)** — upgrades safeword on an old project and gets walked across the namespace convention in one keystroke, or declines with zero consequence.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### upgrade-namespace-migration.DEV1 — Converge an old install during a routine upgrade
 
-Uncomment and customize:
+**Persona:** Agent-Driven Developer (DEV)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I run `safeword upgrade` on a project still using `.safeword-project/`,
+> I want it to offer the move to `.project/` as the recommended default and do
+> it safely when I accept, so I converge without a separate command, lost git
+> history, or a broken config.
 
-**Persona:** Platform Operator (PO)
+#### upgrade-namespace-migration.DEV1.AC1 — Interactive upgrade on a legacy install prompts to migrate, defaulting to yes; accepting moves the namespace preserving git history
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### upgrade-namespace-migration.DEV1.AC2 — The move never happens without consent: declining keeps legacy untouched; scripted runs gate on `--migrate-namespace` / `--no-migrate-namespace`; non-interactive runs only nudge
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### upgrade-namespace-migration.DEV1.AC3 — After migration, resolution points at `.project/`, stale per-file config overrides are rewritten, and the rest of the upgrade operates on the new root
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
-
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### upgrade-namespace-migration.DEV1.AC4 — A half-finished state (both directories present) is surfaced by `safeword check` as an advisory naming the finishing action
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- Legacy installs converge on `.project/` through normal upgrades — no support docs for a separate migration procedure.
+- Zero reports of a silent or unwanted namespace move.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+_None — consent model, vehicle, and both-dirs semantics were locked at epic intake (driver-confirmed: default and recommended, never silent)._
