@@ -3,8 +3,8 @@ id: 469YSR
 slug: styled-output-leading-newline
 parent: VKNF1T-platform-uplift-epic
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-06T18:37:39.821Z
 last_modified: 2026-06-06T18:37:39.821Z
 scope: |
@@ -75,3 +75,4 @@ The coverage-gap advisory SAFEWORD.md attributes to `safeword check` (uncovered 
 
 - 2026-06-06T18:37:39.821Z Started: Created ticket 469YSR
 - 2026-06-06T18:38:00Z Found while dogfooding `safeword check` (user asked "does it work right?"). Functionally fine — health/version/index-regen/coverage all correct; coverage stayed silent because intake tickets carry no spec.md (deliberate XT1FFM scoping). Bug is cosmetic: `success('\nConfiguration is healthy')` renders `✓` then an unglyphed "Configuration is healthy". Grep found 5 sites of the same leading-`\n`-in-styled-helper antipattern across check/diff/reset/upgrade. Sized task (mechanical, 4 files, no behavior to discover); scope/out_of_scope/done_when set — build-ready. Lean: fix the helper (root cause) + regression guard.
+- 2026-06-11T23:58:00Z DONE (option A). Revalidated vs merged main first: still-good — same 5 sites (reset:61, diff:232, upgrade:82+104, check:439), output.ts untouched. Extracted `formatGlyphLine(glyph, message)` (hoists leading newlines above the glyph); success/warn/error route through it — fixes the orphaned glyph across all 4 commands in one place. Unit test (output.test.ts) guards the helper: 3/3. No test pinned the old broken output (grep empty); check + upgrade command tests pass (32); tsc clean. Commit 71c8523c. Done_when met (helper-test guard + wiring covers all 5 sites). Final umbrella full-suite runs with AKZJXC.
