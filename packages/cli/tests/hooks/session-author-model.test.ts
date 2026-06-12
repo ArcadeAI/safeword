@@ -64,4 +64,14 @@ describe('session-author-model capture', () => {
     run({ model: 'claude-opus-4-8' }, {});
     expect(existsSync(envFile)).toBe(false);
   });
+
+  it('rejects a model containing a newline (no env-file line injection)', () => {
+    run(
+      { model: 'claude-opus-4-8\nMALICIOUS=1', hook_event_name: 'SessionStart' },
+      { CLAUDE_ENV_FILE: envFile },
+    );
+    const written = existsSync(envFile) ? readFileSync(envFile, 'utf8') : '';
+    expect(written).not.toContain('MALICIOUS');
+    expect(written).not.toContain('SAFEWORD_AUTHOR_MODEL');
+  });
 });

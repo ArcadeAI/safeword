@@ -304,11 +304,17 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
     );
   }
 
-  // Ceiling-raiser: under cross-model, the real-review stamp must record a different model than
-  // the author. A skip stamp bypasses review entirely, so cross-model is moot for it.
+  // Ceiling-raiser: under cross-model, a real-review stamp must record a model different from
+  // the author. Evaluate over ALL real-review stamps at this scope (the log is append-only, so a
+  // corrected re-review can sit after a same-model attempt) — pass if any is cross-model. A logged
+  // skip records no real-review stamp, so it deliberately bypasses cross-model: that is the same
+  // auditable escape valve every safeword gate carries, not an oversight.
   if (isCrossModelReviewRequired(rawConfig)) {
-    const reviewStamp = stamps.find(s => s.scope === scope && s.skipReason === undefined);
-    if (reviewStamp && modelsMatch(reviewStamp.model, process.env.SAFEWORD_AUTHOR_MODEL)) {
+    const realReviews = stamps.filter(s => s.scope === scope && s.skipReason === undefined);
+    const hasCrossModelReview = realReviews.some(
+      s => !modelsMatch(s.model, process.env.SAFEWORD_AUTHOR_MODEL),
+    );
+    if (realReviews.length > 0 && !hasCrossModelReview) {
       hardBlockDone(
         'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), recording it via `write-review-stamp.ts --model <id> impl-plan`.',
       );
@@ -358,6 +364,14 @@ const combinedText = input.last_assistant_message ?? '';
 // AP3FGJ). The edit-tools gate below then guards only the review/backstop path.
 const ticketInfo = getCurrentTicketInfo(input.session_id);
 const currentPhase = ticketInfo.phase;
+
+// Artifact gates are phase/state-driven, not edit-activity-driven, so they run BEFORE the
+// edit-tools early-exit below — a missing impl-plan or an unreviewed design must block a stop
+// whether or not the recent transcript window contained an edit (ticket MR5M3A). The edit-tools
+// gate then guards only the review/backstop path.
+checkCumulativeArtifacts(ticketInfo);
+checkImplPlanArtifact(ticketInfo);
+checkArchitectureReviewGate(ticketInfo);
 
 // No edit tools used → skip the review path (a conversational response has
 // nothing to review). The done phase is the exception: fall through to its gate.
@@ -465,14 +479,8 @@ function softBlock(reason: string): never {
 // 3. Done phase with evidence → allow (exit 0)
 // 4. Other phases → softBlock with quality review prompt (one-shot judgment; not enforcement)
 
-// Check cumulative artifacts (features at scenario-gate+ need test-definitions.md with scenarios)
-checkCumulativeArtifacts(ticketInfo);
-
-// Check the impl plan (new-flow features at implement+ need a valid impl-plan.md)
-checkImplPlanArtifact(ticketInfo);
-
-// Architecture review gate (MR5M3A) — default-off; cited evidence + independent design review.
-checkArchitectureReviewGate(ticketInfo);
+// Cumulative-artifact, impl-plan, and architecture-review gates ran earlier (hoisted above the
+// edit-tools early-exit) so they enforce on phase/state, not on recent edit activity.
 
 if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop.

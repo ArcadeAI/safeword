@@ -22,7 +22,10 @@ try {
 
 const envFile = process.env.CLAUDE_ENV_FILE;
 const model = input.model?.trim();
-if (envFile !== undefined && envFile !== '' && model !== undefined && model !== '') {
+// A model id carries no whitespace; rejecting it prevents a stray newline in the payload from
+// injecting a second line into CLAUDE_ENV_FILE (parity with write-review-stamp's --model check).
+const validModel = model !== undefined && model !== '' && !/\s/.test(model);
+if (envFile !== undefined && envFile !== '' && validModel) {
   appendFileSync(envFile, `SAFEWORD_AUTHOR_MODEL=${model}\n`);
 }
 process.exit(0);

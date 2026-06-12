@@ -122,30 +122,41 @@ function writeStamp(
   );
 }
 
-function runStopHook(id: string, env: Record<string, string> = {}): string {
+function runStopHook(
+  id: string,
+  env: Record<string, string> = {},
+  options: { noEdit?: boolean } = {},
+): string {
   const sessionId = `session-${id}`;
   const transcriptPath = nodePath.join(projectDirectory, `transcript-${id}.jsonl`);
+  // opts.noEdit → a conversational stop with no recent edit tool, proving the gate enforces on
+  // phase/state rather than edit activity (the hoist above the edit-tools early-exit).
+  const content = options.noEdit
+    ? [{ type: 'text', text: 'all set' }]
+    : [
+        { type: 'text', text: 'done' },
+        { type: 'tool_use', name: 'Edit' },
+      ];
   writeFileSync(
     transcriptPath,
-    `${JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [
-          { type: 'text', text: 'done' },
-          { type: 'tool_use', name: 'Edit' },
-        ],
-      },
-    })}\n`,
+    `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content } })}\n`,
   );
   writeFileSync(
     nodePath.join(projectDirectory, '.safeword-project', `quality-state-${sessionId}.json`),
     JSON.stringify({ activeTicket: id }),
   );
+  // Default the ambient author model to unset so cross-model fail-closed cases are deterministic;
+  // tests that exercise a known author model pass it explicitly in `env`.
+  const childEnvironment: Record<string, string | undefined> = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: projectDirectory,
+    ...env,
+  };
+  if (!('SAFEWORD_AUTHOR_MODEL' in env)) delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
   const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
     input: JSON.stringify({ transcript_path: transcriptPath, session_id: sessionId }),
     cwd: projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory, ...env },
+    env: childEnvironment,
     encoding: 'utf8',
   });
   try {
@@ -291,5 +302,24 @@ describe('architecture review gate (MR5M3A)', () => {
     writeStamp('ARG016', CITED, { model: 'claude-sonnet-4-6' });
     // SAFEWORD_AUTHOR_MODEL deliberately unset.
     expect(runStopHook('ARG016')).toContain(CROSS_MODEL_MSG);
+  });
+
+  it('still enforces at verify when the recent transcript has no edit tool (gate is phase-driven)', () => {
+    setConfig({ architectureReviewGate: true });
+    writeTicket('ARG017', 'feature', UNCITED);
+    writeStamp('ARG017', UNCITED);
+    // A conversational stop with no edit in the window must NOT bypass the gate.
+    expect(runStopHook('ARG017', {}, { noEdit: true })).toContain(CITATION_MSG);
+  });
+
+  it('passes under cross-model when a different-model re-review follows a same-model stamp', () => {
+    setConfig({ architectureReviewGate: true, crossModelReview: true });
+    writeTicket('ARG018', 'feature', CITED);
+    // Append-only log: a same-model attempt first, then a corrected different-model review.
+    writeStamp('ARG018', CITED, { model: 'claude-opus-4-8' });
+    writeStamp('ARG018', CITED, { model: 'claude-sonnet-4-6' });
+    const reason = runStopHook('ARG018', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
+    expect(reason).not.toContain(CROSS_MODEL_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
   });
 });
