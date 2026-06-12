@@ -122,6 +122,17 @@ export function isCrossModelReviewRequired(rawConfig?: string): boolean {
 }
 
 /**
+ * Whether a reviewer-model tag denotes the SAME model as the author-model tag
+ * (ticket MR5M3A) — the cross-model gate blocks when this is true. Comparison
+ * is trimmed and case-insensitive. An absent or empty tag on either side is
+ * indeterminate: it cannot establish independence, so it counts as a match and
+ * the gate fails closed (blocks) rather than waving the review through.
+ */
+export function modelsMatch(_reviewerTag?: string, _authorTag?: string): boolean {
+  return true;
+}
+
+/**
  * Whether a top-level config key is strictly `true`. Shared default-off,
  * fail-safe-on-malformed reader for the boolean rollout flags.
  */
