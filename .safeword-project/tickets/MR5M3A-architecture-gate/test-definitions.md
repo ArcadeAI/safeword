@@ -6,7 +6,7 @@ Scenarios prove the ACs in `spec.md`. The gate extends `stop-quality.ts`'s impl-
 
 - **Citation shape** — minimal/structural: a "cited source" is a line carrying a URL (`https://…`) or a `[n]`-style source-reference marker. Non-empty prose alone is not a citation.
 - **Layering precedence** — the new evidence/stamp checks run only on a present, well-formed impl-plan. #204's existence block and `parseImplPlan` errors fire first; the new reasons surface only after the plan parses.
-- **Cross-model comparison** — the gate compares two recorded tag strings (reviewer-model on the stamp, author-model from the main session's harness identity), trimmed and case-insensitive. Both are **orchestrator-recorded**, not subagent self-report (Claude Code withholds model identity from subagents). Author-model absent under cross-model-required fails closed (blocks).
+- **Cross-model comparison** — the gate compares two recorded tag strings (reviewer-model on the stamp, author-model captured at SessionStart into `SAFEWORD_AUTHOR_MODEL`), trimmed and case-insensitive. Both are **orchestrator-recorded**, not subagent self-report (Claude Code withholds model identity from subagents). Author-model absent under cross-model-required fails closed (blocks).
 
 ## Rule: Enabled — a new-flow feature cannot leave implement without cited evidence in Decisions
 
@@ -32,9 +32,9 @@ And its impl-plan.md Decisions section contains prose but no URL and no source-r
 When the stop hook evaluates the phase exit
 Then the exit is blocked with a reason naming the missing evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: gate is one function, no structural change
 
 ### Scenario: architecture-gate.DEV1.AC1.decisions_evidence_skip_with_reason_passes
 
@@ -44,9 +44,9 @@ And its impl-plan.md Decisions section is a single-line `skip: <reason>` with a 
 When the stop hook evaluates the phase exit
 Then the exit is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: coverage cell for the decisionsSkipped branch built in 39b0e96
+- [x] GREEN 55c3c8b
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC1.decisions_evidence_bare_skip_blocks
 
@@ -56,9 +56,9 @@ And its impl-plan.md Decisions section is a bare `skip:` carrying no reason
 When the stop hook evaluates the phase exit
 Then the exit is blocked with a reason demanding a non-empty skip
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: precedence — bare skip is a parseImplPlan error blocked by checkImplPlanArtifact (#204)
+- [x] GREEN skip: proven by impl-plan.test.ts bare-skip case (#204)
+- [x] REFACTOR skip: inherited behavior, no new code
 
 ### Scenario: architecture-gate.DEV1.AC1.skip_with_trailing_content_treated_as_uncited_content_blocks
 
@@ -68,9 +68,9 @@ And its impl-plan.md Decisions section has a `skip:` line followed by further bo
 When the stop hook evaluates the phase exit
 Then the exit is blocked because a multi-line section is content, not a skip, and carries no citation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: covered by parseImplPlan multi-line rule (body.length>1 is content) + hasCitation unit
+- [x] GREEN skip: gate treats it as uncited content via the 39b0e96 branch
+- [x] REFACTOR skip: no new code
 
 ## Rule: Enabled — layering on #204's existence and parse checks
 
@@ -84,9 +84,9 @@ And no impl-plan.md exists in the ticket folder
 When the stop hook evaluates the phase exit
 Then the exit is blocked by the existing impl-plan existence check, before the evidence check runs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: precedence — checkImplPlanArtifact existence block fires first (#204 impl-plan-gate.test.ts)
+- [x] GREEN skip: gate returns early when plan absent (39b0e96); existence owned by #204
+- [x] REFACTOR skip: inherited behavior
 
 ### Scenario: architecture-gate.DEV1.AC1.decisions_section_missing_blocks_before_evidence_check
 
@@ -96,9 +96,9 @@ And its impl-plan.md has no satisfied Decisions section (heading absent, or body
 When the stop hook evaluates the phase exit
 Then the exit is blocked by the existing impl-plan section validation, before the citation check runs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: precedence — parseImplPlan section error blocked by checkImplPlanArtifact (#204)
+- [x] GREEN skip: gate returns early on parse errors (39b0e96); section validation owned by #204
+- [x] REFACTOR skip: inherited behavior
 
 ### Scenario: architecture-gate.DEV1.AC1.malformed_plan_blocks_before_evidence_check
 
@@ -108,9 +108,9 @@ And its impl-plan.md fails to parse (a section error reported by the parser)
 When the stop hook evaluates the phase exit
 Then the exit is blocked by the parser error, and the evidence check does not run
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: precedence — parseImplPlan error blocked by checkImplPlanArtifact (#204)
+- [x] GREEN skip: gate returns early on parse errors (39b0e96)
+- [x] REFACTOR skip: inherited behavior
 
 ## Rule: Enabled — leaving implement requires a matching design-review stamp
 
@@ -124,9 +124,9 @@ And a design-review stamp exists scoped to this ticket and the impl-plan's curre
 When the stop hook evaluates the phase exit
 Then the exit is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC2.missing_design_review_stamp_blocks
 
@@ -136,9 +136,9 @@ And no design-review stamp exists for the impl-plan
 When the stop hook evaluates the phase exit
 Then the exit is blocked with a reason requesting an independent design review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC2.same_stamp_stops_matching_after_plan_edit_blocks
 
@@ -149,9 +149,9 @@ And the impl-plan's Decisions body is then edited so its content hash is no long
 When the stop hook re-evaluates the phase exit
 Then the exit is now blocked because the stamp's hash binds to the pre-edit design
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC2.stamp_for_other_ticket_same_hash_blocks
 
@@ -161,9 +161,9 @@ And the only design-review stamp at the impl-plan's content hash is scoped to a 
 When the stop hook evaluates the phase exit
 Then the exit is blocked because the stamp is not scoped to this ticket
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: coverage cell for the ticket-qualified scope built in 39b0e96
+- [x] GREEN 55c3c8b
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC2.review_skip_with_reason_passes
 
@@ -173,9 +173,9 @@ And the design review is logged as `skip: <reason>` with a non-empty reason
 When the stop hook evaluates the phase exit
 Then the exit is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: coverage cell for the skip-satisfies path built in 39b0e96
+- [x] GREEN 55c3c8b
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC1.both_halves_skipped_with_reasons_passes
 
@@ -185,9 +185,9 @@ And its Decisions evidence is `skip: <reason>` and its design review is logged `
 When the stop hook evaluates the phase exit
 Then the exit is allowed because both halves carry an auditable skip
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: coverage cell combining both skip paths built in 39b0e96
+- [x] GREEN 55c3c8b
+- [x] REFACTOR skip: no structural change
 
 ## Rule: Cross-model review — when configured, a same-model stamp does not satisfy the gate
 
@@ -201,9 +201,9 @@ And the design-review stamp records a reviewer-model tag equal to the recorded a
 When the stop hook evaluates the phase exit
 Then the exit is blocked because the review was not independent of the author's model
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC3.cross_model_required_different_recorded_model_passes
 
@@ -213,9 +213,9 @@ And the design-review stamp records a reviewer-model tag different from the reco
 When the stop hook evaluates the phase exit
 Then the exit is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC3.cross_model_required_author_model_unknown_blocks
 
@@ -225,9 +225,9 @@ And the design-review stamp records a reviewer-model tag but no author-model tag
 When the stop hook evaluates the phase exit
 Then the exit is blocked, failing closed rather than treating an unknown author-model as different
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: coverage cell for fail-closed built on modelsMatch (be42ed2) + gate 39b0e96
+- [x] GREEN 55c3c8b
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC3.cross_model_required_same_model_differing_case_blocks
 
@@ -237,9 +237,9 @@ And the reviewer-model and author-model tags name the same model differing only 
 When the stop hook evaluates the phase exit
 Then the exit is blocked because the tags resolve to the same model
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED be42ed2
+- [x] GREEN 0b085c7
+- [x] REFACTOR skip: modelsMatch is a single predicate
 
 ### Scenario: architecture-gate.DEV1.AC3.cross_model_off_same_recorded_model_passes
 
@@ -249,9 +249,9 @@ And the design-review stamp records a reviewer-model tag equal to the recorded a
 When the stop hook evaluates the phase exit
 Then the exit is allowed because cross-model independence is not required
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: coverage cell for the off-floor built in 39b0e96
+- [x] GREEN 55c3c8b
+- [x] REFACTOR skip: no structural change
 
 ## Rule: Default-off — a disabled, unconfigured, or malformed-config gate never blocks
 
@@ -264,9 +264,9 @@ And a new-flow feature at the implement→verify exit whose impl-plan.md has no 
 When the stop hook evaluates the phase exit
 Then the exit is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV2.AC1.gate_config_absent_treated_as_disabled
 
@@ -275,9 +275,9 @@ And a new-flow feature at the implement→verify exit whose impl-plan.md has no 
 When the stop hook evaluates the phase exit
 Then the exit is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 43eaa0b
+- [x] GREEN 4b24494
+- [x] REFACTOR 757399b
 
 ### Scenario: architecture-gate.DEV2.AC1.gate_config_malformed_treated_as_disabled
 
@@ -286,9 +286,9 @@ And a new-flow feature at the implement→verify exit whose impl-plan.md has no 
 When the stop hook evaluates the phase exit
 Then the exit is allowed, the malformed config failing safe to off
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 43eaa0b
+- [x] GREEN 4b24494
+- [x] REFACTOR 757399b
 
 ## Rule: Scope — only new-flow features are gated
 
@@ -301,9 +301,9 @@ And a task (not a feature) at the implement→verify exit with no citation and n
 When the stop hook evaluates the phase exit
 Then the exit is allowed because tasks are never gated
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1d91171
+- [x] GREEN 39b0e96
+- [x] REFACTOR skip: no structural change
 
 ### Scenario: architecture-gate.DEV1.AC2.grandfathered_feature_no_spec_exempt
 
@@ -312,6 +312,6 @@ And a grandfathered feature with no spec.md at the implement→verify exit with 
 When the stop hook evaluates the phase exit
 Then the exit is allowed because pre-spec tickets are exempt
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: coverage cell for the no-spec exemption built in 39b0e96
+- [x] GREEN 55c3c8b
+- [x] REFACTOR skip: no structural change
