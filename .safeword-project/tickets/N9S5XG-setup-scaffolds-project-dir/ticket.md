@@ -2,8 +2,8 @@
 id: N9S5XG
 slug: setup-scaffolds-project-dir
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: project-namespace-default
 parent: AQJ95G
 depends_on: TAGWZ8
@@ -35,6 +35,7 @@ done_when:
 
 ## Work Log
 
+- 2026-06-12T21:55:00.000Z Complete: verify — /verify + /audit run (invocation-logged); verify.md written; audit passed (0 errors). Ticket closed.
 - 2026-06-12T21:48:00.000Z Complete: implement — 11/11 scenarios + 134 stale post-setup fixtures flipped to the .project/ scaffold root (8 files). Full suite green on fresh build + frozen tree: 2710 passed / 0 failed / 1 skipped. Phase → verify.
 - 2026-06-12T21:15:00.000Z Implement: 11/11 scenarios green. ProjectContext.namespaceRoot + withResolvedNamespaceRoot translation at reconcile entry (one seam for install/upgrade/diff/uninstall). 87/87 reconcile-family tests; two fresh-repo fixtures flipped to .project/ (intended).
 - 2026-06-12T17:35:11.086Z Started: Created ticket N9S5XG
