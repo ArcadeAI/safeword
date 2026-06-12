@@ -1,14 +1,18 @@
 {
   "name": "safeword",
   "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring",
-  "owner": { "name": "safeword" },
+  "owner": {
+    "name": "safeword"
+  },
   "plugins": [
     {
       "name": "safeword",
       "description": "AI coding agent workflows: BDD, auto-linting, quality reviews, debugging, and refactoring",
-      "version": "0.43.0",
+      "version": "0.44.0",
       "source": "./plugin",
-      "author": { "name": "safeword" }
+      "author": {
+        "name": "safeword"
+      }
     }
   ]
 }

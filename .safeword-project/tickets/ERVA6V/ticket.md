@@ -3,13 +3,27 @@ id: ERVA6V
 slug: plan-actual-reconciliation
 title: 'Add Phase 6 exit step to reconcile impl plan against shipped reality'
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
-blocked_on: XDNSZA
+blocked_on: [XDNSZA, K4BWTQ]
 created: 2026-05-24T21:37:59.832Z
-last_modified: 2026-05-24T21:39:00.000Z
+last_modified: 2026-06-11T00:55:00.000Z
+scope:
+  - 'TDD.md (both copies): documented reconciliation step at implement exit — walk Decisions (did we change our mind?), walk Arch alignment (did we honor it? move drift to Known deviations), refresh Assessment triggers, flip **Status:** planned → implemented; work-log entry format.'
+  - 'stop-quality.ts: new-flow features at verify/done phases additionally require impl-plan.md status implemented — block message names the reconciliation step and the file.'
+  - 'Reconciliation-skip path: ticket with no impl-plan.md (grandfathered) reconciles nothing and is exempt (same spec.md routing as XDNSZA).'
+  - 'Tests: gate cells (planned-at-verify blocks, implemented-at-verify passes, grandfathered exempt, task exempt) + doc-presence for the TDD.md step in both copies.'
+out_of_scope:
+  - 'Auto-detecting plan-vs-code drift — humans drive reconciliation.'
+  - 'Behavior-vs-scenario reconciliation — verify phase owns that.'
+  - 'Blocking deviations — Known deviations are documented, not forbidden.'
+  - 'Per-Decision-row machine validation — structural status check only (YR6C49 ruling).'
+done_when:
+  - 'TDD.md documents the 4-step reconciliation at implement exit in canonical + dogfood copies (doc-presence tested).'
+  - 'Stop hook blocks new-flow features at verify/done while impl-plan status is planned; implemented passes; grandfathered/tasks exempt.'
+  - 'Worked example shows a reconciled decision (planned choice changed mid-implementation).'
 ---
 
 # Plan-vs-actual reconciliation at Phase 6 exit
@@ -63,7 +77,18 @@ The reconciled impl plan IS the artifact — no separate reconciliation document
 - **Granularity of reconciliation** — per-Decision-row review, or one big "have you re-read the plan" prompt? Driver leans per-Decision (forces specificity).
 - **When the impl plan was never written** (e.g., legacy ticket, skipped section) — does reconciliation skip cleanly, or warn? Driver leans warn (call out that there's nothing to reconcile, encourage drafting one retroactively).
 
+## Replan — 2026-06-10 (epic validation pass)
+
+- **Vocabulary:** "Phase 6 exit" = the `implement` → `verify` transition in the named-phase machine; "Phase 7" = `verify`. Doc surface is TDD.md (implement phase file).
+- **Now also depends on K4BWTQ** — reconciliation step 2 walks the Arch alignment section whose shape K4BWTQ defines; build after it to avoid reworking the copy.
+- **Hook surface:** the implement→verify status check slots into stop-quality.ts cumulative-artifact gates alongside the existing all-checkboxes-complete check.
+
 ## Work Log
 
+- 2026-06-12T00:10:00.000Z Closed: /verify green (2607/2607, build + lint clean, all 8 scenarios complete) + /audit passed (no new findings vs baseline). verify.md written. Third M6D315 child done — only CNGBNT remains.
+- 2026-06-12T00:10:00.000Z Complete: implement — reconciled impl plan; 0 decisions updated, 0 deviations recorded (all three Decisions rows held). 8/8 scenarios R/G/R-annotated: status gate at verify+ in checkImplPlanArtifact (existence extends to verify per review F1), reconciliation procedure + worked example in TDD.md both copies. Phase → verify.
+- 2026-06-11T23:45:00.000Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass (independent Tier-2 review: BLOCK on F1 — verify-phase existence cell unpinned, pruning note factually wrong; F1-F3 applied, re-review PASS); impl-plan.md written (test layers + build order in Approach). Review stamp written. Autonomous session — sub-phase gates auto-confirmed. Phase → implement.
+- 2026-06-11T23:40:00.000Z Intake + define-behavior: spec.md (2 JTBDs, 3 ACs, /self-review stamped), dimensions.md, 8 scenarios across 3 rules.
 - 2026-05-24T21:37:59.832Z Started: Created ticket ERVA6V
 - 2026-05-24T21:39:00.000Z Drafted: Scope (4-step reconciliation, hook integration, work log entry); linked to epic M6D315
+- 2026-06-10T22:20:00.000Z Replan: named-phase vocabulary applied; dependency on K4BWTQ added; gate slots into stop-quality.ts.

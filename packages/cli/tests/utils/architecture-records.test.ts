@@ -1,0 +1,110 @@
+/**
+ * Unit tests for the architecture-record listing helper (ticket K4BWTQ).
+ * Covers test-definitions.md Rule 1. Temp-dir fixtures, no project setup.
+ */
+
+import { mkdirSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { listArchitectureRecords } from '../../src/utils/architecture-records.js';
+import { resolveConfiguredPath } from '../../src/utils/configured-paths.js';
+import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+
+let directory: string;
+
+beforeEach(() => {
+  directory = createTemporaryDirectory();
+});
+
+afterEach(() => {
+  removeTemporaryDirectory(directory);
+});
+
+describe('listArchitectureRecords (Rule 1)', () => {
+  it('reports a single markdown file as the record', () => {
+    const filePath = nodePath.join(directory, 'architecture.md');
+    writeFileSync(filePath, '# Architecture\n');
+
+    const result = listArchitectureRecords(filePath);
+
+    expect(result.kind).toBe('file');
+    expect(result.records).toEqual([filePath]);
+  });
+
+  it('lists top-level .md files in a directory — accept-any naming, no recursion, non-markdown excluded', () => {
+    writeFileSync(nodePath.join(directory, '0001-storage.md'), '# ADR-001\n');
+    writeFileSync(nodePath.join(directory, 'ADR-queue.md'), '# Queue\n');
+    writeFileSync(nodePath.join(directory, 'naming-freeform.md'), '# Freeform\n');
+    writeFileSync(nodePath.join(directory, 'notes.txt'), 'not an ADR\n');
+    mkdirSync(nodePath.join(directory, 'nested'));
+    writeFileSync(nodePath.join(directory, 'nested', '0002-deep.md'), '# Deep\n');
+
+    const result = listArchitectureRecords(directory);
+
+    expect(result.kind).toBe('directory');
+    expect(result.records.toSorted()).toEqual(
+      ['0001-storage.md', 'ADR-queue.md', 'naming-freeform.md']
+        .map(name => nodePath.join(directory, name))
+        .toSorted(),
+    );
+  });
+
+  it('reports a path routed through a file as absent instead of throwing (ENOTDIR, nodejs#56993)', () => {
+    const filePath = nodePath.join(directory, 'architecture.md');
+    writeFileSync(filePath, '# Architecture\n');
+
+    const result = listArchitectureRecords(nodePath.join(filePath, 'nested'));
+
+    expect(result.kind).toBe('absent');
+    expect(result.records).toEqual([]);
+  });
+
+  it('reports an absent location with zero records', () => {
+    const result = listArchitectureRecords(nodePath.join(directory, 'does-not-exist'));
+
+    expect(result.kind).toBe('absent');
+    expect(result.records).toEqual([]);
+  });
+
+  it('reports a README-only directory with zero records', () => {
+    writeFileSync(nodePath.join(directory, 'README.md'), '# ADR conventions\n');
+
+    const result = listArchitectureRecords(directory);
+
+    expect(result.kind).toBe('directory');
+    expect(result.records).toEqual([]);
+  });
+
+  it('consumes a configured paths.architecture override directory (seam with resolveConfiguredPath)', () => {
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ version: 1, paths: { architecture: 'docs/docs/arch' } }),
+    );
+    mkdirSync(nodePath.join(directory, 'docs', 'docs', 'arch'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'docs', 'docs', 'arch', '0001-foo.md'), '# ADR\n');
+
+    const resolved = resolveConfiguredPath(
+      directory,
+      'architecture',
+      '.safeword-project/architecture.md',
+    );
+    const result = listArchitectureRecords(resolved);
+
+    expect(result.kind).toBe('directory');
+    expect(result.records).toEqual([
+      nodePath.join(directory, 'docs', 'docs', 'arch', '0001-foo.md'),
+    ]);
+  });
+
+  it('excludes README.md from directory records', () => {
+    writeFileSync(nodePath.join(directory, 'README.md'), '# ADR conventions\n');
+    writeFileSync(nodePath.join(directory, '0001-storage.md'), '# ADR-001\n');
+
+    const result = listArchitectureRecords(directory);
+
+    expect(result.records).toEqual([nodePath.join(directory, '0001-storage.md')]);
+  });
+});

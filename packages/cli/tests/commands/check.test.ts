@@ -4,7 +4,7 @@
  * Tests for `safeword check` command.
  */
 
-import { unlinkSync } from 'node:fs';
+import { rmSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -568,6 +568,90 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/COV002/);
+    });
+  });
+
+  describe('Architecture-claim advisory (K4BWTQ)', () => {
+    function implPlan(archAlignment: string): string {
+      return [
+        '# Impl Plan: t',
+        '',
+        '**Status:** planned',
+        '',
+        '## Approach',
+        '',
+        'One slice.',
+        '',
+        '## Decisions',
+        '',
+        'skip: none',
+        '',
+        '## Arch alignment',
+        '',
+        archAlignment,
+        '',
+        '## Known deviations',
+        '',
+        'skip: none',
+        '',
+        '## Assessment triggers',
+        '',
+        'skip: none',
+        '',
+      ].join('\n');
+    }
+
+    function writeArchTicket(ticketId: string, archAlignment: string): void {
+      const base = `.safeword-project/tickets/${ticketId}`;
+      writeTestFile(
+        temporaryDirectory,
+        `${base}/ticket.md`,
+        ['---', `id: ${ticketId}`, 'type: feature', 'status: in_progress', '---', ''].join('\n'),
+      );
+      writeTestFile(temporaryDirectory, `${base}/impl-plan.md`, implPlan(archAlignment));
+    }
+
+    it('flags Arch alignment content when the architecture location is absent', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      rmSync(nodePath.join(temporaryDirectory, '.safeword-project', 'architecture.md'), {
+        force: true,
+      });
+      writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/ARC001/);
+      expect(combined).toMatch(/architecture/i);
+    });
+
+    it('stays silent when Arch alignment is skip-annotated, even with no architecture location', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      rmSync(nodePath.join(temporaryDirectory, '.safeword-project', 'architecture.md'), {
+        force: true,
+      });
+      writeArchTicket('ARC002', 'skip: no ADRs in this project yet');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC002/);
+    });
+
+    it('stays silent when Arch alignment has content and the architecture location exists', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword-project/architecture.md',
+        '# Architecture\n\nA decision.\n',
+      );
+      writeArchTicket('ARC003', 'Honors the recorded storage decision.');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC003/);
     });
   });
 });
