@@ -133,16 +133,30 @@ export interface UpgradeOptions {
 
 /**
  * Default confirm seam: one-line readline [Y/n] prompt, Enter = yes,
- * stdin EOF/close = decline (never hangs, never throws).
+ * stdin EOF/close = decline. `rl.question()`'s promise never settles when
+ * the input closes (nodejs/node#53497), so the close event is raced in
+ * explicitly — otherwise a Ctrl+D mid-prompt would hang the upgrade.
+ * Streams injectable for tests.
  */
-async function promptYesDefault(question: string): Promise<boolean> {
+export async function promptYesDefault(
+  question: string,
+  input: NodeJS.ReadableStream = process.stdin,
+  output: NodeJS.WritableStream = process.stdout,
+): Promise<boolean> {
   const { createInterface } = await import('node:readline/promises');
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const rl = createInterface({ input, output });
   try {
-    const answer = await rl.question(question);
+    const answer = await Promise.race([
+      rl.question(question),
+      new Promise<string>(resolve =>
+        rl.once('close', () => {
+          resolve('n');
+        }),
+      ),
+    ]);
     return !/^n/i.test(answer.trim());
   } catch {
-    return false; // closed stdin mid-prompt — treat as decline
+    return false; // defensive — treat any prompt failure as decline
   } finally {
     rl.close();
   }

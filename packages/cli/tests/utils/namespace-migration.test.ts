@@ -14,7 +14,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { maybeMigrateNamespace } from '../../src/commands/upgrade.js';
+import { maybeMigrateNamespace, promptYesDefault } from '../../src/commands/upgrade.js';
 import {
   executeNamespaceMigration,
   planNamespaceMigration,
@@ -179,5 +179,29 @@ describe('migration prompt seam (9MMWS7)', () => {
     expect(readFileSync(nodePath.join(cwd, '.safeword-project', 'personas.md'), 'utf8')).toBe(
       personasBefore,
     );
+  });
+});
+
+describe('promptYesDefault (9MMWS7) — EOF-safe [Y/n]', () => {
+  async function answerWith(chunks: string[], end = true): Promise<boolean> {
+    const { PassThrough } = await import('node:stream');
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const pending = promptYesDefault('move? [Y/n] ', input, output);
+    for (const chunk of chunks) input.write(chunk);
+    if (end) input.end();
+    return pending;
+  }
+
+  it('Enter accepts (default yes)', async () => {
+    await expect(answerWith(['\n'])).resolves.toBe(true);
+  });
+
+  it('n declines', async () => {
+    await expect(answerWith(['n\n'])).resolves.toBe(false);
+  });
+
+  it('stdin EOF with no answer declines instead of hanging (nodejs#53497)', async () => {
+    await expect(answerWith([])).resolves.toBe(false);
   });
 });
