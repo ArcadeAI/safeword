@@ -9,6 +9,8 @@
 
 import { appendFileSync } from 'node:fs';
 
+import { AUTHOR_MODEL_ENV } from './lib/review-ledger.ts';
+
 interface SessionStartInput {
   model?: string;
 }
@@ -26,6 +28,6 @@ const model = input.model?.trim();
 // injecting a second line into CLAUDE_ENV_FILE (parity with write-review-stamp's --model check).
 const validModel = model !== undefined && model !== '' && !/\s/.test(model);
 if (envFile !== undefined && envFile !== '' && validModel) {
-  appendFileSync(envFile, `SAFEWORD_AUTHOR_MODEL=${model}\n`);
+  appendFileSync(envFile, `${AUTHOR_MODEL_ENV}=${model}\n`);
 }
 process.exit(0);

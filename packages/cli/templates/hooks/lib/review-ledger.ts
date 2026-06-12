@@ -124,6 +124,13 @@ export function isCrossModelReviewRequired(rawConfig?: string): boolean {
 }
 
 /**
+ * Env var carrying the author/main-session model id, captured at SessionStart
+ * (`session-author-model.ts`) and read by the cross-model gate in stop-quality.ts
+ * (ticket MR5M3A). Shared so the writer and reader cannot drift.
+ */
+export const AUTHOR_MODEL_ENV = 'SAFEWORD_AUTHOR_MODEL';
+
+/**
  * Whether a reviewer-model tag denotes the SAME model as the author-model tag
  * (ticket MR5M3A) — the cross-model gate blocks when this is true. Comparison
  * is trimmed and case-insensitive. An absent or empty tag on either side is

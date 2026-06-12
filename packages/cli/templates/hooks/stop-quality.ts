@@ -16,6 +16,7 @@ import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { validateLedger } from './lib/ledger-validation.ts';
 import {
+  AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
   isCrossModelReviewRequired,
@@ -312,7 +313,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   if (isCrossModelReviewRequired(rawConfig)) {
     const realReviews = stamps.filter(s => s.scope === scope && s.skipReason === undefined);
     const hasCrossModelReview = realReviews.some(
-      s => !modelsMatch(s.model, process.env.SAFEWORD_AUTHOR_MODEL),
+      s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
     );
     if (realReviews.length > 0 && !hasCrossModelReview) {
       hardBlockDone(
