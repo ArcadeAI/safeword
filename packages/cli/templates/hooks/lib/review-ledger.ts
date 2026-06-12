@@ -114,6 +114,24 @@ export function isReviewGateEnabled(rawConfig?: string): boolean {
 const PHASE_FIELD = /^phase:\s*(\S+)/m;
 
 /**
+ * Rollout guard for the architecture review gate (ticket MR5M3A): OFF unless
+ * `.safeword/config.json` sets `architectureReviewGate: true`. Same default-off,
+ * fail-safe-to-off-on-malformed posture as {@link isReviewGateEnabled}.
+ */
+export function isArchitectureReviewGateEnabled(_rawConfig?: string): boolean {
+  return false;
+}
+
+/**
+ * Whether the architecture review must be performed by a different model than
+ * the author (ticket MR5M3A): true only when `.safeword/config.json` sets
+ * `crossModelReview: true`. Default-off — same-model fork is the floor.
+ */
+export function isCrossModelReviewRequired(_rawConfig?: string): boolean {
+  return false;
+}
+
+/**
  * The phase being EXITED by a ticket.md edit (Tier 2): the old phase, when the
  * edit changes `phase:` to a different value. Returns undefined when the phase
  * is unchanged or absent on either side (nothing to gate). Forward/backward
