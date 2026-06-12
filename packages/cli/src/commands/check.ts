@@ -10,7 +10,7 @@ import nodePath from 'node:path';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
-import { syncTickets } from '../ticket-sync/index.js';
+import { readTickets, syncTickets } from '../ticket-sync/index.js';
 import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
@@ -19,6 +19,7 @@ import { header, info, keyValue, listItem, success, warn } from '../utils/output
 import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
 import { buildCoverageReport, type CoverageReport } from '../utils/scenario-coverage.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
+import { findDanglingDependencies, findTicketsInCycles } from '../utils/ticket-relations.js';
 import { isNewerVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
@@ -209,6 +210,42 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
 }
 
 /**
+ * Surface structured-relation problems as non-blocking advisories (ticket
+ * AKZJXC): a `depends_on` pointing at a ticket absent from the corpus (dangling
+ * ref), and dependency cycles (A→B→A). Warn-only — a target may live on another
+ * branch or in completed/, and a cycle is a planning smell, not a config fault.
+ * Reads the full corpus (active + completed) so cross-status edges resolve.
+ * Zero-exit.
+ */
+function findRelationAdvisories(cwd: string): string[] {
+  const ticketsDirectory = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  let entries;
+  try {
+    const { active, completed } = readTickets(ticketsDirectory);
+    entries = [...active, ...completed];
+  } catch {
+    return [];
+  }
+
+  const nodes = entries.map(entry => ({ id: entry.id, dependsOn: entry.dependsOn }));
+  const labelById = new Map(entries.map(entry => [entry.id, entry.title]));
+  const refOf = (id: string): string => {
+    const title = labelById.get(id);
+    return title === undefined ? id : formatTicketReference(id, title);
+  };
+
+  const dangling = findDanglingDependencies(nodes).map(
+    ({ from, missing }) => `${refOf(from)}: depends_on ${missing} — no such ticket (dangling ref)`,
+  );
+  const cyclic = findTicketsInCycles(nodes);
+  const cycle =
+    cyclic.length > 0
+      ? [`dependency cycle among: ${cyclic.map(id => refOf(id)).join(', ')} (break the loop)`]
+      : [];
+  return [...dangling, ...cycle];
+}
+
+/**
  * Check for missing text patch markers
  * @param cwd
  * @param actions
@@ -346,6 +383,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
       ...findCoverageAdvisories(cwd),
+      ...findRelationAdvisories(cwd),
     ],
     missingPackages: result.packagesToInstall,
     missingPacks,
