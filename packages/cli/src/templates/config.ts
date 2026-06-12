@@ -343,6 +343,7 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/session-verify-agents.ts`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
+    hook(`bun ${HOOKS_DIR}/session-author-model.ts`),
     hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
     asyncHook(`bun ${HOOKS_DIR}/session-update-check.ts`),

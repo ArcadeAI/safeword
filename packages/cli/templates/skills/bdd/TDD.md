@@ -102,3 +102,24 @@ All scenarios complete → reconcile `impl-plan.md` against what actually shippe
 _Worked example:_ the plan said "Decisions: parse with the shared markdown utility"; during implementation a local scan proved smaller, so the choice changed mid-implementation — the row now reads choice "local content-or-skip scan", with the shared utility recorded under Alternatives considered and the reason it lost. That update (not a rewrite of history — the alternatives column preserves it) is what reconciliation produces.
 
 Reconciled → set `phase: verify`.
+
+## Implement exit: independent design review (architecture review gate)
+
+Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`, the stop hook blocks `verify`/`done` for a new-flow feature until its `impl-plan.md` design has been **independently reviewed** — the same propose-then-challenge discipline the scenario-gate applies to scenarios, now applied to the design. Two requirements:
+
+1. **Cited evidence.** The Decisions section must carry a citation — a URL or a `[n]` source-reference marker — proving the choice was weighed against real evidence (the `/figure-it-out` trace), or an auditable `skip: <reason>`.
+2. **A fresh-context review.** Spawn a reviewer with **no conversation history**, handed only `impl-plan.md` and the ticket scope, to try to refute the design against its cited sources. On a pass, stamp it:
+
+   ```bash
+   bun .safeword/hooks/write-review-stamp.ts impl-plan
+   ```
+
+   The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
+
+**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author**, because a same-model reviewer shares the author's blind spots (correlated errors). This means an explicit different-model subagent — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
+
+```bash
+bun .safeword/hooks/write-review-stamp.ts --model < reviewer-model-id > impl-plan
+```
+
+The gate compares that tag against the author model (captured at SessionStart); an absent tag fails closed. If no independent reviewer is available, log a deliberate `skip: <reason>` rather than stamping a same-model review.

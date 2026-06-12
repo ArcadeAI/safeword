@@ -45,6 +45,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-author-model.ts"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-start-reentry.ts"
           }
         ]

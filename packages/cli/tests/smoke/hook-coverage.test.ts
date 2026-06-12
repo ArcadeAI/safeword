@@ -42,6 +42,7 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'session-update-check.ts': SESSION_STARTUP,
   'session-cleanup-quality.ts': SESSION_STARTUP,
   'session-start-reentry.ts': SESSION_STARTUP,
+  'session-author-model.ts': SESSION_STARTUP,
   // Prompt hooks fire at prompt-submit, not on tool calls.
   'prompt-timestamp.ts': PROMPT_TURN,
   'prompt-questions.ts': PROMPT_TURN,
