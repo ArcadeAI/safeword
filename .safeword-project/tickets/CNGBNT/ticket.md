@@ -3,7 +3,7 @@ id: CNGBNT
 slug: harness-availability-check
 title: 'Test-harness availability check with graceful degradation to existing service test patterns'
 type: task
-phase: intake
+phase: implement
 status: in_progress
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
