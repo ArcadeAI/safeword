@@ -21,18 +21,18 @@ last_modified: 2026-06-06T21:18:25.265Z
 
 **A — Absorb Claude's capabilities** (mostly research/intake)
 
-| ID         | Title                                                                    | State             |
-| ---------- | ------------------------------------------------------------------------ | ----------------- |
-| **ZBVGPF** | Embed figure-it-out into skills + BDD/TDD + replan; runs every time      | intake            |
-| **C2F601** | Audit Claude Code/Cowork skills, absorb (adopt/adapt/ref/skip)           | intake (research) |
-| **9BDDGP** | Dynamic workflows: mechanism (which skills) + positioning                | intake (research) |
-| **NTT094** | Explain-in-English: plain-language view of safeword artifacts/state      | intake            |
-| **PHATHE** | Catch-me-up: on-demand session recap (where you are + what's next)       | intake            |
-| **PV5K6D** | Embed brainstorm + elicit at the right workflow points (ties to ZBVGPF)  | intake            |
-| **Z4Q24Q** | Model-tier policy: opus / sonnet / fable per task                        | intake            |
-| **AKZJXC** | Structured ticket relations (depends_on/blocks), absorbed from Linear    | intake            |
-| **THSPA5** | Optional one-way coordination mirror → Linear/GitHub/Jira via Arcade MCP | intake            |
-| **SKQR0G** | Optimize safeword for Fable 5 — capability-tier harness (umbrella)       | intake            |
+| ID         | Title                                                                    | State                        |
+| ---------- | ------------------------------------------------------------------------ | ---------------------------- |
+| **ZBVGPF** | Embed figure-it-out into skills + BDD/TDD + replan; runs every time      | intake                       |
+| **C2F601** | Audit Claude Code/Cowork skills, absorb (adopt/adapt/ref/skip)           | intake (research)            |
+| **9BDDGP** | Dynamic workflows: mechanism (which skills) + positioning                | intake (research)            |
+| **NTT094** | Explain-in-English: plain-language view of safeword artifacts/state      | intake                       |
+| **PHATHE** | Catch-me-up: on-demand session recap (where you are + what's next)       | intake                       |
+| **PV5K6D** | Embed brainstorm + elicit at the right workflow points (ties to ZBVGPF)  | intake                       |
+| **Z4Q24Q** | Model-tier policy: opus / sonnet / fable per task                        | intake                       |
+| **AKZJXC** | Structured ticket relations (depends_on/blocks), absorbed from Linear    | ✅ v1 done (replan deferred) |
+| **THSPA5** | Optional one-way coordination mirror → Linear/GitHub/Jira via Arcade MCP | intake                       |
+| **SKQR0G** | Optimize safeword for Fable 5 — capability-tier harness (umbrella)       | intake                       |
 
 **B — Sharpen the audit surface**
 
@@ -42,12 +42,12 @@ last_modified: 2026-06-06T21:18:25.265Z
 
 **C — Harden the surfaces** (output legibility + robustness)
 
-| ID         | Title                                                                              | State              |
-| ---------- | ---------------------------------------------------------------------------------- | ------------------ |
-| **469YSR** | Styled output orphans its glyph on a leading-newline message                       | task (build-ready) |
-| **3293WH** | Auto-run health verification after setup/upgrade; demote `check`                   | intake (feature)   |
-| **ZRXM6Q** | Render ticket references slug-first (slug + ID locator) across hooks/CLI/INDEX     | ✅ done            |
-| **P30CRP** | Load SAFEWORD.md via SessionStart + compact hooks, not CLAUDE.md/AGENTS.md @import | intake (feature)   |
+| ID         | Title                                                                              | State            |
+| ---------- | ---------------------------------------------------------------------------------- | ---------------- |
+| **469YSR** | Styled output orphans its glyph on a leading-newline message                       | ✅ done          |
+| **3293WH** | Auto-run health verification after setup/upgrade; demote `check`                   | intake (feature) |
+| **ZRXM6Q** | Render ticket references slug-first (slug + ID locator) across hooks/CLI/INDEX     | ✅ done          |
+| **P30CRP** | Load SAFEWORD.md via SessionStart + compact hooks, not CLAUDE.md/AGENTS.md @import | intake (feature) |
 
 ## Cross-cutting threads (why one epic)
 
