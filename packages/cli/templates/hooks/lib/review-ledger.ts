@@ -98,17 +98,7 @@ const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
  * the stamp-earning step is in place. Fail-safe to off on missing/malformed config.
  */
 export function isReviewGateEnabled(rawConfig?: string): boolean {
-  if (rawConfig === undefined) return false;
-  try {
-    const config: unknown = JSON.parse(rawConfig);
-    return (
-      typeof config === 'object' &&
-      config !== null &&
-      (config as Record<string, unknown>).reviewGate === true
-    );
-  } catch {
-    return false;
-  }
+  return configFlagIsTrue(rawConfig, 'reviewGate');
 }
 
 const PHASE_FIELD = /^phase:\s*(\S+)/m;
