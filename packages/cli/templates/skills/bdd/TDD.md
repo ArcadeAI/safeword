@@ -8,7 +8,7 @@ Before the first RED, confirm the project's test harness actually runs — judge
 
 **Harness present** → standard loop below, no ceremony.
 
-**Harness absent** → behavioral tests are not yet executable for this project. Do not fake test runs and do not stall: implement using the service's **existing test patterns** (unit tests, integration tests, whatever the project already runs), keeping the same RED/GREEN/REFACTOR discipline and checkbox tracking. Then:
+**Harness absent** → behavioral tests are not yet executable for this project. Do not fake test runs and do not stall: implement using the service's **existing test patterns** (unit tests, integration tests, whatever the project already runs — for untested legacy code, characterization tests that pin current behavior are the canonical first move), keeping the same RED/GREEN/REFACTOR discipline and checkbox tracking. Then:
 
 - Annotate the ticket work log: `- {timestamp} Harness absent; using existing service test patterns. Follow-up: wire behavioral harness.`
 - Recommend a follow-up ticket (`Wire behavioral test harness for {project}`) — prompt the user; don't auto-create it.
