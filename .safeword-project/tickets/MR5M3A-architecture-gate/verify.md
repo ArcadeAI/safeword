@@ -2,13 +2,17 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 148/148 tests pass (all MR5M3A-touched suites: citation, flags, modelsMatch, stamp model tag, author-model capture, review-ledger, impl-plan, the gate integration, the #204 impl-plan-gate regression, schema, config)
+**Test Suite:** ✓ all MR5M3A-touched suites pass (citation, flags, modelsMatch, stamp model tag, author-model capture, review-ledger, impl-plan, the gate integration incl. post-review regression cells, the #204 impl-plan-gate regression, schema, config); non-committing stop-hook suites (status-close, subphase-gates, hierarchy-nav, transcript-format) also green
 **Build:** ✅ Success (tsup)
 **Lint:** ✅ Clean (eslint src tests)
 **Scenarios:** All 24 scenarios marked complete
 **Dep Drift:** ✅ Clean — no new dependencies (pure TS on node builtins + existing safeword libs)
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation — reuses #204's impl-plan gate shape and the Tier 2 review-ledger verbatim; the cross-model design was corrected to the orchestrator-records-model pattern per Claude Code docs
+
+## Independent review (fresh-context adversarial)
+
+A fresh-context reviewer audited the full diff and found a fail-open (artifact gates sat below the edit-activity early-exit, so `verify` enforcement was opportunistic) plus a cross-model ordering bug, a model-tag injection nit, and a flaky-env test. All fixed (commit 19efb13) with regression cells; three findings kept by design and documented (logged-skip escape valve, SessionStart last-wins author model, minimal citation floor). This is the ticket's own discipline applied to itself.
 
 Audit passed with warnings (architecture clean via depcruise; one non-blocking doc follow-up: record the gate as an ADR in ARCHITECTURE.md).
 
