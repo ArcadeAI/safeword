@@ -34,7 +34,9 @@ done_when: |
     the active ticket (slug + ID), its phase, and the next imperative.
   - `/explain <ticket-id|slug>` emits a plain-English translation of that ticket
     with the internal vocabulary stripped.
-  - The skill is read-only (allowed-tools excludes Edit/Write).
+  - The skill is read-only — enforced via `disallowed-tools: Edit, Write` (NOT
+    `allowed-tools`, which per the Claude Code skills doc only pre-approves
+    tools, never restricts them).
   - Source + dogfood SKILL.md are byte-identical and registered in
     SAFEWORD_SCHEMA; parity / owned-files tests pass.
   - PHATHE re-scoped: catch-me-up recorded as /explain's default target.
@@ -70,3 +72,4 @@ The highest-leverage target is safeword's own surfaces, because that is where th
 
 - 2026-06-06T18:05:01.598Z Started: Created ticket NTT094
 - 2026-06-12T00:35:00Z /figure-it-out + quality-review; user accepted. Core decision: UNIFY with catch-me-up (PHATHE) — one `/explain` skill, target-dispatched, catch-me-up = the default (no-arg) target. Rejected two-sibling-skills (the prior lean): re-draws a boundary that doesn't exist (catch-up IS "explain where I am") and hands users the which-do-I-type burden SAFEWORD.md warns against. Evidence (claude-code-guide research): Claude Code ships NO /explain and NO on-demand project-state recap; its new auto-session-recap is conversation-history only — so safeword's value is the on-demand, project-state-aware surface (don't rebuild auto). Architecture: SKILL.md embedding bash gathering (the `verify` pattern), no new CLI. Re-sized feature→task (prose skill — verified by parity + dogfood, not unit-TDD, like peer skills). PHATHE → re-scoped as /explain's default target.
+- 2026-06-12T01:10:00Z Post-/quality-review fix (verified against the live Claude Code skills doc). Two corrections: (1) `allowed-tools` does NOT restrict tools — it's a pre-approval grant ("every tool remains callable"), so the read-only contract was unenforced; added `disallowed-tools: Edit, Write` (the documented restriction mechanism). The earlier done*when wording was factually wrong, now corrected. (2) Tightened the `description` to cut over-trigger risk (docs flag "skill triggers too often") — scoped the no-target recap to \_safeword* work and added "not general status questions unrelated to safeword artifacts" to the Do-NOT clause. Template + dogfood re-synced byte-identical.

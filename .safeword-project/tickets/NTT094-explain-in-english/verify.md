@@ -16,7 +16,7 @@
 - Template ↔ dogfood byte-identical (`diff -q` clean).
 - owned-paths test 21/21 — validates the new `SAFEWORD_SCHEMA` entry + template existence.
 - Default-target gather-bash verified against this repo (re-entry trail + in_progress scan + `git log`).
-- Read-only contract: `allowed-tools` = Read, Grep, Glob, Bash (no Edit/Write).
+- Read-only contract: enforced via `disallowed-tools: Edit, Write` (per the Claude Code skills doc, `allowed-tools` only pre-approves — it does not restrict).
 
 ## Audit
 

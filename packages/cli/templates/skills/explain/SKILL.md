@@ -1,12 +1,14 @@
 ---
 name: explain
 description: Translate safeword's dense artifacts and current state into plain
-  English — what this is, why it matters, what to do next. Use on demand for
-  "where am I / what's next" (the default), or to translate a ticket, a blocked
-  gate, or a verdict with the internal jargon stripped out. Read-only — never
-  changes the artifact. Do NOT use to explain code diffs or PRs (base Claude
-  handles those) or to make any change.
+  English — what this is, why it matters, what to do next, with the internal
+  jargon stripped. Use on demand to translate a safeword ticket, a blocked gate,
+  or a verdict, or (no target) for a plain-English recap of where you are in the
+  current safeword work. Read-only. Do NOT use to explain code diffs or PRs (base
+  Claude handles those), for general status questions unrelated to safeword
+  artifacts, or to make any change.
 allowed-tools: Read, Grep, Glob, Bash
+disallowed-tools: Edit, Write
 ---
 
 # Explain
