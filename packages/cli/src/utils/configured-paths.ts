@@ -90,21 +90,26 @@ export function resolveNamespaceRoot(cwd: string): string {
 }
 
 /**
+ * The default (non-overridden) absolute location of a configurable read
+ * target: `<resolveNamespaceRoot(cwd)>/<key>.md`.
+ */
+export function defaultConfiguredPath(cwd: string, key: ConfiguredPathKey): string {
+  return nodePath.join(resolveNamespaceRoot(cwd), `${key}.md`);
+}
+
+/**
  * Resolve the absolute filesystem path for a configurable read target.
+ *
+ * Without a per-file override, the default derives from the resolved
+ * namespace root (see {@link defaultConfiguredPath}).
  *
  * @param cwd - Project root directory.
  * @param key - Logical key (`personas` | `glossary` | `architecture`).
- * @param defaultPath - Default location relative to `cwd`, used when no
- *   override is configured.
  */
-export function resolveConfiguredPath(
-  cwd: string,
-  key: ConfiguredPathKey,
-  defaultPath: string,
-): string {
+export function resolveConfiguredPath(cwd: string, key: ConfiguredPathKey): string {
   const override = readConfiguredPath(cwd, key);
   if (override === undefined) {
-    return nodePath.join(cwd, defaultPath);
+    return defaultConfiguredPath(cwd, key);
   }
   if (nodePath.isAbsolute(override)) {
     return override;

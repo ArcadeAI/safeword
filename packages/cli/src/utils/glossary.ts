@@ -17,7 +17,6 @@
  */
 
 import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
 import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
@@ -56,9 +55,6 @@ export type GlossaryReferenceResult =
   | { status: 'valid'; match: ParsedGlossaryEntry }
   | { status: 'unknown'; suggestion?: string };
 
-/** Path of glossary.md relative to the project root (default location). */
-export const GLOSSARY_FILE_SUBPATH = ['.safeword-project', 'glossary.md'];
-
 /**
  * Resolve a glossary reference against the on-disk glossary file.
  *
@@ -74,11 +70,7 @@ export const GLOSSARY_FILE_SUBPATH = ['.safeword-project', 'glossary.md'];
 export function validateGlossaryReference(cwd: string, input: string): GlossaryReferenceResult {
   let content: string;
   try {
-    const filePath = resolveConfiguredPath(
-      cwd,
-      'glossary',
-      nodePath.join(...GLOSSARY_FILE_SUBPATH),
-    );
+    const filePath = resolveConfiguredPath(cwd, 'glossary');
     content = readFileSync(filePath, 'utf8');
   } catch {
     return { status: 'unknown' };

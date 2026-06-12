@@ -17,9 +17,9 @@ Given a project whose `.safeword/config.json` sets `paths.projectRoot` to `custo
 When the resolver computes the namespace root
 Then the resolved root is `custom-ns`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.SM1.AC1.project_dir_preferred_over_legacy
 
@@ -27,9 +27,9 @@ Given a project with no `paths.projectRoot` configured and a `.project/` directo
 When the resolver computes the namespace root
 Then the resolved root is `.project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.DEV1.AC2.legacy_only_resolves_there
 
@@ -37,9 +37,9 @@ Given a project with no `paths.projectRoot` configured and only a `.safeword-pro
 When the resolver computes the namespace root
 Then the resolved root is `.safeword-project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.SM1.AC1.both_dirs_present_prefers_project
 
@@ -47,9 +47,9 @@ Given a project with no `paths.projectRoot` configured and both `.project/` and 
 When the resolver computes the namespace root
 Then the resolved root is `.project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.SM1.AC1.neither_dir_defaults_to_project
 
@@ -57,9 +57,9 @@ Given a fresh project with no `paths.projectRoot` configured and neither namespa
 When the resolver computes the namespace root
 Then the resolved root is `.project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: A configured root resolves like the existing `paths.*` keys
 
@@ -73,9 +73,9 @@ Given `paths.projectRoot` is set to the relative path `shared/ns`
 When the resolver computes the namespace root
 Then the resolved root is `shared/ns` joined to the project directory (cwd)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.DEV2.AC1.absolute_project_root_used_verbatim
 
@@ -83,9 +83,9 @@ Given `paths.projectRoot` is set to an absolute path
 When the resolver computes the namespace root
 Then the resolved root is that absolute path verbatim
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: Default file locations derive from the resolved root
 
@@ -98,9 +98,9 @@ Given a project whose namespace root resolves to `.project/` and no `paths.perso
 When the resolver computes the personas default location
 Then the personas default is `.project/personas.md`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.DEV1.AC1.glossary_default_derives_from_root
 
@@ -108,9 +108,9 @@ Given a project whose namespace root resolves to `.project/` and no `paths.gloss
 When the resolver computes the glossary default location
 Then the glossary default is `.project/glossary.md`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.DEV1.AC1.architecture_default_derives_from_root
 
@@ -118,9 +118,9 @@ Given a project whose namespace root resolves to `.project/` and no `paths.archi
 When the resolver computes the architecture default location
 Then the architecture default is `.project/architecture.md`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: Per-file overrides win over the root default
 
@@ -134,9 +134,9 @@ Given a project whose namespace root resolves to `.project/` and `paths.personas
 When the resolver computes the personas location
 Then the personas location is `team/people.md`, not `.project/personas.md`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.DEV2.AC2.unset_per_file_falls_back_to_root
 
@@ -144,9 +144,9 @@ Given a project whose namespace root resolves to `.project/`, `paths.personas` s
 When the resolver computes the glossary location
 Then the glossary location is `.project/glossary.md`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: A namespace surface reads and writes under the resolved root
 
@@ -177,9 +177,9 @@ Given `paths.projectRoot` is set to an empty string and only `.safeword-project/
 When the resolver computes the namespace root
 Then the empty value is ignored and the resolved root is `.safeword-project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.SM1.AC1.missing_config_falls_through_to_precedence
 
@@ -187,9 +187,9 @@ Given a project with no `.safeword/config.json` and a `.project/` directory pres
 When the resolver computes the namespace root
 Then resolution does not error and the resolved root is `.project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.SM1.AC1.non_string_project_root_treated_as_unset
 
@@ -197,9 +197,9 @@ Given `paths.projectRoot` is set to a non-string value (e.g. `123`) and only `.s
 When the resolver computes the namespace root
 Then the non-string value is ignored and the resolved root is `.safeword-project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: namespace-root-resolver.SM1.AC1.unparseable_config_treated_as_unset
 
@@ -207,6 +207,6 @@ Given a `.safeword/config.json` containing invalid JSON and a `.project/` direct
 When the resolver computes the namespace root
 Then resolution does not error and the resolved root is `.project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR

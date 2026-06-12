@@ -17,7 +17,6 @@
  */
 
 import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
 import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
@@ -287,9 +286,6 @@ export type PersonaReferenceResult =
   | { status: 'valid'; match: ResolvedPersona }
   | { status: 'unknown'; suggestion?: string };
 
-/** Path of personas.md relative to the project root. */
-export const PERSONAS_FILE_SUBPATH = ['.safeword-project', 'personas.md'];
-
 /**
  * Look up a persona reference against a parsed-and-resolved list.
  *
@@ -345,11 +341,7 @@ export function lookupPersonaReference(
 export function validatePersonaReference(cwd: string, input: string): PersonaReferenceResult {
   let content: string;
   try {
-    const filePath = resolveConfiguredPath(
-      cwd,
-      'personas',
-      nodePath.join(...PERSONAS_FILE_SUBPATH),
-    );
+    const filePath = resolveConfiguredPath(cwd, 'personas');
     content = readFileSync(filePath, 'utf8');
   } catch {
     return { status: 'unknown' };
