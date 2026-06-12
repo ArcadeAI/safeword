@@ -4,7 +4,7 @@ slug: impl-plan-skip-annotations
 title: 'Extend skip annotation discipline to impl plan sections'
 type: feature
 phase: intake
-status: in_progress
+status: cancelled
 epic: bdd-phase-two-merge
 blocked_on: XDNSZA
 created: 2026-05-24T21:37:59.922Z
@@ -86,3 +86,4 @@ Update the impl plan template (XDNSZA artifact) to call out the skip-annotation 
 
 - 2026-05-24T21:37:59.922Z Started: Created ticket VYRKBJ
 - 2026-05-24T21:39:00.000Z Drafted: Scope (skip convention extended), validation, hook integration; linked to epic M6D315
+- 2026-06-10T22:20:00.000Z Cancelled: folded into XDNSZA at the 2026-06-10 epic replan — the implement-entry gate must accept "content OR skip:" from day one, so the skip convention ships with the artifact, not after it. Full scope (template callout, safeword check validation, gate integration) carried over to XDNSZA.

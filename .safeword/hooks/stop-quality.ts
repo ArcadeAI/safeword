@@ -13,6 +13,7 @@ import {
   resolveStopPhase,
 } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
+import { parseImplPlan } from './lib/impl-plan.ts';
 import { validateLedger } from './lib/ledger-validation.ts';
 import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
 import {
@@ -207,6 +208,46 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   }
 }
 
+/**
+ * Check the impl-plan artifact for new-flow features (tickets XDNSZA + ERVA6V).
+ * Features with spec.md (post-DZ2NM5 flow) at implement+ require an
+ * impl-plan.md whose five sections are content-or-skip valid; from verify
+ * onward its status must be `implemented` — the plan-vs-actual reconciliation
+ * at implement exit flips it. Authored at scenario-gate exit; grandfathered
+ * tickets (no spec.md) and tasks are exempt.
+ */
+function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
+  if (ticketInfo.type !== 'feature') return;
+  if (!ticketInfo.folder || !ticketInfo.phase) return;
+
+  const phasesRequiringImplPlan = ['implement', 'verify', 'done'];
+  if (!phasesRequiringImplPlan.includes(ticketInfo.phase)) return;
+
+  // Grandfathering: spec.md presence routes new-flow vs pre-spec tickets (DZ2NM5 D5).
+  if (!existsSync(`${ticketsDir}/${ticketInfo.folder}/spec.md`)) return;
+
+  const implPlanPath = `${ticketsDir}/${ticketInfo.folder}/impl-plan.md`;
+  if (!existsSync(implPlanPath)) {
+    hardBlockDone(
+      `Feature at ${ticketInfo.phase} phase requires impl-plan.md (authored at scenario-gate exit). Create it from the impl-plan template with all five sections (or skip: <reason> per section) before stopping.`,
+    );
+  }
+
+  const { status, errors } = parseImplPlan(readFileSync(implPlanPath, 'utf8'));
+  if (errors.length > 0) {
+    hardBlockDone(`impl-plan.md validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+  }
+
+  // Reconciliation gate (ERVA6V): the plan must reflect shipped reality
+  // before the ticket advances past implement.
+  const phasesRequiringImplemented = ['verify', 'done'];
+  if (phasesRequiringImplemented.includes(ticketInfo.phase) && status !== 'implemented') {
+    hardBlockDone(
+      `Impl plan reconciliation incomplete: impl-plan.md status is "${status ?? 'unknown'}". Walk Decisions, Arch alignment, and Known deviations against what shipped, then set **Status:** implemented (see TDD.md "Implement exit: reconcile the plan").`,
+    );
+  }
+}
+
 // Not a safeword project, skip silently
 if (!existsSync(safewordDir)) {
   process.exit(0);
@@ -358,6 +399,9 @@ function softBlock(reason: string): never {
 
 // Check cumulative artifacts (features at scenario-gate+ need test-definitions.md with scenarios)
 checkCumulativeArtifacts(ticketInfo);
+
+// Check the impl plan (new-flow features at implement+ need a valid impl-plan.md)
+checkImplPlanArtifact(ticketInfo);
 
 if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop.
