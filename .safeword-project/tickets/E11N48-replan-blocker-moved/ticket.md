@@ -3,8 +3,8 @@ id: E11N48
 slug: replan-blocker-moved
 parent: VKNF1T-platform-uplift-epic
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-12T01:21:13.808Z
 last_modified: 2026-06-12T01:21:13.808Z
 scope: |

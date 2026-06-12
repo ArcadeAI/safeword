@@ -31,6 +31,7 @@ last_modified: 2026-06-06T21:18:25.265Z
 | **PV5K6D** | Embed brainstorm + elicit at the right workflow points (ties to ZBVGPF)  | intake                         |
 | **Z4Q24Q** | Model-tier policy: opus / sonnet / fable per task                        | intake                         |
 | **AKZJXC** | Structured ticket relations (depends_on/blocks), absorbed from Linear    | ✅ v1 done (replan deferred)   |
+| **E11N48** | Replan blocker-moved advisory (AKZJXC fast-follow)                       | ✅ done                        |
 | **THSPA5** | Optional one-way coordination mirror → Linear/GitHub/Jira via Arcade MCP | intake                         |
 | **SKQR0G** | Optimize safeword for Fable 5 — capability-tier harness (umbrella)       | intake                         |
 

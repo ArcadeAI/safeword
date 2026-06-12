@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 2594/2594 tests pass (full suite, 1 pre-existing skip) + owned-paths 21/21 re-run after the schema registration
+**Test Suite:** ✓ 2621/2621 tests pass (full suite, run for E11N48, now includes /explain). NOTE: NTT094's original close ran only owned-paths + parity, NOT the full suite — which hid two skills/schema-parity failures, fixed later in commit 5fce14fb (/explain reclassified as an action skill). Lesson logged: run the full suite at done.
 **Build:** ✅ Success (tsup)
 **Lint:** ✅ Clean (`eslint src tests && tsc --noEmit`)
 **Scenarios:** ⏭️ Skipped — task (prose skill; verified by parity + dogfood, like peer skills verify/audit/figure-it-out)
