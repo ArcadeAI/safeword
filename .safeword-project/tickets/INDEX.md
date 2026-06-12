@@ -618,7 +618,7 @@
 - **First-class cross-ticket dependency/pairing fields in ticket schema (MBGQ89)** (in_progress, epic: —)
   Promote `epic`, `parent`, `paired_with`, `blocked_on`, and `depends_on` from ad-hoc free-text frontmatter to canonical fields in the safeword ticket schema, validated by `safeword check` and enforced by the phase-advancement hook.
   → `.safeword-project/tickets/MBGQ89`
-- **Independent evidence-backed architecture gate for features (MR5M3A)** (in_progress, epic: —)
+- **Independent evidence-backed architecture gate for features (MR5M3A)** (done, epic: —)
   Layer the missing independent challenge onto #204's impl-plan: require the design to be generated from cited evidence (the /figure-it-out trace) and then survive a fresh-context adversarial review before implementation completes — the one defense against correlated single-agent errors that #204 leaves out.
   → `.safeword-project/tickets/MR5M3A-architecture-gate`
 - **De-number bdd lifecycle refs in scaffolding templates (MT05DF)** (done, epic: —)
