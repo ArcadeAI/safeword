@@ -145,6 +145,6 @@ export function parseImplPlan(content: string): ImplPlanResult {
  * citation is a URL or a `[n]` numeric source-reference marker. Prose alone is
  * not a citation.
  */
-export function hasCitation(_text: string): boolean {
-  return false;
+export function hasCitation(text: string): boolean {
+  return /https?:\/\/\S+|\[\d+\]/.test(text);
 }
