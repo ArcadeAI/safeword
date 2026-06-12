@@ -2,11 +2,42 @@
 id: NTT094
 slug: explain-in-english
 parent: VKNF1T-platform-uplift-epic
-type: feature
+type: task
 phase: intake
 status: in_progress
 created: 2026-06-06T18:05:01.598Z
 last_modified: 2026-06-06T18:05:01.598Z
+scope: |
+  A read-only `/explain` skill that translates safeword's dense artifacts and
+  current state into plain English (what this is → why it matters → what to do
+  next), obeying SAFEWORD.md's "Talking to the user" discipline. Target-
+  dispatched, ABSORBING catch-me-up (PHATHE) as the default target:
+  - No target → current-state recap: active ticket (slug + ID), phase, recent
+    work-log / Next, unchecked done_when, recent commits. (This IS catch-me-up.)
+  - A ticket id/slug → translate that ticket's scope/done_when/state.
+  - A gate-block message or verdict → translate what it wants + how to clear it.
+  Ships like every safeword skill: source `templates/skills/explain/SKILL.md`,
+  byte-identical dogfood `.claude/skills/explain/SKILL.md`, registered in
+  SAFEWORD_SCHEMA. Gathers state via embedded bash (the `verify` pattern) — no
+  new CLI command, no new persistent state.
+out_of_scope: |
+  - Code-diff / PR explanation — base Claude already does this well (defer).
+  - Auto-on-return firing — Claude Code now ships automatic session recap, so
+    safeword's value is the on-demand, project-state-aware surface, not auto.
+  - A separate `/catch-me-up` skill — reconciled INTO /explain's default target;
+    PHATHE re-scoped to a thin pointer, not a second skill.
+  - Any mutation of the artifact/state — strictly read-only (no Edit/Write).
+  - Layered expand-on-demand beyond one brief, except a one-liner→expand for an
+    oversized artifact (an epic spec).
+done_when: |
+  - `/explain` with no target emits a what/why/next current-state brief naming
+    the active ticket (slug + ID), its phase, and the next imperative.
+  - `/explain <ticket-id|slug>` emits a plain-English translation of that ticket
+    with the internal vocabulary stripped.
+  - The skill is read-only (allowed-tools excludes Edit/Write).
+  - Source + dogfood SKILL.md are byte-identical and registered in
+    SAFEWORD_SCHEMA; parity / owned-files tests pass.
+  - PHATHE re-scoped: catch-me-up recorded as /explain's default target.
 ---
 
 # Explain in English: plain-language translation of safeword artifacts and state
@@ -38,3 +69,4 @@ The highest-leverage target is safeword's own surfaces, because that is where th
 ## Work Log
 
 - 2026-06-06T18:05:01.598Z Started: Created ticket NTT094
+- 2026-06-12T00:35:00Z /figure-it-out + quality-review; user accepted. Core decision: UNIFY with catch-me-up (PHATHE) — one `/explain` skill, target-dispatched, catch-me-up = the default (no-arg) target. Rejected two-sibling-skills (the prior lean): re-draws a boundary that doesn't exist (catch-up IS "explain where I am") and hands users the which-do-I-type burden SAFEWORD.md warns against. Evidence (claude-code-guide research): Claude Code ships NO /explain and NO on-demand project-state recap; its new auto-session-recap is conversation-history only — so safeword's value is the on-demand, project-state-aware surface (don't rebuild auto). Architecture: SKILL.md embedding bash gathering (the `verify` pattern), no new CLI. Re-sized feature→task (prose skill — verified by parity + dogfood, not unit-TDD, like peer skills). PHATHE → re-scoped as /explain's default target.

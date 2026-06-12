@@ -21,18 +21,18 @@ last_modified: 2026-06-06T21:18:25.265Z
 
 **A — Absorb Claude's capabilities** (mostly research/intake)
 
-| ID         | Title                                                                    | State                        |
-| ---------- | ------------------------------------------------------------------------ | ---------------------------- |
-| **ZBVGPF** | Embed figure-it-out into skills + BDD/TDD + replan; runs every time      | intake                       |
-| **C2F601** | Audit Claude Code/Cowork skills, absorb (adopt/adapt/ref/skip)           | intake (research)            |
-| **9BDDGP** | Dynamic workflows: mechanism (which skills) + positioning                | intake (research)            |
-| **NTT094** | Explain-in-English: plain-language view of safeword artifacts/state      | intake                       |
-| **PHATHE** | Catch-me-up: on-demand session recap (where you are + what's next)       | intake                       |
-| **PV5K6D** | Embed brainstorm + elicit at the right workflow points (ties to ZBVGPF)  | intake                       |
-| **Z4Q24Q** | Model-tier policy: opus / sonnet / fable per task                        | intake                       |
-| **AKZJXC** | Structured ticket relations (depends_on/blocks), absorbed from Linear    | ✅ v1 done (replan deferred) |
-| **THSPA5** | Optional one-way coordination mirror → Linear/GitHub/Jira via Arcade MCP | intake                       |
-| **SKQR0G** | Optimize safeword for Fable 5 — capability-tier harness (umbrella)       | intake                       |
+| ID         | Title                                                                    | State                          |
+| ---------- | ------------------------------------------------------------------------ | ------------------------------ |
+| **ZBVGPF** | Embed figure-it-out into skills + BDD/TDD + replan; runs every time      | intake                         |
+| **C2F601** | Audit Claude Code/Cowork skills, absorb (adopt/adapt/ref/skip)           | intake (research)              |
+| **9BDDGP** | Dynamic workflows: mechanism (which skills) + positioning                | intake (research)              |
+| **NTT094** | Explain-in-English: plain-language view of safeword artifacts/state      | ✅ done (/explain)             |
+| **PHATHE** | Catch-me-up: on-demand session recap (where you are + what's next)       | superseded → NTT094 (absorbed) |
+| **PV5K6D** | Embed brainstorm + elicit at the right workflow points (ties to ZBVGPF)  | intake                         |
+| **Z4Q24Q** | Model-tier policy: opus / sonnet / fable per task                        | intake                         |
+| **AKZJXC** | Structured ticket relations (depends_on/blocks), absorbed from Linear    | ✅ v1 done (replan deferred)   |
+| **THSPA5** | Optional one-way coordination mirror → Linear/GitHub/Jira via Arcade MCP | intake                         |
+| **SKQR0G** | Optimize safeword for Fable 5 — capability-tier harness (umbrella)       | intake                         |
 
 **B — Sharpen the audit surface**
 
