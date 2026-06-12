@@ -38,10 +38,12 @@ function readConfiguredProjectRoot(projectDirectory: string): string | undefined
  * receive edited-file paths in unknown (absolute or relative) form.
  */
 export function isNamespacePath(filePath: string, subpath: string): boolean {
-  return (
-    filePath.includes(`${NAMESPACE_ROOT_DEFAULT}/${subpath}`) ||
-    filePath.includes(`${NAMESPACE_ROOT_LEGACY}/${subpath}`)
-  );
+  return [NAMESPACE_ROOT_DEFAULT, NAMESPACE_ROOT_LEGACY].some(root => {
+    const needle = `${root}/${subpath}`;
+    // Boundary-anchored: the root must start the path or follow a separator,
+    // so `foo.project/…` never matches the `.project/` root.
+    return filePath.startsWith(needle) || filePath.includes(`/${needle}`);
+  });
 }
 
 /** True when `path` exists and is a directory (a stray file is not a root). */
