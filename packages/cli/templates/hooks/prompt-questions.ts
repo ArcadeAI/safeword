@@ -73,6 +73,14 @@ if (existsSync(stateFile)) {
           done: 'Phase: done. Close ticket (verify.md exists).',
         };
 
+        // Name the active ticket slug-first (ZRXM6Q) so the per-turn reminder
+        // reads in names, not the opaque ID — recognition over recall. The slug
+        // is derived once in getTicketInfo and shared with the compaction hook.
+        const ticketSlug = ticketInfo.slug;
+        lines.push(
+          `- Ticket: ${ticketSlug ? `${ticketSlug} (${state.activeTicket})` : state.activeTicket}`,
+        );
+
         const reminder = reminders[phase];
         if (reminder) {
           lines.push(`- ${reminder}`);

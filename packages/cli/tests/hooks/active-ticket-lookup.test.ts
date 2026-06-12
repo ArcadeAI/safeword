@@ -48,6 +48,7 @@ describe('getTicketInfo — dual-format lookup', () => {
     const result = getTicketInfo(projectDirectory, '080');
     expect(result.folder).toBe('080-ticket-id-collision');
     expect(result.phase).toBe('intake');
+    expect(result.slug).toBe('ticket-id-collision');
   });
 
   it('resolves a legacy numeric+letter-suffix folder', () => {
@@ -60,6 +61,7 @@ describe('getTicketInfo — dual-format lookup', () => {
     makeTicket(projectDirectory, '7K9M3P', '7K9M3P');
     const result = getTicketInfo(projectDirectory, '7K9M3P');
     expect(result.folder).toBe('7K9M3P');
+    expect(result.slug).toBeUndefined();
   });
 
   it('resolves a new-format folder case-insensitively when given lowercase input', () => {

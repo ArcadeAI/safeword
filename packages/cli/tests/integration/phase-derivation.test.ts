@@ -242,6 +242,15 @@ describe('Phase Derivation (#124)', () => {
       expect(output2).toContain('implement');
       expect(output2).not.toContain('define-behavior');
     });
+
+    it('1.3: names the active ticket slug-first (ZRXM6Q)', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'implement' });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('Ticket: test-ticket (099)');
+    });
   });
 
   // =========================================================================
@@ -342,6 +351,7 @@ describe('Phase Derivation (#124)', () => {
 
       expect(output).toContain('099');
       expect(output).toContain('implement');
+      expect(output).toContain('Ticket: test-ticket (099)');
     });
 
     it('5.2: legacy shared file ignored gracefully', () => {

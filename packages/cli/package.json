@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.43.0",
+  "version": "0.44.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -57,18 +57,18 @@
     "lint:sh": "shellcheck **/*.sh"
   },
   "dependencies": {
-    "@eslint-community/eslint-plugin-eslint-comments": "^4.7.1",
+    "@eslint-community/eslint-plugin-eslint-comments": "^4.7.2",
     "@eslint/js": "^9.39.4",
-    "@next/eslint-plugin-next": "16.2.6",
-    "@tanstack/eslint-plugin-query": "5.100.14",
-    "@vitest/eslint-plugin": "^1.6.18",
+    "@next/eslint-plugin-next": "16.2.9",
+    "@tanstack/eslint-plugin-query": "5.101.0",
+    "@vitest/eslint-plugin": "^1.6.20",
     "commander": "14.0.3",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-astro": "^1.7.0",
     "eslint-plugin-better-tailwindcss": "4.5.0",
     "eslint-plugin-import-x": "^4.16.2",
-    "eslint-plugin-jsdoc": "^63.0.0",
+    "eslint-plugin-jsdoc": "^63.0.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-playwright": "2.10.4",
     "eslint-plugin-promise": "^7.3.0",
@@ -78,10 +78,10 @@
     "eslint-plugin-security": "4.0.0",
     "eslint-plugin-simple-import-sort": "^13.0.0",
     "eslint-plugin-sonarjs": "4.0.3",
-    "eslint-plugin-storybook": "10.4.1",
-    "eslint-plugin-turbo": "2.9.14",
+    "eslint-plugin-storybook": "10.4.3",
+    "eslint-plugin-turbo": "2.9.17",
     "eslint-plugin-unicorn": "64.0.0",
-    "typescript-eslint": "8.59.4",
+    "typescript-eslint": "8.61.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
@@ -89,16 +89,16 @@
     "@cucumber/gherkin": "^39.1.0",
     "@cucumber/messages": "^32.3.1",
     "@types/estree": "^1.0.9",
-    "@types/node": "^25.9.1",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@types/node": "^25.9.2",
+    "@vitest/coverage-v8": "^4.1.8",
     "eslint": "^9.39.4",
-    "knip": "^6.14.2",
-    "prettier": "^3.8.3",
+    "knip": "^6.16.1",
+    "prettier": "^3.8.4",
     "publint": "^0.3.21",
     "tsup": "^8.5.1",
     "tsx": "^4.22.4",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "eslint": "^9.22.0"

@@ -14,6 +14,9 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { formatTicketReference } from '../utils/ticket-reference.js';
+import { deriveBlocks, parseTicketIdList } from '../utils/ticket-relations.js';
+
 export const TICKETS_RELATIVE_PATH = '.safeword-project/tickets';
 export const INDEX_FILENAME = 'INDEX.md';
 export const COMPLETED_INDEX_FILENAME = 'INDEX-completed.md';
@@ -30,6 +33,7 @@ export interface TicketEntry {
   status: string;
   epic: string | undefined; // undefined → grouped under "(no epic)"
   goal: string | undefined; // the **Goal:** one-liner, when present
+  dependsOn: string[]; // ticket ids this one depends on (directed edge); [] when none
 }
 
 export interface TicketSyncResult {
@@ -119,6 +123,7 @@ function parseTicket(
       status,
       epic,
       goal: goalLine(bodyLines),
+      dependsOn: parseTicketIdList(fields.get('depends_on')),
     },
   };
 }
@@ -178,11 +183,33 @@ export function readTickets(ticketsDirectory: string): {
   };
 }
 
-/** Render one entry as a two-or-three-line block. */
-function renderEntry(entry: TicketEntry): string[] {
+/** Render a list of related ticket ids slug-first, falling back to the bare id
+ * for targets outside this index (cross-variant or not-yet-created). */
+function renderRelation(ids: string[], labelById: Map<string, string>): string {
+  return ids
+    .map(id => {
+      const title = labelById.get(id);
+      return title === undefined ? id : formatTicketReference(id, title);
+    })
+    .join(', ');
+}
+
+/** Render one entry as a block: header, optional goal, relation edges, path. */
+function renderEntry(
+  entry: TicketEntry,
+  blocks: Map<string, string[]>,
+  labelById: Map<string, string>,
+): string[] {
   const epic = entry.epic ?? '—';
-  const lines = [`- **${entry.id}** — ${entry.title} (${entry.status}, epic: ${epic})`];
+  const lines = [
+    `- **${formatTicketReference(entry.id, entry.title)}** (${entry.status}, epic: ${epic})`,
+  ];
   if (entry.goal !== undefined) lines.push(`  ${entry.goal}`);
+  if (entry.dependsOn.length > 0) {
+    lines.push(`  blocked by: ${renderRelation(entry.dependsOn, labelById)}`);
+  }
+  const blocking = blocks.get(entry.id) ?? [];
+  if (blocking.length > 0) lines.push(`  blocks: ${renderRelation(blocking, labelById)}`);
   lines.push(`  → \`${entry.relativePath}\``);
   return lines;
 }
@@ -226,10 +253,13 @@ export function buildIndexContent(
     return [...header, isActive ? 'No active tickets.' : 'No completed tickets.', ''].join('\n');
   }
 
+  const blocks = deriveBlocks(entries);
+  const labelById = new Map(entries.map(entry => [entry.id, entry.title]));
+
   const lines = [...header, `## Tickets (${entries.length})`, ''];
   for (const [epic, group] of groupByEpic(entries)) {
     lines.push(`### ${epic}`, '');
-    for (const entry of group) lines.push(...renderEntry(entry));
+    for (const entry of group) lines.push(...renderEntry(entry, blocks, labelById));
     lines.push('');
   }
   return lines.join('\n');

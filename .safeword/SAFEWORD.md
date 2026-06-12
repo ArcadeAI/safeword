@@ -200,6 +200,8 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 
 **Cite code as `path:line`.** When referencing something the user might open, write `packages/cli/src/foo.ts:142` inline. Not "the foo file." Not in a code block.
 
+**Name tickets by slug, not ID.** Refer to a ticket by its slug or title with the ID as a trailing locator — `embed-figure-it-out (ZBVGPF)`, never bare `ZBVGPF`. The 6-char code is collision-proof but unreadable; the slug is already in the folder name.
+
 **Use structure only when it carries weight.** Headings when the reply is long enough to navigate — and make them information-carrying, not generic ("What changed" beats "Summary"). Tables only for actual reference material — never as decision trees in disguise. Bullets only when items are genuinely parallel. Default to prose. Never output a series of overly short bullet points.
 
 **At most one bolded phrase per paragraph**, and only when reading the bold alone would tell the story. Bold-on-every-sentence reads as noise.

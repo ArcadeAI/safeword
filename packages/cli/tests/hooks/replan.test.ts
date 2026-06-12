@@ -91,4 +91,49 @@ describe('evaluateReplan (integration)', () => {
     commitFile('packages/app/src/foo.ts');
     expect(evaluateReplan(directory, 'NOPE', 'task')).toBeNull();
   });
+
+  describe('blocker-moved (E11N48)', () => {
+    function writeTicketRaw(folder: string, frontmatterLines: string[], body = ''): void {
+      const ticketDirectory = nodePath.join(directory, '.safeword-project', 'tickets', folder);
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        `---\n${frontmatterLines.join('\n')}\nlast_modified: 2020-01-01T00:00:00Z\n---\n\n${body}\n`,
+      );
+    }
+    function commitTicket(folder: string): void {
+      const relativePath = `.safeword-project/tickets/${folder}/ticket.md`;
+      execSync(`git add ${relativePath} && git commit -m "blocker change"`, {
+        cwd: directory,
+        stdio: 'pipe',
+      });
+    }
+
+    it('surfaces a blocker-moved heads-up when a terminal depends_on target moved', () => {
+      writeTicketRaw('DEP', ['id: DEP', 'status: in_progress', 'type: task', 'depends_on: [BLK]']);
+      writeTicketRaw('BLK', ['id: BLK', 'slug: the-blocker', 'status: done', 'type: task']);
+      commitTicket('BLK');
+
+      const result = evaluateReplan(directory, 'DEP', 'task');
+      expect(result?.line.toLowerCase()).toContain('blocker');
+      expect(result?.line).toContain('the-blocker (BLK)');
+      expect(result?.line.toLowerCase()).toContain('check the plan');
+    });
+
+    it('stays silent when the depends_on target is not terminal', () => {
+      writeTicketRaw('DEP', ['id: DEP', 'status: in_progress', 'type: task', 'depends_on: [BLK]']);
+      writeTicketRaw('BLK', ['id: BLK', 'slug: the-blocker', 'status: in_progress', 'type: task']);
+      commitTicket('BLK');
+
+      expect(evaluateReplan(directory, 'DEP', 'task')).toBeNull();
+    });
+
+    it('stays silent when the terminal blocker ticket.md is not in the window', () => {
+      writeTicketRaw('DEP', ['id: DEP', 'status: in_progress', 'type: task', 'depends_on: [BLK]']);
+      writeTicketRaw('BLK', ['id: BLK', 'slug: the-blocker', 'status: done', 'type: task']);
+      commitFile('packages/app/src/foo.ts'); // commit something else; blocker ticket.md uncommitted
+
+      expect(evaluateReplan(directory, 'DEP', 'task')).toBeNull();
+    });
+  });
 });

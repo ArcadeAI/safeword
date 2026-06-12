@@ -9,15 +9,18 @@
 // not.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 // `.js` specifier (bun resolves it to the .ts source) so tsc accepts this
 // module when the test suite pulls it into the typecheck graph — matches the
 // `./checkbox-transitions.js` precedent for a tested hook importing a sibling.
 import {
+  type BlockerTarget,
   decideReplan,
+  detectMovedBlockers,
   extractReferencedPaths,
+  formatBlockerMovedHeadsUp,
   formatReplanHeadsUp,
   parseGitLogNameOnly,
 } from './replan-relevance.js';
@@ -58,6 +61,57 @@ function readReferencedPaths(ticketDirectory: string): string[] {
   return extractReferencedPaths(artifactText);
 }
 
+/** Parse a `depends_on` frontmatter scalar (`[A, B]` or `A, B`) into ids. Inlined
+ * rather than imported from src/utils/ticket-relations because hooks are
+ * standalone — they ship into customer projects and can't reach the CLI source. */
+function parseDependsOn(raw: string | undefined): string[] {
+  if (raw === undefined) return [];
+  return raw
+    .trim()
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Resolve `depends_on` ids to BlockerTargets (current status + repo-relative
+ * ticket.md path). Ids that don't resolve to a ticket folder are skipped —
+ * dangling refs stay silent, mirroring the tolerant ID resolution elsewhere.
+ */
+function resolveBlockerTargets(projectDirectory: string, ids: readonly string[]): BlockerTarget[] {
+  if (ids.length === 0) return [];
+  const ticketsRoot = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  let folders: string[];
+  try {
+    folders = readdirSync(ticketsRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name);
+  } catch {
+    return [];
+  }
+
+  const targets: BlockerTarget[] = [];
+  for (const id of ids) {
+    const folder = folders.find(name => name === id || name.startsWith(`${id}-`));
+    if (folder === undefined) continue;
+    let text: string;
+    try {
+      text = readFileSync(nodePath.join(ticketsRoot, folder, 'ticket.md'), 'utf8');
+    } catch {
+      continue;
+    }
+    targets.push({
+      id,
+      slug: text.match(/^slug:\s*(.+)$/m)?.[1]?.trim() ?? folder,
+      status: text.match(/^status:\s*(.+)$/m)?.[1]?.trim() ?? '',
+      ticketPath: `.safeword-project/tickets/${folder}/ticket.md`,
+    });
+  }
+  return targets;
+}
+
 /**
  * Decide whether to surface the replan heads-up for the active ticket. Reads
  * the ticket's `last_modified` (the staleness baseline), the paths its
@@ -83,16 +137,19 @@ export function evaluateReplan(
     const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
     if (!existsSync(ticketPath)) return null;
 
-    const lastModified = readFileSync(ticketPath, 'utf8')
-      .match(/last_modified:\s*(.+)/)?.[1]
-      ?.trim();
+    const ticketContent = readFileSync(ticketPath, 'utf8');
+    const lastModified = ticketContent.match(/last_modified:\s*(.+)/)?.[1]?.trim();
     if (!lastModified) return null;
 
+    const dependsOnIds = parseDependsOn(ticketContent.match(/^depends_on:\s*(.+)$/m)?.[1]);
     const referencedPaths = readReferencedPaths(ticketDirectory);
-    if (referencedPaths.length === 0) return null; // no signal → bias quiet
+    // No relevance signal at all (no referenced paths AND no depends_on) → stay quiet.
+    if (referencedPaths.length === 0 && dependsOnIds.length === 0) return null;
 
     const headSha = runGit(['rev-parse', 'HEAD'], projectDirectory).trim();
     if (headSha === '') return null;
+    // Fire at most once per HEAD advance — dedup BOTH signals here.
+    if (headSha === promptedHead) return null;
 
     const commits = parseGitLogNameOnly(
       runGit(
@@ -101,16 +158,24 @@ export function evaluateReplan(
       ),
     );
 
-    const decision = decideReplan({
+    const pathDecision = decideReplan({
       ticketType,
       headSha,
       promptedHead,
       referencedPaths,
       commits,
     });
-    if (!decision.surface) return null;
+    const movedBlockers = detectMovedBlockers(
+      resolveBlockerTargets(projectDirectory, dependsOnIds),
+      commits,
+    );
 
-    return { line: formatReplanHeadsUp(decision.relevantCommitCount), headSha };
+    const lines: string[] = [];
+    if (pathDecision.surface) lines.push(formatReplanHeadsUp(pathDecision.relevantCommitCount));
+    if (movedBlockers.length > 0) lines.push(formatBlockerMovedHeadsUp(movedBlockers));
+    if (lines.length === 0) return null;
+
+    return { line: lines.join('\n'), headSha };
   } catch {
     return null; // never let a drift-catcher crash the prompt hook
   }
