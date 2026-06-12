@@ -151,7 +151,9 @@ export function parseTddStep(content: string): string | null {
  * Returns null if file doesn't exist or no active scenario found.
  */
 export function deriveTddStep(projectDirectory: string, ticketFolder: string): string | null {
-  const testDefinitionsPath = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets',
+  const testDefinitionsPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
     ticketFolder,
     'test-definitions.md',
   );

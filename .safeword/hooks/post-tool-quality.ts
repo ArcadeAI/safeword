@@ -169,10 +169,7 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
 // Per-TDD-step review. Each `[ ]→[x]` RED/GREEN/REFACTOR flip is one edit, so
 // this fires once per step boundary (structurally idempotent). Batched flips in
 // one edit surface the most-advanced step.
-if (
-  isNamespacePath(editedFile, 'tickets/') &&
-  editedFile.endsWith('test-definitions.md')
-) {
+if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('test-definitions.md')) {
   const step = selectMostAdvancedStep(collectNewTransitions(input, editedFile));
   if (step) {
     reviewMessage = getQualityMessage('implement', step);

@@ -132,7 +132,9 @@ export function evaluateReplan(
   try {
     if (ticketType === 'epic') return null;
 
-    const ticketDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets',
+    const ticketDirectory = nodePath.join(
+      resolveNamespaceRoot(projectDirectory),
+      'tickets',
       ticketFolder,
     );
     const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');

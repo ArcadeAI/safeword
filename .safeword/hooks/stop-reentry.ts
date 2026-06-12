@@ -116,7 +116,7 @@ async function main(): Promise<void> {
   const timestamp = new Date().toISOString();
   const line = `${timestamp} ${session_id} ${ticketField} Next: ${imperative}\n`;
 
-  const projectDirectory = join(resolveNamespaceRoot(projectRoot), );
+  const projectDirectory = join(resolveNamespaceRoot(projectRoot));
   if (!existsSync(projectDirectory)) {
     mkdirSync(projectDirectory, { recursive: true });
   }

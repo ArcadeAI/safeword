@@ -162,7 +162,9 @@ function enforceRefactorCommitGate(sessionId?: string): void {
   const ticket = getTicketInfo(projectDirectory, state.activeTicket);
   if (ticket.phase !== 'implement' || !ticket.folder) return;
 
-  const testDefinitionsPath = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets',
+  const testDefinitionsPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
     ticket.folder,
     'test-definitions.md',
   );
@@ -413,10 +415,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // Pre-existing [x] without annotation is silently allowed (forward-looking).
 // ---------------------------------------------------------------------------
 
-if (
-  editedFile.endsWith('test-definitions.md') &&
-  isNamespacePath(editedFile, 'tickets/')
-) {
+if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 'tickets/')) {
   const transitions = collectNewTransitions(input, editedFile);
   for (const transition of transitions) {
     if (transition.annotation === '') {
@@ -468,7 +467,9 @@ if (state.activeTicket) {
   const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
 
   if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
-    const testDefinitionsPath = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets',
+    const testDefinitionsPath = nodePath.join(
+      resolveNamespaceRoot(projectDirectory),
+      'tickets',
       ticketInfo.folder,
       'test-definitions.md',
     );
