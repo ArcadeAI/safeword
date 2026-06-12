@@ -1,6 +1,6 @@
 /**
  * Sync Tickets command — regenerates the capability-discovery indexes
- * `.safeword-project/tickets/INDEX.md` (active, grouped by epic) and
+ * `<namespace-root>/tickets/INDEX.md` (active, grouped by epic) and
  * `INDEX-completed.md` (the completed/ archive) from each ticket.md's
  * frontmatter + Goal line.
  *
@@ -24,7 +24,7 @@ export function syncTicketsCommand(options: SyncTicketsOptions = {}): void {
   const result = syncTickets(cwd);
 
   for (const skip of result.skipped) {
-    process.stderr.write(`skipping .safeword-project/tickets/${skip.folder}: ${skip.reason}\n`);
+    process.stderr.write(`skipping tickets/${skip.folder}: ${skip.reason}\n`);
   }
 
   if (options.quiet) return;

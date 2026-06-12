@@ -1,7 +1,7 @@
 /**
  * Glossary file model — parsing, validation, and lookup.
  *
- * Project-level glossary lives in `.safeword-project/glossary.md` (or the
+ * Project-level glossary lives at the resolved namespace root (or the
  * path configured at `paths.glossary` in `.safeword/config.json`). Each
  * entry is a level-2 markdown block with a `## Term` header, a required
  * `**Definition:**` line, and optional `**Used in:**`, `**Example:**`,
@@ -59,7 +59,7 @@ export type GlossaryReferenceResult =
  * Resolve a glossary reference against the on-disk glossary file.
  *
  * Reads from `paths.glossary` in `.safeword/config.json` when configured;
- * falls back to `.safeword-project/glossary.md` otherwise. Degrades
+ * falls back to the namespace-root default otherwise. Degrades
  * gracefully on a missing or unreadable file — returns
  * `{ status: 'unknown' }` rather than throwing, regardless of whether the
  * resolved path is the default or a configured override. The loud signal

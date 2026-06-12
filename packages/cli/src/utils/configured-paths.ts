@@ -3,7 +3,7 @@
  *
  * Reads `.safeword/config.json` for an optional `paths` object — each key
  * maps to a file path the user wants safeword to read instead of the
- * default `.safeword-project/<key>.md` location.
+ * default `<namespace-root>/<key>.md` location (see resolveNamespaceRoot).
  *
  * Path resolution:
  * - Relative paths resolve against project root (the directory containing
@@ -87,6 +87,16 @@ export function resolveNamespaceRoot(cwd: string): string {
   if (existsSync(legacyRoot)) return legacyRoot;
 
   return defaultRoot;
+}
+
+/** Absolute tickets directory under the resolved namespace root. */
+export function resolveTicketsDirectory(cwd: string): string {
+  return nodePath.join(resolveNamespaceRoot(cwd), 'tickets');
+}
+
+/** Absolute learnings directory under the resolved namespace root. */
+export function resolveLearningsDirectory(cwd: string): string {
+  return nodePath.join(resolveNamespaceRoot(cwd), 'learnings');
 }
 
 /**

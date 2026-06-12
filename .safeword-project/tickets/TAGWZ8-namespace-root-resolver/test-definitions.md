@@ -162,9 +162,9 @@ Given a project whose namespace root resolves to `.project/` with tickets under 
 When `safeword sync-tickets` regenerates the index
 Then the regenerated index lists only the `.project/` tickets and everything under `.safeword-project/` is unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: Malformed configuration is treated as unset
 

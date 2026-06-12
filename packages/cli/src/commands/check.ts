@@ -16,6 +16,7 @@ import {
   defaultConfiguredPath,
   readConfiguredPath,
   resolveConfiguredPath,
+  resolveTicketsDirectory,
 } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe } from '../utils/fs.js';
@@ -85,7 +86,7 @@ function findPersonaIssues(cwd: string): string[] {
 /**
  * Surface non-blocking diagnostics about persona path configuration.
  * Currently: when `paths.personas` is set AND the default-location file
- * `.safeword-project/personas.md` still exists, emit an advisory naming
+ * the default personas file still exists, emit an advisory naming
  * the orphaned file. Safeword reads from the override; the legacy file
  * is dead weight and may confuse readers who think they're editing the
  * live file. Zero-exit — non-destructive (data-loss principle from
@@ -141,8 +142,6 @@ function findGlossaryAdvisories(cwd: string): string[] {
   ];
 }
 
-const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
-
 /** Ticket folder names under the tickets root (excluding `completed/`), or
  * empty when the root is missing/unreadable. */
 function listTicketIds(ticketsRoot: string): string[] {
@@ -163,7 +162,7 @@ function listTicketIds(ticketsRoot: string): string[] {
  * exist, the claim cannot be honoring anything recorded. Zero-exit.
  */
 function findArchitectureAdvisories(cwd: string): string[] {
-  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsRoot = resolveTicketsDirectory(cwd);
   const ticketIds = listTicketIds(ticketsRoot);
 
   const resolved = resolveConfiguredPath(cwd, 'architecture');
@@ -209,7 +208,7 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
  * stale AC refs, and orphan scenarios. Zero-exit — advisory, never a gate.
  */
 function findCoverageAdvisories(cwd: string): string[] {
-  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsRoot = resolveTicketsDirectory(cwd);
   return listTicketIds(ticketsRoot).flatMap(ticketId =>
     coverageAdvisoriesForTicket(ticketsRoot, ticketId),
   );
@@ -273,7 +272,7 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
  * Zero-exit.
  */
 function findRelationAdvisories(cwd: string): string[] {
-  const ticketsDirectory = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
   let entries;
   try {
     const { active, completed } = readTickets(ticketsDirectory);

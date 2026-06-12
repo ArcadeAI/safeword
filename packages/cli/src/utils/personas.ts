@@ -1,7 +1,7 @@
 /**
  * Persona file model — derivation, parsing, validation, and lookup.
  *
- * Project-level personas live in `.safeword-project/personas.md` as
+ * Project-level personas live at the resolved namespace root as
  * second-level markdown blocks. Each block has a name, an optional
  * parenthesized short code (auto-derived if absent), a `**Role:**` line,
  * and an optional `**Context:**` block.
@@ -329,7 +329,7 @@ export function lookupPersonaReference(
  * Resolve a persona reference against the on-disk personas file.
  *
  * Reads from `paths.personas` in `.safeword/config.json` when configured;
- * falls back to `.safeword-project/personas.md` otherwise. Degrades
+ * falls back to the namespace-root default otherwise. Degrades
  * gracefully on a missing or unreadable file — returns
  * `{ status: 'unknown' }` rather than throwing, regardless of whether the
  * resolved path is the default or a configured override. Strict

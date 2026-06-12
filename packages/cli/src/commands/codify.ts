@@ -10,6 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { error, success } from '../utils/output.js';
 import { emitGherkinFeature, emitVitestSkeleton, parseScenarios } from '../utils/test-skeleton.js';
 
@@ -33,7 +34,7 @@ function codifySync(ticket: string, options: CodifyOptions): void {
 
   const ticketDirectory = resolveTicketDirectory(cwd, ticket);
   if (ticketDirectory === undefined) {
-    fail(`No ticket folder for "${ticket}" under .safeword-project/tickets/.`);
+    fail(`No ticket folder for "${ticket}" under the tickets directory.`);
   }
 
   const testDefinitionsPath = nodePath.join(ticketDirectory, 'test-definitions.md');
@@ -92,7 +93,7 @@ function writeSkeleton(
 
 /** Find the ticket folder whose name is `ticket` or starts with `${ticket}-`. */
 function resolveTicketDirectory(cwd: string, ticket: string): string | undefined {
-  const ticketsRoot = nodePath.join(cwd, '.safeword-project', 'tickets');
+  const ticketsRoot = resolveTicketsDirectory(cwd);
   let entries: string[];
   try {
     entries = readdirSync(ticketsRoot, { withFileTypes: true })
