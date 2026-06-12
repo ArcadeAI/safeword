@@ -10,10 +10,11 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readConfiguredPath } from './configured-paths.js';
+import { isDirectory } from './fs.js';
 
 const LEGACY_ROOT = '.safeword-project';
 const DEFAULT_ROOT = '.project';
@@ -28,14 +29,6 @@ export type MigrationPlan =
 export interface MigrationResult {
   method: 'git' | 'rename';
   rewrittenKeys: string[];
-}
-
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
 }
 
 /** Classify the install for the migration offer. */

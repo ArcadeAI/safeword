@@ -4,7 +4,7 @@
  * Uses reconcile() with dryRun to detect missing files and configuration issues.
  */
 
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getMissingPacks } from '../packs/registry.js';
@@ -19,7 +19,7 @@ import {
   resolveTicketsDirectory,
 } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
-import { exists, readFileSafe } from '../utils/fs.js';
+import { exists, isDirectory, readFileSafe } from '../utils/fs.js';
 import { parseGlossary, validateGlossary } from '../utils/glossary.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
 import { parsePersonas, validatePersonas } from '../utils/personas.js';
@@ -98,14 +98,6 @@ function findPersonaIssues(cwd: string): string[] {
  * the dirs were created independently). Zero-exit nudge naming the finishing
  * action; silent on any single root — declining migration is never a nag.
  */
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
 function findNamespaceAdvisories(cwd: string): string[] {
   if (
     isDirectory(nodePath.join(cwd, '.project')) &&

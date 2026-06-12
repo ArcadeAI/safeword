@@ -16,19 +16,9 @@
  * logical-filesystem abstraction.
  */
 
-import { statSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { readFileSafe } from './fs.js';
-
-/** True when `path` exists and is a directory (a stray file is not a root). */
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-}
+import { isDirectory, readFileSafe } from './fs.js';
 
 /** Logical keys safeword knows how to override via `paths.*`. */
 export type ConfiguredPathKey = 'personas' | 'glossary' | 'architecture';
