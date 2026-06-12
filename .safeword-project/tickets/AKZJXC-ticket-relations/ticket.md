@@ -30,6 +30,12 @@ out_of_scope: |
   - The Linear coordination mirror (THSPA5) — a different seam (coordination).
   - Re-ordering or gating tickets from the graph — surfacing only; sequencing
     stays a human call.
+  - Cross-variant `blocks` back-references (active↔completed). INDEX derives the
+    inverse within one variant; check validates the full corpus. An active→
+    completed edge renders `blocked by:` (bare id) but no reciprocal `blocks:`
+    on the completed side. Acceptable — edges are overwhelmingly active→active;
+    an edge onto a completed ticket is the already-satisfied case. Fast-follow
+    only if cross-status edges become common (quality-review 2026-06-12).
 done_when: |
   - A ticket carrying `depends_on: [X, Y]` parses to two ids via the shared
     helper; missing/empty parses to [].
