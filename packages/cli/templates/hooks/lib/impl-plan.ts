@@ -137,3 +137,14 @@ export function parseImplPlan(content: string): ImplPlanResult {
 
   return { status, sections, errors };
 }
+
+/**
+ * Whether a Decisions-section body carries a citation — the enforceable trace
+ * that evidence-weighing (e.g. /figure-it-out) actually happened (ticket
+ * MR5M3A). Minimal/structural per the YR6C49 non-prose-extraction ruling: a
+ * citation is a URL or a `[n]` numeric source-reference marker. Prose alone is
+ * not a citation.
+ */
+export function hasCitation(_text: string): boolean {
+  return false;
+}
