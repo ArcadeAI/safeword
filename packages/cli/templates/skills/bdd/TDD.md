@@ -2,6 +2,19 @@
 
 **Entry:** Agent enters `implement` phase. The ticket's `impl-plan.md` (written at scenario-gate exit, status `planned`) is the design record for this phase — follow its Approach section's test-layer assignments and build order. Begin TDD for the first unchecked scenario.
 
+## Harness availability check (entry)
+
+Before the first RED, confirm the project's test harness actually runs — judge from existing signals (a `test` script in the project manifest, the scaffolded acceptance lane under `features/`, the project's conventional test directory). `safeword setup` scaffolds a runnable lane into every project, so absence is the exception (pre-existing installs, projects using their own runner like pytest-bdd, brownfield repos).
+
+**Harness present** → standard loop below, no ceremony.
+
+**Harness absent** → behavioral tests are not yet executable for this project. Do not fake test runs and do not stall: implement using the service's **existing test patterns** (unit tests, integration tests, whatever the project already runs), keeping the same RED/GREEN/REFACTOR discipline and checkbox tracking. Then:
+
+- Annotate the ticket work log: `- {timestamp} Harness absent; using existing service test patterns. Follow-up: wire behavioral harness.`
+- Recommend a follow-up ticket (`Wire behavioral test harness for {project}`) — prompt the user; don't auto-create it.
+
+Degradation is the intended path — no gate blocks on harness absence.
+
 ## Iron Laws
 
 1. **NO IMPLEMENTATION UNTIL TEST FAILS FOR THE RIGHT REASON** — behavior missing, not syntax error
