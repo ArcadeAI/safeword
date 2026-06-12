@@ -345,6 +345,7 @@ describe('Schema - Single Source of Truth', () => {
         'lint',
         'verify',
         'audit',
+        'explain',
         'cleanup-zombies',
         'self-review',
         'review-spec',
