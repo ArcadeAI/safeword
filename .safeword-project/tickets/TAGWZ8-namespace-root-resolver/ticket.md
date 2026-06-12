@@ -2,7 +2,7 @@
 id: TAGWZ8
 slug: namespace-root-resolver
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 epic: project-namespace-default
 parent: AQJ95G
@@ -36,3 +36,4 @@ done_when:
 
 - 2026-06-12T17:35:11.034Z Started: Created ticket TAGWZ8
 - 2026-06-12T17:36:00.000Z Intake: scoped as epic child (resolver + literal migration). Inherits AQJ95G intake decisions. Phase → define-behavior.
+- 2026-06-12T17:40:00.000Z Complete: define-behavior — 14 scenarios across 6 rules, all 6 ACs covered (lineage clean per safeword check). Phase → scenario-gate.
