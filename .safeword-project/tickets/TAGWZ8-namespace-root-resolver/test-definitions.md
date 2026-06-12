@@ -13,9 +13,9 @@ partitions live in [dimensions.md](./dimensions.md).
 
 ### Scenario: namespace-root-resolver.SM1.AC1.config_root_wins_when_set
 
-Given a project whose `.safeword/config.json` sets `paths.projectRoot` to `custom-ns`
+Given a project whose `.safeword/config.json` sets `paths.projectRoot` to `custom-ns`, and both `.project/` and `.safeword-project/` present on disk
 When the resolver computes the namespace root
-Then the resolved root is `custom-ns` regardless of which namespace directories exist on disk
+Then the resolved root is `custom-ns`
 
 - [ ] RED
 - [ ] GREEN
@@ -71,7 +71,7 @@ Then the resolved root is `.project/`
 
 Given `paths.projectRoot` is set to the relative path `shared/ns`
 When the resolver computes the namespace root
-Then the resolved root is `shared/ns` joined to the project root
+Then the resolved root is `shared/ns` joined to the project directory (cwd)
 
 - [ ] RED
 - [ ] GREEN
@@ -97,6 +97,16 @@ Then the resolved root is that absolute path verbatim
 Given a project whose namespace root resolves to `.project/` and no `paths.personas` override
 When the resolver computes the personas default location
 Then the personas default is `.project/personas.md`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: namespace-root-resolver.DEV1.AC1.glossary_default_derives_from_root
+
+Given a project whose namespace root resolves to `.project/` and no `paths.glossary` override
+When the resolver computes the glossary default location
+Then the glossary default is `.project/glossary.md`
 
 - [ ] RED
 - [ ] GREEN
@@ -141,14 +151,16 @@ Then the glossary location is `.project/glossary.md`
 ## Rule: A namespace surface reads and writes under the resolved root
 
 > Rationale: SM1.AC2 — the ~48 literals are retired by making surfaces consume
-> the resolver. Proven behaviorally through a representative surface (sync-tickets);
-> the exhaustive-grep done-when is the structural backstop for full coverage.
+> the resolver. Proven behaviorally through a representative surface (sync-tickets,
+> with a decoy in the legacy dir making reads observable); the exhaustive-grep
+> done-when is the structural backstop for full coverage. Learnings paths are
+> grep-backstopped only — accepted gap, no per-surface scenario.
 
 ### Scenario: namespace-root-resolver.SM1.AC2.surface_follows_resolved_root
 
-Given a project whose namespace root resolves to `.project/` with tickets under `.project/tickets/`
+Given a project whose namespace root resolves to `.project/` with tickets under `.project/tickets/`, and a decoy ticket under `.safeword-project/tickets/`
 When `safeword sync-tickets` regenerates the index
-Then the index is written under `.project/tickets/`, and no file is read or written under `.safeword-project/`
+Then the regenerated index lists only the `.project/` tickets and everything under `.safeword-project/` is unchanged
 
 - [ ] RED
 - [ ] GREEN
@@ -172,6 +184,26 @@ Then the empty value is ignored and the resolved root is `.safeword-project/`
 ### Scenario: namespace-root-resolver.SM1.AC1.missing_config_falls_through_to_precedence
 
 Given a project with no `.safeword/config.json` and a `.project/` directory present
+When the resolver computes the namespace root
+Then resolution does not error and the resolved root is `.project/`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: namespace-root-resolver.SM1.AC1.non_string_project_root_treated_as_unset
+
+Given `paths.projectRoot` is set to a non-string value (e.g. `123`) and only `.safeword-project/` is present
+When the resolver computes the namespace root
+Then the non-string value is ignored and the resolved root is `.safeword-project/`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: namespace-root-resolver.SM1.AC1.unparseable_config_treated_as_unset
+
+Given a `.safeword/config.json` containing invalid JSON and a `.project/` directory present
 When the resolver computes the namespace root
 Then resolution does not error and the resolved root is `.project/`
 
