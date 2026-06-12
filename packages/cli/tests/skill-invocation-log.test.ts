@@ -58,20 +58,25 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
     it.each([...verifyForms, ...auditForms])(
       '%s bash injection uses append (>>), not overwrite (>)',
       (_name, content) => {
-        // The injection must use `>>` to preserve prior entries.
-        // Accepts ${CLAUDE_PROJECT_DIR}/ (older form) or $PROJECT_DIR/ (after PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}" indirection).
-        expect(content).toMatch(
-          />>\s{0,4}"\$\{?(?:CLAUDE_)?PROJECT_DIR\}?\/\.safeword-project\/skill-invocations\.log/,
-        );
+        // The injection must use `>>` to preserve prior entries. The log path
+        // is the resolved namespace root via the $NS_ROOT indirection (TAGWZ8).
+        expect(content).toMatch(/>>\s{0,4}"\$NS_ROOT\/skill-invocations\.log/);
       },
     );
 
     it.each([...verifyForms, ...auditForms])(
-      '%s bash injection ensures .safeword-project/ directory exists (mkdir -p)',
+      '%s bash injection ensures the namespace root directory exists (mkdir -p)',
       (_name, content) => {
-        expect(content).toMatch(
-          /mkdir\s{1,4}-p\s{1,4}"\$\{?(?:CLAUDE_)?PROJECT_DIR\}?\/\.safeword-project/,
-        );
+        expect(content).toMatch(/mkdir\s{1,4}-p\s{1,4}"\$NS_ROOT"/);
+      },
+    );
+
+    it.each([...verifyForms, ...auditForms])(
+      '%s bash injection resolves the namespace root with legacy fallback (TAGWZ8)',
+      (_name, content) => {
+        // Prefer .project/; fall back to an existing legacy .safeword-project/.
+        expect(content).toMatch(/NS_ROOT="\$PROJECT_DIR\/\.project"/);
+        expect(content).toMatch(/-d\s+"\$PROJECT_DIR\/\.safeword-project"/);
       },
     );
 

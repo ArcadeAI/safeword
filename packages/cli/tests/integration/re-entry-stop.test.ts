@@ -5,7 +5,7 @@
  *
  * Covers Rule 1 — Stop hook records intent when present, skips otherwise.
  * Scenario: assistant message ends with `**Next:** commit and PR` →
- *           .safeword-project/re-entry.md gains one new line containing
+ *           <namespace-root>/re-entry.md gains one new line containing
  *           "Next: commit and PR" and the hook-injected session_id.
  */
 
@@ -70,7 +70,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
     expect(result.status).toBe(0);
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     expect(existsSync(logPath)).toBe(true);
 
     const logContent = readFileSync(logPath, 'utf8');
@@ -88,7 +88,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
     expect(result.status).toBe(0);
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     expect(existsSync(logPath)).toBe(false);
   });
 
@@ -99,7 +99,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
     expect(result.status).toBe(0);
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     expect(existsSync(logPath)).toBe(false);
   });
 
@@ -115,7 +115,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
     expect(result.status).toBe(0);
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     const line = readFileSync(logPath, 'utf8').trim();
 
     // session_id must be the one from stdin, not the deceptive string in the text.
@@ -140,7 +140,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_no_ticket');
     expect(result.status).toBe(0);
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     const line = readFileSync(logPath, 'utf8').trim();
 
     expect(line).toContain('ticket=∅/freeform');
@@ -164,7 +164,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toBe('');
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     expect(existsSync(logPath)).toBe(false);
   });
 
@@ -177,7 +177,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_multi_line');
     expect(result.status).toBe(0);
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     const content = readFileSync(logPath, 'utf8');
 
     // Exactly one log line (the file ends with a trailing newline; trim it).

@@ -83,7 +83,7 @@ describe('cross-process ticket creation', () => {
       expect(a.exitCode).toBe(0);
       expect(b.exitCode).toBe(0);
 
-      const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(projectDirectory, '.project', 'tickets');
       const ids = readTicketIds(ticketsDirectory);
       expect(ids).toHaveLength(2);
       expect(new Set(ids).size).toBe(2);
@@ -133,7 +133,7 @@ describe('cross-branch ticket creation (real git fixture)', () => {
       gitSync(projectDirectory, 'merge', '--no-ff', '-m', 'merge a', 'feature-a');
       gitSync(projectDirectory, 'merge', '--no-ff', '-m', 'merge b', 'feature-b');
 
-      const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(projectDirectory, '.project', 'tickets');
       const ids = readTicketIds(ticketsDirectory);
       expect(ids).toHaveLength(2);
       expect(new Set(ids).size).toBe(2);
@@ -181,7 +181,7 @@ describe('cross-branch ticket creation (real git fixture)', () => {
       });
       expect(secondMerge.status).toBe(0);
 
-      const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(projectDirectory, '.project', 'tickets');
       const folders = readdirSync(ticketsDirectory).toSorted();
       expect(folders).toEqual(['COLLID-bar', 'COLLID-foo']);
 
@@ -220,7 +220,7 @@ describe('duplicate-ID guard last-line defense', () => {
   it(
     'flags a synthetic main-state collision (two folders, same `id:`)',
     () => {
-      const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(projectDirectory, '.project', 'tickets');
       for (const folder of ['LANDED', 'LANDED-spurious']) {
         const directory = nodePath.join(ticketsDirectory, folder);
         mkdirSync(directory, { recursive: true });
