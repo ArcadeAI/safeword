@@ -1,6 +1,6 @@
 # Impl Plan: Upgrade-vehicle migration to .project/ + both-dirs advisory
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -31,7 +31,11 @@ Consulted `ARCHITECTURE.md` (repo root):
 
 ## Known deviations
 
-`skip: no deviations planned` — composes the TAGWZ8 resolver and N9S5XG context seam as designed.
+Recorded at reconciliation (implement-phase exit):
+
+- **Latent check bug fixed en route** — `reportHealthSummary` swallowed advisories whenever issues existed (the code contradicted its own comment); advisories are now printed before the issue early-returns. Surfaced by the both-dirs advisory scenario.
+- **Integration fixtures build on a real setup** — `seedLegacyInstall` runs `createConfiguredProject` then renames `.project/` → `.safeword-project/`, instead of hand-rolled minimal fixtures (which fight check's full health model).
+- **Injected confirm seam implies interactivity** — `options.confirmMigration` present counts as a TTY stand-in, making the prompt pair unit-testable; otherwise as planned.
 
 ## Assessment triggers
 
