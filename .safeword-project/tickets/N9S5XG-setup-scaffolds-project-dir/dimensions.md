@@ -4,13 +4,13 @@ Setup's namespace behavior is a function of `(repo starting state, lifecycle
 command)`. The resolver (TAGWZ8) supplies the root; this child makes the
 reconcile planners honor it.
 
-| Dimension                    | Partitions (equivalence classes + boundaries)                                                                                                  | ACs proved |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Repo starting state          | fresh (no namespace dir) · arcade (`.project/` exists with user personas.md) · legacy (`.safeword-project/` only) · configured root (boundary) | AC1-AC3    |
-| Scaffold completeness        | namespace dirs (learnings, tickets, tickets/completed, tmp) · starter files (personas.md, glossary.md)                                         | AC1        |
-| Adoption non-destructiveness | existing personas.md byte-identical after setup · missing glossary.md added alongside (partial-adopt boundary)                                 | AC2        |
-| Single-namespace invariant   | fresh setup creates no `.safeword-project/` · legacy setup creates no `.project/`                                                              | AC1, AC3   |
-| Lifecycle-command agreement  | upgrade on legacy stays legacy · reset deletes only owned dirs at the resolved root (preserved namespace dirs survive, both roots)             | AC4        |
+| Dimension                    | Partitions (equivalence classes + boundaries)                                                                                                                                                                    | ACs proved |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Repo starting state          | fresh (no namespace dir) · arcade (`.project/` exists with user personas.md) · legacy (`.safeword-project/` only) · **both dirs present** (boundary) · configured root (boundary)                                | AC1-AC3    |
+| Scaffold completeness        | namespace dirs (learnings, tickets, tickets/completed, tmp) · starter files (personas.md, glossary.md)                                                                                                           | AC1        |
+| Adoption non-destructiveness | existing personas.md byte-identical after setup · missing glossary.md added alongside (partial-adopt boundary)                                                                                                   | AC2        |
+| Single-namespace invariant   | fresh setup creates no `.safeword-project/` · legacy setup creates no `.project/`                                                                                                                                | AC1, AC3   |
+| Lifecycle-command agreement  | upgrade stays on the resolved root (legacy repo → legacy; .project repo → .project) · diff reports clean after fresh setup · reset removes empty preserved dirs at the resolved root while user content survives | AC4        |
 
 **Domain-knowledge boundaries not surfaced in intake:**
 

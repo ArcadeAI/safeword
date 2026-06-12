@@ -2,7 +2,7 @@
 id: N9S5XG
 slug: setup-scaffolds-project-dir
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 epic: project-namespace-default
 parent: AQJ95G
@@ -36,4 +36,5 @@ done_when:
 ## Work Log
 
 - 2026-06-12T17:35:11.086Z Started: Created ticket N9S5XG
+- 2026-06-12T21:05:00.000Z Complete: scenario-gate — review 1 FAIL (4 must-fix: diff uncovered, 2 vacuous Thens, both-dirs partition missing; all applied), review 2 PASS (0 must-fix; 3 strengthens applied: upgrade-on-project scenario, trimmed duplicate tails, both-dirs relineaged to AC2 + dimensions synced). 11 scenarios. Stamped. impl-plan.md written. Phase → implement.
 - 2026-06-12T20:44:00.000Z Intake: scoped as epic child. Design: ProjectContext carries the resolved root; reconcile planners translate schema namespace paths at planning time (schema constant stays static). Driver steer: seamless end-user experience — the three states (fresh/arcade/legacy) each just work. Phase → define-behavior.
