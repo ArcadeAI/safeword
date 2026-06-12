@@ -95,8 +95,10 @@ describe('Reconcile — glossary scaffold + ownership (YR6C49)', () => {
 
     await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
-    expect(existsSync(nodePath.join(cwd, GLOSSARY_DEFAULT_PATH))).toBe(true);
-    const content = readFileSync(nodePath.join(cwd, GLOSSARY_DEFAULT_PATH), 'utf8');
+    // Fresh repo (no namespace dir) → resolved root is .project/ (N9S5XG).
+    const freshDefaultPath = '.project/glossary.md';
+    expect(existsSync(nodePath.join(cwd, freshDefaultPath))).toBe(true);
+    const content = readFileSync(nodePath.join(cwd, freshDefaultPath), 'utf8');
     expect(content).toContain('Definition');
   });
 

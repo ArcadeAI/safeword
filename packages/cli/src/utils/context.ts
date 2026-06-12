@@ -7,6 +7,7 @@
 import nodePath from 'node:path';
 
 import type { ProjectContext } from '../schema.js';
+import { resolveNamespaceRoot } from './configured-paths.js';
 import { readJson } from './fs.js';
 import { isGitRepo } from './git.js';
 import { detectLanguages, detectProjectType, type PackageJson } from './project-detector.js';
@@ -27,5 +28,6 @@ export function createProjectContext(cwd: string): ProjectContext {
     productionDeps: packageJson?.dependencies ?? {},
     isGitRepo: isGitRepo(cwd),
     languages: detectLanguages(cwd),
+    namespaceRoot: resolveNamespaceRoot(cwd),
   };
 }

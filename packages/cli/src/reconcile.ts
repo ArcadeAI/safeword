@@ -15,7 +15,11 @@ import type {
   SafewordSchema,
   TextPatchDefinition,
 } from './schema.js';
-import { readConfiguredPath } from './utils/configured-paths.js';
+import {
+  NAMESPACE_ROOT_LEGACY,
+  readConfiguredPath,
+  resolveNamespaceRoot,
+} from './utils/configured-paths.js';
 import {
   ensureDirectory,
   exists,
@@ -257,6 +261,38 @@ interface ReconcileOptions {
 // Main reconcile function
 // ============================================================================
 
+/**
+ * Realize the schema's namespace paths at the resolved root (ticket N9S5XG).
+ *
+ * The schema manifest stays static with legacy-prefixed namespace entries
+ * (`.safeword-project/...`); at planning time those entries are mapped onto
+ * the resolved root — `.project/` for fresh repos, an adopted existing
+ * `.project/`, a configured `paths.projectRoot`, or the legacy root itself
+ * (identity translation) where only it exists. One seam covers install,
+ * upgrade, diff (dry-run upgrade), and uninstall alike.
+ */
+function withResolvedNamespaceRoot(schema: SafewordSchema, ctx: ProjectContext): SafewordSchema {
+  const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
+  const label = nodePath.relative(ctx.cwd, root) || NAMESPACE_ROOT_LEGACY;
+  if (label === NAMESPACE_ROOT_LEGACY) return schema;
+
+  const translate = (path: string): string =>
+    path === NAMESPACE_ROOT_LEGACY || path.startsWith(`${NAMESPACE_ROOT_LEGACY}/`)
+      ? `${label}${path.slice(NAMESPACE_ROOT_LEGACY.length)}`
+      : path;
+
+  return {
+    ...schema,
+    preservedDirs: schema.preservedDirs.map(path => translate(path)),
+    managedFiles: Object.fromEntries(
+      Object.entries(schema.managedFiles).map(([path, definition]) => [
+        translate(path),
+        definition,
+      ]),
+    ),
+  };
+}
+
 export async function reconcile(
   schema: SafewordSchema,
   mode: ReconcileMode,
@@ -269,7 +305,7 @@ export async function reconcile(
   await Promise.resolve();
   const dryRun = options?.dryRun ?? false;
 
-  const plan = computePlan(schema, mode, ctx);
+  const plan = computePlan(withResolvedNamespaceRoot(schema, ctx), mode, ctx);
 
   if (dryRun) {
     return {

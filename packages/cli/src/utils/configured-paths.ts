@@ -43,7 +43,7 @@ const CONFIG_SUBPATH = ['.safeword', 'config.json'];
 const NAMESPACE_ROOT_DEFAULT = '.project';
 
 /** Legacy namespace root, honored where it already exists (pre-AQJ95G installs). */
-const NAMESPACE_ROOT_LEGACY = '.safeword-project';
+export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
 /**
  * Read the override path for `key` from `.safeword/config.json`, if any.

@@ -95,6 +95,13 @@ export interface ProjectContext {
   isGitRepo: boolean;
   /** Languages detected in project (for conditional file generation) */
   languages?: Languages;
+  /**
+   * Absolute resolved namespace root (see `resolveNamespaceRoot`, ticket
+   * AQJ95G). Reconcile translates the schema's legacy-prefixed namespace
+   * paths onto this root at planning time. Optional for older callers —
+   * reconcile resolves from `cwd` when absent.
+   */
+  namespaceRoot?: string;
 }
 
 export interface FileDefinition {
