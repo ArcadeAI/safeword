@@ -19,6 +19,8 @@ export interface ReviewStamp {
   scope: string;
   /** Present → a skip (must be non-empty to satisfy the gate); absent → a real review. */
   skipReason?: string;
+  /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
+  model?: string;
 }
 
 /** Short content hash binding a stamp to the reviewed artifact's exact state. */
@@ -172,7 +174,7 @@ export function detectPhaseAdvance(oldContent: string, newContent: string): stri
  * prefixes `<timestamp> <session> ` and appends the result, so the gate reads
  * back exactly this `scope`. A non-empty `skipReason` records a logged skip.
  */
-export function formatReviewStamp(scope: string, skipReason?: string): string {
+export function formatReviewStamp(scope: string, skipReason?: string, _model?: string): string {
   return skipReason === undefined ? `review:${scope}` : `review:${scope} skip:${skipReason}`;
 }
 
