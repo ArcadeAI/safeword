@@ -3,8 +3,8 @@ id: ERVA6V
 slug: plan-actual-reconciliation
 title: 'Add Phase 6 exit step to reconcile impl plan against shipped reality'
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
 blocked_on: [XDNSZA, K4BWTQ]
@@ -85,6 +85,7 @@ The reconciled impl plan IS the artifact — no separate reconciliation document
 
 ## Work Log
 
+- 2026-06-12T00:10:00.000Z Closed: /verify green (2607/2607, build + lint clean, all 8 scenarios complete) + /audit passed (no new findings vs baseline). verify.md written. Third M6D315 child done — only CNGBNT remains.
 - 2026-06-12T00:10:00.000Z Complete: implement — reconciled impl plan; 0 decisions updated, 0 deviations recorded (all three Decisions rows held). 8/8 scenarios R/G/R-annotated: status gate at verify+ in checkImplPlanArtifact (existence extends to verify per review F1), reconciliation procedure + worked example in TDD.md both copies. Phase → verify.
 - 2026-06-11T23:45:00.000Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass (independent Tier-2 review: BLOCK on F1 — verify-phase existence cell unpinned, pruning note factually wrong; F1-F3 applied, re-review PASS); impl-plan.md written (test layers + build order in Approach). Review stamp written. Autonomous session — sub-phase gates auto-confirmed. Phase → implement.
 - 2026-06-11T23:40:00.000Z Intake + define-behavior: spec.md (2 JTBDs, 3 ACs, /self-review stamped), dimensions.md, 8 scenarios across 3 rules.
