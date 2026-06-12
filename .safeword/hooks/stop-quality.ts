@@ -13,8 +13,17 @@ import {
   resolveStopPhase,
 } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
-import { parseImplPlan } from './lib/impl-plan.ts';
+import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { validateLedger } from './lib/ledger-validation.ts';
+import {
+  hashArtifact,
+  isArchitectureReviewGateEnabled,
+  isCrossModelReviewRequired,
+  modelsMatch,
+  parseReviewStamps,
+  reviewGateForNextAsset,
+  reviewScope,
+} from './lib/review-ledger.ts';
 import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
 import {
   type FailureEntry,
@@ -248,6 +257,65 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
   }
 }
 
+/**
+ * Architecture review gate (ticket MR5M3A). DEFAULT-OFF: fires only when
+ * `.safeword/config.json` sets `architectureReviewGate: true`. For a new-flow
+ * feature leaving implement (verify/done), require (a) the impl-plan Decisions
+ * section to carry cited evidence — the /figure-it-out trace — and (b) a
+ * design-review stamp bound to this ticket's impl-plan at its current content.
+ * When `crossModelReview` is set, the satisfying real-review stamp must record a
+ * model different from the author's (env `SAFEWORD_AUTHOR_MODEL`); an absent tag
+ * fails closed. Runs AFTER checkImplPlanArtifact, so absent/malformed plans were
+ * already blocked there (precedence). Skips and exemptions are auditable.
+ */
+function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
+  if (ticketInfo.type !== 'feature' || !ticketInfo.folder || !ticketInfo.phase) return;
+  if (!['verify', 'done'].includes(ticketInfo.phase)) return;
+
+  const configPath = `${projectDir}/.safeword/config.json`;
+  const rawConfig = existsSync(configPath) ? readFileSync(configPath, 'utf8') : undefined;
+  if (!isArchitectureReviewGateEnabled(rawConfig)) return;
+
+  // Grandfathered (no spec.md) features are exempt, mirroring checkImplPlanArtifact.
+  if (!existsSync(`${ticketsDir}/${ticketInfo.folder}/spec.md`)) return;
+
+  const implPlanPath = `${ticketsDir}/${ticketInfo.folder}/impl-plan.md`;
+  if (!existsSync(implPlanPath)) return; // existence is checkImplPlanArtifact's block (precedence)
+  const planContent = readFileSync(implPlanPath, 'utf8');
+  const parsed = parseImplPlan(planContent);
+  if (parsed.errors.length > 0) return; // parse errors are checkImplPlanArtifact's block (precedence)
+
+  // Generation half: Decisions carries a citation, or an auditable skip.
+  const decisionsSkip = parsed.sections.Decisions?.skip;
+  const decisionsSkipped = typeof decisionsSkip === 'string' && decisionsSkip.trim() !== '';
+  if (!decisionsSkipped && !hasCitation(sectionBody(planContent, 'Decisions'))) {
+    hardBlockDone(
+      'Architecture review gate: the impl-plan Decisions section needs cited evidence (a URL or a [n] source-reference marker) — the trace that real evidence was weighed. Add a citation, or mark the section `skip: <reason>`.',
+    );
+  }
+
+  // Selection half: a satisfying design-review stamp for this ticket's plan at its current content.
+  const logPath = `${projectDir}/.safeword-project/skill-invocations.log`;
+  const stamps = existsSync(logPath) ? parseReviewStamps(readFileSync(logPath, 'utf8')) : [];
+  const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
+  if (!reviewGateForNextAsset(scope, stamps).ok) {
+    hardBlockDone(
+      'Architecture review gate: the impl-plan design has no independent design review at its current content. Spawn a fresh-context reviewer, then run `bun .safeword/hooks/write-review-stamp.ts impl-plan` on pass (or log a skip with a reason).',
+    );
+  }
+
+  // Ceiling-raiser: under cross-model, the real-review stamp must record a different model than
+  // the author. A skip stamp bypasses review entirely, so cross-model is moot for it.
+  if (isCrossModelReviewRequired(rawConfig)) {
+    const reviewStamp = stamps.find(s => s.scope === scope && s.skipReason === undefined);
+    if (reviewStamp && modelsMatch(reviewStamp.model, process.env.SAFEWORD_AUTHOR_MODEL)) {
+      hardBlockDone(
+        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), recording it via `write-review-stamp.ts --model <id> impl-plan`.',
+      );
+    }
+  }
+}
+
 // Not a safeword project, skip silently
 if (!existsSync(safewordDir)) {
   process.exit(0);
@@ -402,6 +470,9 @@ checkCumulativeArtifacts(ticketInfo);
 
 // Check the impl plan (new-flow features at implement+ need a valid impl-plan.md)
 checkImplPlanArtifact(ticketInfo);
+
+// Architecture review gate (MR5M3A) — default-off; cited evidence + independent design review.
+checkArchitectureReviewGate(ticketInfo);
 
 if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop.

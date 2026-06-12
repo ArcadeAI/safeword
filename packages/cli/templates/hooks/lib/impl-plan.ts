@@ -148,3 +148,8 @@ export function parseImplPlan(content: string): ImplPlanResult {
 export function hasCitation(text: string): boolean {
   return /https?:\/\/\S+|\[\d+\]/.test(text);
 }
+
+/** The active (non-comment) body text of a named section, joined by newlines; '' when absent. */
+export function sectionBody(content: string, name: ImplPlanSectionName): string {
+  return (collectSectionBodies(activeLines(content)).get(name) ?? []).join('\n');
+}
