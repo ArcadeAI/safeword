@@ -1,6 +1,6 @@
 # Impl Plan: Independent evidence-backed architecture gate
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
