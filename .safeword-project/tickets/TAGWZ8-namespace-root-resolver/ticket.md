@@ -2,7 +2,7 @@
 id: TAGWZ8
 slug: namespace-root-resolver
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 epic: project-namespace-default
 parent: AQJ95G
@@ -39,3 +39,4 @@ done_when:
 - 2026-06-12T17:40:00.000Z Complete: define-behavior — 14 scenarios across 6 rules, all 6 ACs covered (lineage clean per safeword check). Phase → scenario-gate.
 - 2026-06-12T17:50:00.000Z Complete: scenario-gate — independent review PASS (0 must-fix, 5 should-strengthen, all applied → 17 scenarios). Review stamped. impl-plan.md written (test layers + build order in Approach; hook-side resolver duplicated per P58R22 pattern). Phase → implement.
 - 2026-06-12T18:35:00.000Z Implement: 17/17 scenarios green (resolver, defaults, override interaction, decoy surface). CLI surfaces + all 13 hooks routed through the resolver; differential test pins copies; transient/ignore blocks cover both roots; docs sweep done (SAFEWORD.md defines the convention once; skills/guides/website + straggler templates). Investigating 48 integration-suite failures before reconciliation.
+- 2026-06-12T20:21:00.000Z Complete: implement — impl plan reconciled (status implemented, 3 deviations). /quality-review APPROVE (no new deps, current APIs, no new security surface); /refactor applied 2 hardenings (directory-check, path-boundary anchor), each test-first. Full suite green on fresh build + frozen tree: 2699 passed / 0 failed / 1 skipped (the 25 earlier failures were stale fixture assertions vs the intended .project/ default flip — updated; plus stale node_modules for cucumber). Phase → verify.
