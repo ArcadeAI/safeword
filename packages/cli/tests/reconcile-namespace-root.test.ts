@@ -8,7 +8,7 @@
  * (test-definitions.md in the ticket folder).
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -145,7 +145,6 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
   it('DEV1.AC4.upgrade_on_project_repo_stays_project', async () => {
     await runInstall();
     const glossaryPath = nodePath.join(cwd, '.project', 'glossary.md');
-    const { rmSync } = await import('node:fs');
     rmSync(glossaryPath);
 
     await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd));
@@ -165,6 +164,23 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.project', 'tmp'))).toBe(false);
     expect(existsSync(nodePath.join(ticketDirectory, 'ticket.md'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
+  });
+
+  it('DEV1.AC4.repo_root_configured_namespace_lands_at_cwd', async () => {
+    // paths.projectRoot '.' = namespace at the repo root — reconcile must
+    // agree with the runtime resolver instead of falling back to legacy.
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: '.' } }),
+    );
+
+    await runInstall();
+
+    expect(existsSync(nodePath.join(cwd, 'personas.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, 'tickets', 'completed'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
   });
 
   it('DEV1.AC4.diff_reports_clean_after_fresh_setup', async () => {

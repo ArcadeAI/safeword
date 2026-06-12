@@ -273,13 +273,18 @@ interface ReconcileOptions {
  */
 function withResolvedNamespaceRoot(schema: SafewordSchema, ctx: ProjectContext): SafewordSchema {
   const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
-  const label = nodePath.relative(ctx.cwd, root) || NAMESPACE_ROOT_LEGACY;
+  // Empty relative label means the namespace root IS the repo root
+  // (paths.projectRoot: '.') — translate to bare subpaths, not legacy.
+  const label = nodePath.relative(ctx.cwd, root) || '.';
   if (label === NAMESPACE_ROOT_LEGACY) return schema;
 
-  const translate = (path: string): string =>
-    path === NAMESPACE_ROOT_LEGACY || path.startsWith(`${NAMESPACE_ROOT_LEGACY}/`)
-      ? `${label}${path.slice(NAMESPACE_ROOT_LEGACY.length)}`
-      : path;
+  const translate = (path: string): string => {
+    if (path !== NAMESPACE_ROOT_LEGACY && !path.startsWith(`${NAMESPACE_ROOT_LEGACY}/`)) {
+      return path;
+    }
+    const subpath = path.slice(NAMESPACE_ROOT_LEGACY.length).replace(/^\//, '');
+    return label === '.' ? subpath || '.' : nodePath.join(label, subpath);
+  };
 
   return {
     ...schema,
