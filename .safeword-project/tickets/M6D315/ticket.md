@@ -4,7 +4,7 @@ slug: bdd-phase-two-merge
 title: 'Epic: Absorb arcade Phase 2 — impl plan artifact, ADR consultation, reconciliation, harness graceful degradation'
 type: feature
 phase: intake
-status: in_progress
+status: done
 epic: bdd-phase-two-merge
 paired_with: GNZ22J
 created: 2026-05-24T21:37:59.696Z
@@ -30,7 +30,7 @@ last_modified: 2026-05-24T21:39:00.000Z
 | **XDNSZA** | Impl plan artifact (5 sections + lifecycle + skip discipline, VYRKBJ folded in) | SXNV8N      | Done      | —              |
 | **K4BWTQ** | ADR consultation step + ADR-creation prompt for new patterns                    | SXNV8N      | Done      | XDNSZA         |
 | **ERVA6V** | Plan-vs-actual reconciliation at implement-phase exit                           | SXNV8N      | Done      | XDNSZA, K4BWTQ |
-| **CNGBNT** | Harness degraded-path branch in TDD.md (rescoped to task)                       | SXNV8N      | Open      | —              |
+| **CNGBNT** | Harness degraded-path branch in TDD.md (rescoped to task)                       | SXNV8N      | Done      | —              |
 | **VYRKBJ** | ~~Skip annotations on impl plan sections~~ — folded into XDNSZA                 | —           | Cancelled | —              |
 
 **Paired arcade epic:** [GNZ22J](../../../../../arcade-monorepo/.claude/worktrees/elastic-noether-5c76a3/.safeword-project/tickets/GNZ22J/ticket.md) — arcade-side decommission of `/implement-spec`.
@@ -108,6 +108,7 @@ Revalidated epic + children against current docs and codebase (`/figure-it-out`)
 
 - 2026-05-24T21:37:59.696Z Started: Created ticket M6D315
 - 2026-05-24T21:39:00.000Z Drafted: Epic shell with 5 children, sequencing, 5 open decisions, many-to-one pairing rationale
+- 2026-06-12T00:35:00.000Z Closed: **EPIC DONE.** Child done: **CNGBNT** (harness degraded path, task TDD cycle, /verify 2609/2609 + /audit clean + /quality-review enrichment). All 4 buildable children done (VYRKBJ folded). Epic-level verify.md written as the children rollup; all 7 done-when items reconciled (worked-example item satisfied across SCENARIOS.md/TDD.md — DECOMPOSITION.md retired with FSX1PP). Closed by status per the DZ2NM5 planning-epic precedent. Epic-wide quality review: vocab clean, cross-refs intact, zero new deps. **Downstream unblocked: arcade decommission SXNV8N/GNZ22J** (needs paths.architecture: docs/docs/arch + safeword upgrade in arcade). Next future epic: Phase 3 (/build-signals absorption).
 - 2026-06-12T00:15:00.000Z Child done: **ERVA6V** (plan-vs-actual reconciliation) shipped via full BDD/TDD — status gate at verify+ inside checkImplPlanArtifact (existence extended to verify per gate-review F1), 4-step reconciliation procedure + worked example in TDD.md both copies. 8 scenarios, Tier-2 review BLOCK→fixed→PASS, /verify 2607/2607 + /audit clean. Gate enforced its own closure (dogfood). **Epic progress: 3/4 buildable children done.** Remaining: CNGBNT (task-sized, independent).
 - 2026-06-11T00:50:00.000Z Child done: **K4BWTQ** (ADR consultation) shipped via full BDD/TDD — architecture-records helper (file-or-dir paths.architecture, arcade docs/docs/arch seam-tested), check structural advisory, consultation procedure + first-ADR prompt in SCENARIOS.md both copies. 10 scenarios, Tier-2 review PASS (4 strengthens applied), /quality-review (ENOTDIR fix) + /refactor (2 improvements), /verify 2598/2598 + /audit clean. First end-to-end dogfood of the impl-plan artifact. **Epic progress: 2/4 buildable children done.** Next: ERVA6V (reconciliation), both deps now satisfied.
 - 2026-06-10T23:25:00.000Z Child done: **XDNSZA** (impl plan artifact) shipped via full BDD/TDD — parser lib (hooks/lib/impl-plan.ts), stop-hook gate (checkImplPlanArtifact, spec.md-routed grandfathering), impl-plan-template.md, SCENARIOS.md/TDD.md authoring step in both copies. 20 scenarios, independent gate review applied, /verify 2586/2586 + /audit clean. **Epic progress: 1/4 buildable children done.** Next: K4BWTQ (ADR consultation).
