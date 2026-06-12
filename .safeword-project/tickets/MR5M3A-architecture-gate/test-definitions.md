@@ -20,8 +20,8 @@ And its impl-plan.md Decisions section contains a line carrying a URL or a `[n]`
 When the stop hook evaluates the phase exit
 Then the exit is allowed
 
-- [x] RED 5ad44d2
-- [x] GREEN fcc2252
+- [x] RED a3bdc8e
+- [x] GREEN 67b27fb
 - [x] REFACTOR skip: helper is a single predicate, no structural improvement
 
 ### Scenario: architecture-gate.DEV1.AC1.decisions_without_citation_blocks
