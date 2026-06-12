@@ -512,8 +512,10 @@ if (currentPhase === 'done') {
     for (let depth = 0; depth < MAX_CASCADE; depth++) {
       const next = findNextWork(directory, ticketsDir);
       if (next.type === 'navigate') {
+        const nextInfo = getTicketInfo(projectDir, next.ticketId);
+        const nextLabel = nextInfo.slug ? `${nextInfo.slug} (${next.ticketId})` : next.ticketId;
         softBlock(
-          `Ticket complete! Next up: read ${next.ticketDirectory}/ticket.md and begin work on ${next.ticketId}.`,
+          `Ticket complete! Next up: read ${next.ticketDirectory}/ticket.md and begin work on ${nextLabel}.`,
         );
       } else if (next.type === 'cascade-done') {
         // Mark parent done and continue walking up

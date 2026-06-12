@@ -12,6 +12,7 @@ import process from 'node:process';
 import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
 import { header, info, success } from '../utils/output.js';
 import { normalizeSlug, SlugError } from '../utils/slug.js';
+import { formatTicketReference } from '../utils/ticket-reference.js';
 import { createTicket, TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature']);
@@ -54,7 +55,7 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
       type,
       title: options.title,
     });
-    success(`Created ticket ${result.id}`);
+    success(`Created ticket ${formatTicketReference(result.id, normalizedSlug)}`);
     info(`Folder: ${result.folderPath}`);
     info(`File:   ${result.ticketPath}`);
     // NB: deliberately no index regen here — writing INDEX.md into the tickets

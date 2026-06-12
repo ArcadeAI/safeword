@@ -161,6 +161,27 @@ describe('Schema - Single Source of Truth', () => {
     });
   });
 
+  describe('.gitignore textPatch - transient state', () => {
+    // Every generated transient file must be ignored. If it isn't, it shows as
+    // untracked in `git status --porcelain` — churning the customer's tree and
+    // blocking the auto-upgrade clean-tree gate. Regression guard for the bug
+    // where re-entry.md / failure-counts.json / skill-invocations.log were
+    // ignored in safeword's own repo but missing from the shipped textPatch.
+    it('ignores all generated transient files', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const content = SAFEWORD_SCHEMA.textPatches['.gitignore']?.content ?? '';
+      for (const entry of [
+        '.safeword/.update-cache.json',
+        '.safeword-project/quality-state*.json',
+        '.safeword-project/failure-counts.json',
+        '.safeword-project/skill-invocations.log',
+        '.safeword-project/re-entry.md',
+      ]) {
+        expect(content).toContain(entry);
+      }
+    });
+  });
+
   describe('ownedFiles', () => {
     it('should have entry for every template file (template → schema)', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
@@ -324,6 +345,7 @@ describe('Schema - Single Source of Truth', () => {
         'lint',
         'verify',
         'audit',
+        'explain',
         'cleanup-zombies',
         'self-review',
         'review-spec',

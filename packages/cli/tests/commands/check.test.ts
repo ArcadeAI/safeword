@@ -444,6 +444,42 @@ describe('Test Suite 8: Health Check', () => {
     });
   });
 
+  describe('AKZJXC: structured-relation advisories (depends_on)', () => {
+    function writeRelatedTicket(folder: string, frontmatter: string[]): void {
+      writeTestFile(
+        temporaryDirectory,
+        `.safeword-project/tickets/${folder}/ticket.md`,
+        ['---', ...frontmatter, '---', '', `# ${folder}`, ''].join('\n'),
+      );
+    }
+
+    it('warns on a dangling depends_on and a dependency cycle, zero-exit', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeRelatedTicket('REL001-dangler', ['id: REL001', 'status: open', 'depends_on: [GHOST9]']);
+      writeRelatedTicket('REL002-loop-a', ['id: REL002', 'status: open', 'depends_on: [REL003]']);
+      writeRelatedTicket('REL003-loop-b', ['id: REL003', 'status: open', 'depends_on: [REL002]']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/depends_on GHOST9.*dangling ref/i);
+      expect(combined).toMatch(/dependency cycle among:.*REL002.*REL003/i);
+    });
+
+    it('stays silent for a corpus with valid relations', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeRelatedTicket('REL010-dep', ['id: REL010', 'status: open', 'depends_on: [REL011]']);
+      writeRelatedTicket('REL011-base', ['id: REL011', 'status: open']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/dangling ref|dependency cycle/i);
+    });
+  });
+
   describe('Test 8.7: Scenario-lineage coverage advisory (XT1FFM)', () => {
     const SPEC_TWO_ACS = [
       '# Spec',
@@ -503,6 +539,22 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/COV001:.*demo\.DEV1\.AC2.*uncovered/i);
+    });
+
+    it('renders the coverage advisory slug-first when the folder carries a slug (ZRXM6Q)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      // check derives the advisory label from the ticket folder name (id-slug),
+      // so a slugged folder must lead with the slug: `slug (ID):`, not bare ID.
+      writeTicket('COV003-trace-thing', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/trace-thing \(COV003\):.*demo\.DEV1\.AC2.*uncovered/i);
     });
 
     it('stays silent for a done ticket whose scenarios predate the scheme', async () => {

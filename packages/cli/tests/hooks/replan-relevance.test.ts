@@ -7,8 +7,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  type BlockerTarget,
   decideReplan,
+  detectMovedBlockers,
   extractReferencedPaths,
+  formatBlockerMovedHeadsUp,
   formatReplanHeadsUp,
   parseGitLogNameOnly,
   relevantChangedPaths,
@@ -177,5 +180,83 @@ describe('formatReplanHeadsUp', () => {
 
   it('uses the singular noun for a single commit', () => {
     expect(formatReplanHeadsUp(1)).toContain('1 commit ');
+  });
+});
+
+describe('detectMovedBlockers (E11N48)', () => {
+  const target = (over: Partial<BlockerTarget> = {}): BlockerTarget => ({
+    id: 'AKZJXC',
+    slug: 'ticket-relations',
+    status: 'done',
+    ticketPath: '.safeword-project/tickets/AKZJXC-ticket-relations/ticket.md',
+    ...over,
+  });
+  const commitTouching = (path: string) => ({ changedPaths: [path, 'README.md'] });
+
+  it('fires when a terminal blocker ticket.md is in the window', () => {
+    expect(detectMovedBlockers([target()], [commitTouching(target().ticketPath)])).toEqual([
+      { id: 'AKZJXC', slug: 'ticket-relations', status: 'done' },
+    ]);
+  });
+
+  it('treats superseded / cancelled / wontfix as terminal', () => {
+    for (const status of ['superseded', 'cancelled', 'wontfix']) {
+      expect(
+        detectMovedBlockers([target({ status })], [commitTouching(target().ticketPath)]),
+      ).toHaveLength(1);
+    }
+  });
+
+  it('stays silent when the blocker is not terminal', () => {
+    expect(
+      detectMovedBlockers(
+        [target({ status: 'in_progress' })],
+        [commitTouching(target().ticketPath)],
+      ),
+    ).toEqual([]);
+  });
+
+  it('stays silent when the terminal blocker ticket.md is not in the window', () => {
+    expect(detectMovedBlockers([target()], [commitTouching('packages/cli/src/other.ts')])).toEqual(
+      [],
+    );
+  });
+
+  it('returns only the moved targets from a mix', () => {
+    const moved = target({
+      id: 'AAA111',
+      slug: 'done-dep',
+      ticketPath: '.safeword-project/tickets/AAA111-done-dep/ticket.md',
+    });
+    const notMoved = target({
+      id: 'BBB222',
+      slug: 'active-dep',
+      status: 'open',
+      ticketPath: '.safeword-project/tickets/BBB222-active-dep/ticket.md',
+    });
+    expect(detectMovedBlockers([moved, notMoved], [commitTouching(moved.ticketPath)])).toEqual([
+      { id: 'AAA111', slug: 'done-dep', status: 'done' },
+    ]);
+  });
+});
+
+describe('formatBlockerMovedHeadsUp (E11N48)', () => {
+  it('names a single blocker slug-first with the check-the-plan opt-in', () => {
+    const line = formatBlockerMovedHeadsUp([
+      { id: 'AKZJXC', slug: 'ticket-relations', status: 'done' },
+    ]);
+    expect(line).toContain('ticket-relations (AKZJXC)');
+    expect(line.toLowerCase()).toContain('check the plan');
+    expect(line).toContain('A blocker');
+  });
+
+  it('uses plural phrasing for multiple blockers', () => {
+    const line = formatBlockerMovedHeadsUp([
+      { id: 'AKZJXC', slug: 'ticket-relations', status: 'done' },
+      { id: 'AAA111', slug: 'done-dep', status: 'superseded' },
+    ]);
+    expect(line).toContain('Blockers');
+    expect(line).toContain('ticket-relations (AKZJXC)');
+    expect(line).toContain('done-dep (AAA111)');
   });
 });

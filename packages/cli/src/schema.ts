@@ -103,6 +103,22 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
 // SAFEWORD_SCHEMA - The Single Source of Truth
 // ============================================================================
 
+/**
+ * Runtime/transient state files safeword's hooks write to the working tree
+ * every turn (update-cache, quality-state, failure-counts, skill-invocations,
+ * re-entry). They must be gitignored — and untracked on upgrade if a customer
+ * committed them before the ignore rule existed — because the hooks read/write
+ * these paths directly, so git tracking is never consulted. Single source for
+ * the managed `.gitignore` block (below) and the upgrade-time untrack.
+ */
+export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+  '.safeword/.update-cache.json',
+  '.safeword-project/quality-state*.json',
+  '.safeword-project/failure-counts.json',
+  '.safeword-project/skill-invocations.log',
+  '.safeword-project/re-entry.md',
+];
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -496,6 +512,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
+    '.claude/skills/explain/SKILL.md': { template: 'skills/explain/SKILL.md' },
     '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },
     '.claude/skills/review-spec/SKILL.md': {
       template: 'skills/review-spec/SKILL.md',
@@ -737,9 +754,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.gitignore': {
       operation: 'append',
-      content:
-        '\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword-project/quality-state*.json\n',
-      marker: '.safeword/.update-cache.json',
+      content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
+      // Marker is a NEW line (re-entry.md) so customers who already have the
+      // older 2-line block re-apply on upgrade and pick up the three additions
+      // (re-entry.md / failure-counts.json / skill-invocations.log). Without
+      // these, those generated files show as untracked in `git status
+      // --porcelain` — churning the tree and blocking the auto-upgrade gate.
+      marker: '.safeword-project/re-entry.md',
     },
     // Prettier ignores: safeword owns .safeword/ and .cursor/ (see ownedDirs).
     // Without this, `prettier --write .` would reformat hooks and Cursor rules;

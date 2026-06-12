@@ -22,6 +22,7 @@ export interface TicketDetails {
   status: string | undefined;
   type: string | undefined;
   folder: string | undefined;
+  slug?: string;
 }
 
 const EMPTY_DETAILS: TicketDetails = {
@@ -29,6 +30,7 @@ const EMPTY_DETAILS: TicketDetails = {
   status: undefined,
   type: undefined,
   folder: undefined,
+  slug: undefined,
 };
 
 /**
@@ -63,11 +65,15 @@ export function getTicketInfo(projectDirectory: string, ticketId: string): Ticke
     const [match] = matches;
     if (match === undefined) return EMPTY_DETAILS;
     const content = readFileSync(nodePath.join(ticketsDirectory, match, 'ticket.md'), 'utf8');
+    const slug =
+      content.match(/^slug:\s*(\S+)/m)?.[1] ??
+      (match.startsWith(`${ticketId}-`) ? match.slice(ticketId.length + 1) : undefined);
     return {
       phase: content.match(/^phase:\s*(\S+)/m)?.[1],
       status: content.match(/^status:\s*(\S+)/m)?.[1],
       type: content.match(/^type:\s*(\S+)/m)?.[1],
       folder: match,
+      slug,
     };
   } catch {
     return EMPTY_DETAILS;

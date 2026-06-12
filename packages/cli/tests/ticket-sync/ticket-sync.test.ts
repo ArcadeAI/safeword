@@ -54,6 +54,38 @@ describe('ticket-sync', () => {
     return readTickets(ticketsDirectory)[scope].find(entry => entry.id === id);
   }
 
+  // ── AKZJXC: structured depends_on relations ──
+
+  describe('depends_on relations (AKZJXC)', () => {
+    it('parses depends_on into the entry', () => {
+      writeTicket(
+        'AAA111-dependent',
+        { id: 'AAA111', status: 'open', depends_on: '[BBB222]' },
+        '# Dependent\n',
+      );
+      expect(entryFor('AAA111')?.dependsOn).toEqual(['BBB222']);
+    });
+
+    it('renders blocked_by slug-first and derives blocks on the target', () => {
+      writeTicket(
+        'AAA111-dependent',
+        { id: 'AAA111', status: 'open', depends_on: '[BBB222]' },
+        '# Dependent\n',
+      );
+      writeTicket('BBB222-blocker', { id: 'BBB222', status: 'open' }, '# Blocker\n');
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('blocked by: Blocker (BBB222)');
+      expect(content).toContain('blocks: Dependent (AAA111)');
+    });
+
+    it('falls back to the bare id for a target outside the index', () => {
+      writeTicket('CCC333-x', { id: 'CCC333', status: 'open', depends_on: '[ZZZ999]' }, '# X\n');
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('blocked by: ZZZ999');
+      expect(content).not.toContain('ZZZ999 (ZZZ999)');
+    });
+  });
+
   // ── AC1: entries carry id, title, status, epic, goal, path ──
 
   describe('AC1 — entry fields and parsing', () => {
@@ -64,7 +96,7 @@ describe('ticket-sync', () => {
         '# Do the thing\n\n**Goal:** Make X searchable.\n',
       );
       const content = buildIndexContent(activeEntries(), { variant: 'active' });
-      expect(content).toContain('**ABC123**');
+      expect(content).toContain('Do the thing (ABC123)');
       expect(content).toContain('Do the thing');
       expect(content).toContain('in_progress');
       expect(content).toContain('big-epic');
@@ -116,8 +148,8 @@ describe('ticket-sync', () => {
       const headingCount = (content.match(/workflow-gate-hygiene/g) ?? []).filter(Boolean);
       // One epic heading; the two entries reference the epic inline too, so assert the heading exists once.
       expect(content).toMatch(/^#+ .*workflow-gate-hygiene/m);
-      expect(content).toContain('**ONE**');
-      expect(content).toContain('**TWO**');
+      expect(content).toContain('one (ONE)');
+      expect(content).toContain('two (TWO)');
       expect(headingCount.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -172,8 +204,8 @@ describe('ticket-sync', () => {
       const result = syncTickets(temporaryDirectory);
       expect(result.wrote).toBe(true);
       const content = readFileSync(result.indexPath, 'utf8');
-      expect(content).toContain('**KEEP**');
-      expect(content).not.toContain('**GONE**');
+      expect(content).toContain('Keep (KEEP)');
+      expect(content).not.toContain('(GONE)');
     });
 
     it('index_is_stamped_do_not_edit_and_excluded_from_its_own_scan', () => {
@@ -199,15 +231,15 @@ describe('ticket-sync', () => {
       const result = syncTickets(temporaryDirectory);
       expect(result.active.map(entry => entry.id)).toEqual(['ACT']);
       expect(result.completed.map(entry => entry.id)).toEqual(['DONE1']);
-      expect(readFileSync(result.indexPath, 'utf8')).toContain('**ACT**');
-      expect(readFileSync(result.indexPath, 'utf8')).not.toContain('**DONE1**');
-      expect(readFileSync(result.completedIndexPath, 'utf8')).toContain('**DONE1**');
+      expect(readFileSync(result.indexPath, 'utf8')).toContain('Active (ACT)');
+      expect(readFileSync(result.indexPath, 'utf8')).not.toContain('(DONE1)');
+      expect(readFileSync(result.completedIndexPath, 'utf8')).toContain('Done one (DONE1)');
     });
 
     it('completed_only_corpus_writes_archive_and_empty_active', () => {
       writeTicket('done1', { id: 'DONE1', status: 'done' }, '# Done one\n', { completed: true });
       const result = syncTickets(temporaryDirectory);
-      expect(readFileSync(result.completedIndexPath, 'utf8')).toContain('**DONE1**');
+      expect(readFileSync(result.completedIndexPath, 'utf8')).toContain('Done one (DONE1)');
       const activeContent = readFileSync(result.indexPath, 'utf8');
       expect(activeContent).toMatch(/no active tickets/i);
     });
