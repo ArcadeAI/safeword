@@ -91,7 +91,7 @@ export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]):
 // is the cheap, gameable floor; the ungameable check is Tier 2 (independent
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
-const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
+const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
  * Rollout guard: the review gate is OFF unless `.safeword/config.json` sets
@@ -174,8 +174,10 @@ export function detectPhaseAdvance(oldContent: string, newContent: string): stri
  * prefixes `<timestamp> <session> ` and appends the result, so the gate reads
  * back exactly this `scope`. A non-empty `skipReason` records a logged skip.
  */
-export function formatReviewStamp(scope: string, skipReason?: string, _model?: string): string {
-  return skipReason === undefined ? `review:${scope}` : `review:${scope} skip:${skipReason}`;
+export function formatReviewStamp(scope: string, skipReason?: string, model?: string): string {
+  const modelSegment = model === undefined ? '' : ` model:${model}`;
+  const skipSegment = skipReason === undefined ? '' : ` skip:${skipReason}`;
+  return `review:${scope}${modelSegment}${skipSegment}`;
 }
 
 /** Read review stamps from skill-invocation-log content (non-review lines ignored). */
@@ -184,8 +186,12 @@ export function parseReviewStamps(logContent: string): ReviewStamp[] {
   for (const line of logContent.split('\n')) {
     const match = REVIEW_LINE.exec(line);
     if (match?.[1] === undefined) continue;
-    const skipReason = match[2];
-    stamps.push(skipReason === undefined ? { scope: match[1] } : { scope: match[1], skipReason });
+    const model = match[2];
+    const skipReason = match[3];
+    const stamp: ReviewStamp = { scope: match[1] };
+    if (model !== undefined) stamp.model = model;
+    if (skipReason !== undefined) stamp.skipReason = skipReason;
+    stamps.push(stamp);
   }
   return stamps;
 }
