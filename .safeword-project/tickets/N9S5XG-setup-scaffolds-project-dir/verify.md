@@ -4,7 +4,7 @@ Date: 2026-06-12 · Branch: feat/AQJ95G-project-namespace-default · Fresh build
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 2710/2710 tests pass (1 skipped, 177 files; full suite, fresh dist)
+**Test Suite:** ✓ 2711/2711 tests pass (1 skipped; re-verified after post-done quality-review/refactor pass — repo-root config edge fix + hoisted test import, 12th scenario added)
 **Build:** ✅ Success
 **Lint:** ✅ Clean (eslint + tsc --noEmit, exit 0)
 **Scenarios:** All 11 scenarios marked complete (33/33 R/G/R boxes)
