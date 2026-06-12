@@ -1,6 +1,6 @@
 # Impl Plan: Fresh safeword setup scaffolds .project/
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -28,7 +28,10 @@ Consulted `ARCHITECTURE.md` (repo root):
 
 ## Known deviations
 
-`skip: no deviations planned` — extends TAGWZ8's resolver pattern through the existing reconcile seams.
+Recorded at reconciliation (implement-phase exit):
+
+- **`namespaceRoot` is optional on `ProjectContext`** — the plan implied a required field; older test callers construct contexts by hand, so reconcile falls back to resolving from `cwd` when absent. Same behavior, looser contract.
+- Otherwise as planned — `withResolvedNamespaceRoot` is the single translation seam at reconcile entry; identity translation on legacy repos.
 
 ## Assessment triggers
 
