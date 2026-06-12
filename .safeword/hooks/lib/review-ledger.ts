@@ -19,6 +19,8 @@ export interface ReviewStamp {
   scope: string;
   /** Present → a skip (must be non-empty to satisfy the gate); absent → a real review. */
   skipReason?: string;
+  /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
+  model?: string;
 }
 
 /** Short content hash binding a stamp to the reviewed artifact's exact state. */
@@ -89,7 +91,7 @@ export function gatePhaseAdvance(phase: string, stamps: readonly ReviewStamp[]):
 // is the cheap, gameable floor; the ungameable check is Tier 2 (independent
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
-const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
+const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
  * Rollout guard: the review gate is OFF unless `.safeword/config.json` sets
@@ -98,20 +100,67 @@ const REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+skip:(.+))?$/;
  * the stamp-earning step is in place. Fail-safe to off on missing/malformed config.
  */
 export function isReviewGateEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'reviewGate');
+}
+
+const PHASE_FIELD = /^phase:\s*(\S+)/m;
+
+/**
+ * Rollout guard for the architecture review gate (ticket MR5M3A): OFF unless
+ * `.safeword/config.json` sets `architectureReviewGate: true`. Same default-off,
+ * fail-safe-to-off-on-malformed posture as {@link isReviewGateEnabled}.
+ */
+export function isArchitectureReviewGateEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'architectureReviewGate');
+}
+
+/**
+ * Whether the architecture review must be performed by a different model than
+ * the author (ticket MR5M3A): true only when `.safeword/config.json` sets
+ * `crossModelReview: true`. Default-off — same-model fork is the floor.
+ */
+export function isCrossModelReviewRequired(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'crossModelReview');
+}
+
+/**
+ * Env var carrying the author/main-session model id, captured at SessionStart
+ * (`session-author-model.ts`) and read by the cross-model gate in stop-quality.ts
+ * (ticket MR5M3A). Shared so the writer and reader cannot drift.
+ */
+export const AUTHOR_MODEL_ENV = 'SAFEWORD_AUTHOR_MODEL';
+
+/**
+ * Whether a reviewer-model tag denotes the SAME model as the author-model tag
+ * (ticket MR5M3A) — the cross-model gate blocks when this is true. Comparison
+ * is trimmed and case-insensitive. An absent or empty tag on either side is
+ * indeterminate: it cannot establish independence, so it counts as a match and
+ * the gate fails closed (blocks) rather than waving the review through.
+ */
+export function modelsMatch(reviewerTag?: string, authorTag?: string): boolean {
+  const reviewer = reviewerTag?.trim().toLowerCase() ?? '';
+  const author = authorTag?.trim().toLowerCase() ?? '';
+  if (reviewer === '' || author === '') return true;
+  return reviewer === author;
+}
+
+/**
+ * Whether a top-level config key is strictly `true`. Shared default-off,
+ * fail-safe-on-malformed reader for the boolean rollout flags.
+ */
+function configFlagIsTrue(rawConfig: string | undefined, key: string): boolean {
   if (rawConfig === undefined) return false;
   try {
     const config: unknown = JSON.parse(rawConfig);
     return (
       typeof config === 'object' &&
       config !== null &&
-      (config as Record<string, unknown>).reviewGate === true
+      (config as Record<string, unknown>)[key] === true
     );
   } catch {
     return false;
   }
 }
-
-const PHASE_FIELD = /^phase:\s*(\S+)/m;
 
 /**
  * The phase being EXITED by a ticket.md edit (Tier 2): the old phase, when the
@@ -132,8 +181,10 @@ export function detectPhaseAdvance(oldContent: string, newContent: string): stri
  * prefixes `<timestamp> <session> ` and appends the result, so the gate reads
  * back exactly this `scope`. A non-empty `skipReason` records a logged skip.
  */
-export function formatReviewStamp(scope: string, skipReason?: string): string {
-  return skipReason === undefined ? `review:${scope}` : `review:${scope} skip:${skipReason}`;
+export function formatReviewStamp(scope: string, skipReason?: string, model?: string): string {
+  const modelSegment = model === undefined ? '' : ` model:${model}`;
+  const skipSegment = skipReason === undefined ? '' : ` skip:${skipReason}`;
+  return `review:${scope}${modelSegment}${skipSegment}`;
 }
 
 /** Read review stamps from skill-invocation-log content (non-review lines ignored). */
@@ -142,8 +193,12 @@ export function parseReviewStamps(logContent: string): ReviewStamp[] {
   for (const line of logContent.split('\n')) {
     const match = REVIEW_LINE.exec(line);
     if (match?.[1] === undefined) continue;
-    const skipReason = match[2];
-    stamps.push(skipReason === undefined ? { scope: match[1] } : { scope: match[1], skipReason });
+    const model = match[2];
+    const skipReason = match[3];
+    const stamp: ReviewStamp = { scope: match[1] };
+    if (model !== undefined) stamp.model = model;
+    if (skipReason !== undefined) stamp.skipReason = skipReason;
+    stamps.push(stamp);
   }
   return stamps;
 }

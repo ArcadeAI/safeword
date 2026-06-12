@@ -401,9 +401,11 @@
   → `.safeword-project/tickets/completed/154-strip-dead-version-from-config`
 - **Vendored-ignores export + install-time guidance + hygiene pass (156)** (done, epic: —)
   Give downstream safeword users a one-line escape hatch from "my strict ESLint config flags 84 errors inside `.safeword/**`," and harden the three actual code smells in vendored hooks while we're in there.
+  blocks: Install-time auto-patch of consumer's ESLint config (157)
   → `.safeword-project/tickets/completed/156-vendored-ignores-export`
 - **Install-time auto-patch of consumer's ESLint config (157)** (done, epic: —)
   Make the 156 print-nudge moot for the common case. Most users won't read printed instructions and many don't know what ESLint is — so safeword should just add the line itself, with a backup, and tell the user it did. Print-nudge becomes the fallback for legacy configs and unrecognized patterns rather than the primary experience.
+  blocked by: Vendored-ignores export + install-time guidance + hygiene pass (156)
   → `.safeword-project/tickets/completed/157-install-time-auto-patch`
 - **Crockford Base32 ticket IDs, folder-name-equals-ID (158)** (done, epic: —)
   Eliminate ticket-ID collisions between parallel sessions AND across git branches by minting uncoordinated 6-char Crockford Base32 IDs and making the folder name the ID alone, so any ID collision becomes a real git merge conflict instead of silent corruption.
@@ -437,9 +439,11 @@
   → `.safeword-project/tickets/completed/E79QAC`
 - **TDD ledger: SHA-or-skip on RED/GREEN/REFACTOR checkboxes (incl. cross-scenario refactor) (J7VBGJ)** (done, epic: —)
   Close the silent-skip gap in safeword's TDD enforcement by anchoring every per-scenario TDD step (and the feature-level cross-scenario refactor pass) to either a real git commit SHA or a deliberate `skip: <reason>` line. Done gate verifies the anchors.
+  blocks: Skip-with-reason for the dimensions.md gate (MKVNFB)
   → `.safeword-project/tickets/completed/J7VBGJ`
 - **Skip-with-reason for the dimensions.md gate (MKVNFB)** (done, epic: —)
   Give the dimensions phase a deliberate escape valve — `skip: <reason>` as the entire file content — instead of forcing agents to produce a real dimensions.md when they have one obvious behavioral dimension and no real partitioning to do.
+  blocked by: TDD ledger: SHA-or-skip on RED/GREEN/REFACTOR checkboxes (incl. cross-scenario refactor) (J7VBGJ)
   → `.safeword-project/tickets/completed/MKVNFB`
 - **Warn when learning files contain verification stamps (XV72DT)** (done, epic: —)
   Prevent agents from fabricating "✅ Verified" claims that land in `.safeword-project/learnings/` and poison future-session context.
