@@ -3,8 +3,8 @@ id: CNGBNT
 slug: harness-availability-check
 title: 'Test-harness availability check with graceful degradation to existing service test patterns'
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: bdd-phase-two-merge
 paired_with: SXNV8N
 created: 2026-05-24T21:37:59.876Z
@@ -82,4 +82,5 @@ Both open questions dissolve with the config fields. Sized as a **task** (TDD.md
 
 - 2026-05-24T21:37:59.876Z Started: Created ticket CNGBNT
 - 2026-05-24T21:39:00.000Z Drafted: Scope (probe, two branches, hook integration); linked to epic M6D315
+- 2026-06-12T00:30:00.000Z Closed: task TDD cycle (RED d3323bcd → GREEN 9f6d552f), /quality-review enrichment (characterization tests, f503157f), /verify green (2609/2609) + /audit clean, verify.md written. Last buildable M6D315 child — epic ready to reconcile.
 - 2026-06-10T22:20:00.000Z Replan: rescoped feature → task. 102b universal lane scaffolding makes harness absence the edge case; config fields dropped; docs-level degradation branch kept.
