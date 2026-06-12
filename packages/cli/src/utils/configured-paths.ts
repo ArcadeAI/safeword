@@ -16,6 +16,7 @@
  * logical-filesystem abstraction.
  */
 
+import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readFileSafe } from './fs.js';
@@ -24,10 +25,16 @@ import { readFileSafe } from './fs.js';
 export type ConfiguredPathKey = 'personas' | 'glossary' | 'architecture';
 
 interface SafewordConfigShape {
-  paths?: Partial<Record<ConfiguredPathKey, unknown>>;
+  paths?: Partial<Record<ConfiguredPathKey | 'projectRoot', unknown>>;
 }
 
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
+
+/** Default namespace root for fresh contexts (epic AQJ95G). */
+export const NAMESPACE_ROOT_DEFAULT = '.project';
+
+/** Legacy namespace root, honored where it already exists (pre-AQJ95G installs). */
+export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
 /**
  * Read the override path for `key` from `.safeword/config.json`, if any.
@@ -38,7 +45,10 @@ const CONFIG_SUBPATH = ['.safeword', 'config.json'];
  * resolving the path (e.g., reconcile's `configKey` gate, `safeword check`
  * advisory messaging).
  */
-export function readConfiguredPath(cwd: string, key: ConfiguredPathKey): string | undefined {
+export function readConfiguredPath(
+  cwd: string,
+  key: ConfiguredPathKey | 'projectRoot',
+): string | undefined {
   const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
   const content = readFileSafe(configPath);
   if (content === undefined) return undefined;
@@ -53,6 +63,30 @@ export function readConfiguredPath(cwd: string, key: ConfiguredPathKey): string 
   const raw = parsed.paths?.[key];
   if (typeof raw !== 'string' || raw.length === 0) return undefined;
   return raw;
+}
+
+/**
+ * Resolve the absolute namespace root — the directory holding safeword's
+ * project knowledge (tickets, learnings, personas, glossary, architecture).
+ *
+ * Precedence (epic AQJ95G): explicit config `paths.projectRoot` →
+ * `.project/` (the default, shared with arcade) → legacy `.safeword-project/`
+ * where one already exists. A project with neither directory resolves to
+ * `.project/` so fresh contexts land on the current convention.
+ */
+export function resolveNamespaceRoot(cwd: string): string {
+  const configured = readConfiguredPath(cwd, 'projectRoot');
+  if (configured !== undefined) {
+    return nodePath.isAbsolute(configured) ? configured : nodePath.join(cwd, configured);
+  }
+
+  const defaultRoot = nodePath.join(cwd, NAMESPACE_ROOT_DEFAULT);
+  if (existsSync(defaultRoot)) return defaultRoot;
+
+  const legacyRoot = nodePath.join(cwd, NAMESPACE_ROOT_LEGACY);
+  if (existsSync(legacyRoot)) return legacyRoot;
+
+  return defaultRoot;
 }
 
 /**
