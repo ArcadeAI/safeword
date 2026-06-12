@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { hasVerificationStamp } from './lib/learning-verification-stamps.ts';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 interface HookInput {
   tool_input?: {
@@ -27,7 +28,7 @@ const file = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
 if (!file) process.exit(0);
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const learningsDirectory = nodePath.join(projectDir, '.safeword-project', 'learnings');
+const learningsDirectory = nodePath.join(resolveNamespaceRoot(projectDir), 'learnings');
 
 // Only fire for files inside the learnings directory.
 const resolvedFile = nodePath.resolve(file);

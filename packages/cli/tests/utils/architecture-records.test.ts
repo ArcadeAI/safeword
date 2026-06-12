@@ -86,11 +86,7 @@ describe('listArchitectureRecords (Rule 1)', () => {
     mkdirSync(nodePath.join(directory, 'docs', 'docs', 'arch'), { recursive: true });
     writeFileSync(nodePath.join(directory, 'docs', 'docs', 'arch', '0001-foo.md'), '# ADR\n');
 
-    const resolved = resolveConfiguredPath(
-      directory,
-      'architecture',
-      '.safeword-project/architecture.md',
-    );
+    const resolved = resolveConfiguredPath(directory, 'architecture');
     const result = listArchitectureRecords(resolved);
 
     expect(result.kind).toBe('directory');

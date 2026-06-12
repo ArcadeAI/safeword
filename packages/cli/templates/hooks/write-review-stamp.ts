@@ -26,10 +26,11 @@ import process from 'node:process';
 
 import { getInProgressTicketFolders } from './lib/active-ticket.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const sessionId = process.env.CLAUDE_SESSION_ID ?? 'unknown-session';
-const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
 
 function fail(message: string): never {
   process.stdout.write(`[skill-invocation-log] FAILED — ${message}\n`);
@@ -102,7 +103,7 @@ function resolveScope(ticketFolder: string): { scope: string; label: string } {
 
 const { scope, label } = resolveScope(resolveTicketFolder());
 
-const logDirectory = nodePath.join(projectDirectory, '.safeword-project');
+const logDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const logFile = nodePath.join(logDirectory, 'skill-invocations.log');
 mkdirSync(logDirectory, { recursive: true });
 appendFileSync(

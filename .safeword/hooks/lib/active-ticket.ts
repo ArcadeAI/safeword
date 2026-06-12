@@ -8,6 +8,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
+import { resolveNamespaceRoot } from './namespace-root.js';
 
 export interface ActiveTicketInfo {
   phase: string | undefined;
@@ -50,7 +51,7 @@ const EMPTY_DETAILS: TicketDetails = {
  * mechanism; lookup just refuses to guess.
  */
 export function getTicketInfo(projectDirectory: string, ticketId: string): TicketDetails {
-  const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
   if (!existsSync(ticketsDirectory)) return EMPTY_DETAILS;
 
   try {
@@ -150,10 +151,7 @@ export function parseTddStep(content: string): string | null {
  * Returns null if file doesn't exist or no active scenario found.
  */
 export function deriveTddStep(projectDirectory: string, ticketFolder: string): string | null {
-  const testDefinitionsPath = nodePath.join(
-    projectDirectory,
-    '.safeword-project',
-    'tickets',
+  const testDefinitionsPath = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets',
     ticketFolder,
     'test-definitions.md',
   );
@@ -220,7 +218,7 @@ export function resolveStopPhase(
  * guessing a ticket that may differ from the one the gate is checking.
  */
 export function getInProgressTicketFolders(projectDirectory: string): string[] {
-  const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
   if (!existsSync(ticketsDirectory)) return [];
 
   try {
@@ -240,7 +238,7 @@ export function getInProgressTicketFolders(projectDirectory: string): string[] {
 }
 
 export function getActiveTicket(projectDirectory: string): ActiveTicketInfo {
-  const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
   if (!existsSync(ticketsDirectory)) return EMPTY;
 
   try {

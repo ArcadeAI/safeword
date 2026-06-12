@@ -27,6 +27,7 @@ import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, getRequiredSkillsForPhase } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 interface HookInput {
   session_id?: string;
@@ -59,7 +60,7 @@ const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
-const ticketsDir = `${projectDir}/.safeword-project/tickets`;
+const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
 
 interface TicketInfo {
   phase: BddPhase | undefined;

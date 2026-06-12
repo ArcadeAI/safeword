@@ -30,6 +30,7 @@ import {
   type QualityState,
   recordFailure,
 } from './lib/quality-state.ts';
+import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
@@ -80,7 +81,7 @@ function readPersonasForGate(ticketDirectory: string): string {
 }
 
 function resolvePersonasPath(projectRoot: string): string {
-  const defaultPath = nodePath.join(projectRoot, '.safeword-project', 'personas.md');
+  const defaultPath = nodePath.join(resolveNamespaceRoot(projectRoot), 'personas.md');
   const configFile = nodePath.join(projectRoot, '.safeword', 'config.json');
   if (!existsSync(configFile)) return defaultPath;
   const configured = readConfiguredPersonasPath(readFileSync(configFile, 'utf8'));
@@ -135,7 +136,7 @@ function isReviewGateOn(): boolean {
 // The review stamps both gates read from the shared skill-invocation-log
 // (write-review-stamp.ts appends to the same file).
 function readReviewStamps(): ReviewStamp[] {
-  const logFile = nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log');
+  const logFile = nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log');
   return existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
 }
 
@@ -161,10 +162,7 @@ function enforceRefactorCommitGate(sessionId?: string): void {
   const ticket = getTicketInfo(projectDirectory, state.activeTicket);
   if (ticket.phase !== 'implement' || !ticket.folder) return;
 
-  const testDefinitionsPath = nodePath.join(
-    projectDirectory,
-    '.safeword-project',
-    'tickets',
+  const testDefinitionsPath = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets',
     ticket.folder,
     'test-definitions.md',
   );
@@ -236,7 +234,7 @@ if (!EDIT_TOOLS.includes(tool)) {
 
 if (
   editedFile.endsWith('test-definitions.md') &&
-  editedFile.includes('.safeword-project/tickets/') &&
+  isNamespacePath(editedFile, 'tickets/') &&
   !existsSync(editedFile) // Only gate creation, not edits to existing files
 ) {
   const ticketDirectory = nodePath.dirname(editedFile);
@@ -387,7 +385,7 @@ function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: 
 // independent phase-exit review stamp exists for it. The stamp is produced by a
 // fresh (context:fork) reviewer and logged via `write-review-stamp.ts --phase`,
 // so the author can't grade their own phase. Inert until reviewGate is enabled.
-if (editedFile.endsWith('ticket.md') && editedFile.includes('.safeword-project/tickets/')) {
+if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
   if (isReviewGateOn()) {
     const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
     const exitedPhase = detectPhaseAdvance(
@@ -417,7 +415,7 @@ if (editedFile.endsWith('ticket.md') && editedFile.includes('.safeword-project/t
 
 if (
   editedFile.endsWith('test-definitions.md') &&
-  editedFile.includes('.safeword-project/tickets/')
+  isNamespacePath(editedFile, 'tickets/')
 ) {
   const transitions = collectNewTransitions(input, editedFile);
   for (const transition of transitions) {
@@ -470,10 +468,7 @@ if (state.activeTicket) {
   const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
 
   if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
-    const testDefinitionsPath = nodePath.join(
-      projectDirectory,
-      '.safeword-project',
-      'tickets',
+    const testDefinitionsPath = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets',
       ticketInfo.folder,
       'test-definitions.md',
     );
