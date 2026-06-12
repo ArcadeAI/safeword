@@ -2,7 +2,7 @@
 
 ## Intent
 
-PR #204 (epic M6D315) ships the per-feature `impl-plan.md` artifact, its existence gate, ADR consultation, and plan-vs-actual reconciliation. What it deliberately leaves out — confirmed in its `stop-quality.ts` and `check.ts` — is any **independent challenge** of the design: every gate is an existence/validity/status check on an artifact the *same agent* authored and self-graded, and the lone architecture check in `safeword check` is non-blocking and purely structural. The Decisions section captures the agent's own reasoning about its own alternatives, with no requirement to cite live evidence.
+PR #204 (epic M6D315) ships the per-feature `impl-plan.md` artifact, its existence gate, ADR consultation, and plan-vs-actual reconciliation. What it deliberately leaves out — confirmed in its `stop-quality.ts` and `check.ts` — is any **independent challenge** of the design: every gate is an existence/validity/status check on an artifact the _same agent_ authored and self-graded, and the lone architecture check in `safeword check` is non-blocking and purely structural. The Decisions section captures the agent's own reasoning about its own alternatives, with no requirement to cite live evidence.
 
 That is precisely the correlated-single-agent-error gap the M6D315 ADR itself names. The research is unambiguous that the only thing that closes it is the pattern "propose with high entropy, then select with low entropy using fresh context" — i.e. evidence-backed generation **plus** independent review. This feature adds both halves on top of #204's artifact: it makes the impl-plan's design (a) generated from cited evidence and (b) challenged by a fresh-context reviewer before implementation completes.
 
@@ -15,13 +15,13 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — runs an AI agent on a real project and installs safeword to keep that agent design-validated. #204 gives them a recorded design; this gives them an *independently challenged* one.
+- **Agent-Driven Developer (DEV)** — runs an AI agent on a real project and installs safeword to keep that agent design-validated. #204 gives them a recorded design; this gives them an _independently challenged_ one.
 
 ## Vocabulary
 
 - **Generation half** — the design is produced via `/figure-it-out` and recorded in the impl-plan's Decisions section **with citations**; the citations are the enforceable trace that real evidence-weighing happened.
 - **Selection half / fork review** — an adversarial review run by a fresh-context reviewer that sees only the impl-plan and ticket scope, tries to refute the design against its cited sources, and whose pass is required to proceed.
-- **Cross-model review** — an opt-in posture where the design review must be performed by a *different* model than the author's, to break the correlated-error ceiling that a same-model fork shares. Default off (same-model fork is the floor); the stamp records the reviewing model so the gate can enforce difference when configured.
+- **Cross-model review** — an opt-in posture where the design review must be performed by a _different_ model than the author's, to break the correlated-error ceiling that a same-model fork shares. Default off (same-model fork is the floor). The reviewer must be an explicit different-model subagent (NOT a `context: fork`, which inherits the parent's model); the reviewing model is recorded on the stamp by the orchestrator that assigned it — not self-reported by the reviewer, since Claude Code withholds model identity from subagents.
 
 ## Jobs To Be Done
 
@@ -57,4 +57,4 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 - Gate placement: enforce at the implement→verify exit (design reviewed before the work is called done) vs. a separate phase-exit. Leaning implement→verify, alongside #204's reconciliation gate which already fires there.
 - Evidence check shape: how strict is "cited"? Minimum one URL/source reference in the Decisions section vs. a richer check. Lean minimal-and-structural (mirror #204's non-prose-extraction ruling YR6C49) to avoid brittle parsing.
 - Confirm #204 merged as-is before starting — if its impl-plan section names or parser shape changed in review, re-confirm the anchors this builds on. (Resolved: merged as `5278bca`, the five IMPL_PLAN_SECTIONS are unchanged.)
-- Cross-model identity source: where does the gate learn the author's model and the reviewer's model? Lean on the reviewer self-reporting via `write-review-stamp.ts --model <id>` (env-derived), with the author model read from session env or config. Both are honor-system tags, not attestations — settle the exact source in impl-plan.
+- Cross-model identity source (resolved via /figure-it-out against Claude Code docs): the orchestrator records both tags — the reviewer model from what it assigned to the `Agent` tool, the author model from the main session's harness-provided identity. NOT subagent self-report (Claude Code withholds model identity from subagents). Remaining sub-question: author-model source is the session's `model_information` vs an env var — settle when wiring the gate.

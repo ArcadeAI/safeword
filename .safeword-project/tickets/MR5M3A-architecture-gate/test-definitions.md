@@ -6,7 +6,7 @@ Scenarios prove the ACs in `spec.md`. The gate extends `stop-quality.ts`'s impl-
 
 - **Citation shape** — minimal/structural: a "cited source" is a line carrying a URL (`https://…`) or a `[n]`-style source-reference marker. Non-empty prose alone is not a citation.
 - **Layering precedence** — the new evidence/stamp checks run only on a present, well-formed impl-plan. #204's existence block and `parseImplPlan` errors fire first; the new reasons surface only after the plan parses.
-- **Cross-model comparison** — the gate compares two recorded tag strings (reviewer-model on the stamp, author-model from session/config), trimmed and case-insensitive. Both are self-reported (honor-system, per spec). Author-model absent under cross-model-required fails closed (blocks).
+- **Cross-model comparison** — the gate compares two recorded tag strings (reviewer-model on the stamp, author-model from the main session's harness identity), trimmed and case-insensitive. Both are **orchestrator-recorded**, not subagent self-report (Claude Code withholds model identity from subagents). Author-model absent under cross-model-required fails closed (blocks).
 
 ## Rule: Enabled — a new-flow feature cannot leave implement without cited evidence in Decisions
 
