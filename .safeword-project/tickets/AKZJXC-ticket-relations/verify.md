@@ -22,6 +22,6 @@
 - **Cross-variant `blocks`** back-references (active↔completed) documented in `out_of_scope` — INDEX derives within one variant; acceptable since edges are overwhelmingly active→active. Fast-follow only if needed.
 - **Replan "blocker moved" signal** deferred to a fast-follow (recorded in `out_of_scope`) — most-coupled, advisory-only, separable.
 
-## Remaining for formal close
+## Audit
 
-- `/audit` (architecture · dead-code · test-quality) — not yet run. Required before `status: done`.
+✅ **Audit passed** — 0 errors, 0 warnings from this session's work. Architecture clean (depcruise: no violations across 132 modules); no dead code (knip flags nothing in the new module); 0 duplication clones; test quality strong (specific assertions, edge + negative cases, independent fixtures, no timeouts).

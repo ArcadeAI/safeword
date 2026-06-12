@@ -3,8 +3,8 @@ id: AKZJXC
 slug: ticket-relations
 parent: VKNF1T-platform-uplift-epic
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-10T04:00:49.011Z
 last_modified: 2026-06-10T04:00:49.011Z
 scope: |

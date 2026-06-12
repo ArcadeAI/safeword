@@ -3,8 +3,8 @@ id: NTT094
 slug: explain-in-english
 parent: VKNF1T-platform-uplift-epic
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-06T18:05:01.598Z
 last_modified: 2026-06-06T18:05:01.598Z
 scope: |
