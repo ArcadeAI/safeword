@@ -21,6 +21,7 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 
 - **Generation half** — the design is produced via `/figure-it-out` and recorded in the impl-plan's Decisions section **with citations**; the citations are the enforceable trace that real evidence-weighing happened.
 - **Selection half / fork review** — an adversarial review run by a fresh-context reviewer that sees only the impl-plan and ticket scope, tries to refute the design against its cited sources, and whose pass is required to proceed.
+- **Cross-model review** — an opt-in posture where the design review must be performed by a *different* model than the author's, to break the correlated-error ceiling that a same-model fork shares. Default off (same-model fork is the floor); the stamp records the reviewing model so the gate can enforce difference when configured.
 
 ## Jobs To Be Done
 
@@ -33,6 +34,8 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 #### architecture-gate.DEV1.AC1 — The impl-plan Decisions section must carry cited external evidence (the /figure-it-out trace), or an auditable skip
 
 #### architecture-gate.DEV1.AC2 — A fresh-context reviewer challenges the impl-plan design, and its pass (a review stamp) is required to leave the implement phase
+
+#### architecture-gate.DEV1.AC3 — The design-review stamp records the reviewing model, and when cross-model review is configured a same-model stamp does not satisfy the gate
 
 ### architecture-gate.DEV2 — The gate ships safely without bricking existing workflows
 
@@ -53,4 +56,5 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 - Stamp scope: can the design fork-review reuse `reviewScope(ticket, 'impl-plan', hash)` over the impl-plan content, so an edit after review invalidates the stamp (same content-hash binding as spec review)? Resolve in define-behavior.
 - Gate placement: enforce at the implement→verify exit (design reviewed before the work is called done) vs. a separate phase-exit. Leaning implement→verify, alongside #204's reconciliation gate which already fires there.
 - Evidence check shape: how strict is "cited"? Minimum one URL/source reference in the Decisions section vs. a richer check. Lean minimal-and-structural (mirror #204's non-prose-extraction ruling YR6C49) to avoid brittle parsing.
-- Confirm #204 merged as-is before starting — if its impl-plan section names or parser shape changed in review, re-confirm the anchors this builds on.
+- Confirm #204 merged as-is before starting — if its impl-plan section names or parser shape changed in review, re-confirm the anchors this builds on. (Resolved: merged as `5278bca`, the five IMPL_PLAN_SECTIONS are unchanged.)
+- Cross-model identity source: where does the gate learn the author's model and the reviewer's model? Lean on the reviewer self-reporting via `write-review-stamp.ts --model <id>` (env-derived), with the author model read from session env or config. Both are honor-system tags, not attestations — settle the exact source in impl-plan.
