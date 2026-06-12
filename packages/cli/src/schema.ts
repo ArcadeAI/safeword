@@ -323,6 +323,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-lint-check.ts': {
       template: 'hooks/session-lint-check.ts',
     },
+    '.safeword/hooks/session-author-model.ts': {
+      template: 'hooks/session-author-model.ts',
+    },
     '.safeword/hooks/session-compact-context.ts': {
       template: 'hooks/session-compact-context.ts',
     },
