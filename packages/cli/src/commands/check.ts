@@ -137,6 +137,18 @@ function findGlossaryAdvisories(cwd: string): string[] {
 
 const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
 
+/** Ticket folder names under the tickets root (excluding `completed/`), or
+ * empty when the root is missing/unreadable. */
+function listTicketIds(ticketsRoot: string): string[] {
+  try {
+    return readdirSync(ticketsRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && entry.name !== 'completed')
+      .map(entry => entry.name);
+  } catch {
+    return [];
+  }
+}
+
 const ARCHITECTURE_DEFAULT_SUBPATH = nodePath.join('.safeword-project', 'architecture.md');
 
 /**
@@ -148,14 +160,7 @@ const ARCHITECTURE_DEFAULT_SUBPATH = nodePath.join('.safeword-project', 'archite
  */
 function findArchitectureAdvisories(cwd: string): string[] {
   const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
-  let ticketIds: string[];
-  try {
-    ticketIds = readdirSync(ticketsRoot, { withFileTypes: true })
-      .filter(entry => entry.isDirectory() && entry.name !== 'completed')
-      .map(entry => entry.name);
-  } catch {
-    return [];
-  }
+  const ticketIds = listTicketIds(ticketsRoot);
 
   const resolved = resolveConfiguredPath(cwd, 'architecture', ARCHITECTURE_DEFAULT_SUBPATH);
   if (listArchitectureRecords(resolved).kind !== 'absent') return [];
@@ -201,15 +206,9 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
  */
 function findCoverageAdvisories(cwd: string): string[] {
   const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
-  let ticketIds: string[];
-  try {
-    ticketIds = readdirSync(ticketsRoot, { withFileTypes: true })
-      .filter(entry => entry.isDirectory() && entry.name !== 'completed')
-      .map(entry => entry.name);
-  } catch {
-    return [];
-  }
-  return ticketIds.flatMap(ticketId => coverageAdvisoriesForTicket(ticketsRoot, ticketId));
+  return listTicketIds(ticketsRoot).flatMap(ticketId =>
+    coverageAdvisoriesForTicket(ticketsRoot, ticketId),
+  );
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an
