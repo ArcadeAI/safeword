@@ -128,8 +128,11 @@ export function isCrossModelReviewRequired(rawConfig?: string): boolean {
  * indeterminate: it cannot establish independence, so it counts as a match and
  * the gate fails closed (blocks) rather than waving the review through.
  */
-export function modelsMatch(_reviewerTag?: string, _authorTag?: string): boolean {
-  return true;
+export function modelsMatch(reviewerTag?: string, authorTag?: string): boolean {
+  const reviewer = reviewerTag?.trim().toLowerCase() ?? '';
+  const author = authorTag?.trim().toLowerCase() ?? '';
+  if (reviewer === '' || author === '') return true;
+  return reviewer === author;
 }
 
 /**
