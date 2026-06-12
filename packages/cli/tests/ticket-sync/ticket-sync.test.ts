@@ -54,6 +54,38 @@ describe('ticket-sync', () => {
     return readTickets(ticketsDirectory)[scope].find(entry => entry.id === id);
   }
 
+  // ── AKZJXC: structured depends_on relations ──
+
+  describe('depends_on relations (AKZJXC)', () => {
+    it('parses depends_on into the entry', () => {
+      writeTicket(
+        'AAA111-dependent',
+        { id: 'AAA111', status: 'open', depends_on: '[BBB222]' },
+        '# Dependent\n',
+      );
+      expect(entryFor('AAA111')?.dependsOn).toEqual(['BBB222']);
+    });
+
+    it('renders blocked_by slug-first and derives blocks on the target', () => {
+      writeTicket(
+        'AAA111-dependent',
+        { id: 'AAA111', status: 'open', depends_on: '[BBB222]' },
+        '# Dependent\n',
+      );
+      writeTicket('BBB222-blocker', { id: 'BBB222', status: 'open' }, '# Blocker\n');
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('blocked by: Blocker (BBB222)');
+      expect(content).toContain('blocks: Dependent (AAA111)');
+    });
+
+    it('falls back to the bare id for a target outside the index', () => {
+      writeTicket('CCC333-x', { id: 'CCC333', status: 'open', depends_on: '[ZZZ999]' }, '# X\n');
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('blocked by: ZZZ999');
+      expect(content).not.toContain('ZZZ999 (ZZZ999)');
+    });
+  });
+
   // ── AC1: entries carry id, title, status, epic, goal, path ──
 
   describe('AC1 — entry fields and parsing', () => {

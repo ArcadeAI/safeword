@@ -19,7 +19,7 @@ export interface TicketNode {
  * empties. Missing/empty input → `[]`.
  * @param raw the raw frontmatter value, or undefined when the key is absent
  */
-export function parseTicketIdList(raw: string | undefined): string[] {
+export function parseTicketIdList(raw?: string): string[] {
   if (raw === undefined) return [];
   const inner = raw.trim().replace(/^\[/, '').replace(/\]$/, '');
   return inner
