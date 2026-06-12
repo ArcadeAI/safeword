@@ -15,9 +15,9 @@ Given a clean git repo with no namespace directory
 When `safeword setup` runs
 Then `.project/learnings/`, `.project/tickets/completed/`, and `.project/tmp/` exist, and `.project/personas.md` and `.project/glossary.md` contain the starter templates
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: setup-scaffolds-project-dir.DEV1.AC1.fresh_setup_creates_no_legacy_dir
 
@@ -25,9 +25,9 @@ Given a clean git repo with no namespace directory
 When `safeword setup` runs
 Then no `.safeword-project/` directory exists anywhere in the repo
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: An existing `.project/` is adopted, never clobbered
 
@@ -40,9 +40,9 @@ Given a repo whose `.project/personas.md` contains user-authored persona blocks
 When `safeword setup` runs
 Then `.project/personas.md` is byte-identical to its pre-setup content, while `.project/glossary.md` and the namespace directories are created under `.project/`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: setup-scaffolds-project-dir.DEV1.AC2.partial_project_dir_gets_missing_pieces
 
@@ -50,9 +50,9 @@ Given a repo whose `.project/` holds only `personas.md` (no tickets/, learnings/
 When `safeword setup` runs
 Then `.project/tickets/completed/`, `.project/learnings/`, `.project/tmp/`, and `.project/glossary.md` are created alongside the untouched `personas.md`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: setup-scaffolds-project-dir.DEV1.AC2.both_dirs_setup_operates_only_on_project
 
@@ -60,9 +60,9 @@ Given a repo with both `.project/` and `.safeword-project/` directories present
 When `safeword setup` runs
 Then scaffolding lands under `.project/` only and everything under `.safeword-project/` is byte-unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: A legacy repo stays entirely on `.safeword-project/`
 
@@ -75,9 +75,9 @@ Given a repo with an existing `.safeword-project/` namespace (tickets present, p
 When `safeword setup` re-runs
 Then `.safeword-project/personas.md` and `.safeword-project/glossary.md` are created under the legacy root, and no `.project/` directory exists
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: setup-scaffolds-project-dir.DEV1.AC3.legacy_upgrade_stays_legacy
 
@@ -85,9 +85,9 @@ Given a repo with an existing `.safeword-project/` namespace (personas.md absent
 When `safeword upgrade` runs
 Then `.safeword-project/personas.md` is scaffolded under the legacy root and no `.project/` directory exists
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: Lifecycle commands agree on the resolved root
 
@@ -100,9 +100,9 @@ Given a repo whose `.safeword/config.json` sets `paths.projectRoot` to `team-ns`
 When `safeword setup` runs
 Then the namespace directories and starter files are created under `team-ns/`, and neither `.project/` nor `.safeword-project/` is created
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: setup-scaffolds-project-dir.DEV1.AC4.upgrade_on_project_repo_stays_project
 
@@ -110,9 +110,9 @@ Given a fresh-setup repo on `.project/` whose `.project/glossary.md` was deleted
 When `safeword upgrade` runs
 Then `.project/glossary.md` is rescaffolded under `.project/` and no `.safeword-project/` is created
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: setup-scaffolds-project-dir.DEV1.AC4.reset_preserves_namespace_at_resolved_root
 
@@ -120,9 +120,9 @@ Given a fresh-setup repo on `.project/` with a user ticket added and `.project/t
 When `safeword reset` runs
 Then the empty `.project/tmp/` is removed, `.project/tickets/` with the user ticket survives, and `.safeword/` is removed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: setup-scaffolds-project-dir.DEV1.AC4.diff_reports_clean_after_fresh_setup
 
@@ -130,6 +130,6 @@ Given a repo immediately after a fresh `safeword setup` on `.project/`
 When `safeword diff` runs
 Then it reports no namespace drift — no `.safeword-project/` entry is listed as missing or pending creation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
