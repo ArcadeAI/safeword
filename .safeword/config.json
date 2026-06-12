@@ -1,3 +1,6 @@
 {
-  "installedPacks": ["typescript"]
+  "installedPacks": ["typescript"],
+  "paths": {
+    "architecture": "ARCHITECTURE.md"
+  }
 }

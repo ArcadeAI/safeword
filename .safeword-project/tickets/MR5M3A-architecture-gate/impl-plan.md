@@ -8,8 +8,8 @@ The gate is a new branch inside `stop-quality.ts`'s existing `checkImplPlanArtif
 
 1. **Citation helper** (pure, `lib/impl-plan.ts` or a sibling) — `hasCitation(decisionsBody): boolean`, matching a URL or `[n]` marker. Unit tests first (the `decisions_with_citation_passes` / `_without_citation_blocks` pair). Highest-value, lowest-coupling, so it leads.
 2. **Config flag** — extend the `reviewGate` config read to also surface `architectureReviewGate` + `crossModelReview`. Reuse `isReviewGateEnabled`'s fail-safe-off parsing (`review-ledger.ts:100`). Unit-covered by the default-off triad (disabled / absent / malformed).
-3. **Stamp model tag** — `write-review-stamp.ts` gains `--model <id>`; the stamp line records it; author-model read from session env. Reuse `reviewScope(ticket,'impl-plan',hash)` unchanged for the content+ticket binding.
-4. **Gate branch** — wire evidence + stamp + cross-model checks into `checkImplPlanArtifact`, *after* its existing existence/parse blocks (precedence is load-bearing — see the layering scenarios). Integration cells per scenario, mirroring #204's `impl-plan-gate.test.ts`.
+3. **Model-tag primitive (ledger-level, reusable)** — `write-review-stamp.ts` gains `--model <id>` and records it on the stamp; a `modelsMatch(reviewerTag, authorTag)` helper (trimmed, case-insensitive; author-absent → no match → fail closed) lives in `review-ledger.ts`, NOT in the gate. Built general so the existing scenario-gate fork review can adopt the same knob later (follow-up ticket). Reuse `reviewScope(ticket,'impl-plan',hash)` unchanged for the content+ticket binding.
+4. **Gate branch** — wire evidence + stamp checks into `checkImplPlanArtifact`, *after* its existing existence/parse blocks (precedence is load-bearing — see the layering scenarios), *consuming* the ledger's `modelsMatch` for the cross-model decision rather than re-implementing it. Integration cells per scenario, mirroring #204's `impl-plan-gate.test.ts`.
 
 Test layers: pure helpers (citation, model-tag compare) → **unit**; the gate decision over a fixture ticket tree → **integration** (the dominant layer, as in #204). No E2E.
 
@@ -20,7 +20,7 @@ Test layers: pure helpers (citation, model-tag compare) → **unit**; the gate d
 | Where the gate lives | Extend `stop-quality.ts checkImplPlanArtifact` | New pre-tool gate | Splits one artifact's enforcement across two hooks |
 | Review stamp | Reuse `reviewScope(ticket,'impl-plan',hash)` | New artifact + scope kind | Content+ticket binding already exists and is tested (`review-ledger.ts:35`) |
 | Citation shape | Minimal/structural — URL or `[n]` marker | Strict bibliographic parse | Mirrors #204's non-prose-extraction ruling (YR6C49); brittle parsing has no payoff |
-| Cross-model compare | Trimmed, case-insensitive tag equality; author-absent fails closed | Exact string; fail-open | Exact string is a trivial-case bypass; fail-open silently no-ops the protection |
+| Cross-model compare | `modelsMatch` helper in `review-ledger.ts` (trimmed, case-insensitive; author-absent fails closed) | Bake compare into the gate branch | A gate-local compare can't be reused by the existing same-model scenario review — the more valuable target |
 | Default posture | Off behind a flag, same as `reviewGate` | Default-on | A self-applying blocking gate must ship inert (see review-ledger.ts:95 rationale) |
 
 Evidence behind the shape of this feature (the generation→selection split and single-adversarial-reviewer choice): correlated-error limits of self-review (https://www.preprints.org/manuscript/202601.0892); ADRs as governance-not-documentation (https://reflectrally.com/architecture-decision-logs/); the "popularity trap" of voting ensembles underperforming a single reviewer.
@@ -34,7 +34,6 @@ Honors the decisions recorded in `ARCHITECTURE.md`:
 
 ## Known deviations
 
-- `paths.architecture` is unset, so it resolves to the absent default `.safeword-project/architecture.md` rather than the real root `ARCHITECTURE.md`; `safeword check` will therefore emit a structural Arch-alignment advisory for this ticket. Accepted — pointing the config at the root record is a separate change, out of this ticket's scope.
 - The reviewing-model tag is self-reported (honor-system), consistent with the existing stamp's trust boundary; cryptographic attestation is explicitly out of scope.
 
 ## Assessment triggers
