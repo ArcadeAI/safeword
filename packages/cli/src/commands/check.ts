@@ -4,7 +4,7 @@
  * Uses reconcile() with dryRun to detect missing files and configuration issues.
  */
 
-import { readdirSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getMissingPacks } from '../packs/registry.js';
@@ -92,6 +92,32 @@ function findPersonaIssues(cwd: string): string[] {
  * live file. Zero-exit — non-destructive (data-loss principle from
  * ticket K7N2QM); user owns cleanup.
  */
+/**
+ * Both-namespace-roots advisory (ticket 9MMWS7): both `.project/` and
+ * `.safeword-project/` present means a migration was left half-finished (or
+ * the dirs were created independently). Zero-exit nudge naming the finishing
+ * action; silent on any single root — declining migration is never a nag.
+ */
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function findNamespaceAdvisories(cwd: string): string[] {
+  if (
+    isDirectory(nodePath.join(cwd, '.project')) &&
+    isDirectory(nodePath.join(cwd, '.safeword-project'))
+  ) {
+    return [
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword upgrade --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+    ];
+  }
+  return [];
+}
+
 function findPersonaAdvisories(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'personas');
   if (override === undefined) return [];
@@ -434,6 +460,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     latestVersion: undefined,
     issues,
     advisories: [
+      ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
       ...findCoverageAdvisories(cwd),
@@ -493,6 +520,17 @@ function reportVersionMismatch(health: HealthStatus): void {
  * @returns true if there are issues requiring attention
  */
 function reportHealthSummary(health: HealthStatus): boolean {
+  // Advisories first: non-blocking diagnostics that must surface even when
+  // issues exist (the issue branches below early-return). Ticket 9MMWS7
+  // exposed the old ordering, which silently swallowed advisories on any
+  // unhealthy project.
+  if (health.advisories.length > 0) {
+    header('Advisories');
+    for (const advisory of health.advisories) {
+      warn(advisory);
+    }
+  }
+
   // Check missing packs first (highest priority - explains missing files)
   if (health.missingPacks.length > 0) {
     header('Missing Language Packs');
@@ -517,16 +555,6 @@ function reportHealthSummary(health: HealthStatus): boolean {
     }
     info('\nRun `safeword upgrade` to repair configuration');
     return true;
-  }
-
-  // Advisories: non-blocking diagnostics. Reported even when issues
-  // exist (no early-return above this point handles them); printed
-  // here when the project is otherwise healthy.
-  if (health.advisories.length > 0) {
-    header('Advisories');
-    for (const advisory of health.advisories) {
-      warn(advisory);
-    }
   }
 
   success('\nConfiguration is healthy');

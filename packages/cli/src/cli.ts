@@ -42,9 +42,18 @@ program
     '--no-modify',
     'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
   )
+  .option(
+    '--migrate-namespace',
+    'Move the legacy .safeword-project/ namespace to .project/ (recommended) without prompting',
+  )
+  .option('--no-migrate-namespace', 'Keep the legacy namespace; skip the migration prompt')
   .action(async options => {
     const { upgrade } = await import('./commands/upgrade.js');
-    await upgrade({ noModify: options.modify === false });
+    await upgrade({
+      noModify: options.modify === false,
+      // Commander leaves the tri-state undefined when neither flag is passed.
+      migrateNamespace: options.migrateNamespace as boolean | undefined,
+    });
   });
 
 program

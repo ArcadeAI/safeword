@@ -41,6 +41,7 @@ done_when:
 
 ## Work Log
 
+- 2026-06-12T23:05:00.000Z Implement: 14/14 scenarios green (11 unit incl. prompt seam + 9 integration on real-setup fixtures). Latent check bug fixed en route: advisories were swallowed by issue early-returns (code contradicted its own comment) — hoisted above the chain.
 - 2026-06-12T17:35:11.138Z Started: Created ticket 9MMWS7
 - 2026-06-12T22:50:00.000Z Complete: scenario-gate — review 1 FAIL (2 must-fix: custom-root vacuity, missing move-failure cell; both applied + 5 strengthens), review 2 PASS (0 must-fix; 2 cosmetic strengthens applied). 14 scenarios. Stamped. impl-plan.md written. Phase → implement.
 - 2026-06-12T22:30:00.000Z Intake: scoped as final epic child. Migration runs pre-reconcile in upgrade; consent via flags/TTY-prompt-default-yes/nudge; git-aware move; config rewrite; both-dirs check advisory. Phase → define-behavior.
