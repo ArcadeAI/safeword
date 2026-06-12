@@ -118,8 +118,8 @@ const PHASE_FIELD = /^phase:\s*(\S+)/m;
  * `.safeword/config.json` sets `architectureReviewGate: true`. Same default-off,
  * fail-safe-to-off-on-malformed posture as {@link isReviewGateEnabled}.
  */
-export function isArchitectureReviewGateEnabled(_rawConfig?: string): boolean {
-  return false;
+export function isArchitectureReviewGateEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'architectureReviewGate');
 }
 
 /**
@@ -127,8 +127,26 @@ export function isArchitectureReviewGateEnabled(_rawConfig?: string): boolean {
  * the author (ticket MR5M3A): true only when `.safeword/config.json` sets
  * `crossModelReview: true`. Default-off — same-model fork is the floor.
  */
-export function isCrossModelReviewRequired(_rawConfig?: string): boolean {
-  return false;
+export function isCrossModelReviewRequired(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'crossModelReview');
+}
+
+/**
+ * Whether a top-level config key is strictly `true`. Shared default-off,
+ * fail-safe-on-malformed reader for the boolean rollout flags.
+ */
+function configFlagIsTrue(rawConfig: string | undefined, key: string): boolean {
+  if (rawConfig === undefined) return false;
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    return (
+      typeof config === 'object' &&
+      config !== null &&
+      (config as Record<string, unknown>)[key] === true
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
