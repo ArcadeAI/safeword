@@ -151,3 +151,54 @@ export function formatReplanHeadsUp(relevantCommitCount: number): string {
   const noun = relevantCommitCount === 1 ? 'commit' : 'commits';
   return `Resume check: ${relevantCommitCount} ${noun} since you last touched this ticket changed files it references — the plan may be stale. Say "check the plan" and I'll investigate whether scope still holds (still-good / change / cancel / split / merge); otherwise I'll proceed as planned.`;
 }
+
+/** Terminal ticket statuses — a depends_on target in one of these is "resolved"
+ * (cleared, abandoned, or moot), the event mature trackers (Linear, Jira) signal
+ * on. Both spellings of cancel are accepted. */
+const TERMINAL_STATUSES = new Set(['done', 'cancelled', 'canceled', 'superseded', 'wontfix']);
+
+/**
+ * A `depends_on` target resolved to its current status + repo-relative ticket.md
+ * path, so it can be matched against the commit window.
+ */
+export interface BlockerTarget {
+  id: string;
+  slug: string;
+  status: string;
+  ticketPath: string;
+}
+
+/** A blocker that moved: it is terminal AND its ticket.md changed in the window. */
+export interface MovedBlocker {
+  id: string;
+  slug: string;
+  status: string;
+}
+
+/**
+ * The `depends_on` targets whose blocker "moved": currently terminal AND their
+ * ticket.md appears in the commit window. Mirrors how Linear/Jira fire on the
+ * blocker's resolution transition (not on arbitrary edits); the rare false
+ * positive — an edit to an already-terminal blocker — is dismissible.
+ */
+export function detectMovedBlockers(
+  targets: readonly BlockerTarget[],
+  commits: readonly ReplanCommit[],
+): MovedBlocker[] {
+  const changedPaths = new Set(commits.flatMap(commit => [...commit.changedPaths]));
+  return targets
+    .filter(target => TERMINAL_STATUSES.has(target.status) && changedPaths.has(target.ticketPath))
+    .map(({ id, slug, status }) => ({ id, slug, status }));
+}
+
+/**
+ * The opt-in blocker-moved heads-up: names the resolved blocker(s) slug-first and
+ * offers the same one-step "check the plan" accept as the path-relevance heads-up.
+ * Slug-first format is inlined — hooks are standalone and can't import src/.
+ */
+export function formatBlockerMovedHeadsUp(moved: readonly MovedBlocker[]): string {
+  const list = moved.map(blocker => `${blocker.slug} (${blocker.id})`).join(', ');
+  const subject = moved.length === 1 ? 'A blocker' : 'Blockers';
+  const verb = moved.length === 1 ? 'is' : 'are';
+  return `Resume check: ${subject} you depend on ${verb} now resolved — ${list} reached a terminal status since you last touched this ticket; the plan may be stale. Say "check the plan" and I'll investigate whether scope still holds; otherwise I'll proceed.`;
+}
