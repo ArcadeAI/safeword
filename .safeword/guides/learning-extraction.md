@@ -59,7 +59,7 @@ Extract after experiencing ANY of these:
 
 1. **Before debugging** - Check if similar issue has learning already
 
-   ```bash
+   ```text
    ls <namespace-root>/learnings/*[technology]*.md
    ls <namespace-root>/learnings/*[pattern]*.md
    ```
@@ -78,7 +78,7 @@ Extract after experiencing ANY of these:
 
 ### How to Check
 
-```bash
+```text
 # Project learnings
 ls <namespace-root>/learnings/
 
@@ -449,10 +449,10 @@ The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` s
 
 ## Quick Reference
 
-| Situation             | Location                                | Example                          |
-| --------------------- | --------------------------------------- | -------------------------------- |
-| Architecture decision | `SAFEWORD.md` → Architecture            | Why Zustand? Why Electron-only?  |
-| Short gotcha          | `SAFEWORD.md` → Gotchas                 | "Validate paths before file ops" |
+| Situation             | Location                                        | Example                          |
+| --------------------- | ----------------------------------------------- | -------------------------------- |
+| Architecture decision | `SAFEWORD.md` → Architecture                    | Why Zustand? Why Electron-only?  |
+| Short gotcha          | `SAFEWORD.md` → Gotchas                         | "Validate paths before file ops" |
 | Detailed gotcha       | `<namespace-root>/learnings/` + SAFEWORD.md ref | Persistent UI, race conditions   |
 | One-time bug          | `<namespace-root>/learnings/archive/`           | Forgot to build before testing   |
 

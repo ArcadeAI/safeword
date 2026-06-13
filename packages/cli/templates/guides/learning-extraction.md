@@ -59,9 +59,9 @@ Extract after experiencing ANY of these:
 
 1. **Before debugging** - Check if similar issue has learning already
 
-   ```bash
-   ls < namespace-root > /learnings/*[technology]*.md
-   ls < namespace-root > /learnings/*[pattern]*.md
+   ```text
+   ls <namespace-root>/learnings/*[technology]*.md
+   ls <namespace-root>/learnings/*[pattern]*.md
    ```
 
 2. **When user mentions technology/pattern** - Check for relevant learnings
@@ -78,12 +78,12 @@ Extract after experiencing ANY of these:
 
 ### How to Check
 
-```bash
+```text
 # Project learnings
-ls < namespace-root > /learnings/
+ls <namespace-root>/learnings/
 
 # Search by keyword
-ls < namespace-root > /learnings/*keyword*.md
+ls <namespace-root>/learnings/*keyword*.md
 ```
 
 ### When to Reference Existing Learnings
