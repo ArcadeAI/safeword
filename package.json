@@ -23,9 +23,12 @@
     "lint:eslint": "eslint .",
     "deps": "depcruise packages/*/src --config .dependency-cruiser.cjs",
     "deps:graph": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type dot | dot -T svg > dependency-graph.svg",
-    "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err"
+    "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err",
+    "test:bdd": "cucumber-js"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^13.0.0",
+    "@types/node": "^25.9.3",
     "dependency-cruiser": "^17.4.3",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
@@ -37,7 +40,8 @@
     "markdownlint-cli2": "^0.22.1",
     "prettier": "^3.8.4",
     "prettier-plugin-sh": "^0.18.1",
-    "shellcheck": "^4.1.0"
+    "shellcheck": "^4.1.0",
+    "tsx": "^4.22.4"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}": [

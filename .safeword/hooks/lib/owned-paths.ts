@@ -13,6 +13,7 @@ export const SAFEWORD_PATHS: readonly string[] = [
   '.prettierignore',
   '.prettierrc',
   '.safeword-project/',
+  '.project/',
   '.safeword/',
   '.sqlfluff',
   'AGENTS.md',
@@ -20,12 +21,15 @@ export const SAFEWORD_PATHS: readonly string[] = [
   'biome.jsonc',
   'CLAUDE.md',
   'clippy.toml',
+  'cucumber.mjs',
   'eslint.config.mjs',
+  'features/',
   'knip.json',
   'mypy.ini',
   'package.json',
   'ruff.toml',
   'rustfmt.toml',
+  'steps/',
   'tsconfig.json',
 ];
 
