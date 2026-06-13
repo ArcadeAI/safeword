@@ -549,7 +549,7 @@
 - **Auto-upgrade should skip the safeword dev (dogfood) repo (975N5T)** (done, epic: —)
   Make `session-auto-upgrade.ts` detect the safeword dev (dogfood) repo and skip the auto-upgrade entirely — e.g. if `packages/cli/templates/` exists (the canonical source) or the root `package.json` name is the safeword package itself, no-op instead of re-installing the published version.
   → `.safeword-project/tickets/975N5T-auto-upgrade-skip-dogfood-repo`
-- **Replan heads-up offers /figure-it-out when scope may be stale (97BZ9S)** (in_progress, epic: —)
+- **Replan heads-up offers /figure-it-out when scope may be stale (97BZ9S)** (done, epic: —)
   Extend the replan-on-resume heads-up (templates/hooks/lib/replan.ts + replan-relevance.ts) so that when sibling commits may have staled a ticket's scope, the injected line also offers `/figure-it-out` to re-decide the approach.
   → `.safeword-project/tickets/97BZ9S-figure-it-out-on-replan`
 - **Dynamic workflows: what Claude's orchestration primitive means for safeword (9BDDGP)** (in_progress, epic: —)
@@ -703,7 +703,7 @@
 - **Embed figure-it-out into skills and BDD/TDD decision points (ZBVGPF)** (in_progress, epic: —)
   Wire the `figure-it-out` skill (option-debate with fresh docs/research before committing) into the other skills and the BDD/TDD phases, so a real design fork triggers evidence-based option analysis by default — instead of depending on the model remembering to reach for it in the moment.
   → `.safeword-project/tickets/ZBVGPF-embed-figure-it-out`
-- **Gate block messages point to /explain (ZCYD5P)** (in_progress, epic: —)
+- **Gate block messages point to /explain (ZCYD5P)** (done, epic: —)
   When a safeword gate hard-blocks (phase gate, LOC gate, done gate), append one line to the block message pointing at `/explain` for a plain-English translation.
   → `.safeword-project/tickets/ZCYD5P-explain-at-the-gate`
 - **Promote scenario-coverage to a blocking gate (split from NMSD94 SM1.AC1) (ZRMDKD)** (backlog, epic: —)

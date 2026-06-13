@@ -3,10 +3,10 @@ id: 97BZ9S
 slug: figure-it-out-on-replan
 parent: VKNF1T-platform-uplift-epic
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-13T01:07:16.467Z
-last_modified: 2026-06-13T01:07:16.467Z
+last_modified: 2026-06-13T04:08:00.000Z
 ---
 
 # Replan heads-up offers /figure-it-out when scope may be stale
@@ -25,3 +25,4 @@ last_modified: 2026-06-13T01:07:16.467Z
 ## Work Log
 
 - 2026-06-13T01:07:16.467Z Started: Created ticket 97BZ9S
+- 2026-06-13T04:08:00Z Done: appended shared REDECIDE_OFFER clause to formatReplanHeadsUp + formatBlockerMovedHeadsUp (templates/hooks/lib/replan-relevance.ts), dogfood synced byte-identical. TDD RED→GREEN (2 new asserts). Lint/build clean, 42 replan tests green. verify.md written. Task closed.

@@ -181,6 +181,10 @@ describe('formatReplanHeadsUp', () => {
   it('uses the singular noun for a single commit', () => {
     expect(formatReplanHeadsUp(1)).toContain('1 commit ');
   });
+
+  it('offers /figure-it-out to re-decide the approach when scope may be stale (97BZ9S)', () => {
+    expect(formatReplanHeadsUp(3)).toContain('/figure-it-out');
+  });
 });
 
 describe('detectMovedBlockers (E11N48)', () => {
@@ -258,5 +262,12 @@ describe('formatBlockerMovedHeadsUp (E11N48)', () => {
     expect(line).toContain('Blockers');
     expect(line).toContain('ticket-relations (AKZJXC)');
     expect(line).toContain('done-dep (AAA111)');
+  });
+
+  it('offers /figure-it-out to re-decide the approach when scope may be stale (97BZ9S)', () => {
+    const line = formatBlockerMovedHeadsUp([
+      { id: 'AKZJXC', slug: 'ticket-relations', status: 'done' },
+    ]);
+    expect(line).toContain('/figure-it-out');
   });
 });
