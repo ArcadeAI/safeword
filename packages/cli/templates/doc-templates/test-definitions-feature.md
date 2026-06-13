@@ -1,26 +1,20 @@
 # Test Definitions: [Feature Name]
 
+Feature source: `features/<slug>.feature`
+
+test-definitions.md is the R/G/R ledger. Keep executable Given/When/Then
+scenarios in the `.feature` file; keep only scenario progress here so hooks can
+derive the active RED/GREEN/REFACTOR step.
+
 ## Rule: [Business rule the scenarios below cover]
 
-<!-- Scenario titles use the lineage scheme `<jtbd-id>.AC<#>.<scenario_name>`
-     (snake_case) so `safeword check` maps each scenario to the AC it proves.
-     See the bdd skill's SCENARIOS.md. -->
-
-### Scenario: <jtbd-id>.AC<#>.<scenario_name>
-
-Given [context]
-When [action]
-Then [outcome]
+### Scenario: [Scenario name from the feature file]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: [Name]
-
-Given [context]
-When [action]
-Then [outcome]
+### Scenario: [Second scenario name]
 
 - [ ] RED
 - [ ] GREEN
@@ -28,11 +22,7 @@ Then [outcome]
 
 ## Rule: [Another business rule]
 
-### Scenario: [Name]
-
-Given [context]
-When [action]
-Then [outcome]
+### Scenario: [Scenario name]
 
 - [ ] RED
 - [ ] GREEN

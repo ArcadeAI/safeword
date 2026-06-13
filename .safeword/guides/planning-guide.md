@@ -16,12 +16,15 @@ How to write specs, user stories, and test definitions before implementation.
 
 **Location:** `<namespace-root>/tickets/{id}-{slug}/`
 
-All artifacts colocate in the ticket folder:
+Ticket artifacts live in the ticket folder:
 
 - `ticket.md` - Ticket definition
-- `test-definitions.md` - BDD scenarios
+- `test-definitions.md` - R/G/R ledger for BDD scenarios
 - `spec.md` - Feature spec (epics only)
 - `design.md` - Design doc (complex features)
+
+Executable BDD scenarios live at `features/<slug>.feature`, rooted at the app
+or package that owns the behavior.
 
 **If none fit:** Break down the work. A single task spanning all three levels should be split into separate feature + tasks.
 
@@ -77,7 +80,7 @@ Out of Scope:
 
 ### Given-When-Then Format (Behavior-Focused)
 
-For feature-level work, run `/bdd`. The BDD skill walks define-behavior: derive dimensions → partition into scenarios → save to `test-definitions.md` in canonical format (Rule grouping + nested Scenario + Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR`). Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
+For feature-level work, run `/bdd`. The BDD skill walks define-behavior: derive dimensions → partition into scenarios → save executable scenarios in `features/<slug>.feature` (Rule grouping + nested Scenario + Given/When/Then + lineage `@<jtbd>.AC#` tags). `test-definitions.md` is the R/G/R ledger: it references the feature source and carries per-scenario `- [ ] RED / GREEN / REFACTOR` checkboxes for hooks. Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
 
 ### Job Story Format (Outcome-Focused)
 
@@ -227,11 +230,11 @@ Test: All existing tests pass, no new mutations
 
 ### Routing by ticket type
 
-| Type        | Path to test definitions                                                        |
-| ----------- | ------------------------------------------------------------------------------- |
-| **feature** | Run `/bdd` — define-behavior derives dimensions and saves `test-definitions.md` |
-| **task**    | Inline test specs in the ticket spec; no separate file                          |
-| **patch**   | Existing tests cover it; no new test definitions                                |
+| Type        | Path to test definitions                                                                                                |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **feature** | Run `/bdd` — define-behavior derives dimensions, saves `.feature` source, and saves `test-definitions.md` as the ledger |
+| **task**    | Inline test specs in the ticket spec; no separate file                                                                  |
+| **patch**   | Existing tests cover it; no new test definitions                                                                        |
 
 The rest of this section describes the canonical format the BDD skill writes to disk.
 
@@ -247,26 +250,36 @@ Before `test-definitions.md` can be created, the ticket frontmatter must contain
 
 ### Canonical format
 
-Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s. Each scenario has Given/When/Then steps followed by `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
+Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s in `features/<slug>.feature`. Each scenario carries lineage as `@<jtbd>.AC#`. test-definitions.md is the R/G/R ledger: it lists the same scenario names with `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
+
+```gherkin
+Feature: Init dry-run
+
+  Rule: Dry-run shows expected output
+
+    @init-dry-run.DEV1.AC1
+    Scenario: Empty directory lists would-be files
+      Given an empty target directory
+      When user runs `init --dry-run`
+      Then output lists files that would be created
+```
 
 ```markdown
+# Test Definitions: Init dry-run
+
+Feature source: `features/init-dry-run.feature`
+
+test-definitions.md is the R/G/R ledger.
+
 ## Rule: Dry-run shows expected output
 
 ### Scenario: Empty directory lists would-be files
-
-Given an empty target directory
-When user runs `init --dry-run`
-Then output lists files that would be created
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Existing config surfaces warning
-
-Given a `config.json` already exists
-When user runs `init --dry-run`
-Then output notes the file would be overwritten
 
 - [ ] RED
 - [ ] GREEN
@@ -305,7 +318,9 @@ GFM checkbox state IS the status. Don't add emoji indicators (`✅ Passing`, `�
 
 ### Saved path
 
-`<namespace-root>/tickets/{id}-{slug}/test-definitions.md`
+Feature source: `features/<slug>.feature`
+
+Ledger: `<namespace-root>/tickets/{id}-{slug}/test-definitions.md`
 
 ---
 

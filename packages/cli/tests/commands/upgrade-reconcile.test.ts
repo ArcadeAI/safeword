@@ -286,6 +286,31 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(content).toContain('My Project'); // Original content preserved
     });
 
+    it('should preserve existing Codex config while creating missing Codex skills', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+      const { existsSync: fileExists } = await import('node:fs');
+
+      createConfiguredProject('0.5.0');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      const customCodexConfig = '[features]\nhooks = false\n\n# custom codex config\n';
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), customCodexConfig);
+
+      const ctx = createProjectContext(temporaryDirectory);
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      expect(readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8')).toBe(
+        customCodexConfig,
+      );
+      expect(fileExists(nodePath.join(temporaryDirectory, '.agents/skills/bdd/SKILL.md'))).toBe(
+        true,
+      );
+      expect(
+        fileExists(nodePath.join(temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md')),
+      ).toBe(true);
+    });
+
     it('should preserve customer .prettierignore entries and append idempotently', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');

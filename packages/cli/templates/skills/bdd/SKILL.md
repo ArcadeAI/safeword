@@ -102,7 +102,7 @@ When user references a ticket, resume work:
 4. **If ticket exists:** Read phase, resume at appropriate point
 5. **Artifact-first rule:** Before doing work, create/verify the phase artifact:
    - intake → ticket at `<namespace-root>/tickets/{id}-{slug}/ticket.md`
-   - define-behavior → test-definitions at `<namespace-root>/tickets/{id}-{slug}/test-definitions.md`
+   - define-behavior → feature source at `features/<slug>.feature` plus R/G/R ledger at `<namespace-root>/tickets/{id}-{slug}/test-definitions.md`
 6. **Execute phase** using the appropriate phase file
 7. **Update phase** in ticket when transitioning
 

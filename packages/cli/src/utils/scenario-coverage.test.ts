@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCoverageReport,
+  buildCoverageReportFromFeature,
   parseAcIdsByJtbd,
   parseAcReferenceFromTitle,
 } from './scenario-coverage.js';
@@ -105,6 +106,44 @@ describe('buildCoverageReport (R2 — three buckets)', () => {
       testDefinitions(['demo.DEV1.AC1.case_a', 'demo.DEV1.AC1.case_b']),
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+});
+
+describe('buildCoverageReportFromFeature (feature files as source)', () => {
+  function feature(tags: readonly string[]): string {
+    return [
+      'Feature: Demo',
+      '',
+      '  Rule: r',
+      '',
+      ...tags.flatMap(tag => [
+        `    @${tag}`,
+        `    Scenario: ${tag}`,
+        '      Given a',
+        '      When b',
+        '      Then c',
+        '',
+      ]),
+    ].join('\n');
+  }
+
+  it('feature-files-as-source.SM1.AC1.covered_tag_not_flagged', () => {
+    const report = buildCoverageReportFromFeature(spec(ONE_AC), feature(['demo.DEV1.AC1']));
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('feature-files-as-source.SM1.AC1.uncovered_ac_flagged_from_feature_tags', () => {
+    const report = buildCoverageReportFromFeature(spec(TWO_ACS), feature(['demo.DEV1.AC1']));
+    expect(report.uncovered).toEqual(['demo.DEV1.AC2']);
+  });
+
+  it('feature-files-as-source.SM1.AC1.stale_and_orphan_tags_flagged', () => {
+    const report = buildCoverageReportFromFeature(
+      spec(ONE_AC),
+      feature(['demo.DEV1.AC5', 'ghost.SM1.AC1']),
+    );
+    expect(report.stale).toEqual(['demo.DEV1.AC5']);
+    expect(report.orphan).toEqual(['ghost.SM1.AC1']);
   });
 });
 

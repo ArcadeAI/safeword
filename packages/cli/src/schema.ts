@@ -99,6 +99,45 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
   },
 };
 
+const CODEX_SKILL_TEMPLATE_FILES = [
+  ['audit/SKILL.md', 'skills/audit/SKILL.md'],
+  ['bdd/SKILL.md', 'skills/bdd/SKILL.md'],
+  ['bdd/DISCOVERY.md', 'skills/bdd/DISCOVERY.md'],
+  ['bdd/SCENARIOS.md', 'skills/bdd/SCENARIOS.md'],
+  ['bdd/TDD.md', 'skills/bdd/TDD.md'],
+  ['bdd/DONE.md', 'skills/bdd/DONE.md'],
+  ['bdd/SPLITTING.md', 'skills/bdd/SPLITTING.md'],
+  ['bdd/VERIFY.md', 'skills/bdd/VERIFY.md'],
+  ['brainstorm/SKILL.md', 'skills/brainstorm/SKILL.md'],
+  ['cleanup-zombies/SKILL.md', 'skills/cleanup-zombies/SKILL.md'],
+  ['debug/SKILL.md', 'skills/debug/SKILL.md'],
+  ['elicit/SKILL.md', 'skills/elicit/SKILL.md'],
+  ['explain/SKILL.md', 'skills/explain/SKILL.md'],
+  ['figure-it-out/SKILL.md', 'skills/figure-it-out/SKILL.md'],
+  ['lint/SKILL.md', 'skills/lint/SKILL.md'],
+  ['quality-review/SKILL.md', 'skills/quality-review/SKILL.md'],
+  ['refactor/SKILL.md', 'skills/refactor/SKILL.md'],
+  ['review-spec/SKILL.md', 'skills/review-spec/SKILL.md'],
+  ['self-review/SKILL.md', 'skills/self-review/SKILL.md'],
+  ['tdd-review/SKILL.md', 'skills/tdd-review/SKILL.md'],
+  ['testing/SKILL.md', 'skills/testing/SKILL.md'],
+  ['ticket-system/SKILL.md', 'skills/ticket-system/SKILL.md'],
+  ['verify/SKILL.md', 'skills/verify/SKILL.md'],
+] as const;
+
+const CODEX_SKILL_DIRS = [
+  ...new Set(
+    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/')[0]}`),
+  ),
+];
+
+const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
+  CODEX_SKILL_TEMPLATE_FILES.map(([target, template]) => [
+    `.agents/skills/${target}`,
+    { template },
+  ]),
+);
+
 // ============================================================================
 // SAFEWORD_SCHEMA - The Single Source of Truth
 // ============================================================================
@@ -133,6 +172,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ownedDirs: [
     '.safeword',
     '.safeword/hooks',
+    '.safeword/hooks/codex',
     '.safeword/hooks/cursor',
     '.safeword/hooks/lib',
     '.safeword/guides',
@@ -146,7 +186,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ],
 
   // Directories we add to but don't own (not deleted on reset)
-  sharedDirs: ['.claude', '.claude/skills', '.claude/commands'],
+  sharedDirs: [
+    '.claude',
+    '.claude/skills',
+    '.claude/commands',
+    '.codex',
+    '.agents',
+    '.agents/skills',
+    ...CODEX_SKILL_DIRS,
+  ],
 
   // Created on setup but NOT deleted on reset (preserves user data)
   preservedDirs: [
@@ -226,6 +274,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/verify.md',
     '.claude/commands/audit.md',
     '.claude/commands/cleanup-zombies.md',
+    '.safeword/.gherkin-lintrc',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -250,6 +299,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     'eslint-plugin-jsx-a11y',
     '@next/eslint-plugin-next',
     'eslint-plugin-astro',
+    'gherkin-lint',
   ],
 
   // Directories to delete on upgrade (no longer managed by safeword)
@@ -370,6 +420,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/codex/pre-tool-quality.ts': {
+      template: 'hooks/codex/pre-tool-quality.ts',
     },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
@@ -545,6 +598,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'skills/figure-it-out/SKILL.md',
     },
 
+    // Codex skills (repo-scoped .agents/skills)
+    ...CODEX_SKILL_OWNED_FILES,
+
     // Cursor rules
     '.cursor/rules/safeword-core.mdc': {
       template: 'cursor/rules/safeword-core.mdc',
@@ -642,6 +698,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
+
+    // Codex project config — create if missing, preserve user-authored config.
+    '.codex/config.toml': { template: 'codex/config.toml' },
 
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites

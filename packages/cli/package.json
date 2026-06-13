@@ -46,7 +46,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests && tsc --noEmit",
+    "lint": "eslint src tests && bun run lint:gherkin && tsc --noEmit",
+    "lint:gherkin": "bun src/cli.ts lint-gherkin",
     "clean": "rm -rf dist",
     "prepublishOnly": "node scripts/check-bun-publish.js && bun run test:release && bun run build",
     "lint:eslint": "eslint .",
@@ -57,6 +58,8 @@
     "lint:sh": "shellcheck **/*.sh"
   },
   "dependencies": {
+    "@cucumber/gherkin": "^40.0.0",
+    "@cucumber/messages": "^33.0.2",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.2",
     "@eslint/js": "^9.39.4",
     "@next/eslint-plugin-next": "16.2.9",
@@ -79,15 +82,13 @@
     "eslint-plugin-simple-import-sort": "^13.0.0",
     "eslint-plugin-sonarjs": "4.0.3",
     "eslint-plugin-storybook": "10.4.3",
-    "eslint-plugin-turbo": "2.9.17",
+    "eslint-plugin-turbo": "2.9.18",
     "eslint-plugin-unicorn": "64.0.0",
     "typescript-eslint": "8.61.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^13.0.0",
-    "@cucumber/gherkin": "^39.1.0",
-    "@cucumber/messages": "^32.3.1",
     "@types/estree": "^1.0.9",
     "@types/node": "^25.9.2",
     "@vitest/coverage-v8": "^4.1.8",

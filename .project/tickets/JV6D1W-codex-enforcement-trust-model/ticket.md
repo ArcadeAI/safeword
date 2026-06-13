@@ -21,6 +21,8 @@ relates_to: QM5G9M
 - **Three managed layers:** cloud (chatgpt.com/codex/settings/managed-configs), macOS MDM (`com.openai.codex:requirements_toml_base64`), system files (`/etc/codex/requirements.toml`, `%ProgramData%\OpenAI\Codex\requirements.toml`).
 - **Plugin hooks are still trust-gated** ("existing approval settings still apply") — bundling via a plugin (6WJ1RS) does not bypass the trust gate.
 
+Revalidation note: current docs also say administrators can enforce command rules from `requirements.toml` with `[rules]`, and the most restrictive decision wins. Because `PreToolUse` is documented as incomplete for some shell paths, the enterprise recipe should pair managed hooks with managed command rules or permission restrictions for destructive escape paths.
+
 ## Done when
 
 - Setup flow guides `/hooks` trust on install (user path).
@@ -30,7 +32,24 @@ relates_to: QM5G9M
 
 developers.openai.com/codex/hooks, /codex/enterprise/managed-configuration
 
+## Revalidation + /figure-it-out (2026-06-13)
+
+**Frame:** Decide the honest enforcement posture for individual users and enterprises now that Codex's trust and hook limits are clearer.
+
+**Research domains checked:** Codex hook trust, managed requirements, `allow_managed_hooks_only`, plugin-hook trust, command rules, and safeword's user-vs-org install story.
+
+**Options:**
+
+1. User-trusted default with explicit `/hooks` trust setup.
+2. Managed-hooks-only default.
+3. Hybrid: user-trusted by default; enterprise docs for managed hooks plus managed rules/permissions.
+
+**Recommend:** Use option 3. Individual users need the normal project setup path, but safeword should not call that ungameable. Enterprise parity requires `requirements.toml` managed hooks and, for unsupported tool paths, restrictive rules or permission requirements.
+
+**Next:** Add setup trust guidance in `5DEJ8V`, then document a managed `requirements.toml` recipe with `[features].hooks = true`, `[hooks]`, and `[rules]` examples.
+
 ## Work Log
 
 - 2026-05-31 Created from Codex research.
 - 2026-05-31 Read enterprise managed-config doc. RESOLVED: user-trusted default + documented managed path; full mechanics captured.
+- 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out. Decision remains user-trusted default plus managed enterprise path. Add managed rules/permissions to the enterprise recipe because hooks alone are documented as incomplete for some tool paths.
