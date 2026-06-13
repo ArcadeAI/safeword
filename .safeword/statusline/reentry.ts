@@ -20,6 +20,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { resolveNamespaceRoot } from '../hooks/lib/namespace-root';
 import { detectConflictFiles, type Entry, parseLogLine } from '../hooks/lib/re-entry';
 
 interface StatusLineInput {
@@ -40,10 +41,7 @@ async function main(): Promise<void> {
   const { session_id, cwd, transcript_path } = input;
   if (!session_id || !cwd) return;
 
-  // Namespace root fallback (TAGWZ8): prefer .project/, else legacy.
-  const namespaceRoot = existsSync(join(cwd, '.project'))
-    ? join(cwd, '.project')
-    : join(cwd, '.safeword-project');
+  const namespaceRoot = resolveNamespaceRoot(cwd);
   const logPath = join(namespaceRoot, 're-entry.md');
   if (!existsSync(logPath)) return;
 

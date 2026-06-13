@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Safeword: Regenerate .safeword-project/learnings/INDEX.md when a learning file changes (PostToolUse)
+// Safeword: Regenerate <namespace-root>/learnings/INDEX.md when a learning file changes (PostToolUse)
 // Ticket #130. Verification-stamp warning added in ticket XV72DT.
 
 import { spawnSync } from 'node:child_process';

@@ -210,7 +210,7 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 // ---------------------------------------------------------------------------
 // Bash gate: REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2)
 // The only file-path commit rule that survived scope reduction — see
-// .safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md for why
+// <namespace-root>/learnings/procedural-gates-generalize-beyond-tdd.md for why
 // the RED/GREEN file-path rules were dropped.
 // ---------------------------------------------------------------------------
 

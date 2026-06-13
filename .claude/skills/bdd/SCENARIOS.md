@@ -153,7 +153,7 @@ as advisories (never a gate):
 ### Define Behavior Exit (REQUIRED)
 
 1. **Save scenarios** to `features/<slug>.feature`
-2. **Save the R/G/R ledger** to `.project/tickets/{id}-{slug}/test-definitions.md`
+2. **Save the R/G/R ledger** to `<namespace-root>/tickets/{id}-{slug}/test-definitions.md`
 3. **Update frontmatter:** `phase: scenario-gate`
 4. **Add work log entry:**
 

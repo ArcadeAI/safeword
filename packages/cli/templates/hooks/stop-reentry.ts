@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Stop hook: append a single re-entry brief line to .safeword-project/re-entry.md.
+ * Stop hook: append a single re-entry brief line to <namespace-root>/re-entry.md.
  *
  * Ticket 645W8H. Slice 1 walking skeleton.
  *

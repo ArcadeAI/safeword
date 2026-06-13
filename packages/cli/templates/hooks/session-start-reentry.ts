@@ -4,7 +4,7 @@
  *
  * Ticket 645W8H. Slice 2.
  *
- * Reads `.safeword-project/re-entry.md`, filters entries to the current
+ * Reads `<namespace-root>/re-entry.md`, filters entries to the current
  * session_id, and emits the last 3 matching lines via additionalContext
  * (silent — not shown in chat; for Claude recall when the user asks
  * "where were we?"). The status-line script (Slice 3) is the user-facing
