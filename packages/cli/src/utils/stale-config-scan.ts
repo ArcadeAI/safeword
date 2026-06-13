@@ -22,7 +22,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 /** The legacy namespace path, anchored with a trailing slash (boundary match). */
-const LEGACY_REFERENCE = '.safeword-project/';
+const LEGACY_REFERENCE = '.safeword-project/'; // module-internal
 
 /** Marker for safeword's managed `.prettierignore` block (mirrors schema.ts). */
 const MANAGED_PRETTIER_MARKER = '# Safeword - managed prettier exclusions';
@@ -116,5 +116,3 @@ export function scanStaleNamespaceConfigs(cwd: string): string[] {
   }
   return stale;
 }
-
-export { LEGACY_REFERENCE };
