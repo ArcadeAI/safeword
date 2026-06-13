@@ -80,7 +80,7 @@ function setConfig(flags: Record<string, unknown>): void {
 }
 
 function writeTicket(id: string, type: 'feature' | 'task', implPlan?: string, spec = true): void {
-  const folder = `.safeword-project/tickets/${id}`;
+  const folder = `.project/tickets/${id}`;
   mkdirSync(nodePath.join(projectDirectory, folder), { recursive: true });
   writeTestFile(
     projectDirectory,
@@ -116,10 +116,7 @@ function writeStamp(
     hashArtifact(options.hashOf ?? planContent),
   );
   const line = `2026-06-12T00:00:00Z sess ${formatReviewStamp(scope, options.skip, options.model)}`;
-  appendFileSync(
-    nodePath.join(projectDirectory, '.safeword-project', 'skill-invocations.log'),
-    `${line}\n`,
-  );
+  appendFileSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'), `${line}\n`);
 }
 
 function runStopHook(
@@ -142,7 +139,7 @@ function runStopHook(
     `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content } })}\n`,
   );
   writeFileSync(
-    nodePath.join(projectDirectory, '.safeword-project', `quality-state-${sessionId}.json`),
+    nodePath.join(projectDirectory, '.project', `quality-state-${sessionId}.json`),
     JSON.stringify({ activeTicket: id }),
   );
   // Default the ambient author model to unset so cross-model fail-closed cases are deterministic;

@@ -113,7 +113,11 @@ describe('generateOwnedPathsModule', () => {
     const emitted = [...arrayBody.matchAll(/'([^']+)'/g)]
       .map(m => m[1] ?? '')
       .toSorted((a, b) => a.localeCompare(b));
-    const expected = [...computeSafewordPathPrefixes(SAFEWORD_SCHEMA)];
+    // The generator adds '.project/' alongside the schema's legacy namespace
+    // prefix — installed projects run either root (AQJ95G).
+    const expected = [
+      ...new Set([...computeSafewordPathPrefixes(SAFEWORD_SCHEMA), '.project/']),
+    ].toSorted((a, b) => a.localeCompare(b));
     expect(emitted).toEqual(expected);
   });
 
