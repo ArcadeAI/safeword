@@ -182,6 +182,9 @@
 - **Generate AGENTS.md + config.toml hook wiring for Codex (5DEJ8V)** (in_progress, epic: codex-changelog-alignment)
   Have `safeword setup` produce the Codex install: `AGENTS.md` (instructions), hook wiring, and skills in `.agents/skills`.
   → `.project/tickets/5DEJ8V-codex-agents-config-generation`
+- **Prove Codex parity in a trusted customer repo (CXP9LM)** (in_progress, epic: codex-changelog-alignment)
+  Run a black-box smoke that installs safeword into a customer-like repo and verifies Codex loads instructions, skills, and a trusted deny hook.
+  → `.project/tickets/CXP9LM-codex-live-parity-smoke`
 - **Package as Codex plugin/marketplace bundle (6WJ1RS)** (in_progress, epic: codex-changelog-alignment)
   Ship safeword as a Codex plugin distributed via Codex's marketplace, parallel to the Cursor packaging ticket (DXYKJX).
   → `.project/tickets/6WJ1RS-codex-plugin-marketplace-packaging`
