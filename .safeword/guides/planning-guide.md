@@ -230,11 +230,11 @@ Test: All existing tests pass, no new mutations
 
 ### Routing by ticket type
 
-| Type        | Path to test definitions                                                        |
-| ----------- | ------------------------------------------------------------------------------- |
+| Type        | Path to test definitions                                                                                                |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **feature** | Run `/bdd` — define-behavior derives dimensions, saves `.feature` source, and saves `test-definitions.md` as the ledger |
-| **task**    | Inline test specs in the ticket spec; no separate file                          |
-| **patch**   | Existing tests cover it; no new test definitions                                |
+| **task**    | Inline test specs in the ticket spec; no separate file                                                                  |
+| **patch**   | Existing tests cover it; no new test definitions                                                                        |
 
 The rest of this section describes the canonical format the BDD skill writes to disk.
 
