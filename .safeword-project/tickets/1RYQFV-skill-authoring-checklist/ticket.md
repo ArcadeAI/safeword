@@ -3,10 +3,10 @@ id: 1RYQFV
 slug: skill-authoring-checklist
 parent: VKNF1T-platform-uplift-epic
 type: patch
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-13T01:07:16.496Z
-last_modified: 2026-06-13T01:07:16.496Z
+last_modified: 2026-06-13T04:22:00.000Z
 ---
 
 # Skill-authoring checklist: template + dogfood + schema + pairs + full suite
@@ -24,3 +24,4 @@ last_modified: 2026-06-13T01:07:16.496Z
 ## Work Log
 
 - 2026-06-13T01:07:16.496Z Started: Created ticket 1RYQFV
+- 2026-06-13T04:22:00Z Done: added maintainer learning adding-a-skill-checklist.md (five parity steps: template+dogfood, SAFEWORD_SCHEMA, SKILL_CURSOR_PAIRS, action-skill decision, full suite); INDEX regenerated; cross-links skill-description-design. Chose learning over shipped guide (maintainer-only activity). verify.md written. Patch closed.

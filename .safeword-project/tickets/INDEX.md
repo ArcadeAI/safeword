@@ -494,7 +494,7 @@
 - **Harden hook git calls against shell injection (1JMSH6)** (done, epic: —)
   Close the shell-injection class in safeword hooks — git invoked via `execSync` string interpolation runs through `/bin/sh -c`, so file-derived free-text values can inject commands. The hooks auto-fire on UserPromptSubmit/Stop; in a shared repo the file content can come from an untrusted PR.
   → `.safeword-project/tickets/1JMSH6-harden-hook-git-injection`
-- **Skill-authoring checklist: template + dogfood + schema + pairs + full suite (1RYQFV)** (in_progress, epic: —)
+- **Skill-authoring checklist: template + dogfood + schema + pairs + full suite (1RYQFV)** (done, epic: —)
   Codify the new-skill checklist — template + byte-identical dogfood copy + `SAFEWORD_SCHEMA` entry + `SKILL_CURSOR_PAIRS`/`ACTION_SKILLS` decision + run the FULL test suite — as a short guide (or a `safeword check` validation).
   → `.safeword-project/tickets/1RYQFV-skill-authoring-checklist`
 - **Pull dependency-freshness checks out of audit, delegate to Dependabot — or not (263422)** (in_progress, epic: —)
