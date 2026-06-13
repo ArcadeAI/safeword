@@ -2,7 +2,7 @@
 id: JYWZG1
 slug: migration-stale-config-warning
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 epic: project-namespace-default
 follows: 9MMWS7
@@ -33,6 +33,8 @@ done_when:
 **See:** [spec.md](./spec.md) for personas, JTBDs, and outcomes.
 
 ## Work Log
+
+- 2026-06-13T03:40:00.000Z Complete: scenario-gate — review 1 FAIL (AC4 silent pair had no fired counterpart; fixed + 4 strengthens), review 2 PASS (0 must-fix; no-move Scenario Outline added over 4 classes). 14 scenarios. Stamped. impl-plan.md written. Phase → implement.
 
 - 2026-06-13T03:27:01.402Z Started: Created ticket JYWZG1
 - 2026-06-13T03:30:00.000Z Intake: decision pre-made via /figure-it-out (detect-and-warn, never auto-edit; curated tooling-config set; skip the managed prettierignore block). Scope locked. Phase → define-behavior.

@@ -29,11 +29,21 @@ Then the result names both files
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: migration-stale-config-warning.DEV1.AC1.upgrade_output_names_file_and_mapping
+### Scenario: migration-stale-config-warning.DEV1.AC1.upgrade_output_names_stale_file
 
 Given a legacy install whose `eslint.config.ts` references `.safeword-project/`
 When `safeword upgrade --migrate-namespace` moves the namespace
-Then the upgrade output names `eslint.config.ts` and shows the `.safeword-project/` → `.project/` mapping
+Then the upgrade output names `eslint.config.ts`
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: migration-stale-config-warning.DEV1.AC1.upgrade_output_shows_old_new_mapping
+
+Given a legacy install whose `eslint.config.ts` references `.safeword-project/`
+When `safeword upgrade --migrate-namespace` moves the namespace and warns
+Then the warning shows the `.safeword-project/` → `.project/` mapping
 
 - [ ] RED
 - [ ] GREEN
@@ -88,6 +98,36 @@ Then `.prettierignore` is named
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: migration-stale-config-warning.DEV1.AC3.substring_near_miss_not_flagged
+
+Given a config whose only reference is the unrelated path `.safeword-projectile/` (a substring near-miss, not the namespace)
+When the stale-config scanner runs
+Then the result is empty
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: migration-stale-config-warning.DEV1.AC3.raw_legacy_line_without_managed_block_is_flagged
+
+Given a `.prettierignore` with a raw `.safeword-project/` line and no `# Safeword - managed prettier exclusions` block at all
+When the stale-config scanner runs
+Then `.prettierignore` is named
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: migration-stale-config-warning.DEV1.AC3.reference_under_safeword_owned_dir_not_flagged
+
+Given a repo whose only `.safeword-project/` references live under the safeword-owned `.safeword/` directory
+When the stale-config scanner runs
+Then the result is empty
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: migration-stale-config-warning.DEV1.AC3.documentary_reference_under_namespace_not_flagged
 
 Given a repo whose only `.safeword-project/` references live in markdown under the resolved `.project/` namespace (e.g. a ticket body)
@@ -101,23 +141,34 @@ Then the result is empty
 ## Rule: The warning fires only on an actual move
 
 > Rationale: DEV1.AC4 — gated on the move happening, not on the flag. A
-> no-op migration must not warn about configs.
+> no-op migration must not warn about configs; a successful move must.
+> (A move that throws aborts the upgrade before the warning step, so the
+> silent cases below also cover the failure path.)
 
-### Scenario: migration-stale-config-warning.DEV1.AC4.silent_when_migration_declined
+### Scenario: migration-stale-config-warning.DEV1.AC4.warning_fires_when_move_succeeds
 
-Given a legacy install whose `eslint.config.ts` references `.safeword-project/`
-When `safeword upgrade --no-migrate-namespace` runs (no move)
-Then no stale-tooling-config warning is printed
+Given a legacy install with a stale `eslint.config.ts`, identical to the declined/both-dirs cases except that the move will succeed
+When `safeword upgrade --migrate-namespace` moves the namespace
+Then the stale-tooling-config warning IS printed, naming `eslint.config.ts`
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: migration-stale-config-warning.DEV1.AC4.silent_when_both_dirs_blocks_move
+### Scenario Outline: migration-stale-config-warning.DEV1.AC4.silent_when_no_move
 
-Given a repo with both `.project/` and `.safeword-project/` present and a stale `eslint.config.ts`
-When `safeword upgrade --migrate-namespace` runs (no move — both-dirs)
+Given a repo with a stale `eslint.config.ts` in the <install_state> state
+When `safeword upgrade <flags>` runs and no namespace move occurs
 Then no stale-tooling-config warning is printed
+
+Examples:
+
+| install_state                  | flags                  |
+| ------------------------------ | ---------------------- |
+| legacy, migration declined     | --no-migrate-namespace |
+| both .project/ and legacy dirs | --migrate-namespace    |
+| configured paths.projectRoot   | --migrate-namespace    |
+| already on .project/           | (none)                 |
 
 - [ ] RED
 - [ ] GREEN
