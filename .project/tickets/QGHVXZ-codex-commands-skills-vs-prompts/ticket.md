@@ -32,6 +32,10 @@ Revalidation note: current Codex skills docs keep the same shape and add useful 
 
 developers.openai.com/codex/skills
 
+## Feature File Coverage
+
+No source `.feature` file is required for this ticket. This is a decision ticket that resolves the Codex command surface to `.agents/skills` and records invocation policy guidance. Executable generation behavior belongs to `5DEJ8V`; any future skill-classification implementation should carry its own source feature.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide how to expose safeword's Claude-style commands/workflows on Codex without bloating context or over-triggering action skills.

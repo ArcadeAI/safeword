@@ -34,6 +34,10 @@ relates_to: QM5G9M
 
 developers.openai.com/codex/plugins (+ Build-plugins subpage), /hooks, changelog v0.133.0
 
+## Feature File Coverage
+
+No source `.feature` file is required for this ticket in its current state. It is a packaging strategy and manifest-shape decision ticket. Executable plugin build/install behavior should get a source feature when the ticket moves from decision notes to implementation after `5DEJ8V` proves the raw Codex assets.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide whether plugin packaging should be the default Codex distribution path or a second-stage package after raw setup works.

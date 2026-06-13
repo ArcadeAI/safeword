@@ -36,6 +36,10 @@ Floor = **0.133.0** until proven a lower version has the needed events. Conserva
 
 github.com/openai/codex/releases (+ releases.atom feed)
 
+## Feature File Coverage
+
+No source `.feature` file is required for this ticket in its current state. It is a baseline research and version-floor decision ticket. The future setup warning below the chosen floor is executable behavior and should get its own source `.feature` when implementation starts, after the `0.132.0` vs `0.133.0` hook fixture check resolves the floor.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide whether to lower, keep, or raise safeword's minimum Codex CLI version.

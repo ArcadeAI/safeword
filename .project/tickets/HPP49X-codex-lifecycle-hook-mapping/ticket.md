@@ -46,6 +46,10 @@ Revalidation note: current Codex docs also say `PreToolUse` and `PostToolUse` do
 
 developers.openai.com/codex/hooks, /config-advanced
 
+## Feature File Coverage
+
+No source `.feature` file is required for this ticket. It is a completed design task whose deliverable is `design.md`: a lifecycle event mapping and downstream dependency record, not executable CLI, hook, or packaging behavior. Executable behavior is covered by `N12G95`, `5DEJ8V`, and the later adapter tickets that implement this mapping.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide the lifecycle mapping that preserves safeword's gate strength on Codex while acknowledging where Codex differs from Claude Code.

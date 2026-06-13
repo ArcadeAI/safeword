@@ -49,7 +49,20 @@ Audit the Codex epic children:
 - Design-only or decision-only tickets can be marked as not needing executable Gherkin, but the reason should live in the ticket so future agents do not repeat the audit.
 - Use the existing `packages/cli/features/feature-files-as-source.feature` conventions as the placement and linting reference.
 
+## Audit Result
+
+- `5DEJ8V-codex-agents-config-generation`: backfilled `packages/cli/features/codex-agents-config-generation.feature` and converted `test-definitions.md` back to a ledger that points at the source.
+- `N12G95-codex-pretooluse-deny-spike`: backfilled `packages/cli/features/codex-pretooluse-deny-spike.feature` and converted `test-definitions.md` back to a ledger that points at the source.
+- `CXP9LM-codex-live-parity-smoke`: added `packages/cli/features/codex-live-parity-smoke.feature` as the live/manual source feature; default Cucumber excludes it until the ticket implements trusted Codex execution.
+- `HPP49X-codex-lifecycle-hook-mapping`: no source feature required; design task.
+- `QGHVXZ-codex-commands-skills-vs-prompts`: no source feature required; command-surface decision.
+- `JV6D1W-codex-enforcement-trust-model`: no source feature required; trust-model decision and documentation.
+- `WR4HRA-codex-min-version-baseline`: no source feature required yet; version-floor research and future setup-warning implementation deferred.
+- `6WJ1RS-codex-plugin-marketplace-packaging`: no source feature required yet; packaging strategy and manifest-shape decision.
+
 ## Work Log
 
 - 2026-06-13T22:48:56.763Z Started: Created ticket XK5N14
 - 2026-06-13 Scoped the ticket around Codex epic feature-file coverage and explicit no-feature-file rationales.
+- 2026-06-13T23:05:55Z Backfilled Codex source features for `5DEJ8V`, `N12G95`, and live/manual `CXP9LM`; recorded no-feature-file rationales for the remaining design/decision/baseline/packaging tickets.
+- 2026-06-13T23:27:35Z Verify: `bun run format:check`, `bun run lint:gherkin`, `bunx eslint packages/cli/features/steps/codex.steps.ts`, and `bun run --cwd packages/cli test:bdd` all passed. Added `verify.md`; ticket remains in progress because the Claude-specific `/verify` invocation stamp is unavailable in this Codex session.

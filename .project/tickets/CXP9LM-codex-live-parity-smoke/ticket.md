@@ -48,6 +48,11 @@ The epic now has generation and hook-spike work, but those are still mostly repo
 - Prefer a repeatable fixture-backed smoke, with a live/trusted Codex CLI step clearly separated so CI can skip it when the environment cannot provide trust state.
 - Treat unsupported Codex execution paths as findings, not failures of this ticket, unless they contradict the epic's documented support boundary.
 
+## Feature Source
+
+- Source feature: `packages/cli/features/codex-live-parity-smoke.feature`
+- Execution note: scenarios are tagged `@live @manual` because they require a real trusted Codex CLI session and hook trust state. Default Cucumber runs exclude them; this ticket owns implementing and documenting the live execution path.
+
 ## Work Log
 
 - 2026-06-13 Created from Codex parity review gap: add a real black-box/trusted smoke after 5DEJ8V and N12G95.

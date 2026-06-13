@@ -77,6 +77,15 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 
 Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → generation (5DEJ8V). Backfill source scenarios (XK5N14) before resuming broad Codex implementation so every child ticket either has a `.feature` file or an explicit no-feature-file rationale. Run the black-box/live parity smoke (CXP9LM) after 5DEJ8V and N12G95 prove the install and hook paths. QGHVXZ and JV6D1W are decisions that can run in parallel. WR4HRA + 6WJ1RS after the gates work and the smoke confirms the support boundary.
 
+## Feature File Coverage
+
+XK5N14 audit result:
+
+- `5DEJ8V-codex-agents-config-generation` → source feature `packages/cli/features/codex-agents-config-generation.feature`.
+- `N12G95-codex-pretooluse-deny-spike` → source feature `packages/cli/features/codex-pretooluse-deny-spike.feature`.
+- `CXP9LM-codex-live-parity-smoke` → source feature `packages/cli/features/codex-live-parity-smoke.feature`, tagged `@live @manual` until that ticket implements the trusted Codex execution path.
+- `HPP49X-codex-lifecycle-hook-mapping`, `QGHVXZ-codex-commands-skills-vs-prompts`, `JV6D1W-codex-enforcement-trust-model`, `WR4HRA-codex-min-version-baseline`, and `6WJ1RS-codex-plugin-marketplace-packaging` → no-feature-file rationale recorded in each ticket because their current deliverables are design, decision, baseline research, or packaging-shape records rather than executable behavior.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide whether this epic is still the right container for Codex parity after current Codex docs and releases moved past the May 31 research.

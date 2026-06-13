@@ -32,6 +32,10 @@ Revalidation note: current docs also say administrators can enforce command rule
 
 developers.openai.com/codex/hooks, /codex/enterprise/managed-configuration
 
+## Feature File Coverage
+
+No source `.feature` file is required for this ticket. This is a trust-model decision and documentation ticket: it defines the user-trusted default and enterprise managed-hook path. The executable setup behavior is covered by `5DEJ8V`, and any future managed-config generator should carry its own source feature.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide the honest enforcement posture for individual users and enterprises now that Codex's trust and hook limits are clearer.
