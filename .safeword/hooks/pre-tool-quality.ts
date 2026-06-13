@@ -24,6 +24,7 @@ import {
   reviewScope,
 } from './lib/review-ledger.ts';
 import {
+  EXPLAIN_HINT,
   getStateFilePath,
   LOC_THRESHOLD,
   META_PATHS,
@@ -106,7 +107,7 @@ function deny(reason: string, additionalContext?: string): never {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason: reason,
+      permissionDecisionReason: `${reason}\n\n${EXPLAIN_HINT}`,
       ...(additionalContext ? { additionalContext } : {}),
     },
   };

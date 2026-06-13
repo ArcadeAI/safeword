@@ -27,6 +27,7 @@ import {
 } from './lib/review-ledger.ts';
 import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
 import {
+  EXPLAIN_HINT,
   type FailureEntry,
   getStateFilePath,
   type QualityState,
@@ -461,7 +462,7 @@ Run /verify, show output, then try again.`;
  * No bypass: stop_hook_active does not skip this check.
  */
 function hardBlockDone(reason: string): never {
-  console.log(JSON.stringify({ decision: 'block', reason }));
+  console.log(JSON.stringify({ decision: 'block', reason: `${reason}\n\n${EXPLAIN_HINT}` }));
   process.exit(0);
 }
 

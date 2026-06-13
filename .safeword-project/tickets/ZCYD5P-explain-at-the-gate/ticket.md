@@ -3,10 +3,10 @@ id: ZCYD5P
 slug: explain-at-the-gate
 parent: VKNF1T-platform-uplift-epic
 type: patch
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-13T01:07:16.435Z
-last_modified: 2026-06-13T01:07:16.435Z
+last_modified: 2026-06-13T03:52:00.000Z
 ---
 
 # Gate block messages point to /explain
@@ -24,3 +24,4 @@ last_modified: 2026-06-13T01:07:16.435Z
 ## Work Log
 
 - 2026-06-13T01:07:16.435Z Started: Created ticket ZCYD5P
+- 2026-06-13T03:52:00Z Done: added shared EXPLAIN_HINT to lib/quality-state.ts; appended in deny() (phase/LOC/artifact gates) + hardBlockDone() (done gate); 3 hook templates synced byte-identical to dogfood. LOC-gate + done-gate tests assert the pointer. Lint/build clean, 121 hook tests green. verify.md written. Patch closed.
