@@ -45,9 +45,9 @@ Given a fresh project whose package.json omits safeword's dev dependencies and `
 When `safeword setup` runs to completion
 Then the self-verify reports `Configuration is healthy`, names no missing packages, and the command exits zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 829d29dc
+- [x] GREEN 829d29dc
+- [x] REFACTOR 829d29dc
 
 ## Rule: Upgrade proves its own postcondition
 
