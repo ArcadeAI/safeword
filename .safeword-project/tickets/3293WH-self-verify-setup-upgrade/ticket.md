@@ -3,10 +3,10 @@ id: 3293WH
 slug: self-verify-setup-upgrade
 parent: VKNF1T-platform-uplift-epic
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-06-06T18:40:39.708Z
-last_modified: 2026-06-13T01:20:00.000Z
+last_modified: 2026-06-13T03:40:00.000Z
 scope:
   - extract the config-health core (checkHealth, reportHealthSummary, HealthStatus, find* helpers) from check.ts into a shared module, behavior-neutral
   - call the health verification at the tail of setup and upgrade (after all mutations incl. maybeAutoPatchOrNudge); report issues and exit non-zero
@@ -66,3 +66,4 @@ Extract `verifyHealth(cwd) → issues[]` (config-health only, no update-check) f
 - 2026-06-13T01:45:00Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass: round 1 BLOCK (vacuous AC3) fixed, round 2 PASS; residual literal-pinning applied. impl-plan.md written (test layers + build order in Approach). Stamped.
 - 2026-06-13T01:55:00Z Complete: implement - 13/13 scenarios green (17 tests in self-verify.test.ts + existing 63 check/setup/upgrade tests pass). RED 2fe0edfa, GREEN+REFACTOR 911e139c. impl-plan reconciled → implemented (stronger: real e2e broken-postcondition fixtures via malformed personas.md; smaller: only cli.mdx needed doc rewording).
 - 2026-06-06T18:41:00Z Framed: verified setup/upgrade don't self-verify; `checkHealth`/`reportHealthSummary` are private in check.ts (need extraction); check's npm update-check must stay OUT of the self-verify (network + post-upgrade nag). Grepped ~20 `safeword check` references incl. advisory strings in scenario-coverage/glossary/personas that tell users to run it → real doc ripple if demoted. Proposed: extract `verifyHealth(cwd)→issues[]`, call from setup+upgrade, report+non-zero on issues. Core wiring task-sized; feature surface = the demote-public-command decision + doc sweep. Depends on 469YSR for clean output. Left fate-of-`check`, failure semantics, and advisory rewording open.
+- 2026-06-13T03:40:00Z Done: verify-phase fix (self-verify skips package checks under SAFEWORD_SKIP_INSTALL) + full suite green (2799 pass), /verify + /audit passed, verify.md written. Closed.

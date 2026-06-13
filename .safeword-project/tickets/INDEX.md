@@ -506,7 +506,7 @@
 - **Auto-enable the phase-exit review gate under YOLO/autonomous runs (2VCSZY)** (backlog, epic: —)
   When the human guard disappears (YOLO mode auto-confirms intake's sub-phase gates; long autonomous runs), the Tier-2 phase-exit review gate should turn on automatically — independent fork-reviews become the compensating control at exits the user normally guards.
   → `.safeword-project/tickets/2VCSZY-review-gate-autonomous-posture`
-- **Auto-run health verification after setup & upgrade; stop treating check as a human command (3293WH)** (in_progress, epic: —)
+- **Auto-run health verification after setup & upgrade; stop treating check as a human command (3293WH)** (done, epic: —)
   Run safeword's config-health verification automatically at the end of `setup` and `upgrade` (fail loudly if the command left the project broken), and stop presenting `check` as a command humans are expected to run.
   → `.safeword-project/tickets/3293WH-self-verify-setup-upgrade`
 - **Update PRINCIPLES.md — extend existing 5 by at most 1-2 net-new principles meeting research/measurement bar (3N3Q7B)** (in_progress, epic: —)
