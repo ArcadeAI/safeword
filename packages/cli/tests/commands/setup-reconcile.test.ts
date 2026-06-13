@@ -187,6 +187,33 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(content).toContain('.safeword/SAFEWORD.md');
     });
 
+    it('should create Codex project assets when applied', async () => {
+      await setupReconcileTest(temporaryDirectory);
+
+      expect(existsSync(nodePath.join(temporaryDirectory, 'AGENTS.md'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.agents/skills/bdd/SKILL.md'))).toBe(
+        true,
+      );
+      expect(
+        existsSync(nodePath.join(temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md')),
+      ).toBe(true);
+      expect(
+        existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality.ts')),
+      ).toBe(true);
+    });
+
+    it('should wire Codex PreToolUse config to the safeword adapter', async () => {
+      await setupReconcileTest(temporaryDirectory);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('[features]');
+      expect(content).toContain('hooks = true');
+      expect(content).toContain('[[hooks.PreToolUse]]');
+      expect(content).toContain('apply_patch');
+      expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+    });
+
     it('should prepend to existing AGENTS.md', async () => {
       const { reconcile, SAFEWORD_SCHEMA, createProjectContext } = await getReconcileTestUtilities(
         temporaryDirectory,

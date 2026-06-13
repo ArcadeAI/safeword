@@ -12,10 +12,11 @@
     "test:smoke:fast": "bun run --cwd packages/cli test:smoke:fast",
     "test:smoke": "bun run --cwd packages/cli test:smoke",
     "test:smoke:live": "bun run --cwd packages/cli test:smoke:live",
-    "lint": "eslint . && bun run --cwd packages/cli typecheck",
+    "lint": "eslint . && bun run lint:gherkin && bun run --cwd packages/cli typecheck",
     "format": "prettier --write .",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",
     "lint:sh": "shellcheck **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || true",
+    "lint:gherkin": "bun packages/cli/src/cli.ts lint-gherkin",
     "format:sh": "shfmt -w -i 2 -ci **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || echo 'shfmt not installed (brew install shfmt)'",
     "format:check": "prettier --check .",
     "knip": "knip",
@@ -41,6 +42,7 @@
     "prettier": "^3.8.4",
     "prettier-plugin-sh": "^0.18.1",
     "shellcheck": "^4.1.0",
+    "turbo": "2.9.18",
     "tsx": "^4.22.4"
   },
   "lint-staged": {
@@ -61,11 +63,19 @@
     ],
     "*.sh": [
       "shellcheck"
+    ],
+    "*.feature": [
+      "bun packages/cli/src/cli.ts lint-gherkin"
     ]
   },
   "overrides": {
-    "zod-validation-error": "^4.0.0",
-    "@types/estree": "^1.0.9"
+    "@felipecrs/decompress-tarxz": "5.0.6",
+    "@types/estree": "^1.0.9",
+    "@xhmikosr/decompress-unzip": "8.2.1",
+    "esbuild": "0.28.1",
+    "turbo": "2.9.18",
+    "yaml": "2.9.0",
+    "zod-validation-error": "^4.0.0"
   },
   "version": "0.0.1"
 }

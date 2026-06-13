@@ -61,40 +61,45 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
 
-**Saved format** (`test-definitions.md` on disk): nested `## Rule:` / `### Scenario:` with Given/When/Then + per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — the prompt hook parses them to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Aim for 3-5 G/W/T steps per scenario, and write each to the **Scenario construction rules** below.
+**Saved source** (`features/<slug>.feature`): Gherkin `Feature` / `Rule` / `Scenario` with lineage as `@<jtbd-id>.AC<#>` tags. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
+
+**Progress ledger** (`test-definitions.md` on disk): scenario headings plus per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. test-definitions.md is the R/G/R ledger. The prompt hook parses those checkboxes to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Do not duplicate Given/When/Then here when a `.feature` source exists.
+
+```gherkin
+@<jtbd-id>.AC1
+Feature: Description of feature
+
+  Rule: Description of business rule
+
+    @<jtbd-id>.AC1
+    Scenario: Partition A
+      Given [context]
+      When [action]
+      Then [outcome]
+
+    @<jtbd-id>.AC1
+    Scenario: Partition B (boundary)
+      Given [context]
+      When [action]
+      Then [outcome]
+```
 
 ```markdown
+# Test Definitions: Description of feature
+
+Feature source: `features/<slug>.feature`
+
+test-definitions.md is the R/G/R ledger.
+
 ## Rule: Description of business rule
 
 ### Scenario: Partition A
-
-Given [context]
-When [action]
-Then [outcome]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Partition B (boundary)
-
-Given [context]
-When [action]
-Then [outcome]
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: Non-obvious rule
-
-> Rationale: Why this rule exists and why these partitions matter
-
-### Scenario: Partition C
-
-Given [context]
-When [action]
-Then [outcome]
 
 - [ ] RED
 - [ ] GREEN
@@ -103,7 +108,7 @@ Then [outcome]
 
 ### Scenario construction rules
 
-Write each saved `Given/When/Then` to these rules — they head off at authoring time the defects the scenario-gate would otherwise catch later. Coaching, not a gate: when a scenario starts to break one, split it on the spot instead of accumulating violations.
+Write each saved `.feature` scenario to these rules — they head off at authoring time the defects the scenario-gate would otherwise catch later. Coaching, not a gate: when a scenario starts to break one, split it on the spot instead of accumulating violations.
 
 - **One behavior, one `When`** — each scenario specifies a single event and its outcome. Multiple `And`-joined `Then` lines are fine when they assert facets of the _same_ outcome (a withdrawal that debits **and** dispenses **and** returns the card); a second `When`, or a second behavior, means a second scenario.
 - **Outcome-oriented `Then`** — assert what is true after the `When`, never how the system gets there. "Then the order is rejected" ✓, not "Then `validateOrder()` returns false" ✗.
@@ -115,28 +120,30 @@ Two of these rules mirror gate checks — **one behavior** is AODI's **Atomic**,
 
 ### Scenario naming: lineage scheme
 
-Each saved `### Scenario:` title carries the acceptance criterion it proves, so the
-link back to AC, JTBD, and persona is machine-checkable rather than eyeballed:
+Each saved `.feature` scenario carries the acceptance criterion it proves as a
+Gherkin tag, so the link back to AC, JTBD, and persona is machine-checkable
+rather than eyeballed:
 
-`<jtbd-id>.AC<#>.<scenario_name>` — `scenario_name` is snake_case; the rest is the
-AC id from intake (`<slug>.<persona-code><JTBD#>.AC<#>`). Long ids are fine — no
-truncation.
+`@<jtbd-id>.AC<#>` — the tag is the AC id from intake
+(`<slug>.<persona-code><JTBD#>.AC<#>`). Long ids are fine — no truncation.
+Scenario names may be plain English; keep lineage in tags, not names.
 
 Worked example — feature `oauth-flow`, persona Platform Operator (PO), first JTBD:
 
-| Layer    | Id                                                                 |
-| -------- | ------------------------------------------------------------------ |
-| JTBD     | `oauth-flow.PO1`                                                   |
-| AC       | `oauth-flow.PO1.AC2`                                               |
-| Scenario | `oauth-flow.PO1.AC2.change_association_applies_to_subsequent_auth` |
+| Layer        | Id                    |
+| ------------ | --------------------- |
+| JTBD         | `oauth-flow.PO1`      |
+| AC           | `oauth-flow.PO1.AC2`  |
+| Scenario tag | `@oauth-flow.PO1.AC2` |
 
 ```text
-### Scenario: oauth-flow.PO1.AC2.change_association_applies_to_subsequent_auth
+@oauth-flow.PO1.AC2
+Scenario: Change association applies to subsequent auth
 ```
 
-A free-text title (no `<jtbd-id>.AC<#>` prefix) is left alone — it simply proves no
-AC. `safeword check` reads the scheme and reports coverage gaps for in-progress
-tickets as advisories (never a gate):
+A scenario with no lineage tag is left alone — it simply proves no AC.
+`safeword check` reads the tags and reports coverage gaps for in-progress tickets
+as advisories (never a gate):
 
 - **uncovered** — an AC in `spec.md` that no scenario references.
 - **stale ref** — a scenario whose JTBD exists but whose `AC<#>` does not (a typo,
@@ -145,9 +152,10 @@ tickets as advisories (never a gate):
 
 ### Define Behavior Exit (REQUIRED)
 
-1. **Save scenarios** to `.project/tickets/{id}-{slug}/test-definitions.md`
-2. **Update frontmatter:** `phase: scenario-gate`
-3. **Add work log entry:**
+1. **Save scenarios** to `features/<slug>.feature`
+2. **Save the R/G/R ledger** to `.project/tickets/{id}-{slug}/test-definitions.md`
+3. **Update frontmatter:** `phase: scenario-gate`
+4. **Add work log entry:**
 
    ```
    - {timestamp} Complete: define-behavior - {N} scenarios defined across {M} rules
@@ -159,7 +167,7 @@ tickets as advisories (never a gate):
 
 **Entry:** Agent enters `scenario-gate` phase.
 
-Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `test-definitions.md`, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the saturation check and exit below.
+Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the saturation check and exit below.
 
 ### Coverage saturation
 
@@ -194,9 +202,9 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 ### Optional: codify the scenarios
 
-After the gate, `safeword codify <ticket>` turns the saved scenarios into runnable stubs — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step:
+After the gate, `safeword codify <ticket>` turns the `.feature` source into runnable stubs — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step:
 
 - Default: a native vitest skeleton — one `describe` per rule, `it.todo` per scenario (`--red` for failing bodies); print to stdout or `--out <path>`.
-- `--format gherkin`: a `.feature` file for the scaffolded acceptance lane — write it under `features/` and run it with the `test:bdd` script (cucumber-js; TypeScript step definitions live in `steps/`).
+- `--format gherkin`: prints the feature source when one exists; on legacy tickets, emits a migration `.feature` from markdown scenarios.
 
-Either way `test-definitions.md` stays the source of truth — the R/G/R checkboxes and hooks read it, never the generated files. If scenarios change later, regenerate: codify refuses to overwrite, so delete the stale file first.
+Either way `.feature` is the scenario source of truth. test-definitions.md is the R/G/R ledger for checkboxes and hooks.

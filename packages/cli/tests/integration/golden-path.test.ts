@@ -10,7 +10,7 @@
  * Also includes idempotency and fallback tests (separate project setups).
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -26,8 +26,19 @@ import {
   runCli,
   runLintHook,
   setupOrThrow,
+  TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
+
+function runGherkinLint(directory: string): { output: string; status: number | null } {
+  const result = spawnSync('bun', ['run', 'lint:gherkin'], {
+    cwd: directory,
+    encoding: 'utf8',
+    timeout: TIMEOUT_SETUP,
+  });
+
+  return { output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`, status: result.status };
+}
 
 describe('E2E: Golden Path', () => {
   let projectDirectory: string;
@@ -89,6 +100,78 @@ describe('E2E: Golden Path', () => {
     // File should be formatted (Prettier adds semicolon and spaces)
     const result = readTestFile(projectDirectory, 'src/hook-test.ts');
     expect(result.trim()).toBe('const x = 1;');
+  });
+
+  it('generated Gherkin lint script checks root and package feature files', () => {
+    writeTestFile(
+      projectDirectory,
+      'features/root-lint.feature',
+      [
+        'Feature: Root lint',
+        '  Scenario: root feature passes',
+        '    Given a root feature exists',
+        '    When Gherkin lint runs',
+        '    Then the root feature is checked',
+        '',
+      ].join('\n'),
+    );
+    writeTestFile(
+      projectDirectory,
+      'packages/app/features/package-lint.feature',
+      [
+        'Feature: Package lint',
+        '  Scenario: package feature passes',
+        '    Given a package feature exists',
+        '    When Gherkin lint runs',
+        '    Then the package feature is checked',
+        '',
+      ].join('\n'),
+    );
+
+    const passingResult = runGherkinLint(projectDirectory);
+
+    expect(passingResult.status, passingResult.output).toBe(0);
+
+    writeTestFile(
+      projectDirectory,
+      'packages/app/features/package_lint.feature',
+      [
+        'Feature: Package lint file name',
+        '  Scenario: package feature fails lint',
+        '    Given a package feature exists',
+        '',
+      ].join('\n'),
+    );
+
+    try {
+      const failingResult = runGherkinLint(projectDirectory);
+
+      expect(failingResult.status).not.toBe(0);
+      expect(failingResult.output).toContain('packages/app/features/package_lint.feature');
+      expect(failingResult.output).toContain('file-name');
+    } finally {
+      unlinkSync(nodePath.join(projectDirectory, 'packages/app/features/package_lint.feature'));
+    }
+  });
+
+  it('post-tool-lint hook surfaces Gherkin lint errors as additional context', () => {
+    const filePath = nodePath.join(projectDirectory, 'features/bad.feature');
+    writeTestFile(
+      projectDirectory,
+      'features/bad.feature',
+      ['Feature: Broken', '  Scenario: bad', '    Given ok', '    nope', ''].join('\n'),
+    );
+
+    const result = runLintHook(projectDirectory, filePath);
+
+    try {
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('hookSpecificOutput');
+      expect(result.stdout).toContain('Lint errors remain after auto-fix');
+      expect(result.stdout).toContain('Invalid Gherkin syntax');
+    } finally {
+      unlinkSync(filePath);
+    }
   });
 
   describe('Lint Hook Graceful Handling', () => {

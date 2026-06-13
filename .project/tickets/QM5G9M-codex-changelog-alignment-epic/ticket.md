@@ -75,6 +75,24 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 
 Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → generation (5DEJ8V). QGHVXZ and JV6D1W are decisions that can run in parallel. WR4HRA + 6WJ1RS after the gates work.
 
+## Revalidation + /figure-it-out (2026-06-13)
+
+**Frame:** Decide whether this epic is still the right container for Codex parity after current Codex docs and releases moved past the May 31 research.
+
+**Research domains checked:** Codex hook blocking semantics, Codex skills/plugin distribution, AGENTS.md discovery, managed configuration/trust model, Codex CLI release floor, and safeword's existing Claude/Cursor generator architecture.
+
+**Current evidence:** Official Codex docs still support the epic premise: `UserPromptSubmit` can hard-block prompts, `PreToolUse` can deny supported `Bash` / `apply_patch` / MCP tool calls, `Stop` is only a continuation nudge, skills live in `.agents/skills`, plugins can bundle hooks, plugin hooks still require trust, and managed `requirements.toml` is the enterprise enforcement path. The latest stable Codex CLI release found via `openai/codex` releases is `0.139.0` (2026-06-09); `0.140.0-alpha.17` exists as a prerelease on 2026-06-13.
+
+**Options:**
+
+1. Raw project install first: generate `AGENTS.md`, `.codex/` hook config, and `.agents/skills`, then package later.
+2. Plugin first: make plugin packaging the primary install surface before raw setup works.
+3. Managed-only: require enterprise managed hooks from day one.
+
+**Recommend:** Keep the epic and sequence, with option 1 as the implementation path. Raw setup proves real parity fastest and matches safeword's existing setup/upgrade model. Plugin-first is better for distribution but depends on the same generated assets. Managed-only is stronger but excludes individual CLI users.
+
+**Next:** Run `N12G95` first, then update `HPP49X` and `5DEJ8V` from the spike result before implementing broad generation.
+
 ## Related
 
 - Epic **8R54HV** (Claude Code) — same gate model; reuse its hook contracts where Codex matches.
@@ -86,3 +104,4 @@ Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → 
 - 2026-05-31 Placeholder created; no existing Codex integration.
 - 2026-05-31 Researched Codex surfaces (live docs). Verdict ENFORCEABLE; filed 6 child tickets.
 - 2026-05-31 Re-verified hooks doc directly. Corrected `Stop` claim (auto-continues, does NOT hard-block — done gate moves to `UserPromptSubmit`); added `UserPromptSubmit` block + `allow_managed_hooks_only`; softened unverified custom-prompts-deprecation; added distribution ticket 6WJ1RS. Noted Skills/Plugins/Enterprise docs not yet read end-to-end.
+- 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out across the epic. Verdict still stands: Codex parity is enforceable, but implementation must keep the current docs' caveat that `PreToolUse` is a guardrail with incomplete shell interception. Latest stable is 0.139.0; 0.140.0-alpha.17 exists. Keep raw setup first, plugin packaging second, managed enforcement as enterprise path.

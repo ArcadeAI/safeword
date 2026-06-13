@@ -19,11 +19,17 @@ import {
   resolveTicketsDirectory,
 } from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
+import { findFeatureSourcePath } from '../utils/feature-source.js';
 import { exists, isDirectory, readFileSafe } from '../utils/fs.js';
+import { FeatureParseError, findFeatureLineageIssues } from '../utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from '../utils/glossary.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
 import { parsePersonas, validatePersonas } from '../utils/personas.js';
-import { buildCoverageReport, type CoverageReport } from '../utils/scenario-coverage.js';
+import {
+  buildCoverageReport,
+  buildCoverageReportFromFeature,
+  type CoverageReport,
+} from '../utils/scenario-coverage.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
 import { findDanglingDependencies, findTicketsInCycles } from '../utils/ticket-relations.js';
 import { isNewerVersion } from '../utils/version.js';
@@ -222,30 +228,94 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
  * which excludes done predecessors whose pre-scheme scenarios are the
  * out-of-scope migration case (epic DZ2NM5/D5), and keeps the report focused
  * on the work the developer is actually building. Each in-progress ticket's
- * (spec.md, test-definitions.md) pair is cross-referenced into uncovered ACs,
- * stale AC refs, and orphan scenarios. Zero-exit — advisory, never a gate.
+ * feature source or legacy (spec.md, test-definitions.md) pair is cross-referenced
+ * into uncovered ACs, stale AC refs, and orphan scenarios. Coverage gaps stay
+ * zero-exit advisories; invalid Gherkin is a health issue because the source
+ * cannot be read.
  */
-function findCoverageAdvisories(cwd: string): string[] {
+interface CoverageDiagnostics {
+  issues: string[];
+  advisories: string[];
+}
+
+function emptyCoverageDiagnostics(): CoverageDiagnostics {
+  return { issues: [], advisories: [] };
+}
+
+function findCoverageDiagnostics(cwd: string): CoverageDiagnostics {
   const ticketsRoot = resolveTicketsDirectory(cwd);
-  return listTicketIds(ticketsRoot).flatMap(ticketId =>
-    coverageAdvisoriesForTicket(ticketsRoot, ticketId),
-  );
+  const all = emptyCoverageDiagnostics();
+  for (const ticketId of listTicketIds(ticketsRoot)) {
+    const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
+    all.issues.push(...ticketDiagnostics.issues);
+    all.advisories.push(...ticketDiagnostics.advisories);
+  }
+  return all;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an
  * in-progress, spec-bearing ticket. */
-function coverageAdvisoriesForTicket(ticketsRoot: string, ticketId: string): string[] {
+function coverageDiagnosticsForTicket(
+  cwd: string,
+  ticketsRoot: string,
+  ticketId: string,
+): CoverageDiagnostics {
   const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
   const ticketContent = readFileSafe(nodePath.join(ticketDirectory, 'ticket.md'));
-  if (ticketContent === undefined || !isInProgress(ticketContent)) return [];
+  if (ticketContent === undefined || !isInProgress(ticketContent))
+    return emptyCoverageDiagnostics();
 
   const specContent = readFileSafe(nodePath.join(ticketDirectory, 'spec.md'));
-  if (specContent === undefined) return [];
+  if (specContent === undefined) return emptyCoverageDiagnostics();
 
-  const testDefinitionsContent = readFileSafe(
-    nodePath.join(ticketDirectory, 'test-definitions.md'),
+  const featureSource = readFeatureSource(cwd, ticketId);
+  try {
+    const report =
+      featureSource === undefined
+        ? buildCoverageReport(
+            specContent,
+            readFileSafe(nodePath.join(ticketDirectory, 'test-definitions.md')),
+          )
+        : buildCoverageReportFromFeature(specContent, featureSource.content);
+    const lineageIssues =
+      featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
+    return { issues: lineageIssues, advisories: formatCoverageReport(ticketId, report) };
+  } catch (parseError: unknown) {
+    if (parseError instanceof FeatureParseError && featureSource !== undefined) {
+      return {
+        issues: [
+          `${formatCoverageTicketLabel(ticketId)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
+        ],
+        advisories: [],
+      };
+    }
+    throw parseError;
+  }
+}
+
+function formatFeatureLineageIssues(
+  cwd: string,
+  ticketId: string,
+  featureSource: FeatureSource,
+): string[] {
+  const label = formatCoverageTicketLabel(ticketId);
+  const relativePath = nodePath.relative(cwd, featureSource.path);
+  return findFeatureLineageIssues(featureSource.content).map(
+    issue => `${label}: ${relativePath}: ${issue}`,
   );
-  return formatCoverageReport(ticketId, buildCoverageReport(specContent, testDefinitionsContent));
+}
+
+interface FeatureSource {
+  path: string;
+  content: string;
+}
+
+function readFeatureSource(cwd: string, ticketFolder: string): FeatureSource | undefined {
+  const featurePath = findFeatureSourcePath(cwd, ticketFolder);
+  const content = featurePath === undefined ? undefined : readFileSafe(featurePath);
+  return featurePath === undefined || content === undefined
+    ? undefined
+    : { path: featurePath, content };
 }
 
 /** Whether a ticket.md's frontmatter declares `status: in_progress`. */
@@ -262,11 +332,7 @@ function isInProgress(ticketContent: string): boolean {
 
 /** Render a coverage report into one advisory string per finding. */
 function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
-  const dashIndex = ticketId.indexOf('-');
-  const ticketLabel =
-    dashIndex === -1
-      ? ticketId
-      : formatTicketReference(ticketId.slice(0, dashIndex), ticketId.slice(dashIndex + 1));
+  const ticketLabel = formatCoverageTicketLabel(ticketId);
   return [
     ...report.uncovered.map(
       acId => `${ticketLabel}: acceptance criterion ${acId} has no scenario (uncovered)`,
@@ -279,6 +345,13 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
       reference => `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
     ),
   ];
+}
+
+function formatCoverageTicketLabel(ticketId: string): string {
+  const dashIndex = ticketId.indexOf('-');
+  return dashIndex === -1
+    ? ticketId
+    : formatTicketReference(ticketId.slice(0, dashIndex), ticketId.slice(dashIndex + 1));
 }
 
 /**
@@ -443,6 +516,8 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
 
   // Check for missing language packs
   const missingPacks = getMissingPacks(cwd);
+  const coverageDiagnostics = findCoverageDiagnostics(cwd);
+  issues.push(...coverageDiagnostics.issues);
 
   return {
     configured: true,
@@ -455,7 +530,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
       ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
-      ...findCoverageAdvisories(cwd),
+      ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
       ...findArchitectureAdvisories(cwd),
     ],

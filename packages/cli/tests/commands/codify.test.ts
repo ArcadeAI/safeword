@@ -59,6 +59,65 @@ function scaffoldTicket(root: string, testDefinitions: string): void {
   );
 }
 
+function scaffoldFeatureTicket(root: string): void {
+  writeTestFile(root, `.safeword-project/tickets/${TICKET_ID}-demo/ticket.md`, '# demo');
+  writeTestFile(
+    root,
+    'features/demo.feature',
+    [
+      'Feature: Demo feature source',
+      '',
+      '  Rule: source rule',
+      '',
+      '    @demo.DEV1.AC1',
+      '    Scenario: demo.DEV1.AC1.feature_source_one',
+      '      Given a feature file',
+      '      When codify runs',
+      '      Then a Vitest test is emitted',
+      '',
+      '    @demo.DEV1.AC1',
+      '    Scenario: demo.DEV1.AC1.feature_source_two',
+      '      Given a second scenario',
+      '      When codify runs',
+      '      Then another Vitest test is emitted',
+      '',
+    ].join('\n'),
+  );
+}
+
+function scaffoldInvalidFeatureTicket(root: string): void {
+  writeTestFile(root, `.safeword-project/tickets/${TICKET_ID}-demo/ticket.md`, '# demo');
+  writeTestFile(
+    root,
+    'features/demo.feature',
+    ['Feature: Broken', '  Scenario: bad', '    Given ok', '    nope', ''].join('\n'),
+  );
+}
+
+function scaffoldOutlineFeatureTicket(root: string): void {
+  writeTestFile(root, `.safeword-project/tickets/${TICKET_ID}-demo/ticket.md`, '# demo');
+  writeTestFile(
+    root,
+    'features/demo.feature',
+    [
+      'Feature: Demo feature source',
+      '',
+      '  Rule: source rule',
+      '',
+      '    @demo.DEV1.AC1',
+      '    Scenario Outline: demo.DEV1.AC1.outline_source',
+      '      Given a <source> feature file',
+      '      Then codify emits <result>',
+      '',
+      '      Examples: source rows',
+      '        | source | result       |',
+      '        | valid  | a test stub  |',
+      '        | tagged | coverage tag |',
+      '',
+    ].join('\n'),
+  );
+}
+
 function countTests(emitted: string): number {
   return (emitted.match(/\bit(?:\.todo)?\(/g) ?? []).length;
 }
@@ -173,6 +232,70 @@ describe('safeword codify', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('describe(');
       expect(result.stdout).not.toContain('Feature:');
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'feature-files-as-source.SM1.AC2.feature_source_default_emits_vitest',
+    async () => {
+      scaffoldFeatureTicket(temporaryDirectory);
+      const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('describe("source rule"');
+      expect(result.stdout).toContain('it.todo("demo.DEV1.AC1.feature_source_one")');
+      expect(countTests(result.stdout)).toBe(2);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'feature-files-as-source.SM1.AC2.scenario_outline_rows_emit_distinct_vitest_stubs',
+    async () => {
+      scaffoldOutlineFeatureTicket(temporaryDirectory);
+      const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain(
+        'it.todo("demo.DEV1.AC1.outline_source (source=valid, result=a test stub)")',
+      );
+      expect(result.stdout).toContain(
+        'it.todo("demo.DEV1.AC1.outline_source (source=tagged, result=coverage tag)")',
+      );
+      expect(result.stdout).toContain('// Given a valid feature file');
+      expect(result.stdout).toContain('// Then codify emits coverage tag');
+      expect(countTests(result.stdout)).toBe(2);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'feature-files-as-source.SM1.AC2.feature_source_format_gherkin_echoes_source',
+    async () => {
+      scaffoldFeatureTicket(temporaryDirectory);
+      const result = await runCli(['codify', TICKET_ID, '--format', 'gherkin'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Feature: Demo feature source');
+      expect(result.stdout).toContain('Scenario: demo.DEV1.AC1.feature_source_two');
+      expect(result.stdout).not.toContain('describe(');
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'feature-files-as-source.SM1.AC2.invalid_feature_source_errors_without_parser_stack',
+    async () => {
+      scaffoldInvalidFeatureTicket(temporaryDirectory);
+      const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/features\/demo\.feature/);
+      expect(result.stderr).toMatch(/invalid gherkin/i);
+      expect(result.stderr).not.toMatch(/CompositeParserException|Parser\.ts|class Composite/i);
     },
     TIMEOUT_QUICK,
   );

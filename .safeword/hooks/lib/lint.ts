@@ -30,6 +30,7 @@ const GO_EXTENSIONS = new Set(['go']);
 const RUST_EXTENSIONS = new Set(['rs']);
 const SQL_EXTENSIONS = new Set(['sql']);
 const SHELL_EXTENSIONS = new Set(['sh']);
+const FEATURE_EXTENSIONS = new Set(['feature']);
 const PRETTIER_EXTENSIONS = new Set([
   'md',
   'json',
@@ -128,6 +129,14 @@ function hasConfig(path: string): boolean {
   return existsSync(path);
 }
 
+function safewordCliCommand(): string[] {
+  const installedCli = `${projectDir}/node_modules/safeword/dist/cli.js`;
+  if (existsSync(installedCli)) return ['bun', installedCli];
+  const sourceCli = `${projectDir}/packages/cli/src/cli.ts`;
+  if (existsSync(sourceCli)) return ['bun', sourceCli];
+  return ['bunx', 'safeword'];
+}
+
 /**
  * Regex to extract package name from Cargo.toml.
  * Matches: [package] ... name = "package-name"
@@ -217,11 +226,13 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
 async function captureRemainingErrors(
   command: string[],
   warnings?: string[],
+  options: { stderrIsLintOutput?: boolean } = {},
 ): Promise<string | undefined> {
   const result = await $`${command}`.nothrow().quiet();
   if (result.exitCode === 0) return undefined;
   const stdout = result.stdout.toString().trim();
   const stderr = result.stderr.toString().trim();
+  if (options.stderrIsLintOutput) return stdout || stderr || undefined;
   // Infra failure: linter crashed, not a lint error in the user's code
   if (!stdout && stderr && warnings) {
     warnings.push(`${command[0]} failed: ${stderr.split('\n')[0]}`);
@@ -380,6 +391,16 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${file}`.nothrow().quiet();
     }
     return { warnings };
+  }
+
+  // Gherkin feature files - syntax/style lint, no auto-fix available
+  if (FEATURE_EXTENSIONS.has(extension)) {
+    const errors = await captureRemainingErrors(
+      [...safewordCliCommand(), 'lint-gherkin', file],
+      warnings,
+      { stderrIsLintOutput: true },
+    );
+    return { warnings, ...(errors && { errors }) };
   }
 
   // Other supported formats - prettier only

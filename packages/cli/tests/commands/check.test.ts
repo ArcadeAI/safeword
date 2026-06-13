@@ -541,6 +541,105 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).toMatch(/COV001:.*demo\.DEV1\.AC2.*uncovered/i);
     });
 
+    it('prefers feature-source tags over markdown scenario titles (1DT29X)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV004-demo', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        // If markdown still won, AC2 would look covered. Feature source should win.
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC2.markdown_only'),
+      });
+      writeTestFile(
+        temporaryDirectory,
+        'features/demo.feature',
+        [
+          'Feature: Demo',
+          '',
+          '  Rule: r',
+          '',
+          '    @demo.DEV1.AC1',
+          '    Scenario: feature source covers only AC1',
+          '      Given a',
+          '      When b',
+          '      Then c',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/demo \(COV004\):.*demo\.DEV1\.AC2.*uncovered/i);
+    });
+
+    it('reports invalid feature source syntax without a parser stack (1DT29X)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV005-demo', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.markdown_fallback'),
+      });
+      writeTestFile(
+        temporaryDirectory,
+        'features/demo.feature',
+        [
+          'Feature: Broken',
+          '  Rule: r',
+          '    Scenario: bad',
+          '      Given ok',
+          '      nope',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/features\/demo\.feature/);
+      expect(combined).toMatch(/invalid gherkin/i);
+      expect(combined).not.toMatch(/CompositeParserException|Parser\.ts|class Composite/i);
+    });
+
+    it('reports missing and conflicting feature-source lineage as hard issues', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV006-demo', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.markdown_fallback'),
+      });
+      writeTestFile(
+        temporaryDirectory,
+        'features/demo.feature',
+        [
+          'Feature: Demo',
+          '',
+          '  Rule: untagged',
+          '',
+          '    Scenario: has no AC tag',
+          '      Given a',
+          '      When b',
+          '      Then c',
+          '',
+          '  @demo.DEV1.AC1',
+          '  Rule: tagged',
+          '',
+          '    @demo.DEV1.AC2',
+          '    Scenario: carries two AC tags',
+          '      Given a',
+          '      When b',
+          '      Then c',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/features\/demo\.feature/);
+      expect(combined).toMatch(/has no AC tag.*missing lineage/i);
+      expect(combined).toMatch(/carries two AC tags.*multiple lineage/i);
+    });
+
     it('renders the coverage advisory slug-first when the folder carries a slug (ZRXM6Q)', async () => {
       await createConfiguredProject(temporaryDirectory);
       // check derives the advisory label from the ticket folder name (id-slug),
