@@ -145,7 +145,7 @@ tickets as advisories (never a gate):
 
 ### Define Behavior Exit (REQUIRED)
 
-1. **Save scenarios** to `.project/tickets/{id}-{slug}/test-definitions.md`
+1. **Save scenarios** to `<namespace-root>/tickets/{id}-{slug}/test-definitions.md`
 2. **Update frontmatter:** `phase: scenario-gate`
 3. **Add work log entry:**
 

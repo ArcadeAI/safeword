@@ -72,11 +72,13 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
     );
 
     it.each([...verifyForms, ...auditForms])(
-      '%s bash injection resolves the namespace root with legacy fallback (TAGWZ8)',
+      '%s bash injection honors paths.projectRoot before default/legacy fallback',
       (_name, content) => {
-        // Prefer .project/; fall back to an existing legacy .safeword-project/.
-        expect(content).toMatch(/NS_ROOT="\$PROJECT_DIR\/\.project"/);
-        expect(content).toMatch(/-d\s+"\$PROJECT_DIR\/\.safeword-project"/);
+        expect(content).toMatch(/NS_ROOT="\$\(node -e/);
+        expect(content).toContain('parsed.paths&&parsed.paths.projectRoot');
+        expect(content).toContain('directory(".project")');
+        expect(content).toContain('directory(".safeword-project")');
+        expect(content).not.toMatch(/NS_ROOT="\$PROJECT_DIR\/\.project"/);
       },
     );
 

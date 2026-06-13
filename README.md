@@ -112,7 +112,7 @@ Key directories created in your project:
 
 - `.safeword/guides/` - Core methodology and best practices
 - `.safeword/templates/` - Fillable document structures
-- `.safeword-project/tickets/` - Tickets for complex/multi-step work (context anchors)
+- `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
 - `.safeword/hooks/` - Automation scripts (Claude Code + Cursor)
 - `.claude/commands/`, `.cursor/commands/` - Slash commands
 - `.claude/skills/`, `.cursor/rules/` - Specialized agent capabilities
@@ -175,7 +175,7 @@ Key directories created in your project:
 
 **Purpose**: Extracted knowledge that compounds across sessions
 
-**Location**: `.safeword-project/learnings/[concept].md`
+**Location**: `<namespace-root>/learnings/[concept].md`
 
 **What goes here**:
 
@@ -192,12 +192,12 @@ Key directories created in your project:
 
 **Purpose**: Context anchors for complex/multi-step work to prevent LLM loops
 
-**Location**: `.safeword-project/tickets/{id}-{slug}/`
+**Location**: `<namespace-root>/tickets/{id}-{slug}/`
 
 **Structure**:
 
 ```plaintext
-.safeword-project/
+<namespace-root>/
 ├── tickets/
 │   ├── 001-feature-name/
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
@@ -310,13 +310,13 @@ SAFEWORD.md then imports guides via the Guides table. Both Claude Code and Curso
 ### Check for Existing Learnings
 
 ```bash
-ls .safeword-project/learnings/
+ls < namespace-root > /learnings/
 ```
 
 ### Extract New Learning
 
 1. Follow recognition triggers in `learning-extraction.md`
-2. Create `.safeword-project/learnings/[concept].md`
+2. Create `<namespace-root>/learnings/[concept].md`
 3. Use template: Problem → Gotcha → Examples → Testing Trap
 
 ---
@@ -329,12 +329,13 @@ Commit `.safeword/`, `.claude/`, and `.cursor/` in your project repo for team co
 
 ## Customizing File Locations
 
-Safeword reads project-level documentation files (personas, glossary, architecture) from `.safeword-project/` by default. If you already maintain these docs elsewhere, point safeword at your existing files via the optional `paths` block in `.safeword/config.json`:
+Safeword reads project-level information from the project namespace root: `paths.projectRoot` when configured, `.project/` by default, or legacy `.safeword-project/` when that directory already exists. If you already maintain these docs elsewhere, point safeword at your existing files via the optional `paths` block in `.safeword/config.json`:
 
 ```json
 {
   "installedPacks": ["typescript"],
   "paths": {
+    "projectRoot": ".project",
     "personas": "docs/personas.md",
     "glossary": "docs/glossary.md",
     "architecture": "ARCHITECTURE.md"
@@ -344,13 +345,13 @@ Safeword reads project-level documentation files (personas, glossary, architectu
 
 **Rules:**
 
-- All `paths.*` keys are optional. Unset keys fall back to `.safeword-project/<key>.md`.
+- All `paths.*` keys are optional. Unset per-file keys fall back to `<namespace-root>/<key>.md`.
 - Relative paths resolve against project root (the directory containing `.safeword/config.json`).
 - Absolute paths are used verbatim — useful for shared monorepo setups where the file lives outside this project's tree.
 - When an override is set, `safeword setup` does NOT scaffold the default-location stub — one personas.md per project, where you named it.
 - `safeword check` validates the configured file. If the file is missing, you get a `personas-path:` error with non-zero exit (loud failure on configured-but-missing). If `.safeword-project/personas.md` still exists from a prior install, you get a zero-exit advisory naming the orphaned file (cleanup is up to you — safeword never deletes user content).
 
-Currently only `personas` is wired through to a read site; `glossary` and `architecture` slots are reserved for forthcoming sibling tickets.
+Tickets and learnings derive from `paths.projectRoot`. Personas, glossary, and architecture can also be redirected individually with their own `paths.*` keys.
 
 ---
 
@@ -361,7 +362,7 @@ Currently only `personas` is wired through to a read site; `glossary` and `archi
 1. `AGENTS.md` links to `.safeword/SAFEWORD.md` (also adds one import line to `CLAUDE.md` if present)
 2. `SAFEWORD.md` imports guides via Guides table
 3. Guides cross-reference each other and templates
-4. Learnings stored in `.safeword-project/learnings/`
+4. Learnings stored in `<namespace-root>/learnings/`
 
 **Result**: Modular, maintainable documentation with clear separation of concerns
 
@@ -402,12 +403,12 @@ No. Safeword's hooks and stricter linting rules only fire during AI agent sessio
 **What Claude Code permissions does safeword need?**
 Safeword's done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, the gate hard-blocks at done-phase.
 
-To pre-approve the injection without prompts (recommended for headless / non-interactive sessions), add these two patterns to `.claude/settings.json`:
+To pre-approve the injection without prompts (recommended for headless / non-interactive sessions), add these patterns to `.claude/settings.json`:
 
 ```json
 {
   "permissions": {
-    "allow": ["Bash(mkdir -p:*)", "Bash(echo:*)"]
+    "allow": ["Bash(node -e:*)", "Bash(mkdir -p:*)", "Bash(echo:*)"]
   }
 }
 ```
@@ -416,8 +417,9 @@ This is the **minimum surgical scope**:
 
 - `Bash(mkdir -p:*)` matches only `mkdir -p ...` invocations (word boundary enforced), not bare `mkdir`.
 - `Bash(echo:*)` is the only way to pre-approve `echo` — Claude Code bash patterns cannot constrain by what is being echoed or where it writes (`>>` redirects are part of the command string, not a separator).
+- `Bash(node -e:*)` lets the injection parse `.safeword/config.json` so `paths.projectRoot` is honored before the default/legacy fallback.
 
-The injection itself only writes timestamped lines to `.safeword-project/skill-invocations.log` — no network calls, no file mutation outside that path. If you cannot or do not want to allow bash injection in your environment, the done-gate is currently inoperable — please open an issue if this affects you.
+The injection itself resolves the project namespace root and writes timestamped lines to `<namespace-root>/skill-invocations.log` — no network calls, no file mutation outside that path. If you cannot or do not want to allow bash injection in your environment, the done-gate is currently inoperable — please open an issue if this affects you.
 
 ---
 
