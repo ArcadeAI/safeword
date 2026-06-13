@@ -25,7 +25,7 @@ Read it BEFORE working on any task in this project.
  * SAFEWORD.md is inlined into context at launch and re-expanded on every
  * \`/compact\`. Without this, customer installs would rely on the agent
  * following a cross-file delegation chain that our own research
- * (\`.safeword-project/learnings/instruction-attention-hierarchy.md\`)
+ * (\`<namespace-root>/learnings/instruction-attention-hierarchy.md\`)
  * measures at ~20% compliance.
  */
 export const CLAUDE_MD_IMPORT_BLOCK = `@./.safeword/SAFEWORD.md

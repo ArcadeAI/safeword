@@ -21,7 +21,7 @@ describe('ticket-sync', () => {
 
   beforeEach(() => {
     temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-ticket-sync-'));
-    ticketsDirectory = nodePath.join(temporaryDirectory, TICKETS_RELATIVE_PATH);
+    ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
     mkdirSync(ticketsDirectory, { recursive: true });
   });
 

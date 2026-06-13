@@ -36,8 +36,9 @@ describe.each([
     expect(content).toContain('## Load project glossary');
   });
 
-  it('references .project/glossary.md and the empty-file soft prompt', () => {
-    expect(content).toContain('.project/glossary.md');
+  it('references the configured glossary path and the empty-file soft prompt', () => {
+    expect(content).toContain('paths.glossary');
+    expect(content).toContain('<namespace-root>/glossary.md');
     // Soft-prompt wording mirrors the persona equivalent ("empty — want to add").
     const glossarySection = content.slice(content.indexOf('## Load project glossary'));
     expect(glossarySection).toMatch(/empty.*add.*now|add.*now.*proceed/i);

@@ -151,7 +151,7 @@ description: Improve code structure without changing behavior. Use when
 - CLAUDE.md survives compaction; skills may be dropped — critical instructions belong in CLAUDE.md
 - No priority order between skills and CLAUDE.md — avoid contradictions rather than relying on override
 
-**See also:** `.project/learnings/skill-description-design.md` for anti-patterns and examples.
+**See also:** `<namespace-root>/learnings/skill-description-design.md` for anti-patterns and examples.
 
 ---
 
