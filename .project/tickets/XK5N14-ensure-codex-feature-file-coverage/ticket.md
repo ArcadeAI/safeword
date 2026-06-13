@@ -2,8 +2,8 @@
 id: XK5N14
 slug: ensure-codex-feature-file-coverage
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 created: 2026-06-13T22:48:56.763Z
@@ -66,3 +66,4 @@ Audit the Codex epic children:
 - 2026-06-13 Scoped the ticket around Codex epic feature-file coverage and explicit no-feature-file rationales.
 - 2026-06-13T23:05:55Z Backfilled Codex source features for `5DEJ8V`, `N12G95`, and live/manual `CXP9LM`; recorded no-feature-file rationales for the remaining design/decision/baseline/packaging tickets.
 - 2026-06-13T23:27:35Z Verify: `bun run format:check`, `bun run lint:gherkin`, `bunx eslint packages/cli/features/steps/codex.steps.ts`, and `bun run --cwd packages/cli test:bdd` all passed. Added `verify.md`; ticket remains in progress because the Claude-specific `/verify` invocation stamp is unavailable in this Codex session.
+- 2026-06-13T23:46:54Z Complete: marked done after user confirmed closing all non-live-smoke-blocked Codex tickets. Existing `verify.md` records the feature coverage audit evidence. Phase -> done.

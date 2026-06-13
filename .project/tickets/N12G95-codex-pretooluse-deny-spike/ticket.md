@@ -2,8 +2,8 @@
 id: N12G95
 slug: codex-pretooluse-deny-spike
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 scope:
@@ -68,3 +68,4 @@ developers.openai.com/codex/hooks
 - 2026-06-13T14:55:37Z Complete: scenario-gate - reviewed scenarios for vacuous pass, AODI, determinism, negative coverage, and cross-cutting gaps; no must-fix findings. Added impl-plan.md with integration test mapping and adapter design. Phase -> implement.
 - 2026-06-13T15:02:00Z Complete: implement - wrote RED tests for Codex-shaped `apply_patch` input, observed all 3 scenarios fail before the adapter existed, added the adapter/schema/dogfood hook copy, then passed the focused adapter tests plus schema coverage. Reconciled impl-plan.md; 0 decisions updated, 0 deviations recorded. Phase -> verify.
 - 2026-06-13T15:11:28Z Verify in progress - focused adapter/schema tests passed (30 tests), CLI lint/typecheck passed, package build passed, targeted Prettier/markdownlint passed, and `test:smoke:fast` passed (35 files, 457 tests). Full `bun run test` did not complete in this Codex session and was interrupted after several minutes with no failure summary. Ticket remains in verify; Claude `/verify` + `/audit` invocation stamps were not produced.
+- 2026-06-13T23:46:54Z Complete: verify - focused Codex/setup/schema tests passed (56/56), typecheck passed, and gherkin lint passed. Added `verify.md`; live trusted Codex-session observation remains delegated to `CXP9LM`. Phase -> done.
