@@ -1,7 +1,7 @@
 /**
  * Creates a new ticket folder + ticket.md (ticket 158).
  *
- * Folder layout: `.safeword-project/tickets/{ID}-{slug}/ticket.md`. The ID
+ * Folder layout: `<namespace-root>/tickets/{ID}-{slug}/ticket.md`. The ID
  * stays the unique key (stored in frontmatter `id:` and used by the duplicate
  * detector); the slug suffix is for human/agent legibility when scanning
  * `ls` output. Mint-time collision check rejects any minted ID already in
@@ -21,10 +21,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveTicketsDirectory } from './configured-paths.js';
 import { getTemplatesDirectory } from './fs.js';
 import type { IdMinter } from './id-minter.js';
 
-const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
 const RETRY_BUDGET = 5;
 const NON_TICKET_ENTRIES = new Set(['completed', 'tmp']);
 
@@ -61,7 +61,7 @@ export function createTicket(
   minter: IdMinter,
   options: NewTicketOptions,
 ): NewTicketResult {
-  const ticketsDirectory = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
   if (!existsSync(ticketsDirectory)) {
     mkdirSync(ticketsDirectory, { recursive: true });
   }

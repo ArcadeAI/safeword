@@ -1,5 +1,5 @@
 /**
- * Learning sync — generates `.safeword-project/learnings/INDEX.md` from the
+ * Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the
  * `*.md` files in that folder so agents can navigate learnings via a
  * Karpathy-style LLM Wiki index (plain markdown + grep) without hitting the
  * Claude Code skill-description 1024-char cap.
@@ -10,12 +10,15 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveLearningsDirectory } from '../utils/configured-paths.js';
+
+/** Legacy default label; live code derives the label from the resolved root. */
 export const LEARNINGS_RELATIVE_PATH = '.safeword-project/learnings';
 export const INDEX_FILENAME = 'INDEX.md';
 
 export interface LearningEntry {
   fileName: string;
-  relativePath: string; // e.g. .safeword-project/learnings/foo.md
+  relativePath: string; // e.g. <namespace-root>/learnings/foo.md
   title: string;
   covers: string; // topic list from the "Covers:" line
 }
@@ -65,7 +68,10 @@ export function parseLearning(
  * Read all learning files. Files lacking Covers: on line 3 are skipped.
  * INDEX.md itself is excluded from enumeration (it's the output, not an input).
  */
-export function readLearnings(learningsDirectory: string): {
+export function readLearnings(
+  learningsDirectory: string,
+  relativeLabel: string = LEARNINGS_RELATIVE_PATH,
+): {
   entries: LearningEntry[];
   skipped: { fileName: string; reason: string }[];
 } {
@@ -86,7 +92,7 @@ export function readLearnings(learningsDirectory: string): {
     if (parsed.ok) {
       entries.push({
         ...parsed.entry,
-        relativePath: `${LEARNINGS_RELATIVE_PATH}/${fileName}`,
+        relativePath: `${relativeLabel}/${fileName}`,
       });
     } else {
       skipped.push({ fileName, reason: parsed.reason });
@@ -129,14 +135,15 @@ export function buildIndexContent(entries: LearningEntry[]): string {
 }
 
 /**
- * Generate/update `.safeword-project/learnings/INDEX.md` from the learnings
+ * Generate/update `<namespace-root>/learnings/INDEX.md` from the learnings
  * folder. Returns whether bytes changed and any skipped entries.
  */
 export function syncLearnings(cwd: string): SyncResult {
-  const learningsDirectory = nodePath.join(cwd, LEARNINGS_RELATIVE_PATH);
+  const learningsDirectory = resolveLearningsDirectory(cwd);
+  const relativeLabel = nodePath.relative(cwd, learningsDirectory) || LEARNINGS_RELATIVE_PATH;
   const indexPath = nodePath.join(learningsDirectory, INDEX_FILENAME);
 
-  const { entries, skipped } = readLearnings(learningsDirectory);
+  const { entries, skipped } = readLearnings(learningsDirectory, relativeLabel);
   const nextContent = buildIndexContent(entries);
 
   // If there are no entries and the learnings directory doesn't exist, don't

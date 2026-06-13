@@ -123,14 +123,16 @@ describe('createTicket — fresh install', () => {
     removeTemporaryDirectory(cwd);
   });
 
-  it('creates .safeword-project/tickets/ when it does not yet exist', () => {
-    expect(existsSync(ticketsSubpath(cwd))).toBe(false);
+  it('creates .project/tickets/ (the default namespace root) when no namespace exists yet', () => {
+    // Fresh project: neither namespace dir present → resolver defaults to .project/ (TAGWZ8).
+    const defaultTicketsDirectory = nodePath.join(cwd, '.project', 'tickets');
+    expect(existsSync(defaultTicketsDirectory)).toBe(false);
 
     const minter = constantMinter('FIRSTT');
     const result = createTicket(cwd, minter, { slug: 'kickoff' });
 
     expect(result.id).toBe('FIRSTT');
-    expect(existsSync(nodePath.join(ticketsSubpath(cwd), 'FIRSTT-kickoff', 'ticket.md'))).toBe(
+    expect(existsSync(nodePath.join(defaultTicketsDirectory, 'FIRSTT-kickoff', 'ticket.md'))).toBe(
       true,
     );
   });

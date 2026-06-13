@@ -55,7 +55,7 @@ describe('safeword ticket new', () => {
       });
       expect(result.exitCode).toBe(0);
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
       const folderName = readOnlyTicketFolderName(ticketsDirectory);
       expect(folderName).toMatch(FOLDER_PATTERN);
       expect(folderName).toMatch(/-login-bug$/);
@@ -68,7 +68,7 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'login-bug'], { cwd: temporaryDirectory });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
       const folderName = readOnlyTicketFolderName(ticketsDirectory);
       const id = extractIdFromFolder(folderName);
       const ticketContent = readFileSync(
@@ -91,7 +91,7 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'login-bug'], { cwd: temporaryDirectory });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
       const entries = readdirSync(ticketsDirectory);
       expect(entries).toHaveLength(1);
       expect(entries[0]).toMatch(/-login-bug$/);
@@ -106,7 +106,7 @@ describe('safeword ticket new', () => {
         cwd: temporaryDirectory,
       });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
       const folderName = readOnlyTicketFolderName(ticketsDirectory);
       const ticketContent = readFileSync(
         nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
@@ -134,7 +134,7 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'Login Bug'], { cwd: temporaryDirectory });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
       const folderName = readOnlyTicketFolderName(ticketsDirectory);
       const ticketContent = readFileSync(
         nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
@@ -150,7 +150,7 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'fix/auth-flow!'], { cwd: temporaryDirectory });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
       const folderName = readOnlyTicketFolderName(ticketsDirectory);
       const ticketContent = readFileSync(
         nodePath.join(ticketsDirectory, folderName, 'ticket.md'),

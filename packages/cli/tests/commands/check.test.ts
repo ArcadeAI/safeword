@@ -182,13 +182,13 @@ describe('Test Suite 8: Health Check', () => {
   describe('personas.md validation (ticket 7YN5QB)', () => {
     /**
      * Set up a configured project, write the given content to
-     * `.safeword-project/personas.md`, run `safeword check --offline`, and
+     * `.project/personas.md`, run `safeword check --offline`, and
      * return the CLI result. Used by tests that exercise the validation
      * path against varying file contents.
      */
     async function runCheckWithPersonas(content: string) {
       await createConfiguredProject(temporaryDirectory);
-      writeTestFile(temporaryDirectory, '.safeword-project/personas.md', content);
+      writeTestFile(temporaryDirectory, '.project/personas.md', content);
       return runCli(['check', '--offline'], { cwd: temporaryDirectory });
     }
 
@@ -251,7 +251,7 @@ describe('Test Suite 8: Health Check', () => {
     it('treats missing personas.md as absent (no error)', async () => {
       await createConfiguredProject(temporaryDirectory);
       // Delete the scaffolded personas.md to exercise the absent path.
-      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
       const result = await runCli(['check', '--offline'], {
         cwd: temporaryDirectory,
@@ -285,7 +285,7 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       setPersonasOverride('docs/personas.md'); // file intentionally not created
       // Remove the scaffolded default so this test isolates the override branch.
-      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
       const result = await runCli(['check', '--offline'], {
         cwd: temporaryDirectory,
@@ -304,7 +304,7 @@ describe('Test Suite 8: Health Check', () => {
       );
       setPersonasOverride('docs/personas.md');
       // Remove default so the legacy advisory does not fire.
-      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -320,7 +320,7 @@ describe('Test Suite 8: Health Check', () => {
         ['## A', '**Role:** Too short.', ''].join('\n'),
       );
       setPersonasOverride('docs/personas.md');
-      unlinkSync(nodePath.join(temporaryDirectory, '.safeword-project', 'personas.md'));
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -347,7 +347,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/\.safeword-project\/personas\.md.*orphan/i);
+      expect(combined).toMatch(/\.project\/personas\.md.*orphan/i);
     });
 
     it('R4.1: config with forward-looking glossary and architecture paths parses without error', async () => {
@@ -398,7 +398,7 @@ describe('Test Suite 8: Health Check', () => {
       // Two duplicate term blocks → duplicate-term errors.
       writeTestFile(
         temporaryDirectory,
-        '.safeword-project/glossary.md',
+        '.project/glossary.md',
         ['## Tool', '**Definition:** First.', '', '## Tool', '**Definition:** Second.', ''].join(
           '\n',
         ),
@@ -431,7 +431,7 @@ describe('Test Suite 8: Health Check', () => {
       // the scaffold, which only lands once dist is rebuilt with the new entry).
       writeTestFile(
         temporaryDirectory,
-        '.safeword-project/glossary.md',
+        '.project/glossary.md',
         ['## Legacy', '**Definition:** Old location.', ''].join('\n'),
       );
       setGlossaryOverride('docs/glossary.md');
@@ -440,7 +440,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/\.safeword-project\/glossary\.md.*orphan/i);
+      expect(combined).toMatch(/\.project\/glossary\.md.*orphan/i);
     });
   });
 
@@ -448,7 +448,7 @@ describe('Test Suite 8: Health Check', () => {
     function writeRelatedTicket(folder: string, frontmatter: string[]): void {
       writeTestFile(
         temporaryDirectory,
-        `.safeword-project/tickets/${folder}/ticket.md`,
+        `.project/tickets/${folder}/ticket.md`,
         ['---', ...frontmatter, '---', '', `# ${folder}`, ''].join('\n'),
       );
     }
@@ -516,7 +516,7 @@ describe('Test Suite 8: Health Check', () => {
     }
 
     function writeTicket(ticketId: string, status: string, files: Record<string, string>): void {
-      const base = `.safeword-project/tickets/${ticketId}`;
+      const base = `.project/tickets/${ticketId}`;
       writeTestFile(
         temporaryDirectory,
         `${base}/ticket.md`,
@@ -602,7 +602,7 @@ describe('Test Suite 8: Health Check', () => {
     }
 
     function writeArchTicket(ticketId: string, archAlignment: string): void {
-      const base = `.safeword-project/tickets/${ticketId}`;
+      const base = `.project/tickets/${ticketId}`;
       writeTestFile(
         temporaryDirectory,
         `${base}/ticket.md`,
@@ -613,7 +613,7 @@ describe('Test Suite 8: Health Check', () => {
 
     it('flags Arch alignment content when the architecture location is absent', async () => {
       await createConfiguredProject(temporaryDirectory);
-      rmSync(nodePath.join(temporaryDirectory, '.safeword-project', 'architecture.md'), {
+      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
         force: true,
       });
       writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.');
@@ -628,7 +628,7 @@ describe('Test Suite 8: Health Check', () => {
 
     it('stays silent when Arch alignment is skip-annotated, even with no architecture location', async () => {
       await createConfiguredProject(temporaryDirectory);
-      rmSync(nodePath.join(temporaryDirectory, '.safeword-project', 'architecture.md'), {
+      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
         force: true,
       });
       writeArchTicket('ARC002', 'skip: no ADRs in this project yet');
@@ -643,7 +643,7 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(
         temporaryDirectory,
-        '.safeword-project/architecture.md',
+        '.project/architecture.md',
         '# Architecture\n\nA decision.\n',
       );
       writeArchTicket('ARC003', 'Honors the recorded storage decision.');

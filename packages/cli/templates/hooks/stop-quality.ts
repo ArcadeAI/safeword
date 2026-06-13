@@ -37,6 +37,7 @@ import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, getRequiredSkillsForPhase } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 interface HookInput {
   session_id?: string;
@@ -69,7 +70,7 @@ const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
-const ticketsDir = `${projectDir}/.safeword-project/tickets`;
+const ticketsDir = `${resolveNamespaceRoot(projectDir)}/tickets`;
 
 interface TicketInfo {
   phase: BddPhase | undefined;
@@ -296,7 +297,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   }
 
   // Selection half: a satisfying design-review stamp for this ticket's plan at its current content.
-  const logPath = `${projectDir}/.safeword-project/skill-invocations.log`;
+  const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
   const stamps = existsSync(logPath) ? parseReviewStamps(readFileSync(logPath, 'utf8')) : [];
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
   if (!reviewGateForNextAsset(scope, stamps).ok) {
@@ -528,7 +529,7 @@ if (currentPhase === 'done') {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       const missingList = skillCheck.missing.map(s => `/${s}`).join(' and ');
       hardBlockDone(
-        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The bash-injection log at .safeword-project/skill-invocations.log proves invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no entry was logged, the bash injection at the top of the skill was likely denied — check Claude Code permissions for Bash(mkdir:*) and Bash(echo:*).`,
+        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The bash-injection log (skill-invocations.log under the project namespace root) proves invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no entry was logged, the bash injection at the top of the skill was likely denied — check Claude Code permissions for Bash(mkdir:*) and Bash(echo:*).`,
       );
     }
   }

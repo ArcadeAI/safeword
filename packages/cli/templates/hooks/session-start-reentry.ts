@@ -20,6 +20,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { detectConflictFiles, type Entry, parseLogLine, resolveProjectRoot } from './lib/re-entry';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 interface HookInput {
   session_id?: string;
@@ -58,7 +59,7 @@ async function main(): Promise<void> {
   const projectRoot = resolveProjectRoot(cwd);
   if (!projectRoot) return;
 
-  const logPath = join(projectRoot, '.safeword-project', 're-entry.md');
+  const logPath = join(resolveNamespaceRoot(projectRoot), 're-entry.md');
   const logExists = existsSync(logPath);
   const content = logExists ? readFileSync(logPath, 'utf8').trim() : '';
 

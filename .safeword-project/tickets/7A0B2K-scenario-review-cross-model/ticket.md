@@ -7,7 +7,7 @@ status: backlog
 created: 2026-06-12T02:37:21.358Z
 last_modified: 2026-06-12T02:37:21.358Z
 blocked_by:
-  - "MR5M3A (builds the cross-model primitive in review-ledger.ts that this consumes)"
+  - 'MR5M3A (builds the cross-model primitive in review-ledger.ts that this consumes)'
 ---
 
 # Wire scenario-gate fork review to the cross-model knob

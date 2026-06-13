@@ -22,6 +22,12 @@ import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
+import {
+  executeNamespaceMigration,
+  type MigrationPlan,
+  type MigrationResult,
+  planNamespaceMigration,
+} from '../utils/namespace-migration.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
@@ -119,6 +125,105 @@ function installSqlTools(cwd: string): void {
 export interface UpgradeOptions {
   /** When true, skip auto-editing the project's eslint config; fall through to the print-only nudge. */
   noModify?: boolean;
+  /** Explicit namespace-migration consent: true = migrate, false = decline. Unset → prompt (TTY) or nudge. */
+  migrateNamespace?: boolean;
+  /** Injected confirm seam for the TTY prompt (tests). Defaults to a readline [Y/n] prompt. */
+  confirmMigration?: (question: string) => Promise<boolean>;
+}
+
+/**
+ * Default confirm seam: one-line readline [Y/n] prompt, Enter = yes,
+ * stdin EOF/close = decline. `rl.question()`'s promise never settles when
+ * the input closes (nodejs/node#53497), so the close event is raced in
+ * explicitly — otherwise a Ctrl+D mid-prompt would hang the upgrade.
+ * Streams injectable for tests.
+ */
+export async function promptYesDefault(
+  question: string,
+  input: NodeJS.ReadableStream = process.stdin,
+  output: NodeJS.WritableStream = process.stdout,
+): Promise<boolean> {
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input, output });
+  try {
+    const answer = await Promise.race([
+      rl.question(question),
+      new Promise<string>(resolve =>
+        rl.once('close', () => {
+          resolve('n');
+        }),
+      ),
+    ]);
+    return !/^n/i.test(answer.trim());
+  } catch {
+    return false; // defensive — treat any prompt failure as decline
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * Namespace-migration step (ticket 9MMWS7) — runs BEFORE project-context
+ * creation so the same upgrade reconciles on the post-move root. Consent:
+ * explicit flag → obey; interactive TTY → prompt defaulting to yes;
+ * otherwise → one-line nudge. Never silent, never forced; a failed move
+ * reports and the upgrade continues on the legacy root.
+ */
+const UNMOVABLE_PLAN_WARNINGS: Partial<Record<MigrationPlan, string>> = {
+  'both-dirs':
+    'Namespace migration skipped: .project/ already exists alongside .safeword-project/ — merge manually, then remove the legacy directory.',
+  blocked:
+    'Namespace migration skipped: .project exists but is not a directory — remove or rename it, then re-run with --migrate-namespace.',
+};
+
+/** Resolve consent for the offered move: flag → prompt (TTY or seam) → nudge. */
+async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean> {
+  if (options.migrateNamespace !== undefined) return options.migrateNamespace;
+
+  // An injected confirm seam counts as interactive — it IS the TTY stand-in.
+  const interactive =
+    options.confirmMigration !== undefined ||
+    (process.stdin.isTTY === true && process.stdout.isTTY === true);
+  if (!interactive) {
+    info(
+      'Namespace: this project uses the legacy .safeword-project/ — run `safeword upgrade --migrate-namespace` to converge on .project/ (recommended).',
+    );
+    return false;
+  }
+  const confirm = options.confirmMigration ?? promptYesDefault;
+  return confirm(
+    'Move project namespace from .safeword-project/ to .project/ (recommended)? [Y/n] ',
+  );
+}
+
+function reportMigrationSuccess(result: MigrationResult): void {
+  const how = result.method === 'git' ? 'git history preserved' : 'directory renamed';
+  const rewrites =
+    result.rewrittenKeys.length > 0
+      ? `; rewrote paths.${result.rewrittenKeys.join(', paths.')}`
+      : '';
+  success(`Namespace moved to .project/ (${how})${rewrites}`);
+}
+
+export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions): Promise<void> {
+  const plan = planNamespaceMigration(cwd);
+
+  if (plan !== 'offer') {
+    // Warn only when the user explicitly asked for a move that can't happen.
+    const warning = UNMOVABLE_PLAN_WARNINGS[plan];
+    if (warning !== undefined && options.migrateNamespace === true) warn(warning);
+    return;
+  }
+
+  if (!(await resolveMigrationConsent(options))) return;
+
+  try {
+    reportMigrationSuccess(executeNamespaceMigration(cwd));
+  } catch (migrationError) {
+    warn(
+      `${migrationError instanceof Error ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
+    );
+  }
 }
 
 export async function upgrade(options: UpgradeOptions): Promise<void> {
@@ -144,6 +249,8 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
   const eslintWarning = getEslintPeerMismatchWarning(cwd);
   if (eslintWarning) warn(`\n${eslintWarning}`);
+
+  await maybeMigrateNamespace(cwd, options);
 
   try {
     const ctx = createProjectContext(cwd);

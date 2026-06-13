@@ -3,16 +3,20 @@
 // Fires on SessionStart(compact) — outputs to stdout for Claude's context
 
 import { existsSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { getTicketInfo } from './lib/active-ticket.ts';
 import { getStateFilePath } from './lib/quality-state.ts';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 interface HookInput {
   session_id?: string;
 }
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const ticketsDir = `${projectDir}/.safeword-project/tickets`;
+const namespaceRoot = resolveNamespaceRoot(projectDir);
+const namespaceLabel = nodePath.relative(projectDir, namespaceRoot);
+const ticketsDir = `${namespaceRoot}/tickets`;
 
 // Read hook input from stdin for session_id
 let input: HookInput;
@@ -26,10 +30,10 @@ try {
 // compaction in case CLAUDE.md → @./.safeword/SAFEWORD.md re-expansion didn't
 // fire reliably (GitHub #22085 reports sporadic issues). Emit only if the
 // project has learnings to point at.
-const learningsIndex = `${projectDir}/.safeword-project/learnings/INDEX.md`;
+const learningsIndex = `${namespaceRoot}/learnings/INDEX.md`;
 if (existsSync(learningsIndex)) {
   console.log(
-    'Project learnings: read `.safeword-project/learnings/INDEX.md` before non-trivial work to avoid re-making previously-solved mistakes.',
+    `Project learnings: read \`${namespaceLabel}/learnings/INDEX.md\` before non-trivial work to avoid re-making previously-solved mistakes.`,
   );
 }
 
@@ -91,6 +95,6 @@ const lines = [
 if (goal) {
   lines.push(`Goal: ${goal}`);
 }
-lines.push(`Re-read .safeword-project/tickets/${ticketInfo.folder}/ticket.md for full context.`);
+lines.push(`Re-read ${namespaceLabel}/tickets/${ticketInfo.folder}/ticket.md for full context.`);
 
 console.log(lines.join('\n'));

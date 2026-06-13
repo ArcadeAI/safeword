@@ -11,6 +11,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { resolveNamespaceRoot } from './namespace-root.js';
 
 /**
  * Phase → required skill names. When a feature ticket transitions into one of
@@ -55,7 +56,7 @@ export function checkSkillInvocations(
 ): SkillInvocationCheckResult {
   if (input.required.length === 0) return { ok: true, missing: [] };
 
-  const logPath = nodePath.join(input.rootDirectory, '.safeword-project', 'skill-invocations.log');
+  const logPath = nodePath.join(resolveNamespaceRoot(input.rootDirectory), 'skill-invocations.log');
   if (!existsSync(logPath)) {
     return { ok: false, missing: [...input.required] };
   }

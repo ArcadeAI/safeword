@@ -6,7 +6,7 @@
  *
  * Claude Code runs a status-line script with session JSON on stdin and
  * renders whatever it prints at the bottom of the editor. This script
- * reads `.safeword-project/re-entry.md`, finds the most recent entry
+ * reads the namespace root's `re-entry.md`, finds the most recent entry
  * for the current session_id, and prints `Next: <imperative>`. When a
  * dirty-file conflict exists with another session, the line is
  * prepended with `⚠️ conflict: <file>`.
@@ -40,7 +40,11 @@ async function main(): Promise<void> {
   const { session_id, cwd, transcript_path } = input;
   if (!session_id || !cwd) return;
 
-  const logPath = join(cwd, '.safeword-project', 're-entry.md');
+  // Namespace root fallback (TAGWZ8): prefer .project/, else legacy.
+  const namespaceRoot = existsSync(join(cwd, '.project'))
+    ? join(cwd, '.project')
+    : join(cwd, '.safeword-project');
+  const logPath = join(namespaceRoot, 're-entry.md');
   if (!existsSync(logPath)) return;
 
   const content = readFileSync(logPath, 'utf8').trim();

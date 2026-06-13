@@ -1,6 +1,6 @@
 /**
  * Ticket sync — generates capability-discovery indexes over the ticket corpus:
- * `.safeword-project/tickets/INDEX.md` (active tickets, grouped by epic) and
+ * `<namespace-root>/tickets/INDEX.md` (active tickets, grouped by epic) and
  * `INDEX-completed.md` (the `completed/` archive). Mirrors `learning-sync`
  * (plain markdown + grep, no skill-description char cap) so "is there already
  * a ticket for X?" is one grep instead of a hundreds-of-folders hunt.
@@ -14,9 +14,11 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
 import { deriveBlocks, parseTicketIdList } from '../utils/ticket-relations.js';
 
+/** Legacy default label; live code derives the label from the resolved root. */
 export const TICKETS_RELATIVE_PATH = '.safeword-project/tickets';
 export const INDEX_FILENAME = 'INDEX.md';
 export const COMPLETED_INDEX_FILENAME = 'INDEX-completed.md';
@@ -28,7 +30,7 @@ const SKIP_DIRECTORIES = new Set([COMPLETED_DIRNAME, 'tmp']);
 export interface TicketEntry {
   id: string;
   folder: string; // folder name, e.g. 1GGD28-ticket-discovery-index
-  relativePath: string; // e.g. .safeword-project/tickets/1GGD28-ticket-discovery-index
+  relativePath: string; // e.g. <namespace-root>/tickets/1GGD28-ticket-discovery-index
   title: string;
   status: string;
   epic: string | undefined; // undefined → grouped under "(no epic)"
@@ -164,15 +166,18 @@ function readTicketFolders(
  * each sorted by id, plus any skipped folders. INDEX*.md are files, so the
  * directory filter excludes them from being parsed as tickets.
  */
-export function readTickets(ticketsDirectory: string): {
+export function readTickets(
+  ticketsDirectory: string,
+  relativeLabel: string = TICKETS_RELATIVE_PATH,
+): {
   active: TicketEntry[];
   completed: TicketEntry[];
   skipped: { folder: string; reason: string }[];
 } {
-  const active = readTicketFolders(ticketsDirectory, TICKETS_RELATIVE_PATH);
+  const active = readTicketFolders(ticketsDirectory, relativeLabel);
   const completed = readTicketFolders(
     nodePath.join(ticketsDirectory, COMPLETED_DIRNAME),
-    `${TICKETS_RELATIVE_PATH}/${COMPLETED_DIRNAME}`,
+    `${relativeLabel}/${COMPLETED_DIRNAME}`,
   );
 
   const byId = (a: TicketEntry, b: TicketEntry) => a.id.localeCompare(b.id);
@@ -279,7 +284,8 @@ function writeIfChanged(path: string, content: string): boolean {
  * a `completed/` directory exists or completed entries are present.
  */
 export function syncTickets(cwd: string): TicketSyncResult {
-  const ticketsDirectory = nodePath.join(cwd, TICKETS_RELATIVE_PATH);
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  const relativeLabel = nodePath.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
   const indexPath = nodePath.join(ticketsDirectory, INDEX_FILENAME);
   const completedIndexPath = nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME);
 
@@ -287,7 +293,7 @@ export function syncTickets(cwd: string): TicketSyncResult {
     return { wrote: false, active: [], completed: [], skipped: [], indexPath, completedIndexPath };
   }
 
-  const { active, completed, skipped } = readTickets(ticketsDirectory);
+  const { active, completed, skipped } = readTickets(ticketsDirectory, relativeLabel);
 
   const wroteActive = writeIfChanged(indexPath, buildIndexContent(active, { variant: 'active' }));
 

@@ -1,6 +1,6 @@
 /**
  * `safeword ticket new <slug>` — mint a Crockford Base32 ticket ID and create
- * the ticket folder at `.safeword-project/tickets/{ID}/ticket.md` (ticket 158).
+ * the ticket folder at `<namespace-root>/tickets/{ID}/ticket.md` (ticket 158).
  *
  * Replaces the prompt-driven "find highest folder + 1" instruction in the
  * ticket-system skill, which was a race condition across parallel sessions

@@ -12,9 +12,9 @@ Run a comprehensive code audit. Execute checks and report results by severity.
 
 ## Invocation log
 
-This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `.safeword-project/skill-invocations.log` so the done-gate hook can verify /audit was actually invoked. Bash injection runs at render time — hand-writing audit results cannot produce this entry.
+This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Bash injection runs at render time — hand-writing audit results cannot produce this entry.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && mkdir -p "$PROJECT_DIR/.safeword-project" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} audit" >> "$PROJECT_DIR/.safeword-project/skill-invocations.log" && echo "[skill-invocation-log] audit ✓" || echo "[skill-invocation-log] FAILED — done-gate will block"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && NS_ROOT="$PROJECT_DIR/.project" && if [ ! -d "$NS_ROOT" ] && [ -d "$PROJECT_DIR/.safeword-project" ]; then NS_ROOT="$PROJECT_DIR/.safeword-project"; fi && mkdir -p "$NS_ROOT" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} audit" >> "$NS_ROOT/skill-invocations.log" && echo "[skill-invocation-log] audit ✓" || echo "[skill-invocation-log] FAILED — done-gate will block"`
 
 **If you see `[skill-invocation-log] FAILED` above, or no `audit ✓` line at all**: STOP. Do not run /audit manually — that line is the only proof the done-gate accepts. Report the failure to the user (most likely cause: Claude Code's bash permission denied the injection) and ask them to resolve it before re-invoking /audit.
 
@@ -173,11 +173,11 @@ Find and check all agent configuration files (excluding `.safeword/`):
 
 ### 3. Learning Files Check
 
-Project learnings in `.safeword-project/learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index.
+Project learnings in `.project/learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index.
 
 ```bash
-if [ -d .safeword-project/learnings ]; then
-  for f in .safeword-project/learnings/*.md; do
+if [ -d .project/learnings ]; then
+  for f in .project/learnings/*.md; do
     [ -e "$f" ] || continue
     [ "$(basename "$f")" = "INDEX.md" ] && continue
     line3=$(sed -n '3p' "$f")
@@ -271,7 +271,7 @@ Report findings by severity with codes:
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
 - [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
-- [W006] Learning file missing Covers: — `.safeword-project/learnings/foo.md` (absent from INDEX.md)
+- [W006] Learning file missing Covers: — `.project/learnings/foo.md` (absent from INDEX.md)
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
 
 ### Code Quality

@@ -2,6 +2,7 @@
 alwaysApply: false
 description: Ticket system and work logs for context anchoring during complex work. Use when creating tickets, managing work logs, referencing ticket IDs, or when work needs context anchoring (multi-step tasks, debugging, investigation).
 globs:
+  - .project/tickets/**
   - .safeword-project/tickets/**
   - .safeword/logs/**
 ---

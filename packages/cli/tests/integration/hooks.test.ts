@@ -69,7 +69,7 @@ function createTicketContent(options: {
 
 /** Clear tickets directory */
 function clearIssuesDirectory(targetDirectory: string): void {
-  execSync(`rm -rf "${targetDirectory}/.safeword-project/tickets"/*`, {
+  execSync(`rm -rf "${targetDirectory}/.project/tickets"/*`, {
     cwd: targetDirectory,
   });
 }
@@ -170,13 +170,13 @@ function setupIssuesDirectory(
   targetDirectory: string,
   tickets: Parameters<typeof createTicketContent>[0][],
 ): void {
-  const ticketsDirectory = `${targetDirectory}/.safeword-project/tickets`;
+  const ticketsDirectory = `${targetDirectory}/.project/tickets`;
   execSync(`mkdir -p "${ticketsDirectory}"`, { cwd: targetDirectory });
   // Clear existing tickets
   execSync(`rm -rf "${ticketsDirectory}"/*`, { cwd: targetDirectory });
   for (const ticket of tickets) {
-    // Create folder structure: .safeword-project/tickets/{id}/ticket.md
-    const folderPath = `.safeword-project/tickets/${ticket.id}`;
+    // Create folder structure: .project/tickets/{id}/ticket.md
+    const folderPath = `.project/tickets/${ticket.id}`;
     execSync(`mkdir -p "${targetDirectory}/${folderPath}"`, {
       cwd: targetDirectory,
     });
@@ -563,7 +563,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       // Create test-definitions.md (required artifact for features at implement phase)
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
 
@@ -586,7 +586,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       // No verify.md — should block
@@ -609,12 +609,12 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/verify.md',
+        '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 10/10 tests pass\n',
       );
 
@@ -782,7 +782,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       // Create test-definitions.md
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
       );
 
@@ -826,7 +826,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       // No verify.md — blocks on missing artifact before checking scenarios
@@ -849,7 +849,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/verify.md',
+        '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
       );
 
@@ -872,12 +872,12 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/verify.md',
+        '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
       );
 
@@ -899,12 +899,12 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
       );
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/verify.md',
+        '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
       );
 
@@ -926,12 +926,12 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/verify.md',
+        '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
       );
 
@@ -954,7 +954,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       // Legacy / unrecognized format — has content but no GFM task list items.
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/test-definitions.md',
+        '.project/tickets/001/test-definitions.md',
         [
           '# Test Definitions',
           '',
@@ -968,7 +968,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       );
       writeTestFile(
         projectDirectory,
-        '.safeword-project/tickets/001/verify.md',
+        '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
       );
 

@@ -111,8 +111,15 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  * these paths directly, so git tracking is never consulted. Single source for
  * the managed `.gitignore` block (below) and the upgrade-time untrack.
  */
+// Both namespace roots are listed: hooks write transient state under the
+// resolved root (TAGWZ8), which is `.project/` on fresh installs and
+// `.safeword-project/` on legacy ones.
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.project/quality-state*.json',
+  '.project/failure-counts.json',
+  '.project/skill-invocations.log',
+  '.project/re-entry.md',
   '.safeword-project/quality-state*.json',
   '.safeword-project/failure-counts.json',
   '.safeword-project/skill-invocations.log',
@@ -298,6 +305,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
     },
@@ -758,12 +766,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is a NEW line (re-entry.md) so customers who already have the
-      // older 2-line block re-apply on upgrade and pick up the three additions
-      // (re-entry.md / failure-counts.json / skill-invocations.log). Without
-      // these, those generated files show as untracked in `git status
-      // --porcelain` — churning the tree and blocking the auto-upgrade gate.
-      marker: '.safeword-project/re-entry.md',
+      // Marker is a NEW line (.project/re-entry.md, TAGWZ8) so customers with
+      // the older legacy-only block re-apply on upgrade and pick up the
+      // .project/ variants — hooks write state under the resolved root, so
+      // fresh installs generate these under .project/. Without them, those
+      // generated files show as untracked in `git status --porcelain` —
+      // churning the tree and blocking the auto-upgrade gate.
+      marker: '.project/re-entry.md',
     },
     // Prettier ignores: safeword owns .safeword/ and .cursor/ (see ownedDirs).
     // Without this, `prettier --write .` would reformat hooks and Cursor rules;
@@ -780,8 +789,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // mangles their content (e.g. `in_progress` → `in*progress`, goal-text
       // underscores into broken emphasis), drifting the committed file from the
       // generator output every commit. Generated → prettier-ignored (1GGD28).
+      // Both namespace roots listed (TAGWZ8): INDEX files generate under the
+      // resolved root — .project/ on fresh installs, .safeword-project/ legacy.
       content:
-        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
+        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
       marker: '# Safeword - managed prettier exclusions',
     },
   },

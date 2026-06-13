@@ -12,12 +12,17 @@ import { reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { readTickets, syncTickets } from '../ticket-sync/index.js';
 import { listArchitectureRecords } from '../utils/architecture-records.js';
-import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
+import {
+  defaultConfiguredPath,
+  readConfiguredPath,
+  resolveConfiguredPath,
+  resolveTicketsDirectory,
+} from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
-import { exists, readFileSafe } from '../utils/fs.js';
-import { GLOSSARY_FILE_SUBPATH, parseGlossary, validateGlossary } from '../utils/glossary.js';
+import { exists, isDirectory, readFileSafe } from '../utils/fs.js';
+import { parseGlossary, validateGlossary } from '../utils/glossary.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
-import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
+import { parsePersonas, validatePersonas } from '../utils/personas.js';
 import { buildCoverageReport, type CoverageReport } from '../utils/scenario-coverage.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
 import { findDanglingDependencies, findTicketsInCycles } from '../utils/ticket-relations.js';
@@ -64,7 +69,7 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
  */
 function findPersonaIssues(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'personas');
-  const filePath = resolveConfiguredPath(cwd, 'personas', nodePath.join(...PERSONAS_FILE_SUBPATH));
+  const filePath = resolveConfiguredPath(cwd, 'personas');
   const content = readFileSafe(filePath);
 
   if (content === undefined) {
@@ -81,19 +86,37 @@ function findPersonaIssues(cwd: string): string[] {
 /**
  * Surface non-blocking diagnostics about persona path configuration.
  * Currently: when `paths.personas` is set AND the default-location file
- * `.safeword-project/personas.md` still exists, emit an advisory naming
+ * the default personas file still exists, emit an advisory naming
  * the orphaned file. Safeword reads from the override; the legacy file
  * is dead weight and may confuse readers who think they're editing the
  * live file. Zero-exit — non-destructive (data-loss principle from
  * ticket K7N2QM); user owns cleanup.
  */
+/**
+ * Both-namespace-roots advisory (ticket 9MMWS7): both `.project/` and
+ * `.safeword-project/` present means a migration was left half-finished (or
+ * the dirs were created independently). Zero-exit nudge naming the finishing
+ * action; silent on any single root — declining migration is never a nag.
+ */
+function findNamespaceAdvisories(cwd: string): string[] {
+  if (
+    isDirectory(nodePath.join(cwd, '.project')) &&
+    isDirectory(nodePath.join(cwd, '.safeword-project'))
+  ) {
+    return [
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword upgrade --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+    ];
+  }
+  return [];
+}
+
 function findPersonaAdvisories(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'personas');
   if (override === undefined) return [];
-  const defaultPath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+  const defaultPath = defaultConfiguredPath(cwd, 'personas');
   if (!exists(defaultPath)) return [];
   return [
-    `.safeword-project/personas.md exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
   ];
 }
 
@@ -107,7 +130,7 @@ function findPersonaAdvisories(cwd: string): string[] {
  */
 function findGlossaryIssues(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'glossary');
-  const filePath = resolveConfiguredPath(cwd, 'glossary', nodePath.join(...GLOSSARY_FILE_SUBPATH));
+  const filePath = resolveConfiguredPath(cwd, 'glossary');
   const content = readFileSafe(filePath);
 
   if (content === undefined) {
@@ -130,14 +153,12 @@ function findGlossaryIssues(cwd: string): string[] {
 function findGlossaryAdvisories(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'glossary');
   if (override === undefined) return [];
-  const defaultPath = nodePath.join(cwd, ...GLOSSARY_FILE_SUBPATH);
+  const defaultPath = defaultConfiguredPath(cwd, 'glossary');
   if (!exists(defaultPath)) return [];
   return [
-    `.safeword-project/glossary.md exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
   ];
 }
-
-const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
 
 /** Ticket folder names under the tickets root (excluding `completed/`), or
  * empty when the root is missing/unreadable. */
@@ -151,8 +172,6 @@ function listTicketIds(ticketsRoot: string): string[] {
   }
 }
 
-const ARCHITECTURE_DEFAULT_SUBPATH = nodePath.join('.safeword-project', 'architecture.md');
-
 /**
  * Surface architecture-claim mismatches as non-blocking advisories (ticket
  * K4BWTQ). Structural only — no prose extraction (YR6C49 ruling): when an
@@ -161,10 +180,10 @@ const ARCHITECTURE_DEFAULT_SUBPATH = nodePath.join('.safeword-project', 'archite
  * exist, the claim cannot be honoring anything recorded. Zero-exit.
  */
 function findArchitectureAdvisories(cwd: string): string[] {
-  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsRoot = resolveTicketsDirectory(cwd);
   const ticketIds = listTicketIds(ticketsRoot);
 
-  const resolved = resolveConfiguredPath(cwd, 'architecture', ARCHITECTURE_DEFAULT_SUBPATH);
+  const resolved = resolveConfiguredPath(cwd, 'architecture');
   if (listArchitectureRecords(resolved).kind !== 'absent') return [];
 
   return ticketIds.flatMap(ticketId => {
@@ -207,7 +226,7 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
  * stale AC refs, and orphan scenarios. Zero-exit — advisory, never a gate.
  */
 function findCoverageAdvisories(cwd: string): string[] {
-  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsRoot = resolveTicketsDirectory(cwd);
   return listTicketIds(ticketsRoot).flatMap(ticketId =>
     coverageAdvisoriesForTicket(ticketsRoot, ticketId),
   );
@@ -271,7 +290,7 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
  * Zero-exit.
  */
 function findRelationAdvisories(cwd: string): string[] {
-  const ticketsDirectory = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
   let entries;
   try {
     const { active, completed } = readTickets(ticketsDirectory);
@@ -433,6 +452,7 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     latestVersion: undefined,
     issues,
     advisories: [
+      ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
       ...findCoverageAdvisories(cwd),
@@ -492,6 +512,17 @@ function reportVersionMismatch(health: HealthStatus): void {
  * @returns true if there are issues requiring attention
  */
 function reportHealthSummary(health: HealthStatus): boolean {
+  // Advisories first: non-blocking diagnostics that must surface even when
+  // issues exist (the issue branches below early-return). Ticket 9MMWS7
+  // exposed the old ordering, which silently swallowed advisories on any
+  // unhealthy project.
+  if (health.advisories.length > 0) {
+    header('Advisories');
+    for (const advisory of health.advisories) {
+      warn(advisory);
+    }
+  }
+
   // Check missing packs first (highest priority - explains missing files)
   if (health.missingPacks.length > 0) {
     header('Missing Language Packs');
@@ -516,16 +547,6 @@ function reportHealthSummary(health: HealthStatus): boolean {
     }
     info('\nRun `safeword upgrade` to repair configuration');
     return true;
-  }
-
-  // Advisories: non-blocking diagnostics. Reported even when issues
-  // exist (no early-return above this point handles them); printed
-  // here when the project is otherwise healthy.
-  if (health.advisories.length > 0) {
-    header('Advisories');
-    for (const advisory of health.advisories) {
-      warn(advisory);
-    }
   }
 
   success('\nConfiguration is healthy');

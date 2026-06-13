@@ -11,14 +11,16 @@ allowed-tools: '*'
 
 **Purpose:** Context anchor to prevent LLM loops during complex work. Colocates all artifacts.
 
+**Namespace root:** `.project/` by default; legacy installs use `.safeword-project/` — substitute accordingly in every path below.
+
 **Creating a ticket:** Run `safeword ticket new <slug>` (optionally with `--type=patch|task|feature` and `--title="..."`). The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches.
 
-**Location:** `.safeword-project/tickets/{ID}/` for new tickets (folder name is the ID alone; slug lives in frontmatter). Pre-existing tickets keep their legacy `{numeric-id}-{slug}/` layout and remain reachable by ID — both formats are supported forever.
+**Location:** `.project/tickets/{ID}/` for new tickets (folder name is the ID alone; slug lives in frontmatter). Pre-existing tickets keep their legacy `{numeric-id}-{slug}/` layout and remain reachable by ID — both formats are supported forever.
 
 **Folder structure:**
 
 ```text
-.safeword-project/
+.project/
 ├── tickets/
 │   ├── 7K9M3P/                 # New format: folder = Crockford ID, slug in frontmatter
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)

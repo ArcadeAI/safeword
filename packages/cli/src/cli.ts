@@ -42,9 +42,18 @@ program
     '--no-modify',
     'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
   )
+  .option(
+    '--migrate-namespace',
+    'Move the legacy .safeword-project/ namespace to .project/ (recommended) without prompting',
+  )
+  .option('--no-migrate-namespace', 'Keep the legacy namespace; skip the migration prompt')
   .action(async options => {
     const { upgrade } = await import('./commands/upgrade.js');
-    await upgrade({ noModify: options.modify === false });
+    await upgrade({
+      noModify: options.modify === false,
+      // Commander leaves the tri-state undefined when neither flag is passed.
+      migrateNamespace: options.migrateNamespace as boolean | undefined,
+    });
   });
 
 program
@@ -89,7 +98,7 @@ ticket
 
 program
   .command('sync-learnings')
-  .description('Regenerate .safeword-project/learnings/INDEX.md')
+  .description('Regenerate the namespace learnings/INDEX.md')
   .option('-q, --quiet', 'Suppress success output (still prints skipped-file warnings to stderr)')
   .action(async (options: { quiet?: boolean }) => {
     const { syncLearningsCommand } = await import('./commands/sync-learnings.js');
@@ -98,7 +107,7 @@ program
 
 program
   .command('sync-tickets')
-  .description('Regenerate .safeword-project/tickets/INDEX.md and INDEX-completed.md')
+  .description('Regenerate the namespace tickets/INDEX.md and INDEX-completed.md')
   .option('-q, --quiet', 'Suppress success output (still prints skipped-folder warnings to stderr)')
   .action(async (options: { quiet?: boolean }) => {
     const { syncTicketsCommand } = await import('./commands/sync-tickets.js');

@@ -14,7 +14,7 @@ How to write specs, user stories, and test definitions before implementation.
 | Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                          |
 | Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                    |
 
-**Location:** `.safeword-project/tickets/{id}-{slug}/`
+**Location:** `.project/tickets/{id}-{slug}/`
 
 All artifacts colocate in the ticket folder:
 
@@ -305,13 +305,13 @@ GFM checkbox state IS the status. Don't add emoji indicators (`‚úÖ Passing`, `‚ù
 
 ### Saved path
 
-`.safeword-project/tickets/{id}-{slug}/test-definitions.md`
+`.project/tickets/{id}-{slug}/test-definitions.md`
 
 ---
 
 ## Ticket Folder Naming
 
-**Structure:** `.safeword-project/tickets/{id}-{slug}/`
+**Structure:** `.project/tickets/{id}-{slug}/`
 
 **Good folder names:**
 

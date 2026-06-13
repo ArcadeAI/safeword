@@ -1,7 +1,7 @@
 /**
  * Duplicate ticket-ID detector (ticket 158, slice 5).
  *
- * Pure function: scans `.safeword-project/tickets/`, parses `id:` from each
+ * Pure function: scans `<namespace-root>/tickets/`, parses `id:` from each
  * ticket.md's frontmatter, returns groups of folders sharing the same ID.
  * Both wiring sites (pre-commit hook, CI step) reuse this — one source of
  * truth for the loud-failure mechanism that catches anything the
@@ -10,6 +10,8 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { resolveTicketsDirectory } from './configured-paths.js';
 
 export interface DuplicateGroup {
   id: string;
@@ -21,7 +23,7 @@ const SKIP_DIRECTORIES = new Set(['completed', 'tmp']);
 const ID_FRONTMATTER = /^id:\s*['"]?([^'"\s]+)['"]?\s*$/m;
 
 export function findDuplicateTicketIds(projectDirectory: string): DuplicateGroup[] {
-  const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  const ticketsDirectory = resolveTicketsDirectory(projectDirectory);
   if (!existsSync(ticketsDirectory)) return [];
 
   const groups = collectIdToFolders(ticketsDirectory);

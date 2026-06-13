@@ -24,6 +24,7 @@ import {
   formatReplanHeadsUp,
   parseGitLogNameOnly,
 } from './replan-relevance.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
 
 /** Ticket artifacts whose prose names the paths the ticket cares about. */
 const ARTIFACT_FILES = ['ticket.md', 'spec.md', 'test-definitions.md'];
@@ -82,7 +83,7 @@ function parseDependsOn(raw: string | undefined): string[] {
  */
 function resolveBlockerTargets(projectDirectory: string, ids: readonly string[]): BlockerTarget[] {
   if (ids.length === 0) return [];
-  const ticketsRoot = nodePath.join(projectDirectory, '.safeword-project', 'tickets');
+  const ticketsRoot = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
   let folders: string[];
   try {
     folders = readdirSync(ticketsRoot, { withFileTypes: true })
@@ -106,7 +107,10 @@ function resolveBlockerTargets(projectDirectory: string, ids: readonly string[])
       id,
       slug: text.match(/^slug:\s*(.+)$/m)?.[1]?.trim() ?? folder,
       status: text.match(/^status:\s*(.+)$/m)?.[1]?.trim() ?? '',
-      ticketPath: `.safeword-project/tickets/${folder}/ticket.md`,
+      ticketPath: nodePath.relative(
+        projectDirectory,
+        nodePath.join(ticketsRoot, folder, 'ticket.md'),
+      ),
     });
   }
   return targets;
@@ -129,8 +133,7 @@ export function evaluateReplan(
     if (ticketType === 'epic') return null;
 
     const ticketDirectory = nodePath.join(
-      projectDirectory,
-      '.safeword-project',
+      resolveNamespaceRoot(projectDirectory),
       'tickets',
       ticketFolder,
     );

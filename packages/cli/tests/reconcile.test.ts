@@ -150,8 +150,10 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
+      // Fresh repo → namespace entries land at .project/ (N9S5XG translation).
       for (const dir of SAFEWORD_SCHEMA.preservedDirs) {
-        expect(existsSync(nodePath.join(temporaryDirectory, dir))).toBe(true);
+        const resolved = dir.replace(/^\.safeword-project/, '.project');
+        expect(existsSync(nodePath.join(temporaryDirectory, resolved)), resolved).toBe(true);
       }
     });
 

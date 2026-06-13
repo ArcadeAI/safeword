@@ -185,10 +185,8 @@ describe('Upgrade Command - Reconcile Integration', () => {
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       // Directories should be created
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/learnings'))).toBe(
-        true,
-      );
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword-project/tickets'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.project/learnings'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.project/tickets'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/commands'))).toBe(true);
     });
 

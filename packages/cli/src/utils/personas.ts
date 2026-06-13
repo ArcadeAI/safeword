@@ -1,7 +1,7 @@
 /**
  * Persona file model — derivation, parsing, validation, and lookup.
  *
- * Project-level personas live in `.safeword-project/personas.md` as
+ * Project-level personas live at the resolved namespace root as
  * second-level markdown blocks. Each block has a name, an optional
  * parenthesized short code (auto-derived if absent), a `**Role:**` line,
  * and an optional `**Context:**` block.
@@ -17,7 +17,6 @@
  */
 
 import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { resolveConfiguredPath } from './configured-paths.js';
 import { computeSkipMask, stripInlineComments } from './markdown-sections.js';
@@ -287,9 +286,6 @@ export type PersonaReferenceResult =
   | { status: 'valid'; match: ResolvedPersona }
   | { status: 'unknown'; suggestion?: string };
 
-/** Path of personas.md relative to the project root. */
-export const PERSONAS_FILE_SUBPATH = ['.safeword-project', 'personas.md'];
-
 /**
  * Look up a persona reference against a parsed-and-resolved list.
  *
@@ -333,7 +329,7 @@ export function lookupPersonaReference(
  * Resolve a persona reference against the on-disk personas file.
  *
  * Reads from `paths.personas` in `.safeword/config.json` when configured;
- * falls back to `.safeword-project/personas.md` otherwise. Degrades
+ * falls back to the namespace-root default otherwise. Degrades
  * gracefully on a missing or unreadable file — returns
  * `{ status: 'unknown' }` rather than throwing, regardless of whether the
  * resolved path is the default or a configured override. Strict
@@ -345,11 +341,7 @@ export function lookupPersonaReference(
 export function validatePersonaReference(cwd: string, input: string): PersonaReferenceResult {
   let content: string;
   try {
-    const filePath = resolveConfiguredPath(
-      cwd,
-      'personas',
-      nodePath.join(...PERSONAS_FILE_SUBPATH),
-    );
+    const filePath = resolveConfiguredPath(cwd, 'personas');
     content = readFileSync(filePath, 'utf8');
   } catch {
     return { status: 'unknown' };

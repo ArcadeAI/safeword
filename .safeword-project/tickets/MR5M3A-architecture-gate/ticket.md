@@ -28,7 +28,7 @@ done_when:
   - With the flag off, behavior is identical to post-#204 (gate inert)
   - The full suite passes (targeted hook/gate tests + smoke)
 depends_on:
-  - "#204 (epic M6D315) must merge first — this layers on its impl-plan.md + architecture-records.ts"
+  - '#204 (epic M6D315) must merge first — this layers on its impl-plan.md + architecture-records.ts'
 ---
 
 # Independent evidence-backed architecture gate for features

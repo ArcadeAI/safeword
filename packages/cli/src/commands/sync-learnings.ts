@@ -1,5 +1,5 @@
 /**
- * Sync Learnings command — regenerates `.safeword-project/learnings/INDEX.md`
+ * Sync Learnings command — regenerates the namespace `learnings/INDEX.md`
  * from the `*.md` files in that folder so agents can navigate via a
  * Karpathy-style LLM Wiki index (CLAUDE.md/SAFEWORD.md instruction → read
  * INDEX.md → grep/read specific file).
@@ -24,7 +24,7 @@ export function syncLearningsCommand(options: SyncLearningsOptions = {}): void {
   const result = syncLearnings(cwd);
 
   for (const skip of result.skipped) {
-    process.stderr.write(`skipping .safeword-project/learnings/${skip.fileName}: ${skip.reason}\n`);
+    process.stderr.write(`skipping learnings/${skip.fileName}: ${skip.reason}\n`);
   }
 
   if (options.quiet) return;

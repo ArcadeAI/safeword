@@ -5,9 +5,10 @@
 
 import { readdirSync, statSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const stateDirectory = nodePath.join(projectDirectory, '.safeword-project');
+const stateDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 try {
