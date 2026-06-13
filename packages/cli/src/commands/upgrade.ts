@@ -19,7 +19,7 @@ import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
-import { exists, findInTree, readFileSafe, writeFile } from '../utils/fs.js';
+import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
 import {
@@ -33,6 +33,28 @@ import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
+
+interface PackageJson {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+}
+
+const DEPENDENCY_FIELDS = ['devDependencies', 'dependencies', 'optionalDependencies'] as const;
+const SAFEWORD_REGISTRY_SPEC = `^${VERSION}`;
+const SAFEWORD_INSTALL_SPEC = VERSION;
+const NON_REGISTRY_SPEC_PREFIXES = [
+  'file:',
+  'link:',
+  'portal:',
+  'workspace:',
+  'git+',
+  'github:',
+  'gitlab:',
+  'bitbucket:',
+  'http:',
+  'https:',
+] as const;
 
 function getProjectVersion(safewordDirectory: string): string {
   const versionPath = nodePath.join(safewordDirectory, 'version');
@@ -52,6 +74,54 @@ function stripDeadConfigVersion(safewordDirectory: string): void {
   if (!('version' in parsed)) return;
   delete parsed.version;
   writeFile(configPath, JSON.stringify(parsed, undefined, 2));
+}
+
+function isNonRegistryPackageSpec(spec: string): boolean {
+  return (
+    NON_REGISTRY_SPEC_PREFIXES.some(prefix => spec.startsWith(prefix)) ||
+    spec.startsWith('.') ||
+    spec.startsWith('/')
+  );
+}
+
+function isCurrentSafewordRegistrySpec(spec: string): boolean {
+  return spec === VERSION || spec === SAFEWORD_REGISTRY_SPEC || spec === `~${VERSION}`;
+}
+
+function syncPackageJsonSafewordVersion(cwd: string): boolean {
+  const packageJson = readPackageJson(cwd);
+  if (!packageJson) return false;
+
+  for (const field of DEPENDENCY_FIELDS) {
+    const dependencies = packageJson[field];
+    const currentSpec = dependencies?.safeword;
+    if (!dependencies || currentSpec === undefined || isNonRegistryPackageSpec(currentSpec))
+      continue;
+
+    if (isCurrentSafewordRegistrySpec(currentSpec)) continue;
+    installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package');
+    return packageJsonReferencesCurrentSafewordVersion(cwd);
+  }
+
+  return false;
+}
+
+function readPackageJson(cwd: string): PackageJson | undefined {
+  const packageJsonPath = nodePath.join(cwd, 'package.json');
+  return readJson(packageJsonPath) as PackageJson | undefined;
+}
+
+function packageJsonReferencesCurrentSafewordVersion(cwd: string): boolean {
+  const packageJson = readPackageJson(cwd);
+  return DEPENDENCY_FIELDS.some(field => {
+    const spec = packageJson?.[field]?.safeword;
+    return spec !== undefined && isCurrentSafewordRegistrySpec(spec);
+  });
+}
+
+function syncAndRecordPackageJsonSafewordVersion(cwd: string, result: ReconcileResult): void {
+  if (!syncPackageJsonSafewordVersion(cwd)) return;
+  if (!result.updated.includes('package.json')) result.updated.push('package.json');
 }
 
 function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cwd: string): void {
@@ -276,6 +346,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
     const ctx = createProjectContext(cwd);
     const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
     installDependencies(cwd, result.packagesToInstall, 'missing packages');
+    syncAndRecordPackageJsonSafewordVersion(cwd, result);
 
     // Migrate renamed pack IDs (dbt → sql)
     migratePackId(cwd, 'dbt', 'sql');

@@ -4,8 +4,12 @@
  * Tests for `safeword upgrade` command.
  */
 
+import { chmodSync, mkdirSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { VERSION } from '../../src/version.js';
 import {
   createConfiguredProject,
   createTemporaryDirectory,
@@ -20,6 +24,12 @@ import {
 } from '../helpers';
 
 describe('Test Suite 9: Upgrade', () => {
+  interface TestPackageJson {
+    devDependencies: Record<string, string>;
+    name: string;
+    version: string;
+  }
+
   let temporaryDirectory: string;
 
   beforeEach(() => {
@@ -29,6 +39,118 @@ describe('Test Suite 9: Upgrade', () => {
   afterEach(() => {
     removeTemporaryDirectory(temporaryDirectory);
   });
+
+  function readPackageJson(): TestPackageJson {
+    return JSON.parse(readTestFile(temporaryDirectory, 'package.json')) as TestPackageJson;
+  }
+
+  function writePackageJson(packageJson: TestPackageJson): void {
+    writeTestFile(temporaryDirectory, 'package.json', JSON.stringify(packageJson, undefined, 2));
+  }
+
+  function createNpmLockedProjectWithStaleSafeword(): void {
+    createTypeScriptPackageJson(temporaryDirectory, {
+      devDependencies: {
+        '@cucumber/cucumber': '^13.0.0',
+        '@types/node': '^25.0.0',
+        'dependency-cruiser': '^17.0.0',
+        eslint: '^9.22.0',
+        knip: '^6.0.0',
+        prettier: '^3.0.0',
+        safeword: '^0.1.0',
+        tsx: '^4.0.0',
+        typescript: '^5.0.0',
+      },
+    });
+
+    const packageJson = readPackageJson();
+
+    writeTestFile(temporaryDirectory, '.safeword/version', '0.0.1');
+    writeTestFile(temporaryDirectory, '.safeword/SAFEWORD.md', '# Old content\n');
+    writeSafewordConfig(temporaryDirectory, { installedPacks: ['typescript'] });
+    writeTestFile(
+      temporaryDirectory,
+      'package-lock.json',
+      JSON.stringify(
+        {
+          name: packageJson.name,
+          version: packageJson.version,
+          lockfileVersion: 3,
+          requires: true,
+          packages: {
+            '': {
+              name: packageJson.name,
+              version: packageJson.version,
+              devDependencies: packageJson.devDependencies,
+            },
+            'node_modules/safeword': {
+              version: '0.1.0',
+              resolved: 'https://registry.npmjs.org/safeword/-/safeword-0.1.0.tgz',
+              integrity: 'sha512-test',
+            },
+          },
+        },
+        undefined,
+        2,
+      ),
+    );
+  }
+
+  function installFakeNpm(): string {
+    const fakeBin = nodePath.join(temporaryDirectory, 'fake-bin');
+    mkdirSync(fakeBin, { recursive: true });
+    const fakeNpmPath = nodePath.join(fakeBin, 'npm');
+    writeTestFile(
+      temporaryDirectory,
+      'fake-bin/npm',
+      `#!/usr/bin/env node
+const fs = require('node:fs');
+const path = require('node:path');
+
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_NPM_LOG, JSON.stringify(args) + '\\n');
+
+const version = process.env.FAKE_SAFEWORD_VERSION;
+if (args.includes(\`safeword@\${version}\`)) {
+  const packageJsonPath = path.join(process.cwd(), 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  packageJson.devDependencies ||= {};
+  packageJson.devDependencies.safeword = \`^\${version}\`;
+	  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\\n');
+
+	  const packageLockPath = path.join(process.cwd(), 'package-lock.json');
+	  if (!fs.existsSync(packageLockPath)) process.exit(0);
+	  const packageLock = JSON.parse(fs.readFileSync(packageLockPath, 'utf8'));
+  packageLock.packages ||= {};
+  packageLock.packages[''] ||= {};
+  packageLock.packages[''].devDependencies ||= {};
+  packageLock.packages[''].devDependencies.safeword = \`^\${version}\`;
+  packageLock.packages['node_modules/safeword'] = {
+    version,
+    resolved: \`https://registry.npmjs.org/safeword/-/safeword-\${version}.tgz\`,
+    integrity: 'sha512-test',
+  };
+  fs.writeFileSync(packageLockPath, JSON.stringify(packageLock, null, 2) + '\\n');
+}
+`,
+    );
+    chmodSync(fakeNpmPath, 0o755);
+    return fakeBin;
+  }
+
+  async function runUpgradeWithFakeNpm(): Promise<Awaited<ReturnType<typeof runCli>>> {
+    const fakeBin = installFakeNpm();
+    const fakeNpmLog = nodePath.join(temporaryDirectory, 'npm-args.log');
+
+    return runCli(['upgrade'], {
+      cwd: temporaryDirectory,
+      env: {
+        FAKE_NPM_LOG: fakeNpmLog,
+        FAKE_SAFEWORD_VERSION: VERSION,
+        PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+      },
+    });
+  }
 
   describe('Test 9.1: Overwrites .safeword files', () => {
     it('should restore modified files to CLI version', async () => {
@@ -55,6 +177,49 @@ describe('Test Suite 9: Upgrade', () => {
       const version = readTestFile(temporaryDirectory, '.safeword/version').trim();
       expect(version).not.toBe('0.0.1');
       expect(version).toMatch(/^\d+\.\d+\.\d+/);
+    });
+
+    it('should update package.json safeword dependency to the CLI version', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      const packageJson = readPackageJson();
+      packageJson.devDependencies.safeword = '^0.1.0';
+      writePackageJson(packageJson);
+
+      const result = await runUpgradeWithFakeNpm();
+
+      expect(result.exitCode).toBe(0);
+      expect(readTestFile(temporaryDirectory, 'npm-args.log')).toContain(`safeword@${VERSION}`);
+      const updatedPackageJson = readPackageJson();
+      expect(updatedPackageJson.devDependencies.safeword).toBe(`^${VERSION}`);
+    });
+
+    it('should preserve local safeword dependency specs', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      const packageJson = readPackageJson();
+      const originalSpec = packageJson.devDependencies.safeword;
+
+      await runCli(['upgrade'], { cwd: temporaryDirectory });
+
+      const updatedPackageJson = readPackageJson();
+      expect(updatedPackageJson.devDependencies.safeword).toBe(originalSpec);
+    });
+
+    it('should update stale registry specs through npm so package-lock stays in sync', async () => {
+      createNpmLockedProjectWithStaleSafeword();
+      const result = await runUpgradeWithFakeNpm();
+
+      expect(result.exitCode).toBe(0);
+      expect(fileExists(temporaryDirectory, 'npm-args.log')).toBe(true);
+      expect(readTestFile(temporaryDirectory, 'npm-args.log')).toContain(`safeword@${VERSION}`);
+
+      const packageLock = JSON.parse(readTestFile(temporaryDirectory, 'package-lock.json')) as {
+        packages: {
+          '': { devDependencies: Record<string, string> };
+          'node_modules/safeword': { version: string };
+        };
+      };
+      expect(packageLock.packages[''].devDependencies.safeword).toBe(`^${VERSION}`);
+      expect(packageLock.packages['node_modules/safeword'].version).toBe(VERSION);
     });
   });
 
