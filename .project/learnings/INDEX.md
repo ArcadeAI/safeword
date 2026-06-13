@@ -6,48 +6,48 @@
 ## Learnings (23)
 
 - **Adding a Skill — Parity Checklist** — new safeword skill, template+dogfood parity, SAFEWORD_SCHEMA, cursor pair, action-skill decision.
-  → `.safeword-project/learnings/adding-a-skill-checklist.md`
+  → `.project/learnings/adding-a-skill-checklist.md`
 - **AI Agent Behavior Research** — agent TDD, verification, enforcement layers.
-  → `.safeword-project/learnings/agent-behavior-research.md`
+  → `.project/learnings/agent-behavior-research.md`
 - **Anthropic Research & Engineering: Feb-Apr 2026** — Anthropic 2026 research, trustworthy agents, harness design.
-  → `.safeword-project/learnings/anthropic-research-feb-apr-2026.md`
+  → `.project/learnings/anthropic-research-feb-apr-2026.md`
 - **Claude Code Changelog: Feb-Apr 2026** — Claude Code 2.1.80-2.1.101 changelog, plugins.
-  → `.safeword-project/learnings/claude-code-changelog-feb-apr-2026.md`
+  → `.project/learnings/claude-code-changelog-feb-apr-2026.md`
 - **Claude 4: Examples Are the Strongest Compliance Signal** — Claude 4 example-following, examples override rules.
-  → `.safeword-project/learnings/claude4-examples-override-rules.md`
+  → `.project/learnings/claude4-examples-override-rules.md`
 - **Concise Over Verbose for Skill File Instructions (Not Prose Over Lists)** — skill file conciseness, step count, list ordering.
-  → `.safeword-project/learnings/claude4-prose-over-lists.md`
+  → `.project/learnings/claude4-prose-over-lists.md`
 - **Closed tickets stay opaque** — ticket folder retrofits, mass-renames, `.safeword-project/tickets/completed/`, scope of legibility changes.
-  → `.safeword-project/learnings/closed-tickets-stay-opaque.md`
+  → `.project/learnings/closed-tickets-stay-opaque.md`
 - **Dogfooding: Enforcement Redesign Session (April 2026)** — hook fire counts, friction analysis, dogfood session.
-  → `.safeword-project/learnings/dogfooding-enforcement-session.md`
+  → `.project/learnings/dogfooding-enforcement-session.md`
 - **Dogfooding Gotchas** — CLAUDE.md import conflicts, safeword self-upgrade.
-  → `.safeword-project/learnings/dogfooding-gotchas.md`
+  → `.project/learnings/dogfooding-gotchas.md`
 - **E2E Test Zombie Processes** — E2E zombie processes, port conflicts, cleanup.
-  → `.safeword-project/learnings/e2e-test-zombie-processes.md`
+  → `.project/learnings/e2e-test-zombie-processes.md`
 - **ESLint Disable Directives Are Fragile in This Codebase** — eslint-disable comment stripping, reportUnusedDisableDirectives, lint-staged interaction, durable regex patterns.
-  → `.safeword-project/learnings/eslint-disable-fragility.md`
+  → `.project/learnings/eslint-disable-fragility.md`
 - **GitHub Ruleset Bypass: How to Actually Invoke It** — GitHub rulesets, `bypass_mode: "pull_request"`, gh CLI pre-flight check, REST merge endpoint, bypass-vs-admin-override.
-  → `.safeword-project/learnings/github-ruleset-bypass-mechanics.md`
+  → `.project/learnings/github-ruleset-bypass-mechanics.md`
 - **Instruction Attention Hierarchy: Where to Put Critical Rules** — instruction placement, attention decay.
-  → `.safeword-project/learnings/instruction-attention-hierarchy.md`
+  → `.project/learnings/instruction-attention-hierarchy.md`
 - **Lint-config presence detection** — session-lint-check config detection, prefix-match vs enumerate, hook E2E test discovery.
-  → `.safeword-project/learnings/lint-config-detection.md`
+  → `.project/learnings/lint-config-detection.md`
 - **LLM Coding Agents and Linting: Research Summary (December 2025)** — ESLint for AI agents, security plugins, additive presets.
-  → `.safeword-project/learnings/llm-coding-agents-linting.md`
+  → `.project/learnings/llm-coding-agents-linting.md`
 - **Long-session style drift: SAFEWORD.md rules lose steering force over time** — claude.md dismissive wrapper, long context attention drift, talking-to-user rules forgotten, style instruction decay, sticky agent style, system-reminder channel, hook channel vs claude.md, recency placement, opus 4.7 long session
-  → `.safeword-project/learnings/long-session-style-drift.md`
+  → `.project/learnings/long-session-style-drift.md`
 - **Natural Gates vs Self-Report Gates** — natural vs self-report gates, physics-not-policy.
-  → `.safeword-project/learnings/natural-vs-self-report-gates.md`
+  → `.project/learnings/natural-vs-self-report-gates.md`
 - **Post-Tool Linting Strategies for AI Coding Assistants** — post-tool lint, auto-fix vs error vs warn, retry loops.
-  → `.safeword-project/learnings/post-tool-linting-strategies.md`
+  → `.project/learnings/post-tool-linting-strategies.md`
 - **Verbose Procedural Gates Degrade Performance (Generalizes Beyond TDD)** — procedural instruction degradation, tell WHAT not HOW.
-  → `.safeword-project/learnings/procedural-gates-generalize-beyond-tdd.md`
+  → `.project/learnings/procedural-gates-generalize-beyond-tdd.md`
 - **Propose-and-Converge: Research Principles** — propose-and-converge pattern, agent UX, ideation.
-  → `.safeword-project/learnings/propose-and-converge-research.md`
+  → `.project/learnings/propose-and-converge-research.md`
 - **/quality-review vs /audit Roles** — quality-review skill, audit skill, refactor close step, skill chaining convention.
-  → `.safeword-project/learnings/quality-review-vs-audit-roles.md`
+  → `.project/learnings/quality-review-vs-audit-roles.md`
 - **Skill Description Design** — skill description writing, auto-triggering, trigger phrases.
-  → `.safeword-project/learnings/skill-description-design.md`
+  → `.project/learnings/skill-description-design.md`
 - **YAML Parsing & Quality Gates: Learnings from Ticket 025** — YAML failsafe schema, quality-state.json, ticket hierarchy.
-  → `.safeword-project/learnings/yaml-and-quality-gates.md`
+  → `.project/learnings/yaml-and-quality-gates.md`
