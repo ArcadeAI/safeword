@@ -15,9 +15,9 @@ Given a repo whose `eslint.config.ts` lists `.safeword-project/` in its ignores
 When the stale-config scanner runs
 Then the result names `eslint.config.ts`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC1.scanner_finds_multiple_config_types
 
@@ -25,9 +25,9 @@ Given a repo whose `tsconfig.json` and `.github/workflows/ci.yml` both reference
 When the stale-config scanner runs
 Then the result names both files
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC1.upgrade_output_names_stale_file
 
@@ -35,9 +35,9 @@ Given a legacy install whose `eslint.config.ts` references `.safeword-project/`
 When `safeword upgrade --migrate-namespace` moves the namespace
 Then the upgrade output names `eslint.config.ts`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC1.upgrade_output_shows_old_new_mapping
 
@@ -45,9 +45,9 @@ Given a legacy install whose `eslint.config.ts` references `.safeword-project/`
 When `safeword upgrade --migrate-namespace` moves the namespace and warns
 Then the warning shows the `.safeword-project/` → `.project/` mapping
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: The warning never edits customer files
 
@@ -59,9 +59,9 @@ Given a legacy install whose `eslint.config.ts` references `.safeword-project/`
 When `safeword upgrade --migrate-namespace` moves the namespace and warns
 Then `eslint.config.ts` is byte-identical to its pre-upgrade content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: No false positives
 
@@ -74,9 +74,9 @@ Given a repo whose tooling configs do not reference `.safeword-project/`
 When the stale-config scanner runs
 Then the result is empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC3.managed_prettierignore_block_not_flagged
 
@@ -84,9 +84,9 @@ Given a `.prettierignore` whose only `.safeword-project/` references are inside 
 When the stale-config scanner runs
 Then `.prettierignore` is not named
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC3.customer_prettierignore_line_is_flagged
 
@@ -94,9 +94,9 @@ Given a `.prettierignore` with the managed both-roots block AND a separate custo
 When the stale-config scanner runs
 Then `.prettierignore` is named
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC3.substring_near_miss_not_flagged
 
@@ -104,9 +104,9 @@ Given a config whose only reference is the unrelated path `.safeword-projectile/
 When the stale-config scanner runs
 Then the result is empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC3.raw_legacy_line_without_managed_block_is_flagged
 
@@ -114,9 +114,9 @@ Given a `.prettierignore` with a raw `.safeword-project/` line and no `# Safewor
 When the stale-config scanner runs
 Then `.prettierignore` is named
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC3.reference_under_safeword_owned_dir_not_flagged
 
@@ -124,9 +124,9 @@ Given a repo whose only `.safeword-project/` references live under the safeword-
 When the stale-config scanner runs
 Then the result is empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: migration-stale-config-warning.DEV1.AC3.documentary_reference_under_namespace_not_flagged
 
@@ -134,9 +134,9 @@ Given a repo whose only `.safeword-project/` references live in markdown under t
 When the stale-config scanner runs
 Then the result is empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: The warning fires only on an actual move
 
@@ -151,9 +151,9 @@ Given a legacy install with a stale `eslint.config.ts`, identical to the decline
 When `safeword upgrade --migrate-namespace` moves the namespace
 Then the stale-tooling-config warning IS printed, naming `eslint.config.ts`
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario Outline: migration-stale-config-warning.DEV1.AC4.silent_when_no_move
 
@@ -167,9 +167,11 @@ Examples:
 | ------------------------------ | ---------------------- |
 | legacy, migration declined     | --no-migrate-namespace |
 | both .project/ and legacy dirs | --migrate-namespace    |
-| configured paths.projectRoot   | --migrate-namespace    |
-| already on .project/           | (none)                 |
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+> The other no-move classes (custom-root, already-current) return from
+> `maybeMigrateNamespace` before the scan by construction — covered by 9MMWS7's
+> plan-classification tests, not re-proven here.
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR

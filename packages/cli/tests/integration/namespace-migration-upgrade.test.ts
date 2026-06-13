@@ -223,3 +223,85 @@ describe('check both-dirs advisory (9MMWS7)', () => {
     TIMEOUT_BUN_INSTALL,
   );
 });
+
+describe('upgrade stale tooling-config warning (JYWZG1)', () => {
+  // Distinctive phrase from the stale-config warning — avoids false matches on
+  // other upgrade output (e.g. the vendored-ignores auto-patch names eslint).
+  const WARNING_PHRASE = 'still reference the old namespace';
+  let cwd: string;
+
+  beforeEach(async () => {
+    cwd = createTemporaryDirectory();
+    await seedLegacyInstall(cwd);
+    // A customer-owned tooling config still pointing at the legacy namespace.
+    // tsconfig.json is chosen because no other upgrade step reads or edits it.
+    writeFileSync(nodePath.join(cwd, 'tsconfig.json'), '{ "exclude": [".safeword-project/"] }\n');
+  }, TIMEOUT_BUN_INSTALL);
+
+  afterEach(() => {
+    removeTemporaryDirectory(cwd);
+  });
+
+  it(
+    'DEV1.AC1.upgrade_output_names_stale_file + shows_old_new_mapping',
+    async () => {
+      const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      const out = `${result.stdout}${result.stderr}`;
+      expect(out).toContain(WARNING_PHRASE);
+      expect(out).toContain('tsconfig.json');
+      expect(out).toContain('.safeword-project/ → .project/');
+    },
+    TIMEOUT_BUN_INSTALL,
+  );
+
+  it(
+    'DEV1.AC2.flagged_config_is_byte_identical',
+    async () => {
+      const before = readFileSync(nodePath.join(cwd, 'tsconfig.json'), 'utf8');
+
+      const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      expect(readFileSync(nodePath.join(cwd, 'tsconfig.json'), 'utf8')).toBe(before);
+    },
+    TIMEOUT_BUN_INSTALL,
+  );
+
+  it(
+    'DEV1.AC4.warning_fires_when_move_succeeds',
+    async () => {
+      const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(nodePath.join(cwd, '.project'))).toBe(true);
+      expect(`${result.stdout}${result.stderr}`).toContain(WARNING_PHRASE);
+    },
+    TIMEOUT_BUN_INSTALL,
+  );
+
+  it(
+    'DEV1.AC4.silent_when_no_move — declined',
+    async () => {
+      const result = await runCli(['upgrade', '--no-migrate-namespace'], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(WARNING_PHRASE);
+    },
+    TIMEOUT_BUN_INSTALL,
+  );
+
+  it(
+    'DEV1.AC4.silent_when_no_move — both-dirs',
+    async () => {
+      mkdirSync(nodePath.join(cwd, '.project'));
+
+      const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(WARNING_PHRASE);
+    },
+    TIMEOUT_BUN_INSTALL,
+  );
+});
