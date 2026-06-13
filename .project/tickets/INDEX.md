@@ -89,6 +89,12 @@
   Make the bdd flow author scenarios as Gherkin `.feature` files directly — one source of truth the acceptance lane executes — demoting `test-definitions.md` to planning + R/G/R progress tracking. Kills the three-representations redundancy (markdown G/W/T + emitted vitest + emitted `.feature`) flagged by the 2026-06-10 flow review.
   blocked by: Executable Gherkin specs for TypeScript projects (102a), Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS) (102b)
   → `.project/tickets/1DT29X-feature-files-as-source`
+- **Align Gherkin source instructions across safeword docs (5AXPHR)** (in_progress, epic: bdd-phase-two-merge)
+  Replace stale markdown-scenario lineage wording with `.feature` tag guidance across SAFEWORD, BDD discovery, ticket-system, and starter Cucumber docs.
+  → `.project/tickets/5AXPHR-align-gherkin-source-instructions`
+- **Teach agents when to use the Gherkin acceptance lane (7ES3GW)** (in_progress, epic: bdd-phase-two-merge)
+  Update testing guidance so feature-level BDD starts with `.feature` acceptance scenarios while implementation tests stay at the highest practical scope.
+  → `.project/tickets/7ES3GW-teach-testing-guide-gherkin-acceptance-lane`
 - **Spec-revision discipline — safeword equivalent of arcade /update-spec (2K46FG)** (backlog, epic: bdd-phase-two-merge)
   Give safeword a disciplined way to revise a ticket's `spec.md` / `test-definitions.md` after it has reached define-behavior or beyond, instead of ad-hoc editing — deliberate-the-change-before-writing, reset the phase appropriately, and flag the downstream artifacts that go stale.
   → `.project/tickets/2K46FG-spec-revision-discipline`

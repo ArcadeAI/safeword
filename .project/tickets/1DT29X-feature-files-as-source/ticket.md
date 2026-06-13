@@ -50,6 +50,8 @@ last_modified: 2026-06-13T00:00:00.000Z
 - **102a / 102b** — shipped the runner + lane this slice feeds; both name this as the deferred follow-on.
 - **2K46FG** (spec-revision discipline) — sibling under Phase 2; owns regenerate/staleness semantics this slice exposes.
 - **M6D315** (Phase 2 epic) — parent context; arcade pair: build-spec's Gherkin authoring (`spec-format.md` "Test artifacts are derived from it").
+- **5AXPHR** — closeout cleanup for stale source-of-truth wording across live safeword instructions.
+- **7ES3GW** — follow-up to teach the testing guide how the Gherkin acceptance lane fits the test strategy.
 
 ## Work Log
 
@@ -57,6 +59,7 @@ last_modified: 2026-06-13T00:00:00.000Z
 - 2026-06-10T17:40:00.000Z Filed (backlog, Phase 2): carved out of the bdd-flow review (finding R1 — three scenario representations, derived copies can rot). Scope sketch from the 102a architecture record (".feature files are the single source of truth; test-definitions.md becomes planning-only"). Run intake + /figure-it-out (R/G/R rehoming) when picked up.
 - 2026-06-13T00:00:00.000Z Revalidated + figure-it-out: 102a/102b are done, Cucumber JS 13 + `@cucumber/gherkin` 39.1.0 are installed, and the current BDD/review/check/codify flow still treats markdown `test-definitions.md` as canonical. Chosen path is the feature-primary bridge: `.feature` files become scenario source for review/check/codify when present, while `test-definitions.md` stays as the hook-owned R/G/R ledger and legacy fallback. Phase -> implement after spec, dimensions, feature source, ledger, and impl plan were authored.
 - 2026-06-13T00:00:00.000Z Implemented: added feature-source discovery, official Gherkin parsing, feature-tag coverage, feature-backed `codify`, BDD/review/planning/template updates, and package Cucumber scenarios. Verification passed: focused utility/command/docs suite (68 tests), parser/render suite (36 tests), package `test:bdd` (5 scenarios / 26 steps), root `test:bdd` (1 scenario / 3 steps), package lint/typecheck. Ticket remains open for formal R/G/R commit annotations and verify.md.
+- 2026-06-13 Broader docs audit found two follow-ups before closeout: 5AXPHR for stale source-of-truth wording and 7ES3GW for testing-guide acceptance-lane guidance.
 
 ## Figure-It-Out Decision
 
