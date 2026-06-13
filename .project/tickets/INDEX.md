@@ -185,6 +185,9 @@
 - **Prove Codex parity in a trusted customer repo (CXP9LM)** (in_progress, epic: codex-changelog-alignment)
   Run a black-box smoke that installs safeword into a customer-like repo and verifies Codex loads instructions, skills, and a trusted deny hook.
   → `.project/tickets/CXP9LM-codex-live-parity-smoke`
+- **Ensure feature files cover Codex parity tickets (XK5N14)** (in_progress, epic: codex-changelog-alignment)
+  Backfill source `.feature` files or explicit no-feature-file rationales for every Codex parity child ticket.
+  → `.project/tickets/XK5N14-ensure-codex-feature-file-coverage`
 - **Package as Codex plugin/marketplace bundle (6WJ1RS)** (in_progress, epic: codex-changelog-alignment)
   Ship safeword as a Codex plugin distributed via Codex's marketplace, parallel to the Cursor packaging ticket (DXYKJX).
   → `.project/tickets/6WJ1RS-codex-plugin-marketplace-packaging`

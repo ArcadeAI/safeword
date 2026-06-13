@@ -67,6 +67,7 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 | **HPP49X** | Map safeword lifecycle events → Codex hook events (design) | design doc                             |
 | **5DEJ8V** | Generate `AGENTS.md` + `config.toml` hook wiring           | CLI install path                       |
 | **CXP9LM** | Prove Codex parity in a trusted customer repo              | final black-box/live smoke             |
+| **XK5N14** | Ensure feature files cover Codex parity tickets            | backfill source scenarios              |
 | **QGHVXZ** | Commands surface: skills vs deprecated custom prompts      | `/figure-it-out`                       |
 | **JV6D1W** | Enforcement strength: user-trusted vs managed hooks        | value decision                         |
 | **WR4HRA** | Pin minimum `codex` CLI version for required hooks         | baseline tracking                      |
@@ -74,7 +75,7 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 
 ## Sequencing
 
-Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → generation (5DEJ8V). Run the black-box/live parity smoke (CXP9LM) after 5DEJ8V and N12G95 prove the install and hook paths. QGHVXZ and JV6D1W are decisions that can run in parallel. WR4HRA + 6WJ1RS after the gates work and the smoke confirms the support boundary.
+Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → generation (5DEJ8V). Backfill source scenarios (XK5N14) before resuming broad Codex implementation so every child ticket either has a `.feature` file or an explicit no-feature-file rationale. Run the black-box/live parity smoke (CXP9LM) after 5DEJ8V and N12G95 prove the install and hook paths. QGHVXZ and JV6D1W are decisions that can run in parallel. WR4HRA + 6WJ1RS after the gates work and the smoke confirms the support boundary.
 
 ## Revalidation + /figure-it-out (2026-06-13)
 
@@ -107,3 +108,4 @@ Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → 
 - 2026-05-31 Re-verified hooks doc directly. Corrected `Stop` claim (auto-continues, does NOT hard-block — done gate moves to `UserPromptSubmit`); added `UserPromptSubmit` block + `allow_managed_hooks_only`; softened unverified custom-prompts-deprecation; added distribution ticket 6WJ1RS. Noted Skills/Plugins/Enterprise docs not yet read end-to-end.
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out across the epic. Verdict still stands: Codex parity is enforceable, but implementation must keep the current docs' caveat that `PreToolUse` is a guardrail with incomplete shell interception. Latest stable is 0.139.0; 0.140.0-alpha.17 exists. Keep raw setup first, plugin packaging second, managed enforcement as enterprise path.
 - 2026-06-13 Added CXP9LM as the final black-box/live parity smoke for a trusted customer-like Codex repo.
+- 2026-06-13 Added XK5N14 to backfill feature-file coverage for Codex child tickets started before the feature-files-as-source workflow landed.
