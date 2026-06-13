@@ -2,7 +2,7 @@
 id: JYWZG1
 slug: migration-stale-config-warning
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 epic: project-namespace-default
 follows: 9MMWS7
@@ -33,6 +33,8 @@ done_when:
 **See:** [spec.md](./spec.md) for personas, JTBDs, and outcomes.
 
 ## Work Log
+
+- 2026-06-13T03:55:00.000Z Implement: 14/14 scenarios green (9 scanner unit + 5 upgrade integration). New stale-config-scan util + warnStaleToolingConfigs wiring on the successful-move path. Phase → verify.
 
 - 2026-06-13T03:40:00.000Z Complete: scenario-gate — review 1 FAIL (AC4 silent pair had no fired counterpart; fixed + 4 strengthens), review 2 PASS (0 must-fix; no-move Scenario Outline added over 4 classes). 14 scenarios. Stamped. impl-plan.md written. Phase → implement.
 

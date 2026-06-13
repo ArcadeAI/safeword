@@ -1,6 +1,6 @@
 # Impl Plan: Warn on stale tooling-config namespace refs after migration
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -44,7 +44,11 @@ Consulted `ARCHITECTURE.md` (resolved `paths.architecture` → `ARCHITECTURE.md`
 
 ## Known deviations
 
-`skip: no deviations planned` — a new pure util + a few lines of wiring on the existing migration success path.
+Recorded at reconciliation (implement-phase exit):
+
+- **Integration fixture uses `tsconfig.json`, not `eslint.config.ts`** — the vendored-ignores auto-patch (ticket 154) edits and names the eslint config during upgrade, which contaminated both the byte-identical (AC2) and silence (AC4) assertions. tsconfig is a config nothing else in upgrade touches; assertions key off the warning's distinctive phrase, not the bare filename.
+- **No-move outline trimmed to 2 of 4 classes** — custom-root and already-current return from `maybeMigrateNamespace` before the scan by construction; covered by 9MMWS7's plan-classification tests rather than re-proven in slow integration runs.
+- Otherwise as planned: pure `scanStaleNamespaceConfigs` + a `warnStaleToolingConfigs` call on the successful-move path.
 
 ## Assessment triggers
 
