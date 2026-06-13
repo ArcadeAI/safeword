@@ -93,6 +93,14 @@ describe('scanStaleNamespaceConfigs (JYWZG1)', () => {
     expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
   });
 
+  it('is defensive when .github/workflows is a file, not a directory', () => {
+    // ENOTDIR from readdirSync must not crash the scan (and thus the upgrade).
+    write(cwd, '.github/workflows', 'not a directory\n');
+
+    expect(() => scanStaleNamespaceConfigs(cwd)).not.toThrow();
+    expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
+  });
+
   it('DEV1.AC3.documentary_reference_under_namespace_not_flagged', () => {
     write(cwd, '.project/tickets/T/ticket.md', 'This ticket moved from .safeword-project/.\n');
 

@@ -220,12 +220,16 @@ export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions
 
   try {
     reportMigrationSuccess(executeNamespaceMigration(cwd));
-    warnStaleToolingConfigs(cwd);
   } catch (migrationError) {
     warn(
       `${migrationError instanceof Error ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
     );
+    return;
   }
+
+  // After a confirmed move only — kept out of the try above so a scan hiccup
+  // can never be reported as a migration failure (the move already succeeded).
+  warnStaleToolingConfigs(cwd);
 }
 
 /**

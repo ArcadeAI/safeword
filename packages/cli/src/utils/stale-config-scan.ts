@@ -88,8 +88,15 @@ function fileHasStaleReference(relativePath: string, content: string): boolean {
 /** Workflow files under `.github/workflows/`, repo-relative; [] when absent. */
 function workflowConfigPaths(cwd: string): string[] {
   const directory = nodePath.join(cwd, ...WORKFLOWS_SUBPATH);
-  if (!existsSync(directory)) return [];
-  return readdirSync(directory)
+  let names: string[];
+  try {
+    // Defensive: a non-directory `.github/workflows` (ENOTDIR) must not crash
+    // the scan — this runs after a successful migration and must never abort it.
+    names = readdirSync(directory);
+  } catch {
+    return [];
+  }
+  return names
     .filter(name => name.endsWith('.yml') || name.endsWith('.yaml'))
     .map(name => `${WORKFLOWS_SUBPATH.join('/')}/${name}`);
 }
