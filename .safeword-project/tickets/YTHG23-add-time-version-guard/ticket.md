@@ -3,10 +3,10 @@ id: YTHG23
 slug: add-time-version-guard
 parent: VKNF1T-platform-uplift-epic
 type: patch
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-13T01:07:16.403Z
-last_modified: 2026-06-13T01:07:16.403Z
+last_modified: 2026-06-13T03:48:00.000Z
 ---
 
 # Verify current dependency versions at add-time, never from memory
@@ -24,3 +24,4 @@ last_modified: 2026-06-13T01:07:16.403Z
 ## Work Log
 
 - 2026-06-13T01:07:16.403Z Started: Created ticket YTHG23
+- 2026-06-13T03:48:00Z Done: added `**Adding a dependency**` Authority rule to SAFEWORD.md (template + dogfood, byte-identical); widened "either tier"→"any tier". Parity + schema tests green. verify.md written. Patch closed.

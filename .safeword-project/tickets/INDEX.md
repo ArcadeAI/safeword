@@ -694,7 +694,7 @@
   Extend the repo-level extension contract (70G298) with a third precedence layer — personal extensions that an individual contributor can layer on top of both safeword core AND repo-level extensions. Personal extensions live in a gitignored location by default so personal customizations don't leak into the team's repo.
   blocked by: Make safeword extensible at the repo/organization level — customer-specific rules, hooks, skills, conventions (70G298)
   → `.safeword-project/tickets/XSDQZ0`
-- **Verify current dependency versions at add-time, never from memory (YTHG23)** (in_progress, epic: —)
+- **Verify current dependency versions at add-time, never from memory (YTHG23)** (done, epic: —)
   Add an "Authority" rule to SAFEWORD.md (template + dogfood): when adding a dependency, verify its current version from the registry/docs — never pin a version recalled from training data.
   → `.safeword-project/tickets/YTHG23-add-time-version-guard`
 - **Model-tier policy: where to use opus / sonnet / fable across safeword tasks (Z4Q24Q)** (in_progress, epic: —)
