@@ -38,3 +38,14 @@ dependency-graph.svg
 
 # Brand assets (internal)
 brand/
+
+# Safeword - Local cache and transient state
+.safeword/.update-cache.json
+.project/quality-state*.json
+.project/failure-counts.json
+.project/skill-invocations.log
+.project/re-entry.md
+.safeword-project/quality-state*.json
+.safeword-project/failure-counts.json
+.safeword-project/skill-invocations.log
+.safeword-project/re-entry.md
