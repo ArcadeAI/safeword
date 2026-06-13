@@ -29,6 +29,7 @@ import {
   planNamespaceMigration,
 } from '../utils/namespace-migration.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
@@ -223,7 +224,26 @@ export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions
     warn(
       `${migrationError instanceof Error ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
     );
+    return;
   }
+
+  // After a confirmed move only — kept out of the try above so a scan hiccup
+  // can never be reported as a migration failure (the move already succeeded).
+  warnStaleToolingConfigs(cwd);
+}
+
+/**
+ * After a successful move, name customer tooling configs still referencing the
+ * legacy namespace so the developer can fix their lint/CI in the same review
+ * (ticket JYWZG1). Read-only — safeword never edits these files.
+ */
+function warnStaleToolingConfigs(cwd: string): void {
+  const stale = scanStaleNamespaceConfigs(cwd);
+  if (stale.length === 0) return;
+  warn(
+    '\nThese tooling configs still reference the old namespace (.safeword-project/ → .project/) — update them so your lint/CI keeps working:',
+  );
+  for (const file of stale) listItem(file);
 }
 
 export async function upgrade(options: UpgradeOptions): Promise<void> {
