@@ -15,9 +15,9 @@ Given a fresh project with no safeword configuration
 When `safeword setup` runs to completion
 Then the output ends with the health verification's `Configuration is healthy` success line, and the command exits zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ### Scenario: self-verify-setup-upgrade.DEV1.AC1.setup_with_post_run_issues_exits_nonzero
 
@@ -25,9 +25,9 @@ Given a setup whose final health verification finds configuration issues
 When `safeword setup` reaches its tail
 Then each issue is reported and the command exits non-zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ## Rule: Upgrade proves its own postcondition
 
@@ -41,9 +41,9 @@ Given a configured project on an older safeword version
 When `safeword upgrade` runs to completion
 Then the output ends with the health verification's `Configuration is healthy` success line, and the command exits zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ### Scenario: self-verify-setup-upgrade.DEV1.AC2.upgrade_with_post_run_issues_exits_nonzero
 
@@ -51,9 +51,9 @@ Given an upgrade whose final health verification finds configuration issues
 When `safeword upgrade` reaches its tail
 Then each issue is reported and the command exits non-zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ## Rule: The self-verify is config-health only — never a network call
 
@@ -69,9 +69,9 @@ Given a fresh project
 When `safeword setup` runs to completion
 Then the output contains the `Configuration is healthy` line AND contains no update-check lines (`Checking for updates`, `Update available`)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ### Scenario: self-verify-setup-upgrade.DEV1.AC3.upgrade_health_verification_carries_no_update_check
 
@@ -79,9 +79,9 @@ Given a configured project
 When `safeword upgrade` runs to completion
 Then the output contains the `Configuration is healthy` line AND contains no update-check lines (`Checking for updates`, `Update available`)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ### Scenario: self-verify-setup-upgrade.DEV1.AC3.health_module_has_no_update_check_path
 
@@ -89,9 +89,9 @@ Given the extracted health module's entry point
 When the health verification runs at the unit seam
 Then the npm version-check function is never invoked (no registry fetch can originate from the self-verify)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ## Rule: A clean result stays quiet
 
@@ -105,9 +105,9 @@ Given a fresh project that sets up cleanly
 When `safeword setup` runs to completion
 Then the `Configuration is healthy` line appears exactly once in the output
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ### Scenario: self-verify-setup-upgrade.DEV1.AC4.clean_upgrade_prints_one_health_summary
 
@@ -115,9 +115,9 @@ Given a configured project that upgrades cleanly
 When `safeword upgrade` runs to completion
 Then the `Configuration is healthy` line appears exactly once in the output
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ### Scenario: self-verify-setup-upgrade.DEV1.AC4.advisories_surface_once_without_failing
 
@@ -125,9 +125,9 @@ Given a configured project whose health verification yields advisories but no is
 When `safeword upgrade` runs to completion
 Then the advisories appear exactly once, the summary still reports healthy, and the command exits zero
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ## Rule: The remediation hint matches the context
 
@@ -150,9 +150,9 @@ Examples:
 | missing packages |
 | config issues    |
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ### Scenario: self-verify-setup-upgrade.DEV1.AC5.standalone_check_keeps_existing_hint
 
@@ -160,9 +160,9 @@ Given a project with configuration issues
 When `safeword check` runs standalone
 Then the summary still instructs "Run `safeword upgrade` to repair configuration" exactly as before
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 ## Rule: check is demoted in docs but unchanged in behavior
 
@@ -175,9 +175,9 @@ Given the SAFEWORD.md template+dogfood pair and the website CLI reference (cli.m
 When their health-verification sections are inspected
 Then each surface's `check` documentation contains the automatic-after phrase (literal pinned at RED, e.g. "runs automatically after `setup` and `upgrade`"), and no surface matches the imperative pattern ``Run `safeword check` `` outside an explicitly-labeled CI/debugging context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c
 
 > Note (gate review): post-setup deliberately keeps the existing
 > "Run `safeword upgrade` to repair" hint — after a failed _setup_, pointing at
@@ -190,6 +190,6 @@ Given the existing standalone check test suite
 When the suite runs against the extracted health module
 Then every existing check test passes unmodified
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fe0edfa
+- [x] GREEN 911e139c
+- [x] REFACTOR 911e139c

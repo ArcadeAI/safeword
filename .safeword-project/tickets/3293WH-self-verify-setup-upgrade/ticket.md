@@ -3,7 +3,7 @@ id: 3293WH
 slug: self-verify-setup-upgrade
 parent: VKNF1T-platform-uplift-epic
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-06-06T18:40:39.708Z
 last_modified: 2026-06-13T01:20:00.000Z
@@ -64,4 +64,5 @@ Extract `verifyHealth(cwd) → issues[]` (config-health only, no update-check) f
 - 2026-06-13T01:24:00Z Complete: define-behavior - 10 scenarios defined across 6 rules (dimensions.md saved; issues-found partition proven at the health-module seam since a real fresh fixture can't produce it)
 - 2026-06-13T01:35:00Z Gate review (Tier 2, fresh subagent): BLOCK on vacuous AC3 pair + 4 should-strengthen. All applied: AC3 anchored to self-verify presence + unit seam scenario; AC5 widened to all three failure branches (Scenario Outline); AC4 setup mirror + advisories-once scenario added; DEV2.AC1 made greppable. Decision on the adversarial note: a health verification that throws mid-tail is caught by the commands' existing try/catch → "Setup/Upgrade failed" + exit 1 — acceptable, no extra scenario.
 - 2026-06-13T01:45:00Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass: round 1 BLOCK (vacuous AC3) fixed, round 2 PASS; residual literal-pinning applied. impl-plan.md written (test layers + build order in Approach). Stamped.
+- 2026-06-13T01:55:00Z Complete: implement - 13/13 scenarios green (17 tests in self-verify.test.ts + existing 63 check/setup/upgrade tests pass). RED 2fe0edfa, GREEN+REFACTOR 911e139c. impl-plan reconciled → implemented (stronger: real e2e broken-postcondition fixtures via malformed personas.md; smaller: only cli.mdx needed doc rewording).
 - 2026-06-06T18:41:00Z Framed: verified setup/upgrade don't self-verify; `checkHealth`/`reportHealthSummary` are private in check.ts (need extraction); check's npm update-check must stay OUT of the self-verify (network + post-upgrade nag). Grepped ~20 `safeword check` references incl. advisory strings in scenario-coverage/glossary/personas that tell users to run it → real doc ripple if demoted. Proposed: extract `verifyHealth(cwd)→issues[]`, call from setup+upgrade, report+non-zero on issues. Core wiring task-sized; feature surface = the demote-public-command decision + doc sweep. Depends on 469YSR for clean output. Left fate-of-`check`, failure semantics, and advisory rewording open.

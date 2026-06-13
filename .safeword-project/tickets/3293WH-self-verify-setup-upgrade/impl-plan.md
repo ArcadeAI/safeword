@@ -1,6 +1,6 @@
 # Impl Plan: Auto-run health verification after setup & upgrade
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -10,7 +10,7 @@ Build order (each step leaves the suite green):
 2. **Remediation-hint parameter** — `reportHealthSummary(health, options?)` with `options.repairHint` defaulting to today's `Run \`safeword upgrade\` …` strings across all three failure branches (missing packs / missing packages / issues). Unit layer (AC5 outline + standalone-keeps-hint).
 3. **No-update-check seam test** — unit: spy on global `fetch`; `checkHealth` on a fixture performs zero network calls and the health module exposes no update-check export (AC3.health_module_has_no_update_check_path).
 4. **Wire setup tail** — after `maybeAutoPatchOrNudge`, inside the existing try/catch: run `checkHealth` + `reportHealthSummary`; non-clean → exit non-zero. Post-setup keeps the default upgrade hint (correct repair advice; dimensions note). Integration for clean path (AC1 clean, AC3 setup, AC4 setup-once); unit with injected broken `HealthStatus` for the issues path (AC1 nonzero).
-5. **Wire upgrade tail** — same call with a post-upgrade hint override (no `Run \`safeword upgrade\``; summary line ≠ `Configuration is healthy` on failure). Integration clean (AC2 clean, AC3 upgrade, AC4 upgrade-once, AC4 advisories-once); unit injected-broken (AC2 nonzero, AC5 outline ×3 branches).
+5. **Wire upgrade tail** — same call with a post-upgrade hint override (no `Run \`safeword upgrade\``; summary line ≠`Configuration is healthy` on failure). Integration clean (AC2 clean, AC3 upgrade, AC4 upgrade-once, AC4 advisories-once); unit injected-broken (AC2 nonzero, AC5 outline ×3 branches).
 6. **Docs demotion** — SAFEWORD.md template+dogfood pair + website `cli.mdx`: pin "runs automatically after `setup` and `upgrade`", move standalone use under CI/debugging; content test greps the three surfaces (DEV2.AC1).
 
 Test layers: integration = run the real command against a temp fixture (existing setup/upgrade test harness); unit = extracted module + injected HealthStatus at the wiring seam; content = doc-surface grep test.
@@ -32,7 +32,11 @@ Test layers: integration = run the real command against a temp fixture (existing
 
 ## Known deviations
 
-None.
+Reconciled at implement-exit (2026-06-13):
+
+- **Stronger than planned:** the issues-found partitions for both setup AND upgrade got real end-to-end subprocess tests (malformed `personas.md` — user content reconcile never repairs) instead of the planned injected-`HealthStatus` wiring tests. The unit seam was only needed for the AC5 hint branches and the no-fetch proof.
+- **Smaller than planned:** docs demotion touched only `cli.mdx` — the SAFEWORD.md pair carries no imperative "run `safeword check`" wording (verified by the DEV2.AC1 content test), so the planned pair edit was unnecessary.
+- **Added during REFACTOR:** `firstFailureSection` extraction in health.ts and a `selfVerify` helper in upgrade.ts, both to clear the complexity-10 lint cap.
 
 ## Assessment triggers
 
