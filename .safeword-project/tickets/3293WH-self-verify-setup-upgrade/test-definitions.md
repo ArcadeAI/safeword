@@ -29,6 +29,26 @@ Then each issue is reported and the command exits non-zero
 - [x] GREEN 911e139c
 - [x] REFACTOR 911e139c
 
+## Rule: A deliberately-skipped install is not a postcondition failure
+
+> Rationale: DEV1.AC1 — `SAFEWORD_SKIP_INSTALL` is an existing "don't install"
+> signal (honored in `install.ts`). When setup/upgrade is told not to install,
+> the self-verify must not fault absent packages/packs — the command did what
+> it was asked. Config-file health (missing files, broken patches,
+> persona/glossary) is still verified. Standalone `check` is unaffected (a
+> diagnostic still reports missing packages). Surfaced at verify: the gap broke
+> the pre-existing `setup-workspaces` test, which skips install for speed.
+
+### Scenario: self-verify-setup-upgrade.DEV1.AC1.skipped_install_setup_does_not_fault_absent_packages
+
+Given a fresh project whose package.json omits safeword's dev dependencies and `SAFEWORD_SKIP_INSTALL` is set
+When `safeword setup` runs to completion
+Then the self-verify reports `Configuration is healthy`, names no missing packages, and the command exits zero
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Upgrade proves its own postcondition
 
 > Rationale: DEV1.AC2 — same failure semantics as setup; report-and-fail, no

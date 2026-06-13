@@ -231,11 +231,14 @@ export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions
  * Self-verify the postcondition (ticket 3293WH). Config-health only — no
  * update-check. The repair hint must not say "run `safeword upgrade`": this
  * IS upgrade, and an issue its reconcile couldn't fix won't be fixed by
- * running it again.
+ * running it again. When install was deliberately skipped, the self-verify
+ * skips package-presence checks — the upgrade did what it was asked.
  * @param cwd
  */
 async function selfVerify(cwd: string): Promise<void> {
-  const health = await checkHealth(cwd);
+  const health = await checkHealth(cwd, {
+    skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+  });
   const hasIssues = reportHealthSummary(health, {
     repairHint:
       'Configuration issues remain after the upgrade — this may be a safeword bug. Please report it: https://github.com/ArcadeAI/safeword/issues',

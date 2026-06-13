@@ -366,7 +366,23 @@ export interface HealthStatus {
  * Check project configuration health using reconcile dryRun
  * @param cwd
  */
-export async function checkHealth(cwd: string): Promise<HealthStatus> {
+export interface CheckHealthOptions {
+  /**
+   * When true, package/pack installation state is excluded from the health
+   * result — `missingPackages` and `missingPacks` come back empty regardless
+   * of what is on disk. Used by the setup/upgrade self-verify when install was
+   * deliberately skipped (`SAFEWORD_SKIP_INSTALL`): a command that was told not
+   * to install must not then fault itself for absent packages. Config-file
+   * health (missing files, broken patches, persona/glossary) is still checked.
+   * Standalone `check` leaves this false so the diagnostic reports the truth.
+   */
+  skipPackageChecks?: boolean;
+}
+
+export async function checkHealth(
+  cwd: string,
+  options: CheckHealthOptions = {},
+): Promise<HealthStatus> {
   const safewordDirectory = nodePath.join(cwd, '.safeword');
 
   // Check if configured
@@ -416,8 +432,8 @@ export async function checkHealth(cwd: string): Promise<HealthStatus> {
     issues.push('Missing: .claude/settings.json');
   }
 
-  // Check for missing language packs
-  const missingPacks = getMissingPacks(cwd);
+  // Check for missing language packs (unless install was deliberately skipped)
+  const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);
 
   return {
     configured: true,
@@ -434,7 +450,7 @@ export async function checkHealth(cwd: string): Promise<HealthStatus> {
       ...findRelationAdvisories(cwd),
       ...findArchitectureAdvisories(cwd),
     ],
-    missingPackages: result.packagesToInstall,
+    missingPackages: options.skipPackageChecks ? [] : result.packagesToInstall,
     missingPacks,
   };
 }

@@ -489,8 +489,11 @@ export async function setup(options: SetupOptions): Promise<void> {
     // proves what it wrote, where the breakage actually is. Config-health
     // only — no update-check. The default "Run `safeword upgrade`" repair
     // hint is kept: after a failed *setup*, pointing at upgrade is correct,
-    // non-self-referencing advice.
-    const health = await checkHealth(cwd);
+    // non-self-referencing advice. When install was deliberately skipped, the
+    // self-verify skips package-presence checks — setup did what it was asked.
+    const health = await checkHealth(cwd, {
+      skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+    });
     if (reportHealthSummary(health)) {
       process.exit(1);
     }

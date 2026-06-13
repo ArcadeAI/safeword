@@ -95,6 +95,37 @@ describe('3293WH: setup self-verify (clean fixture)', () => {
   });
 });
 
+describe('3293WH: setup self-verify (deliberately-skipped install)', () => {
+  let dir: string;
+
+  afterAll(() => {
+    removeTemporaryDirectory(dir);
+  });
+
+  it(
+    'DEV1.AC1.skipped_install_setup_does_not_fault_absent_packages',
+    async () => {
+      dir = createTemporaryDirectory();
+      // Bare TS project — package.json omits safeword's dev deps, so reconcile
+      // would list them as "to install". With install deliberately skipped,
+      // the self-verify must not treat those absent packages as a failure.
+      createTypeScriptPackageJson(dir);
+      initGitRepo(dir);
+
+      const result = await runCli(['setup'], {
+        cwd: dir,
+        env: { SAFEWORD_SKIP_INSTALL: '1' },
+      });
+      const output = result.stdout + result.stderr;
+
+      expect(result.exitCode).toBe(0);
+      expect(output).toContain(HEALTHY_LINE);
+      expect(output).not.toContain('Missing Packages');
+    },
+    TIMEOUT_SETUP,
+  );
+});
+
 describe('3293WH: setup self-verify (broken postcondition)', () => {
   let dir: string;
 
