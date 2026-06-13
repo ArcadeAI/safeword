@@ -6,6 +6,7 @@
 
 import nodePath from 'node:path';
 
+import { checkHealth, reportHealthSummary } from '../health.js';
 import { migratePackId } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import {
@@ -226,6 +227,24 @@ export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions
   }
 }
 
+/**
+ * Self-verify the postcondition (ticket 3293WH). Config-health only — no
+ * update-check. The repair hint must not say "run `safeword upgrade`": this
+ * IS upgrade, and an issue its reconcile couldn't fix won't be fixed by
+ * running it again.
+ * @param cwd
+ */
+async function selfVerify(cwd: string): Promise<void> {
+  const health = await checkHealth(cwd);
+  const hasIssues = reportHealthSummary(health, {
+    repairHint:
+      'Configuration issues remain after the upgrade — this may be a safeword bug. Please report it: https://github.com/ArcadeAI/safeword/issues',
+  });
+  if (hasIssues) {
+    process.exit(1);
+  }
+}
+
 export async function upgrade(options: UpgradeOptions): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
@@ -292,6 +311,8 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
       hasJavaScript: Boolean(ctx.languages?.javascript),
       noModify: options.noModify,
     });
+
+    await selfVerify(cwd);
   } catch (error_) {
     error(`Upgrade failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
