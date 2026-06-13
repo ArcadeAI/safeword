@@ -2,8 +2,8 @@
 id: JYWZG1
 slug: migration-stale-config-warning
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: project-namespace-default
 follows: 9MMWS7
 created: 2026-06-13T03:27:01.402Z
@@ -33,6 +33,8 @@ done_when:
 **See:** [spec.md](./spec.md) for personas, JTBDs, and outcomes.
 
 ## Work Log
+
+- 2026-06-13T04:30:00.000Z Complete: verify — /verify + /audit run (invocation-logged); verify.md written; audit passed (0 errors, un-exported speculative LEGACY_REFERENCE). Full suite 2795/0/1. Ticket closed.
 
 - 2026-06-13T03:55:00.000Z Implement: 14/14 scenarios green (9 scanner unit + 5 upgrade integration). New stale-config-scan util + warnStaleToolingConfigs wiring on the successful-move path. Phase → verify.
 
