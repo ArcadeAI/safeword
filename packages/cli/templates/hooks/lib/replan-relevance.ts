@@ -143,13 +143,24 @@ export function parseGitLogNameOnly(raw: string): ReplanCommit[] {
 }
 
 /**
+ * Shared re-decide clause (ticket 97BZ9S): when the resume check finds scope
+ * may be stale, name `/figure-it-out` as the tool for re-deciding the approach
+ * against current docs — so revalidation isn't just "is it still good?" but
+ * "and if not, decide the new approach with evidence." Appended to both
+ * heads-up messages; the narrow slice of ZBVGPF that runs figure-it-out during
+ * revalidation without the full intake embedding.
+ */
+const REDECIDE_OFFER =
+  " If scope shifted, I'll run `/figure-it-out` to re-decide the approach against current docs.";
+
+/**
  * The opt-in heads-up: names the relevant-commit count and offers one step to
  * accept ("check the plan"); declining is just proceeding. Phrased so an agent
  * runs the investigation only on explicit accept (output-safety, design B).
  */
 export function formatReplanHeadsUp(relevantCommitCount: number): string {
   const noun = relevantCommitCount === 1 ? 'commit' : 'commits';
-  return `Resume check: ${relevantCommitCount} ${noun} since you last touched this ticket changed files it references — the plan may be stale. Say "check the plan" and I'll investigate whether scope still holds (still-good / change / cancel / split / merge); otherwise I'll proceed as planned.`;
+  return `Resume check: ${relevantCommitCount} ${noun} since you last touched this ticket changed files it references — the plan may be stale. Say "check the plan" and I'll investigate whether scope still holds (still-good / change / cancel / split / merge); otherwise I'll proceed as planned.${REDECIDE_OFFER}`;
 }
 
 /** Terminal ticket statuses — a depends_on target in one of these is "resolved"
@@ -200,5 +211,5 @@ export function formatBlockerMovedHeadsUp(moved: readonly MovedBlocker[]): strin
   const list = moved.map(blocker => `${blocker.slug} (${blocker.id})`).join(', ');
   const subject = moved.length === 1 ? 'A blocker' : 'Blockers';
   const verb = moved.length === 1 ? 'is' : 'are';
-  return `Resume check: ${subject} you depend on ${verb} now resolved — ${list} reached a terminal status since you last touched this ticket; the plan may be stale. Say "check the plan" and I'll investigate whether scope still holds; otherwise I'll proceed.`;
+  return `Resume check: ${subject} you depend on ${verb} now resolved — ${list} reached a terminal status since you last touched this ticket; the plan may be stale. Say "check the plan" and I'll investigate whether scope still holds; otherwise I'll proceed.${REDECIDE_OFFER}`;
 }

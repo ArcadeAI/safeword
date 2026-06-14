@@ -16,7 +16,7 @@ import type { SafewordWorld } from './world.js';
 
 const execAsync = promisify(exec);
 
-When('I run {string}', async function (this: SafewordWorld, command: string) {
+When('I run shell command {string}', async function (this: SafewordWorld, command: string) {
   try {
     const { stdout, stderr } = await execAsync(command);
     this.result = { stdout, stderr, exitCode: 0 };
@@ -30,11 +30,11 @@ When('I run {string}', async function (this: SafewordWorld, command: string) {
   }
 });
 
-Then('the exit code is {int}', function (this: SafewordWorld, expected: number) {
+Then('the shell exit code is {int}', function (this: SafewordWorld, expected: number) {
   assert.equal(this.result.exitCode, expected, `stderr: ${this.result.stderr}`);
 });
 
-Then('the output contains {string}', function (this: SafewordWorld, text: string) {
+Then('the shell output contains {string}', function (this: SafewordWorld, text: string) {
   const combined = `${this.result.stdout}${this.result.stderr}`;
   assert.ok(combined.includes(text), `output did not contain "${text}"\n${combined}`);
 });

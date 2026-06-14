@@ -58,7 +58,7 @@ bunx safeword@latest upgrade
 
 ## safeword check
 
-Verify your installation and report issues.
+Verify your installation and report issues. This verification runs automatically after `setup` and `upgrade` — both commands end by checking the configuration they just wrote and exit non-zero if it's broken, so you don't need to run `check` as a routine step.
 
 ```bash
 bunx safeword@latest check
@@ -68,7 +68,7 @@ bunx safeword@latest check
 | ----------- | ------------------------- |
 | `--offline` | Skip remote version check |
 
-**When to use:** If something seems broken, or to verify everything is set up correctly. Shows missing files, version info, and potential problems.
+**When to use:** Standalone use is for CI pipelines and debugging — a health gate in CI, or a diagnostic when something seems broken between upgrades. Shows missing files, version info, and potential problems.
 
 ## safeword reset
 

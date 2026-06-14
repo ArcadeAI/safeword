@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { checkHealth, reportHealthSummary } from '../health.js';
 import { setupGoTooling } from '../packs/golang/setup.js';
 import { installPack } from '../packs/install.js';
 import {
@@ -20,6 +21,11 @@ import {
 import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
+import {
+  CODEX_TRUST_NEXT_STEP,
+  reconciledCodexConfig,
+  warnIfCodexBelowHookFloor,
+} from '../utils/codex.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
@@ -296,6 +302,7 @@ function printSetupSummary(options: SetupSummaryOptions): void {
   // Next steps
   info('\nNext steps:');
   listItem('Run `safeword check` to verify setup');
+  if (reconciledCodexConfig(result)) listItem(CODEX_TRUST_NEXT_STEP);
 
   printLanguageNextSteps({
     cwd,
@@ -439,6 +446,7 @@ export async function setup(options: SetupOptions): Promise<void> {
   info(`Version: ${VERSION}`);
   if (packageJsonCreated) info('Created package.json (none found)');
   warnIfBunMissing();
+  warnIfCodexBelowHookFloor();
 
   try {
     info('\nCreating safeword configuration...');
@@ -483,6 +491,19 @@ export async function setup(options: SetupOptions): Promise<void> {
       hasJavaScript: languages.javascript,
       noModify: options.noModify,
     });
+
+    // Self-verify the postcondition (ticket 3293WH): a mutating command
+    // proves what it wrote, where the breakage actually is. Config-health
+    // only — no update-check. The default "Run `safeword upgrade`" repair
+    // hint is kept: after a failed *setup*, pointing at upgrade is correct,
+    // non-self-referencing advice. When install was deliberately skipped, the
+    // self-verify skips package-presence checks — setup did what it was asked.
+    const health = await checkHealth(cwd, {
+      skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+    });
+    if (reportHealthSummary(health)) {
+      process.exit(1);
+    }
   } catch (error_) {
     error(`Setup failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);

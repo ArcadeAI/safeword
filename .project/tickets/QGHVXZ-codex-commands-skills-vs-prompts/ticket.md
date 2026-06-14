@@ -2,8 +2,8 @@
 id: QGHVXZ
 slug: codex-commands-skills-vs-prompts
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 ---
@@ -32,6 +32,10 @@ Revalidation note: current Codex skills docs keep the same shape and add useful 
 
 developers.openai.com/codex/skills
 
+## Feature File Coverage
+
+No source `.feature` file is required for this ticket. This is a decision ticket that resolves the Codex command surface to `.agents/skills` and records invocation policy guidance. Executable generation behavior belongs to `5DEJ8V`; any future skill-classification implementation should carry its own source feature.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide how to expose safeword's Claude-style commands/workflows on Codex without bloating context or over-triggering action skills.
@@ -53,3 +57,4 @@ developers.openai.com/codex/skills
 - 2026-05-31 Created from Codex research.
 - 2026-05-31 Read Skills doc. RESOLVED: skills in `.agents/skills` (same SKILL.md as CC). Custom-prompts-deprecation NOT confirmed — corrected.
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out. Decision remains skills, with the added implementation rule that action-style safeword skills should disable implicit invocation via `agents/openai.yaml`.
+- 2026-06-14T00:20:00Z Quality-review follow-up: completed verify record for the decision ticket. No feature source is required because executable generation behavior belongs to 5DEJ8V.

@@ -27,6 +27,7 @@ import {
 } from './lib/review-ledger.ts';
 import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
 import {
+  EXPLAIN_HINT,
   type FailureEntry,
   getStateFilePath,
   type QualityState,
@@ -451,7 +452,8 @@ Run /audit, show output, then try again.`;
   return `Done phase requires evidence. Run /verify and show results.
 
 Expected evidence formats:
-- "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)${auditLine}
+- "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)
+- "**Gherkin:** ✅ Acceptance lane passes" or "Skipped — no test:bdd script" (acceptance lane evidence)${auditLine}
 
 Run /verify, show output, then try again.`;
 }
@@ -461,7 +463,7 @@ Run /verify, show output, then try again.`;
  * No bypass: stop_hook_active does not skip this check.
  */
 function hardBlockDone(reason: string): never {
-  console.log(JSON.stringify({ decision: 'block', reason }));
+  console.log(JSON.stringify({ decision: 'block', reason: `${reason}\n\n${EXPLAIN_HINT}` }));
   process.exit(0);
 }
 
@@ -486,7 +488,7 @@ function softBlock(reason: string): never {
 
 if (currentPhase === 'done') {
   // Done phase: require evidence before allowing stop.
-  // Features need test + scenario + audit evidence; tasks need test only.
+  // Features need test + Gherkin acceptance + scenario + audit evidence; tasks need test only.
   const isFeature = ticketInfo.type === 'feature';
 
   // Run tests directly — authoritative external gate, cannot be gamed by prose.

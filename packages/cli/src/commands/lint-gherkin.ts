@@ -3,10 +3,11 @@
  * legacy `gherkin-lint` dependency tree into customer repos.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { collectExecutableFeatureFiles } from '../utils/feature-source.js';
 import { findGherkinLintIssues, type GherkinLintIssue } from '../utils/gherkin-feature.js';
 
 export function lintGherkin(files: string[]): Promise<void> {
@@ -33,28 +34,7 @@ function resolveInputFiles(cwd: string, files: readonly string[]): string[] {
 }
 
 function discoverFeatureFiles(cwd: string): string[] {
-  return [
-    ...collectFeatureFiles(nodePath.join(cwd, 'features')),
-    ...collectPackageFeatureFiles(nodePath.join(cwd, 'packages')),
-  ];
-}
-
-function collectPackageFeatureFiles(packagesDirectory: string): string[] {
-  if (!existsSync(packagesDirectory)) return [];
-  return readdirSync(packagesDirectory, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .flatMap(entry =>
-      collectFeatureFiles(nodePath.join(packagesDirectory, entry.name, 'features')),
-    );
-}
-
-function collectFeatureFiles(directory: string): string[] {
-  if (!existsSync(directory)) return [];
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const fullPath = nodePath.join(directory, entry.name);
-    if (entry.isDirectory()) return collectFeatureFiles(fullPath);
-    return entry.isFile() && entry.name.endsWith('.feature') ? [fullPath] : [];
-  });
+  return collectExecutableFeatureFiles(cwd);
 }
 
 function lintFile(cwd: string, filePath: string): string[] {

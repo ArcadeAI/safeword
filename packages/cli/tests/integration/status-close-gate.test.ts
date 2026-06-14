@@ -99,5 +99,7 @@ describe('status-close done-gate (2JMQMX)', () => {
     // The surfaced phase:'done' reached the real done-gate, which blocked on the
     // missing evidence — the sidestep is closed.
     expect(result.reason.toLowerCase()).toContain('verify.md');
+    // ZCYD5P: the done-gate block also points to /explain.
+    expect(result.reason).toContain('Run `/explain` for a plain-English version');
   });
 });

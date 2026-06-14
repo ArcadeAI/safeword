@@ -17,7 +17,9 @@ import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
 import {
   createTemporaryDirectory,
   getReconcileTestUtilities,
+  installFakeCodexCli,
   removeTemporaryDirectory,
+  runCli,
   setupReconcileTest,
 } from '../helpers';
 
@@ -212,6 +214,42 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(content).toContain('[[hooks.PreToolUse]]');
       expect(content).toContain('apply_patch');
       expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+    });
+
+    it('should warn when the installed Codex CLI is below the safeword hook floor', async () => {
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'package.json'),
+        JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
+      );
+      const fakeBin = installFakeCodexCli(temporaryDirectory, '0.132.0');
+
+      const result = await runCli(['setup', '--yes', '--no-modify'], {
+        cwd: temporaryDirectory,
+        env: {
+          PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '1',
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('Codex 0.132.0 is below safeword');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
+    });
+
+    it('should tell users to trust generated Codex hooks after setup', async () => {
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'package.json'),
+        JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
+      );
+
+      const result = await runCli(['setup', '--yes', '--no-modify'], {
+        cwd: temporaryDirectory,
+        env: { SAFEWORD_SKIP_INSTALL: '1' },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('trust safeword project hooks');
     });
 
     it('should prepend to existing AGENTS.md', async () => {

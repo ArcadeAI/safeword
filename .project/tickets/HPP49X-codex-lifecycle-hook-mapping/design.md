@@ -30,7 +30,7 @@ Codex event/config
 | Post-edit lint and quality review context                                 | `PostToolUse`                                        | `PostToolUse`                                                                                      | Additional context / advisory output                                  | Reuse as observer only. Side effects already happened, so do not classify this as enforcement.                 |
 | LOC and quality-state bookkeeping                                         | `PostToolUse` observer plus `PreToolUse` enforcement | `PostToolUse` state update plus `UserPromptSubmit`/`PreToolUse` enforcement                        | Advisory at post-tool; block at prompt/edit                           | Split observer from hard block deliberately.                                                                   |
 | Stop-time re-entry and next-turn coaching                                 | `Stop`                                               | `Stop`                                                                                             | Continuation/nudge                                                    | Reuse as guidance. Do not rely on it as the enforcement boundary.                                              |
-| Session cleanup                                                           | `SessionEnd`                                         | `SessionEnd` if available in Codex runtime                                                         | Non-blocking cleanup                                                  | Reuse where supported.                                                                                         |
+| Session cleanup                                                           | `SessionEnd`                                         | Unsupported in current Codex hook event set                                                        | N/A                                                                   | Do not generate Codex cleanup hooks until Codex documents an equivalent event.                                 |
 
 ## Components
 
@@ -125,6 +125,7 @@ interface PromptGateResult {
 - `Stop` wording is dangerous: "block" in a stop event is not the same as "prevent completion" for Codex.
 - `PostToolUse` cannot be described as preventing the action that already happened.
 - `PreToolUse` is valuable but not comprehensive. Unsupported paths must stay visible in docs and tickets.
+- Current Codex docs do not document a `SessionEnd` equivalent; cleanup hooks must stay ungenerated until the event is documented.
 
 **Open Questions:**
 

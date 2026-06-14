@@ -131,7 +131,10 @@ program
 program
   .command('lint-gherkin')
   .description('Lint Gherkin feature files using Safeword-owned checks')
-  .argument('[files...]', 'Feature files to lint; discovers features/**/*.feature when omitted')
+  .argument(
+    '[files...]',
+    'Feature files to lint; discovers root and workspace feature files when omitted',
+  )
   .action(async (files: string[]) => {
     const { lintGherkin } = await import('./commands/lint-gherkin.js');
     await lintGherkin(files);

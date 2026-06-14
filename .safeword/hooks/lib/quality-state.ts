@@ -11,6 +11,15 @@ export const LOC_THRESHOLD = 400;
 /** Counter threshold for CLAUDE.md escalation suggestions. */
 export const ESCALATION_THRESHOLD = 3;
 
+/**
+ * Closing line appended to every hard-block gate message (phase / LOC / done
+ * and the artifact prerequisite gates). Gate messages are the densest jargon
+ * in the system; `/explain` (a manual-only action skill) translates a blocked
+ * gate into plain English, so the pointer rides along with the block itself
+ * (ticket ZCYD5P). Plain, no branding.
+ */
+export const EXPLAIN_HINT = 'Run `/explain` for a plain-English version of this block.';
+
 /** Tooling/meta paths that are not application code.
  *  Used by pre-tool (skip blocking) and post-tool (skip LOC counting). */
 export const META_PATHS = ['.project/', '.safeword-project/', '.safeword/', '.claude/', '.cursor/'];

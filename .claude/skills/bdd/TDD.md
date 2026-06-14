@@ -24,6 +24,15 @@ Degradation is the intended path — no gate blocks on harness absence.
 
 Start with the most constraining test — usually E2E or integration. Prefer the highest scope that covers the behavior with acceptable feedback speed.
 
+### Feature-source executable path
+
+When the scenario source is a `.feature` file and the Cucumber lane exists, RED starts by making that scenario executable through Cucumber step definitions:
+
+- If no matching steps exist, the first RED can be `bun run test:bdd` failing with undefined or pending steps, then add the thinnest TypeScript step definitions under `steps/` or `features/steps/`.
+- Keep step definitions thin; call app, API, CLI, or shell helpers from steps. Do not bury business logic in Cucumber glue.
+- Use Vitest for lower-level implementation proof when it gives faster or more precise coverage, especially pure functions and module contracts.
+- A scenario is not complete until both the relevant implementation tests and `test:bdd` pass, unless the feature is explicitly tagged `@manual` or `@live` with a skip reason.
+
 ### Walking Skeleton (first scenario only)
 
 If no E2E infrastructure exists, build skeleton first: thinnest slice proving architecture works (form → API → response → UI, no real logic).

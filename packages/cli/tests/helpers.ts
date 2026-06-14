@@ -1,5 +1,13 @@
 import { execFile, execSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
@@ -45,6 +53,15 @@ export const SAFEWORD_VERSION = `file:${SAFEWORD_PATH}`;
  */
 export function createTemporaryDirectory(): string {
   return mkdtempSync(nodePath.join(tmpdir(), 'safeword-test-'));
+}
+
+export function installFakeCodexCli(projectRoot: string, version: string): string {
+  const fakeBin = nodePath.join(projectRoot, 'bin');
+  mkdirSync(fakeBin);
+  const fakeCodex = nodePath.join(fakeBin, 'codex');
+  writeFileSync(fakeCodex, `#!/usr/bin/env sh\necho "codex ${version}"\n`);
+  chmodSync(fakeCodex, 0o755);
+  return fakeBin;
 }
 
 /**
