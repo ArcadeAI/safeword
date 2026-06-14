@@ -109,26 +109,30 @@ function assertCliSuccess(result: { stdout: string; stderr: string; exitCode: nu
   assert.equal(result.exitCode, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 }
 
-function createCodexHookTicket(projectRoot: string, complete: boolean): void {
+function createCodexHookTicketDirectory(projectRoot: string): string {
   const ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', TICKET_ID);
   mkdirSync(ticketDirectory, { recursive: true });
+  return ticketDirectory;
+}
 
-  if (!complete) {
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'ticket.md'),
-      [
-        '---',
-        `id: ${TICKET_ID}`,
-        'type: feature',
-        'phase: define-behavior',
-        'status: in_progress',
-        '---',
-        '',
-      ].join('\n'),
-    );
-    return;
-  }
+function createIncompleteCodexHookTicket(projectRoot: string): void {
+  const ticketDirectory = createCodexHookTicketDirectory(projectRoot);
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'ticket.md'),
+    [
+      '---',
+      `id: ${TICKET_ID}`,
+      'type: feature',
+      'phase: define-behavior',
+      'status: in_progress',
+      '---',
+      '',
+    ].join('\n'),
+  );
+}
 
+function createCompleteCodexHookTicket(projectRoot: string): void {
+  const ticketDirectory = createCodexHookTicketDirectory(projectRoot);
   writeFileSync(
     nodePath.join(ticketDirectory, 'ticket.md'),
     [
@@ -331,7 +335,7 @@ Given(
   'a feature ticket is missing one or more safeword intake prerequisites',
   function (this: SafewordWorld) {
     this.temporaryDirectory = createProject('safeword-codex-hook-missing-');
-    createCodexHookTicket(this.temporaryDirectory, false);
+    createIncompleteCodexHookTicket(this.temporaryDirectory);
   },
 );
 
@@ -364,7 +368,7 @@ Given(
   'a feature ticket has scope, out_of_scope, done_when, dimensions, a resolving JTBD, and an Acceptance Criterion',
   function (this: SafewordWorld) {
     this.temporaryDirectory = createProject('safeword-codex-hook-complete-');
-    createCodexHookTicket(this.temporaryDirectory, true);
+    createCompleteCodexHookTicket(this.temporaryDirectory);
   },
 );
 
@@ -378,7 +382,7 @@ Given(
   'the same missing-intake condition that produces a JSON denial',
   function (this: SafewordWorld) {
     this.temporaryDirectory = createProject('safeword-codex-hook-fallback-');
-    createCodexHookTicket(this.temporaryDirectory, false);
+    createIncompleteCodexHookTicket(this.temporaryDirectory);
   },
 );
 
