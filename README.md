@@ -33,7 +33,9 @@ test -f AGENTS.md && echo "AGENTS.md ✓"
 - `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
 - `.safeword/hooks/` - Auto-linting, quality review hooks
 - `.claude/settings.json` - Hook configuration for Claude Code
-- `.claude/commands/` - Slash commands for Claude Code
+- `.claude/skills/` - Skills and slash-command workflows for Claude Code
+- `.codex/config.toml` - Hook configuration for Codex
+- `.agents/skills/` - Skills for Codex
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
 - `.cursor/commands/` - Slash commands for Cursor
@@ -51,7 +53,7 @@ test -f AGENTS.md && echo "AGENTS.md ✓"
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, and supporting plugins, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
-**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor events). They never run during normal human development. Safeword does not install git hooks or modify your commit workflow.
+**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run during normal human development. Safeword does not install git hooks or modify your commit workflow.
 
 **Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
@@ -102,7 +104,7 @@ flowchart TD
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
 
-The framework is **project-local**: it writes to `.safeword/`, `.claude/`, and `.cursor/` in your repo — no global install — so teammates get the same discipline the moment they pull. Guides and learnings live in-repo and evolve as you work.
+The framework is **project-local**: it writes to `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` in your repo — no global install — so teammates get the same discipline the moment they pull. Guides and learnings live in-repo and evolve as you work.
 
 ---
 
@@ -113,9 +115,9 @@ Key directories created in your project:
 - `.safeword/guides/` - Core methodology and best practices
 - `.safeword/templates/` - Fillable document structures
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
-- `.safeword/hooks/` - Automation scripts (Claude Code + Cursor)
-- `.claude/commands/`, `.cursor/commands/` - Slash commands
-- `.claude/skills/`, `.cursor/rules/` - Specialized agent capabilities
+- `.safeword/hooks/` - Automation scripts (Claude Code + Cursor + Codex)
+- `.claude/skills/`, `.agents/skills/`, `.cursor/rules/` - Specialized agent capabilities
+- `.cursor/commands/` - Slash commands for Cursor
 
 ---
 
@@ -232,8 +234,9 @@ Key directories created in your project:
 - `stop-quality.ts` - Quality review prompt on stop
 - `cursor/after-file-edit.ts` - Auto-lints after Cursor file edits
 - `cursor/stop.ts` - Quality review prompt on Cursor stop
+- `codex/pre-tool-quality.ts` - Adapts Codex PreToolUse events to safeword's quality gate
 
-**Skills** (in `.claude/skills/`): Specialized agent capabilities
+**Skills** (in `.claude/skills/` and `.agents/skills/`): Specialized agent capabilities
 
 - `bdd/` - BDD orchestrator for feature-level work (Discovery, Scenarios, TDD, Verify, Splitting, Done)
 - `debug/` - Four-phase debugging (investigate before fixing)
@@ -242,7 +245,7 @@ Key directories created in your project:
 - `testing/` - Test writing methodology (iron laws, anti-patterns)
 - `ticket-system/` - Ticket system and work logs for context anchoring
 
-**Commands** (in `.claude/commands/`): Slash commands
+**Commands**: Cursor gets explicit command files in `.cursor/commands/`; Claude Code exposes slash-command behavior through skills. Codex uses repo-scoped skills in `.agents/skills/` rather than command files.
 
 - `/audit` - Run architecture and dead code analysis
 - `/bdd` - Force BDD flow for current task
@@ -305,7 +308,7 @@ bun publish
 
 `AGENTS.md` contains a link to `.safeword/SAFEWORD.md` (also added to `CLAUDE.md` if present).
 
-SAFEWORD.md then imports guides via the Guides table. Both Claude Code and Cursor auto-load these as context.
+SAFEWORD.md then imports guides via the Guides table. Claude Code, Cursor, and Codex load these project-local instructions through their own context surfaces.
 
 ### Check for Existing Learnings
 
@@ -323,7 +326,7 @@ ls < namespace-root > /learnings/
 
 ## Syncing Across Machines
 
-Commit `.safeword/`, `.claude/`, and `.cursor/` in your project repo for team consistency.
+Commit `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` in your project repo for team consistency.
 
 ---
 
@@ -339,6 +342,14 @@ Safeword reads project-level information from the project namespace root: `paths
     "personas": "docs/personas.md",
     "glossary": "docs/glossary.md",
     "architecture": "ARCHITECTURE.md"
+  },
+  "docs": {
+    "sources": [
+      { "type": "local", "path": "README.md" },
+      { "type": "local", "path": "docs" },
+      { "type": "url", "url": "https://docs.example.com" },
+      { "type": "git", "repo": "git@example.com:org/docs.git", "path": "product" }
+    ]
   }
 }
 ```
@@ -352,6 +363,8 @@ Safeword reads project-level information from the project namespace root: `paths
 - `safeword check` validates the configured file. If the file is missing, you get a `personas-path:` error with non-zero exit (loud failure on configured-but-missing). If `.safeword-project/personas.md` still exists from a prior install, you get a zero-exit advisory naming the orphaned file (cleanup is up to you — safeword never deletes user content).
 
 Tickets and learnings derive from `paths.projectRoot`. Personas, glossary, and architecture can also be redirected individually with their own `paths.*` keys.
+
+`docs.sources` tells audit where customer documentation lives. Local sources are validated by `safeword check`; URL and git sources are declared inventory for audit runs, which should fetch them when available or report them as skipped coverage. If you want audit to keep using fallback discovery and stop asking for configured sources, set `"docs": { "sources": [] }`.
 
 ---
 
@@ -395,7 +408,7 @@ For JS/TS projects: ESLint, Prettier, and supporting plugins — all as `devDepe
 Safeword detects biome/dprint and skips Prettier installation. ESLint is still installed because biome doesn't support security scanning (`eslint-plugin-security`), cyclomatic complexity checks (`sonarjs`), or framework-specific rules (React hooks, Next.js, Astro). Both tools coexist without conflict.
 
 **Do teammates need to install safeword separately?**
-No. Commit the `.safeword/`, `.claude/`, and `.cursor/` directories to git. When teammates pull, they get the full setup. The linting devDependencies install automatically with `npm install` / `bun install`.
+No. Commit the `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` directories to git. When teammates pull, they get the full setup. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally, and safeword does not install git hooks. It adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
@@ -470,22 +483,23 @@ bun run test:watch                # Watch mode
 
 Always run `bun publish` from `packages/cli/` directory, not the monorepo root.
 
-### CLI Parity (Claude Code / Cursor)
+### CLI Parity (Claude Code / Cursor / Codex)
 
-The CLI installs matching skills for both Claude Code and Cursor IDEs.
+The CLI installs matching workflow capabilities for Claude Code, Cursor, and Codex using each agent's native surface.
 
 **Source of truth:** `packages/cli/src/schema.ts`
 
 **Parity tests:** `packages/cli/tests/schema.test.ts`
 
-| IDE         | Skills Location                        | Commands Location       |
-| ----------- | -------------------------------------- | ----------------------- |
-| Claude Code | `.claude/skills/safeword-*/`           | `.claude/commands/*.md` |
-| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc` | `.cursor/commands/*.md` |
+| Agent       | Workflow Surface                       | Commands / Hooks                                   |
+| ----------- | -------------------------------------- | -------------------------------------------------- |
+| Claude Code | `.claude/skills/*`                     | Skills expose slash-command behavior               |
+| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc` | `.cursor/commands/*.md`, `.cursor/hooks.json`      |
+| Codex       | `.agents/skills/*`                     | `.codex/config.toml`, `.safeword/hooks/codex/*.ts` |
 
 **Editing skills:**
 
-1. Edit templates in `packages/cli/templates/skills/` (Claude) and `packages/cli/templates/cursor/rules/` (Cursor)
+1. Edit templates in `packages/cli/templates/skills/` (Claude Code and Codex) and `packages/cli/templates/cursor/rules/` (Cursor)
 2. Update `packages/cli/src/schema.ts` if adding/removing skills
 3. Run parity tests: `bun run test -- --testNamePattern="parity"`
 4. Run `bunx safeword upgrade` to sync to local project
@@ -495,5 +509,5 @@ The CLI installs matching skills for both Claude Code and Cursor IDEs.
 ## Getting Help
 
 - **Claude Code docs**: <https://docs.claude.com/en/docs/claude-code>
-- **Issues**: <https://github.com/anthropics/claude-code/issues>
+- **OpenAI Codex docs**: <https://developers.openai.com/codex>
 - **This repo**: <https://github.com/TheMostlyGreat/safeword>

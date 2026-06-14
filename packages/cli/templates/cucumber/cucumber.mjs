@@ -3,6 +3,8 @@
 // `paths` are the Gherkin `.feature` files. Run via `npm run test:bdd` (or
 // `bun run test:bdd`). Safeword owns this file; step definitions and features
 // are yours.
+import process from 'node:process';
+
 const workspaceFeaturePaths = [
   'features/**/*.feature',
   'packages/*/features/**/*.feature',
@@ -20,8 +22,32 @@ const workspaceStepImports = [
   'modules/*/features/steps/**/*.ts',
 ];
 
-export default {
-  import: workspaceStepImports,
-  paths: workspaceFeaturePaths,
-  tags: 'not @manual and not @live',
-};
+const cliFeatureDirectories = new Set(['features', 'packages', 'apps', 'libs', 'modules']);
+
+function isCliFeaturePathArgument(argument) {
+  if (argument.startsWith('-')) return false;
+  return (
+    argument.endsWith('.feature') ||
+    argument.includes('*.feature') ||
+    cliFeatureDirectories.has(argument)
+  );
+}
+
+export function hasCliFeaturePath(argv = process.argv.slice(2)) {
+  return argv.some(argument => isCliFeaturePathArgument(argument));
+}
+
+export function buildCucumberConfig(argv = process.argv.slice(2)) {
+  const config = {
+    import: workspaceStepImports,
+    tags: 'not @manual and not @live',
+  };
+
+  if (!hasCliFeaturePath(argv)) {
+    config.paths = workspaceFeaturePaths;
+  }
+
+  return config;
+}
+
+export default buildCucumberConfig();

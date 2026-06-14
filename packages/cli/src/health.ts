@@ -21,6 +21,7 @@ import { readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
   defaultConfiguredPath,
+  readConfiguredDocumentationSources,
   readConfiguredPath,
   resolveConfiguredPath,
   resolveTicketsDirectory,
@@ -165,6 +166,15 @@ function findGlossaryAdvisories(cwd: string): string[] {
   return [
     `${nodePath.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
   ];
+}
+
+function findDocumentationSourceIssues(cwd: string): string[] {
+  return readConfiguredDocumentationSources(cwd).flatMap(source => {
+    if (source.type !== 'local') return [];
+    return exists(source.resolvedPath)
+      ? []
+      : [`docs-source: ${source.path}: file or directory not found`];
+  });
 }
 
 /** Ticket folder names under the tickets root (excluding `completed/`), or
@@ -498,6 +508,7 @@ export async function checkHealth(
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
     ...findGlossaryIssues(cwd),
+    ...findDocumentationSourceIssues(cwd),
   ];
 
   // Check for missing .claude/settings.json

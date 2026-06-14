@@ -2,5 +2,11 @@
   "installedPacks": ["typescript"],
   "paths": {
     "architecture": "ARCHITECTURE.md"
+  },
+  "docs": {
+    "sources": [
+      { "type": "local", "path": "README.md" },
+      { "type": "local", "path": "packages/website/src/content/docs" }
+    ]
   }
 }

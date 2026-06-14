@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Slash Commands
 
-Quick actions you type in Claude Code or Cursor. Just type the command and hit enter.
+Quick actions you type in Claude Code or Cursor. Just type the command and hit enter. Codex uses the same repo-scoped skills through `.agents/skills/`, not separate safeword command files.
 
 | Command            | What it does                              |
 | ------------------ | ----------------------------------------- |
@@ -81,6 +81,26 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     Rule files: `.cursor/rules/`
 
   </TabItem>
+  <TabItem label="Codex">
+    Safeword installs hook config (`.codex/config.toml`) and repo-scoped skills (`.agents/skills/`) for Codex.
+
+    | When                 | What happens                                      |
+    | -------------------- | ------------------------------------------------- |
+    | Before supported edits | Runs safeword's PreToolUse quality gate adapter |
+
+    ### Skills
+
+    Codex reads safeword workflows from `.agents/skills/`. These mirror the Claude Code skill templates for debugging, BDD/TDD, refactoring, testing, review, ticketing, and verification.
+
+    ### Hook trust
+
+    Project-local Codex hooks only run after you review and trust them in Codex. Safeword writes the config, but Codex owns the trust decision.
+
+    Hook config: `.codex/config.toml`
+    Hook adapter: `.safeword/hooks/codex/pre-tool-quality.ts`
+    Skill files: `.agents/skills/`
+
+  </TabItem>
 </Tabs>
 
 ### Auto-linting
@@ -103,7 +123,7 @@ If a linter isn't installed, it's silently skipped.
 
 ## Skills
 
-Skills are structured workflows that activate based on what you're asking for. When you say "debug this test failure" or "refactor this function", your agent follows the skill's methodology instead of jumping straight to code changes.
+Skills are structured workflows that activate based on what you're asking for. Claude Code uses `.claude/skills/`; Codex uses `.agents/skills/`. When you say "debug this test failure" or "refactor this function", your agent follows the skill's methodology instead of jumping straight to code changes.
 
 | Skill             | Triggers on                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
