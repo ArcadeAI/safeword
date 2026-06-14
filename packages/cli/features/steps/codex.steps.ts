@@ -28,6 +28,13 @@ const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 +# Test Definitions
 *** End Patch
 `;
+const MULTI_FILE_TEST_DEFINITIONS_PATCH = `*** Begin Patch
+*** Add File: notes.md
++# Notes
+*** Add File: .project/tickets/${TICKET_ID}/test-definitions.md
++# Test Definitions
+*** End Patch
+`;
 const CUSTOM_CODEX_CONFIG = '[features]\nhooks = false\n\n# custom codex config\n';
 const PERSONAS = '# Personas\n\n## Safeword Maintainer (SM)\n\n**Role:** Maintains safeword.\n';
 const SPEC = [
@@ -44,7 +51,6 @@ const SPEC = [
   '#### codex-hook.SM1.AC1 - Existing phase gate behavior is preserved',
   '',
 ].join('\n');
-let fakeCodexBin: string | undefined;
 
 function createProject(prefix: string): string {
   const projectRoot = mkdtempSync(nodePath.join(tmpdir(), prefix));
@@ -77,14 +83,14 @@ function createConfiguredProject(projectRoot: string): void {
   writeFileSync(nodePath.join(projectRoot, 'AGENTS.md'), '.safeword/SAFEWORD.md\n\n# Agents');
 }
 
-function runSafeword(projectRoot: string, args: string[]) {
+function runSafeword(projectRoot: string, args: string[], options: { fakeCodexBin?: string } = {}) {
   const result = spawnSync(process.execPath, [CLI_PATH, ...args], {
     cwd: projectRoot,
     encoding: 'utf8',
     env: {
       ...process.env,
-      ...(fakeCodexBin
-        ? { PATH: `${fakeCodexBin}${nodePath.delimiter}${process.env.PATH ?? ''}` }
+      ...(options.fakeCodexBin
+        ? { PATH: `${options.fakeCodexBin}${nodePath.delimiter}${process.env.PATH ?? ''}` }
         : {}),
       SAFEWORD_NO_MODIFY: '1',
       SAFEWORD_SKIP_INSTALL: '1',
@@ -149,14 +155,17 @@ function createCodexHookTicket(projectRoot: string, complete: boolean): void {
   writeFileSync(nodePath.join(projectDirectory, 'personas.md'), PERSONAS);
 }
 
-function runCodexHook(projectRoot: string, options: { fallbackMode?: boolean } = {}) {
+function runCodexHook(
+  projectRoot: string,
+  options: { command?: string; fallbackMode?: boolean } = {},
+) {
   const result = spawnSync('bun', [HOOK_PATH], {
     cwd: projectRoot,
     input: JSON.stringify({
       hook_event_name: 'PreToolUse',
       tool_name: 'apply_patch',
       tool_input: {
-        command: TEST_DEFINITIONS_PATCH,
+        command: options.command ?? TEST_DEFINITIONS_PATCH,
       },
     }),
     encoding: 'utf8',
@@ -187,12 +196,23 @@ Given(
   /^a project has Codex CLI version `([^`]+)` on PATH$/,
   function (this: SafewordWorld, version: string) {
     this.temporaryDirectory = createProject('safeword-codex-version-');
-    fakeCodexBin = installFakeCodex(this.temporaryDirectory, version);
+    this.fakeCodexBin = installFakeCodex(this.temporaryDirectory, version);
+  },
+);
+
+Given(
+  /^a configured project has Codex CLI version `([^`]+)` on PATH$/,
+  function (this: SafewordWorld, version: string) {
+    this.temporaryDirectory = createProject('safeword-codex-version-upgrade-');
+    createConfiguredProject(this.temporaryDirectory);
+    this.fakeCodexBin = installFakeCodex(this.temporaryDirectory, version);
   },
 );
 
 When('safeword setup reconciles the project', function (this: SafewordWorld) {
-  this.result = runSafeword(this.temporaryDirectory, ['setup', '--yes', '--no-modify']);
+  this.result = runSafeword(this.temporaryDirectory, ['setup', '--yes', '--no-modify'], {
+    fakeCodexBin: this.fakeCodexBin,
+  });
   assertCliSuccess(this.result);
 });
 
@@ -215,11 +235,31 @@ Then(
   },
 );
 
+Then(
+  /^upgrade warns that Codex `([^`]+)` is below the required `([^`]+)` baseline$/,
+  function (this: SafewordWorld, version: string, baseline: string) {
+    const output = `${this.result.stdout}\n${this.result.stderr}`;
+    assert.ok(output.includes(`Codex ${version} is below safeword`), output);
+    assert.ok(output.includes(baseline), output);
+  },
+);
+
 Given('safeword setup generated project-local Codex config', function (this: SafewordWorld) {
   this.temporaryDirectory = createProject('safeword-codex-config-');
-  this.result = runSafeword(this.temporaryDirectory, ['setup', '--yes', '--no-modify']);
+  this.result = runSafeword(this.temporaryDirectory, ['setup', '--yes', '--no-modify'], {
+    fakeCodexBin: this.fakeCodexBin,
+  });
   assertCliSuccess(this.result);
 });
+
+Then(
+  /^safeword tells the user to run `\/hooks` before relying on Codex gates$/,
+  function (this: SafewordWorld) {
+    const output = `${this.result.stdout}\n${this.result.stderr}`;
+    assert.ok(output.includes('/hooks'), output);
+    assert.ok(output.includes('trust safeword project hooks'), output);
+  },
+);
 
 When('the config is inspected', function (this: SafewordWorld) {
   this.result = {
@@ -254,12 +294,17 @@ Given(
   },
 );
 
+Given(/^a configured project has no `\.codex\/config\.toml`$/, function (this: SafewordWorld) {
+  this.temporaryDirectory = createProject('safeword-codex-upgrade-missing-config-');
+  createConfiguredProject(this.temporaryDirectory);
+});
+
 When('safeword upgrade reconciles the project', function (this: SafewordWorld) {
-  this.result = runSafeword(this.temporaryDirectory, [
-    'upgrade',
-    '--no-migrate-namespace',
-    '--no-modify',
-  ]);
+  this.result = runSafeword(
+    this.temporaryDirectory,
+    ['upgrade', '--no-migrate-namespace', '--no-modify'],
+    { fakeCodexBin: this.fakeCodexBin },
+  );
   assertCliSuccess(this.result);
 });
 
@@ -288,6 +333,15 @@ When(
   /^a supported Codex edit call attempts to create that ticket's `test-definitions\.md`$/,
   function (this: SafewordWorld) {
     this.result = runCodexHook(this.temporaryDirectory);
+  },
+);
+
+When(
+  /^a supported Codex multi-file edit call attempts to create another file and that ticket's `test-definitions\.md`$/,
+  function (this: SafewordWorld) {
+    this.result = runCodexHook(this.temporaryDirectory, {
+      command: MULTI_FILE_TEST_DEFINITIONS_PATCH,
+    });
   },
 );
 
@@ -336,7 +390,7 @@ Then(
 );
 
 After(function (this: SafewordWorld) {
-  fakeCodexBin = undefined;
+  this.fakeCodexBin = undefined;
   if (this.temporaryDirectory !== '') {
     rmSync(this.temporaryDirectory, { recursive: true, force: true });
   }

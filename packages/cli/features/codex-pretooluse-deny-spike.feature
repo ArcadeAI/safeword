@@ -12,6 +12,12 @@ Feature: Codex PreToolUse deny spike
       When a supported Codex edit call attempts to create that ticket's `test-definitions.md`
       Then the Codex adapter denies the call with the existing phase-gate reason
 
+    @codex-pretooluse-deny-spike.SM1.AC1
+    Scenario: codex-pretooluse-deny-spike.SM1.AC1.multi_file_patch_denies_if_any_target_is_blocked
+      Given a feature ticket is missing one or more safeword intake prerequisites
+      When a supported Codex multi-file edit call attempts to create another file and that ticket's `test-definitions.md`
+      Then the Codex adapter denies the call with the existing phase-gate reason
+
     @codex-pretooluse-deny-spike.SM1.AC2
     Scenario: codex-pretooluse-deny-spike.SM1.AC2.complete_intake_state_allows_test_definitions_creation
       Given a feature ticket has scope, out_of_scope, done_when, dimensions, a resolving JTBD, and an Acceptance Criterion

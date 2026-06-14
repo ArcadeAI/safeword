@@ -18,6 +18,12 @@ Feature: Codex agents config generation
       When the config is inspected
       Then hooks are enabled and supported edit/shell calls point at `.safeword/hooks/codex/pre-tool-quality.ts`
 
+    @codex-agents-config-generation.SM1.AC4
+    Scenario: codex-agents-config-generation.SM1.AC4.setup_reports_codex_hook_trust_step
+      Given a project has no Codex-specific safeword assets
+      When safeword setup reconciles the project
+      Then safeword tells the user to run `/hooks` before relying on Codex gates
+
   Rule: Upgrade preserves user-owned Codex config
 
     @codex-agents-config-generation.SM1.AC3
@@ -25,3 +31,9 @@ Feature: Codex agents config generation
       Given a configured project already has a custom `.codex/config.toml`
       When safeword upgrade reconciles the project
       Then the existing Codex config content is preserved while missing `.agents/skills` assets are created
+
+    @codex-agents-config-generation.SM1.AC5
+    Scenario: codex-agents-config-generation.SM1.AC5.upgrade_reports_codex_hook_trust_step
+      Given a configured project has no `.codex/config.toml`
+      When safeword upgrade reconciles the project
+      Then safeword tells the user to run `/hooks` before relying on Codex gates

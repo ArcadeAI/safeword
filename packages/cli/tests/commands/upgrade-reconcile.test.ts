@@ -8,13 +8,14 @@
  */
 
 import { execSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
+import { runCli } from '../helpers';
 
 const __dirname = import.meta.dirname;
 
@@ -309,6 +310,40 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(
         fileExists(nodePath.join(temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md')),
       ).toBe(true);
+    });
+
+    it('should tell users to trust generated Codex hooks after upgrade creates Codex config', async () => {
+      createConfiguredProject('0.5.0');
+
+      const result = await runCli(['upgrade', '--no-migrate-namespace'], {
+        cwd: temporaryDirectory,
+        env: { SAFEWORD_SKIP_INSTALL: '1' },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('trust safeword project hooks');
+    });
+
+    it('should warn when the installed Codex CLI is below the safeword hook floor during upgrade', async () => {
+      createConfiguredProject('0.5.0');
+      const fakeBin = nodePath.join(temporaryDirectory, 'bin');
+      mkdirSync(fakeBin);
+      const fakeCodex = nodePath.join(fakeBin, 'codex');
+      writeFileSync(fakeCodex, '#!/usr/bin/env sh\necho "codex 0.132.0"\n');
+      chmodSync(fakeCodex, 0o755);
+
+      const result = await runCli(['upgrade', '--no-migrate-namespace'], {
+        cwd: temporaryDirectory,
+        env: {
+          PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '1',
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('Codex 0.132.0 is below safeword');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
     });
 
     it('should preserve customer .prettierignore entries and append idempotently', async () => {

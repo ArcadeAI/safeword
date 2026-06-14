@@ -10,7 +10,7 @@ relates_to: QM5G9M
 
 # Pin minimum codex CLI version that supports required hooks
 
-**Goal:** Record the minimum `codex` CLI version safeword requires, and warn below it at setup.
+**Goal:** Record the minimum `codex` CLI version safeword requires, and warn below it during setup and upgrade.
 
 **Findings (researched 2026-05-31, github.com/openai/codex/releases):**
 
@@ -29,7 +29,7 @@ relates_to: QM5G9M
 
 `codex-version` baseline = **0.133.0**.
 
-Setup warns, but does not block, when an installed `codex --version` is below `0.133.0`. Missing or unparsable Codex stays silent because safeword installs multi-agent assets and should not nag non-Codex users.
+Setup and upgrade warn, but do not block, when an installed `codex --version` is below `0.133.0`. Missing or unparsable Codex stays silent because safeword installs multi-agent assets and should not nag non-Codex users.
 
 When the upstream monitor snapshot store from `99XBFG` exists, fold this baseline into its `codex-version` snapshot.
 
@@ -38,6 +38,7 @@ When the upstream monitor snapshot store from `99XBFG` exists, fold this baselin
 - [x] Floor confirmed against `rust-v0.132.0` and `rust-v0.133.0` release notes.
 - [x] `codex-version` baseline recorded as `0.133.0`.
 - [x] Setup warns below `0.133.0`.
+- [x] Upgrade warns below `0.133.0`.
 
 ## Source
 
@@ -47,7 +48,7 @@ github.com/openai/codex/releases (+ releases.atom feed and release API)
 
 Source feature: `packages/cli/features/codex-min-version-baseline.feature`.
 
-The feature covers setup's user-visible warning when the installed Codex CLI is below the `0.133.0` hook baseline.
+The feature covers setup and upgrade user-visible warnings when the installed Codex CLI is below the `0.133.0` hook baseline.
 
 ## Revalidation + /figure-it-out (2026-06-13)
 
@@ -70,3 +71,4 @@ The feature covers setup's user-visible warning when the installed Codex CLI is 
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out. Current stable is 0.139.0; prerelease 0.140.0-alpha.17 exists. Keep provisional floor at 0.133.0; older release notes mention hooks but do not prove the complete gate surface.
 - 2026-06-14T00:00:00Z Implemented: added `packages/cli/features/codex-min-version-baseline.feature`, setup warning for installed Codex versions below `0.133.0`, and focused Vitest/Cucumber coverage. Phase -> implement pending final verify.
 - 2026-06-14T00:04:25Z Complete: focused Vitest, Codex Cucumber smoke, Gherkin lint, targeted ESLint, typecheck, and targeted format checks passed. Added `verify.md`. Phase -> done.
+- 2026-06-14T00:21:00Z Quality-review follow-up: extended the same below-baseline warning to `safeword upgrade` and added a scenario ledger in `test-definitions.md`.

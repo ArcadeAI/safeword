@@ -63,19 +63,19 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 
 | ID         | Title                                                      | Note                                   |
 | ---------- | ---------------------------------------------------------- | -------------------------------------- |
-| **N12G95** | Spike: port one gate to a Codex `PreToolUse` deny hook     | de-risk first                          |
-| **HPP49X** | Map safeword lifecycle events → Codex hook events (design) | design doc                             |
-| **5DEJ8V** | Generate `AGENTS.md` + `config.toml` hook wiring           | CLI install path                       |
-| **CXP9LM** | Prove Codex parity in a trusted customer repo              | final black-box/live smoke             |
-| **XK5N14** | Ensure feature files cover Codex parity tickets            | backfill source scenarios              |
-| **QGHVXZ** | Commands surface: skills vs deprecated custom prompts      | `/figure-it-out`                       |
-| **JV6D1W** | Enforcement strength: user-trusted vs managed hooks        | value decision                         |
-| **WR4HRA** | Pin minimum `codex` CLI version for required hooks         | baseline tracking                      |
-| **6WJ1RS** | Package as Codex plugin/marketplace bundle                 | distribution (parity w/ Cursor DXYKJX) |
+| **N12G95** | Spike: port one gate to a Codex `PreToolUse` deny hook     | done; includes multi-file patch denial |
+| **HPP49X** | Map safeword lifecycle events → Codex hook events (design) | done; no `SessionEnd` assumption       |
+| **5DEJ8V** | Generate `AGENTS.md` + `config.toml` hook wiring           | done; setup/upgrade trust next step    |
+| **CXP9LM** | Prove Codex parity in a trusted customer repo              | live/manual smoke still open           |
+| **XK5N14** | Ensure feature files cover Codex parity tickets            | done; coverage audit complete          |
+| **QGHVXZ** | Commands surface: skills vs deprecated custom prompts      | done; decision = `.agents/skills`      |
+| **JV6D1W** | Enforcement strength: user-trusted vs managed hooks        | done; valid managed recipe recorded    |
+| **WR4HRA** | Pin minimum `codex` CLI version for required hooks         | done; setup and upgrade warn           |
+| **6WJ1RS** | Package as Codex plugin/marketplace bundle                 | done; plugin packaging second-stage    |
 
 ## Sequencing
 
-Spike (N12G95) first to prove deny-on-edit end-to-end. Then design (HPP49X) → generation (5DEJ8V). Backfill source scenarios (XK5N14) before resuming broad Codex implementation so every child ticket either has a `.feature` file or an explicit no-feature-file rationale. Run the black-box/live parity smoke (CXP9LM) after 5DEJ8V and N12G95 prove the install and hook paths. QGHVXZ and JV6D1W are decisions that can run in parallel. WR4HRA + 6WJ1RS after the gates work and the smoke confirms the support boundary.
+N12G95, HPP49X, 5DEJ8V, XK5N14, QGHVXZ, JV6D1W, WR4HRA, and 6WJ1RS are complete with verify artifacts. The remaining epic work is CXP9LM: run the black-box/live parity smoke in a trusted Codex customer-like repo after the local install and hook paths are available to a trusted Codex session.
 
 ## Feature File Coverage
 
@@ -83,7 +83,7 @@ XK5N14 audit result:
 
 - `5DEJ8V-codex-agents-config-generation` → source feature `packages/cli/features/codex-agents-config-generation.feature`.
 - `N12G95-codex-pretooluse-deny-spike` → source feature `packages/cli/features/codex-pretooluse-deny-spike.feature`.
-- `WR4HRA-codex-min-version-baseline` → source feature `packages/cli/features/codex-min-version-baseline.feature`.
+- `WR4HRA-codex-min-version-baseline` → source feature `packages/cli/features/codex-min-version-baseline.feature`; ticket ledger covers setup and upgrade warning behavior.
 - `CXP9LM-codex-live-parity-smoke` → source feature `packages/cli/features/codex-live-parity-smoke.feature`, tagged `@live @manual` until that ticket implements the trusted Codex execution path.
 - `HPP49X-codex-lifecycle-hook-mapping`, `QGHVXZ-codex-commands-skills-vs-prompts`, `JV6D1W-codex-enforcement-trust-model`, and `6WJ1RS-codex-plugin-marketplace-packaging` → no-feature-file rationale recorded in each ticket because their current deliverables are design, decision, or packaging-shape records rather than executable behavior.
 
@@ -119,3 +119,4 @@ XK5N14 audit result:
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out across the epic. Verdict still stands: Codex parity is enforceable, but implementation must keep the current docs' caveat that `PreToolUse` is a guardrail with incomplete shell interception. Latest stable is 0.139.0; 0.140.0-alpha.17 exists. Keep raw setup first, plugin packaging second, managed enforcement as enterprise path.
 - 2026-06-13 Added CXP9LM as the final black-box/live parity smoke for a trusted customer-like Codex repo.
 - 2026-06-13 Added XK5N14 to backfill feature-file coverage for Codex child tickets started before the feature-files-as-source workflow landed.
+- 2026-06-14 Quality-review follow-ups complete: setup/upgrade now print the Codex `/hooks` trust next step, setup/upgrade warn below the `0.133.0` baseline, multi-file `apply_patch` targets are all evaluated, managed-config docs use valid `prefix_rules`, unsupported `SessionEnd` is recorded, and every non-live child ticket has verify evidence. CXP9LM remains the only open live/manual smoke.

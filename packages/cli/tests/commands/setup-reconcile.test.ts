@@ -239,6 +239,22 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
     });
 
+    it('should tell users to trust generated Codex hooks after setup', async () => {
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'package.json'),
+        JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
+      );
+
+      const result = await runCli(['setup', '--yes', '--no-modify'], {
+        cwd: temporaryDirectory,
+        env: { SAFEWORD_SKIP_INSTALL: '1' },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('trust safeword project hooks');
+    });
+
     it('should prepend to existing AGENTS.md', async () => {
       const { reconcile, SAFEWORD_SCHEMA, createProjectContext } = await getReconcileTestUtilities(
         temporaryDirectory,

@@ -47,8 +47,9 @@ async function readInput(): Promise<CodexHookInput | undefined> {
   }
 }
 
-function extractFirstPatchTarget(command: string): PatchTarget | undefined {
+function extractPatchTargets(command: string): PatchTarget[] {
   const lines = command.split(/\r?\n/);
+  const targets: PatchTarget[] = [];
 
   for (const [index, line] of lines.entries()) {
     const match = /^\*\*\* (Add|Update|Delete) File: (.+)$/.exec(line.trim());
@@ -56,20 +57,21 @@ function extractFirstPatchTarget(command: string): PatchTarget | undefined {
 
     const operation = match[1];
     const filePath = match[2]?.trim();
-    if (!filePath) return undefined;
+    if (!filePath) continue;
 
     if (operation === 'Add') {
-      return {
+      targets.push({
         filePath,
         toolName: 'Write',
         content: extractAddedFileContent(lines.slice(index + 1)),
-      };
+      });
+      continue;
     }
 
-    return { filePath, toolName: 'Edit' };
+    targets.push({ filePath, toolName: 'Edit' });
   }
 
-  return undefined;
+  return targets;
 }
 
 function extractAddedFileContent(linesAfterHeader: string[]): string {
@@ -83,24 +85,23 @@ function extractAddedFileContent(linesAfterHeader: string[]): string {
   return contentLines.join('\n');
 }
 
-function translateInput(input: CodexHookInput): ClaudeHookInput | undefined {
+function translateInput(input: CodexHookInput): ClaudeHookInput[] {
   const toolName = input.tool_name ?? '';
 
   if (DIRECT_TOOLS.has(toolName)) {
-    return {
-      session_id: input.session_id,
-      hook_event_name: 'PreToolUse',
-      tool_name: toolName as ClaudeHookInput['tool_name'],
-      tool_input: input.tool_input ?? {},
-    };
+    return [
+      {
+        session_id: input.session_id,
+        hook_event_name: 'PreToolUse',
+        tool_name: toolName as ClaudeHookInput['tool_name'],
+        tool_input: input.tool_input ?? {},
+      },
+    ];
   }
 
-  if (toolName !== 'apply_patch') return undefined;
+  if (toolName !== 'apply_patch') return [];
 
-  const patchTarget = extractFirstPatchTarget(input.tool_input?.command ?? '');
-  if (!patchTarget) return undefined;
-
-  return {
+  return extractPatchTargets(input.tool_input?.command ?? '').map(patchTarget => ({
     session_id: input.session_id,
     hook_event_name: 'PreToolUse',
     tool_name: patchTarget.toolName,
@@ -108,7 +109,7 @@ function translateInput(input: CodexHookInput): ClaudeHookInput | undefined {
       file_path: patchTarget.filePath,
       ...(patchTarget.content === undefined ? {} : { content: patchTarget.content }),
     },
-  };
+  }));
 }
 
 function denialReasonFrom(stdout: string): string | undefined {
@@ -133,31 +134,43 @@ function denialReasonFrom(stdout: string): string | undefined {
 const input = await readInput();
 if (!input) process.exit(0);
 
-const translated = translateInput(input);
-if (!translated) process.exit(0);
+const translatedInputs = translateInput(input);
+if (translatedInputs.length === 0) process.exit(0);
 
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
-const result = spawnSync('bun', [claudeHookPath], {
-  cwd: process.cwd(),
-  input: JSON.stringify(translated),
-  encoding: 'utf8',
-  env: {
-    ...process.env,
-    CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-  },
-  stdio: ['pipe', 'pipe', 'pipe'],
-});
 
-const stdout = result.stdout ?? '';
-const stderr = result.stderr ?? '';
-const reason = denialReasonFrom(stdout);
+const results = translatedInputs.map(translated =>
+  spawnSync('bun', [claudeHookPath], {
+    cwd: process.cwd(),
+    input: JSON.stringify(translated),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  }),
+);
 
-if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE && reason !== undefined) {
-  console.error(reason);
-  process.exit(2);
+for (const result of results) {
+  const reason = denialReasonFrom(result.stdout ?? '');
+  if (reason === undefined) continue;
+
+  if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    console.error(reason);
+    process.exit(2);
+  }
+
+  if (result.stdout !== '') process.stdout.write(result.stdout ?? '');
+  if (result.stderr !== '') process.stderr.write(result.stderr ?? '');
+  process.exit(result.status ?? 0);
 }
 
-if (stdout !== '') process.stdout.write(stdout);
-if (stderr !== '') process.stderr.write(stderr);
-process.exit(result.status ?? 0);
+for (const result of results) {
+  if (result.stdout !== '') process.stdout.write(result.stdout ?? '');
+  if (result.stderr !== '') process.stderr.write(result.stderr ?? '');
+}
+
+const failedResult = results.find(result => (result.status ?? 0) !== 0);
+process.exit(failedResult?.status ?? 0);

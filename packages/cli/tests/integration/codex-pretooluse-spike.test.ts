@@ -24,6 +24,14 @@ const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 *** End Patch
 `;
 
+const MULTI_FILE_TEST_DEFINITIONS_PATCH = `*** Begin Patch
+*** Add File: notes.md
++# Notes
+*** Add File: .project/tickets/${TICKET_ID}/test-definitions.md
++# Test Definitions
+*** End Patch
+`;
+
 const COMPLETE_TICKET_FRONTMATTER = [
   'id: ABC123',
   'type: feature',
@@ -54,14 +62,17 @@ const SPEC = [
   '',
 ].join('\n');
 
-function runCodexHook(projectRoot: string, options: { fallbackMode?: boolean } = {}): HookResult {
+function runCodexHook(
+  projectRoot: string,
+  options: { command?: string; fallbackMode?: boolean } = {},
+): HookResult {
   const result = spawnSync('bun', [HOOK_PATH], {
     cwd: projectRoot,
     input: JSON.stringify({
       hook_event_name: 'PreToolUse',
       tool_name: 'apply_patch',
       tool_input: {
-        command: TEST_DEFINITIONS_PATCH,
+        command: options.command ?? TEST_DEFINITIONS_PATCH,
       },
     }),
     encoding: 'utf8',
@@ -104,6 +115,26 @@ describe('Codex PreToolUse deny spike (N12G95)', () => {
     );
 
     expectHookDeny(runCodexHook(projectRoot), 'scope');
+  });
+
+  it('denies multi-file Codex patches when any target violates safeword gates', () => {
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      [
+        '---',
+        'id: ABC123',
+        'type: feature',
+        'phase: define-behavior',
+        'status: in_progress',
+        '---',
+        '',
+      ].join('\n'),
+    );
+
+    expectHookDeny(
+      runCodexHook(projectRoot, { command: MULTI_FILE_TEST_DEFINITIONS_PATCH }),
+      'scope',
+    );
   });
 
   it('allows supported Codex edits when safeword intake prerequisites are complete', () => {

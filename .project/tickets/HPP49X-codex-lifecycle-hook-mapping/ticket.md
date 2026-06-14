@@ -71,3 +71,4 @@ No source `.feature` file is required for this ticket. It is a completed design 
 - 2026-05-31 Created from Codex research.
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out. Mapping still holds, but design must add the current `PreToolUse`/`PostToolUse` limitation and treat `UserPromptSubmit` as the hard done/phase chokepoint.
 - 2026-06-13T15:13:35Z Complete: wrote `design.md` with the gate-by-event table, hard/advisory/nudge classifications, Codex-vs-Claude divergence notes, and downstream dependencies for 5DEJ8V/JV6D1W. Closed as a design task.
+- 2026-06-14T00:20:00Z Quality-review follow-up: marked session cleanup as unsupported in the current Codex hook event set instead of implying a `SessionEnd` hook exists. Added verify evidence.

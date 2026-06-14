@@ -14,5 +14,5 @@
 ## Notes
 
 - User-trusted setup guidance is present in `packages/cli/templates/codex/config.toml`: project-local Codex config warns that hooks run only after the project is reviewed and trusted.
-- Enterprise managed enforcement recipe is recorded in this ticket, including managed hooks plus managed rules to cover documented hook interception limits.
+- Enterprise managed enforcement recipe is recorded in this ticket, including managed hooks plus valid `[rules].prefix_rules` entries with `decision = "forbidden"` to cover documented hook interception limits.
 - Plugin hook trust remains explicitly documented as not a bypass; plugin packaging remains separate.

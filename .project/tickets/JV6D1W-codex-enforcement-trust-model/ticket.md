@@ -36,7 +36,7 @@ developers.openai.com/codex/hooks, /codex/enterprise/managed-configuration
 
 For individual users, safeword's generated `.codex/config.toml` remains the default path and tells the user to review/trust project hooks before assuming gates run.
 
-For enterprises that need policy-trusted enforcement, manage Codex with a `requirements.toml` that enables hooks, points at an administrator-owned hook directory, and pairs hooks with restrictive rules for paths `PreToolUse` may not intercept yet:
+For enterprises that need policy-trusted enforcement, manage Codex with a `requirements.toml` that enables hooks, points at an administrator-owned hook directory, and pairs hooks with `[rules].prefix_rules` restrictions for paths `PreToolUse` may not intercept yet:
 
 ```toml
 [features]
@@ -47,9 +47,11 @@ managed_dir = "/opt/safeword/codex/hooks"
 windows_managed_dir = "C:\\ProgramData\\Safeword\\Codex\\hooks"
 
 [rules]
-"rm -rf *" = "deny"
-"git reset --hard" = "deny"
-"git checkout -- *" = "deny"
+prefix_rules = [
+  { pattern = [{ token = "rm" }, { token = "-rf" }], decision = "forbidden", justification = "Prevent recursive destructive deletes outside hook coverage." },
+  { pattern = [{ token = "git" }, { token = "reset" }, { token = "--hard" }], decision = "forbidden", justification = "Preserve user changes and safeword review state." },
+  { pattern = [{ token = "git" }, { token = "checkout" }, { token = "--" }], decision = "forbidden", justification = "Prevent broad checkout resets outside hook coverage." },
+]
 ```
 
 The managed directory should contain the same safeword hook definitions generated for project-local Codex config, with commands rewritten to administrator-owned absolute paths. Admins that need managed-only execution can also set `allow_managed_hooks_only = true`, accepting that user/project/plugin hooks are skipped.
@@ -80,3 +82,4 @@ No source `.feature` file is required for this ticket. This is a trust-model dec
 - 2026-05-31 Read enterprise managed-config doc. RESOLVED: user-trusted default + documented managed path; full mechanics captured.
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out. Decision remains user-trusted default plus managed enterprise path. Add managed rules/permissions to the enterprise recipe because hooks alone are documented as incomplete for some tool paths.
 - 2026-06-13T23:49:39Z Complete: documented the managed `requirements.toml` recipe and verified user-trust guidance is present in the generated Codex config. Focused Codex/setup/schema tests, typecheck, and gherkin lint passed. Phase -> done.
+- 2026-06-14T00:19:00Z Quality-review follow-up: corrected the managed rule example to use valid `[rules].prefix_rules` entries with `decision = "forbidden"`.

@@ -9,6 +9,7 @@ export interface CliResult {
 /** Shared state for the acceptance steps: a temp project dir and the last CLI run. */
 export class SafewordWorld extends World {
   temporaryDirectory = '';
+  fakeCodexBin?: string;
   result: CliResult = { stdout: '', stderr: '', exitCode: 0 };
 }
 
