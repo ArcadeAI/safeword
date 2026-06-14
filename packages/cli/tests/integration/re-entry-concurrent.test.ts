@@ -87,7 +87,7 @@ describe('stop-reentry hook — Rule 3: concurrent writers do not interleave', (
     expect(codeA).toBe(0);
     expect(codeB).toBe(0);
 
-    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const logPath = nodePath.join(projectDirectory, '.project', 're-entry.md');
     const lines = readFileSync(logPath, 'utf8').trim().split('\n');
 
     expect(lines).toHaveLength(2);

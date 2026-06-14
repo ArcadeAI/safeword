@@ -10,6 +10,7 @@ import {
   readFileSync,
   rmdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -51,6 +52,15 @@ export function getTemplatesDirectory(): string {
  * Check if a path exists
  * @param path
  */
+/** True when `path` exists and is a directory (a file is not). */
+export function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 export function exists(path: string): boolean {
   return existsSync(path);
 }

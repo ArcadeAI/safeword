@@ -21,13 +21,13 @@ This is the single source of truth for motivation — ticket.md drops its
 ## Personas
 
 <!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
+the configured personas file (e.g., Platform Operator (PO)). Add new
 personas to that file — don't invent them here. -->
 
 ## Vocabulary
 
 <!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+the configured glossary file. Optional. -->
 
 ## Jobs To Be Done
 

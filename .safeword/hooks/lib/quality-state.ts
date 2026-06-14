@@ -5,6 +5,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { resolveNamespaceRoot } from './namespace-root.js';
 
 export const LOC_THRESHOLD = 400;
 /** Counter threshold for CLAUDE.md escalation suggestions. */
@@ -12,7 +13,7 @@ export const ESCALATION_THRESHOLD = 3;
 
 /** Tooling/meta paths that are not application code.
  *  Used by pre-tool (skip blocking) and post-tool (skip LOC counting). */
-export const META_PATHS = ['.safeword-project/', '.safeword/', '.claude/', '.cursor/'];
+export const META_PATHS = ['.project/', '.safeword-project/', '.safeword/', '.claude/', '.cursor/'];
 
 export interface FailureEntry {
   pattern: string;
@@ -27,7 +28,7 @@ export interface QualityState {
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];
   /**
-   * Files under `.safeword-project/learnings/*.md` edited this session whose
+   * Files under `<namespace-root>/learnings/*.md` edited this session whose
    * "novel claim — verify with /quality-review" nudge has not yet been shown.
    * Append-only per-fingerprint; cleared atomically by prompt-questions when
    * the nudge fires (entries move to `learningsNudgesAcknowledged`).
@@ -63,12 +64,12 @@ export interface QualityState {
  * Get the per-session state file path.
  */
 export function getStateFilePath(projectDirectory: string, sessionId: string): string {
-  return nodePath.join(projectDirectory, '.safeword-project', `quality-state-${sessionId}.json`);
+  return nodePath.join(resolveNamespaceRoot(projectDirectory), `quality-state-${sessionId}.json`);
 }
 
 /** Counter file for cross-session failure pattern tracking. */
 export function getCounterFilePath(projectDirectory: string): string {
-  return nodePath.join(projectDirectory, '.safeword-project', 'failure-counts.json');
+  return nodePath.join(resolveNamespaceRoot(projectDirectory), 'failure-counts.json');
 }
 
 export interface CounterEntry {

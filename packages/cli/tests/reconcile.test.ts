@@ -48,6 +48,8 @@ const DEFAULT_PROJECT_TYPE = {
   existingSqlfluffConfig: undefined,
 };
 
+const GHERKIN_LINT_SCRIPT = 'safeword lint-gherkin';
+
 describe('Reconcile - Reconciliation Engine', () => {
   let temporaryDirectory: string;
 
@@ -150,8 +152,10 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
+      // Fresh repo → namespace entries land at .project/ (N9S5XG translation).
       for (const dir of SAFEWORD_SCHEMA.preservedDirs) {
-        expect(existsSync(nodePath.join(temporaryDirectory, dir))).toBe(true);
+        const resolved = dir.replace(/^\.safeword-project/, '.project');
+        expect(existsSync(nodePath.join(temporaryDirectory, resolved)), resolved).toBe(true);
       }
     });
 
@@ -239,7 +243,8 @@ describe('Reconcile - Reconciliation Engine', () => {
       // Existing scripts preserved
       expect(pkg.scripts.test).toBe('vitest');
       // Safeword scripts added
-      expect(pkg.scripts.lint).toBe('eslint .');
+      expect(pkg.scripts.lint).toBe('eslint . && bun run lint:gherkin');
+      expect(pkg.scripts['lint:gherkin']).toBe(GHERKIN_LINT_SCRIPT);
       expect(pkg.scripts.format).toBe('prettier --write .');
       expect(pkg.scripts.knip).toBe('knip');
     });
@@ -356,6 +361,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(result.packagesToInstall).toContain(ESLINT_PACKAGE);
       expect(result.packagesToInstall).toContain('prettier');
       expect(result.packagesToInstall).toContain('safeword');
+      expect(result.packagesToInstall).not.toContain('gherkin-lint');
     });
 
     it('should include conditional packages based on project type', async () => {
@@ -613,7 +619,8 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(pkg.scripts.knip).toBeUndefined();
 
       // lint/format preserved (useful standalone)
-      expect(pkg.scripts.lint).toBe('eslint .');
+      expect(pkg.scripts.lint).toBe('eslint . && bun run lint:gherkin');
+      expect(pkg.scripts['lint:gherkin']).toBe(GHERKIN_LINT_SCRIPT);
       expect(pkg.scripts.format).toBe('prettier --write .');
 
       // Original scripts preserved

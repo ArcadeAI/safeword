@@ -41,10 +41,12 @@ Code diffs and PRs are out of scope — base Claude already explains those well.
 Gather the durable trail safeword already keeps, then narrate it. Run:
 
 ```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+NS_ROOT="$(node -e 'const fs=require("fs"),path=require("path");const project=process.argv[1];const directory=name=>path.join(project,name);const isDir=file=>{try{return fs.statSync(file).isDirectory()}catch{return false}};let configured;try{const parsed=JSON.parse(fs.readFileSync(path.join(project,".safeword","config.json"),"utf8"));const raw=parsed&&parsed.paths&&parsed.paths.projectRoot;if(typeof raw==="string"&&raw.length>0)configured=path.isAbsolute(raw)?raw:path.join(project,raw)}catch{}process.stdout.write(configured||(isDir(directory(".project"))?directory(".project"):isDir(directory(".safeword-project"))?directory(".safeword-project"):directory(".project")));' "$PROJECT_DIR")"
 # What you're on now: the last re-entry line names the current ticket + Next
-tail -3 .safeword-project/re-entry.md 2> /dev/null
+tail -3 "$NS_ROOT/re-entry.md" 2> /dev/null
 # Fallback when re-entry is empty: in_progress tickets (not epics)
-for f in .safeword-project/tickets/*/ticket.md; do
+for f in "$NS_ROOT"/tickets/*/ticket.md; do
   [ -f "$f" ] || continue
   grep -q "^status: in_progress" "$f" && ! grep -q "^type: epic" "$f" && echo "$f"
 done
@@ -66,7 +68,7 @@ plus the recent commits. Keep it to a few lines.
 
 ### A named ticket or artifact
 
-Read `.safeword-project/tickets/<id-or-slug>*/ticket.md` and translate, in order:
+Resolve `$NS_ROOT`, then read `$NS_ROOT/tickets/<id-or-slug>*/ticket.md` and translate, in order:
 
 - **What it is** — the goal in one plain sentence (no "scope / done_when" labels).
 - **Why it matters** — the problem it removes.

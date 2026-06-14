@@ -2,7 +2,7 @@
 //
 // Background: agents sometimes write claims like "✅ Verified by `bun run build`"
 // next to assertions that the cited command doesn't actually verify. Those
-// claims land in .safeword-project/learnings/ and poison future-session context.
+// claims land in <namespace-root>/learnings/ and poison future-session context.
 //
 // Strategy: warn (PostToolUse additionalContext), not block. Per Anthropic's
 // reward-hacking paper (arxiv:2511.18397), blocking semantic patterns generalizes

@@ -96,7 +96,7 @@ Delete what isn't needed. Don't abstract for hypothetical reuse. Don't comment w
 
 ## Further reading
 
-The deeper research backing these principles lives in `.safeword-project/learnings/`:
+The deeper research backing these principles lives in `<namespace-root>/learnings/`:
 
 - `agent-behavior-research.md` — enforcement layers, TDD paradox, verification patterns
 - `natural-vs-self-report-gates.md` — the natural/self-report gate distinction

@@ -19,13 +19,42 @@ import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
-import { exists, findInTree, readFileSafe, writeFile } from '../utils/fs.js';
+import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
 import { detectPackageManager, installDependencies } from '../utils/install.js';
+import {
+  executeNamespaceMigration,
+  type MigrationPlan,
+  type MigrationResult,
+  planNamespaceMigration,
+} from '../utils/namespace-migration.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
+
+interface PackageJson {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+}
+
+const DEPENDENCY_FIELDS = ['devDependencies', 'dependencies', 'optionalDependencies'] as const;
+const SAFEWORD_REGISTRY_SPEC = `^${VERSION}`;
+const SAFEWORD_INSTALL_SPEC = VERSION;
+const NON_REGISTRY_SPEC_PREFIXES = [
+  'file:',
+  'link:',
+  'portal:',
+  'workspace:',
+  'git+',
+  'github:',
+  'gitlab:',
+  'bitbucket:',
+  'http:',
+  'https:',
+] as const;
 
 function getProjectVersion(safewordDirectory: string): string {
   const versionPath = nodePath.join(safewordDirectory, 'version');
@@ -45,6 +74,54 @@ function stripDeadConfigVersion(safewordDirectory: string): void {
   if (!('version' in parsed)) return;
   delete parsed.version;
   writeFile(configPath, JSON.stringify(parsed, undefined, 2));
+}
+
+function isNonRegistryPackageSpec(spec: string): boolean {
+  return (
+    NON_REGISTRY_SPEC_PREFIXES.some(prefix => spec.startsWith(prefix)) ||
+    spec.startsWith('.') ||
+    spec.startsWith('/')
+  );
+}
+
+function isCurrentSafewordRegistrySpec(spec: string): boolean {
+  return spec === VERSION || spec === SAFEWORD_REGISTRY_SPEC || spec === `~${VERSION}`;
+}
+
+function syncPackageJsonSafewordVersion(cwd: string): boolean {
+  const packageJson = readPackageJson(cwd);
+  if (!packageJson) return false;
+
+  for (const field of DEPENDENCY_FIELDS) {
+    const dependencies = packageJson[field];
+    const currentSpec = dependencies?.safeword;
+    if (!dependencies || currentSpec === undefined || isNonRegistryPackageSpec(currentSpec))
+      continue;
+
+    if (isCurrentSafewordRegistrySpec(currentSpec)) continue;
+    installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package');
+    return packageJsonReferencesCurrentSafewordVersion(cwd);
+  }
+
+  return false;
+}
+
+function readPackageJson(cwd: string): PackageJson | undefined {
+  const packageJsonPath = nodePath.join(cwd, 'package.json');
+  return readJson(packageJsonPath) as PackageJson | undefined;
+}
+
+function packageJsonReferencesCurrentSafewordVersion(cwd: string): boolean {
+  const packageJson = readPackageJson(cwd);
+  return DEPENDENCY_FIELDS.some(field => {
+    const spec = packageJson?.[field]?.safeword;
+    return spec !== undefined && isCurrentSafewordRegistrySpec(spec);
+  });
+}
+
+function syncAndRecordPackageJsonSafewordVersion(cwd: string, result: ReconcileResult): void {
+  if (!syncPackageJsonSafewordVersion(cwd)) return;
+  if (!result.updated.includes('package.json')) result.updated.push('package.json');
 }
 
 function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cwd: string): void {
@@ -119,6 +196,124 @@ function installSqlTools(cwd: string): void {
 export interface UpgradeOptions {
   /** When true, skip auto-editing the project's eslint config; fall through to the print-only nudge. */
   noModify?: boolean;
+  /** Explicit namespace-migration consent: true = migrate, false = decline. Unset → prompt (TTY) or nudge. */
+  migrateNamespace?: boolean;
+  /** Injected confirm seam for the TTY prompt (tests). Defaults to a readline [Y/n] prompt. */
+  confirmMigration?: (question: string) => Promise<boolean>;
+}
+
+/**
+ * Default confirm seam: one-line readline [Y/n] prompt, Enter = yes,
+ * stdin EOF/close = decline. `rl.question()`'s promise never settles when
+ * the input closes (nodejs/node#53497), so the close event is raced in
+ * explicitly — otherwise a Ctrl+D mid-prompt would hang the upgrade.
+ * Streams injectable for tests.
+ */
+export async function promptYesDefault(
+  question: string,
+  input: NodeJS.ReadableStream = process.stdin,
+  output: NodeJS.WritableStream = process.stdout,
+): Promise<boolean> {
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input, output });
+  try {
+    const answer = await Promise.race([
+      rl.question(question),
+      new Promise<string>(resolve =>
+        rl.once('close', () => {
+          resolve('n');
+        }),
+      ),
+    ]);
+    return !/^n/i.test(answer.trim());
+  } catch {
+    return false; // defensive — treat any prompt failure as decline
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * Namespace-migration step (ticket 9MMWS7) — runs BEFORE project-context
+ * creation so the same upgrade reconciles on the post-move root. Consent:
+ * explicit flag → obey; interactive TTY → prompt defaulting to yes;
+ * otherwise → one-line nudge. Never silent, never forced; a failed move
+ * reports and the upgrade continues on the legacy root.
+ */
+const UNMOVABLE_PLAN_WARNINGS: Partial<Record<MigrationPlan, string>> = {
+  'both-dirs':
+    'Namespace migration skipped: .project/ already exists alongside .safeword-project/ — merge manually, then remove the legacy directory.',
+  blocked:
+    'Namespace migration skipped: .project exists but is not a directory — remove or rename it, then re-run with --migrate-namespace.',
+};
+
+/** Resolve consent for the offered move: flag → prompt (TTY or seam) → nudge. */
+async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean> {
+  if (options.migrateNamespace !== undefined) return options.migrateNamespace;
+
+  // An injected confirm seam counts as interactive — it IS the TTY stand-in.
+  const interactive =
+    options.confirmMigration !== undefined ||
+    (process.stdin.isTTY === true && process.stdout.isTTY === true);
+  if (!interactive) {
+    info(
+      'Namespace: this project uses the legacy .safeword-project/ — run `safeword upgrade --migrate-namespace` to converge on .project/ (recommended).',
+    );
+    return false;
+  }
+  const confirm = options.confirmMigration ?? promptYesDefault;
+  return confirm(
+    'Move project namespace from .safeword-project/ to .project/ (recommended)? [Y/n] ',
+  );
+}
+
+function reportMigrationSuccess(result: MigrationResult): void {
+  const how = result.method === 'git' ? 'git history preserved' : 'directory renamed';
+  const rewrites =
+    result.rewrittenKeys.length > 0
+      ? `; rewrote paths.${result.rewrittenKeys.join(', paths.')}`
+      : '';
+  success(`Namespace moved to .project/ (${how})${rewrites}`);
+}
+
+export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions): Promise<void> {
+  const plan = planNamespaceMigration(cwd);
+
+  if (plan !== 'offer') {
+    // Warn only when the user explicitly asked for a move that can't happen.
+    const warning = UNMOVABLE_PLAN_WARNINGS[plan];
+    if (warning !== undefined && options.migrateNamespace === true) warn(warning);
+    return;
+  }
+
+  if (!(await resolveMigrationConsent(options))) return;
+
+  try {
+    reportMigrationSuccess(executeNamespaceMigration(cwd));
+  } catch (migrationError) {
+    warn(
+      `${migrationError instanceof Error ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
+    );
+    return;
+  }
+
+  // After a confirmed move only — kept out of the try above so a scan hiccup
+  // can never be reported as a migration failure (the move already succeeded).
+  warnStaleToolingConfigs(cwd);
+}
+
+/**
+ * After a successful move, name customer tooling configs still referencing the
+ * legacy namespace so the developer can fix their lint/CI in the same review
+ * (ticket JYWZG1). Read-only — safeword never edits these files.
+ */
+function warnStaleToolingConfigs(cwd: string): void {
+  const stale = scanStaleNamespaceConfigs(cwd);
+  if (stale.length === 0) return;
+  warn(
+    '\nThese tooling configs still reference the old namespace (.safeword-project/ → .project/) — update them so your lint/CI keeps working:',
+  );
+  for (const file of stale) listItem(file);
 }
 
 export async function upgrade(options: UpgradeOptions): Promise<void> {
@@ -145,10 +340,13 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
   const eslintWarning = getEslintPeerMismatchWarning(cwd);
   if (eslintWarning) warn(`\n${eslintWarning}`);
 
+  await maybeMigrateNamespace(cwd, options);
+
   try {
     const ctx = createProjectContext(cwd);
     const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
     installDependencies(cwd, result.packagesToInstall, 'missing packages');
+    syncAndRecordPackageJsonSafewordVersion(cwd, result);
 
     // Migrate renamed pack IDs (dbt → sql)
     migratePackId(cwd, 'dbt', 'sql');

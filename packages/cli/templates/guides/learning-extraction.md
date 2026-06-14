@@ -29,13 +29,13 @@ Extract after experiencing ANY of these:
 
 ## File Locations
 
-**Project learnings** (`.safeword-project/learnings/[concept].md`):
+**Project learnings** (`<namespace-root>/learnings/[concept].md`):
 
 - **Why**: Specific to THIS codebase (custom architecture, unique patterns)
 - **Scope**: Shared via git (team knowledge base)
 - **Use case**: Project-specific gotchas
 
-**Historical archives** (`.safeword-project/learnings/archive/[bug-fix].md`):
+**Historical archives** (`<namespace-root>/learnings/archive/[bug-fix].md`):
 
 - **Why**: One-time debugging narratives (not forward-looking)
 - **Scope**: Shared via git (learning history)
@@ -44,7 +44,7 @@ Extract after experiencing ANY of these:
 **Precedence:**
 
 1. Explicit user instruction (highest priority)
-2. Project `.safeword-project/learnings/` (project-specific)
+2. Project `<namespace-root>/learnings/` (project-specific)
 3. Project `./SAFEWORD.md` → Common Gotchas (inline reference)
 
 ---
@@ -59,9 +59,9 @@ Extract after experiencing ANY of these:
 
 1. **Before debugging** - Check if similar issue has learning already
 
-   ```bash
-   ls .safeword-project/learnings/*[technology]*.md
-   ls .safeword-project/learnings/*[pattern]*.md
+   ```text
+   ls <namespace-root>/learnings/*[technology]*.md
+   ls <namespace-root>/learnings/*[pattern]*.md
    ```
 
 2. **When user mentions technology/pattern** - Check for relevant learnings
@@ -78,12 +78,12 @@ Extract after experiencing ANY of these:
 
 ### How to Check
 
-```bash
+```text
 # Project learnings
-ls .safeword-project/learnings/
+ls <namespace-root>/learnings/
 
 # Search by keyword
-ls .safeword-project/learnings/*keyword*.md
+ls <namespace-root>/learnings/*keyword*.md
 ```
 
 ### When to Reference Existing Learnings
@@ -111,7 +111,7 @@ The existing learning covers [X], but your case involves [Y]."
 
 ```text
 User: "I'm getting an async state update error with React hooks"
-→ Check: ls .safeword-project/learnings/*react*.md *hooks*.md *async*.md
+→ Check: ls <namespace-root>/learnings/*react*.md *hooks*.md *async*.md
 → Found: react-hooks-async.md
 → Read: [file contents]
 → Apply: "I found a learning about async React hooks. It mentions you should use useEffect
@@ -122,7 +122,7 @@ User: "I'm getting an async state update error with React hooks"
 
 ```text
 User: "IndexedDB quota is behaving strangely in Safari"
-→ Check: ls .safeword-project/learnings/*indexeddb*.md *safari*.md *quota*.md
+→ Check: ls <namespace-root>/learnings/*indexeddb*.md *safari*.md *quota*.md
 → Not found
 → Proceed: Continue debugging normally, suggest extraction if triggers match
 ```
@@ -132,7 +132,7 @@ User: "IndexedDB quota is behaving strangely in Safari"
 ```text
 User: Debugging for 6 cycles, discovers new IndexedDB quirk
 → Suggest extraction
-→ Check: ls .safeword-project/learnings/*indexeddb*.md
+→ Check: ls <namespace-root>/learnings/*indexeddb*.md
 → Found: indexeddb-quota-api.md
 → Suggest: "I found an existing learning about IndexedDB quota. Should I update it with
            this new discovery instead of creating a separate learning?"
@@ -154,7 +154,7 @@ Just learned something valuable
 │
 ├─ Forward-looking? (useful on FUTURE work, not just this bug)
 │  ├─ YES → Continue
-│  └─ NO → .safeword-project/learnings/archive/[bug-fix].md (optional)
+│  └─ NO → <namespace-root>/learnings/archive/[bug-fix].md (optional)
 │
 ├─ Choose destination:
 │  │
@@ -165,7 +165,7 @@ Just learned something valuable
 │  │  └─ YES → Add to: SAFEWORD.md "Common Gotchas"
 │  │
 │  └─ Needs examples/explanation?
-│     └─ YES → Extract to: .safeword-project/learnings/[concept].md
+│     └─ YES → Extract to: <namespace-root>/learnings/[concept].md
 │        Then cross-reference in SAFEWORD.md
 ```
 
@@ -173,7 +173,7 @@ Just learned something valuable
 
 ## Templates
 
-### Forward-Looking Learning (.safeword-project/learnings/)
+### Forward-Looking Learning (<namespace-root>/learnings/)
 
 **Use when:** Pattern applies to 2+ features/files, needs explanation
 
@@ -203,10 +203,10 @@ What breaks if you don't know this:
 
 ## Reference
 
-See `.safeword-project/learnings/archive/[investigation].md` for full debugging narrative.
+See `<namespace-root>/learnings/archive/[investigation].md` for full debugging narrative.
 ```
 
-### Debugging Narrative (.safeword-project/learnings/archive/)
+### Debugging Narrative (<namespace-root>/learnings/archive/)
 
 **Use when:** One-time bug fix, historical record
 
@@ -249,15 +249,15 @@ Actual: [What happened]
 
 **CRITICAL**: ALWAYS cross-reference in SAFEWORD.md after creating learning file.
 
-After extracting to `.safeword-project/learnings/`, add cross-reference in SAFEWORD.md:
+After extracting to `<namespace-root>/learnings/`, add cross-reference in SAFEWORD.md:
 
 ```markdown
 ## Common Gotchas
 
-Project-specific gotchas in `.safeword-project/learnings/`:
+Project-specific gotchas in `<namespace-root>/learnings/`:
 
-- **Persistent UI Placement** - Controls in LayoutBar (always visible), not EditorTabBar (conditional) → `.safeword-project/learnings/persistent-ui.md`
-- **Electron Renderer Context** - Renderer = browser, not Node.js; use `split(/[/\\]/)` for paths → `.safeword-project/learnings/electron-contexts.md`
+- **Persistent UI Placement** - Controls in LayoutBar (always visible), not EditorTabBar (conditional) → `<namespace-root>/learnings/persistent-ui.md`
+- **Electron Renderer Context** - Renderer = browser, not Node.js; use `split(/[/\\]/)` for paths → `<namespace-root>/learnings/electron-contexts.md`
 
 **Additional gotchas:**
 - Tab state timing: Add tab first (trigger render), wait 50ms, load content
@@ -296,25 +296,25 @@ Project-specific gotchas in `.safeword-project/learnings/`:
 
 ---
 
-### ✅ Project Learning (.safeword-project/learnings/)
+### ✅ Project Learning (<namespace-root>/learnings/)
 
 **Learning:** "UI controls must be in persistent areas, not conditional components"
 
 **Why learnings/:** Applies to multiple features (layout, toolbar, status) in THIS project
 
-**File:** `.safeword-project/learnings/persistent-ui.md`
+**File:** `<namespace-root>/learnings/persistent-ui.md`
 
 **Cross-ref:** Link from `SAFEWORD.md` → Common Gotchas
 
 ---
 
-### ❌ Archive (.safeword-project/learnings/archive/)
+### ❌ Archive (<namespace-root>/learnings/archive/)
 
 **Learning:** "Electron tests failed because forgot to build"
 
 **Why archive:** One-time gotcha - after learning once, don't need full narrative
 
-**File:** `.safeword-project/learnings/archive/electron-build-forgotten.md`
+**File:** `<namespace-root>/learnings/archive/electron-build-forgotten.md`
 
 **Note:** Short gotcha goes in SAFEWORD.md: "Electron tests use built files - run `bun run build` first"
 
@@ -384,7 +384,7 @@ Project-specific gotchas in `.safeword-project/learnings/`:
 
 1. **Recognize trigger** - Spent 45 min debugging race condition
 2. **Assess scope** - Forward-looking? (YES) Global or project? (Project)
-3. **Choose location** - Needs examples → `.safeword-project/learnings/race-conditions.md`
+3. **Choose location** - Needs examples → `<namespace-root>/learnings/race-conditions.md`
 4. **Extract** - Use template, write before/after examples
 5. **Cross-reference** - Add to SAFEWORD.md Common Gotchas
 
@@ -449,12 +449,12 @@ The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` s
 
 ## Quick Reference
 
-| Situation             | Location                                         | Example                          |
-| --------------------- | ------------------------------------------------ | -------------------------------- |
-| Architecture decision | `SAFEWORD.md` → Architecture                     | Why Zustand? Why Electron-only?  |
-| Short gotcha          | `SAFEWORD.md` → Gotchas                          | "Validate paths before file ops" |
-| Detailed gotcha       | `.safeword-project/learnings/` + SAFEWORD.md ref | Persistent UI, race conditions   |
-| One-time bug          | `.safeword-project/learnings/archive/`           | Forgot to build before testing   |
+| Situation             | Location                                        | Example                          |
+| --------------------- | ----------------------------------------------- | -------------------------------- |
+| Architecture decision | `SAFEWORD.md` → Architecture                    | Why Zustand? Why Electron-only?  |
+| Short gotcha          | `SAFEWORD.md` → Gotchas                         | "Validate paths before file ops" |
+| Detailed gotcha       | `<namespace-root>/learnings/` + SAFEWORD.md ref | Persistent UI, race conditions   |
+| One-time bug          | `<namespace-root>/learnings/archive/`           | Forgot to build before testing   |
 
 ---
 
@@ -462,7 +462,7 @@ The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` s
 
 ```plaintext
 # Project learnings (this project)
-.safeword-project/learnings/
+<namespace-root>/learnings/
 ├── persistent-ui.md
 ├── electron-contexts.md
 ├── race-conditions.md
@@ -481,12 +481,12 @@ The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` s
 
 ```text
 # TOO BIG (250 lines covering 3 separate concepts)
-.safeword-project/learnings/electron-gotchas.md
+<namespace-root>/learnings/electron-gotchas.md
 
 # BETTER (3 focused files)
-.safeword-project/learnings/electron-renderer-context.md      (80 lines)
-.safeword-project/learnings/electron-ipc-patterns.md         (60 lines)
-.safeword-project/learnings/electron-path-validation.md      (50 lines)
+<namespace-root>/learnings/electron-renderer-context.md      (80 lines)
+<namespace-root>/learnings/electron-ipc-patterns.md         (60 lines)
+<namespace-root>/learnings/electron-path-validation.md      (50 lines)
 ```
 
 ---

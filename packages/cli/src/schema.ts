@@ -99,6 +99,45 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
   },
 };
 
+const CODEX_SKILL_TEMPLATE_FILES = [
+  ['audit/SKILL.md', 'skills/audit/SKILL.md'],
+  ['bdd/SKILL.md', 'skills/bdd/SKILL.md'],
+  ['bdd/DISCOVERY.md', 'skills/bdd/DISCOVERY.md'],
+  ['bdd/SCENARIOS.md', 'skills/bdd/SCENARIOS.md'],
+  ['bdd/TDD.md', 'skills/bdd/TDD.md'],
+  ['bdd/DONE.md', 'skills/bdd/DONE.md'],
+  ['bdd/SPLITTING.md', 'skills/bdd/SPLITTING.md'],
+  ['bdd/VERIFY.md', 'skills/bdd/VERIFY.md'],
+  ['brainstorm/SKILL.md', 'skills/brainstorm/SKILL.md'],
+  ['cleanup-zombies/SKILL.md', 'skills/cleanup-zombies/SKILL.md'],
+  ['debug/SKILL.md', 'skills/debug/SKILL.md'],
+  ['elicit/SKILL.md', 'skills/elicit/SKILL.md'],
+  ['explain/SKILL.md', 'skills/explain/SKILL.md'],
+  ['figure-it-out/SKILL.md', 'skills/figure-it-out/SKILL.md'],
+  ['lint/SKILL.md', 'skills/lint/SKILL.md'],
+  ['quality-review/SKILL.md', 'skills/quality-review/SKILL.md'],
+  ['refactor/SKILL.md', 'skills/refactor/SKILL.md'],
+  ['review-spec/SKILL.md', 'skills/review-spec/SKILL.md'],
+  ['self-review/SKILL.md', 'skills/self-review/SKILL.md'],
+  ['tdd-review/SKILL.md', 'skills/tdd-review/SKILL.md'],
+  ['testing/SKILL.md', 'skills/testing/SKILL.md'],
+  ['ticket-system/SKILL.md', 'skills/ticket-system/SKILL.md'],
+  ['verify/SKILL.md', 'skills/verify/SKILL.md'],
+] as const;
+
+const CODEX_SKILL_DIRS = [
+  ...new Set(
+    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/')[0]}`),
+  ),
+];
+
+const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
+  CODEX_SKILL_TEMPLATE_FILES.map(([target, template]) => [
+    `.agents/skills/${target}`,
+    { template },
+  ]),
+);
+
 // ============================================================================
 // SAFEWORD_SCHEMA - The Single Source of Truth
 // ============================================================================
@@ -111,8 +150,15 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  * these paths directly, so git tracking is never consulted. Single source for
  * the managed `.gitignore` block (below) and the upgrade-time untrack.
  */
+// Both namespace roots are listed: hooks write transient state under the
+// resolved root (TAGWZ8), which is `.project/` on fresh installs and
+// `.safeword-project/` on legacy ones.
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.project/quality-state*.json',
+  '.project/failure-counts.json',
+  '.project/skill-invocations.log',
+  '.project/re-entry.md',
   '.safeword-project/quality-state*.json',
   '.safeword-project/failure-counts.json',
   '.safeword-project/skill-invocations.log',
@@ -126,6 +172,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ownedDirs: [
     '.safeword',
     '.safeword/hooks',
+    '.safeword/hooks/codex',
     '.safeword/hooks/cursor',
     '.safeword/hooks/lib',
     '.safeword/guides',
@@ -139,7 +186,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ],
 
   // Directories we add to but don't own (not deleted on reset)
-  sharedDirs: ['.claude', '.claude/skills', '.claude/commands'],
+  sharedDirs: [
+    '.claude',
+    '.claude/skills',
+    '.claude/commands',
+    '.codex',
+    '.agents',
+    '.agents/skills',
+    ...CODEX_SKILL_DIRS,
+  ],
 
   // Created on setup but NOT deleted on reset (preserves user data)
   preservedDirs: [
@@ -219,6 +274,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/verify.md',
     '.claude/commands/audit.md',
     '.claude/commands/cleanup-zombies.md',
+    '.safeword/.gherkin-lintrc',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -243,6 +299,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     'eslint-plugin-jsx-a11y',
     '@next/eslint-plugin-next',
     'eslint-plugin-astro',
+    'gherkin-lint',
   ],
 
   // Directories to delete on upgrade (no longer managed by safeword)
@@ -298,6 +355,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
     },
@@ -362,6 +420,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/codex/pre-tool-quality.ts': {
+      template: 'hooks/codex/pre-tool-quality.ts',
     },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
@@ -537,6 +598,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'skills/figure-it-out/SKILL.md',
     },
 
+    // Codex skills (repo-scoped .agents/skills)
+    ...CODEX_SKILL_OWNED_FILES,
+
     // Cursor rules
     '.cursor/rules/safeword-core.mdc': {
       template: 'cursor/rules/safeword-core.mdc',
@@ -634,6 +698,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
+
+    // Codex project config — create if missing, preserve user-authored config.
+    '.codex/config.toml': { template: 'codex/config.toml' },
 
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites
@@ -758,12 +825,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is a NEW line (re-entry.md) so customers who already have the
-      // older 2-line block re-apply on upgrade and pick up the three additions
-      // (re-entry.md / failure-counts.json / skill-invocations.log). Without
-      // these, those generated files show as untracked in `git status
-      // --porcelain` — churning the tree and blocking the auto-upgrade gate.
-      marker: '.safeword-project/re-entry.md',
+      // Marker is a NEW line (.project/re-entry.md, TAGWZ8) so customers with
+      // the older legacy-only block re-apply on upgrade and pick up the
+      // .project/ variants — hooks write state under the resolved root, so
+      // fresh installs generate these under .project/. Without them, those
+      // generated files show as untracked in `git status --porcelain` —
+      // churning the tree and blocking the auto-upgrade gate.
+      marker: '.project/re-entry.md',
     },
     // Prettier ignores: safeword owns .safeword/ and .cursor/ (see ownedDirs).
     // Without this, `prettier --write .` would reformat hooks and Cursor rules;
@@ -780,8 +848,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // mangles their content (e.g. `in_progress` → `in*progress`, goal-text
       // underscores into broken emphasis), drifting the committed file from the
       // generator output every commit. Generated → prettier-ignored (1GGD28).
+      // Both namespace roots listed (TAGWZ8): INDEX files generate under the
+      // resolved root — .project/ on fresh installs, .safeword-project/ legacy.
       content:
-        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
+        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
       marker: '# Safeword - managed prettier exclusions',
     },
   },

@@ -17,6 +17,7 @@ import {
   type QualityState,
 } from './lib/quality-state.ts';
 import { selectMostAdvancedStep, shouldReviewPhase } from './lib/review-trigger.ts';
+import { isNamespacePath } from './lib/namespace-root.ts';
 
 interface HookInput {
   session_id?: string;
@@ -134,7 +135,7 @@ if (state.locSinceCommit >= LOC_THRESHOLD && !isGitOperationInProgress(projectDi
 let reviewMessage: string | null = null;
 
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
-if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ticket.md')) {
+if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md')) {
   const fullPath = editedFile.startsWith('/')
     ? editedFile
     : nodePath.join(projectDirectory, editedFile);
@@ -168,10 +169,7 @@ if (editedFile.includes('.safeword-project/tickets/') && editedFile.endsWith('ti
 // Per-TDD-step review. Each `[ ]→[x]` RED/GREEN/REFACTOR flip is one edit, so
 // this fires once per step boundary (structurally idempotent). Batched flips in
 // one edit surface the most-advanced step.
-if (
-  editedFile.includes('.safeword-project/tickets/') &&
-  editedFile.endsWith('test-definitions.md')
-) {
+if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('test-definitions.md')) {
   const step = selectMostAdvancedStep(collectNewTransitions(input, editedFile));
   if (step) {
     reviewMessage = getQualityMessage('implement', step);
@@ -183,7 +181,7 @@ if (
 // pending set. Per-fingerprint dedup — if we've already armed for this file
 // this session (whether pending or acknowledged), don't re-arm. Monotonic
 // append-only state replaces the prior single-bit boolean (ticket 4N5Y28).
-if (editedFile.includes('.safeword-project/learnings/') && editedFile.endsWith('.md')) {
+if (isNamespacePath(editedFile, 'learnings/') && editedFile.endsWith('.md')) {
   state.learningsNudgesPending ??= [];
   state.learningsNudgesAcknowledged ??= [];
   const alreadyArmed =

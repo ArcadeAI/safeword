@@ -25,13 +25,15 @@ const ignores = [
   '**/.astro/', // Astro generated types - not our code
   '**/.safeword/', // Generated hooks - linted separately by installed safeword config
   '**/.claude/worktrees/', // Stale worktree leftovers from Claude Code's worktree isolation
-  '.safeword-project/', // Project-specific hooks - not part of distributed package
+  '.project/', // Project namespace (was .safeword-project/) - hooks here are not part of the distributed package
   'examples/',
   'eslint.config.ts', // Self - loaded by ESLint's own pipeline, not part of the linted tree
   'packages/cli/templates/', // Template files copied to customer projects - not part of CLI build
   '**/.dependency-cruiser.cjs', // CommonJS config file
   'packages/cli/scripts/*.js', // Node.js scripts with CommonJS globals
   'scripts/', // Monorepo dev scripts - standalone Bun scripts not in any tsconfig
+  'features/', // Root cucumber lane scaffolded by safeword upgrade - customer-facing, no tsconfig
+  'steps/', // Root cucumber step definitions (same lane)
 ];
 
 export default defineConfig([

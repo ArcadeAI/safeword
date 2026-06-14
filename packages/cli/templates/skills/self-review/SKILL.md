@@ -18,7 +18,7 @@ review at each phase exit), not this.
 
 The line below runs the stamp-earning step at render time. It binds a
 `review:<scope>` stamp to the active ticket's `spec.md` **at its current
-content** and appends it to `.safeword-project/skill-invocations.log`, where the
+content** and appends it to `skill-invocations.log` under the project namespace root, where the
 per-asset gate reads it back. Invoking this skill is what writes the stamp —
 hand-editing the log is the gameable floor this tier deliberately accepts.
 

@@ -12,13 +12,24 @@ import { reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { readTickets, syncTickets } from '../ticket-sync/index.js';
 import { listArchitectureRecords } from '../utils/architecture-records.js';
-import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
+import {
+  defaultConfiguredPath,
+  readConfiguredPath,
+  resolveConfiguredPath,
+  resolveTicketsDirectory,
+} from '../utils/configured-paths.js';
 import { createProjectContext } from '../utils/context.js';
-import { exists, readFileSafe } from '../utils/fs.js';
-import { GLOSSARY_FILE_SUBPATH, parseGlossary, validateGlossary } from '../utils/glossary.js';
+import { findFeatureSourcePath } from '../utils/feature-source.js';
+import { exists, isDirectory, readFileSafe } from '../utils/fs.js';
+import { FeatureParseError, findFeatureLineageIssues } from '../utils/gherkin-feature.js';
+import { parseGlossary, validateGlossary } from '../utils/glossary.js';
 import { header, info, keyValue, listItem, success, warn } from '../utils/output.js';
-import { parsePersonas, PERSONAS_FILE_SUBPATH, validatePersonas } from '../utils/personas.js';
-import { buildCoverageReport, type CoverageReport } from '../utils/scenario-coverage.js';
+import { parsePersonas, validatePersonas } from '../utils/personas.js';
+import {
+  buildCoverageReport,
+  buildCoverageReportFromFeature,
+  type CoverageReport,
+} from '../utils/scenario-coverage.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
 import { findDanglingDependencies, findTicketsInCycles } from '../utils/ticket-relations.js';
 import { isNewerVersion } from '../utils/version.js';
@@ -64,7 +75,7 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
  */
 function findPersonaIssues(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'personas');
-  const filePath = resolveConfiguredPath(cwd, 'personas', nodePath.join(...PERSONAS_FILE_SUBPATH));
+  const filePath = resolveConfiguredPath(cwd, 'personas');
   const content = readFileSafe(filePath);
 
   if (content === undefined) {
@@ -81,19 +92,37 @@ function findPersonaIssues(cwd: string): string[] {
 /**
  * Surface non-blocking diagnostics about persona path configuration.
  * Currently: when `paths.personas` is set AND the default-location file
- * `.safeword-project/personas.md` still exists, emit an advisory naming
+ * the default personas file still exists, emit an advisory naming
  * the orphaned file. Safeword reads from the override; the legacy file
  * is dead weight and may confuse readers who think they're editing the
  * live file. Zero-exit — non-destructive (data-loss principle from
  * ticket K7N2QM); user owns cleanup.
  */
+/**
+ * Both-namespace-roots advisory (ticket 9MMWS7): both `.project/` and
+ * `.safeword-project/` present means a migration was left half-finished (or
+ * the dirs were created independently). Zero-exit nudge naming the finishing
+ * action; silent on any single root — declining migration is never a nag.
+ */
+function findNamespaceAdvisories(cwd: string): string[] {
+  if (
+    isDirectory(nodePath.join(cwd, '.project')) &&
+    isDirectory(nodePath.join(cwd, '.safeword-project'))
+  ) {
+    return [
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword upgrade --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+    ];
+  }
+  return [];
+}
+
 function findPersonaAdvisories(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'personas');
   if (override === undefined) return [];
-  const defaultPath = nodePath.join(cwd, ...PERSONAS_FILE_SUBPATH);
+  const defaultPath = defaultConfiguredPath(cwd, 'personas');
   if (!exists(defaultPath)) return [];
   return [
-    `.safeword-project/personas.md exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
   ];
 }
 
@@ -107,7 +136,7 @@ function findPersonaAdvisories(cwd: string): string[] {
  */
 function findGlossaryIssues(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'glossary');
-  const filePath = resolveConfiguredPath(cwd, 'glossary', nodePath.join(...GLOSSARY_FILE_SUBPATH));
+  const filePath = resolveConfiguredPath(cwd, 'glossary');
   const content = readFileSafe(filePath);
 
   if (content === undefined) {
@@ -130,14 +159,12 @@ function findGlossaryIssues(cwd: string): string[] {
 function findGlossaryAdvisories(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'glossary');
   if (override === undefined) return [];
-  const defaultPath = nodePath.join(cwd, ...GLOSSARY_FILE_SUBPATH);
+  const defaultPath = defaultConfiguredPath(cwd, 'glossary');
   if (!exists(defaultPath)) return [];
   return [
-    `.safeword-project/glossary.md exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
   ];
 }
-
-const TICKETS_SUBPATH = ['.safeword-project', 'tickets'];
 
 /** Ticket folder names under the tickets root (excluding `completed/`), or
  * empty when the root is missing/unreadable. */
@@ -151,8 +178,6 @@ function listTicketIds(ticketsRoot: string): string[] {
   }
 }
 
-const ARCHITECTURE_DEFAULT_SUBPATH = nodePath.join('.safeword-project', 'architecture.md');
-
 /**
  * Surface architecture-claim mismatches as non-blocking advisories (ticket
  * K4BWTQ). Structural only — no prose extraction (YR6C49 ruling): when an
@@ -161,10 +186,10 @@ const ARCHITECTURE_DEFAULT_SUBPATH = nodePath.join('.safeword-project', 'archite
  * exist, the claim cannot be honoring anything recorded. Zero-exit.
  */
 function findArchitectureAdvisories(cwd: string): string[] {
-  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsRoot = resolveTicketsDirectory(cwd);
   const ticketIds = listTicketIds(ticketsRoot);
 
-  const resolved = resolveConfiguredPath(cwd, 'architecture', ARCHITECTURE_DEFAULT_SUBPATH);
+  const resolved = resolveConfiguredPath(cwd, 'architecture');
   if (listArchitectureRecords(resolved).kind !== 'absent') return [];
 
   return ticketIds.flatMap(ticketId => {
@@ -203,30 +228,94 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
  * which excludes done predecessors whose pre-scheme scenarios are the
  * out-of-scope migration case (epic DZ2NM5/D5), and keeps the report focused
  * on the work the developer is actually building. Each in-progress ticket's
- * (spec.md, test-definitions.md) pair is cross-referenced into uncovered ACs,
- * stale AC refs, and orphan scenarios. Zero-exit — advisory, never a gate.
+ * feature source or legacy (spec.md, test-definitions.md) pair is cross-referenced
+ * into uncovered ACs, stale AC refs, and orphan scenarios. Coverage gaps stay
+ * zero-exit advisories; invalid Gherkin is a health issue because the source
+ * cannot be read.
  */
-function findCoverageAdvisories(cwd: string): string[] {
-  const ticketsRoot = nodePath.join(cwd, ...TICKETS_SUBPATH);
-  return listTicketIds(ticketsRoot).flatMap(ticketId =>
-    coverageAdvisoriesForTicket(ticketsRoot, ticketId),
-  );
+interface CoverageDiagnostics {
+  issues: string[];
+  advisories: string[];
+}
+
+function emptyCoverageDiagnostics(): CoverageDiagnostics {
+  return { issues: [], advisories: [] };
+}
+
+function findCoverageDiagnostics(cwd: string): CoverageDiagnostics {
+  const ticketsRoot = resolveTicketsDirectory(cwd);
+  const all = emptyCoverageDiagnostics();
+  for (const ticketId of listTicketIds(ticketsRoot)) {
+    const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
+    all.issues.push(...ticketDiagnostics.issues);
+    all.advisories.push(...ticketDiagnostics.advisories);
+  }
+  return all;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an
  * in-progress, spec-bearing ticket. */
-function coverageAdvisoriesForTicket(ticketsRoot: string, ticketId: string): string[] {
+function coverageDiagnosticsForTicket(
+  cwd: string,
+  ticketsRoot: string,
+  ticketId: string,
+): CoverageDiagnostics {
   const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
   const ticketContent = readFileSafe(nodePath.join(ticketDirectory, 'ticket.md'));
-  if (ticketContent === undefined || !isInProgress(ticketContent)) return [];
+  if (ticketContent === undefined || !isInProgress(ticketContent))
+    return emptyCoverageDiagnostics();
 
   const specContent = readFileSafe(nodePath.join(ticketDirectory, 'spec.md'));
-  if (specContent === undefined) return [];
+  if (specContent === undefined) return emptyCoverageDiagnostics();
 
-  const testDefinitionsContent = readFileSafe(
-    nodePath.join(ticketDirectory, 'test-definitions.md'),
+  const featureSource = readFeatureSource(cwd, ticketId);
+  try {
+    const report =
+      featureSource === undefined
+        ? buildCoverageReport(
+            specContent,
+            readFileSafe(nodePath.join(ticketDirectory, 'test-definitions.md')),
+          )
+        : buildCoverageReportFromFeature(specContent, featureSource.content);
+    const lineageIssues =
+      featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
+    return { issues: lineageIssues, advisories: formatCoverageReport(ticketId, report) };
+  } catch (parseError: unknown) {
+    if (parseError instanceof FeatureParseError && featureSource !== undefined) {
+      return {
+        issues: [
+          `${formatCoverageTicketLabel(ticketId)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
+        ],
+        advisories: [],
+      };
+    }
+    throw parseError;
+  }
+}
+
+function formatFeatureLineageIssues(
+  cwd: string,
+  ticketId: string,
+  featureSource: FeatureSource,
+): string[] {
+  const label = formatCoverageTicketLabel(ticketId);
+  const relativePath = nodePath.relative(cwd, featureSource.path);
+  return findFeatureLineageIssues(featureSource.content).map(
+    issue => `${label}: ${relativePath}: ${issue}`,
   );
-  return formatCoverageReport(ticketId, buildCoverageReport(specContent, testDefinitionsContent));
+}
+
+interface FeatureSource {
+  path: string;
+  content: string;
+}
+
+function readFeatureSource(cwd: string, ticketFolder: string): FeatureSource | undefined {
+  const featurePath = findFeatureSourcePath(cwd, ticketFolder);
+  const content = featurePath === undefined ? undefined : readFileSafe(featurePath);
+  return featurePath === undefined || content === undefined
+    ? undefined
+    : { path: featurePath, content };
 }
 
 /** Whether a ticket.md's frontmatter declares `status: in_progress`. */
@@ -243,11 +332,7 @@ function isInProgress(ticketContent: string): boolean {
 
 /** Render a coverage report into one advisory string per finding. */
 function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
-  const dashIndex = ticketId.indexOf('-');
-  const ticketLabel =
-    dashIndex === -1
-      ? ticketId
-      : formatTicketReference(ticketId.slice(0, dashIndex), ticketId.slice(dashIndex + 1));
+  const ticketLabel = formatCoverageTicketLabel(ticketId);
   return [
     ...report.uncovered.map(
       acId => `${ticketLabel}: acceptance criterion ${acId} has no scenario (uncovered)`,
@@ -262,6 +347,13 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
   ];
 }
 
+function formatCoverageTicketLabel(ticketId: string): string {
+  const dashIndex = ticketId.indexOf('-');
+  return dashIndex === -1
+    ? ticketId
+    : formatTicketReference(ticketId.slice(0, dashIndex), ticketId.slice(dashIndex + 1));
+}
+
 /**
  * Surface structured-relation problems as non-blocking advisories (ticket
  * AKZJXC): a `depends_on` pointing at a ticket absent from the corpus (dangling
@@ -271,7 +363,7 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
  * Zero-exit.
  */
 function findRelationAdvisories(cwd: string): string[] {
-  const ticketsDirectory = nodePath.join(cwd, ...TICKETS_SUBPATH);
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
   let entries;
   try {
     const { active, completed } = readTickets(ticketsDirectory);
@@ -424,6 +516,8 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
 
   // Check for missing language packs
   const missingPacks = getMissingPacks(cwd);
+  const coverageDiagnostics = findCoverageDiagnostics(cwd);
+  issues.push(...coverageDiagnostics.issues);
 
   return {
     configured: true,
@@ -433,9 +527,10 @@ async function checkHealth(cwd: string): Promise<HealthStatus> {
     latestVersion: undefined,
     issues,
     advisories: [
+      ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
-      ...findCoverageAdvisories(cwd),
+      ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
       ...findArchitectureAdvisories(cwd),
     ],
@@ -492,6 +587,17 @@ function reportVersionMismatch(health: HealthStatus): void {
  * @returns true if there are issues requiring attention
  */
 function reportHealthSummary(health: HealthStatus): boolean {
+  // Advisories first: non-blocking diagnostics that must surface even when
+  // issues exist (the issue branches below early-return). Ticket 9MMWS7
+  // exposed the old ordering, which silently swallowed advisories on any
+  // unhealthy project.
+  if (health.advisories.length > 0) {
+    header('Advisories');
+    for (const advisory of health.advisories) {
+      warn(advisory);
+    }
+  }
+
   // Check missing packs first (highest priority - explains missing files)
   if (health.missingPacks.length > 0) {
     header('Missing Language Packs');
@@ -516,16 +622,6 @@ function reportHealthSummary(health: HealthStatus): boolean {
     }
     info('\nRun `safeword upgrade` to repair configuration');
     return true;
-  }
-
-  // Advisories: non-blocking diagnostics. Reported even when issues
-  // exist (no early-return above this point handles them); printed
-  // here when the project is otherwise healthy.
-  if (health.advisories.length > 0) {
-    header('Advisories');
-    for (const advisory of health.advisories) {
-      warn(advisory);
-    }
   }
 
   success('\nConfiguration is healthy');

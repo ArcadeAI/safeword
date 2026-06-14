@@ -203,6 +203,7 @@ describe('Test Suite 11: Reset', () => {
       // Scripts preserved
       const pkgAfter = JSON.parse(readTestFile(temporaryDirectory, 'package.json'));
       expect(pkgAfter.scripts?.lint).toBe(pkgBefore.scripts?.lint);
+      expect(pkgAfter.scripts?.['lint:gherkin']).toBe(pkgBefore.scripts?.['lint:gherkin']);
       expect(pkgAfter.scripts?.format).toBe(pkgBefore.scripts?.format);
     });
   });

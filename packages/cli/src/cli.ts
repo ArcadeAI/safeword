@@ -42,9 +42,18 @@ program
     '--no-modify',
     'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
   )
+  .option(
+    '--migrate-namespace',
+    'Move the legacy .safeword-project/ namespace to .project/ (recommended) without prompting',
+  )
+  .option('--no-migrate-namespace', 'Keep the legacy namespace; skip the migration prompt')
   .action(async options => {
     const { upgrade } = await import('./commands/upgrade.js');
-    await upgrade({ noModify: options.modify === false });
+    await upgrade({
+      noModify: options.modify === false,
+      // Commander leaves the tri-state undefined when neither flag is passed.
+      migrateNamespace: options.migrateNamespace as boolean | undefined,
+    });
   });
 
 program
@@ -89,7 +98,7 @@ ticket
 
 program
   .command('sync-learnings')
-  .description('Regenerate .safeword-project/learnings/INDEX.md')
+  .description('Regenerate the namespace learnings/INDEX.md')
   .option('-q, --quiet', 'Suppress success output (still prints skipped-file warnings to stderr)')
   .action(async (options: { quiet?: boolean }) => {
     const { syncLearningsCommand } = await import('./commands/sync-learnings.js');
@@ -98,7 +107,7 @@ program
 
 program
   .command('sync-tickets')
-  .description('Regenerate .safeword-project/tickets/INDEX.md and INDEX-completed.md')
+  .description('Regenerate the namespace tickets/INDEX.md and INDEX-completed.md')
   .option('-q, --quiet', 'Suppress success output (still prints skipped-folder warnings to stderr)')
   .action(async (options: { quiet?: boolean }) => {
     const { syncTicketsCommand } = await import('./commands/sync-tickets.js');
@@ -107,7 +116,7 @@ program
 
 program
   .command('codify <ticket>')
-  .description("Emit a test skeleton from a ticket's test-definitions.md (vitest or gherkin)")
+  .description("Emit a test skeleton from a ticket's feature source or legacy test-definitions.md")
   .option('--format <format>', 'Output format: vitest (default) or gherkin', 'vitest')
   .option(
     '--red',
@@ -117,6 +126,15 @@ program
   .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
     const { codify } = await import('./commands/codify.js');
     await codify(ticketId, options);
+  });
+
+program
+  .command('lint-gherkin')
+  .description('Lint Gherkin feature files using Safeword-owned checks')
+  .argument('[files...]', 'Feature files to lint; discovers features/**/*.feature when omitted')
+  .action(async (files: string[]) => {
+    const { lintGherkin } = await import('./commands/lint-gherkin.js');
+    await lintGherkin(files);
   });
 
 // Show help if no arguments provided

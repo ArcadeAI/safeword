@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Stop hook: append a single re-entry brief line to .safeword-project/re-entry.md.
+ * Stop hook: append a single re-entry brief line to <namespace-root>/re-entry.md.
  *
  * Ticket 645W8H. Slice 1 walking skeleton.
  *
@@ -15,6 +15,7 @@ import { join } from 'node:path';
 
 import { getActiveTicket } from './lib/active-ticket';
 import { resolveProjectRoot } from './lib/re-entry';
+import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 interface HookInput {
   session_id?: string;
@@ -45,7 +46,7 @@ function extractLastNextImperative(text: string): string | null {
 }
 
 function readTicketIdFromFrontmatter(projectDirectory: string, folder: string): string | null {
-  const ticketPath = join(projectDirectory, '.safeword-project', 'tickets', folder, 'ticket.md');
+  const ticketPath = join(resolveNamespaceRoot(projectDirectory), 'tickets', folder, 'ticket.md');
   try {
     const content = readFileSync(ticketPath, 'utf8');
     const idMatch = /^id:\s*(.+)$/m.exec(content);
@@ -115,7 +116,7 @@ async function main(): Promise<void> {
   const timestamp = new Date().toISOString();
   const line = `${timestamp} ${session_id} ${ticketField} Next: ${imperative}\n`;
 
-  const projectDirectory = join(projectRoot, '.safeword-project');
+  const projectDirectory = join(resolveNamespaceRoot(projectRoot));
   if (!existsSync(projectDirectory)) {
     mkdirSync(projectDirectory, { recursive: true });
   }

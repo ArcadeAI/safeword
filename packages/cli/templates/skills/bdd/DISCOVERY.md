@@ -25,11 +25,11 @@ These gates are conversational discipline the agent runs — not a hook block. (
 
 ## Load project personas
 
-At intake start, read `.safeword-project/personas.md`. This file is the project's source of truth for who features serve; later phases (JTBD authoring, AC validation, scenario numbering) reference its entries.
+At intake start, read the configured personas file (`paths.personas`, default `<namespace-root>/personas.md`). This file is the project's source of truth for who features serve; later phases (JTBD authoring, AC validation, scenario numbering) reference its entries.
 
 - **If the file is missing or empty** (no persona blocks parsed — the scaffolded template comment doesn't count) — surface a soft prompt:
 
-  > _"`.safeword-project/personas.md` is empty — want to add some now, or proceed without?"_
+  > _"`personas.md` is empty — want to add some now, or proceed without?"_
 
   The user can answer "proceed without" and intake continues; the prompt fires again later only if a turn tries to reference a persona that isn't in the file.
 
@@ -39,17 +39,17 @@ Short codes auto-derive from names on the next `safeword check` (e.g., `Platform
 
 ## Load project glossary
 
-At intake start, read `.safeword-project/glossary.md`. This file is the project's source of truth for domain vocabulary; using terms consistently across tickets keeps specs from drifting (does "session" mean the same thing in two scenarios, or two different things?).
+At intake start, read the configured glossary file (`paths.glossary`, default `<namespace-root>/glossary.md`). This file is the project's source of truth for domain vocabulary; using terms consistently across tickets keeps specs from drifting (does "session" mean the same thing in two scenarios, or two different things?).
 
 - **If the file is missing or empty** (no term blocks parsed — the scaffolded template comment doesn't count) — surface a soft prompt:
 
-  > _"`.safeword-project/glossary.md` is empty — want to add some terms now, or proceed without?"_
+  > _"`glossary.md` is empty — want to add some terms now, or proceed without?"_
 
   The user can answer "proceed without" and intake continues; the prompt fires again later only if a turn references a domain term that isn't in the file.
 
-- **If a domain term comes up during intake that isn't in the glossary** — flag it, don't invent a definition. Ask whether it's a new term to define in `.safeword-project/glossary.md`, or a synonym for an existing one. Use `validateGlossaryReference` semantics (exact name or alias match; offer the suggestion when only casing differs).
+- **If a domain term comes up during intake that isn't in the glossary** — flag it, don't invent a definition. Ask whether it's a new term to define in the configured glossary file, or a synonym for an existing one. Use `validateGlossaryReference` semantics (exact name or alias match; offer the suggestion when only casing differs).
 
-Project-wide terms live in `.safeword-project/glossary.md`; vocabulary used in only one spec stays in that ticket. Never extract terms from prose automatically — humans curate the glossary.
+Project-wide terms live in the configured glossary file; vocabulary used in only one spec stays in that ticket. Never extract terms from prose automatically — humans curate the glossary.
 
 ## Author Jobs To Be Done
 
@@ -58,7 +58,7 @@ Before converging on scope, frame the product intent: what jobs does this featur
 Each JTBD is:
 
 - A `### <slug>.<persona-code><n> — <title>` heading (e.g., `### oauth-flow.PO1 — rotate credentials without downtime`).
-- A `**Persona:** <ref>` line naming **exactly one** persona from `.safeword-project/personas.md` — one persona per JTBD. A job that serves two personas is two jobs.
+- A `**Persona:** <ref>` line naming **exactly one** persona from the configured personas file — one persona per JTBD. A job that serves two personas is two jobs.
 - A `> When I …, I want …, so I can …` statement capturing the trigger, the desired action, and the outcome.
 
 Resolve each persona reference against the loaded personas before writing it. A JTBD naming a persona absent from `personas.md` blocks the next phase — the intake-exit gate denies `test-definitions.md` until every JTBD resolves, or a `skip: <reason>` is recorded under `## Jobs To Be Done` for a deliberate omission.
@@ -105,7 +105,7 @@ If any answer is vague, you have open questions — surface them, and record eac
 
 One feature walked through all four artifacts and every sub-phase gate. Slug `oauth-flow`: let an operator rotate an API key without a coordinated flag day.
 
-**1 · Personas — load and reference.** Intake reads `.safeword-project/personas.md` and finds the persona this feature serves:
+**1 · Personas — load and reference.** Intake reads the configured personas file and finds the persona this feature serves:
 
 ```markdown
 ## Platform Operator (PO)
@@ -171,7 +171,7 @@ Before proceeding to define-behavior:
 
 0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
 1. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
-2. **Verify ticket exists:** `.safeword-project/tickets/{id}-{slug}/ticket.md`
+2. **Verify ticket exists:** `<namespace-root>/tickets/{id}-{slug}/ticket.md`
 3. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
 4. **Update frontmatter:** `phase: define-behavior`
 5. **Add work log entry:**

@@ -287,7 +287,7 @@ Answer **IN ORDER**:
 ```plaintext
 project/
 ├── ARCHITECTURE.md                    # Single comprehensive doc
-├── .safeword-project/tickets/
+├── <namespace-root>/tickets/
 │   └── {id}-{slug}/
 │       ├── ticket.md
 │       ├── test-definitions.md

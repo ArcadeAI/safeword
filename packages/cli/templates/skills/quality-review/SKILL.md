@@ -20,7 +20,7 @@ Deep review with web research to verify against current ecosystem. Complements a
 
 ## 1. Detect Phase
 
-If in BDD workflow, read current ticket from `.safeword-project/tickets/` and apply phase-appropriate research:
+If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and apply phase-appropriate research:
 
 | Phase           | Research Focus                                  |
 | --------------- | ----------------------------------------------- |

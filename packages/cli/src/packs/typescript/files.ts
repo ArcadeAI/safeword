@@ -81,7 +81,7 @@ function addKnipIgnoreDependencies(
  */
 function getKnipConfig(ctx: ProjectContext): object {
   const config = {
-    ignore: ['.safeword/**', '.safeword-project/**'],
+    ignore: ['.safeword/**', '.project/**', '.safeword-project/**'],
     ignoreDependencies: ['safeword', 'dependency-cruiser'],
   };
 
@@ -295,6 +295,8 @@ function addScriptIfMissing(scripts: Record<string, string>, name: string, comma
   if (!scripts[name]) scripts[name] = command;
 }
 
+const GHERKIN_LINT_SCRIPT = 'safeword lint-gherkin';
+
 /**
  * Merge lint scripts based on project type.
  */
@@ -302,12 +304,13 @@ function mergeLintScripts(
   scripts: Record<string, string>,
   projectType: { existingLinter: boolean },
 ): void {
+  addScriptIfMissing(scripts, 'lint:gherkin', GHERKIN_LINT_SCRIPT);
   if (projectType.existingLinter) {
     // Project with existing linter: add lint:eslint for safeword-specific rules
     addScriptIfMissing(scripts, 'lint:eslint', 'eslint .');
   } else {
     // No existing linter: ESLint is the primary linter
-    addScriptIfMissing(scripts, 'lint', 'eslint .');
+    addScriptIfMissing(scripts, 'lint', 'eslint . && bun run lint:gherkin');
   }
 }
 
@@ -327,6 +330,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
   'package.json': {
     keys: [
       'scripts.lint',
+      'scripts.lint:gherkin',
       'scripts.format',
       'scripts.format:check',
       'scripts.knip',
