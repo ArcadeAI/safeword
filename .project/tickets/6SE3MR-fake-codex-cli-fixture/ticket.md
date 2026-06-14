@@ -15,9 +15,10 @@ out_of_scope:
   - Reworking Codex feature steps unrelated to fake CLI creation.
 done_when:
   - Either a small shared fake Codex binary fixture exists, or the ticket records why the duplication should stay.
+  - The ticket does not introduce a dependency from Cucumber steps onto Vitest-only helpers.
   - Existing Cucumber and Vitest Codex tests still pass.
 created: 2026-06-14T01:39:37.303Z
-last_modified: 2026-06-14T01:46:00Z
+last_modified: 2026-06-14T02:05:00Z
 ---
 
 # Share fake Codex CLI fixtures where it pays off
@@ -42,8 +43,10 @@ last_modified: 2026-06-14T01:46:00Z
 
 - This is intentionally low priority.
 - A no-code decision is acceptable if the attempted extraction increases indirection.
+- Quality-review guardrail: favor clarity at the call sites over deleting two tiny repeated lines.
 
 ## Work Log
 
+- 2026-06-14T02:05:00Z Reviewed: Added harness-boundary guardrail.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected narrow fixture extraction only.
 - 2026-06-14T01:39:37.303Z Started: Created ticket 6SE3MR.

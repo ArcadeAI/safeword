@@ -8,16 +8,19 @@ parent: S3T6JA
 epic: agent-surface-refactor
 scope:
   - Add one installed helper for writing required skill invocation log entries.
+  - Verify which surfaces can execute the helper before replacing snippets: Claude skills, Cursor commands, and Codex skills may not share the same shell-injection semantics.
   - Replace repeated verify/audit shell injection snippets with helper calls.
   - Preserve done-gate log format and failure behavior.
 out_of_scope:
+  - Assuming Claude-style dynamic shell injection works in Cursor or Codex without proof.
   - Inferring skill invocation from hand-written artifacts.
   - Changing which skills are required by the done gate.
 done_when:
   - `verify` and `audit` surfaces call the same helper.
+  - Each updated surface has a recorded invocation mechanism or an explicit no-change rationale.
   - Existing `skill-invocations.log` parsing still passes.
 created: 2026-06-14T01:39:25.845Z
-last_modified: 2026-06-14T01:46:00Z
+last_modified: 2026-06-14T02:05:00Z
 ---
 
 # Make required skill logging reusable
@@ -42,8 +45,10 @@ last_modified: 2026-06-14T01:46:00Z
 
 - Keep the log format `<timestamp> <session-id> <skill-name>` compatible with `hooks/lib/skill-invocation-log.ts`.
 - Preserve fail-closed behavior: if logging fails, the user should still see that done-gate evidence may be missing.
+- Quality-review guardrail: Claude Code documents dynamic context injection for skills; Codex and Cursor helper invocation must be verified against their own current behavior before changing those files.
 
 ## Work Log
 
+- 2026-06-14T02:05:00Z Reviewed: Added per-surface helper-invocation proof requirement.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected an explicit writer helper.
 - 2026-06-14T01:39:25.845Z Started: Created ticket 88QCHJ.

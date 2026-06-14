@@ -6,9 +6,12 @@ phase: intake
 status: in_progress
 parent: S3T6JA
 epic: agent-surface-refactor
+depends_on:
+  - 2YZDKQ
 scope:
   - Create one neutral skill manifest that expands to Claude and Codex schema-owned skill entries.
   - Preserve installed `.claude/skills/*` and `.agents/skills/*` output paths.
+  - Include explicit per-surface include/skip rationale for any skill that does not ship everywhere.
   - Add or update tests that prove generated entries match the existing template coverage.
 out_of_scope:
   - Generating Cursor commands or rules; child F1HTQ4 owns wrapper generation.
@@ -16,8 +19,9 @@ out_of_scope:
 done_when:
   - Adding or removing a shared skill requires one manifest change, not separate Claude and Codex schema edits.
   - Existing setup/upgrade output remains equivalent.
+  - The manifest handles `versioning` according to the 2YZDKQ ownership decision.
 created: 2026-06-14T01:39:19.374Z
-last_modified: 2026-06-14T01:46:00Z
+last_modified: 2026-06-14T02:05:00Z
 ---
 
 # Reduce duplicated skill registration for maintainers
@@ -42,8 +46,10 @@ last_modified: 2026-06-14T01:46:00Z
 
 - Current evidence: Claude Code docs say project skills live under `.claude/skills/<skill-name>/SKILL.md`; Codex docs describe skills as a reusable customization layer alongside AGENTS/config/hooks.
 - Keep dogfooding explicit: tracked `.claude/skills` and `.agents/skills` files remain install output, even if their schema registration is generated.
+- Quality-review guardrail: do not start implementation until 2YZDKQ records whether `versioning` is dogfood-only, shipped, or stale.
 
 ## Work Log
 
+- 2026-06-14T02:05:00Z Reviewed: Added dependency on 2YZDKQ and per-surface include/skip rationale requirement.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected neutral manifest generation.
 - 2026-06-14T01:39:19.374Z Started: Created ticket Y06KJS.

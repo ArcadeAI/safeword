@@ -16,8 +16,9 @@ out_of_scope:
 done_when:
   - Existing Codex pre-tool smoke/integration tests still pass.
   - Pure tests cover apply_patch target extraction, direct-tool forwarding, and denial reason parsing.
+  - Schema registration covers any new deployed helper file.
 created: 2026-06-14T01:39:34.081Z
-last_modified: 2026-06-14T01:46:00Z
+last_modified: 2026-06-14T02:05:00Z
 ---
 
 # Make Codex hook adapter behavior easier to test
@@ -42,8 +43,10 @@ last_modified: 2026-06-14T01:46:00Z
 
 - Preserve `SAFEWORD_CODEX_DENY_MODE=exit-code` behavior exactly.
 - If helper imports complicate template deployment, prefer same-directory Codex helper files registered in schema over package-level imports.
+- Quality-review guardrail: verify the adapter still runs from installed templates, not just from source tests.
 
 ## Work Log
 
+- 2026-06-14T02:05:00Z Reviewed: Added schema-registration and installed-template execution guardrails.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected pure helper extraction, not a generic adapter framework.
 - 2026-06-14T01:39:34.081Z Started: Created ticket W0E292.

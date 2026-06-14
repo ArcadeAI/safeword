@@ -14,7 +14,7 @@ children:
   - 6SE3MR
   - 2YZDKQ
 created: 2026-06-14T01:38:54.925Z
-last_modified: 2026-06-14T01:46:00Z
+last_modified: 2026-06-14T02:05:00Z
 ---
 
 # Epic: Reduce agent surface drift for Safeword maintainers
@@ -41,6 +41,14 @@ last_modified: 2026-06-14T01:46:00Z
 | 6SE3MR | Share only the fake Codex binary writer; keep Cucumber/Vitest harness setup separate.           | Low      |
 | 2YZDKQ | Decide and record whether `versioning` is Claude-only before changing surfaces.                 | Medium   |
 
+## Quality-review guardrails
+
+- Run 2YZDKQ before Y06KJS so manifest generation does not silently promote or drop the dogfood-only `versioning` skill.
+- Run 1833FW before F1HTQ4 so Cursor wrapper generation captures the intended `verify` command content.
+- Run Y06KJS before F1HTQ4 if F1HTQ4 consumes the shared skill metadata.
+- Do not assume Claude, Cursor, and Codex all execute the same skill-body shell syntax. 88QCHJ must verify helper invocation behavior per surface before replacing any snippet.
+- Keep a platform-current-docs check at pickup. Cursor and Codex both now expose skills/plugin concepts, but safeword still needs physical command/rule/config files where setup/upgrade installs them today.
+
 ## Child tickets
 
 | ID                                                              | Title                                                | Notes                                                          |
@@ -61,6 +69,7 @@ last_modified: 2026-06-14T01:46:00Z
 
 ## Work Log
 
+- 2026-06-14T02:05:00Z Reviewed: Quality-review pass approved the epic direction and added sequencing/runtime guardrails.
 - 2026-06-14T01:46:00Z Updated: Added second-pass figure-it-out decisions and seven child tickets.
 - 2026-06-14T01:39:00Z Created: Minted child tickets for the seven refactor candidates from the read-only pass.
 - 2026-06-14T01:38:54.925Z Started: Created ticket S3T6JA.

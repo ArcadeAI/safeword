@@ -45,6 +45,22 @@ Any installed dogfood file that differs from its template is either reconciled o
 
 ## Figure-it-out decision record
 
+## Quality Review - 2026-06-14
+
+**Versions:** N/A - planning epic, no package version change proposed.
+
+**Documentation:** Current-docs check supports the high-level direction: Claude Code documents skills, project skill locations, command compatibility, and dynamic context injection; Cursor documents persistent rules/AGENTS and also has current skills/plugin surfaces; Codex documents customization as complementary AGENTS/config/skills/hooks/rules layers.
+
+**Security:** N/A - no runtime code or dependency change in this epic. Runtime child tickets still need normal hook/security review when implemented.
+
+**Verdict:** APPROVE with planning guardrails.
+
+**Critical issues:** None.
+
+**Suggested improvements applied:** Added sequencing so `versioning` ownership is decided before shared manifest generation, Cursor verify drift is resolved before wrapper generation, and shared metadata exists before wrappers consume it. Added a runtime guard that 88QCHJ must verify helper invocation per surface instead of assuming Claude-style dynamic shell syntax works everywhere.
+
+**Next:** Pick 1833FW or 2YZDKQ first; both unblock higher-blast-radius generation work.
+
 ### 1. Skill registration source
 
 **Frame:** Decide whether duplicated Claude/Codex skill schema entries should be hand-maintained, generated from the existing Codex list, or generated from a new shared manifest.

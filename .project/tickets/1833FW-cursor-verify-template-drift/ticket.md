@@ -15,9 +15,10 @@ out_of_scope:
   - Changing the Gherkin lane itself.
 done_when:
   - The dogfood Cursor verify command is either aligned to the template or carries an explicit intentional-drift rationale.
+  - F1HTQ4 can use the chosen verify content as generator input without preserving accidental drift.
   - The epic records the chosen outcome.
 created: 2026-06-14T01:39:31.130Z
-last_modified: 2026-06-14T01:46:00Z
+last_modified: 2026-06-14T02:05:00Z
 ---
 
 # Keep Cursor verify evidence aligned
@@ -42,8 +43,10 @@ last_modified: 2026-06-14T01:46:00Z
 
 - This should probably run before F1HTQ4 so wrapper generation captures the intended state.
 - If intentional, record why safeword's own dogfood should skip the Gherkin evidence line.
+- Quality-review guardrail: treat this as a blocker for wrapper generation, not as generic cleanup.
 
 ## Work Log
 
+- 2026-06-14T02:05:00Z Reviewed: Marked the chosen verify content as generator input for F1HTQ4.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out marked the drift as a high-priority concrete follow-up.
 - 2026-06-14T01:39:31.130Z Started: Created ticket 1833FW.

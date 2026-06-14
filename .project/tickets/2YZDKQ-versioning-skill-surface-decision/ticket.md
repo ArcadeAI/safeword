@@ -15,9 +15,10 @@ out_of_scope:
   - Refactoring unrelated skills.
 done_when:
   - The ticket records one clear decision: Claude-only, ship across surfaces, or remove as stale.
+  - The decision includes the evidence used: skill content, current version workflow, and parity expectation.
   - Y06KJS can proceed without accidentally changing versioning skill behavior.
 created: 2026-06-14T01:39:41.655Z
-last_modified: 2026-06-14T01:46:00Z
+last_modified: 2026-06-14T02:05:00Z
 ---
 
 # Clarify versioning skill ownership
@@ -42,8 +43,10 @@ last_modified: 2026-06-14T01:46:00Z
 
 - If Claude-only, document that in the epic or a nearby parity rationale so future drift checks do not flag it as missing.
 - If shipped, child Y06KJS should include it in the shared skill manifest after this ticket closes.
+- Quality-review guardrail: this is a decision ticket, not an implementation ticket, unless the decision is explicitly to remove stale dogfood content.
 
 ## Work Log
 
+- 2026-06-14T02:05:00Z Reviewed: Added evidence requirement for the ownership decision.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected decision-first handling.
 - 2026-06-14T01:39:41.655Z Started: Created ticket 2YZDKQ.
