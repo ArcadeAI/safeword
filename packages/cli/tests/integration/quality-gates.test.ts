@@ -266,6 +266,8 @@ describe('Quality Gates', () => {
       const reason = output.hookSpecificOutput.permissionDecisionReason;
       expect(reason).toContain('450 LOC');
       expect(reason).toContain('Commit');
+      // ZCYD5P: every hard-block gate message points to /explain.
+      expect(reason).toContain('Run `/explain` for a plain-English version');
     });
 
     it('1.4: LOC gate clears on commit', () => {

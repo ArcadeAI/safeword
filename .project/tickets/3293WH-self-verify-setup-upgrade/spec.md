@@ -1,74 +1,68 @@
 # Spec: Auto-run health verification after setup & upgrade; stop treating check as a human command
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+> Child of epic [VKNF1T](../VKNF1T-platform-uplift-epic/ticket.md). Design forks
+> settled by figure-it-out (2026-06-13): extract the health core, report +
+> exit-1 (no repair), keep `check` public but de-emphasized, reuse the existing
+> summary reporter with a parameterized remediation hint.
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+A mutating command proves its own postcondition. `setup` and `upgrade` end by
+running safeword's config-health verification (the same core `check` uses,
+minus the npm update-check); a broken result is reported loudly with a
+non-zero exit, a clean result stays to one success line. Humans stop being
+told to run `safeword check` as a routine step — it remains a standalone
+doctor-style diagnostic for CI and debugging.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- [ticket.md](./ticket.md) — current-state survey (health core private in check.ts, update-check coupling, ~20 doc references)
+- [469YSR](../469YSR-styled-output-leading-newline/ticket.md) — output-glyph fix that should land first or together (done)
+- Doctor idiom prior art: `npm doctor`, `brew doctor` — standalone diagnostics stay public even where installs self-verify
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
-
-## Vocabulary
-
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- **Agent-Driven Developer (DEV)** — runs `safeword setup`/`upgrade` on their project and needs breakage surfaced at the moment it happens, not discovered sessions later.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### self-verify-setup-upgrade.DEV1 — Know immediately when setup or upgrade left the project broken
 
-Uncomment and customize:
+**Persona:** Agent-Driven Developer (DEV)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I run `safeword setup` or `safeword upgrade`, I want the command to
+> verify the configuration it just wrote and fail loudly if it's broken, so I
+> don't run sessions on a half-applied install I had no way to notice.
 
-**Persona:** Platform Operator (PO)
+#### self-verify-setup-upgrade.DEV1.AC1 — Setup ends with a config-health verification: issues are reported and the command exits non-zero
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### self-verify-setup-upgrade.DEV1.AC2 — Upgrade ends with the same verification and failure semantics
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### self-verify-setup-upgrade.DEV1.AC3 — The self-verify is config-health only: no npm update-check, no network, no "update available" nag
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+#### self-verify-setup-upgrade.DEV1.AC4 — A clean result stays quiet: one health success line, no duplicate output walls
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### self-verify-setup-upgrade.DEV1.AC5 — A failing post-upgrade verification never tells the user to "run `safeword upgrade`" as the fix (remediation hint matches context)
+
+### self-verify-setup-upgrade.DEV2 — Trust the install without learning safeword's diagnostic commands
+
+**Persona:** Agent-Driven Developer (DEV)
+
+> When I install or upgrade safeword, I want health verification to happen
+> without me knowing a separate command exists, so the tool carries its own
+> quality bar instead of delegating it to my memory.
+
+#### self-verify-setup-upgrade.DEV2.AC1 — Docs present `check` as an automatic step that also exists standalone (CI/debugging), not a routine human command
+
+#### self-verify-setup-upgrade.DEV2.AC2 — Standalone `safeword check` behavior is unchanged by the extraction
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- A broken install/upgrade is caught at the command exit for every customer — zero "silent half-applied config" reports.
+- No new human workflow step: nothing additional to remember or run.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+_None — the four intake open questions (fate of check, failure semantics,
+advisory rewording, idempotence/noise) were resolved by the 2026-06-13
+figure-it-out pass; decisions recorded in the header note and ticket work log._

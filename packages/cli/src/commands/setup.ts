@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { checkHealth, reportHealthSummary } from '../health.js';
 import { setupGoTooling } from '../packs/golang/setup.js';
 import { installPack } from '../packs/install.js';
 import {
@@ -483,6 +484,19 @@ export async function setup(options: SetupOptions): Promise<void> {
       hasJavaScript: languages.javascript,
       noModify: options.noModify,
     });
+
+    // Self-verify the postcondition (ticket 3293WH): a mutating command
+    // proves what it wrote, where the breakage actually is. Config-health
+    // only — no update-check. The default "Run `safeword upgrade`" repair
+    // hint is kept: after a failed *setup*, pointing at upgrade is correct,
+    // non-self-referencing advice. When install was deliberately skipped, the
+    // self-verify skips package-presence checks — setup did what it was asked.
+    const health = await checkHealth(cwd, {
+      skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+    });
+    if (reportHealthSummary(health)) {
+      process.exit(1);
+    }
   } catch (error_) {
     error(`Setup failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
