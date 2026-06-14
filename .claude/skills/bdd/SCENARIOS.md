@@ -202,7 +202,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 ### Optional: codify the scenarios
 
-After the gate, `safeword codify <ticket>` turns the `.feature` source into runnable stubs — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step:
+After the gate, `safeword codify <ticket>` derives implementation stubs from the `.feature` source — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step. Cucumber acceptance proof still comes from matching step definitions and `test:bdd`.
 
 - Default: a native vitest skeleton — one `describe` per rule, `it.todo` per scenario (`--red` for failing bodies); print to stdout or `--out <path>`.
 - `--format gherkin`: prints the feature source when one exists; on legacy tickets, emits a migration `.feature` from markdown scenarios.

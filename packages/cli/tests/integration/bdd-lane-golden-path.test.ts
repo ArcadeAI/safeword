@@ -17,6 +17,7 @@ import {
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
   TIMEOUT_SETUP,
+  writeTestFile,
 } from '../helpers.js';
 
 function runTestBdd(directory: string): { output: string; status: number | null } {
@@ -26,6 +27,50 @@ function runTestBdd(directory: string): { output: string; status: number | null 
     timeout: TIMEOUT_SETUP,
   });
   return { output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`, status: result.status };
+}
+
+function addWorkspacePackageFeature(directory: string): void {
+  writeTestFile(
+    directory,
+    'packages/app/features/workspace-package.feature',
+    [
+      'Feature: Workspace package feature',
+      '',
+      '  Scenario: package-level feature runs from the root lane',
+      '    When the workspace package feature runs',
+      '    Then the workspace package result is visible',
+      '',
+    ].join('\n'),
+  );
+  writeTestFile(
+    directory,
+    'packages/app/features/manual-only.feature',
+    [
+      '@manual',
+      'Feature: Manual package feature',
+      '',
+      '  Scenario: manual package feature is skipped by default',
+      '    When this manual package feature runs',
+      '    Then it should not need a step definition',
+      '',
+    ].join('\n'),
+  );
+  writeTestFile(
+    directory,
+    'packages/app/features/steps/workspace-package.steps.ts',
+    [
+      "import { Then, When } from '@cucumber/cucumber';",
+      '',
+      "When('the workspace package feature runs', function () {",
+      '  // Scenario reached.',
+      '});',
+      '',
+      "Then('the workspace package result is visible', function () {",
+      '  // Assertion is the step binding itself; undefined steps would fail the lane.',
+      '});',
+      '',
+    ].join('\n'),
+  );
 }
 
 describe('scaffolded lane runs green (AC3)', () => {
@@ -53,6 +98,20 @@ describe('scaffolded lane runs green (AC3)', () => {
       const { output, status } = runTestBdd(tsDirectory);
       expect(status, output).toBe(0);
       expect(output).toContain('1 scenario (1 passed)');
+      expect(output).not.toMatch(/undefined|pending/);
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'cucumber-runner-discovery.SM1.AC1.package_feature_runs_and_manual_is_skipped',
+    () => {
+      addWorkspacePackageFeature(tsDirectory);
+
+      const { output, status } = runTestBdd(tsDirectory);
+
+      expect(status, output).toBe(0);
+      expect(output).toContain('2 scenarios (2 passed)');
       expect(output).not.toMatch(/undefined|pending/);
     },
     TIMEOUT_SETUP,

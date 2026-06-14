@@ -46,6 +46,13 @@ Run these in sequence, reporting each result:
 # Full test suite
 bun run test 2>&1
 
+# Gherkin acceptance lane (when available)
+if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
+  bun run test:bdd 2>&1
+else
+  echo "Gherkin acceptance lane skipped: Skipped — no test:bdd script"
+fi
+
 # Build check
 bun run build 2>&1
 ```
@@ -99,6 +106,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 ## Verify Checklist
 
 **Test Suite:** ✓ X/X tests pass (or ❌ N failures)
+**Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⏭️ Skipped — no test:bdd script)
 **Build:** ✅ Success (or ❌ Failed)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
@@ -112,10 +120,11 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 
 - `✓ X/X tests pass` — proves test suite ran
+- `**Gherkin:**` — proves the acceptance lane ran or was explicitly skipped
 - `All N scenarios marked complete` — proves scenarios checked
 - `Audit passed` — proves /audit ran (run /audit separately)
 
-Without all three patterns in Status, the done phase will hard block.
+Without the required patterns in Status, the done phase will hard block.
 
 #### Decisions needed (spec / scope / value)
 

@@ -32,10 +32,12 @@ describe('verify report structure (146)', () => {
       },
     );
 
-    it.each(surfaces)('%s lists the three preserved evidence patterns', (_name, content) => {
+    it.each(surfaces)('%s lists the required evidence patterns', (_name, content) => {
       expect(content).toContain('✓ X/X tests pass');
+      expect(content).toContain('**Gherkin:**');
       expect(content).toContain('All N scenarios marked complete');
       expect(content).toContain('Audit passed');
+      expect(content).not.toContain('Without all three patterns');
     });
   });
 
