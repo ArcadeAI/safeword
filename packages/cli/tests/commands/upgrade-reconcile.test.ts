@@ -8,14 +8,14 @@
  */
 
 import { execSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { runCli } from '../helpers';
+import { installFakeCodexCli, runCli } from '../helpers';
 
 const __dirname = import.meta.dirname;
 
@@ -327,11 +327,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
 
     it('should warn when the installed Codex CLI is below the safeword hook floor during upgrade', async () => {
       createConfiguredProject('0.5.0');
-      const fakeBin = nodePath.join(temporaryDirectory, 'bin');
-      mkdirSync(fakeBin);
-      const fakeCodex = nodePath.join(fakeBin, 'codex');
-      writeFileSync(fakeCodex, '#!/usr/bin/env sh\necho "codex 0.132.0"\n');
-      chmodSync(fakeCodex, 0o755);
+      const fakeBin = installFakeCodexCli(temporaryDirectory, '0.132.0');
 
       const result = await runCli(['upgrade', '--no-migrate-namespace'], {
         cwd: temporaryDirectory,

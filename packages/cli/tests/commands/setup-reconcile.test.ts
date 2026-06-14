@@ -8,7 +8,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -17,6 +17,7 @@ import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
 import {
   createTemporaryDirectory,
   getReconcileTestUtilities,
+  installFakeCodexCli,
   removeTemporaryDirectory,
   runCli,
   setupReconcileTest,
@@ -220,11 +221,7 @@ describe('Setup Command - Reconcile Integration', () => {
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
       );
-      const fakeBin = nodePath.join(temporaryDirectory, 'bin');
-      mkdirSync(fakeBin);
-      const fakeCodex = nodePath.join(fakeBin, 'codex');
-      writeFileSync(fakeCodex, '#!/usr/bin/env sh\necho "codex 0.132.0"\n');
-      chmodSync(fakeCodex, 0o755);
+      const fakeBin = installFakeCodexCli(temporaryDirectory, '0.132.0');
 
       const result = await runCli(['setup', '--yes', '--no-modify'], {
         cwd: temporaryDirectory,
