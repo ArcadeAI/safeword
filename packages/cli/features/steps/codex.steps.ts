@@ -188,6 +188,16 @@ function assertFileExists(projectRoot: string, relativePath: string): void {
   assert.ok(existsSync(nodePath.join(projectRoot, relativePath)), `${relativePath} should exist`);
 }
 
+function assertCodexBaselineWarning(
+  result: { stdout: string; stderr: string },
+  version: string,
+  baseline: string,
+): void {
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.ok(output.includes(`Codex ${version} is below safeword`), output);
+  assert.ok(output.includes(baseline), output);
+}
+
 Given('a project has no Codex-specific safeword assets', function (this: SafewordWorld) {
   this.temporaryDirectory = createProject('safeword-codex-setup-');
 });
@@ -229,18 +239,14 @@ Then(
 Then(
   /^setup warns that Codex `([^`]+)` is below the required `([^`]+)` baseline$/,
   function (this: SafewordWorld, version: string, baseline: string) {
-    const output = `${this.result.stdout}\n${this.result.stderr}`;
-    assert.ok(output.includes(`Codex ${version} is below safeword`), output);
-    assert.ok(output.includes(baseline), output);
+    assertCodexBaselineWarning(this.result, version, baseline);
   },
 );
 
 Then(
   /^upgrade warns that Codex `([^`]+)` is below the required `([^`]+)` baseline$/,
   function (this: SafewordWorld, version: string, baseline: string) {
-    const output = `${this.result.stdout}\n${this.result.stderr}`;
-    assert.ok(output.includes(`Codex ${version} is below safeword`), output);
-    assert.ok(output.includes(baseline), output);
+    assertCodexBaselineWarning(this.result, version, baseline);
   },
 );
 
