@@ -14,7 +14,7 @@ children:
   - 6SE3MR
   - 2YZDKQ
 created: 2026-06-14T01:38:54.925Z
-last_modified: 2026-06-14T02:05:00Z
+last_modified: 2026-06-14T03:24:46Z
 ---
 
 # Epic: Reduce agent surface drift for Safeword maintainers
@@ -39,7 +39,7 @@ last_modified: 2026-06-14T02:05:00Z
 | 1833FW | Reconcile or explicitly document the dogfood `.cursor/commands/verify.md` drift.                | High     |
 | W0E292 | Extract pure Codex hook translation helpers behind the current executable adapter.              | Medium   |
 | 6SE3MR | Share only the fake Codex binary writer; keep Cucumber/Vitest harness setup separate.           | Low      |
-| 2YZDKQ | Decide and record whether `versioning` is Claude-only before changing surfaces.                 | Medium   |
+| 2YZDKQ | Keep `versioning` as a Claude-local maintainer-only skill; exclude it from shared manifests.    | Medium   |
 
 ## Quality-review guardrails
 
@@ -69,6 +69,7 @@ last_modified: 2026-06-14T02:05:00Z
 
 ## Work Log
 
+- 2026-06-14T03:24:46Z Decided: 2YZDKQ keeps `versioning` Claude-local maintainer-only (`audience: maintainer`), so Y06KJS must exclude maintainer-only dogfood skills from shared customer-facing manifests.
 - 2026-06-14T02:05:00Z Reviewed: Quality-review pass approved the epic direction and added sequencing/runtime guardrails.
 - 2026-06-14T01:46:00Z Updated: Added second-pass figure-it-out decisions and seven child tickets.
 - 2026-06-14T01:39:00Z Created: Minted child tickets for the seven refactor candidates from the read-only pass.

@@ -18,7 +18,7 @@ done_when:
   - The decision includes the evidence used: skill content, current version workflow, and parity expectation.
   - Y06KJS can proceed without accidentally changing versioning skill behavior.
 created: 2026-06-14T01:39:41.655Z
-last_modified: 2026-06-14T02:05:00Z
+last_modified: 2026-06-14T03:24:46Z
 ---
 
 # Clarify versioning skill ownership
@@ -45,8 +45,22 @@ last_modified: 2026-06-14T02:05:00Z
 - If shipped, child Y06KJS should include it in the shared skill manifest after this ticket closes.
 - Quality-review guardrail: this is a decision ticket, not an implementation ticket, unless the decision is explicitly to remove stale dogfood content.
 
+## Decision
+
+**Outcome:** Keep `versioning` as a Claude-local, safeword-maintainer-only skill. Do not add it to shipped templates, Cursor wrappers, Codex skills, or the shared skill manifest unless a later release-tooling ticket deliberately changes its audience.
+
+**Evidence:**
+
+- `.claude/skills/versioning/SKILL.md` declares `audience: maintainer` and contains release-operation instructions: semver classification, PR/admin merge, annotated tag creation, CI trusted publishing, npm verification, and release failure-mode triage.
+- The shipped auto-upgrade behavior is already captured in code and tests: `.safeword/hooks/session-auto-upgrade.ts` references the policy, and `packages/cli/tests/utils/version.test.ts` pins patch/minor auto-apply and major notify behavior.
+- `packages/cli/tests/schema.test.ts` intentionally excludes local skills with `audience: maintainer` from the "local customer-facing skills need templates" drift check. That makes this skill an explicit dogfood-only exception rather than accidental missing template content.
+- The parity expectation for customer-facing capabilities remains unchanged: customer-facing local skills must have templates; maintainer-only release discipline stays local to the safeword source repository.
+
+**Y06KJS implication:** Shared skill manifest generation must treat `audience: maintainer` dogfood skills as excluded inputs. It should not promote `versioning` into customer installs, and it should not delete or rewrite the local `.claude/skills/versioning` skill as drift.
+
 ## Work Log
 
+- 2026-06-14T03:24:46Z Decided: Keep `versioning` Claude-local maintainer-only; evidence is the skill frontmatter/content, auto-upgrade policy tests, and the existing maintainer-only drift-test exemption.
 - 2026-06-14T02:05:00Z Reviewed: Added evidence requirement for the ownership decision.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected decision-first handling.
 - 2026-06-14T01:39:41.655Z Started: Created ticket 2YZDKQ.
