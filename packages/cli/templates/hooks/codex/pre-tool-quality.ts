@@ -136,6 +136,19 @@ function writeHookOutput(result: { stdout?: string | null; stderr?: string | nul
   if (result.stderr !== '') process.stderr.write(result.stderr ?? '');
 }
 
+function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
+  return spawnSync('bun', [claudeHookPath], {
+    cwd: process.cwd(),
+    input: JSON.stringify(translated),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+}
+
 const input = await readInput();
 if (!input) process.exit(0);
 
@@ -145,18 +158,7 @@ if (translatedInputs.length === 0) process.exit(0);
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
-const results = translatedInputs.map(translated =>
-  spawnSync('bun', [claudeHookPath], {
-    cwd: process.cwd(),
-    input: JSON.stringify(translated),
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  }),
-);
+const results = translatedInputs.map(translated => runClaudeHook(claudeHookPath, translated));
 
 for (const result of results) {
   const reason = denialReasonFrom(result.stdout ?? '');
