@@ -116,7 +116,7 @@ program
 
 program
   .command('codify <ticket>')
-  .description("Emit a test skeleton from a ticket's test-definitions.md (vitest or gherkin)")
+  .description("Emit a test skeleton from a ticket's feature source or legacy test-definitions.md")
   .option('--format <format>', 'Output format: vitest (default) or gherkin', 'vitest')
   .option(
     '--red',
@@ -126,6 +126,15 @@ program
   .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
     const { codify } = await import('./commands/codify.js');
     await codify(ticketId, options);
+  });
+
+program
+  .command('lint-gherkin')
+  .description('Lint Gherkin feature files using Safeword-owned checks')
+  .argument('[files...]', 'Feature files to lint; discovers features/**/*.feature when omitted')
+  .action(async (files: string[]) => {
+    const { lintGherkin } = await import('./commands/lint-gherkin.js');
+    await lintGherkin(files);
   });
 
 // Show help if no arguments provided

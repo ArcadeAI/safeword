@@ -17,6 +17,7 @@
  * No I/O — callers pass file content; check.ts owns ticket discovery.
  */
 
+import { parseFeatureAcReferences } from './gherkin-feature.js';
 import { computeSkipMask, parseHeading } from './markdown-sections.js';
 
 const JTBD_HEADING = 'jobs to be done';
@@ -108,21 +109,42 @@ export function buildCoverageReport(
   specContent: string,
   testDefinitionsContent?: string,
 ): CoverageReport {
+  const scenarioReferences =
+    testDefinitionsContent === undefined
+      ? undefined
+      : parseScenarioTitles(testDefinitionsContent)
+          .map(title => parseAcReferenceFromTitle(title))
+          .filter((reference): reference is string => reference !== undefined);
+  return buildCoverageReportFromReferences(specContent, scenarioReferences);
+}
+
+export function buildCoverageReportFromFeature(
+  specContent: string,
+  featureContent?: string,
+): CoverageReport {
+  return buildCoverageReportFromReferences(
+    specContent,
+    featureContent === undefined ? undefined : parseFeatureAcReferences(featureContent),
+  );
+}
+
+function buildCoverageReportFromReferences(
+  specContent: string,
+  scenarioReferences?: readonly string[],
+): CoverageReport {
   const byJtbd = parseAcIdsByJtbd(specContent);
   const knownAcIds = new Set<string>();
   for (const acIds of byJtbd.values()) for (const id of acIds) knownAcIds.add(id);
 
   if (knownAcIds.size === 0) return { ...EMPTY_REPORT };
-  if (testDefinitionsContent === undefined) return { ...EMPTY_REPORT };
+  if (scenarioReferences === undefined) return { ...EMPTY_REPORT };
 
   const knownJtbds = new Set(byJtbd.keys());
   const covered = new Set<string>();
   const stale = new Set<string>();
   const orphan = new Set<string>();
 
-  for (const title of parseScenarioTitles(testDefinitionsContent)) {
-    const reference = parseAcReferenceFromTitle(title);
-    if (reference === undefined) continue;
+  for (const reference of scenarioReferences) {
     if (knownAcIds.has(reference)) {
       covered.add(reference);
     } else if (knownJtbds.has(jtbdPart(reference))) {

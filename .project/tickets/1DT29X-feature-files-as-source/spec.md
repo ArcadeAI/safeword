@@ -1,74 +1,71 @@
-# Spec: Gherkin .feature files become the scenario source of truth
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Gherkin `.feature` Files Become the Scenario Source of Truth
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Make Safeword's behavior source the same artifact the acceptance lane executes:
+Gherkin `.feature` files. `test-definitions.md` remains the TDD progress ledger
+because hooks enforce R/G/R from its checkboxes.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Ticket 102a: `codify --format gherkin` and safeword's package Cucumber lane.
+- Ticket 102b: customer setup scaffolds `features/`, `steps/`, `cucumber.mjs`, and `test:bdd`.
+- Cucumber Gherkin reference: `Rule` groups scenarios and a `.feature` file has one `Feature`.
+- Cucumber API reference: tags can be placed on Feature, Rule, Scenario, Scenario Outline, and Examples.
+- `@cucumber/gherkin` README: in-process library parsing is the preferred way to consume AST/pickles.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- Safeword Maintainer (SM)
+- Agent-Driven Developer (DEV)
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- **Feature source:** The `.feature` file that carries executable Gherkin scenarios.
+- **Ledger:** `test-definitions.md`, reduced to scenario names plus RED/GREEN/REFACTOR checkboxes for hook enforcement.
+- **Lineage tag:** A Gherkin tag shaped `@<jtbd-id>.AC<#>` used to map scenarios back to `spec.md` acceptance criteria.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### feature-files-as-source.SM1 - Keep behavior executable at the source
 
-Uncomment and customize:
+**Persona:** Safeword Maintainer (SM)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I maintain Safeword's BDD flow, I want agents and CLI checks to read the
+> same `.feature` files that Cucumber executes, so I can remove markdown/Gherkin
+> drift without losing hook-enforced TDD progress.
 
-**Persona:** Platform Operator (PO)
+#### feature-files-as-source.SM1.AC1 - Coverage reads lineage from Gherkin tags
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+`safeword check` maps `@<jtbd>.AC#` tags in feature files to `spec.md`
+acceptance criteria and reports uncovered, stale, and orphan references.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### feature-files-as-source.SM1.AC2 - Codify derives implementation stubs from feature source
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+When a ticket has a matching feature source, `safeword codify` emits derived
+Vitest skeletons from the `.feature` file instead of requiring markdown
+scenarios.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### feature-files-as-source.SM1.AC3 - Authoring and review instructions point to one behavior source
+
+BDD, review-spec, planning, and test-definition templates direct agents to
+write/review `.feature` scenarios and keep `test-definitions.md` as the R/G/R
+ledger.
+
+#### feature-files-as-source.SM1.AC4 - Existing markdown tickets continue working
+
+Tickets without a matching `.feature` source keep using the existing
+`test-definitions.md` parser for coverage and codify until they migrate.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- New BDD work creates executable Gherkin first, so `test:bdd` has meaningful
+  feature input instead of a derived copy.
+- Coverage advisories follow the same lineage scheme from feature tags that
+  scenario titles previously carried.
+- Existing tickets and hook gates continue to work during migration.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+defer: Full removal/deprecation timing for markdown scenario authoring belongs
+to the follow-up migration once active tickets have feature sources.

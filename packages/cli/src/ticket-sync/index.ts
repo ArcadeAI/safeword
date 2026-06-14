@@ -18,8 +18,8 @@ import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
 import { deriveBlocks, parseTicketIdList } from '../utils/ticket-relations.js';
 
-/** Legacy default label; live code derives the label from the resolved root. */
-export const TICKETS_RELATIVE_PATH = '.safeword-project/tickets';
+/** Placeholder label for callers that read a directory without a project cwd. */
+export const TICKETS_RELATIVE_PATH = '<namespace-root>/tickets';
 export const INDEX_FILENAME = 'INDEX.md';
 export const COMPLETED_INDEX_FILENAME = 'INDEX-completed.md';
 export const COMPLETED_DIRNAME = 'completed';

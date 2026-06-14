@@ -61,10 +61,16 @@ describe('setup scaffolds the lane in a TS project (AC1)', () => {
     }
   });
 
+  it('gherkin-linting.DEV1.AC1.ts_project_uses_safeword_owned_gherkin_linting', () => {
+    expect(fileExists(directory, '.safeword/.gherkin-lintrc')).toBe(false);
+  });
+
   it('gherkin-setup.DEV1.AC1.deps_and_script_are_added', () => {
     const packageJson = readPackageJson(directory);
     expect(packageJson.devDependencies?.['@cucumber/cucumber']).toBeDefined();
+    expect(packageJson.devDependencies?.['gherkin-lint']).toBeUndefined();
     expect(packageJson.devDependencies?.tsx).toBeDefined();
+    expect(packageJson.scripts?.['lint:gherkin']).toBe('safeword lint-gherkin');
     expect(packageJson.scripts?.['test:bdd']).toContain('cucumber-js');
   });
 });

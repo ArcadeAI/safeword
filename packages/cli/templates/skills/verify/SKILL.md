@@ -14,7 +14,7 @@ Prove a ticket meets its criteria. Works with or without an active ticket.
 
 This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Bash injection runs at render time — hand-writing verify.md cannot produce this entry.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && NS_ROOT="$PROJECT_DIR/.project" && if [ ! -d "$NS_ROOT" ] && [ -d "$PROJECT_DIR/.safeword-project" ]; then NS_ROOT="$PROJECT_DIR/.safeword-project"; fi && mkdir -p "$NS_ROOT" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} verify" >> "$NS_ROOT/skill-invocations.log" && echo "[skill-invocation-log] verify ✓" || echo "[skill-invocation-log] FAILED — done-gate will block"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && NS_ROOT="$(node -e 'const fs=require("fs"),path=require("path");const project=process.argv[1];const directory=name=>path.join(project,name);const isDir=file=>{try{return fs.statSync(file).isDirectory()}catch{return false}};let configured;try{const parsed=JSON.parse(fs.readFileSync(path.join(project,".safeword","config.json"),"utf8"));const raw=parsed&&parsed.paths&&parsed.paths.projectRoot;if(typeof raw==="string"&&raw.length>0)configured=path.isAbsolute(raw)?raw:path.join(project,raw)}catch{}process.stdout.write(configured||(isDir(directory(".project"))?directory(".project"):isDir(directory(".safeword-project"))?directory(".safeword-project"):directory(".project")));' "$PROJECT_DIR")" && mkdir -p "$NS_ROOT" && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ${CLAUDE_SESSION_ID} verify" >> "$NS_ROOT/skill-invocations.log" && echo "[skill-invocation-log] verify ✓" || echo "[skill-invocation-log] FAILED — done-gate will block"`
 
 **If you see `[skill-invocation-log] FAILED` above, or no `verify ✓` line at all**: STOP. Do not run /verify manually — that line is the only proof the done-gate accepts. Report the failure to the user (most likely cause: Claude Code's bash permission denied the injection) and ask them to resolve it before re-invoking /verify.
 
@@ -24,7 +24,9 @@ This skill is required at the done-gate (ticket 147). The line below appends a s
 
 ```bash
 # Find in_progress tickets, excluding epics
-for f in .project/tickets/*/ticket.md; do
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+NS_ROOT="$(node -e 'const fs=require("fs"),path=require("path");const project=process.argv[1];const directory=name=>path.join(project,name);const isDir=file=>{try{return fs.statSync(file).isDirectory()}catch{return false}};let configured;try{const parsed=JSON.parse(fs.readFileSync(path.join(project,".safeword","config.json"),"utf8"));const raw=parsed&&parsed.paths&&parsed.paths.projectRoot;if(typeof raw==="string"&&raw.length>0)configured=path.isAbsolute(raw)?raw:path.join(project,raw)}catch{}process.stdout.write(configured||(isDir(directory(".project"))?directory(".project"):isDir(directory(".safeword-project"))?directory(".safeword-project"):directory(".project")));' "$PROJECT_DIR")"
+for f in "$NS_ROOT"/tickets/*/ticket.md; do
   [ -f "$f" ] || continue
   grep -q "^status: in_progress" "$f" && ! grep -q "^type: epic" "$f" && echo "$f"
 done | head -1
@@ -56,7 +58,7 @@ The `/lint` command handles linting with auto-fix. Report any remaining unfixabl
 
 ### 3. Validate Test Definitions (skip if no ticket)
 
-1. Find matching file: `.project/tickets/{id}-{slug}/test-definitions.md`
+1. Find matching file: `$NS_ROOT/tickets/{id}-{slug}/test-definitions.md`
 2. Count scenarios: total `- [` lines
 3. Count completed: `- [x]` lines
 4. Report: "Scenarios: X/Y complete"

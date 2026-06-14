@@ -37,11 +37,11 @@
 - **Epic: Executable Gherkin specifications (102)** (done, epic: bdd-phase-one-merge)
   → `.project/tickets/102-gherkin-executable-specs`
 - **Executable Gherkin specs for TypeScript projects (102a)** (done, epic: bdd-phase-one-merge)
-  blocks: Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS) (102b)
+  blocks: Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS) (102b), Gherkin .feature files become the scenario source of truth (1DT29X)
   → `.project/tickets/102a-gherkin-typescript`
 - **Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS) (102b)** (done, epic: bdd-phase-one-merge)
   blocked by: Executable Gherkin specs for TypeScript projects (102a)
-  blocks: Customer choice of native-language Gherkin step definitions (102c)
+  blocks: Customer choice of native-language Gherkin step definitions (102c), Gherkin .feature files become the scenario source of truth (1DT29X)
   → `.project/tickets/102b-gherkin-polyglot-ts-steps`
 - **Determinism-risk specifics in the scenario-gate (assertion-strength folded) (73CKG4)** (done, epic: bdd-phase-one-merge)
   Add two Phase 4 enhancements: (1) assertion-strength coaching with weak→strong Then vocabulary, and (2) determinism-risk specifics with named failure patterns (time-dependent, ordering-dependent, concurrency).
@@ -85,8 +85,9 @@
 
 ### bdd-phase-two-merge
 
-- **Gherkin .feature files become the scenario source of truth (1DT29X)** (backlog, epic: bdd-phase-two-merge)
+- **Gherkin .feature files become the scenario source of truth (1DT29X)** (in_progress, epic: bdd-phase-two-merge)
   Make the bdd flow author scenarios as Gherkin `.feature` files directly — one source of truth the acceptance lane executes — demoting `test-definitions.md` to planning + R/G/R progress tracking. Kills the three-representations redundancy (markdown G/W/T + emitted vitest + emitted `.feature`) flagged by the 2026-06-10 flow review.
+  blocked by: Executable Gherkin specs for TypeScript projects (102a), Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS) (102b)
   → `.project/tickets/1DT29X-feature-files-as-source`
 - **Spec-revision discipline — safeword equivalent of arcade /update-spec (2K46FG)** (backlog, epic: bdd-phase-two-merge)
   Give safeword a disciplined way to revise a ticket's `spec.md` / `test-definitions.md` after it has reached define-behavior or beyond, instead of ad-hoc editing — deliberate-the-change-before-writing, reset the phase appropriately, and flag the downstream artifacts that go stale.
@@ -184,7 +185,7 @@
 - **Package as Codex plugin/marketplace bundle (6WJ1RS)** (in_progress, epic: codex-changelog-alignment)
   Ship safeword as a Codex plugin distributed via Codex's marketplace, parallel to the Cursor packaging ticket (DXYKJX).
   → `.project/tickets/6WJ1RS-codex-plugin-marketplace-packaging`
-- **Map safeword lifecycle events to Codex hook events (design) (HPP49X)** (in_progress, epic: codex-changelog-alignment)
+- **Map safeword lifecycle events to Codex hook events (design) (HPP49X)** (done, epic: codex-changelog-alignment)
   Design doc mapping safeword's five gate moments onto Codex hook events.
   → `.project/tickets/HPP49X-codex-lifecycle-hook-mapping`
 - **Codex enforcement strength: user-trusted default + documented managed path (JV6D1W)** (in_progress, epic: codex-changelog-alignment)
@@ -275,7 +276,7 @@
   `safeword upgrade` offers a legacy install the move to `.project/` as the default-recommended action (git-aware, consent-gated, never silent), and `safeword check` flags the transient both-dirs state (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV4 + DEV3.AC2). TAGWZ8 (resolver) and N9S5XG (scaffold) are done — this completes the epic.
   blocked by: Single namespace-root resolver with legacy detection + literal migration (TAGWZ8)
   → `.project/tickets/9MMWS7-upgrade-namespace-migration`
-- **Warn on stale tooling-config namespace refs after migration (JYWZG1)** (in_progress, epic: project-namespace-default)
+- **Warn on stale tooling-config namespace refs after migration (JYWZG1)** (done, epic: project-namespace-default)
   After `safeword upgrade --migrate-namespace` moves a repo to `.project/`, surface (don't silently break, don't silently edit) any customer-owned tooling config still pointing at `.safeword-project/`, so the developer fixes their lint/CI in the same review where they commit the move. Follow-up to epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) / 9MMWS7, found during the v0.46.0 dogfood (this repo's own `eslint.config.ts` broke post-migration).
   → `.project/tickets/JYWZG1-migration-stale-config-warning`
 - **Fresh safeword setup scaffolds .project/ (N9S5XG)** (done, epic: project-namespace-default)

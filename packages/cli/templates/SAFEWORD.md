@@ -2,7 +2,7 @@
 
 The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in `./CLAUDE.md`. Triggered playbooks live in `./.safeword/guides/`.
 
-Project knowledge (tickets, learnings, personas, glossary) lives under the **project namespace root**: `.project/` by default, configurable via `paths.projectRoot` in `.safeword/config.json`. Older installs may still use `.safeword-project/` — both work; paths below assume `.project/`.
+Project knowledge (tickets, learnings, personas, glossary) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
 
 ---
 
@@ -47,7 +47,7 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, intake builds four artifacts in order, each anchoring the next: author the Jobs To Be Done in `spec.md` first — one persona (from `.project/personas.md`) per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
+Exit: user accepts your proposal. For features, intake builds four artifacts in order, each anchoring the next: author the Jobs To Be Done in `spec.md` first — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
@@ -165,7 +165,7 @@ Read the matching guide when its trigger fires:
 
 **Commit frequently.** After each GREEN phase, before and after refactors, when switching tasks. The LOC gate fires near 400 lines — commit to reset it.
 
-**Learnings.** Project-specific lessons live in `.project/learnings/`. Before non-trivial work, scan `INDEX.md` or grep for your topic. When you solve something non-obvious, add `<slug>.md` with a `Covers:` line; `safeword sync-learnings` regenerates the index.
+**Learnings.** Project-specific lessons live in `<namespace-root>/learnings/`. Before non-trivial work, scan `INDEX.md` or grep for your topic. When you solve something non-obvious, add `<slug>.md` with a `Covers:` line; `safeword sync-learnings` regenerates the index.
 
 ---
 

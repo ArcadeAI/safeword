@@ -21,8 +21,12 @@ import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } fro
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STATUSLINE_REENTRY = nodePath.join(SAFEWORD_ROOT, '.safeword/statusline/reentry.ts');
 
-function makeLogFile(directory: string, lines: string[]): void {
-  const briefDirectory = nodePath.join(directory, '.safeword-project');
+function makeLogFile(
+  directory: string,
+  lines: string[],
+  namespaceRoot = '.safeword-project',
+): void {
+  const briefDirectory = nodePath.join(directory, namespaceRoot);
   mkdirSync(briefDirectory, { recursive: true });
   writeFileSync(nodePath.join(briefDirectory, 're-entry.md'), `${lines.join('\n')}\n`);
 }
@@ -140,5 +144,30 @@ describe('statusline-reentry script — Rule 8: surface latest Next:', () => {
     // Older entries should NOT be on the status line — it's a single most-recent.
     expect(result.stdout).not.toContain('first thing');
     expect(result.stdout).not.toContain('second thing');
+  });
+
+  it('reads re-entry.md from configured paths.projectRoot before directory fallback', () => {
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'team-notes' } }),
+    );
+
+    makeLogFile(
+      projectDirectory,
+      ['2026-05-22T10:00:00Z sess_current ticket=∅/freeform Next: configured root'],
+      'team-notes',
+    );
+    makeLogFile(
+      projectDirectory,
+      ['2026-05-22T10:00:00Z sess_current ticket=∅/freeform Next: default root'],
+      '.project',
+    );
+
+    const result = runStatusline(projectDirectory, 'sess_current');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Next: configured root');
+    expect(result.stdout).not.toContain('default root');
   });
 });

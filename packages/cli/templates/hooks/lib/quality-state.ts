@@ -37,7 +37,7 @@ export interface QualityState {
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];
   /**
-   * Files under `.safeword-project/learnings/*.md` edited this session whose
+   * Files under `<namespace-root>/learnings/*.md` edited this session whose
    * "novel claim — verify with /quality-review" nudge has not yet been shown.
    * Append-only per-fingerprint; cleared atomically by prompt-questions when
    * the nudge fires (entries move to `learningsNudgesAcknowledged`).

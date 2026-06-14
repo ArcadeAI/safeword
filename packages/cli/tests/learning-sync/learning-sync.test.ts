@@ -19,7 +19,7 @@ describe('learning-sync', () => {
 
   beforeEach(() => {
     temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-learning-sync-'));
-    learningsDirectory = nodePath.join(temporaryDirectory, LEARNINGS_RELATIVE_PATH);
+    learningsDirectory = nodePath.join(temporaryDirectory, '.project', 'learnings');
     mkdirSync(learningsDirectory, { recursive: true });
   });
 
@@ -116,13 +116,13 @@ describe('learning-sync', () => {
       const content = buildIndexContent([
         {
           fileName: 'x.md',
-          relativePath: '.safeword-project/learnings/x.md',
+          relativePath: `${LEARNINGS_RELATIVE_PATH}/x.md`,
           title: 'X',
           covers: 'x-topic.',
         },
         {
           fileName: 'y.md',
-          relativePath: '.safeword-project/learnings/y.md',
+          relativePath: `${LEARNINGS_RELATIVE_PATH}/y.md`,
           title: 'Y',
           covers: 'y-topic.',
         },
@@ -130,7 +130,7 @@ describe('learning-sync', () => {
       expect(content).toMatch(/^# Project Learnings — Index/);
       expect(content).toContain('## Learnings (2)');
       expect(content).toContain('- **X** — x-topic.');
-      expect(content).toContain('→ `.safeword-project/learnings/x.md`');
+      expect(content).toContain(`→ \`${LEARNINGS_RELATIVE_PATH}/x.md\``);
       expect(content).toContain('- **Y** — y-topic.');
     });
 

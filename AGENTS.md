@@ -123,19 +123,19 @@ See `ARCHITECTURE.md` for full structure including all packages and templates.
 
 ## Project-Specific Content
 
-**Location**: `.safeword-project/` (never touched by CLI reset/upgrade)
+**Location**: `<namespace-root>/` (never touched by CLI reset/upgrade)
 
 Use for project-specific guides that shouldn't be overwritten by framework updates.
 
 **Read the matching guide when ANY trigger fires:**
 
-| Trigger                                | Guide                                                   |
-| -------------------------------------- | ------------------------------------------------------- |
-| Creating or modifying a skill          | `.safeword-project/guides/skill-authoring-guide.md`     |
-| Creating or modifying a hook           | `.safeword-project/guides/hooks-authoring-guide.md`     |
-| Creating or modifying a command        | `.safeword-project/guides/command-authoring-guide.md`   |
-| Adding files to CLI templates (schema) | `.safeword-project/guides/schema-registration-guide.md` |
-| Calling LLMs from code (APIs, caching) | `.safeword-project/guides/llm-integration-guide.md`     |
+| Trigger                                | Guide                                                  |
+| -------------------------------------- | ------------------------------------------------------ |
+| Creating or modifying a skill          | `<namespace-root>/guides/skill-authoring-guide.md`     |
+| Creating or modifying a hook           | `<namespace-root>/guides/hooks-authoring-guide.md`     |
+| Creating or modifying a command        | `<namespace-root>/guides/command-authoring-guide.md`   |
+| Adding files to CLI templates (schema) | `<namespace-root>/guides/schema-registration-guide.md` |
+| Calling LLMs from code (APIs, caching) | `<namespace-root>/guides/llm-integration-guide.md`     |
 
 ## Ticket Naming
 

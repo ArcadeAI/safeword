@@ -12,8 +12,8 @@ import nodePath from 'node:path';
 
 import { resolveLearningsDirectory } from '../utils/configured-paths.js';
 
-/** Legacy default label; live code derives the label from the resolved root. */
-export const LEARNINGS_RELATIVE_PATH = '.safeword-project/learnings';
+/** Placeholder label for callers that read a directory without a project cwd. */
+export const LEARNINGS_RELATIVE_PATH = '<namespace-root>/learnings';
 export const INDEX_FILENAME = 'INDEX.md';
 
 export interface LearningEntry {

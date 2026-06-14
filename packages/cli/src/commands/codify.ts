@@ -1,9 +1,9 @@
 /**
- * `safeword codify <ticket>` — emit a native vitest test skeleton from a ticket's
- * test-definitions.md (ticket CS86B0). Resolves the ticket folder, parses its
- * scenarios, and renders the skeleton to stdout (default) or a file (`--out`,
- * which refuses to overwrite). The transform itself lives in the pure
- * `utils/test-skeleton.ts`; this command owns only the I/O and error reporting.
+ * `safeword codify <ticket>` — emit derived test artifacts from a ticket's
+ * `.feature` source when present, or legacy test-definitions.md otherwise.
+ * Resolves the ticket folder, parses scenarios, and renders the skeleton to
+ * stdout (default) or a file (`--out`, which refuses to overwrite). The
+ * transforms live in pure utils; this command owns only I/O and errors.
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -11,8 +11,16 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { findFeatureSourcePath } from '../utils/feature-source.js';
+import { FeatureParseError, parseFeatureScenarios } from '../utils/gherkin-feature.js';
 import { error, success } from '../utils/output.js';
-import { emitGherkinFeature, emitVitestSkeleton, parseScenarios } from '../utils/test-skeleton.js';
+import {
+  emitGherkinFeature,
+  emitVitestSkeleton,
+  emitVitestSkeletonFromScenarios,
+  type ParsedScenario,
+  parseScenarios,
+} from '../utils/test-skeleton.js';
 
 export interface CodifyOptions {
   /** Output format: `vitest` (default) or `gherkin`. */
@@ -37,28 +45,76 @@ function codifySync(ticket: string, options: CodifyOptions): void {
     fail(`No ticket folder for "${ticket}" under the tickets directory.`);
   }
 
-  const testDefinitionsPath = nodePath.join(ticketDirectory, 'test-definitions.md');
-  if (!existsSync(testDefinitionsPath)) {
-    fail(
-      `No test-definitions.md in ${nodePath.relative(cwd, ticketDirectory)} — nothing to codify.`,
-    );
-  }
-
-  const content = readFileSync(testDefinitionsPath, 'utf8');
-  const scenarios = parseScenarios(content);
+  const source = readCodifySource(cwd, ticketDirectory);
+  const scenarios = parseCodifyScenarios(source);
   if (scenarios.length === 0) {
-    fail(`No scenarios found in ${nodePath.relative(cwd, testDefinitionsPath)}.`);
+    fail(`No scenarios found in ${source.displayPath}.`);
   }
 
-  const skeleton =
-    format === 'gherkin'
-      ? emitGherkinFeature(content, { source: ticket })
-      : emitVitestSkeleton(content, { red: options.red, source: ticket });
+  const skeleton = renderSkeleton(format, source, scenarios, ticket, options.red);
   if (options.out === undefined) {
     process.stdout.write(skeleton);
     return;
   }
   writeSkeleton(nodePath.resolve(cwd, options.out), options.out, skeleton, scenarios.length);
+}
+
+function parseCodifyScenarios(source: CodifySource): ParsedScenario[] {
+  try {
+    return source.kind === 'feature'
+      ? parseFeatureScenarios(source.content)
+      : parseScenarios(source.content);
+  } catch (parseError: unknown) {
+    if (parseError instanceof FeatureParseError) {
+      fail(`${source.displayPath}: invalid Gherkin feature: ${parseError.message}`);
+    }
+    throw parseError;
+  }
+}
+
+function renderSkeleton(
+  format: 'gherkin' | 'vitest',
+  source: CodifySource,
+  scenarios: readonly ParsedScenario[],
+  ticket: string,
+  red: boolean | undefined,
+): string {
+  if (format === 'gherkin') {
+    if (source.kind === 'feature') return source.content;
+    return emitGherkinFeature(source.content, { source: ticket });
+  }
+
+  if (source.kind === 'feature') {
+    return emitVitestSkeletonFromScenarios(scenarios, { red, source: ticket });
+  }
+  return emitVitestSkeleton(source.content, { red, source: ticket });
+}
+
+type CodifySource =
+  | { kind: 'feature'; content: string; displayPath: string }
+  | { kind: 'markdown'; content: string; displayPath: string };
+
+function readCodifySource(cwd: string, ticketDirectory: string): CodifySource {
+  const featurePath = findFeatureSourcePath(cwd, nodePath.basename(ticketDirectory));
+  if (featurePath !== undefined) {
+    return {
+      kind: 'feature',
+      content: readFileSync(featurePath, 'utf8'),
+      displayPath: nodePath.relative(cwd, featurePath),
+    };
+  }
+
+  const testDefinitionsPath = nodePath.join(ticketDirectory, 'test-definitions.md');
+  if (!existsSync(testDefinitionsPath)) {
+    fail(
+      `No feature source or test-definitions.md in ${nodePath.relative(cwd, ticketDirectory)} — nothing to codify.`,
+    );
+  }
+  return {
+    kind: 'markdown',
+    content: readFileSync(testDefinitionsPath, 'utf8'),
+    displayPath: nodePath.relative(cwd, testDefinitionsPath),
+  };
 }
 
 /** Validate `--format`, defaulting to vitest; fail on an unknown value. */
