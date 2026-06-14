@@ -107,7 +107,10 @@ function truncateOutput(output: string): string {
   return '...(truncated)\n' + tail.slice(-MAX_OUTPUT_CHARS);
 }
 
-function runSingleTestCommand(cwd: string, testCommand: TestCommand): { passed: boolean; output: string } {
+function runSingleTestCommand(
+  cwd: string,
+  testCommand: TestCommand,
+): { passed: boolean; output: string } {
   try {
     const output = execSync(testCommand.command, {
       cwd,
