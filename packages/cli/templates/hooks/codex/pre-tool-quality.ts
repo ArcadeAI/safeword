@@ -131,6 +131,11 @@ function denialReasonFrom(stdout: string): string | undefined {
   }
 }
 
+function writeHookOutput(result: { stdout?: string | null; stderr?: string | null }): void {
+  if (result.stdout !== '') process.stdout.write(result.stdout ?? '');
+  if (result.stderr !== '') process.stderr.write(result.stderr ?? '');
+}
+
 const input = await readInput();
 if (!input) process.exit(0);
 
@@ -162,14 +167,12 @@ for (const result of results) {
     process.exit(2);
   }
 
-  if (result.stdout !== '') process.stdout.write(result.stdout ?? '');
-  if (result.stderr !== '') process.stderr.write(result.stderr ?? '');
+  writeHookOutput(result);
   process.exit(result.status ?? 0);
 }
 
 for (const result of results) {
-  if (result.stdout !== '') process.stdout.write(result.stdout ?? '');
-  if (result.stderr !== '') process.stderr.write(result.stderr ?? '');
+  writeHookOutput(result);
 }
 
 const failedResult = results.find(result => (result.status ?? 0) !== 0);
