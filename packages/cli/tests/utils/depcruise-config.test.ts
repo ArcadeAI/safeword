@@ -74,6 +74,7 @@ describe('DepCruise Config Generator', () => {
       // Should exclude common entry points and framework patterns
       expect(config).toContain(String.raw`index\\.[tj]sx?$`);
       expect(config).toContain(String.raw`cli\\.[tj]s$`);
+      expect(config).toContain(String.raw`cucumber\\.mjs$`);
       expect(config).toContain('/src/pages/');
       expect(config).toContain('/src/content/');
       expect(config).toContain('/__tests__/');
