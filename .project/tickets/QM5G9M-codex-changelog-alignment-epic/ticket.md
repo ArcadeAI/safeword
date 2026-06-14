@@ -83,8 +83,9 @@ XK5N14 audit result:
 
 - `5DEJ8V-codex-agents-config-generation` → source feature `packages/cli/features/codex-agents-config-generation.feature`.
 - `N12G95-codex-pretooluse-deny-spike` → source feature `packages/cli/features/codex-pretooluse-deny-spike.feature`.
+- `WR4HRA-codex-min-version-baseline` → source feature `packages/cli/features/codex-min-version-baseline.feature`.
 - `CXP9LM-codex-live-parity-smoke` → source feature `packages/cli/features/codex-live-parity-smoke.feature`, tagged `@live @manual` until that ticket implements the trusted Codex execution path.
-- `HPP49X-codex-lifecycle-hook-mapping`, `QGHVXZ-codex-commands-skills-vs-prompts`, `JV6D1W-codex-enforcement-trust-model`, `WR4HRA-codex-min-version-baseline`, and `6WJ1RS-codex-plugin-marketplace-packaging` → no-feature-file rationale recorded in each ticket because their current deliverables are design, decision, baseline research, or packaging-shape records rather than executable behavior.
+- `HPP49X-codex-lifecycle-hook-mapping`, `QGHVXZ-codex-commands-skills-vs-prompts`, `JV6D1W-codex-enforcement-trust-model`, and `6WJ1RS-codex-plugin-marketplace-packaging` → no-feature-file rationale recorded in each ticket because their current deliverables are design, decision, or packaging-shape records rather than executable behavior.
 
 ## Revalidation + /figure-it-out (2026-06-13)
 
@@ -92,7 +93,7 @@ XK5N14 audit result:
 
 **Research domains checked:** Codex hook blocking semantics, Codex skills/plugin distribution, AGENTS.md discovery, managed configuration/trust model, Codex CLI release floor, and safeword's existing Claude/Cursor generator architecture.
 
-**Current evidence:** Official Codex docs still support the epic premise: `UserPromptSubmit` can hard-block prompts, `PreToolUse` can deny supported `Bash` / `apply_patch` / MCP tool calls, `Stop` is only a continuation nudge, skills live in `.agents/skills`, plugins can bundle hooks, plugin hooks still require trust, and managed `requirements.toml` is the enterprise enforcement path. The latest stable Codex CLI release found via `openai/codex` releases is `0.139.0` (2026-06-09); `0.140.0-alpha.17` exists as a prerelease on 2026-06-13.
+**Current evidence:** Official Codex docs still support the epic premise: `UserPromptSubmit` can hard-block prompts, `PreToolUse` can deny supported `Bash` / `apply_patch` / MCP tool calls, `Stop` is only a continuation nudge, skills live in `.agents/skills`, plugins can bundle hooks, plugin hooks still require trust, and managed `requirements.toml` is the enterprise enforcement path. The latest stable Codex CLI release found via `openai/codex` releases is `0.139.0` (2026-06-09); `0.140.0-alpha.18` exists as a prerelease on 2026-06-13.
 
 **Options:**
 

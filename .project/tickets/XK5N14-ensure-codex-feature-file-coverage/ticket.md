@@ -57,7 +57,7 @@ Audit the Codex epic children:
 - `HPP49X-codex-lifecycle-hook-mapping`: no source feature required; design task.
 - `QGHVXZ-codex-commands-skills-vs-prompts`: no source feature required; command-surface decision.
 - `JV6D1W-codex-enforcement-trust-model`: no source feature required; trust-model decision and documentation.
-- `WR4HRA-codex-min-version-baseline`: no source feature required yet; version-floor research and future setup-warning implementation deferred.
+- `WR4HRA-codex-min-version-baseline`: source feature added after implementation started: `packages/cli/features/codex-min-version-baseline.feature`.
 - `6WJ1RS-codex-plugin-marketplace-packaging`: no source feature required yet; packaging strategy and manifest-shape decision.
 
 ## Work Log
@@ -67,3 +67,4 @@ Audit the Codex epic children:
 - 2026-06-13T23:05:55Z Backfilled Codex source features for `5DEJ8V`, `N12G95`, and live/manual `CXP9LM`; recorded no-feature-file rationales for the remaining design/decision/baseline/packaging tickets.
 - 2026-06-13T23:27:35Z Verify: `bun run format:check`, `bun run lint:gherkin`, `bunx eslint packages/cli/features/steps/codex.steps.ts`, and `bun run --cwd packages/cli test:bdd` all passed. Added `verify.md`; ticket remains in progress because the Claude-specific `/verify` invocation stamp is unavailable in this Codex session.
 - 2026-06-13T23:46:54Z Complete: marked done after user confirmed closing all non-live-smoke-blocked Codex tickets. Existing `verify.md` records the feature coverage audit evidence. Phase -> done.
+- 2026-06-14T00:00:00Z Coverage update: `WR4HRA` now has a source feature because setup-warning implementation started after the original audit.

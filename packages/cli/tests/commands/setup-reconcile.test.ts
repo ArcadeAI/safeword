@@ -8,7 +8,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -18,6 +18,7 @@ import {
   createTemporaryDirectory,
   getReconcileTestUtilities,
   removeTemporaryDirectory,
+  runCli,
   setupReconcileTest,
 } from '../helpers';
 
@@ -212,6 +213,30 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(content).toContain('[[hooks.PreToolUse]]');
       expect(content).toContain('apply_patch');
       expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+    });
+
+    it('should warn when the installed Codex CLI is below the safeword hook floor', async () => {
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'package.json'),
+        JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
+      );
+      const fakeBin = nodePath.join(temporaryDirectory, 'bin');
+      mkdirSync(fakeBin);
+      const fakeCodex = nodePath.join(fakeBin, 'codex');
+      writeFileSync(fakeCodex, '#!/usr/bin/env sh\necho "codex 0.132.0"\n');
+      chmodSync(fakeCodex, 0o755);
+
+      const result = await runCli(['setup', '--yes', '--no-modify'], {
+        cwd: temporaryDirectory,
+        env: {
+          PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '1',
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('Codex 0.132.0 is below safeword');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
     });
 
     it('should prepend to existing AGENTS.md', async () => {

@@ -2,8 +2,8 @@
 id: WR4HRA
 slug: codex-min-version-baseline
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 ---
@@ -20,25 +20,34 @@ relates_to: QM5G9M
 
 **Revalidated findings (2026-06-13):**
 
-- Latest stable is **0.139.0 (2026-06-09)**; latest prerelease observed is **0.140.0-alpha.17 (2026-06-13)**.
+- Latest stable is **0.139.0 (2026-06-09)**; latest prerelease observed is **0.140.0-alpha.18 (2026-06-13)**.
 - Older release notes show hook-related work before 0.133.0, including plugin hooks/trust and `PreToolUse` adjacent changes, but the release notes below 0.133.0 do not clearly prove the full set safeword needs (`PreToolUse` deny + `UserPromptSubmit` block + runtime enforcement + current trust behavior).
+- The `rust-v0.132.0` release notes only surface a generic async extension lifecycle-hooks entry for this search, while `rust-v0.133.0` includes "Wire MITM hooks into runtime enforcement" and the lifecycle events safeword depends on. That keeps `0.133.0` as the confirmed safe floor.
 - Current docs include features that require newer releases for other managed config surfaces (`allowed_permission_profiles` requires 0.138.0+), but that does not appear required for the core safeword hook baseline.
 
-## Decision (provisional)
+## Decision
 
-Floor = **0.133.0** until proven a lower version has the needed events. Conservative but safe.
+`codex-version` baseline = **0.133.0**.
+
+Setup warns, but does not block, when an installed `codex --version` is below `0.133.0`. Missing or unparsable Codex stays silent because safeword installs multi-agent assets and should not nag non-Codex users.
+
+When the upstream monitor snapshot store from `99XBFG` exists, fold this baseline into its `codex-version` snapshot.
 
 ## Done when
 
-- Floor confirmed (scan older release notes for `PreToolUse`/`UserPromptSubmit`); recorded as a `codex-version` baseline (folds into monitor snapshot, ticket 99XBFG); setup warns below it.
+- [x] Floor confirmed against `rust-v0.132.0` and `rust-v0.133.0` release notes.
+- [x] `codex-version` baseline recorded as `0.133.0`.
+- [x] Setup warns below `0.133.0`.
 
 ## Source
 
-github.com/openai/codex/releases (+ releases.atom feed)
+github.com/openai/codex/releases (+ releases.atom feed and release API)
 
 ## Feature File Coverage
 
-No source `.feature` file is required for this ticket in its current state. It is a baseline research and version-floor decision ticket. The future setup warning below the chosen floor is executable behavior and should get its own source `.feature` when implementation starts, after the `0.132.0` vs `0.133.0` hook fixture check resolves the floor.
+Source feature: `packages/cli/features/codex-min-version-baseline.feature`.
+
+The feature covers setup's user-visible warning when the installed Codex CLI is below the `0.133.0` hook baseline.
 
 ## Revalidation + /figure-it-out (2026-06-13)
 
@@ -52,12 +61,12 @@ No source `.feature` file is required for this ticket in its current state. It i
 2. Keep 0.133.0 as the minimum and recommend latest stable.
 3. Raise to 0.139.0 to match current stable.
 
-**Recommend:** Keep option 2. `0.133.0` remains the earliest release with clear runtime-enforcement and lifecycle-extension evidence, while forcing `0.139.0` would unnecessarily exclude users until the spike proves a concrete need. Setup should warn below `0.133.0` and recommend upgrading to the latest stable (`0.139.0` as of 2026-06-13).
-
-**Next:** After `N12G95`, run the same hook fixture against `0.132.0` and `0.133.0`; only lower the floor if the real gate works on `0.132.0`.
+**Recommend:** Keep option 2. `0.133.0` remains the earliest release with clear runtime-enforcement and lifecycle-extension evidence, while forcing `0.139.0` would unnecessarily exclude users until the spike proves a concrete need. Setup warns below `0.133.0` and recommends upgrading before trusting safeword's Codex gates.
 
 ## Work Log
 
 - 2026-05-31 Created (changelog gap noted).
 - 2026-05-31 Read releases page. Provisional floor 0.133.0; basic-hooks floor still to confirm in 0.125–0.132.
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out. Current stable is 0.139.0; prerelease 0.140.0-alpha.17 exists. Keep provisional floor at 0.133.0; older release notes mention hooks but do not prove the complete gate surface.
+- 2026-06-14T00:00:00Z Implemented: added `packages/cli/features/codex-min-version-baseline.feature`, setup warning for installed Codex versions below `0.133.0`, and focused Vitest/Cucumber coverage. Phase -> implement pending final verify.
+- 2026-06-14T00:04:25Z Complete: focused Vitest, Codex Cucumber smoke, Gherkin lint, targeted ESLint, typecheck, and targeted format checks passed. Added `verify.md`. Phase -> done.
