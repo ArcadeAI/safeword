@@ -86,6 +86,21 @@ function runCodexHook(
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
 
+function writeIncompleteTicket(ticketDirectory: string): void {
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'ticket.md'),
+    [
+      '---',
+      'id: ABC123',
+      'type: feature',
+      'phase: define-behavior',
+      'status: in_progress',
+      '---',
+      '',
+    ].join('\n'),
+  );
+}
+
 describe('Codex PreToolUse deny spike (N12G95)', () => {
   let projectRoot: string;
   let ticketDirectory: string;
@@ -101,35 +116,13 @@ describe('Codex PreToolUse deny spike (N12G95)', () => {
   });
 
   it('denies supported Codex edits when safeword intake prerequisites are missing', () => {
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'ticket.md'),
-      [
-        '---',
-        'id: ABC123',
-        'type: feature',
-        'phase: define-behavior',
-        'status: in_progress',
-        '---',
-        '',
-      ].join('\n'),
-    );
+    writeIncompleteTicket(ticketDirectory);
 
     expectHookDeny(runCodexHook(projectRoot), 'scope');
   });
 
   it('denies multi-file Codex patches when any target violates safeword gates', () => {
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'ticket.md'),
-      [
-        '---',
-        'id: ABC123',
-        'type: feature',
-        'phase: define-behavior',
-        'status: in_progress',
-        '---',
-        '',
-      ].join('\n'),
-    );
+    writeIncompleteTicket(ticketDirectory);
 
     expectHookDeny(
       runCodexHook(projectRoot, { command: MULTI_FILE_TEST_DEFINITIONS_PATCH }),
@@ -150,18 +143,7 @@ describe('Codex PreToolUse deny spike (N12G95)', () => {
   });
 
   it('can report the same denial through Codex exit-code fallback mode', () => {
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'ticket.md'),
-      [
-        '---',
-        'id: ABC123',
-        'type: feature',
-        'phase: define-behavior',
-        'status: in_progress',
-        '---',
-        '',
-      ].join('\n'),
-    );
+    writeIncompleteTicket(ticketDirectory);
 
     const result = runCodexHook(projectRoot, { fallbackMode: true });
     expect(result.status).toBe(2);
