@@ -65,7 +65,7 @@
     "@next/eslint-plugin-next": "16.2.9",
     "@tanstack/eslint-plugin-query": "5.101.0",
     "@vitest/eslint-plugin": "^1.6.20",
-    "commander": "14.0.3",
+    "commander": "15.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-astro": "^1.7.0",
