@@ -2,8 +2,8 @@
 id: 5DEJ8V
 slug: codex-agents-config-generation
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 scope:
@@ -76,3 +76,4 @@ developers.openai.com/codex/config-reference, /config-advanced, /hooks, /skills
 - 2026-06-13T15:16:50Z Complete: intake + define-behavior + scenario-gate - promoted to feature-flow for full safeword BDD, wrote spec.md, dimensions.md, and 3 reconcile-backed scenarios. Phase -> implement.
 - 2026-06-13T15:24:29Z Complete: implement - added RED setup/upgrade reconcile tests, observed the expected missing `.codex`/`.agents` failures, added managed `.codex/config.toml`, `.agents/skills` schema generation, and Codex config template. Focused schema/setup/upgrade tests passed (53 tests) and CLI lint/typecheck passed. Reconciled impl-plan.md; 0 decisions updated, 0 deviations recorded. Phase -> verify.
 - 2026-06-13T15:26:54Z Verify in progress - combined Codex-focused suite passed (4 files, 56 tests), `test:smoke:fast` passed (35 files, 457 tests), CLI lint/typecheck passed, and targeted Markdown/Prettier checks passed. Ticket remains in verify; Claude `/verify` + `/audit` invocation stamps were not produced.
+- 2026-06-13T23:46:54Z Complete: verify - focused Codex/setup/schema tests passed (56/56), typecheck passed, and gherkin lint passed. Added `verify.md`; live trusted Codex-session validation remains delegated to `CXP9LM`. Phase -> done.

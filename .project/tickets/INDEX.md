@@ -89,6 +89,12 @@
   Make the bdd flow author scenarios as Gherkin `.feature` files directly — one source of truth the acceptance lane executes — demoting `test-definitions.md` to planning + R/G/R progress tracking. Kills the three-representations redundancy (markdown G/W/T + emitted vitest + emitted `.feature`) flagged by the 2026-06-10 flow review.
   blocked by: Executable Gherkin specs for TypeScript projects (102a), Scaffold the cucumber-js acceptance lane as core safeword setup (TS + non-TS) (102b)
   → `.project/tickets/1DT29X-feature-files-as-source`
+- **Align Gherkin source instructions across safeword docs (5AXPHR)** (in_progress, epic: bdd-phase-two-merge)
+  Replace stale markdown-scenario lineage wording with `.feature` tag guidance across SAFEWORD, BDD discovery, ticket-system, and starter Cucumber docs.
+  → `.project/tickets/5AXPHR-align-gherkin-source-instructions`
+- **Teach agents when to use the Gherkin acceptance lane (7ES3GW)** (in_progress, epic: bdd-phase-two-merge)
+  Update testing guidance so feature-level BDD starts with `.feature` acceptance scenarios while implementation tests stay at the highest practical scope.
+  → `.project/tickets/7ES3GW-teach-testing-guide-gherkin-acceptance-lane`
 - **Spec-revision discipline — safeword equivalent of arcade /update-spec (2K46FG)** (backlog, epic: bdd-phase-two-merge)
   Give safeword a disciplined way to revise a ticket's `spec.md` / `test-definitions.md` after it has reached define-behavior or beyond, instead of ad-hoc editing — deliberate-the-change-before-writing, reset the phase appropriately, and flag the downstream artifacts that go stale.
   → `.project/tickets/2K46FG-spec-revision-discipline`
@@ -182,6 +188,12 @@
 - **Generate AGENTS.md + config.toml hook wiring for Codex (5DEJ8V)** (in_progress, epic: codex-changelog-alignment)
   Have `safeword setup` produce the Codex install: `AGENTS.md` (instructions), hook wiring, and skills in `.agents/skills`.
   → `.project/tickets/5DEJ8V-codex-agents-config-generation`
+- **Prove Codex parity in a trusted customer repo (CXP9LM)** (in_progress, epic: codex-changelog-alignment)
+  Run a black-box smoke that installs safeword into a customer-like repo and verifies Codex loads instructions, skills, and a trusted deny hook.
+  → `.project/tickets/CXP9LM-codex-live-parity-smoke`
+- **Ensure feature files cover Codex parity tickets (XK5N14)** (in_progress, epic: codex-changelog-alignment)
+  Backfill source `.feature` files or explicit no-feature-file rationales for every Codex parity child ticket.
+  → `.project/tickets/XK5N14-ensure-codex-feature-file-coverage`
 - **Package as Codex plugin/marketplace bundle (6WJ1RS)** (in_progress, epic: codex-changelog-alignment)
   Ship safeword as a Codex plugin distributed via Codex's marketplace, parallel to the Cursor packaging ticket (DXYKJX).
   → `.project/tickets/6WJ1RS-codex-plugin-marketplace-packaging`

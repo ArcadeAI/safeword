@@ -2,8 +2,8 @@
 id: 6WJ1RS
 slug: codex-plugin-marketplace-packaging
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 ---
@@ -34,6 +34,10 @@ relates_to: QM5G9M
 
 developers.openai.com/codex/plugins (+ Build-plugins subpage), /hooks, changelog v0.133.0
 
+## Feature File Coverage
+
+No source `.feature` file is required for this ticket in its current state. It is a packaging strategy and manifest-shape decision ticket. Executable plugin build/install behavior should get a source feature when the ticket moves from decision notes to implementation after `5DEJ8V` proves the raw Codex assets.
+
 ## Revalidation + /figure-it-out (2026-06-13)
 
 **Frame:** Decide whether plugin packaging should be the default Codex distribution path or a second-stage package after raw setup works.
@@ -55,3 +59,4 @@ developers.openai.com/codex/plugins (+ Build-plugins subpage), /hooks, changelog
 - 2026-05-31 Created during hooks verification; parity with Cursor DXYKJX.
 - 2026-05-31 Read Plugins overview. Bundles skills/apps/MCP; hooks-bundling to confirm on Build-plugins subpage; plugin hooks still trust-gated.
 - 2026-06-13T14:37:31Z Revalidated and ran /figure-it-out. Plugin hook bundling is confirmed via hooks docs and manifest support; plugin remains second-stage distribution after raw Codex setup works, not the trust bypass.
+- 2026-06-14T00:20:00Z Quality-review follow-up: completed verify record for the packaging decision ticket. No feature source is required until plugin packaging moves to implementation.

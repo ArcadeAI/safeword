@@ -5,4 +5,5 @@
 export default {
   import: ['tsx/esm', 'features/steps/**/*.ts'],
   paths: ['features/**/*.feature'],
+  tags: 'not @manual and not @live',
 };

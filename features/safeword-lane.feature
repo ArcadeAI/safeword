@@ -6,6 +6,6 @@ Feature: Safeword BDD lane
   generates them from a ticket's test-definitions.md.
 
   Scenario: the lane is wired
-    When I run "node --version"
-    Then the exit code is 0
-    And the output contains "v"
+    When I run shell command "node --version"
+    Then the shell exit code is 0
+    And the shell output contains "v"
