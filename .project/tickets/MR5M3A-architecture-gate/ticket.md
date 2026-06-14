@@ -2,10 +2,10 @@
 id: MR5M3A
 slug: architecture-gate
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-12T01:36:37.466Z
-last_modified: 2026-06-12T02:24:00.000Z
+last_modified: 2026-06-12T20:59:00.000Z
 scope:
   - Require the impl-plan.md Decisions section (shipped by #204) to carry cited external evidence — the enforceable trace that /figure-it-out ran — for new-flow features; this is the generation half of "propose with evidence, then independently challenge"
   - Add a fresh-context fork review of the impl-plan.md design, adversarial (refute the design against its cited sources), whose pass is required to leave the implement phase — reusing the Tier 2 review-ledger/stamp mechanism; this is the selection half
@@ -42,3 +42,4 @@ depends_on:
 - 2026-06-12T01:36:37.466Z Started: Created ticket MR5M3A
 - 2026-06-12T02:24:00.000Z Complete: define-behavior - 15 scenarios across 5 rules (evidence, design-review stamp, cross-model, default-off, scope exemptions)
 - 2026-06-12T02:30:00.000Z Complete: scenario-gate - two independent fork reviews (3 must-fix + 4 should-strengthen found and fixed; verify pass 0 must-fix); 25 scenarios, AODI clean; impl-plan.md written (status planned)
+- 2026-06-12T20:59:00.000Z Done: shipped in PR #208 (squash 430dd15). Full CI green; an independent implementation review caught a fail-open + cross-model ordering bug, both fixed. Gate recorded as an ADR in ARCHITECTURE.md. Closed via cleanup branch (the done-gate's full-suite run was not tractable in the build sandbox).
