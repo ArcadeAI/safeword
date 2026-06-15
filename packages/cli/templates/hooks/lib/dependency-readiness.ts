@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+  type Dirent,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
@@ -48,6 +56,13 @@ export interface DependencyReadinessState {
 const INSTALL_ARTIFACT = 'node_modules';
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
+const WORKSPACE_SCAN_EXCLUDED_DIRECTORIES = new Set([
+  '.git',
+  '.project',
+  '.safeword',
+  '.safeword-project',
+  'node_modules',
+]);
 const BUN_OPTIONS_WITH_VALUES = new Set([
   '--config',
   '--conditions',
@@ -261,14 +276,7 @@ function collectWorkspacePackageJsonPaths(
   projectDirectory: string,
   rootPackageJson: Record<string, unknown>,
 ): string[] {
-  const patterns = readWorkspacePatterns(rootPackageJson);
-  const packageJsonPaths: string[] = [];
-
-  for (const pattern of patterns) {
-    packageJsonPaths.push(...expandWorkspacePattern(projectDirectory, pattern));
-  }
-
-  return packageJsonPaths;
+  return expandWorkspacePatterns(projectDirectory, readWorkspacePatterns(rootPackageJson));
 }
 
 function readWorkspacePatterns(rootPackageJson: Record<string, unknown>): string[] {
@@ -291,34 +299,177 @@ function readWorkspacePatterns(rootPackageJson: Record<string, unknown>): string
   return [];
 }
 
-function expandWorkspacePattern(projectDirectory: string, pattern: string): string[] {
-  const normalizedPattern = pattern.replaceAll('\\', '/').replace(/^\.?\//, '');
-  if (normalizedPattern.includes('**')) return [];
+interface WorkspacePattern {
+  pattern: string;
+  negated: boolean;
+}
 
-  const starIndex = normalizedPattern.indexOf('*');
-  if (starIndex === -1) {
-    const packageJsonPath = normalizedPattern.endsWith('/package.json')
-      ? normalizedPattern
-      : `${normalizedPattern.replace(/\/$/, '')}/package.json`;
+function expandWorkspacePatterns(projectDirectory: string, rawPatterns: string[]): string[] {
+  const patterns = rawPatterns
+    .map(normalizeWorkspacePattern)
+    .filter((pattern): pattern is WorkspacePattern => pattern !== undefined);
+  const positivePatterns = patterns.filter(pattern => !pattern.negated);
+  const negativePatterns = patterns.filter(pattern => pattern.negated);
+  const packageJsonPaths = new Set<string>();
+
+  for (const { pattern } of positivePatterns) {
+    for (const packageJsonPath of expandPositiveWorkspacePattern(projectDirectory, pattern)) {
+      if (!isExcludedWorkspacePackage(packageJsonPath, negativePatterns)) {
+        packageJsonPaths.add(packageJsonPath);
+      }
+    }
+  }
+
+  return [...packageJsonPaths];
+}
+
+function normalizeWorkspacePattern(rawPattern: string): WorkspacePattern | undefined {
+  let pattern = rawPattern.trim().replaceAll('\\', '/');
+  const negated = pattern.startsWith('!');
+  if (negated) pattern = pattern.slice(1);
+
+  pattern = pattern.replace(/^\.?\//, '').replace(/\/+$/, '');
+  if (pattern.length === 0) return undefined;
+
+  return { pattern, negated };
+}
+
+function expandPositiveWorkspacePattern(projectDirectory: string, pattern: string): string[] {
+  if (!hasGlobSyntax(pattern)) {
+    const packageJsonPath = pattern.endsWith('/package.json') ? pattern : `${pattern}/package.json`;
     return existsSync(nodePath.join(projectDirectory, packageJsonPath)) ? [packageJsonPath] : [];
   }
 
-  const prefix = normalizedPattern.slice(0, starIndex);
-  const suffix = normalizedPattern.slice(starIndex + 1);
-  if (suffix.includes('*')) return [];
+  return collectPackageJsonPathsUnder(
+    projectDirectory,
+    workspacePatternBaseDirectory(pattern),
+  ).filter(packageJsonPath => matchesWorkspacePattern(pattern, packageJsonPath, true));
+}
 
-  const baseDirectory = nodePath.join(projectDirectory, prefix);
+function collectPackageJsonPathsUnder(
+  projectDirectory: string,
+  relativeBaseDirectory: string,
+): string[] {
+  const baseDirectory = nodePath.join(projectDirectory, relativeBaseDirectory);
   if (!isDirectory(baseDirectory)) return [];
 
-  return readdirSync(baseDirectory, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => {
-      const expanded = `${prefix}${entry.name}${suffix}`;
-      return expanded.endsWith('/package.json')
-        ? expanded
-        : `${expanded.replace(/\/$/, '')}/package.json`;
-    })
-    .filter(relativePath => existsSync(nodePath.join(projectDirectory, relativePath)));
+  const packageJsonPaths: string[] = [];
+  const pendingDirectories = [baseDirectory];
+
+  while (pendingDirectories.length > 0) {
+    const directory = pendingDirectories.pop();
+    if (directory === undefined) continue;
+
+    const relativeDirectory = normalizeRelativePath(nodePath.relative(projectDirectory, directory));
+    const packageJsonPath =
+      relativeDirectory.length > 0 ? `${relativeDirectory}/package.json` : 'package.json';
+    if (existsSync(nodePath.join(directory, 'package.json'))) {
+      packageJsonPaths.push(packageJsonPath);
+    }
+
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(directory, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || WORKSPACE_SCAN_EXCLUDED_DIRECTORIES.has(entry.name)) {
+        continue;
+      }
+      pendingDirectories.push(nodePath.join(directory, entry.name));
+    }
+  }
+
+  return packageJsonPaths;
+}
+
+function isExcludedWorkspacePackage(
+  packageJsonPath: string,
+  negativePatterns: WorkspacePattern[],
+): boolean {
+  return negativePatterns.some(({ pattern }) =>
+    matchesWorkspacePattern(pattern, packageJsonPath, false),
+  );
+}
+
+function matchesWorkspacePattern(
+  pattern: string,
+  packageJsonPath: string,
+  unsupportedGlobDefault: boolean,
+): boolean {
+  const target = pattern.endsWith('/package.json')
+    ? packageJsonPath
+    : packageJsonPath.replace(/\/package\.json$/, '');
+  const matcher = workspacePatternMatcher(pattern);
+  if (matcher === undefined) return unsupportedGlobDefault;
+  return matcher.test(target);
+}
+
+function workspacePatternMatcher(pattern: string): RegExp | undefined {
+  if (/[?[\]{}]/.test(pattern)) return undefined;
+
+  let source = '^';
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    const next = pattern[index + 1];
+    const afterNext = pattern[index + 2];
+    if (char === undefined) continue;
+
+    if (char === '*' && next === '*' && afterNext === '/') {
+      source += '(?:.*/)?';
+      index += 2;
+      continue;
+    }
+
+    if (char === '*' && next === '*') {
+      source += '.*';
+      index += 1;
+      continue;
+    }
+
+    if (char === '*') {
+      source += '[^/]*';
+      continue;
+    }
+
+    source += escapeRegExp(char);
+  }
+
+  return new RegExp(`${source}$`);
+}
+
+function workspacePatternBaseDirectory(pattern: string): string {
+  const globIndex = firstGlobSyntaxIndex(pattern);
+  if (globIndex === -1) {
+    return pattern.endsWith('/package.json')
+      ? normalizeRelativePath(nodePath.dirname(pattern))
+      : pattern;
+  }
+
+  const staticPrefix = pattern.slice(0, globIndex);
+  const slashIndex = staticPrefix.lastIndexOf('/');
+  return slashIndex === -1 ? '' : staticPrefix.slice(0, slashIndex);
+}
+
+function firstGlobSyntaxIndex(pattern: string): number {
+  const indexes = ['*', '?', '[', '{']
+    .map(char => pattern.indexOf(char))
+    .filter(index => index !== -1);
+  return indexes.length === 0 ? -1 : Math.min(...indexes);
+}
+
+function hasGlobSyntax(pattern: string): boolean {
+  return firstGlobSyntaxIndex(pattern) !== -1;
+}
+
+function normalizeRelativePath(path: string): string {
+  return path.replaceAll('\\', '/');
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function isDependencyBackedSegment(segment: string): boolean {

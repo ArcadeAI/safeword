@@ -116,6 +116,57 @@ describe('dependency readiness hook support', () => {
     ]);
   });
 
+  it('tracks package manifests matched by recursive workspace globs', () => {
+    writeJson('package.json', {
+      name: 'recursive-workspace-project',
+      packageManager: 'bun@1.3.14',
+      workspaces: ['packages/**'],
+    });
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+    writeJson('packages/cli/package.json', {
+      name: '@test/cli',
+    });
+    writeJson('packages/features/plugin/package.json', {
+      name: '@test/plugin',
+    });
+
+    const plan = detectDependencyPlan(projectDirectory);
+
+    expect(plan?.inputPaths.toSorted()).toEqual([
+      'bun.lock',
+      'package.json',
+      'packages/cli/package.json',
+      'packages/features/plugin/package.json',
+    ]);
+  });
+
+  it('excludes package manifests matched by negative workspace globs', () => {
+    writeJson('package.json', {
+      name: 'excluded-workspace-project',
+      packageManager: 'bun@1.3.14',
+      workspaces: ['packages/**', '!packages/**/test/**'],
+    });
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+    writeJson('packages/app/package.json', {
+      name: '@test/app',
+    });
+    writeJson('packages/app/test/fixture/package.json', {
+      name: '@test/fixture',
+    });
+    writeJson('packages/plugins/auth/package.json', {
+      name: '@test/auth-plugin',
+    });
+
+    const plan = detectDependencyPlan(projectDirectory);
+
+    expect(plan?.inputPaths.toSorted()).toEqual([
+      'bun.lock',
+      'package.json',
+      'packages/app/package.json',
+      'packages/plugins/auth/package.json',
+    ]);
+  });
+
   it('changes the dependency fingerprint when tracked inputs change', () => {
     writeBunProject();
     const plan = detectDependencyPlan(projectDirectory);

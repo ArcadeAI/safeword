@@ -15,6 +15,7 @@
 **Hook coverage drift guard:** ✅ `tests/smoke/hook-coverage.test.ts` passes; dependency readiness hooks are covered by deterministic hook tests and listed with justification.
 **Schema/install surface:** ✅ `setup-hooks` and schema tests pass; new templates are registered and installed.
 **Command detector follow-up:** ✅ Broadened coverage for `bun --cwd`, `env` wrappers, `npx`/`npm exec`, `pnpm exec`, `corepack pnpm`, and naked pnpm/yarn local-bin commands without adding dependencies.
+**Recursive workspace follow-up:** ✅ Bun workspace tracking now includes recursive `packages/**` manifests and honors simple negative patterns such as `!packages/**/test/**` without adding hook-time dependencies.
 **Dogfood parity:** ✅ New hook templates are synced into `.safeword/` and release parity passes.
 **Audit passed** — no findings attributable to this change.
 
@@ -24,7 +25,7 @@
 - ✅ Default mode is detect-and-guard: SessionStart injects `bun ci` recovery context, and PreToolUse blocks dependency-backed Bash commands until install artifacts exist.
 - ✅ Explicit auto-install mode runs `bun ci` and writes ready state when `.safeword/config.json` opts into `dependencyBootstrap.autoInstall`.
 - ✅ Bootstrap uses `bun ci` for Bun lockfile projects and records failure instead of rewriting dependency metadata when install fails.
-- ✅ Ready installs are skipped when `node_modules` is current; stale/missing artifacts are detected from lockfile and package manifest inputs.
+- ✅ Ready installs are skipped when `node_modules` is current; stale/missing artifacts are detected from lockfile and package manifest inputs, including recursive Bun workspace manifests.
 - ✅ Non-dependency Bash commands such as `git status`, install commands, and quoted text containing dependency commands are allowed without output.
 - ✅ Unsupported projects skip silently.
 
@@ -42,3 +43,7 @@
 - `bun run --cwd packages/cli lint` — clean after command-detector follow-up.
 - `bun run --cwd packages/cli test -- dependency-readiness src/templates/config.test.ts tests/smoke/hook-coverage.test.ts setup-hooks` — 81/81 passed after command-detector follow-up.
 - `bun run --cwd packages/cli test:release` — 7/7 passed after syncing dogfood `.safeword/` hook files.
+- `bun run --cwd packages/cli test -- dependency-readiness` — RED confirmed recursive and negative Bun workspace glob tests failed before implementation; GREEN passed 48/48 after implementation.
+- `bun run --cwd packages/cli test -- dependency-readiness src/templates/config.test.ts tests/smoke/hook-coverage.test.ts setup-hooks` — 83/83 passed after recursive workspace follow-up.
+- `bun run --cwd packages/cli lint` — clean after recursive workspace follow-up.
+- `bun run --cwd packages/cli test:release` — 7/7 passed after recursive workspace follow-up and dogfood sync.
