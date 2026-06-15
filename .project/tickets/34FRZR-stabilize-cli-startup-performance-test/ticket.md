@@ -5,7 +5,7 @@ type: task
 phase: intake
 status: in_progress
 created: 2026-06-15T13:50:34.081Z
-last_modified: 2026-06-15T13:50:34.081Z
+last_modified: 2026-06-15T14:10:39.000Z
 ---
 
 # Stabilize CLI startup performance test under full-suite load
@@ -34,4 +34,4 @@ last_modified: 2026-06-15T13:50:34.081Z
 ## Work Log
 
 - 2026-06-15T13:50:34.081Z Started: Created ticket 34FRZR
-- 2026-06-15T13:55:00.000Z Found: `bun run --cwd packages/cli test -- --reporter=verbose` completed in 1073.79s with one failure: `tests/technical-constraints.test.ts` Test 0.1 saw `maxTime` 1264.64575ms > 750ms across ten synchronous `--version` subprocess starts. The same file passed in isolation, and direct `bun packages/cli/src/cli.ts --version` timings were far below 750ms. Initial assessment: load-sensitive performance-test flake, not a P30CRP regression.
+- 2026-06-15T13:55:00.000Z Found: `bun run --cwd packages/cli test -- --reporter=verbose` completed in 1073.79s with one failure: `tests/technical-constraints.test.ts` Test 0.1 saw `maxTime` 1264.64575ms > 750ms across ten synchronous `--version` subprocess starts. The same file passed in isolation, and direct `node packages/cli/dist/cli.js --version` timings were far below 750ms. Initial assessment: load-sensitive performance-test flake, not a P30CRP regression.
