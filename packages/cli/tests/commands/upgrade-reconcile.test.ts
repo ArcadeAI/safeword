@@ -312,6 +312,55 @@ describe('Upgrade Command - Reconcile Integration', () => {
       ).toBe(true);
     });
 
+    it('should add prompt timestamp hook to existing safeword Codex config', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        `# Safeword Codex project configuration.
+#
+# Project-local Codex config loads only after the project is reviewed and trusted.
+# Run Codex's hook trust flow after setup/upgrade before assuming these gates run.
+
+[features]
+hooks = true
+
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+statusMessage = "Checking safeword PreToolUse gates"
+`,
+      );
+
+      const ctx = createProjectContext(temporaryDirectory);
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const upgraded = readFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        'utf8',
+      );
+      expect(upgraded).toContain('[[hooks.UserPromptSubmit]]');
+      expect(upgraded).toContain('.safeword/hooks/prompt-timestamp.ts');
+      expect(upgraded).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+      const upgradedAgain = readFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        'utf8',
+      );
+      const timestampHookCount =
+        upgradedAgain.split('.safeword/hooks/prompt-timestamp.ts').length - 1;
+      expect(timestampHookCount).toBe(1);
+    });
+
     it('should tell users to trust generated Codex hooks after upgrade creates Codex config', async () => {
       createConfiguredProject('0.5.0');
 
@@ -364,8 +413,11 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(afterFirst).toContain('fixtures/**');
       // Safeword block appended
       expect(afterFirst).toContain('# Safeword - managed prettier exclusions');
+      expect(afterFirst).toContain('.husky/_');
       expect(afterFirst).toContain('.safeword/');
       expect(afterFirst).toContain('.cursor/');
+      expect(afterFirst).toContain('.project/tickets/INDEX.md');
+      expect(afterFirst).toContain('.project/tickets/INDEX-completed.md');
 
       // Re-run must be idempotent — the marker should appear exactly once
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
@@ -375,6 +427,43 @@ describe('Upgrade Command - Reconcile Integration', () => {
       );
       const markerCount = afterSecond.split('# Safeword - managed prettier exclusions').length - 1;
       expect(markerCount).toBe(1);
+    });
+
+    it('should append current prettier exclusions when legacy safeword block is present', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+
+      const legacySafewordBlock = [
+        '# Safeword - managed prettier exclusions',
+        '.safeword/',
+        '.cursor/',
+        '.safeword-project/tickets/INDEX.md',
+        '.safeword-project/tickets/INDEX-completed.md',
+        '.safeword-project/learnings/INDEX.md',
+        '',
+      ].join('\n');
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), legacySafewordBlock);
+
+      const ctx = createProjectContext(temporaryDirectory);
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const afterFirst = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(afterFirst).toContain('.husky/_');
+      expect(afterFirst).toContain('.project/tickets/INDEX.md');
+      expect(afterFirst).toContain('.project/tickets/INDEX-completed.md');
+      expect(afterFirst).toContain('.project/learnings/INDEX.md');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+      const afterSecond = readFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        'utf8',
+      );
+      const currentMarkerCount =
+        afterSecond.split('.project/tickets/INDEX-completed.md').length - 1;
+      expect(currentMarkerCount).toBe(1);
     });
   });
 
