@@ -20,7 +20,7 @@ done_when:
   - Each updated surface has a recorded invocation mechanism or an explicit no-change rationale.
   - Existing `skill-invocations.log` parsing still passes.
 created: 2026-06-14T01:39:25.845Z
-last_modified: 2026-06-15T13:18:49Z
+last_modified: 2026-06-15T13:56:53Z
 ---
 
 # Make required skill logging reusable
@@ -61,6 +61,7 @@ last_modified: 2026-06-15T13:18:49Z
 
 ## Work Log
 
+- 2026-06-15T13:56:53Z Quality-review follow-up: Tightened verify/audit invocation-log wording so Codex/Cursor are not described as having a proven session-scoped logging path. Current docs show Claude-style `!` expansion and `CLAUDE_SESSION_ID` only on Claude; Codex/Cursor fallback text now explicitly fails closed when no compatible session proof is available. Vitest investigation found the unconstrained full suite is not hung in the new helper tests: verbose run showed older setup/golden-path files advancing slowly while spawning real `npm install` subprocesses under the worker pool. Revalidated focused helper tests, fast smoke, dogfood parity, lint/typecheck, formatting, and diff check.
 - 2026-06-15T13:18:49Z Validated: Added fallback invocation wording, made `record-skill-invocation.ts` fail closed when `CLAUDE_SESSION_ID` is absent, upgraded local/project Bun to 1.3.14, and ran `bun audit` successfully with no vulnerabilities. Passing checks: focused invocation-log tests, `bun run test:smoke:fast`, `bun run lint`, release dogfood parity, changed-file Prettier check, `bun install --frozen-lockfile`, and `git diff --check`. Limitation: unconstrained `bun run test` was interrupted after the Vitest worker sat idle without output; smoke/focused suites cover this change path.
 - 2026-06-15T13:07:23Z Follow-up: Quality review found the helper change still implied Claude-style inline shell execution worked everywhere. Chose a portable fallback wording instead of splitting templates or reverting non-Claude surfaces.
 - 2026-06-15T04:26:37Z Implemented: Added installed namespace/logging helpers, registered both in schema, and updated verify/audit logging plus explain namespace lookups across templates and dogfood mirrors. Claude/Codex/Cursor surfaces keep the same Markdown shell-injection contract they already used, but now call the shared helper; release parity and invocation-log tests guard the shipped content.

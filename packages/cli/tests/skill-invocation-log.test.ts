@@ -80,7 +80,13 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
     ])(
       '%s documents the fallback when inline shell execution does not run',
       (_name, content, skill) => {
-        expect(content).toContain('other clients may treat it as Markdown instructions only');
+        expect(content).toContain('provides `CLAUDE_SESSION_ID` for session binding');
+        expect(content).toContain(
+          'Codex and Cursor docs do not document Claude-style `!` expansion or a compatible `CLAUDE_SESSION_ID`',
+        );
+        expect(content).toContain(
+          'fallback below is a fail-closed check that may report no session-scoped proof is available',
+        );
         expect(content).toContain(
           `If no \`[skill-invocation-log] ${skill} ✓\` line appears above, run this fallback before continuing:`,
         );

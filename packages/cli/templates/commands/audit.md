@@ -8,7 +8,7 @@ Run a comprehensive code audit. Execute checks and report results by severity.
 
 ## Invocation log
 
-This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Claude Code expands the `!` line automatically; other clients may treat it as Markdown instructions only. Hand-writing audit results cannot produce this entry.
+This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Claude Code expands the `!` line automatically and provides `CLAUDE_SESSION_ID` for session binding. Codex and Cursor docs do not document Claude-style `!` expansion or a compatible `CLAUDE_SESSION_ID`; there, the fallback below is a fail-closed check that may report no session-scoped proof is available. Hand-writing audit results cannot produce this entry.
 
 !`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit || echo "[skill-invocation-log] FAILED - done-gate will block"`
 
