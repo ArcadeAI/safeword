@@ -5,7 +5,7 @@ type: task
 phase: intake
 status: in_progress
 created: 2026-06-14T11:51:36.330Z
-last_modified: 2026-06-14T12:00:00.000Z
+last_modified: 2026-06-15T13:52:44Z
 scope:
   - Reproduce the current jscpd report and identify why known mirrored agent surfaces still dominate the output.
   - Update `.jscpd.json` so intentional mirrors are ignored in the form jscpd actually honors: dogfood skill/rule/command copies and template skill/command copies.
@@ -30,3 +30,4 @@ done_when:
 
 - 2026-06-14T11:51:36.330Z Started: Created ticket 0N7CQ9
 - 2026-06-14T12:00:00.000Z Intake: Force-ranked as P4 because it improves audit usability but is not product behavior. It should tune scanning, not refactor intentional mirrors.
+- 2026-06-15T13:52:44Z Audit evidence: Current `jscpd` run found 284 clones and 6.82% duplicated lines; output is still dominated by intended skill/template mirrors plus broad existing test duplication.

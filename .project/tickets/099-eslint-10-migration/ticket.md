@@ -4,7 +4,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-04-11
-last_modified: 2026-05-18T02:00:00Z
+last_modified: 2026-06-15T21:52:44Z
 ---
 
 # Task: ESLint 10 Migration
@@ -61,6 +61,7 @@ Phase 3 — ESLint 10 upgrade (blocked on `eslint-plugin-react`):
 
 - `eslint` → v10, `@eslint/js` → v10
 - Update `peerDependencies.eslint` to include `^10.0.0`
+- Update `engines.node` from `>=22.12` to an ESLint-10-compatible runtime floor. As of `eslint@10.5.0`, ESLint requires `^20.19.0 || ^22.13.0 || >=24`; Safeword's current Node 22-only floor implies `>=22.13` when production ESLint moves to v10.
 - Semver-major release for safeword
 
 **Done When:**
@@ -73,6 +74,7 @@ Phase 3 — ESLint 10 upgrade (blocked on `eslint-plugin-react`):
 - [ ] `bun run lint:eslint` passes
 - [ ] All tests pass
 - [ ] `peerDependencies.eslint` updated to include v10
+- [ ] `engines.node` updated to a runtime range compatible with the installed ESLint 10 version
 
 **Tests:**
 
@@ -148,6 +150,14 @@ Re-checked 2026-05-18:
 
 - `eslint-plugin-react` — still 7.37.5 on npm latest (the `next` dist-tag points at `7.8.0-rc.0`, a numerically older 2014-era RC unrelated to ESLint 10 — stale tag, ignore). PR [#3979](https://github.com/jsx-eslint/eslint-plugin-react/pull/3979) **OPEN, last update 2026-05-15** (3 days ago — active but not merged). PR #3972 still open, last update 2026-05-12.
 - `eslint-plugin-import#3227` — **OPEN, last update 2026-05-15**.
+
+### Phase 3 runtime floor note
+
+Re-checked 2026-06-15 while replacing `eslint-plugin-react` with `@eslint-react/eslint-plugin` in ticket `71Q4DV-eslint-10-react-plugin-path`: the replacement removes the React plugin blocker, but the production ESLint 10 bump still has a Node runtime implication. `@eslint-react/eslint-plugin@5.9.0` requires Node `>=22.0.0`, which is compatible with Safeword's current `>=22.12` floor. `eslint@10.5.0` itself requires `^20.19.0 || ^22.13.0 || >=24`, so ticket 099 must update `packages/cli/package.json` `engines.node` when it expands `peerDependencies.eslint` to include `^10.0.0`. If Safeword keeps a Node-22-only floor, use `>=22.13`.
+
+### Outdated audit note 2026-06-15
+
+`bun outdated` reports `eslint` as the only outdated root package: current `9.39.4`, latest `10.5.0`. Keep that major bump in this ticket rather than blocking unrelated React-plugin-path PRs once their ESLint 10 compatibility tests pass through the `eslint-v10` alias.
 
 ### Genuinely remaining Phase 2 work
 
