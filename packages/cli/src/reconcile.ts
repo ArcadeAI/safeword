@@ -115,20 +115,31 @@ function planMissingDirectories(
 }
 
 /**
- * Plan text-patch actions for all targets. The executor (`executeTextPatch`)
- * decides whether to prepend, heal a legacy `---#` artifact, or no-op based on
- * the file's current contents — so the planner stays uniform across modes.
+ * Plan text-patch actions for all eligible targets. The executor
+ * (`executeTextPatch`) decides whether to prepend, heal a legacy `---#`
+ * artifact, or no-op based on the file's current contents — so the planner
+ * stays uniform across modes for unguarded patches.
  * Keeping the marker check in the executor (not here) ensures `safeword
  * upgrade` reaches the heal path on pre-fix installs, which is what commit
  * a304af8 promised.
  */
 function planTextPatches(
   patches: Record<string, TextPatchDefinition>,
+  cwd: string,
   isGitRepo: boolean,
 ): Action[] {
   const actions: Action[] = [];
   for (const [filePath, definition] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
+    if (definition.applyWhenContentIncludes) {
+      const content = readFileSafe(nodePath.join(cwd, filePath));
+      if (
+        content === undefined ||
+        !definition.applyWhenContentIncludes.every(required => content.includes(required))
+      ) {
+        continue;
+      }
+    }
     actions.push({ type: 'text-patch', path: filePath, definition });
   }
   return actions;
@@ -406,9 +417,9 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
     actions.push({ type: 'json-merge', path: filePath, definition });
   }
 
-  // 6. Text patches — the executor creates absent target files unconditionally,
-  // so any text-patch path that doesn't exist now will be created.
-  const textPatchActions = planTextPatches(schema.textPatches, ctx.isGitRepo);
+  // 6. Text patches — unguarded patches create absent target files; guarded
+  // patches only run when the current file proves it is safe to touch.
+  const textPatchActions = planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo);
   actions.push(...textPatchActions);
   for (const action of textPatchActions) {
     if (action.type === 'text-patch' && !exists(nodePath.join(ctx.cwd, action.path))) {
@@ -553,8 +564,8 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
     actions.push({ type: 'json-merge', path: filePath, definition });
   }
 
-  // 7. Text patches (only if marker missing)
-  actions.push(...planTextPatches(schema.textPatches, ctx.isGitRepo));
+  // 7. Text patches
+  actions.push(...planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo));
 
   // 8. Compute packages to install
   const packagesToInstall = computePackagesToInstall(

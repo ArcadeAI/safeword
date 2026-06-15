@@ -36,6 +36,7 @@ export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   content: string;
   marker: string; // Used to detect if already applied & for removal
+  applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
 }
 
 export interface ContractDefinition {
@@ -98,6 +99,16 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
     return result;
   },
 };
+
+const CODEX_PROMPT_TIMESTAMP_HOOK_PATCH = `
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestamp.ts"'
+timeout = 5
+statusMessage = "Adding current timestamp"
+`;
 
 const CODEX_SKILL_TEMPLATE_FILES = [
   ['audit/SKILL.md', 'skills/audit/SKILL.md'],
@@ -853,6 +864,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       content:
         '\n# Safeword - managed prettier exclusions\n.husky/_\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
       marker: '.project/tickets/INDEX-completed.md',
+    },
+    '.codex/config.toml': {
+      operation: 'append',
+      content: CODEX_PROMPT_TIMESTAMP_HOOK_PATCH,
+      marker: '.safeword/hooks/prompt-timestamp.ts',
+      applyWhenContentIncludes: [
+        '# Safeword Codex project configuration.',
+        '.safeword/hooks/codex/pre-tool-quality.ts',
+      ],
     },
   },
 

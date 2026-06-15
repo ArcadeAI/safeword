@@ -30,12 +30,14 @@ describe('dependency freshness instructions', () => {
   it.each([
     ['canonical SAFEWORD template', 'packages/cli/templates/SAFEWORD.md'],
     ['dogfood SAFEWORD copy', '.safeword/SAFEWORD.md'],
-  ])('%s uses the prompt timestamp before adding dependencies', (_label, path) => {
+  ])('%s uses the prompt timestamp when available with a current-date fallback', (_label, path) => {
     const content = readRepoFile(path);
 
     expect(content).toContain('Adding a dependency');
     expect(content).toContain('Current time:');
     expect(content).toContain('prompt-timestamp.ts');
+    expect(content).toContain('when the host provides one');
+    expect(content).toContain('current system date');
     expect(content).toContain('verify the current version for that date');
     expect(content).toContain('Pin what the registry reports today');
   });
