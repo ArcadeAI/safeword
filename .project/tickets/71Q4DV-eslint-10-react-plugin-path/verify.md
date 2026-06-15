@@ -5,7 +5,7 @@
 **Focused React tests:** Pass. `bun run test src/presets/typescript/eslint-configs/__tests__/react.test.ts` passed 32/32 tests after the quality-review follow-up and refactor pass.
 **Related preset tests:** Pass. `bun run test src/presets/typescript/eslint-configs/__tests__/react.test.ts src/presets/typescript/eslint-configs/__tests__/nextjs.test.ts src/presets/typescript/eslint-configs/__tests__/configs.test.ts tests/schema.test.ts` passed 105/105 tests after the quality-review follow-up.
 **Smoke tests:** Pass. `bun run test:smoke:fast` passed 482/482 tests.
-**BDD:** Pass. `bun run test:bdd` passed 18 scenarios and 100 steps.
+**BDD:** Pass. `bun run test:bdd` passed 25 scenarios and 162 steps.
 **Build:** Pass. `bun run build` completed successfully.
 **Typecheck:** Pass. `bun run typecheck` completed successfully in `packages/cli`.
 **ESLint:** Pass. `bun run lint:eslint` completed successfully.
@@ -13,7 +13,8 @@
 **Markdown lint:** Pass. `bun run lint:md` reported 0 errors.
 **Format:** Pass. `bun run format:check` reported all matched files use Prettier style.
 **Dep drift:** Review needed. `bun run knip` still reports the existing project-wide unused/unlisted dependency baseline; it did not flag the new `@eslint-react/eslint-plugin` dependency or the `eslint-v10` alias added for compatibility testing.
-**Full suite:** Inconclusive. `bun run test` was stopped after more than 10 minutes of CLI integration output and subprocess setup/install work; no failing assertion was observed before interrupt.
+**Full suite:** Pass. `TEST_POETRY=1 bun run --cwd packages/cli test` completed with 198 test files and 2923 tests passed in 1662.58s; it emitted the existing `Ambiguous ticket ID "7K9M3P"` warning tracked by `7VEYAY`.
+**Config sync/deps:** Pass with published-CLI caveat. `bun packages/cli/src/cli.ts sync-config --check` passed, and `bun run deps` passed. `bunx safeword@latest sync-config --check` still reports stale `.safeword/depcruise-config.cjs`, which is published-version drift rather than branch-local generated-config drift and is tracked by `BYXB03`.
 
 ## Done-When Verification
 
