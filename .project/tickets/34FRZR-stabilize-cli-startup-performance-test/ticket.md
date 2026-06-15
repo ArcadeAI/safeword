@@ -4,8 +4,9 @@ slug: stabilize-cli-startup-performance-test
 type: task
 phase: intake
 status: in_progress
+subtype: bug-investigated
 created: 2026-06-15T13:50:34.081Z
-last_modified: 2026-06-15T14:10:39.000Z
+last_modified: 2026-06-15T14:24:39.000Z
 ---
 
 # Stabilize CLI startup performance test under full-suite load
@@ -31,7 +32,16 @@ last_modified: 2026-06-15T14:10:39.000Z
 - The startup constraint still fails for a deliberate/obvious startup regression.
 - The ticket records the root cause and verification evidence.
 
+## Root Cause
+
+`technical-constraints.test.ts` used the single slowest sample from ten synchronous CLI subprocess starts as a hard failure gate. CLI subprocess startup includes OS scheduling and full-suite CPU contention, so one outlier could exceed 750ms even when the average startup time and normal samples were healthy. Confirmed by a full-suite run that failed only on `maxTime` (1264.64575ms), while the same test passed in isolation and direct built-CLI `--version` probes stayed below the threshold on idle runs.
+
+## Fix
+
+Keep the average startup gate under 500ms and require the second-slowest sample to stay under 750ms. This tolerates one scheduler outlier but still fails if startup is broadly slow.
+
 ## Work Log
 
 - 2026-06-15T13:50:34.081Z Started: Created ticket 34FRZR
 - 2026-06-15T13:55:00.000Z Found: `bun run --cwd packages/cli test -- --reporter=verbose` completed in 1073.79s with one failure: `tests/technical-constraints.test.ts` Test 0.1 saw `maxTime` 1264.64575ms > 750ms across ten synchronous `--version` subprocess starts. The same file passed in isolation, and direct `node packages/cli/dist/cli.js --version` timings were far below 750ms. Initial assessment: load-sensitive performance-test flake, not a P30CRP regression.
+- 2026-06-15T14:24:39.000Z Fixed: replaced the single-slowest-sample gate with a second-slowest-sample gate while preserving the average startup threshold.
