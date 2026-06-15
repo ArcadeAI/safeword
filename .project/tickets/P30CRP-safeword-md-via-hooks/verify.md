@@ -13,4 +13,4 @@
 
 ## Agent's next actions
 
-- Full-suite rerun after the BDD loader follow-up could not be completed reliably in this shell: the direct PTY run stalled and was interrupted, and the detached log attempt died before tsup completed. Rerun `bun run test` in a stable shell before final release tagging if strict full-suite evidence after this follow-up is required.
+- Full-suite rerun after the BDD loader follow-up did complete in a verbose foreground run: `bun run --cwd packages/cli test -- --reporter=verbose` finished in 1073.79s with 2888 passed, 1 skipped, and 1 failure. The failure was `tests/technical-constraints.test.ts` Test 0.1 (`maxTime` 1264.64575ms > 750ms for repeated `--version` subprocess startup). The same technical-constraints test passes in isolation, and direct `bun packages/cli/src/cli.ts --version` timings were far below the threshold, so this is tracked separately as load-sensitive full-suite flake `34FRZR-stabilize-cli-startup-performance-test`.
