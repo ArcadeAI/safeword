@@ -26,6 +26,7 @@ interface HookCommand {
 }
 
 interface HookEntry {
+  matcher?: string;
   hooks?: HookCommand[];
 }
 
@@ -172,6 +173,37 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
           expect(fileExists(temporaryDirectory, scriptMatch[1])).toBe(true);
         }
       }
+    });
+  });
+
+  describe('Test 3.4b: Includes dependency readiness hooks', () => {
+    it('should install dependency readiness hooks for sessions and Bash commands', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup'], { cwd: temporaryDirectory });
+
+      const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
+
+      const sessionHookEntry = settings.hooks.SessionStart.find((entry: HookEntry) =>
+        hasHookCommand(entry, 'session-dependency-readiness'),
+      );
+      const preToolHookEntry = settings.hooks.PreToolUse.find(
+        (entry: HookEntry) =>
+          entry.matcher === 'Bash' && hasHookCommand(entry, 'pre-tool-dependency-readiness'),
+      );
+
+      expect(sessionHookEntry).toBeDefined();
+      expect(preToolHookEntry).toBeDefined();
+      expect(
+        fileExists(temporaryDirectory, '.safeword/hooks/session-dependency-readiness.ts'),
+      ).toBe(true);
+      expect(
+        fileExists(temporaryDirectory, '.safeword/hooks/pre-tool-dependency-readiness.ts'),
+      ).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/hooks/lib/dependency-readiness.ts')).toBe(
+        true,
+      );
     });
   });
 

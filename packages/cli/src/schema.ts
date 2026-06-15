@@ -145,7 +145,7 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
 /**
  * Runtime/transient state files safeword's hooks write to the working tree
  * every turn (update-cache, quality-state, failure-counts, skill-invocations,
- * re-entry). They must be gitignored — and untracked on upgrade if a customer
+ * re-entry, dependency-readiness). They must be gitignored — and untracked on upgrade if a customer
  * committed them before the ignore rule existed — because the hooks read/write
  * these paths directly, so git tracking is never consulted. Single source for
  * the managed `.gitignore` block (below) and the upgrade-time untrack.
@@ -159,10 +159,12 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.project/failure-counts.json',
   '.project/skill-invocations.log',
   '.project/re-entry.md',
+  '.project/dependency-readiness.json',
   '.safeword-project/quality-state*.json',
   '.safeword-project/failure-counts.json',
   '.safeword-project/skill-invocations.log',
   '.safeword-project/re-entry.md',
+  '.safeword-project/dependency-readiness.json',
 ];
 
 export const SAFEWORD_SCHEMA: SafewordSchema = {
@@ -355,6 +357,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/dependency-readiness.ts': {
+      template: 'hooks/lib/dependency-readiness.ts',
+    },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
@@ -390,6 +395,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-verify-agents.ts': {
       template: 'hooks/session-verify-agents.ts',
+    },
+    '.safeword/hooks/session-dependency-readiness.ts': {
+      template: 'hooks/session-dependency-readiness.ts',
     },
     '.safeword/hooks/session-version.ts': {
       template: 'hooks/session-version.ts',
@@ -429,6 +437,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
+    },
+    '.safeword/hooks/pre-tool-dependency-readiness.ts': {
+      template: 'hooks/pre-tool-dependency-readiness.ts',
     },
     '.safeword/hooks/pre-tool-git-bare-fix.sh': {
       template: 'hooks/pre-tool-git-bare-fix.sh',
@@ -825,13 +836,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is a NEW line (.project/re-entry.md, TAGWZ8) so customers with
+      // Marker is a NEW line (.project/dependency-readiness.json) so customers with
       // the older legacy-only block re-apply on upgrade and pick up the
-      // .project/ variants — hooks write state under the resolved root, so
+      // latest transient paths. Hooks write state under the resolved root, so
       // fresh installs generate these under .project/. Without them, those
       // generated files show as untracked in `git status --porcelain` —
       // churning the tree and blocking the auto-upgrade gate.
-      marker: '.project/re-entry.md',
+      marker: '.project/dependency-readiness.json',
     },
     // Prettier ignores: safeword owns .safeword/ and .cursor/ (see ownedDirs).
     // Without this, `prettier --write .` would reformat hooks and Cursor rules;
