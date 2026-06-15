@@ -8,6 +8,24 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const readRepoFile = (relativePath: string): string =>
   readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
 
+const expectNoHardcodedStableYear = (content: string): void => {
+  expect(content).not.toContain('latest stable version 2025');
+};
+
+const expectPromptTimestampSearch = (content: string): void => {
+  expect(content).toContain('Current time:');
+  expect(content).toContain('current prompt timestamp');
+  expectNoHardcodedStableYear(content);
+};
+
+const expectCurrentDateFallbackSearch = (content: string): void => {
+  expect(content).toContain('Current time:');
+  expect(content).toContain('when the host provides one');
+  expect(content).toContain('current system date');
+  expect(content).toContain('latest stable version as of <current date>');
+  expectNoHardcodedStableYear(content);
+};
+
 describe('dependency freshness instructions', () => {
   it.each([
     ['canonical SAFEWORD template', 'packages/cli/templates/SAFEWORD.md'],
@@ -29,9 +47,7 @@ describe('dependency freshness instructions', () => {
   ])('%s uses the prompt timestamp instead of a hardcoded year', (_label, path) => {
     const content = readRepoFile(path);
 
-    expect(content).toContain('Current time:');
-    expect(content).toContain('current prompt timestamp');
-    expect(content).not.toContain('latest stable version 2025');
+    expectPromptTimestampSearch(content);
   });
 
   it.each([
@@ -43,11 +59,7 @@ describe('dependency freshness instructions', () => {
   ])('%s uses prompt timestamp when available with a current-date fallback', (_label, path) => {
     const content = readRepoFile(path);
 
-    expect(content).toContain('Current time:');
-    expect(content).toContain('when the host provides one');
-    expect(content).toContain('current system date');
-    expect(content).toContain('latest stable version as of <current date>');
-    expect(content).not.toContain('latest stable version 2025');
+    expectCurrentDateFallbackSearch(content);
   });
 
   it.each([
