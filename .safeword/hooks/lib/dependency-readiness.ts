@@ -71,6 +71,7 @@ const PACKAGE_MANAGER_OPTIONS_WITH_VALUES = new Set([
   '-F',
   '-w',
 ]);
+const PACKAGE_SCRIPT_COMMANDS = new Set(['run', 'test']);
 const DEPENDENCY_BINARIES = new Set([
   'cypress',
   'dependency-cruiser',
@@ -352,22 +353,25 @@ function isDependencyBackedSegment(segment: string): boolean {
 
 function isBunDependencyBackedCommand(args: string[]): boolean {
   const subcommand = firstCommandArgument(args, BUN_OPTIONS_WITH_VALUES);
-  return subcommand === 'run' || subcommand === 'test';
+  return isPackageScriptCommand(subcommand);
 }
 
 function isNpmDependencyBackedCommand(args: string[]): boolean {
   const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
-  return subcommand === 'run' || subcommand === 'test' || subcommand === 'exec';
+  return isPackageScriptCommand(subcommand) || subcommand === 'exec';
 }
 
 function isPackageManagerDependencyBackedCommand(args: string[]): boolean {
   const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
   return (
-    subcommand === 'run' ||
-    subcommand === 'test' ||
+    isPackageScriptCommand(subcommand) ||
     subcommand === 'exec' ||
     (subcommand !== undefined && DEPENDENCY_BINARIES.has(subcommand))
   );
+}
+
+function isPackageScriptCommand(command: string | undefined): boolean {
+  return command !== undefined && PACKAGE_SCRIPT_COMMANDS.has(command);
 }
 
 function isKnownBinaryPackageExecutor(args: string[]): boolean {
