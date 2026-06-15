@@ -204,6 +204,9 @@
 - **Run heavy skills in forked context (context: fork) (9V9DVF)** (in_progress, epic: cc-changelog-alignment)
   Keep token-heavy skills from bloating the main conversation by running them in a forked context.
   → `.project/tickets/9V9DVF-fork-context-heavy-skills`
+- **Bootstrap dependencies in Claude-created worktrees (E0J9N2)** (done, epic: cc-changelog-alignment)
+  Ensure Claude Code sessions and subagents that enter fresh worktrees have project dependencies bootstrapped before safeword asks them to run tests, lint, build, or other dependency-backed commands.
+  → `.project/tickets/E0J9N2-agent-worktree-dependency-bootstrap`
 - **Done gate no longer hard-blocks under Stop-hook 8-block cap (EKNEW0)** (in_progress, epic: cc-changelog-alignment)
   Make the done gate honest (and as strong as possible) now that Claude Code caps consecutive Stop-hook blocks at 8.
   → `.project/tickets/EKNEW0-donegate-block-cap`

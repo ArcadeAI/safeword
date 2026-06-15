@@ -12,6 +12,7 @@ examples/
 .safeword-project/failure-counts.json
 .safeword-project/skill-invocations.log
 .safeword-project/re-entry.md
+.safeword-project/dependency-readiness.json
 packages/*/.safeword/
 packages/*/.safeword-project/
 packages/*/.claude/
@@ -45,7 +46,9 @@ brand/
 .project/failure-counts.json
 .project/skill-invocations.log
 .project/re-entry.md
+.project/dependency-readiness.json
 .safeword-project/quality-state*.json
 .safeword-project/failure-counts.json
 .safeword-project/skill-invocations.log
 .safeword-project/re-entry.md
+.safeword-project/dependency-readiness.json
