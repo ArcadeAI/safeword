@@ -573,6 +573,9 @@
 - **Auto-run health verification after setup & upgrade; stop treating check as a human command (3293WH)** (done, epic: —)
   Run safeword's config-health verification automatically at the end of `setup` and `upgrade` (fail loudly if the command left the project broken), and stop presenting `check` as a command humans are expected to run.
   → `.project/tickets/3293WH-self-verify-setup-upgrade`
+- **Stabilize CLI startup performance test under full-suite load (34FRZR)** (in_progress, epic: —)
+  Make the CLI startup performance constraint deterministic enough that full-suite verification fails only on real startup regressions, not incidental machine contention.
+  → `.project/tickets/34FRZR-stabilize-cli-startup-performance-test`
 - **Configure documentation sources for audit (3BTGMW)** (in_progress, epic: —)
   Let projects tell safeword where documentation lives so audit can compare repo reality against the right docs instead of guessing.
   → `.project/tickets/3BTGMW-configure-audit-doc-sources`

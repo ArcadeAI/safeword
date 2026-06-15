@@ -55,11 +55,8 @@ describe('Check Command - Reconcile Integration', () => {
       JSON.stringify({ hooks: {} }, undefined, 2),
     );
 
-    // AGENTS.md
-    writeFileSync(
-      nodePath.join(temporaryDirectory, 'AGENTS.md'),
-      '.safeword/SAFEWORD.md\n\n# Agents',
-    );
+    // Customer-owned AGENTS.md
+    writeFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), '# Agents');
   }
 
   describe('checkHealth using reconcile dryRun', () => {
@@ -132,7 +129,7 @@ describe('Check Command - Reconcile Integration', () => {
       expect(ownedFileWrites.length).toBeLessThan(5);
     });
 
-    it('should detect missing AGENTS.md link', async () => {
+    it('should preserve customer AGENTS.md without adding safeword text', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -150,12 +147,33 @@ describe('Check Command - Reconcile Integration', () => {
         dryRun: true,
       });
 
-      // Should have a text-patch action for AGENTS.md
-      const textPatchActions = result.actions.filter(a => a.type === 'text-patch');
-      const hasAgentsPatch = textPatchActions.some(
+      const hasAgentsPatch = result.actions.some(
         a => a.type === 'text-patch' && a.path === 'AGENTS.md',
       );
-      expect(hasAgentsPatch).toBe(true);
+      expect(hasAgentsPatch).toBe(false);
+    });
+
+    it('should detect legacy AGENTS.md safeword prose for cleanup', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject();
+
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'AGENTS.md'),
+        '**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`\n\n---\n\n# My Project\n',
+      );
+
+      const ctx = createProjectContext(temporaryDirectory);
+      const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
+        dryRun: true,
+      });
+
+      const hasLegacyCleanup = result.actions.some(
+        a => a.type === 'text-unpatch' && a.path === 'AGENTS.md',
+      );
+      expect(hasLegacyCleanup).toBe(true);
     });
 
     it('should compute missing packages', async () => {

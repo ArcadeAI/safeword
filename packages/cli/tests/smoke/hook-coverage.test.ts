@@ -34,7 +34,7 @@ const PROMPT_TURN = 'prompt hook, fires on user turn — not assertable in a too
  */
 const EXEMPT_HOOKS: Record<string, string> = {
   // Session/startup hooks fire at session start, not on tool calls.
-  'session-verify-agents.ts': SESSION_STARTUP,
+  'session-safeword-context.ts': SESSION_STARTUP,
   'session-version.ts': SESSION_STARTUP,
   'session-lint-check.ts': SESSION_STARTUP,
   'session-compact-context.ts': SESSION_STARTUP,

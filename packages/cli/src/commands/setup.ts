@@ -295,10 +295,6 @@ function printSetupSummary(options: SetupSummaryOptions): void {
   ];
   printModifiedFiles(modifiedFiles);
 
-  if (result.updated.includes('CLAUDE.md')) {
-    info('\nNote: CLAUDE.md — added one import line at the top. Your content is preserved.');
-  }
-
   // Next steps
   info('\nNext steps:');
   listItem('Run `safeword check` to verify setup');

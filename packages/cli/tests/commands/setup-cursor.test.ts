@@ -77,6 +77,7 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
       expect(hooksConfig.version).toBe(1);
       expect(hooksConfig.hooks).toBeDefined();
+      expect(hooksConfig.hooks.sessionStart).toBeDefined();
       expect(hooksConfig.hooks.afterFileEdit).toBeDefined();
       expect(hooksConfig.hooks.stop).toBeDefined();
     });
@@ -101,6 +102,9 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
 
       // Cursor runs hooks from workspace root, so paths use ./ prefix
       const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
+      expect(hooksConfig.hooks.sessionStart[0].command).toBe(
+        'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor',
+      );
       expect(hooksConfig.hooks.afterFileEdit[0].command).toBe(
         'bun ./.safeword/hooks/cursor/after-file-edit.ts',
       );

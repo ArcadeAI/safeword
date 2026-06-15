@@ -11,6 +11,8 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -310,77 +312,6 @@ describe('E2E: SessionStart Hooks', () => {
         });
 
         // Should output nothing (silent exit)
-        expect(output.trim()).toBe('');
-      } finally {
-        removeTemporaryDirectory(nonSafewordDirectory);
-      }
-    });
-  });
-
-  describe('session-verify-agents.ts', () => {
-    it('creates AGENTS.md if missing', () => {
-      // Remove AGENTS.md
-      execSync('rm -f AGENTS.md', { cwd: projectDirectory });
-      expect(fileExists(projectDirectory, 'AGENTS.md')).toBe(false);
-
-      const output = execSync('bun .safeword/hooks/session-verify-agents.ts', {
-        cwd: projectDirectory,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
-        encoding: 'utf8',
-      });
-
-      expect(fileExists(projectDirectory, 'AGENTS.md')).toBe(true);
-      expect(output).toContain('Created AGENTS.md');
-
-      const content = readTestFile(projectDirectory, 'AGENTS.md');
-      expect(content).toContain('.safeword/SAFEWORD.md');
-    });
-
-    it('restores link if removed from AGENTS.md', () => {
-      // Overwrite AGENTS.md without the link
-      writeTestFile(projectDirectory, 'AGENTS.md', '# My Project\n\nSome content\n');
-
-      const output = execSync('bun .safeword/hooks/session-verify-agents.ts', {
-        cwd: projectDirectory,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
-        encoding: 'utf8',
-      });
-
-      expect(output).toContain('Restored AGENTS.md link');
-
-      const content = readTestFile(projectDirectory, 'AGENTS.md');
-      expect(content).toContain('.safeword/SAFEWORD.md');
-      expect(content).toContain('My Project'); // Original content preserved
-    });
-
-    it('does nothing if link already present', () => {
-      // Ensure link is present
-      const originalContent = readTestFile(projectDirectory, 'AGENTS.md');
-      expect(originalContent).toContain('.safeword/SAFEWORD.md');
-
-      const output = execSync('bun .safeword/hooks/session-verify-agents.ts', {
-        cwd: projectDirectory,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
-        encoding: 'utf8',
-      });
-
-      // Should be silent (no action needed)
-      expect(output.trim()).toBe('');
-
-      // Content unchanged
-      const newContent = readTestFile(projectDirectory, 'AGENTS.md');
-      expect(newContent).toBe(originalContent);
-    });
-
-    it('exits silently for non-safeword project', () => {
-      const nonSafewordDirectory = createTemporaryDirectory();
-      try {
-        const output = execSync('bun .safeword/hooks/session-verify-agents.ts', {
-          cwd: projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
-          encoding: 'utf8',
-        });
-
         expect(output.trim()).toBe('');
       } finally {
         removeTemporaryDirectory(nonSafewordDirectory);
@@ -1198,5 +1129,91 @@ describe('E2E: Python Lint Hook', () => {
         expect(stdout).not.toContain('additionalContext');
       }
     });
+  });
+});
+
+describe('session-safeword-context.ts', () => {
+  it('emits Claude/Codex additionalContext with SAFEWORD.md content', () => {
+    const result = spawnSync(
+      'bun',
+      ['.safeword/hooks/session-safeword-context.ts', '--agent=claude'],
+      {
+        cwd: projectDirectory,
+        input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
+    expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
+    expect(output.hookSpecificOutput.additionalContext).toContain('## Workflow');
+  });
+
+  it('emits Cursor additional_context with SAFEWORD.md content', () => {
+    const result = spawnSync(
+      'bun',
+      ['.safeword/hooks/session-safeword-context.ts', '--agent=cursor'],
+      {
+        cwd: projectDirectory,
+        input: JSON.stringify({ workspace_root: projectDirectory }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.additional_context).toContain('SAFEWORD Agent Instructions');
+    expect(output.additional_context).toContain('## Workflow');
+  });
+
+  it('uses hook stdin cwd when the process starts from a subdirectory', () => {
+    const nestedDirectory = nodePath.join(projectDirectory, 'src/nested');
+    mkdirSync(nestedDirectory, { recursive: true });
+
+    const result = spawnSync(
+      'bun',
+      [
+        nodePath.join(projectDirectory, '.safeword/hooks/session-safeword-context.ts'),
+        '--agent=codex',
+      ],
+      {
+        cwd: nestedDirectory,
+        input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
+    expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
+  });
+
+  it('falls back to hook stdin cwd when CLAUDE_PROJECT_DIR is stale', () => {
+    const staleDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-stale-project-dir-'));
+    try {
+      const result = spawnSync(
+        'bun',
+        [
+          nodePath.join(projectDirectory, '.safeword/hooks/session-safeword-context.ts'),
+          '--agent=codex',
+        ],
+        {
+          cwd: staleDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: staleDirectory },
+          input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+          encoding: 'utf8',
+        },
+      );
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
+      expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
+    } finally {
+      rmSync(staleDirectory, { recursive: true, force: true });
+    }
   });
 });

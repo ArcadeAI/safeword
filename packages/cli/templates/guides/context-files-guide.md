@@ -14,7 +14,6 @@ Create the file(s) that best match your tooling. It’s okay to have more than o
 
 All project context files should:
 
-- **CRITICAL:** Reference `.safeword/SAFEWORD.md` at the top
 - Architecture decisions with "why" (not just "what")
 - Design philosophy and conventions
 - Common gotchas specific to this codebase
@@ -32,24 +31,11 @@ All project context files should:
 - `CURSOR.md` for Cursor-specific guidance
 - `AGENTS.md` for cross-agent compatibility (tests, docs, most projects)
 
-## SAFEWORD Trigger (Required)
+## SAFEWORD Context Loading
 
-**MANDATORY:** Every project-level context file (CLAUDE.md, CURSOR.md, AGENTS.md) must start with a trigger to SAFEWORD:
+Safeword loads `.safeword/SAFEWORD.md` through owned session hooks for Claude Code, Cursor, and Codex. Do not require customer-owned `CLAUDE.md`, `CURSOR.md`, or `AGENTS.md` files to import or reference safeword.
 
-```markdown
-# Project Name - Developer Context
-
-**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`
-
-The SAFEWORD.md file contains core development patterns, workflows, and conventions.
-Read it BEFORE working on any task in this project.
-
----
-
-[Rest of project-specific content...]
-```
-
-**Why:** `.safeword/SAFEWORD.md` contains universal workflows (TDD, feature development, etc.) that apply across all projects. Project files should only contain project-specific context.
+**Why:** `.safeword/SAFEWORD.md` contains universal workflows (TDD, feature development, etc.) that apply across all projects. Project files should stay project-specific and fully user-owned.
 
 ## Agent Context Auto-Loading Behavior
 
@@ -99,16 +85,16 @@ See root AGENTS.md for TDD workflow. This file covers test-specific patterns.
 ```plaintext
 project/
 ├─ SAFEWORD.md                  # Project context (references guides)
-├─ CLAUDE.md                    # Claude-specific context
-├─ CURSOR.md                    # Cursor-specific context (optional)
-└─ tests/AGENTS.md              # Test conventions (cross-agent)
+├─ CLAUDE.md                    # Claude-specific customer context (optional)
+├─ CURSOR.md                    # Cursor-specific customer context (optional)
+└─ tests/AGENTS.md              # Test conventions (cross-agent, optional)
 ```
 
 **Modular Approach (Recommended):**
 
 ```plaintext
 project/
-├─ AGENTS.md / CLAUDE.md        # 50 lines: imports + structure
+├─ AGENTS.md / CLAUDE.md        # 50 lines: structure + project-specific context
 ├─ docs/architecture.md         # 100 lines: architecture decisions
 └─ docs/conventions.md          # 80 lines: coding conventions
 ```
@@ -279,13 +265,6 @@ Details in @docs/git-workflow.md
 
 ```markdown
 # Project Name - Developer Context
-
-**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`
-
-The SAFEWORD.md file contains core development patterns, workflows, and conventions.
-Read it BEFORE working on any task in this project.
-
----
 
 Brief description. Current status.
 

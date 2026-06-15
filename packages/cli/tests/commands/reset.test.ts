@@ -162,12 +162,10 @@ describe('Test Suite 11: Reset', () => {
     it('should remove safeword link but preserve other content', async () => {
       await createConfiguredProject(temporaryDirectory);
 
-      // Add custom content to AGENTS.md
-      const content = readTestFile(temporaryDirectory, 'AGENTS.md');
       writeTestFile(
         temporaryDirectory,
         'AGENTS.md',
-        `${content}\n## My Custom Section\n\nCustom content.\n`,
+        '**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`\n\nThe SAFEWORD.md file contains core development patterns, workflows, and conventions.\nRead it BEFORE working on any task in this project.\n\n---\n\n## My Custom Section\n\nCustom content.\n',
       );
 
       await runCli(['reset', '--yes'], { cwd: temporaryDirectory });

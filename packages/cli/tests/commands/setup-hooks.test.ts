@@ -148,8 +148,8 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
     });
   });
 
-  describe('Test 3.4: Includes SessionStart hook for AGENTS.md', () => {
-    it('should include AGENTS.md verification hook', async () => {
+  describe('Test 3.4: Includes SessionStart hook for SAFEWORD.md context', () => {
+    it('should include SAFEWORD context hook', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
@@ -157,21 +157,19 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
 
       const settings = JSON.parse(readTestFile(temporaryDirectory, '.claude/settings.json'));
 
-      // Find hook entry that references AGENTS.md check (new nested format)
-      const agentsHookEntry = settings.hooks.SessionStart.find(
-        (entry: HookEntry) => hasHookCommand(entry, 'AGENTS') || hasHookCommand(entry, 'agents'),
+      const safewordContextEntry = settings.hooks.SessionStart.find((entry: HookEntry) =>
+        hasHookCommand(entry, 'session-safeword-context.ts'),
       );
 
-      expect(agentsHookEntry).toBeDefined();
+      expect(safewordContextEntry).toBeDefined();
 
       // Hook script should exist
-      const agentsCommand = agentsHookEntry?.hooks?.[0]?.command;
-      if (agentsCommand) {
-        // Extract script path from command if it's a bash script
-        const scriptMatch = agentsCommand.match(/bash\s+(\S+)/);
-        if (scriptMatch) {
-          expect(fileExists(temporaryDirectory, scriptMatch[1])).toBe(true);
-        }
+      const safewordContextCommand = safewordContextEntry?.hooks?.[0]?.command;
+      if (safewordContextCommand) {
+        const scriptMatch = safewordContextCommand.match(/\.safeword\/hooks\/([^"\s]+)/);
+        expect(scriptMatch).not.toBeNull();
+        if (scriptMatch)
+          expect(fileExists(temporaryDirectory, `.safeword/hooks/${scriptMatch[1]}`)).toBe(true);
       }
     });
   });

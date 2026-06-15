@@ -248,8 +248,11 @@ describe('E2E: TypeScript Setup Idempotency', () => {
   it('.prettierignore excludes safeword-owned dirs', () => {
     expect(fileExists(projectDirectory, '.prettierignore')).toBe(true);
     const content = readTestFile(projectDirectory, '.prettierignore');
+    expect(content).toContain('.husky/_');
     expect(content).toContain('.safeword/');
     expect(content).toContain('.cursor/');
+    expect(content).toContain('.project/tickets/INDEX.md');
+    expect(content).toContain('.project/tickets/INDEX-completed.md');
   });
 });
 

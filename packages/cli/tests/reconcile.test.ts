@@ -111,6 +111,23 @@ describe('Reconcile - Reconciliation Engine', () => {
     };
   }
 
+  function readCodexConfigTemplate(): string {
+    return readFileSync(
+      nodePath.resolve(import.meta.dirname, '../templates/codex/config.toml'),
+      'utf8',
+    );
+  }
+
+  function readLegacyCodexConfigWithoutPromptTimestamp(): string {
+    const template = readCodexConfigTemplate();
+    const promptStart = template.indexOf('\n[[hooks.UserPromptSubmit]]');
+    const preToolStart = template.indexOf('\n[[hooks.PreToolUse]]');
+    if (promptStart === -1 || preToolStart === -1 || preToolStart <= promptStart) {
+      throw new Error('Codex config template no longer has the expected hook block order');
+    }
+    return template.slice(0, promptStart) + template.slice(preToolStart);
+  }
+
   describe('reconcile() - install mode', () => {
     it('should create all owned directories', async () => {
       const { reconcile } = await import('../src/reconcile.js');
@@ -249,7 +266,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(pkg.scripts.knip).toBe('knip');
     });
 
-    it('should apply text patches', async () => {
+    it('should not create root context files as text patch targets', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -258,13 +275,11 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
-      // AGENTS.md should be created with the prepend content
-      expect(existsSync(nodePath.join(temporaryDirectory, 'AGENTS.md'))).toBe(true);
-      const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
-      expect(content).toContain('.safeword/SAFEWORD.md');
+      expect(existsSync(nodePath.join(temporaryDirectory, 'AGENTS.md'))).toBe(false);
+      expect(existsSync(nodePath.join(temporaryDirectory, 'CLAUDE.md'))).toBe(false);
     });
 
-    it('should preserve a line break between prepended separator and existing CLAUDE.md heading', async () => {
+    it('should preserve existing CLAUDE.md without adding a safeword import', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -280,13 +295,12 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const content = readFileSync(nodePath.join(temporaryDirectory, 'CLAUDE.md'), 'utf8');
 
-      // The `---` separator and the user's `# Heading` must not be glued into
-      // a single `---# Heading` line — markdown would render that as literal text.
+      expect(content).toBe('# CLAUDE.md — my project\n\nSome existing notes.\n');
+      expect(content).not.toContain('@./.safeword/SAFEWORD.md');
       expect(content).not.toMatch(/---#/);
-      expect(content).toMatch(/\n---\n\n# CLAUDE\.md/);
     });
 
-    it('should heal legacy ---# artifact in CLAUDE.md from pre-fix installs', async () => {
+    it('should remove legacy safeword import blocks from CLAUDE.md', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -303,15 +317,16 @@ describe('Reconcile - Reconciliation Engine', () => {
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, 'CLAUDE.md'), 'utf8');
+      expect(content).toBe('# CLAUDE.md — my project\n\nSome existing notes.\n');
+      expect(content).not.toContain('@./.safeword/SAFEWORD.md');
       expect(content).not.toMatch(/---#/);
-      expect(content).toMatch(/\n---\n\n# CLAUDE\.md/);
       // Heal must be idempotent: running reconcile again leaves the file unchanged.
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
       const contentAfter = readFileSync(nodePath.join(temporaryDirectory, 'CLAUDE.md'), 'utf8');
       expect(contentAfter).toBe(content);
     });
 
-    it('should heal legacy ---# artifact in AGENTS.md from pre-fix installs', async () => {
+    it('should remove legacy safeword prose from AGENTS.md', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -325,11 +340,12 @@ describe('Reconcile - Reconciliation Engine', () => {
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
+      expect(content).toBe('# AGENTS.md — my project\n\nSome existing notes.\n');
+      expect(content).not.toContain('.safeword/SAFEWORD.md');
       expect(content).not.toMatch(/---#/);
-      expect(content).toMatch(/\n---\n\n# AGENTS\.md/);
     });
 
-    it('should preserve a line break between prepended AGENTS.md separator and existing heading', async () => {
+    it('should preserve existing AGENTS.md without adding safeword prose', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -344,8 +360,9 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
 
+      expect(content).toBe('# AGENTS.md — my project\n\nSome existing notes.\n');
+      expect(content).not.toContain('.safeword/SAFEWORD.md');
       expect(content).not.toMatch(/---#/);
-      expect(content).toMatch(/\n---\n\n# AGENTS\.md/);
     });
 
     it('should compute packages to install', async () => {
@@ -627,24 +644,23 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(pkg.scripts.test).toBe('vitest');
     });
 
-    it('should remove text patches', async () => {
+    it('should remove legacy text patches', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
-      // Create existing AGENTS.md with user content
+      // Create existing AGENTS.md with legacy safeword content and user content
       writeFileSync(
         nodePath.join(temporaryDirectory, 'AGENTS.md'),
-        '# My Project\n\nCustom content here.',
+        '**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`\n\n---\n\n# My Project\n\nCustom content here.',
       );
       createPackageJson();
       const ctx = createContext();
 
-      // Install (prepends to AGENTS.md)
+      // Install removes the legacy patch and preserves customer content.
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
-      // Verify patch was applied
       let content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
-      expect(content).toContain('.safeword/SAFEWORD.md');
+      expect(content).not.toContain('.safeword/SAFEWORD.md');
       expect(content).toContain('Custom content here');
 
       // Uninstall
@@ -654,6 +670,58 @@ describe('Reconcile - Reconciliation Engine', () => {
       content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
       expect(content).not.toContain('.safeword/SAFEWORD.md');
       expect(content).toContain('Custom content here');
+    });
+
+    it('should remove safeword-only Codex config on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(true);
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
+    });
+
+    it('should strip safeword hooks from user-extended Codex config on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        `${readCodexConfigTemplate()}\nmodel = "gpt-5-codex"\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('model = "gpt-5-codex"');
+      expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
+      expect(content).not.toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+    });
+
+    it('should clean legacy Codex config that only has the safeword PreToolUse hook', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        readLegacyCodexConfigWithoutPromptTimestamp(),
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
     });
 
     it('should remove owned directories but preserve user content', async () => {
