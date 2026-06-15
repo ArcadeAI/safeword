@@ -133,7 +133,7 @@ Training data drifts. Memory of "how X worked" is not authority — the current 
 2. Read the docs for _that_ version. Use whichever source is wired up: Context7, the official docs site, the project README at the pinned ref, MDN, `node_modules/<pkg>/README.md`.
 3. If no source is reachable or the version is ambiguous, ask before guessing.
 
-**Adding a dependency** (a package not yet in the project) — there's no installed version to read, and the version you recall is stale by definition. Verify the current version before pinning: `npm view <pkg> version` (or the registry / official releases page for the ecosystem — `pip index versions`, `go list -m -versions`, crates.io). Pin what the registry reports today, never a number from memory.
+**Adding a dependency** (a package not yet in the project) — there's no installed version to read, and the version you recall is stale by definition. Read the live `Current time:` line injected by `prompt-timestamp.ts`, then verify the current version for that date before pinning. Prefer the package manager's resolver command (`bun add <pkg>`, `npm install <pkg>`, `uv add`, `cargo add`, `go get <module>@latest`, etc.) or a registry command such as `npm view <pkg> version`, `pip index versions`, `go list -m -versions`, or crates.io. Pin what the registry reports today, never a number from memory.
 
 **Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its iron law: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
 

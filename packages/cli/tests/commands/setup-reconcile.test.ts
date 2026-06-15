@@ -205,12 +205,14 @@ describe('Setup Command - Reconcile Integration', () => {
       ).toBe(true);
     });
 
-    it('should wire Codex PreToolUse config to the safeword adapter', async () => {
+    it('should wire Codex prompt timestamp and PreToolUse config to safeword hooks', async () => {
       await setupReconcileTest(temporaryDirectory);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       expect(content).toContain('[features]');
       expect(content).toContain('hooks = true');
+      expect(content).toContain('[[hooks.UserPromptSubmit]]');
+      expect(content).toContain('.safeword/hooks/prompt-timestamp.ts');
       expect(content).toContain('[[hooks.PreToolUse]]');
       expect(content).toContain('apply_patch');
       expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');

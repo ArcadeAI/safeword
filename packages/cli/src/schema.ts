@@ -851,8 +851,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // Both namespace roots listed (TAGWZ8): INDEX files generate under the
       // resolved root — .project/ on fresh installs, .safeword-project/ legacy.
       content:
-        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
-      marker: '# Safeword - managed prettier exclusions',
+        '\n# Safeword - managed prettier exclusions\n.husky/_\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
+      marker: '.project/tickets/INDEX-completed.md',
     },
   },
 
