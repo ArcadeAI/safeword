@@ -14,6 +14,7 @@
 
 **Hook coverage drift guard:** ✅ `tests/smoke/hook-coverage.test.ts` passes; dependency readiness hooks are covered by deterministic hook tests and listed with justification.
 **Schema/install surface:** ✅ `setup-hooks` and schema tests pass; new templates are registered and installed.
+**Command detector follow-up:** ✅ Broadened coverage for `bun --cwd`, `env` wrappers, `npx`/`npm exec`, `pnpm exec`, `corepack pnpm`, and naked pnpm/yarn local-bin commands without adding dependencies.
 **Audit passed** — no findings attributable to this change.
 
 ## Done-When Evidence
@@ -23,7 +24,7 @@
 - ✅ Explicit auto-install mode runs `bun ci` and writes ready state when `.safeword/config.json` opts into `dependencyBootstrap.autoInstall`.
 - ✅ Bootstrap uses `bun ci` for Bun lockfile projects and records failure instead of rewriting dependency metadata when install fails.
 - ✅ Ready installs are skipped when `node_modules` is current; stale/missing artifacts are detected from lockfile and package manifest inputs.
-- ✅ Non-dependency Bash commands such as `git status` are allowed without output.
+- ✅ Non-dependency Bash commands such as `git status`, install commands, and quoted text containing dependency commands are allowed without output.
 - ✅ Unsupported projects skip silently.
 
 ## Commands Run
@@ -36,3 +37,6 @@
 - `bun run --cwd packages/cli test:done` — 417/417 hook/schema tests passed.
 - `bun run --cwd packages/cli lint` — clean.
 - `bun run --cwd packages/cli test -- --reporter=dot` — 2866/2866 passed, 1 skipped.
+- `bun run --cwd packages/cli test -- dependency-readiness` — RED confirmed 13 newly added command-detector cases failed before implementation; GREEN passed 46/46 after implementation.
+- `bun run --cwd packages/cli lint` — clean after command-detector follow-up.
+- `bun run --cwd packages/cli test -- dependency-readiness src/templates/config.test.ts tests/smoke/hook-coverage.test.ts setup-hooks` — 81/81 passed after command-detector follow-up.

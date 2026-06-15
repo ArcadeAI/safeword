@@ -7,7 +7,7 @@ status: done
 epic: cc-changelog-alignment
 relates_to: 8R54HV
 created: 2026-06-13T21:34:07.157Z
-last_modified: 2026-06-14T01:01:27.000Z
+last_modified: 2026-06-15T04:17:45Z
 ---
 
 # Bootstrap dependencies in Claude-created worktrees
@@ -60,7 +60,7 @@ For Bun projects with a committed `bun.lock`, prefer `bun ci` over bare `bun ins
 
 - [x] Unit: package-manager detection chooses `bun ci` for `packageManager: bun` plus `bun.lock`.
 - [x] Unit: install-state stamp changes when `bun.lock` or workspace `package.json` content changes.
-- [x] Unit: dependency command classifier catches `bun run`, `bun test`, `vitest`, `tsc`, `eslint`, and package-manager script equivalents without blocking unrelated shell commands.
+- [x] Unit: dependency command classifier catches `bun run`, `bun test`, package-manager wrappers, `vitest`, `tsc`, `eslint`, and package-manager script equivalents without blocking unrelated shell commands.
 - [x] Integration: simulate a fresh worktree without `node_modules`; SessionStart records missing dependency state and injects context in default mode.
 - [x] Integration: simulate explicit auto mode; SessionStart bootstrap runs and writes a current stamp.
 - [x] Integration: simulate bootstrap failure; PreToolUse denies the dependency-backed command and includes the recovery instruction.
@@ -96,6 +96,14 @@ For Bun projects with a committed `bun.lock`, prefer `bun ci` over bare `bun ins
 
 **Next:** Implement the default detect-and-guard path first; add explicit auto-install mode only after the guard is tested.
 
+## Figure-It-Out: Command Detector Follow-Up
+
+**Decision:** Broaden the detector now, but keep it as a small no-dependency parser.
+
+**Why:** Current Bun, npm, pnpm, Yarn, GNU `env`, and Bash docs confirm the missed forms are real command shapes: global flags can precede package-manager subcommands, `env` can wrap a command with assignments, `npx`/`npm exec` and `pnpm exec` run local or fetched package commands, and `yarn <script>` can execute package scripts or local bins. The safe correction is to tokenize simple shell words, strip known wrappers, and find the package-manager subcommand after known value-taking options. A full shell parser dependency would add supply-chain and maintenance surface to a hot hook for little extra value.
+
+**Out of scope:** Parsing nested shell strings such as `bash -lc "bun test"`; that is a larger shell-interception problem and belongs in a separate hardening ticket if it proves common.
+
 ## Work Log
 
 - 2026-06-13T21:34:07.157Z Started: Created ticket E0J9N2
@@ -103,3 +111,4 @@ For Bun projects with a committed `bun.lock`, prefer `bun ci` over bare `bun ins
 - 2026-06-13T21:35:54.000Z Quality-review adjustment: default to detect-and-guard so installs happen through normal tool permission flow; reserve automatic install for explicit config.
 - 2026-06-13T21:36:29.000Z Quality review passed after adjustment; implementation should start with detect-and-guard before optional auto-install.
 - 2026-06-14T01:01:27.000Z Implemented dependency-readiness hook library, SessionStart context/auto-bootstrap hook, PreToolUse Bash guard, schema/settings registration, transient-state ignore rules, and verification coverage. Full package suite passed: 2866/2866 tests, 1 skipped.
+- 2026-06-15T04:17:45Z Figure-it-out follow-up: broadened the dependency-backed command detector for `bun --cwd`, `env` wrappers, `npx`/`npm exec`, `pnpm exec`, `corepack pnpm`, and naked local-bin forms for pnpm/yarn. Kept nested shell parsing out of scope to avoid brittle full-shell emulation in a hot PreToolUse hook.

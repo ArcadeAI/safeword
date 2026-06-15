@@ -174,14 +174,27 @@ describe('dependency readiness hook support', () => {
   it.each([
     ['bun run test'],
     ['bun test'],
+    ['bun --cwd packages/cli test'],
+    ['bun --cwd packages/cli run test'],
+    ['env FOO=1 bun run test'],
+    ['/usr/bin/env FOO=1 bun test'],
     ['bunx vitest run'],
+    ['npx vitest run'],
+    ['npm exec -- vitest run'],
     ['vitest run'],
     ['./node_modules/.bin/vitest run'],
     ['tsc --noEmit'],
     ['eslint .'],
     ['npm test'],
+    ['npm --prefix packages/cli test'],
     ['pnpm run build'],
+    ['pnpm --dir packages/cli test'],
+    ['pnpm exec vitest run'],
+    ['pnpm vitest run'],
+    ['corepack pnpm test'],
     ['yarn test'],
+    ['yarn --cwd packages/cli test'],
+    ['yarn vitest run'],
   ])('treats dependency-backed command "%s" as guarded', command => {
     expect(isDependencyBackedCommand(command)).toBe(true);
   });
@@ -190,11 +203,15 @@ describe('dependency readiness hook support', () => {
     ['git status'],
     ['ls packages/cli'],
     ['pwd'],
+    ['echo "x; bun test"'],
     ['bun ci'],
+    ['env FOO=1 bun ci'],
     ['bun install --frozen-lockfile'],
     ['npm ci'],
     ['pnpm install --frozen-lockfile'],
+    ['corepack pnpm install --frozen-lockfile'],
     ['yarn install --immutable'],
+    ['npx cowsay hello'],
   ])('does not guard non-runtime or install command "%s"', command => {
     expect(isDependencyBackedCommand(command)).toBe(false);
   });

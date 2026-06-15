@@ -48,6 +48,29 @@ export interface DependencyReadinessState {
 const INSTALL_ARTIFACT = 'node_modules';
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
+const BUN_OPTIONS_WITH_VALUES = new Set([
+  '--config',
+  '--conditions',
+  '--cwd',
+  '--env-file',
+  '--import',
+  '--install',
+  '--preload',
+  '--require',
+  '-c',
+  '-r',
+]);
+const ENV_OPTIONS_WITH_VALUES = new Set(['--argv0', '--chdir', '--unset', '-a', '-C', '-u']);
+const PACKAGE_MANAGER_OPTIONS_WITH_VALUES = new Set([
+  '--cwd',
+  '--dir',
+  '--filter',
+  '--prefix',
+  '--workspace',
+  '-C',
+  '-F',
+  '-w',
+]);
 const DEPENDENCY_BINARIES = new Set([
   'cypress',
   'dependency-cruiser',
@@ -170,10 +193,7 @@ export function readDependencyBootstrapConfig(projectDirectory: string): Depende
 }
 
 export function isDependencyBackedCommand(command: string): boolean {
-  const segments = command
-    .split(/\n|&&|\|\||;/)
-    .map(segment => segment.trim())
-    .filter(Boolean);
+  const segments = splitShellSegments(command);
 
   return segments.some(segment => isDependencyBackedSegment(segment));
 }
@@ -301,44 +321,271 @@ function expandWorkspacePattern(projectDirectory: string, pattern: string): stri
 }
 
 function isDependencyBackedSegment(segment: string): boolean {
-  const normalized = stripLeadingEnvironmentAssignments(segment);
-  if (normalized.length === 0) return false;
-  if (isInstallSegment(normalized)) return false;
+  const words = stripExecutionPrefixes(tokenizeShellWords(segment));
+  const [binary, ...args] = words;
+  if (binary === undefined) return false;
 
-  const [rawBinary, ...args] = normalized.split(/\s+/);
-  if (rawBinary === undefined) return false;
-
-  const binary = rawBinary.replace(/^["']|["']$/g, '');
   const basename = nodePath.basename(binary);
 
   if (binary.includes('node_modules/.bin/')) return true;
 
   if (basename === 'bun') {
-    return args[0] === 'run' || args[0] === 'test';
+    return isBunDependencyBackedCommand(args);
   }
 
   if (basename === 'bunx') return true;
 
-  if (basename === 'npm' || basename === 'pnpm' || basename === 'yarn') {
-    return args[0] === 'run' || args[0] === 'test';
+  if (basename === 'npx' || basename === 'pnpx' || basename === 'pnx') {
+    return isKnownBinaryPackageExecutor(args);
+  }
+
+  if (basename === 'npm') {
+    return isNpmDependencyBackedCommand(args);
+  }
+
+  if (basename === 'pnpm' || basename === 'yarn') {
+    return isPackageManagerDependencyBackedCommand(args);
   }
 
   return DEPENDENCY_BINARIES.has(basename);
 }
 
-function isInstallSegment(segment: string): boolean {
-  return /^(bun|npm|pnpm|yarn)\s+(ci|install|i|add|remove|rm|update|upgrade)\b/.test(segment);
+function isBunDependencyBackedCommand(args: string[]): boolean {
+  const subcommand = firstCommandArgument(args, BUN_OPTIONS_WITH_VALUES);
+  return subcommand === 'run' || subcommand === 'test';
 }
 
-function stripLeadingEnvironmentAssignments(segment: string): string {
-  let remaining = segment.trim();
+function isNpmDependencyBackedCommand(args: string[]): boolean {
+  const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
+  return subcommand === 'run' || subcommand === 'test' || subcommand === 'exec';
+}
 
-  while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(remaining)) {
-    const [, rest = ''] = remaining.match(/^[A-Za-z_][A-Za-z0-9_]*=\S+\s*(.*)$/) ?? [];
-    remaining = rest.trim();
+function isPackageManagerDependencyBackedCommand(args: string[]): boolean {
+  const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
+  return (
+    subcommand === 'run' ||
+    subcommand === 'test' ||
+    subcommand === 'exec' ||
+    (subcommand !== undefined && DEPENDENCY_BINARIES.has(subcommand))
+  );
+}
+
+function isKnownBinaryPackageExecutor(args: string[]): boolean {
+  const target = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
+  return target !== undefined && DEPENDENCY_BINARIES.has(target);
+}
+
+function firstCommandArgument(
+  args: string[],
+  optionsWithValues: ReadonlySet<string>,
+): string | undefined {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) continue;
+
+    if (arg === '--') {
+      return args[index + 1];
+    }
+
+    if (!arg.startsWith('-') || arg === '-') {
+      return arg;
+    }
+
+    if (optionsWithValues.has(arg) && !arg.includes('=')) {
+      index += 1;
+    }
+  }
+
+  return undefined;
+}
+
+function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    const next = command[index + 1];
+
+    if (char === undefined) continue;
+
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\' && quote !== "'") {
+      current += char;
+      escaped = true;
+      continue;
+    }
+
+    if (quote !== undefined) {
+      current += char;
+      if (char === quote) quote = undefined;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+      continue;
+    }
+
+    if (char === '\n' || char === ';') {
+      pushSegment(segments, current);
+      current = '';
+      continue;
+    }
+
+    if ((char === '&' && next === '&') || (char === '|' && next === '|')) {
+      pushSegment(segments, current);
+      current = '';
+      index += 1;
+      continue;
+    }
+
+    if (char === '|') {
+      pushSegment(segments, current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  pushSegment(segments, current);
+  return segments;
+}
+
+function pushSegment(segments: string[], segment: string): void {
+  const trimmed = segment.trim();
+  if (trimmed.length > 0) segments.push(trimmed);
+}
+
+function tokenizeShellWords(segment: string): string[] {
+  const words: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (let index = 0; index < segment.length; index += 1) {
+    const char = segment[index];
+    if (char === undefined) continue;
+
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+
+    if (quote !== undefined) {
+      if (char === quote) {
+        quote = undefined;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      pushWord(words, current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  pushWord(words, current);
+  return words;
+}
+
+function pushWord(words: string[], word: string): void {
+  if (word.length > 0) words.push(word);
+}
+
+function stripExecutionPrefixes(words: string[]): string[] {
+  let remaining = words;
+
+  while (remaining.length > 0) {
+    remaining = stripLeadingEnvironmentAssignments(remaining);
+    const [binary, ...args] = remaining;
+    if (binary === undefined) return [];
+
+    const basename = nodePath.basename(binary);
+    if (basename === 'env') {
+      remaining = stripEnvInvocation(args);
+      continue;
+    }
+
+    if (basename === 'corepack') {
+      remaining = args;
+      continue;
+    }
+
+    return remaining;
   }
 
   return remaining;
+}
+
+function stripLeadingEnvironmentAssignments(words: string[]): string[] {
+  let index = 0;
+  while (index < words.length && isEnvironmentAssignment(words[index] ?? '')) {
+    index += 1;
+  }
+  return words.slice(index);
+}
+
+function stripEnvInvocation(args: string[]): string[] {
+  let index = 0;
+
+  while (index < args.length) {
+    const arg = args[index];
+    if (arg === undefined) break;
+
+    if (isEnvironmentAssignment(arg)) {
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--') {
+      index += 1;
+      break;
+    }
+
+    if (ENV_OPTIONS_WITH_VALUES.has(arg) && !arg.includes('=')) {
+      index += 2;
+      continue;
+    }
+
+    if (arg.startsWith('-')) {
+      index += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return args.slice(index);
+}
+
+function isEnvironmentAssignment(word: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*=.*/.test(word);
 }
 
 function isInstallArtifactStale(
