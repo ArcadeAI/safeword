@@ -3,6 +3,8 @@
 // `paths` are the Gherkin `.feature` files. Run via `npm run test:bdd` (or
 // `bun run test:bdd`). Safeword owns this file; step definitions and features
 // are yours.
+import 'tsx/esm';
+
 const workspaceFeaturePaths = [
   'features/**/*.feature',
   'packages/*/features/**/*.feature',
@@ -12,7 +14,6 @@ const workspaceFeaturePaths = [
 ];
 
 const workspaceStepImports = [
-  'tsx/esm',
   'steps/**/*.ts',
   'packages/*/features/steps/**/*.ts',
   'apps/*/features/steps/**/*.ts',
