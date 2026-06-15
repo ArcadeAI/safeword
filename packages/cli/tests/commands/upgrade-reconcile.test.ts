@@ -265,7 +265,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(hasSafeword).toBe(true);
     });
 
-    it('should ensure AGENTS.md link via text-patch', async () => {
+    it('should preserve customer AGENTS.md without adding safeword text', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -281,10 +281,8 @@ describe('Upgrade Command - Reconcile Integration', () => {
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
-      // AGENTS.md should have the link added
       const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
-      expect(content).toContain('.safeword/SAFEWORD.md');
-      expect(content).toContain('My Project'); // Original content preserved
+      expect(content).toBe('# My Project\n\nSome content.');
     });
 
     it('should preserve existing Codex config while creating missing Codex skills', async () => {

@@ -284,18 +284,10 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('textPatches', () => {
-    it('should include AGENTS.md prepend patch with safeword marker', async () => {
+    it('should not patch customer context files to point at safeword', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      expect(SAFEWORD_SCHEMA.textPatches['AGENTS.md']).toEqual(
-        expect.objectContaining({ operation: 'prepend', marker: '.safeword/SAFEWORD.md' }),
-      );
-    });
-
-    it('should include CLAUDE.md prepend patch with @ import marker', async () => {
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      expect(SAFEWORD_SCHEMA.textPatches['CLAUDE.md']).toEqual(
-        expect.objectContaining({ operation: 'prepend', marker: '@./.safeword/SAFEWORD.md' }),
-      );
+      expect(SAFEWORD_SCHEMA.textPatches).not.toHaveProperty('AGENTS.md');
+      expect(SAFEWORD_SCHEMA.textPatches).not.toHaveProperty('CLAUDE.md');
     });
   });
 
@@ -471,7 +463,7 @@ describe('Schema - Single Source of Truth', () => {
       for (const entries of Object.values(SETTINGS_HOOKS)) {
         for (const entry of entries) {
           for (const hookDefinition of entry.hooks) {
-            const match = /\/([^/]+)$/.exec(hookDefinition.command);
+            const match = /\/([^/\s]+?\.(?:ts|sh))(?:\s|$)/.exec(hookDefinition.command);
             if (match?.[1]) wiredHooks.add(match[1]);
           }
         }

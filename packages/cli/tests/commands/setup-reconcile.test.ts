@@ -107,7 +107,9 @@ describe('Setup Command - Reconcile Integration', () => {
 
       // Check hook files
       expect(
-        existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/session-verify-agents.ts')),
+        existsSync(
+          nodePath.join(temporaryDirectory, '.safeword/hooks/session-safeword-context.ts'),
+        ),
       ).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/stop-quality.ts'))).toBe(
         true,
@@ -180,19 +182,15 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(packageJson.scripts?.knip).toBeDefined();
     });
 
-    it('should create AGENTS.md via text patch', async () => {
+    it('should not create AGENTS.md via text patch', async () => {
       await setupReconcileTest(temporaryDirectory);
 
-      // AGENTS.md should be created with safeword link
-      expect(existsSync(nodePath.join(temporaryDirectory, 'AGENTS.md'))).toBe(true);
-      const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
-      expect(content).toContain('.safeword/SAFEWORD.md');
+      expect(existsSync(nodePath.join(temporaryDirectory, 'AGENTS.md'))).toBe(false);
     });
 
     it('should create Codex project assets when applied', async () => {
       await setupReconcileTest(temporaryDirectory);
 
-      expect(existsSync(nodePath.join(temporaryDirectory, 'AGENTS.md'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.agents/skills/bdd/SKILL.md'))).toBe(
         true,
@@ -216,6 +214,8 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(content).toContain('[[hooks.PreToolUse]]');
       expect(content).toContain('apply_patch');
       expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+      expect(content).toContain('[[hooks.SessionStart]]');
+      expect(content).toContain('.safeword/hooks/session-safeword-context.ts');
     });
 
     it('should warn when the installed Codex CLI is below the safeword hook floor', async () => {
@@ -254,7 +254,7 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(`${result.stdout}\n${result.stderr}`).toContain('trust safeword project hooks');
     });
 
-    it('should prepend to existing AGENTS.md', async () => {
+    it('should preserve existing AGENTS.md without prepending safeword text', async () => {
       const { reconcile, SAFEWORD_SCHEMA, createProjectContext } = await getReconcileTestUtilities(
         temporaryDirectory,
         {
@@ -271,10 +271,8 @@ describe('Setup Command - Reconcile Integration', () => {
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
-      // AGENTS.md should have link prepended
       const content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
-      expect(content).toContain('.safeword/SAFEWORD.md');
-      expect(content).toContain('Custom content here');
+      expect(content).toBe('# My Project\n\nCustom content here.');
     });
 
     it('should detect framework-specific packages', async () => {

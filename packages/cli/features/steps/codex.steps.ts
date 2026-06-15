@@ -231,9 +231,8 @@ When('safeword setup reconciles the project', function (this: SafewordWorld) {
 });
 
 Then(
-  /^the project has `AGENTS\.md`, `\.codex\/config\.toml`, and `\.agents\/skills` safeword skill files$/,
+  /^the project has `\.codex\/config\.toml` and `\.agents\/skills` safeword skill files$/,
   function (this: SafewordWorld) {
-    assertFileExists(this.temporaryDirectory, 'AGENTS.md');
     assertFileExists(this.temporaryDirectory, '.codex/config.toml');
     assertFileExists(this.temporaryDirectory, '.agents/skills/bdd/SKILL.md');
     assertFileExists(this.temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md');

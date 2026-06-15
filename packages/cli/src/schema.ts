@@ -57,6 +57,7 @@ export interface SafewordSchema {
   managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
   jsonMerges: Record<string, JsonMergeDefinition>;
   textPatches: Record<string, TextPatchDefinition>;
+  legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
   packages: {
     base: string[];
@@ -110,6 +111,17 @@ type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestamp.ts"'
 timeout = 5
 statusMessage = "Adding current timestamp"
+`;
+
+const CODEX_SESSION_START_HOOK_PATCH = `
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-safeword-context.ts" --agent=codex'
+timeout = 30
+statusMessage = "Loading safeword standing instructions"
 `;
 
 const CODEX_PRE_TOOL_QUALITY_HOOK_PATCH = `
@@ -251,6 +263,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/eslint-boundaries.config.mjs',
     // Shell hooks replaced with TypeScript/Bun (v0.13.0)
     '.safeword/hooks/session-verify-agents.sh',
+    // Replaced by session-safeword-context.ts (P30CRP): safeword no longer edits AGENTS.md.
+    '.safeword/hooks/session-verify-agents.ts',
     '.safeword/hooks/session-version.sh',
     '.safeword/hooks/session-lint-check.sh',
     '.safeword/hooks/prompt-timestamp.sh',
@@ -422,8 +436,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
 
     // Hooks - TypeScript with Bun runtime
-    '.safeword/hooks/session-verify-agents.ts': {
-      template: 'hooks/session-verify-agents.ts',
+    '.safeword/hooks/session-safeword-context.ts': {
+      template: 'hooks/session-safeword-context.ts',
     },
     '.safeword/hooks/session-version.ts': {
       template: 'hooks/session-version.ts',
@@ -804,7 +818,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/mcp.json': MCP_JSON_MERGE,
 
     '.cursor/hooks.json': {
-      keys: ['version', 'hooks.afterFileEdit', 'hooks.stop'],
+      keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],
       removeFileIfEmpty: true,
       merge: existing => {
         const hooks = (existing.hooks as Record<string, unknown[]>) ?? {};
@@ -821,6 +835,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         const result = { ...existing };
         const hooks = { ...(existing.hooks as Record<string, unknown[]>) };
 
+        delete hooks.sessionStart;
         delete hooks.afterFileEdit;
         delete hooks.stop;
 
@@ -838,24 +853,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Text files where we patch specific content
   textPatches: {
-    'AGENTS.md': {
-      operation: 'prepend',
-      content: AGENTS_MD_LINK,
-      marker: '.safeword/SAFEWORD.md',
-    },
-    'CLAUDE.md': {
-      operation: 'prepend',
-      // Uses `@` import syntax so SAFEWORD.md inlines into CLAUDE.md's
-      // compaction-resistant context (vs. AGENTS.md's prose, which is for
-      // non-Claude agents reading the file directly).
-      content: CLAUDE_MD_IMPORT_BLOCK,
-      // Marker is the `@` import line itself so upgrades from v0.29.0 and
-      // earlier (which prepended prose containing `.safeword/SAFEWORD.md` in
-      // backticks) still trigger prepending the new `@` import block on top.
-      // Existing prose lingers harmlessly — agents skim it; only the import
-      // is functionally load-bearing.
-      marker: '@./.safeword/SAFEWORD.md',
-    },
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
@@ -896,8 +893,24 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         '# Safeword Codex project configuration.',
         '.safeword/hooks/codex/pre-tool-quality.ts',
       ],
-      unpatchContent: [CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+      unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
       removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+    },
+  },
+
+  // Cleanup-only text patches. Safeword used to prepend these blocks to
+  // customer-owned context files; P30CRP moved SAFEWORD.md delivery to
+  // safeword-owned hooks.
+  legacyTextPatches: {
+    'AGENTS.md': {
+      operation: 'prepend',
+      content: AGENTS_MD_LINK,
+      marker: '.safeword/SAFEWORD.md',
+    },
+    'CLAUDE.md': {
+      operation: 'prepend',
+      content: CLAUDE_MD_IMPORT_BLOCK,
+      marker: '@./.safeword/SAFEWORD.md',
     },
   },
 

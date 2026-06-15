@@ -84,27 +84,21 @@ describe('Integration: install / upgrade text-patch composition', () => {
   }
 
   describe('AGENTS.md', () => {
-    it('install creates AGENTS.md with safeword preamble when absent', async () => {
+    it('install does not create AGENTS.md when absent', async () => {
       await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
-      expect(existsSync(nodePath.join(projectDirectory, 'AGENTS.md'))).toBe(true);
-      const content = read('AGENTS.md');
-      expect(content).toContain('.safeword/SAFEWORD.md');
-      expect(content).not.toMatch(/---#/);
+      expect(existsSync(nodePath.join(projectDirectory, 'AGENTS.md'))).toBe(false);
     });
 
-    it('install over a user heading preserves the `\\n---\\n\\n#` boundary', async () => {
+    it('install over a user heading leaves AGENTS.md unchanged', async () => {
       seed('AGENTS.md', '# AGENTS.md — my project\n\nSome existing notes.\n');
 
       await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
-      const content = read('AGENTS.md');
-      expect(content).not.toMatch(/---#/);
-      expect(content).toMatch(/\n---\n\n# AGENTS\.md/);
-      expect(content).toContain('Some existing notes.');
+      expect(read('AGENTS.md')).toBe('# AGENTS.md — my project\n\nSome existing notes.\n');
     });
 
-    it('upgrade heals legacy `---#` artifact and is idempotent', async () => {
+    it('upgrade removes legacy safeword block and is idempotent', async () => {
       seed(
         'AGENTS.md',
         '**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`\n\n---# AGENTS.md — my project\n\nSome existing notes.\n',
@@ -114,35 +108,53 @@ describe('Integration: install / upgrade text-patch composition', () => {
 
       const healed = read('AGENTS.md');
       expect(healed).not.toMatch(/---#/);
-      expect(healed).toMatch(/\n---\n\n# AGENTS\.md/);
+      expect(healed).toBe('# AGENTS.md — my project\n\nSome existing notes.\n');
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', makeContext());
       expect(read('AGENTS.md')).toBe(healed);
     });
+
+    it('upgrade preserves customer YAML frontmatter after removing legacy safeword block', async () => {
+      seed(
+        'AGENTS.md',
+        '**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`\n\nThe SAFEWORD.md file contains core development patterns, workflows, and conventions.\nRead it BEFORE working on any task in this project.\n\n---\n\n---\ntitle: Agent Context\n---\n# AGENTS.md — my project\n',
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', makeContext());
+
+      expect(read('AGENTS.md')).toBe('---\ntitle: Agent Context\n---\n# AGENTS.md — my project\n');
+    });
+
+    it('upgrade preserves customer YAML frontmatter when safeword is only mentioned in the body', async () => {
+      seed(
+        'AGENTS.md',
+        '---\ntitle: Agent Context\n---\n# AGENTS.md — my project\n\nHistorical note: `.safeword/SAFEWORD.md` used to be referenced here.\n',
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', makeContext());
+
+      expect(read('AGENTS.md')).toBe(
+        '---\ntitle: Agent Context\n---\n# AGENTS.md — my project\n\nHistorical note: `.safeword/SAFEWORD.md` used to be referenced here.\n',
+      );
+    });
   });
 
   describe('CLAUDE.md', () => {
-    it('install creates CLAUDE.md with safeword preamble when absent', async () => {
+    it('install does not create CLAUDE.md when absent', async () => {
       await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
-      expect(existsSync(nodePath.join(projectDirectory, 'CLAUDE.md'))).toBe(true);
-      const content = read('CLAUDE.md');
-      expect(content).toContain('@./.safeword/SAFEWORD.md');
-      expect(content).not.toMatch(/---#/);
+      expect(existsSync(nodePath.join(projectDirectory, 'CLAUDE.md'))).toBe(false);
     });
 
-    it('install over a user heading preserves the `\\n---\\n\\n#` boundary', async () => {
+    it('install over a user heading leaves CLAUDE.md unchanged', async () => {
       seed('CLAUDE.md', '# CLAUDE.md — my project\n\nSome existing notes.\n');
 
       await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
 
-      const content = read('CLAUDE.md');
-      expect(content).not.toMatch(/---#/);
-      expect(content).toMatch(/\n---\n\n# CLAUDE\.md/);
-      expect(content).toContain('Some existing notes.');
+      expect(read('CLAUDE.md')).toBe('# CLAUDE.md — my project\n\nSome existing notes.\n');
     });
 
-    it('upgrade heals legacy `---#` artifact and is idempotent', async () => {
+    it('upgrade removes legacy safeword import and is idempotent', async () => {
       seed(
         'CLAUDE.md',
         '@./.safeword/SAFEWORD.md\n\n---# CLAUDE.md — my project\n\nSome existing notes.\n',
@@ -152,10 +164,34 @@ describe('Integration: install / upgrade text-patch composition', () => {
 
       const healed = read('CLAUDE.md');
       expect(healed).not.toMatch(/---#/);
-      expect(healed).toMatch(/\n---\n\n# CLAUDE\.md/);
+      expect(healed).toBe('# CLAUDE.md — my project\n\nSome existing notes.\n');
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', makeContext());
       expect(read('CLAUDE.md')).toBe(healed);
+    });
+
+    it('upgrade preserves customer YAML frontmatter after removing legacy safeword import', async () => {
+      seed(
+        'CLAUDE.md',
+        '@./.safeword/SAFEWORD.md\n\n---\n\n---\ntitle: Claude Context\n---\n# CLAUDE.md — my project\n',
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', makeContext());
+
+      expect(read('CLAUDE.md')).toBe('---\ntitle: Claude Context\n---\n# CLAUDE.md — my project\n');
+    });
+
+    it('upgrade preserves customer YAML frontmatter when safeword import is only mentioned in the body', async () => {
+      seed(
+        'CLAUDE.md',
+        '---\ntitle: Claude Context\n---\n# CLAUDE.md — my project\n\nHistorical note: @./.safeword/SAFEWORD.md used to be referenced here.\n',
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', makeContext());
+
+      expect(read('CLAUDE.md')).toBe(
+        '---\ntitle: Claude Context\n---\n# CLAUDE.md — my project\n\nHistorical note: @./.safeword/SAFEWORD.md used to be referenced here.\n',
+      );
     });
   });
 });
