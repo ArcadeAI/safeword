@@ -115,23 +115,40 @@ function planMissingDirectories(
 }
 
 /**
- * Plan text-patch actions for all targets. The executor (`executeTextPatch`)
- * decides whether to prepend, heal a legacy `---#` artifact, or no-op based on
- * the file's current contents — so the planner stays uniform across modes.
+ * Plan text-patch actions for all eligible targets. The executor
+ * (`executeTextPatch`) decides whether to prepend, heal a legacy `---#`
+ * artifact, or no-op based on the file's current contents — so the planner
+ * stays uniform across modes for unguarded patches.
  * Keeping the marker check in the executor (not here) ensures `safeword
  * upgrade` reaches the heal path on pre-fix installs, which is what commit
  * a304af8 promised.
  */
 function planTextPatches(
   patches: Record<string, TextPatchDefinition>,
+  cwd: string,
   isGitRepo: boolean,
 ): Action[] {
   const actions: Action[] = [];
   for (const [filePath, definition] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
+    if (!passesTextPatchContentGuard(cwd, filePath, definition)) continue;
     actions.push({ type: 'text-patch', path: filePath, definition });
   }
   return actions;
+}
+
+function passesTextPatchContentGuard(
+  cwd: string,
+  filePath: string,
+  definition: TextPatchDefinition,
+): boolean {
+  if (!definition.applyWhenContentIncludes) return true;
+
+  const content = readFileSafe(nodePath.join(cwd, filePath));
+  return (
+    content !== undefined &&
+    definition.applyWhenContentIncludes.every(required => content.includes(required))
+  );
 }
 
 function planTextUnpatches(
@@ -141,7 +158,7 @@ function planTextUnpatches(
 ): Action[] {
   const hasLegacyPreamble = (content: string, definition: TextPatchDefinition): boolean => {
     const firstLine = content.split('\n', 1)[0] ?? '';
-    return content.startsWith(definition.content) || firstLine.includes(definition.marker);
+    return containsTextPatchContent(content, definition) || firstLine.includes(definition.marker);
   };
 
   const actions: Action[] = [];
@@ -441,10 +458,10 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
     actions.push({ type: 'json-merge', path: filePath, definition });
   }
 
-  // 6. Text patches — the executor creates absent target files unconditionally,
-  // so any text-patch path that doesn't exist now will be created.
+  // 6. Text patches — unguarded patches create absent target files; guarded
+  // patches only run when the current file proves it is safe to touch.
   actions.push(...planTextUnpatches(schema.legacyTextPatches, ctx.cwd, ctx.isGitRepo));
-  const textPatchActions = planTextPatches(schema.textPatches, ctx.isGitRepo);
+  const textPatchActions = planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo);
   actions.push(...textPatchActions);
   for (const action of textPatchActions) {
     if (action.type === 'text-patch' && !exists(nodePath.join(ctx.cwd, action.path))) {
@@ -589,10 +606,10 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
     actions.push({ type: 'json-merge', path: filePath, definition });
   }
 
-  // 7. Text patches (only if marker missing)
+  // 7. Text patches
   actions.push(
     ...planTextUnpatches(schema.legacyTextPatches, ctx.cwd, ctx.isGitRepo),
-    ...planTextPatches(schema.textPatches, ctx.isGitRepo),
+    ...planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo),
   );
 
   // 8. Compute packages to install
@@ -928,9 +945,7 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
   const content = readFileSafe(fullPath);
   if (!content) return;
 
-  // Remove the patched content. First try to remove the full content block;
-  // when that succeeds, preserve the customer content byte-for-byte.
-  let unpatched = content.replace(definition.content, '');
+  let unpatched = removeExactTextPatchContent(content, definition);
 
   // Legacy prepend blocks may have a malformed separator (`---# Heading`) from
   // safeword <=0.30.1. If the file starts with our managed marker, remove the
@@ -943,7 +958,6 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
     }
   }
 
-  // If full content wasn't found but marker exists, remove lines containing the marker
   const firstLine = content.split('\n', 1)[0] ?? '';
   if (unpatched === content && firstLine.includes(definition.marker)) {
     const lines = content.split('\n');
@@ -952,5 +966,32 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
     unpatched = stripLeadingSafewordSeparator(unpatched);
   }
 
+  if (shouldRemoveTextPatchTarget(unpatched, definition)) {
+    remove(fullPath);
+    return;
+  }
+
   writeFile(fullPath, unpatched);
+}
+
+function removeExactTextPatchContent(content: string, definition: TextPatchDefinition): string {
+  let unpatched = content.replace(definition.content, '');
+  for (const extraContent of definition.unpatchContent ?? []) {
+    unpatched = unpatched.replace(extraContent, '');
+  }
+  return unpatched;
+}
+
+function containsTextPatchContent(content: string, definition: TextPatchDefinition): boolean {
+  return (
+    content.includes(definition.marker) ||
+    (definition.unpatchContent?.some(extraContent => content.includes(extraContent)) ?? false)
+  );
+}
+
+function shouldRemoveTextPatchTarget(content: string, definition: TextPatchDefinition): boolean {
+  const trimmed = content.trim();
+  return (
+    definition.removeFileIfContentEquals?.some(candidate => trimmed === candidate.trim()) ?? false
+  );
 }

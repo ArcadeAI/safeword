@@ -111,6 +111,23 @@ describe('Reconcile - Reconciliation Engine', () => {
     };
   }
 
+  function readCodexConfigTemplate(): string {
+    return readFileSync(
+      nodePath.resolve(import.meta.dirname, '../templates/codex/config.toml'),
+      'utf8',
+    );
+  }
+
+  function readLegacyCodexConfigWithoutPromptTimestamp(): string {
+    const template = readCodexConfigTemplate();
+    const promptStart = template.indexOf('\n[[hooks.UserPromptSubmit]]');
+    const preToolStart = template.indexOf('\n[[hooks.PreToolUse]]');
+    if (promptStart === -1 || preToolStart === -1 || preToolStart <= promptStart) {
+      throw new Error('Codex config template no longer has the expected hook block order');
+    }
+    return template.slice(0, promptStart) + template.slice(preToolStart);
+  }
+
   describe('reconcile() - install mode', () => {
     it('should create all owned directories', async () => {
       const { reconcile } = await import('../src/reconcile.js');
@@ -653,6 +670,58 @@ describe('Reconcile - Reconciliation Engine', () => {
       content = readFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), 'utf8');
       expect(content).not.toContain('.safeword/SAFEWORD.md');
       expect(content).toContain('Custom content here');
+    });
+
+    it('should remove safeword-only Codex config on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(true);
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
+    });
+
+    it('should strip safeword hooks from user-extended Codex config on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        `${readCodexConfigTemplate()}\nmodel = "gpt-5-codex"\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('model = "gpt-5-codex"');
+      expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
+      expect(content).not.toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+    });
+
+    it('should clean legacy Codex config that only has the safeword PreToolUse hook', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        readLegacyCodexConfigWithoutPromptTimestamp(),
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
     });
 
     it('should remove owned directories but preserve user content', async () => {
