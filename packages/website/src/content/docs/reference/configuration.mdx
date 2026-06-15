@@ -110,9 +110,9 @@ Both tools coexist cleanly — ESLint handles code analysis (bugs, security, com
 
 ## Hook Configuration
 
-Hooks are configured in `.claude/settings.json`. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
+Hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.json` (Cursor), and `.codex/config.toml` (Codex). See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
 
-To disable a specific hook, remove it from the `hooks` array in settings.
+To disable a specific hook, remove the safeword hook entry from that agent's config.
 
 ## Customizing Without Losing Upgrades
 
@@ -121,12 +121,13 @@ Safeword has two types of files:
 **Overwritten on upgrade** (you shouldn't edit these directly):
 
 - `.safeword/hooks/*`, `.safeword/guides/*`, `.safeword/templates/*`
-- `.claude/skills/*`, `.claude/commands/*`
+- `.claude/skills/*`, `.agents/skills/*`
 - `.cursor/rules/*`, `.cursor/commands/*`
 
 **Never overwritten** (safe to customize):
 
 - `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `cucumber.mjs`
+- `.codex/config.toml`
 - Language-specific configs: `ruff.toml`, `mypy.ini`, `.golangci.yml`, `clippy.toml`, `rustfmt.toml`, `.sqlfluff`
 
 **Created once, yours afterward** (scaffolded if missing, never overwritten once you've edited them):
@@ -163,16 +164,27 @@ The `paths` object also supports per-file overrides — `personas`, `glossary`, 
 
 ```json
 {
+  "installedPacks": ["typescript"],
   "paths": {
     "projectRoot": ".project",
     "personas": "docs/personas.md",
     "glossary": "docs/glossary.md",
     "architecture": "docs/adr/"
+  },
+  "docs": {
+    "sources": [
+      { "type": "local", "path": "README.md" },
+      { "type": "local", "path": "docs" },
+      { "type": "url", "url": "https://docs.example.com" },
+      { "type": "git", "repo": "git@example.com:org/docs.git", "path": "product" }
+    ]
   }
 }
 ```
 
 Relative paths resolve against the project root (the directory containing `.safeword/`); absolute paths are used verbatim.
+
+`docs.sources` is separate from `paths.*`. Use it to tell audit where project documentation lives. Local sources are validated by `safeword check`; URL and git sources are treated as audit inventory and should be fetched during audit when access is available, or reported as skipped coverage when they are not accessible. Set `"docs": { "sources": [] }` to keep fallback discovery and stop future audits from asking for configured sources.
 
 ## Project-Specific Content
 

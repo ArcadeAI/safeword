@@ -235,6 +235,17 @@ Test Quality:
 
 ### 5. Project Documentation Checks
 
+**Docs source inventory:**
+
+- Read `.safeword/config.json` first. If top-level `docs.sources` exists, treat it as the authoritative documentation inventory:
+  - `{ "type": "local", "path": "..." }` — inspect that file or directory. Relative paths resolve from the project root.
+  - `{ "type": "url", "url": "..." }` — fetch the page/site when browsing or network access is available. If unavailable, report it under coverage limitations.
+  - `{ "type": "git", "repo": "...", "path": "..." }` — inspect the repo/path when it is already available or can be fetched without credentials. If unavailable, report it under coverage limitations.
+- If `docs.sources` is absent, prompt the user: "Where should audit look for project documentation? I can add local paths, URLs, git repos, or set `docs.sources: []` to keep fallback discovery and stop asking." Wait for the answer before continuing unless the run is explicitly autonomous; in autonomous runs, use fallback discovery and report that no decision was recorded.
+- If the user chooses not to configure documentation sources, write `docs.sources: []` in `.safeword/config.json`. Treat that explicit empty list as a durable no-prompt decision in future audits.
+- If `docs.sources: []` is configured, do not prompt. Fall back to local discovery: `README.md`, `docs/`, `documentation/`, package docs folders, and known docs-site configs.
+- Always report docs coverage: configured vs fallback, sources checked, and sources skipped.
+
 **ARCHITECTURE.md:**
 
 - If missing → create from `.safeword/templates/architecture-template.md`

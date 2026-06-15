@@ -444,6 +444,45 @@ describe('Test Suite 8: Health Check', () => {
     });
   });
 
+  describe('configured docs sources (ticket 3BTGMW)', () => {
+    function setDocumentationSources(sources: unknown[]): void {
+      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+        installedPacks?: string[];
+        [key: string]: unknown;
+      };
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ ...existing, docs: { sources } }),
+      );
+    }
+
+    it('reports loud failure when a configured local docs source is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setDocumentationSources([{ type: 'local', path: 'docs/product' }]);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/docs-source:.*docs\/product.*file or directory not found/);
+    });
+
+    it('passes when configured local docs sources exist and external sources are declarative', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/product/README.md', '# Product docs\n');
+      setDocumentationSources([
+        { type: 'local', path: 'docs/product' },
+        { type: 'url', url: 'https://docs.example.test/product' },
+        { type: 'git', repo: 'git@example.com:org/docs.git', path: 'product' },
+      ]);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).not.toMatch(/docs-source:/);
+    });
+  });
+
   describe('AKZJXC: structured-relation advisories (depends_on)', () => {
     function writeRelatedTicket(folder: string, frontmatter: string[]): void {
       writeTestFile(

@@ -3,7 +3,9 @@
 // Regenerated on every `safeword setup` and `safeword upgrade`.
 
 export const SAFEWORD_PATHS: readonly string[] = [
+  '.agents/',
   '.claude/',
+  '.codex/',
   '.cursor/',
   '.gitignore',
   '.golangci.yml',
