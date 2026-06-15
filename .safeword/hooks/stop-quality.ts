@@ -518,7 +518,7 @@ if (currentPhase === 'done') {
 
   // Skill-invocation gate (ticket 147) — feature tickets entering done must have
   // current-session log entries for required skills (/verify and /audit).
-  // Bash-injection in those skills writes the log; hand-written verify.md
+  // Helper invocation in those skills writes the log; hand-written verify.md
   // cannot produce the entries. Honors stop_hook_active bypass for consistency.
   if (isFeature && !stopHookActive && input.session_id) {
     const requiredSkills = getRequiredSkillsForPhase(currentPhase);
@@ -531,7 +531,7 @@ if (currentPhase === 'done') {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       const missingList = skillCheck.missing.map(s => `/${s}`).join(' and ');
       hardBlockDone(
-        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The bash-injection log (skill-invocations.log under the project namespace root) proves invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no entry was logged, the bash injection at the top of the skill was likely denied — check Claude Code permissions for Bash(mkdir:*) and Bash(echo:*).`,
+        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The helper-written log (skill-invocations.log under the project namespace root) proves invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no entry was logged, inline shell execution was likely denied, the fallback helper was not run, CLAUDE_SESSION_ID was missing, or Bun could not run the installed helper. Check the invocation-log block at the top of the skill and .safeword/hooks/record-skill-invocation.ts.`,
       );
     }
   }

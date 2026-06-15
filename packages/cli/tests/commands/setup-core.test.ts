@@ -1,7 +1,7 @@
 /**
  * Test Suite 2: Setup - Core Files
  *
- * Tests for .safeword/ directory creation and AGENTS.md handling.
+ * Tests for .safeword/ directory creation and customer context-file handling.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -65,61 +65,41 @@ describe('Test Suite 2: Setup - Core Files', () => {
     });
   });
 
-  describe('Test 2.2: Creates AGENTS.md if missing', () => {
-    it('should create AGENTS.md with safeword link', async () => {
+  describe('Test 2.2: Leaves AGENTS.md absent when missing', () => {
+    it('should not create AGENTS.md just to point at safeword', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
 
-      expect(fileExists(temporaryDirectory, 'AGENTS.md')).toBe(true);
-
-      const content = readTestFile(temporaryDirectory, 'AGENTS.md');
-      expect(content).toContain('.safeword/SAFEWORD.md');
+      expect(fileExists(temporaryDirectory, 'AGENTS.md')).toBe(false);
     });
   });
 
-  describe('Test 2.3: Prepends link to existing AGENTS.md', () => {
-    it('should prepend link without losing content', async () => {
+  describe('Test 2.3: Preserves existing AGENTS.md', () => {
+    it('should leave customer content unchanged', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      // Create existing AGENTS.md
       const existingContent = '# My Project\n\nExisting content here.\n';
       writeTestFile(temporaryDirectory, 'AGENTS.md', existingContent);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
 
       const content = readTestFile(temporaryDirectory, 'AGENTS.md');
-
-      // Link should be first
-      const lines = content.split('\n');
-      expect(lines[0]).toContain('.safeword/SAFEWORD.md');
-
-      // Original content preserved
-      expect(content).toContain('# My Project');
-      expect(content).toContain('Existing content here.');
+      expect(content).toBe(existingContent);
     });
   });
 
-  describe('Test 2.4: No duplicate links in AGENTS.md on upgrade', () => {
-    it('should not add duplicate link on upgrade', async () => {
-      // First setup
+  describe('Test 2.4: No AGENTS.md link on upgrade', () => {
+    it('should not create AGENTS.md on upgrade', async () => {
       await createConfiguredProject(temporaryDirectory);
 
-      // Verify link exists
-      const contentBefore = readTestFile(temporaryDirectory, 'AGENTS.md');
-      const linkCount = (contentBefore.match(/\.safeword\/SAFEWORD\.md/g) || []).length;
-      expect(linkCount).toBe(1);
+      expect(fileExists(temporaryDirectory, 'AGENTS.md')).toBe(false);
 
-      // Run upgrade
       await runCli(['upgrade'], { cwd: temporaryDirectory });
 
-      // Count links after
-      const contentAfter = readTestFile(temporaryDirectory, 'AGENTS.md');
-      const linkCountAfter = (contentAfter.match(/\.safeword\/SAFEWORD\.md/g) || []).length;
-
-      expect(linkCountAfter).toBe(1);
+      expect(fileExists(temporaryDirectory, 'AGENTS.md')).toBe(false);
     });
   });
 

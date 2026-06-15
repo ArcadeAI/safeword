@@ -94,8 +94,10 @@ Read relevant standards:
 
 **CRITICAL**: This is your main differentiator from automatic hook. ALWAYS check versions.
 
+Use the live `Current time:` line from the prompt timestamp hook when the host provides one; otherwise use the current system date from the session.
+
 Search for:
-- "[library name] latest stable version 2025"
+- "[library name] latest stable version as of <current date>"
 - "[library name] security vulnerabilities"
 
 **Flag if outdated:**

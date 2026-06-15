@@ -15,6 +15,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  SKIP_INSTALL_ENV,
   TIMEOUT_BUN_INSTALL,
 } from '../helpers';
 
@@ -76,7 +77,7 @@ describe('Setup - Workspace Format Scripts', () => {
 
       const result = await runCli(['setup'], {
         cwd: temporaryDirectory,
-        env: { SAFEWORD_SKIP_INSTALL: '1' },
+        env: SKIP_INSTALL_ENV,
       });
 
       expect(result.exitCode).toBe(0);
@@ -104,6 +105,7 @@ describe('Setup - Workspace Format Scripts', () => {
 
       const result = await runCli(['setup'], {
         cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
       });
 
       expect(result.exitCode).toBe(0);
@@ -124,6 +126,7 @@ describe('Setup - Workspace Format Scripts', () => {
 
       const result = await runCli(['setup'], {
         cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
       });
 
       expect(result.exitCode).toBe(0);
@@ -152,6 +155,7 @@ describe('Setup - Workspace Format Scripts', () => {
 
       const result = await runCli(['setup'], {
         cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
       });
 
       expect(result.exitCode).toBe(0);
@@ -182,6 +186,7 @@ describe('Setup - Workspace Format Scripts', () => {
 
       const result = await runCli(['setup'], {
         cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
       });
 
       expect(result.exitCode).toBe(0);
@@ -203,6 +208,7 @@ describe('Setup - Workspace Format Scripts', () => {
 
       const result = await runCli(['setup'], {
         cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
       });
 
       expect(result.exitCode).toBe(0);

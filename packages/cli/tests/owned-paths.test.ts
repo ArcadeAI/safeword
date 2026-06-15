@@ -66,18 +66,10 @@ describe('computeSafewordPathPrefixes', () => {
 
 describe('SAFEWORD_SCHEMA prefix coverage (drift catcher)', () => {
   // The hardcoded list `session-auto-upgrade.ts` shipped with v0.31.0.
-  // Regression floor: every entry must still resolve from the live schema.
-  // If this fails, either the schema is missing an owned path or the
-  // generator's prefix extraction is wrong.
-  const HISTORICAL_PREFIXES = [
-    '.safeword/',
-    '.claude/',
-    '.cursor/',
-    '.mcp.json',
-    '.gitignore',
-    'AGENTS.md',
-    'CLAUDE.md',
-  ];
+  // Regression floor: every still-owned entry must resolve from the live
+  // schema. AGENTS.md and CLAUDE.md were deliberately removed in P30CRP;
+  // safeword now loads SAFEWORD.md through owned hook/config surfaces.
+  const HISTORICAL_PREFIXES = ['.safeword/', '.claude/', '.cursor/', '.mcp.json', '.gitignore'];
 
   it('includes every prefix from the v0.31.0 hardcoded list', () => {
     const prefixes = computeSafewordPathPrefixes(SAFEWORD_SCHEMA);
@@ -224,6 +216,7 @@ function stubSchema(buckets: {
   managedFiles?: string[];
   jsonMerges?: string[];
   textPatches?: string[];
+  legacyTextPatches?: string[];
 }): SafewordSchema {
   return {
     version: '0.0.0',
@@ -237,6 +230,9 @@ function stubSchema(buckets: {
     managedFiles: toBag(buckets.managedFiles) as unknown as SafewordSchema['managedFiles'],
     jsonMerges: toBag(buckets.jsonMerges) as unknown as SafewordSchema['jsonMerges'],
     textPatches: toBag(buckets.textPatches) as unknown as SafewordSchema['textPatches'],
+    legacyTextPatches: toBag(
+      buckets.legacyTextPatches,
+    ) as unknown as SafewordSchema['legacyTextPatches'],
     contracts: {},
     packages: { base: [], conditional: {} },
   };

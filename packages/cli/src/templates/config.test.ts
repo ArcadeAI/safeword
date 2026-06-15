@@ -168,9 +168,9 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Grep')).toBe(false);
   });
 
-  it('should have PreToolUse hooks for quality enforcement, config guard, and git-bare-race fix', () => {
+  it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, and git-bare-race fix', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks.length).toBe(3);
+    expect(preToolHooks.length).toBe(4);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks
@@ -178,6 +178,7 @@ describe('SETTINGS_HOOKS', () => {
         .map((hook: HookCommand) => hook.command),
     );
 
+    expect(commands.some((c: string) => c.includes('pre-tool-dependency-readiness'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-quality'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-config-guard'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-git-bare-fix'))).toBe(true);

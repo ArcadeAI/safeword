@@ -36,6 +36,9 @@ export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   content: string;
   marker: string; // Used to detect if already applied & for removal
+  applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
+  unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
+  removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
 }
 
 export interface ContractDefinition {
@@ -54,6 +57,7 @@ export interface SafewordSchema {
   managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
   jsonMerges: Record<string, JsonMergeDefinition>;
   textPatches: Record<string, TextPatchDefinition>;
+  legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
   packages: {
     base: string[];
@@ -98,6 +102,48 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
     return result;
   },
 };
+
+const CODEX_PROMPT_TIMESTAMP_HOOK_PATCH = `
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestamp.ts"'
+timeout = 5
+statusMessage = "Adding current timestamp"
+`;
+
+const CODEX_SESSION_START_HOOK_PATCH = `
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-safeword-context.ts" --agent=codex'
+timeout = 30
+statusMessage = "Loading safeword standing instructions"
+`;
+
+const CODEX_PRE_TOOL_QUALITY_HOOK_PATCH = `
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+statusMessage = "Checking safeword PreToolUse gates"
+`;
+
+const CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS = `
+# Safeword Codex project configuration.
+#
+# Project-local Codex config loads only after the project is reviewed and trusted.
+# Run Codex's hook trust flow after setup/upgrade before assuming these gates run.
+
+[features]
+hooks = true
+`;
 
 const CODEX_SKILL_TEMPLATE_FILES = [
   ['audit/SKILL.md', 'skills/audit/SKILL.md'],
@@ -145,7 +191,7 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
 /**
  * Runtime/transient state files safeword's hooks write to the working tree
  * every turn (update-cache, quality-state, failure-counts, skill-invocations,
- * re-entry). They must be gitignored — and untracked on upgrade if a customer
+ * re-entry, dependency-readiness). They must be gitignored — and untracked on upgrade if a customer
  * committed them before the ignore rule existed — because the hooks read/write
  * these paths directly, so git tracking is never consulted. Single source for
  * the managed `.gitignore` block (below) and the upgrade-time untrack.
@@ -159,10 +205,12 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.project/failure-counts.json',
   '.project/skill-invocations.log',
   '.project/re-entry.md',
+  '.project/dependency-readiness.json',
   '.safeword-project/quality-state*.json',
   '.safeword-project/failure-counts.json',
   '.safeword-project/skill-invocations.log',
   '.safeword-project/re-entry.md',
+  '.safeword-project/dependency-readiness.json',
 ];
 
 export const SAFEWORD_SCHEMA: SafewordSchema = {
@@ -217,6 +265,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/eslint-boundaries.config.mjs',
     // Shell hooks replaced with TypeScript/Bun (v0.13.0)
     '.safeword/hooks/session-verify-agents.sh',
+    // Replaced by session-safeword-context.ts (P30CRP): safeword no longer edits AGENTS.md.
+    '.safeword/hooks/session-verify-agents.ts',
     '.safeword/hooks/session-version.sh',
     '.safeword/hooks/session-lint-check.sh',
     '.safeword/hooks/prompt-timestamp.sh',
@@ -346,6 +396,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-bun-check.sh': {
       template: 'hooks/session-bun-check.sh',
     },
+    '.safeword/hooks/resolve-namespace-root.ts': {
+      template: 'hooks/resolve-namespace-root.ts',
+    },
+    '.safeword/hooks/record-skill-invocation.ts': {
+      template: 'hooks/record-skill-invocation.ts',
+    },
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
@@ -355,6 +411,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/dependency-readiness.ts': {
+      template: 'hooks/lib/dependency-readiness.ts',
+    },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
@@ -388,8 +447,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
 
     // Hooks - TypeScript with Bun runtime
-    '.safeword/hooks/session-verify-agents.ts': {
-      template: 'hooks/session-verify-agents.ts',
+    '.safeword/hooks/session-safeword-context.ts': {
+      template: 'hooks/session-safeword-context.ts',
+    },
+    '.safeword/hooks/session-dependency-readiness.ts': {
+      template: 'hooks/session-dependency-readiness.ts',
     },
     '.safeword/hooks/session-version.ts': {
       template: 'hooks/session-version.ts',
@@ -429,6 +491,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-config-guard.ts': {
       template: 'hooks/pre-tool-config-guard.ts',
+    },
+    '.safeword/hooks/pre-tool-dependency-readiness.ts': {
+      template: 'hooks/pre-tool-dependency-readiness.ts',
     },
     '.safeword/hooks/pre-tool-git-bare-fix.sh': {
       template: 'hooks/pre-tool-git-bare-fix.sh',
@@ -770,7 +835,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/mcp.json': MCP_JSON_MERGE,
 
     '.cursor/hooks.json': {
-      keys: ['version', 'hooks.afterFileEdit', 'hooks.stop'],
+      keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],
       removeFileIfEmpty: true,
       merge: existing => {
         const hooks = (existing.hooks as Record<string, unknown[]>) ?? {};
@@ -787,6 +852,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         const result = { ...existing };
         const hooks = { ...(existing.hooks as Record<string, unknown[]>) };
 
+        delete hooks.sessionStart;
         delete hooks.afterFileEdit;
         delete hooks.stop;
 
@@ -804,34 +870,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Text files where we patch specific content
   textPatches: {
-    'AGENTS.md': {
-      operation: 'prepend',
-      content: AGENTS_MD_LINK,
-      marker: '.safeword/SAFEWORD.md',
-    },
-    'CLAUDE.md': {
-      operation: 'prepend',
-      // Uses `@` import syntax so SAFEWORD.md inlines into CLAUDE.md's
-      // compaction-resistant context (vs. AGENTS.md's prose, which is for
-      // non-Claude agents reading the file directly).
-      content: CLAUDE_MD_IMPORT_BLOCK,
-      // Marker is the `@` import line itself so upgrades from v0.29.0 and
-      // earlier (which prepended prose containing `.safeword/SAFEWORD.md` in
-      // backticks) still trigger prepending the new `@` import block on top.
-      // Existing prose lingers harmlessly — agents skim it; only the import
-      // is functionally load-bearing.
-      marker: '@./.safeword/SAFEWORD.md',
-    },
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is a NEW line (.project/re-entry.md, TAGWZ8) so customers with
+      // Marker is a NEW line (.project/dependency-readiness.json) so customers with
       // the older legacy-only block re-apply on upgrade and pick up the
-      // .project/ variants — hooks write state under the resolved root, so
+      // latest transient paths. Hooks write state under the resolved root, so
       // fresh installs generate these under .project/. Without them, those
       // generated files show as untracked in `git status --porcelain` —
       // churning the tree and blocking the auto-upgrade gate.
-      marker: '.project/re-entry.md',
+      marker: '.project/dependency-readiness.json',
     },
     // Prettier ignores: safeword owns .safeword/ and .cursor/ (see ownedDirs).
     // Without this, `prettier --write .` would reformat hooks and Cursor rules;
@@ -851,8 +899,35 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // Both namespace roots listed (TAGWZ8): INDEX files generate under the
       // resolved root — .project/ on fresh installs, .safeword-project/ legacy.
       content:
-        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
-      marker: '# Safeword - managed prettier exclusions',
+        '\n# Safeword - managed prettier exclusions\n.husky/_\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
+      marker: '.project/tickets/INDEX-completed.md',
+    },
+    '.codex/config.toml': {
+      operation: 'append',
+      content: CODEX_PROMPT_TIMESTAMP_HOOK_PATCH,
+      marker: '.safeword/hooks/prompt-timestamp.ts',
+      applyWhenContentIncludes: [
+        '# Safeword Codex project configuration.',
+        '.safeword/hooks/codex/pre-tool-quality.ts',
+      ],
+      unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+      removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+    },
+  },
+
+  // Cleanup-only text patches. Safeword used to prepend these blocks to
+  // customer-owned context files; P30CRP moved SAFEWORD.md delivery to
+  // safeword-owned hooks.
+  legacyTextPatches: {
+    'AGENTS.md': {
+      operation: 'prepend',
+      content: AGENTS_MD_LINK,
+      marker: '.safeword/SAFEWORD.md',
+    },
+    'CLAUDE.md': {
+      operation: 'prepend',
+      content: CLAUDE_MD_IMPORT_BLOCK,
+      marker: '@./.safeword/SAFEWORD.md',
     },
   },
 

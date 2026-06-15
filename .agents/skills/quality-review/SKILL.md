@@ -34,7 +34,8 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 
 **CRITICAL**: This is your main differentiator from automatic hook.
 
-Search for: "[library name] latest stable version 2025"
+Read the live `Current time:` line from the prompt timestamp hook and use that date as the current prompt timestamp.
+Search for: "[library name] latest stable version as of <current prompt timestamp date>"
 Search for: "[library name] security vulnerabilities"
 
 **Flag if outdated:**

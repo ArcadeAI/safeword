@@ -297,6 +297,7 @@ ${prettier.configEntry}
 // See: https://cursor.com/docs/agent/hooks
 // Note: Cursor runs hooks from the workspace root, so use ./ prefix
 export const CURSOR_HOOKS = {
+  sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
   afterFileEdit: [{ command: 'bun ./.safeword/hooks/cursor/after-file-edit.ts' }],
   stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts' }],
 };
@@ -339,12 +340,14 @@ const EDIT_TOOLS = 'Edit|Write|MultiEdit|NotebookEdit';
 export const SETTINGS_HOOKS = {
   SessionStart: [
     hook(`bash ${HOOKS_DIR}/session-bun-check.sh`),
+    hook(`bun ${HOOKS_DIR}/session-dependency-readiness.ts`),
     hook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
-    hook(`bun ${HOOKS_DIR}/session-verify-agents.ts`),
+    hook(`bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
     hook(`bun ${HOOKS_DIR}/session-author-model.ts`),
     hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
+    matchedHook('compact', `bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
     asyncHook(`bun ${HOOKS_DIR}/session-update-check.ts`),
   ],
@@ -354,6 +357,7 @@ export const SETTINGS_HOOKS = {
   ],
   Stop: [hook(`bun ${HOOKS_DIR}/stop-quality.ts`), hook(`bun ${HOOKS_DIR}/stop-reentry.ts`)],
   PreToolUse: [
+    matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-dependency-readiness.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-config-guard.ts`),
     // Defends ad-hoc git ops against Claude Code's parallel-worktree

@@ -1,74 +1,53 @@
-# Spec: Load SAFEWORD.md via SessionStart + compact hooks, not CLAUDE.md/AGENTS.md @import
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Load SAFEWORD.md through safeword-owned hooks
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Safeword should deliver its standing agent instructions through files and hooks it owns, not by modifying customer-owned `CLAUDE.md` or `AGENTS.md`. A developer should be able to delete or rewrite those files without silently disabling safeword's core workflow guidance.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- P30CRP ticket: [ticket.md](./ticket.md)
+- Parent epic: [VKNF1T](../VKNF1T-platform-uplift-epic/ticket.md)
+- Claude Code hooks docs: `SessionStart` and compact matcher add context.
+- Cursor hooks docs and RBZR3F: `sessionStart` can inject `additional_context`.
+- Codex hooks docs: `SessionStart` supports `hookSpecificOutput.additionalContext`.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-.safeword-project/personas.md (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
-
-## Vocabulary
-
-<!-- Domain terms specific to this feature, consistent with
-.safeword-project/glossary.md. Optional. -->
+- Agent-Driven Developer (DEV)
+- Safeword Maintainer (SM)
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### safeword-md-via-hooks.DEV1 - Keep safeword active without owning my context files
 
-Uncomment and customize:
+**Persona:** Agent-Driven Developer (DEV)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I install safeword in a project with my own agent instructions, I want safeword to load its required workflow context without editing my `CLAUDE.md` or `AGENTS.md`, so I can customize those files without accidentally disabling safeword.
 
-**Persona:** Platform Operator (PO)
+#### safeword-md-via-hooks.DEV1.AC1 - Setup preserves customer context files
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+Fresh setup does not create or modify `CLAUDE.md` or `AGENTS.md` only to point at safeword.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### safeword-md-via-hooks.DEV1.AC2 - Prior safeword context-file patches are removed safely
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+Upgrade/reset can remove safeword-managed `CLAUDE.md` and `AGENTS.md` blocks while leaving customer-authored content intact.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### safeword-md-via-hooks.DEV1.AC3 - Safeword still loads at session start
+
+Claude Code, Cursor, and Codex all receive the SAFEWORD.md standing context from safeword-owned hook/config surfaces.
+
+#### safeword-md-via-hooks.DEV1.AC4 - Claude compaction restores the standing context
+
+Claude Code re-injects SAFEWORD.md after compaction so removing the `@import` does not regress compaction resilience.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- New installs leave customer-owned root context files alone.
+- Upgrades clean up old safeword-managed context-file edits.
+- Every supported agent surface has a safeword-owned startup path for SAFEWORD.md.
+- Claude compaction still restores the same standing instructions.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+All intake questions resolved by the 2026-06-14 figure-it-out pass recorded in `ticket.md`.

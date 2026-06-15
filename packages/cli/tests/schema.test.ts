@@ -284,18 +284,10 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('textPatches', () => {
-    it('should include AGENTS.md prepend patch with safeword marker', async () => {
+    it('should not patch customer context files to point at safeword', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      expect(SAFEWORD_SCHEMA.textPatches['AGENTS.md']).toEqual(
-        expect.objectContaining({ operation: 'prepend', marker: '.safeword/SAFEWORD.md' }),
-      );
-    });
-
-    it('should include CLAUDE.md prepend patch with @ import marker', async () => {
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      expect(SAFEWORD_SCHEMA.textPatches['CLAUDE.md']).toEqual(
-        expect.objectContaining({ operation: 'prepend', marker: '@./.safeword/SAFEWORD.md' }),
-      );
+      expect(SAFEWORD_SCHEMA.textPatches).not.toHaveProperty('AGENTS.md');
+      expect(SAFEWORD_SCHEMA.textPatches).not.toHaveProperty('CLAUDE.md');
     });
   });
 
@@ -471,17 +463,20 @@ describe('Schema - Single Source of Truth', () => {
       for (const entries of Object.values(SETTINGS_HOOKS)) {
         for (const entry of entries) {
           for (const hookDefinition of entry.hooks) {
-            const match = /\/([^/]+)$/.exec(hookDefinition.command);
+            const match = /\/([^/\s]+?\.(?:ts|sh))(?:\s|$)/.exec(hookDefinition.command);
             if (match?.[1]) wiredHooks.add(match[1]);
           }
         }
       }
 
-      // write-review-stamp.ts is a manually-invoked utility (run by the
-      // /self-review skill injection and by the agent post-fork), not a wired
-      // event hook — it shares the hook lib and writes the log the gates read,
-      // but Claude Code never fires it on an event, so it has no SETTINGS_HOOKS entry.
-      const MANUAL_HOOK_SCRIPTS = new Set(['write-review-stamp.ts']);
+      // Manually-invoked utilities live beside lifecycle hooks because they
+      // share hook libs and write gate-owned state, but Claude Code never
+      // fires them on an event, so they have no SETTINGS_HOOKS entry.
+      const MANUAL_HOOK_SCRIPTS = new Set([
+        'write-review-stamp.ts',
+        'resolve-namespace-root.ts',
+        'record-skill-invocation.ts',
+      ]);
 
       // Hook files in ownedFiles (excluding lib/ modules and cursor/ adapters)
       const hookFiles = Object.keys(SAFEWORD_SCHEMA.ownedFiles)

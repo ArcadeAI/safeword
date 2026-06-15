@@ -27,9 +27,8 @@ try {
 }
 
 // Belt-and-suspenders for ticket #130: re-inject the learnings pointer after
-// compaction in case CLAUDE.md → @./.safeword/SAFEWORD.md re-expansion didn't
-// fire reliably (GitHub #22085 reports sporadic issues). Emit only if the
-// project has learnings to point at.
+// compaction. session-safeword-context.ts re-injects SAFEWORD.md standing
+// instructions; this hook restores ticket and learning context.
 const learningsIndex = `${namespaceRoot}/learnings/INDEX.md`;
 if (existsSync(learningsIndex)) {
   console.log(

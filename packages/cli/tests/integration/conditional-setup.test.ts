@@ -299,7 +299,7 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
         (h: { hooks: { command: string }[] }) => h.hooks[0]?.command,
       );
       expect(commands).toContain(
-        'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-verify-agents.ts',
+        'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-safeword-context.ts --agent=claude',
       );
       expect(commands).toContain('bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-version.ts');
     },

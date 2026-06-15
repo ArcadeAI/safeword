@@ -34,7 +34,7 @@ const PROMPT_TURN = 'prompt hook, fires on user turn — not assertable in a too
  */
 const EXEMPT_HOOKS: Record<string, string> = {
   // Session/startup hooks fire at session start, not on tool calls.
-  'session-verify-agents.ts': SESSION_STARTUP,
+  'session-safeword-context.ts': SESSION_STARTUP,
   'session-version.ts': SESSION_STARTUP,
   'session-lint-check.ts': SESSION_STARTUP,
   'session-compact-context.ts': SESSION_STARTUP,
@@ -43,6 +43,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'session-cleanup-quality.ts': SESSION_STARTUP,
   'session-start-reentry.ts': SESSION_STARTUP,
   'session-author-model.ts': SESSION_STARTUP,
+  'session-dependency-readiness.ts':
+    'session hook; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
   // Prompt hooks fire at prompt-submit, not on tool calls.
   'prompt-timestamp.ts': PROMPT_TURN,
   'prompt-questions.ts': PROMPT_TURN,
@@ -52,6 +54,10 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'post-tool-bypass-warn.ts': 'warn-only hook, no deny path — output is informational, not a gate',
   'write-review-stamp.ts':
     'fires on PostToolUse Write of skill-invocations.log specifically; covered by tests/integration/review-stamp.test.ts',
+  'resolve-namespace-root.ts':
+    'manual helper for skill/command snippets; covered by tests/hooks/record-skill-invocation.test.ts',
+  'record-skill-invocation.ts':
+    'manual helper for skill/command invocation proof; covered by tests/hooks/record-skill-invocation.test.ts',
   'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',
   // Core hooks covered deterministically elsewhere (not re-run live, to save cost)
   'post-tool-lint.ts':
@@ -60,6 +66,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'PostToolUse quality-annotation hook — no agent-blocking deny path to assert in a live run',
   'pre-tool-config-guard.ts':
     'PreToolUse config.json guard; deterministic, covered by tests/hooks/config-guard-patterns.test.ts',
+  'pre-tool-dependency-readiness.ts':
+    'PreToolUse dependency guard; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
   'stop-quality.ts':
     'stop hook (done gate); fires at session end, not on a tool call — not live-assertable in one turn',
   // Infra shell hooks — not agent-steering gates
