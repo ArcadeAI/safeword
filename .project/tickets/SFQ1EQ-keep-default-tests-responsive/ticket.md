@@ -2,6 +2,7 @@
 id: SFQ1EQ
 slug: keep-default-tests-responsive
 type: task
+subtype: bug-investigated
 phase: intake
 status: in_progress
 parent: S3T6JA
@@ -33,3 +34,14 @@ last_modified: 2026-06-15T14:12:02Z
 
 - 2026-06-15T14:11:50.893Z Started: Created ticket SFQ1EQ
 - 2026-06-15T14:12:02Z Scoped: Created from quality-review/Vitest investigation on `codex/skill-invocation-log-helper`; verbose full-suite output showed older setup/golden-path tests advancing slowly while package-manager subprocesses ran under Vitest workers.
+- 2026-06-15T14:56:00Z Root cause confirmed: `setup-python.test.ts` took 76.7s in isolation because each scenario ran `safeword setup` without `SAFEWORD_SKIP_INSTALL`, so most assertions paid a real package-manager install cost. Re-running the same file with `SAFEWORD_SKIP_INSTALL=1` dropped runtime to 3.1s, with only the install-proof scenario failing as expected.
+- 2026-06-15T15:00:00Z Fix path: keep non-install setup assertions in the default lane with `SAFEWORD_SKIP_INSTALL`, and gate real install-proof scenarios behind `SAFEWORD_RUN_INSTALL_TESTS` in `test:slow`.
+- 2026-06-15T15:03:00Z Verification: default targeted setup batch (`setup-python`, `setup-golang`, `setup-workspaces`) passed in 8.7s with two install-proof scenarios skipped; slow-config targeted run passed in 22.4s and executed both real install-proof scenarios. Upgrade/check/namespace batch passed 67 tests in 51.2s; lint/typecheck passed.
+
+## Root Cause
+
+The default Vitest lane includes fixture tests that repeatedly run `safeword setup` and `safeword upgrade` without `SAFEWORD_SKIP_INSTALL`, even when the assertion only checks generated files, output text, or preserved configuration. `createConfiguredProject()` also ran a full setup install and declared only part of safeword's base dependency set, so later upgrade/check fixtures could still detect missing package declarations and attempt package-manager work.
+
+This happens because install coverage and configuration-generation coverage share the same helpers. The test harness had no cheap default fixture path, so many non-install assertions accidentally paid the real install cost.
+
+Confirmed by measuring `setup-python.test.ts`: normal run was 76.7s for 6 tests; `SAFEWORD_SKIP_INSTALL=1` run was 3.1s, and the only failure was the scenario that explicitly asserts `node_modules/eslint` and `node_modules/@cucumber/cucumber` exist.

@@ -48,6 +48,10 @@ const SAFEWORD_PATH = nodePath.join(__dirname, '..');
  */
 export const SAFEWORD_VERSION = `file:${SAFEWORD_PATH}`;
 
+export const SKIP_INSTALL_ENV = {
+  SAFEWORD_SKIP_INSTALL: '1',
+};
+
 /**
  * Creates a temporary directory for test isolation
  */
@@ -325,15 +329,18 @@ export async function createConfiguredProject(dir: string): Promise<void> {
     devDependencies: {
       typescript: '^5.0.0',
       // Include safeword base packages to prevent sync attempts during upgrade tests
-      eslint: '^9.0.0',
+      eslint: '^9.22.0',
       prettier: '^3.0.0',
-      'eslint-config-prettier': '^9.0.0',
       safeword: SAFEWORD_VERSION,
-      knip: '^5.0.0',
+      'dependency-cruiser': '^17.0.0',
+      knip: '^6.0.0',
+      '@cucumber/cucumber': '^13.0.0',
+      tsx: '^4.0.0',
+      '@types/node': '^25.0.0',
     },
   });
   initGitRepo(dir);
-  await setupOrThrow(dir, ['setup']);
+  await setupOrThrow(dir, ['setup'], { env: SKIP_INSTALL_ENV });
 }
 
 /**

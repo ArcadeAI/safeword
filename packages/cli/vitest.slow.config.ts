@@ -10,7 +10,14 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
-      include: ['tests/**/*.slow.test.ts'],
+      env: {
+        SAFEWORD_RUN_INSTALL_TESTS: '1',
+      },
+      include: [
+        'tests/**/*.slow.test.ts',
+        'tests/commands/setup-python.test.ts',
+        'tests/commands/setup-golang.test.ts',
+      ],
       testTimeout: 600_000,
     },
   }),
