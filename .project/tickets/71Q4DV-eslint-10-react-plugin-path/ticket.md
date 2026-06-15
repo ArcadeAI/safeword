@@ -5,7 +5,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-06-15T02:54:20.170Z
-last_modified: 2026-06-15T21:51:39Z
+last_modified: 2026-06-15T21:52:00Z
 ---
 
 # Replace legacy React lint plugin with ESLint React
@@ -50,15 +50,15 @@ last_modified: 2026-06-15T21:51:39Z
 
 ## Validated Rule Parity Matrix
 
-| Current Safeword rule            | Replacement decision                                                 | Status                                                                 |
-| -------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `react/jsx-key`                  | `@eslint-react/no-missing-key` plus `@eslint-react/no-duplicate-key` | Accepted replacement; both are behavior-tested at `error` severity.    |
-| `react/jsx-no-duplicate-props`   | No `@eslint-react` equivalent exists                                 | Explicit parity gap; Safeword custom-rule follow-up if still required. |
-| `react/no-direct-mutation-state` | `@eslint-react/no-direct-mutation-state`                             | Accepted replacement; behavior-tested at `error` severity.             |
-| `react/no-children-prop`         | `@eslint-react/jsx-no-children-prop`                                 | Accepted replacement; behavior-tested at `error` severity.             |
-| `react/jsx-no-target-blank`      | `@eslint-react/dom-no-unsafe-target-blank`                           | Accepted replacement; behavior-tested at `error` severity.             |
-| `react/no-unknown-property`      | `@eslint-react/dom-no-unknown-property`                              | Accepted replacement; behavior-tested at `error` severity.             |
-| `react/no-unescaped-entities`    | No `@eslint-react` equivalent exists                                 | Explicit parity gap; Safeword custom-rule follow-up if still required. |
+| Current Safeword rule            | Replacement decision                                                 | Status                                                                                                                                                                                   |
+| -------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `react/jsx-key`                  | `@eslint-react/no-missing-key` plus `@eslint-react/no-duplicate-key` | Accepted replacement; both are behavior-tested at `error` severity. `no-duplicate-key` is experimental upstream, so `@eslint-react/eslint-plugin` is exact-pinned at the tested version. |
+| `react/jsx-no-duplicate-props`   | No `@eslint-react` equivalent exists                                 | Explicit parity gap; Safeword custom-rule follow-up if still required.                                                                                                                   |
+| `react/no-direct-mutation-state` | `@eslint-react/no-direct-mutation-state`                             | Accepted replacement; behavior-tested at `error` severity.                                                                                                                               |
+| `react/no-children-prop`         | `@eslint-react/jsx-no-children-prop`                                 | Accepted replacement; behavior-tested at `error` severity.                                                                                                                               |
+| `react/jsx-no-target-blank`      | `@eslint-react/dom-no-unsafe-target-blank`                           | Accepted replacement; behavior-tested at `error` severity.                                                                                                                               |
+| `react/no-unknown-property`      | `@eslint-react/dom-no-unknown-property`                              | Accepted replacement; behavior-tested at `error` severity.                                                                                                                               |
+| `react/no-unescaped-entities`    | No `@eslint-react` equivalent exists                                 | Explicit parity gap; Safeword custom-rule follow-up if still required.                                                                                                                   |
 
 `@eslint-react/no-implicit-key` remains a conscious non-goal for this migration because Safeword's old `react/jsx-key` config used default options and did not explicitly enforce implicit key spread patterns.
 
@@ -68,6 +68,7 @@ Pursue replacement, not permanent dual-path support: migrate Safeword's recommen
 
 ## Work Log
 
+- 2026-06-15T21:52:00Z Review fix: Exact-pinned `@eslint-react/eslint-plugin` at `5.9.0` and documented the accepted experimental-rule risk for `@eslint-react/no-duplicate-key`.
 - 2026-06-15T21:51:39Z Revalidated: Exact CI package test lane `TEST_POETRY=1 bun run --cwd packages/cli test` passed 198/198 test files and 2923/2923 tests in 1662.58s. Branch-local `sync-config --check` and `bun run deps` also pass; the published `safeword@latest` stale depcruise warning is tracked separately.
 - 2026-06-15T21:13:00Z Review fix: Disabled overlapping `@eslint-react` hook/compiler diagnostics so `eslint-plugin-react-hooks` stays authoritative, normalized inherited `@eslint-react` warnings to errors, and added focused tests for both guarantees.
 - 2026-06-15T20:48:00Z Verified: Focused React preset tests, related preset/schema tests, smoke-fast tests, BDD scenarios, build, typecheck, ESLint, markdown lint, Gherkin lint, and Prettier checks pass; full-suite and knip caveats recorded in `verify.md`.

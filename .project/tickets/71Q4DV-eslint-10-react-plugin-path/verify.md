@@ -19,6 +19,7 @@
 ## Done-When Verification
 
 - `packages/cli/package.json` now depends on `@eslint-react/eslint-plugin` and no longer depends on `eslint-plugin-react`.
+- `@eslint-react/eslint-plugin` is exact-pinned at `5.9.0` because `@eslint-react/no-duplicate-key` is an accepted experimental guardrail replacement.
 - `packages/cli/src/presets/typescript/eslint-configs/recommended-react.ts` imports `@eslint-react/eslint-plugin`, applies its recommended TypeScript config, disables conflicts with the official Hooks plugin, and keeps `eslint-plugin-react-hooks`.
 - The React preset explicitly sets the load-bearing replacement rules to `error`: missing keys, duplicate keys, direct state mutation, children prop usage, unsafe target blank links, and unknown DOM properties.
 - The React preset disables overlapping `@eslint-react` hook/compiler diagnostics so `eslint-plugin-react-hooks` remains the only Hooks/Compiler source.

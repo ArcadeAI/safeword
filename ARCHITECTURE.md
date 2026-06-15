@@ -252,6 +252,12 @@ RSC, and web API guardrails. `eslint-plugin-react-hooks` remains the official
 source for Hooks and React Compiler diagnostics; legacy `eslint-plugin-react` is
 not bundled.
 
+`@eslint-react/no-duplicate-key` is intentionally enabled for agent guardrail
+parity even though upstream marks it experimental. Keep
+`@eslint-react/eslint-plugin` exact-pinned until that rule is stable or the
+guardrail is replaced, so minor package updates cannot silently change the
+published React preset.
+
 **Tooling Plugins (conditional — included when test runner detected):**
 
 | Plugin     | Detection             | Peer Dep    |
