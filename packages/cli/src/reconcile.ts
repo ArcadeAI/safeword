@@ -627,7 +627,7 @@ function computeUninstallPlan(
     const fullPath = nodePath.join(ctx.cwd, filePath);
     if (exists(fullPath)) {
       const content = readFileSafe(fullPath) ?? '';
-      if (content.includes(definition.marker)) {
+      if (containsTextPatchContent(content, definition)) {
         actions.push({ type: 'text-unpatch', path: filePath, definition });
       }
     }
@@ -914,6 +914,9 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
   // Remove the patched content
   // First try to remove the full content block
   let unpatched = content.replace(definition.content, '');
+  for (const extraContent of definition.unpatchContent ?? []) {
+    unpatched = unpatched.replace(extraContent, '');
+  }
 
   // If full content wasn't found but marker exists, remove lines containing the marker
   if (unpatched === content && content.includes(definition.marker)) {
@@ -923,5 +926,24 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
     unpatched = filtered.join('\n').replace(/^\n+/, ''); // Remove leading empty lines
   }
 
+  if (shouldRemoveTextPatchTarget(unpatched, definition)) {
+    remove(fullPath);
+    return;
+  }
+
   writeFile(fullPath, unpatched);
+}
+
+function containsTextPatchContent(content: string, definition: TextPatchDefinition): boolean {
+  return (
+    content.includes(definition.marker) ||
+    (definition.unpatchContent?.some(extraContent => content.includes(extraContent)) ?? false)
+  );
+}
+
+function shouldRemoveTextPatchTarget(content: string, definition: TextPatchDefinition): boolean {
+  const trimmed = content.trim();
+  return (
+    definition.removeFileIfContentEquals?.some(candidate => trimmed === candidate.trim()) ?? false
+  );
 }

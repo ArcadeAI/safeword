@@ -37,6 +37,8 @@ export interface TextPatchDefinition {
   content: string;
   marker: string; // Used to detect if already applied & for removal
   applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
+  unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
+  removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
 }
 
 export interface ContractDefinition {
@@ -108,6 +110,27 @@ type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestamp.ts"'
 timeout = 5
 statusMessage = "Adding current timestamp"
+`;
+
+const CODEX_PRE_TOOL_QUALITY_HOOK_PATCH = `
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+statusMessage = "Checking safeword PreToolUse gates"
+`;
+
+const CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS = `
+# Safeword Codex project configuration.
+#
+# Project-local Codex config loads only after the project is reviewed and trusted.
+# Run Codex's hook trust flow after setup/upgrade before assuming these gates run.
+
+[features]
+hooks = true
 `;
 
 const CODEX_SKILL_TEMPLATE_FILES = [
@@ -873,6 +896,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         '# Safeword Codex project configuration.',
         '.safeword/hooks/codex/pre-tool-quality.ts',
       ],
+      unpatchContent: [CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+      removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
     },
   },
 
