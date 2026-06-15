@@ -54,6 +54,10 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'post-tool-bypass-warn.ts': 'warn-only hook, no deny path — output is informational, not a gate',
   'write-review-stamp.ts':
     'fires on PostToolUse Write of skill-invocations.log specifically; covered by tests/integration/review-stamp.test.ts',
+  'resolve-namespace-root.ts':
+    'manual helper for skill/command snippets; covered by tests/hooks/record-skill-invocation.test.ts',
+  'record-skill-invocation.ts':
+    'manual helper for skill/command invocation proof; covered by tests/hooks/record-skill-invocation.test.ts',
   'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',
   // Core hooks covered deterministically elsewhere (not re-run live, to save cost)
   'post-tool-lint.ts':

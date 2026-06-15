@@ -8,14 +8,14 @@
  */
 
 import { execSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { installFakeCodexCli, runCli } from '../helpers';
+import { installFakeCodexCli, removeTemporaryDirectory, runCli } from '../helpers';
 
 const __dirname = import.meta.dirname;
 
@@ -27,7 +27,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
   });
 
   afterEach(() => {
-    rmSync(temporaryDirectory, { recursive: true, force: true });
+    removeTemporaryDirectory(temporaryDirectory);
   });
 
   // Helper to create a minimal configured project

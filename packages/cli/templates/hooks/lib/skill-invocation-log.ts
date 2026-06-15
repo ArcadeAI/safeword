@@ -2,16 +2,20 @@
 //
 // Ticket 147: when a feature ticket enters `phase: done`, the agent must have
 // invoked the required skills (currently /verify and /audit) in the current
-// session. The skills append a session-scoped line to .safeword/skill-invocations.log
-// via bash injection at render time. The gate check below reads the log and
-// validates entries exist for required skills in the current session.
+// session. The skills append a session-scoped line to skill-invocations.log via
+// Claude Code inline shell execution, or via the documented fallback command in
+// clients that treat the inline line as Markdown only. The gate check below
+// reads the log and validates entries exist for required skills in the current
+// session.
 //
 // Extending to new gates: add a phase → required-skills entry to PHASE_GATES,
-// add a bash-injection line to the target skill's content. No infra changes.
+// add a helper invocation line to the target skill's content. No infra changes.
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './namespace-root.js';
+
+export const SKILL_INVOCATIONS_LOG = 'skill-invocations.log';
 
 /**
  * Phase → required skill names. When a feature ticket transitions into one of
@@ -56,7 +60,7 @@ export function checkSkillInvocations(
 ): SkillInvocationCheckResult {
   if (input.required.length === 0) return { ok: true, missing: [] };
 
-  const logPath = nodePath.join(resolveNamespaceRoot(input.rootDirectory), 'skill-invocations.log');
+  const logPath = nodePath.join(resolveNamespaceRoot(input.rootDirectory), SKILL_INVOCATIONS_LOG);
   if (!existsSync(logPath)) {
     return { ok: false, missing: [...input.required] };
   }

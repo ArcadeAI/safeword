@@ -7,9 +7,11 @@ export default mergeConfig(
   defineConfig({
     test: {
       include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
-      // Slow tests (real npm installs) and the live real-model smoke
+      // Slow files (`*.slow.test.ts`) and live real-model smoke
       // (`*.live.test.ts`, spends tokens, needs claude + ANTHROPIC_API_KEY)
-      // are excluded by default. Run via test:smoke / test:smoke:live.
+      // are excluded by default. Real install-proof scenarios are guarded by
+      // SAFEWORD_RUN_INSTALL_TESTS and run through test:slow.
+      // Run via test:slow / test:smoke / test:smoke:live as needed.
       exclude: ['tests/**/*.slow.test.ts', 'tests/**/*.release.test.ts', 'tests/**/*.live.test.ts'],
       coverage: {
         provider: 'v8',

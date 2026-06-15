@@ -12,12 +12,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createPythonProject,
+  createSafewordBasePackageJson,
   createTemporaryDirectory,
   initGitRepo,
   isUvInstalled,
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  SKIP_INSTALL_ENV,
   TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
@@ -41,11 +43,19 @@ afterEach(() => {
  * Mirrors ARCHITECTURE_LAYERS pattern from boundaries.ts
  */
 function createPythonProjectWithLayers(dir: string): void {
-  createPythonProject(dir);
+  createPythonProjectReadyForSetup(dir);
   // Create recognizable layer structure (domain → services → api hierarchy)
   writeTestFile(dir, 'src/domain/__init__.py', '# Domain layer - entities, models');
   writeTestFile(dir, 'src/services/__init__.py', '# Services layer - business logic');
   writeTestFile(dir, 'src/api/__init__.py', '# API layer - routes, handlers');
+}
+
+function createPythonProjectReadyForSetup(
+  dir: string,
+  options?: Parameters<typeof createPythonProject>[1],
+): void {
+  createPythonProject(dir, options);
+  createSafewordBasePackageJson(dir);
 }
 
 /**
@@ -78,12 +88,13 @@ describe('Suite 1: Ruff Config Generation', () => {
     'Test 1.1: Generates ruff.toml at project root',
     async () => {
       // Arrange
-      createPythonProject(projectDirectory);
+      createPythonProjectReadyForSetup(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Act
       await runCli(['setup'], {
         cwd: projectDirectory,
+        env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -128,11 +139,13 @@ line-length = 120
 testpaths = ["tests"]
 `,
       );
+      createSafewordBasePackageJson(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Act
       await runCli(['setup'], {
         cwd: projectDirectory,
+        env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -189,12 +202,13 @@ describe('Suite 2: Architecture Validation', () => {
     'Test 2.1b: Does not generate .importlinter without layer structure',
     async () => {
       // Arrange
-      createPythonProject(projectDirectory); // No layers
+      createPythonProjectReadyForSetup(projectDirectory); // No layers
       initGitRepo(projectDirectory);
 
       // Act
       await runCli(['setup'], {
         cwd: projectDirectory,
+        env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -250,12 +264,13 @@ describe('Suite 5: mypy Configuration', () => {
     'Test 5.1: Generates mypy.ini at project root',
     async () => {
       // Arrange
-      createPythonProject(projectDirectory);
+      createPythonProjectReadyForSetup(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Act
       await runCli(['setup'], {
         cwd: projectDirectory,
+        env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -291,11 +306,13 @@ name = "test"
 strict = true
 `,
       );
+      createSafewordBasePackageJson(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Act
       await runCli(['setup'], {
         cwd: projectDirectory,
+        env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -321,7 +338,7 @@ describe('Suite 6: Auto-Install Python Tools', () => {
     'Test 6.1: Shows install message for pip projects (no auto-install)',
     async () => {
       // Arrange - pip project (default, no lockfile)
-      createPythonProject(projectDirectory);
+      createPythonProjectReadyForSetup(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Act
@@ -341,7 +358,7 @@ describe('Suite 6: Auto-Install Python Tools', () => {
     'Test 6.2: Auto-installs tools for uv projects',
     async () => {
       // Arrange - uv project with uv.lock
-      createPythonProject(projectDirectory, { manager: 'uv' });
+      createPythonProjectReadyForSetup(projectDirectory, { manager: 'uv' });
       initGitRepo(projectDirectory);
 
       // Act
@@ -374,6 +391,7 @@ version = "0.1.0"
 dev = ["ruff>=0.8.0"]
 `,
       );
+      createSafewordBasePackageJson(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Act
@@ -407,6 +425,7 @@ python = "^3.12"
 `,
       );
       // Note: Invalid poetry config ensures immediate failure (no network calls)
+      createSafewordBasePackageJson(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Act
@@ -426,7 +445,8 @@ python = "^3.12"
     'Test 6.5: Shows pipenv install command for pipenv projects',
     async () => {
       // Arrange - pipenv project
-      createPythonProject(projectDirectory, { manager: 'pipenv' });
+      createPythonProjectReadyForSetup(projectDirectory, { manager: 'pipenv' });
+      writeTestFile(projectDirectory, 'Pipfile', '[invalid\n');
       initGitRepo(projectDirectory);
 
       // Act

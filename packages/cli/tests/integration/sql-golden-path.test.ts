@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  createSafewordBasePackageJson,
   createTemporaryDirectory,
   fileExists,
   initGitRepo,
@@ -38,11 +39,10 @@ model-paths: ["models"]
 `,
   );
   // dbt projects often coexist with package.json (for tooling/CI)
-  writeTestFile(
-    directory,
-    'package.json',
-    JSON.stringify({ name: 'test-dbt-project', private: true }),
-  );
+  createSafewordBasePackageJson(directory, {
+    name: 'test-dbt-project',
+    private: true,
+  });
   mkdirSync(nodePath.join(directory, 'models', 'staging'), { recursive: true });
   writeTestFile(
     directory,
@@ -84,11 +84,7 @@ describe('E2E: dbt Golden Path', () => {
     });
 
     it('1.2: does NOT detect dbt without dbt_project.yml', async () => {
-      writeTestFile(
-        temporaryDirectory,
-        'package.json',
-        JSON.stringify({ name: 'test', private: true }),
-      );
+      createSafewordBasePackageJson(temporaryDirectory, { name: 'test', private: true });
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -98,11 +94,7 @@ describe('E2E: dbt Golden Path', () => {
     });
 
     it('1.3: does NOT detect dbt with .sql files but no dbt_project.yml', async () => {
-      writeTestFile(
-        temporaryDirectory,
-        'package.json',
-        JSON.stringify({ name: 'test', private: true }),
-      );
+      createSafewordBasePackageJson(temporaryDirectory, { name: 'test', private: true });
       mkdirSync(nodePath.join(temporaryDirectory, 'migrations'), { recursive: true });
       writeTestFile(
         temporaryDirectory,
@@ -244,11 +236,7 @@ describe('E2E: dbt Golden Path', () => {
     });
 
     it('4.3: no SQL linting config in non-dbt projects', async () => {
-      writeTestFile(
-        temporaryDirectory,
-        'package.json',
-        JSON.stringify({ name: 'test', private: true }),
-      );
+      createSafewordBasePackageJson(temporaryDirectory, { name: 'test', private: true });
       initGitRepo(temporaryDirectory);
       await runCli(['setup'], { cwd: temporaryDirectory });
 
@@ -276,11 +264,7 @@ describe('E2E: dbt Golden Path', () => {
     });
 
     it('5.2: detects dbt when dbt_project.yml added after initial setup', async () => {
-      writeTestFile(
-        temporaryDirectory,
-        'package.json',
-        JSON.stringify({ name: 'test', private: true }),
-      );
+      createSafewordBasePackageJson(temporaryDirectory, { name: 'test', private: true });
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });

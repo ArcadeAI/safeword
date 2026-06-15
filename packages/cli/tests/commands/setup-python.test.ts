@@ -13,6 +13,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  SKIP_INSTALL_ENV,
   TIMEOUT_BUN_INSTALL,
   TIMEOUT_SETUP,
   writeTestFile,
@@ -57,7 +58,7 @@ function createPolyglotProject(dir: string): void {
 
 describe('Test Suite 3: Conditional Setup for Python Projects', () => {
   describe('Test 3.1: Installs the JS toolchain for Python-only projects (BDD lane, ticket 102b)', () => {
-    it(
+    it.skipIf(process.env.SAFEWORD_RUN_INSTALL_TESTS !== '1')(
       'should install eslint and cucumber for Python-only project (the lane ships TS step files)',
       async () => {
         createPythonProject(projectDirectory);
@@ -81,7 +82,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory });
+        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
 
         // Created to host the BDD acceptance lane (ticket 102b).
         expect(fileExists(projectDirectory, 'package.json')).toBe(true);
@@ -103,6 +104,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
 
         const result = await runCli(['setup'], {
           cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
         });
 
         // Should mention Python tooling (JS toolchain now also installs — BDD lane, 102b)
@@ -119,7 +121,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory });
+        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
 
         // .safeword directory should exist
         expect(fileExists(projectDirectory, '.safeword')).toBe(true);
@@ -137,7 +139,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory });
+        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
 
         // Hooks should exist
         expect(fileExists(projectDirectory, '.safeword/hooks')).toBe(true);
@@ -155,6 +157,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
 
         const result = await runCli(['setup'], {
           cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
         });
 
         // Should have ESLint configured
