@@ -1,5 +1,5 @@
 /**
- * Resolves user-configurable read targets (personas, glossary, architecture).
+ * Resolves user-configurable read targets and documentation sources.
  *
  * Reads `.safeword/config.json` for an optional `paths` object — each key
  * maps to a file path the user wants safeword to read instead of the
@@ -23,8 +23,21 @@ import { isDirectory, readFileSafe } from './fs.js';
 /** Logical keys safeword knows how to override via `paths.*`. */
 export type ConfiguredPathKey = 'personas' | 'glossary' | 'architecture';
 
+export type ConfiguredDocumentationSource =
+  | { type: 'local'; path: string; resolvedPath: string }
+  | { type: 'url'; url: string }
+  | { type: 'git'; repo: string; path?: string };
+
+export type ConfiguredDocumentationSourceDecision =
+  | { kind: 'unset' }
+  | { kind: 'explicit-none' }
+  | { kind: 'configured'; sources: ConfiguredDocumentationSource[] };
+
 interface SafewordConfigShape {
   paths?: Partial<Record<ConfiguredPathKey | 'projectRoot', unknown>>;
+  docs?: {
+    sources?: unknown;
+  };
 }
 
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
@@ -34,6 +47,50 @@ const NAMESPACE_ROOT_DEFAULT = '.project';
 
 /** Legacy namespace root, honored where it already exists (pre-AQJ95G installs). */
 export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
+
+function readSafewordConfig(cwd: string): SafewordConfigShape | undefined {
+  const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
+  const content = readFileSafe(configPath);
+  if (content === undefined) return undefined;
+
+  try {
+    return JSON.parse(content) as SafewordConfigShape;
+  } catch {
+    return undefined;
+  }
+}
+
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function parseLocalDocumentationSource(
+  cwd: string,
+  entry: Record<string, unknown>,
+): ConfiguredDocumentationSource | undefined {
+  if (!nonEmptyString(entry.path)) return undefined;
+  const rawPath = entry.path;
+  return {
+    type: 'local',
+    path: rawPath,
+    resolvedPath: nodePath.isAbsolute(rawPath) ? rawPath : nodePath.join(cwd, rawPath),
+  };
+}
+
+function parseUrlDocumentationSource(
+  entry: Record<string, unknown>,
+): ConfiguredDocumentationSource | undefined {
+  return nonEmptyString(entry.url) ? { type: 'url', url: entry.url } : undefined;
+}
+
+function parseGitDocumentationSource(
+  entry: Record<string, unknown>,
+): ConfiguredDocumentationSource | undefined {
+  if (!nonEmptyString(entry.repo)) return undefined;
+  return nonEmptyString(entry.path)
+    ? { type: 'git', repo: entry.repo, path: entry.path }
+    : { type: 'git', repo: entry.repo };
+}
 
 /**
  * Read the override path for `key` from `.safeword/config.json`, if any.
@@ -48,20 +105,53 @@ export function readConfiguredPath(
   cwd: string,
   key: ConfiguredPathKey | 'projectRoot',
 ): string | undefined {
-  const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
-  const content = readFileSafe(configPath);
-  if (content === undefined) return undefined;
+  const parsed = readSafewordConfig(cwd);
 
-  let parsed: SafewordConfigShape;
-  try {
-    parsed = JSON.parse(content) as SafewordConfigShape;
-  } catch {
-    return undefined;
-  }
-
-  const raw = parsed.paths?.[key];
-  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  const raw = parsed?.paths?.[key];
+  if (!nonEmptyString(raw)) return undefined;
   return raw;
+}
+
+function parseConfiguredDocumentationSource(
+  cwd: string,
+  source: unknown,
+): ConfiguredDocumentationSource | undefined {
+  if (source === null || typeof source !== 'object') return undefined;
+  const entry = source as Record<string, unknown>;
+  switch (entry.type) {
+    case 'local': {
+      return parseLocalDocumentationSource(cwd, entry);
+    }
+    case 'url': {
+      return parseUrlDocumentationSource(entry);
+    }
+    case 'git': {
+      return parseGitDocumentationSource(entry);
+    }
+    default: {
+      return undefined;
+    }
+  }
+}
+
+export function readConfiguredDocumentationSources(cwd: string): ConfiguredDocumentationSource[] {
+  const decision = readConfiguredDocumentationSourceDecision(cwd);
+  return decision.kind === 'configured' ? decision.sources : [];
+}
+
+export function readConfiguredDocumentationSourceDecision(
+  cwd: string,
+): ConfiguredDocumentationSourceDecision {
+  const parsed = readSafewordConfig(cwd);
+  const sources = parsed?.docs?.sources;
+  if (!Array.isArray(sources)) return { kind: 'unset' };
+  if (sources.length === 0) return { kind: 'explicit-none' };
+
+  const configuredSources = sources.flatMap(source => {
+    const parsedSource = parseConfiguredDocumentationSource(cwd, source);
+    return parsedSource === undefined ? [] : [parsedSource];
+  });
+  return { kind: 'configured', sources: configuredSources };
 }
 
 /**

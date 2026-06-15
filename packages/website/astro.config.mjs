@@ -18,7 +18,7 @@ export default defineConfig({
     starlight({
       title: 'Safeword',
       customCss: ['./src/styles/custom.css'],
-      description: 'The first coding agent discipline system for Cursor and Claude Code',
+      description: 'The first coding agent discipline system for Cursor, Claude Code, and Codex',
       head: [
         // Open Graph
         { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
@@ -34,7 +34,7 @@ export default defineConfig({
           attrs: {
             property: 'og:description',
             content:
-              "Your agent doesn't get to finish until the tests pass. Discipline for Cursor and Claude Code.",
+              "Your agent doesn't get to finish until the tests pass. Discipline for Cursor, Claude Code, and Codex.",
           },
         },
         {

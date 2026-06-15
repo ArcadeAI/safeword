@@ -19,7 +19,7 @@ Safeword adds code quality tools as devDependencies and configuration files. You
 
 ## What Changes
 
-You use Claude Code or Cursor the same way you always have. Type a prompt, get code. But now there's a safety net running in the background.
+You use Claude Code, Cursor, or Codex the same way you always have. Type a prompt, get code. But now there's a safety net running in the background.
 
 <Tabs>
   <TabItem label="Claude Code">
@@ -32,6 +32,12 @@ You use Claude Code or Cursor the same way you always have. Type a prompt, get c
     **Your agent follows structured workflows.** Safeword adds rules (`.cursor/rules/`) that guide how your agent approaches tasks. When debugging, it investigates before jumping to fixes. When building features, it follows your codebase patterns.
 
     **Better decisions, automatically.** The rules kick in based on what you're asking for—no special commands needed.
+
+  </TabItem>
+  <TabItem label="Codex">
+    **Your agent gets the same safeword skills.** Safeword adds repo-scoped skills (`.agents/skills/`) for debugging, BDD/TDD, refactoring, testing, review, and verification.
+
+    **PreToolUse gates run through Codex hooks.** Safeword writes `.codex/config.toml` and a Codex adapter at `.safeword/hooks/codex/pre-tool-quality.ts`. After setup or upgrade, review and trust the project hooks in Codex before relying on those gates.
 
   </TabItem>
 </Tabs>
@@ -62,6 +68,15 @@ Open your project and ask your agent to build something real:
     The rules in `.cursor/rules/` guide this behavior automatically.
 
   </TabItem>
+  <TabItem label="Codex">
+    Watch what happens:
+
+    1. Review and trust project hooks in Codex
+    2. Your agent follows the safeword skills in `.agents/skills/`
+    3. Before supported edits, Codex runs `.safeword/hooks/codex/pre-tool-quality.ts`
+    4. If a safeword gate blocks the edit, your agent gets the denial before changing files
+
+  </TabItem>
 </Tabs>
 
 ## What Got Installed
@@ -72,8 +87,9 @@ Safeword added a few folders to your project:
 | ----------------------- | -------------------------------------------------------- |
 | `.safeword/hooks/`      | Scripts that run automatically (lint, quality checks)    |
 | `.claude/skills/`       | Structured workflows for debugging, BDD/TDD, refactoring |
-| `.claude/commands/`     | Slash commands like `/lint` and `/audit`                 |
 | `.claude/settings.json` | Hook configuration for Claude Code                       |
+| `.agents/skills/`       | Structured workflows for Codex                           |
+| `.codex/config.toml`    | Hook configuration for Codex                             |
 | `.cursor/hooks.json`    | Hook configuration for Cursor                            |
 | `.cursor/rules/`        | Rules for Cursor                                         |
 | `.cursor/commands/`     | Slash commands for Cursor                                |

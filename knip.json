@@ -1,7 +1,10 @@
 {
-  "ignore": [".safeword/**", ".safeword-project/**"],
-  "ignoreFiles": ["packages/cli/templates/hooks/**", "packages/cli/templates/statusline/**"],
-  "ignoreDependencies": ["eslint-plugin-jsdoc"],
+  "ignore": [".safeword/**"],
+  "ignoreFiles": [
+    "packages/cli/templates/cucumber/**",
+    "packages/cli/templates/hooks/**",
+    "packages/cli/templates/statusline/**"
+  ],
   "ignoreBinaries": ["shfmt", "dot"],
   "ignoreIssues": {
     "packages/cli/src/presets/typescript/index.ts": ["duplicates"]
