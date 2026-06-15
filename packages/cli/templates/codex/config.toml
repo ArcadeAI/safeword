@@ -6,6 +6,15 @@
 [features]
 hooks = true
 
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-safeword-context.ts" --agent=codex'
+timeout = 30
+statusMessage = "Loading safeword standing instructions"
+
 [[hooks.PreToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 

@@ -7,9 +7,8 @@
  */
 
 /**
- * Prose reference for AGENTS.md — Cursor and other non-Claude agents read
- * this file directly, so a human-readable "read this first" is the right
- * signal for them.
+ * Legacy prose reference for AGENTS.md. Kept only so upgrade/reset can remove
+ * old safeword-managed blocks from customer-owned context files.
  */
 export const AGENTS_MD_LINK = `**⚠️ ALWAYS READ FIRST:** \`.safeword/SAFEWORD.md\`
 
@@ -21,12 +20,8 @@ Read it BEFORE working on any task in this project.
 `;
 
 /**
- * Import block for CLAUDE.md — uses Claude Code's \`@\` import syntax so
- * SAFEWORD.md is inlined into context at launch and re-expanded on every
- * \`/compact\`. Without this, customer installs would rely on the agent
- * following a cross-file delegation chain that our own research
- * (\`<namespace-root>/learnings/instruction-attention-hierarchy.md\`)
- * measures at ~20% compliance.
+ * Legacy import block for CLAUDE.md. Kept only so upgrade/reset can remove old
+ * safeword-managed imports from customer-owned context files.
  */
 export const CLAUDE_MD_IMPORT_BLOCK = `@./.safeword/SAFEWORD.md
 

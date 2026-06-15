@@ -1,6 +1,11 @@
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "command": "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor"
+      }
+    ],
     "afterFileEdit": [
       {
         "command": "bun ./.safeword/hooks/cursor/after-file-edit.ts"

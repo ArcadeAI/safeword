@@ -51,7 +51,7 @@ describe('NPM Package Structure', () => {
     const files = readdirSync(hooksPath);
 
     // Session hooks
-    expect(files).toContain('session-verify-agents.ts');
+    expect(files).toContain('session-safeword-context.ts');
     expect(files).toContain('session-version.ts');
     expect(files).toContain('session-lint-check.ts');
 

@@ -10,7 +10,7 @@ Feature: Codex agents config generation
     Scenario: codex-agents-config-generation.SM1.AC1.fresh_setup_creates_codex_assets
       Given a project has no Codex-specific safeword assets
       When safeword setup reconciles the project
-      Then the project has `AGENTS.md`, `.codex/config.toml`, and `.agents/skills` safeword skill files
+      Then the project has `.codex/config.toml` and `.agents/skills` safeword skill files
 
     @codex-agents-config-generation.SM1.AC2
     Scenario: codex-agents-config-generation.SM1.AC2.config_wires_supported_pretooluse_adapter

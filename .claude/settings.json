@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-verify-agents.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-safeword-context.ts --agent=claude"
           }
         ]
       },
@@ -54,6 +54,15 @@
           {
             "type": "command",
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-start-reentry.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-safeword-context.ts --agent=claude"
           }
         ]
       },
