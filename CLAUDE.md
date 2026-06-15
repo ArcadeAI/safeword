@@ -1,7 +1,3 @@
-@./.safeword/SAFEWORD.md
-
----
-
 ## Version Management
 
 When bumping the CLI version, update **both** files:

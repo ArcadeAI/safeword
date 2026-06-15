@@ -1,10 +1,3 @@
-**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`
-
-The SAFEWORD.md file contains core development patterns, workflows, and conventions.
-Read it BEFORE working on any task in this project.
-
----
-
 # SAFEWORD - AI Agent Configuration CLI
 
 A CLI tool that installs AI coding agent configurations into projects. **This repo is safeword's source code AND uses safeword itself (dogfooding).**
