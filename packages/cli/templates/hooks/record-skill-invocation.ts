@@ -11,10 +11,13 @@ const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 export function recordSkillInvocation(
   projectDirectory: string,
   skillName: string,
-  sessionId = process.env.CLAUDE_SESSION_ID ?? 'unknown-session',
+  sessionId = process.env.CLAUDE_SESSION_ID,
 ): void {
   if (!SKILL_NAME_PATTERN.test(skillName)) {
     throw new Error(`Invalid skill name "${skillName}"`);
+  }
+  if (sessionId === undefined || sessionId.trim().length === 0) {
+    throw new Error('Missing CLAUDE_SESSION_ID');
   }
 
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);

@@ -8,11 +8,18 @@ Run a comprehensive code audit. Execute checks and report results by severity.
 
 ## Invocation log
 
-This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Bash injection runs at render time — hand-writing audit results cannot produce this entry.
+This skill is required at the done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Claude Code expands the `!` line automatically; other clients may treat it as Markdown instructions only. Hand-writing audit results cannot produce this entry.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit || echo "[skill-invocation-log] FAILED — done-gate will block"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit || echo "[skill-invocation-log] FAILED - done-gate will block"`
 
-**If you see `[skill-invocation-log] FAILED` above, or no `audit ✓` line at all**: STOP. Do not run /audit manually — that line is the only proof the done-gate accepts. Report the failure to the user (most likely cause: the shell injection was denied or Bun could not run the installed helper) and ask them to resolve it before re-invoking /audit.
+If no `[skill-invocation-log] audit ✓` line appears above, run this fallback before continuing:
+
+```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit
+```
+
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, reports `Missing CLAUDE_SESSION_ID`, or still does not print `audit ✓`**: STOP. Do not hand-write audit results or continue to the done gate. Report the failure to the user (most likely cause: inline shell execution was denied, the client lacks a Claude session id, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /audit.
 
 ## Instructions
 

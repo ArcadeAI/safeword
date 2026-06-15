@@ -469,11 +469,14 @@ describe('Schema - Single Source of Truth', () => {
         }
       }
 
-      // write-review-stamp.ts is a manually-invoked utility (run by the
-      // /self-review skill injection and by the agent post-fork), not a wired
-      // event hook — it shares the hook lib and writes the log the gates read,
-      // but Claude Code never fires it on an event, so it has no SETTINGS_HOOKS entry.
-      const MANUAL_HOOK_SCRIPTS = new Set(['write-review-stamp.ts']);
+      // Manually-invoked utilities live beside lifecycle hooks because they
+      // share hook libs and write gate-owned state, but Claude Code never
+      // fires them on an event, so they have no SETTINGS_HOOKS entry.
+      const MANUAL_HOOK_SCRIPTS = new Set([
+        'write-review-stamp.ts',
+        'resolve-namespace-root.ts',
+        'record-skill-invocation.ts',
+      ]);
 
       // Hook files in ownedFiles (excluding lib/ modules and cursor/ adapters)
       const hookFiles = Object.keys(SAFEWORD_SCHEMA.ownedFiles)

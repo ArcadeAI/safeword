@@ -17,7 +17,7 @@ const verifySkill = readFileSync(
 const auditCommand = readFileSync(nodePath.join(templatesDirectory, 'commands/audit.md'), 'utf8');
 const auditSkill = readFileSync(nodePath.join(templatesDirectory, 'skills/audit/SKILL.md'), 'utf8');
 
-// Bash-injection log surfaces. /verify and /audit each have skill + command form.
+// Invocation-log surfaces. /verify and /audit each have skill + command form.
 const verifyForms: [string, string][] = [
   ['verify-command', verifyCommand],
   ['verify-skill', verifySkill],
@@ -34,7 +34,7 @@ const skillForms: [string, string][] = [
   ['audit-skill', auditSkill],
 ];
 
-describe('skill-invocation log: bash injection in /verify and /audit (147)', () => {
+describe('skill-invocation log: helper invocation in /verify and /audit (147)', () => {
   describe('Rule: Log gets written on skill invocation, scoped to session', () => {
     it.each(verifyForms)(
       '%s calls the reusable invocation helper with the verify token',
@@ -66,11 +66,29 @@ describe('skill-invocation log: bash injection in /verify and /audit (147)', () 
     );
 
     it.each([...verifyForms, ...auditForms])(
-      '%s bash injection references $CLAUDE_PROJECT_DIR (directly or via PROJECT_DIR fallback)',
+      '%s helper invocation references $CLAUDE_PROJECT_DIR (directly or via PROJECT_DIR fallback)',
       (_name, content) => {
         // Accepts bare ${CLAUDE_PROJECT_DIR} (command forms) or any
         // ${CLAUDE_PROJECT_DIR:-<fallback>} (skill forms).
         expect(content).toMatch(/\$\{CLAUDE_PROJECT_DIR(:-[^}]*)?\}/);
+      },
+    );
+
+    it.each([
+      ...verifyForms.map(([name, content]) => [name, content, 'verify'] as const),
+      ...auditForms.map(([name, content]) => [name, content, 'audit'] as const),
+    ])(
+      '%s documents the fallback when inline shell execution does not run',
+      (_name, content, skill) => {
+        expect(content).toContain('other clients may treat it as Markdown instructions only');
+        expect(content).toContain(
+          `If no \`[skill-invocation-log] ${skill} ✓\` line appears above, run this fallback before continuing:`,
+        );
+        expect(content).toContain(
+          `bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ${skill}`,
+        );
+        expect(content).toContain('Missing CLAUDE_SESSION_ID');
+        expect(content).not.toContain('Bash injection runs at render time');
       },
     );
   });
