@@ -167,6 +167,37 @@ describe('dependency readiness hook support', () => {
     ]);
   });
 
+  it('over-tracks package manifests for unsupported advanced workspace globs', () => {
+    writeJson('package.json', {
+      name: 'advanced-workspace-project',
+      packageManager: 'bun@1.3.14',
+      workspaces: ['packages/{app,plugins/*}', '!packages/[a]*/test/**'],
+    });
+    writeTestFile(projectDirectory, 'bun.lock', '# lockfile');
+    writeJson('packages/app/package.json', {
+      name: '@test/app',
+    });
+    writeJson('packages/app/test/fixture/package.json', {
+      name: '@test/fixture',
+    });
+    writeJson('packages/plugins/auth/package.json', {
+      name: '@test/auth-plugin',
+    });
+    writeJson('examples/tool/package.json', {
+      name: '@test/example-tool',
+    });
+
+    const plan = detectDependencyPlan(projectDirectory);
+
+    expect(plan?.inputPaths.toSorted()).toEqual([
+      'bun.lock',
+      'package.json',
+      'packages/app/package.json',
+      'packages/app/test/fixture/package.json',
+      'packages/plugins/auth/package.json',
+    ]);
+  });
+
   it('changes the dependency fingerprint when tracked inputs change', () => {
     writeBunProject();
     const plan = detectDependencyPlan(projectDirectory);
