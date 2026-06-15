@@ -394,6 +394,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-bun-check.sh': {
       template: 'hooks/session-bun-check.sh',
     },
+    '.safeword/hooks/resolve-namespace-root.ts': {
+      template: 'hooks/resolve-namespace-root.ts',
+    },
+    '.safeword/hooks/record-skill-invocation.ts': {
+      template: 'hooks/record-skill-invocation.ts',
+    },
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },

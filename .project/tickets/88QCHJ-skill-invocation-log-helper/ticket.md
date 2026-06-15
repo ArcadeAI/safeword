@@ -20,7 +20,7 @@ done_when:
   - Each updated surface has a recorded invocation mechanism or an explicit no-change rationale.
   - Existing `skill-invocations.log` parsing still passes.
 created: 2026-06-14T01:39:25.845Z
-last_modified: 2026-06-14T02:05:00Z
+last_modified: 2026-06-15T04:26:37Z
 ---
 
 # Make required skill logging reusable
@@ -49,6 +49,7 @@ last_modified: 2026-06-14T02:05:00Z
 
 ## Work Log
 
+- 2026-06-15T04:26:37Z Implemented: Added installed namespace/logging helpers, registered both in schema, and updated verify/audit logging plus explain namespace lookups across templates and dogfood mirrors. Claude/Codex/Cursor surfaces keep the same Markdown shell-injection contract they already used, but now call the shared helper; release parity and invocation-log tests guard the shipped content.
 - 2026-06-14T02:05:00Z Reviewed: Added per-surface helper-invocation proof requirement.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected an explicit writer helper.
 - 2026-06-14T01:39:25.845Z Started: Created ticket 88QCHJ.

@@ -37,48 +37,31 @@ const skillForms: [string, string][] = [
 describe('skill-invocation log: bash injection in /verify and /audit (147)', () => {
   describe('Rule: Log gets written on skill invocation, scoped to session', () => {
     it.each(verifyForms)(
-      '%s contains bash injection with CLAUDE_SESSION_ID and verify token',
+      '%s calls the reusable invocation helper with the verify token',
       (_name, content) => {
-        // Looking for the inline bash injection block — pattern starts with `!` then backtick or fenced
-        expect(content).toMatch(/\$\{CLAUDE_SESSION_ID\}/);
-        expect(content).toMatch(/skill-invocations\.log/);
-        expect(content).toMatch(/\bverify\b/);
+        expect(content).toContain(
+          'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify',
+        );
       },
     );
 
     it.each(auditForms)(
-      '%s contains bash injection with CLAUDE_SESSION_ID and audit token',
+      '%s calls the reusable invocation helper with the audit token',
       (_name, content) => {
-        expect(content).toMatch(/\$\{CLAUDE_SESSION_ID\}/);
-        expect(content).toMatch(/skill-invocations\.log/);
-        expect(content).toMatch(/\baudit\b/);
+        expect(content).toContain(
+          'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit',
+        );
       },
     );
 
     it.each([...verifyForms, ...auditForms])(
-      '%s bash injection uses append (>>), not overwrite (>)',
+      '%s no longer duplicates namespace-root parsing or log writes inline',
       (_name, content) => {
-        // The injection must use `>>` to preserve prior entries. The log path
-        // is the resolved namespace root via the $NS_ROOT indirection (TAGWZ8).
-        expect(content).toMatch(/>>\s{0,4}"\$NS_ROOT\/skill-invocations\.log/);
-      },
-    );
-
-    it.each([...verifyForms, ...auditForms])(
-      '%s bash injection ensures the namespace root directory exists (mkdir -p)',
-      (_name, content) => {
-        expect(content).toMatch(/mkdir\s{1,4}-p\s{1,4}"\$NS_ROOT"/);
-      },
-    );
-
-    it.each([...verifyForms, ...auditForms])(
-      '%s bash injection honors paths.projectRoot before default/legacy fallback',
-      (_name, content) => {
-        expect(content).toMatch(/NS_ROOT="\$\(node -e/);
-        expect(content).toContain('parsed.paths&&parsed.paths.projectRoot');
-        expect(content).toContain('directory(".project")');
-        expect(content).toContain('directory(".safeword-project")');
-        expect(content).not.toMatch(/NS_ROOT="\$PROJECT_DIR\/\.project"/);
+        expect(content).not.toContain('parsed.paths&&parsed.paths.projectRoot');
+        expect(content).not.toContain('directory(".project")');
+        expect(content).not.toContain('directory(".safeword-project")');
+        expect(content).not.toContain('>> "$NS_ROOT/skill-invocations.log"');
+        expect(content).not.toMatch(/mkdir\s{1,4}-p\s{1,4}"\$NS_ROOT"/);
       },
     );
 
