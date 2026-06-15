@@ -42,11 +42,15 @@ function readOptional(projectDirectory: string, relativePath: string): string | 
   return existsSync(absolutePath) ? readFileSync(absolutePath, 'utf8') : undefined;
 }
 
+function readProjectFile(projectDirectory: string, relativePath: string): string {
+  return readFileSync(nodePath.join(projectDirectory, relativePath), 'utf8');
+}
+
 function readInstalledWiring(projectDirectory: string): SafewordMdWorld['wiring'] {
   return {
-    claudeSettings: readFileSync(nodePath.join(projectDirectory, '.claude/settings.json'), 'utf8'),
-    codexConfig: readFileSync(nodePath.join(projectDirectory, '.codex/config.toml'), 'utf8'),
-    cursorHooks: readFileSync(nodePath.join(projectDirectory, '.cursor/hooks.json'), 'utf8'),
+    claudeSettings: readProjectFile(projectDirectory, '.claude/settings.json'),
+    codexConfig: readProjectFile(projectDirectory, '.codex/config.toml'),
+    cursorHooks: readProjectFile(projectDirectory, '.cursor/hooks.json'),
   };
 }
 
@@ -102,8 +106,8 @@ Given(
 
 Given('each file also contains customer-authored instructions', function (this: SafewordMdWorld) {
   assert.ok(this.projectDirectory, 'project directory was not created');
-  assert.match(readFileSync(nodePath.join(this.projectDirectory, 'AGENTS.md'), 'utf8'), /Customer/);
-  assert.match(readFileSync(nodePath.join(this.projectDirectory, 'CLAUDE.md'), 'utf8'), /Customer/);
+  assert.match(readProjectFile(this.projectDirectory, 'AGENTS.md'), /Customer/);
+  assert.match(readProjectFile(this.projectDirectory, 'CLAUDE.md'), /Customer/);
 });
 
 Given(
@@ -206,38 +210,26 @@ Then('the customer-authored context file contents are unchanged', function (this
 
 Then('no safeword import or read-first prose is prepended', function (this: SafewordMdWorld) {
   assert.ok(this.projectDirectory, 'project directory was not created');
+  assert.doesNotMatch(readProjectFile(this.projectDirectory, 'AGENTS.md'), /SAFEWORD\.md/);
   assert.doesNotMatch(
-    readFileSync(nodePath.join(this.projectDirectory, 'AGENTS.md'), 'utf8'),
-    /SAFEWORD\.md/,
-  );
-  assert.doesNotMatch(
-    readFileSync(nodePath.join(this.projectDirectory, 'CLAUDE.md'), 'utf8'),
+    readProjectFile(this.projectDirectory, 'CLAUDE.md'),
     /@\.\/\.safeword\/SAFEWORD\.md/,
   );
 });
 
 Then('the safeword-managed context-file blocks are removed', function (this: SafewordMdWorld) {
   assert.ok(this.projectDirectory, 'project directory was not created');
+  assert.doesNotMatch(readProjectFile(this.projectDirectory, 'AGENTS.md'), /ALWAYS READ FIRST/);
   assert.doesNotMatch(
-    readFileSync(nodePath.join(this.projectDirectory, 'AGENTS.md'), 'utf8'),
-    /ALWAYS READ FIRST/,
-  );
-  assert.doesNotMatch(
-    readFileSync(nodePath.join(this.projectDirectory, 'CLAUDE.md'), 'utf8'),
+    readProjectFile(this.projectDirectory, 'CLAUDE.md'),
     /@\.\/\.safeword\/SAFEWORD\.md/,
   );
 });
 
 Then('the customer-authored instructions remain', function (this: SafewordMdWorld) {
   assert.ok(this.projectDirectory, 'project directory was not created');
-  assert.match(
-    readFileSync(nodePath.join(this.projectDirectory, 'AGENTS.md'), 'utf8'),
-    /Customer agent instructions/,
-  );
-  assert.match(
-    readFileSync(nodePath.join(this.projectDirectory, 'CLAUDE.md'), 'utf8'),
-    /Customer Claude instructions/,
-  );
+  assert.match(readProjectFile(this.projectDirectory, 'AGENTS.md'), /Customer agent instructions/);
+  assert.match(readProjectFile(this.projectDirectory, 'CLAUDE.md'), /Customer Claude instructions/);
 });
 
 Then('Claude SessionStart runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
@@ -284,9 +276,9 @@ Then(
   'the compact context hook still restores active ticket context',
   function (this: SafewordMdWorld) {
     assert.ok(this.projectDirectory, 'project directory was not created');
-    const compactHook = readFileSync(
-      nodePath.join(this.projectDirectory, '.safeword/hooks/session-compact-context.ts'),
-      'utf8',
+    const compactHook = readProjectFile(
+      this.projectDirectory,
+      '.safeword/hooks/session-compact-context.ts',
     );
     assert.match(compactHook, /active ticket/);
   },
