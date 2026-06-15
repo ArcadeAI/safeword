@@ -15,6 +15,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './namespace-root.js';
 
+export const SKILL_INVOCATIONS_LOG = 'skill-invocations.log';
+
 /**
  * Phase → required skill names. When a feature ticket transitions into one of
  * these phases, the done-gate hook validates the log contains current-session
@@ -58,7 +60,7 @@ export function checkSkillInvocations(
 ): SkillInvocationCheckResult {
   if (input.required.length === 0) return { ok: true, missing: [] };
 
-  const logPath = nodePath.join(resolveNamespaceRoot(input.rootDirectory), 'skill-invocations.log');
+  const logPath = nodePath.join(resolveNamespaceRoot(input.rootDirectory), SKILL_INVOCATIONS_LOG);
   if (!existsSync(logPath)) {
     return { ok: false, missing: [...input.required] };
   }

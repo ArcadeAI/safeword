@@ -4,6 +4,7 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
@@ -23,7 +24,7 @@ export function recordSkillInvocation(
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
   mkdirSync(namespaceRoot, { recursive: true });
   appendFileSync(
-    nodePath.join(namespaceRoot, 'skill-invocations.log'),
+    nodePath.join(namespaceRoot, SKILL_INVOCATIONS_LOG),
     `${new Date().toISOString()} ${sessionId} ${skillName}\n`,
     'utf8',
   );
