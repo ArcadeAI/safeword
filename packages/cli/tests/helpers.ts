@@ -52,6 +52,17 @@ export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
 };
 
+export const SAFEWORD_BASE_DEV_DEPENDENCIES = {
+  eslint: '^9.22.0',
+  safeword: SAFEWORD_VERSION,
+  'dependency-cruiser': '^17.0.0',
+  knip: '^6.0.0',
+  '@cucumber/cucumber': '^13.0.0',
+  tsx: '^4.0.0',
+  '@types/node': '^25.0.0',
+  prettier: '^3.0.0',
+};
+
 /**
  * Creates a temporary directory for test isolation
  */
@@ -107,6 +118,26 @@ export function createPackageJson(dir: string, overrides: Record<string, unknown
     },
   };
   writeFileSync(nodePath.join(dir, 'package.json'), JSON.stringify(pkg, undefined, 2));
+}
+
+/**
+ * Creates package.json with safeword's base JS/BDD tooling already declared.
+ * Use for setup tests that assert generated config rather than real package-manager installs.
+ * @param dir
+ * @param overrides
+ */
+export function createSafewordBasePackageJson(
+  dir: string,
+  overrides: Record<string, unknown> = {},
+): void {
+  const existingDevelopmentDeps = (overrides.devDependencies as Record<string, string>) ?? {};
+  createPackageJson(dir, {
+    ...overrides,
+    devDependencies: {
+      ...SAFEWORD_BASE_DEV_DEPENDENCIES,
+      ...existingDevelopmentDeps,
+    },
+  });
 }
 
 const FRAMEWORK_DEPS = {
@@ -329,14 +360,7 @@ export async function createConfiguredProject(dir: string): Promise<void> {
     devDependencies: {
       typescript: '^5.0.0',
       // Include safeword base packages to prevent sync attempts during upgrade tests
-      eslint: '^9.22.0',
-      prettier: '^3.0.0',
-      safeword: SAFEWORD_VERSION,
-      'dependency-cruiser': '^17.0.0',
-      knip: '^6.0.0',
-      '@cucumber/cucumber': '^13.0.0',
-      tsx: '^4.0.0',
-      '@types/node': '^25.0.0',
+      ...SAFEWORD_BASE_DEV_DEPENDENCIES,
     },
   });
   initGitRepo(dir);
