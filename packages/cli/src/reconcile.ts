@@ -911,12 +911,7 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
   const content = readFileSafe(fullPath);
   if (!content) return;
 
-  // Remove the patched content
-  // First try to remove the full content block
-  let unpatched = content.replace(definition.content, '');
-  for (const extraContent of definition.unpatchContent ?? []) {
-    unpatched = unpatched.replace(extraContent, '');
-  }
+  let unpatched = removeExactTextPatchContent(content, definition);
 
   // If full content wasn't found but marker exists, remove lines containing the marker
   if (unpatched === content && content.includes(definition.marker)) {
@@ -932,6 +927,14 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
   }
 
   writeFile(fullPath, unpatched);
+}
+
+function removeExactTextPatchContent(content: string, definition: TextPatchDefinition): string {
+  let unpatched = content.replace(definition.content, '');
+  for (const extraContent of definition.unpatchContent ?? []) {
+    unpatched = unpatched.replace(extraContent, '');
+  }
+  return unpatched;
 }
 
 function containsTextPatchContent(content: string, definition: TextPatchDefinition): boolean {
