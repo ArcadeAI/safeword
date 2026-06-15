@@ -15,6 +15,7 @@
 **Hook coverage drift guard:** ✅ `tests/smoke/hook-coverage.test.ts` passes; dependency readiness hooks are covered by deterministic hook tests and listed with justification.
 **Schema/install surface:** ✅ `setup-hooks` and schema tests pass; new templates are registered and installed.
 **Command detector follow-up:** ✅ Broadened coverage for `bun --cwd`, `env` wrappers, `npx`/`npm exec`, `pnpm exec`, `corepack pnpm`, and naked pnpm/yarn local-bin commands without adding dependencies.
+**Dogfood parity:** ✅ New hook templates are synced into `.safeword/` and release parity passes.
 **Audit passed** — no findings attributable to this change.
 
 ## Done-When Evidence
@@ -40,3 +41,4 @@
 - `bun run --cwd packages/cli test -- dependency-readiness` — RED confirmed 13 newly added command-detector cases failed before implementation; GREEN passed 46/46 after implementation.
 - `bun run --cwd packages/cli lint` — clean after command-detector follow-up.
 - `bun run --cwd packages/cli test -- dependency-readiness src/templates/config.test.ts tests/smoke/hook-coverage.test.ts setup-hooks` — 81/81 passed after command-detector follow-up.
+- `bun run --cwd packages/cli test:release` — 7/7 passed after syncing dogfood `.safeword/` hook files.

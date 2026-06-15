@@ -7,7 +7,7 @@ status: done
 epic: cc-changelog-alignment
 relates_to: 8R54HV
 created: 2026-06-13T21:34:07.157Z
-last_modified: 2026-06-15T04:17:45Z
+last_modified: 2026-06-15T13:59:34Z
 ---
 
 # Bootstrap dependencies in Claude-created worktrees
@@ -112,3 +112,4 @@ For Bun projects with a committed `bun.lock`, prefer `bun ci` over bare `bun ins
 - 2026-06-13T21:36:29.000Z Quality review passed after adjustment; implementation should start with detect-and-guard before optional auto-install.
 - 2026-06-14T01:01:27.000Z Implemented dependency-readiness hook library, SessionStart context/auto-bootstrap hook, PreToolUse Bash guard, schema/settings registration, transient-state ignore rules, and verification coverage. Full package suite passed: 2866/2866 tests, 1 skipped.
 - 2026-06-15T04:17:45Z Figure-it-out follow-up: broadened the dependency-backed command detector for `bun --cwd`, `env` wrappers, `npx`/`npm exec`, `pnpm exec`, `corepack pnpm`, and naked local-bin forms for pnpm/yarn. Kept nested shell parsing out of scope to avoid brittle full-shell emulation in a hot PreToolUse hook.
+- 2026-06-15T13:59:34Z Quality-review fix: synced the three new hook templates into the dogfood `.safeword/` tree so release parity passes.
