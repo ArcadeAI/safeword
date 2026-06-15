@@ -235,17 +235,22 @@ Safeword bundles 20+ ESLint plugins organized into three tiers. All rules use `e
 
 **Framework Plugins (conditional — included when framework detected in `package.json`):**
 
-| Plugin                   | Detection                         | Peer Dep                        |
-| ------------------------ | --------------------------------- | ------------------------------- |
-| react                    | `detectFramework()` returns react | —                               |
-| react-hooks              | `detectFramework()` returns react | —                               |
-| jsx-a11y                 | `detectFramework()` returns react | —                               |
-| @next/eslint-plugin-next | `detectFramework()` returns next  | —                               |
-| astro                    | `detectFramework()` returns astro | —                               |
-| storybook                | `hasStorybook(deps)`              | `storybook: ^10.3.5`            |
-| tanstack-query           | `hasTanstackQuery(deps)`          | `typescript: ^5.0.0` (optional) |
-| tailwind                 | `hasTailwind(deps)`               | —                               |
-| turbo                    | `hasTurbo(deps)`                  | `turbo: >2.0.0`                 |
+| Plugin                      | Detection                         | Peer Dep                        |
+| --------------------------- | --------------------------------- | ------------------------------- |
+| @eslint-react/eslint-plugin | `detectFramework()` returns react | `node: >=22.0.0`                |
+| react-hooks                 | `detectFramework()` returns react | —                               |
+| jsx-a11y                    | `detectFramework()` returns react | —                               |
+| @next/eslint-plugin-next    | `detectFramework()` returns next  | —                               |
+| astro                       | `detectFramework()` returns astro | —                               |
+| storybook                   | `hasStorybook(deps)`              | `storybook: ^10.3.5`            |
+| tanstack-query              | `hasTanstackQuery(deps)`          | `typescript: ^5.0.0` (optional) |
+| tailwind                    | `hasTailwind(deps)`               | —                               |
+| turbo                       | `hasTurbo(deps)`                  | `turbo: >2.0.0`                 |
+
+React framework configs use `@eslint-react/eslint-plugin` for React, JSX, DOM,
+RSC, and web API guardrails. `eslint-plugin-react-hooks` remains the official
+source for Hooks and React Compiler diagnostics; legacy `eslint-plugin-react` is
+not bundled.
 
 **Tooling Plugins (conditional — included when test runner detected):**
 
@@ -317,15 +322,16 @@ CLI command
 
 ### Runtime (`dependencies`)
 
-| Package                                           | Purpose                                 |
-| ------------------------------------------------- | --------------------------------------- |
-| `commander`                                       | CLI argument parsing                    |
-| `yaml`                                            | YAML config parsing (failsafe mode)     |
-| `@eslint/js`                                      | ESLint core rules                       |
-| `typescript-eslint`                               | TypeScript ESLint parser + rules        |
-| `eslint-config-prettier`                          | Disable formatting rules                |
-| `eslint-plugin-*`                                 | ESLint plugins (see plugin table above) |
-| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance              |
+| Package                                           | Purpose                                       |
+| ------------------------------------------------- | --------------------------------------------- |
+| `commander`                                       | CLI argument parsing                          |
+| `yaml`                                            | YAML config parsing (failsafe mode)           |
+| `@eslint/js`                                      | ESLint core rules                             |
+| `typescript-eslint`                               | TypeScript ESLint parser + rules              |
+| `eslint-config-prettier`                          | Disable formatting rules                      |
+| `@eslint-react/eslint-plugin`                     | React, JSX, DOM, RSC, and web API rules       |
+| `eslint-plugin-*`                                 | Other ESLint plugins (see plugin table above) |
+| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance                    |
 
 ### Dev (`devDependencies`)
 
