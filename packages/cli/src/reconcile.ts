@@ -131,18 +131,24 @@ function planTextPatches(
   const actions: Action[] = [];
   for (const [filePath, definition] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
-    if (definition.applyWhenContentIncludes) {
-      const content = readFileSafe(nodePath.join(cwd, filePath));
-      if (
-        content === undefined ||
-        !definition.applyWhenContentIncludes.every(required => content.includes(required))
-      ) {
-        continue;
-      }
-    }
+    if (!passesTextPatchContentGuard(cwd, filePath, definition)) continue;
     actions.push({ type: 'text-patch', path: filePath, definition });
   }
   return actions;
+}
+
+function passesTextPatchContentGuard(
+  cwd: string,
+  filePath: string,
+  definition: TextPatchDefinition,
+): boolean {
+  if (!definition.applyWhenContentIncludes) return true;
+
+  const content = readFileSafe(nodePath.join(cwd, filePath));
+  return (
+    content !== undefined &&
+    definition.applyWhenContentIncludes.every(required => content.includes(required))
+  );
 }
 
 /**
