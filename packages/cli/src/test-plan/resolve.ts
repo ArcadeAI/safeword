@@ -51,14 +51,19 @@ const PYTHON_MANIFESTS = ['pyproject.toml', 'requirements.txt', 'setup.py', 'set
  */
 function fakeToolProbe(spec: string): (tool: string) => boolean {
   if (spec.startsWith('only:')) {
-    const set = new Set(spec.slice(5).split(',').filter(Boolean));
+    const set = parseToolList(spec);
     return tool => set.has(tool);
   }
   if (spec.startsWith('none:')) {
-    const set = new Set(spec.slice(5).split(',').filter(Boolean));
+    const set = parseToolList(spec);
     return tool => !set.has(tool);
   }
   return allToolsAvailable; // 'all' or empty
+}
+
+/** Parse the comma-separated tool list after a `only:` / `none:` prefix. */
+function parseToolList(spec: string): Set<string> {
+  return new Set(spec.slice('only:'.length).split(',').filter(Boolean));
 }
 
 function allToolsAvailable(): boolean {
