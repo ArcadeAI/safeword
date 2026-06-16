@@ -140,6 +140,26 @@ program
     await lintGherkin(files);
   });
 
+const autonomy = program
+  .command('autonomy')
+  .description('View and set the project autonomy posture');
+
+autonomy
+  .command('show')
+  .description('Print the resolved per-axis autonomy posture')
+  .action(async () => {
+    const { autonomyShow } = await import('./commands/autonomy.js');
+    autonomyShow();
+  });
+
+autonomy
+  .command('set <preset>')
+  .description('Record a named preset (Full review | Guard the contract | Hands-off)')
+  .action(async (preset: string) => {
+    const { autonomySet } = await import('./commands/autonomy.js');
+    autonomySet(preset);
+  });
+
 // Show help if no arguments provided
 if (process.argv.length === 2) {
   program.help();
