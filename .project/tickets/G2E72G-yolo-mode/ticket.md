@@ -3,9 +3,9 @@ id: G2E72G
 slug: yolo-mode
 type: feature
 phase: define-behavior
-status: in_progress
+status: superseded
 created: 2026-05-23T19:15:19.361Z
-last_modified: 2026-05-24T05:07:00.000Z
+last_modified: 2026-06-16T14:32:13.236Z
 scope:
   - New /yolo slash command that toggles YOLO mode on/off for the active ticket
   - Per-user safeword config setting (default mode) so users can opt into YOLO globally
@@ -36,6 +36,8 @@ done_when:
 ---
 
 # YOLO mode: route user-feedback pauses through /figure-it-out
+
+> **Superseded by [90AZDV](../90AZDV-configurable-hitl-autonomy/ticket.md)** (2026-06-16). 90AZDV generalizes this binary on/off mode into a per-axis gradient (the "gradient autonomy levels" this ticket explicitly deferred), adds project-level config with a non-committed personal override (this ticket was per-user only), and routes autonomous breakpoints through a context-loaded sub-agent rather than inline `/figure-it-out`. The denylist, inline decision-logging, hard-gates-still-fire rule, and the deferred `/figure-it-out` failure-mode question carry over to 90AZDV.
 
 **Goal:** Give safeword an autonomous mode that resolves ambiguity via `/figure-it-out` instead of pausing for the user, so a ticket can run end-to-end with minimal human turns.
 
@@ -80,3 +82,4 @@ When YOLO is active for a ticket, every point where the agent would normally han
 - 2026-05-23T19:15:19.361Z Started: Created ticket G2E72G
 - 2026-05-23T19:15:30.000Z Drafted intake: sketch + 8 open questions
 - 2026-05-24T05:07:00.000Z Clarify complete: scope/out_of_scope/done_when bounded. 6 opens resolved, 2 deferred (cost ceiling → v2; /figure-it-out failure mode → BDD). Advancing to define-behavior.
+- 2026-06-16T14:32:13.236Z Superseded by 90AZDV (configurable-hitl-autonomy) at user direction. 90AZDV absorbs the keepers (denylist, inline decision log, hard gates fire, no-active-ticket error, deferred failure-mode question) and generalizes the binary mode into a per-axis gradient with project+personal config and a sub-agent indirection. No further work here.

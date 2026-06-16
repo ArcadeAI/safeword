@@ -13,14 +13,19 @@ scope:
   - Define and encapsulate the sub-agent's context contract (what it receives) in a skill or sub-agent definition — not ad-hoc per call site
   - Log every autonomous resolution (question, options, pick, rationale) to the ticket work log
   - Couple the compensating control - when human review is dialed down on an axis, the independent-observation control (fork/cross-model review) dials up on that axis
+  - Always-confirm denylist (absorbed from G2E72G) - git push / push --force, branch delete or reset --hard, sending external messages (email/Slack/etc.), file deletion outside the ticket folder, marking ticket done, paid-API spend above a threshold, touching production config or secrets - prompts the user regardless of autonomy setting
+  - Hard safeword gates (LOC commit, done gate, verify artifact) still fire under any autonomy setting (absorbed from G2E72G)
+  - A per-ticket override toggle so a single ticket can opt into/out of autonomy independent of the project/personal default (absorbs G2E72G's /yolo command intent)
 out_of_scope:
   - Removing hard protective gates (LOC commit, done gate, verify artifact) - autonomy removes deliberative pauses, not protective ones
-  - Bypassing the always-confirm denylist for irreversible/external actions (git push, secrets, external messages, file deletion) regardless of autonomy setting
   - Auto-marking a ticket done without human confirmation
+  - Time-boxed activation (--yolo 30m) and session-level env-var activation (carried from G2E72G out-of-scope)
+  - Cost-ceiling enforcement on sub-agent /figure-it-out spend (deferred to v2, carried from G2E72G)
 known_unknowns:
-  - Whether this supersedes, absorbs, or layers on top of G2E72G (yolo-mode)
-  - The exact set of decision-kind axes to expose
-  - Storage mechanism + precedence for project vs. personal config
+  - The exact set of decision-kind axes to expose, and whether to expose them directly or as named presets
+  - Storage mechanism + precedence for project vs. personal config (e.g. .safeword/config.local.json, gitignored, personal wins)
+  - Autonomy semantics per axis - silence the check vs. swap human for fork/cross-model reviewer (the 2VCSZY coupling)
+  - Failure mode when the sub-agent's /figure-it-out is inconclusive, errors, or times out - abort to user vs. retry vs. skip-with-default (carried from G2E72G, pin during define-behavior)
 done_when:
   - A user can set, at the project level, which decision-kinds require human review and which run autonomously
   - A user can override that locally without the override being committed to the repo
@@ -65,14 +70,14 @@ Candidate axes a user would set: **intent & scope**, **behavioral contract**, **
 
 ## Open questions (resolve at intake)
 
-- **Relationship to G2E72G (yolo-mode):** G2E72G is a per-ticket on/off YOLO that routes pauses through inline `/figure-it-out` and explicitly deferred "gradient autonomy levels (light/standard/reckless)." This ticket _is_ that gradient, plus the sub-agent indirection and two-level config. Does 90AZDV supersede G2E72G, absorb it, or build on its mode mechanism? (Do not change G2E72G without explicit decision.)
+- **G2E72G (yolo-mode) — RESOLVED:** 90AZDV supersedes it (user direction, 2026-06-16). Keepers absorbed into scope (denylist, hard-gates-fire, per-ticket toggle, decision logging, deferred failure-mode/cost-ceiling). The binary on/off mode becomes one point on this ticket's per-axis gradient.
 - **Axis granularity:** expose the ~6 decision-kind axes directly, or a smaller set of named presets ("review my design, run the rest") mapping onto them?
 - **Autonomy semantics per axis:** silence the check, or swap human → fork/cross-model reviewer (the 2VCSZY coupling)? This is the biggest design fork.
 - **Why a sub-agent rather than inline `/figure-it-out` (G2E72G's choice):** context isolation and a clean input contract — confirm the cost/latency tradeoff is worth it vs. inline.
 
 ## Related tickets
 
-- **G2E72G** (yolo-mode) — overlapping; this likely supersedes/absorbs its deferred gradient. Reconcile first.
+- **G2E72G** (yolo-mode) — **superseded by this ticket**; keepers absorbed into scope.
 - **2VCSZY** (review-gate-autonomous-posture) — the compensating-control coupling: posture flips with the mode.
 - **MR5M3A** (architecture-gate) — the default-off design review this would wire to the "irreversible design" axis.
 - **NMSD94** (per-asset-review-gate) — built the Tier-1/Tier-2 stamp machinery + default-off flag this couples to.
@@ -82,3 +87,4 @@ Candidate axes a user would set: **intent & scope**, **behavioral contract**, **
 
 - 2026-06-16T14:08:18.380Z Started: Created ticket 90AZDV
 - 2026-06-16T14:09:00.000Z Filed (intake): captured the HITL/autonomy leverage map, the two-level config requirement (project + non-committed personal override), the autonomous-breakpoint → sub-agent → /figure-it-out flow, and the sub-agent context-contract requirement. Drafted scope/out_of_scope/done_when; key open question is reconciliation with G2E72G. spec.md (JTBD/personas) still to author.
+- 2026-06-16T14:32:13.236Z Superseded G2E72G at user direction: marked it status=superseded with a pointer here, and absorbed its keepers into scope (denylist, hard-gates-fire, per-ticket toggle, inline decision logging, deferred failure-mode + cost-ceiling). Largest design fork (silence vs. swap-reviewer per axis) remains open for next intake turn.
