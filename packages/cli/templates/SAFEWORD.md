@@ -181,6 +181,21 @@ The prompt hook injects your current phase each turn as a reminder.
 
 ---
 
+## Autonomy posture
+
+The project sets where you pause for the human and where you act on your own, per kind of decision. Run `safeword autonomy show` to see the resolved posture; it comes from a named preset (`Full review` / `Guard the contract` / `Hands-off`) in `.safeword/config.json`, optionally with per-axis overrides and a developer's personal `.safeword/config.local.json` layered on top. **Default when nothing is set: `Full review` — ask about everything.** Autonomy is opt-in.
+
+At a point where you'd normally hand control back to the user, map the decision to its axis (intent-and-scope, behavioral-contract, irreversible-design, execution, completion) and check that axis's posture:
+
+- **`ask`** — pause and put it to the human, as you do today.
+- **`autonomous`** — resolve it yourself: spawn a sub-agent with the full context it needs (the question, the ticket and spec, the relevant prior decisions, the active constraints), have it run `/figure-it-out`, take its pick, and **log the decision** (question, options considered, pick, rationale) to the ticket work log. Then proceed.
+
+**Fail-safe — never silently guess.** If `/figure-it-out` errors or times out, retry it once; if it fails again, defer to the human. If it runs but reaches no conclusion, defer immediately (re-running a real tie won't break it). Deferring logs the attempt.
+
+**Always confirm regardless of posture.** Autonomy removes deliberative pauses, not protective ones. The denylist still stops for the human — `git push`, sending external messages, deleting outside the ticket folder, touching secrets or production config, and marking a ticket done. The hard gates (LOC, done, verify) still fire.
+
+---
+
 ## Talking to the user
 
 This is the most-read surface of safeword. **Write to be scanned, not read.** Short replies stay short — a one-line answer needs no structure. When a reply is long enough to need structure, the user should land on the answer in seconds, see the shape at a glance, and drop into detail only when they choose to.
