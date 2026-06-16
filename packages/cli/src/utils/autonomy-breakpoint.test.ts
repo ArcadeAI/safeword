@@ -10,7 +10,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { isDenylisted, resolveBreakpoint } from './autonomy-breakpoint.js';
 
-const success = vi.fn(() => ({ outcome: 'success' as const, decision: 'use date-fns' }));
+const success = vi.fn(() => ({
+  outcome: 'success' as const,
+  pick: 'use date-fns',
+  options: ['date-fns', 'dayjs'],
+  rationale: 'smaller bundle',
+}));
 
 describe('isDenylisted', () => {
   it('flags irreversible/outward actions', () => {
@@ -39,7 +44,10 @@ describe('resolveBreakpoint posture', () => {
       runFigureItOut: success,
     });
     expect(result.action).toBe('resolved');
-    if (result.action === 'resolved') expect(result.record.decision).toBe('use date-fns');
+    if (result.action === 'resolved') {
+      expect(result.record.pick).toBe('use date-fns');
+      expect(result.record.question).toBe('q');
+    }
   });
 });
 

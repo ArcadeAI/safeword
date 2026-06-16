@@ -35,8 +35,10 @@ export function isDenylisted(action: string): boolean {
 /** Result of one autonomous `/figure-it-out` attempt, injected by the caller. */
 export interface FigureItOutAttempt {
   outcome: 'success' | 'transient-error' | 'inconclusive';
-  /** The chosen resolution, present only on success. */
-  decision?: string;
+  /** The chosen resolution and its reasoning, present only on success. */
+  pick?: string;
+  options?: string[];
+  rationale?: string;
 }
 
 export interface BreakpointInput {
@@ -47,10 +49,12 @@ export interface BreakpointInput {
   runFigureItOut: () => FigureItOutAttempt;
 }
 
-/** A logged autonomous resolution (DEV3.AC3). */
+/** A logged autonomous resolution (DEV3.AC3): question, options, pick, rationale. */
 export interface ResolutionRecord {
   question: string;
-  decision: string;
+  options: string[];
+  pick: string;
+  rationale: string;
 }
 
 export type BreakpointResult =
@@ -77,7 +81,12 @@ export function resolveBreakpoint(input: BreakpointInput): BreakpointResult {
     if (next === 'proceed') {
       return {
         action: 'resolved',
-        record: { question: input.question, decision: result.decision ?? '' },
+        record: {
+          question: input.question,
+          options: result.options ?? [],
+          pick: result.pick ?? '',
+          rationale: result.rationale ?? '',
+        },
       };
     }
     if (next === 'defer') return { action: 'defer' };
