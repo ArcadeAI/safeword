@@ -5,29 +5,33 @@ parent: ZBVGPF-embed-figure-it-out
 type: task
 status: in_progress
 created: 2026-06-16T17:10:00.000Z
-last_modified: 2026-06-16T17:10:00.000Z
+last_modified: 2026-06-16T17:36:00.000Z
 scope:
   - Add one-sentence /figure-it-out callout to planning-guide.md Technical Constraints Dependencies row
   - Add one-sentence /figure-it-out callout to design-doc-guide.md Key Decisions fill-in instructions
   - Add one-sentence /figure-it-out callout to data-architecture-guide.md Physical sub-section
   - Add one-sentence /figure-it-out callout to debug/SKILL.md After 3+ Failed Fixes section (conditional on user confirmation)
-  - Update both template sources and installed copies for all four files
+  - Add one-sentence /figure-it-out callout to SAFEWORD.md Replan on resume section (change-scope/split verdicts only)
+  - Update both template sources and installed copies for all five files
 out_of_scope:
   - brainstorm/SKILL.md (dependency direction is intentionally one-way; figure-it-out already names brainstorm as its feeder)
   - testing-guide.md (SAFEWORD.md Authority covers adding a dependency + design choices; no evidence-required WHY field in the guide)
-  - replan-on-resume embed (ZBVGPF priority item, separate scope)
   - bdd/DISCOVERY.md, bdd/SCENARIOS.md, bdd/TDD.md (already have figure-it-out references)
   - architecture-guide.md (already has figure-it-out reference)
   - SAFEWORD.md Clarify + Authority (already have figure-it-out references)
+  - refactor/SKILL.md (Tier 3 ambiguity is code diagnosis, not evidence research; tie-breaker resolves it)
+  - quality-review/SKILL.md (web research built in; NEEDS DISCUSSION + Next: is the complete escalation path)
+  - audit/SKILL.md (all findings have bounded prescribed actions; escalation to dedicated task handles open choices)
+  - bdd/TDD.md REFACTOR step (architecture-review-gate already covers Tier 3 structural choices)
 done_when:
-  - All four template files contain the specified one-sentence addition at the exact location identified
-  - All four installed copies (.safeword/guides/, .claude/skills/) match the updated templates
+  - All five template files contain the specified one-sentence addition at the exact location identified
+  - All five installed copies (.safeword/guides/, .claude/skills/) match the updated templates
   - Changes committed on feature branch
 ---
 
 # figure-it-out guides/skills embeds
 
-Audited all 24 skills and 9 guides. Four files have a structural gap: each sets
+Audited all 24 skills and 9 guides. Five files have a structural gap: each sets
 an evidence quality bar (WHY fields, open choices, design forks) without naming
 the tool to meet it. Adds one sentence per file at the exact decision point where
 an agent would otherwise write from training memory.
@@ -62,6 +66,14 @@ Add after "Discuss with user before more fix attempts":
 
 Rationale: The skill correctly gates on user confirmation first (user may know a constraint that dissolves the option space). The gap is what happens AFTER confirmation — the agent is stranded with no bridge to the design phase.
 
+**5. `SAFEWORD.md` — Replan on resume, post-verdict behavior**
+
+Add after "proposing one of still-good / change-scope / cancel / split / merge, with rationale":
+> "If the verdict is change-scope or split, run `/figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous."
+
+Rationale: Sub-agent is report-only and cannot run figure-it-out itself; the main agent needs an explicit trigger after receiving a change-scope/split verdict. still-good and cancel need no research (one is a non-change, the other terminates). This is the highest-leverage embed: revalidation fires precisely because the world changed under the plan.
+
 ## Work Log
 
 - 2026-06-16T17:10:00Z Started: Created ticket FJKM4X. Derived from full skill+guide audit run in session; figure-it-out run on 6 candidates (planning-guide, design-doc-guide, data-architecture-guide, debug, brainstorm, testing-guide). 4 edits identified, 2 confirmed no-edit.
+- 2026-06-16T17:36:00Z Expanded: SAFEWORD.md Replan embed moved from ZBVGPF (where shape was unresolved) into FJKM4X scope. Figure-it-out run this session settled the shape — one conditional sentence at the post-verdict point, same form as the other 4 edits. Scope is now 5 files. Out_of_scope updated with all remaining no-edit verdicts from the full audit (refactor, quality-review, audit, bdd/TDD.md REFACTOR).
