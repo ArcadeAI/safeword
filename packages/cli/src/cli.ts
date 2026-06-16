@@ -145,11 +145,17 @@ program
   .description('Emit the test/build commands for every language detected in the repo')
   .argument('[dir]', 'project directory to scan (defaults to the current directory)')
   .option('--kind <kind>', 'test or build', 'test')
-  .option('--json', 'print the plan as JSON')
-  .action(async (dir: string | undefined, options: { kind?: string; json?: boolean }) => {
-    const { testPlan } = await import('./commands/test-plan.js');
-    await testPlan(options, dir);
-  });
+  .option('--format <format>', 'human, json, or sh (eval-able)', 'human')
+  .option('--json', 'alias for --format json')
+  .action(
+    async (
+      dir: string | undefined,
+      options: { kind?: string; json?: boolean; format?: string },
+    ) => {
+      const { testPlan } = await import('./commands/test-plan.js');
+      await testPlan(options, dir);
+    },
+  );
 
 // Show help if no arguments provided
 if (process.argv.length === 2) {
