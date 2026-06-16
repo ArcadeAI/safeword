@@ -62,8 +62,16 @@ non-zero so the gate blocks. The Gherkin acceptance lane runs separately (it is
 not a `test-plan` suite).
 
 ```bash
+# Resolve a test-plan-capable safeword CLI — prefer the locally installed one
+# (a bare `bunx safeword` can resolve the published CLI, which may predate test-plan).
+if [ -x node_modules/.bin/safeword ]; then
+  SW="node_modules/.bin/safeword"
+elif [ -f packages/cli/src/cli.ts ]; then
+  SW="bun packages/cli/src/cli.ts"
+else SW="bunx safeword"; fi
+
 # --- Test suite (resolved by safeword test-plan — one source of truth) ---
-bash -c "$(bunx safeword test-plan --kind test --format sh)"
+bash -c "$($SW test-plan --kind test --format sh)"
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
@@ -73,7 +81,7 @@ else
 fi
 
 # --- Build check (resolved by safeword test-plan) ---
-bash -c "$(bunx safeword test-plan --kind build --format sh)"
+bash -c "$($SW test-plan --kind build --format sh)"
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.
