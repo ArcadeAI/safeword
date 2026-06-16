@@ -8,12 +8,13 @@ import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+// CLAUDE_CODE_SESSION_ID is set (and CLAUDE_SESSION_ID is empty) in remote container sessions (web, GitHub Actions).
+const ENV_SESSION_ID = process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID;
 
 export function recordSkillInvocation(
   projectDirectory: string,
   skillName: string,
-  // CLAUDE_CODE_SESSION_ID is set (and CLAUDE_SESSION_ID is empty) in remote container sessions (web, GitHub Actions).
-  sessionId = process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID,
+  sessionId = ENV_SESSION_ID,
 ): void {
   if (!SKILL_NAME_PATTERN.test(skillName)) {
     throw new Error(`Invalid skill name "${skillName}"`);
@@ -34,8 +35,7 @@ export function recordSkillInvocation(
 if (import.meta.main) {
   const projectDirectory = process.argv[2] ?? process.cwd();
   const skillName = process.argv[3];
-  const sessionId =
-    process.argv[4] || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID;
+  const sessionId = process.argv[4] || ENV_SESSION_ID;
 
   try {
     if (skillName === undefined) {
