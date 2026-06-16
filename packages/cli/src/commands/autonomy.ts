@@ -47,10 +47,15 @@ function readConfig(cwd: string): Record<string, unknown> {
   return readConfigAt(projectConfigPath(cwd));
 }
 
-/** Print the resolved per-axis posture for the project. */
+/** Print the resolved per-axis posture for the project, naming its source. */
 export function autonomyShow(cwd: string = process.cwd()): void {
   const resolved = readAutonomyPolicy(cwd);
-  header('Autonomy posture');
+  const projectPreset = (readConfig(cwd).autonomy as { preset?: unknown } | undefined)?.preset;
+  const presetLabel = isValidPreset(projectPreset) ? projectPreset : 'Full review (default)';
+  const hasPersonal = readConfigAt(configPathFor(cwd, true)).autonomy !== undefined;
+  // Source goes in the header, not a keyValue line, so per-axis parsers see
+  // only the five axis rows.
+  header(`Autonomy posture — ${presetLabel}${hasPersonal ? ' + personal overrides' : ''}`);
   for (const [axis, posture] of Object.entries(resolved)) {
     keyValue(axis, posture);
   }

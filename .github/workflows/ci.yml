@@ -16,15 +16,11 @@ concurrency:
 
 jobs:
   test:
-    name: test (node ${{ matrix.node-version }})
+    name: test (node 22)
     runs-on: ubuntu-latest
     # 30 (was 20): headroom for the growing suite + setup. The suite runs
     # parallel (vitest maxWorkers:3 on the 4-vCPU runner); sequential timed out.
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ['22']
 
     steps:
       - name: Checkout
@@ -36,7 +32,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: '.nvmrc'
 
       - name: Setup Go
         uses: actions/setup-go@v6

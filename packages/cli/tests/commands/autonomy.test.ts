@@ -85,6 +85,19 @@ describe('safeword autonomy', () => {
     expect(show.stdout).toContain('intent-and-scope: ask');
   });
 
+  it('show names the default source when no policy is set', async () => {
+    const result = await runCli(['autonomy', 'show'], { cwd });
+    expect(result.stdout).toContain('Full review (default)');
+  });
+
+  it('show names the active preset and flags a personal override', async () => {
+    await runCli(['autonomy', 'set', 'Hands-off'], { cwd });
+    await runCli(['autonomy', 'override', 'execution', 'ask', '--personal'], { cwd });
+    const result = await runCli(['autonomy', 'show'], { cwd });
+    expect(result.stdout).toContain('Hands-off');
+    expect(result.stdout).toContain('personal overrides');
+  });
+
   it('override rejects an unknown axis or posture', async () => {
     const badAxis = await runCli(['autonomy', 'override', 'vibes', 'ask'], { cwd });
     expect(badAxis.exitCode).toBe(1);
