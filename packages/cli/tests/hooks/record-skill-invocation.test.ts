@@ -112,10 +112,28 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     expect(result.stderr).toContain('Invalid skill name "../verify"');
   });
 
+  it('falls back to CLAUDE_CODE_SESSION_ID when CLAUDE_SESSION_ID is empty (remote container)', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.project'), { recursive: true });
+
+    const output = execFileSync('bun', [helperPath, projectDirectory, 'verify'], {
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_SESSION_ID: '', CLAUDE_CODE_SESSION_ID: 'remote-session-uuid' },
+    });
+
+    expect(output.trim()).toBe('[skill-invocation-log] verify ✓');
+    const logContent = readFileSync(
+      nodePath.join(projectDirectory, '.project', 'skill-invocations.log'),
+      'utf8',
+    );
+    expect(logContent).toMatch(/ remote-session-uuid verify$/m);
+  });
+
   it('fails closed when no session id is available', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
     const env = { ...process.env };
     delete env.CLAUDE_SESSION_ID;
+    delete env.CLAUDE_CODE_SESSION_ID;
 
     const result = spawnSync('bun', [helperPath, projectDirectory, 'verify'], {
       encoding: 'utf8',
