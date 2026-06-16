@@ -15,124 +15,124 @@ runner-detection proof rides on Vitest unit tests (pure resolver, injected
 
 ### Scenario: A JS+Python repo yields exactly a javascript and a python entry
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A Go+Rust repo yields both a go and a rust entry
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A package.json with an empty scripts object contributes no javascript entry
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A malformed manifest is skipped without dropping other languages
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A repo with no recognized manifest yields an empty plan
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: The command reflects the detected runner
 
 ### Scenario: Python with a tox.ini runs tox
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Python with no pytest falls back to unittest
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A uv-locked Python repo runs pytest through uv
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Rust uses nextest when it is installed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Rust falls back to cargo test --workspace without nextest
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A Go workspace expands its modules in the emitted command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A pnpm JS repo runs its test script through pnpm
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: Missing toolchains stay visible, never dropped
 
 ### Scenario: A Go repo with no go binary still appears, marked unavailable
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: Nested and vendored manifests are handled
 
 ### Scenario: A manifest in a sub-directory is discovered
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A manifest inside an excluded directory is ignored
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: The build plan emits native build commands
 
 ### Scenario: Build plan emits per-language build commands
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Build plan omits a JS entry when there is no build script
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: The resolver is reachable as one CLI surface
 
 ### Scenario: The CLI prints the resolved plan as JSON
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario — skip: helpers (entry(), per-language resolvers) factored during GREEN; no cross-scenario duplication emerged

@@ -1,6 +1,6 @@
 # Impl Plan: test-plan resolver
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 

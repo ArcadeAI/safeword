@@ -24,7 +24,7 @@ Feature: test-plan resolver
 
     @test-plan-resolver.DEV1.AC1
     Scenario: A package.json with an empty scripts object contributes no javascript entry
-      Given a repo with a "go.mod" and a "package.json" whose "scripts" is "{}"
+      Given a repo with a "go.mod" and a "package.json" with an empty scripts object
       When I request the test plan
       Then the plan includes a "go" entry
       And the plan has no "javascript" entry
@@ -136,6 +136,6 @@ Feature: test-plan resolver
     @test-plan-resolver.SM1.AC1
     Scenario: The CLI prints the resolved plan as JSON
       Given a repo with a "go.mod"
-      When I run "safeword test-plan --kind test --json"
+      When I run the test-plan CLI as JSON
       Then the output is a JSON array containing an entry with language "go"
       And that entry has a non-empty "command" and a boolean "available"
