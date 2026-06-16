@@ -36,33 +36,43 @@ safeword test-plan --kind test|build [--json]
 
 ### Resolver correctness rules
 
-| Concern          | Rule                                                                                                                                                         |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Polyglot         | Return **all** detected language suites (JS + Python + Go + Rust), each a plan entry. No first-match.                                                        |
-| JS monorepo      | A real root `test` script is the orchestrator (turbo/nx/make) → use it; PM-aware (bun/pnpm/yarn/npm). Don't also recurse workspaces.                         |
-| Python runner    | `tox.ini`→`tox`; `[tool.pytest.ini_options]`/`pytest.ini`/installed→`pytest` (recurses from root); else `python -m unittest discover`. PM-aware (uv/poetry). |
-| Go               | `go.work` → `go test $(go list -f '{{.Dir}}/...' -m \| xargs)`; else `go test ./...`.                                                                        |
-| Rust             | nextest configured/installed → `cargo nextest run --workspace` (+ `cargo test --doc`); else `cargo test --workspace`.                                        |
-| Nested manifests | Discover via declared workspace members (pnpm/cargo `[workspace]`/go.work) + bounded tree scan — not root-only.                                              |
-| Tool absent      | Entry flagged `available:false` → skipped with a **visible** note, never silently dropped.                                                                   |
-| Timeout/perf     | Per-suite timeout preserved; stop-hook path keeps a fast-subset preference (extend `test:done` cross-language) + total budget; report partial results.       |
+| Concern          | Rule                                                                                                                                                                                                                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Polyglot         | Return **all** detected language suites (JS + Python + Go + Rust), each a plan entry. No first-match.                                                                                                                                                                      |
+| JS monorepo      | A real root `test` script is the orchestrator (turbo/nx/make) → use it; PM-aware (bun/pnpm/yarn/npm). Don't also recurse workspaces.                                                                                                                                       |
+| Python runner    | `tox.ini`→`tox`; `[tool.pytest.ini_options]`/`pytest.ini`/installed→`pytest` (recurses from root); else `python -m unittest discover`. PM-aware (uv/poetry).                                                                                                               |
+| Go               | `go.work` → `go test $(go list -f '{{.Dir}}/...' -m \| xargs)`; else `go test ./...`. Behavior depends on module layout (nested vs sibling) — verify against the target Go version at build; respect the Go 1.25 `go.mod ignore` directive.                                |
+| Rust             | nextest configured/installed → `cargo nextest run --workspace` (+ `cargo test --doc`, since nextest skips doctests); else `cargo test --workspace` (which already runs doctests).                                                                                          |
+| Nested manifests | **Reuse** `findInTree` + `SUBDIRECTORY_EXCLUDE` from `src/utils/fs.ts` (already skips `node_modules`/`.git`/`vendor`/`dist`/`build`/`target`/`coverage`, maxDepth 10) — the resolver lives in CLI `src/` so it imports these directly. Do **not** write a new tree-walker. |
+| Tool absent      | Entry flagged `available:false` → skipped with a **visible** note, never silently dropped.                                                                                                                                                                                 |
+| Timeout/perf     | Tests execute only at the **done gate** (see revalidation below), not every stop — so the all-suites cost is bounded to done/`verify`. Keep per-suite timeout + a cross-language `test:done` fast-subset escape hatch + partial-result reporting.                          |
 
 ## Acceptance criteria
 
 - [ ] `safeword test-plan --kind test|build --json` returns **all** detected suites for a repo; pure resolver unit-tested with injected availability + fixtures.
 - [ ] Polyglot monorepo (JS+Python) runs **both** suites — done-gate cannot go green with a language untested (kills the false green).
 - [ ] Python runner detected (pytest vs `tox` vs `unittest`), not hardcoded; Rust uses `--workspace` (+ nextest when present); Go honors `go.work`.
-- [ ] Nested/sub-package manifests are discovered (not root-only).
+- [ ] Nested/sub-package manifests are discovered (not root-only) by **reusing** `findInTree`/`SUBDIRECTORY_EXCLUDE` from `src/utils/fs.ts` — no new tree-walker — plus Go `go.mod ignore` awareness.
 - [ ] `test-runner.ts`, `/verify`, `/audit` all consume `test-plan`; **zero** language command strings duplicated across surfaces.
 - [ ] Tool-absent suites are reported as skipped (visible), never silently passed; per-suite timeout + partial-result reporting intact.
 - [ ] Done-gate literal-phrase contract preserved; existing 2FVZ26 tests + verify-skill/parity stay green; dogfood parity preserved.
 
+## Revalidation notes (quality-review, 2026-06-16)
+
+Each quality-review finding was revalidated against the code before being folded in. Two corrected a wrong assumption — recorded here so they are not "fixed" again:
+
+- **`runTests` is done-phase-only, NOT per-stop.** `stop-quality.ts:489` calls `runTests` only inside `if (currentPhase === 'done')`. The review's "Critical: don't run all suites on every stop" was based on a false premise — there is **no** per-stop test execution to scope down, and no hook-vs-verify policy split is needed. Running all suites at the done gate is correct (same cost as `/verify`). The only real lever is total time on large polyglot repos → the `test:done` fast-subset escape hatch (now cross-language).
+- **Discovery ignores already exist.** `src/utils/fs.ts` `findInTree`/`SUBDIRECTORY_EXCLUDE` already excludes vendored/generated dirs at maxDepth 10. Reuse it; nothing to add except Go's `go.mod ignore`.
+- **Spawn cost is negligible** — the CLI is invoked at the done gate and on manual `/verify`/`/audit`, not on every stop (precedent: `lint.ts` shells out per edit).
+- **Go `./...` across workspace modules is contested** across sources — keep the `go list` workaround; verify against the target Go version at build.
+
 ## Known limitations to decide at build (open)
 
-- Fast-subset vs full-suite in the 60s stop-hook budget for large monorepos — needs a cross-language `test:done` convention.
 - JS workspace with **no** root test script (per-package only) — run per-package, or require a root script? (lean: require root script v1.)
-- Whether `test-plan` only _plans_ (callers execute) or can also _execute_ (`--run`). Lean: plan-only; callers execute so /verify stays transparent and the done-gate sees results.
+- Whether `test-plan` only _plans_ (callers execute) or can also _execute_ (`--run`). Lean: plan-only; callers execute so `/verify` stays transparent and the done-gate sees results.
+- Cross-language `test:done` fast-subset convention for very large polyglot repos (nice-to-have, not v1-blocking).
 
 ## Work Log
 
 - 2026-06-16T13:58:31.841Z Started: Created ticket Q4FX8Y
+- 2026-06-16 Quality-review + revalidation: corrected the per-stop premise (tests are done-gate-only), reused existing `findInTree` ignores, downgraded spawn-cost, kept Go workaround with a build-time caveat. Plan tightened; ready for `/bdd`.
