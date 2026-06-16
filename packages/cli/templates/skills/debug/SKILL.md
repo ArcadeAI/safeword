@@ -210,6 +210,7 @@ Pattern indicating architectural problem:
 - Is this pattern fundamentally sound?
 - Should we refactor vs. continue patching?
 - Discuss with user before more fix attempts
+- If user confirms the pattern is fundamentally unsound, call `/figure-it-out` to evaluate approaches (refactor / redesign / extract) before implementing anything.
 
 ## Red Flags - STOP Immediately
 
