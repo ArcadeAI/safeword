@@ -31,7 +31,7 @@ Make `test-runner.ts` and `/verify` consume the `safeword test-plan` resolver so
 
 #### migrate-consumers.SM1.AC3 — `--format sh` emits an eval-able plan
 
-`safeword test-plan --kind <k> --format sh` prints a runnable script: `( cd <cwd> && <command> )` per available entry, `echo "⏭️ Skipped — <runner> not installed"` for unavailable ones.
+`safeword test-plan --kind <k> --format sh` prints a runnable script: `( cd <cwd> && <command> )` per available entry, `echo "⏭️ Skipped — <runner> not installed"` for unavailable ones. Evaluating it **propagates failure** — exits non-zero if any suite fails (so the gate still blocks) and is a clean no-op (exit 0) for an empty plan. Works for `--kind test` and `--kind build`.
 
 ### migrate-consumers.DEV1 — the done-gate runs my real suite (preserved/upgraded)
 
