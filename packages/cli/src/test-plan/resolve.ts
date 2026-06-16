@@ -8,6 +8,10 @@
  *
  * Reaches the consumers (verify/audit/test-runner) via the `safeword test-plan`
  * CLI — shipped hooks cannot import safeword code, so the CLI is the seam.
+ *
+ * Manifest discovery is a single tree walk (`indexFilesInTree`) shared by every
+ * language resolver, so a complex/deep monorepo costs one traversal, not one per
+ * probe.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -15,7 +19,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { existsInTree, findInTree } from '../utils/fs.js';
+import { indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
 
 export type PlanKind = 'test' | 'build';
@@ -23,7 +27,7 @@ export type Language = 'javascript' | 'python' | 'go' | 'rust';
 
 export interface PlanEntry {
   language: Language;
-  /** Directory the command runs in (repo root for v1). */
+  /** Directory the command runs in (the discovered manifest's directory). */
   cwd: string;
   /** The command string to run. Plan-only — never executed here. */
   command: string;
@@ -40,8 +44,21 @@ export interface ResolveOptions {
 }
 
 type ToolProbe = (tool: string) => boolean;
+/** filename → directory of its shallowest occurrence (from one tree walk). */
+type ManifestIndex = ReadonlyMap<string, string>;
 
 const PYTHON_MANIFESTS = ['pyproject.toml', 'requirements.txt', 'setup.py', 'setup.cfg', 'tox.ini'];
+
+/** Every manifest probed via the tree (root-only files like package.json/go.work are checked directly). */
+const TREE_MANIFESTS = new Set<string>([
+  ...PYTHON_MANIFESTS,
+  'pytest.ini',
+  '.pytest.ini',
+  'uv.lock',
+  'poetry.lock',
+  'go.mod',
+  'Cargo.toml',
+]);
 
 /**
  * Parse the `SAFEWORD_FAKE_TOOLS` test seam (same spirit as `SAFEWORD_SKIP_INSTALL`):
@@ -86,6 +103,15 @@ function entry(
   return { language, cwd, command, runner, available };
 }
 
+/** Directory of the first listed manifest present in the index, or root if none. */
+function firstDirectory(root: string, index: ManifestIndex, names: readonly string[]): string {
+  for (const name of names) {
+    const dir = index.get(name);
+    if (dir !== undefined) return dir;
+  }
+  return root;
+}
+
 /** Root package.json scripts, or undefined when absent/unparseable (so a malformed manifest never aborts the plan). */
 function readRootScripts(root: string): Record<string, string> | undefined {
   try {
@@ -98,7 +124,13 @@ function readRootScripts(root: string): Record<string, string> | undefined {
   }
 }
 
-function resolveJs(root: string, kind: PlanKind, isAvailable: ToolProbe): PlanEntry | undefined {
+function resolveJs(
+  root: string,
+  _index: ManifestIndex,
+  kind: PlanKind,
+  isAvailable: ToolProbe,
+): PlanEntry | undefined {
+  // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
   const scripts = readRootScripts(root);
   if (!scripts) return undefined;
   const pm = detectPackageManager(root);
@@ -118,18 +150,9 @@ function pickTestScript(scripts: Record<string, string>): string | undefined {
   return undefined;
 }
 
-/** Directory of the first listed manifest found in the tree, or root if none. The command runs here. */
-function manifestDirectory(root: string, names: readonly string[]): string {
-  for (const name of names) {
-    const dir = findInTree(root, name);
-    if (dir !== undefined) return dir;
-  }
-  return root;
-}
-
-/** True when `file` (found anywhere in the tree) contains `marker`. */
-function configContains(root: string, file: string, marker: string): boolean {
-  const dir = findInTree(root, file);
+/** True when an indexed `file` contains `marker`. */
+function configContains(index: ManifestIndex, file: string, marker: string): boolean {
+  const dir = index.get(file);
   if (dir === undefined) return false;
   try {
     return readFileSync(nodePath.join(dir, file), 'utf8').includes(marker);
@@ -138,32 +161,35 @@ function configContains(root: string, file: string, marker: string): boolean {
   }
 }
 
-function pytestConfigured(root: string): boolean {
-  if (existsInTree(root, 'pytest.ini') || existsInTree(root, '.pytest.ini')) return true;
-  if (configContains(root, 'pyproject.toml', '[tool.pytest.ini_options]')) return true;
-  return configContains(root, 'setup.cfg', '[tool:pytest]');
+function pytestConfigured(index: ManifestIndex): boolean {
+  if (index.has('pytest.ini') || index.has('.pytest.ini')) return true;
+  if (configContains(index, 'pyproject.toml', '[tool.pytest.ini_options]')) return true;
+  return configContains(index, 'setup.cfg', '[tool:pytest]');
 }
 
-/** Package-manager-aware pytest invocation; returns the command, runner, and the tool whose presence gates availability. */
-function pytestInvocation(root: string, isAvailable: ToolProbe): { command: string; tool: string } {
-  if (existsInTree(root, 'uv.lock') && isAvailable('uv'))
-    return { command: 'uv run pytest', tool: 'uv' };
-  if (existsInTree(root, 'poetry.lock') && isAvailable('poetry'))
+/** Package-manager-aware pytest invocation; returns the command and the tool whose presence gates availability. */
+function pytestInvocation(
+  index: ManifestIndex,
+  isAvailable: ToolProbe,
+): { command: string; tool: string } {
+  if (index.has('uv.lock') && isAvailable('uv')) return { command: 'uv run pytest', tool: 'uv' };
+  if (index.has('poetry.lock') && isAvailable('poetry'))
     return { command: 'poetry run pytest', tool: 'poetry' };
   return { command: 'pytest', tool: 'pytest' };
 }
 
 function resolvePython(
   root: string,
+  index: ManifestIndex,
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
   if (kind === 'build') return undefined; // no standard Python build step
-  if (!PYTHON_MANIFESTS.some(manifest => existsInTree(root, manifest))) return undefined;
-  const cwd = manifestDirectory(root, PYTHON_MANIFESTS);
-  if (existsInTree(root, 'tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
-  if (pytestConfigured(root) || isAvailable('pytest')) {
-    const { command, tool } = pytestInvocation(root, isAvailable);
+  if (!PYTHON_MANIFESTS.some(manifest => index.has(manifest))) return undefined;
+  const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
+  if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
+  if (pytestConfigured(index) || isAvailable('pytest')) {
+    const { command, tool } = pytestInvocation(index, isAvailable);
     return entry('python', cwd, command, 'pytest', isAvailable(tool));
   }
   // Prefer python3 (the only `python` on macOS/modern distros), fall back to python.
@@ -177,8 +203,13 @@ function resolvePython(
   );
 }
 
-function resolveGo(root: string, kind: PlanKind, isAvailable: ToolProbe): PlanEntry | undefined {
-  if (!existsInTree(root, 'go.mod')) return undefined;
+function resolveGo(
+  root: string,
+  index: ManifestIndex,
+  kind: PlanKind,
+  isAvailable: ToolProbe,
+): PlanEntry | undefined {
+  if (!index.has('go.mod')) return undefined;
   const verb = kind === 'build' ? 'build' : 'test';
   // A root go.work tests every workspace module — run the expansion from root.
   // Otherwise run `./...` in the module's own directory (supports nested modules).
@@ -186,13 +217,18 @@ function resolveGo(root: string, kind: PlanKind, isAvailable: ToolProbe): PlanEn
     const command = `go ${verb} $(go list -f '{{.Dir}}/...' -m | xargs)`;
     return entry('go', root, command, 'go', isAvailable('go'));
   }
-  const cwd = findInTree(root, 'go.mod') ?? root;
+  const cwd = index.get('go.mod') ?? root;
   return entry('go', cwd, `go ${verb} ./...`, 'go', isAvailable('go'));
 }
 
-function resolveRust(root: string, kind: PlanKind, isAvailable: ToolProbe): PlanEntry | undefined {
-  if (!existsInTree(root, 'Cargo.toml')) return undefined;
-  const cwd = findInTree(root, 'Cargo.toml') ?? root;
+function resolveRust(
+  root: string,
+  index: ManifestIndex,
+  kind: PlanKind,
+  isAvailable: ToolProbe,
+): PlanEntry | undefined {
+  if (!index.has('Cargo.toml')) return undefined;
+  const cwd = index.get('Cargo.toml') ?? root;
   if (kind === 'build')
     return entry('rust', cwd, 'cargo build --workspace', 'cargo', isAvailable('cargo'));
   if (isAvailable('cargo-nextest'))
@@ -214,8 +250,9 @@ function resolveRust(root: string, kind: PlanKind, isAvailable: ToolProbe): Plan
 export function resolveTestPlan(root: string, options: ResolveOptions = {}): PlanEntry[] {
   const kind = options.kind ?? 'test';
   const isAvailable = options.isToolAvailable ?? defaultIsToolAvailable;
+  const index = indexFilesInTree(root, TREE_MANIFESTS);
   const resolvers = [resolveJs, resolvePython, resolveGo, resolveRust];
   return resolvers
-    .map(resolve => resolve(root, kind, isAvailable))
+    .map(resolve => resolve(root, index, kind, isAvailable))
     .filter((planEntry): planEntry is PlanEntry => planEntry !== undefined);
 }
