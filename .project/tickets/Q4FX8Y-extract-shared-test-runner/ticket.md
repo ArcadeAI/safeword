@@ -2,8 +2,8 @@
 id: Q4FX8Y
 slug: extract-shared-test-runner
 type: epic
-phase: intake
-status: in_progress
+phase: done
+status: done
 children: [BKTTZA, 5FF0ZD]
 created: 2026-06-16T13:58:31.841Z
 last_modified: 2026-06-16T13:58:31.841Z
@@ -100,3 +100,4 @@ Each revalidated against the code; PM-recursive behavior web-verified.
 - 2026-06-16T13:58:31.841Z Started: Created ticket Q4FX8Y
 - 2026-06-16 Quality-review + revalidation: corrected the per-stop premise (tests are done-gate-only), reused existing `findInTree` ignores, downgraded spawn-cost, kept Go workaround with a build-time caveat. Plan tightened; ready for `/bdd`.
 - 2026-06-16 Resolved the 3 open build decisions (figure-it-out + revalidation): require-root-JS-script (PM-recursive deferred), plan-only, defer cross-language fast-subset. Revalidated that safeword installs `test:bdd` but not `test`/`build`/`test:done`. No open v1 blockers remain.
+- 2026-06-16 Done: both children complete — BKTTZA (resolver + safeword test-plan) and 5FF0ZD (test-runner + /verify consume it; per-language duplication removed). Suite green.

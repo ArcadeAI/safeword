@@ -2,8 +2,8 @@
 id: 5FF0ZD
 slug: migrate-consumers-to-test-plan
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: Q4FX8Y
 created: 2026-06-16T15:46:47.057Z
 last_modified: 2026-06-16T15:46:47.057Z
@@ -41,3 +41,4 @@ done_when:
 - 2026-06-16T15:46:47.057Z Started: Created ticket 5FF0ZD
 - 2026-06-16 Intake: revalidated consumers + figure-it-out; scope corrected (audit out, --format sh for bash, --json for TS). To define-behavior.
 - 2026-06-16 define-behavior: dimensions + 8 scenarios accepted by user.
+- 2026-06-16 Done: full suite 3038/3038 green; security (cwd injection) + CLI-resolution fixes landed + regression-tested; verify.md recorded; audit passed.
