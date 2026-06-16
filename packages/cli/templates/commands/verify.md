@@ -51,9 +51,29 @@ Run these in sequence, reporting each result:
 1. **Run `/lint`** to auto-fix style issues first
 2. Then run verification:
 
+Every project has a `package.json` (the BDD lane needs one), so a real `test`
+script — not the file — is the "this is a JS project" signal. Run the first
+matching language's suite; skip gracefully when a toolchain isn't installed.
+
 ```bash
-# Full test suite
-bun run test 2>&1
+# --- Test suite (first matching language) ---
+if node -e 'const s=(require("./package.json").scripts)||{};process.exit(s.test||s["test:done"]?0:1)' 2> /dev/null; then
+  bun run test 2>&1
+elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+  if [ -f uv.lock ] && command -v uv > /dev/null; then
+    uv run pytest 2>&1
+  elif [ -f poetry.lock ] && command -v poetry > /dev/null; then
+    poetry run pytest 2>&1
+  elif command -v pytest > /dev/null; then
+    pytest 2>&1
+  else echo "Test Suite: ⏭️ Skipped — pytest not installed"; fi
+elif [ -f go.mod ]; then
+  command -v go > /dev/null && go test ./... 2>&1 || echo "Test Suite: ⏭️ Skipped — go not installed"
+elif [ -f Cargo.toml ]; then
+  command -v cargo > /dev/null && cargo test 2>&1 || echo "Test Suite: ⏭️ Skipped — cargo not installed"
+else
+  echo "Test Suite: ⏭️ Skipped — no test suite detected"
+fi
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
@@ -62,8 +82,16 @@ else
   echo "Gherkin acceptance lane skipped: Skipped — no test:bdd script"
 fi
 
-# Build check
-bun run build 2>&1
+# --- Build check (JS build script, else native compile) ---
+if node -e 'const s=(require("./package.json").scripts)||{};process.exit(s.build?0:1)' 2> /dev/null; then
+  bun run build 2>&1
+elif [ -f go.mod ] && command -v go > /dev/null; then
+  go build ./... 2>&1
+elif [ -f Cargo.toml ] && command -v cargo > /dev/null; then
+  cargo build 2>&1
+else
+  echo "Build: ⏭️ Skipped — no build step for this project"
+fi
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.
@@ -88,20 +116,24 @@ If ticket has `parent:` field:
 
 ### 5. Check Dependency Drift
 
-Compare `package.json` dependencies against `ARCHITECTURE.md`:
+Compare the project's declared dependencies against `ARCHITECTURE.md`:
 
 1. If `ARCHITECTURE.md` does not exist, skip this check
 2. Read `ARCHITECTURE.md` content
-3. Read `package.json` `dependencies` and `devDependencies` keys
+3. Read the project's dependency manifest(s) — whichever exist:
+   - **JS/TS:** `package.json` `dependencies` and `devDependencies`
+   - **Python:** `pyproject.toml` (`[project]` `dependencies`, `[tool.poetry.dependencies]`) or `requirements.txt`
+   - **Go:** the `require` block in `go.mod`
+   - **Rust:** `[dependencies]` (and `[dev-dependencies]`) in `Cargo.toml`
 4. For each dependency name:
-   - Extract the package name (without `@scope/` prefix for matching — but check both full name and short name)
-   - Check if `ARCHITECTURE.md` mentions the package name (case-insensitive)
-5. Flag any dependency NOT mentioned: `"Dependency \`{name}\` not documented in ARCHITECTURE.md"`
+   - Extract the bare name (drop the `@scope/` prefix for JS, version/path specifiers for the others); check both full and short forms
+   - Check if `ARCHITECTURE.md` mentions it (case-insensitive)
+5. Flag any runtime/architectural dependency NOT mentioned: `"Dependency \`{name}\` not documented in ARCHITECTURE.md"`
 
 Do NOT flag:
 
-- `@types/*` packages (type-only, not architectural)
-- Packages in `devDependencies` that are tooling (eslint plugins, prettier plugins, test utils) — only flag deps that represent architectural choices
+- Type-only packages (`@types/*`) and standard-library imports
+- Tooling/dev dependencies (linters, formatters, test utils — across any language) — only flag deps that represent architectural choices
 
 ### 6. Report Results
 
@@ -114,9 +146,9 @@ The Status section uses the existing Verify Checklist format. Format with these 
 ```
 ## Verify Checklist
 
-**Test Suite:** ✓ X/X tests pass (or ❌ N failures)
+**Test Suite:** ✓ X/X tests pass (or ❌ N failures, or ⏭️ Skipped — no test suite)
 **Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⏭️ Skipped — no test:bdd script)
-**Build:** ✅ Success (or ❌ Failed)
+**Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
 **Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)

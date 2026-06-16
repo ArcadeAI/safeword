@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { runTests } from '../../../../.safeword/hooks/lib/test-runner';
+import { nativeTestCommand, runTests } from '../../../../.safeword/hooks/lib/test-runner';
 
 const temporaryDirectories: string[] = [];
 
@@ -18,6 +18,19 @@ function makeProject(scripts: Record<string, string>): string {
   );
   return directory;
 }
+
+/** Make a temp project with the given manifest files (and no package.json). */
+function makeManifestProject(files: Record<string, string>): string {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-native-test-'));
+  temporaryDirectories.push(directory);
+  for (const [name, content] of Object.entries(files)) {
+    writeFileSync(nodePath.join(directory, name), content);
+  }
+  return directory;
+}
+
+const allAvailable = (): boolean => true;
+const noneAvailable = (): boolean => false;
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
@@ -74,5 +87,74 @@ describe('runTests', () => {
     );
 
     expect(dogfood).toBe(template);
+  });
+});
+
+describe('nativeTestCommand', () => {
+  it('routes go.mod to `go test ./...` when go is available', () => {
+    const project = makeManifestProject({ 'go.mod': 'module example\n' });
+    expect(nativeTestCommand(project, allAvailable)).toEqual({
+      script: 'go test',
+      command: 'go test ./...',
+    });
+  });
+
+  it('routes Cargo.toml to `cargo test` when cargo is available', () => {
+    const project = makeManifestProject({ 'Cargo.toml': '[package]\nname = "x"\n' });
+    expect(nativeTestCommand(project, allAvailable)).toEqual({
+      script: 'cargo test',
+      command: 'cargo test',
+    });
+  });
+
+  it('prefers `uv run pytest` for a uv-locked Python project', () => {
+    const project = makeManifestProject({ 'pyproject.toml': '', 'uv.lock': '' });
+    expect(nativeTestCommand(project, allAvailable)).toEqual({
+      script: 'pytest',
+      command: 'uv run pytest',
+    });
+  });
+
+  it('prefers `poetry run pytest` for a poetry-locked Python project', () => {
+    const project = makeManifestProject({ 'pyproject.toml': '', 'poetry.lock': '' });
+    expect(nativeTestCommand(project, allAvailable)).toEqual({
+      script: 'pytest',
+      command: 'poetry run pytest',
+    });
+  });
+
+  it('falls back to bare `pytest` when the lock PM runner is unavailable', () => {
+    const project = makeManifestProject({ 'pyproject.toml': '', 'uv.lock': '' });
+    const onlyPytest = (tool: string): boolean => tool === 'pytest';
+    expect(nativeTestCommand(project, onlyPytest)).toEqual({ script: 'pytest', command: 'pytest' });
+  });
+
+  it('skips (undefined) when a manifest is present but its toolchain is absent', () => {
+    const goProject = makeManifestProject({ 'go.mod': 'module example\n' });
+    const pyProject = makeManifestProject({ 'pyproject.toml': '' });
+    expect(nativeTestCommand(goProject, noneAvailable)).toBeUndefined();
+    expect(nativeTestCommand(pyProject, noneAvailable)).toBeUndefined();
+  });
+
+  it('returns undefined when no supported manifest is present', () => {
+    const project = makeManifestProject({ 'README.md': '# hi\n' });
+    expect(nativeTestCommand(project, allAvailable)).toBeUndefined();
+  });
+});
+
+describe('runTests native fallback', () => {
+  it('never blocks a non-JS project: skips when toolchain absent, else runs it', () => {
+    // pyproject present, no JS test script. The done gate must never block on a
+    // missing toolchain — so this either skips, or (if pytest is installed in
+    // this environment) actually runs pytest.
+    const project = makeManifestProject({ 'pyproject.toml': '' });
+
+    const result = runTests(project);
+
+    if (result.skipped) {
+      expect(result).toEqual({ passed: true, output: '', skipped: true });
+    } else {
+      expect(result.output).toContain('pytest');
+    }
   });
 });

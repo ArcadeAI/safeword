@@ -3,7 +3,7 @@
  * Detects and executes the project's test suite directly.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -57,6 +57,49 @@ function formatRunCommand(script: string, packageManager: PackageManager): strin
   return `${packageManager} run ${script}`;
 }
 
+/** Check whether a CLI tool is on PATH via POSIX `command -v`. */
+function isToolAvailable(tool: string): boolean {
+  const result = spawnSync('command', ['-v', tool], { shell: true, stdio: 'ignore' });
+  return result.status === 0;
+}
+
+/**
+ * Resolve the Python test command, package-manager aware (uv > poetry > bare
+ * pytest). Returns undefined when no Python test toolchain is installed so the
+ * caller skips rather than blocks.
+ */
+function pythonTestCommand(
+  cwd: string,
+  isAvailable: (tool: string) => boolean,
+): TestCommand | undefined {
+  const has = (file: string): boolean => existsSync(nodePath.join(cwd, file));
+  if (has('uv.lock') && isAvailable('uv')) return { script: 'pytest', command: 'uv run pytest' };
+  if (has('poetry.lock') && isAvailable('poetry'))
+    return { script: 'pytest', command: 'poetry run pytest' };
+  if (isAvailable('pytest')) return { script: 'pytest', command: 'pytest' };
+  return undefined;
+}
+
+/**
+ * Resolve the native test command for a non-JS project from its manifest, or
+ * undefined when no supported manifest is present OR the toolchain isn't
+ * installed (caller skips, never blocks — mirrors the lint hook's graceful
+ * degradation). Pure except for the injected `isAvailable` probe, so the
+ * language→command decision is unit-testable without the real toolchains.
+ */
+export function nativeTestCommand(
+  cwd: string,
+  isAvailable: (tool: string) => boolean = isToolAvailable,
+): TestCommand | undefined {
+  const has = (file: string): boolean => existsSync(nodePath.join(cwd, file));
+  if (has('pyproject.toml') || has('requirements.txt')) return pythonTestCommand(cwd, isAvailable);
+  if (has('go.mod'))
+    return isAvailable('go') ? { script: 'go test', command: 'go test ./...' } : undefined;
+  if (has('Cargo.toml'))
+    return isAvailable('cargo') ? { script: 'cargo test', command: 'cargo test' } : undefined;
+  return undefined;
+}
+
 /**
  * Detect test commands from package.json scripts. Prefers `test:done` (a
  * gate-tuned fast subset) when present, falling back to `test`, and appends
@@ -67,7 +110,7 @@ function formatRunCommand(script: string, packageManager: PackageManager): strin
  * Returns an empty array if package.json is absent or no runnable test scripts
  * exist.
  */
-function getTestCommands(cwd: string): TestCommand[] {
+function getJsTestCommands(cwd: string): TestCommand[] {
   const packageJsonPath = nodePath.join(cwd, 'package.json');
   try {
     const content = readFileSync(packageJsonPath, 'utf8');
@@ -88,6 +131,20 @@ function getTestCommands(cwd: string): TestCommand[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Resolve the test commands to run. A configured JS test script wins (it's the
+ * project's chosen suite); otherwise fall back to the native language suite
+ * detected from the manifest. Every project gets a package.json (ticket 102b),
+ * so the presence of a real `test` script — not the file — is the JS signal.
+ * Returns an empty array when nothing runnable is found (caller skips).
+ */
+function getTestCommands(cwd: string): TestCommand[] {
+  const jsCommands = getJsTestCommands(cwd);
+  if (jsCommands.length > 0) return jsCommands;
+  const native = nativeTestCommand(cwd);
+  return native ? [native] : [];
 }
 
 function formatCommandOutput(testCommand: TestCommand, output: string): string {

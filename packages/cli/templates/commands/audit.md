@@ -60,6 +60,10 @@ DEPCRUISE_CONFIG=""
 # Note: Go compiler prevents circular imports between packages at build time.
 # If your Go project builds, it has no circular dependencies.
 
+# 1d. Architecture - Rust
+# Note: Rust's module system and compiler reject circular module dependencies at
+# build time. If your crate builds, it has no circular module dependencies.
+
 # =========================================================================
 # DEAD CODE DETECTION
 # =========================================================================
@@ -79,6 +83,11 @@ DEPCRUISE_CONFIG=""
 # 2c. Dead code - Go (golangci-lint unused)
 [ -f go.mod ] && {
   golangci-lint run --enable unused --out-format colored-line-number 2>&1 || true
+}
+
+# 2d. Dead code - Rust (clippy flags dead_code / unused)
+[ -f Cargo.toml ] && command -v cargo > /dev/null && {
+  cargo clippy --quiet 2>&1 || true
 }
 
 # =========================================================================
@@ -105,6 +114,13 @@ bunx jscpd . --gitignore --min-lines 10 --reporters console 2>&1 || true
 # 4c. Outdated - Go
 [ -f go.mod ] && {
   go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"
+}
+
+# 4d. Outdated - Rust (requires cargo-outdated)
+[ -f Cargo.toml ] && {
+  if command -v cargo-outdated > /dev/null; then
+    cargo outdated 2>&1 || true
+  else echo "Rust outdated check skipped — install with: cargo install cargo-outdated"; fi
 }
 ```
 
@@ -227,7 +243,7 @@ Test Quality:
 
 - If missing → create from `.safeword/templates/architecture-template.md`
 - If exists → check for drift and gaps:
-  - **Drift (error):** Documented tech contradicts code (e.g., doc says "Redux", package.json has "zustand")
+  - **Drift (error):** Documented tech contradicts the code's actual dependencies (e.g., doc says "Redux" but `package.json` has "zustand"; doc says "Flask" but `pyproject.toml` has "fastapi")
   - **Gap (warn):** Major dependencies not documented
 
 **README.md:**
