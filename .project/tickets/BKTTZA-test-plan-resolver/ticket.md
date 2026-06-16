@@ -2,7 +2,7 @@
 id: BKTTZA
 slug: test-plan-resolver
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 parent: Q4FX8Y
 created: 2026-06-16T15:46:47.000Z
