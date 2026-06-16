@@ -109,6 +109,12 @@ Feature: test-plan resolver
       Then the plan includes a "python" entry
 
     @test-plan-resolver.DEV1.AC4
+    Scenario: A nested Go module is tested in its own directory
+      Given a repo with a "services/api/go.mod" and no root manifest
+      When I request the test plan
+      Then the "go" entry runs in the "services/api" sub-directory
+
+    @test-plan-resolver.DEV1.AC4
     Scenario: A manifest inside an excluded directory is ignored
       Given a repo with a "Cargo.toml" only under "target"
       When I request the test plan

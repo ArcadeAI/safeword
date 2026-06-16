@@ -167,6 +167,26 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
     expect(entryFor(plan, 'rust')).toBeUndefined();
   });
+
+  it('runs a nested Go module in its own directory, not the repo root', () => {
+    const root = makeRepo({ 'services/api/go.mod': 'module example\n' });
+    const plan = resolveTestPlan(root, { isToolAvailable: allTools });
+    const go = entryFor(plan, 'go');
+    expect(go?.cwd).toBe(nodePath.join(root, 'services/api'));
+    expect(go?.command).toBe('go test ./...');
+  });
+
+  it('runs a nested Rust crate in its own directory', () => {
+    const root = makeRepo({ 'crates/core/Cargo.toml': '[package]\nname="x"\n' });
+    const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('cargo') });
+    expect(entryFor(plan, 'rust')?.cwd).toBe(nodePath.join(root, 'crates/core'));
+  });
+
+  it('keeps cwd at the repo root for a root-level manifest', () => {
+    const root = makeRepo({ 'go.mod': 'module x\n' });
+    const plan = resolveTestPlan(root, { isToolAvailable: allTools });
+    expect(entryFor(plan, 'go')?.cwd).toBe(root);
+  });
 });
 
 describe('resolveTestPlan — build plan', () => {

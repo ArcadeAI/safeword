@@ -103,6 +103,12 @@ runner-detection proof rides on Vitest unit tests (pure resolver, injected
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: A nested Go module is tested in its own directory
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ### Scenario: A manifest inside an excluded directory is ignored
 
 - [x] RED

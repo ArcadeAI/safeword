@@ -237,6 +237,13 @@ Then('the {string} entry is marked unavailable', function (this: TestPlanWorld, 
 });
 
 Then(
+  'the {string} entry runs in the {string} sub-directory',
+  function (this: TestPlanWorld, language: string, subdir: string) {
+    assert.equal(findEntry(this, language)?.cwd, nodePath.join(ensureRoot(this), subdir));
+  },
+);
+
+Then(
   'the output is a JSON array containing an entry with language {string}',
   function (this: TestPlanWorld, language: string) {
     const parsed = JSON.parse(this.cliStdout ?? '') as PlanEntry[];

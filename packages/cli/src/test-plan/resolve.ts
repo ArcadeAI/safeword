@@ -118,6 +118,15 @@ function pickTestScript(scripts: Record<string, string>): string | undefined {
   return undefined;
 }
 
+/** Directory of the first listed manifest found in the tree, or root if none. The command runs here. */
+function manifestDirectory(root: string, names: readonly string[]): string {
+  for (const name of names) {
+    const dir = findInTree(root, name);
+    if (dir !== undefined) return dir;
+  }
+  return root;
+}
+
 /** True when `file` (found anywhere in the tree) contains `marker`. */
 function configContains(root: string, file: string, marker: string): boolean {
   const dir = findInTree(root, file);
@@ -151,49 +160,51 @@ function resolvePython(
 ): PlanEntry | undefined {
   if (kind === 'build') return undefined; // no standard Python build step
   if (!PYTHON_MANIFESTS.some(manifest => existsInTree(root, manifest))) return undefined;
-  if (existsInTree(root, 'tox.ini')) return entry('python', root, 'tox', 'tox', isAvailable('tox'));
+  const cwd = manifestDirectory(root, PYTHON_MANIFESTS);
+  if (existsInTree(root, 'tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
   if (pytestConfigured(root) || isAvailable('pytest')) {
     const { command, tool } = pytestInvocation(root, isAvailable);
-    return entry('python', root, command, 'pytest', isAvailable(tool));
+    return entry('python', cwd, command, 'pytest', isAvailable(tool));
   }
   // Prefer python3 (the only `python` on macOS/modern distros), fall back to python.
   const pythonBin = isAvailable('python3') ? 'python3' : 'python';
   return entry(
     'python',
-    root,
+    cwd,
     `${pythonBin} -m unittest discover`,
     'unittest',
     isAvailable(pythonBin),
   );
 }
 
-function goCommand(root: string, kind: PlanKind): string {
-  const verb = kind === 'build' ? 'build' : 'test';
-  if (existsSync(nodePath.join(root, 'go.work'))) {
-    return `go ${verb} $(go list -f '{{.Dir}}/...' -m | xargs)`;
-  }
-  return `go ${verb} ./...`;
-}
-
 function resolveGo(root: string, kind: PlanKind, isAvailable: ToolProbe): PlanEntry | undefined {
   if (!existsInTree(root, 'go.mod')) return undefined;
-  return entry('go', root, goCommand(root, kind), 'go', isAvailable('go'));
+  const verb = kind === 'build' ? 'build' : 'test';
+  // A root go.work tests every workspace module — run the expansion from root.
+  // Otherwise run `./...` in the module's own directory (supports nested modules).
+  if (existsSync(nodePath.join(root, 'go.work'))) {
+    const command = `go ${verb} $(go list -f '{{.Dir}}/...' -m | xargs)`;
+    return entry('go', root, command, 'go', isAvailable('go'));
+  }
+  const cwd = findInTree(root, 'go.mod') ?? root;
+  return entry('go', cwd, `go ${verb} ./...`, 'go', isAvailable('go'));
 }
 
 function resolveRust(root: string, kind: PlanKind, isAvailable: ToolProbe): PlanEntry | undefined {
   if (!existsInTree(root, 'Cargo.toml')) return undefined;
+  const cwd = findInTree(root, 'Cargo.toml') ?? root;
   if (kind === 'build')
-    return entry('rust', root, 'cargo build --workspace', 'cargo', isAvailable('cargo'));
+    return entry('rust', cwd, 'cargo build --workspace', 'cargo', isAvailable('cargo'));
   if (isAvailable('cargo-nextest'))
     // nextest doesn't run doctests — append `cargo test --doc` so they aren't silently skipped.
     return entry(
       'rust',
-      root,
+      cwd,
       'cargo nextest run --workspace && cargo test --doc',
       'nextest',
       isAvailable('cargo'),
     );
-  return entry('rust', root, 'cargo test --workspace', 'cargo', isAvailable('cargo'));
+  return entry('rust', cwd, 'cargo test --workspace', 'cargo', isAvailable('cargo'));
 }
 
 /**
