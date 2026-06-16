@@ -28,10 +28,10 @@ out_of_scope:
   - Time-boxed activation (--yolo 30m) and session-level env-var activation (carried from G2E72G out-of-scope)
   - Cost-ceiling enforcement on sub-agent /figure-it-out spend (deferred to v2, carried from G2E72G)
 known_unknowns:
-  - Exact preset names and their per-axis posture maps (pin during define-behavior with worked examples)
+  - Exact preset→axis posture maps beyond the v1 starter three (refine as adoption shows gaps)
   - Storage shape/filename for project vs. personal config (e.g. .safeword/config.json + gitignored config.local.json) - confirm at scenario-gate
-  - Failure mode when the sub-agent's /figure-it-out is inconclusive, errors, or times out - abort to user vs. retry vs. skip-with-default (carried from G2E72G, pin during define-behavior)
-  - Cost/latency budget for swap reviews on long runs (~50-100k tokens/exit) - measure before adding a ceiling (v2)
+  - Per-axis verify-vs-debate ladder mapping - owned by the control-ladder follow-up child, not v1
+  - Cost/latency budget for debate-review on long runs - owned by the control-ladder child (v2)
 done_when:
   - A user can set, at the project level, which decision-kinds require human review and which run autonomously
   - A user can override that locally without the override being committed to the repo
@@ -81,6 +81,12 @@ Candidate axes a user would set: **intent & scope**, **behavioral contract**, **
 - **Autonomy semantics:** two postures — ask / autonomous — where autonomous applies a **3-tier control ladder** (verify > debate-review > async-audit), highest tier that fits the decision. Replaces the earlier silence/swap binary after a /figure-it-out pass: single-judge review is insufficient (correlated errors, [Nine Judges, Two Effective Votes](https://arxiv.org/abs/2605.29800)); prefer deterministic verification (VeriGuard direction); design async audit against rubber-stamping. Default-when-unset leans human-in-the-loop (autonomy earned).
 
 Remaining unknowns deferred to define-behavior/scenario-gate — see `known_unknowns` frontmatter.
+
+## Decisions at define-behavior (2026-06-16, agent's call per user "your call")
+
+- **Split into an epic.** 90AZDV is the epic. Build a thin **v1 spine** first (config + precedence, ask/autonomous posture, sub-agent resolution + context contract, decision logging, always-on guards) — then two follow-up children: **control ladder** (verify → debate-review) and **async-audit** (anti-rubber-stamp). The ladder layers onto the spine; until it lands, autonomous decisions log (tier-3) only. Follow-up children created when v1 nears done (no empty tickets now).
+- **Starter presets (3), default first.** `Full review` (every axis = ask; the unset default = today's behavior) · `Guard the contract` (ask on intent/scope, behavioral contract, irreversible design; autonomous on execution + completion) · `Hands-off` (autonomous on every axis; denylist + done-confirm + hard gates still fire). Per-axis override sits underneath.
+- **Failure mode = fail-safe defer.** Transient error/timeout → retry once → if still failing, defer to human (logged). Genuine inconclusive verdict → defer to human immediately (no retry). Never silently proceed. Grounds: selective-prediction reject-option + circuit-breaker degraded mode; reverses G2E72G's "trust the output" stance.
 
 ## Related tickets
 
