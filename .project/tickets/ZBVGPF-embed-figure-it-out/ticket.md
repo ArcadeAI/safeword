@@ -4,9 +4,9 @@ slug: embed-figure-it-out
 parent: VKNF1T-platform-uplift-epic
 type: feature
 phase: intake
-status: in_progress
+status: done
 created: 2026-06-06T18:05:01.631Z
-last_modified: 2026-06-06T18:05:01.631Z
+last_modified: 2026-06-16T18:47:00.000Z
 ---
 
 # Embed figure-it-out into skills and BDD/TDD decision points
@@ -57,3 +57,4 @@ last_modified: 2026-06-06T18:05:01.631Z
   - `skills/brainstorm/SKILL.md`: **No edit.** Dependency direction intentionally one-way — figure-it-out already names brainstorm as its feeder.
   - `guides/testing-guide.md`: **No edit.** SAFEWORD.md Authority section covers adding dependencies and design choices; no evidence-required WHY field in the guide.
   - `guides/architecture-guide.md`, `skills/bdd/DISCOVERY.md`, `skills/bdd/SCENARIOS.md`, `skills/bdd/TDD.md` (architecture-review-gate): Already reference figure-it-out — confirmed in earlier audit.
+- 2026-06-16T18:47:00Z Complete: All candidate sites resolved. FJKM4X merged (PR #240) — 5 edits live on main. All open questions settled. No remaining work. Closing ZBVGPF.
