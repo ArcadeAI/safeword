@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -68,6 +68,17 @@ describe('safeword test-plan --format sh', () => {
     const root = makeRepo({ 'package.json': JSON.stringify({ scripts: { test: 'exit 1' } }) });
     const { code } = evalScript(await renderSh(root), root);
     expect(code).not.toBe(0);
+  });
+
+  it('does not execute a command substitution in a maliciously-named directory', async () => {
+    // A nested Go module under a dir named with $(...). Eval must NOT run it.
+    const root = makeRepo({ 'm$(touch INJECTED)d/go.mod': 'module x\n' });
+    const sh = await renderSh(root);
+    const { code } = evalScript(sh, root);
+    // cd may fail (the literal dir name won't match a shell-expanded one), but
+    // the injection must not have fired.
+    expect(existsSync(nodePath.join(root, 'INJECTED'))).toBe(false);
+    expect(typeof code).toBe('number');
   });
 
   it('eval of an empty plan is a clean no-op (exit zero)', async () => {

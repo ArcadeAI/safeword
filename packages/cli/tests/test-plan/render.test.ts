@@ -17,7 +17,19 @@ function entry(over: Partial<PlanEntry>): PlanEntry {
 describe('renderShellPlan', () => {
   it('renders an available entry as a cd-scoped command', () => {
     const sh = renderShellPlan([entry({ cwd: '/repo', command: 'go test ./...' })]);
-    expect(sh).toContain('( cd "/repo" && go test ./... )');
+    expect(sh).toContain("( cd '/repo' && go test ./... )");
+  });
+
+  it('single-quotes the cwd so a maliciously-named directory cannot inject commands', () => {
+    const sh = renderShellPlan([entry({ cwd: '/repo/$(touch PWNED)', command: 'go test ./...' })]);
+    // The cwd is single-quoted verbatim — the $(...) is literal, never expanded.
+    expect(sh).toContain("cd '/repo/$(touch PWNED)'");
+    expect(sh).not.toContain('cd "');
+  });
+
+  it('escapes an embedded single quote in the cwd', () => {
+    const sh = renderShellPlan([entry({ cwd: "/re'po", command: 'go test ./...' })]);
+    expect(sh).toContain(String.raw`cd '/re'\''po'`);
   });
 
   it('starts a non-empty script with set -e (fails the eval on a failing suite)', () => {

@@ -13,13 +13,26 @@
 
 import type { PlanEntry } from './resolve.js';
 
+/**
+ * POSIX single-quote a string so the shell treats it as a literal — no `$()`,
+ * backtick, or variable expansion. Critical for `cwd`, which is filesystem data
+ * (a directory could be maliciously named e.g. `$(rm -rf ~)`); the script is
+ * eval'd by consumers, so an unescaped path would be a command-injection vector.
+ */
+function shellQuote(value: string): string {
+  const escaped = value.replaceAll("'", String.raw`'\''`);
+  return `'${escaped}'`;
+}
+
 export function renderShellPlan(entries: PlanEntry[]): string {
   if (entries.length === 0) return '';
   const lines = ['set -e'];
   for (const entry of entries) {
+    // `entry.cwd` is data → single-quoted. `entry.command` is safeword's own
+    // trusted output (and may legitimately contain `$(go list …)`) → left as-is.
     lines.push(
       entry.available
-        ? `( cd "${entry.cwd}" && ${entry.command} )`
+        ? `( cd ${shellQuote(entry.cwd)} && ${entry.command} )`
         : `echo "⏭️ Skipped — ${entry.runner} not installed"`,
     );
   }
