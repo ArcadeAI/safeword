@@ -160,6 +160,15 @@ autonomy
     autonomySet(preset);
   });
 
+autonomy
+  .command('override <axis> <posture>')
+  .description('Override one axis (posture: ask | autonomous)')
+  .option('--personal', 'Write to the gitignored personal config instead of the project config')
+  .action(async (axis: string, posture: string, options: { personal?: boolean }) => {
+    const { autonomyOverride } = await import('./commands/autonomy.js');
+    autonomyOverride(axis, posture, { personal: options.personal });
+  });
+
 // Show help if no arguments provided
 if (process.argv.length === 2) {
   program.help();

@@ -21,7 +21,7 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       Then the behavioral-contract axis reads "ask"
       And the execution axis reads "autonomous"
 
-    @manual @autonomy-posture-spine.DEV1.AC3
+    @autonomy-posture-spine.DEV1.AC3
     Scenario: Overriding one axis keeps the preset for the rest
       Given a project on the "Hands-off" preset
       When the developer overrides the irreversible-design axis to "ask"
@@ -34,7 +34,7 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       When the developer inspects the resolved posture
       Then every axis reads "ask"
 
-    @manual @autonomy-posture-spine.DEV1.AC5
+    @autonomy-posture-spine.DEV1.AC5
     Scenario Outline: An invalid policy selection is rejected
       Given a project with no autonomy policy
       When the developer sets <field> to "<value>"
@@ -55,28 +55,28 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
 
   Rule: Personal policy overrides the project without touching the repo
 
-    @manual @autonomy-posture-spine.DEV2.AC1
+    @autonomy-posture-spine.DEV2.AC1
     Scenario: Personal override takes precedence over the project policy
       Given a project on the "Full review" preset
       And a personal override setting the execution axis to "autonomous"
       When the developer inspects the resolved posture
       Then the execution axis reads "autonomous"
 
-    @manual @autonomy-posture-spine.DEV2.AC2
+    @autonomy-posture-spine.DEV2.AC2
     Scenario: The personal override cannot be committed to the repository
       Given a personal override setting the execution axis to "autonomous"
       When the developer attempts to stage the personal override file
       Then the personal override path is matched by the repository's ignore rules
       And the personal override file remains untracked
 
-    @manual @autonomy-posture-spine.DEV2.AC3
+    @autonomy-posture-spine.DEV2.AC3
     Scenario: Without a personal override the project policy governs unchanged
       Given a project on the "Guard the contract" preset
       And no personal override is present
       When the developer inspects the resolved posture
       Then the resolved posture equals the "Guard the contract" map
 
-    @manual @autonomy-posture-spine.DEV2.AC4
+    @autonomy-posture-spine.DEV2.AC4
     Scenario: A malformed personal override falls back to the project policy
       Given a project on the "Guard the contract" preset
       And a personal override file that is malformed

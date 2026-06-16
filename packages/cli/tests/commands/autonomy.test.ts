@@ -63,4 +63,33 @@ describe('safeword autonomy', () => {
     expect(result.exitCode).toBe(1);
     expect(existsSync(configPath(cwd))).toBe(false);
   });
+
+  it('override changes one axis and show reflects it, keeping the preset for the rest', async () => {
+    await runCli(['autonomy', 'set', 'Hands-off'], { cwd });
+    const result = await runCli(['autonomy', 'override', 'irreversible-design', 'ask'], { cwd });
+    expect(result.exitCode).toBe(0);
+    const show = await runCli(['autonomy', 'show'], { cwd });
+    expect(show.stdout).toContain('irreversible-design: ask');
+    expect(show.stdout).toContain('execution: autonomous');
+  });
+
+  it('override --personal wins over the project policy and writes the personal config', async () => {
+    await runCli(['autonomy', 'set', 'Full review'], { cwd });
+    const result = await runCli(['autonomy', 'override', 'execution', 'autonomous', '--personal'], {
+      cwd,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(nodePath.join(cwd, '.safeword', 'config.local.json'))).toBe(true);
+    const show = await runCli(['autonomy', 'show'], { cwd });
+    expect(show.stdout).toContain('execution: autonomous');
+    expect(show.stdout).toContain('intent-and-scope: ask');
+  });
+
+  it('override rejects an unknown axis or posture', async () => {
+    const badAxis = await runCli(['autonomy', 'override', 'vibes', 'ask'], { cwd });
+    expect(badAxis.exitCode).toBe(1);
+    const badPosture = await runCli(['autonomy', 'override', 'execution', 'sometimes'], { cwd });
+    expect(badPosture.exitCode).toBe(1);
+    expect(existsSync(configPath(cwd))).toBe(false);
+  });
 });
