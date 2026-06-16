@@ -55,24 +55,33 @@ safeword test-plan --kind test|build [--json]
 - [ ] Nested/sub-package manifests are discovered (not root-only) by **reusing** `findInTree`/`SUBDIRECTORY_EXCLUDE` from `src/utils/fs.ts` — no new tree-walker — plus Go `go.mod ignore` awareness.
 - [ ] `test-runner.ts`, `/verify`, `/audit` all consume `test-plan`; **zero** language command strings duplicated across surfaces.
 - [ ] Tool-absent suites are reported as skipped (visible), never silently passed; per-suite timeout + partial-result reporting intact.
+- [ ] JS workspace with no root `test` script → unit tests are a **loud** partial-skip (acceptance lane still runs); `test-plan` is plan-only (no `--run`).
 - [ ] Done-gate literal-phrase contract preserved; existing 2FVZ26 tests + verify-skill/parity stay green; dogfood parity preserved.
 
 ## Revalidation notes (quality-review, 2026-06-16)
 
 Each quality-review finding was revalidated against the code before being folded in. Two corrected a wrong assumption — recorded here so they are not "fixed" again:
 
-- **`runTests` is done-phase-only, NOT per-stop.** `stop-quality.ts:489` calls `runTests` only inside `if (currentPhase === 'done')`. The review's "Critical: don't run all suites on every stop" was based on a false premise — there is **no** per-stop test execution to scope down, and no hook-vs-verify policy split is needed. Running all suites at the done gate is correct (same cost as `/verify`). The only real lever is total time on large polyglot repos → the `test:done` fast-subset escape hatch (now cross-language).
+- **`runTests` is done-phase-only, NOT per-stop.** `stop-quality.ts:489` calls `runTests` only inside `if (currentPhase === 'done')`. The review's "Critical: don't run all suites on every stop" was based on a false premise — there is **no** per-stop test execution to scope down, and no hook-vs-verify policy split is needed. Running all suites at the done gate is correct (same cost as `/verify`). The only real lever is total time on large polyglot repos → the `test:done` fast-subset escape hatch (JS-only today; a cross-language version is deferred — see Resolved build decisions).
 - **Discovery ignores already exist.** `src/utils/fs.ts` `findInTree`/`SUBDIRECTORY_EXCLUDE` already excludes vendored/generated dirs at maxDepth 10. Reuse it; nothing to add except Go's `go.mod ignore`.
 - **Spawn cost is negligible** — the CLI is invoked at the done gate and on manual `/verify`/`/audit`, not on every stop (precedent: `lint.ts` shells out per edit).
 - **Go `./...` across workspace modules is contested** across sources — keep the `go list` workaround; verify against the target Go version at build.
 
-## Known limitations to decide at build (open)
+## Resolved build decisions (figure-it-out, 2026-06-16)
 
-- JS workspace with **no** root test script (per-package only) — run per-package, or require a root script? (lean: require root script v1.)
-- Whether `test-plan` only _plans_ (callers execute) or can also _execute_ (`--run`). Lean: plan-only; callers execute so `/verify` stays transparent and the done-gate sees results.
-- Cross-language `test:done` fast-subset convention for very large polyglot repos (nice-to-have, not v1-blocking).
+Each revalidated against the code; PM-recursive behavior web-verified.
+
+1. **JS workspace with no root `test` script → require a root script; skip-with-visible-note otherwise.** Matches the turbo/nx norm (a root `test` orchestrates the workspace) and is a single code path (`<pm> run test`). The safeword acceptance lane (`test:bdd`, always installed) still runs, so "no root script" is a **loud partial-skip**, never a silent green. _Rejected for v1:_ PM-recursive fallback (`pnpm -r run test` / `npm test --workspaces --if-present` / `yarn workspaces foreach`) — feasible but each PM behaves differently (npm errors without `--if-present`, yarn v1≠berry); deferred as a **fast-follow** if real repos hit it. (web-verified: pnpm.io/cli/recursive — this session)
+2. **`test-plan` is plan-only; callers execute (no `--run`).** `test-runner.ts` already owns execution (execSync + 60s timeout + truncation + first-fail-stop) and `/verify` must run commands in bash to emit `✓ X/X tests pass`. A `--run` mode would duplicate execution semantics into the CLI and hide output from the done-gate. (codebase: `test-runner.ts`)
+3. **Cross-language `test:done` fast-subset → deferred (out of v1).** Tests run only at the done gate (bounded) and the per-suite 60s timeout caps runaway, so there's no v1 need. JS keeps its opt-in `test:done`; a general per-language fast-subset config is a fast-follow only if a large-polyglot repo demands it.
+
+## Remaining open (fast-follow, not v1-blocking)
+
+- PM-recursive JS fallback for workspaces without a root `test` script (decision 1).
+- Cross-language `test:done` fast-subset convention (decision 3).
 
 ## Work Log
 
 - 2026-06-16T13:58:31.841Z Started: Created ticket Q4FX8Y
 - 2026-06-16 Quality-review + revalidation: corrected the per-stop premise (tests are done-gate-only), reused existing `findInTree` ignores, downgraded spawn-cost, kept Go workaround with a build-time caveat. Plan tightened; ready for `/bdd`.
+- 2026-06-16 Resolved the 3 open build decisions (figure-it-out + revalidation): require-root-JS-script (PM-recursive deferred), plan-only, defer cross-language fast-subset. Revalidated that safeword installs `test:bdd` but not `test`/`build`/`test:done`. No open v1 blockers remain.
