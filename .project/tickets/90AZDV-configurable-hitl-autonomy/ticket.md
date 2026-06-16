@@ -13,6 +13,10 @@ scope:
   - Define and encapsulate the sub-agent's context contract (what it receives) in a skill or sub-agent definition — not ad-hoc per call site
   - Log every autonomous resolution (question, options, pick, rationale) to the ticket work log
   - Couple the compensating control - when human review is dialed down on an axis, the independent-observation control (fork/cross-model review) dials up on that axis
+  - Expose the policy as a small set of named presets (the lead UX) with the per-axis postures as the power-user escape hatch underneath
+  - Three postures per axis - ask (pause for human), swap (autonomous + independent cross-model review before the decision stands), silence (autonomous + log only)
+  - Swap requires a cross-model reviewer (same-model self-review is rejected); frame swap honestly as a partial control, not equivalent to human review
+  - Default when no policy is set is the most human-in-the-loop preset - autonomy is opt-in and earned
   - Always-confirm denylist (absorbed from G2E72G) - git push / push --force, branch delete or reset --hard, sending external messages (email/Slack/etc.), file deletion outside the ticket folder, marking ticket done, paid-API spend above a threshold, touching production config or secrets - prompts the user regardless of autonomy setting
   - Hard safeword gates (LOC commit, done gate, verify artifact) still fire under any autonomy setting (absorbed from G2E72G)
   - A per-ticket override toggle so a single ticket can opt into/out of autonomy independent of the project/personal default (absorbs G2E72G's /yolo command intent)
@@ -22,10 +26,10 @@ out_of_scope:
   - Time-boxed activation (--yolo 30m) and session-level env-var activation (carried from G2E72G out-of-scope)
   - Cost-ceiling enforcement on sub-agent /figure-it-out spend (deferred to v2, carried from G2E72G)
 known_unknowns:
-  - The exact set of decision-kind axes to expose, and whether to expose them directly or as named presets
-  - Storage mechanism + precedence for project vs. personal config (e.g. .safeword/config.local.json, gitignored, personal wins)
-  - Autonomy semantics per axis - silence the check vs. swap human for fork/cross-model reviewer (the 2VCSZY coupling)
+  - Exact preset names and their per-axis posture maps (pin during define-behavior with worked examples)
+  - Storage shape/filename for project vs. personal config (e.g. .safeword/config.json + gitignored config.local.json) - confirm at scenario-gate
   - Failure mode when the sub-agent's /figure-it-out is inconclusive, errors, or times out - abort to user vs. retry vs. skip-with-default (carried from G2E72G, pin during define-behavior)
+  - Cost/latency budget for swap reviews on long runs (~50-100k tokens/exit) - measure before adding a ceiling (v2)
 done_when:
   - A user can set, at the project level, which decision-kinds require human review and which run autonomously
   - A user can override that locally without the override being committed to the repo
@@ -38,7 +42,7 @@ done_when:
 
 **Goal:** Let a team set, per kind of decision, where safeword stops for human review and where it runs autonomously — and when autonomous, resolve the breakpoint with a context-loaded sub-agent calling `/figure-it-out` instead of pausing.
 
-**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes (to author at intake).
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Why
 
@@ -68,12 +72,13 @@ Candidate axes a user would set: **intent & scope**, **behavioral contract**, **
 2. **Autonomous breakpoint → sub-agent → /figure-it-out.** When a decision-kind is set autonomous, any point the agent would ask a question or hit a HITL breakpoint instead spawns a sub-agent that gets all the context it needs and calls the `/figure-it-out` skill; the agent takes the result and proceeds, logging the resolution.
 3. **Define the sub-agent's context contract once.** Specify exactly what the sub-agent receives (the question, ticket/spec, relevant code, prior decisions, constraints) and encapsulate it in a skill or sub-agent definition so it isn't re-derived ad hoc at each call site.
 
-## Open questions (resolve at intake)
+## Resolved at intake
 
-- **G2E72G (yolo-mode) — RESOLVED:** 90AZDV supersedes it (user direction, 2026-06-16). Keepers absorbed into scope (denylist, hard-gates-fire, per-ticket toggle, decision logging, deferred failure-mode/cost-ceiling). The binary on/off mode becomes one point on this ticket's per-axis gradient.
-- **Axis granularity:** expose the ~6 decision-kind axes directly, or a smaller set of named presets ("review my design, run the rest") mapping onto them?
-- **Autonomy semantics per axis:** silence the check, or swap human → fork/cross-model reviewer (the 2VCSZY coupling)? This is the biggest design fork.
-- **Why a sub-agent rather than inline `/figure-it-out` (G2E72G's choice):** context isolation and a clean input contract — confirm the cost/latency tradeoff is worth it vs. inline.
+- **G2E72G (yolo-mode):** superseded by 90AZDV (user direction, 2026-06-16); keepers absorbed.
+- **Axis granularity:** named presets are the lead UX, per-axis postures underneath (prior art: AutoGen's 3-mode set; presets beat 6 raw toggles for most users).
+- **Autonomy semantics:** three postures — ask / swap / silence. Swap requires cross-model and is framed as a partial control (LLM-as-judge has self-enhancement bias, no formal guarantees). Default-when-unset leans human-in-the-loop (autonomy earned, per AutoGen's start-ALWAYS-then-NEVER).
+
+Remaining unknowns deferred to define-behavior/scenario-gate — see `known_unknowns` frontmatter.
 
 ## Related tickets
 
@@ -88,3 +93,5 @@ Candidate axes a user would set: **intent & scope**, **behavioral contract**, **
 - 2026-06-16T14:08:18.380Z Started: Created ticket 90AZDV
 - 2026-06-16T14:09:00.000Z Filed (intake): captured the HITL/autonomy leverage map, the two-level config requirement (project + non-committed personal override), the autonomous-breakpoint → sub-agent → /figure-it-out flow, and the sub-agent context-contract requirement. Drafted scope/out_of_scope/done_when; key open question is reconciliation with G2E72G. spec.md (JTBD/personas) still to author.
 - 2026-06-16T14:32:13.236Z Superseded G2E72G at user direction: marked it status=superseded with a pointer here, and absorbed its keepers into scope (denylist, hard-gates-fire, per-ticket toggle, inline decision logging, deferred failure-mode + cost-ceiling). Largest design fork (silence vs. swap-reviewer per axis) remains open for next intake turn.
+- 2026-06-16T15:39:00.000Z Ran /quality-review (intake/ecosystem focus): leverage-map placement and a small discrete mode-set are both validated by prior art (LangGraph strategic interrupts, AutoGen NEVER/TERMINATE/ALWAYS). Flagged two refinements — swap must be cross-model and framed as a partial control (LLM-judge self-enhancement bias); lead UX with presets over raw axes; default toward human-in-loop.
+- 2026-06-16T15:45:00.000Z Applied the three review refinements and authored spec.md (2 personas, 6 JTBDs, ACs). Resolved the axis-granularity and autonomy-semantics forks in scope + Technical Constraints. Intake near-complete; 4 implementation-detail unknowns deferred to define-behavior/scenario-gate.
