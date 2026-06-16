@@ -3,9 +3,9 @@ id: FJKM4X
 slug: figure-it-out-guides-skills-embeds
 parent: ZBVGPF-embed-figure-it-out
 type: task
-status: in_progress
+status: done
 created: 2026-06-16T17:10:00.000Z
-last_modified: 2026-06-16T17:36:00.000Z
+last_modified: 2026-06-16T17:51:00.000Z
 scope:
   - Add one-sentence /figure-it-out callout to planning-guide.md Technical Constraints Dependencies row
   - Add one-sentence /figure-it-out callout to design-doc-guide.md Key Decisions fill-in instructions
@@ -77,3 +77,4 @@ Rationale: Sub-agent is report-only and cannot run figure-it-out itself; the mai
 
 - 2026-06-16T17:10:00Z Started: Created ticket FJKM4X. Derived from full skill+guide audit run in session; figure-it-out run on 6 candidates (planning-guide, design-doc-guide, data-architecture-guide, debug, brainstorm, testing-guide). 4 edits identified, 2 confirmed no-edit.
 - 2026-06-16T17:36:00Z Expanded: SAFEWORD.md Replan embed moved from ZBVGPF (where shape was unresolved) into FJKM4X scope. Figure-it-out run this session settled the shape — one conditional sentence at the post-verdict point, same form as the other 4 edits. Scope is now 5 files. Out_of_scope updated with all remaining no-edit verdicts from the full audit (refactor, quality-review, audit, bdd/TDD.md REFACTOR).
+- 2026-06-16T17:51:00Z Complete: All 5 template sources and 5 installed copies updated. Commit 2645496 on claude/dreamy-heisenberg-19shou. All done_when criteria met.
