@@ -1,6 +1,13 @@
 # Impl Plan: migrate consumers to test-plan
 
-**Status:** planned
+**Status:** implemented
+
+## Reconciliation (what shipped vs planned)
+
+- **Decisions held:** `set -e` failure propagation ✓; `--format <human\|json\|sh>` with `--json` kept as alias ✓; `SAFEWORD_CLI` seam for the test-runner CLI location ✓ (the spec Open Question — resolved).
+- **Refinement (deviation from plan):** `/verify` runs `bash -c "$(safeword test-plan … --format sh)"` rather than a bare `eval "$(…)"`. Reason: `set -e` inside `eval` would leak into the rest of the skill's bash block; a child shell (`bash -c`) scopes it. Behaviorally equivalent for the gate (exit code propagates), strictly safer. No follow-up needed.
+- **Arch alignment held:** reuse (`safewordCliCommand` pattern from lint.ts; one resolver), `--format` as a standard option.
+- **Test seam:** `runTests` tests inject `SAFEWORD_CLI` (dogfood source) + `SAFEWORD_FAKE_TOOLS=all` for offline determinism.
 
 ## Approach
 
