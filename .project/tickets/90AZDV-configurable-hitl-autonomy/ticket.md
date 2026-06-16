@@ -2,7 +2,7 @@
 id: 90AZDV
 slug: configurable-hitl-autonomy
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 created: 2026-06-16T14:08:18.380Z
 last_modified: 2026-06-16T14:08:18.380Z
