@@ -1,9 +1,10 @@
 ---
 id: Q4FX8Y
 slug: extract-shared-test-runner
-type: feature
+type: epic
 phase: intake
 status: in_progress
+children: [BKTTZA, 5FF0ZD]
 created: 2026-06-16T13:58:31.841Z
 last_modified: 2026-06-16T13:58:31.841Z
 ---
@@ -15,6 +16,18 @@ last_modified: 2026-06-16T13:58:31.841Z
 **Why:** 2FVZ26 made all three language-aware but (a) the logic is duplicated in three forms (bash in verify/audit skills+commands, TS in `test-runner.ts`) and (b) it is **first-match-wins, root-only, one-runner-per-language**. So a JS+Python monorepo verifies only JS and the done-gate passes with Python untested (**false green**); a `unittest`/`tox` Python project or a `go.work`/Rust-workspace repo is mis- or under-tested. This folds in Option C (centralization) **and** fixes the correctness gaps.
 
 > Source: 2FVZ26 figure-it-out (Option C, deferred) + the polyglot/runner gaps surfaced in review. Reclassified task→**feature**: new CLI surface + behavior change + multiple flows → build with `/bdd`.
+
+## Epic split (Entry checkpoint, user-confirmed 2026-06-16)
+
+Promoted feature→epic; two child features, build A then B:
+
+- **BKTTZA — `safeword test-plan` resolver + CLI.** Pure resolver + CLI verb that emits the JSON plan; polyglot, nested (reuse `findInTree`), multi-runner. Independently valuable + unit-tested. The foundation.
+- **5FF0ZD — route verify/audit/test-runner through `test-plan`.** Migrate the three consumers onto the plan and delete the duplicated language logic. Depends on BKTTZA; this is where the polyglot done-gate + zero-drift behavior lands.
+
+### Jobs To Be Done
+
+- **q4fx8y.DEV1 — trustworthy done-gate across languages.** Persona: Agent-Driven Developer (DEV). _When my agent finishes work in a Python/Go/Rust or polyglot repo, I want the done-gate to actually run my real suite(s), so "done" means verified — not a silent pass._
+- **q4fx8y.SM1 — one place to define how a language is tested.** Persona: Safeword Maintainer (SM). _When I add or change a language's test/build command, I want a single source of truth, so `/verify`, `/audit`, and `test-runner.ts` can't drift._
 
 ## Decisive constraint (from /figure-it-out)
 
