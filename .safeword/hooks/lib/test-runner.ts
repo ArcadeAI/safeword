@@ -1,6 +1,13 @@
 /**
  * Test runner utilities for the stop hook.
- * Detects and executes the project's test suite directly.
+ *
+ * The per-language test command is resolved by the single source of truth —
+ * `safeword test-plan --kind test --json` — not duplicated here. This hook only
+ * EXECUTES the resolved commands (timeout-safe, no zombies) and appends the JS
+ * acceptance lane (`test:bdd`), which the resolver does not emit.
+ *
+ * Shipped hooks cannot import safeword code, so we reach the resolver via the
+ * CLI (the `safewordCliCommand()` installed→source→bunx pattern, mirroring lint.ts).
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -10,11 +17,22 @@ import nodePath from 'node:path';
 type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
 
 type TestCommand = {
-  /** package.json script name, e.g. test:done or test:bdd. */
+  /** Label for output/diagnostics (the runner or script name). */
   script: string;
   /** Concrete shell command to execute. */
   command: string;
+  /** Directory to run the command in (the resolved entry's cwd). */
+  cwd: string;
 };
+
+/** One entry of `safeword test-plan --json` output. */
+interface PlanEntry {
+  language: string;
+  cwd: string;
+  command: string;
+  runner: string;
+  available: boolean;
+}
 
 export interface TestResult {
   /** Whether tests passed (exit code 0). */
@@ -34,9 +52,11 @@ const MAX_OUTPUT_LINES = 30;
 /** Maximum characters of test output to inject into the block reason. */
 const MAX_OUTPUT_CHARS = 3000;
 
+const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+
 /**
  * Detect package manager by lockfile presence (bun > pnpm > yarn > npm).
- * Mirrors the logic in packages/cli/src/utils/install.ts.
+ * Used only for the `test:bdd` acceptance lane (the resolver owns the rest).
  */
 function detectPackageManager(cwd: string): PackageManager {
   if (existsSync(nodePath.join(cwd, 'bun.lockb')) || existsSync(nodePath.join(cwd, 'bun.lock')))
@@ -48,103 +68,74 @@ function detectPackageManager(cwd: string): PackageManager {
   return 'npm';
 }
 
-/**
- * Convert a package.json script name into the command for the detected package
- * manager.
- */
+/** Convert a package.json script name into the detected package manager's run command. */
 function formatRunCommand(script: string, packageManager: PackageManager): string {
   if (packageManager === 'npm') return script === 'test' ? 'npm test' : `npm run ${script}`;
   return `${packageManager} run ${script}`;
 }
 
-/** Check whether a CLI tool is on PATH via POSIX `command -v`. */
-function isToolAvailable(tool: string): boolean {
-  const result = spawnSync('command', ['-v', tool], { shell: true, stdio: 'ignore' });
-  return result.status === 0;
+/**
+ * Resolve the safeword CLI invocation. `SAFEWORD_CLI` (a path to cli.js/cli.ts run
+ * via bun) overrides for tests/dev; otherwise the installed package, then the
+ * dogfood source, then `bunx`.
+ */
+function safewordCliCommand(cwd: string): [string, ...string[]] {
+  const override = process.env.SAFEWORD_CLI;
+  if (override) return ['bun', override];
+  const installed = nodePath.join(cwd, 'node_modules', 'safeword', 'dist', 'cli.js');
+  if (existsSync(installed)) return ['bun', installed];
+  const source = nodePath.join(cwd, 'packages', 'cli', 'src', 'cli.ts');
+  if (existsSync(source)) return ['bun', source];
+  return ['bunx', 'safeword'];
 }
 
 /**
- * Resolve the Python test command, package-manager aware (uv > poetry > bare
- * pytest). Returns undefined when no Python test toolchain is installed so the
- * caller skips rather than blocks.
+ * Ask `safeword test-plan` for the project's test commands and keep the runnable
+ * (available) ones. Returns [] on any failure so the caller skips, never blocks.
  */
-function pythonTestCommand(
-  cwd: string,
-  isAvailable: (tool: string) => boolean,
-): TestCommand | undefined {
-  const has = (file: string): boolean => existsSync(nodePath.join(cwd, file));
-  if (has('uv.lock') && isAvailable('uv')) return { script: 'pytest', command: 'uv run pytest' };
-  if (has('poetry.lock') && isAvailable('poetry'))
-    return { script: 'pytest', command: 'poetry run pytest' };
-  if (isAvailable('pytest')) return { script: 'pytest', command: 'pytest' };
-  return undefined;
-}
-
-/**
- * Resolve the native test command for a non-JS project from its manifest, or
- * undefined when no supported manifest is present OR the toolchain isn't
- * installed (caller skips, never blocks — mirrors the lint hook's graceful
- * degradation). Pure except for the injected `isAvailable` probe, so the
- * language→command decision is unit-testable without the real toolchains.
- */
-export function nativeTestCommand(
-  cwd: string,
-  isAvailable: (tool: string) => boolean = isToolAvailable,
-): TestCommand | undefined {
-  const has = (file: string): boolean => existsSync(nodePath.join(cwd, file));
-  if (has('pyproject.toml') || has('requirements.txt')) return pythonTestCommand(cwd, isAvailable);
-  if (has('go.mod'))
-    return isAvailable('go') ? { script: 'go test', command: 'go test ./...' } : undefined;
-  if (has('Cargo.toml'))
-    return isAvailable('cargo') ? { script: 'cargo test', command: 'cargo test' } : undefined;
-  return undefined;
-}
-
-/**
- * Detect test commands from package.json scripts. Prefers `test:done` (a
- * gate-tuned fast subset) when present, falling back to `test`, and appends
- * `test:bdd` when present so executable `.feature` scenarios are part of done
- * evidence. Projects whose full test suite exceeds TEST_TIMEOUT_MS should
- * define `test:done` as a meaningful but fast subset — unit tests + drift
- * checks typically work.
- * Returns an empty array if package.json is absent or no runnable test scripts
- * exist.
- */
-function getJsTestCommands(cwd: string): TestCommand[] {
-  const packageJsonPath = nodePath.join(cwd, 'package.json');
+function resolvePlanCommands(cwd: string): TestCommand[] {
+  const cli = safewordCliCommand(cwd);
+  const result = spawnSync(
+    cli[0],
+    [...cli.slice(1), 'test-plan', '--kind', 'test', '--json', cwd],
+    { encoding: 'utf8', timeout: TEST_TIMEOUT_MS },
+  );
+  if (result.status !== 0 || !result.stdout) return [];
   try {
-    const content = readFileSync(packageJsonPath, 'utf8');
-    const pkg = JSON.parse(content) as { scripts?: Record<string, string> };
-    const pm = detectPackageManager(cwd);
-    const scripts = pkg.scripts ?? {};
-    const commands: TestCommand[] = [];
-    const addCommand = (script: string): void => {
-      if (commands.some(command => command.script === script)) return;
-      commands.push({ script, command: formatRunCommand(script, pm) });
-    };
-
-    if (scripts['test:done']) addCommand('test:done');
-    else if (scripts.test) addCommand('test');
-    if (scripts['test:bdd']) addCommand('test:bdd');
-
-    return commands;
+    const entries = JSON.parse(result.stdout) as PlanEntry[];
+    return entries
+      .filter(entry => entry.available)
+      .map(entry => ({ script: entry.runner, command: entry.command, cwd: entry.cwd }));
   } catch {
     return [];
   }
 }
 
-/**
- * Resolve the test commands to run. A configured JS test script wins (it's the
- * project's chosen suite); otherwise fall back to the native language suite
- * detected from the manifest. Every project gets a package.json (ticket 102b),
- * so the presence of a real `test` script — not the file — is the JS signal.
- * Returns an empty array when nothing runnable is found (caller skips).
- */
+/** The JS acceptance lane (`test:bdd`) — consumer-side, not emitted by the resolver. */
+function bddCommand(cwd: string): TestCommand | undefined {
+  try {
+    const pkg = JSON.parse(readFileSync(nodePath.join(cwd, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    if (pkg.scripts?.['test:bdd']) {
+      return {
+        script: 'test:bdd',
+        command: formatRunCommand('test:bdd', detectPackageManager(cwd)),
+        cwd,
+      };
+    }
+  } catch {
+    // No package.json — no acceptance lane.
+  }
+  return undefined;
+}
+
+/** Resolved suite (from test-plan) plus the acceptance lane; [] means skip. */
 function getTestCommands(cwd: string): TestCommand[] {
-  const jsCommands = getJsTestCommands(cwd);
-  if (jsCommands.length > 0) return jsCommands;
-  const native = nativeTestCommand(cwd);
-  return native ? [native] : [];
+  const commands = resolvePlanCommands(cwd);
+  const bdd = bddCommand(cwd);
+  if (bdd) commands.push(bdd);
+  return commands;
 }
 
 function formatCommandOutput(testCommand: TestCommand, output: string): string {
@@ -164,13 +155,10 @@ function truncateOutput(output: string): string {
   return '...(truncated)\n' + tail.slice(-MAX_OUTPUT_CHARS);
 }
 
-function runSingleTestCommand(
-  cwd: string,
-  testCommand: TestCommand,
-): { passed: boolean; output: string } {
+function runSingleTestCommand(testCommand: TestCommand): { passed: boolean; output: string } {
   try {
     const output = execSync(testCommand.command, {
-      cwd,
+      cwd: testCommand.cwd,
       timeout: TEST_TIMEOUT_MS,
       stdio: 'pipe',
       encoding: 'utf8',
@@ -204,20 +192,21 @@ function runSingleTestCommand(
 }
 
 /**
- * Run the project's test suite directly and return the result.
+ * Run the project's test suite and return the result.
  *
- * - Detects test commands from package.json scripts
- * - Uses execSync for synchronous, timeout-safe execution (no zombie processes)
- * - Returns skipped=true if no test command found (caller should not block)
+ * - Resolves commands from `safeword test-plan` (single source of truth) + the
+ *   `test:bdd` acceptance lane.
+ * - Uses execSync for synchronous, timeout-safe execution (no zombie processes).
+ * - Returns skipped=true if no runnable command was found (caller should not block).
  */
-export function runTests(cwd: string): TestResult {
+export function runTests(cwd: string = projectDir): TestResult {
   const commands = getTestCommands(cwd);
   if (commands.length === 0) return { passed: true, output: '', skipped: true };
 
   const outputs: string[] = [];
 
   for (const testCommand of commands) {
-    const result = runSingleTestCommand(cwd, testCommand);
+    const result = runSingleTestCommand(testCommand);
     outputs.push(result.output);
     if (!result.passed)
       return { passed: false, output: truncateOutput(outputs.join('\n\n')), skipped: false };

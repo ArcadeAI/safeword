@@ -2,11 +2,28 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { nativeTestCommand, runTests } from '../../../../.safeword/hooks/lib/test-runner';
+import { runTests } from '../../../../.safeword/hooks/lib/test-runner';
 
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const temporaryDirectories: string[] = [];
+const savedEnvironment: Record<string, string | undefined> = {};
+
+// Drive the real resolver offline + deterministically: point the hook at the
+// dogfood CLI source (no installed dist / no network bunx) and fake all tools
+// present so JS availability doesn't depend on the host.
+beforeAll(() => {
+  savedEnvironment.SAFEWORD_CLI = process.env.SAFEWORD_CLI;
+  savedEnvironment.SAFEWORD_FAKE_TOOLS = process.env.SAFEWORD_FAKE_TOOLS;
+  process.env.SAFEWORD_CLI = nodePath.join(repoRoot, 'packages/cli/src/cli.ts');
+  process.env.SAFEWORD_FAKE_TOOLS = 'all';
+});
+
+afterAll(() => {
+  process.env.SAFEWORD_CLI = savedEnvironment.SAFEWORD_CLI;
+  process.env.SAFEWORD_FAKE_TOOLS = savedEnvironment.SAFEWORD_FAKE_TOOLS;
+});
 
 function makeProject(scripts: Record<string, string>): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-test-runner-'));
@@ -19,26 +36,13 @@ function makeProject(scripts: Record<string, string>): string {
   return directory;
 }
 
-/** Make a temp project with the given manifest files (and no package.json). */
-function makeManifestProject(files: Record<string, string>): string {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-native-test-'));
-  temporaryDirectories.push(directory);
-  for (const [name, content] of Object.entries(files)) {
-    writeFileSync(nodePath.join(directory, name), content);
-  }
-  return directory;
-}
-
-const allAvailable = (): boolean => true;
-const noneAvailable = (): boolean => false;
-
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
   }
 });
 
-describe('runTests', () => {
+describe('runTests (resolves its suite via safeword test-plan)', () => {
   it('blocks when the Gherkin acceptance lane fails after primary tests pass', () => {
     const project = makeProject({
       'test:done': 'node -e "console.log(\'PRIMARY_OK\')"',
@@ -63,7 +67,6 @@ describe('runTests', () => {
 
     expect(result.skipped).toBe(false);
     expect(result.passed).toBe(true);
-    expect(result.output).toContain('test');
     expect(result.output).toContain('test:bdd');
   });
 
@@ -75,8 +78,19 @@ describe('runTests', () => {
     expect(result).toEqual({ passed: true, output: '', skipped: true });
   });
 
+  it('holds no per-language command strings and resolves via test-plan', () => {
+    const source = readFileSync(
+      nodePath.join(repoRoot, 'packages/cli/templates/hooks/lib/test-runner.ts'),
+      'utf8',
+    );
+    expect(source).not.toMatch(/cargo test|go test|uv run pytest|\bpytest\b/);
+    expect(source).not.toContain('nativeTestCommand');
+    expect(source).not.toContain('getJsTestCommands');
+    expect(source).not.toContain('pythonTestCommand');
+    expect(source).toContain('test-plan');
+  });
+
   it('keeps the template and dogfood runner aligned', () => {
-    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const template = readFileSync(
       nodePath.join(repoRoot, 'packages/cli/templates/hooks/lib/test-runner.ts'),
       'utf8',
@@ -87,74 +101,5 @@ describe('runTests', () => {
     );
 
     expect(dogfood).toBe(template);
-  });
-});
-
-describe('nativeTestCommand', () => {
-  it('routes go.mod to `go test ./...` when go is available', () => {
-    const project = makeManifestProject({ 'go.mod': 'module example\n' });
-    expect(nativeTestCommand(project, allAvailable)).toEqual({
-      script: 'go test',
-      command: 'go test ./...',
-    });
-  });
-
-  it('routes Cargo.toml to `cargo test` when cargo is available', () => {
-    const project = makeManifestProject({ 'Cargo.toml': '[package]\nname = "x"\n' });
-    expect(nativeTestCommand(project, allAvailable)).toEqual({
-      script: 'cargo test',
-      command: 'cargo test',
-    });
-  });
-
-  it('prefers `uv run pytest` for a uv-locked Python project', () => {
-    const project = makeManifestProject({ 'pyproject.toml': '', 'uv.lock': '' });
-    expect(nativeTestCommand(project, allAvailable)).toEqual({
-      script: 'pytest',
-      command: 'uv run pytest',
-    });
-  });
-
-  it('prefers `poetry run pytest` for a poetry-locked Python project', () => {
-    const project = makeManifestProject({ 'pyproject.toml': '', 'poetry.lock': '' });
-    expect(nativeTestCommand(project, allAvailable)).toEqual({
-      script: 'pytest',
-      command: 'poetry run pytest',
-    });
-  });
-
-  it('falls back to bare `pytest` when the lock PM runner is unavailable', () => {
-    const project = makeManifestProject({ 'pyproject.toml': '', 'uv.lock': '' });
-    const onlyPytest = (tool: string): boolean => tool === 'pytest';
-    expect(nativeTestCommand(project, onlyPytest)).toEqual({ script: 'pytest', command: 'pytest' });
-  });
-
-  it('skips (undefined) when a manifest is present but its toolchain is absent', () => {
-    const goProject = makeManifestProject({ 'go.mod': 'module example\n' });
-    const pyProject = makeManifestProject({ 'pyproject.toml': '' });
-    expect(nativeTestCommand(goProject, noneAvailable)).toBeUndefined();
-    expect(nativeTestCommand(pyProject, noneAvailable)).toBeUndefined();
-  });
-
-  it('returns undefined when no supported manifest is present', () => {
-    const project = makeManifestProject({ 'README.md': '# hi\n' });
-    expect(nativeTestCommand(project, allAvailable)).toBeUndefined();
-  });
-});
-
-describe('runTests native fallback', () => {
-  it('never blocks a non-JS project: skips when toolchain absent, else runs it', () => {
-    // pyproject present, no JS test script. The done gate must never block on a
-    // missing toolchain — so this either skips, or (if pytest is installed in
-    // this environment) actually runs pytest.
-    const project = makeManifestProject({ 'pyproject.toml': '' });
-
-    const result = runTests(project);
-
-    if (result.skipped) {
-      expect(result).toEqual({ passed: true, output: '', skipped: true });
-    } else {
-      expect(result.output).toContain('pytest');
-    }
   });
 });
