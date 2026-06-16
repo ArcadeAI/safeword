@@ -176,10 +176,14 @@ export function indexFilesInTree(
 ): Map<string, string> {
   const wanted = [...filenames];
   const found = new Map<string, string>();
+  // Cursor instead of Array.shift() so the BFS stays O(dirs), not O(dirs²) on
+  // wide/deep monorepos — the very repos this single-walk index exists to serve.
   const queue: { directory: string; depth: number }[] = [{ directory: cwd, depth: 0 }];
 
-  while (queue.length > 0) {
-    const item = queue.shift();
+  let head = 0;
+  while (head < queue.length) {
+    const item = queue[head];
+    head += 1;
     if (item === undefined) break;
     for (const name of wanted) {
       if (!found.has(name) && existsSync(nodePath.join(item.directory, name))) {
