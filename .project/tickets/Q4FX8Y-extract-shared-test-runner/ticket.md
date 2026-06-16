@@ -92,6 +92,8 @@ Each revalidated against the code; PM-recursive behavior web-verified.
 
 - PM-recursive JS fallback for workspaces without a root `test` script (decision 1).
 - Cross-language `test:done` fast-subset convention (decision 3).
+- **Surface skipped (toolchain-absent) suites at the automated done-gate** (5FF0ZD quality-review). `test-runner` drops `available:false` entries; `stop-quality.ts` only prints `runTests().output` when blocking on failure (line 499), not on the skipped/pass path (579). So a missing-toolchain suite is a silent pass at the _automated_ gate. figure-it-out → deferred: delivering it needs a change to the hard done-gate's output protocol, and `/verify` (the user-facing path) already shows the skip echo. Low value vs. churning a green enforcement gate.
+- _Considered + rejected:_ replacing `bunx safeword` in `/verify` with an explicit installed→source→bunx ladder. `bunx safeword` already resolves the locally-installed `safeword` (always a project dep) → no network, project's version. Not worth the markdown-bash complexity.
 
 ## Work Log
 
