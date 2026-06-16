@@ -68,11 +68,9 @@ DEPCRUISE_CONFIG=""
 # DEAD CODE DETECTION
 # =========================================================================
 
-# 2a. Dead code - TypeScript/JS (knip with auto-fix + config hints)
+# 2a. Dead code - TypeScript/JS (knip — read-only, reports unused exports/deps/config hints)
 [ -f package.json ] && {
-  bunx knip --fix 2>&1 || true
-  # Capture config hints separately for W005 detection
-  bunx knip --reporter json 2> /dev/null || true
+  bunx knip 2>&1 || true
 }
 
 # 2b. Dead code - Python (deadcode)
@@ -145,7 +143,7 @@ If all packages are up to date, report: `✅ All packages up to date`
 
 #### Knip Configuration Hints (W005)
 
-Check the `bunx knip --fix` output above for "Configuration hints" lines. Hints appear in the default reporter output, NOT in the `--reporter json` output. If knip reports **configuration hints** (unused entries in `ignoreDependencies`, `ignoreBinaries`, `ignoreUnresolved`, or `ignoreWorkspaces`), flag each as:
+Check the knip output above for "Configuration hints" lines. If knip reports **configuration hints** (unused entries in `ignoreDependencies`, `ignoreBinaries`, `ignoreUnresolved`, or `ignoreWorkspaces`), flag each as:
 
 ```text
 - [W005] Stale config: `knip.json` — `{entry}` can be removed from {list}
@@ -305,7 +303,7 @@ Report findings by severity with codes:
 
 **Dead Code:**
 
-- Fixed by knip: [list of auto-fixed items]
+- Knip findings: [list unused items to review — verify before removing, knip cannot see packages consumed via Astro/Vite/Wrangler config]
 
 **Duplication:**
 
