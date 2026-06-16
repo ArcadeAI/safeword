@@ -55,29 +55,15 @@ Run these in sequence, reporting each result:
 1. **Run `/lint`** to auto-fix style issues first
 2. Then run verification:
 
-Every project has a `package.json` (the BDD lane needs one), so a real `test`
-script — not the file — is the "this is a JS project" signal. Run the first
-matching language's suite; skip gracefully when a toolchain isn't installed.
+Per-language test/build commands come from `safeword test-plan` — one source of
+truth (the same plan the stop-hook gate runs). Eval its shell plan in a child
+shell: an absent toolchain prints a visible skip, and a failing suite exits
+non-zero so the gate blocks. The Gherkin acceptance lane runs separately (it is
+not a `test-plan` suite).
 
 ```bash
-# --- Test suite (first matching language) ---
-if node -e 'const s=(require("./package.json").scripts)||{};process.exit(s.test||s["test:done"]?0:1)' 2> /dev/null; then
-  bun run test 2>&1
-elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
-  if [ -f uv.lock ] && command -v uv > /dev/null; then
-    uv run pytest 2>&1
-  elif [ -f poetry.lock ] && command -v poetry > /dev/null; then
-    poetry run pytest 2>&1
-  elif command -v pytest > /dev/null; then
-    pytest 2>&1
-  else echo "Test Suite: ⏭️ Skipped — pytest not installed"; fi
-elif [ -f go.mod ]; then
-  command -v go > /dev/null && go test ./... 2>&1 || echo "Test Suite: ⏭️ Skipped — go not installed"
-elif [ -f Cargo.toml ]; then
-  command -v cargo > /dev/null && cargo test 2>&1 || echo "Test Suite: ⏭️ Skipped — cargo not installed"
-else
-  echo "Test Suite: ⏭️ Skipped — no test suite detected"
-fi
+# --- Test suite (resolved by safeword test-plan — one source of truth) ---
+bash -c "$(bunx safeword test-plan --kind test --format sh)"
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
@@ -86,16 +72,8 @@ else
   echo "Gherkin acceptance lane skipped: Skipped — no test:bdd script"
 fi
 
-# --- Build check (JS build script, else native compile) ---
-if node -e 'const s=(require("./package.json").scripts)||{};process.exit(s.build?0:1)' 2> /dev/null; then
-  bun run build 2>&1
-elif [ -f go.mod ] && command -v go > /dev/null; then
-  go build ./... 2>&1
-elif [ -f Cargo.toml ] && command -v cargo > /dev/null; then
-  cargo build 2>&1
-else
-  echo "Build: ⏭️ Skipped — no build step for this project"
-fi
+# --- Build check (resolved by safeword test-plan) ---
+bash -c "$(bunx safeword test-plan --kind build --format sh)"
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.

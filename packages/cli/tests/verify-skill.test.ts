@@ -118,4 +118,15 @@ describe('verify report structure (146)', () => {
       expect(content.toLowerCase()).toContain('empty sections are hidden');
     });
   });
+
+  describe('Rule: section 2 consumes safeword test-plan (5FF0ZD)', () => {
+    it.each(surfaces)('%s evals the test and build plans from test-plan', (_name, content) => {
+      expect(content).toContain('test-plan --kind test --format sh');
+      expect(content).toContain('test-plan --kind build --format sh');
+    });
+
+    it.each(surfaces)('%s carries no inline per-language test/build branch', (_name, content) => {
+      expect(content).not.toMatch(/uv run pytest|go test|cargo test|go build|cargo build/);
+    });
+  });
 });

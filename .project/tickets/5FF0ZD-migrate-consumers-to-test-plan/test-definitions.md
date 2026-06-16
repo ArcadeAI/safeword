@@ -10,76 +10,76 @@ stop-hook behavior via the `runTests` tests.
 
 ### Scenario: An available entry becomes a cd-scoped command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An unavailable entry becomes a visible skip line, not a command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Evaluating the script runs the resolved suite
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Evaluating the script fails when a suite fails
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An empty plan evals to a clean no-op
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A polyglot repo renders every language's command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: The shell plan honors --kind build
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: the stop hook resolves its suite via test-plan (no per-language strings)
 
 ### Scenario: test-runner.ts holds no per-language command strings
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A JS project still runs its test script and the acceptance lane
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A project with no runnable suite skips without blocking
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: /verify obtains its commands from test-plan (no inline language bash)
 
 ### Scenario: verify section 2 evals test-plan for both test and build, with no inline language branches
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ---
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario — skip: helpers (renderShellPlan, safewordCliCommand, resolvePlanCommands) factored during GREEN; no cross-scenario duplication emerged
