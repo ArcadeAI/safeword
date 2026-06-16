@@ -2,7 +2,7 @@
 id: 5FF0ZD
 slug: migrate-consumers-to-test-plan
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 parent: Q4FX8Y
 created: 2026-06-16T15:46:47.057Z
