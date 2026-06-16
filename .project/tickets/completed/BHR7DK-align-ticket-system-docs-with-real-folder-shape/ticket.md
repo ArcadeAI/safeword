@@ -3,7 +3,7 @@ id: BHR7DK
 slug: align-ticket-system-docs-with-real-folder-shape
 type: task
 phase: intake
-status: in_progress
+status: done
 created: 2026-06-16T03:17:01.287Z
 last_modified: 2026-06-16T03:51:29Z
 scope:
