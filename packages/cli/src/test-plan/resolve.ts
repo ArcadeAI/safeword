@@ -113,17 +113,21 @@ function pickTestScript(scripts: Record<string, string>): string | undefined {
   return undefined;
 }
 
-function pytestConfigured(root: string): boolean {
-  if (existsInTree(root, 'pytest.ini')) return true;
-  const dir = findInTree(root, 'pyproject.toml');
+/** True when `file` (found anywhere in the tree) contains `marker`. */
+function configContains(root: string, file: string, marker: string): boolean {
+  const dir = findInTree(root, file);
   if (dir === undefined) return false;
   try {
-    return readFileSync(nodePath.join(dir, 'pyproject.toml'), 'utf8').includes(
-      '[tool.pytest.ini_options]',
-    );
+    return readFileSync(nodePath.join(dir, file), 'utf8').includes(marker);
   } catch {
     return false;
   }
+}
+
+function pytestConfigured(root: string): boolean {
+  if (existsInTree(root, 'pytest.ini') || existsInTree(root, '.pytest.ini')) return true;
+  if (configContains(root, 'pyproject.toml', '[tool.pytest.ini_options]')) return true;
+  return configContains(root, 'setup.cfg', '[tool:pytest]');
 }
 
 /** Package-manager-aware pytest invocation; returns the command, runner, and the tool whose presence gates availability. */
@@ -147,7 +151,15 @@ function resolvePython(
     const { command, tool } = pytestInvocation(root, isAvailable);
     return entry('python', root, command, 'pytest', isAvailable(tool));
   }
-  return entry('python', root, 'python -m unittest discover', 'unittest', isAvailable('python'));
+  // Prefer python3 (the only `python` on macOS/modern distros), fall back to python.
+  const pythonBin = isAvailable('python3') ? 'python3' : 'python';
+  return entry(
+    'python',
+    root,
+    `${pythonBin} -m unittest discover`,
+    'unittest',
+    isAvailable(pythonBin),
+  );
 }
 
 function goCommand(root: string, kind: PlanKind): string {
@@ -168,7 +180,14 @@ function resolveRust(root: string, kind: PlanKind, isAvailable: ToolProbe): Plan
   if (kind === 'build')
     return entry('rust', root, 'cargo build --workspace', 'cargo', isAvailable('cargo'));
   if (isAvailable('cargo-nextest'))
-    return entry('rust', root, 'cargo nextest run --workspace', 'nextest', isAvailable('cargo'));
+    // nextest doesn't run doctests — append `cargo test --doc` so they aren't silently skipped.
+    return entry(
+      'rust',
+      root,
+      'cargo nextest run --workspace && cargo test --doc',
+      'nextest',
+      isAvailable('cargo'),
+    );
   return entry('rust', root, 'cargo test --workspace', 'cargo', isAvailable('cargo'));
 }
 

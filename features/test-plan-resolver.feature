@@ -69,7 +69,7 @@ Feature: test-plan resolver
       Given a Rust repo
       And the "cargo" and "cargo-nextest" toolchains are installed
       When I request the test plan
-      Then the "rust" entry command is "cargo nextest run --workspace"
+      Then the "rust" entry command is "cargo nextest run --workspace && cargo test --doc"
 
     @test-plan-resolver.DEV1.AC2
     Scenario: Rust falls back to cargo test --workspace without nextest

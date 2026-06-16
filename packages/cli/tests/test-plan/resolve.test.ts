@@ -91,6 +91,21 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     expect(entryFor(plan, 'python')?.command).toBe('python -m unittest discover');
   });
 
+  it('prefers python3 for the unittest fallback when available', () => {
+    const root = makeRepo({ 'pyproject.toml': '[project]\nname="x"\n' });
+    const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('python3') });
+    expect(entryFor(plan, 'python')?.command).toBe('python3 -m unittest discover');
+  });
+
+  it('detects pytest configured via setup.cfg [tool:pytest]', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'setup.cfg': '[tool:pytest]\naddopts = -q\n',
+    });
+    const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('python', 'python3') });
+    expect(entryFor(plan, 'python')?.command).toBe('pytest');
+  });
+
   it('a uv-locked python repo runs pytest through uv', () => {
     const root = makeRepo({
       'pyproject.toml': '[tool.pytest.ini_options]\n',
@@ -103,7 +118,9 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
   it('rust uses nextest when it is installed', () => {
     const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
     const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('cargo', 'cargo-nextest') });
-    expect(entryFor(plan, 'rust')?.command).toBe('cargo nextest run --workspace');
+    expect(entryFor(plan, 'rust')?.command).toBe(
+      'cargo nextest run --workspace && cargo test --doc',
+    );
   });
 
   it('rust falls back to cargo test --workspace without nextest', () => {
