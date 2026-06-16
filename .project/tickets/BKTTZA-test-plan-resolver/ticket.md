@@ -2,8 +2,8 @@
 id: BKTTZA
 slug: test-plan-resolver
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: Q4FX8Y
 created: 2026-06-16T15:46:47.000Z
 last_modified: 2026-06-16T15:46:47.000Z
@@ -36,3 +36,4 @@ done_when:
 - 2026-06-16T15:46:47.000Z Started: Created ticket BKTTZA
 - 2026-06-16 Intake: inherited epic scope (split confirmed); scope/out-of-scope/done-when set. → define-behavior.
 - 2026-06-16 Implemented (outside-in TDD): `src/test-plan/resolve.ts` + `safeword test-plan [dir] --kind --json` CLI, reusing `findInTree`/`detectPackageManager`. 18/18 scenarios green (vitest resolver+CLI + cucumber acceptance lane), tsc + eslint clean, full bdd lane 49/49. Added `SAFEWORD_FAKE_TOOLS` test seam for deterministic acceptance. Awaiting verify phase (/verify + /audit).
+- 2026-06-16 Done: /verify green (full suite 3028 passed / 5 skipped / 0 failed after hermetic test-infra fixes), /audit passed (0 errors; doc gap fixed), verify.md recorded. Marked done with user confirmation.
