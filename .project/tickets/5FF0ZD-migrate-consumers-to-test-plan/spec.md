@@ -1,74 +1,53 @@
-# Spec: Route verify, audit, and the stop hook through safeword test-plan
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Route the stop hook and /verify through safeword test-plan
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Make `test-runner.ts` and `/verify` consume the `safeword test-plan` resolver so per-language test/build command knowledge lives in exactly one place — removing the duplication 2FVZ26 introduced and keeping the gates from drifting.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Epic [Q4FX8Y](../Q4FX8Y-extract-shared-test-runner/ticket.md); sibling [BKTTZA](../BKTTZA-test-plan-resolver/ticket.md) (the resolver, done).
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
-
-## Vocabulary
-
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- Safeword Maintainer (SM) — owns the gates; needs one definition of how a language is tested.
+- Agent-Driven Developer (DEV) — relies on the done-gate to run the right suite for their language.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### migrate-consumers.SM1 — one place to define how a language is tested
 
-Uncomment and customize:
+**Persona:** Safeword Maintainer (SM)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I change a language's test/build command, I want to edit one place, so the stop hook and /verify can't drift apart.
 
-**Persona:** Platform Operator (PO)
+#### migrate-consumers.SM1.AC1 — test-runner has no per-language command strings
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+`test-runner.ts` resolves its suite by calling `safeword test-plan`; `nativeTestCommand`/`getJsTestCommands` are gone.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### migrate-consumers.SM1.AC2 — /verify has no inline per-language test/build bash
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+`/verify` section 2 obtains its commands from `safeword test-plan --format sh` (eval), not hand-written language branches.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### migrate-consumers.SM1.AC3 — `--format sh` emits an eval-able plan
+
+`safeword test-plan --kind <k> --format sh` prints a runnable script: `( cd <cwd> && <command> )` per available entry, `echo "⏭️ Skipped — <runner> not installed"` for unavailable ones.
+
+### migrate-consumers.DEV1 — the done-gate runs my real suite (preserved/upgraded)
+
+**Persona:** Agent-Driven Developer (DEV)
+
+> When my agent hits the done-gate in a Go/Rust/polyglot repo, I want my actual suite(s) run — no regression from the migration.
+
+#### migrate-consumers.DEV1.AC1 — stop-hook behavior preserved, plus polyglot/go.work/nextest
+
+A JS project still runs its `test`/`test:done` + `test:bdd`; non-JS and polyglot repos run the resolver's (more capable) suite. Per-command timeout + truncation + done-gate phrases intact.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- No language command string appears in both `test-runner.ts` and `/verify`.
+- Full suite + cucumber lane stay green; dogfood parity preserved.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- **Implementation risk (resolve at implement):** in the dogfood test env, how does `test-runner.ts` locate the CLI for `test-plan`? `safewordCliCommand()` resolves `node_modules/safeword/dist/cli.js` → else `bunx safeword` (network). The runTests unit tests must drive a local CLI deterministically (likely a `SAFEWORD_CLI`/path injection or the installed dist), not hit the network. defer: confirm the seam during TDD.
