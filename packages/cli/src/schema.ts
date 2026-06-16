@@ -201,6 +201,7 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
 // `.safeword-project/` on legacy ones.
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.safeword/config.local.json',
   '.project/quality-state*.json',
   '.project/failure-counts.json',
   '.project/skill-invocations.log',
