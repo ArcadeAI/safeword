@@ -231,24 +231,29 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
   });
 
   describe('Test 3.5: Exit 1 if hook registration fails', () => {
-    it('should fail with exit 1 when settings.json is not writable', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
-      initGitRepo(temporaryDirectory);
+    // Skipped as root: root ignores chmod 0o444, so the write succeeds and setup
+    // exits 0 — the permission-denial path can't be exercised as the superuser.
+    it.skipIf(process.getuid?.() === 0)(
+      'should fail with exit 1 when settings.json is not writable',
+      async () => {
+        createTypeScriptPackageJson(temporaryDirectory);
+        initGitRepo(temporaryDirectory);
 
-      // Create .claude directory with read-only settings.json
-      writeTestFile(temporaryDirectory, '.claude/settings.json', '{}');
-      chmodSync(nodePath.join(temporaryDirectory, '.claude/settings.json'), 0o444);
+        // Create .claude directory with read-only settings.json
+        writeTestFile(temporaryDirectory, '.claude/settings.json', '{}');
+        chmodSync(nodePath.join(temporaryDirectory, '.claude/settings.json'), 0o444);
 
-      const result = await runCli(['setup'], {
-        cwd: temporaryDirectory,
-      });
+        const result = await runCli(['setup'], {
+          cwd: temporaryDirectory,
+        });
 
-      // Restore permissions for cleanup
-      chmodSync(nodePath.join(temporaryDirectory, '.claude/settings.json'), 0o644);
+        // Restore permissions for cleanup
+        chmodSync(nodePath.join(temporaryDirectory, '.claude/settings.json'), 0o644);
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr.toLowerCase()).toMatch(/hook|permission|write|failed/i);
-    });
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr.toLowerCase()).toMatch(/hook|permission|write|failed/i);
+      },
+    );
   });
 
   describe('Test 3.7: Installs lib scripts', () => {

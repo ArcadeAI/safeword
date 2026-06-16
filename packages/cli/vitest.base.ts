@@ -11,9 +11,16 @@ export const baseConfig = defineConfig({
     globals: true,
     environment: 'node',
     // Ensure the runtime binary directory is in PATH for child processes
-    // (e.g. bunx, bun) so execSync calls in tests can find them
+    // (e.g. bunx, bun) so execSync calls in tests can find them.
+    // Also force commit.gpgsign=false for every git invocation: tests create
+    // throwaway repos in /tmp and must be hermetic — they must not inherit a
+    // host that enforces commit signing (e.g. a managed env that signs via a
+    // server), which otherwise fails every test `git commit` with a signing error.
     env: {
       PATH: `${path.dirname(process.execPath)}:${process.env.PATH}`,
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'commit.gpgsign',
+      GIT_CONFIG_VALUE_0: 'false',
     },
     // Increase hook timeout for afterEach cleanup (rmSync with retries)
     // Default 10s isn't enough when bun has locked files

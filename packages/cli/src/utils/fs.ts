@@ -162,6 +162,44 @@ function scanTreeForFile(
 }
 
 /**
+ * Index multiple files in a single tree walk — the multi-file analogue of
+ * `findInTree`. Returns a Map from each requested filename to the directory of
+ * its **shallowest** occurrence (root-first, level-order — same ordering as
+ * `findInTree`), omitting names not found. One traversal regardless of how many
+ * filenames are requested, so callers that probe many manifests stay O(one walk)
+ * even on large/deep monorepos. Stops early once every name is located.
+ */
+export function indexFilesInTree(
+  cwd: string,
+  filenames: Iterable<string>,
+  maxDepth = 10,
+): Map<string, string> {
+  const wanted = [...filenames];
+  const found = new Map<string, string>();
+  // Cursor instead of Array.shift() so the BFS stays O(dirs), not O(dirs²) on
+  // wide/deep monorepos — the very repos this single-walk index exists to serve.
+  const queue: { directory: string; depth: number }[] = [{ directory: cwd, depth: 0 }];
+
+  let head = 0;
+  while (head < queue.length) {
+    const item = queue[head];
+    head += 1;
+    if (item === undefined) break;
+    for (const name of wanted) {
+      if (!found.has(name) && existsSync(nodePath.join(item.directory, name))) {
+        found.set(name, item.directory);
+      }
+    }
+    if (found.size === wanted.length) break;
+    if (item.depth >= maxDepth) continue;
+    for (const subdirectory of getScannableSubdirectories(item.directory)) {
+      queue.push({ directory: subdirectory, depth: item.depth + 1 });
+    }
+  }
+  return found;
+}
+
+/**
  * Create directory recursively
  * @param path
  */
