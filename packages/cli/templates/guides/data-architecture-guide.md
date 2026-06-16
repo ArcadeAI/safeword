@@ -132,6 +132,7 @@
 - **Conceptual**: High-level entities with descriptions (e.g., "User - person with account", "Order - purchase transaction")
 - **Logical**: Attributes, types, relationships, constraints (e.g., `userId: UUID`, `orders: Order[]` 1:N relationship)
 - **Physical**: Storage technology, tables/collections, indexes, WHY this tech (trade-offs) - see Core Principles → Data Quality (lines 41-47) for format
+  If the storage technology is not yet chosen, call `/figure-it-out` first — its output provides the evidence for 'WHY this tech'.
 
 ### 2. Data Flows
 

@@ -161,6 +161,8 @@ Before saving any story, verify it passes all six criteria:
 | Dependencies   | Existing systems, restrictions   | Use AuthService, no new packages                |
 | Infrastructure | Resources, offline, deployment   | < 512MB memory, offline-capable                 |
 
+When a dependency choice is open — not constrained by the project — call `/figure-it-out` before specifying it.
+
 **Include a constraint if:**
 
 - It affects how you write tests
