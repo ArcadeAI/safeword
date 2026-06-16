@@ -29,7 +29,7 @@ Use for: bugs, improvements, internal work, refactors.
 - [ ] [Test scenario 2 - edge case or secondary behavior]
 ```
 
-**Location:** `<namespace-root>/tickets/{id}-{slug}/ticket.md`
+**Location:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
 
 ---
 
@@ -55,7 +55,7 @@ Use for: typos, config changes, trivial fixes. Still scoped to prevent creep.
 - [ ] Existing tests pass (no new test needed)
 ```
 
-**Location:** `<namespace-root>/tickets/{id}-{slug}/ticket.md`
+**Location:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
 
 ---
 

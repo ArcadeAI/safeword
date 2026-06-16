@@ -14,7 +14,7 @@ How to write specs, user stories, and test definitions before implementation.
 | Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                          |
 | Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                    |
 
-**Location:** `<namespace-root>/tickets/{id}-{slug}/`
+**Location:** `<namespace-root>/tickets/{ID}-{slug}/`
 
 Ticket artifacts live in the ticket folder:
 
@@ -320,18 +320,18 @@ GFM checkbox state IS the status. Don't add emoji indicators (`‚úÖ Passing`, `‚ù
 
 Feature source: `features/<slug>.feature`
 
-Ledger: `<namespace-root>/tickets/{id}-{slug}/test-definitions.md`
+Ledger: `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`
 
 ---
 
 ## Ticket Folder Naming
 
-**Structure:** `<namespace-root>/tickets/{id}-{slug}/`
+**Structure:** `<namespace-root>/tickets/{ID}-{slug}/`
 
 **Good folder names:**
 
-- `001-campaign-switching/`
-- `012-fix-login-timeout/`
+- `7K9M3P-campaign-switching/`
+- `BHR7DK-fix-login-timeout/`
 
 **Bad folder names:**
 

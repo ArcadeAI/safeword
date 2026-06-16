@@ -24,10 +24,19 @@ hand-editing the log is the gameable floor this tier deliberately accepts.
 
 !`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec`
 
-**If you see `[skill-invocation-log] FAILED` above, or no `✓` line at all**: STOP.
+If no `[skill-invocation-log] ... ✓` line appears above, run this fallback before stopping:
+
+```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec
+```
+
+The review stamp is content-bound and does not require `CLAUDE_SESSION_ID`.
+
+**If the automatic line and fallback both print `[skill-invocation-log] FAILED`, or still do not print `✓`**: STOP.
 The stamp was not written and the gate will keep blocking. Most likely the bash
-injection was denied or no in_progress ticket was found — report it to the user
-and resolve before retrying.
+injection was denied, no in_progress ticket was found, or Bun could not run the
+installed helper — report it to the user and resolve before retrying.
 
 ## Review the spec (do this now, with the stamp written)
 

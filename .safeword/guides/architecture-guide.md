@@ -288,7 +288,7 @@ Answer **IN ORDER**:
 project/
 ├── ARCHITECTURE.md                    # Single comprehensive doc
 ├── <namespace-root>/tickets/
-│   └── {id}-{slug}/
+│   └── {ID}-{slug}/
 │       ├── ticket.md
 │       ├── test-definitions.md
 │       └── design.md                  # Feature-specific design docs

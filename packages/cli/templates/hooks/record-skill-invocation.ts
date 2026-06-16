@@ -18,7 +18,7 @@ export function recordSkillInvocation(
     throw new Error(`Invalid skill name "${skillName}"`);
   }
   if (sessionId === undefined || sessionId.trim().length === 0) {
-    throw new Error('Missing CLAUDE_SESSION_ID');
+    throw new Error('Missing session id for skill invocation log');
   }
 
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
@@ -33,13 +33,14 @@ export function recordSkillInvocation(
 if (import.meta.main) {
   const projectDirectory = process.argv[2] ?? process.cwd();
   const skillName = process.argv[3];
+  const sessionId = process.argv[4] ?? process.env.CLAUDE_SESSION_ID;
 
   try {
     if (skillName === undefined) {
       throw new Error('Missing skill name');
     }
 
-    recordSkillInvocation(projectDirectory, skillName);
+    recordSkillInvocation(projectDirectory, skillName, sessionId);
     console.log(`[skill-invocation-log] ${skillName} ✓`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

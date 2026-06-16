@@ -15,19 +15,21 @@ allowed-tools: '*'
 
 **Creating a ticket:** Run `safeword ticket new <slug>` (optionally with `--type=patch|task|feature` and `--title="..."`). The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches.
 
-**Location:** `<namespace-root>/tickets/{ID}/` for new tickets (folder name is the ID alone; slug lives in frontmatter). Pre-existing tickets keep their legacy `{numeric-id}-{slug}/` layout and remain reachable by ID — both formats are supported forever.
+**Location:** `<namespace-root>/tickets/{ID}-{slug}/` for tickets created by `safeword ticket new` (6-char Crockford ID plus normalized slug). Lookup remains backward-compatible with older `{ID}/` Crockford folders and legacy `{numeric-id}-{slug}/` folders — all formats remain reachable by ID.
 
 **Folder structure:**
 
 ```text
 <namespace-root>/
 ├── tickets/
-│   ├── 7K9M3P/                 # New format: folder = Crockford ID, slug in frontmatter
+│   ├── 7K9M3P-login-bug/       # Current format: Crockford ID + normalized slug
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
 │   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
 │   │   ├── spec.md             # Feature spec for epics (optional)
 │   │   └── design.md           # Design doc for complex features (optional)
-│   ├── 080-ticket-id-collision/  # Legacy format: kept readable, never created new
+│   ├── 7K9M3P/                 # Historical Crockford ID-only format, still readable
+│   │   └── ticket.md
+│   ├── 080-ticket-id-collision/  # Legacy numeric format, still readable
 │   │   └── ticket.md
 │   └── completed/              # Archive for done tickets
 ├── learnings/                  # Extracted knowledge (gotchas, discoveries)

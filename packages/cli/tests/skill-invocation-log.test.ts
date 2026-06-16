@@ -16,6 +16,7 @@ const verifySkill = readFileSync(
 );
 const auditCommand = readFileSync(nodePath.join(templatesDirectory, 'commands/audit.md'), 'utf8');
 const auditSkill = readFileSync(nodePath.join(templatesDirectory, 'skills/audit/SKILL.md'), 'utf8');
+const readme = readFileSync(nodePath.join(repoRoot, 'README.md'), 'utf8');
 
 // Invocation-log surfaces. /verify and /audit each have skill + command form.
 const verifyForms: [string, string][] = [
@@ -32,6 +33,29 @@ const auditForms: [string, string][] = [
 const skillForms: [string, string][] = [
   ['verify-skill', verifySkill],
   ['audit-skill', auditSkill],
+];
+
+const selfReviewForms: [string, string][] = [
+  [
+    'template self-review command',
+    readFileSync(nodePath.join(templatesDirectory, 'commands/self-review.md'), 'utf8'),
+  ],
+  [
+    'template self-review skill',
+    readFileSync(nodePath.join(templatesDirectory, 'skills/self-review/SKILL.md'), 'utf8'),
+  ],
+  [
+    'dogfood codex self-review skill',
+    readFileSync(nodePath.join(repoRoot, '.agents/skills/self-review/SKILL.md'), 'utf8'),
+  ],
+  [
+    'dogfood claude self-review skill',
+    readFileSync(nodePath.join(repoRoot, '.claude/skills/self-review/SKILL.md'), 'utf8'),
+  ],
+  [
+    'dogfood cursor self-review command',
+    readFileSync(nodePath.join(repoRoot, '.cursor/commands/self-review.md'), 'utf8'),
+  ],
 ];
 
 describe('skill-invocation log: helper invocation in /verify and /audit (147)', () => {
@@ -80,20 +104,29 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
     ])(
       '%s documents the fallback when inline shell execution does not run',
       (_name, content, skill) => {
-        expect(content).toContain('provides `CLAUDE_SESSION_ID` for session binding');
         expect(content).toContain(
-          'Codex and Cursor docs do not document Claude-style `!` expansion or a compatible `CLAUDE_SESSION_ID`',
+          'Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding',
         );
         expect(content).toContain(
-          'fallback below is a fail-closed check that may report no session-scoped proof is available',
+          'Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution',
+        );
+        expect(content).toContain(
+          'Feature tickets must fail closed if no real current-session proof can be logged.',
+        );
+        expect(content).toContain(
+          `Task, patch, and no-ticket ${skill} work may continue after recording that session-scoped proof was unavailable and not required by the gate.`,
         );
         expect(content).toContain(
           `If no \`[skill-invocation-log] ${skill} ✓\` line appears above, run this fallback before continuing:`,
         );
         expect(content).toContain(
-          `bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ${skill}`,
+          `bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ${skill} "\${CLAUDE_SESSION_ID}"`,
         );
-        expect(content).toContain('Missing CLAUDE_SESSION_ID');
+        expect(content).toContain(
+          `bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ${skill} "\${CLAUDE_SESSION_ID:-}"`,
+        );
+        expect(content).toContain('Missing session id for skill invocation log');
+        expect(content).not.toContain('reports `Missing CLAUDE_SESSION_ID`');
         expect(content).not.toContain('Bash injection runs at render time');
       },
     );
@@ -126,4 +159,42 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
       expect(realpathSync(resolved)).toBe(realpathSync(repo));
     });
   });
+});
+
+describe('skill-invocation log: README guidance (HMZSCD)', () => {
+  it('does not claim the entire done-gate is inoperable without bash injection', () => {
+    expect(readme).not.toContain('the done-gate is currently inoperable');
+    expect(readme).toContain('Feature-ticket done gates require this session-scoped proof');
+    expect(readme).toContain(
+      'Task and patch tickets can still use `verify.md` when session-scoped invocation proof is unavailable and not required by the gate.',
+    );
+  });
+
+  it('documents the current Bun helper permission instead of stale inline shell fragments', () => {
+    expect(readme).toContain(
+      '"allow": ["Bash(bun */.safeword/hooks/record-skill-invocation.ts*)"]',
+    );
+    expect(readme).toContain('record-skill-invocation.ts');
+    expect(readme).toContain('Claude Code evaluates compound bash commands per subcommand');
+    expect(readme).not.toContain('Bash(node -e:*)');
+    expect(readme).not.toContain('Bash(mkdir -p:*)');
+    expect(readme).not.toContain('Bash(echo:*)');
+  });
+});
+
+describe('self-review stamp fallback surfaces (K2ZP40)', () => {
+  it.each(selfReviewForms)(
+    '%s documents a manual write-review-stamp fallback for non-Claude render contexts',
+    (_name, content) => {
+      expect(content).toContain('If no `[skill-invocation-log]');
+      expect(content).toContain('run this fallback before stopping:');
+      expect(content).toContain(
+        'CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec',
+      );
+      expect(content).toContain(
+        'The review stamp is content-bound and does not require `CLAUDE_SESSION_ID`.',
+      );
+      expect(content).not.toContain('no `✓` line at all**: STOP');
+    },
+  );
 });

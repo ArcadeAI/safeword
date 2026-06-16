@@ -16,8 +16,18 @@ per-asset gate reads it back.
 
 !`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec`
 
-If you see `[skill-invocation-log] FAILED` or no `✓` line, the stamp was not
-written and the gate will keep blocking — resolve before retrying.
+If no `[skill-invocation-log] ... ✓` line appears above, run this fallback before stopping:
+
+```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec
+```
+
+The review stamp is content-bound and does not require `CLAUDE_SESSION_ID`.
+
+If the automatic line and fallback both print `[skill-invocation-log] FAILED`,
+or still do not print `✓`, the stamp was not written and the gate will keep
+blocking — resolve before retrying.
 
 ## Review the spec
 

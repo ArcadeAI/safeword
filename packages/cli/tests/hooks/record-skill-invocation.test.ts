@@ -59,6 +59,28 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     );
   });
 
+  it('prefers an explicit session id argument over the environment fallback', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.project'), { recursive: true });
+
+    const output = execFileSync(
+      'bun',
+      [helperPath, projectDirectory, 'verify', 'explicit-session'],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_SESSION_ID: 'env-session' },
+      },
+    );
+
+    expect(output.trim()).toBe('[skill-invocation-log] verify ✓');
+    const logContent = readFileSync(
+      nodePath.join(projectDirectory, '.project', 'skill-invocations.log'),
+      'utf8',
+    );
+    expect(logContent).toMatch(/ explicit-session verify$/m);
+    expect(logContent).not.toContain('env-session');
+  });
+
   it('appends audit after verify without overwriting the existing log', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
     mkdirSync(nodePath.join(projectDirectory, '.project'), { recursive: true });
@@ -90,7 +112,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     expect(result.stderr).toContain('Invalid skill name "../verify"');
   });
 
-  it('fails closed when no Claude session id is available', () => {
+  it('fails closed when no session id is available', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
     const env = { ...process.env };
     delete env.CLAUDE_SESSION_ID;
@@ -101,7 +123,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('Missing CLAUDE_SESSION_ID');
+    expect(result.stderr).toContain('Missing session id for skill invocation log');
     expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
       false,
     );

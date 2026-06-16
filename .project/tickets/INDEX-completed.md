@@ -345,7 +345,7 @@
 - **Fix 11 ESLint errors in hooks.test.ts (131)** (done, epic: —)
   Clean up the remaining 11 ESLint errors in `packages/cli/tests/integration/hooks.test.ts`. Originally Part 4 of ticket #109 (which specified 19 errors — 8 were fixed in earlier sessions, 11 remain).
   → `.project/tickets/completed/131-hooks-test-lint-fixes`
-- **Fix: upgrade self-installs as workspace:\* in monorepos (132)** (done, epic: —)
+- **Fix: upgrade self-installs as workspace:* in monorepos (132)** (done, epic: —)
   Prevent `computePackagesToInstall` from listing packages that are already provided by workspace members.
   → `.project/tickets/completed/132-upgrade-self-install-workspace`
 - **Refactor: consolidate duplicate getWorkspacePatterns in detect.ts (134)** (done, epic: —)

@@ -171,7 +171,7 @@ Before proceeding to define-behavior:
 
 0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
 1. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
-2. **Verify ticket exists:** `<namespace-root>/tickets/{id}-{slug}/ticket.md`
+2. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
 3. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
 4. **Update frontmatter:** `phase: define-behavior`
 5. **Add work log entry:**

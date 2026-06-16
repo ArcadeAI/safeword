@@ -55,6 +55,18 @@ describe('ticket-system SKILL.md (template)', () => {
   it('references `safeword ticket new` as the way to create a ticket', () => {
     expect(readSkill()).toContain('safeword ticket new');
   });
+
+  it('documents the current ticket folder shape created by the CLI', () => {
+    const skill = readSkill();
+    expect(skill).toContain('<namespace-root>/tickets/{ID}-{slug}/');
+    expect(skill).toContain('7K9M3P-login-bug/');
+  });
+
+  it('does not describe ID-only folders as the new ticket format', () => {
+    const skill = readSkill();
+    expect(skill).not.toContain('folder name is the ID alone');
+    expect(skill).not.toContain('New format: folder = Crockford ID');
+  });
 });
 
 describe('all shipped templates (packages/cli/templates/**/*.md)', () => {
