@@ -531,7 +531,7 @@ if (currentPhase === 'done') {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       const missingList = skillCheck.missing.map(s => `/${s}`).join(' and ');
       hardBlockDone(
-        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking done. The helper-written log (skill-invocations.log under the project namespace root) proves invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no entry was logged, inline shell execution was likely denied, the fallback helper was not run, CLAUDE_SESSION_ID was missing, or Bun could not run the installed helper. Check the invocation-log block at the top of the skill and .safeword/hooks/record-skill-invocation.ts.`,
+        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking a feature ticket done. The helper-written log (skill-invocations.log under the project namespace root) proves current-session invocation; hand-written verify.md does not satisfy this feature-ticket gate. If you ran ${missingList} but no session-scoped proof was logged, inline shell execution may have been denied, the fallback helper may not have been run, the client may not have provided a compatible session id, or Bun could not run the installed helper. Check the invocation-log block at the top of the skill and .safeword/hooks/record-skill-invocation.ts.`,
       );
     }
   }

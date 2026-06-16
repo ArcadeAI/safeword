@@ -194,14 +194,14 @@ Key directories created in your project:
 
 **Purpose**: Context anchors for complex/multi-step work to prevent LLM loops
 
-**Location**: `<namespace-root>/tickets/{id}-{slug}/`
+**Location**: `<namespace-root>/tickets/{ID}-{slug}/` for tickets created by `safeword ticket new`. Older `{ID}/` and numeric `{id}-{slug}/` folders remain readable by ID.
 
 **Structure**:
 
 ```plaintext
 <namespace-root>/
 ├── tickets/
-│   ├── 001-feature-name/
+│   ├── 7K9M3P-login-bug/
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
 │   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
 │   │   ├── spec.md             # Feature spec for epics (optional)
@@ -414,25 +414,25 @@ No. Commit the `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` d
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally, and safeword does not install git hooks. It adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
 
 **What Claude Code permissions does safeword need?**
-Safeword's done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, the gate hard-blocks at done-phase.
+Safeword's feature-ticket done-gate verifies that `/verify` and `/audit` were actually invoked by reading a session-scoped log written via bash injection at the top of each skill. If Claude Code denies that bash injection, feature tickets hard-block at done-phase.
 
 To pre-approve the injection without prompts (recommended for headless / non-interactive sessions), add these patterns to `.claude/settings.json`:
 
 ```json
 {
   "permissions": {
-    "allow": ["Bash(node -e:*)", "Bash(mkdir -p:*)", "Bash(echo:*)"]
+    "allow": ["Bash(bun */.safeword/hooks/record-skill-invocation.ts*)"]
   }
 }
 ```
 
-This is the **minimum surgical scope**:
+This pre-approves the current safeword helper invocation:
 
-- `Bash(mkdir -p:*)` matches only `mkdir -p ...` invocations (word boundary enforced), not bare `mkdir`.
-- `Bash(echo:*)` is the only way to pre-approve `echo` — Claude Code bash patterns cannot constrain by what is being echoed or where it writes (`>>` redirects are part of the command string, not a separator).
-- `Bash(node -e:*)` lets the injection parse `.safeword/config.json` so `paths.projectRoot` is honored before the default/legacy fallback.
+- Claude Code evaluates compound bash commands per subcommand, so the allow rule only needs to cover the Bun helper that writes the log.
+- `Bash(bun */.safeword/hooks/record-skill-invocation.ts*)` matches Bun running safeword's installed invocation logger from the project `.safeword/hooks/` directory.
+- No `node -e`, `mkdir -p`, or `echo` allow rule is needed for the current injection. The helper performs the write itself, and Claude Code treats `echo` plus read-only `git` forms as read-only commands.
 
-The injection itself resolves the project namespace root and writes timestamped lines to `<namespace-root>/skill-invocations.log` — no network calls, no file mutation outside that path. If you cannot or do not want to allow bash injection in your environment, the done-gate is currently inoperable — please open an issue if this affects you.
+The injection itself resolves the project namespace root and writes timestamped lines to `<namespace-root>/skill-invocations.log` — no network calls, no file mutation outside that path. Feature-ticket done gates require this session-scoped proof. Task and patch tickets can still use `verify.md` when session-scoped invocation proof is unavailable and not required by the gate.
 
 ---
 

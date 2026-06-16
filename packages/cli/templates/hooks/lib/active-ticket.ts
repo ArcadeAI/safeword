@@ -38,10 +38,10 @@ const EMPTY_DETAILS: TicketDetails = {
  * Look up a specific ticket's phase and status by ID.
  *
  * Resolves two folder layouts:
- *   - `{id}-{slug}/` — folder name starts with `${id}-` (e.g. `080-foo`,
+ *   - `{ID}-{slug}/` — folder name starts with `${ID}-` (e.g. `080-foo`,
  *     `G2E72G-yolo-mode`). Canonical going forward; case-sensitive on the prefix
- *     since Base32 IDs are minted uppercase and legacy numeric IDs have no case.
- *   - `{id}/` — folder name equals the ID exactly. Historical shape used by
+ *     since Crockford IDs are minted uppercase and legacy numeric IDs have no case.
+ *   - `{ID}/` — folder name equals the ID exactly. Historical shape used by
  *     opaque Base32 tickets minted before the slug suffix was added; lookup is
  *     case-insensitive on input.
  *

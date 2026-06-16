@@ -109,6 +109,8 @@ describe('skill-invocation gate: end-to-end (147)', () => {
     expect(result.reason).toContain('/verify');
     expect(result.reason).toContain('/audit');
     expect(result.reason.toLowerCase()).toContain('missing');
+    expect(result.reason).toContain('session-scoped proof');
+    expect(result.reason).not.toContain('CLAUDE_SESSION_ID');
   });
 
   it('feature done blocks with only /audit missing', () => {

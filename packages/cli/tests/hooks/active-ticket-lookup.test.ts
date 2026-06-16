@@ -1,10 +1,10 @@
 /**
  * Unit tests for dual-format active-ticket lookup (ticket 158, slice 4).
  *
- * Covers Rule 5 in test-definitions.md: getTicketInfo must resolve both legacy
- * `{numeric}-{slug}/` (e.g. `080-foo`, `102a-foo`) AND new `{CROCKFORD}/`
- * folders, case-insensitively on the new format. Duplicate matches surface as
- * an ambiguity (returns empty + stderr) rather than silently picking one.
+ * Covers Rule 5 in test-definitions.md: getTicketInfo must resolve current
+ * `{CROCKFORD}-{slug}/` folders, historical `{CROCKFORD}/` folders, and legacy
+ * `{numeric}-{slug}/` folders. Duplicate matches surface as an ambiguity
+ * (returns empty + stderr) rather than silently picking one.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -57,14 +57,21 @@ describe('getTicketInfo — dual-format lookup', () => {
     expect(result.folder).toBe('102a-gherkin-typescript');
   });
 
-  it('resolves a new-format folder (folder name = ID alone)', () => {
+  it('resolves a current Crockford ID + slug folder', () => {
+    makeTicket(projectDirectory, '7K9M3P-login-bug', '7K9M3P');
+    const result = getTicketInfo(projectDirectory, '7K9M3P');
+    expect(result.folder).toBe('7K9M3P-login-bug');
+    expect(result.slug).toBe('login-bug');
+  });
+
+  it('resolves a historical Crockford ID-only folder', () => {
     makeTicket(projectDirectory, '7K9M3P', '7K9M3P');
     const result = getTicketInfo(projectDirectory, '7K9M3P');
     expect(result.folder).toBe('7K9M3P');
     expect(result.slug).toBeUndefined();
   });
 
-  it('resolves a new-format folder case-insensitively when given lowercase input', () => {
+  it('resolves a historical Crockford ID-only folder case-insensitively', () => {
     makeTicket(projectDirectory, '7K9M3P', '7K9M3P');
     const result = getTicketInfo(projectDirectory, '7k9m3p');
     expect(result.folder).toBe('7K9M3P');
