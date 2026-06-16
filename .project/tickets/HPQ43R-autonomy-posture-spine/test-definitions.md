@@ -30,6 +30,18 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: An invalid policy selection is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A malformed policy fails safe to Full review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Personal policy overrides the project without touching the repo
 
 ### Scenario: Personal override takes precedence over the project policy
@@ -38,13 +50,19 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The personal override is absent from version control
+### Scenario: The personal override cannot be committed to the repository
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Without a personal override the project policy governs unchanged
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A malformed personal override falls back to the project policy
 
 - [ ] RED
 - [ ] GREEN
@@ -58,13 +76,13 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An autonomous axis is resolved by a figure-it-out sub-agent
+### Scenario: An autonomous axis is resolved without pausing
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The resolution sub-agent receives the full context payload
+### Scenario: A resolution reflects the context the sub-agent was given
 
 - [ ] RED
 - [ ] GREEN
@@ -104,7 +122,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Hard gates still fire under autonomy
+### Scenario Outline: Hard gates still fire under autonomy
 
 - [ ] RED
 - [ ] GREEN

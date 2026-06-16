@@ -12,7 +12,7 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
     Scenario: A project preset is recorded in committed configuration
       Given a project with no autonomy policy
       When the developer selects the "Guard the contract" preset for the project
-      Then the project's committed configuration records the "Guard the contract" posture
+      Then the project's committed configuration names the preset as "Guard the contract"
 
     @autonomy-posture-spine.DEV1.AC2
     Scenario: A preset resolves to an inspectable per-axis posture map
@@ -34,6 +34,25 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       When the developer inspects the resolved posture
       Then every axis reads "ask"
 
+    @autonomy-posture-spine.DEV1.AC5
+    Scenario Outline: An invalid policy selection is rejected
+      Given a project with no autonomy policy
+      When the developer sets <field> to "<value>"
+      Then the selection is rejected
+      And the project's committed configuration is unchanged
+
+      Examples:
+        | field   | value          |
+        | preset  | Reckless       |
+        | posture | sometimes      |
+        | axis    | vibes          |
+
+    @autonomy-posture-spine.DEV1.AC6
+    Scenario: A malformed policy fails safe to Full review
+      Given a project whose autonomy policy file is malformed
+      When the developer inspects the resolved posture
+      Then every axis reads "ask"
+
   Rule: Personal policy overrides the project without touching the repo
 
     @autonomy-posture-spine.DEV2.AC1
@@ -44,15 +63,23 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       Then the execution axis reads "autonomous"
 
     @autonomy-posture-spine.DEV2.AC2
-    Scenario: The personal override is absent from version control
+    Scenario: The personal override cannot be committed to the repository
       Given a personal override setting the execution axis to "autonomous"
-      When the repository's tracked changes are listed
-      Then the personal override file is not among them
+      When the developer attempts to stage the personal override file
+      Then the personal override path is matched by the repository's ignore rules
+      And the personal override file remains untracked
 
     @autonomy-posture-spine.DEV2.AC3
     Scenario: Without a personal override the project policy governs unchanged
       Given a project on the "Guard the contract" preset
       And no personal override is present
+      When the developer inspects the resolved posture
+      Then the resolved posture equals the "Guard the contract" map
+
+    @autonomy-posture-spine.DEV2.AC4
+    Scenario: A malformed personal override falls back to the project policy
+      Given a project on the "Guard the contract" preset
+      And a personal override file that is malformed
       When the developer inspects the resolved posture
       Then the resolved posture equals the "Guard the contract" map
 
@@ -62,20 +89,22 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
     Scenario: An ask axis pauses for the human
       Given the intent-and-scope axis is set to "ask"
       When the agent reaches a scope decision it would put to the human
-      Then the agent pauses for the human
+      Then the agent pauses for the human on the intent-and-scope axis
+      And no resolution sub-agent is dispatched
 
     @autonomy-posture-spine.DEV3.AC1
-    Scenario: An autonomous axis is resolved by a figure-it-out sub-agent
+    Scenario: An autonomous axis is resolved without pausing
       Given the execution axis is set to "autonomous"
       When the agent reaches an execution decision it would put to the human
-      Then a sub-agent resolves the decision by running figure-it-out
+      Then the agent records an autonomous resolution for the execution decision
       And the agent proceeds without pausing for the human
 
     @autonomy-posture-spine.DEV3.AC2
-    Scenario: The resolution sub-agent receives the full context payload
+    Scenario: A resolution reflects the context the sub-agent was given
       Given the execution axis is set to "autonomous"
-      When a sub-agent is dispatched to resolve an execution decision
-      Then the sub-agent receives the question, the ticket and spec, the relevant prior decisions, and the active constraints
+      And the active ticket constrains the decision
+      When a sub-agent resolves an execution decision
+      Then the recorded resolution cites the ticket constraint it was bound by
 
     @autonomy-posture-spine.DEV3.AC3
     Scenario: An autonomous resolution is recorded
@@ -114,10 +143,16 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       Then the agent prompts the human to confirm
 
     @autonomy-posture-spine.DEV5.AC2
-    Scenario: Hard gates still fire under autonomy
+    Scenario Outline: Hard gates still fire under autonomy
       Given every axis is set to "autonomous"
-      When uncommitted project changes reach the line-of-code commit threshold
-      Then the line-of-code gate fires
+      When the <gate> trigger condition is met
+      Then the <gate> still fires
+
+      Examples:
+        | gate                |
+        | line-of-code commit |
+        | done                |
+        | verify-artifact     |
 
     @autonomy-posture-spine.DEV5.AC3
     Scenario: Closing a ticket as done needs explicit human confirmation

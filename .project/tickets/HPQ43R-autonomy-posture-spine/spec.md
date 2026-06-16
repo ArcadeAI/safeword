@@ -41,6 +41,10 @@ The v1 spine of configurable human-in-the-loop (parent epic 90AZDV). A team pick
 
 #### autonomy-posture-spine.DEV1.AC4 — With no policy set, the project defaults to Full review (every axis = ask)
 
+#### autonomy-posture-spine.DEV1.AC5 — An invalid selection (unknown preset, invalid posture value, unknown axis) is rejected and leaves the committed config unchanged
+
+#### autonomy-posture-spine.DEV1.AC6 — A malformed or unreadable policy file fails safe to Full review (every axis = ask), never to autonomy
+
 ### autonomy-posture-spine.DEV2 — Tune my own comfort without changing the team's policy
 
 **Persona:** Agent-Driven Developer (DEV)
@@ -54,6 +58,8 @@ The v1 spine of configurable human-in-the-loop (parent epic 90AZDV). A team pick
 #### autonomy-posture-spine.DEV2.AC2 — The personal override lives in a location that is never committed to the repository
 
 #### autonomy-posture-spine.DEV2.AC3 — With no personal override present, the project policy governs unchanged
+
+#### autonomy-posture-spine.DEV2.AC4 — A malformed personal override falls back to the project policy, never to autonomy
 
 ### autonomy-posture-spine.DEV3 — Run hands-off and have the agent resolve its own questions
 

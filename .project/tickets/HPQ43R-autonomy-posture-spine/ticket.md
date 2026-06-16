@@ -2,7 +2,7 @@
 id: HPQ43R
 slug: autonomy-posture-spine
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 created: 2026-06-16T16:29:40.567Z
 last_modified: 2026-06-16T16:29:40.567Z
@@ -42,4 +42,6 @@ done_when:
 ## Work Log
 
 - 2026-06-16T16:29:40.567Z Started: Created ticket HPQ43R
-- 2026-06-16T16:30:00.000Z Sliced from epic 90AZDV as the v1 spine. Entered define-behavior with scope/out_of_scope/done_when set, spec authored, and the 18-scenario set accepted in chat.
+- 2026-06-16T16:30:00.000Z Sliced from epic 90AZDV as the v1 spine. Entered define-behavior with scope/out_of_scope/done_when set, spec authored, and the scenario set accepted in chat.
+- 2026-06-16T16:40:00.000Z Complete: define-behavior — 20 scenarios across 5 rules in features/autonomy-posture-spine.feature; SM1 structural ACs unit-verified by design.
+- 2026-06-16T16:45:00.000Z Complete: scenario-gate — independent fresh-reviewer ran /review-spec, found 3 must-fix + 5 should-strengthen. Applied: rewrote DEV2.AC2 (gitignore enforcement, was vacuous), DEV3.AC1 autonomous + DEV3.AC2 (assert behavior/effect not mechanism), DEV1.AC1 (assert recorded value); added negative cases DEV1.AC5/AC6 + DEV2.AC4 (invalid-selection reject, malformed-policy fail-safe) and broadened DEV5.AC2 to a Scenario Outline over all three hard gates. safeword check clean except documented SM1. impl-plan.md written (test layers + build order). Advancing to implement.
