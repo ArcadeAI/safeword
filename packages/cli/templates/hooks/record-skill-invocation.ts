@@ -12,7 +12,7 @@ const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 export function recordSkillInvocation(
   projectDirectory: string,
   skillName: string,
-  sessionId = process.env.CLAUDE_SESSION_ID,
+  sessionId = process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID,
 ): void {
   if (!SKILL_NAME_PATTERN.test(skillName)) {
     throw new Error(`Invalid skill name "${skillName}"`);
@@ -33,7 +33,8 @@ export function recordSkillInvocation(
 if (import.meta.main) {
   const projectDirectory = process.argv[2] ?? process.cwd();
   const skillName = process.argv[3];
-  const sessionId = process.argv[4] ?? process.env.CLAUDE_SESSION_ID;
+  const sessionId =
+    process.argv[4] || process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID;
 
   try {
     if (skillName === undefined) {

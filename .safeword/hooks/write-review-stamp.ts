@@ -29,7 +29,7 @@ import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledge
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const sessionId = process.env.CLAUDE_SESSION_ID ?? 'unknown-session';
+const sessionId = process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID || 'unknown-session';
 const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
 
 function fail(message: string): never {
