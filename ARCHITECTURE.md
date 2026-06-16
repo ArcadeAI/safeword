@@ -65,7 +65,7 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 ```text
 packages/cli/
 ├── src/
-│   ├── commands/       # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings)
+│   ├── commands/       # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, test-plan)
 │   ├── packs/          # Language packs + registry
 │   │   ├── {lang}/     # index.ts, files.ts, setup.ts per language
 │   │   ├── registry.ts # Central pack registry and detection
