@@ -14,8 +14,10 @@ scope:
   - Log every autonomous resolution (question, options, pick, rationale) to the ticket work log
   - Couple the compensating control - when human review is dialed down on an axis, the independent-observation control (fork/cross-model review) dials up on that axis
   - Expose the policy as a small set of named presets (the lead UX) with the per-axis postures as the power-user escape hatch underneath
-  - Three postures per axis - ask (pause for human), swap (autonomous + independent cross-model review before the decision stands), silence (autonomous + log only)
-  - Swap requires a cross-model reviewer (same-model self-review is rejected); frame swap honestly as a partial control, not equivalent to human review
+  - Two postures per axis - ask (pause for human) or autonomous (agent resolves, then applies the strongest applicable control tier)
+  - Control ladder for autonomous decisions, highest applicable tier first - (1) verify: deterministic check of a checkable artifact, no LLM judge; (2) debate-review: 2+ cross-model agents debate to consensus when no mechanical check exists (single-reviewer rejected - correlated errors); (3) async-audit: log to a digest the human samples after the fact
+  - Async-audit resists rubber-stamping - justification-to-accept on high-stakes items, tracked rejection rate
+  - Tag every autonomous decision with the control tier that checked it (verified / debated / audited)
   - Default when no policy is set is the most human-in-the-loop preset - autonomy is opt-in and earned
   - Always-confirm denylist (absorbed from G2E72G) - git push / push --force, branch delete or reset --hard, sending external messages (email/Slack/etc.), file deletion outside the ticket folder, marking ticket done, paid-API spend above a threshold, touching production config or secrets - prompts the user regardless of autonomy setting
   - Hard safeword gates (LOC commit, done gate, verify artifact) still fire under any autonomy setting (absorbed from G2E72G)
@@ -76,7 +78,7 @@ Candidate axes a user would set: **intent & scope**, **behavioral contract**, **
 
 - **G2E72G (yolo-mode):** superseded by 90AZDV (user direction, 2026-06-16); keepers absorbed.
 - **Axis granularity:** named presets are the lead UX, per-axis postures underneath (prior art: AutoGen's 3-mode set; presets beat 6 raw toggles for most users).
-- **Autonomy semantics:** three postures — ask / swap / silence. Swap requires cross-model and is framed as a partial control (LLM-as-judge has self-enhancement bias, no formal guarantees). Default-when-unset leans human-in-the-loop (autonomy earned, per AutoGen's start-ALWAYS-then-NEVER).
+- **Autonomy semantics:** two postures — ask / autonomous — where autonomous applies a **3-tier control ladder** (verify > debate-review > async-audit), highest tier that fits the decision. Replaces the earlier silence/swap binary after a /figure-it-out pass: single-judge review is insufficient (correlated errors, [Nine Judges, Two Effective Votes](https://arxiv.org/abs/2605.29800)); prefer deterministic verification (VeriGuard direction); design async audit against rubber-stamping. Default-when-unset leans human-in-the-loop (autonomy earned).
 
 Remaining unknowns deferred to define-behavior/scenario-gate — see `known_unknowns` frontmatter.
 
@@ -95,3 +97,4 @@ Remaining unknowns deferred to define-behavior/scenario-gate — see `known_unkn
 - 2026-06-16T14:32:13.236Z Superseded G2E72G at user direction: marked it status=superseded with a pointer here, and absorbed its keepers into scope (denylist, hard-gates-fire, per-ticket toggle, inline decision logging, deferred failure-mode + cost-ceiling). Largest design fork (silence vs. swap-reviewer per axis) remains open for next intake turn.
 - 2026-06-16T15:39:00.000Z Ran /quality-review (intake/ecosystem focus): leverage-map placement and a small discrete mode-set are both validated by prior art (LangGraph strategic interrupts, AutoGen NEVER/TERMINATE/ALWAYS). Flagged two refinements — swap must be cross-model and framed as a partial control (LLM-judge self-enhancement bias); lead UX with presets over raw axes; default toward human-in-loop.
 - 2026-06-16T15:45:00.000Z Applied the three review refinements and authored spec.md (2 personas, 6 JTBDs, ACs). Resolved the axis-granularity and autonomy-semantics forks in scope + Technical Constraints. Intake near-complete; 4 implementation-detail unknowns deferred to define-behavior/scenario-gate.
+- 2026-06-16T16:13:00.000Z Ran /figure-it-out on "how to improve the design." Replaced the silence/swap binary with a 3-tier control ladder (verify > debate-review > async-audit) after evidence that single-judge cross-model review is barely more independent than the author (correlated errors), deterministic verification beats judgment where checkable (VeriGuard), and async digests rubber-stamp without anti-bias design. Reworked spec.md (DEV4 + new DEV6, vocabulary, outcomes, constraints, references) and ticket scope. New deferred question: the per-axis verify-vs-debate mapping.
