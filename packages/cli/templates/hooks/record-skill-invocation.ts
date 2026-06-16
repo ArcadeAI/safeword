@@ -12,6 +12,7 @@ const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 export function recordSkillInvocation(
   projectDirectory: string,
   skillName: string,
+  // CLAUDE_CODE_SESSION_ID is set (and CLAUDE_SESSION_ID is empty) in remote container sessions (web, GitHub Actions).
   sessionId = process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID,
 ): void {
   if (!SKILL_NAME_PATTERN.test(skillName)) {
