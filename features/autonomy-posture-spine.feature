@@ -1,9 +1,3 @@
-# @manual until the `safeword autonomy` CLI surface exists for step definitions
-# to drive (this lane runs under node+tsx, which cannot import workspace `src`
-# modules that use `.js` specifiers — the convention is to shell out to the CLI).
-# Behavior is fully proven today by unit tests in
-# packages/cli/src/utils/autonomy-policy*.test.ts and autonomy-breakpoint.test.ts.
-@manual
 Feature: Set an autonomy posture and resolve trusted decisions autonomously
 
   A team picks a named autonomy posture; safeword pauses on the axes set to
@@ -27,7 +21,7 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       Then the behavioral-contract axis reads "ask"
       And the execution axis reads "autonomous"
 
-    @autonomy-posture-spine.DEV1.AC3
+    @manual @autonomy-posture-spine.DEV1.AC3
     Scenario: Overriding one axis keeps the preset for the rest
       Given a project on the "Hands-off" preset
       When the developer overrides the irreversible-design axis to "ask"
@@ -40,7 +34,7 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       When the developer inspects the resolved posture
       Then every axis reads "ask"
 
-    @autonomy-posture-spine.DEV1.AC5
+    @manual @autonomy-posture-spine.DEV1.AC5
     Scenario Outline: An invalid policy selection is rejected
       Given a project with no autonomy policy
       When the developer sets <field> to "<value>"
@@ -61,28 +55,28 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
 
   Rule: Personal policy overrides the project without touching the repo
 
-    @autonomy-posture-spine.DEV2.AC1
+    @manual @autonomy-posture-spine.DEV2.AC1
     Scenario: Personal override takes precedence over the project policy
       Given a project on the "Full review" preset
       And a personal override setting the execution axis to "autonomous"
       When the developer inspects the resolved posture
       Then the execution axis reads "autonomous"
 
-    @autonomy-posture-spine.DEV2.AC2
+    @manual @autonomy-posture-spine.DEV2.AC2
     Scenario: The personal override cannot be committed to the repository
       Given a personal override setting the execution axis to "autonomous"
       When the developer attempts to stage the personal override file
       Then the personal override path is matched by the repository's ignore rules
       And the personal override file remains untracked
 
-    @autonomy-posture-spine.DEV2.AC3
+    @manual @autonomy-posture-spine.DEV2.AC3
     Scenario: Without a personal override the project policy governs unchanged
       Given a project on the "Guard the contract" preset
       And no personal override is present
       When the developer inspects the resolved posture
       Then the resolved posture equals the "Guard the contract" map
 
-    @autonomy-posture-spine.DEV2.AC4
+    @manual @autonomy-posture-spine.DEV2.AC4
     Scenario: A malformed personal override falls back to the project policy
       Given a project on the "Guard the contract" preset
       And a personal override file that is malformed
@@ -91,28 +85,28 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
 
   Rule: An autonomous axis resolves without pausing
 
-    @autonomy-posture-spine.DEV3.AC1
+    @manual @autonomy-posture-spine.DEV3.AC1
     Scenario: An ask axis pauses for the human
       Given the intent-and-scope axis is set to "ask"
       When the agent reaches a scope decision it would put to the human
       Then the agent pauses for the human on the intent-and-scope axis
       And no resolution sub-agent is dispatched
 
-    @autonomy-posture-spine.DEV3.AC1
+    @manual @autonomy-posture-spine.DEV3.AC1
     Scenario: An autonomous axis is resolved without pausing
       Given the execution axis is set to "autonomous"
       When the agent reaches an execution decision it would put to the human
       Then the agent records an autonomous resolution for the execution decision
       And the agent proceeds without pausing for the human
 
-    @autonomy-posture-spine.DEV3.AC2
+    @manual @autonomy-posture-spine.DEV3.AC2
     Scenario: A resolution reflects the context the sub-agent was given
       Given the execution axis is set to "autonomous"
       And the active ticket constrains the decision
       When a sub-agent resolves an execution decision
       Then the recorded resolution cites the ticket constraint it was bound by
 
-    @autonomy-posture-spine.DEV3.AC3
+    @manual @autonomy-posture-spine.DEV3.AC3
     Scenario: An autonomous resolution is recorded
       Given the execution axis is set to "autonomous"
       When a sub-agent resolves an execution decision
@@ -120,13 +114,13 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
 
   Rule: Autonomy degrades safely when it cannot decide
 
-    @autonomy-posture-spine.DEV3.AC4
+    @manual @autonomy-posture-spine.DEV3.AC4
     Scenario: A transient figure-it-out failure is retried once
       Given the execution axis is set to "autonomous"
       When the resolution sub-agent's figure-it-out times out on its first attempt
       Then the sub-agent retries figure-it-out once
 
-    @autonomy-posture-spine.DEV3.AC4
+    @manual @autonomy-posture-spine.DEV3.AC4
     Scenario: A repeated transient failure defers to the human
       Given the execution axis is set to "autonomous"
       And the resolution sub-agent's figure-it-out has already failed once
@@ -134,7 +128,7 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
       Then the decision defers to the human
       And the failed attempts are logged
 
-    @autonomy-posture-spine.DEV3.AC5
+    @manual @autonomy-posture-spine.DEV3.AC5
     Scenario: An inconclusive verdict defers without retry
       Given the execution axis is set to "autonomous"
       When the resolution sub-agent's figure-it-out completes but reaches no conclusion
@@ -142,13 +136,13 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
 
   Rule: Some actions always stop for the human regardless of posture
 
-    @autonomy-posture-spine.DEV5.AC1
+    @manual @autonomy-posture-spine.DEV5.AC1
     Scenario: A denylisted action prompts even under full autonomy
       Given every axis is set to "autonomous"
       When the agent is about to push to the remote
       Then the agent prompts the human to confirm
 
-    @autonomy-posture-spine.DEV5.AC2
+    @manual @autonomy-posture-spine.DEV5.AC2
     Scenario Outline: Hard gates still fire under autonomy
       Given every axis is set to "autonomous"
       When the <gate> trigger condition is met
@@ -160,7 +154,7 @@ Feature: Set an autonomy posture and resolve trusted decisions autonomously
         | done                |
         | verify-artifact     |
 
-    @autonomy-posture-spine.DEV5.AC3
+    @manual @autonomy-posture-spine.DEV5.AC3
     Scenario: Closing a ticket as done needs explicit human confirmation
       Given every axis is set to "autonomous"
       When the agent is about to mark the ticket done
