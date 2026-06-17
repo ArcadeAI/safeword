@@ -51,9 +51,23 @@ Run these in sequence, reporting each result:
 1. **Run `/lint`** to auto-fix style issues first
 2. Then run verification:
 
+Per-language test/build commands come from `safeword test-plan` — one source of
+truth (the same plan the stop-hook gate runs). Eval its shell plan in a child
+shell: an absent toolchain prints a visible skip, and a failing suite exits
+non-zero so the gate blocks. The Gherkin acceptance lane runs separately (it is
+not a `test-plan` suite).
+
 ```bash
-# Full test suite
-bun run test 2>&1
+# Resolve a test-plan-capable safeword CLI — prefer the locally installed one
+# (a bare `bunx safeword` can resolve the published CLI, which may predate test-plan).
+if [ -x node_modules/.bin/safeword ]; then
+  SW="node_modules/.bin/safeword"
+elif [ -f packages/cli/src/cli.ts ]; then
+  SW="bun packages/cli/src/cli.ts"
+else SW="bunx safeword"; fi
+
+# --- Test suite (resolved by safeword test-plan — one source of truth) ---
+bash -c "$($SW test-plan --kind test --format sh)"
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
@@ -62,8 +76,8 @@ else
   echo "Gherkin acceptance lane skipped: Skipped — no test:bdd script"
 fi
 
-# Build check
-bun run build 2>&1
+# --- Build check (resolved by safeword test-plan) ---
+bash -c "$($SW test-plan --kind build --format sh)"
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.
@@ -88,20 +102,24 @@ If ticket has `parent:` field:
 
 ### 5. Check Dependency Drift
 
-Compare `package.json` dependencies against `ARCHITECTURE.md`:
+Compare the project's declared dependencies against `ARCHITECTURE.md`:
 
 1. If `ARCHITECTURE.md` does not exist, skip this check
 2. Read `ARCHITECTURE.md` content
-3. Read `package.json` `dependencies` and `devDependencies` keys
+3. Read the project's dependency manifest(s) — whichever exist:
+   - **JS/TS:** `package.json` `dependencies` and `devDependencies`
+   - **Python:** `pyproject.toml` (`[project]` `dependencies`, `[tool.poetry.dependencies]`) or `requirements.txt`
+   - **Go:** the `require` block in `go.mod`
+   - **Rust:** `[dependencies]` (and `[dev-dependencies]`) in `Cargo.toml`
 4. For each dependency name:
-   - Extract the package name (without `@scope/` prefix for matching — but check both full name and short name)
-   - Check if `ARCHITECTURE.md` mentions the package name (case-insensitive)
-5. Flag any dependency NOT mentioned: `"Dependency \`{name}\` not documented in ARCHITECTURE.md"`
+   - Extract the bare name (drop the `@scope/` prefix for JS, version/path specifiers for the others); check both full and short forms
+   - Check if `ARCHITECTURE.md` mentions it (case-insensitive)
+5. Flag any runtime/architectural dependency NOT mentioned: `"Dependency \`{name}\` not documented in ARCHITECTURE.md"`
 
 Do NOT flag:
 
-- `@types/*` packages (type-only, not architectural)
-- Packages in `devDependencies` that are tooling (eslint plugins, prettier plugins, test utils) — only flag deps that represent architectural choices
+- Type-only packages (`@types/*`) and standard-library imports
+- Tooling/dev dependencies (linters, formatters, test utils — across any language) — only flag deps that represent architectural choices
 
 ### 6. Report Results
 
@@ -114,9 +132,9 @@ The Status section uses the existing Verify Checklist format. Format with these 
 ```
 ## Verify Checklist
 
-**Test Suite:** ✓ X/X tests pass (or ❌ N failures)
+**Test Suite:** ✓ X/X tests pass (or ❌ N failures, or ⏭️ Skipped — no test suite)
 **Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⏭️ Skipped — no test:bdd script)
-**Build:** ✅ Success (or ❌ Failed)
+**Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
 **Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
