@@ -35,6 +35,7 @@ const DEFAULT_PROJECT_TYPE = {
   tanstackQuery: false,
   publishableLibrary: false,
   shell: false,
+  hasJsSource: false,
   existingLinter: false,
   existingFormatter: false,
   existingPrettierConfig: false,
