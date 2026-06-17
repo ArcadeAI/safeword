@@ -13,6 +13,8 @@
   → `.project/learnings/anthropic-research-feb-apr-2026.md`
 - **Claude Code Changelog: Feb-Apr 2026** — Claude Code 2.1.80-2.1.101 changelog, plugins.
   → `.project/learnings/claude-code-changelog-feb-apr-2026.md`
+- **CLAUDE_SESSION_ID empty in remote container sessions** — session identity, remote containers, skill-invocation-log, record-skill-invocation
+  → `.project/learnings/claude-session-id-remote-containers.md`
 - **Claude 4: Examples Are the Strongest Compliance Signal** — Claude 4 example-following, examples override rules.
   → `.project/learnings/claude4-examples-override-rules.md`
 - **Concise Over Verbose for Skill File Instructions (Not Prose Over Lists)** — skill file conciseness, step count, list ordering.
