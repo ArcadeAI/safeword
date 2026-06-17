@@ -333,7 +333,6 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       'scripts.lint:gherkin',
       'scripts.format',
       'scripts.format:check',
-      'scripts.knip',
       'scripts.test:bdd',
     ],
     skipIfMissing: true, // Setup creates package.json first (ensurePackageJson), so this only skips outside setup
@@ -341,6 +340,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       existingLinter: ['scripts.lint:eslint'], // Projects with existing linter get separate ESLint script
       publishableLibrary: ['scripts.publint'],
       shell: ['scripts.lint:sh'],
+      hasJsSource: ['scripts.knip'], // knip script only added for repos with real JS source (BE7C7B)
     },
     merge: (existing, ctx) => {
       const scripts = { ...(existing.scripts as Record<string, string>) };
