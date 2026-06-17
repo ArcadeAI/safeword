@@ -41,6 +41,7 @@ an agent would otherwise write from training memory.
 **1. `guides/planning-guide.md` — Technical Constraints table, Dependencies row**
 
 Add after "Existing systems, restrictions | Use AuthService, no new packages":
+
 > "When a dependency choice is open — not constrained by the project — call `/figure-it-out` before specifying it."
 
 Rationale: Tasks bypass DISCOVERY.md (which covers figure-it-out for features). Technical Constraints is the only place in the task planning flow where an unresearched library choice can silently appear.
@@ -48,6 +49,7 @@ Rationale: Tasks bypass DISCOVERY.md (which covers figure-it-out for features). 
 **2. `guides/design-doc-guide.md` — Key Decisions fill-in instructions**
 
 Add after "Decision [N]: What we're using/doing, why (with specifics), trade-off":
+
 > "If this choice is open — not yet researched — call `/figure-it-out` first; its output becomes the evidence in 'why' and 'trade-off'."
 
 Rationale: The guide already requires "rationale with specifics (metrics, benchmarks, analysis)" but names no tool to produce it. Key Decisions is where design-time choices appear that weren't settled in Clarify.
@@ -55,6 +57,7 @@ Rationale: The guide already requires "rationale with specifics (metrics, benchm
 **3. `guides/data-architecture-guide.md` — What to Document → Physical sub-section**
 
 Add after "Storage technology, tables/collections, indexes, WHY this tech (trade-offs)":
+
 > "If the storage technology is not yet chosen, call `/figure-it-out` first — its output provides the evidence for 'WHY this tech'."
 
 Rationale: Data architecture docs fire at project init when storage IS being chosen. The best practices checklist demands "WHY + trade-offs" without naming how to get them. Database migrations are irreversible.
@@ -62,6 +65,7 @@ Rationale: Data architecture docs fire at project init when storage IS being cho
 **4. `skills/debug/SKILL.md` — After 3+ Failed Fixes: Question Architecture**
 
 Add after "Discuss with user before more fix attempts":
+
 > "If user confirms the pattern is fundamentally unsound, call `/figure-it-out` to evaluate approaches (refactor / redesign / extract) before implementing anything."
 
 Rationale: The skill correctly gates on user confirmation first (user may know a constraint that dissolves the option space). The gap is what happens AFTER confirmation — the agent is stranded with no bridge to the design phase.
@@ -69,6 +73,7 @@ Rationale: The skill correctly gates on user confirmation first (user may know a
 **5. `SAFEWORD.md` — Replan on resume, post-verdict behavior**
 
 Add after "proposing one of still-good / change-scope / cancel / split / merge, with rationale":
+
 > "If the verdict is change-scope or split, run `/figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous."
 
 Rationale: Sub-agent is report-only and cannot run figure-it-out itself; the main agent needs an explicit trigger after receiving a change-scope/split verdict. still-good and cancel need no research (one is a non-change, the other terminates). This is the highest-leverage embed: revalidation fires precisely because the world changed under the plan.

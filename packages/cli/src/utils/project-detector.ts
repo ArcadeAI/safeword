@@ -371,6 +371,73 @@ function detectExistingTooling(
  * @param packageJson - Package.json contents including scripts
  * @param cwd - Working directory for file-based detection
  */
+// JS/TS application-source detection — distinguishes a real JS project from a
+// pure Python/Go/Rust repo that only carries safeword's TS BDD lane (ticket 102b).
+// Gates JS-app-only tooling (knip, dependency-cruiser) so non-JS repos don't get it.
+const JS_SOURCE_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.mts',
+  '.cts',
+]);
+const JS_SOURCE_DIR_EXCLUDE = new Set([
+  'node_modules',
+  '.git',
+  '.safeword',
+  'dist',
+  'build',
+  'target',
+  'coverage',
+  'vendor',
+]);
+// Root-level lane scaffolding + safeword-owned files are NOT "real" JS source.
+const LANE_DIRS = new Set(['steps', 'features']);
+const LANE_FILES = new Set(['cucumber.mjs', 'eslint.config.mjs', '.prettierrc']);
+
+/** A directory to skip while scanning for JS source (excludes + the root-level lane). */
+function isExcludedSourceDirectory(name: string, depth: number): boolean {
+  if (name.startsWith('.') || JS_SOURCE_DIR_EXCLUDE.has(name)) return true;
+  return depth === 0 && LANE_DIRS.has(name); // root steps/ features/ are the BDD lane
+}
+
+/** A file that counts as real JS/TS application source (not root-level lane scaffolding). */
+function isJsSourceFile(name: string, depth: number): boolean {
+  if (depth === 0 && LANE_FILES.has(name)) return false;
+  return JS_SOURCE_EXTENSIONS.has(nodePath.extname(name));
+}
+
+function scanForJsSource(directory: string, depth: number, maxDepth: number): boolean {
+  let entries;
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  for (const entry of entries) {
+    if (entry.isFile()) {
+      if (isJsSourceFile(entry.name, depth)) return true;
+      continue;
+    }
+    if (!entry.isDirectory() || depth >= maxDepth || isExcludedSourceDirectory(entry.name, depth))
+      continue;
+    if (scanForJsSource(nodePath.join(directory, entry.name), depth + 1, maxDepth)) return true;
+  }
+  return false;
+}
+
+/**
+ * True if the repo has real JS/TS application source — not just safeword's TS BDD
+ * lane scaffolding. Stable across `setup` and `upgrade` (it reads source, not the
+ * stub `package.json`), so it can gate JS-app-only tooling off non-JS projects.
+ */
+export function hasJsSource(cwd: string, maxDepth = 6): boolean {
+  return scanForJsSource(cwd, 0, maxDepth);
+}
+
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
   const deps = packageJson.dependencies ?? {};
   const developmentDeps = packageJson.devDependencies ?? {};
@@ -381,6 +448,7 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     ...detectFrameworks(deps, developmentDeps, allDeps),
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
+    hasJsSource: cwd ? hasJsSource(cwd) : false,
     ...detectExistingTooling(cwd, scripts),
   };
 }

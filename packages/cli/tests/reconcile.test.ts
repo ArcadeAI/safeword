@@ -34,6 +34,7 @@ const DEFAULT_PROJECT_TYPE = {
   tanstackQuery: false,
   publishableLibrary: false,
   shell: false,
+  hasJsSource: true, // default reconcile fixture is a JS project (gets knip + dependency-cruiser)
   existingLinter: false,
   existingFormatter: false,
   existingPrettierConfig: false,

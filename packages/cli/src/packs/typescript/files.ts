@@ -266,7 +266,7 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
   // Plugins auto-enable based on deps, we just configure ignore patterns
   'knip.json': {
     generator: ctx =>
-      ctx.languages?.javascript ? JSON.stringify(getKnipConfig(ctx), undefined, 2) : undefined,
+      ctx.projectType?.hasJsSource ? JSON.stringify(getKnipConfig(ctx), undefined, 2) : undefined,
   },
   // Project-level Prettier config (created only if no existing formatter)
   '.prettierrc': {
@@ -333,7 +333,6 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       'scripts.lint:gherkin',
       'scripts.format',
       'scripts.format:check',
-      'scripts.knip',
       'scripts.test:bdd',
     ],
     skipIfMissing: true, // Setup creates package.json first (ensurePackageJson), so this only skips outside setup
@@ -341,6 +340,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       existingLinter: ['scripts.lint:eslint'], // Projects with existing linter get separate ESLint script
       publishableLibrary: ['scripts.publint'],
       shell: ['scripts.lint:sh'],
+      hasJsSource: ['scripts.knip'], // knip script only added for repos with real JS source (BE7C7B)
     },
     merge: (existing, ctx) => {
       const scripts = { ...(existing.scripts as Record<string, string>) };
@@ -348,7 +348,8 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
 
       mergeLintScripts(scripts, ctx.projectType);
       mergeFormatScripts(scripts, ctx.projectType);
-      addScriptIfMissing(scripts, 'knip', 'knip');
+      // knip is JS-app dead-code detection — only for repos with real JS source (BE7C7B).
+      if (ctx.projectType.hasJsSource) addScriptIfMissing(scripts, 'knip', 'knip');
       // BDD acceptance lane (ticket 102b) — add-if-absent: an existing
       // customer test:bdd script always wins.
       addScriptIfMissing(scripts, 'test:bdd', 'cucumber-js');
@@ -460,13 +461,10 @@ export const ESLINT_PACKAGE = 'eslint@^9.22.0';
 
 export const typescriptPackages = {
   base: [
-    // Core tools (always needed for JS/TS)
+    // Core tools (always needed for JS/TS — eslint/prettier also lint the BDD lane's .ts step files)
     ESLINT_PACKAGE,
     // Safeword (bundles eslint-config-prettier + all ESLint plugins)
     'safeword',
-    // Architecture and dead code tools (used by /audit)
-    'dependency-cruiser',
-    'knip',
     // BDD acceptance lane (ticket 102b) — cucumber-js runs the scaffolded
     // .feature files; tsx transpiles the TypeScript step definitions, and
     // @types/node lets the scaffolded steps (node: imports) pass typechecks.
@@ -486,5 +484,9 @@ export const typescriptPackages = {
     shellcheck: ['shellcheck'], // Renamed from shell to avoid conflict with prettier-plugin-sh
     // Legacy ESLint config compat (needed when extending .eslintrc.* configs)
     legacyEslint: ['@eslint/eslintrc'],
+    // Architecture + dead-code tools (used by /audit) — these scan JS APPLICATION
+    // code/deps, so only for repos with real JS source, not a non-JS repo carrying
+    // just the TS BDD lane (BE7C7B).
+    hasJsSource: ['dependency-cruiser', 'knip'],
   },
 };

@@ -33,6 +33,12 @@ export interface ProjectType {
   tanstackQuery: boolean;
   publishableLibrary: boolean;
   shell: boolean;
+  /**
+   * True if the repo has real JS/TS application source (not just safeword's TS
+   * BDD lane scaffolding). Gates JS-app-only tooling (knip, dependency-cruiser)
+   * so a pure Python/Go/Rust project doesn't receive it. (ticket BE7C7B)
+   */
+  hasJsSource: boolean;
   /** True if project has existing lint script or linter config */
   existingLinter: boolean;
   /** True if project has existing format script or formatter config */

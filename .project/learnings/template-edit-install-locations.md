@@ -10,26 +10,26 @@ suite even when the targeted files look correct.
 
 For a skill at `packages/cli/templates/skills/<name>/SKILL.md`:
 
-| Location | Purpose |
-|---|---|
-| `packages/cli/templates/skills/<name>/SKILL.md` | Source of truth — edit here first |
-| `.claude/skills/<name>/SKILL.md` | Claude Code install |
-| `.agents/skills/<name>/SKILL.md` | Agents install (easy to miss) |
-| `.cursor/rules/safeword-<name>.mdc` or `.cursor/commands/<name>.md` | Cursor install |
+| Location                                                            | Purpose                           |
+| ------------------------------------------------------------------- | --------------------------------- |
+| `packages/cli/templates/skills/<name>/SKILL.md`                     | Source of truth — edit here first |
+| `.claude/skills/<name>/SKILL.md`                                    | Claude Code install               |
+| `.agents/skills/<name>/SKILL.md`                                    | Agents install (easy to miss)     |
+| `.cursor/rules/safeword-<name>.mdc` or `.cursor/commands/<name>.md` | Cursor install                    |
 
 For a guide at `packages/cli/templates/guides/<name>.md`:
 
-| Location | Purpose |
-|---|---|
+| Location                                  | Purpose         |
+| ----------------------------------------- | --------------- |
 | `packages/cli/templates/guides/<name>.md` | Source of truth |
-| `.safeword/guides/<name>.md` | Installed copy |
+| `.safeword/guides/<name>.md`              | Installed copy  |
 
 For `packages/cli/templates/SAFEWORD.md`:
 
-| Location | Purpose |
-|---|---|
+| Location                             | Purpose         |
+| ------------------------------------ | --------------- |
 | `packages/cli/templates/SAFEWORD.md` | Source of truth |
-| `.safeword/SAFEWORD.md` | Installed copy |
+| `.safeword/SAFEWORD.md`              | Installed copy  |
 
 ## How this bit us
 
@@ -50,9 +50,9 @@ After editing a template skill, run:
 
 ```bash
 grep -n "<distinctive phrase>" \
-  packages/cli/templates/skills/<name>/SKILL.md \
-  .claude/skills/<name>/SKILL.md \
-  .agents/skills/<name>/SKILL.md
+  packages/cli/templates/skills/ \
+  .claude/skills/ \
+  .agents/skills/ < name > /SKILL.md < name > /SKILL.md < name > /SKILL.md
 ```
 
 All three should return the same line number and content. Then check `.cursor/`

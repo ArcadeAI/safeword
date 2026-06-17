@@ -47,7 +47,7 @@
 
    **Key Decisions:**
    - Decision [N]: What we're using/doing, why (with specifics), trade-off
-   If this choice is open — not yet researched — call `/figure-it-out` first; its output becomes the evidence in 'why' and 'trade-off'.
+     If this choice is open — not yet researched — call `/figure-it-out` first; its output becomes the evidence in 'why' and 'trade-off'.
    - Decision [N+1]: Different decision (show the [N]/[N+1] pattern)
    - Add more decisions as needed
 
