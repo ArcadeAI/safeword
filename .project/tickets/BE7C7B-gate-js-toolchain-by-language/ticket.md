@@ -2,10 +2,10 @@
 id: BE7C7B
 slug: gate-js-toolchain-by-language
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-16T13:07:38.895Z
-last_modified: 2026-06-16T13:07:38.895Z
+last_modified: 2026-06-17T04:55:00.000Z
 ---
 
 # Stop installing JS tooling into non-JS projects
@@ -27,10 +27,10 @@ last_modified: 2026-06-16T13:07:38.895Z
 
 ## Acceptance criteria
 
-- [ ] Decide the policy: either (a) gate the JS toolchain + BDD lane on real JS detection, or (b) consciously keep "every project is a JS project" and document it as a stated product stance.
-- [ ] If (a): a pure-Python/Go/Rust setup produces no `package.json`, no npm deps, no `eslint.config.mjs`/`.prettierrc`/`knip.json`/`.jscpd.json`, and either a language-appropriate BDD lane or none.
-- [ ] Whichever path: the `ctx.languages?.javascript` guards in `typescript/files.ts` actually take effect (no always-true flag).
-- [ ] Golden-path tests for a non-JS-only project assert the absence (or presence) of JS artifacts per the chosen policy.
+- [x] Decide the policy: chose **B — partial trim** (see Decision). Keep the 102b lane + eslint/prettier/jscpd; gate the JS-app-only tooling.
+- [x] A pure-Python/Go/Rust setup produces no `knip`/`dependency-cruiser` npm deps, no `knip.json`, no `knip` script, and no `dependency-cruiser` architecture scan.
+- [x] Gating is driven by the durable `projectType.hasJsSource` signal (real source on disk), not the always-true `languages.javascript` flag.
+- [x] Tests for a non-JS-only project assert the absence of the gated artifacts (`js-app-tooling-gate.test.ts`) and the lane/eslint remain present.
 
 ## Decision (revalidation + figure-it-out, 2026-06-16)
 
@@ -58,3 +58,4 @@ This inverts a deliberate, deeply-embedded behavior across the install/reconcile
 ## Work Log
 
 - 2026-06-16T13:07:38.895Z Started: Created ticket BE7C7B
+- 2026-06-17T04:55:00.000Z Done: Implemented Decision B. Added `projectType.hasJsSource` (real JS/TS source detection, lane scaffolding + standard dirs excluded; `utils/project-detector.ts`). Moved `knip` + `dependency-cruiser` from base → `conditional.hasJsSource` and gated the `knip.json` generator + `knip` script on it (`typescript/files.ts`). Skipped `buildArchitecture` (depcruise scan) when `!hasJsSource` (`setup.ts`). `reconcile.getConditionalPackages` already honors arbitrary conditional keys — no change needed. New `js-app-tooling-gate.test.ts` (4) + `has-js-source.test.ts` (6) pin the policy. Full suite green: 207 files, 3049 passed / 5 skipped.
