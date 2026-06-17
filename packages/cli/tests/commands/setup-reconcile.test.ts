@@ -171,6 +171,10 @@ describe('Setup Command - Reconcile Integration', () => {
     });
 
     it('should apply JSON merges for package.json scripts', async () => {
+      // Real JS source so the project is a JS project (gets the knip script — BE7C7B
+      // gates knip on real JS source, not on the stub package.json).
+      mkdirSync(nodePath.join(temporaryDirectory, 'src'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, 'src/index.ts'), 'export const x = 1;\n');
       await setupReconcileTest(temporaryDirectory);
 
       // Package.json should have scripts added

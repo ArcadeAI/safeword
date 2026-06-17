@@ -41,15 +41,15 @@ last_modified: 2026-06-16T13:07:38.895Z
 - **Keep** (102b-justified): minimal `package.json`, the cucumber lane (`cucumber.mjs`/`steps`/`.feature`, `@cucumber/cucumber`, `tsx`, `@types/node`), and **eslint + prettier** (they lint the lane's own `.ts` step files) — plus **jscpd** (genuinely multi-language).
 - **Gate off for projects with no real JS source**: **`knip`** and **`dependency-cruiser`** — these scan JS **application** code/deps that don't exist in a pure Python/Go/Rust repo. Drop `knip.json`, the `knip` script, the `dependency-cruiser`/`knip` npm deps, and the `.dependency-cruiser.cjs`/`.safeword/depcruise-config.cjs` configs.
 
-**Honest-JS signal:** `ensurePackageJson()` returns `packageJsonCreated` (true ⇒ safeword stubbed it ⇒ not really JS). Thread it into `ProjectContext`; define `isRealJsProject(ctx) = ctx.languages.javascript && !ctx.packageJsonCreated`. (Fixes AC3 — the always-true flag.)
+**Honest-JS signal (revalidated):** `packageJsonCreated` only exists at first `setup`; on `upgrade` the stub `package.json` is already present, so it can't tell a stubbed non-JS repo from a real one. The TypeScript pack's `detect()` is package.json-only (no source signal). Durable signal instead: **`projectType.hasJsSource`** — real JS/TS source exists outside the lane scaffolding (`steps/`, `features/`, `cucumber.mjs`, the safeword-owned `eslint.config.mjs`/`.prettierrc`) and the usual excludes. Computed in `detectProjectType`, so both `computePackagesToInstall(projectType,…)` and the generators (via `ctx.projectType`) consume it. Stable across setup + upgrade, no config-schema migration.
 
 ### Implementation plan
 
-1. `ProjectContext` (schema.ts) + `createProjectContext` (utils/context.ts): add `packageJsonCreated`; thread from `setup.ts:439`.
-2. `typescript/files.ts`: move `dependency-cruiser` + `knip` from `base` → a new conditional gated on real-JS; gate the `knip.json` generator and the `knip` script on `isRealJsProject`.
-3. `setup.ts`: skip `buildArchitecture` (depcruise config) when `!isRealJsProject`.
-4. `reconcile.ts` `computePackagesToInstall`: honor the new real-JS conditional.
-5. Tests (~15 files): update golden-path/setup expectations for python/go/rust — assert knip/dependency-cruiser/depcruise **absent**, lane + eslint **present**; new assertion pinning the trim.
+1. `detectProjectType` (`utils/project-detector.ts`): add `hasJsSource` (scan for real JS/TS source, excluding lane scaffolding + standard excludes); add the field to `ProjectType`.
+2. `typescript/files.ts`: move `dependency-cruiser` + `knip` from `base` → a conditional key gated on `hasJsSource`; gate the `knip.json` generator and the `knip` script on `ctx.projectType.hasJsSource`.
+3. `setup.ts`: skip `buildArchitecture` (depcruise config) when `!projectType.hasJsSource`.
+4. `reconcile.ts` `getConditionalPackages`: honor the new `hasJsSource` conditional.
+5. Tests (~15 files): update golden-path/setup expectations for python/go/rust — assert knip/dependency-cruiser/depcruise **absent**, lane + eslint **present**; new unit assertion pinning the trim.
 
 ### Scope/risk note
 

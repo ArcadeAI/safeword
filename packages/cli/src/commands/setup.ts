@@ -322,9 +322,11 @@ function setupJavaScriptProject(
   packagesToInstall: string[],
 ): { archFiles: string[]; workspaceUpdates: string[] } {
   const archFiles: string[] = [];
-  const arch = buildArchitecture(cwd);
+  // dependency-cruiser maps JS/TS module boundaries — skip for repos with no real
+  // JS source (a non-JS project carrying only the TS BDD lane). (BE7C7B)
+  const arch = ctx.projectType.hasJsSource ? buildArchitecture(cwd) : undefined;
 
-  if (hasArchitectureDetected(arch)) {
+  if (arch && hasArchitectureDetected(arch)) {
     const syncResult = syncConfigCore(cwd, arch);
     if (syncResult.generatedConfig) {
       archFiles.push('.safeword/depcruise-config.cjs');

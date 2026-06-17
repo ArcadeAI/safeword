@@ -297,13 +297,22 @@ describe('Schema - Single Source of Truth', () => {
       const required = [
         ESLINT_PACKAGE, // Pinned to v9 until ESLint plugin ecosystem supports v10
         'safeword', // bundles eslint-config-prettier + all ESLint plugins
-        'dependency-cruiser',
-        'knip',
       ];
 
       for (const pkg of required) {
         expect(SAFEWORD_SCHEMA.packages.base).toContain(pkg);
       }
+    });
+
+    it('gates JS-app dead-code/architecture tools on real JS source (BE7C7B)', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      // Moved out of base so a non-JS repo (carrying only the TS BDD lane) doesn't get them.
+      expect(SAFEWORD_SCHEMA.packages.base).not.toContain('knip');
+      expect(SAFEWORD_SCHEMA.packages.base).not.toContain('dependency-cruiser');
+      expect(SAFEWORD_SCHEMA.packages.conditional.hasJsSource).toEqual([
+        'dependency-cruiser',
+        'knip',
+      ]);
     });
 
     it('should have prettier in standard conditional (non-Biome projects)', async () => {
