@@ -4,9 +4,9 @@ slug: embed-figure-it-out
 parent: VKNF1T-platform-uplift-epic
 type: feature
 phase: intake
-status: in_progress
+status: done
 created: 2026-06-06T18:05:01.631Z
-last_modified: 2026-06-06T18:05:01.631Z
+last_modified: 2026-06-16T18:47:00.000Z
 ---
 
 # Embed figure-it-out into skills and BDD/TDD decision points
@@ -48,3 +48,13 @@ last_modified: 2026-06-06T18:05:01.631Z
 - 2026-06-06T18:05:01.631Z Started: Created ticket ZBVGPF
 - 2026-06-06T18:07:00Z Added: replan-on-resume / ticket-revalidation as a priority embed site (per user). Verified figure-it-out is referenced nowhere in that path — heads-up emitted by `.safeword/hooks/lib/replan-relevance.ts` (template `templates/hooks/lib/replan.ts`); scope judgment is the conversational sub-agent in SAFEWORD.md "Replan on resume" (~line 34), verdicts still-good/change-scope/cancel/split/merge. Embed fires only on the re-decide verdicts (change-scope/split/merge); skips still-good/cancel. New open question logged: does the replan sub-agent run figure-it-out itself or hand back to the main agent (lean: hand-back, preserves the "report-in-chat-only, never edit the ticket" contract).
 - 2026-06-06T18:18:00Z User direction: figure-it-out should run **every time** at each embed point — non-optional is the value; a skippable prompt = today's discretionary invocation. Reframed the Trigger question and the replan embed from "fires only on re-decide verdicts / skip-when-trivial" to always-on (replan: figure-it-out as the revalidation method, verdict falls out of it). Per user, open questions left explicitly **open for discussion in-ticket**, not resolved at intake — softened my earlier leans. Live tension recorded for that discussion: always-on vs. trivial-edit reinjection noise (cf. QSNKBB).
+- 2026-06-16T17:10:00Z Audit: Full skill+guide audit complete across all 24 skills and 9 guides. Child ticket FJKM4X created for the 4 confirmed edits (planning-guide, design-doc-guide, data-architecture-guide, debug/SKILL.md). Remaining candidates resolved via /figure-it-out — verdicts below:
+  - `SAFEWORD.md` Replan section: **Edit needed** — moved into FJKM4X scope (2026-06-16T17:36:00Z). Shape settled: one conditional sentence after verdict, change-scope/split only. No longer a separate ZBVGPF item.
+  - `skills/refactor/SKILL.md`: **No edit.** Tier 3 ambiguity (Extract Class vs Replace with Polymorphism) is a code-diagnosis question, not a research question — reading the code resolves the primary smell. The tie-breaker (smallest scope first) handles remaining ambiguity. Tier 3 choices still unresolvable after diagnosis signal "needs a ticket," not figure-it-out.
+  - `skills/quality-review/SKILL.md`: **No edit.** Web research capability already built in; NEEDS DISCUSSION verdict + Next: line is the complete escalation bridge; adding figure-it-out would duplicate the research loop already present in the skill.
+  - `skills/audit/SKILL.md`: **No edit.** All findings have bounded actions: mechanical fixes, prescribed escalation (dedicated task → normal workflow reaches figure-it-out), architecture violations against known record (fix the code), docs drift (update the record). No open design choices requiring evidence-gathering in the audit skill itself.
+  - `skills/bdd/TDD.md` REFACTOR step: **No edit.** Architecture-review-gate already covers Tier 3 structural choices for scenarios with implications; per-scenario REFACTOR is structural cleanup within a behavioral safety net.
+  - `skills/brainstorm/SKILL.md`: **No edit.** Dependency direction intentionally one-way — figure-it-out already names brainstorm as its feeder.
+  - `guides/testing-guide.md`: **No edit.** SAFEWORD.md Authority section covers adding dependencies and design choices; no evidence-required WHY field in the guide.
+  - `guides/architecture-guide.md`, `skills/bdd/DISCOVERY.md`, `skills/bdd/SCENARIOS.md`, `skills/bdd/TDD.md` (architecture-review-gate): Already reference figure-it-out — confirmed in earlier audit.
+- 2026-06-16T18:47:00Z Complete: All candidate sites resolved. FJKM4X merged (PR #240) — 5 edits live on main. All open questions settled. No remaining work. Closing ZBVGPF.
