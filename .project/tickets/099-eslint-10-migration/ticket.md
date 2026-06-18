@@ -4,7 +4,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-04-11
-last_modified: 2026-06-15T21:52:44Z
+last_modified: 2026-06-18T03:20:00Z
 ---
 
 # Task: ESLint 10 Migration
@@ -173,3 +173,59 @@ Audited all 24 packages safeword ships against npm: latest version, latest-relea
 - `eslint-plugin-react@7.37.5` — release stale (13mo) but **repo is very active** (5 commits in the last week as of 2026-05-18, including ESLint-v10 RuleTester work). Slow to release, not abandoned. Already tracked above as the Phase 3 upstream blocker.
 
 Everything else: active maintenance within 3 months. `eslint-config-prettier` (10mo) and `eslint-import-resolver-typescript` (11mo) are quiet but stable — a pure rule-disabler and a resolver respectively, both genuinely "done."
+
+## Status refresh 2026-06-18 — UNBLOCKED; reframed to an additive minor
+
+### The blocker is gone
+
+Ticket [71Q4DV](../71Q4DV-eslint-10-react-plugin-path/ticket.md) landed on `main` (commit `762be9c3`), replacing `eslint-plugin-react` with `@eslint-react/eslint-plugin@5.9.0`. Safeword no longer depends on `eslint-plugin-react`, so the upstream chain (`eslint-plugin-react` → `eslint-plugin-import` → ESLint 10) that froze this ticket since April no longer gates us. `eslint-plugin-react` is now in `deprecatedPackages` (`schema.ts`), telling customers to uninstall it.
+
+### ESLint 10 is a clean drop-in (empirical)
+
+Ran both majors against the real codebase via the `eslint-v10` alias:
+
+| target                                   | eslint 9.39.4 | eslint 10.5.0   |
+| ---------------------------------------- | ------------- | --------------- |
+| `eslint src tests` (canonical CI target) | exit 0        | exit 0          |
+| `eslint .`                               | 137 problems  | 137 — identical |
+
+The 137 are pre-existing `templates/**` issues present under both majors (not in the CI lint target). ESLint 10 introduces **zero** new problems. All 105 preset/schema tests pass, including the in-process ESLint-10 `Linter` load test.
+
+### Decision: additive minor, not semver-major (supersedes the 2026-04-11 "semver-major" assumption)
+
+The original framing assumed ESLint 10 forces a major because it changes the shipped peer-dependency range. That held only under the abandoned "drop v9, install v10 as the sole version" plan. Revalidation shows safeword's shipped config works under **both** majors, so the honest move is **additive**:
+
+- `peerDependencies.eslint`: `^9.22.0` → **`^9.22.0 || ^10.0.0`**. Widening a peer range forbids nothing and permits more — strictly additive, so this ships as a **minor** (auto-upgradeable, strands no v9 customer). Matches the `typescript-eslint` precedent (`^8.57.0 || ^9.0.0 || ^10.0.0`).
+- `engines.node`: **unchanged at `>=22.12`.** ESLint 10's higher Node floor (`^20.19.0 || ^22.13.0 || >=24`) is self-enforced by eslint's own `package.json` when a customer installs v10. Safeword's `engines` can't express "22.13 only if on eslint 10," and a v9 customer doesn't need 22.13 — so the floor stays. Node 20 is EOL as of 2026-04-30, so we do not widen toward eslint's `^20.19.0`.
+- `@eslint/js`: **kept at `^9.39.4`** (bundled dependency). Its v9 recommended ruleset is valid under both runtimes; bundling v10's recommended could surface rules a v9 customer's engine lacks.
+- **Legacy `.eslintrc` template (`getSafewordEslintConfigLegacy`): kept.** `@eslint/eslintrc`/`FlatCompat` still functions under v10 (per the ESLint 10 migrate guide), and v9 customers with legacy configs still rely on it. Deleting it removes support — belongs in the future major.
+
+The legacy-template deletion, `@eslint/js` bump, and engines bump are all **deferred to the eventual major that drops ESLint 9** — each with a concrete changelog reason then, rather than smuggled into this additive release. Concrete trigger for scheduling that major: **ESLint v9 EOL is 2026-08-06** (per eslint.org/version-support, verified 2026-06-18). Until then v9 is still upstream-maintained and widely deployed, so additive support strands no one; after it, the v9-drop major has a real reason to point at.
+
+### Implemented 2026-06-18 (v0.52.0)
+
+- `packages/cli/package.json`: peer range → `^9.22.0 || ^10.0.0`; version `0.51.0` → `0.52.0`; added `lint:eslint:v10` script (`node ./node_modules/eslint-v10/bin/eslint.js src tests`).
+- `marketplace.json`: plugin version → `0.52.0`.
+- `.github/workflows/ci.yml`: added a "Lint (ESLint 10 forward-compat)" step running `lint:eslint:v10`, so the dual-major claim is enforced in CI, not just one in-process test. The ticket's history of "verified but actually wasn't" misses (e.g. the 2026-05-18 vitest entry) is exactly why this gate exists.
+- `bun.lock`: resynced (only the cli eslint peer-range line changed).
+
+Verified: `eslint src tests` exit 0 under both 9.39.4 and 10.5.0; 105/105 preset+schema tests; DTS build clean; lockfile synced. Full `/verify` (whole suite, scenarios, dep drift) still owed before merge.
+
+### Revised Done-When (additive minor)
+
+- [x] Compatible plugins at ESLint-10-ready versions (dependabot + 71Q4DV)
+- [x] `typescript-eslint` supports ESLint 10 (8.61.0)
+- [x] All preset configs load without errors under ESLint 10
+- [x] `peerDependencies.eslint` includes v10 (`^9.22.0 || ^10.0.0`)
+- [x] ESLint 10 lints the CI target clean (dual-major CI gate added)
+- [x] Preset + schema tests pass under the change
+- [x] `engines.node` decision recorded (intentionally unchanged — see above)
+- [ ] Full `/verify` (whole suite, scenarios, dep drift) before merge
+- [ ] Merge + minor release (0.52.0)
+
+~~Promise rules vendored~~ — obsolete; `eslint-plugin-promise@7.3.0` supports v10, no vendoring.
+
+### Sequencing
+
+- **7JDZFF** (optional peer-deps, in_progress) also rewrites `packages/cli/package.json` dependency structure and is where ESLint 10's "move plugins from peerDeps to deps" guidance belongs. This ticket lands first (smaller, unblocks the freeze); 7JDZFF rebases on the new peer range.
+- **051 / 087** were superseded prior attempts — this additive framing is deliberately narrower than their "replace the version outright" approach.

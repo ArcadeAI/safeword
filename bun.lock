@@ -24,7 +24,7 @@
     },
     "packages/cli": {
       "name": "safeword",
-      "version": "0.51.0",
+      "version": "0.52.0",
       "bin": {
         "safeword": "dist/cli.js",
       },
@@ -74,7 +74,7 @@
         "vitest": "^4.1.9",
       },
       "peerDependencies": {
-        "eslint": "^9.22.0",
+        "eslint": "^9.22.0 || ^10.0.0",
       },
     },
     "packages/website": {

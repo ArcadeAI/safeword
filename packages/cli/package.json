@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.51.0",
+  "version": "0.52.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -51,6 +51,7 @@
     "clean": "rm -rf dist",
     "prepublishOnly": "node scripts/check-bun-publish.js && bun run test:release && bun run build",
     "lint:eslint": "eslint .",
+    "lint:eslint:v10": "node ./node_modules/eslint-v10/bin/eslint.js src tests",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
@@ -103,7 +104,7 @@
     "vitest": "^4.1.9"
   },
   "peerDependencies": {
-    "eslint": "^9.22.0"
+    "eslint": "^9.22.0 || ^10.0.0"
   },
   "keywords": [
     "cli",
