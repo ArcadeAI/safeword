@@ -39,6 +39,7 @@ import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
+import { buildArchitecture, syncConfigCore } from './sync-config.js';
 
 interface PackageJson {
   dependencies?: Record<string, string>;
@@ -339,6 +340,18 @@ async function selfVerify(cwd: string): Promise<void> {
   }
 }
 
+function maybeRefreshDepcruiseConfig(
+  cwd: string,
+  safewordDirectory: string,
+  result: ReconcileResult,
+): void {
+  if (!exists(nodePath.join(safewordDirectory, 'depcruise-config.cjs'))) return;
+  syncConfigCore(cwd, buildArchitecture(cwd));
+  if (!result.updated.includes('.safeword/depcruise-config.cjs')) {
+    result.updated.push('.safeword/depcruise-config.cjs');
+  }
+}
+
 export async function upgrade(options: UpgradeOptions): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
@@ -398,6 +411,8 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
     if (missingPacks.includes('sql')) {
       installSqlTools(cwd);
     }
+
+    maybeRefreshDepcruiseConfig(cwd, safewordDirectory, result);
 
     printUpgradeSummary(result, projectVersion, cwd);
 
