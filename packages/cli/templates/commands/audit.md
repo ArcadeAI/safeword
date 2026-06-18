@@ -93,7 +93,7 @@ DEPCRUISE_CONFIG=""
 # =========================================================================
 
 # 3. Copy/paste detection (all languages)
-bunx jscpd . --gitignore --min-lines 10 --reporters console 2>&1 || true
+bunx jscpd . --min-lines 10 --reporters console 2>&1 || true
 
 # =========================================================================
 # OUTDATED DEPENDENCIES

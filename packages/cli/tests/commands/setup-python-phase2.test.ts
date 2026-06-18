@@ -244,9 +244,9 @@ describe('Suite 4: Copy/Paste Detection', () => {
     expect(auditTemplate).toContain('jscpd');
   });
 
-  it('Test 4.2: jscpd uses --gitignore flag', () => {
+  it('Test 4.2: jscpd does not use removed --gitignore flag (removed in jscpd v3+)', () => {
     const auditTemplate = readAuditTemplate();
-    expect(auditTemplate).toContain('--gitignore');
+    expect(auditTemplate).not.toContain('--gitignore');
   });
 
   it('Test 4.3: jscpd uses --min-lines 10', () => {
