@@ -55,7 +55,8 @@ export function detectPackageManager(cwd: string): PackageManager {
 /**
  * Get uninstall command for package manager
  */
-export function getUninstallCommand(pm: PackageManager, packages: string[], cwd: string): string {
+export function getUninstallCommand(packages: string[], cwd: string): string {
+  const pm = detectPackageManager(cwd);
   const { uninstall } = PM_COMMANDS[pm];
   const extraFlags = pnpmWorkspaceFlags(pm, cwd);
   const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
