@@ -65,6 +65,8 @@ const NON_REGISTRY_SPEC_PREFIXES = [
   'bitbucket:',
   'http:',
   'https:',
+  '.', // relative path (e.g. ./packages/foo)
+  '/', // absolute path
 ] as const;
 
 function getProjectVersion(safewordDirectory: string): string {
@@ -88,11 +90,7 @@ function stripDeadConfigVersion(safewordDirectory: string): void {
 }
 
 function isNonRegistryPackageSpec(spec: string): boolean {
-  return (
-    NON_REGISTRY_SPEC_PREFIXES.some(prefix => spec.startsWith(prefix)) ||
-    spec.startsWith('.') ||
-    spec.startsWith('/')
-  );
+  return NON_REGISTRY_SPEC_PREFIXES.some(prefix => spec.startsWith(prefix));
 }
 
 function isCurrentSafewordRegistrySpec(spec: string): boolean {
