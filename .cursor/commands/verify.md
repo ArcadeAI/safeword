@@ -67,12 +67,7 @@ elif [ -f packages/cli/src/cli.ts ]; then
 else SW="bunx safeword"; fi
 
 # --- Test suite (resolved by safeword test-plan — one source of truth) ---
-_TEST_CMD="$($SW test-plan --kind verify --format sh)"
-[ -n "$_TEST_CMD" ] || {
-  echo "test-plan returned no command — CLI may predate --kind verify" >&2
-  exit 1
-}
-bash -c "$_TEST_CMD"
+bash -c "$($SW test-plan --kind verify --format sh)"
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
