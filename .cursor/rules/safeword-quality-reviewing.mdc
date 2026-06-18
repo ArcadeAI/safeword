@@ -147,6 +147,33 @@ Fetch documentation from official sources:
 **Suggested improvements:** [List or "None"]
 ```
 
+## Loop: review → fix → re-review
+
+Run the review in passes (MAX_PASSES = 3), not one-and-done.
+
+Each pass:
+
+1. **Review with a fresh, independent reviewer.** Spawn a sub-agent on a
+   _different model than yours_ when your harness supports it — a same-model,
+   same-context reviewer shares your blind spots, and ungrounded self-correction
+   can _degrade_ code rather than improve it. Hand it only the diff and the
+   project standards, have it apply the Review Protocol above, and return the
+   Output Format above.
+   - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
+     auto-spawn, and `/agent` only switches between existing threads. Cursor:
+     subagents.
+   - No sub-agent available? Do a fresh-context pass and switch models manually —
+     independence is the point, not the mechanism.
+2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
+   improvements** worth the change; list the rest — don't chase them.
+3. **Decide.** Stop when **Critical issues = None** — remaining suggestions are
+   optional, not a reason to loop. Cap at MAX_PASSES regardless. Re-review only
+   if you edited code this pass.
+
+A pass isn't done until the project's tests, lint, and typecheck are green. That
+objective signal — not the reviewer running out of suggestions — is the real
+stop condition; tests are the ground truth.
+
 ## Critical Reminders
 
 1. **Primary value: Web research** - Verify against current ecosystem (versions, docs, security)
