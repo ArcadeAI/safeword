@@ -161,47 +161,34 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
   success(`\nSafeword upgraded to v${VERSION}`);
 }
 
+function installPythonBasedTools(pythonDirectory: string, packages: string[], label: string): void {
+  const pm = detectPythonPackageManager(pythonDirectory);
+  if (pm === 'pip') {
+    warn(`\n${label} not auto-installed (pip). Install manually:`);
+    listItem(getPythonInstallCommand(pythonDirectory, packages));
+    return;
+  }
+  info(`\nInstalling ${label} (${packages.join(', ')})...`);
+  const installed = installPythonDependencies(pythonDirectory, packages);
+  if (installed) {
+    success(`${label} installed`);
+  } else {
+    warn(`${label} install failed. Install manually:`);
+    listItem(getPythonInstallCommand(pythonDirectory, packages));
+  }
+}
+
 function installPythonTools(cwd: string): void {
   const pythonDirectory = findInTree(cwd, 'pyproject.toml') ?? cwd;
   if (hasRuffDependency(pythonDirectory)) return;
-
-  const pm = detectPythonPackageManager(pythonDirectory);
-  if (pm === 'pip') {
-    warn('\nPython tools not auto-installed (pip). Install manually:');
-    listItem(getPythonInstallCommand(pythonDirectory));
-    return;
-  }
-
-  info('\nInstalling Python tools (ruff, mypy)...');
-  const installed = installPythonDependencies(pythonDirectory, ['ruff', 'mypy']);
-  if (installed) {
-    success('Python tools installed');
-  } else {
-    warn('Python tools install failed. Install manually:');
-    listItem(getPythonInstallCommand(pythonDirectory));
-  }
+  installPythonBasedTools(pythonDirectory, ['ruff', 'mypy'], 'Python tools');
 }
 
 function installSqlTools(cwd: string): void {
   // SQL projects use Python for SQLFluff — find pyproject.toml near dbt_project.yml
   const sqlDirectory = findInTree(cwd, 'dbt_project.yml') ?? cwd;
   const pythonDirectory = findInTree(sqlDirectory, 'pyproject.toml') ?? sqlDirectory;
-
-  const pm = detectPythonPackageManager(pythonDirectory);
-  if (pm === 'pip') {
-    warn('\nSQL tools not auto-installed (pip). Install manually:');
-    listItem(getPythonInstallCommand(pythonDirectory, ['sqlfluff']));
-    return;
-  }
-
-  info('\nInstalling SQL tools (sqlfluff)...');
-  const installed = installPythonDependencies(pythonDirectory, ['sqlfluff']);
-  if (installed) {
-    success('SQL tools installed');
-  } else {
-    warn('SQL tools install failed. Install manually:');
-    listItem(getPythonInstallCommand(pythonDirectory, ['sqlfluff']));
-  }
+  installPythonBasedTools(pythonDirectory, ['sqlfluff'], 'SQL tools');
 }
 
 export interface UpgradeOptions {
