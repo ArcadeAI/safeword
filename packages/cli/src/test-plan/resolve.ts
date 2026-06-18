@@ -22,7 +22,7 @@ import process from 'node:process';
 import { indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
 
-export type PlanKind = 'test' | 'build';
+export type PlanKind = 'test' | 'build' | 'verify';
 export type Language = 'javascript' | 'python' | 'go' | 'rust';
 
 export interface PlanEntry {
@@ -139,7 +139,7 @@ function resolveJs(
       ? entry('javascript', root, `${pm} run build`, pm, isAvailable(pm))
       : undefined;
   }
-  const script = pickTestScript(scripts);
+  const script = kind === 'verify' ? pickVerifyScript(scripts) : pickTestScript(scripts);
   return script ? entry('javascript', root, `${pm} run ${script}`, pm, isAvailable(pm)) : undefined;
 }
 
@@ -147,6 +147,14 @@ function resolveJs(
 function pickTestScript(scripts: Record<string, string>): string | undefined {
   if (scripts['test:done']) return 'test:done';
   if (scripts.test) return 'test';
+  return undefined;
+}
+
+/** For done-gate verification: prefer the authoritative full suite over fast subsets. */
+function pickVerifyScript(scripts: Record<string, string>): string | undefined {
+  if (scripts['test:ci']) return 'test:ci';
+  if (scripts.test) return 'test';
+  if (scripts['test:done']) return 'test:done';
   return undefined;
 }
 

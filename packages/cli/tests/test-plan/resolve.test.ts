@@ -189,6 +189,45 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
   });
 });
 
+describe('resolveTestPlan — verify plan (kind: verify)', () => {
+  it('prefers test:ci over test and test:done', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        scripts: { 'test:ci': 'vitest run', test: 'vitest', 'test:done': 'vitest run hooks/' },
+      }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toContain('test:ci');
+  });
+
+  it('falls back to test when test:ci absent', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        scripts: { test: 'vitest run', 'test:done': 'vitest run hooks/' },
+      }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toContain('run test');
+  });
+
+  it('falls back to test:done when test and test:ci both absent', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { 'test:done': 'vitest run hooks/' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toContain('test:done');
+  });
+
+  it('does not pick test:done over test (unlike kind: test)', () => {
+    const scripts = { test: 'vitest run', 'test:done': 'vitest run hooks/' };
+    const root = makeRepo({ 'package.json': JSON.stringify({ scripts }) });
+    const verifyPlan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    const testPlan = resolveTestPlan(root, { isToolAvailable: allTools });
+    expect(entryFor(verifyPlan, 'javascript')?.command).toContain('run test');
+    expect(entryFor(testPlan, 'javascript')?.command).toContain('test:done');
+  });
+});
+
 describe('resolveTestPlan — build plan', () => {
   it('emits per-language build commands', () => {
     const root = makeRepo({

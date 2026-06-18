@@ -20,9 +20,9 @@ last_modified: 2026-06-16T13:07:39.023Z
 
 - `guides/testing-guide.md:144-402` — all examples ` ```typescript `; `playwright.config.ts`, `bun run dev:test`, "Vitest/Jest".
 - `guides/architecture-guide.md:340-349` — boundary enforcement is `eslint-plugin-boundaries` + `bun add -D` only; no import-linter (Python) / depguard (Go) equivalent.
-- `doc-templates/architecture-template.md:65` — bakes *"Boundaries enforced via eslint-plugin-boundaries"* into the customer-filled template.
+- `doc-templates/architecture-template.md:65` — bakes _"Boundaries enforced via eslint-plugin-boundaries"_ into the customer-filled template.
 - `skills/testing/SKILL.md` (10× ` ```typescript `), `skills/refactor/SKILL.md:69/97/115`, `guides/design-doc-guide.md:70`, `doc-templates/design-doc-template.md:25/45/61` — illustrative code is all TS.
-- `guides/context-files-guide.md:240` — *"@package.json for available npm commands."*
+- `guides/context-files-guide.md:240` — _"@package.json for available npm commands."_
 - `skills/bdd/TDD.md:31-33`, `skills/bdd/SCENARIOS.md:207` — BDD RED step prescribes TypeScript step defs + vitest skeleton.
 
 ## Acceptance criteria
