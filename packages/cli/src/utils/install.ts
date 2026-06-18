@@ -27,6 +27,10 @@ const PM_COMMANDS: Record<PackageManager, { install: string; uninstall: string }
   bun: { install: 'add', uninstall: 'remove' },
 };
 
+function isPnpmWorkspace(cwd: string): boolean {
+  return existsSync(path.join(cwd, 'pnpm-workspace.yaml'));
+}
+
 /**
  * Detect package manager by lockfile and workspace config.
  * pnpm-workspace.yaml takes priority over bun.lockb — catalog: protocol
@@ -42,10 +46,6 @@ export function detectPackageManager(cwd: string): PackageManager {
   // No lockfile found — fall back to current runtime (bun) or npm
   if (process.versions.bun) return 'bun';
   return 'npm';
-}
-
-function isPnpmWorkspace(cwd: string): boolean {
-  return existsSync(path.join(cwd, 'pnpm-workspace.yaml'));
 }
 
 /**
