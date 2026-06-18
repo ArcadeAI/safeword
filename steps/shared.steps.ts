@@ -16,19 +16,27 @@ import type { SafewordWorld } from './world.js';
 
 const execAsync = promisify(exec);
 
-When('I run shell command {string}', async function (this: SafewordWorld, command: string) {
-  try {
-    const { stdout, stderr } = await execAsync(command);
-    this.result = { stdout, stderr, exitCode: 0 };
-  } catch (error: unknown) {
-    const failure = error as { stdout?: string; stderr?: string; code?: number };
-    this.result = {
-      stdout: failure.stdout ?? '',
-      stderr: failure.stderr ?? '',
-      exitCode: failure.code ?? 1,
-    };
-  }
-});
+// Runs arbitrary commands (`go test ./...`, `cargo test`, `curl`) and spawns a
+// shell, so a cold first-spawn under load can exceed cucumber's 5s default step
+// timeout. Give it bounded headroom; the assertion steps below keep the tight
+// default so genuine hangs still surface fast.
+When(
+  'I run shell command {string}',
+  { timeout: 60_000 },
+  async function (this: SafewordWorld, command: string) {
+    try {
+      const { stdout, stderr } = await execAsync(command);
+      this.result = { stdout, stderr, exitCode: 0 };
+    } catch (error: unknown) {
+      const failure = error as { stdout?: string; stderr?: string; code?: number };
+      this.result = {
+        stdout: failure.stdout ?? '',
+        stderr: failure.stderr ?? '',
+        exitCode: failure.code ?? 1,
+      };
+    }
+  },
+);
 
 Then('the shell exit code is {int}', function (this: SafewordWorld, expected: number) {
   assert.equal(this.result.exitCode, expected, `stderr: ${this.result.stderr}`);
