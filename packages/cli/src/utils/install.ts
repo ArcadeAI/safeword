@@ -33,7 +33,7 @@ const PM_COMMANDS: Record<PackageManager, { install: string; uninstall: string }
  * requires pnpm even when a bun lockfile also exists.
  */
 export function detectPackageManager(cwd: string): PackageManager {
-  if (existsSync(path.join(cwd, 'pnpm-workspace.yaml'))) return 'pnpm';
+  if (isPnpmWorkspace(cwd)) return 'pnpm';
   if (existsSync(path.join(cwd, 'bun.lockb')) || existsSync(path.join(cwd, 'bun.lock')))
     return 'bun';
   if (existsSync(path.join(cwd, 'pnpm-lock.yaml'))) return 'pnpm';
