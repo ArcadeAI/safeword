@@ -31,6 +31,10 @@ function isPnpmWorkspace(cwd: string): boolean {
   return existsSync(path.join(cwd, 'pnpm-workspace.yaml'));
 }
 
+function pnpmWorkspaceFlags(pm: PackageManager, cwd: string): string[] {
+  return pm === 'pnpm' && isPnpmWorkspace(cwd) ? ['-w'] : [];
+}
+
 /**
  * Detect package manager by lockfile and workspace config.
  * pnpm-workspace.yaml takes priority over bun.lockb — catalog: protocol
@@ -53,7 +57,7 @@ export function detectPackageManager(cwd: string): PackageManager {
  */
 export function getUninstallCommand(pm: PackageManager, packages: string[], cwd: string): string {
   const { uninstall } = PM_COMMANDS[pm];
-  const extraFlags = pm === 'pnpm' && isPnpmWorkspace(cwd) ? ['-w'] : [];
+  const extraFlags = pnpmWorkspaceFlags(pm, cwd);
   const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
   return `${pm} ${uninstall}${flagString} ${packages.join(' ')}`;
 }
@@ -68,7 +72,7 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
   const pm = detectPackageManager(cwd);
   const { install } = PM_COMMANDS[pm];
   // pnpm workspaces require -w to install at the workspace root
-  const extraFlags = pm === 'pnpm' && isPnpmWorkspace(cwd) ? ['-w'] : [];
+  const extraFlags = pnpmWorkspaceFlags(pm, cwd);
   const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
   const displayCommand = `${pm} ${install} ${DEV_FLAG}${flagString} ${packages.join(' ')}`;
 
