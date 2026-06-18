@@ -280,4 +280,83 @@ describe('runParity', () => {
       expect(result.failures[0]?.kind).toBe('orphan-template');
     });
   });
+
+  describe('cursor rules (must be thin @reference pointers)', () => {
+    function writeRule(templatesDirectory: string, name: string, content: string): void {
+      const rulesDirectory = nodePath.join(templatesDirectory, 'cursor', 'rules');
+      mkdirSync(rulesDirectory, { recursive: true });
+      writeFileSync(nodePath.join(rulesDirectory, name), content);
+    }
+
+    it('passes when the rule body is a single @reference after frontmatter', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeRule(
+        templatesDirectory,
+        'safeword-sample.mdc',
+        '---\nalwaysApply: false\ndescription: Sample rule.\n---\n\n@.claude/skills/sample/SKILL.md\n',
+      );
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures.filter(f => f.kind === 'cursor-rule')).toHaveLength(0);
+    });
+
+    it('fails with [CURSOR-RULE] naming the file when a rule has duplicated body content', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeRule(
+        templatesDirectory,
+        'safeword-fat.mdc',
+        '---\nalwaysApply: false\ndescription: Fat rule.\n---\n\n# Some Skill\n\nProse that belongs in the skill, not duplicated here.\n',
+      );
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      const ruleFailures = result.failures.filter(f => f.kind === 'cursor-rule');
+      expect(ruleFailures).toHaveLength(1);
+      expect(ruleFailures[0]?.message).toContain('[CURSOR-RULE]');
+      expect(ruleFailures[0]?.message).toContain('safeword-fat.mdc');
+    });
+
+    it('runs in contracts-only mode too (so pre-commit hard-blocks a re-fattened rule)', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeRule(
+        templatesDirectory,
+        'safeword-fat.mdc',
+        '---\ndescription: Fat.\n---\n\nDuplicated content line.\n',
+      );
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'contracts-only',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures.filter(f => f.kind === 'cursor-rule')).toHaveLength(1);
+    });
+
+    it('ignores non-.mdc files in the rules directory', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeRule(templatesDirectory, 'README.md', '# not a rule\n\nlots of prose\n');
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures.filter(f => f.kind === 'cursor-rule')).toHaveLength(0);
+    });
+  });
 });
