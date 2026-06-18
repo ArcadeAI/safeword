@@ -91,8 +91,7 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
  */
 export const MCP_SERVERS = {
   context7: {
-    command: 'bunx',
-    args: ['@upstash/context7-mcp@latest'],
+    url: 'https://mcp.context7.com/mcp',
   },
   playwright: {
     command: 'bunx',
