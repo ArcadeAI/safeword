@@ -20,7 +20,8 @@ export function recordSkillInvocation(
     throw new Error(`Invalid skill name "${skillName}"`);
   }
   if (sessionId === undefined || sessionId.trim().length === 0) {
-    throw new Error('Missing session id for skill invocation log');
+    // Non-Claude runtimes (Codex, etc.) don't expose a session id — skip silently.
+    return;
   }
 
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
@@ -40,6 +41,11 @@ if (import.meta.main) {
   try {
     if (skillName === undefined) {
       throw new Error('Missing skill name');
+    }
+
+    if (!sessionId || sessionId.trim().length === 0) {
+      console.log(`[skill-invocation-log] no session id — skipped (non-Claude runtime)`);
+      process.exit(0);
     }
 
     recordSkillInvocation(projectDirectory, skillName, sessionId);
