@@ -214,13 +214,17 @@ export interface UpgradeOptions {
 }
 
 /**
- * Default confirm seam: one-line readline [Y/n] prompt, Enter = yes,
+ * Default confirm seam: one-line readline [y/N] prompt, Enter = no,
  * stdin EOF/close = decline. `rl.question()`'s promise never settles when
  * the input closes (nodejs/node#53497), so the close event is raced in
  * explicitly — otherwise a Ctrl+D mid-prompt would hang the upgrade.
  * Streams injectable for tests.
+ *
+ * Defaults to NO — namespace migration is destructive (moves thousands of
+ * tracked files). Agentic environments hit Enter automatically; the safe
+ * default prevents silent namespace deletion (issue #227).
  */
-export async function promptYesDefault(
+export async function promptNoDefault(
   question: string,
   input: NodeJS.ReadableStream = process.stdin,
   output: NodeJS.WritableStream = process.stdout,
@@ -232,11 +236,11 @@ export async function promptYesDefault(
       rl.question(question),
       new Promise<string>(resolve =>
         rl.once('close', () => {
-          resolve('n');
+          resolve('');
         }),
       ),
     ]);
-    return !/^n/i.test(answer.trim());
+    return /^y/i.test(answer.trim());
   } catch {
     return false; // defensive — treat any prompt failure as decline
   } finally {
@@ -272,9 +276,9 @@ async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean
     );
     return false;
   }
-  const confirm = options.confirmMigration ?? promptYesDefault;
+  const confirm = options.confirmMigration ?? promptNoDefault;
   return confirm(
-    'Move project namespace from .safeword-project/ to .project/ (recommended)? [Y/n] ',
+    'Move project namespace from .safeword-project/ to .project/ (recommended)? [y/N] ',
   );
 }
 

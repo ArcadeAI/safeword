@@ -14,7 +14,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { maybeMigrateNamespace, promptYesDefault } from '../../src/commands/upgrade.js';
+import { maybeMigrateNamespace, promptNoDefault } from '../../src/commands/upgrade.js';
 import {
   executeNamespaceMigration,
   planNamespaceMigration,
@@ -182,19 +182,27 @@ describe('migration prompt seam (9MMWS7)', () => {
   });
 });
 
-describe('promptYesDefault (9MMWS7) — EOF-safe [Y/n]', () => {
+describe('promptNoDefault (9MMWS7) — EOF-safe [y/N]', () => {
   async function answerWith(chunks: string[], end = true): Promise<boolean> {
     const { PassThrough } = await import('node:stream');
     const input = new PassThrough();
     const output = new PassThrough();
-    const pending = promptYesDefault('move? [Y/n] ', input, output);
+    const pending = promptNoDefault('move? [y/N] ', input, output);
     for (const chunk of chunks) input.write(chunk);
     if (end) input.end();
     return pending;
   }
 
-  it('Enter accepts (default yes)', async () => {
-    await expect(answerWith(['\n'])).resolves.toBe(true);
+  it('Enter declines (default no)', async () => {
+    await expect(answerWith(['\n'])).resolves.toBe(false);
+  });
+
+  it('y accepts', async () => {
+    await expect(answerWith(['y\n'])).resolves.toBe(true);
+  });
+
+  it('Y accepts (case-insensitive)', async () => {
+    await expect(answerWith(['Y\n'])).resolves.toBe(true);
   });
 
   it('n declines', async () => {

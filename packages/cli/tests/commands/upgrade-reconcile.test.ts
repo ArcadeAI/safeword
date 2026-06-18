@@ -414,6 +414,8 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(afterFirst).toContain('.husky/_');
       expect(afterFirst).toContain('.safeword/');
       expect(afterFirst).toContain('.cursor/');
+      expect(afterFirst).toContain('.claude/');
+      expect(afterFirst).toContain('.agents/');
       expect(afterFirst).toContain('.project/tickets/INDEX.md');
       expect(afterFirst).toContain('.project/tickets/INDEX-completed.md');
 
