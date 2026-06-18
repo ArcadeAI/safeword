@@ -51,9 +51,10 @@ function isPnpmWorkspace(cwd: string): boolean {
 /**
  * Get uninstall command for package manager
  */
-export function getUninstallCommand(pm: PackageManager, packages: string[]): string {
+export function getUninstallCommand(pm: PackageManager, packages: string[], cwd?: string): string {
   const { uninstall } = PM_COMMANDS[pm];
-  return `${pm} ${uninstall} ${packages.join(' ')}`;
+  const workspaceFlag = pm === 'pnpm' && cwd !== undefined && isPnpmWorkspace(cwd) ? ' -w' : '';
+  return `${pm} ${uninstall}${workspaceFlag} ${packages.join(' ')}`;
 }
 
 /**

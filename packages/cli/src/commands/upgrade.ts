@@ -27,7 +27,11 @@ import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
-import { detectPackageManager, installDependencies } from '../utils/install.js';
+import {
+  detectPackageManager,
+  getUninstallCommand,
+  installDependencies,
+} from '../utils/install.js';
 import {
   executeNamespaceMigration,
   type MigrationPlan,
@@ -147,11 +151,11 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
 
   if (result.packagesToRemove.length > 0) {
     const pm = detectPackageManager(cwd);
-    const uninstallCmd = pm === 'yarn' ? 'yarn remove' : `${pm} uninstall`;
+    const uninstallCmd = getUninstallCommand(pm, result.packagesToRemove, cwd);
     warn(`\n${result.packagesToRemove.length} package(s) are now bundled in safeword:`);
     for (const pkg of result.packagesToRemove) listItem(pkg);
     info("\nIf you don't use these elsewhere, you can remove them:");
-    listItem(`${uninstallCmd} ${result.packagesToRemove.join(' ')}`);
+    listItem(uninstallCmd);
   }
 
   if (reconciledCodexConfig(result)) {
