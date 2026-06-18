@@ -455,9 +455,12 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
 // Packages
 // ============================================================================
 
-// Pin to v9 until ESLint plugin ecosystem supports v10 (released Feb 2026).
-// Minimum 9.22 for `eslint/config` defineConfig helper used in generated configs.
-export const ESLINT_PACKAGE = 'eslint@^9.22.0';
+// Default new installs to ESLint 10 — safeword's peer range is `^9.22.0 || ^10.0.0`
+// since v0.52.0, and the plugin-ecosystem blocker that pinned this to v9 is resolved.
+// Existing customers are NOT bumped: reconcile skips packages already installed, so
+// this only affects fresh setups. v10 keeps the `eslint/config` defineConfig helper
+// used in generated configs.
+export const ESLINT_PACKAGE = 'eslint@^10.0.0';
 
 export const typescriptPackages = {
   base: [
