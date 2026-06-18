@@ -28,9 +28,12 @@ const PM_COMMANDS: Record<PackageManager, { install: string; uninstall: string }
 };
 
 /**
- * Detect package manager by lockfile (bun > pnpm > yarn > npm)
+ * Detect package manager by lockfile and workspace config.
+ * pnpm-workspace.yaml takes priority over bun.lockb — catalog: protocol
+ * requires pnpm even when a bun lockfile also exists.
  */
 export function detectPackageManager(cwd: string): PackageManager {
+  if (existsSync(path.join(cwd, 'pnpm-workspace.yaml'))) return 'pnpm';
   if (existsSync(path.join(cwd, 'bun.lockb')) || existsSync(path.join(cwd, 'bun.lock')))
     return 'bun';
   if (existsSync(path.join(cwd, 'pnpm-lock.yaml'))) return 'pnpm';
@@ -39,6 +42,10 @@ export function detectPackageManager(cwd: string): PackageManager {
   // No lockfile found — fall back to current runtime (bun) or npm
   if (process.versions.bun) return 'bun';
   return 'npm';
+}
+
+function isPnpmWorkspace(cwd: string): boolean {
+  return existsSync(path.join(cwd, 'pnpm-workspace.yaml'));
 }
 
 /**
@@ -58,13 +65,20 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
 
   const pm = detectPackageManager(cwd);
   const { install } = PM_COMMANDS[pm];
-  const displayCommand = `${pm} ${install} ${DEV_FLAG} ${packages.join(' ')}`;
+  // pnpm workspaces require -w to install at the workspace root
+  const extraFlags = pm === 'pnpm' && isPnpmWorkspace(cwd) ? ['-w'] : [];
+  const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
+  const displayCommand = `${pm} ${install} ${DEV_FLAG}${flagString} ${packages.join(' ')}`;
 
   info(`\nInstalling ${label}...`);
   info(`Running: ${displayCommand}`);
 
   try {
-    execFileSync(pm, [install, DEV_FLAG, ...packages], { cwd, stdio: 'pipe', timeout: 120_000 });
+    execFileSync(pm, [install, DEV_FLAG, ...extraFlags, ...packages], {
+      cwd,
+      stdio: 'pipe',
+      timeout: 120_000,
+    });
     success(`Installed ${label}`);
   } catch {
     warn(`Failed to install ${label}. Run manually:`);

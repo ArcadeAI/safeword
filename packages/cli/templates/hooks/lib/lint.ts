@@ -187,7 +187,7 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
 
   console.error(`SAFEWORD: ${packName} pack missing, running upgrade...`);
 
-  const result = await $`bunx safeword@latest upgrade --yes`.nothrow().quiet();
+  const result = await $`bunx safeword@latest upgrade`.nothrow().quiet();
   if (result.exitCode !== 0) {
     console.error('SAFEWORD: Upgrade failed. Run manually: bunx safeword upgrade');
     return false;
