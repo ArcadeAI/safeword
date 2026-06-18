@@ -5,12 +5,17 @@
  * that caused this ticket: `eslint.config.ts` / `.prettierrc.yaml` were missed).
  */
 
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectAlternativeFormatter,
   detectEslintConfig,
   detectPrettierConfig,
+  projectOwnsAlternativeFormatter,
 } from '../../templates/hooks/lib/lint-config.js';
 
 describe('detectEslintConfig', () => {
@@ -124,5 +129,51 @@ describe('detectAlternativeFormatter', () => {
   it('ignores disabled/backup alternative-formatter configs', () => {
     expect(detectAlternativeFormatter(['biome.json.bak'])).toBe(false);
     expect(detectAlternativeFormatter(['deno.json.disabled'])).toBe(false);
+  });
+});
+
+describe('projectOwnsAlternativeFormatter', () => {
+  // The gate the lint hook uses to decide whether to skip Prettier: reads the
+  // project root and reports whether a non-Prettier formatter owns it (V7GGJZ).
+  let directory: string;
+
+  beforeEach(() => {
+    directory = mkdtempSync(path.join(tmpdir(), 'lint-owns-'));
+  });
+
+  afterEach(() => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it('is true when a non-Prettier formatter owns the repo', () => {
+    for (const config of ['biome.json', 'dprint.json', '.oxfmtrc.json', 'deno.json']) {
+      const owned = mkdtempSync(path.join(tmpdir(), 'lint-owns-'));
+      writeFileSync(path.join(owned, config), '{}');
+      expect(projectOwnsAlternativeFormatter(owned)).toBe(true);
+      rmSync(owned, { recursive: true, force: true });
+    }
+  });
+
+  it('is true when an alternative formatter and a Prettier config both exist (alternative wins)', () => {
+    writeFileSync(path.join(directory, 'biome.json'), '{}');
+    writeFileSync(path.join(directory, '.prettierrc'), '{}');
+
+    expect(projectOwnsAlternativeFormatter(directory)).toBe(true);
+  });
+
+  it('is false for a greenfield repo (no formatter)', () => {
+    writeFileSync(path.join(directory, 'package.json'), '{}');
+
+    expect(projectOwnsAlternativeFormatter(directory)).toBe(false);
+  });
+
+  it('is false when only a Prettier config is present (safeword formats with their config)', () => {
+    writeFileSync(path.join(directory, '.prettierrc'), '{}');
+
+    expect(projectOwnsAlternativeFormatter(directory)).toBe(false);
+  });
+
+  it('is false (does not throw) for a nonexistent directory', () => {
+    expect(projectOwnsAlternativeFormatter(path.join(directory, 'nope'))).toBe(false);
   });
 });

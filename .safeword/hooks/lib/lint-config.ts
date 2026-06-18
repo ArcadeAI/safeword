@@ -8,6 +8,8 @@
 // a new extension is a one-line add — the drift this replaces was an
 // *incomplete* list (`.ts`/`.yaml` were missing), not enumeration itself.
 
+import { readdirSync } from 'node:fs';
+
 const ESLINT_FLAT_EXTENSIONS = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'];
 const ESLINT_RC_EXTENSIONS = ['js', 'cjs', 'yaml', 'yml', 'json'];
 const PRETTIER_RC_EXTENSIONS = [
@@ -73,4 +75,18 @@ const ALTERNATIVE_FORMATTER_FILES = new Set<string>([
 
 export function detectAlternativeFormatter(entries: readonly string[]): boolean {
   return entries.some(name => ALTERNATIVE_FORMATTER_FILES.has(name));
+}
+
+/**
+ * Whether a non-Prettier formatter owns this project's formatting — the gate the
+ * lint hook uses to skip Prettier (ticket V7GGJZ). Reads the project root once;
+ * a read failure (e.g. missing dir) reads as "not owned" so the hook stays
+ * additive and never throws on a malformed path.
+ */
+export function projectOwnsAlternativeFormatter(projectDirectory: string): boolean {
+  try {
+    return detectAlternativeFormatter(readdirSync(projectDirectory));
+  } catch {
+    return false;
+  }
 }
