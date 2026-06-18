@@ -4,7 +4,7 @@ type: task
 phase: intake
 status: pending
 created: 2026-05-17T19:35:00Z
-last_modified: 2026-06-18T11:54:00Z
+last_modified: 2026-06-18T14:40:00Z
 ---
 
 # Migrate Cursor Rules to @reference Pattern
@@ -20,17 +20,17 @@ Parity-check only validates template ↔ dogfood within the same toolchain. It d
 
 ## Current State
 
-| Cursor rule                | Lines | Claude skill   | Lines | Pattern            |
-| -------------------------- | ----- | -------------- | ----- | ------------------ |
-| safeword-core              | 5     | (SAFEWORD.md)  | —     | `@reference`       |
-| safeword-brainstorming     | 7     | brainstorm     | 42    | `@reference` (new) |
-| safeword-debugging         | 209   | debug          | 226   | duplicate          |
-| safeword-elicitation       | 7     | elicit         | 84    | `@reference` (new) |
-| safeword-quality-reviewing | 186   | quality-review | 115   | duplicate          |
-| safeword-refactoring       | 175   | refactor       | ~     | duplicate          |
-| safeword-tdd-review        | 7     | tdd-review     | 75    | `@reference` (new) |
-| safeword-testing           | 276   | testing        | ~     | duplicate          |
-| safeword-ticket-system     | 9     | ticket-system  | ~     | `@reference`       |
+| Cursor rule                | Lines | Claude skill   | Lines | Pattern                 |
+| -------------------------- | ----- | -------------- | ----- | ----------------------- |
+| safeword-core              | 5     | (SAFEWORD.md)  | —     | `@reference`            |
+| safeword-brainstorming     | 7     | brainstorm     | 42    | `@reference` (new)      |
+| safeword-debugging         | 6     | debug          | 226   | `@reference` (migrated) |
+| safeword-elicitation       | 7     | elicit         | 84    | `@reference` (new)      |
+| safeword-quality-reviewing | 6     | quality-review | 115   | `@reference` (migrated) |
+| safeword-refactoring       | 6     | refactor       | 237   | `@reference` (migrated) |
+| safeword-tdd-review        | 7     | tdd-review     | 75    | `@reference` (new)      |
+| safeword-testing           | 6     | testing        | 282   | `@reference` (migrated) |
+| safeword-ticket-system     | 9     | ticket-system  | ~     | `@reference`            |
 
 ## Investigation Needed (Before Conversion)
 
@@ -61,3 +61,4 @@ Parity-check only validates template ↔ dogfood within the same toolchain. It d
 
 - 2026-05-17 19:35 UTC — Ticket created as follow-up from ticket 150 / PR #103. While porting three new Cursor rules I noticed the duplicate-content pattern in 4 older rules creates silent drift risk; the project already supports `@reference` pattern, so migration is mechanical once drift is audited.
 - 2026-06-18 11:54 UTC — Refresh during a quality-review pass. (1) `safeword-quality-reviewing.mdc` grew 157→186 lines: commit `bb429c40` added a shared "Loop" block to both the `.md` skill and this `.mdc`. On conversion, the `.mdc`'s 8-step protocol is intentionally dropped and the Loop survives via the `@reference` to the skill — audit accordingly. (2) The 7 `bdd-*` rules are already `@reference` (ticket `G1A6BS`), so the BDD out-of-scope note is resolved. (3) `@reference` mechanic confirmed current in Cursor docs; large-file (150–300 line) expansion depth still unverified — investigation item 2 stands. (4) Reframed the equivalence guard as a structural "must-be-pointer" check.
+- 2026-06-18 14:40 UTC — **Converted all 4 rules to `@reference`** (branch `ticket-151-cursor-rules-reference`, off main after #257 merged). Drift audit (independent sub-agent): debugging / refactoring / testing are stale duplicates their skills already supersede → mechanical convert, zero loss; quality-reviewing was genuinely divergent (legacy 8-step generic protocol). **Maintainer decision: DROP the 8-step** — the automatic quality hook already covers general review, and the skill deliberately focuses on web research + the Loop. No Cursor-specific content (`globs`/`@docs`/IDE directives) in any rule; no contributor docs reference the old convention (nothing to update). Each rule keeps its `description`/`alwaysApply` frontmatter; body replaced with `@.claude/skills/<dir>/SKILL.md`. Cursor `@reference` mechanic verified for ≤282-line targets (13 rules already use it; large-file limits start in the thousands). `parity-check --mode=all` clean (157 pairs + 3 contracts). **Remaining:** the structural must-be-pointer guard (done-when item 3) — deferred to a focused follow-up.
