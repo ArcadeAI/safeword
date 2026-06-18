@@ -162,3 +162,39 @@ describe('hasExistingPrettierConfig', () => {
     expect(detect.hasExistingPrettierConfig(temporaryDirectory)).toBe(false);
   });
 });
+
+describe('hasExistingFormatter', () => {
+  let temporaryDirectory: string;
+
+  beforeEach(() => {
+    temporaryDirectory = mkdtempSync(path.join(tmpdir(), 'detect-formatter-'));
+  });
+
+  afterEach(() => {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it('detects Biome', () => {
+    writeFileSync(path.join(temporaryDirectory, 'biome.json'), '{}');
+
+    expect(detect.hasExistingFormatter(temporaryDirectory, {})).toBe(true);
+  });
+
+  it('detects oxfmt (.oxfmtrc.json)', () => {
+    writeFileSync(path.join(temporaryDirectory, '.oxfmtrc.json'), '{}');
+
+    expect(detect.hasExistingFormatter(temporaryDirectory, {})).toBe(true);
+  });
+
+  it('detects deno (deno.json)', () => {
+    writeFileSync(path.join(temporaryDirectory, 'deno.json'), '{}');
+
+    expect(detect.hasExistingFormatter(temporaryDirectory, {})).toBe(true);
+  });
+
+  it('is false for a project with no alternative formatter', () => {
+    writeFileSync(path.join(temporaryDirectory, 'package.json'), '{}');
+
+    expect(detect.hasExistingFormatter(temporaryDirectory, {})).toBe(false);
+  });
+});
