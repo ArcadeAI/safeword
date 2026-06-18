@@ -1,10 +1,10 @@
 ---
 id: '099'
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-04-11
-last_modified: 2026-06-18T03:20:00Z
+last_modified: 2026-06-18T15:00:00Z
 ---
 
 # Task: ESLint 10 Migration
