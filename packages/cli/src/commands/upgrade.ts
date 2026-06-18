@@ -209,7 +209,7 @@ export interface UpgradeOptions {
   noModify?: boolean;
   /** Explicit namespace-migration consent: true = migrate, false = decline. Unset → prompt (TTY) or nudge. */
   migrateNamespace?: boolean;
-  /** Injected confirm seam for the TTY prompt (tests). Defaults to a readline [Y/n] prompt. */
+  /** Injected confirm seam for the TTY prompt (tests). Defaults to a readline [y/N] prompt. */
   confirmMigration?: (question: string) => Promise<boolean>;
 }
 
