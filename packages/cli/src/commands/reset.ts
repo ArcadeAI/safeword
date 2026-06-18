@@ -26,7 +26,7 @@ function uninstallPackages(cwd: string, packages: string[]): void {
   if (packages.length === 0) return;
 
   const pm = detectPackageManager(cwd);
-  const uninstallCmd = getUninstallCommand(pm, packages, cwd);
+  const uninstallCmd = getUninstallCommand(pm, packages);
 
   info('\nUninstalling devDependencies...');
   info(`Running: ${uninstallCmd}`);
