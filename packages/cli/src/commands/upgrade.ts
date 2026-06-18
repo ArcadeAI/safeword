@@ -149,7 +149,7 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
 
   if (result.packagesToRemove.length > 0) {
     const pm = detectPackageManager(cwd);
-    const uninstallCmd = getUninstallCommand(pm, result.packagesToRemove);
+    const uninstallCmd = getUninstallCommand(pm, result.packagesToRemove, cwd);
     warn(`\n${result.packagesToRemove.length} package(s) are now bundled in safeword:`);
     for (const pkg of result.packagesToRemove) listItem(pkg);
     info("\nIf you don't use these elsewhere, you can remove them:");
