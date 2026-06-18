@@ -52,9 +52,6 @@ export function detectPackageManager(cwd: string): PackageManager {
   return 'npm';
 }
 
-/**
- * Get uninstall command for package manager
- */
 export function getUninstallCommand(packages: string[], cwd: string): string {
   const pm = detectPackageManager(cwd);
   const { uninstall } = PM_COMMANDS[pm];
@@ -63,9 +60,6 @@ export function getUninstallCommand(packages: string[], cwd: string): string {
   return `${pm} ${uninstall}${flagString} ${packages.join(' ')}`;
 }
 
-/**
- * Install packages using detected package manager
- */
 export function installDependencies(cwd: string, packages: string[], label = 'packages'): void {
   if (packages.length === 0) return;
   if (process.env.SAFEWORD_SKIP_INSTALL) return;
