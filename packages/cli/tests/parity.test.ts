@@ -345,6 +345,24 @@ describe('runParity', () => {
       expect(result.failures.filter(f => f.kind === 'cursor-rule')).toHaveLength(1);
     });
 
+    it('passes a thin rule even with CRLF line endings', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writeRule(
+        templatesDirectory,
+        'safeword-crlf.mdc',
+        '---\r\nalwaysApply: false\r\ndescription: CRLF rule.\r\n---\r\n\r\n@.claude/skills/sample/SKILL.md\r\n',
+      );
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures.filter(f => f.kind === 'cursor-rule')).toHaveLength(0);
+    });
+
     it('ignores non-.mdc files in the rules directory', () => {
       const { rootDirectory, templatesDirectory } = makeFixture();
       writeRule(templatesDirectory, 'README.md', '# not a rule\n\nlots of prose\n');

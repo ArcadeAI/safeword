@@ -116,7 +116,9 @@ function checkCursorRulesThin(templatesDirectory: string): ParityFailure[] {
   const failures: ParityFailure[] = [];
   for (const entry of readdirSync(rulesDirectory, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith('.mdc')) continue;
-    const lines = readFileSync(nodePath.join(rulesDirectory, entry.name), 'utf8').split('\n');
+    // Split on \r?\n so a CRLF-saved rule isn't misread as frontmatter-less
+    // (which would flag a valid thin rule as fat).
+    const lines = readFileSync(nodePath.join(rulesDirectory, entry.name), 'utf8').split(/\r?\n/);
     const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
     const bodyLines = frontmatterEnd === -1 ? lines : lines.slice(frontmatterEnd + 1);
     const fatLines = bodyLines
