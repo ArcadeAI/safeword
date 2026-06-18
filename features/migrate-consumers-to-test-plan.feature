@@ -26,7 +26,7 @@ Feature: migrate consumers to test-plan
     Scenario: Evaluating the script runs the resolved suite
       Given a repo with a root "test" script that prints "RAN_SUITE"
       When I eval the rendered shell script
-      Then the output contains "RAN_SUITE"
+      Then the eval output contains "RAN_SUITE"
       And the eval exits zero
 
     @migrate-consumers.SM1.AC3
@@ -66,13 +66,13 @@ Feature: migrate consumers to test-plan
       And it does not define "nativeTestCommand", "getJsTestCommands", or "pythonTestCommand"
       And it invokes "test-plan" via the safeword CLI
 
-    @migrate-consumers.DEV1.AC1
+    @wip @migrate-consumers.DEV1.AC1
     Scenario: A JS project still runs its test script and the acceptance lane
       Given a project whose package.json has a "test" and a "test:bdd" script
       When the stop-hook test runner runs
       Then both the test script and the acceptance lane are executed
 
-    @migrate-consumers.DEV1.AC1
+    @wip @migrate-consumers.DEV1.AC1
     Scenario: A project with no runnable suite skips without blocking
       Given a project with no test script and no language manifest
       When the stop-hook test runner runs

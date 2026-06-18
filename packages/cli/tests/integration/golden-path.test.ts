@@ -251,6 +251,8 @@ describe('E2E: TypeScript Setup Idempotency', () => {
     expect(content).toContain('.husky/_');
     expect(content).toContain('.safeword/');
     expect(content).toContain('.cursor/');
+    expect(content).toContain('.claude/');
+    expect(content).toContain('.agents/');
     expect(content).toContain('.project/tickets/INDEX.md');
     expect(content).toContain('.project/tickets/INDEX-completed.md');
   });

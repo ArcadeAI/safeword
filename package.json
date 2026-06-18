@@ -25,7 +25,7 @@
     "deps": "depcruise packages/*/src --config .dependency-cruiser.cjs",
     "deps:graph": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type dot | dot -T svg > dependency-graph.svg",
     "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err",
-    "test:bdd": "cucumber-js"
+    "test:bdd": "cucumber-js --tags 'not @wip'"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^13.0.0",

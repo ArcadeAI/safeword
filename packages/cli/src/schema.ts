@@ -213,6 +213,25 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword-project/dependency-readiness.json',
 ];
 
+/**
+ * Directories and generated files that safeword owns — excluded from host
+ * formatters so prettier/biome churn doesn't dirty the tree on install.
+ * Both namespace roots listed (TAGWZ8).
+ */
+const MANAGED_PRETTIER_PATHS = [
+  '.husky/_',
+  '.safeword/',
+  '.cursor/',
+  '.claude/',
+  '.agents/',
+  '.project/tickets/INDEX.md',
+  '.project/tickets/INDEX-completed.md',
+  '.project/learnings/INDEX.md',
+  '.safeword-project/tickets/INDEX.md',
+  '.safeword-project/tickets/INDEX-completed.md',
+  '.safeword-project/learnings/INDEX.md',
+];
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -898,8 +917,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // generator output every commit. Generated → prettier-ignored (1GGD28).
       // Both namespace roots listed (TAGWZ8): INDEX files generate under the
       // resolved root — .project/ on fresh installs, .safeword-project/ legacy.
-      content:
-        '\n# Safeword - managed prettier exclusions\n.husky/_\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n.project/tickets/INDEX-completed.md\n.project/learnings/INDEX.md\n.safeword-project/tickets/INDEX.md\n.safeword-project/tickets/INDEX-completed.md\n.safeword-project/learnings/INDEX.md\n',
+      content: `\n# Safeword - managed prettier exclusions\n${MANAGED_PRETTIER_PATHS.join('\n')}\n`,
       marker: '.project/tickets/INDEX-completed.md',
     },
     '.codex/config.toml': {
