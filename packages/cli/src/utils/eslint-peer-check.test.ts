@@ -59,25 +59,34 @@ describe('getEslintPeerMismatchWarning', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
   });
 
-  it('returns a warning for pinned eslint 10.0.0 (above safeword supported range)', () => {
-    writeTestFile(
-      temporaryDirectory,
-      'package.json',
-      JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '10.0.0' } }),
-    );
-    const warning = getEslintPeerMismatchWarning(temporaryDirectory);
-    expect(warning).not.toBeUndefined();
-    expect(warning).toContain('eslint');
-    expect(warning).toContain('10');
-  });
-
-  it('returns a warning for eslint ^10 caret range', () => {
+  it('returns undefined when eslint is in the supported major (10.x as caret range)', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
       JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '^10.4.0' } }),
     );
-    expect(getEslintPeerMismatchWarning(temporaryDirectory)).not.toBeUndefined();
+    expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
+  });
+
+  it('returns undefined for a pinned 10.x version', () => {
+    writeTestFile(
+      temporaryDirectory,
+      'package.json',
+      JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '10.0.0' } }),
+    );
+    expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
+  });
+
+  it('returns a warning for pinned eslint 11.0.0 (above safeword supported range)', () => {
+    writeTestFile(
+      temporaryDirectory,
+      'package.json',
+      JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '11.0.0' } }),
+    );
+    const warning = getEslintPeerMismatchWarning(temporaryDirectory);
+    expect(warning).not.toBeUndefined();
+    expect(warning).toContain('eslint');
+    expect(warning).toContain('11');
   });
 
   it('returns a warning for eslint below supported range (8.x)', () => {
@@ -93,7 +102,7 @@ describe('getEslintPeerMismatchWarning', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
-      JSON.stringify({ name: 'x', version: '0.0.0', dependencies: { eslint: '10.0.0' } }),
+      JSON.stringify({ name: 'x', version: '0.0.0', dependencies: { eslint: '11.0.0' } }),
     );
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).not.toBeUndefined();
   });
@@ -107,13 +116,14 @@ describe('getEslintPeerMismatchWarning', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
   });
 
-  it('warning message names the safeword supported major (9) and the conflict', () => {
+  it('warning message names the safeword supported majors (9 and 10) and the conflict', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
-      JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '^10.0.0' } }),
+      JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '^11.0.0' } }),
     );
     const warning = getEslintPeerMismatchWarning(temporaryDirectory);
     expect(warning).toContain('9');
+    expect(warning).toContain('10');
   });
 });
