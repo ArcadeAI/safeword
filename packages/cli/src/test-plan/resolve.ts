@@ -143,19 +143,22 @@ function resolveJs(
   return script ? entry('javascript', root, `${pm} run ${script}`, pm, isAvailable(pm)) : undefined;
 }
 
+/** Returns the first script name in `priority` that exists in `scripts`, or undefined. */
+function firstScript(
+  scripts: Record<string, string>,
+  priority: readonly string[],
+): string | undefined {
+  return priority.find(name => name in scripts);
+}
+
 /** Prefer a gate-tuned `test:done` subset, else `test`; undefined when neither exists. */
 function pickTestScript(scripts: Record<string, string>): string | undefined {
-  if (scripts['test:done']) return 'test:done';
-  if (scripts.test) return 'test';
-  return undefined;
+  return firstScript(scripts, ['test:done', 'test']);
 }
 
 /** For done-gate verification: prefer the authoritative full suite over fast subsets. */
 function pickVerifyScript(scripts: Record<string, string>): string | undefined {
-  if (scripts['test:ci']) return 'test:ci';
-  if (scripts.test) return 'test';
-  if (scripts['test:done']) return 'test:done';
-  return undefined;
+  return firstScript(scripts, ['test:ci', 'test', 'test:done']);
 }
 
 /** True when an indexed `file` contains `marker`. */
