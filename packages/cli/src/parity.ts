@@ -12,7 +12,7 @@ interface ParitySchema {
 }
 
 interface ParityFailure {
-  kind: 'pair' | 'contract' | 'orphan-template';
+  kind: 'pair' | 'contract' | 'orphan-template' | 'cursor-rule';
   message: string;
 }
 
@@ -104,6 +104,36 @@ function checkOrphanTemplates(templatesDirectory: string, schema: ParitySchema):
     }));
 }
 
+/** Every Cursor rule must be a thin `@reference` pointer to its canonical
+ * skill/instruction file — never duplicated content. Parity-check validates
+ * template↔dogfood within a toolchain but NOT Claude-skill↔Cursor-rule
+ * equivalence, so a fat rule silently drifts from the skill it mirrors. This
+ * guard keeps the skill the single source of truth (ticket 151): after the YAML
+ * frontmatter, every non-blank body line must be an `@`-reference. */
+function checkCursorRulesThin(templatesDirectory: string): ParityFailure[] {
+  const rulesDirectory = nodePath.join(templatesDirectory, 'cursor', 'rules');
+  if (!existsSync(rulesDirectory)) return [];
+  const failures: ParityFailure[] = [];
+  for (const entry of readdirSync(rulesDirectory, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.mdc')) continue;
+    // Split on \r?\n so a CRLF-saved rule isn't misread as frontmatter-less
+    // (which would flag a valid thin rule as fat).
+    const lines = readFileSync(nodePath.join(rulesDirectory, entry.name), 'utf8').split(/\r?\n/);
+    const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
+    const bodyLines = frontmatterEnd === -1 ? lines : lines.slice(frontmatterEnd + 1);
+    const fatLines = bodyLines
+      .map(line => line.trim())
+      .filter(line => line.length > 0 && !line.startsWith('@'));
+    if (fatLines.length > 0) {
+      failures.push({
+        kind: 'cursor-rule',
+        message: `[CURSOR-RULE] cursor/rules/${entry.name} is not a thin @reference pointer (${fatLines.length} content line(s)) — Cursor skill-rules must be a single \`@.claude/skills/<name>/SKILL.md\` pointer, not duplicated skill content (ticket 151).`,
+      });
+    }
+  }
+  return failures;
+}
+
 export function runParity(input: ParityInput): ParityResult {
   const failures: ParityFailure[] = [];
   let passedCount = 0;
@@ -128,9 +158,13 @@ export function runParity(input: ParityInput): ParityResult {
     else passedCount += 1;
   }
 
-  // Orphan-template scan runs in BOTH modes (like contracts) — an unregistered
-  // template is a hard bug, so pre-commit's --mode=contracts-only hard-blocks it.
-  failures.push(...checkOrphanTemplates(input.templatesDirectory, input.schema));
+  // Orphan-template + cursor-rule scans run in BOTH modes (like contracts) so
+  // pre-commit's --mode=contracts-only hard-blocks an unregistered template or a
+  // re-fattened Cursor rule before it lands (tickets 04NKDR, 151).
+  failures.push(
+    ...checkOrphanTemplates(input.templatesDirectory, input.schema),
+    ...checkCursorRulesThin(input.templatesDirectory),
+  );
 
   return { failures, passedCount };
 }

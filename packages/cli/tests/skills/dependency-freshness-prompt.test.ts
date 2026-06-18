@@ -18,14 +18,6 @@ const expectPromptTimestampSearch = (content: string): void => {
   expectNoHardcodedStableYear(content);
 };
 
-const expectCurrentDateFallbackSearch = (content: string): void => {
-  expect(content).toContain('Current time:');
-  expect(content).toContain('when the host provides one');
-  expect(content).toContain('current system date');
-  expect(content).toContain('latest stable version as of <current date>');
-  expectNoHardcodedStableYear(content);
-};
-
 describe('dependency freshness instructions', () => {
   it.each([
     ['canonical SAFEWORD template', 'packages/cli/templates/SAFEWORD.md'],
@@ -58,10 +50,13 @@ describe('dependency freshness instructions', () => {
       'packages/cli/templates/cursor/rules/safeword-quality-reviewing.mdc',
     ],
     ['dogfood Cursor quality-review rule', '.cursor/rules/safeword-quality-reviewing.mdc'],
-  ])('%s uses prompt timestamp when available with a current-date fallback', (_label, path) => {
+  ])('%s is a thin @reference, inheriting the skill freshness instruction', (_label, path) => {
     const content = readRepoFile(path);
 
-    expectCurrentDateFallbackSearch(content);
+    // Migrated to the @reference pattern (ticket 151): the rule is a thin pointer,
+    // so the prompt-timestamp instruction lives in the quality-review skill it
+    // references (asserted above), not duplicated in the rule.
+    expect(content).toContain('@.claude/skills/quality-review/SKILL.md');
   });
 
   it.each([
