@@ -44,3 +44,33 @@ export function detectEslintConfig(entries: readonly string[]): boolean {
 export function detectPrettierConfig(entries: readonly string[]): boolean {
   return entries.some(name => PRETTIER_CONFIG_FILES.has(name));
 }
+
+// Non-Prettier JS/TS formatters that own a repo's formatting. When one is
+// present the lint hook skips Prettier rather than fight it (ticket V7GGJZ).
+// Exact-filename match, mirroring ALTERNATIVE_FORMATTER_FILES in
+// presets/typescript/detect.ts — the `cli-presets-self-contained` rule forbids
+// importing it, so the two are kept in sync by hand. oxfmt config set per oxc
+// docs; deno uses deno.json(c).
+const OXFMT_CONFIG_EXTENSIONS = ['js', 'cjs', 'mjs', 'ts', 'cts', 'mts'];
+const ALTERNATIVE_FORMATTER_FILES = new Set<string>([
+  // Biome (and legacy Rome)
+  'biome.json',
+  'biome.jsonc',
+  'rome.json',
+  // dprint
+  'dprint.json',
+  '.dprint.json',
+  'dprint.jsonc',
+  '.dprint.jsonc',
+  // oxfmt (oxc formatter)
+  '.oxfmtrc.json',
+  '.oxfmtrc.jsonc',
+  ...OXFMT_CONFIG_EXTENSIONS.map(extension => `oxfmt.config.${extension}`),
+  // deno fmt
+  'deno.json',
+  'deno.jsonc',
+]);
+
+export function detectAlternativeFormatter(entries: readonly string[]): boolean {
+  return entries.some(name => ALTERNATIVE_FORMATTER_FILES.has(name));
+}

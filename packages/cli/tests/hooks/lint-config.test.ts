@@ -7,7 +7,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { detectEslintConfig, detectPrettierConfig } from '../../templates/hooks/lib/lint-config.js';
+import {
+  detectAlternativeFormatter,
+  detectEslintConfig,
+  detectPrettierConfig,
+} from '../../templates/hooks/lib/lint-config.js';
 
 describe('detectEslintConfig', () => {
   it('detects every flat-config extension', () => {
@@ -75,5 +79,50 @@ describe('disabled/backup configs are not treated as present', () => {
   it('ignores unrelated extensions on the config base', () => {
     expect(detectPrettierConfig(['.prettierrc.local'])).toBe(false);
     expect(detectEslintConfig(['eslint.config.backup'])).toBe(false);
+  });
+});
+
+describe('detectAlternativeFormatter', () => {
+  // A non-Prettier JS/TS formatter owns the repo's formatting → the lint hook
+  // must skip Prettier rather than fight it (ticket V7GGJZ). Exact-filename
+  // match, mirroring ALTERNATIVE_FORMATTER_FILES in presets/typescript/detect.ts.
+  it('detects Biome and legacy Rome configs', () => {
+    for (const file of ['biome.json', 'biome.jsonc', 'rome.json']) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('detects dprint configs (with and without leading dot)', () => {
+    for (const file of ['dprint.json', '.dprint.json', 'dprint.jsonc', '.dprint.jsonc']) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('detects oxfmt configs (rc + config variants)', () => {
+    for (const file of [
+      '.oxfmtrc.json',
+      '.oxfmtrc.jsonc',
+      'oxfmt.config.js',
+      'oxfmt.config.mjs',
+      'oxfmt.config.ts',
+    ]) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('detects deno configs', () => {
+    for (const file of ['deno.json', 'deno.jsonc']) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('is false for prettier-only or no formatter', () => {
+    expect(detectAlternativeFormatter(['.prettierrc', 'package.json'])).toBe(false);
+    expect(detectAlternativeFormatter(['README.md', 'tsconfig.json'])).toBe(false);
+  });
+
+  it('ignores disabled/backup alternative-formatter configs', () => {
+    expect(detectAlternativeFormatter(['biome.json.bak'])).toBe(false);
+    expect(detectAlternativeFormatter(['deno.json.disabled'])).toBe(false);
   });
 });
