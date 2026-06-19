@@ -20,6 +20,7 @@ last_modified: 2026-06-19T19:38:40.751Z
 - Opt-in only: the other textPatches (codex config, gitignore, transient-paths) keep their current append/marker semantics — no behavior change unless a patch sets the field.
 - Apply it to the `.prettierignore` patch (collapses the EYRK34 double-block to one block on upgrade).
 - Robust to historical block variants: strip by header→blank-line boundary, not exact prior content (the managed list grew across versions, so exact-content matching would miss older forms).
+- **Handle EOF** (independent-review footgun): the managed block content ends with a single trailing `\n`, not a blank line. When the old block sits at end-of-file (nothing after it), the header→blank-line strip must terminate at EOF — not silently no-op (leaving the stale block) nor over-cut into preceding customer lines.
 
 ## Out of scope
 
@@ -30,6 +31,7 @@ last_modified: 2026-06-19T19:38:40.751Z
 
 - A `.prettierignore` already holding a legacy safeword block, after upgrade, contains exactly ONE safeword managed block (the current owned-dirs one) — legacy block stripped, customer lines preserved, idempotent on re-run.
 - Opt-out patches (codex/gitignore) are byte-unchanged by the new mechanism (regression test).
+- EOF case covered: a legacy block at end-of-file (single trailing newline) strips cleanly without touching preceding customer lines (test).
 - Full suite + lint green; hook template mirror synced if touched.
 
 ## Origin
