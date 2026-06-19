@@ -1,6 +1,6 @@
 # Impl Plan: Formatter-aware lint hook
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -61,6 +61,16 @@ the epic restates — here applied to hook _actions_, not just written config.
   that doesn't actually run `deno fmt` would get no safeword formatting. Acceptable: deferring to the
   repo's own tooling is the safe default, and the worst case (a Deno repo with no active formatter
   goes unformatted by the agent) is greenfield-equivalent, not a collision.
+- **Test altitude: shipped unit, deferred acceptance (deviation from Approach steps 2–3).** The plan
+  called for integration tests driving `lintFile` against temp-repo fixtures. As shipped, the gate is
+  proven by unit tests of the decision seam — `detectAlternativeFormatter`,
+  `projectOwnsAlternativeFormatter` (skip-gate), `shouldWarnMissingPrettier` (session nag) — plus the
+  trivial `runPrettier` early-return wiring. DEV1.AC3 needed no code: the existing formatter-agnostic
+  ESLint config already bakes in `eslint-config-prettier` (in `recommendedTypeScript`) and carries no
+  `@stylistic` plugin, with security via `basePlugins` — verified by inspection. The 9 Gherkin
+  scenarios that would assert the full end-to-end hook run are tagged `@wip` (cucumber step defs
+  deferred): spawning the hook pulls in `bunx eslint/prettier` and can trigger an upgrade on a bare
+  dir, so it isn't a cheap test. Tracked as a follow-up under epic 2H2XKH.
 
 ## Assessment triggers
 
