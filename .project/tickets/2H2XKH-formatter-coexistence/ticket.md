@@ -2,10 +2,10 @@
 id: 2H2XKH
 title: 'Formatter coexistence: inert install, zero formatter collisions, self-contained ignores'
 type: epic
-phase: planning
-status: in_progress
+phase: done
+status: done
 created: 2026-06-18T16:58:14.654Z
-last_modified: 2026-06-18T17:35:00.000Z
+last_modified: 2026-06-19T19:15:00.000Z
 children: ['9C2CFX', 'V7GGJZ', 'EYRK34']
 ---
 
@@ -146,3 +146,12 @@ this session traced it to runtime formatter-blindness despite careful install-ti
   to A (skip)**; B (delegate) and D (config switch) deferred to fast-follow. Normalized `children` to a
   YAML list. Epic adopted as-is. (Note: epic + children were co-authored by a concurrent worktree session
   on the 2H2XKH scaffold; verified settled — no writes for ~32 min — before editing.)
+- 2026-06-19T19:15:00.000Z Epic complete — all three children done:
+  - **V7GGJZ** (feature): runtime auto-lint hook defers to the customer's formatter (biome/dprint/oxfmt/
+    deno) — skips Prettier instead of churning; full BDD + 10-scenario cucumber acceptance lane.
+  - **9C2CFX** (task): install/upgrade no longer fills safeword's style defaults into a customer's
+    existing `.prettierrc` (the "churns my files on install" report).
+  - **EYRK34** (task): customer formatters (Biome/Prettier/dprint/oxfmt) skip every safeword-owned dir
+    from one `SAFEWORD_IGNORE_DIRS` source + drift guard; ruff/rustfmt no-churn by file-type.
+    Deferred fast-follows: V7GGJZ Option B (detect-and-delegate) + Option D (formatter config switch); the
+    V7GGJZ DEV1.AC3 cucumber lane (`@wip`). Status → done.
