@@ -54,6 +54,9 @@ function parseFormat(options: { json?: boolean; format?: string }): Format {
 function parseKind(value: string | undefined): PlanKind {
   if (value === undefined || value === 'test') return 'test';
   if (value === 'build') return 'build';
-  console.error(`Unknown --kind "${value}" (expected "test" or "build")`);
-  process.exit(1);
+  if (value === 'verify') return 'verify';
+  console.warn(
+    `Unknown --kind "${value}" (expected "test", "build", or "verify") — falling back to "test"`,
+  );
+  return 'test';
 }

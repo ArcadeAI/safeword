@@ -14,12 +14,12 @@ last_modified: 2026-06-16T13:07:39.147Z
 
 **Why:** Low-impact hygiene — the runtime behavior is correct, but the comments describe safeword-internal mechanics (canonical template source, "ahead of published npm") that mean nothing in a customer repo.
 
-> Source: `PRODUCT-AUDIT-leakage.md` → Axis 1 (LOW). The `dogfood.ts` *detection logic* is correct and stays; only the explanatory prose needs trimming to what a consumer needs.
+> Source: `PRODUCT-AUDIT-leakage.md` → Axis 1 (LOW). The `dogfood.ts` _detection logic_ is correct and stays; only the explanatory prose needs trimming to what a consumer needs.
 
 ## Findings (file:line)
 
-- `templates/hooks/session-auto-upgrade.ts:23` — *"deployed mirrors of the LOCAL `packages/cli/templates/` source."*
-- `templates/hooks/lib/dogfood.ts:5-13` — *"canonical source at `packages/cli/templates/` — routinely ahead of the published npm package."*
+- `templates/hooks/session-auto-upgrade.ts:23` — _"deployed mirrors of the LOCAL `packages/cli/templates/` source."_
+- `templates/hooks/lib/dogfood.ts:5-13` — _"canonical source at `packages/cli/templates/` — routinely ahead of the published npm package."_
 - `templates/hooks/post-tool-sync-learnings.ts:42` — local-CLI dev/dogfood path check + comment.
 
 ## Acceptance criteria

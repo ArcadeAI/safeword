@@ -129,7 +129,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     expect(logContent).toMatch(/ remote-session-uuid verify$/m);
   });
 
-  it('fails closed when no session id is available', () => {
+  it('exits 0 and skips when no session id is available (non-Claude runtime graceful)', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
     const env = { ...process.env };
     delete env.CLAUDE_SESSION_ID;
@@ -140,8 +140,8 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
       env,
     });
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('Missing session id for skill invocation log');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('no session id');
     expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
       false,
     );

@@ -11,6 +11,8 @@ import nodePath from 'node:path';
 
 import { $ } from 'bun';
 
+import { projectOwnsAlternativeFormatter } from './lint-config.js';
+
 // File extensions for different linting strategies
 const JS_EXTENSIONS = new Set([
   'js',
@@ -51,6 +53,12 @@ const SAFEWORD_SQLFLUFF = `${projectDir}/.safeword/sqlfluff.cfg`;
 const SAFEWORD_CLIPPY = `${projectDir}/.safeword/clippy.toml`;
 const SAFEWORD_RUSTFMT = `${projectDir}/.safeword/rustfmt.toml`;
 const SAFEWORD_PRETTIER = `${projectDir}/.safeword/.prettierrc`;
+
+// Whether this repo is owned by a non-Prettier formatter (Biome, dprint, oxfmt,
+// deno). Computed once from the project root; when true the hook skips Prettier
+// so it never restyles the customer's files into a competing style (ticket
+// V7GGJZ). ESLint still runs (security/complexity) — see lintFile.
+const REPO_OWNS_ALTERNATIVE_FORMATTER = projectOwnsAlternativeFormatter(projectDir);
 
 // Track if we've already tried upgrading (avoid repeated attempts in same process)
 let upgradeAttempted = false;
@@ -187,7 +195,7 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
 
   console.error(`SAFEWORD: ${packName} pack missing, running upgrade...`);
 
-  const result = await $`bunx safeword@latest upgrade --yes`.nothrow().quiet();
+  const result = await $`bunx safeword@latest upgrade`.nothrow().quiet();
   if (result.exitCode !== 0) {
     console.error('SAFEWORD: Upgrade failed. Run manually: bunx safeword upgrade');
     return false;
@@ -248,6 +256,8 @@ function configArgs(configPath: string, hasConfig_: boolean): string[] {
 
 /** Run prettier with safeword config if available */
 async function runPrettier(file: string): Promise<void> {
+  // A non-Prettier formatter owns this repo — defer to it, don't restyle (V7GGJZ).
+  if (REPO_OWNS_ALTERNATIVE_FORMATTER) return;
   if (hasConfig(SAFEWORD_PRETTIER)) {
     await $`bunx prettier --config ${SAFEWORD_PRETTIER} --write ${file}`.nothrow().quiet();
   } else {

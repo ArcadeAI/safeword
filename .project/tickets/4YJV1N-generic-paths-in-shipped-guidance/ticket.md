@@ -18,9 +18,9 @@ last_modified: 2026-06-16T13:07:39.086Z
 
 ## Findings (file:line)
 
-- `templates/SAFEWORD.md:190` — example: *"`packages/cli/src/auth.ts:42` was swallowing the refresh error."*
-- `templates/SAFEWORD.md:205` — instruction: *"write `packages/cli/src/foo.ts:142` inline."*
-- `templates/skills/tdd-review/SKILL.md:70` — *"implement minimum code in `packages/cli/src/lint.ts`."*
+- `templates/SAFEWORD.md:190` — example: _"`packages/cli/src/auth.ts:42` was swallowing the refresh error."_
+- `templates/SAFEWORD.md:205` — instruction: _"write `packages/cli/src/foo.ts:142` inline."_
+- `templates/skills/tdd-review/SKILL.md:70` — _"implement minimum code in `packages/cli/src/lint.ts`."_
 
 ## Acceptance criteria
 

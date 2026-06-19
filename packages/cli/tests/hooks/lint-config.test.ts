@@ -5,9 +5,19 @@
  * that caused this ticket: `eslint.config.ts` / `.prettierrc.yaml` were missed).
  */
 
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
-import { detectEslintConfig, detectPrettierConfig } from '../../templates/hooks/lib/lint-config.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import {
+  detectAlternativeFormatter,
+  detectEslintConfig,
+  detectPrettierConfig,
+  projectOwnsAlternativeFormatter,
+  shouldWarnMissingPrettier,
+} from '../../templates/hooks/lib/lint-config.js';
 
 describe('detectEslintConfig', () => {
   it('detects every flat-config extension', () => {
@@ -75,5 +85,116 @@ describe('disabled/backup configs are not treated as present', () => {
   it('ignores unrelated extensions on the config base', () => {
     expect(detectPrettierConfig(['.prettierrc.local'])).toBe(false);
     expect(detectEslintConfig(['eslint.config.backup'])).toBe(false);
+  });
+});
+
+describe('detectAlternativeFormatter', () => {
+  // A non-Prettier JS/TS formatter owns the repo's formatting → the lint hook
+  // must skip Prettier rather than fight it (ticket V7GGJZ). Exact-filename
+  // match, mirroring ALTERNATIVE_FORMATTER_FILES in presets/typescript/detect.ts.
+  it('detects Biome and legacy Rome configs', () => {
+    for (const file of ['biome.json', 'biome.jsonc', 'rome.json']) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('detects dprint configs (with and without leading dot)', () => {
+    for (const file of ['dprint.json', '.dprint.json', 'dprint.jsonc', '.dprint.jsonc']) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('detects oxfmt configs (rc + all 6 config extensions)', () => {
+    for (const file of [
+      '.oxfmtrc.json',
+      '.oxfmtrc.jsonc',
+      'oxfmt.config.js',
+      'oxfmt.config.cjs',
+      'oxfmt.config.mjs',
+      'oxfmt.config.ts',
+      'oxfmt.config.cts',
+      'oxfmt.config.mts',
+    ]) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('detects deno configs', () => {
+    for (const file of ['deno.json', 'deno.jsonc']) {
+      expect(detectAlternativeFormatter([file])).toBe(true);
+    }
+  });
+
+  it('is false for prettier-only or no formatter', () => {
+    expect(detectAlternativeFormatter(['.prettierrc', 'package.json'])).toBe(false);
+    expect(detectAlternativeFormatter(['README.md', 'tsconfig.json'])).toBe(false);
+  });
+
+  it('ignores disabled/backup alternative-formatter configs', () => {
+    expect(detectAlternativeFormatter(['biome.json.bak'])).toBe(false);
+    expect(detectAlternativeFormatter(['deno.json.disabled'])).toBe(false);
+  });
+});
+
+describe('projectOwnsAlternativeFormatter', () => {
+  // The gate the lint hook uses to decide whether to skip Prettier: reads the
+  // project root and reports whether a non-Prettier formatter owns it (V7GGJZ).
+  let directory: string;
+
+  beforeEach(() => {
+    directory = mkdtempSync(path.join(tmpdir(), 'lint-owns-'));
+  });
+
+  afterEach(() => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it('is true when a non-Prettier formatter owns the repo', () => {
+    for (const config of ['biome.json', 'dprint.json', '.oxfmtrc.json', 'deno.json']) {
+      const owned = mkdtempSync(path.join(tmpdir(), 'lint-owns-'));
+      writeFileSync(path.join(owned, config), '{}');
+      expect(projectOwnsAlternativeFormatter(owned)).toBe(true);
+      rmSync(owned, { recursive: true, force: true });
+    }
+  });
+
+  it('is true when an alternative formatter and a Prettier config both exist (alternative wins)', () => {
+    writeFileSync(path.join(directory, 'biome.json'), '{}');
+    writeFileSync(path.join(directory, '.prettierrc'), '{}');
+
+    expect(projectOwnsAlternativeFormatter(directory)).toBe(true);
+  });
+
+  it('is false for a greenfield repo (no formatter)', () => {
+    writeFileSync(path.join(directory, 'package.json'), '{}');
+
+    expect(projectOwnsAlternativeFormatter(directory)).toBe(false);
+  });
+
+  it('is false when only a Prettier config is present (safeword formats with their config)', () => {
+    writeFileSync(path.join(directory, '.prettierrc'), '{}');
+
+    expect(projectOwnsAlternativeFormatter(directory)).toBe(false);
+  });
+
+  it('is false (does not throw) for a nonexistent directory', () => {
+    expect(projectOwnsAlternativeFormatter(path.join(directory, 'nope'))).toBe(false);
+  });
+});
+
+describe('shouldWarnMissingPrettier', () => {
+  // The session lint check must not nag a Biome/dprint/oxfmt/deno shop to install
+  // Prettier — they deliberately don't use it (ticket V7GGJZ, DEV4.AC1).
+  it('warns when neither a Prettier config nor an alternative formatter is present', () => {
+    expect(shouldWarnMissingPrettier(['package.json', 'tsconfig.json'])).toBe(true);
+  });
+
+  it('does not warn when an alternative formatter owns the repo', () => {
+    expect(shouldWarnMissingPrettier(['biome.json'])).toBe(false);
+    expect(shouldWarnMissingPrettier(['deno.json'])).toBe(false);
+  });
+
+  it('does not warn when a Prettier config is present', () => {
+    expect(shouldWarnMissingPrettier(['.prettierrc'])).toBe(false);
   });
 });

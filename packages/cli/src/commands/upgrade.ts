@@ -27,7 +27,11 @@ import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
-import { detectPackageManager, installDependencies } from '../utils/install.js';
+import {
+  detectPackageManager,
+  getUninstallCommand,
+  installDependencies,
+} from '../utils/install.js';
 import {
   executeNamespaceMigration,
   type MigrationPlan,
@@ -39,6 +43,7 @@ import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
+import { buildArchitecture, syncConfigCore } from './sync-config.js';
 
 interface PackageJson {
   dependencies?: Record<string, string>;
@@ -60,6 +65,8 @@ const NON_REGISTRY_SPEC_PREFIXES = [
   'bitbucket:',
   'http:',
   'https:',
+  '.', // relative path (e.g. ./packages/foo)
+  '/', // absolute path
 ] as const;
 
 function getProjectVersion(safewordDirectory: string): string {
@@ -83,11 +90,7 @@ function stripDeadConfigVersion(safewordDirectory: string): void {
 }
 
 function isNonRegistryPackageSpec(spec: string): boolean {
-  return (
-    NON_REGISTRY_SPEC_PREFIXES.some(prefix => spec.startsWith(prefix)) ||
-    spec.startsWith('.') ||
-    spec.startsWith('/')
-  );
+  return NON_REGISTRY_SPEC_PREFIXES.some(prefix => spec.startsWith(prefix));
 }
 
 function isCurrentSafewordRegistrySpec(spec: string): boolean {
@@ -145,12 +148,11 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
   }
 
   if (result.packagesToRemove.length > 0) {
-    const pm = detectPackageManager(cwd);
-    const uninstallCmd = pm === 'yarn' ? 'yarn remove' : `${pm} uninstall`;
+    const uninstallCmd = getUninstallCommand(result.packagesToRemove, cwd);
     warn(`\n${result.packagesToRemove.length} package(s) are now bundled in safeword:`);
     for (const pkg of result.packagesToRemove) listItem(pkg);
     info("\nIf you don't use these elsewhere, you can remove them:");
-    listItem(`${uninstallCmd} ${result.packagesToRemove.join(' ')}`);
+    listItem(uninstallCmd);
   }
 
   if (reconciledCodexConfig(result)) {
@@ -339,6 +341,18 @@ async function selfVerify(cwd: string): Promise<void> {
   }
 }
 
+function maybeRefreshDepcruiseConfig(
+  cwd: string,
+  safewordDirectory: string,
+  result: ReconcileResult,
+): void {
+  if (!exists(nodePath.join(safewordDirectory, 'depcruise-config.cjs'))) return;
+  syncConfigCore(cwd, buildArchitecture(cwd));
+  if (!result.updated.includes('.safeword/depcruise-config.cjs')) {
+    result.updated.push('.safeword/depcruise-config.cjs');
+  }
+}
+
 export async function upgrade(options: UpgradeOptions): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
@@ -398,6 +412,8 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
     if (missingPacks.includes('sql')) {
       installSqlTools(cwd);
     }
+
+    maybeRefreshDepcruiseConfig(cwd, safewordDirectory, result);
 
     printUpgradeSummary(result, projectVersion, cwd);
 

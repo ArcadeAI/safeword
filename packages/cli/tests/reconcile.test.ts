@@ -245,6 +245,152 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, 'prettier.config.mjs'))).toBe(true);
     });
 
+    it('leaves a customer bare .prettierrc resolved config unchanged (no churning default-fill)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // A bare .prettierrc that sets only one option. Safeword must NOT fill in
+      // its own style defaults (singleQuote, semi, trailingComma, …) or inject
+      // plugins — either changes the resolved style and reformats the customer's
+      // files on the next prettier run (ticket 9C2CFX; revisits 8BNSTE's call
+      // that the additive merge was "safe").
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.prettierrc'),
+        `${JSON.stringify({ printWidth: 120 }, undefined, 2)}\n`,
+      );
+
+      const ctx = createContext({ projectType: { existingPrettierConfig: true } });
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const resolved = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.prettierrc'), 'utf8'),
+      );
+      expect(resolved).toEqual({ printWidth: 120 });
+    });
+
+    it('excludes every safeword-owned dir from an existing biome.json (not just .safeword)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'biome.json'),
+        `${JSON.stringify({ files: { includes: ['**'] } }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const biome = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'biome.json'), 'utf8'),
+      ) as { files: { includes: string[] } };
+      // Every safeword-owned dir is excluded so the customer's biome never churns
+      // safeword's files (ticket EYRK34) — sourced from the one SAFEWORD_IGNORE_DIRS list.
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(biome.files.includes).toContain(`!${dir}`);
+      }
+    });
+
+    it('SAFEWORD_IGNORE_DIRS covers every safeword-owned dot-directory the schema manages (no drift)', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS, computeSafewordPathPrefixes } =
+        await import('../src/owned-paths.js');
+
+      const schemaDotDirectories = computeSafewordPathPrefixes(SAFEWORD_SCHEMA)
+        .filter(prefix => prefix.endsWith('/') && prefix.startsWith('.'))
+        .map(prefix => prefix.slice(0, -1));
+
+      // Every dot-directory the schema actually manages must be in the single
+      // ignore list, so a newly-owned dir can't silently escape the formatters'
+      // excludes (the done_when's "one source" guarantee, ticket EYRK34).
+      for (const dir of schemaDotDirectories) {
+        expect(SAFEWORD_IGNORE_DIRS).toContain(dir);
+      }
+    });
+
+    it('prettierignore excludes every safeword-owned dir on a fresh install (incl. .codex/ + wholesale .project/)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('dist/'); // customer content preserved
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(content).toContain(`${dir}/`);
+      }
+      // Wholesale namespace exclude — not the old per-file INDEX lines.
+      expect(content).not.toContain('.project/tickets/INDEX.md');
+    });
+
+    it('prettierignore re-applies on upgrade for an existing pre-EYRK34 block (.codex/ now excluded)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // An existing install's OLD managed block — header WITHOUT the "(owned dirs)"
+      // suffix, so the new marker is absent and the broadened block re-applies.
+      const oldBlock =
+        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n';
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), `dist/${oldBlock}`);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('.codex/');
+      expect(content).toContain('# Safeword - managed prettier exclusions (owned dirs)');
+    });
+
+    it('excludes every safeword-owned dir from an existing dprint.json', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'dprint.json'),
+        `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const dprint = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'dprint.json'), 'utf8'),
+      ) as { excludes: string[] };
+      expect(dprint.excludes).toContain('node_modules'); // customer entry preserved
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(dprint.excludes).toContain(`${dir}/**`);
+      }
+    });
+
+    it('excludes every safeword-owned dir from an existing .oxfmtrc.json (ignorePatterns)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.oxfmtrc.json'),
+        `${JSON.stringify({ ignorePatterns: ['build/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const oxfmt = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.oxfmtrc.json'), 'utf8'),
+      ) as { ignorePatterns: string[] };
+      expect(oxfmt.ignorePatterns).toContain('build/**'); // customer entry preserved
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(oxfmt.ignorePatterns).toContain(`${dir}/**`);
+      }
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');

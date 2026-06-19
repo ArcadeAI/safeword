@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 
 import { warn } from './output.js';
 
-export const MIN_CODEX_HOOK_VERSION = '0.133.0';
-export const CODEX_CONFIG_PATH = '.codex/config.toml';
+const MIN_CODEX_HOOK_VERSION = '0.133.0';
+const CODEX_CONFIG_PATH = '.codex/config.toml';
 export const CODEX_TRUST_NEXT_STEP =
   'Open Codex and run `/hooks` to review and trust safeword project hooks before relying on Codex gates.';
 

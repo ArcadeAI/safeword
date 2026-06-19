@@ -64,9 +64,13 @@ const STORYBOOK_PACKAGES = [
 ] as const;
 
 /**
- * Non-Prettier formatter config files (Biome, dprint, Rome).
+ * Non-Prettier formatter config files (Biome, dprint, Rome, oxfmt, deno).
  * Used to detect if project uses an alternative formatter.
  * Prettier is safeword's default, so its presence doesn't skip config creation.
+ *
+ * Kept in sync by hand with ALTERNATIVE_FORMATTER_FILES in the hook's
+ * `lib/lint-config.ts` (the `cli-presets-self-contained` rule forbids sharing
+ * one module). oxfmt config set per oxc docs; deno uses deno.json(c).
  */
 const ALTERNATIVE_FORMATTER_FILES = [
   // Biome (and legacy Rome)
@@ -78,6 +82,18 @@ const ALTERNATIVE_FORMATTER_FILES = [
   '.dprint.json',
   'dprint.jsonc',
   '.dprint.jsonc',
+  // oxfmt (oxc formatter)
+  '.oxfmtrc.json',
+  '.oxfmtrc.jsonc',
+  'oxfmt.config.js',
+  'oxfmt.config.cjs',
+  'oxfmt.config.mjs',
+  'oxfmt.config.ts',
+  'oxfmt.config.cts',
+  'oxfmt.config.mts',
+  // deno fmt
+  'deno.json',
+  'deno.jsonc',
 ] as const;
 
 type DepsRecord = Record<string, string | undefined>;

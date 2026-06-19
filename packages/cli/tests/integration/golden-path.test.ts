@@ -253,8 +253,10 @@ describe('E2E: TypeScript Setup Idempotency', () => {
     expect(content).toContain('.cursor/');
     expect(content).toContain('.claude/');
     expect(content).toContain('.agents/');
-    expect(content).toContain('.project/tickets/INDEX.md');
-    expect(content).toContain('.project/tickets/INDEX-completed.md');
+    expect(content).toContain('.codex/');
+    // EYRK34: wholesale namespace excludes, not the old per-file INDEX lines.
+    expect(content).toContain('.project/');
+    expect(content).toContain('.safeword-project/');
   });
 });
 

@@ -197,7 +197,7 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
   );
 
   it(
-    'preserves existing Prettier config values while adding defaults',
+    'leaves an existing Prettier config untouched (no style-default fill)',
     async () => {
       projectDirectory = createTemporaryDirectory();
       createTypeScriptPackageJson(projectDirectory);
@@ -212,12 +212,14 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
         timeout: SETUP_TIMEOUT,
       });
 
-      // User's custom values should be preserved, defaults added for missing options
+      // 9C2CFX: a customer's existing Prettier config is left untouched — safeword
+      // no longer fills in its style defaults (that would change the resolved style
+      // and reformat the customer's files on the next prettier run).
       const prettierConfig = JSON.parse(readTestFile(projectDirectory, '.prettierrc'));
       expect(prettierConfig.semi).toBe(false); // User's value preserved
       expect(prettierConfig.singleQuote).toBe(true); // User's value preserved
-      expect(prettierConfig.tabWidth).toBe(2); // Default added
-      expect(prettierConfig.printWidth).toBe(100); // Default added
+      expect(prettierConfig.tabWidth).toBeUndefined(); // safeword no longer fills defaults
+      expect(prettierConfig.printWidth).toBeUndefined(); // safeword no longer fills defaults
     },
     SETUP_TIMEOUT,
   );

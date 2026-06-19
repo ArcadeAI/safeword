@@ -95,7 +95,7 @@
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.4",
     "eslint-v10": "npm:eslint@^10.5.0",
-    "knip": "^6.16.1",
+    "knip": "6.17.1",
     "prettier": "^3.8.4",
     "publint": "^0.3.21",
     "tsup": "^8.5.1",

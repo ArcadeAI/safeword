@@ -4,7 +4,11 @@
 
 import { existsSync, readdirSync } from 'node:fs';
 
-import { detectEslintConfig, detectPrettierConfig } from './lib/lint-config.ts';
+import {
+  detectAlternativeFormatter,
+  detectEslintConfig,
+  shouldWarnMissingPrettier,
+} from './lib/lint-config.ts';
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -26,11 +30,15 @@ const entries = (() => {
   }
 })();
 
+const ownsAlternativeFormatter = detectAlternativeFormatter(entries);
+
 if (!detectEslintConfig(entries)) {
   warnings.push("ESLint config not found - run 'bun run lint' may fail");
 }
 
-if (!detectPrettierConfig(entries)) {
+// Skip Prettier warnings when a non-Prettier formatter owns the repo (V7GGJZ):
+// a Biome/dprint/oxfmt/deno shop deliberately doesn't use Prettier.
+if (shouldWarnMissingPrettier(entries)) {
   warnings.push('Prettier config not found - formatting may be inconsistent');
 }
 
@@ -42,7 +50,7 @@ if (await pkgJsonFile.exists()) {
     if (!pkgJson.includes('"eslint"')) {
       warnings.push("ESLint not in package.json - run 'bun add -D eslint'");
     }
-    if (!pkgJson.includes('"prettier"')) {
+    if (!ownsAlternativeFormatter && !pkgJson.includes('"prettier"')) {
       warnings.push("Prettier not in package.json - run 'bun add -D prettier'");
     }
   } catch (error) {
