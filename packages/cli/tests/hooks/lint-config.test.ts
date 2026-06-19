@@ -104,13 +104,16 @@ describe('detectAlternativeFormatter', () => {
     }
   });
 
-  it('detects oxfmt configs (rc + config variants)', () => {
+  it('detects oxfmt configs (rc + all 6 config extensions)', () => {
     for (const file of [
       '.oxfmtrc.json',
       '.oxfmtrc.jsonc',
       'oxfmt.config.js',
+      'oxfmt.config.cjs',
       'oxfmt.config.mjs',
       'oxfmt.config.ts',
+      'oxfmt.config.cts',
+      'oxfmt.config.mts',
     ]) {
       expect(detectAlternativeFormatter([file])).toBe(true);
     }
