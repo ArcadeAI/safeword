@@ -187,6 +187,41 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
   },
 };
 
+/**
+ * dprint config merge — adds safeword-owned dirs to the `excludes` glob list so a
+ * customer's `dprint fmt` skips them (ticket EYRK34). Sourced from the single
+ * SAFEWORD_IGNORE_DIRS list; covers dprint.json / .dprint.json(c).
+ */
+const DPRINT_JSON_MERGE: JsonMergeDefinition = {
+  keys: ['excludes'],
+  skipIfMissing: true, // Only modify if the project already uses dprint
+  merge: existing => {
+    const existingExcludes = Array.isArray(existing.excludes)
+      ? (existing.excludes as string[])
+      : [];
+    const newExcludes = [...existingExcludes];
+    for (const dir of SAFEWORD_IGNORE_DIRS) {
+      const glob = `${dir}/**`;
+      if (!newExcludes.includes(glob)) newExcludes.push(glob);
+    }
+    return { ...existing, excludes: newExcludes };
+  },
+  unmerge: existing => {
+    const existingExcludes = Array.isArray(existing.excludes)
+      ? (existing.excludes as string[])
+      : [];
+    const safewordExcludes = new Set(SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/**`));
+    const cleaned = existingExcludes.filter((entry: string) => !safewordExcludes.has(entry));
+    const result = { ...existing };
+    if (cleaned.length > 0) {
+      result.excludes = cleaned;
+    } else {
+      delete result.excludes;
+    }
+    return result;
+  },
+};
+
 // ============================================================================
 // Owned Files (overwritten on upgrade)
 // ============================================================================
@@ -466,6 +501,12 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
   // Support both biome.json and biome.jsonc
   'biome.json': BIOME_JSON_MERGE,
   'biome.jsonc': BIOME_JSON_MERGE,
+
+  // dprint excludes - add safeword-owned dirs so a customer's dprint fmt skips them.
+  'dprint.json': DPRINT_JSON_MERGE,
+  '.dprint.json': DPRINT_JSON_MERGE,
+  'dprint.jsonc': DPRINT_JSON_MERGE,
+  '.dprint.jsonc': DPRINT_JSON_MERGE,
 };
 
 // ============================================================================

@@ -347,6 +347,28 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).toContain('# Safeword - managed prettier exclusions (owned dirs)');
     });
 
+    it('excludes every safeword-owned dir from an existing dprint.json', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'dprint.json'),
+        `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const dprint = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'dprint.json'), 'utf8'),
+      ) as { excludes: string[] };
+      expect(dprint.excludes).toContain('node_modules'); // customer entry preserved
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(dprint.excludes).toContain(`${dir}/**`);
+      }
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
