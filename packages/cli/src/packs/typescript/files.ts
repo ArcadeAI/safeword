@@ -188,39 +188,39 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
 };
 
 /**
- * dprint config merge — adds safeword-owned dirs to the `excludes` glob list so a
- * customer's `dprint fmt` skips them (ticket EYRK34). Sourced from the single
- * SAFEWORD_IGNORE_DIRS list; covers dprint.json / .dprint.json(c).
+ * Build a JSON-merge that adds safeword-owned dirs (as `<dir>/**` globs) to a
+ * customer formatter's string-array exclude field so the formatter skips them
+ * (ticket EYRK34). Sourced from the single SAFEWORD_IGNORE_DIRS list; used for
+ * dprint (`excludes`) and oxfmt (`ignorePatterns`). `skipIfMissing` → only ever
+ * touches a config the customer already has.
  */
-const DPRINT_JSON_MERGE: JsonMergeDefinition = {
-  keys: ['excludes'],
-  skipIfMissing: true, // Only modify if the project already uses dprint
-  merge: existing => {
-    const existingExcludes = Array.isArray(existing.excludes)
-      ? (existing.excludes as string[])
-      : [];
-    const newExcludes = [...existingExcludes];
-    for (const dir of SAFEWORD_IGNORE_DIRS) {
-      const glob = `${dir}/**`;
-      if (!newExcludes.includes(glob)) newExcludes.push(glob);
-    }
-    return { ...existing, excludes: newExcludes };
-  },
-  unmerge: existing => {
-    const existingExcludes = Array.isArray(existing.excludes)
-      ? (existing.excludes as string[])
-      : [];
-    const safewordExcludes = new Set(SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/**`));
-    const cleaned = existingExcludes.filter((entry: string) => !safewordExcludes.has(entry));
-    const result = { ...existing };
-    if (cleaned.length > 0) {
-      result.excludes = cleaned;
-    } else {
-      delete result.excludes;
-    }
-    return result;
-  },
-};
+function dirGlobExcludeMerge(field: string): JsonMergeDefinition {
+  const safewordGlobs = SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/**`);
+  return {
+    keys: [field],
+    skipIfMissing: true,
+    merge: existing => {
+      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
+      const merged = [...current];
+      for (const glob of safewordGlobs) {
+        if (!merged.includes(glob)) merged.push(glob);
+      }
+      return { ...existing, [field]: merged };
+    },
+    unmerge: existing => {
+      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
+      const cleaned = current.filter(entry => !safewordGlobs.includes(entry));
+      // Drop the field without a dynamic `delete` or unused binding, re-adding it
+      // only when entries remain.
+      const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
+      return cleaned.length > 0 ? { ...rest, [field]: cleaned } : rest;
+    },
+  };
+}
+
+// dprint's `excludes` and oxfmt's `ignorePatterns` both take a glob list (EYRK34).
+const DPRINT_JSON_MERGE = dirGlobExcludeMerge('excludes');
+const OXFMT_JSON_MERGE = dirGlobExcludeMerge('ignorePatterns');
 
 // ============================================================================
 // Owned Files (overwritten on upgrade)
@@ -507,6 +507,11 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
   '.dprint.json': DPRINT_JSON_MERGE,
   'dprint.jsonc': DPRINT_JSON_MERGE,
   '.dprint.jsonc': DPRINT_JSON_MERGE,
+
+  // oxfmt ignorePatterns - JSON config forms only (oxfmt.config.* modules can't be
+  // merged, like prettier.config.*); customers on those add the excludes themselves.
+  '.oxfmtrc.json': OXFMT_JSON_MERGE,
+  '.oxfmtrc.jsonc': OXFMT_JSON_MERGE,
 };
 
 // ============================================================================

@@ -369,6 +369,28 @@ describe('Reconcile - Reconciliation Engine', () => {
       }
     });
 
+    it('excludes every safeword-owned dir from an existing .oxfmtrc.json (ignorePatterns)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.oxfmtrc.json'),
+        `${JSON.stringify({ ignorePatterns: ['build/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const oxfmt = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.oxfmtrc.json'), 'utf8'),
+      ) as { ignorePatterns: string[] };
+      expect(oxfmt.ignorePatterns).toContain('build/**'); // customer entry preserved
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(oxfmt.ignorePatterns).toContain(`${dir}/**`);
+      }
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
