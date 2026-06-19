@@ -92,6 +92,8 @@ Read relevant standards:
 
 ### 7. Verify Latest Versions
 
+Research angles — run each that applies (version-currency, deprecation, CVE/security, primary-source); if the user set a focus or scope restriction, apply it to **every** angle, not just the first search.
+
 **CRITICAL**: This is your main differentiator from automatic hook. ALWAYS check versions.
 
 Use the live `Current time:` line from the prompt timestamp hook when the host provides one; otherwise use the current system date from the session.
@@ -146,6 +148,8 @@ Fetch documentation from official sources:
 **Critical issues:** [List or "None"]
 **Suggested improvements:** [List or "None"]
 ```
+
+**Provenance gate:** a CRITICAL / REQUEST CHANGES verdict must cite a `verified` source fetched this session; `(training data)` / `(uncertain)` claims cap at NOTE and never block. Surface what you couldn't verify — don't silently drop it.
 
 ## Loop: review → fix → re-review
 

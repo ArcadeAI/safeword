@@ -30,7 +30,11 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 | implement       | **Library versions, deprecated APIs, security** |
 | done            | CI/CD patterns, release checklists              |
 
-## 2. Verify Versions (Primary Value)
+## 2. Research Angles (Primary Value)
+
+Run each angle that applies — angle _diversity_ is the lever, not search volume: **version-currency** + **CVE/security** (this section), **deprecation** + **primary-source docs** (§3). If the user gave a focus or scope restriction, apply it to **every** angle — don't use it only for the first search.
+
+### Version-currency & security
 
 **CRITICAL**: This is your main differentiator from automatic hook.
 
@@ -45,7 +49,7 @@ Search for: "[library name] security vulnerabilities"
 - Security vulnerabilities -> CRITICAL (must upgrade)
 - Using latest -> Confirm
 
-## 3. Verify Documentation (Primary Value)
+## 3. Verify Documentation — deprecation + primary-source (Primary Value)
 
 Fetch official documentation for libraries in use.
 
@@ -78,6 +82,10 @@ Fetch official documentation for libraries in use.
 ```
 
 The `**Next:**` line is required. On APPROVE, name what to do now (proceed, commit, run /verify). On REQUEST CHANGES, name the specific edit and re-review trigger. On NEEDS DISCUSSION, name the question to ask. A verdict that doesn't tell the reader what to do next is incomplete.
+
+### Provenance gate (required)
+
+Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must cite a `verified` source fetched this session.** A claim tagged `(training data)` or `(uncertain)` caps at NOTE / a non-blocking suggestion — it can inform, never block. Tag every issue with its provenance inline, and **surface** an unverifiable concern as a NOTE with the gap named ("couldn't verify X"), never silently drop it. This is the abstention discipline that stops an overconfident verdict from manufacturing false certainty — LLM judges over-state confidence by default.
 
 ## Loop: review → fix → re-review
 
