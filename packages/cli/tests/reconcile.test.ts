@@ -310,6 +310,43 @@ describe('Reconcile - Reconciliation Engine', () => {
       }
     });
 
+    it('prettierignore excludes every safeword-owned dir on a fresh install (incl. .codex/ + wholesale .project/)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('dist/'); // customer content preserved
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(content).toContain(`${dir}/`);
+      }
+      // Wholesale namespace exclude — not the old per-file INDEX lines.
+      expect(content).not.toContain('.project/tickets/INDEX.md');
+    });
+
+    it('prettierignore re-applies on upgrade for an existing pre-EYRK34 block (.codex/ now excluded)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // An existing install's OLD managed block — header WITHOUT the "(owned dirs)"
+      // suffix, so the new marker is absent and the broadened block re-applies.
+      const oldBlock =
+        '\n# Safeword - managed prettier exclusions\n.safeword/\n.cursor/\n.project/tickets/INDEX.md\n';
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), `dist/${oldBlock}`);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('.codex/');
+      expect(content).toContain('# Safeword - managed prettier exclusions (owned dirs)');
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
