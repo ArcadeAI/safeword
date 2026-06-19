@@ -9,6 +9,7 @@
  * Inline disables target only generator arrow functions, not regular functions in this file.
  */
 
+import { SAFEWORD_IGNORE_DIRS } from '../../owned-paths.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
 import type {
   FileDefinition,
@@ -133,9 +134,10 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
-    // Add safeword exclusions (! prefix) if not already present
-    // Note: Biome v2.2.0+ doesn't need /** for folders
-    const safewordExcludes = ['!eslint.config.mjs', '!.safeword'];
+    // Add safeword exclusions (! prefix) if not already present, sourced from
+    // the single SAFEWORD_IGNORE_DIRS list (ticket EYRK34) so Biome skips every
+    // safeword-owned dir, not just .safeword/. Biome v2.2.0+ doesn't need /**.
+    const safewordExcludes = ['!eslint.config.mjs', ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`)];
     const newIncludes = [...existingIncludes];
     for (const exclude of safewordExcludes) {
       if (!newIncludes.includes(exclude)) {
@@ -155,8 +157,13 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
-    // Remove safeword exclusions from includes list
-    const safewordExcludes = new Set(['!eslint.config.mjs', '!.safeword', '!.safeword/**']);
+    // Remove safeword exclusions from includes list (current set + the legacy
+    // '!.safeword/**' folder form, cleaned up on unmerge).
+    const safewordExcludes = new Set([
+      '!eslint.config.mjs',
+      '!.safeword/**',
+      ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`),
+    ]);
     const cleanedIncludes = existingIncludes.filter(
       (entry: string) => !safewordExcludes.has(entry),
     );

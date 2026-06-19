@@ -270,6 +270,46 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(resolved).toEqual({ printWidth: 120 });
     });
 
+    it('excludes every safeword-owned dir from an existing biome.json (not just .safeword)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'biome.json'),
+        `${JSON.stringify({ files: { includes: ['**'] } }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const biome = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'biome.json'), 'utf8'),
+      ) as { files: { includes: string[] } };
+      // Every safeword-owned dir is excluded so the customer's biome never churns
+      // safeword's files (ticket EYRK34) — sourced from the one SAFEWORD_IGNORE_DIRS list.
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(biome.files.includes).toContain(`!${dir}`);
+      }
+    });
+
+    it('SAFEWORD_IGNORE_DIRS covers every safeword-owned dot-directory the schema manages (no drift)', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS, computeSafewordPathPrefixes } =
+        await import('../src/owned-paths.js');
+
+      const schemaDotDirectories = computeSafewordPathPrefixes(SAFEWORD_SCHEMA)
+        .filter(prefix => prefix.endsWith('/') && prefix.startsWith('.'))
+        .map(prefix => prefix.slice(0, -1));
+
+      // Every dot-directory the schema actually manages must be in the single
+      // ignore list, so a newly-owned dir can't silently escape the formatters'
+      // excludes (the done_when's "one source" guarantee, ticket EYRK34).
+      for (const dir of schemaDotDirectories) {
+        expect(SAFEWORD_IGNORE_DIRS).toContain(dir);
+      }
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
