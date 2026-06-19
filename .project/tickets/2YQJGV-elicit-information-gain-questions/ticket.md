@@ -39,3 +39,4 @@ last_modified: 2026-06-19T14:24:30Z
 ## Work Log
 
 - 2026-06-19 Created task under B6MZ4Z from the `/figure-it-out` reasoning-skills pass (elicit follow-on).
+- 2026-06-19 Implemented E1 + E2 in the elicit template Phase 1: E1 — ask the most _discriminating_ question first (highest information gain), counter the LLM default to low-information questions, framed as the convergent mirror of `debug`'s disconfirm-first; E2 — anchoring guard on the multiple-choice format (non-leading, MECE-ish options + a real "none of these" escape). Synced byte-parity → `.claude` + `.agents`. Cursor rule uses the `@`-reference pattern (no body edit needed — it pulls the updated skill). parity 157; tests green (596). Status in_progress pending `/verify` + user confirmation.
