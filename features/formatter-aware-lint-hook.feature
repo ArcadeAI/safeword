@@ -1,3 +1,8 @@
+# Acceptance-lane step definitions are a deferred follow-up (V7GGJZ): these
+# behaviors are proven by unit tests in packages/cli/tests/hooks/lint-config.test.ts
+# (detector, skip-gate predicate, warning gate). Tagged @wip so `test:bdd`
+# excludes them until cucumber step definitions are written.
+@wip
 Feature: Formatter-aware lint hook
   Safeword's auto-lint hook defers to the formatter a repo already uses. When a
   non-Prettier JS/TS formatter owns the repo, safeword skips Prettier; when the
