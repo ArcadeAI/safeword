@@ -116,7 +116,7 @@ Write each as "X could be root cause because Y", then ask what would _rule it ou
 - ❌ "Something's wrong with the database"
 - ✅ (a) pool exhausted — connections not released on the error path; (b) pool size mis-set for this env; (c) slow query holds connections past timeout
 
-**Test the cheapest _disconfirming_ check first** — the one that eliminates the most candidates. Rule hypotheses out; don't hunt to confirm a favorite. (Bisection — `git bisect run`, or halving the input/state — is often the cheapest discriminator.)
+**Test the cheapest _disconfirming_ check first** — the one that eliminates the most candidates. Rule hypotheses out; don't hunt to confirm a favorite. (Bisection — mark the range with `git bisect start && git bisect bad && git bisect good <ref>`, then `git bisect run <script>` (`git bisect reset` when done); or halve the input/state — often the cheapest discriminator.)
 
 **2. Test Minimally**
 
