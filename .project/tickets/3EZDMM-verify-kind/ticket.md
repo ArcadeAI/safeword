@@ -2,17 +2,17 @@
 id: 3EZDMM
 slug: verify-kind
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-18T19:57:25.840Z
 last_modified: 2026-06-18T19:57:25.840Z
 ---
 
 # add --kind verify to test-plan for complete done-gate coverage
 
-**Goal:** {One sentence: what are we trying to achieve?}
+**Goal:** Add `--kind verify` to `safeword test-plan` so the `/verify` skill runs the full authoritative test suite instead of the fast `test:done` subset.
 
-**Why:** {One sentence: why does this matter?}
+**Why:** `/verify` was resolving to `test:done` (8-second subset), silently skipping `tests/commands/` where session changes live — the done gate passed on green tests that never ran.
 
 ## Work Log
 
