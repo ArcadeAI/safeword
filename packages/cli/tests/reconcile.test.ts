@@ -245,6 +245,31 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, 'prettier.config.mjs'))).toBe(true);
     });
 
+    it('leaves a customer bare .prettierrc resolved config unchanged (no churning default-fill)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // A bare .prettierrc that sets only one option. Safeword must NOT fill in
+      // its own style defaults (singleQuote, semi, trailingComma, …) or inject
+      // plugins — either changes the resolved style and reformats the customer's
+      // files on the next prettier run (ticket 9C2CFX; revisits 8BNSTE's call
+      // that the additive merge was "safe").
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.prettierrc'),
+        `${JSON.stringify({ printWidth: 120 }, undefined, 2)}\n`,
+      );
+
+      const ctx = createContext({ projectType: { existingPrettierConfig: true } });
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const resolved = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.prettierrc'), 'utf8'),
+      );
+      expect(resolved).toEqual({ printWidth: 120 });
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');

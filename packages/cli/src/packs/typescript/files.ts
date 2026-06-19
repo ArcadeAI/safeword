@@ -387,11 +387,21 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
     },
   },
 
-  // Prettier config - add defaults while preserving user customizations
+  // Prettier config — adds safeword's plugins (and, greenfield only, its style
+  // defaults) to safeword's OWN `.prettierrc`. A customer who already owns a
+  // prettier config is left untouched — see the existingPrettierConfig gate below.
   '.prettierrc': {
     keys: ['plugins'],
     skipIfMissing: true,
     merge: (existing, ctx) => {
+      // A customer who already owns a prettier config keeps it exactly as-is:
+      // filling in safeword's style defaults or injecting plugins changes the
+      // resolved style and churns their files on the next prettier run (ticket
+      // 9C2CFX — revisits 8BNSTE's "the additive merge is safe" call). Only a
+      // greenfield install, where safeword wrote this `.prettierrc` itself and
+      // existingPrettierConfig is false, gets safeword's plugins.
+      if (ctx.projectType.existingPrettierConfig) return existing;
+
       const result = { ...existing } as Record<string, unknown>;
 
       // Add defaults for missing styling options (preserves user customizations)
