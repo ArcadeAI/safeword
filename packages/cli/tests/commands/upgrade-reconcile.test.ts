@@ -416,8 +416,10 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(afterFirst).toContain('.cursor/');
       expect(afterFirst).toContain('.claude/');
       expect(afterFirst).toContain('.agents/');
-      expect(afterFirst).toContain('.project/tickets/INDEX.md');
-      expect(afterFirst).toContain('.project/tickets/INDEX-completed.md');
+      expect(afterFirst).toContain('.codex/');
+      // Wholesale namespace excludes (EYRK34) — not the old per-file INDEX lines.
+      expect(afterFirst).toContain('.project/');
+      expect(afterFirst).toContain('.safeword-project/');
 
       // Re-run must be idempotent — the marker should appear exactly once
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
@@ -452,18 +454,20 @@ statusMessage = "Checking safeword PreToolUse gates"
 
       const afterFirst = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
       expect(afterFirst).toContain('.husky/_');
-      expect(afterFirst).toContain('.project/tickets/INDEX.md');
-      expect(afterFirst).toContain('.project/tickets/INDEX-completed.md');
-      expect(afterFirst).toContain('.project/learnings/INDEX.md');
+      // The broadened block migrates the legacy one to wholesale namespace excludes (EYRK34).
+      expect(afterFirst).toContain('.codex/');
+      expect(afterFirst).toContain('.project/');
+      expect(afterFirst).toContain('.safeword-project/');
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const afterSecond = readFileSync(
         nodePath.join(temporaryDirectory, '.prettierignore'),
         'utf8',
       );
-      const currentMarkerCount =
-        afterSecond.split('.project/tickets/INDEX-completed.md').length - 1;
-      expect(currentMarkerCount).toBe(1);
+      // The current (owned-dirs) block is appended exactly once and is idempotent on re-run.
+      const ownedDirectoriesBlockCount =
+        afterSecond.split('# Safeword - managed prettier exclusions (owned dirs)').length - 1;
+      expect(ownedDirectoriesBlockCount).toBe(1);
     });
   });
 
