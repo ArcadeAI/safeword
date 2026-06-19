@@ -14,6 +14,27 @@
 
 import type { SafewordSchema } from './schema.js';
 
+/**
+ * Safeword-owned top-level directories a customer's OWN formatter must skip, so
+ * safeword's files never churn in their diffs/CI (ticket EYRK34). Single source
+ * for every formatter's ignore wiring — `.prettierignore`, Biome excludes, ruff
+ * `extend-exclude`, etc. — so adding an owned dir updates all of them in one
+ * place. Bare names (no trailing slash); each tool maps to its own syntax.
+ *
+ * `features/` and `steps/` are intentionally absent: the customer authors the
+ * BDD feature files and step definitions there and wants them formatted. A drift
+ * test asserts every entry here is a directory the schema actually manages.
+ */
+export const SAFEWORD_IGNORE_DIRS: readonly string[] = [
+  '.safeword',
+  '.claude',
+  '.cursor',
+  '.codex',
+  '.agents',
+  '.project',
+  '.safeword-project',
+];
+
 export function computeSafewordPathPrefixes(schema: SafewordSchema): readonly string[] {
   const allPaths = [
     ...Object.keys(schema.ownedFiles),

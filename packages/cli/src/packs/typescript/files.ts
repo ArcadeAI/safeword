@@ -9,6 +9,7 @@
  * Inline disables target only generator arrow functions, not regular functions in this file.
  */
 
+import { SAFEWORD_IGNORE_DIRS } from '../../owned-paths.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
 import type {
   FileDefinition,
@@ -133,9 +134,10 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
-    // Add safeword exclusions (! prefix) if not already present
-    // Note: Biome v2.2.0+ doesn't need /** for folders
-    const safewordExcludes = ['!eslint.config.mjs', '!.safeword'];
+    // Add safeword exclusions (! prefix) if not already present, sourced from
+    // the single SAFEWORD_IGNORE_DIRS list (ticket EYRK34) so Biome skips every
+    // safeword-owned dir, not just .safeword/. Biome v2.2.0+ doesn't need /**.
+    const safewordExcludes = ['!eslint.config.mjs', ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`)];
     const newIncludes = [...existingIncludes];
     for (const exclude of safewordExcludes) {
       if (!newIncludes.includes(exclude)) {
@@ -155,8 +157,13 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
-    // Remove safeword exclusions from includes list
-    const safewordExcludes = new Set(['!eslint.config.mjs', '!.safeword', '!.safeword/**']);
+    // Remove safeword exclusions from includes list (current set + the legacy
+    // '!.safeword/**' folder form, cleaned up on unmerge).
+    const safewordExcludes = new Set([
+      '!eslint.config.mjs',
+      '!.safeword/**',
+      ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`),
+    ]);
     const cleanedIncludes = existingIncludes.filter(
       (entry: string) => !safewordExcludes.has(entry),
     );
@@ -179,6 +186,41 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     return { ...existing, files: cleanedFiles };
   },
 };
+
+/**
+ * Build a JSON-merge that adds safeword-owned dirs (as `<dir>/**` globs) to a
+ * customer formatter's string-array exclude field so the formatter skips them
+ * (ticket EYRK34). Sourced from the single SAFEWORD_IGNORE_DIRS list; used for
+ * dprint (`excludes`) and oxfmt (`ignorePatterns`). `skipIfMissing` → only ever
+ * touches a config the customer already has.
+ */
+function dirGlobExcludeMerge(field: string): JsonMergeDefinition {
+  const safewordGlobs = SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/**`);
+  return {
+    keys: [field],
+    skipIfMissing: true,
+    merge: existing => {
+      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
+      const merged = [...current];
+      for (const glob of safewordGlobs) {
+        if (!merged.includes(glob)) merged.push(glob);
+      }
+      return { ...existing, [field]: merged };
+    },
+    unmerge: existing => {
+      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
+      const cleaned = current.filter(entry => !safewordGlobs.includes(entry));
+      // Drop the field without a dynamic `delete` or unused binding, re-adding it
+      // only when entries remain.
+      const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
+      return cleaned.length > 0 ? { ...rest, [field]: cleaned } : rest;
+    },
+  };
+}
+
+// dprint's `excludes` and oxfmt's `ignorePatterns` both take a glob list (EYRK34).
+const DPRINT_JSON_MERGE = dirGlobExcludeMerge('excludes');
+const OXFMT_JSON_MERGE = dirGlobExcludeMerge('ignorePatterns');
 
 // ============================================================================
 // Owned Files (overwritten on upgrade)
@@ -387,11 +429,21 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
     },
   },
 
-  // Prettier config - add defaults while preserving user customizations
+  // Prettier config — adds safeword's plugins (and, greenfield only, its style
+  // defaults) to safeword's OWN `.prettierrc`. A customer who already owns a
+  // prettier config is left untouched — see the existingPrettierConfig gate below.
   '.prettierrc': {
     keys: ['plugins'],
     skipIfMissing: true,
     merge: (existing, ctx) => {
+      // A customer who already owns a prettier config keeps it exactly as-is:
+      // filling in safeword's style defaults or injecting plugins changes the
+      // resolved style and churns their files on the next prettier run (ticket
+      // 9C2CFX — revisits 8BNSTE's "the additive merge is safe" call). Only a
+      // greenfield install, where safeword wrote this `.prettierrc` itself and
+      // existingPrettierConfig is false, gets safeword's plugins.
+      if (ctx.projectType.existingPrettierConfig) return existing;
+
       const result = { ...existing } as Record<string, unknown>;
 
       // Add defaults for missing styling options (preserves user customizations)
@@ -449,6 +501,17 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
   // Support both biome.json and biome.jsonc
   'biome.json': BIOME_JSON_MERGE,
   'biome.jsonc': BIOME_JSON_MERGE,
+
+  // dprint excludes - add safeword-owned dirs so a customer's dprint fmt skips them.
+  'dprint.json': DPRINT_JSON_MERGE,
+  '.dprint.json': DPRINT_JSON_MERGE,
+  'dprint.jsonc': DPRINT_JSON_MERGE,
+  '.dprint.jsonc': DPRINT_JSON_MERGE,
+
+  // oxfmt ignorePatterns - JSON config forms only (oxfmt.config.* modules can't be
+  // merged, like prettier.config.*); customers on those add the excludes themselves.
+  '.oxfmtrc.json': OXFMT_JSON_MERGE,
+  '.oxfmtrc.jsonc': OXFMT_JSON_MERGE,
 };
 
 // ============================================================================
