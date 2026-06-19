@@ -404,8 +404,8 @@ No. Safeword uses `AGENTS.md` as the primary entry point. If you have an existin
 **What packages does it install?**
 For JS/TS projects: ESLint, Prettier, and supporting plugins — all as `devDependencies` (the `-D` flag). These are code quality tools, not application dependencies. Python, Go, and Rust (beta) use their language-native linters (ruff, golangci-lint, clippy).
 
-**I use biome/dprint — is that a problem?**
-Safeword detects biome/dprint and skips Prettier installation. ESLint is still installed because biome doesn't support security scanning (`eslint-plugin-security`), cyclomatic complexity checks (`sonarjs`), or framework-specific rules (React hooks, Next.js, Astro). Both tools coexist without conflict.
+**I use Biome, dprint, oxfmt, or deno fmt — is that a problem?**
+No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and steps aside: it skips Prettier at install **and** its auto-format hook leaves formatting to your tool — agent edits are never reformatted into Prettier's style. ESLint still runs, because those formatters don't cover security scanning (`eslint-plugin-security`), cyclomatic complexity (`sonarjs`), or framework rules (React hooks, Next.js, Astro); safeword's ESLint config disables formatting rules, so it lints without fighting your formatter.
 
 **Do teammates need to install safeword separately?**
 No. Commit the `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` directories to git. When teammates pull, they get the full setup. The linting devDependencies install automatically with `npm install` / `bun install`.
