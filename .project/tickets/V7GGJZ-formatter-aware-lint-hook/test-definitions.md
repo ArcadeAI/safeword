@@ -9,10 +9,13 @@ test-definitions.md is the R/G/R ledger — Given/When/Then live in the `.featur
 (`detectAlternativeFormatter`), the hook's skip-gate predicate
 (`projectOwnsAlternativeFormatter`), and the session-warning gate
 (`shouldWarnMissingPrettier`) each have RED→GREEN tests; the `runPrettier`
-early-return and `session-lint-check` wiring consume them. A full end-to-end hook
-run on an installed Biome repo is deferred to /verify — the lint hook shells out
-to `bunx eslint/prettier` and can trigger an upgrade on a bare dir, so it is not a
-cheap unit test. SHAs point at the covering commit.
+early-return and `session-lint-check` wiring consume them. End-to-end, the cucumber
+acceptance lane (`steps/formatter-aware-lint-hook.steps.ts`) spawns the REAL
+post-tool-lint hook against throwaway Biome/dprint/oxfmt/deno / greenfield /
+own-Prettier repos and asserts on the resulting file bytes — 10 scenario executions,
+all passing. DEV1.AC3 (2 scenarios) stay `@wip`: they need the real `safeword/eslint`
+config resolvable in the fixture (a full install), and are verified by inspection.
+SHAs point at the covering commit.
 
 ## Rule: A repo owned by a non-Prettier formatter keeps its own formatting
 

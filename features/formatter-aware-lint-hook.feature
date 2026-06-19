@@ -1,8 +1,3 @@
-# Acceptance-lane step definitions are a deferred follow-up (V7GGJZ): these
-# behaviors are proven by unit tests in packages/cli/tests/hooks/lint-config.test.ts
-# (detector, skip-gate predicate, warning gate). Tagged @wip so `test:bdd`
-# excludes them until cucumber step definitions are written.
-@wip
 Feature: Formatter-aware lint hook
   Safeword's auto-lint hook defers to the formatter a repo already uses. When a
   non-Prettier JS/TS formatter owns the repo, safeword skips Prettier; when the
@@ -39,16 +34,21 @@ Feature: Formatter-aware lint hook
       When the agent edits that file
       Then the file's formatting is left as written, not reformatted to Prettier's defaults
 
+  # DEV1.AC3 asserts the EXISTING formatter-agnostic eslint config (security via
+  # basePlugins; formatting rules off via eslint-config-prettier in
+  # recommendedTypeScript; no @stylistic plugin) — verified by inspection. Its
+  # end-to-end lane stays @wip: it needs the real safeword/eslint config
+  # resolvable in the fixture (a full install), unlike the other scenarios.
   Rule: Safeword's code-quality ESLint checks still run on alternative-formatter repos
 
-    @formatter-aware-lint-hook.DEV1.AC3
+    @wip @formatter-aware-lint-hook.DEV1.AC3
     Scenario: A security-rule violation is still surfaced in a Biome repo
       Given a repo whose formatting is owned by Biome
       And a TypeScript file that contains a security-rule violation
       When the agent edits that file
       Then safeword surfaces the ESLint security finding
 
-    @formatter-aware-lint-hook.DEV1.AC3
+    @wip @formatter-aware-lint-hook.DEV1.AC3
     Scenario: ESLint does not restyle code in a Biome repo
       Given a Biome repo
       And a TypeScript file styled to Biome's conventions with no lint violations

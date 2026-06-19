@@ -5,7 +5,7 @@ Pinned to commits db6361b9, 783935af, fdc9f189, 3e01a0e3 (+ docs/scenarios commi
 ## Verify Checklist
 
 **Test Suite:** ✓ 3073/3073 tests pass (3 skipped) — full vitest suite, 207 files
-**Gherkin:** ✅ Acceptance lane passes (59 scenarios, 576 steps) — V7GGJZ's feature is `@wip` (step definitions deferred), excluded from the lane
+**Gherkin:** ✅ Acceptance lane passes (69 scenarios, 741 steps) — 10 new end-to-end scenarios for V7GGJZ (real post-tool-lint hook vs temp Biome/dprint/oxfmt/deno/greenfield/own-Prettier repos); 2 DEV1.AC3 scenarios `@wip` (need a full-install fixture)
 **Build:** ✅ Success (tsup ESM + DTS)
 **Lint:** ✅ Clean (`eslint .` + gherkin lint + `tsc --noEmit`)
 **Scenarios:** All 9 scenarios marked complete
@@ -22,7 +22,7 @@ Pinned to commits db6361b9, 783935af, fdc9f189, 3e01a0e3 (+ docs/scenarios commi
 
 ## Deferred (follow-up)
 
-- **Cucumber acceptance-lane step definitions** for the 9 scenarios (feature tagged `@wip`). The full end-to-end hook run on an installed Biome repo is the one piece not yet wired — the lint hook shells out to `bunx eslint/prettier` and can trigger an upgrade on a bare dir, so it isn't a cheap test. Behaviors are unit-covered today.
+- **DEV1.AC3 acceptance lane** (2 scenarios, `@wip`): the ESLint-still-runs / no-restyle guarantees need the real `safeword/eslint` config resolvable in the cucumber fixture (a full install). Verified by inspection (security via `basePlugins`; formatting off via `eslint-config-prettier` in `recommendedTypeScript`; no `@stylistic`). Tracked under epic 2H2XKH.
 
 ## Audit
 
