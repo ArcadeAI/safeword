@@ -26,4 +26,10 @@ Pinned to commits db6361b9, 783935af, fdc9f189, 3e01a0e3 (+ docs/scenarios commi
 
 ## Audit
 
-- `/audit`: pending — run before marking done.
+**Audit passed.** Architecture clean (depcruise: no violations, 354 modules). No new dead code — the
+three new exports (`detectAlternativeFormatter`, `projectOwnsAlternativeFormatter`,
+`shouldWarnMissingPrettier`) are all consumed; knip's baseline unused-export noise is pre-existing
+(template-copy false-positives, per project memory). No new duplication (jscpd: 0 clones across
+`detect.ts` ↔ `lint-config.ts` — the rule-mandated set is expressed two ways, not a textual clone).
+Test quality: specific boolean assertions, fresh temp dirs per test, edge cases (`.bak`, both-configs,
+nonexistent dir) covered. Independent quality-review pass (Sonnet): APPROVE, no criticals.
