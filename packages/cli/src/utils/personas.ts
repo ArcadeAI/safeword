@@ -33,9 +33,9 @@ import { findDuplicates, groupByLine } from './validation.js';
 // that commitment.
 
 /** Maximum length of a derived short code (overflow is truncated silently). */
-export const MAX_CODE_LENGTH = 6;
+const MAX_CODE_LENGTH = 6;
 /** Minimum persona name length — single-char names are rejected at validation. */
-export const MIN_NAME_LENGTH = 2;
+const MIN_NAME_LENGTH = 2;
 /** Pattern for a valid persona short code. */
 export const PERSONA_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
 

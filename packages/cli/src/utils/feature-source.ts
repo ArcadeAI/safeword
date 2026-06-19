@@ -1,10 +1,10 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-export const WORKSPACE_FEATURE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
+const WORKSPACE_FEATURE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
 
 /** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
-export function slugFromTicketFolder(ticketFolder: string): string {
+function slugFromTicketFolder(ticketFolder: string): string {
   const dashIndex = ticketFolder.indexOf('-');
   return dashIndex === -1 ? ticketFolder : ticketFolder.slice(dashIndex + 1);
 }

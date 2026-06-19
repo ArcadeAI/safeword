@@ -1,10 +1,5 @@
 {
-  "ignore": [".safeword/**"],
-  "ignoreFiles": [
-    "packages/cli/templates/cucumber/**",
-    "packages/cli/templates/hooks/**",
-    "packages/cli/templates/statusline/**"
-  ],
+  "ignore": [".safeword/**", "packages/cli/templates/**"],
   "ignoreBinaries": ["shfmt", "dot"],
   "ignoreIssues": {
     "packages/cli/src/presets/typescript/index.ts": ["duplicates"]

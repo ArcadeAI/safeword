@@ -336,7 +336,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
   });
 
   describe('Test 3.11: MCP servers work out of the box', () => {
-    it('should configure context7 with correct bunx command', async () => {
+    it('should configure context7 with the remote HTTP url', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
@@ -346,10 +346,8 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
 
       const mcpConfig = JSON.parse(readTestFile(temporaryDirectory, '.mcp.json'));
 
-      // Context7 should use bunx with the correct package
       expect(mcpConfig.mcpServers.context7).toBeDefined();
-      expect(mcpConfig.mcpServers.context7.command).toBe('bunx');
-      expect(mcpConfig.mcpServers.context7.args).toContain('@upstash/context7-mcp@latest');
+      expect(mcpConfig.mcpServers.context7.url).toBe('https://mcp.context7.com/mcp');
     });
 
     it('should configure playwright with correct bunx command', async () => {
@@ -370,7 +368,7 @@ describe('Test Suite 3: Setup - Hooks and Skills', () => {
 
     it('should have MCP packages that can be resolved by bunx', async () => {
       // Verify the packages exist on npm registry (lightweight HTTP check)
-      const packages = ['@upstash/context7-mcp', '@playwright/mcp'];
+      const packages = ['@playwright/mcp'];
 
       for (const pkg of packages) {
         const response = await fetch(`https://registry.npmjs.org/${pkg}`, {

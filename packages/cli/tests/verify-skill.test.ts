@@ -121,7 +121,7 @@ describe('verify report structure (146)', () => {
 
   describe('Rule: section 2 consumes safeword test-plan (5FF0ZD)', () => {
     it.each(surfaces)('%s evals the test and build plans from test-plan', (_name, content) => {
-      expect(content).toContain('test-plan --kind test --format sh');
+      expect(content).toContain('test-plan --kind verify --format sh');
       expect(content).toContain('test-plan --kind build --format sh');
     });
 

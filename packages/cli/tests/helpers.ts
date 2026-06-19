@@ -52,7 +52,7 @@ export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
 };
 
-export const SAFEWORD_BASE_DEV_DEPENDENCIES = {
+const SAFEWORD_BASE_DEV_DEPENDENCIES = {
   eslint: '^9.22.0',
   safeword: SAFEWORD_VERSION,
   'dependency-cruiser': '^17.0.0',
@@ -374,17 +374,6 @@ export async function createConfiguredProject(dir: string): Promise<void> {
 export async function measureTime<T>(fn: () => Promise<T>): Promise<{ result: T; timeMs: number }> {
   const start = performance.now();
   const result = await fn();
-  const timeMs = performance.now() - start;
-  return { result, timeMs };
-}
-
-/**
- * Measures execution time of a sync function in milliseconds
- * @param fn
- */
-export function measureTimeSync<T>(fn: () => T): { result: T; timeMs: number } {
-  const start = performance.now();
-  const result = fn();
   const timeMs = performance.now() - start;
   return { result, timeMs };
 }

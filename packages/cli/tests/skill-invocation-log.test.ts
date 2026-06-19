@@ -125,7 +125,7 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
         expect(content).toContain(
           `bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ${skill} "\${CLAUDE_SESSION_ID:-}"`,
         );
-        expect(content).toContain('Missing session id for skill invocation log');
+        expect(content).toContain('no session id');
         expect(content).not.toContain('reports `Missing CLAUDE_SESSION_ID`');
         expect(content).not.toContain('Bash injection runs at render time');
       },

@@ -19,7 +19,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"
 ```
 
-**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, reports `Missing session id for skill invocation log`, or still does not print `verify ✓`**: Feature tickets must fail closed if no real current-session proof can be logged. Do not mark a feature ticket done or hand-write verify.md as a substitute for the feature-gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the client lacks a compatible session id, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /verify.
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no session id` (non-Claude runtime with no session binding), or still does not print `verify ✓`**: Feature tickets must fail closed if no real current-session proof can be logged. Do not mark a feature ticket done or hand-write verify.md as a substitute for the feature-gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the client lacks a compatible session id, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /verify.
 
 Task, patch, and no-ticket verify work may continue after recording that session-scoped proof was unavailable and not required by the gate.
 
@@ -67,7 +67,7 @@ elif [ -f packages/cli/src/cli.ts ]; then
 else SW="bunx safeword"; fi
 
 # --- Test suite (resolved by safeword test-plan — one source of truth) ---
-bash -c "$($SW test-plan --kind test --format sh)"
+bash -c "$($SW test-plan --kind verify --format sh)"
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
