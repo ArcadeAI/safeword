@@ -2,11 +2,11 @@
 id: V7GGJZ
 slug: formatter-aware-lint-hook
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: 2H2XKH
 created: 2026-06-18T17:00:07.116Z
-last_modified: 2026-06-18T19:08:00.000Z
+last_modified: 2026-06-19T14:40:00.000Z
 scope:
   - Make the runtime auto-lint hook (`lib/lint.ts`, `post-tool-lint.ts`) formatter-aware: detect a non-Prettier JS/TS formatter (biome / dprint / rome / oxfmt / deno fmt) at the project root and **skip** the prettier step (decision locked: **A — skip**; delegate/switch are deferred fast-follows, see Decision below).
   - Reuse the install-time ownership signal — share the detection set with `presets/typescript/detect.ts` (`hasExistingFormatter`) and the hook's `lib/lint-config.ts` (`detectPrettierConfig`) rather than inventing a third detector.
@@ -82,3 +82,9 @@ Deferred (not this ticket):
   basePlugins; no @stylistic) — no change. README FAQ corrected. Full suite green (3073 pass / 3 skip).
   Ledger marked; coverage is unit-level (detector + gate predicate + warning gate), full end-to-end hook
   run deferred to /verify. Phase → verify.
+- 2026-06-19T14:40:00.000Z Done (user chose "write step-defs first"): /quality-review APPROVE (no
+  criticals; oxfmt set re-verified vs oxc docs), refactor n/a (no smell), /audit passed (arch clean, no
+  new dead code/dup). Then wired the cucumber acceptance lane — `steps/formatter-aware-lint-hook.steps.ts`
+  spawns the real post-tool-lint hook against temp Biome/dprint/oxfmt/deno/greenfield/own-Prettier repos
+  and asserts on file bytes; 10 scenarios green (full lane 69/741). Only DEV1.AC3 (2 scenarios) stay @wip
+  (need the real safeword/eslint config in-fixture). 11 commits (db6361b9 → c1d8b652). Status → done.
