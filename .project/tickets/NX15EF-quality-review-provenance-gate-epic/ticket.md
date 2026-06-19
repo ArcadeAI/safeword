@@ -1,9 +1,9 @@
 ---
 id: NX15EF
 slug: quality-review-provenance-gate-epic
-type: feature
+type: task
 phase: intake
-status: in_progress
+status: done
 epic: quality-review-provenance-gate
 parent: B6MZ4Z
 children: []

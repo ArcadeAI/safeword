@@ -3,7 +3,7 @@ id: 8PF0NT
 slug: figure-it-out-premortem
 type: task
 phase: intake
-status: in_progress
+status: done
 parent: B6MZ4Z
 created: 2026-06-19T14:17:47.515Z
 last_modified: 2026-06-19T14:18:30Z

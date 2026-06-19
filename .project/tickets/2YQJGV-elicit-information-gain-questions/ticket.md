@@ -3,7 +3,7 @@ id: 2YQJGV
 slug: elicit-information-gain-questions
 type: task
 phase: intake
-status: in_progress
+status: done
 parent: B6MZ4Z
 created: 2026-06-19T14:24:17.100Z
 last_modified: 2026-06-19T14:24:30Z

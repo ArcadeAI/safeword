@@ -1,9 +1,9 @@
 ---
 id: D9NE6D
 slug: refactor-abstraction-smell-epic
-type: feature
+type: task
 phase: intake
-status: in_progress
+status: done
 epic: refactor-abstraction-smell
 parent: B6MZ4Z
 children: []

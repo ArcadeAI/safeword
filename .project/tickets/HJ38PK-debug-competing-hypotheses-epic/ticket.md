@@ -1,9 +1,9 @@
 ---
 id: HJ38PK
 slug: debug-competing-hypotheses-epic
-type: feature
+type: task
 phase: intake
-status: in_progress
+status: done
 epic: debug-competing-hypotheses
 parent: B6MZ4Z
 children: []
