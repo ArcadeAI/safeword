@@ -107,14 +107,16 @@ List ALL differences. Don't assume "that can't matter."
 
 ### Phase 3: Hypothesis Testing
 
-**1. Form Single Hypothesis**
+**1. Form 2–3 Competing Hypotheses**
 
-Write it down: "I think X is the root cause because Y"
+List 2–3 candidate causes, ranked by plausibility — not one. A single locked-in hypothesis invites confirmation bias; competing ones force you to discriminate ("consider the opposite").
 
-Be specific:
+Write each as "X could be root cause because Y", then ask what would _rule it out_.
 
 - ❌ "Something's wrong with the database"
-- ✅ "Connection pool exhausted because connections aren't released in error path"
+- ✅ (a) pool exhausted — connections not released on the error path; (b) pool size mis-set for this env; (c) slow query holds connections past timeout
+
+**Test the cheapest _disconfirming_ check first** — the one that eliminates the most candidates. Rule hypotheses out; don't hunt to confirm a favorite. (Bisection — `git bisect run`, or halving the input/state — is often the cheapest discriminator.)
 
 **2. Test Minimally**
 
@@ -126,17 +128,17 @@ Be specific:
 
 **3. Evaluate Result**
 
-| Result          | Action                                  |
-| --------------- | --------------------------------------- |
-| Fixed           | Phase 4 (verify)                        |
-| Not fixed       | NEW hypothesis (return to 3.1)          |
-| Partially fixed | Found one issue, continue investigating |
+| Result                | Action                                                                     |
+| --------------------- | -------------------------------------------------------------------------- |
+| Confirms a hypothesis | Phase 4 (verify the fix)                                                   |
+| Rules one out         | Eliminate it; test the next live hypothesis. None left? Form new ones (3.1) |
+| Inconclusive          | Pick a more discriminating (cheaper-to-disconfirm) test                    |
 
 ### Root Cause Checkpoint (REQUIRED)
 
 Before proceeding to Phase 4:
 
-1. **Document root cause** in ticket (under "## Root Cause" section)
+1. **Document root cause** in ticket (under "## Root Cause" section) — including which competing hypotheses were **ruled out** and the disconfirming evidence for each
 2. **If using tickets:** Update frontmatter to `subtype: bug-investigated`
 
 ### Phase 4: Implementation
@@ -205,5 +207,5 @@ If you catch yourself thinking:
 | ----------------- | ------------------------------------- | ---------------------------------- |
 | 1. Root Cause     | "WHY is this happening?"              | Understand cause, not just symptom |
 | 2. Pattern        | "What's different from working code?" | Identified key differences         |
-| 3. Hypothesis     | "Is my theory correct?"               | Confirmed or formed new theory     |
+| 3. Hypothesis     | "Which competing cause survives?"     | Ruled out alternatives; one cause confirmed |
 | 4. Implementation | "Does the fix work?"                  | Test passes, issue resolved        |
