@@ -90,3 +90,12 @@ export function projectOwnsAlternativeFormatter(projectDirectory: string): boole
     return false;
   }
 }
+
+/**
+ * Whether the session lint check should warn that Prettier is missing. It must
+ * not nag a repo that deliberately uses a non-Prettier formatter — those shops
+ * don't want Prettier installed (ticket V7GGJZ).
+ */
+export function shouldWarnMissingPrettier(entries: readonly string[]): boolean {
+  return !detectAlternativeFormatter(entries) && !detectPrettierConfig(entries);
+}

@@ -16,6 +16,7 @@ import {
   detectEslintConfig,
   detectPrettierConfig,
   projectOwnsAlternativeFormatter,
+  shouldWarnMissingPrettier,
 } from '../../templates/hooks/lib/lint-config.js';
 
 describe('detectEslintConfig', () => {
@@ -175,5 +176,22 @@ describe('projectOwnsAlternativeFormatter', () => {
 
   it('is false (does not throw) for a nonexistent directory', () => {
     expect(projectOwnsAlternativeFormatter(path.join(directory, 'nope'))).toBe(false);
+  });
+});
+
+describe('shouldWarnMissingPrettier', () => {
+  // The session lint check must not nag a Biome/dprint/oxfmt/deno shop to install
+  // Prettier — they deliberately don't use it (ticket V7GGJZ, DEV4.AC1).
+  it('warns when neither a Prettier config nor an alternative formatter is present', () => {
+    expect(shouldWarnMissingPrettier(['package.json', 'tsconfig.json'])).toBe(true);
+  });
+
+  it('does not warn when an alternative formatter owns the repo', () => {
+    expect(shouldWarnMissingPrettier(['biome.json'])).toBe(false);
+    expect(shouldWarnMissingPrettier(['deno.json'])).toBe(false);
+  });
+
+  it('does not warn when a Prettier config is present', () => {
+    expect(shouldWarnMissingPrettier(['.prettierrc'])).toBe(false);
   });
 });
