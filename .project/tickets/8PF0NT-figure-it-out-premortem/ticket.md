@@ -30,3 +30,4 @@ In Phase 4, before the required `**Next:**` line: after committing to X, run a o
 ## Work Log
 
 - 2026-06-19 Created task under B6MZ4Z from `/figure-it-out` (debug/figure-it-out/brainstorm pass).
+- 2026-06-19 Implemented the premortem in Phase 4: added a `**Premortem:**` line to the commit format (before `**Next:**`) — "assume X failed 6 months out; most likely cause is Z; mitigate or reconsider" — plus a one-sentence rationale (disconfirm the _choice_, not just the steelmanned alternatives). Existing steelman-first / Correct-Elegant-Cost structure untouched. Synced byte-parity → `.claude` + `.agents`; Cursor uses the `@`-reference pattern (no body edit). parity 157; tests green (596). Status in_progress pending `/verify` + user confirmation.
