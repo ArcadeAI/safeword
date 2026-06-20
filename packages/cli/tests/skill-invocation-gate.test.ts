@@ -6,8 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   checkSkillInvocations,
-  getRequiredSkillsForPhase,
   PHASE_GATES,
+  requiredSkillsForDone,
 } from '../templates/hooks/lib/skill-invocation-log.js';
 
 function makeProjectWithLog(lines: string[]): string {
@@ -25,17 +25,25 @@ describe('skill-invocation gate (147)', () => {
     it('PHASE_GATES.done is [verify, audit]', () => {
       expect(PHASE_GATES.done).toEqual(['verify', 'audit']);
     });
+  });
 
-    it('getRequiredSkillsForPhase("done") returns [verify, audit]', () => {
-      expect(getRequiredSkillsForPhase('done')).toEqual(['verify', 'audit']);
+  describe('Rule: done requirements key on whether the whole-ticket pass applies (W610WW)', () => {
+    // The second arg is `wholeTicketPass` — the shared trigger
+    // (wholeTicketPassApplies): ≥2 annotated loops, legacy/single-loop exempt.
+    it('a feature when the pass does NOT apply requires verify + audit only', () => {
+      expect(requiredSkillsForDone(true, false)).toEqual(['verify', 'audit']);
     });
 
-    it('getRequiredSkillsForPhase("implement") returns empty (not gated)', () => {
-      expect(getRequiredSkillsForPhase('implement')).toEqual([]);
+    it('a feature when the pass applies also requires quality-review', () => {
+      expect(requiredSkillsForDone(true, true)).toEqual(['verify', 'audit', 'quality-review']);
     });
 
-    it('getRequiredSkillsForPhase("unknown-phase") returns empty (graceful default)', () => {
-      expect(getRequiredSkillsForPhase('unknown-phase')).toEqual([]);
+    it('a task when the pass does NOT apply requires nothing (no verify/audit burden, no review)', () => {
+      expect(requiredSkillsForDone(false, false)).toEqual([]);
+    });
+
+    it('a task when the pass applies requires quality-review only — not verify/audit', () => {
+      expect(requiredSkillsForDone(false, true)).toEqual(['quality-review']);
     });
   });
 
@@ -101,7 +109,7 @@ describe('skill-invocation gate (147)', () => {
 
     it('log file missing fails closed (blocks)', () => {
       const root = mkdtempSync(nodePath.join(tmpdir(), 'gate-'));
-      // No .safeword/ directory at all
+      // No .safeword-project/ directory at all
 
       const result = checkSkillInvocations({
         sessionId: 'session-abc',

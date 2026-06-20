@@ -30,11 +30,19 @@ export const PHASE_GATES: Record<string, string[]> = {
 };
 
 /**
- * Returns the list of skill names required for the given phase, or [] if no
- * gate is configured.
+ * Required skills at the done gate (W610WW). Features keep their verify+audit
+ * requirement; any ticket the whole-ticket pass applies to also needs
+ * /quality-review (the review half of the cross-scenario pass). `wholeTicketPass`
+ * is the SAME predicate that gates the cross-scenario row (`wholeTicketPassApplies`
+ * in ledger-validation) — so both halves share the legacy exemption: a legacy
+ * unannotated multi-scenario ticket triggers neither. A single-loop task requires
+ * nothing — nothing to cross, and tasks are deliberately NOT pulled into the
+ * verify+audit requirement here.
  */
-export function getRequiredSkillsForPhase(phase: string): string[] {
-  return PHASE_GATES[phase] ?? [];
+export function requiredSkillsForDone(isFeature: boolean, wholeTicketPass: boolean): string[] {
+  const skills = isFeature ? [...(PHASE_GATES.done ?? [])] : [];
+  if (wholeTicketPass) skills.push('quality-review');
+  return skills;
 }
 
 export interface SkillInvocationCheckInput {
