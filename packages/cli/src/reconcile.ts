@@ -123,16 +123,23 @@ function planMissingDirectories(
  * upgrade` reaches the heal path on pre-fix installs, which is what commit
  * a304af8 promised.
  */
+function asPatchList(entry: TextPatchDefinition | TextPatchDefinition[]): TextPatchDefinition[] {
+  return Array.isArray(entry) ? entry : [entry];
+}
+
 function planTextPatches(
-  patches: Record<string, TextPatchDefinition>,
+  patches: Record<string, TextPatchDefinition | TextPatchDefinition[]>,
   cwd: string,
   isGitRepo: boolean,
 ): Action[] {
   const actions: Action[] = [];
-  for (const [filePath, definition] of Object.entries(patches)) {
+  for (const [filePath, entry] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
-    if (!passesTextPatchContentGuard(cwd, filePath, definition)) continue;
-    actions.push({ type: 'text-patch', path: filePath, definition });
+    // Apply in list order so later patches land beneath earlier ones.
+    for (const definition of asPatchList(entry)) {
+      if (!passesTextPatchContentGuard(cwd, filePath, definition)) continue;
+      actions.push({ type: 'text-patch', path: filePath, definition });
+    }
   }
   return actions;
 }
@@ -152,7 +159,7 @@ function passesTextPatchContentGuard(
 }
 
 function planTextUnpatches(
-  patches: Record<string, TextPatchDefinition>,
+  patches: Record<string, TextPatchDefinition | TextPatchDefinition[]>,
   cwd: string,
   isGitRepo: boolean,
 ): Action[] {
@@ -162,15 +169,19 @@ function planTextUnpatches(
   };
 
   const actions: Action[] = [];
-  for (const [filePath, definition] of Object.entries(patches)) {
+  for (const [filePath, entry] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
 
     const fullPath = nodePath.join(cwd, filePath);
     if (!exists(fullPath)) continue;
 
     const content = readFileSafe(fullPath) ?? '';
-    if (hasLegacyPreamble(content, definition)) {
-      actions.push({ type: 'text-unpatch', path: filePath, definition });
+    // Unpatch in reverse list order so the patch that owns file removal
+    // (removeFileIfContentEquals) runs last, after siblings strip their blocks.
+    for (const definition of asPatchList(entry).toReversed()) {
+      if (hasLegacyPreamble(content, definition)) {
+        actions.push({ type: 'text-unpatch', path: filePath, definition });
+      }
     }
   }
   return actions;

@@ -1077,6 +1077,98 @@ describe('Reconcile - Reconciliation Engine', () => {
     });
   });
 
+  describe('reconcile() - Codex MCP parity (#269)', () => {
+    it('configures context7 and playwright MCP servers in Codex config on install', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      // context7 over the hosted streamable-HTTP transport (parity with MCP_SERVERS).
+      expect(content).toContain('[mcp_servers.context7]');
+      expect(content).toContain('url = "https://mcp.context7.com/mcp"');
+      // playwright over stdio.
+      expect(content).toContain('[mcp_servers.playwright]');
+      expect(content).toContain('command = "bunx"');
+      expect(content).toContain('args = ["@playwright/mcp@latest"]');
+    });
+
+    it('strips safeword MCP servers from a user-extended Codex config on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      // User appends their own config below safeword's managed content.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        `${readCodexConfigTemplate()}\nmodel = "gpt-5-codex"\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      // User content survives; safeword's MCP servers are removed.
+      expect(content).toContain('model = "gpt-5-codex"');
+      expect(content).not.toContain('[mcp_servers.context7]');
+      expect(content).not.toContain('[mcp_servers.playwright]');
+    });
+
+    it('retrofits MCP servers into an existing pre-MCP Codex config on upgrade', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      // Simulate a config from a safeword version that predates MCP parity:
+      // the hooks scaffold, but no [mcp_servers.*] tables. Strip the exact MCP
+      // block so this stays correct regardless of template section ordering.
+      const { CODEX_MCP_SERVERS_BLOCK } = await import('../src/schema.js');
+      const preMcp = readCodexConfigTemplate().replace(CODEX_MCP_SERVERS_BLOCK, '');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preMcp);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('[mcp_servers.context7]');
+      expect(content).toContain('url = "https://mcp.context7.com/mcp"');
+      expect(content).toContain('[mcp_servers.playwright]');
+      // Idempotent: retrofit appends exactly one context7 table, not a duplicate.
+      expect(content.match(/\[mcp_servers\.context7\]/g)).toHaveLength(1);
+    });
+
+    it('does not overwrite or duplicate a user-authored context7 on upgrade', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      // User already has a customized context7 in their Codex config.
+      const { CODEX_MCP_SERVERS_BLOCK } = await import('../src/schema.js');
+      const base = readCodexConfigTemplate().replace(CODEX_MCP_SERVERS_BLOCK, '').trimEnd();
+      const customized = `${base}\n[mcp_servers.context7]\nurl = "https://example.test/custom"\n`;
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), customized);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      // User's customization survives; no duplicate table injected.
+      expect(content).toContain('url = "https://example.test/custom"');
+      expect(content).not.toContain('url = "https://mcp.context7.com/mcp"');
+      expect(content.match(/\[mcp_servers\.context7\]/g)).toHaveLength(1);
+    });
+  });
+
   describe('reconcile() - dryRun option', () => {
     it('should not make any changes in dryRun mode', async () => {
       const { reconcile } = await import('../src/reconcile.js');

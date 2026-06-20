@@ -57,7 +57,11 @@ export interface SafewordSchema {
   ownedFiles: Record<string, FileDefinition>; // Overwrite on upgrade (if changed)
   managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
   jsonMerges: Record<string, JsonMergeDefinition>;
-  textPatches: Record<string, TextPatchDefinition>;
+  // A file may carry an ordered list of patches (e.g. .codex/config.toml's hook
+  // retrofit + MCP-server retrofit). Patches apply in list order and unpatch in
+  // reverse, so the patch that owns file removal (removeFileIfContentEquals)
+  // runs last on uninstall. See #269.
+  textPatches: Record<string, TextPatchDefinition | TextPatchDefinition[]>;
   legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
   packages: {
@@ -137,6 +141,20 @@ type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
 timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
+`;
+
+// MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
+// context7 uses the hosted streamable-HTTP transport (url); playwright uses
+// stdio (command/args) — matching MCP_SERVERS. Shipped via the codex/config.toml
+// template and re-applied as a retrofit text-patch on upgrade. Must byte-match
+// the block appended to that template (exported so tests strip it exactly).
+export const CODEX_MCP_SERVERS_BLOCK = `
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.playwright]
+command = "bunx"
+args = ["@playwright/mcp@latest"]
 `;
 
 const CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS = `
@@ -907,17 +925,38 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       content: `\n# Safeword - managed prettier exclusions (owned dirs)\n${MANAGED_PRETTIER_PATHS.join('\n')}\n`,
       marker: '# Safeword - managed prettier exclusions (owned dirs)',
     },
-    '.codex/config.toml': {
-      operation: 'append',
-      content: CODEX_PROMPT_TIMESTAMP_HOOK_PATCH,
-      marker: '.safeword/hooks/prompt-timestamp.ts',
-      applyWhenContentIncludes: [
-        '# Safeword Codex project configuration.',
-        '.safeword/hooks/codex/pre-tool-quality.ts',
-      ],
-      unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
-      removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
-    },
+    '.codex/config.toml': [
+      // Primary patch: retrofits the prompt-timestamp hook onto pre-existing
+      // configs and owns file removal on uninstall (runs LAST on unpatch).
+      {
+        operation: 'append',
+        content: CODEX_PROMPT_TIMESTAMP_HOOK_PATCH,
+        marker: '.safeword/hooks/prompt-timestamp.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+        unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+        removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+      },
+      // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /
+      // .cursor/mcp.json. Marker is the context7 table header, so an existing
+      // (safeword- or user-authored) [mcp_servers.context7] suppresses the
+      // append — never clobbering or duplicating a user's entry. Guarded to
+      // safeword-scaffolded configs only.
+      {
+        operation: 'append',
+        content: CODEX_MCP_SERVERS_BLOCK,
+        marker: '[mcp_servers.context7]',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+        // No unpatchContent/removeFileIfContentEquals by design: unpatch removes
+        // this patch's `content` (the MCP block), and the primary patch above —
+        // running last on the reversed unpatch — owns file removal.
+      },
+    ],
   },
 
   // Cleanup-only text patches. Safeword used to prepend these blocks to
