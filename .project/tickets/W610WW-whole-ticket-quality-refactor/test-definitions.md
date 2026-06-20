@@ -96,6 +96,12 @@ derive the active RED/GREEN/REFACTOR step.
 - [x] GREEN 03fc080
 - [x] REFACTOR skip: no structural improvement needed
 
+### Scenario: A legacy unannotated multi-scenario ticket is exempt from the review too
+
+- [x] RED skip: bundled into GREEN — pre-commit lint forced a re-stage, so RED and GREEN landed in one commit
+- [x] GREEN 5a557f4
+- [x] REFACTOR skip: no structural improvement needed
+
 ---
 
 ## Feature-level cross-scenario refactor

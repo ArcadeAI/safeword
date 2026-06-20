@@ -1,9 +1,15 @@
 # Behavior source for W610WW. The backing implementation is proven end-to-end by
-# vitest, not the cucumber lane: tests/hooks/ledger-validation.test.ts (loop-count
-# gating + countRgrLoops), tests/skill-invocation-gate.test.ts (requiredSkillsForDone),
-# and tests/integration/whole-ticket-quality-refactor.test.ts (the done gate spawned
-# against a temp repo). The lane stays @wip rather than duplicate that stop-hook
-# harness in step definitions — same stance as formatter-aware-lint-hook.feature.
+# vitest, not the cucumber lane: tests/hooks/ledger-validation.test.ts (the
+# wholeTicketPassApplies trigger + cross-scenario row), tests/skill-invocation-gate.test.ts
+# (requiredSkillsForDone), and tests/integration/whole-ticket-quality-refactor.test.ts
+# (the done gate spawned against a temp repo).
+#
+# This @wip is BROADER than formatter-aware-lint-hook.feature's: that feature keeps
+# most scenarios live and @wips only the few that need a full install. Here the whole
+# feature is @wip because every scenario's enforcement point is the stop hook, and the
+# vitest integration test already drives it against a temp repo — wiring cucumber step
+# defs would duplicate that harness for no added coverage (gherkin-lane policy 7ES3GW:
+# the .feature is the behavior source; the backing layer may be vitest integration).
 @wip @whole-ticket-quality-refactor.DEV1.AC2
 Feature: Whole-ticket quality review and refactor before verify
 
@@ -104,3 +110,9 @@ Feature: Whole-ticket quality review and refactor before verify
       Given a ticket with exactly one annotated loop whose session log has no /quality-review entry
       When the done gate checks required skill invocations
       Then the done gate does not require a /quality-review invocation
+
+    @whole-ticket-quality-refactor.SM1.AC1
+    Scenario: A legacy unannotated multi-scenario ticket is exempt from the review too
+      Given a ticket with two or more scenarios and no step annotations
+      When the done gate checks required skill invocations
+      Then the done gate does not require a /quality-review invocation, matching the row's legacy exemption
