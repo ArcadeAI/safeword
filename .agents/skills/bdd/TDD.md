@@ -125,10 +125,10 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
 
-**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author**, because a same-model reviewer shares the author's blind spots (correlated errors). This means an explicit different-model subagent — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
+**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author — and no weaker**: a same-model reviewer shares the author's blind spots (correlated errors), while a reviewer _below_ the author's tier misses the subtle, hard-to-verify design flaws most worth catching (verification is easier than generation, but that edge collapses on the hard cases). This means an explicit different-model subagent at or above the author's tier — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts --model < reviewer-model-id > impl-plan
 ```
 
-The gate compares that tag against the author model (captured at SessionStart); an absent tag fails closed. If no independent reviewer is available, log a deliberate `skip: <reason>` rather than stamping a same-model review.
+The gate compares that tag against the author model (captured at SessionStart); an absent tag fails closed. If no independent reviewer at or above the author's tier is available, log a deliberate `skip: <reason>` rather than stamping a same-model — or weaker — review.
