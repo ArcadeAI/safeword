@@ -30,6 +30,7 @@ import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
+import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
 
 export interface TextPatchDefinition {
@@ -76,29 +77,32 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
   keys: ['mcpServers.context7', 'mcpServers.playwright'],
   removeFileIfEmpty: true,
   merge: existing => {
-    const mcpServers = (existing.mcpServers as Record<string, unknown>) ?? {};
-    return {
-      ...existing,
-      mcpServers: {
-        ...mcpServers,
-        context7: MCP_SERVERS.context7,
-        playwright: MCP_SERVERS.playwright,
-      },
-    };
+    const mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
+    // Add-if-missing: preserve any user-authored entry — including its key
+    // ordering — and inject safeword's default only when the server key is
+    // absent. This keeps `upgrade` from clobbering a customized
+    // context7/playwright definition (e.g. a hosted HTTP transport), and
+    // spreading existing first means an already-correct file produces an
+    // identical merge (no write churn). (#255)
+    mcpServers.context7 ??= MCP_SERVERS.context7;
+    mcpServers.playwright ??= MCP_SERVERS.playwright;
+    return { ...existing, mcpServers };
   },
   unmerge: existing => {
     const result = { ...existing };
     const mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
 
+    // Blind-delete on uninstall: removing the server names safeword introduced
+    // is the predictable inverse of install and matches the package.json /
+    // .cursor/hooks.json unmerges. A value-match "delete-if-ours" was
+    // considered but rejected — it can't tell a user customization from a
+    // server installed by an older safeword version (different default value),
+    // so it would orphan stale entries. uninstall is an explicit destructive
+    // action; #255 is about upgrade not clobbering, which the merge handles.
     delete mcpServers.context7;
     delete mcpServers.playwright;
 
-    if (Object.keys(mcpServers).length > 0) {
-      result.mcpServers = mcpServers;
-    } else {
-      delete result.mcpServers;
-    }
-
+    assignOrPrune(result, 'mcpServers', mcpServers);
     return result;
   },
 };
@@ -833,11 +837,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         }
 
         const result = { ...existing };
-        if (Object.keys(cleanedHooks).length > 0) {
-          result.hooks = cleanedHooks;
-        } else {
-          delete result.hooks;
-        }
+        assignOrPrune(result, 'hooks', cleanedHooks);
         return result;
       },
     },
@@ -867,10 +867,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         delete hooks.afterFileEdit;
         delete hooks.stop;
 
-        if (Object.keys(hooks).length > 0) {
-          result.hooks = hooks;
-        } else {
-          delete result.hooks;
+        // `version` is only meaningful while safeword's hooks remain; drop it
+        // alongside an emptied hooks container.
+        if (!assignOrPrune(result, 'hooks', hooks)) {
           delete result.version;
         }
 

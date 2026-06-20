@@ -11,6 +11,7 @@
 
 import { SAFEWORD_IGNORE_DIRS } from '../../owned-paths.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
+import { assignOrPrune } from '../../utils/json-merge.js';
 import type {
   FileDefinition,
   JsonMergeDefinition,
@@ -419,12 +420,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       delete scripts.publint;
       delete scripts['test:bdd'];
 
-      if (Object.keys(scripts).length > 0) {
-        result.scripts = scripts;
-      } else {
-        delete result.scripts;
-      }
-
+      assignOrPrune(result, 'scripts', scripts);
       return result;
     },
   },

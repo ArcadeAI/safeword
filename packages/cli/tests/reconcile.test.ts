@@ -979,6 +979,104 @@ describe('Reconcile - Reconciliation Engine', () => {
     });
   });
 
+  describe('reconcile() - MCP server merge (#255)', () => {
+    // Regression: #255 — MCP reconcile must not clobber user-customized servers.
+    it('should preserve a user-customized context7 entry on upgrade (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      // User authored a custom context7 transport with headers.
+      const customContext7 = {
+        url: 'https://mcp.context7.com/mcp',
+        headers: { Authorization: 'Bearer user-token' },
+      };
+      writeFileSync(
+        mcpPath,
+        JSON.stringify({ mcpServers: { context7: customContext7 } }, undefined, 2),
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const result = JSON.parse(readFileSync(mcpPath, 'utf8')) as {
+        mcpServers: Record<string, unknown>;
+      };
+      // User's customization survives reconcile/upgrade...
+      expect(result.mcpServers.context7).toEqual(customContext7);
+      // ...and the missing default (playwright) is still injected.
+      expect(result.mcpServers.playwright).toBeDefined();
+    });
+
+    it('should preserve unrelated user MCP servers on upgrade (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      const customServer = { command: 'bunx', args: ['@acme/custom-mcp@latest'] };
+      writeFileSync(mcpPath, JSON.stringify({ mcpServers: { acme: customServer } }, undefined, 2));
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const result = JSON.parse(readFileSync(mcpPath, 'utf8')) as {
+        mcpServers: Record<string, unknown>;
+      };
+      expect(result.mcpServers.acme).toEqual(customServer);
+      expect(result.mcpServers.context7).toBeDefined();
+      expect(result.mcpServers.playwright).toBeDefined();
+    });
+
+    it('should seed default MCP servers when none are present (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { MCP_SERVERS } = await import('../src/utils/install.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const result = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.mcp.json'), 'utf8'),
+      ) as { mcpServers: Record<string, unknown> };
+      expect(result.mcpServers.context7).toEqual(MCP_SERVERS.context7);
+      expect(result.mcpServers.playwright).toEqual(MCP_SERVERS.playwright);
+    });
+
+    it('should not rewrite .mcp.json when servers are already correct (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      // A user-authored server ordered before our managed ones; both defaults present.
+      const onDisk = `${JSON.stringify(
+        {
+          mcpServers: {
+            acme: { command: 'bunx', args: ['@acme/custom-mcp@latest'] },
+            context7: { url: 'https://mcp.context7.com/mcp' },
+            playwright: { command: 'bunx', args: ['@playwright/mcp@latest'] },
+          },
+        },
+        undefined,
+        2,
+      )}\n`;
+      writeFileSync(mcpPath, onDisk);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      // Idempotent: byte-identical, no key reordering churn.
+      expect(readFileSync(mcpPath, 'utf8')).toBe(onDisk);
+    });
+  });
+
   describe('reconcile() - dryRun option', () => {
     it('should not make any changes in dryRun mode', async () => {
       const { reconcile } = await import('../src/reconcile.js');
