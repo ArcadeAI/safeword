@@ -182,6 +182,48 @@ describe('skill-invocation log: README guidance (HMZSCD)', () => {
   });
 });
 
+// /quality-review carries an invocation-log line (W610WW) — the review half of
+// the whole-ticket cross-scenario pass, required at done for >=2-loop tickets.
+const qualityReviewForms: [string, string][] = [
+  [
+    'quality-review template skill',
+    readFileSync(nodePath.join(templatesDirectory, 'skills/quality-review/SKILL.md'), 'utf8'),
+  ],
+  [
+    'quality-review dogfood claude skill',
+    readFileSync(nodePath.join(repoRoot, '.claude/skills/quality-review/SKILL.md'), 'utf8'),
+  ],
+  [
+    'quality-review dogfood agents skill',
+    readFileSync(nodePath.join(repoRoot, '.agents/skills/quality-review/SKILL.md'), 'utf8'),
+  ],
+];
+
+describe('skill-invocation log: /quality-review carries its invocation line (W610WW)', () => {
+  it.each(qualityReviewForms)(
+    '%s calls the reusable invocation helper with the quality-review token',
+    (_name, content) => {
+      expect(content).toContain(
+        'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review',
+      );
+    },
+  );
+
+  it.each(qualityReviewForms)(
+    '%s scopes the requirement to tickets with two or more RGR loops',
+    (_name, content) => {
+      expect(content).toContain('two or more RGR loops');
+    },
+  );
+
+  it.each(qualityReviewForms)(
+    '%s references $CLAUDE_PROJECT_DIR via the PROJECT_DIR fallback',
+    (_name, content) => {
+      expect(content).toMatch(/\$\{CLAUDE_PROJECT_DIR(:-[^}]*)?\}/);
+    },
+  );
+});
+
 describe('self-review stamp fallback surfaces (K2ZP40)', () => {
   it.each(selfReviewForms)(
     '%s documents a manual write-review-stamp fallback for non-Claude render contexts',
