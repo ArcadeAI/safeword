@@ -27,10 +27,15 @@ export type {
 import {
   dirGlobExcludeMerge,
   generateOwnedPathsModule,
+  resolvedIgnoreDirectories,
   resolvedNamespaceDirectory,
-  SAFEWORD_IGNORE_DIRS,
 } from './owned-paths.js';
-import type { FileDefinition, JsonMergeDefinition, ManagedFileDefinition } from './packs/types.js';
+import type {
+  FileDefinition,
+  JsonMergeDefinition,
+  ManagedFileDefinition,
+  ProjectContext,
+} from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
@@ -40,11 +45,18 @@ import { VERSION } from './version.js';
 
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
-  content: string;
+  // Static string, or a factory resolved with ctx at plan time so the block can
+  // depend on the resolved namespace root (e.g. a custom paths.projectRoot, #293).
+  content: string | ((ctx: ProjectContext) => string);
   marker: string; // Used to detect if already applied & for removal
   applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
   unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
   removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
+  // When set (append patches only), re-render the managed block in place on
+  // upgrade instead of skip-on-marker — so a ctx-dependent block (e.g. a custom
+  // projectRoot added to .prettierignore) heals on existing installs. A no-op
+  // when the block is already current, so unchanged installs never churn (#293).
+  rerender?: boolean;
 }
 
 export interface ContractDefinition {
@@ -311,8 +323,14 @@ const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-
  * roots are covered — plus husky's generated `_` dir. Previously this listed only
  * the INDEX markdown under each root (TAGWZ8/1GGD28); the whole `.project/` is
  * safeword-generated, so excluding it wholesale also covers tickets and learnings.
+ *
+ * Resolved per-ctx (issue #293) so a custom `paths.projectRoot` is excluded too —
+ * for the two well-known roots this is identical to the old static list, so a
+ * default/legacy install's `.prettierignore` block is byte-identical (no churn).
  */
-const MANAGED_PRETTIER_PATHS = ['.husky/_', ...SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/`)];
+function managedPrettierPaths(ctx: ProjectContext): string[] {
+  return ['.husky/_', ...resolvedIgnoreDirectories(ctx).map(dir => `${dir}/`)];
+}
 
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
@@ -1004,7 +1022,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // stale-config-scan still detects the block.
     '.prettierignore': {
       operation: 'append',
-      content: `\n# Safeword - managed prettier exclusions (owned dirs)\n${MANAGED_PRETTIER_PATHS.join('\n')}\n`,
+      // ctx factory + rerender (issue #293): a custom paths.projectRoot is excluded,
+      // and the block re-renders in place on upgrade for an existing custom-root
+      // install. Default/legacy output is byte-identical, so those installs no-op.
+      content: ctx =>
+        `\n# Safeword - managed prettier exclusions (owned dirs)\n${managedPrettierPaths(ctx).join('\n')}\n`,
+      rerender: true,
       marker: '# Safeword - managed prettier exclusions (owned dirs)',
     },
     '.codex/config.toml': [

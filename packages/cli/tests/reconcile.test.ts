@@ -465,6 +465,96 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).toContain('# Safeword - managed prettier exclusions (owned dirs)');
     });
 
+    const PRETTIER_HEADER = '# Safeword - managed prettier exclusions (owned dirs)';
+    const prettierDirectories = [
+      '.husky/_',
+      '.safeword/',
+      '.claude/',
+      '.cursor/',
+      '.codex/',
+      '.agents/',
+      '.project/',
+      '.safeword-project/',
+    ].join('\n');
+    const currentPrettierBlock = `\n${PRETTIER_HEADER}\n${prettierDirectories}\n`;
+    const countHeaders = (content: string): number => content.split(PRETTIER_HEADER).length - 1;
+
+    it('prettierignore excludes a custom paths.projectRoot on fresh install (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('team-ns/'); // custom root excluded
+      expect(content).toContain('dist/'); // customer content preserved
+    });
+
+    it('prettierignore re-renders in place to add a custom root on upgrade — exactly one block (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      // Existing custom-root install: current block WITHOUT the custom root yet,
+      // and a customer ignore line AFTER the managed block.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        `dist/${currentPrettierBlock}coverage/\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('team-ns/'); // custom root now excluded
+      expect(content).toContain('dist/'); // customer content before preserved
+      expect(content).toContain('coverage/'); // customer line AFTER the block preserved
+      expect(countHeaders(content)).toBe(1); // re-rendered in place, not appended
+    });
+
+    it('prettierignore does not churn a default install on upgrade (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+      const afterInstall = readFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        'utf8',
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+      const afterUpgrade = readFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        'utf8',
+      );
+
+      expect(afterUpgrade).toBe(afterInstall); // byte-identical — no churn, one block
+      expect(countHeaders(afterUpgrade)).toBe(1);
+    });
+
+    it('prettierignore adds no bare repo-root entry for projectRoot "." (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('.');
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      // No bare './' or empty entry that would exclude the whole repo.
+      expect(content).not.toMatch(/^\.\/$/m);
+      expect(content).not.toMatch(/^\/$/m);
+    });
+
     it('excludes every safeword-owned dir from an existing dprint.json', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
