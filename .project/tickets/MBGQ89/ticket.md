@@ -1,115 +1,98 @@
 ---
 id: MBGQ89
 slug: ticket-deps-schema
-title: 'Complete the local ticket schema (epic/parent/paired_with/blocked_on)'
+title: 'Local ticket schema: 4 relation fields, warn-only + one blocked_on hard gate'
 type: feature
 phase: define-behavior
 status: in_progress
-epic: ticket-anchor-external-bridge
 created: 2026-05-24T15:40:55.511Z
-last_modified: 2026-06-20T11:56:00Z
+last_modified: 2026-06-20T12:34:00Z
 scope:
-  - Add four optional frontmatter fields to canonical ticket schema — epic (slug-or-id), parent (id), paired_with (id), blocked_on (array of ids). depends_on already shipped via AKZJXC — out of scope here; this ticket completes the remaining four.
-  - Document the four new fields (alongside the existing depends_on) with examples in doc-templates/ticket-template.md.
-  - safeword check validates same-repo existence of referenced ids, detects blocked_on cycles, and warns on paired_with asymmetry within the same repo.
-  - pre-tool-quality hook gates ticket.md frontmatter edits — refuses to change phase: from intake to any other value while any blocked_on id resolves to a same-repo ticket whose status is not done.
-  - Bare ids only for v1 — cross-repo references are accepted as-is but not validated (benign info-level note from safeword check).
-  - paired_with violations are warnings, never errors.
-  - epic field is singular for v1.
-  - Hook grandfathers pre-existing past-intake tickets — only fires on phase transitions, not retroactive re-validation.
+  - Add four optional frontmatter fields to the canonical ticket schema — epic (slug-or-id), parent (id), paired_with (id), blocked_on (array of ids). depends_on already shipped via AKZJXC; out of scope here.
+  - Validation is warn-only (extends AKZJXC's validator) — existence of referenced same-repo ids, blocked_on cycles, and paired_with asymmetry all surface as warnings, never errors. Consistent with every existing relations check.
+  - ONE hard gate -> blocked_on only - the pre-tool-quality hook denies a ticket.md edit that advances phase out of intake while any same-repo blocked_on id is NOT in a terminal state.
+  - Terminal states that UNBLOCK = done, cancelled, superseded, wontfix (option b). A non-terminal blocker (e.g. in_progress, blocked) blocks the advance.
+  - Override escape hatch (option c) - an explicit marker lets the author advance past an unmet block on purpose (defuses the stale-status false positive), logged so the override is visible.
+  - Hook fires on phase TRANSITION only and grandfathers tickets already past intake - adding blocked_on to an in-flight ticket does not retroactively block it.
+  - Bare ids only - cross-repo references are accepted as-is, unvalidated (benign note from safeword check).
 out_of_scope:
-  - safeword ticket deps/tree/list-blocked-by CLI inspection commands (deferred until human-driven query pattern emerges; current data is grep-readable).
-  - Cross-repo reference syntax (registry, prefixed ids, path-relative paths) — bare ids only for now.
-  - Linear/GitHub Issues/Jira bridging.
-  - Auto-status-propagation (closing parent when all children close).
-  - Visualization beyond text.
-  - Multi-epic membership (epic accepts a single value only).
-  - Migrating existing safeword tickets to use the new fields — adoption is opt-in.
-  - Fixing the unrelated pre-existing inconsistency in active-ticket.ts where type === 'epic' filter has no matching tickets in the wild.
+  - depends_on (shipped via AKZJXC) and its derived blocks rendering.
+  - Cross-repo reference syntax (registry / prefixed / path-relative) - bare ids only; defer the registry design until a real cross-repo validation need appears.
+  - A hard gate for any field other than blocked_on - epic/parent/paired_with/depends_on stay warn-only.
+  - safeword ticket deps/tree/list-blocked-by CLI inspection commands (data is grep-readable).
+  - Linear/GitHub Issues/Jira bridging (that is sync-tracker / JS5K5G).
+  - Auto-status-propagation (closing parent/epic when children close).
+  - Multi-epic membership (epic is singular for v1).
+  - Migrating existing tickets to the new fields - adoption is opt-in.
 done_when:
-  - doc-templates/ticket-template.md documents all four new fields with examples and shows them as optional.
-  - A test ticket with blocked_on referencing an in_progress ticket cannot have its phase frontmatter edited from intake to any other value — Write tool is blocked by pre-tool-quality.ts with a clear BLOCKED on <id> message.
-  - safeword check exits non-zero with a clear error when a ticket references a nonexistent same-repo id in any of the four new fields.
-  - safeword check exits non-zero with a clear error when two tickets form a blocked_on cycle.
-  - safeword check prints a warning (does not exit non-zero) when paired_with is asymmetric within the same repo.
-  - safeword check is silent on cross-repo references that cannot be resolved (treated as opaque, not invalid).
-  - All new behaviors are covered by vitest tests in packages/cli/tests/ following the existing patterns in tests/hooks/ and tests/commands/.
+  - doc-templates/ticket-template.md documents the four new fields with examples and shows them as optional.
+  - safeword check prints a WARNING (does not exit non-zero) on a dangling same-repo ref, a blocked_on cycle, and an asymmetric paired_with.
+  - A test ticket whose blocked_on points at an in_progress ticket cannot have its phase advanced out of intake - the Write is denied by pre-tool-quality.ts with a clear "BLOCKED on <id> (status: <status>)" message.
+  - The same advance SUCCEEDS once the blocker reaches any terminal state (done/cancelled/superseded/wontfix).
+  - The same advance SUCCEEDS when the author sets the explicit override marker, and the override is logged.
+  - Adding blocked_on to a ticket already past intake does NOT block further edits (grandfather / transition-only).
+  - All new behaviors covered by vitest tests in packages/cli/tests/ following tests/hooks/ and tests/commands/ patterns.
 ---
 
-# First-class cross-ticket dependency/pairing fields in ticket schema
+# Local ticket schema: four relation fields, warn-only + one blocked_on hard gate
 
-**Goal:** Promote `epic`, `parent`, `paired_with`, and `blocked_on` from ad-hoc free-text frontmatter to canonical fields in the safeword ticket schema, validated by `safeword check` and enforced by the phase-advancement hook. (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); this completes the remaining four and adds the phase-gating hook.)
+**Goal:** Promote `epic`, `parent`, `paired_with`, and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't in a terminal state. (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); this adds the four siblings and the gate.)
 
-> **Parent epic:** [WG3Z2N](../WG3Z2N-ticket-anchor-external-bridge/ticket.md) — this is the LOCAL half of the seam (the execution anchor).
-
-**Why:** Today, anything beyond the documented frontmatter is free-text. Tickets that reference other tickets (epic children, sibling pairs across repos, sequencing dependencies) do so by string — nothing prevents a typo'd ID, a stale reference after a rename, or asymmetric pairing (A says it's paired with B but B never references A). The pattern is recurring across every non-trivial safeword project, and the system has no opinion about it.
-
-**Discovered while:** structuring an epic that needed all five fields simultaneously. The ad-hoc usage worked but exposed the gap.
+**Why:** Cross-ticket references live as free-text today — nothing catches a typo'd ID, a stale reference, or asymmetric pairing. Making the fields canonical lets the validator surface those. The one place enforcement (not just a warning) earns its keep is the hard dependency: an agent should not be able to start implementing a ticket whose blocker isn't finished — the exact "build the consumer before the contract exists" trap this session hit with the sync-tracker work.
 
 ## Scope
 
 ### Frontmatter additions
 
-- `epic: <slug-or-id>` — declares this ticket is a child of the named epic. Nullable. Singular for v1.
-- `parent: <id>` — declares a sub-ticket relationship (distinct from epic membership — a child ticket inside a non-epic ticket). Nullable.
-- `paired_with: <id>` — declares a sibling ticket whose work moves in lockstep with this one (typically across repos: an upstream change + its downstream adoption). Symmetric — both sides should declare each other.
-- `blocked_on: [<id>...]` — hard dependency. The phase-advancement hook refuses to move past `intake` while any listed ticket is not `done`. Array; empty allowed.
-- `depends_on: [<id>...]` — soft dependency. **Already shipped via AKZJXC** (field + derived `blocks` + dangling/cycle validation); listed here only for completeness. This ticket adds the phase-gating `blocked_on` sibling, not `depends_on`.
+- `epic: <slug-or-id>` — child of the named epic. Nullable, singular for v1. Warn-only.
+- `parent: <id>` — sub-ticket of a non-epic ticket (containment, distinct from epic membership). Nullable. Warn-only.
+- `paired_with: <id>` — sibling whose work moves in lockstep (typically a cross-repo upstream/downstream pair). Symmetric. Warn-only.
+- `blocked_on: [<id>...]` — **hard dependency.** Gates phase advancement (below). Array; empty allowed.
+- `depends_on: [<id>...]` — soft dependency, **already shipped via AKZJXC**; listed for completeness only. Not re-implemented here.
 
-### Validation in `safeword check`
+### Validation in `safeword check` (warn-only)
 
-- **Existence check** — every referenced ID resolves to an existing ticket (within the same repo, or via cross-repo reference syntax once decided).
-- **Cycle detection** — reject `A blocked_on B blocked_on A` at write time (i.e., `safeword check` errors).
-- **Paired symmetry** — if A says `paired_with: B`, B should say `paired_with: A`. Asymmetry surfaces as a warning (not an error — cross-repo updates are inherently racey).
-- **Epic-child consistency** — if A says `epic: X`, the epic ticket X's body should reference A. Optional; warn-level.
+Extends AKZJXC's existing relations validator — same warn-not-error posture for all of:
 
-### Hook integration
+- **Existence** — a same-repo ref that resolves to no ticket → warning.
+- **Cycle** — `A blocked_on B blocked_on A` → warning.
+- **Paired symmetry** — `A paired_with B` but B doesn't point back → warning.
 
-- Phase-advancement hook: when a ticket transitions out of `intake`, walk `blocked_on`; if any listed ticket has `status != done`, refuse the transition with a clear message:
+No `safeword check` failure exits from relations. Enforcement lives only in the hook, only for `blocked_on`.
+
+### The one hard gate (pre-tool-quality hook)
+
+Joins the existing phase-advancement gates in `pre-tool-quality.ts` (scenario-gate, test-defs-before-code, refactor commit gate):
+
+- On a `ticket.md` edit that moves `phase:` **out of `intake`**, walk `blocked_on`. For each same-repo id whose `status` is **not terminal**, `deny()` with:
 
   ```text
   BLOCKED on <ID> (status: <status>): <title>
   ```
 
-- No hook behavior for `depends_on` — it's documentation, not enforcement.
-
-### Cross-repo references
-
-Tickets that pair across repos (one project's adoption ticket pairing to an upstream change in another project) need a syntax for naming the other side. Options:
-
-- **Bare ID** (current ad-hoc usage) — works if IDs are globally unique enough, but offers no way for tooling to find the other side's file.
-- **Prefixed** — `<repo-alias>:<id>` (e.g., `safeword:MBGQ89`) with a per-project registry in `.safeword-project/repo-aliases.json` mapping alias → checkout path.
-- **Path-relative** — direct filesystem path. Unambiguous but brittle to moves.
-
-Decide in this ticket's design phase. Affects validation and any future tooling.
+- **Terminal = `done | cancelled | superseded | wontfix`** (option b) — a cancelled/superseded blocker no longer blocks (avoids the dead-blocker trap).
+- **Override (option c):** an explicit marker (e.g. `blocked_on_override: <reason>` in frontmatter, or a documented force token) lets the author advance past an unmet block on purpose; the override is logged so it's visible in review. Defuses the stale-status false positive (blocker done in fact but not yet flipped).
+- **Transition-only + grandfather:** fires only on the intake→next transition; a `blocked_on` added to a ticket already past intake does not retroactively block it.
+- Cross-repo ids (unresolvable same-repo) are treated as opaque — never block.
 
 ## Out of scope
 
-- CLI inspection commands (`safeword ticket deps`, `tree`, `list --blocked-by`). The minimum useful system is schema + validation + hook gating; reading the data is already possible with grep/yaml parsers and agent access. Add CLI commands later only if a real human-driven query pattern emerges.
-- Linear / GitHub Issues / Jira integration. Local schema only.
-- Auto-status-propagation (close epic when all children close; close blocked tickets when blocker is cancelled). Could be a separate ticket if useful.
-- Visualization beyond text (no graphviz, no web UI).
-- Multi-epic membership (`epic: [X, Y]`). Keep singular for v1; revisit if a real use case appears.
+- A hard gate for any field other than `blocked_on` — the rest stay warn-only.
+- Cross-repo reference syntax (registry / prefixed / path-relative) — bare ids only; defer the registry.
+- CLI inspection commands, Jira/GitHub/Linear bridging (that's [sync-tracker](../JS5K5G-sync-tracker/ticket.md)), auto-status-propagation, multi-epic membership, retroactive migration.
 
-## Done when
+## Open questions (mostly resolved)
 
-- Schema documented in `ticket-template.md` (the four new fields with examples).
-- `safeword check` enforces existence, cycle detection, and paired-symmetry (warning) checks.
-- Phase-advancement hook refuses out-of-`intake` transition when `blocked_on` is unmet.
-- Cross-repo reference syntax decided and documented in `ticket-template.md`.
-- A test ticket with intentional violations (missing ref, cycle, asymmetric pair, unmet block) demonstrates each check fires correctly.
-
-## Open questions
-
-- **Cross-repo reference syntax** — prefixed-with-registry vs path-relative vs bare-ID. Driver leans prefixed-with-registry (unambiguous, decoupled from filesystem layout).
-- **Symmetry enforcement strictness for `paired_with`** — warning or error? Driver leans warning (cross-repo updates are racey; an error would block legitimate work mid-update).
-- **Singular vs plural `epic`** — keep singular for v1. Defer plural until a real two-epic ticket appears.
-- **Hook behavior on resume** — if a ticket was already past `intake` before its `blocked_on` was added, does the hook retroactively block it back to `intake`, or grandfather the existing phase? Driver leans grandfather (avoid surprise regressions).
+- **"Done" definition** — RESOLVED: terminal = done/cancelled/superseded/wontfix (option b), plus an explicit override (option c).
+- **Override marker shape** — `blocked_on_override:` frontmatter field vs a one-time force token. Lean: frontmatter field carrying a reason (greppable, reviewable, survives in history).
+- **Symmetry strictness** — RESOLVED: warning, never error.
+- **Resume behavior** — RESOLVED: grandfather / transition-only.
 
 ## Work Log
 
 - 2026-05-24T15:40:55.511Z Started: Created ticket MBGQ89
 - 2026-05-24T15:41:00.000Z Drafted: Initial scope with CLI features and arcade pairing
-- 2026-05-24T16:50:00.000Z Refactored: Removed epic/paired_with frontmatter to stand alone; dropped CLI commands to out-of-scope (YAGNI); rewrote body to be generic (not tied to any specific epic or repo)
-- 2026-06-20 Motivating case (from the B6MZ4Z session): an agent filed `5JSH4C` as a duplicate of QPGEWD/G8PBE6/X6EFPN because nothing surfaced similar tickets at `ticket new` — `/quality-review` later cancelled it. The lexical dedup-nudge `1GGD28` routed here would have caught it; concrete justification for extending this ticket's pairing surface with a similarity nudge at creation.
-- 2026-06-20T11:56:00Z Re-scoped under epic WG3Z2N (LOCAL half of the local-vs-external seam). De-duped against AKZJXC: dropped `depends_on` (already shipped — field + derived `blocks` + dangling/cycle validation), narrowing this ticket to the remaining four fields (epic/parent/paired_with/blocked_on) plus the phase-gating hook on `blocked_on`. Added `parent: WG3Z2N`.
+- 2026-05-24T16:50:00.000Z Refactored: Removed epic/paired_with frontmatter to stand alone; dropped CLI commands to out-of-scope (YAGNI); rewrote body to be generic
+- 2026-06-20 Motivating case (B6MZ4Z session): an agent filed `5JSH4C` as a duplicate because nothing surfaced similar tickets at `ticket new`; `/quality-review` later cancelled it — justification for a similarity nudge at creation.
+- 2026-06-20T11:56:00Z De-duped against AKZJXC: dropped `depends_on` (already shipped), narrowing to the remaining four fields + a phase-gating hook on `blocked_on`.
+- 2026-06-20T12:34:00Z Re-scoped post-collapse (epic WG3Z2N deleted; removed epic membership). Made all validation **warn-only** (consistent with AKZJXC) and kept exactly ONE hard gate on `blocked_on`. Set the gate semantics per user: terminal states done/cancelled/superseded/wontfix unblock (b) + explicit logged override (c); transition-only + grandfather. Dropped cross-repo syntax to out-of-scope. Confirmed the gate joins the existing pre-tool-quality phase-gate family (scenario-gate, test-defs-before-code, refactor commit gate) — not a lone exception.

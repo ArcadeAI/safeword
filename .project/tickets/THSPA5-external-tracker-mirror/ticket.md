@@ -1,16 +1,16 @@
 ---
 id: THSPA5
 slug: external-tracker-mirror
-epic: ticket-anchor-external-bridge
-depends_on: [JS5K5G]
 type: feature
 phase: intake
-status: in_progress
+status: superseded
 created: 2026-06-10T04:48:32.590Z
-last_modified: 2026-06-20T12:00:00Z
+last_modified: 2026-06-20T12:36:00Z
 ---
 
 # Optional one-way coordination mirror to Linear/GitHub/Jira (consumes the ticket bridge)
+
+> **SUPERSEDED 2026-06-20 by [sync-tracker (JS5K5G)](../JS5K5G-sync-tracker/ticket.md).** The collapse merged this coordination mirror into the single `safeword sync-tracker` command — coordination projection is one caller of the writer, not a separate subsystem. The one-way / file-canonical decision and the non-interactive-auth constraint were carried forward into JS5K5G. Kept for history; do not build from here.
 
 **Goal:** An optional, per-project, **one-way** mirror of safeword's coordination layer (epics, ticket status, what's-next) to an external tracker — Linear, GitHub Issues, or Jira — built **on top of the [ticket bridge](../JS5K5G-ticket-bridge/ticket.md) (JS5K5G)**, so teams get a board/roadmap/notifications while the local files stay source of truth. This ticket is now the _coordination consumer_; the provider adapter and auth live in JS5K5G, not here.
 

@@ -3,68 +3,34 @@ id: K51FYZ
 slug: breach-issue-projection
 type: feature
 phase: intake
-status: in_progress
-epic: ticket-anchor-external-bridge
+status: blocked
 depends_on: [JS5K5G, 1W107W]
 paired_with: 5FBD29
 created: 2026-06-20T11:56:44.779Z
-last_modified: 2026-06-20T11:56:44.779Z
+last_modified: 2026-06-20T12:36:00Z
 ---
 
-# Breach issue projection — signal breach → tracker issue via the ticket bridge
+# Breach issue projection — signal breach → tracker issue (deferred stub)
 
-**Goal:** When a signal breaches its threshold, project that breach as a structured issue in the customer's tracker via the [ticket bridge](../JS5K5G-ticket-bridge/ticket.md) (JS5K5G), so breaches get triaged instead of firing into the void.
+> **DEFERRED STUB.** Kept only to anchor the requirement; not ready to build. Blocked on the signals layer ([1W107W](../1W107W/ticket.md)) which supplies the `BreachEvent`, and on [sync-tracker (JS5K5G)](../JS5K5G-sync-tracker/ticket.md) which supplies the writer. Re-scope into a full ticket when both land.
 
-**Why:** This is the _alert-routing_ use-case that originally lived inside JS5K5G. It was split out so the bridge stays a generic, one-way adapter and breach-routing is just one event source feeding it. Arcade hardcodes Linear for breach routing; consuming the provider-agnostic bridge extends that to GitHub/Jira users without duplicating adapter logic.
+**Goal:** When a signal breaches its threshold, project it as an issue in the customer's tracker — by building an `IssuePayload` from the `BreachEvent` and calling `safeword sync-tracker`'s writer. Breach-routing is one _caller_ of the projection, not its own subsystem.
 
-> **Split from JS5K5G 2026-06-20.** Carries the signals couplings: `depends_on: [JS5K5G (bridge), 1W107W (build-signals provides the breach event)]`, `paired_with: 5FBD29` (arcade). Parent epic: [WG3Z2N](../WG3Z2N-ticket-anchor-external-bridge/ticket.md). Cross-linked to the signals epic **S4997T** (where the breach event originates).
+**Why deferred:** There is no `BreachEvent` type until 1W107W ships, and no writer until JS5K5G ships. Building the mapping now would be coding against two imagined interfaces. This is the alert-routing use-case originally bundled into JS5K5G, split out so the bridge stays generic.
 
-## Scope
+## When unblocked, scope is roughly
 
-### Breach → IssuePayload mapping
+- Map a `BreachEvent` → `IssuePayload`: title `Signal breach: <slug> — <signal name>`, body (links to spec, signals file, breach details, `/debug` hint), label `signal-breach`, assignee from config.
+- Call the sync-tracker writer for the configured provider.
+- `/build-signals` (1W107W) wires each signal to this projection on breach.
 
-Given a `BreachEvent` from the signals layer (1W107W), build the bridge's provider-neutral `IssuePayload`:
+## Couplings
 
-- Title: `Signal breach: <slug> — <signal name>`
-- Body: link to spec, link to the signals file, breach details, and a `/debug` invocation hint.
-- Labels: `signal-breach`.
-- Assignee: on-call engineer (from `ticketBridge.defaultAssignee` or a breach-specific override).
-
-Then call `bridge.createIssue(payload)` — the bridge owns provider mapping and auth.
-
-### Skill integration
-
-`/build-signals` (1W107W) wires each signal it creates to call this projection on breach, using the project's configured `ticketBridge` provider.
-
-### Configuration
-
-Reads the shared `ticketBridge` block (JS5K5G) plus breach-specific options:
-
-```json
-{
-  "breachRouting": { "labelOnBreach": "signal-breach", "assignTo": "oncall@example.com" }
-}
-```
-
-## Out of scope
-
-- The adapter contract, provider mapping, and auth — owned by JS5K5G.
-- Automated `/debug` execution on breach — v1 only embeds a hint.
-- Throttling, deduplication, escalation — fire-and-forget per breach; smart routing is later work.
-
-## Done when
-
-- A `BreachEvent` maps to a valid `IssuePayload` and is created via the bridge against a mocked adapter in tests.
-- `/build-signals` wires breach routing through the configured `ticketBridge` provider.
-- `breachRouting` config block documented.
-- Documentation shows the end-to-end path: signal breach → payload → `bridge.createIssue`.
-
-## Open questions
-
-- **Breach payload assignee** — reuse `ticketBridge.defaultAssignee`, or always require a breach-specific on-call? Lean: default to the bridge's, allow override.
-- **Idempotency on repeated breach** — does a re-breach of the same signal create a new issue or update the existing one? Lean: v1 creates per breach (matches arcade's fire-and-forget); dedup is out of scope.
+- `depends_on: JS5K5G` (writer) + `1W107W` (BreachEvent source).
+- `paired_with: 5FBD29` (arcade) — the upstream alert-routing pattern this mirrors.
 
 ## Work Log
 
 - 2026-06-20T11:56:44.779Z Started: Created ticket K51FYZ.
-- 2026-06-20T12:02:00Z Split from JS5K5G (the old alert-routing scope) per the local-vs-external figure-it-out. Defined as a consumer of the ticket bridge: maps `BreachEvent` → `IssuePayload` → `bridge.createIssue`. Carries `depends_on: [JS5K5G, 1W107W]`, `paired_with: 5FBD29`; parented under WG3Z2N, cross-linked to signals epic S4997T.
+- 2026-06-20T12:02:00Z Split from JS5K5G as the signals consumer of the bridge.
+- 2026-06-20T12:36:00Z Demoted to a deferred stub (status: blocked) per the simplify pass — it's a future caller blocked on unbuilt signals (1W107W) + the writer (JS5K5G). Removed epic membership (WG3Z2N deleted). Re-scope when both dependencies land.
