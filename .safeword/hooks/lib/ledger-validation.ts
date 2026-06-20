@@ -174,6 +174,15 @@ function validateCrossScenario(
   }
 }
 
+/**
+ * Count of RGR loops (scenario blocks) in a ledger — the W610WW trigger for the
+ * whole-ticket quality-review + refactor pass. Reuses the same scenario parse
+ * as validation, so "what counts as a loop" has one definition.
+ */
+export function countRgrLoops(content: string): number {
+  return parseLedger(content).scenarios.length;
+}
+
 export function validateLedger(
   content: string,
   isReachable: (sha: string) => boolean,

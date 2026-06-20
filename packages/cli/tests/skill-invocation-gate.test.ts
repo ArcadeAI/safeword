@@ -8,6 +8,7 @@ import {
   checkSkillInvocations,
   getRequiredSkillsForPhase,
   PHASE_GATES,
+  requiredSkillsForDone,
 } from '../templates/hooks/lib/skill-invocation-log.js';
 
 function makeProjectWithLog(lines: string[]): string {
@@ -36,6 +37,28 @@ describe('skill-invocation gate (147)', () => {
 
     it('getRequiredSkillsForPhase("unknown-phase") returns empty (graceful default)', () => {
       expect(getRequiredSkillsForPhase('unknown-phase')).toEqual([]);
+    });
+  });
+
+  describe('Rule: done requirements are loop-count-aware (W610WW)', () => {
+    it('a single-loop feature requires verify + audit only', () => {
+      expect(requiredSkillsForDone(true, 1)).toEqual(['verify', 'audit']);
+    });
+
+    it('a multi-loop feature also requires quality-review', () => {
+      expect(requiredSkillsForDone(true, 2)).toEqual(['verify', 'audit', 'quality-review']);
+    });
+
+    it('a single-loop task requires nothing (no verify/audit burden, no review)', () => {
+      expect(requiredSkillsForDone(false, 1)).toEqual([]);
+    });
+
+    it('a zero-loop task requires nothing', () => {
+      expect(requiredSkillsForDone(false, 0)).toEqual([]);
+    });
+
+    it('a multi-loop task requires quality-review only — not verify/audit', () => {
+      expect(requiredSkillsForDone(false, 2)).toEqual(['quality-review']);
     });
   });
 

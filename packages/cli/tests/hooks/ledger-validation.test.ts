@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
+import { countRgrLoops, validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
 
 const allReachable = (_sha: string) => true;
 
@@ -355,6 +355,48 @@ describe('validateLedger — W610WW loop-count gating', () => {
     );
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
+  });
+});
+
+describe('countRgrLoops — RGR loop count from the ledger (W610WW)', () => {
+  const loop = (name: string) =>
+    [
+      `### Scenario: ${name}`,
+      '',
+      '- [x] RED abc1234',
+      '- [x] GREEN def5678',
+      '- [x] REFACTOR skip: x',
+    ].join('\n');
+
+  function document(scenarios: string[], withRow = true): string {
+    return [
+      '# Test definitions',
+      '',
+      '## Rule: Example',
+      '',
+      scenarios.join('\n\n'),
+      '',
+      '## Feature-level cross-scenario refactor',
+      '',
+      ...(withRow ? ['- [x] cross-scenario fff9999', ''] : []),
+    ].join('\n');
+  }
+
+  it('counts zero scenarios as zero', () => {
+    expect(countRgrLoops(document([], false))).toBe(0);
+  });
+
+  it('counts a single scenario as one', () => {
+    expect(countRgrLoops(document([loop('only')]))).toBe(1);
+  });
+
+  it('counts three scenarios as three', () => {
+    expect(countRgrLoops(document([loop('a'), loop('b'), loop('c')]))).toBe(3);
+  });
+
+  it('does not count the cross-scenario row as a loop', () => {
+    // Row present but only one real scenario → still one loop.
+    expect(countRgrLoops(document([loop('only')]))).toBe(1);
   });
 });
 

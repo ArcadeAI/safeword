@@ -37,6 +37,19 @@ export function getRequiredSkillsForPhase(phase: string): string[] {
   return PHASE_GATES[phase] ?? [];
 }
 
+/**
+ * Required skills at the done gate, loop-count-aware (W610WW). Features keep
+ * their verify+audit requirement; any ticket with two or more RGR loops also
+ * needs /quality-review (the whole-ticket review half of the cross-scenario
+ * pass). A single-loop task requires nothing — nothing to cross, and tasks are
+ * deliberately NOT pulled into the verify+audit requirement here.
+ */
+export function requiredSkillsForDone(isFeature: boolean, loopCount: number): string[] {
+  const skills = isFeature ? [...(PHASE_GATES.done ?? [])] : [];
+  if (loopCount >= 2) skills.push('quality-review');
+  return skills;
+}
+
 export interface SkillInvocationCheckInput {
   sessionId: string;
   required: string[];
