@@ -94,16 +94,16 @@ Run the review in passes (MAX_PASSES = 3), not one-and-done.
 
 Each pass:
 
-1. **Review with a fresh, independent reviewer.** Spawn a sub-agent on a
-   _different model than yours, and no weaker_, when your harness supports it —
-   a same-model, same-context reviewer shares your blind spots, and ungrounded
-   self-correction can _degrade_ code rather than improve it, but a reviewer
-   below your tier misses the subtle, hard-to-verify bugs you most need caught.
-   Verification is easier than generation, so aim for an equal-or-stronger
-   _different_ model; if you are already on the strongest, prefer a same-tier
-   different model over a weaker one, or fall back to fresh context. Hand it
-   only the diff and the ticket scope, have it apply §1–3, and return the
-   Output Format above.
+1. **Review with a fresh, independent reviewer.** Independence is what catches
+   bugs: a same-model, same-context reviewer shares your blind spots, and
+   ungrounded self-correction can _degrade_ code rather than improve it. A
+   different equal-tier model already pays off (verifying is easier than
+   generating) — but that edge collapses on the subtle, hard-to-verify bugs you
+   most need caught, so never review on a model _below your tier_. Spawn the
+   reviewer in this order: (1) a different model at or above your tier; (2)
+   failing that, a fresh-context pass on your own model; (3) a weaker different
+   model only as a last resort. Hand it only the diff and the ticket scope, have
+   it apply §1–3, and return the Output Format above.
    - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
      auto-spawn, and `/agent` only switches between existing threads. Cursor:
      subagents.
