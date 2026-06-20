@@ -18,7 +18,14 @@ import { existsSync, readFileSync, renameSync } from 'node:fs';
 
 import { isDogfoodRepo } from './lib/dogfood.ts';
 import { filterSafewordFiles } from './lib/owned-paths.ts';
-import { releaseAgeStatus, type UpdateCache } from './lib/update-cache.ts';
+import {
+  clearUpgradeFailures,
+  MAX_UPGRADE_ATTEMPTS,
+  recordUpgradeFailure,
+  releaseAgeStatus,
+  shouldAttemptUpgrade,
+  type UpdateCache,
+} from './lib/update-cache.ts';
 import { bumpType, upgradeDecision } from './lib/version.ts';
 
 const CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000; // throttle npm registry polling to once/day
@@ -63,6 +70,17 @@ async function fetchLatestFromNpm(): Promise<UpdateCache | undefined> {
 }
 
 /**
+ * Atomic write (temp file + rename) so a concurrent reader never sees a partial
+ * file. Random suffix avoids a temp-name collision between two near-simultaneous
+ * starts.
+ */
+async function writeCacheAtomic(cachePath: string, cache: UpdateCache): Promise<void> {
+  const tempPath = `${cachePath}.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  await Bun.write(tempPath, JSON.stringify(cache));
+  renameSync(tempPath, cachePath);
+}
+
+/**
  * Return a fresh-enough cache: reuse the on-disk cache while it's within the 24h
  * cooldown, otherwise refresh from npm and write it back atomically. A failed
  * refresh falls back to whatever cache exists (possibly undefined when offline).
@@ -84,12 +102,12 @@ async function loadOrRefreshCache(cachePath: string): Promise<UpdateCache | unde
   const fetched = await fetchLatestFromNpm();
   if (!fetched) return cache; // offline — keep last known cache
 
-  // Atomic write (temp file + rename) so a concurrent reader never sees a partial file.
-  // Random suffix avoids a temp-name collision between two near-simultaneous starts.
-  const tempPath = `${cachePath}.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  await Bun.write(tempPath, JSON.stringify(fetched));
-  renameSync(tempPath, cachePath);
-  return fetched;
+  // Spread the refreshed version fields over the existing cache so the failure
+  // counter (failedAttempts/failedVersion) survives a poll; the counter logic
+  // resets it when the version actually changed.
+  const merged: UpdateCache = { ...cache, ...fetched };
+  await writeCacheAtomic(cachePath, merged);
+  return merged;
 }
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -114,8 +132,8 @@ const currentVersion = existsSync(versionPath) ? readFileSync(versionPath, 'utf8
 
 // --- Refresh or load the update cache (24h-throttled npm fetch) ---
 const cachePath = `${safewordDir}/.update-cache.json`;
-const cache = await loadOrRefreshCache(cachePath);
-const latest = cache?.latestVersion;
+const cache = (await loadOrRefreshCache(cachePath)) ?? {};
+const latest = cache.latestVersion;
 if (!latest) {
   process.exit(0); // No version info (offline first run, or corrupted) — retry next session
 }
@@ -162,12 +180,20 @@ if (decision === 'notify') {
 
 // decision === 'apply' (patch or minor) — proceed to upgrade
 
+// --- Circuit breaker ---
+// If this version already failed MAX_UPGRADE_ATTEMPTS times in a row, stop trying
+// and stay silent (the actionable message was surfaced when the cap was reached).
+// Clears when a newer version ships or the user upgrades manually.
+if (!shouldAttemptUpgrade(cache, latest)) {
+  process.exit(0);
+}
+
 // --- Check release-age cooldown ---
 // Supply-chain defense: don't install versions published <24h ago. See
 // lib/update-cache.ts for rationale and threat model.
 // Transient (exit 0, silent): the upgrade applies automatically once the
 // cooldown clears or the cache refreshes — no need to interrupt every session.
-const ageStatus = releaseAgeStatus(cache?.publishedAt, Date.now());
+const ageStatus = releaseAgeStatus(cache.publishedAt, Date.now());
 if (ageStatus.state === 'unknown' || ageStatus.state === 'cooling') {
   process.exit(0);
 }
@@ -192,6 +218,23 @@ try {
 } catch {
   // Not a git repo or git not available — skip auto-upgrade
   process.exit(0);
+}
+
+// --- Check for an unsafe git state ---
+// A detached HEAD (auto-commit would dangle) or an in-progress merge (wrong
+// target) makes the auto-commit unsafe. Conflicted merges/rebases already show
+// as a dirty tree above. Transient (exit 0, silent): clears once back on a branch.
+try {
+  execSync('git symbolic-ref -q HEAD', { ...execOpts, stdio: 'pipe' });
+} catch {
+  process.exit(0); // detached HEAD (or HEAD unresolvable) — don't commit
+}
+try {
+  // Exits 0 (prints a sha) only when MERGE_HEAD exists, i.e. mid-merge.
+  execSync('git rev-parse -q --verify MERGE_HEAD', { ...execOpts, stdio: 'pipe' });
+  process.exit(0); // merge in progress — don't commit
+} catch {
+  // No MERGE_HEAD — not merging, safe to proceed.
 }
 
 // --- Perform upgrade ---
@@ -222,12 +265,28 @@ try {
     );
   }
 
+  // Success — clear any prior failure strikes for this version.
+  if (cache.failedAttempts) {
+    await writeCacheAtomic(cachePath, clearUpgradeFailures(cache));
+  }
+
   // exit 2 surfaces the outcome to Claude (asyncRewake rewake contract).
   console.error(`SAFEWORD: Auto-upgraded v${currentVersion} → v${latest}`);
   process.exit(2);
 } catch {
-  // Don't echo the raw error (it would pollute Claude's context). A capped,
-  // actionable failure message is ticket XQ9CXA item #2.
-  console.error(`SAFEWORD: Auto-upgrade to v${latest} failed — will retry next session`);
-  process.exit(2);
+  // Record the strike. Below the cap we retry silently next session (could be a
+  // flaky network or a transient lock); at the cap we surface ONE actionable
+  // line and then go quiet — a recurring failure is structural (commit signing,
+  // a rejecting pre-commit hook, a protected branch), not flaky. Raw errors are
+  // never echoed (they'd pollute Claude's context).
+  const failure = recordUpgradeFailure(cache, latest);
+  await writeCacheAtomic(cachePath, failure.cache);
+
+  if (failure.reachedCap) {
+    console.error(
+      `SAFEWORD: auto-upgrade to v${latest} failed ${MAX_UPGRADE_ATTEMPTS}× — run \`bunx safeword@${latest} upgrade\` manually, or disable with \`autoUpgrade: false\` in .safeword/config.json`,
+    );
+    process.exit(2);
+  }
+  process.exit(0); // below cap — retry silently next session
 }
