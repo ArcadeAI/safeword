@@ -59,7 +59,7 @@
     "lint:sh": "shellcheck **/*.sh"
   },
   "dependencies": {
-    "@cucumber/gherkin": "^40.0.0",
+    "@cucumber/gherkin": "^41.0.0",
     "@cucumber/messages": "^33.0.2",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.2",
     "@eslint-react/eslint-plugin": "5.9.0",

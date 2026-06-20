@@ -24,12 +24,12 @@
     },
     "packages/cli": {
       "name": "safeword",
-      "version": "0.52.0",
+      "version": "0.52.2",
       "bin": {
         "safeword": "dist/cli.js",
       },
       "dependencies": {
-        "@cucumber/gherkin": "^40.0.0",
+        "@cucumber/gherkin": "^41.0.0",
         "@cucumber/messages": "^33.0.2",
         "@eslint-community/eslint-plugin-eslint-comments": "^4.7.2",
         "@eslint-react/eslint-plugin": "5.9.0",
@@ -187,7 +187,7 @@
 
     "@cucumber/cucumber-expressions": ["@cucumber/cucumber-expressions@19.0.1", "", { "dependencies": { "regexp-match-indices": "1.0.2" } }, "sha512-tJrTgCZ5/vgDBfAs2pQu0fu88gPJIGQ40AC/3ftg5/i/BwnhX/W1MbaFF8A+tanY1zbUWWarGFJ2QMKItPQ/QQ=="],
 
-    "@cucumber/gherkin": ["@cucumber/gherkin@40.0.0", "", { "dependencies": { "@cucumber/messages": ">=31.0.0 <34" } }, "sha512-wMbF0TtNy2ELBJ8nls29eZQWL4XKfuWtMwqDaylUEAiv3qC0/ZAVU0LS2viQ6ZfXe5ROAC38penTOAdrjwYC9Q=="],
+    "@cucumber/gherkin": ["@cucumber/gherkin@41.0.0", "", { "dependencies": { "@cucumber/messages": ">=31.0.0 <34" } }, "sha512-pKGx1EzNjtWbpw74kEevKDMj71dF3ZSaFJpLYuWVvRZKe+Cwoq5iEkuMaELIg1jxIu8jH/A2HPMpMR8UBvdG0w=="],
 
     "@cucumber/gherkin-streams": ["@cucumber/gherkin-streams@6.0.0", "", { "dependencies": { "commander": "14.0.0", "source-map-support": "0.5.21" }, "peerDependencies": { "@cucumber/gherkin": ">=22.0.0", "@cucumber/message-streams": ">=4.0.0", "@cucumber/messages": ">=17.1.1" }, "bin": { "gherkin-javascript": "bin/gherkin" } }, "sha512-HLSHMmdDH0vCr7vsVEURcDA4WwnRLdjkhqr6a4HQ3i4RFK1wiDGPjBGVdGJLyuXuRdJpJbFc6QxHvT8pU4t6jw=="],
 
