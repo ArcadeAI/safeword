@@ -54,7 +54,9 @@ an explicit subagent — handed only the phase's artifacts and the ticket's scop
 applying the `/review-spec` procedure; **its** verdict decides. When
 `crossModelReview` is on, that reviewer must be a **different model than the
 author** — a same-model reviewer shares the author's blind spots. Prefer one of
-comparable-or-better capability; never weaker. On a pass, record the stamp:
+comparable-or-better capability; never weaker. If you can't run a different
+model, log a deliberate `skip: <reason>` rather than stamping a same-model
+review. On a pass, record the stamp:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
