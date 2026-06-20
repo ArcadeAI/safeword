@@ -29,6 +29,14 @@ The Claude Code design surfaces user-facing outcomes via the **`asyncRewake` + e
 
 So naively wiring `session-auto-upgrade.ts` into Cursor/Codex would **break session start**, not just "not message." Each agent needs its own non-blocking strategy and its own (or no) message channel.
 
+## Mechanism framing (steelman recalibration, 2026-06-20)
+
+The **client session-hook is the primary/universal mechanism** — the only path that needs no GitHub/CI/token, is always-current at session start, self-healing, and matches the _seamless_ goal. A **CI/PR upgrade Action** (scheduled `safeword upgrade` → PR) is an **opt-in complement** for teams that want reviewable, scheduled, agent-agnostic upgrades and are on GitHub CI — NOT the default, and not the cross-agent answer unless the per-agent client port proves infeasible. **Dependabot rejected** (can't run reconcile; verified gap). **Renovate `postUpgradeTasks`** is a documented "if you already run Renovate" fallback only.
+
+**First question this epic's /figure-it-out must answer:** the actual **agent mix** of safeword users (Claude-Code vs Cursor vs Codex). That decides whether per-agent client ports are worth it or whether a CI Action / the hooks-into-CLI move below is the better cross-agent vehicle.
+
+**Bigger structural lever (see follow-up):** moving the **hook layer into the CLI** (`safeword hook <name>` subcommands) would make all three agents' configs point at one shared binary — collapsing the apply logic from triplicated materialized scripts into one implementation. If pursued, it likely **subsumes the per-agent ports** (Y6HZR7/7R1D3B become "wire the agent's config to call `safeword hook`" rather than reimplement). Evaluate this BEFORE committing to per-agent script ports. Evidence: hooks+lib are 52/139 owned files (37%); MCP cannot host hooks/skills (filesystem-only); CLI cold-start +20–60ms (mitigable). Verified 2026-06-20.
+
 ## Shared design decision (resolve in epic-level /figure-it-out before the children build)
 
 Likely shape — **silent apply + git-commit-as-record** on Cursor/Codex: do the upgrade + commit (the agent-agnostic core), skip the exit-2 messaging entirely (the commit in git history is the record), and find a per-agent way to avoid blocking session start. Open design questions the figure-it-out must settle:
