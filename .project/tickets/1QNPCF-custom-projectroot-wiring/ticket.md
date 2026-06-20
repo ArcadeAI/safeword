@@ -2,10 +2,10 @@
 id: 1QNPCF
 slug: custom-projectroot-wiring
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-20T15:28:05.112Z
-last_modified: 2026-06-20T15:28:05.112Z
+last_modified: 2026-06-20T18:58:00.000Z
 ---
 
 # Custom paths.projectRoot: wire formatter ignores + auto-upgrade staging
