@@ -243,9 +243,10 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
  * deeper in the tree (e.g. a `tickets/.../re-entry.md`). This mirrors the
  * repo-root block, whose `.project/re-entry.md` entries are likewise anchored.
  */
-const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-managed)\n${NAMESPACE_TRANSIENT_BASENAMES.map(
-  name => `/${name}`,
-).join('\n')}\n`;
+const NAMESPACE_GITIGNORE_PATTERNS = NAMESPACE_TRANSIENT_BASENAMES.map(name => `/${name}`).join(
+  '\n',
+);
+const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-managed)\n${NAMESPACE_GITIGNORE_PATTERNS}\n`;
 
 /**
  * Top-level dirs a customer's prettier must skip so safeword's files don't dirty
