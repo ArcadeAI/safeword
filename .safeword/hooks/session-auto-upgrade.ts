@@ -138,6 +138,13 @@ if (!latest) {
   process.exit(0); // No version info (offline first run, or corrupted) — retry next session
 }
 
+// Defense-in-depth: `latest` is registry-supplied and flows into a subprocess
+// arg below. Reject anything that isn't a plain semver so a compromised registry
+// (or a tampered cache file) can't smuggle a different package spec or argument.
+if (!/^\d+\.\d+\.\d+(?:[-+][\w.-]+)*$/.test(latest)) {
+  process.exit(0);
+}
+
 // --- Version comparison + policy decision ---
 // Policy is defined in lib/version.ts:upgradeDecision and pinned by unit tests.
 const bump = bumpType(currentVersion, latest);
@@ -239,8 +246,10 @@ try {
 
 // --- Perform upgrade ---
 try {
-  // Run the exact version (not @latest) to avoid supply chain ambiguity
-  execSync(`bunx safeword@${latest} upgrade`, { ...execOpts, stdio: 'pipe' });
+  // Run the exact version (not @latest) to avoid supply chain ambiguity.
+  // execFileSync (no shell): `latest` is registry-supplied, so passing it as an
+  // arg — never interpolated into a shell string — closes the injection surface.
+  execFileSync('bunx', [`safeword@${latest}`, 'upgrade'], { ...execOpts, stdio: 'pipe' });
 
   // Stage only safeword-managed files that changed
   const changedFiles = execSync('git diff --name-only', execOpts)
