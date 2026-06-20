@@ -9,7 +9,11 @@
  * Inline disables target only generator arrow functions, not regular functions in this file.
  */
 
-import { dirGlobExcludeMerge, SAFEWORD_IGNORE_DIRS } from '../../owned-paths.js';
+import {
+  dirGlobExcludeMerge,
+  resolvedNamespaceDirectory,
+  safewordIgnoreDirectories,
+} from '../../owned-paths.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
 import { assignOrPrune } from '../../utils/json-merge.js';
 import type {
@@ -82,8 +86,16 @@ function addKnipIgnoreDependencies(
  * Knip plugins auto-enable based on deps, so we just configure ignore patterns.
  */
 function getKnipConfig(ctx: ProjectContext): object {
+  // A custom paths.projectRoot is added alongside the two well-known roots so
+  // Knip doesn't scan (and false-positive on) the custom namespace dir (#273).
+  const customRoot = resolvedNamespaceDirectory(ctx);
   const config = {
-    ignore: ['.safeword/**', '.project/**', '.safeword-project/**'],
+    ignore: [
+      '.safeword/**',
+      '.project/**',
+      '.safeword-project/**',
+      ...(customRoot === undefined ? [] : [`${customRoot}/**`]),
+    ],
     ignoreDependencies: ['safeword', 'dependency-cruiser'],
   };
 
@@ -131,14 +143,18 @@ function getPrettierPlugins(projectType: {
 const BIOME_JSON_MERGE: JsonMergeDefinition = {
   keys: ['files.includes'],
   skipIfMissing: true, // Only modify if project already uses Biome
-  merge: existing => {
+  merge: (existing, ctx) => {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
     // Add safeword exclusions (! prefix) if not already present, sourced from
     // the single SAFEWORD_IGNORE_DIRS list (ticket EYRK34) so Biome skips every
-    // safeword-owned dir, not just .safeword/. Biome v2.2.0+ doesn't need /**.
-    const safewordExcludes = ['!eslint.config.mjs', ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`)];
+    // safeword-owned dir, not just .safeword/ — including a custom paths.projectRoot
+    // (issue #273). Biome v2.2.0+ doesn't need /**.
+    const safewordExcludes = [
+      '!eslint.config.mjs',
+      ...safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx)).map(dir => `!${dir}`),
+    ];
     const newIncludes = [...existingIncludes];
     for (const exclude of safewordExcludes) {
       if (!newIncludes.includes(exclude)) {
@@ -154,16 +170,17 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
       },
     };
   },
-  unmerge: (existing, _ctx) => {
+  unmerge: (existing, ctx) => {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
     // Remove safeword exclusions from includes list (current set + the legacy
-    // '!.safeword/**' folder form, cleaned up on unmerge).
+    // '!.safeword/**' folder form, cleaned up on unmerge). Mirrors merge, so a
+    // custom paths.projectRoot exclusion is also removed (issue #273).
     const safewordExcludes = new Set([
       '!eslint.config.mjs',
       '!.safeword/**',
-      ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`),
+      ...safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx)).map(dir => `!${dir}`),
     ]);
     const cleanedIncludes = existingIncludes.filter(
       (entry: string) => !safewordExcludes.has(entry),

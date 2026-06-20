@@ -237,6 +237,44 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     }
   });
 
+  // Issue #273 Facet 2: the generated owned-paths module drives which files the
+  // auto-upgrade hook stages. A custom root must appear there, or its scaffolded
+  // files surface as untracked churn and block the clean-tree gate on upgrade.
+  it('DEV1.AC4.configured_root_listed_in_owned_paths_module', async () => {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
+    );
+
+    await runInstall();
+
+    const ownedPaths = readFileSync(
+      nodePath.join(cwd, '.safeword', 'hooks', 'lib', 'owned-paths.ts'),
+      'utf8',
+    );
+    expect(ownedPaths).toContain("'team-ns/'");
+  });
+
+  it('DEV1.AC4.repo_root_namespace_adds_no_bare_prefix', async () => {
+    // projectRoot '.' must NOT inject a repo-root prefix — a bare './' or '' would
+    // make the auto-upgrade hook match (and stage) every file in the repo.
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: '.' } }),
+    );
+
+    await runInstall();
+
+    const ownedPaths = readFileSync(
+      nodePath.join(cwd, '.safeword', 'hooks', 'lib', 'owned-paths.ts'),
+      'utf8',
+    );
+    expect(ownedPaths).not.toContain("'./'");
+    expect(ownedPaths).not.toMatch(/^\s*'',?\s*$/m);
+  });
+
   it('DEV1.AC4.upgrade_on_project_repo_stays_project', async () => {
     await runInstall();
     const glossaryPath = nodePath.join(cwd, '.project', 'glossary.md');

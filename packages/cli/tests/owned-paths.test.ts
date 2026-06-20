@@ -14,9 +14,24 @@ import {
   generateOwnedPathsModule,
   matchesSafewordPath,
   referenceFilterSafewordFiles,
+  resolvedNamespaceDirectory,
+  SAFEWORD_IGNORE_DIRS,
+  safewordIgnoreDirectories,
 } from '../src/owned-paths.js';
+import type { ProjectContext } from '../src/packs/types.js';
 import type { SafewordSchema } from '../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
+
+// Minimal context for resolvedNamespaceDirectory: it only reads cwd + namespaceRoot.
+const ctxWith = (cwd: string, namespaceRoot?: string): ProjectContext =>
+  ({
+    cwd,
+    namespaceRoot,
+    projectType: {},
+    developmentDeps: {},
+    productionDeps: {},
+    isGitRepo: true,
+  }) as unknown as ProjectContext;
 
 describe('computeSafewordPathPrefixes', () => {
   it('returns first-segment-with-slash for nested paths', () => {
@@ -121,6 +136,50 @@ describe('generateOwnedPathsModule', () => {
   it('emits a filterSafewordFiles helper for the auto-upgrade hook to consume', () => {
     const source = generateOwnedPathsModule(stubSchema({ ownedFiles: ['.safeword/x.ts'] }));
     expect(source).toContain('export function filterSafewordFiles');
+  });
+});
+
+describe('namespace-root awareness (issue #273)', () => {
+  it('safewordIgnoreDirectories appends a custom namespace root to the base list', () => {
+    const directories = safewordIgnoreDirectories('team-ns');
+    expect(directories).toContain('team-ns');
+    expect(directories).toContain('.safeword'); // base dirs preserved
+  });
+
+  it('safewordIgnoreDirectories leaves the base list unchanged for no/known roots', () => {
+    expect(safewordIgnoreDirectories()).toEqual(SAFEWORD_IGNORE_DIRS);
+    // '.project' and '.safeword-project' are already in the base list — no dupes.
+    expect(safewordIgnoreDirectories('.project')).toEqual(SAFEWORD_IGNORE_DIRS);
+    expect(safewordIgnoreDirectories('.safeword-project')).toEqual(SAFEWORD_IGNORE_DIRS);
+  });
+
+  it('resolvedNamespaceDirectory returns the label for a custom in-repo root', () => {
+    expect(resolvedNamespaceDirectory(ctxWith('/repo', '/repo/team-ns'))).toBe('team-ns');
+    expect(resolvedNamespaceDirectory(ctxWith('/repo', '/repo/config/team-ns'))).toBe(
+      'config/team-ns',
+    );
+  });
+
+  it('resolvedNamespaceDirectory returns undefined for repo-root and the well-known roots', () => {
+    expect(resolvedNamespaceDirectory(ctxWith('/repo', '/repo'))).toBeUndefined();
+    expect(resolvedNamespaceDirectory(ctxWith('/repo', '/repo/.project'))).toBeUndefined();
+    expect(resolvedNamespaceDirectory(ctxWith('/repo', '/repo/.safeword-project'))).toBeUndefined();
+  });
+
+  it('resolvedNamespaceDirectory returns undefined for a root resolved outside the repo', () => {
+    // A '../…' traversal label would leak nonsensical ignore/prefix entries.
+    expect(resolvedNamespaceDirectory(ctxWith('/repo', '/external/ns'))).toBeUndefined();
+  });
+
+  it('generateOwnedPathsModule emits a resolved custom root prefix', () => {
+    // So the auto-upgrade hook stages files under the custom root (Facet 2).
+    expect(generateOwnedPathsModule(SAFEWORD_SCHEMA, 'team-ns')).toContain("'team-ns/'");
+  });
+
+  it('generateOwnedPathsModule still emits both well-known roots with no custom label', () => {
+    const source = generateOwnedPathsModule(SAFEWORD_SCHEMA);
+    expect(source).toContain("'.project/'");
+    expect(source).toContain("'.safeword-project/'");
   });
 });
 
