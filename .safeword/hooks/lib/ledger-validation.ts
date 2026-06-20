@@ -186,7 +186,14 @@ function validateCrossScenario(
  * asked for).
  */
 export function wholeTicketPassApplies(content: string): boolean {
-  const { scenarios } = parseLedger(content);
+  return wholeTicketPassFromScenarios(parseLedger(content).scenarios);
+}
+
+/**
+ * The whole-ticket-pass predicate over already-parsed scenarios — so a caller
+ * that has parsed the ledger (validateLedger) doesn't parse it a second time.
+ */
+function wholeTicketPassFromScenarios(scenarios: ScenarioLedger[]): boolean {
   const hasAnyAnnotation = scenarios.some(s =>
     [s.red, s.green, s.refactor].some(box => box?.annotation),
   );
@@ -208,7 +215,7 @@ export function validateLedger(
   // (≥2 annotated loops — see wholeTicketPassApplies), OR the row already exists
   // (back-compat: a present row is always validated). Pure-legacy and single-loop
   // tickets stay exempt.
-  if (wholeTicketPassApplies(content) || crossScenario) {
+  if (wholeTicketPassFromScenarios(scenarios) || crossScenario) {
     validateCrossScenario(crossScenario, isReachable, errors);
   }
 
