@@ -44,10 +44,12 @@ function projectTicket(payload: IssuePayload, provider: 'linear' | 'github'): Pr
 
 ### Two writers (the thin seam)
 
-- **Linear** — via Arcade.dev MCP (`Linear_CreateIssue`/`UpdateIssue`); Arcade handles per-provider OAuth.
-- **GitHub Issues** — via the `github` MCP / `gh` (Arcade does not expose GitHub). GitHub now has **sub-issues, issue types, and issue dependencies** ([CLI-manageable since 2026-06-10](https://github.blog/changelog/2026-06-10-manage-sub-issues-types-and-dependencies-from-github-cli/)) — so the projection is near-parity with Linear, not a degraded LCD.
+- **Linear** — via Arcade.dev MCP (`Linear_CreateIssue`/`UpdateIssue`, and `Linear_CreateIssueRelation` for blocks/blockedBy — both [verified present](https://docs.arcade.dev/en/resources/integrations/productivity/linear)); Arcade handles OAuth.
+- **GitHub Issues** — via the `github` MCP / `gh`. **Rationale (corrected):** Arcade _does_ expose a GitHub toolkit, but it's create/update/list only — it **lacks sub-issues, issue dependencies, and issue types** ([verified](https://docs.arcade.dev/en/resources/integrations/development/github)). Those primitives — which our `epic`/`blocked_on`/`type` mapping needs — are reachable through GitHub's own API / `gh` (sub-issues + dependencies + types, [CLI-manageable since 2026-06-10](https://github.blog/changelog/2026-06-10-manage-sub-issues-types-and-dependencies-from-github-cli/)). So GitHub routes natively.
 
-> **Transport differs per provider** (Linear→Arcade MCP, GitHub→github MCP) — which is exactly why a two-writer seam is right and a "uniform Arcade layer" is wrong.
+> **Transport differs per provider** for a real reason: Arcade's GitHub toolkit is too thin for the relation primitives we map. Not "Arcade has no GitHub" (it does) — the toolkit just doesn't cover sub-issues/deps/types. This is why the two-writer seam is right and a "uniform Arcade layer" is wrong.
+>
+> **GitHub gotchas to handle:** (1) `issue type` requires **org-level type definitions** — fall back gracefully (skip the type) when the org hasn't defined them. (2) The sub-issue API **links an existing issue** as a child; it does not create parent+child atomically — so the corpus walk must be **topologically sorted by parent** before writing, or the parent ref won't exist yet.
 
 ### Coordination mapping (the payload builder)
 
@@ -61,7 +63,16 @@ function projectTicket(payload: IssuePayload, provider: 'linear' | 'github'): Pr
 | `blocked_on` / `depends_on` | issue relations | issue dependencies   |
 | `type`                      | label           | issue type           |
 
-Updates are **idempotent** (re-running reconciles, doesn't duplicate) via a stored `TrackerRef` per ticket.
+### What goes in the body (egress default — `figure-it-out` 2026-06-20)
+
+**Fail-safe default:** project **title + status + labels + dependency-links + a link back** to the canonical ticket — **never** the spec/work-log body. That's the whole coordination view (board/roadmap/graph); the body is pure nice-to-read. Saltzer & Schroeder fail-safe defaults — the default's worst case is "sparse issue," never "leaked internal reasoning to a world-readable tracker." ([principles](https://nocomplexity.com/documents/securityarchitecture/architecture/saltzer_designprinciples.html))
+
+- Full body is **opt-in per project** (`ticketBridge.body: "minimal" | "full"`, default `minimal`).
+- **Public-repo guard:** projecting `body: full` to a **public** GitHub repo is refused without an explicit `--allow-public-body` ack. Visibility is re-checked **every** sync run (a repo can be flipped public after the first projection).
+
+### Idempotency (partial-failure-safe)
+
+Re-running reconciles, never duplicates, via a per-ticket `TrackerRef` kept in a **sidecar `.safeword/tracker-map.json`** — _not_ ticket frontmatter, so the canonical files stay pure (no sync write-back into the source of truth). The map distinguishes "created + ref recorded" from "created but ref-write failed" so a crashed mid-corpus run resumes cleanly rather than double-creating. Rate-limited writes with backoff (a first sync is one call per ticket across the corpus).
 
 ### Configuration
 
@@ -69,13 +80,14 @@ Updates are **idempotent** (re-running reconciles, doesn't duplicate) via a stor
 {
   "ticketBridge": {
     "provider": "none" | "linear" | "github",
+    "body": "minimal" | "full",
     "target": { "workspace": "…", "team": "ENG", "repo": "owner/name" },
     "defaultAssignee": "oncall@example.com"
   }
 }
 ```
 
-Default `provider: none` — opt-in.
+Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 
 ## Out of scope
 
@@ -86,17 +98,20 @@ Default `provider: none` — opt-in.
 
 ## Open questions
 
-- **Non-interactive auth** (load-bearing, inherited from THSPA5) — how does an unattended/CI `sync-tracker` authenticate through Arcade MCP's per-user OAuth, and through `gh` for GitHub? Interactively-authed MCP servers can be absent in headless runs.
-- **TrackerRef storage** — where does the per-ticket issue reference live so updates are idempotent? Lean: a `tracker:` frontmatter field on the ticket (write-back to the local file is still file-canonical).
+- **Non-interactive auth** — RESOLVED in principle: Arcade supports **Headers mode** for headless/CI (`Authorization: Bearer <ARCADE_API_KEY>` + `Arcade-User-ID: <email>`, [verified](https://docs.arcade.dev/en/get-started/mcp-clients/claude-code)); GitHub uses a `gh`/PAT token. **Caveat to document:** `Arcade-User-ID` is a _user identity, not a service account_ — if that user loses their Linear OAuth grant, CI sync fails silently. Decide whether to pin a dedicated service identity.
 - **Cadence** — explicit command only, post-commit, or scheduled CI? Lean: explicit command + optional CI.
 
 ## Done when
 
 - `safeword sync-tracker` projects the corpus one-way to the configured provider.
 - Both Linear and GitHub writers ship, behind one call site + shared `IssuePayload`.
-- `status`/`epic`/`blocked_on`/`depends_on`/`type` map to each provider's primitives; re-running is idempotent.
-- `.safeword/config.json` carries the `ticketBridge` block (default `none`).
-- Non-interactive auth path decided and documented.
+- `status`/`epic`/`blocked_on`/`depends_on`/`type` map to each provider's primitives; re-running is idempotent via the `.safeword/tracker-map.json` sidecar.
+- **Body egress:** default `minimal` (no spec/work-log body); `full` is opt-in; `full`→public-repo is refused without explicit ack; visibility re-checked each run.
+- **Partial-failure recovery** is defined and tested: a crash mid-corpus resumes without double-creating.
+- **Corpus is topologically sorted by parent** before writing (so sub-issue/parent refs exist); writes are rate-limited with backoff.
+- **GitHub issue-type prerequisite** (org-level definitions) is documented, with graceful skip when undefined.
+- `.safeword/config.json` carries the `ticketBridge` block (default `provider: none`, `body: minimal`).
+- Non-interactive auth path (Arcade Headers + the service-identity caveat) documented.
 - Both writers covered by unit tests against mocked MCP/`gh` clients; no live tracker in tests.
 
 ## Work Log
@@ -104,4 +119,5 @@ Default `provider: none` — opt-in.
 - 2026-05-24T21:44:38.516Z Started: Created ticket JS5K5G.
 - 2026-05-24T21:45:00.000Z Drafted: alert-routing scope.
 - 2026-06-20T11:58:00Z Reframed alert-routing → generic ticket bridge.
-- 2026-06-20T12:32:00Z Collapsed to `safeword sync-tracker` (per the simplify + Linear+GitHub figure-it-out). Dropped the adapter framework (two providers → thin two-writer seam, single call site + shared payload; extract an interface at #3). Absorbed THSPA5's coordination mapping (superseded it) and carried its one-way + non-interactive-auth decisions. Recorded the stale-training correction: GitHub now has sub-issues/types/dependencies → near-parity with Linear, transports still differ (Linear→Arcade MCP, GitHub→github MCP). Breach caller split to deferred stub K51FYZ. Removed epic membership (WG3Z2N deleted); slug ticket-bridge → sync-tracker.
+- 2026-06-20T12:32:00Z Collapsed to `safeword sync-tracker` (per the simplify + Linear+GitHub figure-it-out). Dropped the adapter framework (two providers → thin two-writer seam, single call site + shared payload; extract an interface at #3). Absorbed THSPA5's coordination mapping (superseded it). Breach caller split to deferred stub K51FYZ. Removed epic membership (WG3Z2N deleted); slug ticket-bridge → sync-tracker.
+- 2026-06-20T16:12:00Z Applied quality-review + figure-it-out fixes. **Corrected a verified factual error:** Arcade _does_ expose GitHub — the real reason to route GitHub natively is its toolkit lacks sub-issues/deps/types (verified Arcade docs). Confirmed `Linear_CreateIssueRelation` exists. Set **body-egress default = minimal** (title/status/labels/link only) + full opt-in + public-repo guard (Saltzer fail-safe defaults). Moved `TrackerRef` to a `.safeword/tracker-map.json` **sidecar** (keeps files canonical, no sync write-back) + partial-failure resume. Added topological-parent ordering (GitHub sub-issue API links existing issues), org-level issue-type prerequisite + graceful skip, rate-limit/backoff. Resolved non-interactive auth → Arcade Headers mode, flagged the user-identity-not-service-account caveat.

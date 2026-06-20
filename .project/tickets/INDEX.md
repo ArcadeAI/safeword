@@ -824,7 +824,7 @@
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G), New /build-signals skill — four implementation options, mandatory feature tag, in-code instrumentation discipline (1W107W)
   → `.project/tickets/K51FYZ-breach-issue-projection`
 - **Local ticket schema: 4 relation fields, warn-only + one blocked_on hard gate (MBGQ89)** (in_progress, epic: —)
-  Promote `epic`, `parent`, `paired_with`, and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't in a terminal state. (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); this adds the four siblings and the gate.)
+  Promote `epic`, `parent`, `paired_with`, and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't `done` (other terminal states need a reasoned override). (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); this adds the four siblings and the gate.)
   → `.project/tickets/MBGQ89`
 - **Independent evidence-backed architecture gate for features (MR5M3A)** (done, epic: —)
   Layer the missing independent challenge onto #204's impl-plan: require the design to be generated from cited evidence (the /figure-it-out trace) and then survive a fresh-context adversarial review before implementation completes — the one defense against correlated single-agent errors that #204 leaves out.
