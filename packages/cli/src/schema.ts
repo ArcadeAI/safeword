@@ -27,6 +27,7 @@ export type {
 import {
   dirGlobExcludeMerge,
   generateOwnedPathsModule,
+  resolvedNamespaceDirectory,
   SAFEWORD_IGNORE_DIRS,
 } from './owned-paths.js';
 import type { FileDefinition, JsonMergeDefinition, ManagedFileDefinition } from './packs/types.js';
@@ -545,7 +546,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Generated at setup/upgrade from SAFEWORD_SCHEMA itself — the prefix list
     // the auto-upgrade hook uses to decide which files to stage. See owned-paths.ts.
     '.safeword/hooks/lib/owned-paths.ts': {
-      generator: (): string => generateOwnedPathsModule(SAFEWORD_SCHEMA),
+      generator: (ctx): string =>
+        generateOwnedPathsModule(SAFEWORD_SCHEMA, resolvedNamespaceDirectory(ctx)),
     },
 
     // Hooks - TypeScript with Bun runtime

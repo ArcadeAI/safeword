@@ -12,8 +12,11 @@
  * semantics.
  */
 
-import type { JsonMergeDefinition } from './packs/types.js';
+import nodePath from 'node:path';
+
+import type { JsonMergeDefinition, ProjectContext } from './packs/types.js';
 import type { SafewordSchema } from './schema.js';
+import { resolveNamespaceRoot } from './utils/configured-paths.js';
 
 /**
  * Safeword-owned top-level directories a customer's OWN formatter must skip, so
@@ -21,6 +24,10 @@ import type { SafewordSchema } from './schema.js';
  * for every formatter's ignore wiring — `.prettierignore`, Biome excludes, ruff
  * `extend-exclude`, etc. — so adding an owned dir updates all of them in one
  * place. Bare names (no trailing slash); each tool maps to its own syntax.
+ *
+ * Covers the two well-known namespace roots; a *custom* `paths.projectRoot` is
+ * layered on at apply time via `safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx))`
+ * (issue #273), since this static list can't name an arbitrary root.
  *
  * `features/` and `steps/` are intentionally absent: the customer authors the
  * BDD feature files and step definitions there and wants them formatted. A drift
@@ -37,10 +44,50 @@ export const SAFEWORD_IGNORE_DIRS: readonly string[] = [
 ];
 
 /**
+ * Safeword-owned dirs a formatter must skip, including a custom `paths.projectRoot`
+ * (issue #273). `namespaceRootLabel` is the repo-relative resolved root from
+ * `resolvedNamespaceDirectory`; undefined (default/legacy/repo-root) leaves the static
+ * base list untouched.
+ */
+export function safewordIgnoreDirectories(namespaceRootLabel?: string): readonly string[] {
+  return namespaceRootLabel !== undefined && !SAFEWORD_IGNORE_DIRS.includes(namespaceRootLabel)
+    ? [...SAFEWORD_IGNORE_DIRS, namespaceRootLabel]
+    : SAFEWORD_IGNORE_DIRS;
+}
+
+/**
+ * The resolved namespace root as a repo-relative dir label, returned only when it
+ * is a custom root the static lists don't already cover. Returns undefined for the
+ * default `.project`/legacy `.safeword-project` roots, for `paths.projectRoot:'.'`
+ * (the repo root — excluding or staging it would match the whole repo), and for any
+ * root resolved OUTSIDE the repo ('../…' would leak nonsensical entries).
+ */
+export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefined {
+  const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
+  const label = nodePath.relative(ctx.cwd, root) || '.';
+  // Skip the repo root ('.'), the well-known roots (already in the static lists),
+  // and any root resolved OUTSIDE the repo ('../…') — a traversal label would leak
+  // nonsensical ignore/prefix entries that match nothing under the repo.
+  if (label === '.' || label.startsWith('..') || SAFEWORD_IGNORE_DIRS.includes(label)) {
+    return undefined;
+  }
+  return label;
+}
+
+/**
+ * The safeword-owned ignore directories for a context — the static base list plus
+ * the resolved custom `paths.projectRoot` (issue #273). Composition used by the
+ * formatter merges so the two-step resolution lives in one place.
+ */
+export function resolvedIgnoreDirectories(ctx: ProjectContext): readonly string[] {
+  return safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx));
+}
+
+/**
  * Build a JSON-merge that adds safeword-owned dirs to a customer formatter's
  * string-array exclude/ignore field so the tool skips them (ticket EYRK34).
- * Sourced from the single SAFEWORD_IGNORE_DIRS list; `skipIfMissing` → only ever
- * touches a config the customer already has.
+ * Resolved at apply time from `ctx`, so a custom `paths.projectRoot` is excluded
+ * too (issue #273); `skipIfMissing` → only ever touches a config the customer has.
  *
  * `globForDir` controls the per-dir glob and defaults to the bare trailing-globstar
  * form used by dprint (`excludes`) and oxfmt (`ignorePatterns`). markdownlint-cli2
@@ -51,11 +98,11 @@ export function dirGlobExcludeMerge(
   field: string,
   globForDirectory: (dir: string) => string = dir => `${dir}/**`,
 ): JsonMergeDefinition {
-  const safewordGlobs = SAFEWORD_IGNORE_DIRS.map(dir => globForDirectory(dir));
   return {
     keys: [field],
     skipIfMissing: true,
-    merge: existing => {
+    merge: (existing, ctx) => {
+      const safewordGlobs = resolvedIgnoreDirectories(ctx).map(dir => globForDirectory(dir));
       const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
       const merged = [...current];
       for (const glob of safewordGlobs) {
@@ -63,9 +110,12 @@ export function dirGlobExcludeMerge(
       }
       return { ...existing, [field]: merged };
     },
-    unmerge: existing => {
+    unmerge: (existing, ctx) => {
+      const safewordGlobs = new Set(
+        resolvedIgnoreDirectories(ctx).map(dir => globForDirectory(dir)),
+      );
       const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
-      const cleaned = current.filter(entry => !safewordGlobs.includes(entry));
+      const cleaned = current.filter(entry => !safewordGlobs.has(entry));
       // Drop the field without a dynamic `delete` or unused binding, re-adding it
       // only when entries remain.
       const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
@@ -120,15 +170,22 @@ export function referenceFilterSafewordFiles(
   return [...changedFiles, ...untrackedFiles].filter(f => matchesSafewordPath(f, prefixes));
 }
 
-export function generateOwnedPathsModule(schema: SafewordSchema): string {
+export function generateOwnedPathsModule(
+  schema: SafewordSchema,
+  namespaceRootLabel?: string,
+): string {
   // The schema manifest carries legacy-prefixed namespace entries; installed
-  // projects may run either root (AQJ95G), so emit both prefixes.
+  // projects may run either well-known root (AQJ95G), so emit both prefixes —
+  // plus the resolved custom root (issue #273) so the auto-upgrade hook stages
+  // files scaffolded under a custom `paths.projectRoot`.
+  const customPrefix = namespaceRootLabel === undefined ? [] : [`${namespaceRootLabel}/`];
   const prefixes = [
-    ...new Set(
-      computeSafewordPathPrefixes(schema).flatMap(prefix =>
+    ...new Set([
+      ...computeSafewordPathPrefixes(schema).flatMap(prefix =>
         prefix === '.safeword-project/' ? ['.safeword-project/', '.project/'] : [prefix],
       ),
-    ),
+      ...customPrefix,
+    ]),
   ];
   const entries = prefixes.map(prefix => `  '${prefix}',`).join('\n');
 

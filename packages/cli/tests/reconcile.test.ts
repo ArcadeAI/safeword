@@ -80,6 +80,15 @@ describe('Reconcile - Reconciliation Engine', () => {
     return defaultContent;
   }
 
+  // Write .safeword/config.json with a custom paths.projectRoot (issue #273 tests).
+  function writeProjectRootConfig(projectRoot: string) {
+    mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot } }),
+    );
+  }
+
   // Helper to create project context
   /**
    *
@@ -291,6 +300,115 @@ describe('Reconcile - Reconciliation Engine', () => {
       for (const dir of SAFEWORD_IGNORE_DIRS) {
         expect(biome.files.includes).toContain(`!${dir}`);
       }
+    });
+
+    it('excludes a custom paths.projectRoot from an existing biome.json (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'biome.json'),
+        `${JSON.stringify({ files: { includes: ['**'] } }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const biome = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'biome.json'), 'utf8'),
+      ) as { files: { includes: string[] } };
+      expect(biome.files.includes).toContain('!team-ns'); // custom root excluded
+      expect(biome.files.includes).toContain('!.safeword'); // base dirs preserved
+    });
+
+    it('excludes a custom paths.projectRoot from an existing dprint.json (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'dprint.json'),
+        `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const dprint = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'dprint.json'), 'utf8'),
+      ) as { excludes: string[] };
+      expect(dprint.excludes).toContain('team-ns/**'); // custom root excluded
+      expect(dprint.excludes).toContain('.safeword/**'); // base dirs preserved
+    });
+
+    it('ignores a custom paths.projectRoot in an existing .markdownlint-cli2.jsonc (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ config: { default: true }, ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const cli2 = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ) as { ignores: string[] };
+      expect(cli2.ignores).toContain('**/team-ns/**'); // custom root, leading-globstar form
+      expect(cli2.ignores).toContain('**/.safeword/**'); // base dirs preserved
+    });
+
+    it('adds a custom paths.projectRoot to knip.json ignore (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+
+      await reconcile(
+        SAFEWORD_SCHEMA,
+        'install',
+        createContext({ projectType: { hasJsSource: true } }),
+      );
+
+      const knip = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'knip.json'), 'utf8'),
+      ) as { ignore: string[] };
+      expect(knip.ignore).toContain('team-ns/**'); // custom root ignored by knip
+      expect(knip.ignore).toContain('.project/**'); // well-known roots preserved
+    });
+
+    it('removes a custom paths.projectRoot from dprint.json on uninstall (#273 symmetry)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      // Use the real context builder: it resolves namespaceRoot up front (the CLI
+      // does this before uninstall removes .safeword/config.json), which is what
+      // lets unmerge clean up the custom root rather than orphan it.
+      const { createProjectContext } = await import('../src/utils/context.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'dprint.json'),
+        `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
+      );
+
+      const dprintPath = nodePath.join(temporaryDirectory, 'dprint.json');
+      const excludesAfter = (): string[] =>
+        (JSON.parse(readFileSync(dprintPath, 'utf8')) as { excludes?: string[] }).excludes ?? [];
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(temporaryDirectory));
+      expect(excludesAfter()).toContain('team-ns/**'); // added on install
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(temporaryDirectory));
+      // unmerge removes exactly what merge added — including the custom root.
+      expect(excludesAfter()).not.toContain('team-ns/**');
+      expect(excludesAfter()).not.toContain('.safeword/**');
+      expect(excludesAfter()).toContain('node_modules'); // user entry preserved
     });
 
     it('SAFEWORD_IGNORE_DIRS covers every safeword-owned dot-directory the schema manages (no drift)', async () => {
