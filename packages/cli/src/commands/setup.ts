@@ -295,6 +295,11 @@ function printSetupSummary(options: SetupSummaryOptions): void {
   ];
   printModifiedFiles(modifiedFiles);
 
+  if (result.warnings.length > 0) {
+    warn(`\n${result.warnings.length} config(s) could not be updated:`);
+    for (const message of result.warnings) listItem(message);
+  }
+
   // Next steps
   info('\nNext steps:');
   listItem('Run `safeword check` to verify setup');

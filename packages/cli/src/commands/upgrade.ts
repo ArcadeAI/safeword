@@ -160,6 +160,11 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
     listItem(CODEX_TRUST_NEXT_STEP);
   }
 
+  if (result.warnings.length > 0) {
+    warn(`\n${result.warnings.length} config(s) could not be updated:`);
+    for (const message of result.warnings) listItem(message);
+  }
+
   success(`\nSafeword upgraded to v${VERSION}`);
 }
 

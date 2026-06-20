@@ -446,6 +446,52 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(cli2.ignores).toEqual(['dist/**']); // safeword globs gone, customer entry kept
     });
 
+    it('warns (instead of silently skipping) when a jsonMerge target exists but does not parse', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // A real-world commented .markdownlint-cli2.jsonc (JSONC). JSON.parse fails on
+      // the comment, so the merge is skipped — but it must not be skipped silently.
+      const commented = '{\n  // my markdownlint config\n  "ignores": ["dist/**"]\n}\n';
+      writeFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), commented);
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(result.warnings.some(w => w.includes('.markdownlint-cli2.jsonc'))).toBe(true);
+      expect(result.warnings.some(w => w.includes('ignores'))).toBe(true);
+      // The customer's commented file is left untouched (never clobbered).
+      expect(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ).toBe(commented);
+    });
+
+    it('stays silent (no warning) when a skipIfMissing jsonMerge target is genuinely absent', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(result.warnings.some(w => w.includes('.markdownlint-cli2.jsonc'))).toBe(false);
+    });
+
+    it('does not warn when a jsonMerge target parses cleanly', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(result.warnings).toEqual([]);
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
