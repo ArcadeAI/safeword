@@ -77,7 +77,11 @@ Then commit. Format:
 
 > Recommend **X** because [single load-bearing reason]. Y was close on Z but loses on W. Cite: [doc or research link].
 >
+> **Premortem:** assume **X** has failed 6 months from now — the most likely cause is [Z]. If Z is plausible, mitigate it now or reconsider.
+>
 > **Next:** [concrete action to take now — install, write, edit, ask].
+
+The `**Premortem:**` line disconfirms your _choice_, not just the alternatives you steelmanned — the option you stop scrutinizing the moment you pick it is the one that bites. Keep it to one sentence.
 
 The `**Next:**` line is required. A recommendation without a next action is incomplete — name the file to edit, the command to run, or the question to ask. One line, imperative.
 

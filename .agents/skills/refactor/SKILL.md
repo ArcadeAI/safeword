@@ -32,6 +32,9 @@ Answer IN ORDER. Stop at first match:
 - Deep nesting (>3 levels of indentation)
 - Dead code (unused functions, unreachable branches)
 - Poor naming (unclear what something does)
+- Wrong level of abstraction (special cases piled on shared infrastructure instead of a generalized mechanism; detect via _shotgun surgery_ — one logical change forces edits in many places)
+
+**Scout first (optional).** When the target is "clean this up" with no named smell, surface candidates before diving in: run `/lint` + `/audit` for the mechanical smells (long function, deep nesting, magic literals, duplication, dead code — already detected there), then apply judgment for the semantic ones (reuse / duplicated intent, wrong level of abstraction). Produce a _prioritized_ list and work it one smell at a time (never in parallel). If you cap the list, say what you dropped — a scout that reads as "nothing else" when it truncated is a bug.
 
 ---
 
@@ -135,12 +138,13 @@ function getDiscount(user) {
 
 **Tier 3 - Requires Care** (higher risk, break into smaller steps):
 
-| Smell                      | Refactoring                    | Caution                                     |
-| -------------------------- | ------------------------------ | ------------------------------------------- |
-| God class                  | **Extract Class**              | Do incrementally, move one method at a time |
-| Type-checking conditionals | **Replace with Polymorphism**  | Requires class hierarchy                    |
-| Too many parameters        | **Introduce Parameter Object** | Changes function signature                  |
-| Complex loop               | **Replace Loop with Pipeline** | Ensure equivalent behavior                  |
+| Smell                      | Refactoring                    | Caution                                                                                                                    |
+| -------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| God class                  | **Extract Class**              | Do incrementally, move one method at a time                                                                                |
+| Type-checking conditionals | **Replace with Polymorphism**  | Requires class hierarchy                                                                                                   |
+| Too many parameters        | **Introduce Parameter Object** | Changes function signature                                                                                                 |
+| Complex loop               | **Replace Loop with Pipeline** | Ensure equivalent behavior                                                                                                 |
+| Wrong level of abstraction | **Generalize the Mechanism**   | Replace the special-case pile with one general path; pull the abstraction to the right altitude — don't add another branch |
 
 **Tie-breaker:** If multiple refactorings apply, choose smallest scope first (Rename < Extract Variable < Extract Function < Extract Class).
 
@@ -151,8 +155,9 @@ function getDiscount(user) {
 After each refactoring:
 
 1. **Run tests** - Must pass
-2. **If tests pass:** Commit with `refactor: [what changed]`
-3. **If tests fail:** Revert immediately
+2. **Regression checklist** (tests can miss these) - did the change silently drop a guard/anchor an extract or move was carrying, introduce setup/teardown asymmetry in a test, give a predicate method a side effect, or flip a config default? If any, fix or revert before continuing.
+3. **If tests pass (and the checklist is clean):** Commit with `refactor: [what changed]`
+4. **If tests fail:** Revert immediately
 
 ### Revert Protocol
 

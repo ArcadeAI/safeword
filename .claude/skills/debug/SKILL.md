@@ -97,6 +97,15 @@ echo "=== Layer 3 (DB): query=$QUERY ==="
 
 Run once to find WHERE it breaks. Then investigate that layer.
 
+#### 6. Bisect to the Fault
+
+When the bug appeared after some change, or lives somewhere in a large input/state, **binary-search it** instead of reading linearly. Each step halves the suspect space — a maximally-discriminating disconfirming test:
+
+- **History:** mark the range first (`git bisect start && git bisect bad && git bisect good <known-good-ref>`), then `git bisect run <script>` — a non-interactive predicate (e.g. `bun test foo`; exit 0 = good, non-0 = bad). git finds the first bad commit for you; `git bisect reset` when done.
+- **Input/state:** halve the failing input (or toggle half the config/flags) and re-test; keep the half that still fails (delta debugging).
+
+Prefer the cheapest bisection that splits the space — it usually beats linear tracing.
+
 ### Phase 2: Pattern Analysis
 
 #### 1. Find Working Examples
@@ -114,14 +123,16 @@ List ALL differences. Don't assume "that can't matter."
 
 ### Phase 3: Hypothesis Testing
 
-#### 1. Form Single Hypothesis
+#### 1. Form 2–3 Competing Hypotheses
 
-Write it down: "I think X is the root cause because Y"
+List 2–3 candidate causes, ranked by plausibility — not one. A single locked-in hypothesis invites confirmation bias; competing ones force you to discriminate ("consider the opposite" reliably reduces that bias).
 
-Be specific:
+Write each as "X could be root cause because Y", then ask: what evidence would _rule it out_?
 
 - ❌ "Something's wrong with the database"
-- ✅ "Connection pool exhausted because connections aren't released in error path"
+- ✅ (a) pool exhausted — connections not released on the error path; (b) pool size mis-set for this env; (c) a slow query holds connections past timeout
+
+**Test the cheapest _disconfirming_ check first** — the one that eliminates the most candidates. Rule hypotheses _out_; don't hunt to confirm a favorite. (Bisection — Phase 1 §6 — is often the cheapest discriminator.)
 
 #### 2. Test Minimally
 
@@ -133,11 +144,11 @@ Be specific:
 
 #### 3. Evaluate Result
 
-| Result          | Action                                  |
-| --------------- | --------------------------------------- |
-| Fixed           | Phase 4 (verify)                        |
-| Not fixed       | NEW hypothesis (return to 3.1)          |
-| Partially fixed | Found one issue, continue investigating |
+| Result                | Action                                                                      |
+| --------------------- | --------------------------------------------------------------------------- |
+| Confirms a hypothesis | Phase 4 (verify the fix)                                                    |
+| Rules one out         | Eliminate it; test the next live hypothesis. None left? Form new ones (3.1) |
+| Inconclusive          | Pick a more discriminating (cheaper-to-disconfirm) test                     |
 
 ### Root Cause Checkpoint (REQUIRED)
 
@@ -147,6 +158,7 @@ Before proceeding to Phase 4:
    - What is the actual cause (not symptom)?
    - Why did this happen?
    - How was it confirmed?
+   - Which competing hypotheses were **ruled out**, and the disconfirming evidence for each — don't silently drop them, so a later session won't re-walk dead ends
 2. **If using tickets:** Update frontmatter to `subtype: bug-investigated`
 
 **Example:**
@@ -156,6 +168,8 @@ Before proceeding to Phase 4:
 
 Connection pool exhausted because connections aren't released in error path.
 Confirmed by adding pool logging - saw connections increment without decrement on errors.
+
+Ruled out: pool size mis-set (config matches env); slow query (query times well under timeout in logs).
 ```
 
 ### Phase 4: Implementation
@@ -228,11 +242,11 @@ If you catch yourself thinking:
 
 ## Quick Reference
 
-| Phase             | Key Question                          | Success Criteria                   |
-| ----------------- | ------------------------------------- | ---------------------------------- |
-| 1. Root Cause     | "WHY is this happening?"              | Understand cause, not just symptom |
-| 2. Pattern        | "What's different from working code?" | Identified key differences         |
-| 3. Hypothesis     | "Is my theory correct?"               | Confirmed or formed new theory     |
-| 4. Implementation | "Does the fix work?"                  | Test passes, issue resolved        |
+| Phase             | Key Question                          | Success Criteria                            |
+| ----------------- | ------------------------------------- | ------------------------------------------- |
+| 1. Root Cause     | "WHY is this happening?"              | Understand cause, not just symptom          |
+| 2. Pattern        | "What's different from working code?" | Identified key differences                  |
+| 3. Hypothesis     | "Which competing cause survives?"     | Ruled out alternatives; one cause confirmed |
+| 4. Implementation | "Does the fix work?"                  | Test passes, issue resolved                 |
 
 **Voice:** plainspoken and concise — write to be scanned.

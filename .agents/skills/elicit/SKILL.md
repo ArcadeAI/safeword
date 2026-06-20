@@ -25,6 +25,8 @@ Draw out what the user knows and you can't research. Then check the latest evide
 
 Ask one question at a time. Multiple choice (3-5 options). Force yourself to pre-think the option space so the user reacts rather than generates.
 
+**Ask the most _discriminating_ question first** — the one whose answer most narrows what you'd do next (highest information gain). Don't walk the categories in order; pick the probe that eliminates the most uncertainty. LLMs default to low-information questions — counter that deliberately. (This is the convergent mirror of `debug`'s disconfirm-first.)
+
 ### What to ask about
 
 - **Intent:** Why this way and not another? What was tried and rejected?
@@ -44,6 +46,8 @@ Bad:
 > Where do you think this should go?
 
 The good version does the thinking. The bad version makes the user do it.
+
+**Guard against anchoring.** Pre-supplied options cut effort but also _lead_ — the user may pick from your frame and skip the answer you didn't list. Keep options non-leading and roughly mutually exclusive, and always offer a real escape ("none of these / something else") so the frame itself is rejectable.
 
 ### How many
 

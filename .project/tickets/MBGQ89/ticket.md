@@ -108,3 +108,4 @@ Decide in this ticket's design phase. Affects validation and any future tooling.
 - 2026-05-24T15:40:55.511Z Started: Created ticket MBGQ89
 - 2026-05-24T15:41:00.000Z Drafted: Initial scope with CLI features and arcade pairing
 - 2026-05-24T16:50:00.000Z Refactored: Removed epic/paired_with frontmatter to stand alone; dropped CLI commands to out-of-scope (YAGNI); rewrote body to be generic (not tied to any specific epic or repo)
+- 2026-06-20 Motivating case (from the B6MZ4Z session): an agent filed `5JSH4C` as a duplicate of QPGEWD/G8PBE6/X6EFPN because nothing surfaced similar tickets at `ticket new` — `/quality-review` later cancelled it. The lexical dedup-nudge `1GGD28` routed here would have caught it; concrete justification for extending this ticket's pairing surface with a similarity nudge at creation.
