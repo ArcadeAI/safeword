@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   checkSkillInvocations,
-  getRequiredSkillsForPhase,
   PHASE_GATES,
   requiredSkillsForDone,
 } from '../templates/hooks/lib/skill-invocation-log.js';
@@ -25,18 +24,6 @@ describe('skill-invocation gate (147)', () => {
   describe('Rule: Phase-gate check consults the config map', () => {
     it('PHASE_GATES.done is [verify, audit]', () => {
       expect(PHASE_GATES.done).toEqual(['verify', 'audit']);
-    });
-
-    it('getRequiredSkillsForPhase("done") returns [verify, audit]', () => {
-      expect(getRequiredSkillsForPhase('done')).toEqual(['verify', 'audit']);
-    });
-
-    it('getRequiredSkillsForPhase("implement") returns empty (not gated)', () => {
-      expect(getRequiredSkillsForPhase('implement')).toEqual([]);
-    });
-
-    it('getRequiredSkillsForPhase("unknown-phase") returns empty (graceful default)', () => {
-      expect(getRequiredSkillsForPhase('unknown-phase')).toEqual([]);
     });
   });
 

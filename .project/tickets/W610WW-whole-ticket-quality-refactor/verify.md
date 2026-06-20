@@ -18,7 +18,7 @@ Verified: 2026-06-20 (re-verified after the S1 unified-trigger fix)
 Audit passed — 0 errors, 0 warnings.
 
 - **Architecture:** ✅ no dependency violations (depcruise)
-- **Dead code:** ✅ knip flagged none of the W610WW exports; `getRequiredSkillsForPhase` is now unused by the hook but still consumed by its test (kept, out of scope to remove)
+- **Dead code:** ✅ none — `getRequiredSkillsForPhase` (left dead by the fence rework) was removed in the post-close refactor pass, along with its tests
 - **Duplication:** ✅ 0 clones in the changed source (jscpd); the two hook copies are byte-identical by the parity design, not a clone smell
 - **Test quality:** specific assertions, `it.each` parameterization, boundary + negative cases (single-loop exemption, exactly-2 boundary, legacy exemption on BOTH halves, missing-review negatives)
 

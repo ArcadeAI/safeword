@@ -30,14 +30,6 @@ export const PHASE_GATES: Record<string, string[]> = {
 };
 
 /**
- * Returns the list of skill names required for the given phase, or [] if no
- * gate is configured.
- */
-export function getRequiredSkillsForPhase(phase: string): string[] {
-  return PHASE_GATES[phase] ?? [];
-}
-
-/**
  * Required skills at the done gate (W610WW). Features keep their verify+audit
  * requirement; any ticket the whole-ticket pass applies to also needs
  * /quality-review (the review half of the cross-scenario pass). `wholeTicketPass`
