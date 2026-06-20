@@ -311,11 +311,6 @@ function hook(command: string) {
   return { hooks: [{ type: 'command', command }] };
 }
 
-/** Create a hook entry that runs in the background without blocking */
-function asyncHook(command: string) {
-  return { hooks: [{ type: 'command', command, async: true }] };
-}
-
 /**
  * Create a background hook that does not block session start but can still
  * surface a message: with `asyncRewake`, Claude Code runs the hook detached and
@@ -363,7 +358,6 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
-    asyncHook(`bun ${HOOKS_DIR}/session-update-check.ts`),
   ],
   UserPromptSubmit: [
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),

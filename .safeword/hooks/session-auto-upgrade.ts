@@ -1,22 +1,95 @@
 #!/usr/bin/env bun
 // Safeword: Auto-upgrade at session start (SessionStart)
-// Reads .safeword/.update-cache.json, applies patch + minor upgrades with a dedicated commit.
+// Refreshes .safeword/.update-cache.json (24h-throttled npm fetch), then applies
+// patch + minor upgrades with a dedicated commit.
 // Skips if: major bump, dirty working tree, autoUpgrade disabled, or CI environment.
 //
 // Wired as an `asyncRewake` hook (see config.ts), so it runs in the background and
-// never blocks session start. User-facing outcomes (upgraded / major available /
-// blocked) are surfaced by exiting with code 2, which delivers the stderr message
-// to Claude as a system reminder. Transient skips (cooling, dirty tree, opted out)
-// exit 0 and stay silent to avoid per-session noise.
+// never blocks session start. Because the check and the apply happen in the same
+// pass, an upgrade lands the session it's discovered — no check→apply handoff lag.
+// User-facing outcomes (upgraded / major available / blocked) are surfaced by
+// exiting with code 2, which delivers the stderr message to Claude as a system
+// reminder. Transient skips (cooling, dirty tree, opted out) exit 0 and stay
+// silent to avoid per-session noise.
 // Policy reference: .claude/skills/versioning/SKILL.md
 
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync } from 'node:fs';
 
 import { isDogfoodRepo } from './lib/dogfood.ts';
 import { filterSafewordFiles } from './lib/owned-paths.ts';
 import { releaseAgeStatus, type UpdateCache } from './lib/update-cache.ts';
 import { bumpType, upgradeDecision } from './lib/version.ts';
+
+const CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000; // throttle npm registry polling to once/day
+
+/**
+ * Fetch the latest version + its publish time from the npm registry.
+ * Returns undefined on any network/parse failure (caller falls back to cache).
+ *
+ * Uses the full packument (not /safeword/latest) so we can read `time[version]`,
+ * which is npm-generated (tamper-resistant) and feeds the release-age cooldown.
+ * Fails closed: a missing version or publish time yields undefined rather than a
+ * partial cache, since the auto-upgrade path treats missing `publishedAt` as
+ * "too new" and would otherwise block indefinitely.
+ */
+async function fetchLatestFromNpm(): Promise<UpdateCache | undefined> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 3000);
+    const response = await fetch('https://registry.npmjs.org/safeword', {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) return undefined;
+
+    const data = (await response.json()) as {
+      'dist-tags'?: { latest?: string };
+      time?: Record<string, string>;
+    };
+    const latestVersion = data['dist-tags']?.latest;
+    const publishedAtIso = latestVersion ? data.time?.[latestVersion] : undefined;
+    if (!latestVersion || !publishedAtIso) return undefined;
+
+    const publishedAt = Date.parse(publishedAtIso);
+    if (Number.isNaN(publishedAt)) return undefined;
+
+    return { latestVersion, publishedAt, checkedAt: Date.now() };
+  } catch {
+    return undefined; // network failure — caller falls back to existing cache
+  }
+}
+
+/**
+ * Return a fresh-enough cache: reuse the on-disk cache while it's within the 24h
+ * cooldown, otherwise refresh from npm and write it back atomically. A failed
+ * refresh falls back to whatever cache exists (possibly undefined when offline).
+ */
+async function loadOrRefreshCache(cachePath: string): Promise<UpdateCache | undefined> {
+  const cacheFile = Bun.file(cachePath);
+  let cache: UpdateCache | undefined;
+  if (await cacheFile.exists()) {
+    try {
+      cache = (await cacheFile.json()) as UpdateCache;
+    } catch {
+      cache = undefined; // corrupted — treat as missing and refresh
+    }
+  }
+
+  const fresh = cache?.checkedAt !== undefined && Date.now() - cache.checkedAt < CHECK_COOLDOWN_MS;
+  if (fresh) return cache;
+
+  const fetched = await fetchLatestFromNpm();
+  if (!fetched) return cache; // offline — keep last known cache
+
+  // Atomic write (temp file + rename) so a concurrent reader never sees a partial file.
+  const tempPath = `${cachePath}.tmp-${Date.now()}`;
+  await Bun.write(tempPath, JSON.stringify(fetched));
+  renameSync(tempPath, cachePath);
+  return fetched;
+}
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -38,25 +111,13 @@ if (isDogfoodRepo(projectDir)) {
 const versionPath = `${safewordDir}/version`;
 const currentVersion = existsSync(versionPath) ? readFileSync(versionPath, 'utf8').trim() : '0.0.0';
 
-// --- Read update cache ---
+// --- Refresh or load the update cache (24h-throttled npm fetch) ---
 const cachePath = `${safewordDir}/.update-cache.json`;
-const cacheFile = Bun.file(cachePath);
-if (!(await cacheFile.exists())) {
-  process.exit(0); // No cache yet, first session — async hook will populate it
+const cache = await loadOrRefreshCache(cachePath);
+const latest = cache?.latestVersion;
+if (!latest) {
+  process.exit(0); // No version info (offline first run, or corrupted) — retry next session
 }
-
-let cache: UpdateCache;
-try {
-  cache = (await cacheFile.json()) as UpdateCache;
-} catch {
-  process.exit(0); // Corrupted cache
-}
-
-if (!cache.latestVersion) {
-  process.exit(0);
-}
-
-const latest = cache.latestVersion;
 
 // --- Version comparison + policy decision ---
 // Policy is defined in lib/version.ts:upgradeDecision and pinned by unit tests.
@@ -102,7 +163,7 @@ try {
 // lib/update-cache.ts for rationale and threat model.
 // Transient (exit 0, silent): the upgrade applies automatically once the
 // cooldown clears or the cache refreshes — no need to interrupt every session.
-const ageStatus = releaseAgeStatus(cache.publishedAt, Date.now());
+const ageStatus = releaseAgeStatus(cache?.publishedAt, Date.now());
 if (ageStatus.state === 'unknown' || ageStatus.state === 'cooling') {
   process.exit(0);
 }

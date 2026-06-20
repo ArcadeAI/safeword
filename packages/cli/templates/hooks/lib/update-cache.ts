@@ -1,8 +1,8 @@
 /**
  * Shared types and helpers for `.safeword/.update-cache.json`.
  *
- * The cache is written by session-update-check.ts (async npm registry fetch)
- * and read by session-auto-upgrade.ts (gating decisions before upgrade).
+ * The cache is written and read by session-auto-upgrade.ts, which refreshes it
+ * with a 24h-throttled npm registry fetch and gates upgrade decisions on it.
  *
  * `releaseAgeStatus` is the supply-chain defense: it returns whether a
  * version is too freshly published to auto-install. Mirrors pnpm's
