@@ -68,6 +68,7 @@ Fetch official documentation for libraries in use.
 **Versions:** [✓/⚠️/❌] [Latest version check]
 **Documentation:** [✓/⚠️/❌] [Current docs check]
 **Security:** [✓/⚠️/❌] [Vulnerability check]
+**No-bloat:** [✓/⚠️/❌] [smallest thing that works, or name the cut]
 
 **Verdict:** [APPROVE / REQUEST CHANGES / NEEDS DISCUSSION]
 
