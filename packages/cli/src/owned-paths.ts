@@ -12,6 +12,7 @@
  * semantics.
  */
 
+import type { JsonMergeDefinition } from './packs/types.js';
 import type { SafewordSchema } from './schema.js';
 
 /**
@@ -34,6 +35,44 @@ export const SAFEWORD_IGNORE_DIRS: readonly string[] = [
   '.project',
   '.safeword-project',
 ];
+
+/**
+ * Build a JSON-merge that adds safeword-owned dirs to a customer formatter's
+ * string-array exclude/ignore field so the tool skips them (ticket EYRK34).
+ * Sourced from the single SAFEWORD_IGNORE_DIRS list; `skipIfMissing` → only ever
+ * touches a config the customer already has.
+ *
+ * `globForDir` controls the per-dir glob and defaults to the bare trailing-globstar
+ * form used by dprint (`excludes`) and oxfmt (`ignorePatterns`). markdownlint-cli2
+ * (`ignores`) overrides it with a leading-globstar form so the glob also matches
+ * the absolute paths lint-staged passes (ticket #262).
+ */
+export function dirGlobExcludeMerge(
+  field: string,
+  globForDirectory: (dir: string) => string = dir => `${dir}/**`,
+): JsonMergeDefinition {
+  const safewordGlobs = SAFEWORD_IGNORE_DIRS.map(dir => globForDirectory(dir));
+  return {
+    keys: [field],
+    skipIfMissing: true,
+    merge: existing => {
+      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
+      const merged = [...current];
+      for (const glob of safewordGlobs) {
+        if (!merged.includes(glob)) merged.push(glob);
+      }
+      return { ...existing, [field]: merged };
+    },
+    unmerge: existing => {
+      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
+      const cleaned = current.filter(entry => !safewordGlobs.includes(entry));
+      // Drop the field without a dynamic `delete` or unused binding, re-adding it
+      // only when entries remain.
+      const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
+      return cleaned.length > 0 ? { ...rest, [field]: cleaned } : rest;
+    },
+  };
+}
 
 export function computeSafewordPathPrefixes(schema: SafewordSchema): readonly string[] {
   const allPaths = [

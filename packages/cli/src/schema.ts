@@ -24,7 +24,11 @@ export type {
   ManagedFileDefinition,
   ProjectContext,
 } from './packs/types.js';
-import { generateOwnedPathsModule, SAFEWORD_IGNORE_DIRS } from './owned-paths.js';
+import {
+  dirGlobExcludeMerge,
+  generateOwnedPathsModule,
+  SAFEWORD_IGNORE_DIRS,
+} from './owned-paths.js';
 import type { FileDefinition, JsonMergeDefinition, ManagedFileDefinition } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
@@ -115,11 +119,11 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  * that filters files even when passed explicitly — verified against lint-staged's
  * default absolute-path invocation.
  *
- * Glob form prefixes each dir with a leading globstar segment (see
- * MARKDOWNLINT_IGNORE_GLOBS below), unlike the bare `<dir>/` form used by
- * dprint/oxfmt: lint-staged passes absolute paths by default, and the leading
- * globstar is required for the glob to match `/abs/repo/.claude/...`. It also
- * still matches the relative tree-glob and relative-explicit invocations.
+ * Glob form (see the call below) prefixes each dir with a leading globstar,
+ * unlike the bare trailing-globstar form used by dprint/oxfmt: lint-staged passes
+ * absolute paths by default, and the leading globstar is required for the glob to
+ * match `/abs/repo/.claude/...`. It also still matches the relative tree-glob and
+ * relative-explicit invocations.
  *
  * `ignores` is a cli2-only option, so it lives solely in `.markdownlint-cli2.jsonc`
  * (the standard `.markdownlint.*` rule files have no `ignores` field). `skipIfMissing`
@@ -133,26 +137,7 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  * destroy those comments, which is worse than the no-op; comment-preserving JSONC
  * editing is a future improvement for the whole merge engine, not this ticket.
  */
-const MARKDOWNLINT_IGNORE_GLOBS = SAFEWORD_IGNORE_DIRS.map(dir => `**/${dir}/**`);
-
-const MARKDOWNLINT_CLI2_IGNORES_MERGE: JsonMergeDefinition = {
-  keys: ['ignores'],
-  skipIfMissing: true,
-  merge: existing => {
-    const current = Array.isArray(existing.ignores) ? (existing.ignores as string[]) : [];
-    const merged = [...current];
-    for (const glob of MARKDOWNLINT_IGNORE_GLOBS) {
-      if (!merged.includes(glob)) merged.push(glob);
-    }
-    return { ...existing, ignores: merged };
-  },
-  unmerge: existing => {
-    const current = Array.isArray(existing.ignores) ? (existing.ignores as string[]) : [];
-    const cleaned = current.filter(entry => !MARKDOWNLINT_IGNORE_GLOBS.includes(entry));
-    const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== 'ignores'));
-    return cleaned.length > 0 ? { ...rest, ignores: cleaned } : rest;
-  },
-};
+const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
 const CODEX_PROMPT_TIMESTAMP_HOOK_PATCH = `
 [[hooks.UserPromptSubmit]]

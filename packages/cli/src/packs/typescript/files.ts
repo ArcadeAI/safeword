@@ -9,7 +9,7 @@
  * Inline disables target only generator arrow functions, not regular functions in this file.
  */
 
-import { SAFEWORD_IGNORE_DIRS } from '../../owned-paths.js';
+import { dirGlobExcludeMerge, SAFEWORD_IGNORE_DIRS } from '../../owned-paths.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
 import type {
   FileDefinition,
@@ -186,37 +186,6 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     return { ...existing, files: cleanedFiles };
   },
 };
-
-/**
- * Build a JSON-merge that adds safeword-owned dirs (as `<dir>/**` globs) to a
- * customer formatter's string-array exclude field so the formatter skips them
- * (ticket EYRK34). Sourced from the single SAFEWORD_IGNORE_DIRS list; used for
- * dprint (`excludes`) and oxfmt (`ignorePatterns`). `skipIfMissing` → only ever
- * touches a config the customer already has.
- */
-function dirGlobExcludeMerge(field: string): JsonMergeDefinition {
-  const safewordGlobs = SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/**`);
-  return {
-    keys: [field],
-    skipIfMissing: true,
-    merge: existing => {
-      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
-      const merged = [...current];
-      for (const glob of safewordGlobs) {
-        if (!merged.includes(glob)) merged.push(glob);
-      }
-      return { ...existing, [field]: merged };
-    },
-    unmerge: existing => {
-      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
-      const cleaned = current.filter(entry => !safewordGlobs.includes(entry));
-      // Drop the field without a dynamic `delete` or unused binding, re-adding it
-      // only when entries remain.
-      const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
-      return cleaned.length > 0 ? { ...rest, [field]: cleaned } : rest;
-    },
-  };
-}
 
 // dprint's `excludes` and oxfmt's `ignorePatterns` both take a glob list (EYRK34).
 const DPRINT_JSON_MERGE = dirGlobExcludeMerge('excludes');
