@@ -970,26 +970,38 @@ function executeJsonUnmerge(
 }
 
 /**
+ * The safeword-owned body lines of a re-renderable block, in order, taken from
+ * the freshly-resolved content (the header/marker line excluded).
+ */
+function rerenderBlockLines(definition: ResolvedTextPatch): string[] {
+  return definition.content
+    .split('\n')
+    .filter(line => line !== '' && !line.includes(definition.marker));
+}
+
+/**
  * Remove a re-renderable managed block so a fresh, ctx-resolved version can be
- * re-appended (#293). Consumes the `marker` header plus the contiguous run after
- * it of lines that are blank OR appear in the freshly-resolved block content —
- * so only safeword's own lines are removed (an on-disk block only ever has a
- * subset of the new lines, since the owned-dir set grows), and a customer entry
- * that happens to follow the block is preserved.
+ * re-appended (#293). Consumes the `marker` header plus the contiguous run of
+ * disk lines that match the fresh block's body lines *in order* — an on-disk
+ * block is always a prefix of the new one (the owned-dir set only grows and its
+ * order is fixed), so a customer line that breaks the sequence (even one that
+ * coincidentally equals an owned dir) is never consumed.
  */
 function stripRerenderBlock(content: string, definition: ResolvedTextPatch): string {
   const lines = content.split('\n');
   const startIndex = lines.findIndex(line => line.includes(definition.marker));
   if (startIndex === -1) return content;
 
-  const ownLines = new Set(
-    definition.content.split('\n').filter(line => line !== '' && !line.includes(definition.marker)),
-  );
+  const blockLines = rerenderBlockLines(definition);
   let endIndex = startIndex;
-  while (endIndex + 1 < lines.length) {
-    const next = lines[endIndex + 1] ?? '';
-    if (next !== '' && !ownLines.has(next)) break;
+  let expected = 0;
+  while (
+    endIndex + 1 < lines.length &&
+    expected < blockLines.length &&
+    lines[endIndex + 1] === blockLines[expected]
+  ) {
     endIndex += 1;
+    expected += 1;
   }
 
   // Also drop a single blank separator line immediately before the header.
@@ -999,6 +1011,11 @@ function stripRerenderBlock(content: string, definition: ResolvedTextPatch): str
 }
 
 function executeTextPatch(cwd: string, path: string, definition: ResolvedTextPatch): void {
+  // rerender re-appends the block at EOF, so it only makes sense for `append`.
+  if (definition.rerender && definition.operation !== 'append') {
+    throw new Error(`rerender text patch ${path} must use operation: 'append'`);
+  }
+
   const fullPath = nodePath.join(cwd, path);
   let content = readFileSafe(fullPath) ?? '';
 
@@ -1036,12 +1053,16 @@ function executeTextPatch(cwd: string, path: string, definition: ResolvedTextPat
   writeFile(fullPath, content);
 }
 
-function executeTextUnpatch(cwd: string, path: string, definition: ResolvedTextPatch): void {
-  const fullPath = nodePath.join(cwd, path);
-  const content = readFileSafe(fullPath);
-  if (!content) return;
-
+function computeUnpatchedContent(content: string, definition: ResolvedTextPatch): string {
   let unpatched = removeExactTextPatchContent(content, definition);
+
+  // Re-render patches (#293): the on-disk block can differ from the ctx-resolved
+  // content (e.g. paths.projectRoot changed since install), so an exact removal
+  // misses it. Fall back to the marker-anchored, sequence-bounded strip — which
+  // never consumes a customer line that follows the block.
+  if (unpatched === content && definition.rerender) {
+    unpatched = stripRerenderBlock(content, definition);
+  }
 
   // Legacy prepend blocks may have a malformed separator (`---# Heading`) from
   // safeword <=0.30.1. If the file starts with our managed marker, remove the
@@ -1049,18 +1070,25 @@ function executeTextUnpatch(cwd: string, path: string, definition: ResolvedTextP
   if (unpatched === content && content.startsWith(definition.marker)) {
     const separatorIndex = content.indexOf('\n---');
     if (separatorIndex !== -1) {
-      const afterSeparator = content.slice(separatorIndex + '\n---'.length).replace(/^\n+/, '');
-      unpatched = afterSeparator;
+      unpatched = content.slice(separatorIndex + '\n---'.length).replace(/^\n+/, '');
     }
   }
 
   const firstLine = content.split('\n', 1)[0] ?? '';
   if (unpatched === content && firstLine.includes(definition.marker)) {
-    const lines = content.split('\n');
-    const filtered = lines.slice(1);
-    unpatched = filtered.join('\n').replace(/^\n+/, ''); // Remove leading empty lines
+    unpatched = content.split('\n').slice(1).join('\n').replace(/^\n+/, ''); // drop leading blanks
     unpatched = stripLeadingSafewordSeparator(unpatched);
   }
+
+  return unpatched;
+}
+
+function executeTextUnpatch(cwd: string, path: string, definition: ResolvedTextPatch): void {
+  const fullPath = nodePath.join(cwd, path);
+  const content = readFileSafe(fullPath);
+  if (!content) return;
+
+  const unpatched = computeUnpatchedContent(content, definition);
 
   if (shouldRemoveTextPatchTarget(unpatched, definition)) {
     remove(fullPath);

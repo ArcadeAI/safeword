@@ -555,6 +555,45 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).not.toMatch(/^\/$/m);
     });
 
+    it('prettierignore re-render preserves a customer line after the block even if it equals an owned dir (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      // Customer manually duplicated `.claude/` (an owned dir) right AFTER the block.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        `dist/${currentPrettierBlock}.claude/\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('team-ns/'); // re-rendered with the custom root
+      expect(countHeaders(content)).toBe(1);
+      // The block has one `.claude/`; the customer's trailing one must survive → two total.
+      expect(content.split('.claude/').length - 1).toBe(2);
+    });
+
+    it('prettierignore block is removed on uninstall, customer content preserved (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { createProjectContext } = await import('../src/utils/context.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(temporaryDirectory));
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(temporaryDirectory));
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).not.toContain(PRETTIER_HEADER); // managed block gone
+      expect(content).not.toContain('team-ns/');
+      expect(content).toContain('dist/'); // customer content preserved
+    });
+
     it('excludes every safeword-owned dir from an existing dprint.json', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
