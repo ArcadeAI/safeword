@@ -30,6 +30,7 @@ import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
+import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
 
 export interface TextPatchDefinition {
@@ -101,12 +102,7 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
     delete mcpServers.context7;
     delete mcpServers.playwright;
 
-    if (Object.keys(mcpServers).length > 0) {
-      result.mcpServers = mcpServers;
-    } else {
-      delete result.mcpServers;
-    }
-
+    assignOrPrune(result, 'mcpServers', mcpServers);
     return result;
   },
 };
@@ -841,11 +837,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         }
 
         const result = { ...existing };
-        if (Object.keys(cleanedHooks).length > 0) {
-          result.hooks = cleanedHooks;
-        } else {
-          delete result.hooks;
-        }
+        assignOrPrune(result, 'hooks', cleanedHooks);
         return result;
       },
     },
@@ -875,10 +867,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         delete hooks.afterFileEdit;
         delete hooks.stop;
 
-        if (Object.keys(hooks).length > 0) {
-          result.hooks = hooks;
-        } else {
-          delete result.hooks;
+        // `version` is only meaningful while safeword's hooks remain; drop it
+        // alongside an emptied hooks container.
+        if (!assignOrPrune(result, 'hooks', hooks)) {
           delete result.version;
         }
 
