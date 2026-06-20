@@ -14,7 +14,7 @@ import {
 } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
-import { countRgrLoops, validateLedger } from './lib/ledger-validation.ts';
+import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
   AUTHOR_MODEL_ENV,
   hashArtifact,
@@ -501,16 +501,16 @@ if (currentPhase === 'done') {
 
   const hasScenarios = checkScenariosComplete(ticketInfo);
 
-  // Read the ledger once: its RGR-loop count drives the whole-ticket
-  // quality-review + refactor gates (W610WW), and ledger validation reuses the
-  // same content. A ticket with no test-definitions.md has zero loops.
+  // Read the ledger once: the whole-ticket quality-review + refactor pass
+  // (W610WW) gates on whether it applies to this ledger, and ledger validation
+  // reuses the same content. A ticket with no test-definitions.md → pass N/A.
   let ledgerContent: string | undefined;
-  let loopCount = 0;
+  let wholeTicketPass = false;
   if (ticketInfo.folder) {
     const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
     if (existsSync(testDefsPath)) {
       ledgerContent = readFileSync(testDefsPath, 'utf8');
-      loopCount = countRgrLoops(ledgerContent);
+      wholeTicketPass = wholeTicketPassApplies(ledgerContent);
     }
   }
 
@@ -535,7 +535,7 @@ if (currentPhase === 'done') {
   // the cross-scenario pass). Single-loop tasks require nothing, so the gate is
   // silent for them. Helper invocation in those skills writes the log;
   // hand-written verify.md cannot produce the entries. Honors stop_hook_active.
-  const requiredSkills = requiredSkillsForDone(isFeature, loopCount);
+  const requiredSkills = requiredSkillsForDone(isFeature, wholeTicketPass);
   if (requiredSkills.length > 0 && !stopHookActive && input.session_id) {
     const skillCheck = checkSkillInvocations({
       sessionId: input.session_id,

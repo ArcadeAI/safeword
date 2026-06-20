@@ -175,12 +175,22 @@ function validateCrossScenario(
 }
 
 /**
- * Count of RGR loops (scenario blocks) in a ledger — the W610WW trigger for the
- * whole-ticket quality-review + refactor pass. Reuses the same scenario parse
- * as validation, so "what counts as a loop" has one definition.
+ * Whether the whole-ticket quality-review + refactor pass applies to a ledger —
+ * the single W610WW trigger shared by BOTH halves of the pass: the cross-scenario
+ * refactor row (here, in `validateLedger`) and the `/quality-review` requirement
+ * (at the done-gate's skill check). It fires above one RGR loop — `scenarios.length
+ * >= 2` AND at least one annotated checkbox. A single-loop ticket has nothing to
+ * cross; a pure-legacy ticket (no annotations anywhere) stays exempt regardless of
+ * count. Driving both halves from one predicate is what keeps the legacy exemption
+ * consistent across the row and the review (and is the "one derived trigger" SM1
+ * asked for).
  */
-export function countRgrLoops(content: string): number {
-  return parseLedger(content).scenarios.length;
+export function wholeTicketPassApplies(content: string): boolean {
+  const { scenarios } = parseLedger(content);
+  const hasAnyAnnotation = scenarios.some(s =>
+    [s.red, s.green, s.refactor].some(box => box?.annotation),
+  );
+  return scenarios.length >= 2 && hasAnyAnnotation;
 }
 
 export function validateLedger(
@@ -194,17 +204,11 @@ export function validateLedger(
     validateScenario(scenario, isReachable, errors);
   }
 
-  // Cross-scenario row enforcement: the whole-ticket quality-review + refactor
-  // pass is required only above one RGR loop — a single-loop ticket has nothing
-  // to cross, so it's exempt (W610WW). Required iff a new-format ticket carries
-  // two or more loops (any annotated checkbox + ≥2 scenarios), OR the row
-  // already exists (back-compat: a present row is always validated). Pure legacy
-  // tickets (no annotations anywhere) stay exempt regardless of count.
-  const hasAnyAnnotation = scenarios.some(s =>
-    [s.red, s.green, s.refactor].some(box => box?.annotation),
-  );
-  const multiLoopAnnotated = scenarios.length >= 2 && hasAnyAnnotation;
-  if (multiLoopAnnotated || crossScenario) {
+  // Cross-scenario row enforcement: required iff the whole-ticket pass applies
+  // (≥2 annotated loops — see wholeTicketPassApplies), OR the row already exists
+  // (back-compat: a present row is always validated). Pure-legacy and single-loop
+  // tickets stay exempt.
+  if (wholeTicketPassApplies(content) || crossScenario) {
     validateCrossScenario(crossScenario, isReachable, errors);
   }
 

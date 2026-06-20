@@ -38,15 +38,18 @@ export function getRequiredSkillsForPhase(phase: string): string[] {
 }
 
 /**
- * Required skills at the done gate, loop-count-aware (W610WW). Features keep
- * their verify+audit requirement; any ticket with two or more RGR loops also
- * needs /quality-review (the whole-ticket review half of the cross-scenario
- * pass). A single-loop task requires nothing — nothing to cross, and tasks are
- * deliberately NOT pulled into the verify+audit requirement here.
+ * Required skills at the done gate (W610WW). Features keep their verify+audit
+ * requirement; any ticket the whole-ticket pass applies to also needs
+ * /quality-review (the review half of the cross-scenario pass). `wholeTicketPass`
+ * is the SAME predicate that gates the cross-scenario row (`wholeTicketPassApplies`
+ * in ledger-validation) — so both halves share the legacy exemption: a legacy
+ * unannotated multi-scenario ticket triggers neither. A single-loop task requires
+ * nothing — nothing to cross, and tasks are deliberately NOT pulled into the
+ * verify+audit requirement here.
  */
-export function requiredSkillsForDone(isFeature: boolean, loopCount: number): string[] {
+export function requiredSkillsForDone(isFeature: boolean, wholeTicketPass: boolean): string[] {
   const skills = isFeature ? [...(PHASE_GATES.done ?? [])] : [];
-  if (loopCount >= 2) skills.push('quality-review');
+  if (wholeTicketPass) skills.push('quality-review');
   return skills;
 }
 

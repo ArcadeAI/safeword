@@ -40,25 +40,23 @@ describe('skill-invocation gate (147)', () => {
     });
   });
 
-  describe('Rule: done requirements are loop-count-aware (W610WW)', () => {
-    it('a single-loop feature requires verify + audit only', () => {
-      expect(requiredSkillsForDone(true, 1)).toEqual(['verify', 'audit']);
+  describe('Rule: done requirements key on whether the whole-ticket pass applies (W610WW)', () => {
+    // The second arg is `wholeTicketPass` — the shared trigger
+    // (wholeTicketPassApplies): ≥2 annotated loops, legacy/single-loop exempt.
+    it('a feature when the pass does NOT apply requires verify + audit only', () => {
+      expect(requiredSkillsForDone(true, false)).toEqual(['verify', 'audit']);
     });
 
-    it('a multi-loop feature also requires quality-review', () => {
-      expect(requiredSkillsForDone(true, 2)).toEqual(['verify', 'audit', 'quality-review']);
+    it('a feature when the pass applies also requires quality-review', () => {
+      expect(requiredSkillsForDone(true, true)).toEqual(['verify', 'audit', 'quality-review']);
     });
 
-    it('a single-loop task requires nothing (no verify/audit burden, no review)', () => {
-      expect(requiredSkillsForDone(false, 1)).toEqual([]);
+    it('a task when the pass does NOT apply requires nothing (no verify/audit burden, no review)', () => {
+      expect(requiredSkillsForDone(false, false)).toEqual([]);
     });
 
-    it('a zero-loop task requires nothing', () => {
-      expect(requiredSkillsForDone(false, 0)).toEqual([]);
-    });
-
-    it('a multi-loop task requires quality-review only — not verify/audit', () => {
-      expect(requiredSkillsForDone(false, 2)).toEqual(['quality-review']);
+    it('a task when the pass applies requires quality-review only — not verify/audit', () => {
+      expect(requiredSkillsForDone(false, true)).toEqual(['quality-review']);
     });
   });
 

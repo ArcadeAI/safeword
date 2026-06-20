@@ -2,8 +2,8 @@
 id: W610WW
 slug: whole-ticket-quality-refactor
 type: feature
-phase: done
-status: done
+phase: implement
+status: in_progress
 created: 2026-06-20T15:47:16.880Z
 last_modified: 2026-06-20T15:47:16.880Z
 scope:

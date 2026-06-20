@@ -9,7 +9,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { countRgrLoops, validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
+import {
+  validateLedger,
+  wholeTicketPassApplies,
+} from '../../templates/hooks/lib/ledger-validation.js';
 
 const allReachable = (_sha: string) => true;
 
@@ -367,8 +370,8 @@ describe('validateLedger — W610WW loop-count gating', () => {
   });
 });
 
-describe('countRgrLoops — RGR loop count from the ledger (W610WW)', () => {
-  const loop = (name: string) =>
+describe('wholeTicketPassApplies — unified trigger for row + review (W610WW)', () => {
+  const annotated = (name: string) =>
     [
       `### Scenario: ${name}`,
       '',
@@ -376,36 +379,32 @@ describe('countRgrLoops — RGR loop count from the ledger (W610WW)', () => {
       '- [x] GREEN def5678',
       '- [x] REFACTOR skip: x',
     ].join('\n');
+  const legacy = (name: string) =>
+    [`### Scenario: ${name}`, '', '- [x] RED', '- [x] GREEN', '- [x] REFACTOR'].join('\n');
 
-  function document(scenarios: string[], withRow = true): string {
-    return [
-      '# Test definitions',
-      '',
-      '## Rule: Example',
-      '',
-      scenarios.join('\n\n'),
-      '',
-      '## Feature-level cross-scenario refactor',
-      '',
-      ...(withRow ? ['- [x] cross-scenario fff9999', ''] : []),
-    ].join('\n');
+  function buildLedger(scenarios: string[]): string {
+    return ['# Test definitions', '', '## Rule: R', '', scenarios.join('\n\n'), ''].join('\n');
   }
 
-  it('counts zero scenarios as zero', () => {
-    expect(countRgrLoops(document([], false))).toBe(0);
+  it('two annotated loops → applies', () => {
+    expect(wholeTicketPassApplies(buildLedger([annotated('a'), annotated('b')]))).toBe(true);
   });
 
-  it('counts a single scenario as one', () => {
-    expect(countRgrLoops(document([loop('only')]))).toBe(1);
+  it('a single annotated loop → does not apply', () => {
+    expect(wholeTicketPassApplies(buildLedger([annotated('only')]))).toBe(false);
   });
 
-  it('counts three scenarios as three', () => {
-    expect(countRgrLoops(document([loop('a'), loop('b'), loop('c')]))).toBe(3);
+  it('zero scenarios → does not apply', () => {
+    expect(wholeTicketPassApplies(buildLedger([]))).toBe(false);
   });
 
-  it('does not count the cross-scenario row as a loop', () => {
-    // Row present but only one real scenario → still one loop.
-    expect(countRgrLoops(document([loop('only')]))).toBe(1);
+  it('legacy unannotated multi-scenario → does NOT apply (legacy exemption holds for BOTH halves)', () => {
+    // The regression guard: a legacy ticket with >=2 unannotated scenarios must
+    // not trigger the whole-ticket pass — neither the row nor the /quality-review
+    // requirement. countRgrLoops alone (>=2) wrongly triggered the review half.
+    expect(wholeTicketPassApplies(buildLedger([legacy('a'), legacy('b'), legacy('c')]))).toBe(
+      false,
+    );
   });
 });
 

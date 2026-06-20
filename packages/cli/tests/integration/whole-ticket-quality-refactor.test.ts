@@ -161,12 +161,13 @@ describe('whole-ticket quality-review + refactor gate (W610WW)', () => {
     expect(result.reason).toMatch(/missing/i);
   });
 
-  it('a two-loop task without a logged quality review is blocked for it', () => {
+  it('an annotated two-loop task without a logged quality review is blocked for it', () => {
+    const [a, b] = twoReachableShas();
     writeTicket(
       'w2',
       'task',
-      [legacyLoop('one'), legacyLoop('two')].join('\n\n'),
-      '- [x] cross-scenario skip: none',
+      [annotatedLoop('one', a, b), annotatedLoop('two', a, b)].join('\n\n'),
+      `- [x] cross-scenario ${a}`,
     );
     writeSkillLog([]); // no /quality-review entry
 
@@ -176,12 +177,13 @@ describe('whole-ticket quality-review + refactor gate (W610WW)', () => {
     expect(result.reason.toLowerCase()).toContain('missing');
   });
 
-  it('a two-loop feature without a logged quality review is blocked for it', () => {
+  it('an annotated two-loop feature without a logged quality review is blocked for it', () => {
+    const [a, b] = twoReachableShas();
     writeTicket(
       'w3',
       'feature',
-      [legacyLoop('one'), legacyLoop('two')].join('\n\n'),
-      '- [x] cross-scenario skip: none',
+      [annotatedLoop('one', a, b), annotatedLoop('two', a, b)].join('\n\n'),
+      `- [x] cross-scenario ${a}`,
     );
     writeSkillLog([
       '2026-06-20T00:00:00Z session-w3 verify',
@@ -193,12 +195,13 @@ describe('whole-ticket quality-review + refactor gate (W610WW)', () => {
     expect(result.reason).toContain('/quality-review');
   });
 
-  it('a two-loop feature with a logged quality review passes the review check', () => {
+  it('an annotated two-loop feature with a logged quality review passes the review check', () => {
+    const [a, b] = twoReachableShas();
     writeTicket(
       'w4',
       'feature',
-      [legacyLoop('one'), legacyLoop('two')].join('\n\n'),
-      '- [x] cross-scenario skip: none',
+      [annotatedLoop('one', a, b), annotatedLoop('two', a, b)].join('\n\n'),
+      `- [x] cross-scenario ${a}`,
     );
     writeSkillLog([
       '2026-06-20T00:00:00Z session-w4 verify',
@@ -207,6 +210,30 @@ describe('whole-ticket quality-review + refactor gate (W610WW)', () => {
     ]);
 
     const result = runDoneGate('session-w4');
+
+    expect(result.reason).not.toMatch(/quality-review/);
+  });
+
+  it('a legacy unannotated multi-scenario TASK is NOT blocked for a missing quality review', () => {
+    // The S1 regression guard: bare-[x] loops are exempt from BOTH halves of the
+    // whole-ticket pass. A legacy task must not be newly gated on /quality-review.
+    writeTicket('w7', 'task', [legacyLoop('one'), legacyLoop('two')].join('\n\n'));
+    writeSkillLog([]); // nothing logged
+
+    const result = runDoneGate('session-w7');
+
+    expect(result.reason).not.toMatch(/quality-review/);
+    expect(result.reason).not.toMatch(/cross-scenario/i);
+  });
+
+  it('a legacy unannotated multi-scenario FEATURE needs verify+audit but NOT quality-review', () => {
+    writeTicket('w8', 'feature', [legacyLoop('one'), legacyLoop('two')].join('\n\n'));
+    writeSkillLog([
+      '2026-06-20T00:00:00Z session-w8 verify',
+      '2026-06-20T00:00:01Z session-w8 audit',
+    ]); // verify + audit only — legacy ticket, no review required
+
+    const result = runDoneGate('session-w8');
 
     expect(result.reason).not.toMatch(/quality-review/);
   });
