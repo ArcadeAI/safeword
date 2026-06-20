@@ -977,7 +977,9 @@ describe('Reconcile - Reconciliation Engine', () => {
       // .mcp.json should be removed (was only our content)
       expect(existsSync(nodePath.join(temporaryDirectory, '.mcp.json'))).toBe(false);
     });
+  });
 
+  describe('reconcile() - MCP server merge (#255)', () => {
     // Regression: #255 — MCP reconcile must not clobber user-customized servers.
     it('should preserve a user-customized context7 entry on upgrade (#255)', async () => {
       const { reconcile } = await import('../src/reconcile.js');
