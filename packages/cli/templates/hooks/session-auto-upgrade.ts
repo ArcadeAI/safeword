@@ -273,21 +273,12 @@ try {
       { ...execOpts, stdio: 'pipe' },
     );
   }
-
-  // Success — clear any prior failure strikes for this version.
-  if (cache.failedAttempts) {
-    await writeCacheAtomic(cachePath, clearUpgradeFailures(cache));
-  }
-
-  // exit 2 surfaces the outcome to Claude (asyncRewake rewake contract).
-  console.error(`SAFEWORD: Auto-upgraded v${currentVersion} → v${latest}`);
-  process.exit(2);
 } catch {
-  // Record the strike. Below the cap we retry silently next session (could be a
-  // flaky network or a transient lock); at the cap we surface ONE actionable
-  // line and then go quiet — a recurring failure is structural (commit signing,
-  // a rejecting pre-commit hook, a protected branch), not flaky. Raw errors are
-  // never echoed (they'd pollute Claude's context).
+  // The upgrade or commit failed. Record the strike: below the cap we retry
+  // silently next session (could be a flaky network or a transient lock); at the
+  // cap we surface ONE actionable line and then go quiet — a recurring failure is
+  // structural (commit signing, a rejecting pre-commit hook, a protected branch),
+  // not flaky. Raw errors are never echoed (they'd pollute Claude's context).
   const failure = recordUpgradeFailure(cache, latest);
   await writeCacheAtomic(cachePath, failure.cache);
 
@@ -299,3 +290,18 @@ try {
   }
   process.exit(0); // below cap — retry silently next session
 }
+
+// Reached only on success (the catch above always exits). The upgrade + commit
+// have landed, so clearing prior strikes is best-effort — a cache-write failure
+// here must NOT be mistaken for an upgrade failure, hence it sits outside the try.
+try {
+  if (cache.failedAttempts) {
+    await writeCacheAtomic(cachePath, clearUpgradeFailures(cache));
+  }
+} catch {
+  // best-effort: the upgrade already succeeded
+}
+
+// exit 2 surfaces the outcome to Claude (asyncRewake rewake contract).
+console.error(`SAFEWORD: Auto-upgraded v${currentVersion} → v${latest}`);
+process.exit(2);
