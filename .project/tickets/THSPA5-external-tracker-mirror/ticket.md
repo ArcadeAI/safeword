@@ -1,17 +1,18 @@
 ---
 id: THSPA5
 slug: external-tracker-mirror
-parent: VKNF1T-platform-uplift-epic
+epic: ticket-anchor-external-bridge
+depends_on: [JS5K5G]
 type: feature
 phase: intake
 status: in_progress
 created: 2026-06-10T04:48:32.590Z
-last_modified: 2026-06-10T04:48:32.590Z
+last_modified: 2026-06-20T12:00:00Z
 ---
 
-# Optional one-way coordination mirror to Linear/GitHub/Jira via Arcade.dev MCP (per project)
+# Optional one-way coordination mirror to Linear/GitHub/Jira (consumes the ticket bridge)
 
-**Goal:** An optional, per-project, **one-way** mirror of safeword's coordination layer (epics, ticket status, what's-next) to an external tracker — Linear, GitHub Issues, or Jira — routed through **Arcade.dev's MCP servers**, so teams get a board/roadmap/notifications while the local files stay source of truth.
+**Goal:** An optional, per-project, **one-way** mirror of safeword's coordination layer (epics, ticket status, what's-next) to an external tracker — Linear, GitHub Issues, or Jira — built **on top of the [ticket bridge](../JS5K5G-ticket-bridge/ticket.md) (JS5K5G)**, so teams get a board/roadmap/notifications while the local files stay source of truth. This ticket is now the _coordination consumer_; the provider adapter and auth live in JS5K5G, not here.
 
 **Why:** The file-vs-Linear `/figure-it-out` drew the seam at **execution (local) vs coordination (external-projectable)**. The coordination layer is the part that benefits from a team tool — but it must not be Linear-locked: different projects use GitHub Issues or Jira. Arcade.dev's MCP layer gives a uniform, **auth-handled** (per-provider OAuth) tool interface across all three, so safeword projects the view via MCP tool calls instead of building and credentialing three API clients. One-way (file → tracker) keeps the file canonical and avoids two masters.
 
@@ -42,6 +43,7 @@ last_modified: 2026-06-10T04:48:32.590Z
 
 - 2026-06-10T04:48:32.590Z Started: Created ticket THSPA5.
 - 2026-06-10T04:49:00Z Elevated from AKZJXC's conditional sibling (per user) and made provider-agnostic: route through Arcade.dev MCP (handles per-provider OAuth), supporting Linear / GitHub / Jira selectable per project, default `none`. Kept it one-way (file canonical) and off the per-turn loop (sync command / CI, never a hook) — consistent with the execution-vs-coordination seam. Flagged the load-bearing constraint: non-interactive Arcade auth for an unattended sync. Parented under VKNF1T.
+- 2026-06-20T12:00:00Z Re-parented VKNF1T → epic WG3Z2N and demoted to a _consumer_ of the [ticket bridge](../JS5K5G-ticket-bridge/ticket.md) (JS5K5G). The provider adapter, Arcade-MCP routing, and non-interactive-auth constraint were extracted into JS5K5G; this ticket now `depends_on: [JS5K5G]` and supplies only the coordination mapping (epic/status/relations → issues). The "Proposed shape" adapter/auth details below are superseded by JS5K5G — kept for history.
 
 ## Work Log
 
