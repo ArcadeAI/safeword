@@ -169,7 +169,10 @@ describe('Schema - Single Source of Truth', () => {
     // ignored in safeword's own repo but missing from the shipped textPatch.
     it('ignores all generated transient files', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      const content = SAFEWORD_SCHEMA.textPatches['.gitignore']?.content ?? '';
+      const gitignorePatch = SAFEWORD_SCHEMA.textPatches['.gitignore'];
+      const content =
+        (Array.isArray(gitignorePatch) ? gitignorePatch[0]?.content : gitignorePatch?.content) ??
+        '';
       for (const entry of [
         '.safeword/.update-cache.json',
         '.safeword-project/quality-state*.json',
