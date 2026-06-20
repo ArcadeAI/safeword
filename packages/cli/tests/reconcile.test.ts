@@ -80,6 +80,15 @@ describe('Reconcile - Reconciliation Engine', () => {
     return defaultContent;
   }
 
+  // Write .safeword/config.json with a custom paths.projectRoot (issue #273 tests).
+  function writeProjectRootConfig(projectRoot: string) {
+    mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot } }),
+    );
+  }
+
   // Helper to create project context
   /**
    *
@@ -298,11 +307,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       createPackageJson();
-      mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
-        JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
-      );
+      writeProjectRootConfig('team-ns');
       writeFileSync(
         nodePath.join(temporaryDirectory, 'biome.json'),
         `${JSON.stringify({ files: { includes: ['**'] } }, undefined, 2)}\n`,
@@ -322,11 +327,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       createPackageJson();
-      mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
-        JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
-      );
+      writeProjectRootConfig('team-ns');
       writeFileSync(
         nodePath.join(temporaryDirectory, 'dprint.json'),
         `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
@@ -346,11 +347,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       createPackageJson();
-      mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
-        JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
-      );
+      writeProjectRootConfig('team-ns');
       writeFileSync(
         nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
         `${JSON.stringify({ config: { default: true }, ignores: ['dist/**'] }, undefined, 2)}\n`,
@@ -370,11 +367,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       createPackageJson();
-      mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
-        JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
-      );
+      writeProjectRootConfig('team-ns');
 
       await reconcile(
         SAFEWORD_SCHEMA,
@@ -398,11 +391,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const { createProjectContext } = await import('../src/utils/context.js');
 
       createPackageJson();
-      mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
-        JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
-      );
+      writeProjectRootConfig('team-ns');
       writeFileSync(
         nodePath.join(temporaryDirectory, 'dprint.json'),
         `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
