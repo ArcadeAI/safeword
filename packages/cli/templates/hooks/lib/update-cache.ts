@@ -9,6 +9,34 @@
  * `minimumReleaseAge` (https://pnpm.io/supply-chain-security) — the
  * 24h window lets the community detect and yank malicious releases
  * before they auto-propagate.
+ *
+ * Supply-chain threat model
+ * -------------------------
+ * Auto-upgrade installs a published npm package on the user's machine with no
+ * human in the loop, so its defenses are layered:
+ *
+ * - postinstall RCE → closed by Bun: `bun`/`bunx` do NOT run a dependency's
+ *   lifecycle scripts by default (https://bun.com/docs/pm/lifecycle), so a
+ *   malicious `postinstall` never executes on install.
+ * - tampered tarball → closed by the registry integrity hash Bun checks on
+ *   install (the tarball must match the registry's signed `dist.integrity`).
+ * - injection via the version string → closed at the call site: `latest` is
+ *   validated as plain semver and passed to `execFileSync` (no shell) in
+ *   session-auto-upgrade.ts.
+ * - yank window → narrowed by `releaseAgeStatus`: the 24h cooldown holds back
+ *   versions published < 24h ago, giving the community time to pull a bad one.
+ *
+ * Accepted residual: a *valid but malicious* publish — an attacker with a leaked
+ * npm token or compromised CI who pushes authentic-looking metadata and waits
+ * out the 24h cooldown. safeword publishes with OIDC provenance
+ * (.github/workflows/release.yml), which cryptographically attests the build came
+ * from this repo's release workflow — but the client does NOT verify that
+ * attestation before applying. Client-side verification (`npm audit signatures`,
+ * sigstore/cosign) is an out-of-band, heavyweight dependency that doesn't fit a
+ * bun-run session-start hook, and the probability is low given trusted publishing
+ * plus the layers above. Deferred deliberately (ticket XQ9CXA item 3). Revisit if
+ * safeword ships to higher-assurance customers, or if bun/npm expose a one-call
+ * provenance check at install time.
  */
 
 /**
