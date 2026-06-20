@@ -2,8 +2,8 @@
 id: W610WW
 slug: whole-ticket-quality-refactor
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-20T15:47:16.880Z
 last_modified: 2026-06-20T15:47:16.880Z
 scope:
@@ -42,3 +42,5 @@ done_when:
 - 2026-06-20T16:24:00.000Z Complete: implement - 14 scenarios green across 3 units (ledger threshold, countRgrLoops + requiredSkillsForDone helpers, done-gate restructure). Whole-ticket /quality-review pass run (logged); independent review 0 must-fix; cross-scenario hardening commit (doc drift + 2 positive-path tests + helper dedup). impl-plan reconciled → implemented. Full regression green, tsc + parity clean.
 - 2026-06-20T16:48:00.000Z Rebased onto main twice (caught up through merged #276-279); remapped ledger SHAs each time (Bug 1 — done-gate ledger breaks on rebase). Tagged the feature @wip so the cucumber lane stays green (hook-gate scenarios backed by vitest, per gherkin-lane policy).
 - 2026-06-20T16:55:00.000Z Complete: verify - /verify + /audit passed (test 3141, bdd 69, lint clean, audit 0/0), verify.md written. status → done.
+- 2026-06-20T17:20:00.000Z Reopened: session-wide /quality-review caught S1 — row and review halves used different triggers, so a legacy unannotated ticket (exempt from the row) was wrongly forced to log /quality-review. Fixed by unifying both halves on a single `wholeTicketPassApplies` predicate (retired countRgrLoops); corrected 2 integration tests that encoded the bug; added unit + integration regression guards (15th scenario). Also fixed S2 (@wip comment accuracy).
+- 2026-06-20T17:45:00.000Z Complete: verify (re-run) - /verify + /audit passed (test 3161, bdd 69, lint + parity clean, 15/15 scenarios, 46/46 ledger). verify.md refreshed. status → done.
