@@ -11,7 +11,9 @@ last_modified: 2026-06-20T12:32:00Z
 
 # safeword sync-tracker — one-way projection to Linear + GitHub Issues
 
-**Goal:** A `safeword sync-tracker` command that projects safeword's coordination view **one-way (file → tracker)** into the customer's real tracker — **Linear and GitHub Issues** — so teams get a board/roadmap/notifications while the local files stay the source of truth. Two providers, one call site, a shared payload; no plugin interface.
+**Goal:** A `safeword sync-tracker` command that projects safeword's tickets **one-way (file → tracker)** into the customer's real tracker — **Linear and GitHub Issues** — as a **flat, groupable status board** (no dependency graph in v1), while the local files stay the source of truth. Two providers, one call site, a shared payload; no plugin interface.
+
+> **v1 is the walking skeleton:** prove the whole pipe end-to-end — auth → corpus walk → payload → write → idempotent ref → re-run — on the **stable** `CreateIssue`/`UpdateIssue` surface. The **dependency-graph projection** (epic/parent → sub-issues, blocked_on/depends_on → tracker relations, issue-types, topo-sort) is the highest-cost / lowest-adoption / newest-API slice and is deferred to a **v2** ([relations-and-hierarchy projection](../M1FGRJ-tracker-relations-projection/ticket.md)). The graph already renders locally in the INDEX (AKZJXC), so deferring loses no visibility now.
 
 **Why:** Local files are safeword's canonical execution anchor; the tracker is where humans coordinate. These are different layers, not competitors. Ship the projection for the two trackers we actually need (Linear + GitHub) and let the design stay honest to that — two concrete writers, not a speculative adapter framework.
 
@@ -32,43 +34,42 @@ All projection funnels through **one** function with a provider-neutral payload 
 ```ts
 type IssuePayload = {
   title: string;
-  body: string; // markdown: links to spec, ticket, work-log
-  labels: string[];
+  body: string; // minimal by default: links back to the canonical ticket (see egress)
+  labels: string[]; // includes epic:<slug> and type:<type> so the board groups/filters
   assignee?: string;
   state: 'open' | 'closed';
-  parent?: TrackerRef; // epic / sub-issue parent
-  relations?: { blockedBy: TrackerRef[]; dependsOn: TrackerRef[] };
 };
 function projectTicket(payload: IssuePayload, provider: 'linear' | 'github'): Promise<TrackerRef>;
 ```
 
 ### Two writers (the thin seam)
 
-- **Linear** — via Arcade.dev MCP (`Linear_CreateIssue`/`UpdateIssue`, and `Linear_CreateIssueRelation` for blocks/blockedBy — both [verified present](https://docs.arcade.dev/en/resources/integrations/productivity/linear)); Arcade handles OAuth.
-- **GitHub Issues** — via the `github` MCP / `gh`. **Rationale (corrected):** Arcade _does_ expose a GitHub toolkit, but it's create/update/list only — it **lacks sub-issues, issue dependencies, and issue types** ([verified](https://docs.arcade.dev/en/resources/integrations/development/github)). Those primitives — which our `epic`/`blocked_on`/`type` mapping needs — are reachable through GitHub's own API / `gh` (sub-issues + dependencies + types, [CLI-manageable since 2026-06-10](https://github.blog/changelog/2026-06-10-manage-sub-issues-types-and-dependencies-from-github-cli/)). So GitHub routes natively.
+Both use only **stable create/update** endpoints — no relations/sub-issue APIs in v1, so both providers can even route through Arcade if convenient:
 
-> **Transport differs per provider** for a real reason: Arcade's GitHub toolkit is too thin for the relation primitives we map. Not "Arcade has no GitHub" (it does) — the toolkit just doesn't cover sub-issues/deps/types. This is why the two-writer seam is right and a "uniform Arcade layer" is wrong.
->
-> **GitHub gotchas to handle:** (1) `issue type` requires **org-level type definitions** — fall back gracefully (skip the type) when the org hasn't defined them. (2) The sub-issue API **links an existing issue** as a child; it does not create parent+child atomically — so the corpus walk must be **topologically sorted by parent** before writing, or the parent ref won't exist yet.
+- **Linear** — `Linear_CreateIssue` / `UpdateIssue` via Arcade.dev MCP ([verified](https://docs.arcade.dev/en/resources/integrations/productivity/linear)); Arcade handles OAuth.
+- **GitHub Issues** — create/update via the `github` MCP / `gh` (or Arcade's GitHub toolkit, which covers create/update/list — [verified](https://docs.arcade.dev/en/resources/integrations/development/github)). No sub-issue/dependency/issue-type calls in v1, so none of the new-API gotchas apply.
+
+> **Note for v2:** Arcade's GitHub toolkit is create/update/list only — it lacks sub-issues/deps/types — so the v2 graph projection routes GitHub natively (`gh`, [dependencies CLI 2026-06-10](https://github.blog/changelog/2026-06-10-manage-sub-issues-types-and-dependencies-from-github-cli/)). Not a v1 concern.
 
 ### Coordination mapping (the payload builder)
 
-`sync-tracker` walks the ticket corpus and maps each ticket to an `IssuePayload`:
+`sync-tracker` walks the ticket corpus and maps each ticket to a **flat** `IssuePayload`:
 
-| safeword                    | Linear          | GitHub Issues        |
-| --------------------------- | --------------- | -------------------- |
-| `epic` / `parent`           | project/parent  | sub-issue parent     |
-| ticket                      | issue           | issue                |
-| `status`                    | workflow state  | open/closed (+ type) |
-| `blocked_on` / `depends_on` | issue relations | issue dependencies   |
-| `type`                      | label           | issue type           |
+| safeword | Linear         | GitHub Issues |
+| -------- | -------------- | ------------- |
+| ticket   | issue          | issue         |
+| `status` | workflow state | open/closed   |
+| `epic`   | `epic:` label  | `epic:` label |
+| `type`   | `type:` label  | `type:` label |
+
+Grouping/filtering by epic and type comes from **labels** (free, stable) — that's the roadmap's grouping without the sub-issue API. Ordering (the dependency graph) is v2.
 
 ### What goes in the body (egress default — `figure-it-out` 2026-06-20)
 
-**Fail-safe default:** project **title + status + labels + dependency-links + a link back** to the canonical ticket — **never** the spec/work-log body. That's the whole coordination view (board/roadmap/graph); the body is pure nice-to-read. Saltzer & Schroeder fail-safe defaults — the default's worst case is "sparse issue," never "leaked internal reasoning to a world-readable tracker." ([principles](https://nocomplexity.com/documents/securityarchitecture/architecture/saltzer_designprinciples.html))
+**Fail-safe default:** project **title + status + labels + a link back** to the canonical ticket — **never** the spec/work-log body. That's the whole flat board view; the body is pure nice-to-read. Saltzer & Schroeder fail-safe defaults — the default's worst case is "sparse issue," never "leaked internal reasoning to a world-readable tracker." ([principles](https://nocomplexity.com/documents/securityarchitecture/architecture/saltzer_designprinciples.html))
 
 - Full body is **opt-in per project** (`ticketBridge.body: "minimal" | "full"`, default `minimal`).
-- **Public-repo guard:** projecting `body: full` to a **public** GitHub repo is refused without an explicit `--allow-public-body` ack. Visibility is re-checked **every** sync run (a repo can be flipped public after the first projection).
+- **Public-repo warning:** projecting `body: full` to a **public** GitHub repo emits a loud warning (egress notice). No ack-flag ceremony — the minimal default already makes the leak path opt-in.
 
 ### Idempotency (partial-failure-safe)
 
@@ -91,6 +92,7 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 
 ## Out of scope
 
+- **The dependency-graph projection** — epic/parent → sub-issues, blocked_on/depends_on → tracker relations, `type` → issue-type, and the topological-parent ordering they require. This is the **v2** ([relations-and-hierarchy projection](../M1FGRJ-tracker-relations-projection/ticket.md)), which `depends_on` this skeleton.
 - A pluggable adapter interface, `custom` provider, dynamic adapter loading — deferred to provider #3.
 - Two-way sync / read-back of human edits — terminal-state advisory pull is a later, separable follow-up.
 - The **breach→issue** caller — deferred stub [K51FYZ](../K51FYZ-breach-issue-projection/ticket.md), blocked on signals (1W107W).
@@ -103,13 +105,11 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 
 ## Done when
 
-- `safeword sync-tracker` projects the corpus one-way to the configured provider.
-- Both Linear and GitHub writers ship, behind one call site + shared `IssuePayload`.
-- `status`/`epic`/`blocked_on`/`depends_on`/`type` map to each provider's primitives; re-running is idempotent via the `.safeword/tracker-map.json` sidecar.
-- **Body egress:** default `minimal` (no spec/work-log body); `full` is opt-in; `full`→public-repo is refused without explicit ack; visibility re-checked each run.
-- **Partial-failure recovery** is defined and tested: a crash mid-corpus resumes without double-creating.
-- **Corpus is topologically sorted by parent** before writing (so sub-issue/parent refs exist); writes are rate-limited with backoff.
-- **GitHub issue-type prerequisite** (org-level definitions) is documented, with graceful skip when undefined.
+- `safeword sync-tracker` projects the corpus one-way to the configured provider as **flat issues** (title, status→state, labels for epic+type, assignee, link-back).
+- Both Linear and GitHub writers ship, behind one call site + shared `IssuePayload`, using **stable create/update only** (no relations/sub-issue/issue-type calls).
+- Re-running is idempotent via the `.safeword/tracker-map.json` sidecar; **partial-failure resume** is tested (a crash mid-corpus does not double-create).
+- **Body egress:** default `minimal` (no spec/work-log body); `full` is opt-in; `full`→public-repo emits a loud egress warning.
+- Corpus writes are rate-limited with backoff.
 - `.safeword/config.json` carries the `ticketBridge` block (default `provider: none`, `body: minimal`).
 - Non-interactive auth path (Arcade Headers + the service-identity caveat) documented.
 - Both writers covered by unit tests against mocked MCP/`gh` clients; no live tracker in tests.
@@ -120,4 +120,5 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 - 2026-05-24T21:45:00.000Z Drafted: alert-routing scope.
 - 2026-06-20T11:58:00Z Reframed alert-routing → generic ticket bridge.
 - 2026-06-20T12:32:00Z Collapsed to `safeword sync-tracker` (per the simplify + Linear+GitHub figure-it-out). Dropped the adapter framework (two providers → thin two-writer seam, single call site + shared payload; extract an interface at #3). Absorbed THSPA5's coordination mapping (superseded it). Breach caller split to deferred stub K51FYZ. Removed epic membership (WG3Z2N deleted); slug ticket-bridge → sync-tracker.
-- 2026-06-20T16:12:00Z Applied quality-review + figure-it-out fixes. **Corrected a verified factual error:** Arcade _does_ expose GitHub — the real reason to route GitHub natively is its toolkit lacks sub-issues/deps/types (verified Arcade docs). Confirmed `Linear_CreateIssueRelation` exists. Set **body-egress default = minimal** (title/status/labels/link only) + full opt-in + public-repo guard (Saltzer fail-safe defaults). Moved `TrackerRef` to a `.safeword/tracker-map.json` **sidecar** (keeps files canonical, no sync write-back) + partial-failure resume. Added topological-parent ordering (GitHub sub-issue API links existing issues), org-level issue-type prerequisite + graceful skip, rate-limit/backoff. Resolved non-interactive auth → Arcade Headers mode, flagged the user-identity-not-service-account caveat.
+- 2026-06-20T16:12:00Z Applied quality-review + figure-it-out fixes (egress default, sidecar TrackerRef, auth resolution, corrected the Arcade-GitHub fact).
+- 2026-06-20T16:16:00Z **De-bloated to a walking skeleton** (`/figure-it-out`). Cut the dependency-graph projection — epic/parent→sub-issues, blocked_on/depends_on→relations, type→issue-type, topo-sort — to a **v2** (M1FGRJ), keeping v1 to flat issues on stable create/update. Rationale: the graph is the highest-cost / lowest-adoption / newest-API slice (GitHub deps API is 10 days old), and it already renders locally in the INDEX. `epic`+`type` become **labels** so v1 is still a groupable board. Flatness dissolved the Linear-first question (both providers ship, both stable). Simplified the public-repo guard from refuse+ack to a warning.
