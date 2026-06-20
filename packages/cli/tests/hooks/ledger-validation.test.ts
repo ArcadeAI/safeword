@@ -258,6 +258,97 @@ describe('validateLedger — multiple scenarios', () => {
   });
 });
 
+describe('validateLedger — W610WW loop-count gating', () => {
+  // Build content with an explicit list of scenario blocks and an optional
+  // cross-scenario row, so the loop count (scenarios.length) is exact.
+  function withScenarios(scenarios: string[], crossScenario?: string): string {
+    return [
+      '# Test definitions',
+      '',
+      '## Rule: Example',
+      '',
+      scenarios.join('\n\n'),
+      '',
+      '## Feature-level cross-scenario refactor',
+      '',
+      ...(crossScenario === undefined ? [] : [crossScenario, '']),
+    ].join('\n');
+  }
+
+  const annotatedLoop = (name: string) =>
+    [
+      `### Scenario: ${name}`,
+      '',
+      '- [x] RED abc1234',
+      '- [x] GREEN def5678',
+      '- [x] REFACTOR skip: trivial',
+    ].join('\n');
+
+  it('a single annotated loop is exempt despite the annotation (no row required)', () => {
+    const c = withScenarios([annotatedLoop('only')]); // 1 loop, no cross-scenario row
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('a ticket with zero parsed scenarios needs no row', () => {
+    const c = withScenarios([]); // 0 loops, no row
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(true);
+  });
+
+  it('exactly two annotated loops with no row fails (row required at the boundary)', () => {
+    const c = withScenarios([annotatedLoop('one'), annotatedLoop('two')]);
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/cross-scenario/i);
+    expect(result.errors.join('\n')).toMatch(/missing/i);
+  });
+
+  it('exactly two annotated loops with a reachable SHA row passes', () => {
+    const c = withScenarios(
+      [annotatedLoop('one'), annotatedLoop('two')],
+      '- [x] cross-scenario fff9999',
+    );
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(true);
+  });
+
+  it('a multi-scenario ticket with no annotations stays exempt (no row)', () => {
+    const legacy = (name: string) =>
+      [`### Scenario: ${name}`, '', '- [x] RED', '- [x] GREEN', '- [x] REFACTOR'].join('\n');
+    const c = withScenarios([legacy('a'), legacy('b'), legacy('c')]); // 3 loops, unannotated, no row
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(true);
+  });
+
+  it('a single-loop ticket with a present empty-skip row is still blocked', () => {
+    const c = withScenarios([annotatedLoop('only')], '- [x] cross-scenario skip:');
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/empty.*reason|reason.*empty/i);
+  });
+
+  it('a two-loop ticket with an empty skip row is blocked', () => {
+    const c = withScenarios(
+      [annotatedLoop('one'), annotatedLoop('two')],
+      '- [x] cross-scenario skip:',
+    );
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/empty.*reason|reason.*empty/i);
+  });
+
+  it('a two-loop ticket with a real skip reason passes', () => {
+    const c = withScenarios(
+      [annotatedLoop('one'), annotatedLoop('two')],
+      '- [x] cross-scenario skip: no shared duplication emerged',
+    );
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(true);
+  });
+});
+
 describe('validateLedger — legacy compatibility', () => {
   it('silently allows pre-existing bare [x] checkboxes (no annotation)', () => {
     // Legacy ticket from before this feature shipped.
