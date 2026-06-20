@@ -85,7 +85,8 @@ async function loadOrRefreshCache(cachePath: string): Promise<UpdateCache | unde
   if (!fetched) return cache; // offline — keep last known cache
 
   // Atomic write (temp file + rename) so a concurrent reader never sees a partial file.
-  const tempPath = `${cachePath}.tmp-${Date.now()}`;
+  // Random suffix avoids a temp-name collision between two near-simultaneous starts.
+  const tempPath = `${cachePath}.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   await Bun.write(tempPath, JSON.stringify(fetched));
   renameSync(tempPath, cachePath);
   return fetched;
@@ -128,19 +129,11 @@ if (decision === 'skip') {
   process.exit(0); // No update needed (latest <= current)
 }
 
-if (decision === 'notify') {
-  // Major bump — may carry breaking changes, so we notify rather than apply.
-  // exit 2 delivers this message to Claude (asyncRewake rewake contract).
-  console.error(
-    `SAFEWORD: v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
-  );
-  process.exit(2);
-}
-
-// decision === 'apply' (patch or minor) — proceed to opt-out checks and upgrade
-
-// --- Check opt-out ---
-// Silent (exit 0): the user opted out, so don't wake Claude every session.
+// --- Check opt-out (before notify too) ---
+// Opt-out suppresses BOTH the major-available notify and the auto-apply: if the
+// user turned safeword upgrades off — or we're in CI — don't wake Claude every
+// session. Silent (exit 0). A user who still wants major-version awareness can
+// run `safeword check` manually.
 if (process.env.SAFEWORD_NO_AUTO_UPGRADE || process.env.CI) {
   process.exit(0);
 }
@@ -157,6 +150,17 @@ try {
 } catch {
   // Config parse error, proceed with upgrade
 }
+
+if (decision === 'notify') {
+  // Major bump — may carry breaking changes, so we notify rather than apply.
+  // exit 2 delivers this message to Claude (asyncRewake rewake contract).
+  console.error(
+    `SAFEWORD: v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
+  );
+  process.exit(2);
+}
+
+// decision === 'apply' (patch or minor) — proceed to upgrade
 
 // --- Check release-age cooldown ---
 // Supply-chain defense: don't install versions published <24h ago. See
