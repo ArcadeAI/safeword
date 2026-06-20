@@ -52,10 +52,11 @@ author.) Run it as a _fresh reviewer with no conversation history_ so the author
 can't grade their own work: a forked subagent — a skill with `context: fork`, or
 an explicit subagent — handed only the phase's artifacts and the ticket's scope,
 applying the `/review-spec` procedure; **its** verdict decides. When
-`crossModelReview` is on, that reviewer must be a **different model and no weaker**
-than the author (at or above the author's tier — capability class, e.g. frontier
-vs mid vs small) — a same-model reviewer shares the author's blind spots, a weaker
-one misses subtle issues. On a pass, record the stamp:
+`crossModelReview` is on, that reviewer must be a **different model than the
+author** — a same-model reviewer shares the author's blind spots. Prefer one of
+comparable-or-better capability; never weaker. If you can't run a different
+model, log a deliberate `skip: <reason>` rather than stamping a same-model
+review. On a pass, record the stamp:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
