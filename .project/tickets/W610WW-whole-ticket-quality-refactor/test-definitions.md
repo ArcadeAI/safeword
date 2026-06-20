@@ -102,4 +102,4 @@ derive the active RED/GREEN/REFACTOR step.
 
 Marked at implement-exit (the whole-ticket quality-review + refactor pass): either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks a ticket with **two or more RGR loops** whose row is missing or has an empty skip reason; a single-loop ticket may leave it unmarked.
 
-- [ ] cross-scenario
+- [x] cross-scenario cd30baa

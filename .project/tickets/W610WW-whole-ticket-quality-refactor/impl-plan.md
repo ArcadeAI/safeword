@@ -1,6 +1,6 @@
 # Impl Plan: Whole-ticket quality review + refactor before verify
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -75,6 +75,10 @@ tests), then the two fence removals at the hook, then the docs.
   generalize `PHASE_GATES` to allow predicate-valued entries so conditional
   gates fit the documented pattern — file as a separate ticket, don't widen
   this one.
+
+## Reconciliation (implement-exit)
+
+Plan held as written — all five Decisions shipped as chosen, no mid-implementation reversals. The done-gate restructure landed exactly as planned (fence dropped on both the ledger and skill blocks; `requiredSkillsForDone` computed at the call site). One small artifact: `getRequiredSkillsForPhase` is now unused by `stop-quality.ts` but remains an exported, separately-tested public helper — left in place (removing it is out of scope; the independent review judged this acceptable). Whole-ticket `/quality-review` found no structural duplication in the feature code; the cross-scenario commit (cd30baa) applied review hardening only (doc-drift fix + two positive-path tests + test-helper dedup).
 
 ## Assessment triggers
 
