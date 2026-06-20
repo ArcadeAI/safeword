@@ -25,10 +25,9 @@ import {
 } from './lib/review-ledger.ts';
 import {
   EXPLAIN_HINT,
-  getStateFilePath,
   LOC_THRESHOLD,
   META_PATHS,
-  type QualityState,
+  readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
@@ -149,16 +148,8 @@ function readReviewStamps(): ReviewStamp[] {
  * wrong step, or unreachable git all silently allow.
  */
 function enforceRefactorCommitGate(sessionId?: string): void {
-  const stateFile = getStateFilePath(projectDirectory, sessionId);
-  if (!existsSync(stateFile)) return;
-
-  let state: QualityState;
-  try {
-    state = JSON.parse(readFileSync(stateFile, 'utf8'));
-  } catch {
-    return;
-  }
-  if (!state.activeTicket) return;
+  const state = readSessionState(projectDirectory, sessionId);
+  if (!state?.activeTicket) return;
 
   const ticket = getTicketInfo(projectDirectory, state.activeTicket);
   if (ticket.phase !== 'implement' || !ticket.folder) return;
@@ -445,16 +436,9 @@ if (META_PATHS.some(p => editedFile.includes(p))) {
 // Shared state read — used by both implement phase gate and LOC gate below.
 // ---------------------------------------------------------------------------
 
-const stateFile = getStateFilePath(projectDirectory, input.session_id);
+const state = readSessionState(projectDirectory, input.session_id);
 
-if (!existsSync(stateFile)) {
-  process.exit(0);
-}
-
-let state: QualityState;
-try {
-  state = JSON.parse(readFileSync(stateFile, 'utf8'));
-} catch {
+if (!state) {
   process.exit(0);
 }
 
