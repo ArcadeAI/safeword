@@ -57,11 +57,15 @@ fallback concern is moot — do not spend effort there.
   (sync, blocking) only applies it _next_ session. Result: upgrades are one session late and they stall
   session start when they do fire.
 - Move the apply off the blocking path and have it check + apply in one pass (no cache-as-IPC lag).
-- **Open question to resolve in implementation:** does an `async` SessionStart hook's stdout surface to the
-  user? If yes → single async check-and-apply hook (design A). If no → keep a thin **sync notify-only**
-  reader (cheap, no network) for "vX available (major)" + "auto-upgrade blocked" messages, and run the
-  network-fetch + apply + commit in an **async** worker (design B). Visibility of notify/blocked messages
-  must not regress.
+- **RESOLVED → Design C (`asyncRewake`).** Per https://code.claude.com/docs/en/hooks.md: a plain
+  `async: true` hook has its stdout/stderr **discarded** (can't message the user), but an **`asyncRewake`**
+  hook runs detached AND — on exit code 2 — delivers its stderr to Claude as a system reminder. So neither
+  design A nor B: a single non-blocking hook that exits 2 to surface "upgraded / major available / blocked"
+  and exits 0 to stay silent. Degrades safely — a Claude Code build that doesn't know the flag treats the
+  entry as an ordinary sync hook (today's blocking behavior), so worst case is status-quo, not a regression.
+- **DONE (increment 1a):** apply flipped to `asyncRewake` (non-blocking) + message paths routed through
+  exit-2; transient/opt-out skips now silent. The cache-merge / lag-kill (single check+apply pass, delete
+  `session-update-check.ts`) is the next increment (1b).
 - Note: a settings.json/hook change from an upgrade only takes effect **next session** anyway (CC reads
   settings.json at start), so async apply loses nothing there — it only removes the blocking stall.
 - Preserve all existing guards (dogfood, dirty tree, CI, opt-outs, 24h release-age cooldown) and the
@@ -92,9 +96,9 @@ fallback concern is moot — do not spend effort there.
 
 ## Acceptance criteria
 
-- [ ] A pending upgrade no longer blocks session start; no structural one-session lag; template tests updated and green.
-- [ ] Async-stdout open question resolved and the chosen design (A or B) keeps notify + blocked messages visible.
-- [ ] All existing guards + the `upgradeDecision` policy preserved (pinned by unit tests).
+- [~] A pending upgrade no longer blocks session start (DONE via asyncRewake, 1a); no structural one-session lag (1b, pending); template tests updated and green.
+- [x] Async-stdout open question resolved → Design C (asyncRewake); notify/upgraded/blocked surfaced via exit-2, pinned by `config.test.ts`.
+- [x] All existing guards + the `upgradeDecision` policy preserved (pinned by unit tests; targeted suite + parity green).
 - [ ] After N failed attempts the hook stops retrying and prints one actionable line; raw errors no longer echoed; pre-flight covers detached HEAD / merge / rebase.
 - [ ] Threat-model note written; provenance verification explicitly deferred with rationale (no sigstore code).
 - [ ] Validated via template/unit tests — NOT by live-upgrading the dogfood repo (pinned v0.49.0 vs source v0.52.1).
@@ -111,4 +115,5 @@ getting told why. Mitigation: resolve the async-stdout question first and gate t
 - 2026-06-20T05:50:13.291Z Started: Created ticket XQ9CXA
 - 2026-06-20T05:50:00Z Plan captured from /figure-it-out: architecture confirmed (in-repo reconcile + self-commit), three ordered hardening items, native-plugin and stage-only options ruled out with rationale.
 - 2026-06-20T05:49:00Z Installed deps: `bun ci` succeeded (2510 packages, build OK, exit 0).
+- 2026-06-20T07:09:00Z Increment 1a DONE. Resolved async-stdout open question via hooks docs → Design C (asyncRewake degrades to status-quo on old CC). Flipped apply to non-blocking asyncRewake; routed upgraded/major/blocked through exit-2 stderr; silenced transient/opt-out paths; dropped raw-error leak in catch. Files: src/templates/config.ts (asyncRewakeHook helper + wiring), templates/hooks/session-auto-upgrade.ts (+ byte-synced dogfood copy), .claude/settings.json (asyncRewake flag), config.test.ts (design pin). Green: targeted vitest 57, config 19, dogfood-parity release 1, typecheck, eslint. Next: 1b (merge update-check, kill lag), then #2 (strike counter / actionable failure).
 - 2026-06-20T05:52:00Z Revalidated (round-2 /figure-it-out). Confirmed apply hook is sync/blocking (settings.json) and the catch prints raw errors every session (not silent). Evidence: bun blocks postinstall by default → demoted #3 (provenance) to deferred-with-threat-model. Reframed #2 (noise, not silence). Strengthened #1 (fixes blocking, not just lag) and added the async-stdout open question gating design A vs B.

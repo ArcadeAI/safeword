@@ -21,7 +21,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-auto-upgrade.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-auto-upgrade.ts",
+            "asyncRewake": true
           }
         ]
       },

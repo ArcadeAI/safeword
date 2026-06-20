@@ -1,7 +1,13 @@
 #!/usr/bin/env bun
 // Safeword: Auto-upgrade at session start (SessionStart)
-// Reads .safeword/.update-cache.json, applies patch + minor upgrades silently with a dedicated commit.
+// Reads .safeword/.update-cache.json, applies patch + minor upgrades with a dedicated commit.
 // Skips if: major bump, dirty working tree, autoUpgrade disabled, or CI environment.
+//
+// Wired as an `asyncRewake` hook (see config.ts), so it runs in the background and
+// never blocks session start. User-facing outcomes (upgraded / major available /
+// blocked) are surfaced by exiting with code 2, which delivers the stderr message
+// to Claude as a system reminder. Transient skips (cooling, dirty tree, opted out)
+// exit 0 and stay silent to avoid per-session noise.
 // Policy reference: .claude/skills/versioning/SKILL.md
 
 import { execFileSync, execSync } from 'node:child_process';
@@ -62,17 +68,19 @@ if (decision === 'skip') {
 }
 
 if (decision === 'notify') {
-  console.log(
+  // Major bump — may carry breaking changes, so we notify rather than apply.
+  // exit 2 delivers this message to Claude (asyncRewake rewake contract).
+  console.error(
     `SAFEWORD: v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
   );
-  process.exit(0);
+  process.exit(2);
 }
 
 // decision === 'apply' (patch or minor) — proceed to opt-out checks and upgrade
 
 // --- Check opt-out ---
+// Silent (exit 0): the user opted out, so don't wake Claude every session.
 if (process.env.SAFEWORD_NO_AUTO_UPGRADE || process.env.CI) {
-  console.log(`SAFEWORD: v${latest} available — auto-upgrade disabled`);
   process.exit(0);
 }
 
@@ -82,7 +90,6 @@ try {
   if (existsSync(configPath)) {
     const config = JSON.parse(readFileSync(configPath, 'utf8')) as { autoUpgrade?: boolean };
     if (config.autoUpgrade === false) {
-      console.log(`SAFEWORD: v${latest} available — auto-upgrade disabled in config`);
       process.exit(0);
     }
   }
@@ -93,17 +100,10 @@ try {
 // --- Check release-age cooldown ---
 // Supply-chain defense: don't install versions published <24h ago. See
 // lib/update-cache.ts for rationale and threat model.
+// Transient (exit 0, silent): the upgrade applies automatically once the
+// cooldown clears or the cache refreshes — no need to interrupt every session.
 const ageStatus = releaseAgeStatus(cache.publishedAt, Date.now());
-if (ageStatus.state === 'unknown') {
-  console.log(
-    `SAFEWORD: v${latest} available — waiting on release-age info (cache refreshes on next update check)`,
-  );
-  process.exit(0);
-}
-if (ageStatus.state === 'cooling') {
-  console.log(
-    `SAFEWORD: v${latest} available — applying after release-age cooldown (${ageStatus.remainingHours}h remaining)`,
-  );
+if (ageStatus.state === 'unknown' || ageStatus.state === 'cooling') {
   process.exit(0);
 }
 
@@ -121,7 +121,7 @@ const execOpts = {
 try {
   const status = execSync('git status --porcelain', execOpts).trim();
   if (status) {
-    console.log(`SAFEWORD: v${latest} available — will apply when working tree is clean`);
+    // Transient (exit 0, silent): retries automatically next clean session.
     process.exit(0);
   }
 } catch {
@@ -131,8 +131,6 @@ try {
 
 // --- Perform upgrade ---
 try {
-  console.log(`SAFEWORD: Auto-upgrading v${currentVersion} → v${latest}...`);
-
   // Run the exact version (not @latest) to avoid supply chain ambiguity
   execSync(`bunx safeword@${latest} upgrade`, { ...execOpts, stdio: 'pipe' });
 
@@ -159,8 +157,12 @@ try {
     );
   }
 
-  console.log(`SAFEWORD: Auto-upgraded v${currentVersion} → v${latest}`);
-} catch (error) {
-  const message = error instanceof Error ? error.message : 'Unknown error';
-  console.log(`SAFEWORD: Auto-upgrade to v${latest} failed — will retry next session. ${message}`);
+  // exit 2 surfaces the outcome to Claude (asyncRewake rewake contract).
+  console.error(`SAFEWORD: Auto-upgraded v${currentVersion} → v${latest}`);
+  process.exit(2);
+} catch {
+  // Don't echo the raw error (it would pollute Claude's context). A capped,
+  // actionable failure message is ticket XQ9CXA item #2.
+  console.error(`SAFEWORD: Auto-upgrade to v${latest} failed — will retry next session`);
+  process.exit(2);
 }
