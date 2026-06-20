@@ -31,6 +31,35 @@ function content(scenarios: string, crossScenario = '- [x] cross-scenario abc123
   ].join('\n');
 }
 
+// Shared scenario-block + ledger builders for the W610WW gating tests.
+const annotatedScenario = (name: string): string =>
+  [
+    `### Scenario: ${name}`,
+    '',
+    '- [x] RED abc1234',
+    '- [x] GREEN def5678',
+    '- [x] REFACTOR skip: trivial',
+  ].join('\n');
+
+const legacyScenario = (name: string): string =>
+  [`### Scenario: ${name}`, '', '- [x] RED', '- [x] GREEN', '- [x] REFACTOR'].join('\n');
+
+// An explicit list of scenario blocks plus an optional cross-scenario row, so
+// the scenario count (scenarios.length) is exact.
+function ledgerWith(scenarios: string[], crossScenario?: string): string {
+  return [
+    '# Test definitions',
+    '',
+    '## Rule: Example',
+    '',
+    scenarios.join('\n\n'),
+    '',
+    '## Feature-level cross-scenario refactor',
+    '',
+    ...(crossScenario === undefined ? [] : [crossScenario, '']),
+  ].join('\n');
+}
+
 describe('validateLedger — Rule 3 (per-scenario SHA validity)', () => {
   it('Scenario T1: three distinct, HEAD-reachable SHAs passes', () => {
     const c = content(
@@ -271,46 +300,21 @@ describe('validateLedger — multiple scenarios', () => {
 });
 
 describe('validateLedger — W610WW annotated-loop gating', () => {
-  // Build content with an explicit list of scenario blocks and an optional
-  // cross-scenario row, so the loop count (scenarios.length) is exact.
-  function withScenarios(scenarios: string[], crossScenario?: string): string {
-    return [
-      '# Test definitions',
-      '',
-      '## Rule: Example',
-      '',
-      scenarios.join('\n\n'),
-      '',
-      '## Feature-level cross-scenario refactor',
-      '',
-      ...(crossScenario === undefined ? [] : [crossScenario, '']),
-    ].join('\n');
-  }
-
-  const annotatedLoop = (name: string) =>
-    [
-      `### Scenario: ${name}`,
-      '',
-      '- [x] RED abc1234',
-      '- [x] GREEN def5678',
-      '- [x] REFACTOR skip: trivial',
-    ].join('\n');
-
   it('a single annotated loop is exempt despite the annotation (no row required)', () => {
-    const c = withScenarios([annotatedLoop('only')]); // 1 loop, no cross-scenario row
+    const c = ledgerWith([annotatedScenario('only')]); // 1 loop, no cross-scenario row
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
     expect(result.errors).toEqual([]);
   });
 
   it('a ticket with zero parsed scenarios needs no row', () => {
-    const c = withScenarios([]); // 0 loops, no row
+    const c = ledgerWith([]); // 0 loops, no row
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
   });
 
   it('exactly two annotated loops with no row fails (row required at the boundary)', () => {
-    const c = withScenarios([annotatedLoop('one'), annotatedLoop('two')]);
+    const c = ledgerWith([annotatedScenario('one'), annotatedScenario('two')]);
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(false);
     expect(result.errors.join('\n')).toMatch(/cross-scenario/i);
@@ -318,8 +322,8 @@ describe('validateLedger — W610WW annotated-loop gating', () => {
   });
 
   it('exactly two annotated loops with a reachable SHA row passes', () => {
-    const c = withScenarios(
-      [annotatedLoop('one'), annotatedLoop('two')],
+    const c = ledgerWith(
+      [annotatedScenario('one'), annotatedScenario('two')],
       '- [x] cross-scenario fff9999',
     );
     const result = validateLedger(c, allReachable);
@@ -327,9 +331,8 @@ describe('validateLedger — W610WW annotated-loop gating', () => {
   });
 
   it('a multi-scenario ticket with no annotations stays exempt (no row)', () => {
-    const legacy = (name: string) =>
-      [`### Scenario: ${name}`, '', '- [x] RED', '- [x] GREEN', '- [x] REFACTOR'].join('\n');
-    const c = withScenarios([legacy('a'), legacy('b'), legacy('c')]); // 3 loops, unannotated, no row
+    // 3 loops, unannotated, no row
+    const c = ledgerWith([legacyScenario('a'), legacyScenario('b'), legacyScenario('c')]);
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
   });
@@ -338,21 +341,21 @@ describe('validateLedger — W610WW annotated-loop gating', () => {
     // The `|| crossScenario` clause: a present row is always validated, even
     // below the >=2-loop threshold. Pins that a correctly-filled row on a
     // single-loop ticket is accepted (not just that an empty one is rejected).
-    const c = withScenarios([annotatedLoop('only')], '- [x] cross-scenario fff9999');
+    const c = ledgerWith([annotatedScenario('only')], '- [x] cross-scenario fff9999');
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
   });
 
   it('a single-loop ticket with a present empty-skip row is still blocked', () => {
-    const c = withScenarios([annotatedLoop('only')], '- [x] cross-scenario skip:');
+    const c = ledgerWith([annotatedScenario('only')], '- [x] cross-scenario skip:');
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(false);
     expect(result.errors.join('\n')).toMatch(/empty.*reason|reason.*empty/i);
   });
 
   it('a two-loop ticket with an empty skip row is blocked', () => {
-    const c = withScenarios(
-      [annotatedLoop('one'), annotatedLoop('two')],
+    const c = ledgerWith(
+      [annotatedScenario('one'), annotatedScenario('two')],
       '- [x] cross-scenario skip:',
     );
     const result = validateLedger(c, allReachable);
@@ -361,8 +364,8 @@ describe('validateLedger — W610WW annotated-loop gating', () => {
   });
 
   it('a two-loop ticket with a real skip reason passes', () => {
-    const c = withScenarios(
-      [annotatedLoop('one'), annotatedLoop('two')],
+    const c = ledgerWith(
+      [annotatedScenario('one'), annotatedScenario('two')],
       '- [x] cross-scenario skip: no shared duplication emerged',
     );
     const result = validateLedger(c, allReachable);
@@ -371,31 +374,18 @@ describe('validateLedger — W610WW annotated-loop gating', () => {
 });
 
 describe('wholeTicketPassApplies — unified trigger for row + review (W610WW)', () => {
-  const annotated = (name: string) =>
-    [
-      `### Scenario: ${name}`,
-      '',
-      '- [x] RED abc1234',
-      '- [x] GREEN def5678',
-      '- [x] REFACTOR skip: x',
-    ].join('\n');
-  const legacy = (name: string) =>
-    [`### Scenario: ${name}`, '', '- [x] RED', '- [x] GREEN', '- [x] REFACTOR'].join('\n');
-
-  function buildLedger(scenarios: string[]): string {
-    return ['# Test definitions', '', '## Rule: R', '', scenarios.join('\n\n'), ''].join('\n');
-  }
-
   it('two annotated loops → applies', () => {
-    expect(wholeTicketPassApplies(buildLedger([annotated('a'), annotated('b')]))).toBe(true);
+    expect(
+      wholeTicketPassApplies(ledgerWith([annotatedScenario('a'), annotatedScenario('b')])),
+    ).toBe(true);
   });
 
   it('a single annotated loop → does not apply', () => {
-    expect(wholeTicketPassApplies(buildLedger([annotated('only')]))).toBe(false);
+    expect(wholeTicketPassApplies(ledgerWith([annotatedScenario('only')]))).toBe(false);
   });
 
   it('zero scenarios → does not apply', () => {
-    expect(wholeTicketPassApplies(buildLedger([]))).toBe(false);
+    expect(wholeTicketPassApplies(ledgerWith([]))).toBe(false);
   });
 
   it('legacy unannotated multi-scenario → does NOT apply (legacy exemption holds for BOTH halves)', () => {
@@ -403,9 +393,11 @@ describe('wholeTicketPassApplies — unified trigger for row + review (W610WW)',
     // not trigger the whole-ticket pass — neither the row nor the /quality-review
     // requirement. A naive loop count (>=2) would wrongly trigger the review
     // half; wholeTicketPassApplies must gate on annotations, not raw count.
-    expect(wholeTicketPassApplies(buildLedger([legacy('a'), legacy('b'), legacy('c')]))).toBe(
-      false,
-    );
+    expect(
+      wholeTicketPassApplies(
+        ledgerWith([legacyScenario('a'), legacyScenario('b'), legacyScenario('c')]),
+      ),
+    ).toBe(false);
   });
 });
 
