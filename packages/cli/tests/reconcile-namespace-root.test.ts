@@ -142,6 +142,41 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
   });
 
+  // Issue #272: the static repo-root .gitignore block names only `.project/` and
+  // `.safeword-project/`, so a custom paths.projectRoot's transient files would
+  // leak into `git status`. The per-root .gitignore (written into the resolved
+  // root) covers it — and never ignores durable knowledge files.
+  it('DEV1.AC4.configured_root_gets_transient_gitignore', async () => {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
+    );
+
+    await runInstall();
+
+    const gitignore = readFileSync(nodePath.join(cwd, 'team-ns', '.gitignore'), 'utf8');
+    for (const name of [
+      'quality-state*.json',
+      'failure-counts.json',
+      'skill-invocations.log',
+      're-entry.md',
+      'dependency-readiness.json',
+    ]) {
+      expect(gitignore).toContain(name);
+    }
+    // Durable siblings must stay tracked — no bare wildcard that would swallow them.
+    expect(gitignore).not.toMatch(/^\*\s*$/m);
+    expect(gitignore).not.toContain('tickets');
+  });
+
+  it('DEV1.AC4.default_root_gets_transient_gitignore', async () => {
+    await runInstall();
+
+    expect(existsSync(nodePath.join(cwd, '.project', '.gitignore'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
+  });
+
   it('DEV1.AC4.upgrade_on_project_repo_stays_project', async () => {
     await runInstall();
     const glossaryPath = nodePath.join(cwd, '.project', 'glossary.md');

@@ -193,29 +193,54 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
 // ============================================================================
 
 /**
- * Runtime/transient state files safeword's hooks write to the working tree
- * every turn (update-cache, quality-state, failure-counts, skill-invocations,
- * re-entry, dependency-readiness). They must be gitignored — and untracked on upgrade if a customer
- * committed them before the ignore rule existed — because the hooks read/write
- * these paths directly, so git tracking is never consulted. Single source for
- * the managed `.gitignore` block (below) and the upgrade-time untrack.
+ * Transient state files safeword's hooks write under the *resolved namespace
+ * root* every turn, as root-relative names (quality-state, failure-counts,
+ * skill-invocations, re-entry, dependency-readiness). Single source for both
+ * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
+ * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
+ * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
+ * siblings (tickets/, learnings/, personas.md, glossary.md) stay tracked.
  */
-// Both namespace roots are listed: hooks write transient state under the
-// resolved root (TAGWZ8), which is `.project/` on fresh installs and
-// `.safeword-project/` on legacy ones.
+const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
+  'quality-state*.json',
+  'failure-counts.json',
+  'skill-invocations.log',
+  're-entry.md',
+  'dependency-readiness.json',
+];
+
+/**
+ * Runtime/transient state files safeword's hooks write to the working tree
+ * every turn (update-cache plus the namespace-root state above). They must be
+ * gitignored — and untracked on upgrade if a customer committed them before the
+ * ignore rule existed — because the hooks read/write these paths directly, so
+ * git tracking is never consulted. Single source for the repo-root managed
+ * `.gitignore` block (below) and the upgrade-time untrack.
+ *
+ * Both well-known namespace roots are listed: hooks write transient state under
+ * the resolved root (TAGWZ8), which is `.project/` on fresh installs and
+ * `.safeword-project/` on legacy ones. A *custom* `paths.projectRoot` is covered
+ * by the per-root `.gitignore` (`NAMESPACE_GITIGNORE_CONTENT`) instead, since a
+ * static repo-root block cannot name an arbitrary root (issue #272).
+ */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
-  '.project/quality-state*.json',
-  '.project/failure-counts.json',
-  '.project/skill-invocations.log',
-  '.project/re-entry.md',
-  '.project/dependency-readiness.json',
-  '.safeword-project/quality-state*.json',
-  '.safeword-project/failure-counts.json',
-  '.safeword-project/skill-invocations.log',
-  '.safeword-project/re-entry.md',
-  '.safeword-project/dependency-readiness.json',
+  ...['.project', '.safeword-project'].flatMap(root =>
+    NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
+  ),
 ];
+
+/**
+ * Content of the `.gitignore` written *inside* the resolved namespace root
+ * (issue #272). Because the ignore rules live with the files they describe, a
+ * custom `paths.projectRoot` is handled for free — the file lands wherever the
+ * root resolves, and git applies each pattern relative to that directory. The
+ * legacy-prefixed managed-file key is remapped to the resolved root by
+ * `withResolvedNamespaceRoot`.
+ */
+const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-managed)\n${NAMESPACE_TRANSIENT_BASENAMES.join(
+  '\n',
+)}\n`;
 
 /**
  * Top-level dirs a customer's prettier must skip so safeword's files don't dirty
@@ -800,6 +825,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword-project/glossary.md': {
       template: 'glossary-template.md',
       configKey: 'glossary',
+    },
+
+    // Per-root `.gitignore` for hook-written transient state. The legacy-prefixed
+    // key is remapped to the resolved namespace root by withResolvedNamespaceRoot,
+    // so a custom `paths.projectRoot` ignores its own transient files even though
+    // the static repo-root block can't name that root (issue #272). Created once;
+    // the repo-root block stays the belt-and-suspenders for `.project/`/legacy.
+    '.safeword-project/.gitignore': {
+      content: NAMESPACE_GITIGNORE_CONTENT,
     },
   },
 
