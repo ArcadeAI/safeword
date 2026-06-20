@@ -3,12 +3,20 @@ id: 5JSH4C
 slug: knip-unused-dep-hygiene
 type: task
 phase: intake
-status: in_progress
+status: cancelled
 created: 2026-06-20T01:21:33.492Z
 last_modified: 2026-06-20T01:22:00Z
 ---
 
 # Dependency hygiene: prune knip-flagged unused deps (post-B6MZ4Z)
+
+> **CANCELLED 2026-06-20 — false-premise duplicate** (caught by `/quality-review` of this ticket). The candidates aren't actionable:
+>
+> - The 7 "unused" ESLint plugins are **used** — safeword's typescript preset lazy-loads them via `packages/cli/src/presets/typescript/eslint-configs/*` (tailwind, astro, nextjs, storybook, playwright, tanstack-query, turbo). knip false-positives, already tracked by [G8PBE6](../G8PBE6-knip-dynamic-load-false-positives/ticket.md) (superseded_by 7JDZFF).
+> - General knip-baseline cleanup is owned by [QPGEWD](../QPGEWD-clean-existing-knip-baseline/ticket.md); config-hygiene by [X6EFPN](../X6EFPN-keep-knip-config-warnings-actionable/ticket.md); `tsx` is already in `knip.json` `ignoreDependencies`.
+> - The "dead exports removed by main" claim was wrong: the symbols persist; knip suppresses them via `ignoreIssues`, they weren't removed.
+>
+> Filing miss: the pre-file dup-check didn't grep "knip". Nothing to do here.
 
 **Goal:** Verify and prune the dependencies knip flags as unused on `main`, or suppress the genuine false-positives in knip config, so the audit signal stays high.
 
@@ -42,3 +50,4 @@ For each dep: confirm it isn't pulled transitively by a shared ESLint preset the
 ## Work Log
 
 - 2026-06-20 Filed from the B6MZ4Z epic's refactor-scout follow-up. The originally-intended dead-export cleanup was moot (main already removed those exports); pivoted to the actual current knip finding — unused frontend ESLint plugins in the CLI package. Candidates verified against the merged tree; local eslint.config.ts does not reference them.
+- 2026-06-20 `/quality-review` (provenance gate, dogfooded) → **CANCELLED.** Checked the local eslint.config.ts but not the imported preset — the 7 plugins ARE used by `presets/typescript/eslint-configs/*` (lazy-loaded), so the "unused" premise is false; it's the exact false-positive class already tracked by G8PBE6→7JDZFF. Also a duplicate of QPGEWD (knip baseline) / X6EFPN (config hygiene) — my pre-file dup-check grepped "dep/dependency" but not "knip". And "removed by main" was an overclaim (symbols persist, suppressed not removed). Lesson logged toward 9E6Q4V's theme: verify against the full picture (imported presets; existing tickets) before filing.
