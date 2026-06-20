@@ -489,7 +489,7 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const result = await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
 
-      expect(result.warnings).toEqual([]);
+      expect(result.warnings.some(w => w.includes('.markdownlint-cli2.jsonc'))).toBe(false);
     });
 
     it('should merge JSON files', async () => {

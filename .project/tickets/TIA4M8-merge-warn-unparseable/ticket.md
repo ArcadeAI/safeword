@@ -5,8 +5,21 @@ type: task
 phase: done
 status: done
 created: 2026-06-20T07:48:00.000Z
-last_modified: 2026-06-20T07:55:00.000Z
+last_modified: 2026-06-20T11:55:00.000Z
 ---
+
+> **Follow-up hardening (2026-06-20, from quality-review):** `readJson` performed
+> its `readFileSafe` read _outside_ its `try`, so a directory at a config path
+> (`EISDIR`) or an unreadable file (`EACCES`) threw uncaught and crashed reconcile
+> (empirically reproduced). `/figure-it-out` chose **option A** — wrap the read
+> inside `readJson`'s existing `try/catch` — over hardening `readFileSafe` (25-caller
+> blast radius, masks real read errors) or an `isDirectory` guard in
+> `executeJsonMerge` (partial: misses `EACCES`, leaves the other 8 `readJson`
+> callers crashable). All 9 `readJson` callers already handle `undefined`. Now a
+> directory/unreadable merge target degrades to the same actionable warning (message
+> generalized beyond "JSONC comments"). Added `tests/utils/fs.test.ts` (valid /
+> missing / JSONC-comment / directory-EISDIR) and made the valid-target reconcile
+> test assert per-file rather than global-empty warnings.
 
 > **Done (2026-06-20):** Added a `warnings: string[]` channel to `ReconcileResult`,
 > threaded through `executePlan` → `executeJsonMerge`. A merge target that exists

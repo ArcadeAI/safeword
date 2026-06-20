@@ -891,8 +891,8 @@ function executeJsonMerge(
     // stay silent when it's genuinely absent.
     if (exists(fullPath)) {
       result.warnings.push(
-        `Skipped merging safeword config into ${path}: the file exists but is not valid JSON ` +
-          `(JSONC comments are not supported by the merge engine). ` +
+        `Skipped merging safeword config into ${path}: the file exists but could not be read as JSON ` +
+          `(it may contain JSONC comments, which the merge engine does not support, or otherwise not be valid JSON). ` +
           `Add these keys manually if you need them: ${definition.keys.join(', ')}.`,
       );
       return;
