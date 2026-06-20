@@ -96,12 +96,21 @@ fallback concern is moot — do not spend effort there.
 
 ## Acceptance criteria
 
-- [~] A pending upgrade no longer blocks session start (DONE via asyncRewake, 1a); no structural one-session lag (1b, pending); template tests updated and green.
+- [x] A pending upgrade no longer blocks session start (asyncRewake, 1a); no structural one-session lag (1b — single check+apply pass); template tests updated and green.
 - [x] Async-stdout open question resolved → Design C (asyncRewake); notify/upgraded/blocked surfaced via exit-2, pinned by `config.test.ts`.
 - [x] All existing guards + the `upgradeDecision` policy preserved (pinned by unit tests; targeted suite + parity green).
-- [ ] After N failed attempts the hook stops retrying and prints one actionable line; raw errors no longer echoed; pre-flight covers detached HEAD / merge / rebase.
-- [ ] Threat-model note written; provenance verification explicitly deferred with rationale (no sigstore code).
-- [ ] Validated via template/unit tests — NOT by live-upgrading the dogfood repo (pinned v0.49.0 vs source v0.52.1).
+- [x] After N(=3) failed attempts the hook stops retrying and prints one actionable line; raw errors no longer echoed; pre-flight covers detached HEAD + in-progress merge (conflicted merge/rebase already caught by dirty-tree). Pure helpers pinned by `tests/utils/update-cache.test.ts`.
+- [ ] Threat-model note written; provenance verification explicitly deferred with rationale (no sigstore code). **(item #3 — remaining)**
+- [x] Validated via template/unit tests — NOT by live-upgrading the dogfood repo (pinned v0.49.0 vs source v0.52.1).
+
+### Known limitation (follow-up #2b)
+
+If `bunx upgrade` succeeds but the **commit** fails (signing, a rejecting pre-commit hook), the reconciled
+files are left uncommitted → the working tree is dirty, so subsequent sessions hit the dirty-tree skip and
+the strike counter only advances on sessions that start clean. Not silent (the user sees uncommitted
+changes), and the counter still caps for the clean-failure class (e.g. `bunx`/registry failure). A future
+pass (2b) could roll back the reconcile on commit failure so the breaker engages for the signing case
+too — that needs a destructive git op (discard safeword-owned changes) and deserves its own review.
 
 ## Premortem
 
@@ -112,6 +121,8 @@ getting told why. Mitigation: resolve the async-stdout question first and gate t
 
 ## Work Log
 
+- 2026-06-20T07:53:00Z Item #2 DONE (pushed a3a3f6b). Revalidated via /figure-it-out → strike-counter-in-cache + git-state pre-flight (rejected separate-state-file and pure-classification-no-counter; adopted classification's best part for the known-unsafe git states). Added `failedAttempts`/`failedVersion` to UpdateCache + pure helpers `shouldAttemptUpgrade`/`recordUpgradeFailure`/`clearUpgradeFailures` (13 unit tests). Hook: circuit-breaker before apply (cap 3, message-once, reset on version-change/success), detached-HEAD + MERGE_HEAD pre-flight (git commands verified empirically), success clears strikes. Also reverted the review-era `cache?.publishedAt` to `cache.publishedAt` by defaulting cache to `{}`. Green: typecheck, build-check, targeted vitest 94, release/parity 7. Found + documented the commit-failure-leaves-dirty limitation (follow-up #2b).
+- 2026-06-20T07:42:00Z Quality-review pass on item #1 (pushed 528604d). Independent sonnet reviewer + verified asyncRewake/exit-2 against live hooks doc. Fixed: opt-out/CI now precedes the major-available notify (was waking Claude every session even when opted out / in CI); hardened cache temp-file name. Rejected reviewer nit to drop `cache?.publishedAt` (would fail typecheck at the time).
 - 2026-06-20T05:50:13.291Z Started: Created ticket XQ9CXA
 - 2026-06-20T05:50:00Z Plan captured from /figure-it-out: architecture confirmed (in-repo reconcile + self-commit), three ordered hardening items, native-plugin and stage-only options ruled out with rationale.
 - 2026-06-20T05:49:00Z Installed deps: `bun ci` succeeded (2510 packages, build OK, exit 0).
