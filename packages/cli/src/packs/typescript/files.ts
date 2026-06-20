@@ -88,6 +88,9 @@ function addKnipIgnoreDependencies(
 function getKnipConfig(ctx: ProjectContext): object {
   // A custom paths.projectRoot is added alongside the two well-known roots so
   // Knip doesn't scan (and false-positive on) the custom namespace dir (#273).
+  // NB: Knip's ignore is intentionally just the namespace roots, not the full
+  // safewordIgnoreDirectories/resolvedIgnoreDirectories list — so resolve the
+  // custom root directly here rather than reusing that composer.
   const customRoot = resolvedNamespaceDirectory(ctx);
   const config = {
     ignore: [
