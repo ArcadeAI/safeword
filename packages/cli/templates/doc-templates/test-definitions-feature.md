@@ -32,6 +32,6 @@ derive the active RED/GREEN/REFACTOR step.
 
 ## Feature-level cross-scenario refactor
 
-Marked at verify-phase: either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks if this row is missing or has an empty skip reason on tickets that use the annotated checkbox format.
+Marked at implement-exit (the whole-ticket quality-review + refactor pass): either `<sha>` (the refactor commit) or `skip: <non-empty reason>` (no shared fixtures or duplication emerged). The done-gate hard-blocks a ticket with **two or more RGR loops** whose row is missing or has an empty skip reason; a single-loop ticket has nothing to cross and may leave it unmarked.
 
 - [ ] cross-scenario

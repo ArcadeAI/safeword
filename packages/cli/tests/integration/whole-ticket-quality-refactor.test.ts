@@ -42,6 +42,17 @@ afterAll(() => {
 const legacyLoop = (name: string) =>
   [`### Scenario: ${name}`, '', '- [x] RED', '- [x] GREEN', '- [x] REFACTOR'].join('\n');
 
+// An annotated loop with two reachable SHAs for RED/GREEN — used where the
+// ledger must actually validate (not legacy-exempt).
+const annotatedLoop = (name: string, red: string, green: string) =>
+  [
+    `### Scenario: ${name}`,
+    '',
+    `- [x] RED ${red}`,
+    `- [x] GREEN ${green}`,
+    '- [x] REFACTOR skip: trivial',
+  ].join('\n');
+
 // Each fixture stays in_progress, so the hook's most-recent-in_progress
 // resolution must pick the ticket under test — give each a strictly increasing
 // last_modified so the newest write wins.
@@ -136,16 +147,12 @@ function runDoneGate(sessionId: string): { exitCode: number; reason: string } {
 describe('whole-ticket quality-review + refactor gate (W610WW)', () => {
   it('a two-loop task with a missing cross-scenario row is blocked by the same validator as a feature', () => {
     const [a, b] = twoReachableShas();
-    const annotated = (name: string) =>
-      [
-        `### Scenario: ${name}`,
-        '',
-        `- [x] RED ${a}`,
-        `- [x] GREEN ${b}`,
-        '- [x] REFACTOR skip: trivial',
-      ].join('\n');
     // Two annotated loops, NO cross-scenario row → required at >=2 loops.
-    writeTicket('w1', 'task', [annotated('one'), annotated('two')].join('\n\n'));
+    writeTicket(
+      'w1',
+      'task',
+      [annotatedLoop('one', a, b), annotatedLoop('two', a, b)].join('\n\n'),
+    );
     writeSkillLog(['2026-06-20T00:00:00Z session-w1 quality-review']);
 
     const result = runDoneGate('session-w1');
@@ -214,5 +221,23 @@ describe('whole-ticket quality-review + refactor gate (W610WW)', () => {
     const result = runDoneGate('session-w5');
 
     expect(result.reason).not.toMatch(/quality-review/);
+  });
+
+  it('a two-loop task with valid ledger, a filled row, and a logged review is not over-blocked', () => {
+    const [a, b] = twoReachableShas();
+    // Everything a >=2-loop task needs: valid annotated ledger, a filled
+    // cross-scenario row, and a logged /quality-review. The de-fenced ledger
+    // validation must not over-block a well-formed task.
+    writeTicket(
+      'w6',
+      'task',
+      [annotatedLoop('one', a, b), annotatedLoop('two', a, b)].join('\n\n'),
+      `- [x] cross-scenario ${a}`,
+    );
+    writeSkillLog(['2026-06-20T00:00:00Z session-w6 quality-review']);
+
+    const result = runDoneGate('session-w6');
+
+    expect(result.reason).not.toMatch(/cross-scenario|quality-review|ledger/i);
   });
 });

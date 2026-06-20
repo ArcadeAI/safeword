@@ -331,6 +331,15 @@ describe('validateLedger — W610WW loop-count gating', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('a single-loop ticket with a present valid-SHA row still passes (back-compat branch)', () => {
+    // The `|| crossScenario` clause: a present row is always validated, even
+    // below the >=2-loop threshold. Pins that a correctly-filled row on a
+    // single-loop ticket is accepted (not just that an empty one is rejected).
+    const c = withScenarios([annotatedLoop('only')], '- [x] cross-scenario fff9999');
+    const result = validateLedger(c, allReachable);
+    expect(result.ok).toBe(true);
+  });
+
   it('a single-loop ticket with a present empty-skip row is still blocked', () => {
     const c = withScenarios([annotatedLoop('only')], '- [x] cross-scenario skip:');
     const result = validateLedger(c, allReachable);
