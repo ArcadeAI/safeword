@@ -216,6 +216,16 @@ const execOpts = {
   maxBuffer: 50 * 1024 * 1024,
 };
 
+/** Run `git <args>` (constant args only) and report whether it exited 0. */
+function gitOk(args: string): boolean {
+  try {
+    execSync(`git ${args}`, { ...execOpts, stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // --- Check dirty working tree ---
 try {
   const status = execSync('git status --porcelain', execOpts).trim();
@@ -232,17 +242,10 @@ try {
 // A detached HEAD (auto-commit would dangle) or an in-progress merge (wrong
 // target) makes the auto-commit unsafe. Conflicted merges/rebases already show
 // as a dirty tree above. Transient (exit 0, silent): clears once back on a branch.
-try {
-  execSync('git symbolic-ref -q HEAD', { ...execOpts, stdio: 'pipe' });
-} catch {
-  process.exit(0); // detached HEAD (or HEAD unresolvable) — don't commit
-}
-try {
-  // Exits 0 (prints a sha) only when MERGE_HEAD exists, i.e. mid-merge.
-  execSync('git rev-parse -q --verify MERGE_HEAD', { ...execOpts, stdio: 'pipe' });
-  process.exit(0); // merge in progress — don't commit
-} catch {
-  // No MERGE_HEAD — not merging, safe to proceed.
+// `symbolic-ref -q HEAD` fails when detached; `rev-parse --verify MERGE_HEAD`
+// succeeds only mid-merge.
+if (!gitOk('symbolic-ref -q HEAD') || gitOk('rev-parse -q --verify MERGE_HEAD')) {
+  process.exit(0);
 }
 
 // --- Perform upgrade ---
