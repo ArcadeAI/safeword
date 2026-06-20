@@ -178,7 +178,10 @@ describe('validateLedger — Rule 4 (feature-level cross-scenario refactor row)'
     expect(result.ok).toBe(true);
   });
 
-  it('Scenario T8: missing cross-scenario row fails done', () => {
+  it('Scenario T8: missing cross-scenario row fails done (≥2 loops)', () => {
+    // Two annotated loops with no row — above the single-loop exemption, so the
+    // row is required (W610WW). One loop would be exempt; see the loop-count
+    // gating block.
     const c = [
       '# Test definitions',
       '',
@@ -189,6 +192,12 @@ describe('validateLedger — Rule 4 (feature-level cross-scenario refactor row)'
       '- [x] RED abc1234',
       '- [x] GREEN def5678',
       '- [x] REFACTOR 9abcdef',
+      '',
+      '### Scenario: bar',
+      '',
+      '- [x] RED 111aaaa',
+      '- [x] GREEN 222bbbb',
+      '- [x] REFACTOR 333cccc',
       '',
     ].join('\n');
     const result = validateLedger(c, allReachable);

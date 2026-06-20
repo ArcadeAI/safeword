@@ -185,13 +185,17 @@ export function validateLedger(
     validateScenario(scenario, isReachable, errors);
   }
 
-  // Cross-scenario row enforcement: required iff this is a new-format ticket
-  // (any annotated checkbox) OR the row already exists. Pure legacy tickets
-  // (no annotations anywhere) are exempt.
+  // Cross-scenario row enforcement: the whole-ticket quality-review + refactor
+  // pass is required only above one RGR loop — a single-loop ticket has nothing
+  // to cross, so it's exempt (W610WW). Required iff a new-format ticket carries
+  // two or more loops (any annotated checkbox + ≥2 scenarios), OR the row
+  // already exists (back-compat: a present row is always validated). Pure legacy
+  // tickets (no annotations anywhere) stay exempt regardless of count.
   const hasAnyAnnotation = scenarios.some(s =>
     [s.red, s.green, s.refactor].some(box => box?.annotation),
   );
-  if (hasAnyAnnotation || crossScenario) {
+  const multiLoopAnnotated = scenarios.length >= 2 && hasAnyAnnotation;
+  if (multiLoopAnnotated || crossScenario) {
     validateCrossScenario(crossScenario, isReachable, errors);
   }
 
