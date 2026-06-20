@@ -391,6 +391,61 @@ describe('Reconcile - Reconciliation Engine', () => {
       }
     });
 
+    it('ignores every safeword-owned dir in an existing .markdownlint-cli2.jsonc (ticket #262)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ config: { default: true }, ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const cli2 = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ) as { config: unknown; ignores: string[] };
+      expect(cli2.ignores).toContain('dist/**'); // customer entry preserved
+      expect(cli2.config).toEqual({ default: true }); // rule config untouched
+      // Leading-globstar form (not a bare dir glob): lint-staged passes absolute
+      // paths, and the leading globstar is required to match them.
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(cli2.ignores).toContain(`**/${dir}/**`);
+      }
+    });
+
+    it('does not create .markdownlint-cli2.jsonc when the repo has no markdownlint config (skipIfMissing)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(existsSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'))).toBe(false);
+    });
+
+    it('removes safeword ignore globs from .markdownlint-cli2.jsonc on uninstall, preserving customer entries', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+
+      const cli2 = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ) as { ignores: string[] };
+      expect(cli2.ignores).toEqual(['dist/**']); // safeword globs gone, customer entry kept
+    });
+
     it('should merge JSON files', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
