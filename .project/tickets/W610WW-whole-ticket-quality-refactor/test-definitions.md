@@ -10,51 +10,51 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: A single annotated loop is exempt despite the annotation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A ticket with zero parsed scenarios needs no row
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: Exactly two annotated loops require the cross-scenario row
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: Exactly two annotated loops with a refactor commit pass
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A multi-scenario ticket with no annotations stays exempt
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A single-loop ticket with a present empty-skip row is still blocked
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A two-loop ticket with an empty skip reason is blocked
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A two-loop ticket with a real skip reason passes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024d25a
+- [x] GREEN 2ea3cdc
+- [x] REFACTOR skip: no structural improvement needed
 
 ## Rule: Tasks and features share one validation path
 
