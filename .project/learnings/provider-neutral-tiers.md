@@ -12,9 +12,9 @@ Safeword's shipped skills and normative policy name **capability tiers — front
 - **Release churn.** Model names, versions, and even capability orderings change every release; tier roles (hardest-autonomous / strong-reasoning / fast-cheap) don't.
 - It's already the shipped convention: the quality-review and BDD review-gate guidance say "capability class — e.g. frontier vs mid vs small" for exactly this reason.
 
-## Exception
+## Not an exception — out of scope: provider reference docs
 
-The `claude-api` skill names models on purpose — it _is_ the Claude API reference (model ids, pricing, migration guidance). That's provider-specific reference material, not safeword's normative guidance. The rule governs safeword's own behavioral guidance, not a reference doc whose subject is one provider's API.
+A provider's API reference legitimately names models (e.g. the Claude Code harness's `claude-api` skill — model ids, pricing, migration). That's reference material about one provider's API, not safeword's behavioral guidance, so the rule simply doesn't reach it. Safeword doesn't ship `claude-api`; if it ever ships its own provider-reference material, the same line holds — reference docs name models, normative guidance names tiers.
 
 ## Corollary — don't hardcode tier→model in code
 
