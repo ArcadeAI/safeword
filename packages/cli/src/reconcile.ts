@@ -357,10 +357,14 @@ function withResolvedNamespaceRoot(schema: SafewordSchema, ctx: ProjectContext):
     ...schema,
     preservedDirs: schema.preservedDirs.map(path => translate(path)),
     managedFiles: Object.fromEntries(
-      Object.entries(schema.managedFiles).map(([path, definition]) => [
-        translate(path),
-        definition,
-      ]),
+      Object.entries(schema.managedFiles)
+        .map(([path, definition]) => [translate(path), definition] as const)
+        // A per-root `.gitignore` (issue #272) translated onto the repo root
+        // (paths.projectRoot: '.') would BE the user's own root `.gitignore` —
+        // owned by the textPatch, never created by us (create-if-missing skips
+        // an existing file). Drop it there so a full uninstall can't delete a
+        // file we didn't write.
+        .filter(([translatedPath]) => translatedPath !== '.gitignore'),
     ),
   };
 }

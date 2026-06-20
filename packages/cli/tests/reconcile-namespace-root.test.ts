@@ -20,6 +20,30 @@ import { createTemporaryDirectory, removeTemporaryDirectory } from './helpers.js
 
 const NAMESPACE_DIRECTORIES = ['learnings', 'tickets', 'tickets/completed', 'tmp'];
 
+// The transient patterns the per-root .gitignore must carry, leading-slash-anchored
+// so they match only the namespace-root file (not e.g. tickets/.../re-entry.md).
+const ANCHORED_TRANSIENT_PATTERNS = [
+  '/quality-state*.json',
+  '/failure-counts.json',
+  '/skill-invocations.log',
+  '/re-entry.md',
+  '/dependency-readiness.json',
+];
+
+// Assert a per-root .gitignore carries every transient pattern, root-anchored,
+// and never a bare wildcard or a durable-dir name (#272).
+function expectAnchoredTransientGitignore(contents: string): void {
+  for (const pattern of ANCHORED_TRANSIENT_PATTERNS) {
+    expect(contents).toContain(pattern);
+  }
+  expect(contents).not.toMatch(/^\*\s*$/m);
+  expect(contents).not.toContain('tickets');
+  for (const line of contents.split('\n')) {
+    if (line === '' || line.startsWith('#')) continue;
+    expect(line.startsWith('/'), `pattern must be root-anchored: ${line}`).toBe(true);
+  }
+}
+
 function listTree(root: string): string[] {
   return existsSync(root) ? readdirSync(root, { recursive: true }).map(String) : [];
 }
@@ -140,6 +164,77 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, 'team-ns', 'personas.md'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
     expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
+  });
+
+  // Issue #272: the static repo-root .gitignore block names only `.project/` and
+  // `.safeword-project/`, so a custom paths.projectRoot's transient files would
+  // leak into `git status`. The per-root .gitignore (written into the resolved
+  // root) covers it — and never ignores durable knowledge files.
+  it('DEV1.AC4.configured_root_gets_transient_gitignore', async () => {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
+    );
+
+    await runInstall();
+
+    expectAnchoredTransientGitignore(
+      readFileSync(nodePath.join(cwd, 'team-ns', '.gitignore'), 'utf8'),
+    );
+    // The legacy-prefixed key must be remapped, not also written at the legacy
+    // root — a broken translate/filter would leak a stale .safeword-project copy.
+    expect(existsSync(nodePath.join(cwd, '.safeword-project', '.gitignore'))).toBe(false);
+  });
+
+  it('DEV1.AC4.default_root_gets_transient_gitignore', async () => {
+    await runInstall();
+
+    expectAnchoredTransientGitignore(
+      readFileSync(nodePath.join(cwd, '.project', '.gitignore'), 'utf8'),
+    );
+    expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
+  });
+
+  // paths.projectRoot: '.' resolves the namespace to the repo root, where a
+  // per-root .gitignore would BE the user's own root .gitignore. Install must
+  // not clobber it, and a full uninstall must not delete it (issue #272 review).
+  it('DEV1.AC4.repo_root_namespace_never_manages_root_gitignore', async () => {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: '.' } }),
+    );
+    const rootGitignore = nodePath.join(cwd, '.gitignore');
+    writeFileSync(rootGitignore, 'node_modules/\nmy-secret.env\n');
+
+    await runInstall();
+    // The per-root managed .gitignore is dropped for projectRoot:'.'; the
+    // repo-root textPatch still runs as normal, but the user's content survives.
+    expect(readFileSync(rootGitignore, 'utf8')).toContain('my-secret.env');
+
+    await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', createProjectContext(cwd));
+    expect(existsSync(rootGitignore), 'root .gitignore must survive full uninstall').toBe(true);
+    expect(readFileSync(rootGitignore, 'utf8')).toContain('my-secret.env');
+  });
+
+  // The exists-guard masks the filter when a .gitignore is pre-created, so prove
+  // the filter directly: with no pre-existing root .gitignore, install must never
+  // write our managed per-root block (distinct `(auto-managed)` header) at the
+  // repo root — that file is the repo-root textPatch's domain, not a managed file.
+  it('DEV1.AC4.repo_root_namespace_skips_managed_root_gitignore', async () => {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: '.' } }),
+    );
+
+    await runInstall();
+
+    const rootGitignore = nodePath.join(cwd, '.gitignore');
+    if (existsSync(rootGitignore)) {
+      expect(readFileSync(rootGitignore, 'utf8')).not.toContain('(auto-managed)');
+    }
   });
 
   it('DEV1.AC4.upgrade_on_project_repo_stays_project', async () => {
