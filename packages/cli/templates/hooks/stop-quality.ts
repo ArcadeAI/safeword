@@ -529,12 +529,13 @@ if (currentPhase === 'done') {
     }
   }
 
-  // Skill-invocation gate (ticket 147 + W610WW) — required skills are
-  // loop-count-aware: features keep /verify + /audit; any ticket with two or
-  // more RGR loops also needs /quality-review (the whole-ticket review half of
-  // the cross-scenario pass). Single-loop tasks require nothing, so the gate is
-  // silent for them. Helper invocation in those skills writes the log;
-  // hand-written verify.md cannot produce the entries. Honors stop_hook_active.
+  // Skill-invocation gate (ticket 147 + W610WW) — required skills follow the
+  // whole-ticket pass: features keep /verify + /audit; any ticket the pass
+  // applies to (≥2 annotated loops — see wholeTicketPassApplies) also needs
+  // /quality-review (the review half of the cross-scenario pass). Single-loop and
+  // pure-legacy tickets require nothing, so the gate is silent for them. Helper
+  // invocation in those skills writes the log; hand-written verify.md cannot
+  // produce the entries. Honors stop_hook_active.
   const requiredSkills = requiredSkillsForDone(isFeature, wholeTicketPass);
   if (requiredSkills.length > 0 && !stopHookActive && input.session_id) {
     const skillCheck = checkSkillInvocations({
@@ -571,8 +572,8 @@ if (currentPhase === 'done') {
   // ANY build ticket with a test-definitions.md — task or feature, not fenced to
   // features. Every [x] R/G/R checkbox must carry a SHA or skip:<reason>; SHAs
   // distinct and reachable; at least one real SHA per scenario; the cross-scenario
-  // refactor row present and valid when there are >=2 loops. Pure-legacy and
-  // single-loop tickets are exempt inside validateLedger.
+  // refactor row present and valid when the whole-ticket pass applies (≥2 annotated
+  // loops). Pure-legacy and single-loop tickets are exempt inside validateLedger.
   if (ledgerContent !== undefined) {
     const isReachable = (sha: string): boolean => {
       try {
