@@ -36,7 +36,7 @@ Answer IN ORDER. Stop at first match:
 
 **Scout first.** Default for any multi-smell or unnamed request ("clean this up", "tidy this module"). Skip it only when the user named one specific smell — then go straight to Phase 3 with a one-entry ledger.
 
-Discovery is the one phase that may **fan out**. Sweep in independent read-only passes — `/lint` + `/audit` for the mechanical smells (long function, deep nesting, magic literals, duplication, dead code — already detected there), plus separate judgment passes for the semantic ones (reuse / duplicated intent, wrong level of abstraction). Per smell category or per module these passes are independent, so run them concurrently (sub-agents where your harness supports it) and merge the findings — the same fan-out-then-merge shape as `deep-research` and `quality-review`.
+Discovery is the one phase that may **fan out**. Sweep in independent read-only passes — `/lint` + `/audit` for the mechanical smells (long function, deep nesting, magic literals, duplication, dead code — already detected there), plus separate judgment passes for the semantic ones (reuse / duplicated intent, wrong level of abstraction). Per smell category or per module these passes are independent, so run them concurrently (sub-agents where your harness supports it) and merge the findings — the same fan-out-then-merge shape as `quality-review`'s independent reviewer passes.
 
 Merge into a **ledger**, not a loose list: each entry is a smell + location, ordered _prioritized and dependency-aware_ — leaf-first, so no fix lands before the change it depends on (the Mikado ordering). Persist it as the Phase 5 checklist and never silently truncate — if you cap it, say what you dropped. A scout that reads as "nothing else" when it truncated is a bug.
 
@@ -90,7 +90,7 @@ it('processOrder returns current behavior', () => {
 
 **Iron Law:** ONE refactoring at a time. Run tests after EVERY change.
 
-**Discovery fans out; mutation never does.** The scout (Phase 1) may run parallel read-only passes. Execution is the opposite — one change, in isolation, then test, then commit — because the safety net lives here. Parallel or batched edits forfeit the revert protocol (Phase 4), break `git bisect`, and destroy single-change test attribution: you can no longer tell which edit turned the suite red. The Iron Law is **per-edit, not per-session** — you still work through every ledger entry (Phase 5), just one at a time.
+**Discovery fans out; mutation never does.** The scout step (in "When to Use", above) may run parallel read-only passes. Execution is the opposite — one change, in isolation, then test, then commit — because the safety net lives here. Parallel or batched edits forfeit the revert protocol (Phase 4), break `git bisect`, and destroy single-change test attribution: you can no longer tell which edit turned the suite red. The Iron Law is **per-edit, not per-session** — you still work through every ledger entry (Phase 5), just one at a time.
 
 ### Refactoring Catalog
 
