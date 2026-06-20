@@ -29,6 +29,7 @@ import {
 import { bumpType, upgradeDecision } from './lib/version.ts';
 
 const CHECK_COOLDOWN_MS = 24 * 60 * 60 * 1000; // throttle npm registry polling to once/day
+const FETCH_TIMEOUT_MS = 3000; // abort the registry fetch if it stalls — never block the session
 
 /**
  * Fetch the latest version + its publish time from the npm registry.
@@ -45,7 +46,7 @@ async function fetchLatestFromNpm(): Promise<UpdateCache | undefined> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 3000);
+    }, FETCH_TIMEOUT_MS);
     const response = await fetch('https://registry.npmjs.org/safeword', {
       signal: controller.signal,
     });
