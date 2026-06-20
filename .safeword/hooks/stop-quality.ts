@@ -30,7 +30,6 @@ import {
   EXPLAIN_HINT,
   type FailureEntry,
   getStateFilePath,
-  type QualityState,
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
