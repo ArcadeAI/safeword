@@ -65,6 +65,18 @@ export function listItem(item: string, indent = 2): void {
 }
 
 /**
+ * Print the non-fatal config-merge warnings collected during reconcile (e.g. a
+ * jsonMerge target that exists but does not parse, so the merge was skipped).
+ * No-op when empty. Shared by `setup` and `upgrade` so the heading stays in sync.
+ * @param warnings
+ */
+export function printReconcileWarnings(warnings: string[]): void {
+  if (warnings.length === 0) return;
+  warn(`\n${warnings.length} config(s) could not be updated:`);
+  for (const message of warnings) listItem(message);
+}
+
+/**
  * Print key-value pair
  * @param key
  * @param value

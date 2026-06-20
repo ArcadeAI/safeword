@@ -38,7 +38,15 @@ import {
   type MigrationResult,
   planNamespaceMigration,
 } from '../utils/namespace-migration.js';
-import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import {
+  error,
+  header,
+  info,
+  listItem,
+  printReconcileWarnings,
+  success,
+  warn,
+} from '../utils/output.js';
 import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
@@ -159,6 +167,8 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
     info('\nCodex next step:');
     listItem(CODEX_TRUST_NEXT_STEP);
   }
+
+  printReconcileWarnings(result.warnings);
 
   success(`\nSafeword upgraded to v${VERSION}`);
 }
