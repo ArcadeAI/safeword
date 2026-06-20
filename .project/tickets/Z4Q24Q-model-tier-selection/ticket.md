@@ -47,7 +47,7 @@ Capability order: **frontier ≳ mid > small.** The relative ordering is what ma
 
 **Knock-on:** the BDD gate paragraph shrinks the same way, and the cross-skill divergence note mostly disappears (no weaker-rung ⇒ quality-review and the gate say the same thing). Also relieves the deferred gate-enforcement pressure — no tier ranking left to enforce; "different" stays the only mechanical check and "not weaker" holds by construction whenever the fresh-context default is taken.
 
-**Status:** specced only. Applies to quality-review (Loop step 1), bdd/TDD.md, bdd/SKILL.md (3 mirrors each) — own follow-up PR when approved.
+**Status:** shipped 2026-06-20 (user approved wording → "go forth"). Applied to quality-review (Loop step 1), bdd/TDD.md, bdd/SKILL.md, all 3 mirrors each. One refinement vs the spec: the BDD architecture-gate **mechanically requires a different model** (fail-closed), so it keeps a one-line note that it's stricter than quality-review's advisory loop (which accepts fresh-context-same-model) — the weaker-rung divergence is gone, this structural one remains by design.
 
 ## Related
 

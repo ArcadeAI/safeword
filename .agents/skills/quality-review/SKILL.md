@@ -95,23 +95,21 @@ Run the review in passes (MAX_PASSES = 3), not one-and-done.
 
 Each pass:
 
-1. **Review with a fresh, independent reviewer.** Independence is what catches
-   bugs: a same-model, same-context reviewer shares your blind spots, and
-   ungrounded self-correction can _degrade_ code rather than improve it. A
-   different equal-tier model already pays off (verifying is easier than
-   generating) — but that edge collapses on the subtle, hard-to-verify bugs you
-   most need caught, so never review on a model _below your tier_ (capability
-   class — e.g. frontier vs mid vs small). Spawn the reviewer in this order:
-   (1) a different model at or above your tier; (2) failing that, a fresh-context
-   pass on your own model; (3) a weaker different model only as a last resort.
-   Hand it only the diff and the ticket scope, have it apply §1–3, and return the
-   Output Format above.
+1. **Review with a fresh, independent reviewer** — one that doesn't share your
+   blind spots. A same-model, same-context reviewer shares them, and ungrounded
+   self-correction can _degrade_ code rather than improve it. **Prefer a
+   different model of comparable-or-better capability; if you don't have one,
+   run a fresh-context pass on your own model** — the usual path, since most
+   setups run a single model. Never review on a _weaker_ model: a fresh context
+   on your own model beats a weaker different one. Hand the reviewer only the
+   diff and the ticket scope, have it apply §1–3, and return the Output Format
+   above.
    - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
      auto-spawn, and `/agent` only switches between existing threads. Cursor:
      subagents.
-   - No sub-agent available? Apply the same order by hand — switch to a different
-     at-or-above-tier model if you can, else re-read in fresh context on your own
-     model. Independence is the point, not the mechanism.
+   - No sub-agent? Re-read in a fresh context (a different comparable-or-better
+     model if you can switch to one). Independence is the point, not the
+     mechanism.
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
 3. **Decide.** Stop when **Critical issues = None** — remaining suggestions are
