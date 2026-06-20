@@ -76,6 +76,23 @@ export function getStateFilePath(projectDirectory: string, sessionId: string): s
   return nodePath.join(resolveNamespaceRoot(projectDirectory), `quality-state-${sessionId}.json`);
 }
 
+/**
+ * Read and parse the per-session quality-state file, or `null` when it is absent
+ * or unreadable/unparseable. Centralizes the read+parse+tolerate-failure idiom the
+ * quality hooks share; read-only callers use this directly, while read-modify-write
+ * callers (post-tool, prompt-questions, the stop-quality writer) still own their
+ * own read+write so the write half stays explicit.
+ */
+export function readSessionState(projectDirectory: string, sessionId: string): QualityState | null {
+  try {
+    return JSON.parse(
+      readFileSync(getStateFilePath(projectDirectory, sessionId), 'utf8'),
+    ) as QualityState;
+  } catch {
+    return null;
+  }
+}
+
 /** Counter file for cross-session failure pattern tracking. */
 export function getCounterFilePath(projectDirectory: string): string {
   return nodePath.join(resolveNamespaceRoot(projectDirectory), 'failure-counts.json');
