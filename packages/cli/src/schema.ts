@@ -332,6 +332,11 @@ function managedPrettierPaths(ctx: ProjectContext): string[] {
   return ['.husky/_', ...resolvedIgnoreDirectories(ctx).map(dir => `${dir}/`)];
 }
 
+// Header line of the managed .prettierignore block — also its marker (re-applied
+// and re-rendered against this exact string). The "(owned dirs)" suffix marks the
+// post-EYRK34 format; the stable prefix is what stale-config-scan detects.
+const PRETTIER_EXCLUSIONS_HEADER = '# Safeword - managed prettier exclusions (owned dirs)';
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -1025,10 +1030,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // ctx factory + rerender (issue #293): a custom paths.projectRoot is excluded,
       // and the block re-renders in place on upgrade for an existing custom-root
       // install. Default/legacy output is byte-identical, so those installs no-op.
-      content: ctx =>
-        `\n# Safeword - managed prettier exclusions (owned dirs)\n${managedPrettierPaths(ctx).join('\n')}\n`,
+      content: ctx => `\n${PRETTIER_EXCLUSIONS_HEADER}\n${managedPrettierPaths(ctx).join('\n')}\n`,
       rerender: true,
-      marker: '# Safeword - managed prettier exclusions (owned dirs)',
+      marker: PRETTIER_EXCLUSIONS_HEADER,
     },
     '.codex/config.toml': [
       // Primary patch: retrofits the prompt-timestamp hook onto pre-existing
