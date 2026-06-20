@@ -28,6 +28,7 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 | define-behavior | Testing patterns, BDD research and patterns     |
 | scenario-gate   | Architecture patterns, test layer strategy      |
 | implement       | **Library versions, deprecated APIs, security** |
+| verify          | Flaky-test & regression patterns, coverage gaps |
 | done            | CI/CD patterns, release checklists              |
 
 ## 2. Research Angles (Primary Value)
