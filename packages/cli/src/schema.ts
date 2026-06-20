@@ -80,9 +80,14 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
     return {
       ...existing,
       mcpServers: {
-        ...mcpServers,
+        // Add-if-missing: seed our defaults first, then let any user-authored
+        // entry win by spreading existing servers last. This keeps `upgrade`
+        // from clobbering a customized context7/playwright definition (e.g. a
+        // hosted HTTP transport) while still injecting the default when the
+        // key is absent. (#255)
         context7: MCP_SERVERS.context7,
         playwright: MCP_SERVERS.playwright,
+        ...mcpServers,
       },
     };
   },
