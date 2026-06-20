@@ -31,6 +31,7 @@ import {
   type FailureEntry,
   getStateFilePath,
   type QualityState,
+  readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase, shouldReviewStep } from './lib/review-trigger.ts';
@@ -89,15 +90,8 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
 
   // Try session-scoped resolution first
   if (sessionId) {
-    const stateFile = getStateFilePath(projectDir, sessionId);
-    if (!existsSync(stateFile)) return fallbackGlobalScan();
-
-    let state: QualityState;
-    try {
-      state = JSON.parse(readFileSync(stateFile, 'utf8'));
-    } catch {
-      return fallbackGlobalScan();
-    }
+    const state = readSessionState(projectDir, sessionId);
+    if (!state) return fallbackGlobalScan();
 
     if (!state.activeTicket) return empty;
 
@@ -118,18 +112,6 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
   }
 
   return fallbackGlobalScan();
-}
-
-/** Read session state file once. Returns null if unavailable. */
-function readSessionState(sessionId?: string): QualityState | null {
-  if (!sessionId) return null;
-  const stateFile = getStateFilePath(projectDir, sessionId);
-  if (!existsSync(stateFile)) return null;
-  try {
-    return JSON.parse(readFileSync(stateFile, 'utf8'));
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -655,7 +637,7 @@ if (typecheckAdvice.advice !== null) {
 // this Stop path catches a boundary PostToolUse didn't see (e.g. a non-edit
 // phase bump) and the ordinary interactive stop. Dedup via lastReviewedStep /
 // lastReviewedPhase so each boundary is reviewed once across both triggers.
-const sessionState = readSessionState(input.session_id);
+const sessionState = readSessionState(projectDir, input.session_id);
 
 // Derive TDD step from test-definitions.md (not cache)
 const tddStep =

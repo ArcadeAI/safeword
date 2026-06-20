@@ -83,7 +83,11 @@ export function getStateFilePath(projectDirectory: string, sessionId: string): s
  * callers (post-tool, prompt-questions, the stop-quality writer) still own their
  * own read+write so the write half stays explicit.
  */
-export function readSessionState(projectDirectory: string, sessionId: string): QualityState | null {
+export function readSessionState(
+  projectDirectory: string,
+  sessionId: string | undefined,
+): QualityState | null {
+  if (!sessionId) return null;
   try {
     return JSON.parse(
       readFileSync(getStateFilePath(projectDirectory, sessionId), 'utf8'),
@@ -155,7 +159,7 @@ export function recordFailure(
         const counters = readCounters(projectDirectory);
         const entry = counters[pattern] ?? { count: 0, lastSeen: '', countAtLastSuggestion: null };
         entry.count += 1;
-        entry.lastSeen = new Date().toISOString().split('T')[0];
+        entry.lastSeen = new Date().toISOString().slice(0, 10);
         counters[pattern] = entry;
         writeCounters(projectDirectory, counters);
       }
