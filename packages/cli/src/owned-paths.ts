@@ -75,6 +75,15 @@ export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefi
 }
 
 /**
+ * The safeword-owned ignore directories for a context — the static base list plus
+ * the resolved custom `paths.projectRoot` (issue #273). Composition used by the
+ * formatter merges so the two-step resolution lives in one place.
+ */
+export function resolvedIgnoreDirectories(ctx: ProjectContext): readonly string[] {
+  return safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx));
+}
+
+/**
  * Build a JSON-merge that adds safeword-owned dirs to a customer formatter's
  * string-array exclude/ignore field so the tool skips them (ticket EYRK34).
  * Resolved at apply time from `ctx`, so a custom `paths.projectRoot` is excluded
@@ -93,9 +102,7 @@ export function dirGlobExcludeMerge(
     keys: [field],
     skipIfMissing: true,
     merge: (existing, ctx) => {
-      const safewordGlobs = safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx)).map(dir =>
-        globForDirectory(dir),
-      );
+      const safewordGlobs = resolvedIgnoreDirectories(ctx).map(dir => globForDirectory(dir));
       const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
       const merged = [...current];
       for (const glob of safewordGlobs) {
@@ -105,9 +112,7 @@ export function dirGlobExcludeMerge(
     },
     unmerge: (existing, ctx) => {
       const safewordGlobs = new Set(
-        safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx)).map(dir =>
-          globForDirectory(dir),
-        ),
+        resolvedIgnoreDirectories(ctx).map(dir => globForDirectory(dir)),
       );
       const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
       const cleaned = current.filter(entry => !safewordGlobs.has(entry));

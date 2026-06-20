@@ -11,8 +11,8 @@
 
 import {
   dirGlobExcludeMerge,
+  resolvedIgnoreDirectories,
   resolvedNamespaceDirectory,
-  safewordIgnoreDirectories,
 } from '../../owned-paths.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
 import { assignOrPrune } from '../../utils/json-merge.js';
@@ -153,7 +153,7 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     // (issue #273). Biome v2.2.0+ doesn't need /**.
     const safewordExcludes = [
       '!eslint.config.mjs',
-      ...safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx)).map(dir => `!${dir}`),
+      ...resolvedIgnoreDirectories(ctx).map(dir => `!${dir}`),
     ];
     const newIncludes = [...existingIncludes];
     for (const exclude of safewordExcludes) {
@@ -180,7 +180,7 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     const safewordExcludes = new Set([
       '!eslint.config.mjs',
       '!.safeword/**',
-      ...safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx)).map(dir => `!${dir}`),
+      ...resolvedIgnoreDirectories(ctx).map(dir => `!${dir}`),
     ]);
     const cleanedIncludes = existingIncludes.filter(
       (entry: string) => !safewordExcludes.has(entry),
