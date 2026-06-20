@@ -60,41 +60,41 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: A two-loop task is blocked by the same validator as a feature
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 638c6c9
+- [x] GREEN 3ecb35e
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A two-loop task is blocked for a missing quality review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 638c6c9
+- [x] GREEN 3ecb35e
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A single-loop task proceeds without a row
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 638c6c9
+- [x] GREEN 3ecb35e
+- [x] REFACTOR skip: no structural improvement needed
 
 ## Rule: The quality-review half is proven by its invocation log
 
 ### Scenario: A two-loop ticket without a logged quality review is blocked
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 638c6c9
+- [x] GREEN 3ecb35e
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A two-loop ticket with a logged quality review passes the review check
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 638c6c9
+- [x] GREEN 3ecb35e
+- [x] REFACTOR skip: no structural improvement needed
 
 ### Scenario: A single-loop ticket is not blocked for a missing quality review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 638c6c9
+- [x] GREEN 3ecb35e
+- [x] REFACTOR skip: no structural improvement needed
 
 ---
 
