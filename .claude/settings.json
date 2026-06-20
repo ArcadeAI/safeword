@@ -21,7 +21,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-auto-upgrade.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-auto-upgrade.ts",
+            "asyncRewake": true
           }
         ]
       },
@@ -80,15 +81,6 @@
           {
             "type": "command",
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-compact-context.ts"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-update-check.ts",
-            "async": true
           }
         ]
       }
