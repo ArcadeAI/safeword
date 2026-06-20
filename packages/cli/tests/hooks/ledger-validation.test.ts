@@ -270,7 +270,7 @@ describe('validateLedger — multiple scenarios', () => {
   });
 });
 
-describe('validateLedger — W610WW loop-count gating', () => {
+describe('validateLedger — W610WW annotated-loop gating', () => {
   // Build content with an explicit list of scenario blocks and an optional
   // cross-scenario row, so the loop count (scenarios.length) is exact.
   function withScenarios(scenarios: string[], crossScenario?: string): string {
@@ -401,7 +401,8 @@ describe('wholeTicketPassApplies — unified trigger for row + review (W610WW)',
   it('legacy unannotated multi-scenario → does NOT apply (legacy exemption holds for BOTH halves)', () => {
     // The regression guard: a legacy ticket with >=2 unannotated scenarios must
     // not trigger the whole-ticket pass — neither the row nor the /quality-review
-    // requirement. countRgrLoops alone (>=2) wrongly triggered the review half.
+    // requirement. A naive loop count (>=2) would wrongly trigger the review
+    // half; wholeTicketPassApplies must gate on annotations, not raw count.
     expect(wholeTicketPassApplies(buildLedger([legacy('a'), legacy('b'), legacy('c')]))).toBe(
       false,
     );

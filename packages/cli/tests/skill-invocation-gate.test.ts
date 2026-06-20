@@ -122,7 +122,7 @@ describe('skill-invocation gate (147)', () => {
 
     it('log file missing fails closed (blocks)', () => {
       const root = mkdtempSync(nodePath.join(tmpdir(), 'gate-'));
-      // No .safeword/ directory at all
+      // No .safeword-project/ directory at all
 
       const result = checkSkillInvocations({
         sessionId: 'session-abc',

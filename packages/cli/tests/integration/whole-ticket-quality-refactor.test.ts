@@ -4,8 +4,9 @@
  * Exercises the wired done-gate path:
  *  - The cross-scenario ledger validation now runs for TASKS too (the isFeature
  *    fence is gone), so a multi-loop task with a missing refactor row is blocked.
- *  - The skill-invocation requirement is loop-count-aware: a >=2-loop ticket
- *    needs /quality-review; a single-loop ticket does not.
+ *  - The skill-invocation requirement is annotation-aware (wholeTicketPassApplies):
+ *    a ticket with >=2 ANNOTATED loops needs /quality-review; single-loop and
+ *    pure-legacy (unannotated) tickets do not.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
