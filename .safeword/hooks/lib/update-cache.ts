@@ -18,8 +18,12 @@
  * - postinstall RCE → closed by Bun: `bun`/`bunx` do NOT run a dependency's
  *   lifecycle scripts by default (https://bun.com/docs/pm/lifecycle), so a
  *   malicious `postinstall` never executes on install.
- * - tampered tarball → closed by the registry integrity hash Bun checks on
- *   install (the tarball must match the registry's signed `dist.integrity`).
+ * - tampered/corrupted tarball (a proxy or MITM serving bytes that don't match
+ *   the published metadata) → closed by the SRI integrity hash Bun checks before
+ *   extraction (https://bun.com/docs/pm/cli/install): the tarball bytes must
+ *   match the registry's `dist.integrity`. Note this is a content hash, not a
+ *   signature — it does not by itself prove the *publisher* is authentic (see the
+ *   residual below).
  * - injection via the version string → closed at the call site: `latest` is
  *   validated as plain semver and passed to `execFileSync` (no shell) in
  *   session-auto-upgrade.ts.
