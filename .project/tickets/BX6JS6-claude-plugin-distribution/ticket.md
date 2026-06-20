@@ -3,11 +3,13 @@ id: BX6JS6
 slug: claude-plugin-distribution
 type: task
 phase: intake
-status: in_progress
+status: superseded
 relates_to: [D6GTXY, BJX7WR, DXYKJX]
 created: 2026-06-20T19:18:22.605Z
-last_modified: 2026-06-20T19:18:22.605Z
+last_modified: 2026-06-20T22:24:00.000Z
 ---
+
+> **Moved to GitHub issue [arcadeai/safeword#292](https://github.com/ArcadeAI/safeword/issues/292)** — that is now the canonical home for this spike. This file is a tombstone pointer.
 
 # Spike: ship safeword's Claude Code surface as a fattened plugin
 
@@ -77,3 +79,4 @@ Phase-1 scope = **hooks only** (skills deferred). Move ONE hook (e.g. `session-v
 
 - 2026-06-20T19:18Z Created from the readable-is-the-goal /figure-it-out. Plugin chosen for the Claude surface (readable + fast + native auto-update; repo-committed auto-enable verified; trust gate = same as today). Feasibility audit launched.
 - 2026-06-20T19:25Z Feasibility audit landed: **no hard blockers.** Decisive plus — hooks have ZERO third-party deps, so the plugin needs no node_modules and the CLI-path bootstrapping problem disappears. All hook-config features (matcher/if/asyncRewake) supported by plugin hooks.json; state↔code split already clean (SAFEWORD_TRANSIENT_PATHS). Six LOW-risk adaptations identified (path substitution, generate hooks.json, schema ownedDirs, soften skill/guide path refs, release copy step, parity scope shift). Phasing: Phase 1 = hooks only (no UX change); defer skills (Phase 2) due to `/safeword:` namespace impact.
+- 2026-06-20T22:24Z Moved to GitHub issue arcadeai/safeword#292 (canonical). Marked superseded; this file is a pointer.
