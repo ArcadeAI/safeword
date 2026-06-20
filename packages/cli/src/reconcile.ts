@@ -314,6 +314,10 @@ export interface ReconcileResult {
   removed: string[];
   packagesToInstall: string[];
   packagesToRemove: string[];
+  // Non-fatal issues surfaced during execution (e.g. a jsonMerge target that
+  // exists but doesn't parse, so the merge was skipped rather than silently lost).
+  // Empty on a dry run, which never executes merges.
+  warnings: string[];
 }
 
 interface ReconcileOptions {
@@ -384,6 +388,7 @@ export async function reconcile(
       removed: plan.wouldRemove,
       packagesToInstall: plan.packagesToInstall,
       packagesToRemove: plan.packagesToRemove,
+      warnings: [],
     };
   }
 
@@ -397,6 +402,7 @@ export async function reconcile(
     removed: result.removed,
     packagesToInstall: plan.packagesToInstall,
     packagesToRemove: plan.packagesToRemove,
+    warnings: result.warnings,
   };
 }
 
@@ -724,13 +730,15 @@ interface ExecutionResult {
   created: string[];
   updated: string[];
   removed: string[];
+  warnings: string[];
 }
 
 function executePlan(plan: ReconcilePlan, ctx: ProjectContext): ExecutionResult {
   const created: string[] = [];
   const updated: string[] = [];
   const removed: string[] = [];
-  const result = { created, updated, removed };
+  const warnings: string[] = [];
+  const result = { created, updated, removed, warnings };
 
   for (const action of plan.actions) {
     executeAction(action, ctx, result);
@@ -775,7 +783,7 @@ function executeAction(action: Action, ctx: ProjectContext, result: ExecutionRes
       break;
     }
     case 'json-merge': {
-      executeJsonMerge(ctx.cwd, action.path, action.definition, ctx);
+      executeJsonMerge(ctx.cwd, action.path, action.definition, ctx, result);
       break;
     }
     case 'json-unmerge': {
@@ -880,12 +888,29 @@ function executeJsonMerge(
   path: string,
   definition: JsonMergeDefinition,
   ctx: ProjectContext,
+  result: ExecutionResult,
 ): void {
   const fullPath = nodePath.join(cwd, path);
   const rawExisting = readJson(fullPath) as Record<string, unknown> | undefined;
 
-  // Skip if file doesn't exist and skipIfMissing is set
-  if (!rawExisting && definition.skipIfMissing) return;
+  if (!rawExisting) {
+    // A present-but-unparseable target (JSONC comments, a trailing comma, or genuine
+    // malformation) reads as undefined just like an absent file. Skipping is correct —
+    // overwriting would clobber the customer's config — but doing it silently hides the
+    // merge that never landed (the #262 commented-`.markdownlint-cli2.jsonc` case, and the
+    // same trap for any jsonMerge target). Distinguish the two: warn when the file exists,
+    // stay silent when it's genuinely absent.
+    if (exists(fullPath)) {
+      result.warnings.push(
+        `Skipped merging safeword config into ${path}: the file exists but could not be read as JSON ` +
+          `(it may contain JSONC comments, which the merge engine does not support, or otherwise not be valid JSON). ` +
+          `Add these keys manually if you need them: ${definition.keys.join(', ')}.`,
+      );
+      return;
+    }
+    // Genuinely absent: honor skipIfMissing; otherwise fall through and create it.
+    if (definition.skipIfMissing) return;
+  }
 
   const existing = rawExisting ?? {};
   const merged = definition.merge(existing, ctx);

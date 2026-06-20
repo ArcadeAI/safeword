@@ -274,13 +274,19 @@ export function makeScriptsExecutable(dirPath: string): void {
 }
 
 /**
- * Read JSON file
+ * Read and parse a JSON file, best-effort: returns `undefined` when no JSON
+ * value can be obtained from the path — whether it is absent, empty, unparseable
+ * (e.g. JSONC comments or malformed), or unreadable as a file at all. The read is
+ * inside the `try` so a directory at the path (`EISDIR`) or a permission error
+ * (`EACCES`) degrades to `undefined` like a parse failure, instead of throwing
+ * uncaught and crashing callers (e.g. reconcile's jsonMerge). All callers already
+ * treat the result as `T | undefined`.
  * @param path
  */
 export function readJson(path: string): unknown {
-  const content = readFileSafe(path);
-  if (!content) return undefined;
   try {
+    const content = readFileSafe(path);
+    if (!content) return undefined;
     return JSON.parse(content) as unknown;
   } catch {
     return undefined;

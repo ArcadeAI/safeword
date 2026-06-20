@@ -24,7 +24,11 @@ export type {
   ManagedFileDefinition,
   ProjectContext,
 } from './packs/types.js';
-import { generateOwnedPathsModule, SAFEWORD_IGNORE_DIRS } from './owned-paths.js';
+import {
+  dirGlobExcludeMerge,
+  generateOwnedPathsModule,
+  SAFEWORD_IGNORE_DIRS,
+} from './owned-paths.js';
 import type { FileDefinition, JsonMergeDefinition, ManagedFileDefinition } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
@@ -110,6 +114,38 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
     return result;
   },
 };
+
+/**
+ * markdownlint-cli2 `ignores` merge — add safeword-owned dirs so a consuming
+ * repo's markdownlint never flags safeword's generated agent docs (ticket #262,
+ * extends the EYRK34 formatter-ignore family alongside prettier/biome/dprint/oxfmt).
+ *
+ * Why this and not `.markdownlintignore`: markdownlint-cli2 does NOT read
+ * `.markdownlintignore` at all (it's a markdownlint-cli v1 file), and even when a
+ * tool honors it, lint-staged passes explicit absolute file paths that bypass
+ * ignore-file globbing entirely. The cli2 `ignores` array is the one mechanism
+ * that filters files even when passed explicitly — verified against lint-staged's
+ * default absolute-path invocation.
+ *
+ * Glob form (see the call below) prefixes each dir with a leading globstar,
+ * unlike the bare trailing-globstar form used by dprint/oxfmt: lint-staged passes
+ * absolute paths by default, and the leading globstar is required for the glob to
+ * match `/abs/repo/.claude/...`. It also still matches the relative tree-glob and
+ * relative-explicit invocations.
+ *
+ * `ignores` is a cli2-only option, so it lives solely in `.markdownlint-cli2.jsonc`
+ * (the standard `.markdownlint.*` rule files have no `ignores` field). `skipIfMissing`
+ * → only ever touches a config the customer already has, never imposes markdownlint.
+ *
+ * Limitation (shared by the sibling biome/dprint/oxfmt `.jsonc` merges): the merge
+ * engine parses with `JSON.parse`, so a `.markdownlint-cli2.jsonc` that actually
+ * uses comments parses as undefined and `skipIfMissing` makes this a safe no-op —
+ * the ignores aren't added, but the customer's commented config is never clobbered.
+ * Stripping comments to parse would round-trip the file through `JSON.stringify` and
+ * destroy those comments, which is worse than the no-op; comment-preserving JSONC
+ * editing is a future improvement for the whole merge engine, not this ticket.
+ */
+const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
 const CODEX_PROMPT_TIMESTAMP_HOOK_PATCH = `
 [[hooks.UserPromptSubmit]]
@@ -862,6 +898,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     '.mcp.json': MCP_JSON_MERGE,
     '.cursor/mcp.json': MCP_JSON_MERGE,
+
+    // markdownlint-cli2 ignores - hide safeword's generated agent docs from a
+    // consuming repo's markdown lint hooks (ticket #262). cli2's only JSON config
+    // form is `.jsonc`; yaml/cjs/mjs variants fall back to manual wiring.
+    '.markdownlint-cli2.jsonc': MARKDOWNLINT_CLI2_IGNORES_MERGE,
 
     '.cursor/hooks.json': {
       keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],

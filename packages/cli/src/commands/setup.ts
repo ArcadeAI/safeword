@@ -30,7 +30,15 @@ import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
-import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import {
+  error,
+  header,
+  info,
+  listItem,
+  printReconcileWarnings,
+  success,
+  warn,
+} from '../utils/output.js';
 import { type Languages } from '../utils/project-detector.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { getWorkspacePatterns } from '../utils/workspaces.js';
@@ -294,6 +302,8 @@ function printSetupSummary(options: SetupSummaryOptions): void {
     ...pythonFiles.filter(f => f === 'pyproject.toml'),
   ];
   printModifiedFiles(modifiedFiles);
+
+  printReconcileWarnings(result.warnings);
 
   // Next steps
   info('\nNext steps:');
