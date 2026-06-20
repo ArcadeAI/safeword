@@ -61,6 +61,8 @@ Each is a distinct body of work. Most agents pattern-match "it's just an error s
 - **Patterns and tradeoffs:** recent postmortems, benchmarks, contested debates
 - **Boundary conditions:** what breaks under scale, load, failure, or adversarial input
 
+**Model note.** This research runs inline by default — no sub-agent. If your harness fans the domains out to sub-agents, treat them as discovery/producers, not reviewers: _angle_ diversity is the lever (more domains, fresh interpretations), and cheaper or varied models are fine, because you synthesize and adversarially verify their findings in Phase 4. `quality-review`'s _no-weaker_ reviewer floor does **not** apply here — nothing is reviewing your own work yet.
+
 **The trap.** _"This is just taste / style / vibes"_ is the warning sign, not the exit. Your training data taught you which domains feel aesthetic — those are usually the ones with the most established research you haven't met. Run 3a anyway.
 
 **Only-valid skip.** The domain list comes up genuinely empty after honest enumeration: no humans affected, no measurable outcome, reversible in seconds. State the skip and why.
