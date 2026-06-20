@@ -1045,6 +1045,34 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(result.mcpServers.context7).toEqual(MCP_SERVERS.context7);
       expect(result.mcpServers.playwright).toEqual(MCP_SERVERS.playwright);
     });
+
+    it('should not rewrite .mcp.json when servers are already correct (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      // A user-authored server ordered before our managed ones; both defaults present.
+      const onDisk = `${JSON.stringify(
+        {
+          mcpServers: {
+            acme: { command: 'bunx', args: ['@acme/custom-mcp@latest'] },
+            context7: { url: 'https://mcp.context7.com/mcp' },
+            playwright: { command: 'bunx', args: ['@playwright/mcp@latest'] },
+          },
+        },
+        undefined,
+        2,
+      )}\n`;
+      writeFileSync(mcpPath, onDisk);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      // Idempotent: byte-identical, no key reordering churn.
+      expect(readFileSync(mcpPath, 'utf8')).toBe(onDisk);
+    });
   });
 
   describe('reconcile() - dryRun option', () => {

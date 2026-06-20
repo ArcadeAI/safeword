@@ -76,25 +76,28 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
   keys: ['mcpServers.context7', 'mcpServers.playwright'],
   removeFileIfEmpty: true,
   merge: existing => {
-    const mcpServers = (existing.mcpServers as Record<string, unknown>) ?? {};
-    return {
-      ...existing,
-      mcpServers: {
-        // Add-if-missing: seed our defaults first, then let any user-authored
-        // entry win by spreading existing servers last. This keeps `upgrade`
-        // from clobbering a customized context7/playwright definition (e.g. a
-        // hosted HTTP transport) while still injecting the default when the
-        // key is absent. (#255)
-        context7: MCP_SERVERS.context7,
-        playwright: MCP_SERVERS.playwright,
-        ...mcpServers,
-      },
-    };
+    const mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
+    // Add-if-missing: preserve any user-authored entry — including its key
+    // ordering — and inject safeword's default only when the server key is
+    // absent. This keeps `upgrade` from clobbering a customized
+    // context7/playwright definition (e.g. a hosted HTTP transport), and
+    // spreading existing first means an already-correct file produces an
+    // identical merge (no write churn). (#255)
+    mcpServers.context7 ??= MCP_SERVERS.context7;
+    mcpServers.playwright ??= MCP_SERVERS.playwright;
+    return { ...existing, mcpServers };
   },
   unmerge: existing => {
     const result = { ...existing };
     const mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
 
+    // Blind-delete on uninstall: removing the server names safeword introduced
+    // is the predictable inverse of install and matches the package.json /
+    // .cursor/hooks.json unmerges. A value-match "delete-if-ours" was
+    // considered but rejected — it can't tell a user customization from a
+    // server installed by an older safeword version (different default value),
+    // so it would orphan stale entries. uninstall is an explicit destructive
+    // action; #255 is about upgrade not clobbering, which the merge handles.
     delete mcpServers.context7;
     delete mcpServers.playwright;
 
