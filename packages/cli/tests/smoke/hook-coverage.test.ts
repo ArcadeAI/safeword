@@ -39,7 +39,6 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'session-lint-check.ts': SESSION_STARTUP,
   'session-compact-context.ts': SESSION_STARTUP,
   'session-auto-upgrade.ts': SESSION_STARTUP,
-  'session-update-check.ts': SESSION_STARTUP,
   'session-cleanup-quality.ts': SESSION_STARTUP,
   'session-start-reentry.ts': SESSION_STARTUP,
   'session-author-model.ts': SESSION_STARTUP,

@@ -425,6 +425,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/audit.md',
     '.claude/commands/cleanup-zombies.md',
     '.safeword/.gherkin-lintrc',
+    // Merged into session-auto-upgrade.ts — check + apply now run in one pass (XQ9CXA)
+    '.safeword/hooks/session-update-check.ts',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -600,9 +602,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-auto-upgrade.ts': {
       template: 'hooks/session-auto-upgrade.ts',
-    },
-    '.safeword/hooks/session-update-check.ts': {
-      template: 'hooks/session-update-check.ts',
     },
     '.safeword/hooks/session-cleanup-quality.ts': {
       template: 'hooks/session-cleanup-quality.ts',
