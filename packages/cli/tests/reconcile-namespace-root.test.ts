@@ -156,25 +156,56 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     await runInstall();
 
     const gitignore = readFileSync(nodePath.join(cwd, 'team-ns', '.gitignore'), 'utf8');
+    // Leading-slash-anchored so they match only the root-level transient files,
+    // not a same-named file deeper in the tree (e.g. tickets/.../re-entry.md).
     for (const name of [
-      'quality-state*.json',
-      'failure-counts.json',
-      'skill-invocations.log',
-      're-entry.md',
-      'dependency-readiness.json',
+      '/quality-state*.json',
+      '/failure-counts.json',
+      '/skill-invocations.log',
+      '/re-entry.md',
+      '/dependency-readiness.json',
     ]) {
       expect(gitignore).toContain(name);
     }
-    // Durable siblings must stay tracked — no bare wildcard that would swallow them.
+    // Durable siblings must stay tracked — no bare wildcard, and every pattern
+    // is root-anchored (starts with `/`) so it can't recurse into tickets/.
     expect(gitignore).not.toMatch(/^\*\s*$/m);
     expect(gitignore).not.toContain('tickets');
+    for (const line of gitignore.split('\n')) {
+      if (line === '' || line.startsWith('#')) continue;
+      expect(line.startsWith('/'), `pattern must be root-anchored: ${line}`).toBe(true);
+    }
   });
 
   it('DEV1.AC4.default_root_gets_transient_gitignore', async () => {
     await runInstall();
 
-    expect(existsSync(nodePath.join(cwd, '.project', '.gitignore'))).toBe(true);
+    const gitignore = readFileSync(nodePath.join(cwd, '.project', '.gitignore'), 'utf8');
+    expect(gitignore).toContain('/re-entry.md');
+    expect(gitignore).toContain('/quality-state*.json');
     expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
+  });
+
+  // paths.projectRoot: '.' resolves the namespace to the repo root, where a
+  // per-root .gitignore would BE the user's own root .gitignore. Install must
+  // not clobber it, and a full uninstall must not delete it (issue #272 review).
+  it('DEV1.AC4.repo_root_namespace_never_manages_root_gitignore', async () => {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: '.' } }),
+    );
+    const rootGitignore = nodePath.join(cwd, '.gitignore');
+    writeFileSync(rootGitignore, 'node_modules/\nmy-secret.env\n');
+
+    await runInstall();
+    // Our managed transient block is never appended as a per-root file here, and
+    // the user's content survives untouched.
+    expect(readFileSync(rootGitignore, 'utf8')).toContain('my-secret.env');
+
+    await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', createProjectContext(cwd));
+    expect(existsSync(rootGitignore), 'root .gitignore must survive full uninstall').toBe(true);
+    expect(readFileSync(rootGitignore, 'utf8')).toContain('my-secret.env');
   });
 
   it('DEV1.AC4.upgrade_on_project_repo_stays_project', async () => {

@@ -237,10 +237,15 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
  * root resolves, and git applies each pattern relative to that directory. The
  * legacy-prefixed managed-file key is remapped to the resolved root by
  * `withResolvedNamespaceRoot`.
+ *
+ * Patterns are leading-slash-anchored so they match only the transient files at
+ * the namespace root — where the hooks write them — and never a same-named file
+ * deeper in the tree (e.g. a `tickets/.../re-entry.md`). This mirrors the
+ * repo-root block, whose `.project/re-entry.md` entries are likewise anchored.
  */
-const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-managed)\n${NAMESPACE_TRANSIENT_BASENAMES.join(
-  '\n',
-)}\n`;
+const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-managed)\n${NAMESPACE_TRANSIENT_BASENAMES.map(
+  name => `/${name}`,
+).join('\n')}\n`;
 
 /**
  * Top-level dirs a customer's prettier must skip so safeword's files don't dirty
