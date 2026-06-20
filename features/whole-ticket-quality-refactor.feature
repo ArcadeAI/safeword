@@ -1,4 +1,10 @@
-@whole-ticket-quality-refactor.DEV1.AC2
+# Behavior source for W610WW. The backing implementation is proven end-to-end by
+# vitest, not the cucumber lane: tests/hooks/ledger-validation.test.ts (loop-count
+# gating + countRgrLoops), tests/skill-invocation-gate.test.ts (requiredSkillsForDone),
+# and tests/integration/whole-ticket-quality-refactor.test.ts (the done gate spawned
+# against a temp repo). The lane stays @wip rather than duplicate that stop-hook
+# harness in step definitions — same stance as formatter-aware-lint-hook.feature.
+@wip @whole-ticket-quality-refactor.DEV1.AC2
 Feature: Whole-ticket quality review and refactor before verify
 
   The end of implementation runs one whole-ticket /quality-review then
