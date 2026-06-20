@@ -124,6 +124,14 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  * `ignores` is a cli2-only option, so it lives solely in `.markdownlint-cli2.jsonc`
  * (the standard `.markdownlint.*` rule files have no `ignores` field). `skipIfMissing`
  * → only ever touches a config the customer already has, never imposes markdownlint.
+ *
+ * Limitation (shared by the sibling biome/dprint/oxfmt `.jsonc` merges): the merge
+ * engine parses with `JSON.parse`, so a `.markdownlint-cli2.jsonc` that actually
+ * uses comments parses as undefined and `skipIfMissing` makes this a safe no-op —
+ * the ignores aren't added, but the customer's commented config is never clobbered.
+ * Stripping comments to parse would round-trip the file through `JSON.stringify` and
+ * destroy those comments, which is worse than the no-op; comment-preserving JSONC
+ * editing is a future improvement for the whole merge engine, not this ticket.
  */
 const MARKDOWNLINT_IGNORE_GLOBS = SAFEWORD_IGNORE_DIRS.map(dir => `**/${dir}/**`);
 
