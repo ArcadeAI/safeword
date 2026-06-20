@@ -39,6 +39,19 @@ The replan/resume-check signal (`replan-relevance.ts`) is intentionally scoped t
 - Warn when the branch is significantly behind **and** especially when upstream commits touch files the current ticket/branch is modifying (the high-signal case).
 - Keep it a lightweight nudge ("behind N; upstream touched files X you're editing — integrate first"), not a hard block. Don't fetch on every prompt (cost/offline); a session-start or pre-implement check is enough.
 
+## Decided approach (figure-it-out, 2026-06-20)
+
+Revalidated against current `main` (post-#266): gap still open — no hook computes `origin/main` divergence; unclaimed; no duplicate. Key find: `session-start-reentry.ts` already warns (via `detectConflictFiles`) when **another local session** edited dirty files — 9E6Q4V is the **upstream axis** of that same pattern.
+
+**Extend `session-start-reentry.ts` with a no-fetch upstream-divergence warning:**
+
+- `detectUpstreamDivergence(projectRoot)` in `lib/re-entry`: `behind = git rev-list --count HEAD..origin/main` (LOCAL ref, **no fetch**); if `behind > 0`, intersect `git diff --name-only HEAD...origin/main` with (dirty files ∪ ticket-referenced paths) — reuse `replan-relevance`'s `relevantChangedPaths` for the overlap.
+- Sibling `renderUpstreamWarning` line (additionalContext), nudge not block: "behind N as of last fetch; upstream touched files you're editing: X — `git fetch` + integrate first."
+- **No fetch** (matches the SessionStart hook layer's no-I/O ethos + `replan-relevance` purity); the message owns ref-staleness by prompting `git fetch`.
+- v1 = behind-count + overlap + fetch-prompt. Defer a secondary "origin/main ref mtime is old → fetch" trigger unless the never-fetch false-reassurance shows up.
+- **Rejected:** new standalone hook (extra parity/schema wiring); fetch-on-session (network/offline/latency for marginal freshness).
+- Ships cross-harness as a hook: `templates/hooks/` source + `.safeword/hooks/` dogfood + Codex parity; tests in `packages/cli/tests/hooks/`.
+
 ## Out of scope
 
 - The condensed-Cursor-rule drift problem itself (a separate symptom) — ticket 151's `@`-reference migration already addresses that by eliminating duplicated bodies.
@@ -52,3 +65,4 @@ The replan/resume-check signal (`replan-relevance.ts`) is intentionally scoped t
 
 - 2026-06-19 Filed from the reasoning-skills epic (B6MZ4Z) retro: discovered at push-time that the branch was 28 behind and main's ticket-151 Cursor migration had obsoleted this epic's condensed-Cursor work; the resume-check had only counted the branch's own commits. Captured as a process issue per user request.
 - 2026-06-19 `/quality-review` (provenance gate, dogfooded): the central claim was filed as fact but only inferred — **verified** it against `.safeword/hooks/lib/replan-relevance.ts` (window = commits since `last_modified` on the local branch ∩ ticket-referenced paths; history signal deliberately deferred; no `origin/main` fetch). Upgraded the claim to `(verified)`, reframed as an _adjacent_ signal (not a bug in the path-relevance filter), and cross-linked the replan family (153 / 97BZ9S / E11N48; TT1MQW is a different upstream). No duplicate ticket found.
+- 2026-06-20 Picked up post-#266-merge. Revalidated: gap still open on current `main` (no hook computes origin/main divergence; unclaimed; no dup). `/figure-it-out` → **decided approach** (see section above): extend `session-start-reentry.ts` (no-fetch, reuse `detectConflictFiles` pattern + `replan-relevance` filter), nudge not block. Web-research skip justified (internal hook design + in-repo precedent). Ready for implement.
