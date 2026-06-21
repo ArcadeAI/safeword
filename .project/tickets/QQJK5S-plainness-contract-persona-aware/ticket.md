@@ -21,6 +21,17 @@ last_modified: 2026-06-21T14:24:00Z
 - Decide the detection mechanism: read `personas.md`/config for active audience, vs. a static "assume they may not read code — gloss on first use" default. `/figure-it-out` the tradeoff (false-glossing annoys TBs; under-glossing dead-ends NTBs).
 - Out of scope: rewriting the gate messages themselves (downstream of this rule).
 
+## Acceptance — must thread NTB **and** TB (don't tax the TB)
+
+The failure mode is "fix NTB, annoy TB." The reworded rule must satisfy all three, or it's not done:
+
+- **Gloss on actionability, not on detected audience.** A term gets a one-clause plain gloss the first time it's load-bearing in an *ask* (a block, a decision, a "do X next") — the moment an NTB is stuck. Routine narration a TB skims gets no gloss. The rule must read as audience-agnostic and self-calibrating, not "if NTB then explain everything."
+- **Layer, don't replace.** Plain lead + technical detail in the same message, so a TB eye-jumps to the detail and an NTB reads the lead. No information is removed for the TB; the rule extends the existing scan-not-read / front-load contract rather than fighting it.
+- **One gloss, once.** A term is glossed at most once per turn, in ≤1 clause. No re-defining, no paragraphs of reassurance — that reads as condescension to a TB and is the Clippy failure mode.
+
+Default behavior must thread both with no config. An optional `audience: ntb` signal may *raise* glossing aggressiveness for known-NTB projects, but is not required for the default to be safe. The cost asymmetry justifies erring toward glossing: an unneeded gloss is ~5 skippable words; a missing one is an NTB dead-end. Run `/figure-it-out` on the default rule wording before committing — being wrong here taxes the most-read surface in the product.
+
 ## Work Log
 
 - 2026-06-21T14:24:00Z Created from PRODUCT-AUDIT-ntb.md H1.
+- 2026-06-21T14:34:00Z Added NTB+TB threading acceptance criteria (gloss-on-actionability, layer-don't-replace, one-gloss-once) so the constraint is encoded, not just in review chat.
