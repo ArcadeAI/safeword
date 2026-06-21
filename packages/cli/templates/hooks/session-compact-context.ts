@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getTicketInfo } from './lib/active-ticket.ts';
-import { getStateFilePath } from './lib/quality-state.ts';
+import { readSessionState } from './lib/quality-state.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 interface HookInput {
@@ -36,21 +36,10 @@ if (existsSync(learningsIndex)) {
   );
 }
 
-// Read per-session state file (not legacy shared file)
-const stateFile = getStateFilePath(projectDir, input.session_id);
+// Read the per-session state to find the ticket bound to this session.
+const state = readSessionState(projectDir, input.session_id);
 
-if (!existsSync(stateFile)) {
-  process.exit(0);
-}
-
-let state: { activeTicket: string | null; gate: string | null };
-try {
-  state = JSON.parse(readFileSync(stateFile, 'utf8'));
-} catch {
-  process.exit(0);
-}
-
-if (!state.activeTicket) {
+if (!state?.activeTicket) {
   process.exit(0);
 }
 

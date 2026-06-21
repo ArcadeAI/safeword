@@ -113,7 +113,7 @@ describe('Astro config', () => {
       const astroRules = Object.keys(allRules).filter(name => name.startsWith('astro/'));
 
       // 8 from flat/recommended + 33 from flat/jsx-a11y-strict + 3 custom LLM rules
-      expect(astroRules.length).toBe(44);
+      expect(astroRules).toHaveLength(44);
     });
   });
 });

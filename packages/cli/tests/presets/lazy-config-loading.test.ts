@@ -71,7 +71,7 @@ const CJS_DETECTABLE_PLUGINS = [
  * and return the captured package names. Static regex (no dynamic construction)
  * so we don't trip `security/detect-non-literal-regexp`.
  */
-const TOP_LEVEL_IMPORT_RE = /^\s*import\s[^;]+\sfrom\s+['"]([^'"]+)['"]\s*(?:;\s*)?$/gm;
+const TOP_LEVEL_IMPORT_RE = /^[ \t]*import\s[^;]*?\sfrom\s+['"]([^'"]+)['"][ \t]*;?$/gm;
 
 function topLevelImportedPackages(sourceContent: string): string[] {
   const packages: string[] = [];

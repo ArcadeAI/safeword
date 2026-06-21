@@ -322,11 +322,11 @@ describe('Setup Command - Reconcile Integration', () => {
         const stdout = (error as { stdout?: string }).stdout || '';
 
         // If we see setup output and .safeword exists, the reconcile worked
-        if (
-          (stdout.includes('Setup') || stdout.includes('Created')) &&
-          existsSync(nodePath.join(temporaryDirectory, '.safeword'))
-        ) {
-          expect(true).toBe(true);
+        const sawSetupOutput = stdout.includes('Setup') || stdout.includes('Created');
+        const safewordCreated = existsSync(nodePath.join(temporaryDirectory, '.safeword'));
+        if (sawSetupOutput && safewordCreated) {
+          expect(sawSetupOutput).toBe(true);
+          expect(safewordCreated).toBe(true);
         } else {
           throw error;
         }
@@ -351,8 +351,8 @@ describe('Setup Command - Reconcile Integration', () => {
           encoding: 'utf8',
           timeout: 30_000,
         });
-        // Should not reach here
-        expect(true).toBe(false);
+        // Should not reach here — setup must error on an already configured project
+        expect.fail('setup should have thrown on an already configured project');
       } catch (error) {
         const stderr = (error as { stderr?: string }).stderr || '';
         expect(stderr.toLowerCase()).toContain('already configured');

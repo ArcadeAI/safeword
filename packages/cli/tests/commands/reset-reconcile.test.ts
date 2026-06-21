@@ -137,7 +137,7 @@ describe('Reset Command - Reconcile Integration', () => {
       const commandFiles = existsSync(commandsDirectory)
         ? readdirSync(commandsDirectory).filter(f => f.endsWith('.md'))
         : [];
-      expect(commandFiles.length).toBe(0);
+      expect(commandFiles).toHaveLength(0);
 
       // .claude/skills/* should be removed
       expect(existsSync(nodePath.join(temporaryDirectory, '.claude/skills/quality-review'))).toBe(

@@ -138,7 +138,7 @@ describe('Tailwind config', () => {
       );
 
       // 3 correctness + 8 stylistic = 11 total
-      expect(tailwindRules.length).toBe(11);
+      expect(tailwindRules).toHaveLength(11);
     });
   });
 

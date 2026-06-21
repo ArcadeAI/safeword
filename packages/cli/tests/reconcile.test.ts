@@ -1037,7 +1037,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       // Nothing should be updated
-      expect(result.updated.length).toBe(0);
+      expect(result.updated).toHaveLength(0);
     });
 
     it('should skip managed files if user modified them', async () => {
@@ -1572,8 +1572,8 @@ describe('Reconcile - Reconciliation Engine', () => {
       });
 
       // No actions means healthy
-      expect(result.actions.filter(a => a.type === 'write').length).toBe(0);
-      expect(result.updated.length).toBe(0);
+      expect(result.actions.filter(a => a.type === 'write')).toHaveLength(0);
+      expect(result.updated).toHaveLength(0);
     });
   });
 
