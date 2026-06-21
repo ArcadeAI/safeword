@@ -3,10 +3,10 @@ id: QQJK5S
 slug: plainness-contract-persona-aware
 parent: K6CAJN-ntb-experience-epic
 type: task
-phase: intake
-status: backlog
+phase: implement
+status: in_progress
 created: 2026-06-21T14:24:00Z
-last_modified: 2026-06-21T14:24:00Z
+last_modified: 2026-06-21T14:39:00Z
 ---
 
 # Make the "Talking to the user" plainness contract persona-aware
@@ -35,3 +35,4 @@ Default behavior must thread both with no config. An optional `audience: ntb` si
 
 - 2026-06-21T14:24:00Z Created from PRODUCT-AUDIT-ntb.md H1.
 - 2026-06-21T14:34:00Z Added NTB+TB threading acceptance criteria (gloss-on-actionability, layer-don't-replace, one-gloss-once) so the constraint is encoded, not just in review chat.
+- 2026-06-21T14:39:00Z Reworded the "Speak plainly" carve-out in SAFEWORD.md (template + byte-identical dogfood). Dropped "assume the user knows their stack"; replaced with gloss-on-actionability ("load-bearing in an ask"), layered inline gloss (fluent reader skips at no cost), one-gloss-per-turn, leave-narration-unglossed, and the cost-asymmetry rationale. Audience-agnostic default, no config required. Both copies byte-identical. Meets all three acceptance criteria.
