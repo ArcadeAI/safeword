@@ -107,3 +107,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [x] RED 2e8995d
 - [x] GREEN 669ba55
 - [ ] REFACTOR skip: per-section stamp rendering already factored into helpers
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 82e1dc1
