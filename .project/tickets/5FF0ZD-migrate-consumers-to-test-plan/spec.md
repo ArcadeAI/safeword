@@ -11,7 +11,7 @@ Make `test-runner.ts` and `/verify` consume the `safeword test-plan` resolver so
 ## Personas
 
 - Safeword Maintainer (SM) — owns the gates; needs one definition of how a language is tested.
-- Agent-Driven Developer (DEV) — relies on the done-gate to run the right suite for their language.
+- Technical Builder (TB) — relies on the done-gate to run the right suite for their language.
 
 ## Jobs To Be Done
 
@@ -35,7 +35,7 @@ Make `test-runner.ts` and `/verify` consume the `safeword test-plan` resolver so
 
 ### migrate-consumers.DEV1 — the done-gate runs my real suite (preserved/upgraded)
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my agent hits the done-gate in a Go/Rust/polyglot repo, I want my actual suite(s) run — no regression from the migration.
 

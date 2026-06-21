@@ -14,14 +14,14 @@ Safeword should deliver its standing agent instructions through files and hooks 
 
 ## Personas
 
-- Agent-Driven Developer (DEV)
+- Technical Builder (TB)
 - Safeword Maintainer (SM)
 
 ## Jobs To Be Done
 
 ### safeword-md-via-hooks.DEV1 - Keep safeword active without owning my context files
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I install safeword in a project with my own agent instructions, I want safeword to load its required workflow context without editing my `CLAUDE.md` or `AGENTS.md`, so I can customize those files without accidentally disabling safeword.
 

@@ -13,7 +13,7 @@ Make architectural awareness a working part of impl-plan authoring: before TDD s
 
 ## Personas
 
-- Agent-Driven Developer (DEV)
+- Technical Builder (TB)
 - Safeword Maintainer (SM)
 
 ## Vocabulary
@@ -24,7 +24,7 @@ Make architectural awareness a working part of impl-plan authoring: before TDD s
 
 ### adr-consultation.DEV1 — Implementations honor recorded decisions
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my agent plans an implementation, I want it to read the architecture decisions my project has already recorded and name the relevant ones in the impl plan, so I can trust new code follows the decisions instead of silently drifting.
 

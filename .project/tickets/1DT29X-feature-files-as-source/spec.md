@@ -17,7 +17,7 @@ because hooks enforce R/G/R from its checkboxes.
 ## Personas
 
 - Safeword Maintainer (SM)
-- Agent-Driven Developer (DEV)
+- Technical Builder (TB)
 
 ## Vocabulary
 
