@@ -78,7 +78,9 @@ describe('JS-app-only tooling is gated on real JS source (BE7C7B)', () => {
 
   it('does not emit knip.json without JS source, but does with it', () => {
     const generator = SAFEWORD_SCHEMA.managedFiles?.['knip.json']?.generator;
-    expect(generator?.(ctxWith(projectType({ hasJsSource: false })))).toBeUndefined();
-    expect(generator?.(ctxWith(projectType({ hasJsSource: true })))).toBeDefined();
+    const withoutJs = ctxWith(projectType({ hasJsSource: false }));
+    const withJs = ctxWith(projectType({ hasJsSource: true }));
+    expect(generator?.(withoutJs)).toBeUndefined();
+    expect(generator?.(withJs)).toBeDefined();
   });
 });

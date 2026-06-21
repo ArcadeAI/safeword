@@ -32,8 +32,10 @@ function readOnlyTicketFolderName(ticketsDirectory: string): string {
 function extractIdFromFolder(folderName: string): string {
   const match = FOLDER_PATTERN.exec(folderName);
   const id = match?.[1];
-  if (id === undefined)
-    throw new Error(`folder "${folderName}" did not match ${'{'}ID}-${'{'}slug} shape`);
+  if (id === undefined) {
+    // eslint-disable-next-line unicorn/no-incorrect-template-string-interpolation -- {ID}-{slug} is literal placeholder text in the message, not interpolation
+    throw new Error(`folder "${folderName}" did not match {ID}-{slug} shape`);
+  }
   return id;
 }
 

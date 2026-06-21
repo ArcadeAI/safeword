@@ -46,7 +46,8 @@ describe('E2E: Claude Code Hook Path Resolution', () => {
     const commands: string[] = [];
 
     // Extract all hook commands
-    for (const entries of Object.values(settings.hooks || {})) {
+    const hookGroups = Object.values(settings.hooks || {});
+    for (const entries of hookGroups) {
       for (const entry of entries as {
         hooks: { type: string; command: string }[];
       }[]) {
