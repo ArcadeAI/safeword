@@ -98,9 +98,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario Outline: The fingerprint changes only for structural change
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 769c058
+- [x] GREEN acdc2b7
+- [ ] REFACTOR skip: extracted scan helper during GREEN to satisfy complexity lint; no further structural improvement
 
 ### Scenario: An out-of-band change is healed and its lagging prose flagged at session start
 
