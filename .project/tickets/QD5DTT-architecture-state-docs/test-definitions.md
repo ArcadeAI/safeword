@@ -9,8 +9,8 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: The listed modules equal the real tree, with resolving references
 
 - [x] RED 70fb2d2
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN f73c7d5
+- [ ] REFACTOR skip: minimal enumeration, no structural improvement needed
 
 ### Scenario: Every skeleton node carries a non-empty purpose
 
