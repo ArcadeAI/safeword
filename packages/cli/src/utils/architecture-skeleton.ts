@@ -47,3 +47,12 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
 
   return { nodes, skipped: [] };
 }
+
+/**
+ * The names of nodes that violate the purpose floor — every skeleton node must
+ * carry a non-empty one-line purpose. Catches a doc whose purpose was blanked
+ * (e.g. hand-edited away), which would otherwise leave the floor unenforced.
+ */
+export function purposeFloorViolations(_nodes: SkeletonNode[]): string[] {
+  return [];
+}

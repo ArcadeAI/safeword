@@ -9,7 +9,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { extractSkeleton } from '../../src/utils/architecture-skeleton.js';
+import { extractSkeleton, purposeFloorViolations } from '../../src/utils/architecture-skeleton.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const context: { directory: string } = { directory: '' };
@@ -37,5 +37,17 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
     const pathByName = Object.fromEntries(skeleton.nodes.map(node => [node.name, node.path]));
     expect(pathByName.auth).toBe(nodePath.join('src', 'auth'));
     expect(pathByName.billing).toBe(nodePath.join('src', 'billing'));
+  });
+
+  it('gives every node a non-empty purpose and flags a node missing one', () => {
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.every(node => node.purpose.trim().length > 0)).toBe(true);
+
+    expect(purposeFloorViolations([{ name: 'blanked', path: 'src/blanked', purpose: '' }])).toEqual(
+      ['blanked'],
+    );
   });
 });
