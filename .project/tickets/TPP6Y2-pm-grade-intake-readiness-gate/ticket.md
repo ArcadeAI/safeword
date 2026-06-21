@@ -35,6 +35,9 @@ Recommend a **soft readiness gate framed by value-of-information triage**, not a
 - Surface it every Clarify turn via the existing `prompt-questions.ts` reminder (replaces dormant-by-default with an explicit nudge).
 - Reuse the shipped `## Open Questions` section in `spec.md` (ticket V6N5PW) as the ledger of unresolved unknowns.
 - Codify the VoI triage rule in SAFEWORD.md: reversible/local → run; irreversible/high-blast → resolve unknowns first.
+- **Reuse `elicit`, don't duplicate it.** The gate is the go/no-go threshold + the five dimensions; it *inherits* elicit's rules — the Iron Law (`elicit/SKILL.md:11`, never surface a question the agent could answer itself), information-gain ordering (`:28`), the anchoring guard (`:50`), and the stopping rule (`:54`) — and *escalates to* `/elicit` only when user-only unknowns remain at meaningful blast radius. The default path is a silent "go." The gate never re-implements question-asking.
+- **Stay silent during divergence.** The gate is a convergence device; it does not fire while the user is exploring/brainstorming (brainstorm's "user controls convergence", `brainstorm/SKILL.md:23`). It activates at the brainstorm→build handoff, not before.
+- **Never announce the framework.** Render the five prompts as plain questions, not "running the readiness assessment" (brainstorm anti-pattern, `brainstorm/SKILL.md:49`) — already house law, reused not re-derived.
 
 ## Research (four genuine /figure-it-out passes)
 
@@ -50,6 +53,9 @@ The five-prompt core converges from four independent intake disciplines — cros
 - A hard hook gate that blocks edits until an intake brief exists (rejected alternative — over-asks the common case).
 - A heavier PM intake-brief artifact (who asked / problem / success metric / reversibility) — defer to a later child of epic 169.
 - Changing the propose-and-converge flow or the existing phase/LOC/done gates.
+- Re-implementing question-asking mechanics (info-gain ordering, anchoring guard, stopping rule) — those live in `elicit`; the gate reuses them.
+- Auto-invoking `/elicit` on normal turns — escalation is reserved for user-only unknowns above a blast-radius threshold (premortem guard against resurrecting first-turn interrogation).
+- Folding the gate into the `elicit` skill — wrong cadence (the gate is a per-turn passive check; elicit is heavy active asking).
 
 ## Done when
 
@@ -68,3 +74,4 @@ The five-prompt core converges from four independent intake disciplines — cros
 - 2026-06-21T03:41:30.915Z Started: Created ticket TPP6Y2
 - 2026-06-21T03:41Z Scoped from /figure-it-out: soft readiness gate + VoI triage (Option A framed by C); rejected hard gate (B). Linked as first child of epic 169 (pm-grade-intake). Scope/out_of_scope/done_when set; two open questions recorded for user to resolve before implement.
 - 2026-06-21T04:13Z Ran three more genuine /figure-it-out passes (leadership, PM, architect/consultant) — captured as learnings. Folded the convergent five-prompt self-test core (intent / done / constraints / riskiest-assumption / request-shape) into scope + done_when. Fresh evidence added: Cagan is 10 questions not 4 (lightweight by design); constraint decay (arXiv 2605.06445) bounds the constraint prompt to "what must not break", not an NFR sweep. Two scope open questions still unresolved.
+- 2026-06-21T04:18Z Cross-checked against safeword's elicit + brainstorm skills and Claude's public skills (/figure-it-out). Product-self-knowledge skill irrelevant (docs-routing). Decision: gate REUSES elicit's rules (Iron Law, info-gain ordering, anchoring guard, stopping rule) and escalates to /elicit for high-blast user-only unknowns rather than duplicating them; gate stays silent during brainstorm/divergence; never announces the framework. Added to scope + out_of_scope. Two scope open questions held per user.
