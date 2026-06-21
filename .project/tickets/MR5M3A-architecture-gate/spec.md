@@ -15,7 +15,7 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — runs an AI agent on a real project and installs safeword to keep that agent design-validated. #204 gives them a recorded design; this gives them an _independently challenged_ one.
+- **Technical Builder (TB)** — runs an AI agent on a real project and installs safeword to keep that agent design-validated. #204 gives them a recorded design; this gives them an _independently challenged_ one.
 
 ## Vocabulary
 
@@ -27,7 +27,7 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 
 ### architecture-gate.DEV1 — The design is generated from evidence, then independently challenged, before code completes
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my agent records an implementation plan for a non-trivial feature, I want its key decisions backed by cited evidence and then challenged by an independent reviewer before the work can finish, so I can trust the design wasn't a confident first guess that only its own author ever checked.
 
@@ -39,7 +39,7 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 
 ### architecture-gate.DEV2 — The gate ships safely without bricking existing workflows
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I upgrade safeword, I want this new blocking gate to arrive inert until I deliberately enable it, so an in-flight feature doesn't suddenly become unshippable.
 

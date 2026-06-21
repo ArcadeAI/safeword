@@ -21,7 +21,7 @@ every surface through it, so the default flips to `.project/` while existing
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — gets `.project/` as the default and a configurable root; existing installs keep working.
+- **Technical Builder (TB)** — gets `.project/` as the default and a configurable root; existing installs keep working.
 - **Safeword Maintainer (SM)** — gets one resolver to call instead of re-deriving precedence per call site.
 
 ## Vocabulary
@@ -44,7 +44,7 @@ every surface through it, so the default flips to `.project/` while existing
 
 ### namespace-root-resolver.DEV1 — Read project knowledge from the resolved root
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When safeword reads my personas, glossary, architecture, tickets, and
 > learnings, I want them read from whichever root resolves, so the new
@@ -56,7 +56,7 @@ every surface through it, so the default flips to `.project/` while existing
 
 ### namespace-root-resolver.DEV2 — Point the namespace where my repo keeps it
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my project keeps shared knowledge somewhere other than the default, I
 > want to set the namespace root in config, so I can adopt safeword without

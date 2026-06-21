@@ -19,7 +19,7 @@ the fourth and final product-framing artifact the DZ2NM5 epic set out to merge.
 
 ## Personas
 
-**Agent-Driven Developer (DEV)** — primary beneficiary; gets purposeful,
+**Technical Builder (TB)** — primary beneficiary; gets purposeful,
 design-validated scenario coverage from the AC rung. **Safeword Maintainer (SM)**
 is the dogfooding subset, exercising this very layer when building safeword.
 
@@ -33,7 +33,7 @@ that prove it. (Project-wide `glossary.md` is not yet bootstrapped.)
 
 ### ac-layer.DEV1 — Trust that scenarios prove the feature, not just that code runs
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I have my agent build a feature, I want each job's required capabilities
 > pinned as acceptance criteria before any scenarios are written, so I can trust

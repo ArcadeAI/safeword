@@ -25,7 +25,7 @@ working untouched via automatic legacy detection.
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — runs arcade and/or safeword on a real project; feels the duplicate-maintenance pain and adopts/migrates the convention.
+- **Technical Builder (TB)** — runs arcade and/or safeword on a real project; feels the duplicate-maintenance pain and adopts/migrates the convention.
 - **Safeword Maintainer (SM)** — extends safeword itself; needs the resolution precedence defined in one place, not re-derived per call site.
 
 ## Vocabulary
@@ -37,7 +37,7 @@ working untouched via automatic legacy detection.
 
 ### project-namespace-default.DEV1 — Maintain shared knowledge in one place
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I run both arcade and safeword on the same project, I want both tools to
 > read my personas, glossary, and specs from one directory, so I can maintain
@@ -51,7 +51,7 @@ working untouched via automatic legacy detection.
 
 ### project-namespace-default.DEV2 — Point the namespace where my repo keeps it
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my project keeps shared knowledge somewhere other than the default, I
 > want to tell safeword where the namespace root lives, so I can adopt safeword
@@ -63,7 +63,7 @@ working untouched via automatic legacy detection.
 
 ### project-namespace-default.DEV3 — Upgrade an existing install without a flag day
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I upgrade safeword on a project that already uses `.safeword-project/`, I
 > want my existing layout to keep working untouched, so I can take the upgrade
@@ -75,7 +75,7 @@ working untouched via automatic legacy detection.
 
 ### project-namespace-default.DEV4 — Converge an old install via upgrade
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I run `safeword upgrade` on a project still using `.safeword-project/`, I
 > want it to offer to move me onto `.project/` as the recommended default, so I

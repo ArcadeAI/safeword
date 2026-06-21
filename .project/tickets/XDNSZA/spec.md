@@ -13,7 +13,7 @@ Give feature work an upfront design record — what approach was chosen, what al
 
 ## Personas
 
-- Agent-Driven Developer (DEV)
+- Technical Builder (TB)
 - Safeword Maintainer (SM)
 
 ## Vocabulary
@@ -24,7 +24,7 @@ Give feature work an upfront design record — what approach was chosen, what al
 
 ### impl-plan-artifact.DEV1 — Know why the implementation looks the way it does
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I revisit a feature my agent built weeks ago, I want the chosen approach, the rejected alternatives, and the known deviations recorded next to the ticket, so I can tell intentional design from accident without re-deriving it.
 

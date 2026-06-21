@@ -13,7 +13,7 @@ Safeword's quality workflows should behave correctly after installation into arb
 
 ## Personas
 
-- Agent-Driven Developer (DEV)
+- Technical Builder (TB)
 - Safeword Maintainer (SM)
 
 ## Vocabulary
@@ -27,7 +27,7 @@ Safeword's quality workflows should behave correctly after installation into arb
 
 ### verify-safeword-any-project.DEV1 - Finish work without false verification failures
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I use safeword in a Go, Python, Rust, npm, pnpm, yarn, Bun, or minimal project, I want `/verify` to run the checks my project actually supports, so I can trust the done gate instead of debugging missing scripts from another stack.
 

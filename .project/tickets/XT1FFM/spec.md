@@ -17,7 +17,7 @@ no AC) surface without a human cross-referencing by eye.
 
 ## Personas
 
-**Agent-Driven Developer (DEV)** — traces a failing or revisited scenario back to
+**Technical Builder (TB)** — traces a failing or revisited scenario back to
 the capability it proves, and learns at a glance whether every AC is covered.
 
 ## Vocabulary
@@ -30,7 +30,7 @@ this term is feature-local.)
 
 ### cross-reference-numbering.DEV1 — Trace a scenario to the capability it proves
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When a scenario fails or I revisit a feature's coverage, I want each scenario's
 > name to carry the acceptance criterion it proves, so I can see at a glance which
