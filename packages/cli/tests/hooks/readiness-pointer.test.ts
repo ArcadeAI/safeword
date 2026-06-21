@@ -23,6 +23,32 @@ function runPromptHook(projectDirectory: string): string {
   return result.stdout;
 }
 
+// Build a throwaway safeword project, optionally with an active ticket at a given
+// phase/status, run the prompt hook against it, and return its output. The hook
+// runs with input {} (no session_id), so it reads quality-state-undefined.json
+// under the default .project namespace.
+function hookOutputForProject(ticket?: { phase: string; status: string }): string {
+  const project = createTemporaryDirectory();
+  try {
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    if (ticket) {
+      const ticketDirectory = nodePath.join(project, '.project', 'tickets', 'AAA111-demo');
+      mkdirSync(ticketDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        `---\nid: AAA111\nslug: demo\ntype: task\nphase: ${ticket.phase}\nstatus: ${ticket.status}\n---\n\n# Demo\n`,
+      );
+      writeFileSync(
+        nodePath.join(project, '.project', 'quality-state-undefined.json'),
+        JSON.stringify({ activeTicket: 'AAA111' }),
+      );
+    }
+    return runPromptHook(project);
+  } finally {
+    removeTemporaryDirectory(project);
+  }
+}
+
 describe('readiness pointer (TPP6Y2)', () => {
   // Rule: surfaces only during Clarify (decision logic)
   it('surfaces when there is no active ticket (pre-classify)', () => {
@@ -87,61 +113,19 @@ describe('readiness pointer (TPP6Y2)', () => {
 
   // Hook-output wiring: prompt-questions.ts actually surfaces / suppresses it
   it('prompt-questions.ts surfaces the pointer when no ticket is active', () => {
-    const project = createTemporaryDirectory();
-    try {
-      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
-      const output = runPromptHook(project);
-      expect(output).toContain('must not break');
-    } finally {
-      removeTemporaryDirectory(project);
-    }
+    expect(hookOutputForProject()).toContain('must not break');
   });
 
   it('prompt-questions.ts suppresses the pointer during the implement phase', () => {
-    const project = createTemporaryDirectory();
-    try {
-      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
-      const ticketDirectory = nodePath.join(project, '.project', 'tickets', 'AAA111-demo');
-      mkdirSync(ticketDirectory, { recursive: true });
-      writeFileSync(
-        nodePath.join(ticketDirectory, 'ticket.md'),
-        '---\nid: AAA111\nslug: demo\ntype: task\nphase: implement\nstatus: in_progress\n---\n\n# Demo\n',
-      );
-      // The hook runs with input {} (no session_id), so it reads
-      // <namespace-root>/quality-state-undefined.json (default namespace .project).
-      const namespaceDirectory = nodePath.join(project, '.project');
-      mkdirSync(namespaceDirectory, { recursive: true });
-      writeFileSync(
-        nodePath.join(namespaceDirectory, 'quality-state-undefined.json'),
-        JSON.stringify({ activeTicket: 'AAA111' }),
-      );
-
-      const output = runPromptHook(project);
-      expect(output).not.toContain('must not break');
-    } finally {
-      removeTemporaryDirectory(project);
-    }
+    expect(hookOutputForProject({ phase: 'implement', status: 'in_progress' })).not.toContain(
+      'must not break',
+    );
   });
 
   it('prompt-questions.ts surfaces the pointer when the active ticket is not in progress', () => {
-    const project = createTemporaryDirectory();
-    try {
-      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
-      const ticketDirectory = nodePath.join(project, '.project', 'tickets', 'AAA111-demo');
-      mkdirSync(ticketDirectory, { recursive: true });
-      // Implement phase but status done → not in_progress → back in Clarify.
-      writeFileSync(
-        nodePath.join(ticketDirectory, 'ticket.md'),
-        '---\nid: AAA111\nslug: demo\ntype: task\nphase: implement\nstatus: done\n---\n\n# Demo\n',
-      );
-      writeFileSync(
-        nodePath.join(project, '.project', 'quality-state-undefined.json'),
-        JSON.stringify({ activeTicket: 'AAA111' }),
-      );
-      const output = runPromptHook(project);
-      expect(output).toContain('must not break');
-    } finally {
-      removeTemporaryDirectory(project);
-    }
+    // Implement phase but status done → not in_progress → back in Clarify.
+    expect(hookOutputForProject({ phase: 'implement', status: 'done' })).toContain(
+      'must not break',
+    );
   });
 });
