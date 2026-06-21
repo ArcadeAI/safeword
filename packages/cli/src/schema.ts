@@ -565,6 +565,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/learning-verification-stamps.ts': {
       template: 'hooks/lib/learning-verification-stamps.ts',
     },
+    '.safeword/hooks/lib/readiness-pointer.ts': { template: 'hooks/lib/readiness-pointer.ts' },
 
     // Generated at setup/upgrade from SAFEWORD_SCHEMA itself — the prefix list
     // the auto-upgrade hook uses to decide which files to stage. See owned-paths.ts.
