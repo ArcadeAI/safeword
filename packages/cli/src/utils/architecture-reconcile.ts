@@ -33,6 +33,24 @@ export interface SectionVerdict {
   status: SectionStatus;
 }
 
-export function reconcileSections(_input: ReconcileInput): SectionVerdict[] {
-  return [];
+export function reconcileSections(input: ReconcileInput): SectionVerdict[] {
+  const present = new Set(input.nodeNames);
+
+  return input.sections.map(section => ({
+    node: section.node,
+    status: sectionStatus(section, present, input.fingerprint),
+  }));
+}
+
+function sectionStatus(
+  section: ProseSection,
+  presentNodes: ReadonlySet<string>,
+  fingerprint: string,
+): SectionStatus {
+  // Orphan wins over stale: a section describing a removed node is orphaned even
+  // though its stamp has also drifted.
+  if (!presentNodes.has(section.node)) return 'orphaned';
+  if (!section.hasProse) return 'placeholder';
+  if (section.reconciled !== fingerprint) return 'stale';
+  return 'current';
 }
