@@ -10,11 +10,11 @@
 
 import process from 'node:process';
 
-import { resolveConfiguredPath } from '../utils/configured-paths.js';
+import { selfHeal } from '../utils/architecture-document.js';
 import { success } from '../utils/output.js';
 
 export function architecture(cwd: string = process.cwd()): Promise<void> {
-  // Stub: resolves the location but does not yet heal — drives the RED.
-  success(`Architecture state document at ${resolveConfiguredPath(cwd, 'architecture')}.`);
+  const result = selfHeal(cwd);
+  success(`Architecture state document ${result.action}: ${result.path}`);
   return Promise.resolve();
 }

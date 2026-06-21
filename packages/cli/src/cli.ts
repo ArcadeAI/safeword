@@ -84,6 +84,14 @@ program
     await syncConfig({ check: options.check });
   });
 
+program
+  .command('architecture')
+  .description('Refresh the architecture state document at the configured paths.architecture')
+  .action(async () => {
+    const { architecture } = await import('./commands/architecture.js');
+    await architecture();
+  });
+
 const ticket = program.command('ticket').description('Ticket management');
 
 ticket
