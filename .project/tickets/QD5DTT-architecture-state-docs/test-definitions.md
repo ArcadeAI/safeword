@@ -110,4 +110,4 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 82e1dc1
+- [x] cross-scenario 8459376 (impl-exit refactor 82e1dc1 wired reconcile; final-review pass 8459376 CRLF guard + determinism)
