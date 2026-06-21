@@ -54,6 +54,7 @@ export interface DependencyReadinessState {
 }
 
 const INSTALL_ARTIFACT = 'node_modules';
+const INSTALL_MARKER_FILENAME = '.safeword-deps-fingerprint';
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
 const WORKSPACE_SCAN_EXCLUDED_DIRECTORIES = new Set([
@@ -180,6 +181,21 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
     };
   }
 
+  // Content-fingerprint marker is the authoritative freshness signal: it
+  // survives content-preserving operations (rebase, checkout, clone, cp) that
+  // bump input mtimes without changing input content. mtime is only a
+  // bootstrap fallback for the first check after an install, before any hook
+  // has stamped the marker.
+  if (readInstallMarker(projectDirectory, plan) === fingerprint) {
+    return {
+      status: 'ready',
+      reason: 'install_artifact_current',
+      installCommand,
+      fingerprint,
+      plan,
+    };
+  }
+
   if (isInstallArtifactStale(projectDirectory, plan, artifactPath)) {
     return {
       status: 'stale',
@@ -246,6 +262,31 @@ export function readDependencyReadinessState(
   projectDirectory: string,
 ): DependencyReadinessState | undefined {
   return readJsonFile<DependencyReadinessState>(getDependencyReadinessStatePath(projectDirectory));
+}
+
+export function writeInstallMarker(projectDirectory: string, readiness: DependencyReadiness): void {
+  if (readiness.status !== 'ready') return;
+  const { plan, fingerprint } = readiness;
+  if (plan === undefined || fingerprint === undefined) return;
+
+  try {
+    writeFileSync(installMarkerPath(projectDirectory, plan), fingerprint);
+  } catch {
+    // The marker shares node_modules' lifecycle and is best-effort. A failure
+    // to stamp it simply falls back to the mtime check on the next read.
+  }
+}
+
+function readInstallMarker(projectDirectory: string, plan: DependencyPlan): string | undefined {
+  try {
+    return readFileSync(installMarkerPath(projectDirectory, plan), 'utf8').trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function installMarkerPath(projectDirectory: string, plan: DependencyPlan): string {
+  return nodePath.join(projectDirectory, plan.installArtifact, INSTALL_MARKER_FILENAME);
 }
 
 export function toDependencyReadinessState(

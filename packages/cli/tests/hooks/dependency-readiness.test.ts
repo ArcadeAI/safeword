@@ -1,5 +1,5 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -10,6 +10,7 @@ import {
   getDependencyReadiness,
   isDependencyBackedCommand,
   readDependencyBootstrapConfig,
+  writeInstallMarker,
 } from '../../templates/hooks/lib/dependency-readiness.js';
 import {
   createTemporaryDirectory,
@@ -233,6 +234,65 @@ describe('dependency readiness hook support', () => {
       status: 'ready',
       installCommand: 'bun ci',
     });
+  });
+
+  it('stays ready after a content-preserving op bumps input mtimes past the artifact', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+
+    // A hook stamps the marker once dependencies resolve ready.
+    const ready = getDependencyReadiness(projectDirectory);
+    expect(ready.status).toBe('ready');
+    writeInstallMarker(projectDirectory, ready);
+
+    // Simulate a rebase/checkout: input mtimes jump forward while content is
+    // unchanged, and a no-op `bun ci` never touches the artifact.
+    const future = new Date(Date.now() + 60_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), future, future);
+    }
+
+    expect(getDependencyReadiness(projectDirectory)).toMatchObject({
+      status: 'ready',
+      reason: 'install_artifact_current',
+    });
+
+    // Without the marker the mtime fallback would (incorrectly) flag stale —
+    // proving the marker is what keeps the worktree usable after a rebase.
+    rmSync(path.join(artifact, '.safeword-deps-fingerprint'));
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('reports stale when tracked input content changes, then ready once re-stamped', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+
+    // A genuine dependency-spec change: content differs from the marker, and the
+    // artifact has not been reinstalled yet (mtime behind the changed input).
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(artifact, past, past);
+
+    expect(getDependencyReadiness(projectDirectory)).toMatchObject({
+      status: 'stale',
+      reason: 'install_artifact_stale',
+    });
+
+    // Reinstall bumps the artifact mtime (bun repoints symlinks); the mtime
+    // fallback then resolves ready and the hook re-stamps the new fingerprint.
+    const future = new Date(Date.now() + 60_000);
+    utimesSync(artifact, future, future);
+    const reinstalled = getDependencyReadiness(projectDirectory);
+    expect(reinstalled.status).toBe('ready');
+    writeInstallMarker(projectDirectory, reinstalled);
+
+    // A later rebase pushes the artifact mtime behind again, but the refreshed
+    // marker still matches the current content, so it stays ready.
+    utimesSync(artifact, past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
   it('reads explicit auto-install opt-in from safeword config', () => {
