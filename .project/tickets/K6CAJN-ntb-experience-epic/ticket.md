@@ -6,7 +6,7 @@ phase: intake
 status: backlog
 created: 2026-06-21T14:24:00Z
 last_modified: 2026-06-21T14:24:00Z
-children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, O3OG0N, B6J2TY]
+children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, 19E2XQ, O3OG0N, B6J2TY]
 ---
 
 # Epic: Make safeword legible to the Non-Technical Builder
@@ -19,20 +19,23 @@ children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, O3OG0N, B6J2TY]
 
 ## Children (priority order)
 
-| ID | Sev | Title |
-| --- | --- | --- |
-| **QQJK5S** | H1 | Make the "Talking to the user" plainness contract persona-aware |
-| **UJSZXB** | H2 | Humanize first-run runtime/dependency failures (bun, deps-not-installed) |
-| **KRUEWC** | H3 | De-jargon the interactive CLI; auto-default the namespace-move prompt |
-| **5XOUDJ** | M1 | Surface `/explain` to the NTB (README + proactive-offer rule) |
-| **O3OG0N** | M2 | Add an NTB front door — "driving safeword without reading code" |
-| **B6J2TY** | M3 | Confirm the agent strips verdict/phase jargon; gloss CONFIDENT/BLOCKED |
+| ID         | Sev | Title                                                                       |
+| ---------- | --- | --------------------------------------------------------------------------- |
+| **QQJK5S** | H1  | Make the "Talking to the user" plainness contract persona-aware             |
+| **UJSZXB** | H2  | Humanize first-run runtime/dependency failures (bun, deps-not-installed)    |
+| **KRUEWC** | H3  | De-jargon the interactive CLI; auto-default the namespace-move prompt       |
+| **5XOUDJ** | M1  | Surface `/explain` to the NTB (README + proactive-offer rule)               |
+| **19E2XQ** | M1+ | Make the `/explain` block-hint reliably reach the user (5XOUDJ fast-follow) |
+| **O3OG0N** | M2  | Add an NTB front door — "driving safeword without reading code"             |
+| **B6J2TY** | M3  | Confirm the agent strips verdict/phase jargon; gloss CONFIDENT/BLOCKED      |
 
 ## Out of scope
 
 - Re-litigating the prior language-axis audit (`PRODUCT-AUDIT-leakage.md`) — separate concern.
-- The `/explain` gate-pointer (already shipped: ZCYD5P / NTT094). M1 is about *discovery*, not the pointer.
+- The `/explain` gate-pointer (already shipped: ZCYD5P / NTT094). M1 is about _discovery_, not the pointer.
 
 ## Work Log
 
 - 2026-06-21T14:24:00Z Created: Epic + 6 children from PRODUCT-AUDIT-ntb.md findings (H1-H3, M1-M3).
+- 2026-06-21T17:48:00Z QQJK5S (H1) shipped + closed — plainness contract now threads NTB+TB.
+- 2026-06-21T20:04:00Z Added 19E2XQ (M1+) — the `/explain` block-hint reliability fix, split from 5XOUDJ per its figure-it-out. 7 children now.

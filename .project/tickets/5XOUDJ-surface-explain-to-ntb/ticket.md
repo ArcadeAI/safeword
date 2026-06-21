@@ -3,10 +3,10 @@ id: 5XOUDJ
 slug: surface-explain-to-ntb
 parent: K6CAJN-ntb-experience-epic
 type: patch
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-21T14:24:00Z
-last_modified: 2026-06-21T14:24:00Z
+last_modified: 2026-06-21T20:06:00Z
 ---
 
 # Surface /explain to the NTB
@@ -25,7 +25,7 @@ last_modified: 2026-06-21T14:24:00Z
 
 The TB-regression risk is a Clippy: an offer that fires every time a gate trips would nag the TB who hit the block and already knows the fix. The rule must:
 
-- **Trigger on signal, not event.** The agent offers `/explain` only when the *user* shows confusion — asks "what?" / "why is it blocked?", pastes a block back, or stalls — never automatically on every block. A TB who clears a gate without asking never sees the offer.
+- **Trigger on signal, not event.** The agent offers `/explain` only when the _user_ shows confusion — asks "what?" / "why is it blocked?", pastes a block back, or stalls — never automatically on every block. A TB who clears a gate without asking never sees the offer.
 - **Offer once, in plain words.** One short line, not a recurring banner.
 
 The README listing is purely additive (no trigger, no TB cost). The judgment call is the trigger wording — "seems unsure" is fuzzy and could over- or under-fire — so spell out the concrete signals above in the rule rather than leaving it to interpretation.

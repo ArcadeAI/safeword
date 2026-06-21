@@ -179,6 +179,8 @@ Safeword runs hooks each turn to track your phase and TDD step. Three gates hard
 
 The prompt hook injects your current phase each turn as a reminder.
 
+When a gate blocks, the user can run `/explain` for a plain-English version of the block — what it's asking for and how to clear it. Offer it in one line when the user seems unsure (asks "what?", pastes a block back, or stalls); stay quiet when they're moving fine. Don't make them ask twice to understand a block.
+
 ---
 
 ## Talking to the user

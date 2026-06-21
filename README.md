@@ -251,6 +251,7 @@ Key directories created in your project:
 - `/bdd` - Force BDD flow for current task
 - `/cleanup-zombies` - Kill zombie processes on ports
 - `/debug` - Four-phase debugging framework
+- `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
 - `/refactor` - Systematic refactoring with small-step discipline
