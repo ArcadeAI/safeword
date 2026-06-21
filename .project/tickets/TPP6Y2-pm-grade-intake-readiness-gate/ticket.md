@@ -28,12 +28,14 @@ Recommend a **soft readiness gate framed by value-of-information triage**, not a
 
 **Honest delta (not greenfield):** `prompt-questions.ts` already emits an `intake` reminder with a three-part self-test ("what changes, what stays the same, observable done state"), mirroring the specificity self-test in `SAFEWORD.md`. This ticket is a *targeted expansion* of that existing line, plus one VoI sentence in SAFEWORD.md — not a new gate.
 
+- **Surfacing (resolved): compressed pointer in the prompt hook + detailed prose in SAFEWORD.md** — the established channel rule from `instruction-attention-hierarchy.md` (hook reminder ~95% and the only channel that fires when work is scoped without a skill; SAFEWORD.md-only is mid-file ~50% / cross-file ~20% — i.e. the current dormancy). The hook carries a terse keyword pointer (≤~20 words, e.g. `intent · done · what-must-not-break · riskiest-assumption+cheapest-test · problem-or-guess?`); SAFEWORD.md carries the generative phrasing. Not either/or.
 - Expand the existing intake self-test from three dimensions to **five**, derived from four independent intake disciplines (see Research). The reminder stays a **compressed pointer** to the dimensions (as today's line is), NOT five spelled-out prompts re-injected every turn — that would itself become the per-turn interrogation this ticket avoids. The five dimensions:
   1. **Intent** — why, and for whom?
   2. **Done** — what's the measurable end-state?
   3. **Constraints** — what must not break, who depends on this, is it reversible?
   4. **Riskiest assumption** — what am I most likely wrong about, and what's the cheapest way to test it before running? (active de-risking, not passive flagging — from `product-brainstorming` Assumption-Testing mode)
   5. **Request shape** — is this the problem, or someone's guess at the fix?
+- **Fire in the pre-ticket / early-Clarify window, not only once an intake-phase ticket exists.** Today's intake reminder is inside the active-ticket branch of `prompt-questions.ts`; the motivating first-turn "go run" case is the `No active ticket` branch. The pointer must attach there (pre-classify) too — otherwise it stays dormant for exactly the case that motivated the ticket.
 - Reuse the shipped `## Open Questions` section in `spec.md` (ticket V6N5PW) as the ledger of unresolved unknowns.
 - Codify the VoI triage rule in SAFEWORD.md prose: reversible/local → run; irreversible/high-blast → resolve unknowns first. (The *behavioral go/no-go* — ready when remaining questions are edge-cases not basics, `doc-coauthoring/SKILL.md:97` — is the quality bar for this prose, not a separately testable criterion.)
 - **Reuse `elicit`, don't duplicate it.** The gate is the go/no-go threshold + the five dimensions; it *inherits* elicit's rules — the Iron Law (`elicit/SKILL.md:11`, never surface a question the agent could answer itself), information-gain ordering (`:28`), the anchoring guard (`:50`), and the stopping rule (`:54`) — and *escalates to* `/elicit` only when user-only unknowns remain at meaningful blast radius. The default path is a silent "go." The gate never re-implements question-asking.
@@ -64,7 +66,8 @@ The five-prompt core converges from four independent intake disciplines — cros
 
 Observable (these are what the TDD test asserts):
 
-- The `intake` reminder in `prompt-questions.ts` surfaces a compressed pointer to all five dimensions (intent / done / constraints / riskiest-assumption / request-shape) during Clarify — verifiable in the hook's emitted output.
+- The `prompt-questions.ts` reminder surfaces a compressed pointer to all five dimensions (intent / done / constraints / riskiest-assumption / request-shape) during Clarify — verifiable in the hook's emitted output — and fires in **both** the active-intake-ticket branch **and** the `No active ticket` (pre-classify) branch.
+- The pointer line stays within the length cap (≤~20 words) — a test asserts it doesn't bloat into spelled-out prompts.
 - The constraint dimension is worded "what must not break / reversibility" — not an NFR quality-attributes survey (constraint-decay guard) — verifiable in the reminder + SAFEWORD.md text.
 - SAFEWORD.md carries the VoI triage sentence (reversible/local → run; irreversible/high-blast → resolve unknowns first) phrased with the behavioral "edge-cases-not-basics" readiness bar.
 
@@ -74,9 +77,13 @@ Quality bar (shapes the copy; not unit-testable at the hook layer, stated so hon
 
 ## Open Questions
 
-- **Soft or firm surfacing?** Pure SAFEWORD.md instruction (model-run, no hook) vs. a `prompt-questions.ts` reminder line. Leaning reminder — dormant-by-default is the problem being fixed. _(unresolved)_
-- **Does 3→5 dimensions on a per-turn reminder cross from nudge into interrogation?** The real propulsive-by-default tension. Current resolution: keep the reminder a *compressed pointer* (as line 64 is today), never five spelled-out prompts per turn — but confirm the expanded line still reads as a nudge, not a checklist, before shipping. _(unresolved — load-bearing)_
-- ~~**Ledger shape?**~~ _Resolved: already settled by V6N5PW (reuse the `## Open Questions` spec section; heavier brief deferred). Not re-litigated here._
+All resolved (via /figure-it-out, grounded in safeword's instruction-attention learnings):
+
+- ~~**Soft or firm surfacing?**~~ _Resolved: **hook pointer + SAFEWORD.md prose**, not either/or. `instruction-attention-hierarchy.md` — the hook reminder is ~95% and the only channel that fires when work is scoped without a skill; SAFEWORD.md-only is the current dormancy (~50% mid-file / ~20% cross-file)._
+- ~~**Does 3→5 per-turn cross into interrogation?**~~ _Resolved: no, because the reminder is **Clarify-phase-gated** (not a 50-turn banner) and a **compressed keyword pointer** (not five spelled-out prompts). `long-session-style-drift.md:54`'s per-turn-reinjection anti-pattern is about standing style rules; this is a phase-scoped trigger that must hit the prompt to beat dormancy._
+- ~~**Ledger shape?**~~ _Resolved earlier: settled by V6N5PW (reuse the `## Open Questions` spec section; heavier brief deferred)._
+
+Residual risk (tracked, not a blocker): the compressed pointer must fit five dimensions in ≤~20 words without bloating toward a checklist or collapsing into a vacuous "check readiness". Mitigation = terse keyword list pointing to SAFEWORD.md for phrasing; enforce the line-length cap as a test.
 
 ## Work Log
 
@@ -87,3 +94,4 @@ Quality bar (shapes the copy; not unit-testable at the hook layer, stated so hon
 - 2026-06-21T04:21Z Checked Anthropic's prebuilt skills (/figure-it-out). No "product brainstorm" skill exists; the find is the `doc-coauthoring` example skill. Folded two new ideas (tiered): (A) behavioral go/no-go — "go" when remaining questions are edge-cases not basics (`doc-coauthoring/SKILL.md:97`), making the threshold observable + anti-rubber-stamp; (B) cold-start executability test (could a fresh agent run from captured context?) as high-blast escalation reusing the worktree sub-agent harness (`:255-331`). Rejected doc-coauthoring's dump-first ordering (inverts contribute-before-asking; agent can read code itself).
 - 2026-06-21T04:26Z Reviewed Anthropic's `product-brainstorming` skill. Resisted most of it — it is divergent-ideation machinery (modes/frameworks: HMW, SCAMPER, OST, OODA) that belongs to brainstorm, not the convergent gate; folding it would be the "don't dump frameworks" anti-pattern + bloat. ONE fold: upgraded the riskiest-assumption prompt to also name the *cheapest way to test it before running* (active de-risking, Assumption-Testing mode). Noted OODA's "stuck in Orient" as reinforcement for the anti-over-gating premortem (no scope change).
 - 2026-06-21T04:32Z /quality-review with independent fresh-context reviewer. REQUEST CHANGES applied: (1) CUT cold-start sub-agent escalation to a later child — second mechanism, rare+expensive, and the maximal form of re-interrogation; (2) rewrote done_when to observable-only (reminder/SAFEWORD.md text), demoted behavioral go/no-go + generative-quality to non-testable quality bar; (3) reframed scope as honest delta — expand existing intake reminder 3→5 dimensions as a compressed pointer (NOT 5 spelled-out prompts/turn), not greenfield; (4) closed the ledger-shape open question (settled by V6N5PW); (5) replaced it with the real load-bearing unknown — does 3→5 per-turn cross into interrogation. Scope now reduced to the smallest testable change.
+- 2026-06-21T04:37Z /figure-it-out resolved the surfacing + interrogation open questions using safeword's own instruction-attention learnings. Resolution: hook compressed-pointer + SAFEWORD.md prose (NOT either/or) — hook is ~95% and the only channel that fires when work is scoped without a skill; SAFEWORD.md-only IS the current dormancy. Interrogation fear dissolved: reminder is Clarify-phase-gated (not a 50-turn banner) + compressed keyword pointer (not 5 prompts). Surfaced an implementation wrinkle now in scope: the pointer must also fire in the `No active ticket` pre-classify branch (the motivating first-turn case), not only once an intake ticket exists. Added length-cap test to done_when. All open questions now resolved → ready for implement pending user go-ahead.
