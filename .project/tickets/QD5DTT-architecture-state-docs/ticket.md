@@ -45,12 +45,18 @@ last_modified: 2026-06-21T03:20:41.930Z
 3. **Drift = IaC-style shape-fingerprint**, fired at session/commit/stop/CI. Cheap enough to run on every entry point, which is the only way to catch unwitnessed human changes. Semantic LLM comparison is the _repair_ step, never the primary signal.
 4. **Monorepo = hierarchical, per-node fingerprinted, root derived from children.** Local drift attribution; progressive disclosure is structural, not cosmetic. Inherits agent nearest-wins navigation.
 5. **Leaves colocate with packages; root index in `.project/`.** Colocation reduces drift (doc edited in same PR as code) and matches safeword's existing colocated subdirectory-context-file pattern. Map (index) = project knowledge in `.project/`; territory (leaves) = with the code. Honors the namespace invariant rather than bending it.
+6. **Prose-freshness contract = advisory prose + deterministic staleness markers + a structured floor.** The skeleton is fingerprintable; narrative prose is not. So the guarantee is reframed honestly: structural facts are always fresh, and any lagging prose is always _visibly flagged_ — the doc may be incomplete but never _silently_ wrong. Mechanism: each prose section stamps `reconciled: <skeleton-fingerprint>` (fingerprint-of-record); deterministic self-heal rewrites the skeleton, marks any section whose stamp drifted `⚠ stale: structure changed <date>`, and flags orphan prose (describes a node that no longer exists) for deletion — all LLM-free. **Floor:** every skeleton node carries a one-line `purpose` that is itself a structural fact (presence + orphan mechanically checkable). **Escalation rule** (from lint-design research — _if any phase informs, a later phase must block on the same thing_): SessionStart informs (writes markers, warn, default ON); the stop/CI gate blocks on the same markers when enabled. Markers are per-section, keyed to that section's own node fingerprint, so they don't banner the whole doc (avoids warning-fatigue).
 
-**Evidence base:** stale-context-degrades-agents (arxiv 2509.18970 hallucination survey; LLM staleness → context poisoning); IaC drift detection (terraform plan); doc colocation reduces drift (Docsie, Gaudion); hierarchical AGENTS.md Level1/Level2 context loading; progressive disclosure 3-layer index→details→deep-dive (NN/g); cognitive-load trap — disclosure done wrong relocates complexity (NN/g).
+**Evidence base:** stale-context-degrades-agents (arxiv 2509.18970 hallucination survey; LLM staleness → context poisoning); IaC drift detection (terraform plan); doc colocation reduces drift (Docsie, Gaudion); hierarchical AGENTS.md Level1/Level2 context loading; progressive disclosure 3-layer index→details→deep-dive (NN/g); cognitive-load trap — disclosure done wrong relocates complexity (NN/g); staleness-marking of generated content is prior art (USPTO 11531822); inform-early/block-later-on-the-same-thing + warning-fatigue (neugierig "rethinking errors/warnings", ESLint-warnings-anti-pattern).
+
+## First scenarios to write (define-behavior)
+
+- **Per-tier fingerprint contents.** Root = package set + dep edges. Leaf = that package's `src/` dirs + deps + boundaries config + schema files. Pin precisely (in/out for each input) — this single choice sets the gate's signal-to-noise.
+- **Skeleton-fresh + prose-stale interaction** (resolved by Decision 6, now writable): when self-heal rewrites a skeleton section whose prose `reconciled` stamp no longer matches the live fingerprint, the section is marked `⚠ stale` and the orphan check flags prose describing a now-deleted node. Both markers are deterministic (no LLM).
+- **Escalation boundary:** SessionStart writes markers + warns (never blocks); the stop/CI gate blocks while unresolved markers remain (opt-in). Prove warn-only still can't let the doc silently lie (markers always written) and that the later phase blocks on the same markers.
 
 ## Open questions for define-behavior / scenario-gate
 
-- **Exact fingerprint contents per tier.** Root = package set + dep edges. Leaf = that package's `src/` dirs + deps + boundaries config + schema files. Pin precisely (in/out for each input) — this single choice sets the gate's signal-to-noise. _First scenario to write._
 - Self-heal performance on large monorepos: SessionStart re-hashes all nodes (cheap) but self-heals only nodes whose fingerprint moved (build-cache style). Confirm the incremental boundary.
 - npm-publish leakage of colocated `architecture.md`: `files: ["dist"]` allowlist excludes it automatically; otherwise setup adds a package ignore. Confirm setup behavior.
 - Config surface: `architectureFreshness` flag shape; which sub-behaviors default ON vs opt-in.
@@ -59,12 +65,24 @@ last_modified: 2026-06-21T03:20:41.930Z
 ## Acceptance Criteria (draft — refine in spec)
 
 - [ ] A fresh TS project gets a `.project/architecture.md` whose structural facts match the real tree, with code references and a frontmatter fingerprint.
-- [ ] A structural change made _outside any agent session_ is detected and flagged (or self-healed) at the next SessionStart.
+- [ ] **Structural drift is self-healed:** a structural change made _outside any agent session_ is mechanically re-extracted at the next SessionStart, so structural facts are never stale (no "or" — facts are always fresh).
+- [ ] **Prose drift is marked, never silent:** when a section's `reconciled` stamp no longer matches the live skeleton fingerprint, self-heal writes a per-section `⚠ stale` marker and flags orphan prose — deterministically, regardless of enforcement level. Warn-only defaults still cannot let the doc silently lie.
+- [ ] **Escalation holds:** SessionStart informs (markers + warn, never blocks); the stop/CI gate blocks while unresolved markers remain (opt-in). A later phase blocks on the same signal an earlier phase informed on.
 - [ ] A monorepo produces a thin derived root index + colocated per-package leaves, each independently fingerprinted; adding a package updates the root without hand-editing.
 - [ ] The drift signal is LLM-free and runs at SessionStart, pre-commit, stop, and CI.
 - [ ] Enforcement is tiered (shape→gate, version→warn) and config-gated; defaults don't block the common path.
 
+## Delivery Slices (each ships value alone; decompose into child tickets at spec time)
+
+Addresses the "epic wearing a feature label" packaging note. `/bdd` runs on **Slice 1 only**; the rest are follow-on tickets.
+
+- **Slice 1 — single-repo "never silently lies"** _(the vertical increment that stands alone)_: deterministic extractor + skeleton + shape-fingerprint + per-node `purpose` floor + SessionStart self-heal that **writes staleness markers**. No gates, no monorepo, no rich prose tooling. Delivers the core guarantee on its own.
+- **Slice 2 — enforcement escalation:** tiered gate (shape→gate, version→warn) blocking on the same markers at stop/CI; `architectureFreshness` config surface.
+- **Slice 3 — monorepo hierarchy:** derived root index + workspace-discovered colocated leaves, per-node fingerprints, incremental self-heal.
+- **Slice 4 — ergonomics:** `/architecture` on-demand full-resync skill + `architecture-guide.md` state-vs-ADR split.
+
 ## Work Log
 
 - 2026-06-21T03:20:41Z Started: Created ticket QD5DTT.
-- 2026-06-21T03:21:00Z Context: Design converged across three `/figure-it-out` sessions (refresh method, drift enforcement, monorepo structure + leaf placement). Captured decisions + evidence above. Next: define-behavior → author spec.md (personas/JTBD), then test-definitions.md leading with the per-tier fingerprint-contents scenario.
+- 2026-06-21T03:21:00Z Context: Design converged across three `/figure-it-out` sessions (refresh method, drift enforcement, monorepo structure + leaf placement). Captured decisions + evidence above.
+- 2026-06-21T04:35:00Z Review + figure-it-out: `/quality-review` flagged epic-sized scope + a prose-freshness hole in "cannot silently lie" (prose can't be shape-fingerprinted). Resolved via Decision 6 (advisory prose + deterministic staleness markers + `purpose` floor + inform-early/block-later escalation; evidence: USPTO 11531822, neugierig rethinking-errors, ESLint-warnings-anti-pattern). Split AC #2 into self-heal/marker/escalation criteria, added Delivery Slices (scopes `/bdd` to Slice 1). Verified dependency-cruiser 17.4.3 alive; noted ESLint 10 currency check for eslint-plugin-boundaries at implement. Next: `/bdd` on Slice 1 → spec.md then per-tier fingerprint scenario.
