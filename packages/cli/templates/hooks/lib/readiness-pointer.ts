@@ -4,9 +4,8 @@
 // SAFEWORD.md. Surfaced while scoping (no ticket or intake phase), suppressed
 // once a build phase is under way.
 
-// Stub (RED): wrong on purpose so the first scenario fails on assertion.
-export const READINESS_POINTER = '';
+export const READINESS_POINTER = 'readiness';
 
 export function shouldSurfaceReadiness(phase: string | undefined): boolean {
-  return phase === 'implement';
+  return phase === undefined;
 }

@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Pre-classify (no active ticket) surfaces the readiness pointer
 
-- [ ] RED
+- [x] RED e41e7e7
 - [ ] GREEN
 - [ ] REFACTOR
 
