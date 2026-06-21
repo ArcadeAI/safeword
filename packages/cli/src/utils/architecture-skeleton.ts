@@ -8,6 +8,9 @@
  * the model this returns.
  */
 
+import { type Dirent, readdirSync } from 'node:fs';
+import nodePath from 'node:path';
+
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
   name: string;
@@ -24,6 +27,23 @@ export interface Skeleton {
   skipped: string[];
 }
 
-export function extractSkeleton(_projectDirectory: string): Skeleton {
-  return { nodes: [], skipped: [] };
+export function extractSkeleton(projectDirectory: string): Skeleton {
+  const sourceDirectory = nodePath.join(projectDirectory, 'src');
+
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(sourceDirectory, { withFileTypes: true });
+  } catch {
+    return { nodes: [], skipped: [] };
+  }
+
+  const nodes = entries
+    .filter(entry => entry.isDirectory())
+    .map(entry => ({
+      name: entry.name,
+      path: nodePath.join('src', entry.name),
+      purpose: '',
+    }));
+
+  return { nodes, skipped: [] };
 }
