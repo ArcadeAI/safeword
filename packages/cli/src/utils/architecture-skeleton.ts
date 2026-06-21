@@ -12,7 +12,7 @@ import { type Dirent, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 /** Placeholder purpose for a freshly extracted node awaiting human prose. */
-export const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
+const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
 
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */

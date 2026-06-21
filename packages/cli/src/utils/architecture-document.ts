@@ -17,7 +17,7 @@ import { reconcileSections, type SectionStatus } from './architecture-reconcile.
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
 import { resolveConfiguredPath } from './configured-paths.js';
 
-export type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped';
+type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped';
 
 export interface SelfHealResult {
   action: SelfHealAction;

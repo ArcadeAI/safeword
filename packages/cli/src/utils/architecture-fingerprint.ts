@@ -43,7 +43,7 @@ const DEPENDENCY_SECTIONS = [
   'optionalDependencies',
 ] as const;
 
-export interface ShapeInputs {
+interface ShapeInputs {
   /** Top-level module names. */
   moduleNames: string[];
   /** Dependency names (keys only — versions are deliberately excluded). */
@@ -54,7 +54,7 @@ export interface ShapeInputs {
   schemaFiles: string[];
 }
 
-export function collectShapeInputs(projectDirectory: string): ShapeInputs {
+function collectShapeInputs(projectDirectory: string): ShapeInputs {
   const moduleNames = extractSkeleton(projectDirectory)
     .nodes.map(node => node.name)
     .toSorted((a, b) => a.localeCompare(b));
