@@ -51,7 +51,7 @@ last_modified: 2026-06-21T03:20:41.930Z
 
 ## First scenarios to write (define-behavior)
 
-- **Per-tier fingerprint contents.** Root = package set + dep edges. Leaf = that package's `src/` dirs + deps + boundaries config + schema files. Pin precisely (in/out for each input) — this single choice sets the gate's signal-to-noise.
+- **Per-tier fingerprint contents.** Root = package set + dep edges. Leaf = that package's `src/` dirs + deps + **dependency-cruiser config** + schema files. Pin precisely (in/out for each input) — this single choice sets the gate's signal-to-noise. _NB (found in main-merge analysis): the repo enforces boundaries via dependency-cruiser (`.dependency-cruiser.cjs` → generated `.safeword/depcruise-config.cjs`), **not** `eslint-plugin-boundaries` (which is docs-only). Fingerprint the dependency-cruiser config, not eslint config._
 - **Skeleton-fresh + prose-stale interaction** (resolved by Decision 6, now writable): when self-heal rewrites a skeleton section whose prose `reconciled` stamp no longer matches the live fingerprint, the section is marked `⚠ stale` and the orphan check flags prose describing a now-deleted node. Both markers are deterministic (no LLM).
 - **Escalation boundary:** SessionStart writes markers + warns (never blocks); the stop/CI gate blocks while unresolved markers remain (opt-in). Prove warn-only still can't let the doc silently lie (markers always written) and that the later phase blocks on the same markers.
 
@@ -61,6 +61,12 @@ last_modified: 2026-06-21T03:20:41.930Z
 - npm-publish leakage of colocated `architecture.md`: `files: ["dist"]` allowlist excludes it automatically; otherwise setup adds a package ignore. Confirm setup behavior.
 - Config surface: `architectureFreshness` flag shape; which sub-behaviors default ON vs opt-in.
 - Guide split: `architecture-guide.md` currently conflates state + decisions. Decide how to split state-doc guidance from ADR guidance without duplicating.
+
+## Reuse + conventions (found during main-merge analysis, 2026-06-21)
+
+- **Extractor reuse:** safeword already has layer detection — `boundaries.ts` (`DetectedArchitecture`) and `depcruise-config.ts` (`generateDependencyCruiseConfigFile`). Slice 1's deterministic extractor should **reuse `DetectedArchitecture`**, not reinvent layer detection. Shrinks Slice 1 from "build extractor" to "reuse detection → emit skeleton → fingerprint."
+- **ESLint-10 NOTE narrowed:** main #300 dropped ESLint 9 for ESLint 10. This is **moot for the repo's own boundary enforcement** (dependency-cruiser, not eslint). It only touches the customer-facing `eslint-plugin-boundaries` instructions in `architecture-guide.md` → reconcile in **Slice 4** (guide split). `eslint-plugin-boundaries` ↔ ESLint 10 compat still unverified (Slice 4 concern, not Slice 1).
+- **Lint convention:** unicorn 68 (merged #300) enforces no abbreviations — implement code uses full words (`DependencyCruise`, not `DepCruise`).
 
 ## Acceptance Criteria (draft — refine in spec)
 
@@ -85,4 +91,5 @@ Addresses the "epic wearing a feature label" packaging note. `/bdd` runs on **Sl
 
 - 2026-06-21T03:20:41Z Started: Created ticket QD5DTT.
 - 2026-06-21T03:21:00Z Context: Design converged across three `/figure-it-out` sessions (refresh method, drift enforcement, monorepo structure + leaf placement). Captured decisions + evidence above.
+- 2026-06-21T04:42:00Z Merged origin/main (#300 ESLint 10, #297). Re-ran `bun ci` (clean). Impact analysis via `/figure-it-out`: #300 is semantically inert for the ticket (unicorn renames + test churn, no behavior change). But forensics found the repo enforces boundaries via **dependency-cruiser, not eslint-plugin-boundaries** (latter is docs-only) → repointed the fingerprint input + named `boundaries.ts`/`DetectedArchitecture` as extractor reuse (shrinks Slice 1), narrowed the ESLint-10 NOTE to the Slice 4 guide split, recorded the no-abbreviation convention. No decision reversed.
 - 2026-06-21T04:35:00Z Review + figure-it-out: `/quality-review` flagged epic-sized scope + a prose-freshness hole in "cannot silently lie" (prose can't be shape-fingerprinted). Resolved via Decision 6 (advisory prose + deterministic staleness markers + `purpose` floor + inform-early/block-later escalation; evidence: USPTO 11531822, neugierig rethinking-errors, ESLint-warnings-anti-pattern). Split AC #2 into self-heal/marker/escalation criteria, added Delivery Slices (scopes `/bdd` to Slice 1). Verified dependency-cruiser 17.4.3 alive; noted ESLint 10 currency check for eslint-plugin-boundaries at implement. Next: `/bdd` on Slice 1 → spec.md then per-tier fingerprint scenario.
