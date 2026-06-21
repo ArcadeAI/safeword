@@ -20,7 +20,6 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
       Given a single-repo TypeScript project
       When the architecture doc is generated
       Then every skeleton node has a non-empty one-line purpose
-      And a node emitted without a purpose is recorded as a purpose-floor violation
 
     @architecture-state-docs.NTB1.AC1
     Scenario: A file outside any module is not listed as a node

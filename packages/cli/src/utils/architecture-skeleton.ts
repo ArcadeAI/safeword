@@ -46,7 +46,10 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
       // platform-stable (the fingerprint normalizes paths the same way).
       path: `src/${entry.name}`,
       purpose: PURPOSE_PLACEHOLDER,
-    }));
+    }))
+    // Sort by name so the rendered document is deterministic across
+    // filesystems (readdirSync order is not guaranteed), like the fingerprint.
+    .toSorted((a, b) => a.name.localeCompare(b.name));
 
   return { nodes };
 }

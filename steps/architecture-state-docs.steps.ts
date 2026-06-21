@@ -46,6 +46,7 @@ function runArchitecture(world: ArchitectureWorld): void {
     timeout: 30_000,
   });
   world.stdout = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  assert.equal(result.status, 0, `safeword architecture exited ${result.status}: ${world.stdout}`);
 }
 
 function readDocument(world: ArchitectureWorld): string {
@@ -127,15 +128,6 @@ Then('every skeleton node has a non-empty one-line purpose', function (this: Arc
     assert.match(section, /—\s*\S+/);
   }
 });
-
-Then(
-  'a node emitted without a purpose is recorded as a purpose-floor violation',
-  function (this: ArchitectureWorld) {
-    // Observable proxy: every emitted node carries a purpose, so the floor holds.
-    const content = readDocument(this);
-    assert.match(content, /—\s*\S+/);
-  },
-);
 
 Then(/^scripts\/build\.ts does not appear as a skeleton node$/, function (this: ArchitectureWorld) {
   assert.doesNotMatch(readDocument(this), /### (scripts|build\.ts)/);

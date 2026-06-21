@@ -30,22 +30,30 @@ const FINGERPRINT_KEY = 'fingerprint';
 const GENERATOR_KEY = 'generator';
 const GENERATOR_VALUE = 'safeword-architecture';
 
+/** The frontmatter body (between the `---` fences), CRLF-tolerant, or undefined. */
+function frontmatterBody(content: string): string | undefined {
+  return /^---\r?\n([\s\S]*?)\r?\n---/.exec(content)?.[1];
+}
+
 /**
  * Whether safeword owns this document, i.e. it carries the generator marker.
  * A document without it is hand-authored (or foreign) and must never be
  * overwritten — the marker survives even when the fingerprint is corrupted.
+ * Exact-line match so a different generator (e.g. `safeword-architecture-v2`)
+ * is not mistaken for this one.
  */
 function isSafewordOwned(content: string): boolean {
-  const body = /^---\n([\s\S]*?)\n---/.exec(content)?.[1];
-  return body?.includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ?? false;
+  return (
+    frontmatterBody(content)?.split(/\r?\n/).includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ??
+    false
+  );
 }
 
 /** Parse the recorded fingerprint from a document's frontmatter, or undefined. */
 export function readDocumentFingerprint(content: string): string | undefined {
-  const body = /^---\n([\s\S]*?)\n---/.exec(content)?.[1];
-  if (body === undefined) return undefined;
-
-  const line = body.split('\n').find(candidate => candidate.startsWith(`${FINGERPRINT_KEY}:`));
+  const line = frontmatterBody(content)
+    ?.split(/\r?\n/)
+    .find(candidate => candidate.startsWith(`${FINGERPRINT_KEY}:`));
   if (line === undefined) return undefined;
 
   const value = line.slice(FINGERPRINT_KEY.length + 1).trim();
