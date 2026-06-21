@@ -14,15 +14,15 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: An intake-phase ticket surfaces the readiness pointer
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 570e10b
+- [x] GREEN ab75be3
+- [x] REFACTOR skip: covered by the shared predicate, nothing to restructure
 
 ### Scenario: An implement-phase ticket suppresses the readiness pointer
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 570e10b
+- [x] GREEN ab75be3
+- [x] REFACTOR skip: covered by the shared predicate, nothing to restructure
 
 (Then asserts implement-phase TDD-step guidance still shows AND the pointer is absent — proves the conditional, not trivial absence.)
 
@@ -30,32 +30,36 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: The pointer names all five dimensions
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 570e10b
+- [x] GREEN ab75be3
+- [x] REFACTOR skip: single constant, no structural improvement needed
 
 ### Scenario: The pointer stays within the length cap
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 570e10b
+- [x] GREEN ab75be3
+- [x] REFACTOR skip: single constant, no structural improvement needed
 
 ### Scenario: The constraint dimension is scoped to what must not break
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 570e10b
+- [x] GREEN ab75be3
+- [x] REFACTOR skip: single constant, no structural improvement needed
 
 ## Rule: SAFEWORD.md carries the triage guidance
 
 ### Scenario: SAFEWORD.md states the value-of-information triage
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 570e10b
+- [x] GREEN ab75be3
+- [x] REFACTOR skip: prose addition, no structural improvement needed
 
 ### Scenario: SAFEWORD.md defines readiness as edge-case-level questions
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 570e10b
+- [x] GREEN ab75be3
+- [x] REFACTOR skip: prose addition, no structural improvement needed
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario skip: two RGR loops over one cohesive pure module; no cross-loop duplication to extract
