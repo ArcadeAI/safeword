@@ -129,16 +129,19 @@ function asPatchList(entry: TextPatchDefinition | TextPatchDefinition[]): TextPa
 
 function planTextPatches(
   patches: Record<string, TextPatchDefinition | TextPatchDefinition[]>,
-  cwd: string,
-  isGitRepo: boolean,
+  ctx: ProjectContext,
 ): Action[] {
   const actions: Action[] = [];
   for (const [filePath, entry] of Object.entries(patches)) {
-    if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
+    if (shouldSkipForNonGit(filePath, ctx.isGitRepo)) continue;
     // Apply in list order so later patches land beneath earlier ones.
     for (const definition of asPatchList(entry)) {
-      if (!passesTextPatchContentGuard(cwd, filePath, definition)) continue;
-      actions.push({ type: 'text-patch', path: filePath, definition });
+      if (!passesTextPatchContentGuard(ctx.cwd, filePath, definition)) continue;
+      actions.push({
+        type: 'text-patch',
+        path: filePath,
+        definition: resolveTextPatch(definition, ctx),
+      });
     }
   }
   return actions;
@@ -160,8 +163,7 @@ function passesTextPatchContentGuard(
 
 function planTextUnpatches(
   patches: Record<string, TextPatchDefinition | TextPatchDefinition[]>,
-  cwd: string,
-  isGitRepo: boolean,
+  ctx: ProjectContext,
 ): Action[] {
   const hasLegacyPreamble = (content: string, definition: TextPatchDefinition): boolean => {
     const firstLine = content.split('\n', 1)[0] ?? '';
@@ -170,9 +172,9 @@ function planTextUnpatches(
 
   const actions: Action[] = [];
   for (const [filePath, entry] of Object.entries(patches)) {
-    if (shouldSkipForNonGit(filePath, isGitRepo)) continue;
+    if (shouldSkipForNonGit(filePath, ctx.isGitRepo)) continue;
 
-    const fullPath = nodePath.join(cwd, filePath);
+    const fullPath = nodePath.join(ctx.cwd, filePath);
     if (!exists(fullPath)) continue;
 
     const content = readFileSafe(fullPath) ?? '';
@@ -180,7 +182,11 @@ function planTextUnpatches(
     // (removeFileIfContentEquals) runs last, after siblings strip their blocks.
     for (const definition of asPatchList(entry).toReversed()) {
       if (hasLegacyPreamble(content, definition)) {
-        actions.push({ type: 'text-unpatch', path: filePath, definition });
+        actions.push({
+          type: 'text-unpatch',
+          path: filePath,
+          definition: resolveTextPatch(definition, ctx),
+        });
       }
     }
   }
@@ -303,8 +309,20 @@ export type Action =
   | { type: 'chmod'; paths: string[] }
   | { type: 'json-merge'; path: string; definition: JsonMergeDefinition }
   | { type: 'json-unmerge'; path: string; definition: JsonMergeDefinition }
-  | { type: 'text-patch'; path: string; definition: TextPatchDefinition }
-  | { type: 'text-unpatch'; path: string; definition: TextPatchDefinition };
+  | { type: 'text-patch'; path: string; definition: ResolvedTextPatch }
+  | { type: 'text-unpatch'; path: string; definition: ResolvedTextPatch };
+
+// A TextPatchDefinition whose ctx-factory `content` has been resolved to a string
+// at plan time, so executors never see a function (#293).
+type ResolvedTextPatch = Omit<TextPatchDefinition, 'content'> & { content: string };
+
+function resolveTextPatch(definition: TextPatchDefinition, ctx: ProjectContext): ResolvedTextPatch {
+  return {
+    ...definition,
+    content:
+      typeof definition.content === 'function' ? definition.content(ctx) : definition.content,
+  };
+}
 
 export interface ReconcileResult {
   actions: Action[];
@@ -481,8 +499,8 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
 
   // 6. Text patches — unguarded patches create absent target files; guarded
   // patches only run when the current file proves it is safe to touch.
-  actions.push(...planTextUnpatches(schema.legacyTextPatches, ctx.cwd, ctx.isGitRepo));
-  const textPatchActions = planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo);
+  actions.push(...planTextUnpatches(schema.legacyTextPatches, ctx));
+  const textPatchActions = planTextPatches(schema.textPatches, ctx);
   actions.push(...textPatchActions);
   for (const action of textPatchActions) {
     if (action.type === 'text-patch' && !exists(nodePath.join(ctx.cwd, action.path))) {
@@ -629,8 +647,8 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
 
   // 7. Text patches
   actions.push(
-    ...planTextUnpatches(schema.legacyTextPatches, ctx.cwd, ctx.isGitRepo),
-    ...planTextPatches(schema.textPatches, ctx.cwd, ctx.isGitRepo),
+    ...planTextUnpatches(schema.legacyTextPatches, ctx),
+    ...planTextPatches(schema.textPatches, ctx),
   );
 
   // 8. Compute packages to install
@@ -684,8 +702,8 @@ function computeUninstallPlan(
 
   // 3. Text unpatches
   actions.push(
-    ...planTextUnpatches(schema.textPatches, ctx.cwd, ctx.isGitRepo),
-    ...planTextUnpatches(schema.legacyTextPatches, ctx.cwd, ctx.isGitRepo),
+    ...planTextUnpatches(schema.textPatches, ctx),
+    ...planTextUnpatches(schema.legacyTextPatches, ctx),
   );
 
   // 4. Remove preserved directories first (reverse order, only if empty)
@@ -951,12 +969,67 @@ function executeJsonUnmerge(
   writeJson(fullPath, unmerged);
 }
 
-function executeTextPatch(cwd: string, path: string, definition: TextPatchDefinition): void {
+/**
+ * The safeword-owned body lines of a re-renderable block, in order, taken from
+ * the freshly-resolved content (the header/marker line excluded).
+ */
+function rerenderBlockLines(definition: ResolvedTextPatch): string[] {
+  return definition.content
+    .split('\n')
+    .filter(line => line !== '' && !line.includes(definition.marker));
+}
+
+/**
+ * Remove a re-renderable managed block so a fresh, ctx-resolved version can be
+ * re-appended (#293). Consumes the `marker` header plus the contiguous run of
+ * disk lines that match the fresh block's body lines *in order* — an on-disk
+ * block is always a prefix of the new one (the owned-dir set only grows and its
+ * order is fixed), so a customer line that breaks the sequence (even one that
+ * coincidentally equals an owned dir) is never consumed.
+ */
+function stripRerenderBlock(content: string, definition: ResolvedTextPatch): string {
+  const lines = content.split('\n');
+  const startIndex = lines.findIndex(line => line.includes(definition.marker));
+  if (startIndex === -1) return content;
+
+  const blockLines = rerenderBlockLines(definition);
+  let endIndex = startIndex;
+  let expected = 0;
+  while (
+    endIndex + 1 < lines.length &&
+    expected < blockLines.length &&
+    lines[endIndex + 1] === blockLines[expected]
+  ) {
+    endIndex += 1;
+    expected += 1;
+  }
+
+  // Also drop a single blank separator line immediately before the header.
+  const blockStart = startIndex > 0 && lines[startIndex - 1] === '' ? startIndex - 1 : startIndex;
+  lines.splice(blockStart, endIndex - blockStart + 1);
+  return lines.join('\n').replaceAll(/\n{3,}/g, '\n\n');
+}
+
+function executeTextPatch(cwd: string, path: string, definition: ResolvedTextPatch): void {
+  // rerender re-appends the block at EOF, so it only makes sense for `append`.
+  if (definition.rerender && definition.operation !== 'append') {
+    throw new Error(`rerender text patch ${path} must use operation: 'append'`);
+  }
+
   const fullPath = nodePath.join(cwd, path);
   let content = readFileSafe(fullPath) ?? '';
 
   // Check if already patched
   if (content.includes(definition.marker)) {
+    // Re-renderable block (#293): when the resolved content has drifted from
+    // what's on disk (e.g. a custom paths.projectRoot was added), replace the
+    // managed block in place so existing installs heal on upgrade. A no-op when
+    // the block is already current, so default installs never churn.
+    if (definition.rerender && !content.includes(definition.content)) {
+      const stripped = stripRerenderBlock(content, definition);
+      writeFile(fullPath, stripped + definition.content);
+      return;
+    }
     // Heal legacy artifact from safeword <=0.30.1: the prepend templates
     // (CLAUDE_MD_IMPORT_BLOCK, AGENTS_MD_LINK) ended with bare `---` and no
     // trailing newline, so the `---` separator glued to the user's first
@@ -980,12 +1053,16 @@ function executeTextPatch(cwd: string, path: string, definition: TextPatchDefini
   writeFile(fullPath, content);
 }
 
-function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefinition): void {
-  const fullPath = nodePath.join(cwd, path);
-  const content = readFileSafe(fullPath);
-  if (!content) return;
-
+function computeUnpatchedContent(content: string, definition: ResolvedTextPatch): string {
   let unpatched = removeExactTextPatchContent(content, definition);
+
+  // Re-render patches (#293): the on-disk block can differ from the ctx-resolved
+  // content (e.g. paths.projectRoot changed since install), so an exact removal
+  // misses it. Fall back to the marker-anchored, sequence-bounded strip — which
+  // never consumes a customer line that follows the block.
+  if (unpatched === content && definition.rerender) {
+    unpatched = stripRerenderBlock(content, definition);
+  }
 
   // Legacy prepend blocks may have a malformed separator (`---# Heading`) from
   // safeword <=0.30.1. If the file starts with our managed marker, remove the
@@ -993,18 +1070,25 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
   if (unpatched === content && content.startsWith(definition.marker)) {
     const separatorIndex = content.indexOf('\n---');
     if (separatorIndex !== -1) {
-      const afterSeparator = content.slice(separatorIndex + '\n---'.length).replace(/^\n+/, '');
-      unpatched = afterSeparator;
+      unpatched = content.slice(separatorIndex + '\n---'.length).replace(/^\n+/, '');
     }
   }
 
   const firstLine = content.split('\n', 1)[0] ?? '';
   if (unpatched === content && firstLine.includes(definition.marker)) {
-    const lines = content.split('\n');
-    const filtered = lines.slice(1);
-    unpatched = filtered.join('\n').replace(/^\n+/, ''); // Remove leading empty lines
+    unpatched = content.split('\n').slice(1).join('\n').replace(/^\n+/, ''); // drop leading blanks
     unpatched = stripLeadingSafewordSeparator(unpatched);
   }
+
+  return unpatched;
+}
+
+function executeTextUnpatch(cwd: string, path: string, definition: ResolvedTextPatch): void {
+  const fullPath = nodePath.join(cwd, path);
+  const content = readFileSafe(fullPath);
+  if (!content) return;
+
+  const unpatched = computeUnpatchedContent(content, definition);
 
   if (shouldRemoveTextPatchTarget(unpatched, definition)) {
     remove(fullPath);
@@ -1014,7 +1098,7 @@ function executeTextUnpatch(cwd: string, path: string, definition: TextPatchDefi
   writeFile(fullPath, unpatched);
 }
 
-function removeExactTextPatchContent(content: string, definition: TextPatchDefinition): string {
+function removeExactTextPatchContent(content: string, definition: ResolvedTextPatch): string {
   let unpatched = content.replace(definition.content, '');
   for (const extraContent of definition.unpatchContent ?? []) {
     unpatched = unpatched.replace(extraContent, '');
