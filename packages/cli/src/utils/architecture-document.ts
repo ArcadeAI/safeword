@@ -36,18 +36,16 @@ const GENERATOR_VALUE = 'safeword-architecture';
  * overwritten — the marker survives even when the fingerprint is corrupted.
  */
 function isSafewordOwned(content: string): boolean {
-  const frontmatter = /^---\n([\s\S]*?)\n---/.exec(content);
-  return frontmatter?.[1].includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ?? false;
+  const body = /^---\n([\s\S]*?)\n---/.exec(content)?.[1];
+  return body?.includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ?? false;
 }
 
 /** Parse the recorded fingerprint from a document's frontmatter, or undefined. */
 export function readDocumentFingerprint(content: string): string | undefined {
-  const frontmatter = /^---\n([\s\S]*?)\n---/.exec(content);
-  if (frontmatter === null) return undefined;
+  const body = /^---\n([\s\S]*?)\n---/.exec(content)?.[1];
+  if (body === undefined) return undefined;
 
-  const line = frontmatter[1]
-    .split('\n')
-    .find(candidate => candidate.startsWith(`${FINGERPRINT_KEY}:`));
+  const line = body.split('\n').find(candidate => candidate.startsWith(`${FINGERPRINT_KEY}:`));
   if (line === undefined) return undefined;
 
   const value = line.slice(FINGERPRINT_KEY.length + 1).trim();
@@ -102,7 +100,9 @@ function parseSectionStamps(content: string): Map<string, string> {
   const pattern = /^### (.+)\n+<!-- reconciled: (\S+) -->/gm;
 
   for (const match of content.matchAll(pattern)) {
-    stamps.set(match[1].trim(), match[2]);
+    const name = match[1];
+    const stamp = match[2];
+    if (name !== undefined && stamp !== undefined) stamps.set(name.trim(), stamp);
   }
 
   return stamps;
