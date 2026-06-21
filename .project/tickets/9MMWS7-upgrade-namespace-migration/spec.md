@@ -16,13 +16,13 @@ where it is; `safeword check` nudges only when a half-finished state exists.
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — upgrades safeword on an old project and gets walked across the namespace convention in one keystroke, or declines with zero consequence.
+- **Technical Builder (TB)** — upgrades safeword on an old project and gets walked across the namespace convention in one keystroke, or declines with zero consequence.
 
 ## Jobs To Be Done
 
 ### upgrade-namespace-migration.DEV1 — Converge an old install during a routine upgrade
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I run `safeword upgrade` on a project still using `.safeword-project/`,
 > I want it to offer the move to `.project/` as the recommended default and do

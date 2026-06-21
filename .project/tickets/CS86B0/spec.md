@@ -21,7 +21,7 @@ unchanged.
 
 ## Personas
 
-**Agent-Driven Developer (DEV)** — drives the BDD flow on a real project; after
+**Technical Builder (TB)** — drives the BDD flow on a real project; after
 the scenario-gate, wants a runnable test board scaffolded from the scenarios so
 "3/12 passing" is visible from the first implement step.
 
@@ -39,7 +39,7 @@ fail for a true-RED "make them pass" board. (`it.fails` is wrong — green-while
 
 ### codify.DEV1 — Scaffold every scenario into a runnable test board in one shot
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I finish defining and gating a ticket's scenarios, I want to generate the
 > whole vitest test file at once — one stub per scenario, traceable to its AC —

@@ -18,13 +18,13 @@ keep the old path.
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — runs `safeword upgrade --migrate-namespace` on a real project and needs their lint/CI to keep working, or to be told exactly what to fix.
+- **Technical Builder (TB)** — runs `safeword upgrade --migrate-namespace` on a real project and needs their lint/CI to keep working, or to be told exactly what to fix.
 
 ## Jobs To Be Done
 
 ### migration-stale-config-warning.DEV1 — Don't let the move silently break my tooling
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When `safeword upgrade` moves my namespace to `.project/`, I want it to tell
 > me which of my own tooling configs still point at the old path, so I fix my
