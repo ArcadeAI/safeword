@@ -98,7 +98,7 @@ try {
       r => r.ruleId === 'safeword/no-incomplete-error-handling',
     );
 
-    expect(safewordErrors.length).toBe(1);
+    expect(safewordErrors).toHaveLength(1);
   });
 });
 
@@ -310,7 +310,7 @@ export default x;
       r => r.ruleId === 'eslint-comments/require-description',
     );
 
-    expect(descriptionErrors.length).toBe(1);
+    expect(descriptionErrors).toHaveLength(1);
   });
 
   it('allows described disable comments', () => {
@@ -327,7 +327,7 @@ export default x;
       r => r.ruleId === 'eslint-comments/require-description',
     );
 
-    expect(descriptionErrors.length).toBe(0);
+    expect(descriptionErrors).toHaveLength(0);
   });
 
   it('includes reportUnusedDisableDirectives at error', () => {
