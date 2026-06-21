@@ -13,7 +13,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { shapeFingerprint } from './architecture-fingerprint.js';
-import { extractSkeleton } from './architecture-skeleton.js';
+import { reconcileSections, type SectionStatus } from './architecture-reconcile.js';
+import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
 import { resolveConfiguredPath } from './configured-paths.js';
 
 export type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated';
@@ -94,28 +95,39 @@ function renderDocument(
   fingerprint: string,
   priorStamps: Map<string, string>,
 ): string {
-  const sections = extractSkeleton(projectDirectory)
-    .nodes.map(node => renderSection(node.name, node.path, node.purpose, fingerprint, priorStamps))
+  const nodes = extractSkeleton(projectDirectory).nodes;
+
+  // reconcileSections is the single source of truth for per-section status;
+  // this layer only renders markers from its verdicts.
+  const verdicts = reconcileSections({
+    priorStamps: Object.fromEntries(priorStamps),
+    nodeNames: nodes.map(node => node.name),
+    fingerprint,
+  });
+  const nodeByName = new Map(nodes.map(node => [node.name, node]));
+
+  const sections = verdicts
+    .map(verdict => {
+      const node = nodeByName.get(verdict.node);
+      // A section the heal has seen before keeps its prior stamp; a brand-new
+      // node is stamped current (a placeholder awaiting prose, not stale).
+      const stamp = priorStamps.get(verdict.node) ?? fingerprint;
+      return node === undefined
+        ? renderOrphanSection(verdict.node)
+        : renderSection(node, stamp, verdict.status);
+    })
     .join('\n');
 
   return `---\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Modules\n\n${sections}`;
 }
 
-function renderSection(
-  name: string,
-  path: string,
-  purpose: string,
-  fingerprint: string,
-  priorStamps: Map<string, string>,
-): string {
-  // A section the heal has seen before keeps its prior stamp, so structural
-  // drift since that stamp surfaces as stale; a brand-new node is stamped
-  // current — it is a placeholder awaiting prose, not stale.
-  const stamp = priorStamps.get(name) ?? fingerprint;
-  const staleMarker =
-    stamp === fingerprint
-      ? ''
-      : '\n> ⚠ stale: structure changed since this section was reconciled.\n';
+function renderSection(node: SkeletonNode, stamp: string, status: SectionStatus): string {
+  const marker =
+    status === 'stale' ? '\n> ⚠ stale: structure changed since this section was reconciled.\n' : '';
 
-  return `### ${name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n\`${path}\` — ${purpose}\n${staleMarker}`;
+  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n\`${node.path}\` — ${node.purpose}\n${marker}`;
+}
+
+function renderOrphanSection(name: string): string {
+  return `### ${name}\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n`;
 }

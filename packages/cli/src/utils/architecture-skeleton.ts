@@ -42,7 +42,9 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
     .filter(entry => entry.isDirectory())
     .map(entry => ({
       name: entry.name,
-      path: nodePath.join('src', entry.name),
+      // Forward slashes always — the rendered doc and fingerprint must be
+      // platform-stable (the fingerprint normalizes paths the same way).
+      path: `src/${entry.name}`,
       purpose: PURPOSE_PLACEHOLDER,
     }));
 

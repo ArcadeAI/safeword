@@ -6,7 +6,7 @@
  * <root>/architecture.md).
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -86,5 +86,17 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     const content = readFileSync(documentPath(context.directory), 'utf8');
     expect(content).toContain('billing');
     expect(content).toMatch(/stale/i);
+  });
+
+  it('flags a removed module as orphaned rather than silently dropping it', () => {
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    selfHeal(context.directory);
+    rmSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true, force: true });
+
+    selfHeal(context.directory);
+
+    const content = readFileSync(documentPath(context.directory), 'utf8');
+    expect(content).toMatch(/orphaned/i);
+    expect(content).toContain('billing');
   });
 });

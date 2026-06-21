@@ -16,7 +16,7 @@ describe('reconcileSections — stale prose is visibly flagged', () => {
     const verdicts = reconcileSections({
       nodeNames: ['auth'],
       fingerprint: CURRENT,
-      sections: [{ node: 'auth', reconciled: CURRENT, hasProse: true }],
+      priorStamps: { auth: CURRENT },
     });
 
     expect(verdicts).toEqual([{ node: 'auth', status: 'current' }]);
@@ -26,7 +26,7 @@ describe('reconcileSections — stale prose is visibly flagged', () => {
     const verdicts = reconcileSections({
       nodeNames: ['auth'],
       fingerprint: CURRENT,
-      sections: [{ node: 'auth', reconciled: OLDER, hasProse: true }],
+      priorStamps: { auth: OLDER },
     });
 
     expect(verdicts).toEqual([{ node: 'auth', status: 'stale' }]);
@@ -36,17 +36,17 @@ describe('reconcileSections — stale prose is visibly flagged', () => {
     const verdicts = reconcileSections({
       nodeNames: [],
       fingerprint: CURRENT,
-      sections: [{ node: 'auth', reconciled: OLDER, hasProse: true }],
+      priorStamps: { auth: OLDER },
     });
 
     expect(verdicts).toEqual([{ node: 'auth', status: 'orphaned' }]);
   });
 
-  it('marks a new node without prose as placeholder, not stale', () => {
+  it('marks a new node without a prior stamp as placeholder, not stale', () => {
     const verdicts = reconcileSections({
       nodeNames: ['billing'],
       fingerprint: CURRENT,
-      sections: [{ node: 'billing', reconciled: '', hasProse: false }],
+      priorStamps: {},
     });
 
     expect(verdicts).toEqual([{ node: 'billing', status: 'placeholder' }]);
