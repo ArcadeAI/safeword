@@ -75,4 +75,16 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     const content = readFileSync(documentPath(context.directory), 'utf8');
     expect(readDocumentFingerprint(content)).toBe(shapeFingerprint(context.directory));
   });
+
+  it('re-syncs and flags lagging prose when a change is made out of band', () => {
+    selfHeal(context.directory);
+    // A human adds a module with no agent in the loop, then a session starts.
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+
+    selfHeal(context.directory);
+
+    const content = readFileSync(documentPath(context.directory), 'utf8');
+    expect(content).toContain('billing');
+    expect(content).toMatch(/stale/i);
+  });
 });
