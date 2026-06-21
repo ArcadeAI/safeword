@@ -31,7 +31,7 @@ when there's more than one RGR loop, and auto-skipping when there's just one
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — the pass fires in their agent sessions
+- **Technical Builder (TB)** — the pass fires in their agent sessions
   on real projects; they get whole-ticket cleanup before done.
 - **Safeword Maintainer (SM)** — owns the gate; wants one derived trigger,
   not a new artifact or a parallel signal.
@@ -48,7 +48,7 @@ when there's more than one RGR loop, and auto-skipping when there's just one
 
 ### whole-ticket-quality-refactor.DEV1 — Clean up cross-loop debt before verify
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I finish implementing a ticket that went through several RED-GREEN-REFACTOR
 > loops, I want one whole-ticket quality review and refactor pass before verify,
@@ -63,7 +63,7 @@ when there's more than one RGR loop, and auto-skipping when there's just one
 
 ### whole-ticket-quality-refactor.DEV2 — No ceremony when there's nothing to cross
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my ticket had only a single RGR loop, I want the whole-ticket pass to be
 > skipped automatically, so I'm not forced through a quality-review-and-refactor

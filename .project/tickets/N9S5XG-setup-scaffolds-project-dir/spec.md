@@ -16,13 +16,13 @@ never has a file clobbered.
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — runs `safeword setup` on a fresh repo, an arcade repo, or an old safeword repo, and gets one correct namespace with zero questions asked.
+- **Technical Builder (TB)** — runs `safeword setup` on a fresh repo, an arcade repo, or an old safeword repo, and gets one correct namespace with zero questions asked.
 
 ## Jobs To Be Done
 
 ### setup-scaffolds-project-dir.DEV1 — Set up into the right namespace, whatever my repo looks like
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I run `safeword setup`, I want the namespace scaffolded at the right
 > root for my repo's state — new, arcade, or legacy — so setup just works and

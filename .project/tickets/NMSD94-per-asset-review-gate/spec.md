@@ -14,7 +14,7 @@ Make "work is reviewed before it's built on" enforceable in the safeword workflo
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — builds features through the agent; bears the cost of a flawed early asset compounding downstream, and of review being silently skipped.
+- **Technical Builder (TB)** — builds features through the agent; bears the cost of a flawed early asset compounding downstream, and of review being silently skipped.
 - **Safeword Maintainer (SM)** — owns the gates; bears the cost of bloat and of low-signal gates training `--no-verify` bypass.
 
 ## Vocabulary
@@ -26,7 +26,7 @@ Make "work is reviewed before it's built on" enforceable in the safeword workflo
 
 ### review-gate.DEV1 — catch a weak asset before downstream work is built on it
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I'm building a feature and the agent produces each artifact in turn (jobs → acceptance criteria → scenarios, and each TDD step), I want a quick review forced on each one before the next is authored, so a flawed foundation is caught early instead of after the whole chain has been poured on top of it.
 
@@ -40,7 +40,7 @@ Satisfying the per-asset stamp spawns no fresh sub-agent — the review is the w
 
 ### review-gate.DEV2 — guarantee an independent review actually ran at each phase
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When the agent advances from one workflow phase to the next, I want proof that an independent review ran — not the author grading its own work, and not skipped — so review isn't silently dropped and I don't have to keep manually prompting for it.
 

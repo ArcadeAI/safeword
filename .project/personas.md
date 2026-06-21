@@ -7,13 +7,7 @@ unknown references as questions. Format and short-code rules:
 packages/cli/templates/personas-template.md.
 -->
 
-<!--
-Code note: the Technical Builder persona keeps the legacy `DEV` short code
-(not `TB`) because existing specs reference `DEV`. Migrating the code to
-`TB` is part of the deferred spec re-scan, not a personas.md-only change.
--->
-
-## Technical Builder (DEV)
+## Technical Builder (TB)
 
 **Role:** A developer who runs an AI coding agent (Claude Code, Cursor, or Codex) on a real project and installs safeword to keep that agent test-first, design-validated, and consistent.
 
@@ -29,4 +23,4 @@ Code note: the Technical Builder persona keeps the legacy `DEV` short code
 
 **Role:** A contributor who builds and extends safeword itself — authoring hooks, gates, skills, and enforcement rules in this repo.
 
-**Context:** Works in the safeword repo, which dogfoods safeword, so a Maintainer is always also a DEV in their own sessions. Needs enforcement defined in one declarative place rather than scattered through TypeScript, and needs to trust and verify the rule set before it ships and fires on real projects.
+**Context:** Works in the safeword repo, which dogfoods safeword, so a Maintainer is always also a TB in their own sessions. Needs enforcement defined in one declarative place rather than scattered through TypeScript, and needs to trust and verify the rule set before it ships and fires on real projects.
