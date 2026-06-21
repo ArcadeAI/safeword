@@ -20,21 +20,21 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A file outside any module is not listed as a node
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: already satisfied by the extractor's src-only scan; added as a regression guard
+- [x] GREEN a939add
+- [ ] REFACTOR skip: guard test, no production change
 
 ### Scenario: A project with no src directory still produces a doc
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: already satisfied by the extractor's read-error fallback; added as a regression guard
+- [x] GREEN a939add
+- [ ] REFACTOR skip: guard test, no production change
 
 ### Scenario: A src directory with zero modules produces an empty skeleton
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: already satisfied by the extractor's directory filter; added as a regression guard
+- [x] GREEN a939add
+- [ ] REFACTOR skip: guard test, no production change
 
 ### Scenario: An unparseable source file does not abort extraction
 
