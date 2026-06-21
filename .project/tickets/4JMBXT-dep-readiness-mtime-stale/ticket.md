@@ -3,9 +3,9 @@ id: 4JMBXT
 slug: dep-readiness-mtime-stale
 type: patch
 phase: done
-status: in_progress
+status: done
 created: 2026-06-21T15:19:39.648Z
-last_modified: 2026-06-21T15:45:13.912Z
+last_modified: 2026-06-21T16:21:24.027Z
 ---
 
 # dependency-readiness false-positive stale after rebase (mtime vs content)
@@ -25,3 +25,4 @@ last_modified: 2026-06-21T15:45:13.912Z
 - 2026-06-21 AUDIT: scoped to diff — no new cross-module imports/cycles (depcruise covers packages/\*/src only, not templates/hooks); jscpd 0 clones; no dead code (writeInstallMarker used by 2 hooks + tests). Repo-wide knip/outdated left as pre-existing, out of patch scope. Audit passed.
 - 2026-06-21 REFACTOR: one ledger entry — duplicate `ready` return literal in getDependencyReadiness. Collapsed to "stale only when !markerFresh && mtime-stale; else ready" (commit 00a66ca). Behavior-identical (truth table preserved), also skips statSync when marker matches. 53/53 green.
 - 2026-06-21 Phase=done. Awaiting user confirmation before status=done.
+- 2026-06-21 DONE: PR #315 CI green (lint + test node 22); admin squash-merged to main as cbac55e. Closes #282. status=done per user.
