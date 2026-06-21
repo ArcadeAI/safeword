@@ -27,6 +27,13 @@ last_modified: 2026-06-20T12:32:00Z
 
 ## Scope
 
+### The agnostic system (what "one system" means here)
+
+There **is** one provider-agnostic system — it's the invariant that held across Linear, GitHub, and Jira: **one-way projection · field-ownership (never own status) · `IssuePayload` · identity/banner · sidecar idempotency · project items, not the board.** The reason it holds: providers diverge most on **status** (Linear rich states / GitHub open-closed / Jira gated workflow), and that's exactly the field safeword **refuses to write** — so the abstraction never has to _unify_ status semantics. Ceding status is what makes provider-agnosticism possible. The only universal status write is **close the issue when local status is terminal** — every tracker supports that.
+
+- **Rule of three holds** (Linear + GitHub in scope; Jira analyzed, out). No plugin framework. But `IssuePayload` + the single `projectTicket(payload, provider)` call site **are the proto-contract** — the v3/Jira extraction is a _rename_, not a redesign. Two known v3 widenings are deliberately anticipated: `body` (markdown → ADF), and a capabilities descriptor (below).
+- **Capability variance**, when v2 needs it, is a tiny declarative **per-provider capabilities descriptor** the core _queries_ — `{ bodyFormat: 'markdown'|'adf', boardModel: 'native'|'projects'|'columns', canRelations, canSubIssues, canIssueTypes }` — not scattered `if (provider===)` (the WordPress-connectors / Next.js-feature-matrix pattern). v1 barely needs it; it's where v2's graph divergence lands cleanly.
+
 ### Single call site + shared payload
 
 All projection funnels through **one** function with a provider-neutral payload — so the eventual provider #3 extraction is a refactor of one place, not a scatter of `if provider ===` conditionals:
@@ -34,7 +41,7 @@ All projection funnels through **one** function with a provider-neutral payload 
 ```ts
 type IssuePayload = {
   title: string;
-  body: string; // minimal by default: links back to the canonical ticket (see egress)
+  body: string; // v1: markdown. NOTE: Jira needs ADF JSON → widens to `string | AdfDocument` (or per-writer transform) at Jira time — the one non-neutral field.
   labels: string[]; // includes epic:<slug> and type:<type> so the board groups/filters
   assignee?: string;
   state: 'open' | 'closed';
@@ -107,15 +114,18 @@ The collision risk is that safeword and Linear both move the same issue (Linear 
 
 Ride each tracker's native provenance; add one banner. No competing IDs.
 
-- **Bot identity:** create issues through a non-human actor so the tracker flags them machine-made for free — Linear's native [integration actor](https://linear.app/developers/agents), or a **GitHub App** = `safeword[bot]` ([own identity, 15k/hr](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-with-a-github-app)). A GitHub PAT degrades to "created by `<user>`" — App preferred.
+- **Bot identity:** create issues through a non-human actor so the tracker flags them machine-made for free — Linear's native [integration actor](https://linear.app/developers/agents), or a **GitHub App** = `safeword[bot]` ([own identity](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-with-a-github-app); rate limit ~5k–12.5k/hr by org size/plan, not the Enterprise-only 15k). A GitHub PAT degrades to "created by `<user>`" — App preferred.
 - **Back-link:** Linear → native [attachment](https://linear.app/developers/attachments); GitHub → a **body link / cross-reference** (no native attachment object). Either way: `safeword ticket MBGQ89 → <repo URL>`.
 - **Body banner:** `🔁 Mirror of safeword ticket MBGQ89. Source of truth is the repo. Status & assignee are yours to set here; title & labels sync from the repo and overwrite edits.`
 - **No ID in the title:** the tracker already stamps its own (`LIN-123` / `#123`); a second `[MBGQ89]` prefix is a rival identifier (more confusion). Bind via the back-link; each keeps its own ID.
 - **Vocabulary discipline (everywhere):** safeword always says **"ticket"** for the repo file and **"issue"** for the projected Linear/GitHub object — docs, CLI output, and the banner.
 
-### Configuration
+### Configuration & setup (secrets stay out of the repo)
+
+Configured during `safeword setup` (opt-in). **Non-secret** provider/target lives in committed config; the **token never does.**
 
 ```json
+// .safeword/config.json — committed, NO secrets
 {
   "ticketBridge": {
     "provider": "none" | "linear" | "github",
@@ -126,7 +136,10 @@ Ride each tracker's native provenance; add one banner. No competing IDs.
 }
 ```
 
-Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
+- **Default `provider: none`** — solo/agent-only repos are never forced into tracker config; `body: minimal` for least egress.
+- **Secrets hierarchy** ([verified best practice](https://workos.com/blog/best-practices-for-cli-authentication-a-technical-guide)): OS keychain (preferred) → env var (`LINEAR_API_KEY` / `GITHUB_TOKEN` / Arcade key) → never a committed file, never logged. `safeword setup` writes the token to the OS keychain or prints the env-var to export — it does **not** put it in `.safeword/config.json`.
+- **Setup validation:** if `provider !== none` but no credential resolves, setup warns loudly (prevents the silent "CI sync runs, does nothing, exits 0" trap).
+- **CI / non-interactive auth:** Arcade Headers mode works, but `Arcade-User-ID` is a **user identity, not a service account** — if that user's OAuth grant lapses, sync fails (often silently). v1 must either pin a dedicated service identity or document the limitation with an explicit CLI warning (see Done-when).
 
 ## Out of scope
 
@@ -140,16 +153,18 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 ## Open questions
 
 - **Status ownership & ticket-vs-issue confusion** — RESOLVED (`figure-it-out` 2026-06-21): one-writer-per-field (safeword owns existence/title/labels/link, sets status once; Linear owns status/assignee thereafter); safeword manages only issues it created; identity via bot-actor + back-link attachment + body banner; no rival ID in the title. See the Field ownership / Identity sections.
-- **Non-interactive auth** — RESOLVED in principle: Arcade supports **Headers mode** for headless/CI (`Authorization: Bearer <ARCADE_API_KEY>` + `Arcade-User-ID: <email>`, [verified](https://docs.arcade.dev/en/get-started/mcp-clients/claude-code)); GitHub uses a `gh`/PAT token. **Caveat to document:** `Arcade-User-ID` is a _user identity, not a service account_ — if that user loses their Linear OAuth grant, CI sync fails silently. Decide whether to pin a dedicated service identity.
+- **CI service identity** — Arcade Headers mode works, but `Arcade-User-ID` is a user identity, not a service account (silent-failure risk on grant lapse). Now a **Done-when** item: support a dedicated service identity or emit an explicit CLI warning. (Promoted from "decide later" — it's the one security-relevant open question.)
 - **Cadence** — explicit command only, post-commit, or scheduled CI? Lean: explicit command + optional CI.
 
 ## Done when
 
 - `safeword sync-tracker` projects the corpus one-way to the configured provider as **flat issues** (title, status→state, labels for epic+type, assignee, link-back).
 - Both Linear and GitHub writers ship, behind one call site + shared `IssuePayload`, using **stable create/update only** (no relations/sub-issue/issue-type calls).
-- **Field ownership** holds: safeword writes existence/title/labels/back-link and sets status once at creation; on re-sync it updates only title/labels/closed-state and **never** writes status/assignee/priority; it touches only issues in its tracker-map.
-- **Identity:** issues are created via a safeword bot identity, carry a back-link attachment to the canonical ticket, and a body banner naming the repo as source; no safeword ID in the title.
-- Re-running is idempotent via the `.safeword/tracker-map.json` sidecar; **partial-failure resume** is tested (a crash mid-corpus does not double-create).
+- **Field ownership** holds: safeword writes existence/title/labels/back-link and sets status once at creation; on re-sync it updates only title/labels and **never** writes status/assignee/priority — with **one universal exception**: it closes the issue when local status is terminal (the only status write, supported by every tracker). It touches only issues in its tracker-map.
+- **Identity:** issues are created via a safeword bot identity, carry a back-link to the canonical ticket, and a body banner naming the repo as source; no safeword ID in the title.
+- **Secrets:** tokens are read from OS keychain / env var, never `.safeword/config.json`, never logged; `setup` warns if `provider !== none` and no credential resolves.
+- **CI auth:** the `Arcade-User-ID` user-identity limitation is resolved — either a dedicated service identity is supported, or the CLI emits an explicit warning naming the silent-failure mode.
+- Re-running is idempotent via the `.safeword/tracker-map.json` sidecar; **partial-failure resume** is tested (a crash mid-corpus does not double-create). **Missing/corrupt sidecar** at re-run does NOT blind-recreate — it reconciles by scanning for the back-link, or requires an explicit `--reset-tracker-map`.
 - **Body egress:** default `minimal` (no spec/work-log body); `full` is opt-in; `full`→public-repo emits a loud egress warning.
 - Corpus writes are rate-limited with backoff.
 - `.safeword/config.json` carries the `ticketBridge` block (default `provider: none`, `body: minimal`).
@@ -167,3 +182,4 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 - 2026-06-21T15:48:00Z Resolved the projection's two collision points via `/figure-it-out`. **Field ownership** (one-writer-per-field, Terraform `ignore_changes` posture): safeword owns existence/title/labels/link + status-at-creation; Linear owns status/assignee thereafter; safeword manages only issues it created. **Identity** (avoid ticket-vs-issue confusion): ride Linear's native bot-actor + back-link attachment, add one body banner, keep each system's own ID (no `[MBGQ89]` title prefix to fight `LIN-123`), enforce ticket/issue vocabulary discipline. Both close the rebuild-risks from the Linear-baseline sanity check.
 - 2026-06-21T16:06:00Z Stress-tested the plan against **GitHub as tracker** (`/figure-it-out`). Architecture holds; field-ownership gets _easier_ (GitHub status = open/closed, only auto-close-on-merge automation). Added a **Provider-shape** section — key finding: on GitHub the board is **Projects v2**, a separate layer, so v1's flat issues are a labeled _list_, not a board. Reframe: **safeword projects items, not the board**; turnkey Projects-v2 placement deferred to v2 (M1FGRJ). Identity generalized: GitHub uses a **GitHub App** (`safeword[bot]`) + body-link back-reference (no native attachment). Flagged egress is sharper on GitHub (issues share the code's, often public, repo).
 - 2026-06-21T16:16:00Z Stress-tested against **Jira** (`/figure-it-out`). Plan holds; Jira _validates_ the hardest call — its status is a gated workflow state machine (no arbitrary set; validators can reject), making create-and-cede field-ownership mandatory, not just clean. Board is automatic (initial-status column, like Linear). Captured a compact Jira-readiness note in Provider-shape: never map status, createmeta for required fields, ADF body, type→required issue type; the v2 graph maps most natively (parent + links + issue types). Meta: the seam survived all three trackers — invariant = project items + truth one-way, never own status, tracker arranges them.
+- 2026-06-21T16:24:00Z `/quality-review` of the agnostic system + setup-config requirement (web research + independent reviewer). Verdict NEEDS DISCUSSION → applied fixes. Named **the agnostic system** = the cross-tracker invariant; key insight: ceding status is what _makes_ it agnostic (the max-divergence field is the one we don't write; only universal write = close-on-terminal). Documented `IssuePayload`+call-site as the proto-contract (v3 = rename), the `body` markdown→ADF widening, and a queried **capabilities descriptor** for v2 (not a plugin framework). Added **setup + secrets**: provider/target in committed config, **token in OS keychain/env var, never config, never logged** (verified best practice), setup warns if provider set w/o credential. Promoted the **Arcade-User-ID service-identity** gap to Done-when. Fixed GitHub rate-limit (5k–12.5k, not 15k), added sidecar missing/corrupt resilience (no blind recreate), clarified close-on-terminal as the one status write.
