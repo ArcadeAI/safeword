@@ -72,27 +72,27 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A moved fingerprint heals the doc to the current shape
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED e033412
+- [x] GREEN 44dd511
+- [ ] REFACTOR skip: composed from already-tested units, no structural improvement needed
 
 ### Scenario: An unchanged fingerprint leaves the doc untouched
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED e033412
+- [x] GREEN 44dd511
+- [ ] REFACTOR skip: composed from already-tested units, no structural improvement needed
 
 ### Scenario: A project with no architecture doc gets one created
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED e033412
+- [x] GREEN 44dd511
+- [ ] REFACTOR skip: composed from already-tested units, no structural improvement needed
 
 ### Scenario: A doc with a missing or corrupt fingerprint is regenerated, never left unreconciled
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED e033412
+- [x] GREEN 44dd511
+- [ ] REFACTOR skip: composed from already-tested units, no structural improvement needed
 
 ## Rule: The fingerprint captures shape, not noise
 
