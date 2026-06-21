@@ -2,12 +2,27 @@
 id: TPP6Y2
 slug: pm-grade-intake-readiness-gate
 type: task
-phase: intake
+phase: define-behavior
 status: in_progress
 epic: pm-grade-intake
 parent: '169'
 created: 2026-06-21T03:41:30.915Z
 last_modified: 2026-06-21T03:41:30.915Z
+scope:
+  - Expand the intake self-test reminder in prompt-questions.ts from 3 to 5 dimensions (intent / done / constraints / riskiest-assumption / request-shape) as a compressed keyword pointer
+  - Fire the pointer in BOTH the active-intake-ticket branch AND the No-active-ticket pre-classify branch
+  - Add the VoI triage sentence (reversible→run; irreversible→resolve first) to SAFEWORD.md, phrased edge-cases-not-basics
+  - Mirror template edits to the .safeword/hooks dogfood copy (parity)
+out_of_scope:
+  - Cold-start sub-agent executability test (deferred to a later child of epic 169)
+  - Heavier PM intake-brief artifact (deferred to a later child)
+  - Re-implementing elicit's question-asking mechanics (info-gain ordering, anchoring guard, stopping rule)
+  - Auto-invoking /elicit on normal turns; folding the gate into the elicit skill
+done_when:
+  - The prompt-questions.ts reminder surfaces the 5-dimension compressed pointer during Clarify in both the active-intake-ticket and No-active-ticket branches
+  - The pointer line stays within the length cap (no spelled-out prompts)
+  - The constraint dimension is worded "what must not break / reversibility", not an NFR survey
+  - SAFEWORD.md carries the VoI triage sentence with edge-cases-not-basics phrasing
 ---
 
 # Sufficiency self-test as soft readiness gate at Clarify→Build
