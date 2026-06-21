@@ -104,6 +104,6 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: An out-of-band change is healed and its lagging prose flagged at session start
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2e8995d
+- [x] GREEN 669ba55
+- [ ] REFACTOR skip: per-section stamp rendering already factored into helpers
