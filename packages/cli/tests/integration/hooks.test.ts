@@ -34,7 +34,7 @@ const IS_RUFF_AVAILABLE = isRuffInstalled();
 
 // Single setup for all hook tests - sharing avoids 3 separate bun installs
 // Tests must be idempotent or restore state after modification (see try/finally blocks)
-let shared.projectDirectory: string;
+const shared: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeAll(async () => {
   shared.projectDirectory = createTemporaryDirectory();
@@ -147,7 +147,7 @@ function runStopHook(
 }
 
 /** Parse JSON output from stop hook */
-function parseStopOutput(result: { stdout: string; stderr: string; exitCode: number }): {
+function parseStopOutput(result: { stdout: string }): {
   decision?: string;
   reason?: string;
 } {
@@ -1070,7 +1070,10 @@ describe('E2E: Python Lint Hook', () => {
       writeTestFile(shared.projectDirectory, 'format-test.py', badCode);
 
       // Run lint hook on the file
-      const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/format-test.py`);
+      const result = runPostToolLint(
+        shared.projectDirectory,
+        `${shared.projectDirectory}/format-test.py`,
+      );
       expect(result.status).toBe(0);
 
       // File should now be formatted
@@ -1085,7 +1088,10 @@ describe('E2E: Python Lint Hook', () => {
       writeTestFile(shared.projectDirectory, 'fix-test.py', codeWithUnusedImport);
 
       // Run lint hook on the file
-      const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/fix-test.py`);
+      const result = runPostToolLint(
+        shared.projectDirectory,
+        `${shared.projectDirectory}/fix-test.py`,
+      );
       expect(result.status).toBe(0);
 
       // Unused import should be removed
@@ -1101,7 +1107,10 @@ describe('E2E: Python Lint Hook', () => {
         const codeWithUnfixable = 'def foo():\n    return\n    x = 1\n';
         writeTestFile(shared.projectDirectory, 'unfixable-test.py', codeWithUnfixable);
 
-        const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/unfixable-test.py`);
+        const result = runPostToolLint(
+          shared.projectDirectory,
+          `${shared.projectDirectory}/unfixable-test.py`,
+        );
         expect(result.status).toBe(0);
 
         // Hook should output additionalContext JSON for remaining errors
@@ -1119,7 +1128,10 @@ describe('E2E: Python Lint Hook', () => {
       const autoFixable = 'import os\nx = 1\n';
       writeTestFile(shared.projectDirectory, 'clean-after-fix.py', autoFixable);
 
-      const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/clean-after-fix.py`);
+      const result = runPostToolLint(
+        shared.projectDirectory,
+        `${shared.projectDirectory}/clean-after-fix.py`,
+      );
       expect(result.status).toBe(0);
 
       // No additionalContext should be output (file is clean after fix)

@@ -28,17 +28,17 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-let projectDirectory: string;
+const shared: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeAll(async () => {
-  projectDirectory = createTemporaryDirectory();
-  createTypeScriptPackageJson(projectDirectory);
-  initGitRepo(projectDirectory);
-  await setupOrThrow(projectDirectory);
+  shared.projectDirectory = createTemporaryDirectory();
+  createTypeScriptPackageJson(shared.projectDirectory);
+  initGitRepo(shared.projectDirectory);
+  await setupOrThrow(shared.projectDirectory);
 });
 
 afterAll(() => {
-  if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+  if (shared.projectDirectory) removeTemporaryDirectory(shared.projectDirectory);
 });
 
 function plan(decisions: string, status = 'implemented'): string {
@@ -73,7 +73,7 @@ const UNCITED = plan('We chose a file store because it is simpler than a databas
 
 function setConfig(flags: Record<string, unknown>): void {
   writeTestFile(
-    projectDirectory,
+    shared.projectDirectory,
     '.safeword/config.json',
     JSON.stringify({ installedPacks: ['typescript'], ...flags }),
   );
@@ -81,27 +81,27 @@ function setConfig(flags: Record<string, unknown>): void {
 
 function writeTicket(id: string, type: 'feature' | 'task', implPlan?: string, spec = true): void {
   const folder = `.project/tickets/${id}`;
-  mkdirSync(nodePath.join(projectDirectory, folder), { recursive: true });
+  mkdirSync(nodePath.join(shared.projectDirectory, folder), { recursive: true });
   writeTestFile(
-    projectDirectory,
+    shared.projectDirectory,
     `${folder}/ticket.md`,
     `---\nid: ${id}\ntype: ${type}\nphase: verify\nstatus: in_progress\nlast_modified: 2026-01-06T10:00:00Z\n---\n# Test\n`,
   );
   if (type === 'feature') {
     writeTestFile(
-      projectDirectory,
+      shared.projectDirectory,
       `${folder}/test-definitions.md`,
       '# Test Definitions\n\n## Rule: r\n\n### Scenario: s\n\n- [x] RED abc1234\n',
     );
   }
   if (spec) {
     writeTestFile(
-      projectDirectory,
+      shared.projectDirectory,
       `${folder}/spec.md`,
       '# Spec\n\n## Jobs To Be Done\n\nskip: fixture\n',
     );
   }
-  if (implPlan !== undefined) writeTestFile(projectDirectory, `${folder}/impl-plan.md`, implPlan);
+  if (implPlan !== undefined) writeTestFile(shared.projectDirectory, `${folder}/impl-plan.md`, implPlan);
 }
 
 /** Append a design-review stamp for the impl-plan to the invocation log. */
@@ -116,7 +116,7 @@ function writeStamp(
     hashArtifact(options.hashOf ?? planContent),
   );
   const line = `2026-06-12T00:00:00Z sess ${formatReviewStamp(scope, options.skip, options.model)}`;
-  appendFileSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'), `${line}\n`);
+  appendFileSync(nodePath.join(shared.projectDirectory, '.project', 'skill-invocations.log'), `${line}\n`);
 }
 
 function runStopHook(
@@ -125,7 +125,7 @@ function runStopHook(
   options: { noEdit?: boolean } = {},
 ): string {
   const sessionId = `session-${id}`;
-  const transcriptPath = nodePath.join(projectDirectory, `transcript-${id}.jsonl`);
+  const transcriptPath = nodePath.join(shared.projectDirectory, `transcript-${id}.jsonl`);
   // opts.noEdit → a conversational stop with no recent edit tool, proving the gate enforces on
   // phase/state rather than edit activity (the hoist above the edit-tools early-exit).
   const content = options.noEdit
@@ -139,20 +139,20 @@ function runStopHook(
     `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content } })}\n`,
   );
   writeFileSync(
-    nodePath.join(projectDirectory, '.project', `quality-state-${sessionId}.json`),
+    nodePath.join(shared.projectDirectory, '.project', `quality-state-${sessionId}.json`),
     JSON.stringify({ activeTicket: id }),
   );
   // Default the ambient author model to unset so cross-model fail-closed cases are deterministic;
   // tests that exercise a known author model pass it explicitly in `env`.
   const childEnvironment: Record<string, string | undefined> = {
     ...process.env,
-    CLAUDE_PROJECT_DIR: projectDirectory,
+    CLAUDE_PROJECT_DIR: shared.projectDirectory,
     ...env,
   };
   if (!('SAFEWORD_AUTHOR_MODEL' in env)) delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
   const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
     input: JSON.stringify({ transcript_path: transcriptPath, session_id: sessionId }),
-    cwd: projectDirectory,
+    cwd: shared.projectDirectory,
     env: childEnvironment,
     encoding: 'utf8',
   });

@@ -538,7 +538,8 @@ describe('Schema - Single Source of Truth', () => {
       function collectFiles(directory: string, prefix: string): string[] {
         const results: string[] = [];
         if (!existsSync(directory)) return results;
-        for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const entries = readdirSync(directory, { withFileTypes: true });
+        for (const entry of entries) {
           if (entry.name.startsWith('.')) continue;
           const relativePath = `${prefix}/${entry.name}`;
           if (entry.isDirectory()) {

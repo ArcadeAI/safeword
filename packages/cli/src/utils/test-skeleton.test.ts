@@ -39,25 +39,23 @@ function countDescribes(emitted: string): number {
 
 describe('emitVitestSkeleton — AC1: faithful scenario→test mapping', () => {
   it('codify.DEV1.AC1.scenario_emits_one_named_it', () => {
-    const out = emitVitestSkeleton(
-      definitions(rule('a rule', scenario('codify.DEV1.AC1.example'))),
-    );
+    const defs = definitions(rule('a rule', scenario('codify.DEV1.AC1.example')));
+    const out = emitVitestSkeleton(defs);
     expect(countTests(out)).toBe(1);
     expect(out).toContain('"codify.DEV1.AC1.example"');
   });
 
   it('codify.DEV1.AC1.given_when_then_and_render_as_comments', () => {
-    const out = emitVitestSkeleton(
-      definitions(
-        rule(
-          'a rule',
-          scenario(
-            'codify.DEV1.AC1.commented',
-            'Given a cart\nWhen I pay\nThen it clears\nAnd a receipt prints',
-          ),
+    const defs = definitions(
+      rule(
+        'a rule',
+        scenario(
+          'codify.DEV1.AC1.commented',
+          'Given a cart\nWhen I pay\nThen it clears\nAnd a receipt prints',
         ),
       ),
     );
+    const out = emitVitestSkeleton(defs);
     const gIndex = out.indexOf('// Given a cart');
     const wIndex = out.indexOf('// When I pay');
     const tIndex = out.indexOf('// Then it clears');
@@ -69,9 +67,8 @@ describe('emitVitestSkeleton — AC1: faithful scenario→test mapping', () => {
   });
 
   it('codify.DEV1.AC1.scenario_without_body_still_emits_a_stub', () => {
-    const out = emitVitestSkeleton(
-      definitions(rule('a rule', scenario('codify.DEV1.AC1.bodyless', ''))),
-    );
+    const defs = definitions(rule('a rule', scenario('codify.DEV1.AC1.bodyless', '')));
+    const out = emitVitestSkeleton(defs);
     expect(countTests(out)).toBe(1);
     expect(out).toContain('"codify.DEV1.AC1.bodyless"');
     // No step comments in the generated body (the only `//` is the file header).
@@ -80,15 +77,14 @@ describe('emitVitestSkeleton — AC1: faithful scenario→test mapping', () => {
   });
 
   it('codify.DEV1.AC1.scenarios_group_under_their_rule_describe', () => {
-    const out = emitVitestSkeleton(
-      definitions(
-        rule(
-          'emits one test per scenario',
-          scenario('codify.DEV1.AC1.one'),
-          scenario('codify.DEV1.AC1.two'),
-        ),
+    const defs = definitions(
+      rule(
+        'emits one test per scenario',
+        scenario('codify.DEV1.AC1.one'),
+        scenario('codify.DEV1.AC1.two'),
       ),
     );
+    const out = emitVitestSkeleton(defs);
     expect(countDescribes(out)).toBe(1);
     expect(out).toContain('describe("emits one test per scenario"');
     expect(countTests(out)).toBe(2);
@@ -96,27 +92,26 @@ describe('emitVitestSkeleton — AC1: faithful scenario→test mapping', () => {
 
   it('codify.DEV1.AC1.rule_heading_with_special_chars_emits_valid_module', () => {
     const heading = "`check` reports gaps (three buckets) — don't break";
-    const out = emitVitestSkeleton(definitions(rule(heading, scenario('codify.DEV1.AC1.special'))));
+    const defs = definitions(rule(heading, scenario('codify.DEV1.AC1.special')));
+    const out = emitVitestSkeleton(defs);
     // The describe name is JSON-encoded, so any heading — backticks, quotes,
     // parens — becomes a valid JS string literal and the module parses.
     expect(out).toContain(`describe(${JSON.stringify(heading)}`);
   });
 
   it('codify.DEV1.AC1.rules_and_scenarios_map_one_to_one', () => {
-    const out = emitVitestSkeleton(
-      definitions(
-        rule('first rule', scenario('codify.DEV1.AC1.r1s1'), scenario('codify.DEV1.AC1.r1s2')),
-        rule('second rule', scenario('codify.DEV1.AC1.r2s1')),
-      ),
+    const defs = definitions(
+      rule('first rule', scenario('codify.DEV1.AC1.r1s1'), scenario('codify.DEV1.AC1.r1s2')),
+      rule('second rule', scenario('codify.DEV1.AC1.r2s1')),
     );
+    const out = emitVitestSkeleton(defs);
     expect(countDescribes(out)).toBe(2);
     expect(countTests(out)).toBe(3);
   });
 
   it('codify.DEV1.AC1.free_text_scenario_still_emits_a_test', () => {
-    const out = emitVitestSkeleton(
-      definitions(rule('a rule', scenario('plain words with no lineage'))),
-    );
+    const defs = definitions(rule('a rule', scenario('plain words with no lineage')));
+    const out = emitVitestSkeleton(defs);
     expect(countTests(out)).toBe(1);
     expect(out).toContain('"plain words with no lineage"');
   });
@@ -124,9 +119,10 @@ describe('emitVitestSkeleton — AC1: faithful scenario→test mapping', () => {
   it('codify.DEV1.AC1.fenced_and_commented_scenarios_are_skipped', () => {
     const fenced = '```\n### Scenario: codify.DEV1.AC1.fenced\n```';
     const commented = '<!--\n### Scenario: codify.DEV1.AC1.commented_out\n-->';
-    const out = emitVitestSkeleton(
-      definitions(rule('a rule', scenario('codify.DEV1.AC1.real'), `${fenced}\n\n${commented}`)),
+    const defs = definitions(
+      rule('a rule', scenario('codify.DEV1.AC1.real'), `${fenced}\n\n${commented}`),
     );
+    const out = emitVitestSkeleton(defs);
     expect(countTests(out)).toBe(1);
     expect(out).not.toContain('fenced');
     expect(out).not.toContain('commented_out');
@@ -143,15 +139,15 @@ describe('emitVitestSkeleton — AC1: faithful scenario→test mapping', () => {
 
 describe('emitVitestSkeleton — AC2: pending by default, --red throws', () => {
   it('codify.DEV1.AC2.default_emits_pending_it_todo', () => {
-    const out = emitVitestSkeleton(
-      definitions(rule('a rule', scenario('codify.DEV1.AC2.pending'))),
-    );
+    const defs = definitions(rule('a rule', scenario('codify.DEV1.AC2.pending')));
+    const out = emitVitestSkeleton(defs);
     expect(out).toContain('it.todo("codify.DEV1.AC2.pending")');
     expect(out).not.toContain('throw new Error');
   });
 
   it('codify.DEV1.AC2.red_flag_emits_throwing_body', () => {
-    const out = emitVitestSkeleton(definitions(rule('a rule', scenario('codify.DEV1.AC2.red'))), {
+    const defs = definitions(rule('a rule', scenario('codify.DEV1.AC2.red')));
+    const out = emitVitestSkeleton(defs, {
       red: true,
     });
     expect(out).toContain('it("codify.DEV1.AC2.red"');

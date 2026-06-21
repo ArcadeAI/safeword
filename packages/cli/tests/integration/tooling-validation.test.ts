@@ -123,11 +123,10 @@ describe('E2E: mypy Type Error Detection', () => {
     writeTestFile(
       projectDirectory,
       'src/valid_types.py',
-      `def greet(name: str) -> str:
-    return f"Hello, {name}"
-
-result: str = greet("world")
-`,
+      'def greet(name: str) -> str:\n' +
+        '    return f"Hello, {name}"\n' +
+        '\n' +
+        'result: str = greet("world")\n',
     );
 
     const result = spawnSync('mypy', ['src/valid_types.py'], {

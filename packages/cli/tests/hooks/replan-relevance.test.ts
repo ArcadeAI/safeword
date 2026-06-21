@@ -198,26 +198,22 @@ describe('detectMovedBlockers (E11N48)', () => {
   const commitTouching = (path: string) => ({ changedPaths: [path, 'README.md'] });
 
   it('fires when a terminal blocker ticket.md is in the window', () => {
-    expect(detectMovedBlockers([target()], [commitTouching(target().ticketPath)])).toEqual([
+    const commit = commitTouching(target().ticketPath);
+    expect(detectMovedBlockers([target()], [commit])).toEqual([
       { id: 'AKZJXC', slug: 'ticket-relations', status: 'done' },
     ]);
   });
 
   it('treats superseded / cancelled / wontfix as terminal', () => {
     for (const status of ['superseded', 'cancelled', 'wontfix']) {
-      expect(
-        detectMovedBlockers([target({ status })], [commitTouching(target().ticketPath)]),
-      ).toHaveLength(1);
+      const commit = commitTouching(target().ticketPath);
+      expect(detectMovedBlockers([target({ status })], [commit])).toHaveLength(1);
     }
   });
 
   it('stays silent when the blocker is not terminal', () => {
-    expect(
-      detectMovedBlockers(
-        [target({ status: 'in_progress' })],
-        [commitTouching(target().ticketPath)],
-      ),
-    ).toEqual([]);
+    const commit = commitTouching(target().ticketPath);
+    expect(detectMovedBlockers([target({ status: 'in_progress' })], [commit])).toEqual([]);
   });
 
   it('stays silent when the terminal blocker ticket.md is not in the window', () => {
