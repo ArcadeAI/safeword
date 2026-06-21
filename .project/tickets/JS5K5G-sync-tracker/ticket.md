@@ -73,7 +73,30 @@ Grouping/filtering by epic and type comes from **labels** (free, stable) — tha
 
 ### Idempotency (partial-failure-safe)
 
-Re-running reconciles, never duplicates, via a per-ticket `TrackerRef` kept in a **sidecar `.safeword/tracker-map.json`** — _not_ ticket frontmatter, so the canonical files stay pure (no sync write-back into the source of truth). The map distinguishes "created + ref recorded" from "created but ref-write failed" so a crashed mid-corpus run resumes cleanly rather than double-creating. Rate-limited writes with backoff (a first sync is one call per ticket across the corpus).
+Re-running reconciles, never duplicates, via a per-ticket `TrackerRef` kept in a **sidecar `.safeword/tracker-map.json`** — _not_ ticket frontmatter, so the canonical files stay pure (no sync write-back into the source of truth). The map distinguishes "created + ref recorded" from "created but ref-write failed" so a crashed mid-corpus run resumes cleanly rather than double-creating. Rate-limited writes with backoff (a first sync is one call per ticket across the corpus). (On Linear, the back-link **attachment** URL is also a native per-issue unique key — a secondary anchor, but the sidecar stays canonical for cross-provider uniformity.)
+
+### Field ownership — one writer per field (`figure-it-out` 2026-06-21)
+
+The collision risk is that safeword and Linear both move the same issue (Linear auto-statuses off PRs). Resolved by the **single-writer-per-field** rule ([source](https://fintechly.com/infrastructure/infrastructure-system-of-record-vs-source-of-truth/)) — the Terraform `ignore_changes` posture: own the fields you declare, look away from the rest.
+
+| Field                                                                 | Sole writer                                                                                          |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| issue **existence**, **title**, back-link, `epic:`/`type:` **labels** | **safeword** (repo-derived)                                                                          |
+| **status** (after creation), **assignee**, **priority**, **cycle**    | **Linear / GitHub** — safeword sets status **once** at creation (`open`), then never writes it again |
+
+- safeword **manages only issues it created** (tracked in the sidecar). Human-born Linear issues are never touched — no parallel jurisdiction.
+- Local status and tracker status are allowed to diverge: they're _different fields wearing the same name_ — local status is the agent's **execution phase**; tracker status is the **human workflow state** (Linear derives it from PRs, which it does better than we could).
+- On re-sync safeword writes only its own fields (title, labels, closed-state) — fewer fields than a full push, so this also keeps v1 lean.
+
+### Identity — avoid ticket-vs-issue confusion (`figure-it-out` 2026-06-21)
+
+Ride Linear's native provenance; add one banner. No competing IDs.
+
+- **Bot identity:** create issues through a **safeword integration/bot actor** ([native](https://linear.app/developers/agents)) so Linear shows "created by safeword" — synced issues are flagged machine-made for free.
+- **Back-link attachment:** attach the canonical ticket ([native attachment](https://linear.app/developers/attachments)): `safeword ticket MBGQ89 → <repo URL>`.
+- **Body banner:** `🔁 Mirror of safeword ticket MBGQ89. Source of truth is the repo. Status & assignee are yours to set here; title & labels sync from the repo and overwrite edits.`
+- **No ID in the title:** Linear already stamps `LIN-123`; a second `[MBGQ89]` prefix is a rival identifier (more confusion). Bind the two via the attachment; each keeps its own ID.
+- **Vocabulary discipline (everywhere):** safeword always says **"ticket"** for the repo file and **"issue"** for the projected Linear/GitHub object — docs, CLI output, and the banner.
 
 ### Configuration
 
@@ -100,6 +123,7 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 
 ## Open questions
 
+- **Status ownership & ticket-vs-issue confusion** — RESOLVED (`figure-it-out` 2026-06-21): one-writer-per-field (safeword owns existence/title/labels/link, sets status once; Linear owns status/assignee thereafter); safeword manages only issues it created; identity via bot-actor + back-link attachment + body banner; no rival ID in the title. See the Field ownership / Identity sections.
 - **Non-interactive auth** — RESOLVED in principle: Arcade supports **Headers mode** for headless/CI (`Authorization: Bearer <ARCADE_API_KEY>` + `Arcade-User-ID: <email>`, [verified](https://docs.arcade.dev/en/get-started/mcp-clients/claude-code)); GitHub uses a `gh`/PAT token. **Caveat to document:** `Arcade-User-ID` is a _user identity, not a service account_ — if that user loses their Linear OAuth grant, CI sync fails silently. Decide whether to pin a dedicated service identity.
 - **Cadence** — explicit command only, post-commit, or scheduled CI? Lean: explicit command + optional CI.
 
@@ -107,6 +131,8 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 
 - `safeword sync-tracker` projects the corpus one-way to the configured provider as **flat issues** (title, status→state, labels for epic+type, assignee, link-back).
 - Both Linear and GitHub writers ship, behind one call site + shared `IssuePayload`, using **stable create/update only** (no relations/sub-issue/issue-type calls).
+- **Field ownership** holds: safeword writes existence/title/labels/back-link and sets status once at creation; on re-sync it updates only title/labels/closed-state and **never** writes status/assignee/priority; it touches only issues in its tracker-map.
+- **Identity:** issues are created via a safeword bot identity, carry a back-link attachment to the canonical ticket, and a body banner naming the repo as source; no safeword ID in the title.
 - Re-running is idempotent via the `.safeword/tracker-map.json` sidecar; **partial-failure resume** is tested (a crash mid-corpus does not double-create).
 - **Body egress:** default `minimal` (no spec/work-log body); `full` is opt-in; `full`→public-repo emits a loud egress warning.
 - Corpus writes are rate-limited with backoff.
@@ -122,3 +148,4 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 - 2026-06-20T12:32:00Z Collapsed to `safeword sync-tracker` (per the simplify + Linear+GitHub figure-it-out). Dropped the adapter framework (two providers → thin two-writer seam, single call site + shared payload; extract an interface at #3). Absorbed THSPA5's coordination mapping (superseded it). Breach caller split to deferred stub K51FYZ. Removed epic membership (WG3Z2N deleted); slug ticket-bridge → sync-tracker.
 - 2026-06-20T16:12:00Z Applied quality-review + figure-it-out fixes (egress default, sidecar TrackerRef, auth resolution, corrected the Arcade-GitHub fact).
 - 2026-06-20T16:16:00Z **De-bloated to a walking skeleton** (`/figure-it-out`). Cut the dependency-graph projection — epic/parent→sub-issues, blocked_on/depends_on→relations, type→issue-type, topo-sort — to a **v2** (M1FGRJ), keeping v1 to flat issues on stable create/update. Rationale: the graph is the highest-cost / lowest-adoption / newest-API slice (GitHub deps API is 10 days old), and it already renders locally in the INDEX. `epic`+`type` become **labels** so v1 is still a groupable board. Flatness dissolved the Linear-first question (both providers ship, both stable). Simplified the public-repo guard from refuse+ack to a warning.
+- 2026-06-21T15:48:00Z Resolved the projection's two collision points via `/figure-it-out`. **Field ownership** (one-writer-per-field, Terraform `ignore_changes` posture): safeword owns existence/title/labels/link + status-at-creation; Linear owns status/assignee thereafter; safeword manages only issues it created. **Identity** (avoid ticket-vs-issue confusion): ride Linear's native bot-actor + back-link attachment, add one body banner, keep each system's own ID (no `[MBGQ89]` title prefix to fight `LIN-123`), enforce ticket/issue vocabulary discipline. Both close the rebuild-risks from the Linear-baseline sanity check.
