@@ -170,7 +170,9 @@ function detectFromPythonDependencies(cwd: string): string | undefined {
     if (!content) return undefined;
 
     // Match dbt-{adapter} packages, skipping dbt-core (framework, not adapter)
-    const adapters = [...content.matchAll(/dbt-(\w+)/g)]
+    const adapters = content
+      .matchAll(/dbt-(\w+)/g)
+      .toArray()
       .map(m => m[1])
       .filter((a): a is string => a !== undefined && a !== 'core');
     for (const adapter of adapters) {

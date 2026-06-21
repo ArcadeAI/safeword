@@ -114,9 +114,12 @@ export function detectPythonType(cwd: string): PythonProjectType | undefined {
   }
 
   // Read project file for dependency/tool detection
-  const content = pyprojectDirectory
-    ? readFileSync(nodePath.join(pyprojectDirectory, PYPROJECT_TOML), 'utf8')
-    : readFileSync(nodePath.join(manifestDirectory, REQUIREMENTS_TXT), 'utf8');
+  const content = readFileSync(
+    pyprojectDirectory
+      ? nodePath.join(pyprojectDirectory, PYPROJECT_TOML)
+      : nodePath.join(manifestDirectory, REQUIREMENTS_TXT),
+    'utf8',
+  );
 
   // Detect package manager (priority: poetry > uv > pip)
   let packageManager: PythonProjectType['packageManager'] = 'pip';
@@ -276,8 +279,8 @@ function detectFrameworks(
     astro: 'astro' in dependencies || 'astro' in developmentDependencies,
     vitest: 'vitest' in developmentDependencies,
     playwright: '@playwright/test' in developmentDependencies,
-    tailwind: TAILWIND_PACKAGES.some(pkg => pkg in allDependencies),
-    tanstackQuery: TANSTACK_QUERY_PACKAGES.some(pkg => pkg in allDependencies),
+    tailwind: TAILWIND_PACKAGES.some(pkg => Object.hasOwn(allDependencies, pkg)),
+    tanstackQuery: TANSTACK_QUERY_PACKAGES.some(pkg => Object.hasOwn(allDependencies, pkg)),
   };
 }
 

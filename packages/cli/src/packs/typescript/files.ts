@@ -30,10 +30,7 @@ import type {
 /**
  * Add framework-specific ignores to Knip config.
  */
-function addKnipIgnores(
-  config: { ignore: string[]; ignoreDependencies: string[] },
-  ctx: ProjectContext,
-): void {
+function addKnipIgnores(config: { ignore: string[] }, ctx: ProjectContext): void {
   const allDependencies = ctx.developmentDeps;
 
   // Framework build/cache directories
@@ -54,7 +51,7 @@ function addKnipIgnores(
  * Add framework-specific ignoreDependencies to Knip config.
  */
 function addKnipIgnoreDependencies(
-  config: { ignore: string[]; ignoreDependencies: string[] },
+  config: { ignoreDependencies: string[] },
   ctx: ProjectContext,
 ): void {
   const allDependencies = ctx.developmentDeps;
@@ -324,7 +321,8 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
  * Add a script if it doesn't exist.
  */
 function addScriptIfMissing(scripts: Record<string, string>, name: string, command: string): void {
-  if (!scripts[name]) scripts[name] = command;
+  const existing = scripts[name];
+  if (!existing) scripts[name] = command;
 }
 
 const GHERKIN_LINT_SCRIPT = 'safeword lint-gherkin';

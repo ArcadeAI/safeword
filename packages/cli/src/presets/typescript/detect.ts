@@ -167,14 +167,14 @@ function collectAllDependencies(rootDirectory: string): DependenciesRecord {
  * Check if Tailwind CSS is installed.
  */
 function hasTailwind(dependencies: DependenciesRecord): boolean {
-  return TAILWIND_PACKAGES.some(pkg => pkg in dependencies);
+  return TAILWIND_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**
  * Check if TanStack Query is installed.
  */
 function hasTanstackQuery(dependencies: DependenciesRecord): boolean {
-  return TANSTACK_QUERY_PACKAGES.some(pkg => pkg in dependencies);
+  return TANSTACK_QUERY_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**
@@ -188,7 +188,7 @@ function hasVitest(dependencies: DependenciesRecord): boolean {
  * Check if Playwright is installed.
  */
 function hasPlaywright(dependencies: DependenciesRecord): boolean {
-  return PLAYWRIGHT_PACKAGES.some(pkg => pkg in dependencies);
+  return PLAYWRIGHT_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**
@@ -202,7 +202,7 @@ function hasTurbo(dependencies: DependenciesRecord): boolean {
  * Check if Storybook is installed.
  */
 function hasStorybook(dependencies: DependenciesRecord): boolean {
-  return STORYBOOK_PACKAGES.some(pkg => pkg in dependencies);
+  return STORYBOOK_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**

@@ -75,7 +75,8 @@ function checkContract(
 function collectTemplateFiles(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
   const files: string[] = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+  const entries = readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       if (entry.name.startsWith('_')) continue;
@@ -114,7 +115,8 @@ function checkCursorRulesThin(templatesDirectory: string): ParityFailure[] {
   const rulesDirectory = nodePath.join(templatesDirectory, 'cursor', 'rules');
   if (!existsSync(rulesDirectory)) return [];
   const failures: ParityFailure[] = [];
-  for (const entry of readdirSync(rulesDirectory, { withFileTypes: true })) {
+  const ruleEntries = readdirSync(rulesDirectory, { withFileTypes: true });
+  for (const entry of ruleEntries) {
     if (!entry.isFile() || !entry.name.endsWith('.mdc')) continue;
     // Split on \r?\n so a CRLF-saved rule isn't misread as frontmatter-less
     // (which would flag a valid thin rule as fat).

@@ -111,9 +111,10 @@ function setupWorkspaceFormatScripts(cwd: string, ctx: ProjectContext): string[]
     const isGlobPattern = pattern.endsWith('/*');
     const workspacePath = isGlobPattern ? pattern.slice(0, -2) : pattern;
 
-    const patternUpdates = isGlobPattern
-      ? processGlobWorkspacePattern(cwd, workspacePath)
-      : processExplicitWorkspacePath(cwd, workspacePath);
+    const processWorkspacePattern = isGlobPattern
+      ? processGlobWorkspacePattern
+      : processExplicitWorkspacePath;
+    const patternUpdates = processWorkspacePattern(cwd, workspacePath);
 
     updated.push(...patternUpdates);
   }

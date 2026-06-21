@@ -66,7 +66,8 @@ export function parseScenarios(testDefinitionsContent: string): ParsedScenario[]
   };
 
   for (const [index, line] of lines.entries()) {
-    if (skip[index]) continue;
+    const isSkipped = skip[index];
+    if (isSkipped) continue;
     const heading = classifyHeading(line);
     if (heading !== undefined) {
       flush();

@@ -78,7 +78,8 @@ function getConditionalPackages(
     }
 
     // Check if this condition is met
-    if (projectType[key as keyof ProjectType]) {
+    const conditionMet = projectType[key as keyof ProjectType];
+    if (conditionMet) {
       // For projects with existing formatter, skip prettier-related packages
       if (projectType.existingFormatter) {
         packages.push(...dependencies.filter(pkg => !PRETTIER_PACKAGES.has(pkg)));
@@ -135,14 +136,24 @@ function planTextPatches(
   for (const [filePath, entry] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, ctx.isGitRepo)) continue;
     // Apply in list order so later patches land beneath earlier ones.
-    for (const definition of asPatchList(entry)) {
-      if (!passesTextPatchContentGuard(ctx.cwd, filePath, definition)) continue;
-      actions.push({
-        type: 'text-patch',
-        path: filePath,
-        definition: resolveTextPatch(definition, ctx),
-      });
-    }
+    actions.push(...planTextPatchesForFile(filePath, entry, ctx));
+  }
+  return actions;
+}
+
+function planTextPatchesForFile(
+  filePath: string,
+  entry: TextPatchDefinition | TextPatchDefinition[],
+  ctx: ProjectContext,
+): Action[] {
+  const actions: Action[] = [];
+  for (const definition of asPatchList(entry)) {
+    if (!passesTextPatchContentGuard(ctx.cwd, filePath, definition)) continue;
+    actions.push({
+      type: 'text-patch',
+      path: filePath,
+      definition: resolveTextPatch(definition, ctx),
+    });
   }
   return actions;
 }
@@ -257,7 +268,7 @@ function planExistingDirectoriesRemoval(
   const removed: string[] = [];
   for (const dir of directories) {
     if (!exists(nodePath.join(cwd, dir))) {
-    	continue;
+      continue;
     }
 
     actions.push({ type: 'rmdir', path: dir });
@@ -275,7 +286,7 @@ function planExistingFilesRemoval(
   const removed: string[] = [];
   for (const filePath of files) {
     if (!exists(nodePath.join(cwd, filePath))) {
-    	continue;
+      continue;
     }
 
     actions.push({ type: 'rm', path: filePath });
@@ -664,7 +675,9 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   );
 
   // 9. Compute deprecated packages to remove (only those actually installed)
-  const packagesToRemove = schema.deprecatedPackages.filter(pkg => pkg in ctx.developmentDeps);
+  const packagesToRemove = schema.deprecatedPackages.filter(pkg =>
+    Object.hasOwn(ctx.developmentDeps, pkg),
+  );
 
   return {
     actions,
@@ -880,7 +893,7 @@ export function computePackagesToInstall(
   // Strip version specifier (e.g. 'eslint@^9' → 'eslint') when checking installed deps
   return needed.filter(pkg => {
     const name = stripVersionSpecifier(pkg);
-    return !workspaceMembers.has(name) && !(name in installedDevelopmentDependencies);
+    return !workspaceMembers.has(name) && !Object.hasOwn(installedDevelopmentDependencies, name);
   });
 }
 
@@ -896,7 +909,9 @@ function computePackagesToRemove(
 
   // Only remove packages that are actually installed
   // Strip version specifier (e.g. 'eslint@^9' → 'eslint') when checking installed deps
-  return safewordPackages.filter(pkg => stripVersionSpecifier(pkg) in installedDevelopmentDependencies);
+  return safewordPackages.filter(pkg =>
+    Object.hasOwn(installedDevelopmentDependencies, stripVersionSpecifier(pkg)),
+  );
 }
 
 /**
@@ -1104,7 +1119,8 @@ function executeTextUnpatch(cwd: string, path: string, definition: ResolvedTextP
 
 function removeExactTextPatchContent(content: string, definition: ResolvedTextPatch): string {
   let unpatched = content.replace(definition.content, '');
-  for (const extraContent of definition.unpatchContent ?? []) {
+  const extraContents = definition.unpatchContent ?? [];
+  for (const extraContent of extraContents) {
     unpatched = unpatched.replace(extraContent, '');
   }
   return unpatched;

@@ -102,7 +102,7 @@ function isNonRegistryPackageSpec(spec: string): boolean {
 }
 
 function isCurrentSafewordRegistrySpec(spec: string): boolean {
-  return spec === VERSION || spec === SAFEWORD_REGISTRY_SPEC || spec === `~${VERSION}`;
+  return [VERSION, SAFEWORD_REGISTRY_SPEC, `~${VERSION}`].includes(spec);
 }
 
 function syncPackageJsonSafewordVersion(cwd: string): boolean {
@@ -267,8 +267,7 @@ async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean
 
   // An injected confirm seam counts as interactive — it IS the TTY stand-in.
   const isInteractive =
-    options.confirmMigration !== undefined ||
-    (process.stdin.isTTY && process.stdout.isTTY);
+    options.confirmMigration !== undefined || (process.stdin.isTTY && process.stdout.isTTY);
   if (!isInteractive) {
     info(
       'Namespace: this project uses the legacy .safeword-project/ — run `safeword upgrade --migrate-namespace` to converge on .project/ (recommended).',

@@ -32,7 +32,8 @@ function readOnlyTicketFolderName(ticketsDirectory: string): string {
 function extractIdFromFolder(folderName: string): string {
   const match = FOLDER_PATTERN.exec(folderName);
   const id = match?.[1];
-  if (id === undefined) throw new Error(`folder "${folderName}" did not match {ID}-{slug} shape`);
+  if (id === undefined)
+    throw new Error(`folder "${folderName}" did not match ${'{'}ID}-${'{'}slug} shape`);
   return id;
 }
 

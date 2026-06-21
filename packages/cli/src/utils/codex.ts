@@ -17,7 +17,7 @@ interface ParsedSemver {
 function parseVersionPart(part: string): number | undefined {
   if (part.length === 0) return undefined;
   const parsed = Number(part);
-  if (!Number.isInteger(parsed) || parsed < 0) return undefined;
+  if (!Number.isSafeInteger(parsed) || parsed < 0) return undefined;
   return parsed;
 }
 
@@ -26,11 +26,10 @@ function parseVersionCore(core: string): [number, number, number] | undefined {
   if (parts.length !== 3) return undefined;
 
   const major = parseVersionPart(parts[0] ?? '');
-  const minor = parseVersionPart(parts[1] ?? '');
-  const patch = parseVersionPart(parts[2] ?? '');
-
   if (major === undefined) return undefined;
+  const minor = parseVersionPart(parts[1] ?? '');
   if (minor === undefined) return undefined;
+  const patch = parseVersionPart(parts[2] ?? '');
   if (patch === undefined) return undefined;
 
   return [major, minor, patch];
