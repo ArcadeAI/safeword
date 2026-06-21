@@ -54,7 +54,7 @@ function matchesTypeScript(files: unknown): boolean {
     }
     // Check for global patterns that match all files (not extension-specific)
     // e.g., "**/*" but not "**/*.js"
-    return p === '**/*' || p === '*' || p === '**';
+    return ['**/*', '*', '**'].includes(p);
   });
 }
 
@@ -68,7 +68,7 @@ function matchesTypeScript(files: unknown): boolean {
 function getRuleConfigForTs(config: any[], ruleId: string): unknown {
   for (let i = config.length - 1; i >= 0; i--) {
     const c = config[i];
-    if (c && typeof c === 'object' && 'rules' in c && c.rules && ruleId in c.rules) {
+    if (c && typeof c === 'object' && 'rules' in c && c.rules && Object.hasOwn(c.rules, ruleId)) {
       // Skip if this config only applies to JS files
       if (!matchesTypeScript(c.files)) {
         continue;

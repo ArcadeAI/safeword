@@ -50,7 +50,7 @@ function extractMajorFromComparator(comparator: string): number | undefined {
   const match = /^(\d+)\./.exec(cleaned) ?? /^(\d+)(?:\.x|\.\*|$)/.exec(cleaned);
   const majorString = match?.[1];
   if (majorString === undefined) return undefined;
-  const major = Number.parseInt(majorString, 10);
+  const major = Number(majorString);
   return Number.isNaN(major) ? undefined : major;
 }
 

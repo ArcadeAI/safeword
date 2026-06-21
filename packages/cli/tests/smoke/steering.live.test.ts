@@ -48,7 +48,8 @@ const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-qu
  * require >= 2.x (older claude lacks the flags this test uses). Undefined => skip.
  */
 function resolveClaude(): string | undefined {
-  for (const bin of [process.env.SMOKE_CLAUDE_BIN, 'claude'].filter(Boolean) as string[]) {
+  const candidateBins = [process.env.SMOKE_CLAUDE_BIN, 'claude'].filter(Boolean) as string[];
+  for (const bin of candidateBins) {
     const probe = spawnSync(bin, ['--version'], { encoding: 'utf8' });
     const major = /(\d+)\.\d+\.\d+/.exec(probe.stdout ?? '');
     if (probe.status === 0 && major && Number(major[1]) >= MIN_MAJOR) return bin;

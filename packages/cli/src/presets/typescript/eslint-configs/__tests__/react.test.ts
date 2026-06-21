@@ -203,7 +203,7 @@ describe('React JSX rules (lint behavior)', () => {
       `
 const items = [{ id: 'a' }];
 export function List() {
-  return <ul>{items.map(item => <li>${'{'}item.id}</li>)}</ul>;
+  return <ul>{items.map(item => <li>\{item.id}</li>)}</ul>;
 }
 `,
     );
@@ -239,7 +239,7 @@ export class Counter extends React.Component<object, { count: number }> {
   }
 
   render() {
-    return <button onClick={() => this.increment()}>${'{'}this.state.count}</button>;
+    return <button onClick={() => this.increment()}>{this.state.count}</button>;
   }
 }
 `,
@@ -251,7 +251,7 @@ export class Counter extends React.Component<object, { count: number }> {
       '@eslint-react/jsx-no-children-prop',
       `
 export function Panel({ children }: { children: unknown }) {
-  return <div children=${'{'}children} />;
+  return <div children={children} />;
 }
 `,
     );
