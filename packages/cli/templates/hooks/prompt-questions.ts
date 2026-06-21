@@ -40,7 +40,8 @@ try {
 const lines = ['Contribute before asking. Embed open questions in your contribution.'];
 
 // Effective Clarify phase: the active in-progress ticket's phase, else undefined
-// (no ticket / pre-classify). Drives the readiness pointer below.
+// (no ticket, pre-classify, or a ticket that isn't in_progress — all treated as
+// Clarify). Drives the readiness pointer below.
 let effectivePhase: string | undefined;
 
 // Phase-aware reminder from quality state (compressed cognitive state — one line)

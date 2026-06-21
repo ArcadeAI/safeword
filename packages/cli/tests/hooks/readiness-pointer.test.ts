@@ -37,6 +37,13 @@ describe('readiness pointer (TPP6Y2)', () => {
     expect(shouldSurfaceReadiness('implement')).toBe(false);
   });
 
+  it.each(['define-behavior', 'scenario-gate', 'verify', 'done'])(
+    'is suppressed during the %s build phase',
+    phase => {
+      expect(shouldSurfaceReadiness(phase)).toBe(false);
+    },
+  );
+
   // Rule: compressed pointer, not a checklist
   it('names all five dimensions', () => {
     const text = READINESS_POINTER.toLowerCase();
@@ -111,6 +118,28 @@ describe('readiness pointer (TPP6Y2)', () => {
 
       const output = runPromptHook(project);
       expect(output).not.toContain('must not break');
+    } finally {
+      removeTemporaryDirectory(project);
+    }
+  });
+
+  it('prompt-questions.ts surfaces the pointer when the active ticket is not in progress', () => {
+    const project = createTemporaryDirectory();
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+      const ticketDirectory = nodePath.join(project, '.project', 'tickets', 'AAA111-demo');
+      mkdirSync(ticketDirectory, { recursive: true });
+      // Implement phase but status done → not in_progress → back in Clarify.
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        '---\nid: AAA111\nslug: demo\ntype: task\nphase: implement\nstatus: done\n---\n\n# Demo\n',
+      );
+      writeFileSync(
+        nodePath.join(project, '.project', 'quality-state-undefined.json'),
+        JSON.stringify({ activeTicket: 'AAA111' }),
+      );
+      const output = runPromptHook(project);
+      expect(output).toContain('must not break');
     } finally {
       removeTemporaryDirectory(project);
     }
