@@ -181,22 +181,14 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
     };
   }
 
-  // Content-fingerprint marker is the authoritative freshness signal: it
+  // The content-fingerprint marker is the authoritative freshness signal: it
   // survives content-preserving operations (rebase, checkout, clone, cp) that
-  // bump input mtimes without changing input content. mtime is only a
-  // bootstrap fallback for the first check after an install, before any hook
-  // has stamped the marker.
-  if (readInstallMarker(projectDirectory, plan) === fingerprint) {
-    return {
-      status: 'ready',
-      reason: 'install_artifact_current',
-      installCommand,
-      fingerprint,
-      plan,
-    };
-  }
+  // bump input mtimes without changing input content. mtime is only a bootstrap
+  // fallback for the first check after an install, before any hook has stamped
+  // the marker — so it is consulted only when the marker is absent or stale.
+  const markerFresh = readInstallMarker(projectDirectory, plan) === fingerprint;
 
-  if (isInstallArtifactStale(projectDirectory, plan, artifactPath)) {
+  if (!markerFresh && isInstallArtifactStale(projectDirectory, plan, artifactPath)) {
     return {
       status: 'stale',
       reason: 'install_artifact_stale',
