@@ -7,17 +7,23 @@ unknown references as questions. Format and short-code rules:
 packages/cli/templates/personas-template.md.
 -->
 
-## Agent-Driven Developer (DEV)
+<!--
+Code note: the Technical Builder persona keeps the legacy `DEV` short code
+(not `TB`) because existing specs reference `DEV`. Migrating the code to
+`TB` is part of the deferred spec re-scan, not a personas.md-only change.
+-->
+
+## Technical Builder (DEV)
 
 **Role:** A developer who runs an AI coding agent (Claude Code, Cursor, or Codex) on a real project and installs safeword to keep that agent test-first, design-validated, and consistent.
 
 **Context:** Stack-agnostic and harness-agnostic — safeword is a process layer, not a framework opinion, so this persona ships Next, Django, Gin, anything across Claude Code, Cursor, or Codex. Doesn't want to learn safeword's internals; expects it to feel like an experienced teammate that "just does things well." Guardrails fire only during agent sessions, never blocking their own hand-written commits. Drives the agent across many sessions and leans on tickets, gates, and BDD/TDD to stay oriented and to get unblocked when a gate fires. Can read the diff and unblock themselves with technical reasoning when a gate fires.
 
-## Agent-Driven Builder (ADB)
+## Non-Technical Builder (NTB)
 
 **Role:** Someone who ships software by directing an AI coding agent but doesn't read or write the code themselves — leans entirely on safeword's guardrails to keep the agent honest.
 
-**Context:** Founders, PMs, designers, and domain experts — likely the larger audience. Harness-agnostic: drives Claude Code, Cursor, or Codex in natural language. Judges success by whether the feature works and is safe, not by code quality they can inspect, because they can't audit the diff. When a gate fires, needs a plain-language explanation and a concrete next action — internal jargon ("RED phase", "type narrowing") is a dead end. Safeword's value is highest here: it is the only thing standing between them and an agent that confidently ships broken or unsafe code.
+**Context:** Founders, PMs, designers, and domain experts — likely the larger audience. Understands systems, logic, and data flow, but doesn't read or write code. Harness-agnostic: drives Claude Code, Cursor, or Codex in natural language. Judges success by whether the feature works and is safe, not by code quality they can inspect, because they can't audit the diff. When a gate fires, needs a plain-language explanation and a concrete next action — internal jargon ("RED phase", "type narrowing") is a dead end. Safeword's value is highest here: it is the only thing standing between them and an agent that confidently ships broken or unsafe code.
 
 ## Safeword Maintainer (SM)
 
