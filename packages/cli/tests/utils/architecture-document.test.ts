@@ -65,15 +65,30 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(before);
   });
 
-  it('regenerates a document whose fingerprint is missing or corrupt', () => {
+  it('regenerates a safeword-owned document whose fingerprint is missing or corrupt', () => {
     selfHeal(context.directory);
-    writeFileSync(documentPath(context.directory), '# hand-mangled document with no frontmatter\n');
+    // Keep safeword's ownership marker; only the fingerprint is mangled away.
+    writeFileSync(
+      documentPath(context.directory),
+      '---\ngenerator: safeword-architecture\n---\n\n# fingerprint corrupted\n',
+    );
 
     const result = selfHeal(context.directory);
 
     expect(result.action).toBe('regenerated');
     const content = readFileSync(documentPath(context.directory), 'utf8');
     expect(readDocumentFingerprint(content)).toBe(shapeFingerprint(context.directory));
+  });
+
+  it('never overwrites a foreign hand-written doc it does not own', () => {
+    const foreign = '# Our Architecture\n\nHand-written prose, no safeword marker.\n';
+    mkdirSync(nodePath.dirname(documentPath(context.directory)), { recursive: true });
+    writeFileSync(documentPath(context.directory), foreign);
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('skipped');
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(foreign);
   });
 
   it('re-syncs and flags lagging prose when a change is made out of band', () => {
