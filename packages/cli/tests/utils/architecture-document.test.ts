@@ -2,8 +2,7 @@
  * Integration tests for the architecture state-document self-heal (ticket
  * QD5DTT, Slice 1). Covers the "structural facts self-heal at session start"
  * rule from features/architecture-state-docs.feature. Temp-dir fixtures; the
- * document lands at the configured paths.architecture (default
- * <root>/architecture.md).
+ * document lands at the fixed generated path (<namespace-root>/architecture.generated.md).
  */
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -13,13 +12,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { readDocumentFingerprint, selfHeal } from '../../src/utils/architecture-document.js';
 import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
-import { resolveConfiguredPath } from '../../src/utils/configured-paths.js';
+import { resolveGeneratedArchitecturePath } from '../../src/utils/configured-paths.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const context: { directory: string } = { directory: '' };
 
 function documentPath(directory: string): string {
-  return resolveConfiguredPath(directory, 'architecture');
+  return resolveGeneratedArchitecturePath(directory);
 }
 
 beforeEach(() => {

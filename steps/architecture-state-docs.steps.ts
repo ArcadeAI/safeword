@@ -32,7 +32,7 @@ function dir(world: ArchitectureWorld): string {
 
 function documentPath(world: ArchitectureWorld): string {
   // No config in the temp project → default namespace root `.project`.
-  return nodePath.join(dir(world), '.project', 'architecture.md');
+  return nodePath.join(dir(world), '.project', 'architecture.generated.md');
 }
 
 function makeModule(world: ArchitectureWorld, name: string): void {

@@ -15,7 +15,7 @@ import nodePath from 'node:path';
 import { shapeFingerprint } from './architecture-fingerprint.js';
 import { reconcileSections, type SectionStatus } from './architecture-reconcile.js';
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
-import { resolveConfiguredPath } from './configured-paths.js';
+import { resolveGeneratedArchitecturePath } from './configured-paths.js';
 
 type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped';
 
@@ -63,7 +63,7 @@ export function readDocumentFingerprint(content: string): string | undefined {
 const RECONCILED_PREFIX = '<!-- reconciled:';
 
 export function selfHeal(projectDirectory: string): SelfHealResult {
-  const path = resolveConfiguredPath(projectDirectory, 'architecture');
+  const path = resolveGeneratedArchitecturePath(projectDirectory);
   const fingerprint = shapeFingerprint(projectDirectory);
   const existing = readExisting(path);
   const action = decideAction(existing, fingerprint);
