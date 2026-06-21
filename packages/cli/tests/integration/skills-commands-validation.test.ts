@@ -90,7 +90,7 @@ function parseFrontmatter(
   let endIndex = -1;
   for (let i = 1; i < lines.length; i++) {
     if (lines[i]?.trim() !== '---') {
-    	continue;
+      continue;
     }
 
     endIndex = i;
@@ -221,7 +221,7 @@ function findBrokenMarkdownLinks(body: string, baseDirectory: string): string[] 
 
   for (const link of links) {
     if (!link.path.endsWith('.md')) {
-    	continue;
+      continue;
     }
 
     const fullPath = nodePath.join(baseDirectory, link.path);
@@ -358,7 +358,7 @@ describe('Skills Validation (Claude Code Format)', () => {
       // File reference validation
       it('should have valid markdown file references in body', () => {
         if (!parsed?.body) {
-        	return;
+          return;
         }
 
         const brokenLinks = findBrokenMarkdownLinks(
@@ -428,7 +428,7 @@ describe('Commands Validation (Claude Code Format)', () => {
       it('should have description field for /help display', () => {
         // Safeword commands should have descriptions
         if (!parsed) {
-        	return;
+          return;
         }
 
         expect(
@@ -440,7 +440,7 @@ describe('Commands Validation (Claude Code Format)', () => {
 
       it('should have markdown body (not just frontmatter)', () => {
         if (!parsed) {
-        	return;
+          return;
         }
 
         expect(parsed.body, 'Command needs content after frontmatter').not.toBe('');
@@ -516,7 +516,7 @@ describe('Commands Validation (Claude Code Format)', () => {
       // File reference validation for commands
       it('should have valid markdown file references in body', () => {
         if (!parsed?.body) {
-        	return;
+          return;
         }
 
         const brokenLinks = findBrokenMarkdownLinks(parsed.body, COMMANDS_DIR);
@@ -659,7 +659,7 @@ describe('Skills-Cursor Parity', () => {
 
     const missingRules: string[] = [];
     for (const skillDirectory of skillDirectories) {
-      if (!(skillDirectory in SKILL_TO_RULE_MAP)) {
+      if (!Object.hasOwn(SKILL_TO_RULE_MAP, skillDirectory)) {
         missingRules.push(`${skillDirectory} (no rule mapping defined)`);
         continue;
       }

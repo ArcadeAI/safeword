@@ -26,15 +26,15 @@ import {
 
 const __dirname = import.meta.dirname;
 
-let projectDirectory: string;
+let state.projectDirectory: string;
 
 beforeEach(() => {
-  projectDirectory = createTemporaryDirectory();
+  state.projectDirectory = createTemporaryDirectory();
 });
 
 afterEach(() => {
-  if (projectDirectory) {
-    removeTemporaryDirectory(projectDirectory);
+  if (state.projectDirectory) {
+    removeTemporaryDirectory(state.projectDirectory);
   }
 });
 
@@ -88,23 +88,23 @@ describe('Suite 1: Ruff Config Generation', () => {
     'Test 1.1: Generates ruff.toml at project root',
     async () => {
       // Arrange
-      createPythonProjectReadyForSetup(projectDirectory);
-      initGitRepo(projectDirectory);
+      createPythonProjectReadyForSetup(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
       // Ticket 138: customer's ruff.toml is bare/customer-owned; safeword's .safeword/ruff.toml extends it.
-      expect(fileExists(projectDirectory, 'ruff.toml')).toBe(true);
-      const ruffToml = readTestFile(projectDirectory, 'ruff.toml');
+      expect(fileExists(state.projectDirectory, 'ruff.toml')).toBe(true);
+      const ruffToml = readTestFile(state.projectDirectory, 'ruff.toml');
       expect(ruffToml).toContain('customer-owned');
 
       // Actual rules are in .safeword/ruff.toml, which extends customer's ruff.toml.
-      const safewordRuffToml = readTestFile(projectDirectory, '.safeword/ruff.toml');
+      const safewordRuffToml = readTestFile(state.projectDirectory, '.safeword/ruff.toml');
       expect(safewordRuffToml).toContain('[lint]');
       expect(safewordRuffToml).toContain('extend = "../ruff.toml"');
       expect(safewordRuffToml).toContain('extend-select = [');
@@ -114,7 +114,7 @@ describe('Suite 1: Ruff Config Generation', () => {
       expect(safewordRuffToml).toContain('"B"');
 
       // pyproject.toml should NOT be modified for ruff
-      const pyprojectContent = readPyprojectToml(projectDirectory);
+      const pyprojectContent = readPyprojectToml(state.projectDirectory);
       expect(pyprojectContent).not.toContain('[tool.ruff]');
     },
     TIMEOUT_SETUP,
@@ -125,7 +125,7 @@ describe('Suite 1: Ruff Config Generation', () => {
     async () => {
       // Arrange - project with existing [tool.ruff] in pyproject.toml
       writeTestFile(
-        projectDirectory,
+        state.projectDirectory,
         'pyproject.toml',
         `[project]
 name = "existing-project"
@@ -139,24 +139,24 @@ line-length = 120
 testpaths = ["tests"]
 `,
       );
-      createSafewordBasePackageJson(projectDirectory);
-      initGitRepo(projectDirectory);
+      createSafewordBasePackageJson(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
       // Assert - ruff.toml should NOT be created (project has existing config)
-      expect(fileExists(projectDirectory, 'ruff.toml')).toBe(false);
+      expect(fileExists(state.projectDirectory, 'ruff.toml')).toBe(false);
 
       // .safeword/ruff.toml should still be created (for hooks)
-      expect(fileExists(projectDirectory, '.safeword/ruff.toml')).toBe(true);
+      expect(fileExists(state.projectDirectory, '.safeword/ruff.toml')).toBe(true);
 
       // Original pyproject.toml content preserved
-      const pyprojectContent = readPyprojectToml(projectDirectory);
+      const pyprojectContent = readPyprojectToml(state.projectDirectory);
       expect(pyprojectContent).toContain('name = "existing-project"');
       expect(pyprojectContent).toContain('description = "An existing project"');
       expect(pyprojectContent).toContain('[tool.pytest.ini_options]');
@@ -175,24 +175,24 @@ describe('Suite 2: Architecture Validation', () => {
     'Test 2.1: Generates .importlinter config file',
     async () => {
       // Arrange
-      createPythonProjectWithLayers(projectDirectory);
-      initGitRepo(projectDirectory);
+      createPythonProjectWithLayers(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
       });
 
       // Assert - .importlinter file created at project root
-      expect(fileExists(projectDirectory, '.importlinter')).toBe(true);
-      const importLinterConfig = readTestFile(projectDirectory, '.importlinter');
+      expect(fileExists(state.projectDirectory, '.importlinter')).toBe(true);
+      const importLinterConfig = readTestFile(state.projectDirectory, '.importlinter');
       expect(importLinterConfig).toContain('[importlinter]');
       // Should have layer contracts
       expect(importLinterConfig).toContain('[importlinter:contract:layers]');
 
       // pyproject.toml should NOT be modified
-      const pyprojectContent = readPyprojectToml(projectDirectory);
+      const pyprojectContent = readPyprojectToml(state.projectDirectory);
       expect(pyprojectContent).not.toContain('[tool.importlinter]');
     },
     TIMEOUT_SETUP,
@@ -202,18 +202,18 @@ describe('Suite 2: Architecture Validation', () => {
     'Test 2.1b: Does not generate .importlinter without layer structure',
     async () => {
       // Arrange
-      createPythonProjectReadyForSetup(projectDirectory); // No layers
-      initGitRepo(projectDirectory);
+      createPythonProjectReadyForSetup(state.projectDirectory); // No layers
+      initGitRepo(state.projectDirectory);
 
       // Act
       await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
       // Assert - .importlinter file should NOT exist
-      expect(fileExists(projectDirectory, '.importlinter')).toBe(false);
+      expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
     },
     TIMEOUT_SETUP,
   );
@@ -264,19 +264,19 @@ describe('Suite 5: mypy Configuration', () => {
     'Test 5.1: Generates mypy.ini at project root',
     async () => {
       // Arrange
-      createPythonProjectReadyForSetup(projectDirectory);
-      initGitRepo(projectDirectory);
+      createPythonProjectReadyForSetup(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
       // Assert - mypy.ini file created at project root
-      expect(fileExists(projectDirectory, 'mypy.ini')).toBe(true);
-      const mypyConfig = readTestFile(projectDirectory, 'mypy.ini');
+      expect(fileExists(state.projectDirectory, 'mypy.ini')).toBe(true);
+      const mypyConfig = readTestFile(state.projectDirectory, 'mypy.ini');
       expect(mypyConfig).toContain('[mypy]');
       // Strict mode for LLM agents
       expect(mypyConfig).toContain('strict = True');
@@ -286,7 +286,7 @@ describe('Suite 5: mypy Configuration', () => {
       expect(mypyConfig).toContain('pretty = True');
 
       // pyproject.toml should NOT be modified
-      const pyprojectContent = readPyprojectToml(projectDirectory);
+      const pyprojectContent = readPyprojectToml(state.projectDirectory);
       expect(pyprojectContent).not.toContain('[tool.mypy]');
     },
     TIMEOUT_SETUP,
@@ -297,7 +297,7 @@ describe('Suite 5: mypy Configuration', () => {
     async () => {
       // Arrange - project with existing [tool.mypy] in pyproject.toml
       writeTestFile(
-        projectDirectory,
+        state.projectDirectory,
         'pyproject.toml',
         `[project]
 name = "test"
@@ -306,21 +306,21 @@ name = "test"
 strict = true
 `,
       );
-      createSafewordBasePackageJson(projectDirectory);
-      initGitRepo(projectDirectory);
+      createSafewordBasePackageJson(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
       // Assert - mypy.ini should NOT be created (project has existing config)
-      expect(fileExists(projectDirectory, 'mypy.ini')).toBe(false);
+      expect(fileExists(state.projectDirectory, 'mypy.ini')).toBe(false);
 
       // Original pyproject.toml preserved
-      const pyprojectContent = readPyprojectToml(projectDirectory);
+      const pyprojectContent = readPyprojectToml(state.projectDirectory);
       expect(pyprojectContent).toContain('strict = true');
     },
     TIMEOUT_SETUP,
@@ -338,12 +338,12 @@ describe('Suite 6: Auto-Install Python Tools', () => {
     'Test 6.1: Shows install message for pip projects (no auto-install)',
     async () => {
       // Arrange - pip project (default, no lockfile)
-      createPythonProjectReadyForSetup(projectDirectory);
-      initGitRepo(projectDirectory);
+      createPythonProjectReadyForSetup(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       const result = await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -358,12 +358,12 @@ describe('Suite 6: Auto-Install Python Tools', () => {
     'Test 6.2: Auto-installs tools for uv projects',
     async () => {
       // Arrange - uv project with uv.lock
-      createPythonProjectReadyForSetup(projectDirectory, { manager: 'uv' });
-      initGitRepo(projectDirectory);
+      createPythonProjectReadyForSetup(state.projectDirectory, { manager: 'uv' });
+      initGitRepo(state.projectDirectory);
 
       // Act
       const result = await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
         env: { SAFEWORD_SKIP_INSTALL: '1' },
       });
@@ -381,7 +381,7 @@ describe('Suite 6: Auto-Install Python Tools', () => {
     async () => {
       // Arrange - project with ruff already declared
       writeTestFile(
-        projectDirectory,
+        state.projectDirectory,
         'pyproject.toml',
         `[project]
 name = "test"
@@ -391,12 +391,12 @@ version = "0.1.0"
 dev = ["ruff>=0.8.0"]
 `,
       );
-      createSafewordBasePackageJson(projectDirectory);
-      initGitRepo(projectDirectory);
+      createSafewordBasePackageJson(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       const result = await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -413,7 +413,7 @@ dev = ["ruff>=0.8.0"]
       // Arrange - poetry project with invalid config (python key not allowed)
       // This makes poetry fail immediately with "Additional properties are not allowed"
       writeTestFile(
-        projectDirectory,
+        state.projectDirectory,
         'pyproject.toml',
         `[project]
 name = "test"
@@ -425,12 +425,12 @@ python = "^3.12"
 `,
       );
       // Note: Invalid poetry config ensures immediate failure (no network calls)
-      createSafewordBasePackageJson(projectDirectory);
-      initGitRepo(projectDirectory);
+      createSafewordBasePackageJson(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
 
       // Act
       const result = await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -445,13 +445,13 @@ python = "^3.12"
     'Test 6.5: Shows pipenv install command for pipenv projects',
     async () => {
       // Arrange - pipenv project
-      createPythonProjectReadyForSetup(projectDirectory, { manager: 'pipenv' });
-      writeTestFile(projectDirectory, 'Pipfile', '[invalid\n');
-      initGitRepo(projectDirectory);
+      createPythonProjectReadyForSetup(state.projectDirectory, { manager: 'pipenv' });
+      writeTestFile(state.projectDirectory, 'Pipfile', '[invalid\n');
+      initGitRepo(state.projectDirectory);
 
       // Act
       const result = await runCli(['setup'], {
-        cwd: projectDirectory,
+        cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
       });
 

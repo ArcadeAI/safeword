@@ -31,12 +31,12 @@ import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
 
 /** Create a ticket directory with frontmatter */
 function createTicket(
-  directories.tickets: string,
+  ticketsDirectory: string,
   slug: string,
   frontmatter: Record<string, unknown>,
   body = '',
 ): string {
-  const directory = nodePath.join(directories.tickets, slug);
+  const directory = nodePath.join(ticketsDirectory, slug);
   mkdirSync(directory, { recursive: true });
   const lines = ['---'];
   for (const [key, value] of Object.entries(frontmatter)) {

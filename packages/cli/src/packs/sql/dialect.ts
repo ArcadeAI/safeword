@@ -172,9 +172,9 @@ function detectFromPythonDependencies(cwd: string): string | undefined {
     // Match dbt-{adapter} packages, skipping dbt-core (framework, not adapter)
     const adapters = content
       .matchAll(/dbt-(\w+)/g)
-      .toArray()
       .map(m => m[1])
-      .filter((a): a is string => a !== undefined && a !== 'core');
+      .filter((a): a is string => a !== undefined && a !== 'core')
+      .toArray();
     for (const adapter of adapters) {
       const dialect = ADAPTER_TO_DIALECT[adapter];
       if (dialect) return dialect;
