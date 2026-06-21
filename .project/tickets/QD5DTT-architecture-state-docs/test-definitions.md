@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: The listed modules equal the real tree, with resolving references
 
-- [ ] RED
+- [x] RED 70fb2d2
 - [ ] GREEN
 - [ ] REFACTOR
 
