@@ -4,7 +4,6 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { getStateFilePath } from '../../../../.safeword/hooks/lib/quality-state';
 import {
   READINESS_POINTER,
   READINESS_POINTER_WORD_CAP,
@@ -101,9 +100,14 @@ describe('readiness pointer (TPP6Y2)', () => {
         nodePath.join(ticketDirectory, 'ticket.md'),
         '---\nid: AAA111\nslug: demo\ntype: task\nphase: implement\nstatus: in_progress\n---\n\n# Demo\n',
       );
-      const stateFile = getStateFilePath(project, undefined);
-      mkdirSync(nodePath.dirname(stateFile), { recursive: true });
-      writeFileSync(stateFile, JSON.stringify({ activeTicket: 'AAA111' }));
+      // The hook runs with input {} (no session_id), so it reads
+      // <namespace-root>/quality-state-undefined.json (default namespace .project).
+      const namespaceDirectory = nodePath.join(project, '.project');
+      mkdirSync(namespaceDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(namespaceDirectory, 'quality-state-undefined.json'),
+        JSON.stringify({ activeTicket: 'AAA111' }),
+      );
 
       const output = runPromptHook(project);
       expect(output).not.toContain('must not break');
