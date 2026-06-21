@@ -5,7 +5,7 @@ type: patch
 phase: done
 status: in_progress
 created: 2026-06-21T15:19:39.648Z
-last_modified: 2026-06-21T15:19:39.648Z
+last_modified: 2026-06-21T15:45:13.912Z
 ---
 
 # dependency-readiness false-positive stale after rebase (mtime vs content)
