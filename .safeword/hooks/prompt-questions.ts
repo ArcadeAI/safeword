@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { deriveTddStep, getTicketInfo } from './lib/active-ticket.ts';
+import { READINESS_POINTER, shouldSurfaceReadiness } from './lib/readiness-pointer.ts';
 import { evaluateReplan } from './lib/replan.ts';
 import {
   ESCALATION_THRESHOLD,
@@ -38,6 +39,10 @@ try {
 // One behavioral anchor (SAFEWORD.md has the full methodology; this survives as a compressed reminder)
 const lines = ['Contribute before asking. Embed open questions in your contribution.'];
 
+// Effective Clarify phase: the active in-progress ticket's phase, else undefined
+// (no ticket / pre-classify). Drives the readiness pointer below.
+let effectivePhase: string | undefined;
+
 // Phase-aware reminder from quality state (compressed cognitive state — one line)
 const stateFile = getStateFilePath(projectDirectory, input.session_id);
 
@@ -52,6 +57,7 @@ if (existsSync(stateFile)) {
       const isActive = ticketInfo.status === 'in_progress';
 
       if (phase && isActive) {
+        effectivePhase = phase;
         // Derive TDD step from test-definitions.md when in implement phase
         const tddStep =
           phase === 'implement' && ticketInfo.folder
@@ -61,7 +67,7 @@ if (existsSync(stateFile)) {
         // Phase-specific one-liner
         const reminders: Record<string, string> = {
           intake:
-            'Phase: understanding. Contribute a perspective, surface open questions. Self-test: what changes, what stays the same, observable done state. If sizing as feature, run `/bdd`.',
+            'Phase: understanding. Contribute a perspective, surface open questions. If sizing as feature, run `/bdd`.',
           'define-behavior':
             'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
@@ -136,6 +142,14 @@ if (existsSync(stateFile)) {
   } catch {
     // State file corrupted or unreadable — skip reminder, keep core principles
   }
+}
+
+// Readiness pointer (TPP6Y2): compressed five-dimension self-test, surfaced
+// during Clarify (no active ticket or intake phase) and suppressed once a build
+// phase is under way. Fires whether or not a state file exists, so the
+// motivating first-turn / pre-classify case is covered.
+if (shouldSurfaceReadiness(effectivePhase)) {
+  lines.push(`- ${READINESS_POINTER}`);
 }
 
 // Layer 3: Cross-session escalation suggestion from counter file
