@@ -474,4 +474,34 @@ describe('dependency readiness hook support', () => {
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe('');
   });
+
+  it('session hook stamps the install marker when dependencies are ready', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+
+    const result = runHook(SESSION_HOOK);
+
+    expect(result.status).toBe(0);
+    const plan = detectDependencyPlan(projectDirectory);
+    if (plan === undefined) throw new Error('expected Bun dependency plan');
+    expect(readTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint')).toBe(
+      dependencyInputFingerprint(projectDirectory, plan),
+    );
+  });
+
+  it('does not stamp a marker for unsupported projects', () => {
+    // No package.json/lockfile → unsupported readiness carries no plan or
+    // fingerprint. writeInstallMarker must no-op rather than crash, since the
+    // pre-tool hook calls it on the unsupported branch.
+    const readiness = getDependencyReadiness(projectDirectory);
+    expect(readiness.status).toBe('unsupported');
+
+    expect(() => {
+      writeInstallMarker(projectDirectory, readiness);
+    }).not.toThrow();
+    expect(
+      existsSync(path.join(projectDirectory, 'node_modules', '.safeword-deps-fingerprint')),
+    ).toBe(false);
+  });
 });
