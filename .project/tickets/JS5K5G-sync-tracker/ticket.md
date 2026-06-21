@@ -51,6 +51,19 @@ Both use only **stable create/update** endpoints — no relations/sub-issue APIs
 
 > **Note for v2:** Arcade's GitHub toolkit is create/update/list only — it lacks sub-issues/deps/types — so the v2 graph projection routes GitHub natively (`gh`, [dependencies CLI 2026-06-10](https://github.blog/changelog/2026-06-10-manage-sub-issues-types-and-dependencies-from-github-cli/)). Not a v1 concern.
 
+### Provider shape — safeword projects items, not the board (`figure-it-out` 2026-06-21)
+
+The two trackers are shaped differently, and the design holds because **safeword projects the _items_ (issues) and their truth; each tracker's own coordination layer arranges them.**
+
+|                                   | Linear                                   | GitHub                                                                                                                                                                                    |
+| --------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Where the **board/roadmap** lives | the issue list _is_ the board            | **Projects v2** ([verified](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects)) — a separate layer over issues                 |
+| **Status** model                  | rich workflow states, auto-moved off PRs | **open/closed only**; rich status is a Projects v2 field. Only native automation: **auto-close on linked-PR-merge** (toggleable) — so field-ownership collisions are _milder_ than Linear |
+| **Bot identity**                  | native integration actor                 | a **GitHub App** = `safeword[bot]` (own identity, 15k/hr); a PAT degrades to user-attribution                                                                                             |
+| **Back-link**                     | native attachment                        | a **body link / cross-reference** (no native attachment object)                                                                                                                           |
+
+**Consequence:** on GitHub, v1's flat issues are a **labeled list, not a board** — the team composes a Project view over the `epic:`/`type:` labels (2 minutes), or gets turnkey Projects-v2 placement in **v2** ([M1FGRJ](../M1FGRJ-tracker-relations-projection/ticket.md)). Owning the team's board layout is the same human-coordination authority we cede for status/cycles — so safeword stops at the items. Egress matters _more_ on GitHub (issues often share the code's repo, often public) — the minimal-body default is load-bearing, not cosmetic.
+
 ### Coordination mapping (the payload builder)
 
 `sync-tracker` walks the ticket corpus and maps each ticket to a **flat** `IssuePayload`:
@@ -90,12 +103,12 @@ The collision risk is that safeword and Linear both move the same issue (Linear 
 
 ### Identity — avoid ticket-vs-issue confusion (`figure-it-out` 2026-06-21)
 
-Ride Linear's native provenance; add one banner. No competing IDs.
+Ride each tracker's native provenance; add one banner. No competing IDs.
 
-- **Bot identity:** create issues through a **safeword integration/bot actor** ([native](https://linear.app/developers/agents)) so Linear shows "created by safeword" — synced issues are flagged machine-made for free.
-- **Back-link attachment:** attach the canonical ticket ([native attachment](https://linear.app/developers/attachments)): `safeword ticket MBGQ89 → <repo URL>`.
+- **Bot identity:** create issues through a non-human actor so the tracker flags them machine-made for free — Linear's native [integration actor](https://linear.app/developers/agents), or a **GitHub App** = `safeword[bot]` ([own identity, 15k/hr](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-with-a-github-app)). A GitHub PAT degrades to "created by `<user>`" — App preferred.
+- **Back-link:** Linear → native [attachment](https://linear.app/developers/attachments); GitHub → a **body link / cross-reference** (no native attachment object). Either way: `safeword ticket MBGQ89 → <repo URL>`.
 - **Body banner:** `🔁 Mirror of safeword ticket MBGQ89. Source of truth is the repo. Status & assignee are yours to set here; title & labels sync from the repo and overwrite edits.`
-- **No ID in the title:** Linear already stamps `LIN-123`; a second `[MBGQ89]` prefix is a rival identifier (more confusion). Bind the two via the attachment; each keeps its own ID.
+- **No ID in the title:** the tracker already stamps its own (`LIN-123` / `#123`); a second `[MBGQ89]` prefix is a rival identifier (more confusion). Bind via the back-link; each keeps its own ID.
 - **Vocabulary discipline (everywhere):** safeword always says **"ticket"** for the repo file and **"issue"** for the projected Linear/GitHub object — docs, CLI output, and the banner.
 
 ### Configuration
@@ -118,6 +131,7 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 - **The dependency-graph projection** — epic/parent → sub-issues, blocked_on/depends_on → tracker relations, `type` → issue-type, and the topological-parent ordering they require. This is the **v2** ([relations-and-hierarchy projection](../M1FGRJ-tracker-relations-projection/ticket.md)), which `depends_on` this skeleton.
 - A pluggable adapter interface, `custom` provider, dynamic adapter loading — deferred to provider #3.
 - Two-way sync / read-back of human edits — terminal-state advisory pull is a later, separable follow-up.
+- **GitHub Projects v2 placement / board** (and Linear-side rich board arrangement) — on GitHub the board is a Projects v2 layer, not the issues; v1 ships labeled issues (items), the team composes the board. Turnkey Projects-v2 placement → v2 ([M1FGRJ](../M1FGRJ-tracker-relations-projection/ticket.md)).
 - The **breach→issue** caller — deferred stub [K51FYZ](../K51FYZ-breach-issue-projection/ticket.md), blocked on signals (1W107W).
 - Jira, Slack, and any third provider.
 
@@ -149,3 +163,4 @@ Default `provider: none`, `body: minimal` — opt-in and minimal-egress.
 - 2026-06-20T16:12:00Z Applied quality-review + figure-it-out fixes (egress default, sidecar TrackerRef, auth resolution, corrected the Arcade-GitHub fact).
 - 2026-06-20T16:16:00Z **De-bloated to a walking skeleton** (`/figure-it-out`). Cut the dependency-graph projection — epic/parent→sub-issues, blocked_on/depends_on→relations, type→issue-type, topo-sort — to a **v2** (M1FGRJ), keeping v1 to flat issues on stable create/update. Rationale: the graph is the highest-cost / lowest-adoption / newest-API slice (GitHub deps API is 10 days old), and it already renders locally in the INDEX. `epic`+`type` become **labels** so v1 is still a groupable board. Flatness dissolved the Linear-first question (both providers ship, both stable). Simplified the public-repo guard from refuse+ack to a warning.
 - 2026-06-21T15:48:00Z Resolved the projection's two collision points via `/figure-it-out`. **Field ownership** (one-writer-per-field, Terraform `ignore_changes` posture): safeword owns existence/title/labels/link + status-at-creation; Linear owns status/assignee thereafter; safeword manages only issues it created. **Identity** (avoid ticket-vs-issue confusion): ride Linear's native bot-actor + back-link attachment, add one body banner, keep each system's own ID (no `[MBGQ89]` title prefix to fight `LIN-123`), enforce ticket/issue vocabulary discipline. Both close the rebuild-risks from the Linear-baseline sanity check.
+- 2026-06-21T16:06:00Z Stress-tested the plan against **GitHub as tracker** (`/figure-it-out`). Architecture holds; field-ownership gets _easier_ (GitHub status = open/closed, only auto-close-on-merge automation). Added a **Provider-shape** section — key finding: on GitHub the board is **Projects v2**, a separate layer, so v1's flat issues are a labeled _list_, not a board. Reframe: **safeword projects items, not the board**; turnkey Projects-v2 placement deferred to v2 (M1FGRJ). Identity generalized: GitHub uses a **GitHub App** (`safeword[bot]`) + body-link back-reference (no native attachment). Flagged egress is sharper on GitHub (issues share the code's, often public, repo).

@@ -20,6 +20,7 @@ last_modified: 2026-06-20T16:16:00Z
 ## Scope
 
 - Extend `IssuePayload` with `parent?: TrackerRef` and `relations?: { blockedBy; dependsOn }`.
+- **GitHub board parity — Projects v2 placement.** On GitHub the board/roadmap lives in **Projects v2**, not the issues ([verified](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects)). This slice adds each issue to a configured Project and sets its Status field — turning v1's labeled list into an actual board. (On Linear the issue is already on the board, so this is a GitHub-specific add.) Note: writing the Project Status field re-touches status-ownership — define which fields safeword sets vs leaves to the team.
 - **Linear:** `Linear_CreateIssueRelation` (blocks/blockedBy, [verified](https://docs.arcade.dev/en/resources/integrations/productivity/linear)); native project/parent for epics.
 - **GitHub:** route **natively** (`gh` / GitHub API — Arcade's GitHub toolkit lacks these) for sub-issues, dependencies ([REST 2026-03-10](https://docs.github.com/en/rest/issues/issue-dependencies?apiVersion=2026-03-10)), and issue-types.
 - **Topological-parent ordering:** the corpus walk sorts by `parent`/`epic` before writing, because the GitHub sub-issue API _links an existing issue_ — the parent ref must exist first.
