@@ -11,8 +11,8 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import safeword from './src/presets/typescript/index.js';
 
 const { detect, configs } = safeword;
-const deps = detect.collectAllDeps(import.meta.dirname);
-const framework = detect.detectFramework(deps);
+const dependencies = detect.collectAllDeps(import.meta.dirname);
+const framework = detect.detectFramework(dependencies);
 
 // Map framework to base config
 // Note: Astro config only lints .astro files, so we combine it with TypeScript config
@@ -29,10 +29,10 @@ export default defineConfig([
   { ignores: detect.getIgnores() },
 
   ...baseConfigs[framework],
-  ...(detect.hasVitest(deps) ? configs.vitest : []),
-  ...(detect.hasPlaywright(deps) ? configs.playwright : []),
-  ...(detect.hasTailwind(deps) ? configs.tailwind : []),
-  ...(detect.hasTanstackQuery(deps) ? configs.tanstackQuery : []),
+  ...(detect.hasVitest(dependencies) ? configs.vitest : []),
+  ...(detect.hasPlaywright(dependencies) ? configs.playwright : []),
+  ...(detect.hasTailwind(dependencies) ? configs.tailwind : []),
+  ...(detect.hasTanstackQuery(dependencies) ? configs.tanstackQuery : []),
   configs.cli,
   configs.relaxedTypes,
   eslintConfigPrettier,
