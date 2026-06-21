@@ -26,7 +26,7 @@ import {
 
 const __dirname = import.meta.dirname;
 
-let state.projectDirectory: string;
+const state: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeEach(() => {
   state.projectDirectory = createTemporaryDirectory();

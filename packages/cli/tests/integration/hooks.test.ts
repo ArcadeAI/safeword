@@ -34,18 +34,18 @@ const IS_RUFF_AVAILABLE = isRuffInstalled();
 
 // Single setup for all hook tests - sharing avoids 3 separate bun installs
 // Tests must be idempotent or restore state after modification (see try/finally blocks)
-let projectDirectory: string;
+let shared.projectDirectory: string;
 
 beforeAll(async () => {
-  projectDirectory = createTemporaryDirectory();
-  createTypeScriptPackageJson(projectDirectory);
-  initGitRepo(projectDirectory);
-  await setupOrThrow(projectDirectory);
+  shared.projectDirectory = createTemporaryDirectory();
+  createTypeScriptPackageJson(shared.projectDirectory);
+  initGitRepo(shared.projectDirectory);
+  await setupOrThrow(shared.projectDirectory);
 }, 180_000);
 
 afterAll(() => {
-  if (projectDirectory) {
-    removeTemporaryDirectory(projectDirectory);
+  if (shared.projectDirectory) {
+    removeTemporaryDirectory(shared.projectDirectory);
   }
 });
 
@@ -241,8 +241,8 @@ describe('E2E: SessionStart Hooks', () => {
   describe('session-bun-check.sh', () => {
     it('exits silently when bun is available', () => {
       const result = spawnSync('bash', ['.safeword/hooks/session-bun-check.sh'], {
-        cwd: projectDirectory,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        cwd: shared.projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
         encoding: 'utf8',
       });
 
@@ -255,7 +255,7 @@ describe('E2E: SessionStart Hooks', () => {
       try {
         const result = spawnSync(
           'bash',
-          [nodePath.join(projectDirectory, '.safeword/hooks/session-bun-check.sh')],
+          [nodePath.join(shared.projectDirectory, '.safeword/hooks/session-bun-check.sh')],
           {
             cwd: nonSafewordDirectory,
             env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
@@ -271,10 +271,10 @@ describe('E2E: SessionStart Hooks', () => {
 
     it('hard-blocks with exit 2 when bun is not in PATH', () => {
       const result = spawnSync('bash', ['.safeword/hooks/session-bun-check.sh'], {
-        cwd: projectDirectory,
+        cwd: shared.projectDirectory,
         env: {
           ...process.env,
-          CLAUDE_PROJECT_DIR: projectDirectory,
+          CLAUDE_PROJECT_DIR: shared.projectDirectory,
           // Override PATH to exclude bun
           PATH: '/usr/bin:/bin',
         },
@@ -291,8 +291,8 @@ describe('E2E: SessionStart Hooks', () => {
   describe('session-version.ts', () => {
     it('outputs version message for safeword project', () => {
       const output = execSync('bun .safeword/hooks/session-version.ts', {
-        cwd: projectDirectory,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        cwd: shared.projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
         encoding: 'utf8',
       });
 
@@ -306,7 +306,7 @@ describe('E2E: SessionStart Hooks', () => {
       try {
         // Run in a directory without .safeword
         const output = execSync('bun .safeword/hooks/session-version.ts', {
-          cwd: projectDirectory, // Script is here
+          cwd: shared.projectDirectory, // Script is here
           env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory }, // But points to non-safeword dir
           encoding: 'utf8',
         });
@@ -322,12 +322,12 @@ describe('E2E: SessionStart Hooks', () => {
   describe('session-lint-check.ts', () => {
     it('outputs no warnings when lint configs exist', () => {
       // Project should have eslint and prettier after setup
-      expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(true);
-      expect(fileExists(projectDirectory, '.prettierrc')).toBe(true);
+      expect(fileExists(shared.projectDirectory, 'eslint.config.mjs')).toBe(true);
+      expect(fileExists(shared.projectDirectory, '.prettierrc')).toBe(true);
 
       const output = execSync('bun .safeword/hooks/session-lint-check.ts', {
-        cwd: projectDirectory,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        cwd: shared.projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
         encoding: 'utf8',
       });
 
@@ -338,13 +338,13 @@ describe('E2E: SessionStart Hooks', () => {
     it('warns when ESLint config is missing', () => {
       // Temporarily remove ESLint config
       execSync('mv eslint.config.mjs eslint.config.mjs.bak', {
-        cwd: projectDirectory,
+        cwd: shared.projectDirectory,
       });
 
       try {
         const output = execSync('bun .safeword/hooks/session-lint-check.ts', {
-          cwd: projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          cwd: shared.projectDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
           encoding: 'utf8',
         });
 
@@ -352,26 +352,26 @@ describe('E2E: SessionStart Hooks', () => {
       } finally {
         // Restore ESLint config
         execSync('mv eslint.config.mjs.bak eslint.config.mjs', {
-          cwd: projectDirectory,
+          cwd: shared.projectDirectory,
         });
       }
     });
 
     it('warns when Prettier config is missing', () => {
       // Temporarily remove Prettier config
-      execSync('mv .prettierrc .prettierrc.bak', { cwd: projectDirectory });
+      execSync('mv .prettierrc .prettierrc.bak', { cwd: shared.projectDirectory });
 
       try {
         const output = execSync('bun .safeword/hooks/session-lint-check.ts', {
-          cwd: projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          cwd: shared.projectDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
           encoding: 'utf8',
         });
 
         expect(output).toContain('Prettier config not found');
       } finally {
         // Restore Prettier config
-        execSync('mv .prettierrc.bak .prettierrc', { cwd: projectDirectory });
+        execSync('mv .prettierrc.bak .prettierrc', { cwd: shared.projectDirectory });
       }
     });
 
@@ -379,7 +379,7 @@ describe('E2E: SessionStart Hooks', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {
         const output = execSync('bun .safeword/hooks/session-lint-check.ts', {
-          cwd: projectDirectory,
+          cwd: shared.projectDirectory,
           env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
           encoding: 'utf8',
         });
@@ -396,7 +396,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
   describe('prompt-timestamp.ts', () => {
     it('outputs current timestamp in expected format', () => {
       const output = execSync('bun .safeword/hooks/prompt-timestamp.ts', {
-        cwd: projectDirectory,
+        cwd: shared.projectDirectory,
         encoding: 'utf8',
       });
 
@@ -415,8 +415,8 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       const output = execSync(
         'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
         {
-          cwd: projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          cwd: shared.projectDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
           encoding: 'utf8',
         },
       );
@@ -430,7 +430,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
         const output = execSync(
           'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
           {
-            cwd: projectDirectory,
+            cwd: shared.projectDirectory,
             env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
             encoding: 'utf8',
           },
@@ -447,7 +447,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
 describe('E2E: Phase-Aware Quality Review', () => {
   describe('Happy Path - Phase Detection', () => {
     it('Scenario 1: Shows intake prompts during discovery phase', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -457,14 +457,14 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.reason).toContain('Phase: intake');
       expect(result.reason).toContain('CONFIDENT');
     });
 
     it('Scenario 2: Shows scenario prompts during define-behavior phase', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -474,7 +474,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.reason).toContain('Phase: define-behavior');
       expect(result.reason).toContain('CONFIDENT');
@@ -482,7 +482,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
     });
 
     it('Scenario 3: Shows implementation prompts during implement phase', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -493,12 +493,12 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       // Create test-definitions.md (required artifact for features at implement phase)
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.reason).toContain('Phase: implement');
       expect(result.reason).toContain('CONFIDENT');
@@ -506,7 +506,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
     });
 
     it('Scenario 4: Hard blocks done phase without verify.md', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -516,20 +516,20 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       // No verify.md — should block
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toContain('verify');
     });
 
     it('Scenario 4b: Allows done phase with verify.md present', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -539,17 +539,17 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 10/10 tests pass\n',
       );
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
@@ -558,7 +558,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
   describe('Edge Cases - Fallbacks', () => {
     it('Scenario 5: Falls back to implement when no phase field', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -567,7 +567,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Default implementation review (binary form)
       expect(result.reason).toContain('CONFIDENT');
@@ -575,7 +575,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
     });
 
     it('Scenario 6: Falls back to implement for unknown phase', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -585,7 +585,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Default implementation review (binary form)
       expect(result.reason).toContain('CONFIDENT');
@@ -595,7 +595,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
   describe('Edge Cases - Ticket Filtering', () => {
     it('Scenario 7: Ignores backlog tickets (status filtering)', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         // Older but in_progress - should be used
         {
           id: '001',
@@ -614,14 +614,14 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Should use intake from ticket 001, not implement from ticket 002
       expect(result.reason).toContain('Phase: intake');
     });
 
     it('Scenario 8: Ignores epic tickets (type filtering)', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         // Epic with newest timestamp - should be ignored
         {
           id: '001',
@@ -640,14 +640,14 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Should use intake from feature, not implement from epic
       expect(result.reason).toContain('Phase: intake');
     });
 
     it('Scenario 9: Falls back when no in_progress tickets', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -664,16 +664,16 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Default implementation review (fallback)
       expect(result.reason).toContain('CONFIDENT');
     });
 
     it('Scenario 10: Falls back when issues directory empty', () => {
-      clearIssuesDirectory(projectDirectory);
+      clearIssuesDirectory(shared.projectDirectory);
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Default implementation review (fallback)
       expect(result.reason).toContain('CONFIDENT');
@@ -682,7 +682,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
   describe('Cumulative Artifact Checks', () => {
     it('Scenario 11: Soft blocks feature at scenario-gate without test-definitions.md', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -693,7 +693,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       // No test-definitions.md file exists
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Should soft block with artifact requirement message
       expect(result.exitCode).toBe(0); // Soft block uses exit 0
@@ -701,7 +701,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
     });
 
     it('Scenario 12: Allows feature at scenario-gate with test-definitions.md', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -712,12 +712,12 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       // Create test-definitions.md
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
       );
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Should show normal phase review, not artifact block
       expect(result.reason).toContain('Phase: scenario-gate');
@@ -725,7 +725,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
     });
 
     it('Scenario 13: Tasks skip artifact checks (no test-definitions required)', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'task',
@@ -736,7 +736,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       // No test-definitions.md - should be fine for tasks
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // Should show normal implementation review, not artifact block
       expect(result.reason).toContain('CONFIDENT');
@@ -746,7 +746,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
   describe('Type-Aware Done Gate', () => {
     it('Scenario 14: Feature done blocks without verify.md even with complete scenarios', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -756,20 +756,20 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       // No verify.md — blocks on missing artifact before checking scenarios
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toContain('verify');
     });
 
     it('Scenario 15: Task done requires verify.md', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'task',
@@ -779,20 +779,20 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
       );
 
       const evidenceText = '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass';
-      const result = runStopHookForPhase(projectDirectory, evidenceText);
+      const result = runStopHookForPhase(shared.projectDirectory, evidenceText);
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });
 
     it('Scenario 16: Feature done with verify.md and complete scenarios passes', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -802,24 +802,24 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
       );
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });
 
     it('T7: Feature done blocks with incomplete scenarios even with verify.md', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -829,24 +829,24 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
       );
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
       );
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toContain('scenarios');
     });
 
     it('T8: Feature done passes with verify.md and complete scenarios', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -856,24 +856,24 @@ describe('E2E: Phase-Aware Quality Review', () => {
         },
       ]);
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
       );
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
       );
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
     });
 
     it('T9: Feature done hard-blocks when test-definitions.md has content but no GFM checkboxes', () => {
-      setupIssuesDirectory(projectDirectory, [
+      setupIssuesDirectory(shared.projectDirectory, [
         {
           id: '001',
           type: 'feature',
@@ -884,7 +884,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       ]);
       // Legacy / unrecognized format — has content but no GFM task list items.
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/test-definitions.md',
         [
           '# Test Definitions',
@@ -898,12 +898,12 @@ describe('E2E: Phase-Aware Quality Review', () => {
         ].join('\n'),
       );
       writeTestFile(
-        projectDirectory,
+        shared.projectDirectory,
         '.project/tickets/001/verify.md',
         'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
       );
 
-      const result = runStopHookForPhase(projectDirectory);
+      const result = runStopHookForPhase(shared.projectDirectory);
 
       // checkCumulativeArtifacts fires first for features and rejects zero-checkbox files
       // with "no scenarios defined". The GFM-specific hard-block (checkScenariosComplete)
@@ -915,18 +915,18 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
   // Cleanup after all phase tests
   afterAll(() => {
-    clearIssuesDirectory(projectDirectory);
+    clearIssuesDirectory(shared.projectDirectory);
   });
 });
 
 describe('E2E: Stop Hook', () => {
   describe('stop-quality.ts', () => {
     it('triggers quality review when edit tools are used', () => {
-      const transcriptPath = createMultiMessageTranscript(projectDirectory, [
+      const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
         { text: 'Let me edit that file.', toolUse: 'Edit' },
       ]);
 
-      const result = runStopHook(projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath);
       const output = parseStopOutput(result);
 
       expect(result.exitCode).toBe(0);
@@ -936,9 +936,9 @@ describe('E2E: Stop Hook', () => {
 
     it('exits silently when no edit tools are used', () => {
       const text = 'I answered a question without making any changes.';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
+      const transcriptPath = createMockTranscript(shared.projectDirectory, text);
 
-      const result = runStopHook(projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath);
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout.trim()).toBe('');
@@ -951,7 +951,7 @@ describe('E2E: Stop Hook', () => {
           input: JSON.stringify({
             transcript_path: nodePath.join(nonSafewordDirectory, 'fake.jsonl'),
           }),
-          cwd: projectDirectory,
+          cwd: shared.projectDirectory,
           env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
           encoding: 'utf8',
         });
@@ -964,12 +964,12 @@ describe('E2E: Stop Hook', () => {
 
     it('detects edit tools from older messages within scan window', () => {
       // Edit tool in first message, text-only in second
-      const transcriptPath = createMultiMessageTranscript(projectDirectory, [
+      const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
         { text: 'Let me edit that file.', toolUse: 'Edit' },
         { text: 'Done with the changes.' },
       ]);
 
-      const result = runStopHook(projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath);
       const output = parseStopOutput(result);
 
       expect(result.exitCode).toBe(0);
@@ -979,9 +979,9 @@ describe('E2E: Stop Hook', () => {
 
     it('exits with error when usage limit reached in last message', () => {
       const text = '5-hour limit reached - resets in 2 hours';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
+      const transcriptPath = createMockTranscript(shared.projectDirectory, text);
 
-      const result = runStopHook(projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath);
 
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain('usage limit reached');
@@ -997,9 +997,9 @@ describe('E2E: Stop Hook', () => {
         '  throw new Error("5-hour limit reached");\n' +
         '}\n' +
         '```';
-      const transcriptPath = createMockTranscript(projectDirectory, text);
+      const transcriptPath = createMockTranscript(shared.projectDirectory, text);
 
-      const result = runStopHook(projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath);
 
       // No edit tools → silent exit, no usage limit error (text is long)
       expect(result.exitCode).toBe(0);
@@ -1015,22 +1015,22 @@ describe('E2E: Stop Hook', () => {
 describe('E2E: Python Lint Hook', () => {
   describe('Test 2.1: Routes .py files to Ruff', () => {
     it('should handle Python files without error', () => {
-      writeTestFile(projectDirectory, 'test.py', 'x = 1\n');
-      const result = runLintHook(projectDirectory, `${projectDirectory}/test.py`);
+      writeTestFile(shared.projectDirectory, 'test.py', 'x = 1\n');
+      const result = runLintHook(shared.projectDirectory, `${shared.projectDirectory}/test.py`);
       expect(result.status).toBe(0);
     });
 
     it('should handle .pyi stub files', () => {
-      writeTestFile(projectDirectory, 'test.pyi', 'def foo() -> int: ...\n');
-      const result = runLintHook(projectDirectory, `${projectDirectory}/test.pyi`);
+      writeTestFile(shared.projectDirectory, 'test.pyi', 'def foo() -> int: ...\n');
+      const result = runLintHook(shared.projectDirectory, `${shared.projectDirectory}/test.pyi`);
       expect(result.status).toBe(0);
     });
   });
 
   describe('Test 2.2: Continues running ESLint for JS/TS files', () => {
     it('should run ESLint for TypeScript files', () => {
-      writeTestFile(projectDirectory, 'test.ts', 'const x = 1\n');
-      const result = runLintHook(projectDirectory, `${projectDirectory}/test.ts`);
+      writeTestFile(shared.projectDirectory, 'test.ts', 'const x = 1\n');
+      const result = runLintHook(shared.projectDirectory, `${shared.projectDirectory}/test.ts`);
       // ESLint runs and exits successfully
       expect(result.status).toBe(0);
     });
@@ -1038,7 +1038,7 @@ describe('E2E: Python Lint Hook', () => {
 
   describe('Test 2.3: Skips Ruff gracefully if not installed', () => {
     it('should not error when Ruff is missing from PATH', () => {
-      writeTestFile(projectDirectory, 'test.py', 'print("hello")\n');
+      writeTestFile(shared.projectDirectory, 'test.py', 'print("hello")\n');
 
       // Find actual bun path (process.execPath gives node when running via vitest)
       const bunPath = execSync('which bun', { encoding: 'utf8' }).trim();
@@ -1049,11 +1049,11 @@ describe('E2E: Python Lint Hook', () => {
         'bash',
         [
           '-c',
-          `PATH=/bin:/usr/bin:${bunDirectory} bun .safeword/hooks/lib/lint.ts "${projectDirectory}/test.py"`,
+          `PATH=/bin:/usr/bin:${bunDirectory} bun .safeword/hooks/lib/lint.ts "${shared.projectDirectory}/test.py"`,
         ],
         {
-          cwd: projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          cwd: shared.projectDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
           encoding: 'utf8',
         },
       );
@@ -1067,14 +1067,14 @@ describe('E2E: Python Lint Hook', () => {
     it.skipIf(!IS_RUFF_AVAILABLE)('should format Python files when run through lint hook', () => {
       // Create badly formatted Python file
       const badCode = 'x=1;y=2';
-      writeTestFile(projectDirectory, 'format-test.py', badCode);
+      writeTestFile(shared.projectDirectory, 'format-test.py', badCode);
 
       // Run lint hook on the file
-      const result = runPostToolLint(projectDirectory, `${projectDirectory}/format-test.py`);
+      const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/format-test.py`);
       expect(result.status).toBe(0);
 
       // File should now be formatted
-      const formatted = readTestFile(projectDirectory, 'format-test.py');
+      const formatted = readTestFile(shared.projectDirectory, 'format-test.py');
       expect(formatted).toContain('x = 1');
       expect(formatted).toContain('y = 2');
     });
@@ -1082,14 +1082,14 @@ describe('E2E: Python Lint Hook', () => {
     it.skipIf(!IS_RUFF_AVAILABLE)('should fix auto-fixable lint issues', () => {
       // Create file with unused import (auto-fixable with --fix)
       const codeWithUnusedImport = 'import os\nx = 1\n';
-      writeTestFile(projectDirectory, 'fix-test.py', codeWithUnusedImport);
+      writeTestFile(shared.projectDirectory, 'fix-test.py', codeWithUnusedImport);
 
       // Run lint hook on the file
-      const result = runPostToolLint(projectDirectory, `${projectDirectory}/fix-test.py`);
+      const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/fix-test.py`);
       expect(result.status).toBe(0);
 
       // Unused import should be removed
-      const fixed = readTestFile(projectDirectory, 'fix-test.py');
+      const fixed = readTestFile(shared.projectDirectory, 'fix-test.py');
       expect(fixed).not.toContain('import os');
       expect(fixed).toContain('x = 1');
     });
@@ -1099,9 +1099,9 @@ describe('E2E: Python Lint Hook', () => {
       () => {
         // F841 (unused variable after return) is not auto-fixable without --unsafe-fixes
         const codeWithUnfixable = 'def foo():\n    return\n    x = 1\n';
-        writeTestFile(projectDirectory, 'unfixable-test.py', codeWithUnfixable);
+        writeTestFile(shared.projectDirectory, 'unfixable-test.py', codeWithUnfixable);
 
-        const result = runPostToolLint(projectDirectory, `${projectDirectory}/unfixable-test.py`);
+        const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/unfixable-test.py`);
         expect(result.status).toBe(0);
 
         // Hook should output additionalContext JSON for remaining errors
@@ -1117,9 +1117,9 @@ describe('E2E: Python Lint Hook', () => {
     it.skipIf(!IS_RUFF_AVAILABLE)('should output no JSON when all errors are auto-fixed', () => {
       // Unused import is fully auto-fixable — no remaining errors
       const autoFixable = 'import os\nx = 1\n';
-      writeTestFile(projectDirectory, 'clean-after-fix.py', autoFixable);
+      writeTestFile(shared.projectDirectory, 'clean-after-fix.py', autoFixable);
 
-      const result = runPostToolLint(projectDirectory, `${projectDirectory}/clean-after-fix.py`);
+      const result = runPostToolLint(shared.projectDirectory, `${shared.projectDirectory}/clean-after-fix.py`);
       expect(result.status).toBe(0);
 
       // No additionalContext should be output (file is clean after fix)
@@ -1138,8 +1138,8 @@ describe('session-safeword-context.ts', () => {
       'bun',
       ['.safeword/hooks/session-safeword-context.ts', '--agent=claude'],
       {
-        cwd: projectDirectory,
-        input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+        cwd: shared.projectDirectory,
+        input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),
         encoding: 'utf8',
       },
     );
@@ -1156,8 +1156,8 @@ describe('session-safeword-context.ts', () => {
       'bun',
       ['.safeword/hooks/session-safeword-context.ts', '--agent=cursor'],
       {
-        cwd: projectDirectory,
-        input: JSON.stringify({ workspace_root: projectDirectory }),
+        cwd: shared.projectDirectory,
+        input: JSON.stringify({ workspace_root: shared.projectDirectory }),
         encoding: 'utf8',
       },
     );
@@ -1169,18 +1169,18 @@ describe('session-safeword-context.ts', () => {
   });
 
   it('uses hook stdin cwd when the process starts from a subdirectory', () => {
-    const nestedDirectory = nodePath.join(projectDirectory, 'src/nested');
+    const nestedDirectory = nodePath.join(shared.projectDirectory, 'src/nested');
     mkdirSync(nestedDirectory, { recursive: true });
 
     const result = spawnSync(
       'bun',
       [
-        nodePath.join(projectDirectory, '.safeword/hooks/session-safeword-context.ts'),
+        nodePath.join(shared.projectDirectory, '.safeword/hooks/session-safeword-context.ts'),
         '--agent=codex',
       ],
       {
         cwd: nestedDirectory,
-        input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+        input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),
         encoding: 'utf8',
       },
     );
@@ -1197,13 +1197,13 @@ describe('session-safeword-context.ts', () => {
       const result = spawnSync(
         'bun',
         [
-          nodePath.join(projectDirectory, '.safeword/hooks/session-safeword-context.ts'),
+          nodePath.join(shared.projectDirectory, '.safeword/hooks/session-safeword-context.ts'),
           '--agent=codex',
         ],
         {
           cwd: staleDirectory,
           env: { ...process.env, CLAUDE_PROJECT_DIR: staleDirectory },
-          input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+          input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),
           encoding: 'utf8',
         },
       );
