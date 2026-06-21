@@ -143,7 +143,7 @@ describe('Pack Installation', () => {
     initGitRepo(fixture.testDirectory);
     writeSafewordConfig(fixture.testDirectory, { installedPacks: [] });
 
-    installPack('python', testDirectory);
+    installPack('python', fixture.testDirectory);
 
     // Config updated
     const config = readSafewordConfig(fixture.testDirectory);
@@ -160,7 +160,7 @@ describe('Pack Installation', () => {
     writeSafewordConfig(fixture.testDirectory, { installedPacks: ['python'] });
     const initialPyproject = readTestFile(fixture.testDirectory, 'pyproject.toml');
 
-    installPack('python', testDirectory);
+    installPack('python', fixture.testDirectory);
 
     // Config unchanged
     const config = readSafewordConfig(fixture.testDirectory);
@@ -174,7 +174,7 @@ describe('Pack Installation', () => {
     createPythonProject(fixture.testDirectory);
     initGitRepo(fixture.testDirectory);
 
-    installPack('python', testDirectory);
+    installPack('python', fixture.testDirectory);
 
     // Read raw JSON — the `version` key must not exist on disk
     const raw = JSON.parse(readTestFile(fixture.testDirectory, '.safeword/config.json')) as Record<

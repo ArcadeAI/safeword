@@ -13,13 +13,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectWorkspaces,
-  generateDepCruiseConfigFile as generateDependencyCruiseConfigFile,
-  generateDepCruiseMainConfig as generateDependencyCruiseMainConfig,
+  generateDependencyCruiseConfigFile,
+  generateDependencyCruiseMainConfig,
 } from '../../src/utils/depcruise-config.js';
 import { removeTemporaryDirectory } from '../helpers.js';
 
 describe('DepCruise Config Generator', () => {
-  describe('generateDepCruiseConfigFile', () => {
+  describe('generateDependencyCruiseConfigFile', () => {
     it('generates circular dependency rule', () => {
       // Test 1.1: Config always includes no-circular rule regardless of architecture
       const config = generateDependencyCruiseConfigFile({
@@ -152,7 +152,7 @@ describe('DepCruise Config Generator', () => {
     });
   });
 
-  describe('generateDepCruiseMainConfig', () => {
+  describe('generateDependencyCruiseMainConfig', () => {
     it('generates main config that imports generated', () => {
       // Test 1.4: Main config imports and spreads generated rules
       const config = generateDependencyCruiseMainConfig();

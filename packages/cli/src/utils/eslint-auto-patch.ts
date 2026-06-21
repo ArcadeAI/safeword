@@ -91,7 +91,7 @@ function skipNonContent(source: string, i: number): number {
     const close = source.indexOf('*/', i + 2);
     return close === -1 ? -1 : close + 2;
   }
-  if (["'", '"', '`'].includes(ch)) {
+  if (ch !== undefined && ["'", '"', '`'].includes(ch)) {
     return skipStringLiteral(source, i);
   }
   return i;

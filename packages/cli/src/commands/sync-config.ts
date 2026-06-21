@@ -10,10 +10,10 @@ import nodePath from 'node:path';
 
 import { detectArchitecture } from '../utils/boundaries.js';
 import {
-  type DepCruiseArchitecture as DependencyCruiseArchitecture,
+  type DependencyCruiseArchitecture,
   detectWorkspaces,
-  generateDepCruiseConfigFile as generateDependencyCruiseConfigFile,
-  generateDepCruiseMainConfig as generateDependencyCruiseMainConfig,
+  generateDependencyCruiseConfigFile,
+  generateDependencyCruiseMainConfig,
 } from '../utils/depcruise-config.js';
 import { exists } from '../utils/fs.js';
 import { error, info, success } from '../utils/output.js';
