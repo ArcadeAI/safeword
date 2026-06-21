@@ -37,7 +37,14 @@ cd "$CLAUDE_PROJECT_DIR" || exit 1
 
 # 0. Compare generated vs on-disk depcruise config. Non-zero exit = drift.
 #    /audit must never mutate the working tree; surface stale config as W007.
-bunx safeword@latest sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
+#    Resolve the locally installed safeword CLI first so the check reflects the
+#    repo's pinned version, not whatever the npm registry currently calls @latest.
+if [ -x node_modules/.bin/safeword ]; then
+  SW="node_modules/.bin/safeword"
+elif [ -f packages/cli/src/cli.ts ]; then
+  SW="bun packages/cli/src/cli.ts"
+else SW="bunx safeword"; fi
+$SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
 
 # =========================================================================
 # ARCHITECTURE CHECKS (circular deps, layer violations)

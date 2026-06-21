@@ -24,7 +24,7 @@
     },
     "packages/cli": {
       "name": "safeword",
-      "version": "0.53.0",
+      "version": "0.54.0",
       "bin": {
         "safeword": "dist/cli.js",
       },
@@ -97,7 +97,7 @@
     "@xhmikosr/decompress-unzip": "8.2.1",
     "esbuild": "^0.28.1",
     "file-type": "^21.3.2",
-    "turbo": "^2.9.18",
+    "turbo": "2.9.18",
     "yaml": "^2.9.0",
     "zod-validation-error": "^4.0.0",
   },
