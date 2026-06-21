@@ -1,8 +1,9 @@
 /**
  * Architecture state-document self-heal (ticket QD5DTT, Slice 1).
  *
- * Reads the document at the configured `paths.architecture`, compares its
- * recorded shape-fingerprint against the live one, and deterministically
+ * Reads the generated architecture state document at the fixed
+ * `<namespace-root>/architecture.generated.md`, compares its recorded
+ * shape-fingerprint against the live one, and deterministically
  * (LLM-free) re-extracts the skeleton when they differ — creating the document
  * when absent and regenerating it when its fingerprint is missing or corrupt.
  * This is the SessionStart entry point that keeps structural facts fresh,

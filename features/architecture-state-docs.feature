@@ -1,7 +1,7 @@
 @architecture-state-docs
 Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
 
-  The architecture state doc (.project/architecture.md) describes the system as
+  The architecture state doc (.project/architecture.generated.md) describes the system as
   it is now. Its structural facts are extracted deterministically and self-heal
   at session start; any prose that has fallen behind the structure is visibly
   flagged, so the doc may be incomplete but is never silently wrong.

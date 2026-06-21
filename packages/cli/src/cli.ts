@@ -86,7 +86,9 @@ program
 
 program
   .command('architecture')
-  .description('Refresh the architecture state document at the configured paths.architecture')
+  .description(
+    'Refresh the generated architecture state document (.project/architecture.generated.md)',
+  )
   .action(async () => {
     const { architecture } = await import('./commands/architecture.js');
     await architecture();
