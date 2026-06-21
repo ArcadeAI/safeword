@@ -9,6 +9,11 @@
  * including after out-of-band human edits.
  */
 
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { shapeFingerprint } from './architecture-fingerprint.js';
+import { extractSkeleton } from './architecture-skeleton.js';
 import { resolveConfiguredPath } from './configured-paths.js';
 
 export type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated';
@@ -35,5 +40,39 @@ export function readDocumentFingerprint(content: string): string | undefined {
 }
 
 export function selfHeal(projectDirectory: string): SelfHealResult {
-  return { action: 'unchanged', path: resolveConfiguredPath(projectDirectory, 'architecture') };
+  const path = resolveConfiguredPath(projectDirectory, 'architecture');
+  const fingerprint = shapeFingerprint(projectDirectory);
+  const action = decideAction(readExisting(path), fingerprint);
+
+  if (action !== 'unchanged') {
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(path, renderDocument(projectDirectory, fingerprint));
+  }
+
+  return { action, path };
+}
+
+function readExisting(path: string): string | undefined {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
+function decideAction(existing: string | undefined, fingerprint: string): SelfHealAction {
+  if (existing === undefined) return 'created';
+
+  const recorded = readDocumentFingerprint(existing);
+  if (recorded === undefined) return 'regenerated';
+  if (recorded !== fingerprint) return 'healed';
+  return 'unchanged';
+}
+
+function renderDocument(projectDirectory: string, fingerprint: string): string {
+  const sections = extractSkeleton(projectDirectory)
+    .nodes.map(node => `### ${node.name}\n\n\`${node.path}\` — ${node.purpose}\n`)
+    .join('\n');
+
+  return `---\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Modules\n\n${sections}`;
 }
