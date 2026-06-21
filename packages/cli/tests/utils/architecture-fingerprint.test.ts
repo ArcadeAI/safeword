@@ -1,0 +1,115 @@
+/**
+ * Unit tests for the architecture shape-fingerprint (ticket QD5DTT, Slice 1).
+ * Covers the "fingerprint captures shape, not noise" rule from
+ * features/architecture-state-docs.feature — written as the metamorphic
+ * Scenario Outline: a structural change moves the hash; semantics-preserving
+ * noise leaves it unchanged. Temp-dir fixtures.
+ */
+
+import { mkdirSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
+import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+
+const context: { directory: string } = { directory: '' };
+
+function writePackageJson(directory: string, dependencies: Record<string, string>): void {
+  writeFileSync(
+    nodePath.join(directory, 'package.json'),
+    JSON.stringify({ name: 'fixture', dependencies }, undefined, 2),
+  );
+}
+
+/** Scaffold a baseline project with one of each shape input. */
+function scaffoldBaseline(directory: string): void {
+  mkdirSync(nodePath.join(directory, 'src', 'auth'), { recursive: true });
+  writeFileSync(
+    nodePath.join(directory, 'src', 'auth', 'index.ts'),
+    '// auth module\nexport {};\n',
+  );
+  writePackageJson(directory, { 'left-pad': '1.0.0' });
+  writeFileSync(
+    nodePath.join(directory, '.dependency-cruiser.cjs'),
+    "module.exports = { forbidden: [{ name: 'no-app-in-domain', from: {}, to: {} }] };\n",
+  );
+  mkdirSync(nodePath.join(directory, 'db'), { recursive: true });
+  writeFileSync(nodePath.join(directory, 'db', 'schema.sql'), 'CREATE TABLE t (id int);\n');
+}
+
+type ChangeResult = 'moves' | 'does not move';
+
+const changes: { change: string; apply: (directory: string) => void; result: ChangeResult }[] = [
+  {
+    change: 'adding a top-level module',
+    apply: directory => mkdirSync(nodePath.join(directory, 'src', 'billing'), { recursive: true }),
+    result: 'moves',
+  },
+  {
+    change: 'adding a dependency',
+    apply: directory => {
+      writePackageJson(directory, { 'left-pad': '1.0.0', 'right-pad': '1.0.0' });
+    },
+    result: 'moves',
+  },
+  {
+    change: 'changing a dependency-cruiser boundary rule',
+    apply: directory => {
+      writeFileSync(
+        nodePath.join(directory, '.dependency-cruiser.cjs'),
+        "module.exports = { forbidden: [{ name: 'no-infra-in-domain', from: {}, to: {} }] };\n",
+      );
+    },
+    result: 'moves',
+  },
+  {
+    change: 'adding a schema file',
+    apply: directory => {
+      writeFileSync(nodePath.join(directory, 'db', 'extra.sql'), 'CREATE TABLE u (id int);\n');
+    },
+    result: 'moves',
+  },
+  {
+    change: 'bumping only a dependency version',
+    apply: directory => {
+      writePackageJson(directory, { 'left-pad': '2.0.0' });
+    },
+    result: 'does not move',
+  },
+  {
+    change: 'editing only a comment in a source file',
+    apply: directory => {
+      writeFileSync(
+        nodePath.join(directory, 'src', 'auth', 'index.ts'),
+        '// auth module — now with a different comment\nexport {};\n',
+      );
+    },
+    result: 'does not move',
+  },
+];
+
+beforeEach(() => {
+  context.directory = createTemporaryDirectory();
+  scaffoldBaseline(context.directory);
+});
+
+afterEach(() => {
+  removeTemporaryDirectory(context.directory);
+});
+
+describe('shapeFingerprint — captures shape, not noise', () => {
+  it.each(changes)('$change → $result', ({ apply, result }) => {
+    const before = shapeFingerprint(context.directory);
+
+    apply(context.directory);
+    const after = shapeFingerprint(context.directory);
+
+    if (result === 'moves') {
+      expect(after).not.toBe(before);
+    } else {
+      expect(after).toBe(before);
+    }
+  });
+});
