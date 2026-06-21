@@ -2,7 +2,7 @@
 id: TPP6Y2
 slug: pm-grade-intake-readiness-gate
 type: task
-phase: define-behavior
+phase: implement
 status: in_progress
 epic: pm-grade-intake
 parent: '169'
@@ -119,3 +119,5 @@ Residual risk (tracked, not a blocker): the compressed pointer must fit five dim
 - 2026-06-21T04:37Z /figure-it-out resolved the surfacing + interrogation open questions using safeword's own instruction-attention learnings. Resolution: hook compressed-pointer + SAFEWORD.md prose (NOT either/or) — hook is ~95% and the only channel that fires when work is scoped without a skill; SAFEWORD.md-only IS the current dormancy. Interrogation fear dissolved: reminder is Clarify-phase-gated (not a 50-turn banner) + compressed keyword pointer (not 5 prompts). Surfaced an implementation wrinkle now in scope: the pointer must also fire in the `No active ticket` pre-classify branch (the motivating first-turn case), not only once an intake ticket exists. Added length-cap test to done_when. All open questions now resolved → ready for implement pending user go-ahead.
 - 2026-06-21T04:42Z Caught up to main (merge 5fbe506) + ran `bun ci` (exit 0). /figure-it-out impact assessment: NO design/scope change — main left all ticket core files untouched (prompt-questions.ts, active-ticket, quality-state, prompt-timestamp). ESLint 9-vs-10 is per-package (cli=10+unicorn68, root=9), not a bug; tsconfig change cosmetic (ESNext.Iterator). Added two build-phase implementation notes (new test follows unicorn-68 conventions; template↔dogfood parity + lint cli package). Ticket remains implement-ready.
 - 2026-06-21T04:49Z Caught up to main again (merge 3d3efc1). Resume-check verdict: STILL-GOOD with a wording enhancement, no scope change. Main's persona split (#301) formalized Technical/Non-Technical Builder (TB/NTB) — the exact axis the architect/consultant research argued for. Wove TB/NTB into the request-shape dimension (NTB → under-specified, fill unstated constraints; TB → solution-in-disguise, recover the problem) and grounded the plain-language/no-jargon guard in the NTB persona (jargon = "a dead end", personas.md:20). Goal restated succinctly at user request.
+- 2026-06-21T04:57Z Complete: define-behavior — 7 scenarios across 3 rules, user-accepted. Saved features/pm-grade-intake-readiness-gate.feature + test-definitions.md R/G/R ledger. Phase → scenario-gate.
+- 2026-06-21T04:58Z Complete: scenario-gate — /review-spec run (vacuous-pass, AODI, adversarial, cross-cutting). 0 must-fix, 2 should-strengthen applied: strengthened the implement-suppression scenario (assert TDD guidance still shows + pointer absent, proving the conditional) and split the SAFEWORD.md scenario into two (triage sentence; readiness-as-edge-cases). Now 8 scenarios. impl-plan.md not required (task, not feature). reviewGate off → no Tier-2 stamp enforced. Test layer: unit (vitest on prompt-questions output + SAFEWORD.md content). Phase → implement.
