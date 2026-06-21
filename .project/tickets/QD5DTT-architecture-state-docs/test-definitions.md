@@ -36,11 +36,11 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [x] GREEN a939add
 - [ ] REFACTOR skip: guard test, no production change
 
-### Scenario: An unparseable source file does not abort extraction
+### Scenario: Extraction is content-agnostic — a malformed file never aborts it
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: structure-based extractor never reads source bytes, so it is robust by design; added as a guard
+- [x] GREEN 3a28686
+- [ ] REFACTOR skip: guard test, no production change beyond dropping the unused skipped field
 
 ## Rule: Stale prose is visibly flagged, never silently wrong
 
