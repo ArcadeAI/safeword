@@ -117,8 +117,10 @@ describe('generateOwnedPathsModule', () => {
     expect(match).not.toBeNull();
     if (match === null) return; // narrow for TS; toEqual above would have failed first
     const arrayBody = match[1] ?? '';
-    const emitted = [...arrayBody.matchAll(/'([^']+)'/g)]
+    const emitted = arrayBody
+      .matchAll(/'([^']+)'/g)
       .map(m => m[1] ?? '')
+      .toArray()
       .toSorted((a, b) => a.localeCompare(b));
     // The generator adds '.project/' alongside the schema's legacy namespace
     // prefix — installed projects run either root (AQJ95G).

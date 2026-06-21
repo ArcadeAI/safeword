@@ -219,15 +219,15 @@ function findArchitectureAdvisories(cwd: string): string[] {
 /** Whether the impl plan's `## Arch alignment` section carries real content
  * (non-empty, not a `skip:` annotation). */
 function archAlignmentHasContent(implPlanContent: string): boolean {
-  let inSection = false;
+  let isInSection = false;
   const body: string[] = [];
   for (const raw of implPlanContent.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('## ')) {
-      inSection = line.slice(3).trim().toLowerCase() === 'arch alignment';
+      isInSection = line.slice(3).trim().toLowerCase() === 'arch alignment';
       continue;
     }
-    if (inSection && line !== '') body.push(line);
+    if (isInSection && line !== '') body.push(line);
   }
   if (body.length === 0) return false;
   return !(body.length === 1 && (body[0] ?? '').toLowerCase().startsWith('skip:'));

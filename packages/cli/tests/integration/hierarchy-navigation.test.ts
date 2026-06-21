@@ -97,17 +97,16 @@ function createTestProject(): string {
 // Tests
 // ---------------------------------------------------------------------------
 
-let projectDirectory: string;
-
-beforeEach(() => {
-  projectDirectory = createTestProject();
-});
-
-afterEach(() => {
-  removeTemporaryDirectory(projectDirectory);
-});
-
 describe('hierarchy navigation in stop hook', () => {
+  let projectDirectory: string;
+
+  beforeEach(() => {
+    projectDirectory = createTestProject();
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(projectDirectory);
+  });
   // Evidence that passes the done gate for features
   const featureEvidence = '✓ 15/15 tests pass\nAll 8 scenarios marked complete\nAudit passed';
   // Evidence that passes the done gate for tasks

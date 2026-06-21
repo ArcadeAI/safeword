@@ -9,7 +9,8 @@ import { type Language, type PlanEntry, resolveTestPlan } from '../../src/test-p
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
-  for (const dir of temporaryDirectories.splice(0)) rmSync(dir, { force: true, recursive: true });
+  for (const dir of temporaryDirectories) rmSync(dir, { force: true, recursive: true });
+  temporaryDirectories.length = 0;
 });
 
 /** Build a temp repo from a map of relative path → file contents. */
@@ -44,7 +45,10 @@ describe('resolveTestPlan — every detected language appears (no first-match)',
       'pyproject.toml': '[project]\nname = "x"\n',
     });
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
-    expect(languages(plan).toSorted()).toEqual(['javascript', 'python']);
+    expect(languages(plan).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'javascript',
+      'python',
+    ]);
     expect(plan).toHaveLength(2);
   });
 

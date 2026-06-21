@@ -153,7 +153,7 @@ export function parsePersonas(content: string): ParsedPersona[] {
   let current: ParsedPersona | undefined;
 
   for (const [index, line] of lines.entries()) {
-    if (skip[index]) continue;
+    if (skip[index] === true) continue;
     const header = parseHeaderLine(line);
     if (header) {
       if (current) personas.push(current);

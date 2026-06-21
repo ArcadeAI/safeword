@@ -16,6 +16,12 @@ import { describe, expect, it } from 'vitest';
 import { recommendedTypeScriptReact } from '../recommended-react.js';
 import { getAllRules, getRuleConfig, getSeverityNumber } from './test-utilities.js';
 
+// JSX fixtures below embed `{expr}` JSX braces inside template-literal source
+// strings. unicorn/no-incorrect-template-string-interpolation reads these as
+// missed `${expr}` interpolation, but they are intentional React source under
+// test — interpolating them would change the fixtures and break the assertions.
+/* eslint-disable unicorn/no-incorrect-template-string-interpolation -- JSX braces in fixture source, not interpolation */
+
 const ERROR = 2;
 const WARN = 1;
 const REACT_SAMPLE_FILENAME = fileURLToPath(new URL('react-sample.tsx', import.meta.url));
@@ -55,7 +61,7 @@ function hasPlugin(pluginName: string): boolean {
       config !== null &&
       'plugins' in config &&
       config.plugins &&
-      pluginName in config.plugins,
+      Object.hasOwn(config.plugins, pluginName),
   );
 }
 
@@ -300,34 +306,6 @@ describe('React JSX parity gaps', () => {
   });
 });
 
-describe('React rules under ESLint 10', () => {
-  it('loads and reports replacement React rules without RuleContext API crashes', async () => {
-    const eslint10PackageName = 'eslint-v10';
-    const { Linter: ESLint10Linter } = (await import(eslint10PackageName)) as {
-      Linter: typeof Linter;
-    };
-
-    const messages = lintReactCode(
-      `
-const items = [{ id: 'a' }];
-export function List() {
-  return <ul>{items.map(item => <li>{item.id}</li>)}</ul>;
-}
-`,
-      new ESLint10Linter({ configType: 'flat' }),
-    );
-
-    expect(messages).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          ruleId: '@eslint-react/no-missing-key',
-          severity: ERROR,
-        }),
-      ]),
-    );
-  });
-});
-
 describe('Accessibility rules (jsx-a11y)', () => {
   it('includes jsx-a11y plugin', () => {
     expect(hasPlugin('jsx-a11y')).toBe(true);
@@ -370,3 +348,5 @@ describe('No warnings allowed for React guardrails', () => {
     expect(rulesAtWarn).toEqual([]);
   });
 });
+
+/* eslint-enable unicorn/no-incorrect-template-string-interpolation -- end JSX fixture region */

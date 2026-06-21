@@ -101,9 +101,9 @@ describe('smoke hook coverage (drift guard)', () => {
     const uncovered: string[] = [];
 
     for (const hook of hooks) {
-      const exempt = Object.prototype.hasOwnProperty.call(EXEMPT_HOOKS, hook);
-      const covered = smokeText.includes(hook);
-      if (!exempt && !covered) uncovered.push(hook);
+      const isExempt = Object.prototype.hasOwnProperty.call(EXEMPT_HOOKS, hook);
+      const isCovered = smokeText.includes(hook);
+      if (!isExempt && !isCovered) uncovered.push(hook);
     }
 
     const list = uncovered.map(h => `  - ${h}`).join('\n');

@@ -1662,7 +1662,7 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const projectType = { ...DEFAULT_PROJECT_TYPE };
 
-      const installedDevelopmentDeps = {
+      const installedDevelopmentDependencies = {
         eslint: '^8.0.0',
         prettier: '^3.0.0',
         knip: '^5.0.0',
@@ -1671,7 +1671,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = computePackagesToInstall(
         SAFEWORD_SCHEMA,
         projectType,
-        installedDevelopmentDeps,
+        installedDevelopmentDependencies,
       );
 
       expect(result).not.toContain(ESLINT_PACKAGE);

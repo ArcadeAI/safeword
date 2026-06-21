@@ -25,14 +25,11 @@ describe('validateGlossary — structural errors', () => {
 
       const errors = validateGlossary(parsed);
 
-      expect(errors).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            line: 1,
-            message: expect.stringContaining('missing Definition'),
-          }),
-        ]),
-      );
+      const expectedError = expect.objectContaining({
+        line: 1,
+        message: expect.stringContaining('missing Definition'),
+      });
+      expect(errors).toEqual(expect.arrayContaining([expectedError]));
     });
   });
 
@@ -43,14 +40,11 @@ describe('validateGlossary — structural errors', () => {
 
       const errors = validateGlossary(parsed);
 
-      expect(errors).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            line: 1,
-            message: expect.stringContaining('missing term name'),
-          }),
-        ]),
-      );
+      const expectedError = expect.objectContaining({
+        line: 1,
+        message: expect.stringContaining('missing term name'),
+      });
+      expect(errors).toEqual(expect.arrayContaining([expectedError]));
     });
   });
 

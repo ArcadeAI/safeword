@@ -21,22 +21,22 @@
  */
 export function computeSkipMask(lines: readonly string[]): boolean[] {
   const skip: boolean[] = [];
-  let insideCodeFence = false;
-  let insideComment = false;
+  let isInsideCodeFence = false;
+  let isInsideComment = false;
   for (const line of lines) {
     if (line.trimStart().startsWith('```')) {
       skip.push(true);
-      insideCodeFence = !insideCodeFence;
+      isInsideCodeFence = !isInsideCodeFence;
       continue;
     }
-    if (insideCodeFence) {
+    if (isInsideCodeFence) {
       skip.push(true);
       continue;
     }
-    if (!insideComment && line.trimStart().startsWith('<!--')) insideComment = true;
-    if (insideComment) {
+    if (!isInsideComment && line.trimStart().startsWith('<!--')) isInsideComment = true;
+    if (isInsideComment) {
       skip.push(true);
-      if (line.includes('-->')) insideComment = false;
+      if (line.includes('-->')) isInsideComment = false;
       continue;
     }
     skip.push(false);

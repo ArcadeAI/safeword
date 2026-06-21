@@ -27,7 +27,7 @@ describe('modelsMatch — cross-model independence', () => {
   });
 
   it('matches (fails closed) when the author tag is empty', () => {
-    expect(modelsMatch('claude-opus-4-8', '   ')).toBe(true);
+    expect(modelsMatch('claude-opus-4-8', ' '.repeat(3))).toBe(true);
   });
 
   it('matches (fails closed) when the reviewer tag is absent', () => {

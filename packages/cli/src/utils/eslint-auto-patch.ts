@@ -91,7 +91,7 @@ function skipNonContent(source: string, i: number): number {
     const close = source.indexOf('*/', i + 2);
     return close === -1 ? -1 : close + 2;
   }
-  if (ch === "'" || ch === '"' || ch === '`') {
+  if (ch !== undefined && ["'", '"', '`'].includes(ch)) {
     return skipStringLiteral(source, i);
   }
   return i;
@@ -241,11 +241,11 @@ export function autoPatchEslintConfig(options: AutoPatchOptions): AutoPatchResul
   // one before our spread.
   const probe = lastNonWhitespaceIndex(sourceWithImport, finalClose - 1);
   const charBefore = sourceWithImport[probe];
-  const needsLeadingComma = charBefore !== '[' && charBefore !== ',';
+  const isNeedsLeadingComma = charBefore !== '[' && charBefore !== ',';
 
   const before = sourceWithImport.slice(0, finalClose);
   const after = sourceWithImport.slice(finalClose);
-  const prefix = `${needsLeadingComma ? ',' : ''}${eol}  `;
+  const prefix = `${isNeedsLeadingComma ? ',' : ''}${eol}  `;
   const patched = `${before}${prefix}${SPREAD}${eol}${after}`;
 
   const writeResult = writeAndValidate(configPath, patched, !isTypeScriptConfig(configPath));

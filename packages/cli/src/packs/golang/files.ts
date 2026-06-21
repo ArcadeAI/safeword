@@ -128,9 +128,9 @@ function generateSafewordGolangciConfig(existingConfig: string | undefined, cwd:
       return getSafewordGolangciStandalone();
     }
 
-    return projectConfig.version === '2'
-      ? getSafewordGolangciMergedV2(projectConfig)
-      : getSafewordGolangciMergedV1(projectConfig);
+    const merge =
+      projectConfig.version === '2' ? getSafewordGolangciMergedV2 : getSafewordGolangciMergedV1;
+    return merge(projectConfig);
   } catch {
     console.warn(`Safeword: Could not parse ${existingConfig}, using standalone config`);
     return getSafewordGolangciStandalone();
@@ -258,20 +258,23 @@ function fillGapMerge(
   const result: Record<string, unknown> = { ...base };
 
   for (const [key, defaultValue] of Object.entries(defaults)) {
-    if (!(key in result)) {
+    if (Object.hasOwn(result, key)) {
+      const existingValue = result[key];
+      if (
+        defaultValue &&
+        typeof defaultValue === 'object' &&
+        !Array.isArray(defaultValue) &&
+        existingValue &&
+        typeof existingValue === 'object' &&
+        !Array.isArray(existingValue)
+      ) {
+        result[key] = fillGapMerge(
+          existingValue as Record<string, unknown>,
+          defaultValue as Record<string, unknown>,
+        );
+      }
+    } else {
       result[key] = defaultValue;
-    } else if (
-      defaultValue &&
-      typeof defaultValue === 'object' &&
-      !Array.isArray(defaultValue) &&
-      result[key] &&
-      typeof result[key] === 'object' &&
-      !Array.isArray(result[key])
-    ) {
-      result[key] = fillGapMerge(
-        result[key] as Record<string, unknown>,
-        defaultValue as Record<string, unknown>,
-      );
     }
   }
 

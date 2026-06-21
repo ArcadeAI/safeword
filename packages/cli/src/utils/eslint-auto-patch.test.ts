@@ -16,20 +16,20 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { autoPatchEslintConfig } from './eslint-auto-patch.js';
 
-let temporaryDirectory: string;
+const shared: { temporaryDirectory: string } = { temporaryDirectory: '' };
 
 beforeEach(() => {
-  temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-patch-'));
+  shared.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-patch-'));
 });
 
 afterEach(() => {
-  if (existsSync(temporaryDirectory)) {
-    rmSync(temporaryDirectory, { recursive: true, force: true });
+  if (existsSync(shared.temporaryDirectory)) {
+    rmSync(shared.temporaryDirectory, { recursive: true, force: true });
   }
 });
 
 function writeConfig(filename: string, body: string): string {
-  const fullPath = nodePath.join(temporaryDirectory, filename);
+  const fullPath = nodePath.join(shared.temporaryDirectory, filename);
   writeFileSync(fullPath, body, 'utf8');
   return fullPath;
 }
@@ -201,7 +201,7 @@ describe('Rule 4 — bail-to-print on unrecognized shapes', () => {
   });
 
   it('5.3: read failure on the config bails (file does not exist)', () => {
-    const configPath = nodePath.join(temporaryDirectory, 'missing.mjs');
+    const configPath = nodePath.join(shared.temporaryDirectory, 'missing.mjs');
 
     const result = autoPatchEslintConfig({ configPath });
 

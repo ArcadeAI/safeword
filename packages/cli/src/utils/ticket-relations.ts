@@ -76,21 +76,28 @@ export function findTicketsInCycles(nodes: TicketNode[]): string[] {
   const inCycle = new Set<string>();
 
   for (const start of edges.keys()) {
-    // DFS along depends_on edges; reaching `start` again means it's on a cycle.
-    const stack = [...(edges.get(start) ?? [])];
-    const seen = new Set<string>();
-    while (stack.length > 0) {
-      const next = stack.pop();
-      if (next === undefined) continue;
-      if (next === start) {
-        inCycle.add(start);
-        break;
-      }
-      if (seen.has(next)) continue;
-      seen.add(next);
-      stack.push(...(edges.get(next) ?? []));
-    }
+    if (reachesSelf(start, edges)) inCycle.add(start);
   }
 
   return [...inCycle].toSorted((a, b) => a.localeCompare(b));
+}
+
+/**
+ * DFS along depends_on edges from `start`; returns true when `start` is
+ * reachable from itself (it lies on a cycle, including via a self-edge).
+ */
+function reachesSelf(start: string, edges: Map<string, string[]>): boolean {
+  const stack = [...(edges.get(start) ?? [])];
+  const seen = new Set<string>();
+  while (stack.length > 0) {
+    const next = stack.pop();
+    if (next === undefined) continue;
+    if (next === start) {
+      return true;
+    }
+    if (seen.has(next)) continue;
+    seen.add(next);
+    stack.push(...(edges.get(next) ?? []));
+  }
+  return false;
 }

@@ -375,13 +375,13 @@ describe('validateLedger — W610WW annotated-loop gating', () => {
 
 describe('wholeTicketPassApplies — unified trigger for row + review (W610WW)', () => {
   it('two annotated loops → applies', () => {
-    expect(
-      wholeTicketPassApplies(ledgerWith([annotatedScenario('a'), annotatedScenario('b')])),
-    ).toBe(true);
+    const scenarios = [annotatedScenario('a'), annotatedScenario('b')];
+    expect(wholeTicketPassApplies(ledgerWith(scenarios))).toBe(true);
   });
 
   it('a single annotated loop → does not apply', () => {
-    expect(wholeTicketPassApplies(ledgerWith([annotatedScenario('only')]))).toBe(false);
+    const scenarios = [annotatedScenario('only')];
+    expect(wholeTicketPassApplies(ledgerWith(scenarios))).toBe(false);
   });
 
   it('zero scenarios → does not apply', () => {
@@ -393,11 +393,8 @@ describe('wholeTicketPassApplies — unified trigger for row + review (W610WW)',
     // not trigger the whole-ticket pass — neither the row nor the /quality-review
     // requirement. A naive loop count (>=2) would wrongly trigger the review
     // half; wholeTicketPassApplies must gate on annotations, not raw count.
-    expect(
-      wholeTicketPassApplies(
-        ledgerWith([legacyScenario('a'), legacyScenario('b'), legacyScenario('c')]),
-      ),
-    ).toBe(false);
+    const scenarios = [legacyScenario('a'), legacyScenario('b'), legacyScenario('c')];
+    expect(wholeTicketPassApplies(ledgerWith(scenarios))).toBe(false);
   });
 });
 

@@ -27,7 +27,7 @@ function cliActiveLines(content: string): { index: number; text: string }[] {
   const skip = computeSkipMask(lines);
   const out: { index: number; text: string }[] = [];
   for (const [index, line] of lines.entries()) {
-    if (skip[index]) continue;
+    if (skip[index] === true) continue;
     const text = stripInlineComments(line).trim();
     if (text !== '') out.push({ index, text });
   }

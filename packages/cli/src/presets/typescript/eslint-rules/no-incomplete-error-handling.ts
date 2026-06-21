@@ -44,12 +44,12 @@ function isLoggingCall(node: CallExpression): boolean {
 /**
  * Check if a single statement terminates control flow.
  */
-function isTerminatingBranch(stmt: Statement): boolean {
-  if (stmt.type === 'ThrowStatement' || stmt.type === 'ReturnStatement') {
+function isTerminatingBranch(statement: Statement): boolean {
+  if (statement.type === 'ThrowStatement' || statement.type === 'ReturnStatement') {
     return true;
   }
-  if (stmt.type === 'BlockStatement') {
-    return hasTerminatingStatement(stmt.body);
+  if (statement.type === 'BlockStatement') {
+    return hasTerminatingStatement(statement.body);
   }
   return false;
 }
@@ -57,10 +57,10 @@ function isTerminatingBranch(stmt: Statement): boolean {
 /**
  * Check if an if statement terminates (both branches must terminate).
  */
-function ifStatementTerminates(stmt: Statement & { type: 'IfStatement' }): boolean {
-  const consequentTerminates = isTerminatingBranch(stmt.consequent);
-  const alternateTerminates = stmt.alternate ? isTerminatingBranch(stmt.alternate) : false;
-  return consequentTerminates && alternateTerminates;
+function ifStatementTerminates(statement: Statement & { type: 'IfStatement' }): boolean {
+  const isConsequentTerminates = isTerminatingBranch(statement.consequent);
+  const isAlternateTerminates = statement.alternate ? isTerminatingBranch(statement.alternate) : false;
+  return isConsequentTerminates && isAlternateTerminates;
 }
 
 /**
@@ -68,11 +68,11 @@ function ifStatementTerminates(stmt: Statement & { type: 'IfStatement' }): boole
  * @param statements
  */
 function hasTerminatingStatement(statements: Statement[]): boolean {
-  for (const stmt of statements) {
-    if (stmt.type === 'ThrowStatement' || stmt.type === 'ReturnStatement') {
+  for (const statement of statements) {
+    if (statement.type === 'ThrowStatement' || statement.type === 'ReturnStatement') {
       return true;
     }
-    if (stmt.type === 'IfStatement' && ifStatementTerminates(stmt)) {
+    if (statement.type === 'IfStatement' && ifStatementTerminates(statement)) {
       return true;
     }
   }
@@ -82,24 +82,24 @@ function hasTerminatingStatement(statements: Statement[]): boolean {
 /**
  * Check if a single statement is a logging call.
  */
-function isLoggingStatement(stmt: Statement): boolean {
+function isLoggingStatement(statement: Statement): boolean {
   return (
-    stmt.type === 'ExpressionStatement' &&
-    stmt.expression.type === 'CallExpression' &&
-    isLoggingCall(stmt.expression)
+    statement.type === 'ExpressionStatement' &&
+    statement.expression.type === 'CallExpression' &&
+    isLoggingCall(statement.expression)
   );
 }
 
 /**
  * Get nested statements from a statement (for recursive search).
  */
-function getNestedStatements(stmt: Statement): Statement[] {
-  if (stmt.type === 'BlockStatement') {
-    return stmt.body;
+function getNestedStatements(statement: Statement): Statement[] {
+  if (statement.type === 'BlockStatement') {
+    return statement.body;
   }
-  if (stmt.type === 'IfStatement') {
-    const nested = [stmt.consequent];
-    if (stmt.alternate) nested.push(stmt.alternate);
+  if (statement.type === 'IfStatement') {
+    const nested = [statement.consequent];
+    if (statement.alternate) nested.push(statement.alternate);
     return nested;
   }
   return [];
@@ -110,10 +110,10 @@ function getNestedStatements(stmt: Statement): Statement[] {
  * @param statements
  */
 function containsLoggingCall(statements: Statement[]): boolean {
-  for (const stmt of statements) {
-    if (isLoggingStatement(stmt)) return true;
+  for (const statement of statements) {
+    if (isLoggingStatement(statement)) return true;
 
-    const nested = getNestedStatements(stmt);
+    const nested = getNestedStatements(statement);
     if (nested.length > 0 && containsLoggingCall(nested)) return true;
   }
   return false;
