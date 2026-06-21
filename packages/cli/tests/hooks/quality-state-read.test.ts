@@ -14,38 +14,38 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readSessionState } from '../../../../.safeword/hooks/lib/quality-state';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
-let projectDirectory: string;
+const context = { projectDirectory: '' };
 
 beforeEach(() => {
-  projectDirectory = createTemporaryDirectory();
+  context.projectDirectory = createTemporaryDirectory();
   // resolveNamespaceRoot defaults to .project/ when neither namespace dir exists.
-  mkdirSync(nodePath.join(projectDirectory, '.project'), { recursive: true });
+  mkdirSync(nodePath.join(context.projectDirectory, '.project'), { recursive: true });
 });
 
 afterEach(() => {
-  removeTemporaryDirectory(projectDirectory);
+  removeTemporaryDirectory(context.projectDirectory);
 });
 
 const stateFile = (sessionId: string): string =>
-  nodePath.join(projectDirectory, '.project', `quality-state-${sessionId}.json`);
+  nodePath.join(context.projectDirectory, '.project', `quality-state-${sessionId}.json`);
 
 describe('readSessionState', () => {
   it('returns the parsed state when the per-session file exists', () => {
     writeFileSync(stateFile('s1'), JSON.stringify({ activeTicket: 'ABC123' }));
 
-    const state = readSessionState(projectDirectory, 's1');
+    const state = readSessionState(context.projectDirectory, 's1');
 
     expect(state?.activeTicket).toBe('ABC123');
   });
 
   it('returns null when no per-session state file exists', () => {
-    expect(readSessionState(projectDirectory, 'missing')).toBeNull();
+    expect(readSessionState(context.projectDirectory, 'missing')).toBeNull();
   });
 
   it('returns null (no throw) when the state file is malformed JSON', () => {
     writeFileSync(stateFile('s2'), '{ not valid json');
 
-    expect(() => readSessionState(projectDirectory, 's2')).not.toThrow();
-    expect(readSessionState(projectDirectory, 's2')).toBeNull();
+    expect(() => readSessionState(context.projectDirectory, 's2')).not.toThrow();
+    expect(readSessionState(context.projectDirectory, 's2')).toBeNull();
   });
 });
