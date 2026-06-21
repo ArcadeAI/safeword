@@ -82,11 +82,19 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
    - `packages/cli/package.json` → `version`
    - `marketplace.json` → `plugins[0].version`
 
+   Then **regenerate the lockfile** so `bun.lock`'s `packages/cli` workspace
+   version tracks `package.json` — otherwise it drifts and CI's lockfile-drift
+   gate fails the next PR that touches `package.json` (see #312):
+
+   ```bash
+   bun install # rewrites bun.lock's workspace version; no resolution change
+   ```
+
 3. **PR + admin-merge.** `main` is protected:
 
    ```bash
    git checkout -b release/vX.Y.Z
-   git add packages/cli/package.json marketplace.json
+   git add packages/cli/package.json marketplace.json bun.lock
    git commit -m "chore(release): vX.Y.Z"
    git push -u origin release/vX.Y.Z
    gh pr create --title "chore(release): vX.Y.Z" --body "..."
