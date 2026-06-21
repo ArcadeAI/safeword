@@ -448,7 +448,7 @@ This section is for contributors to safeword itself.
 | CLI       | TypeScript, Commander.js    |
 | Build     | tsup (ESM-only output)      |
 | Tests     | Vitest                      |
-| Linting   | ESLint 9 + Prettier         |
+| Linting   | ESLint 10 + Prettier        |
 
 ### Optional System Binaries
 
