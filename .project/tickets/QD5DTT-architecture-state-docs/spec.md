@@ -1,74 +1,75 @@
 # Spec: Always-fresh point-in-time architecture docs
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+**Scope of this spec:** Slice 1 only (see ticket → Delivery Slices) — single-repo deterministic extractor + skeleton + shape-fingerprint + per-node `purpose` floor + SessionStart self-heal that writes staleness markers. No enforcement gates (Slice 2), no monorepo hierarchy (Slice 3), no `/architecture` resync skill or guide split (Slice 4).
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Give every safeword project an `architecture.md` that describes the system _as it is now_ and cannot silently lie: its structural facts self-heal deterministically (even after out-of-band human edits), and any prose that has fallen behind the structure is visibly flagged rather than quietly wrong. Stale architecture context poisons agent output; this makes freshness a property of the doc, not a chore for the human.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Ticket QD5DTT (decisions 1–6, delivery slices, evidence base)
+- Existing reuse: `boundaries.ts` (`DetectedArchitecture`), `depcruise-config.ts` — layer detection the extractor builds on
+- Distinct from the ADR/decision-log machinery (`architectureReviewGate`, reconcile records) — additive, not a replacement
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- **Non-Technical Builder (NTB)** — directs the agent but can't read diffs/source to orient.
+- **Technical Builder (TB)** — drives the agent across many sessions; harmed when stale context degrades agent output.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+Feature-local terms (not yet in `.project/glossary.md`; promote if they recur across tickets):
+
+- **Architecture state doc** — `.project/architecture.md` describing the system _as it is now_ (vs. the ADR log, which records _why_).
+- **Skeleton** — deterministically-extracted structural facts (top-level `src/` layout, deps, dependency-cruiser boundary config, schema files) with code references. Zero LLM.
+- **Shape-fingerprint** — a hash of architecture-relevant _shape_ (not bytes), stored in doc frontmatter; live-hash vs recorded = drift.
+- **`purpose` floor** — every skeleton node carries a one-line purpose; mechanically presence- and orphan-checkable, so it gets the full freshness guarantee.
+- **Self-heal** — deterministic (LLM-free) re-extraction of the skeleton on SessionStart when the fingerprint moved.
+- **Staleness marker** — a per-section `⚠ stale` annotation written by self-heal when a prose section's `reconciled` stamp no longer matches the live skeleton fingerprint, or the section is orphaned.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### architecture-state-docs.NTB1 — Understand my project's current shape without reading code
 
-Uncomment and customize:
+**Persona:** Non-Technical Builder (NTB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I open my project to plan or direct the agent, I want an accurate,
+> up-to-date map of what the system actually is right now — never silently
+> wrong — so I can orient myself and make decisions without reading the diff
+> or the source.
 
-**Persona:** Platform Operator (PO)
+#### architecture-state-docs.NTB1.AC1 — Structural facts in the doc match the real project
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+The skeleton (modules, dependencies, boundaries, schema) reflects the actual tree, with code references — not a hand-written description that may be wrong.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### architecture-state-docs.NTB1.AC2 — Prose that has fallen behind the structure is visibly flagged
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+Where narrative no longer matches the structure (or describes something deleted), the doc carries a visible `⚠ stale` marker on that section, so the reader is never silently misled — the doc may be incomplete, never quietly wrong.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+### architecture-state-docs.TB1 — Keep the agent's architectural context current without hand-maintaining a doc
+
+**Persona:** Technical Builder (TB)
+
+> When I drive the agent across many sessions, I want the architecture doc it
+> loads to stay factually current on its own — including after I change things
+> by hand outside any agent session — so stale context never silently poisons
+> the agent's output and I never have to babysit the doc.
+
+#### architecture-state-docs.TB1.AC1 — Structural facts self-heal at session start, with no human action
+
+When the project's shape has changed since the doc was last synced, the next session re-extracts the skeleton deterministically (LLM-free), so the facts the agent loads are current.
+
+#### architecture-state-docs.TB1.AC2 — Out-of-band human changes are caught, not missed
+
+A structural change committed outside any agent session is detected at the next session start (the fingerprint moved), and the skeleton is re-synced and/or the affected prose flagged — drift isn't dependent on the agent having made the change.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- Opening a fresh single-repo TS project yields a `.project/architecture.md` whose skeleton matches the real tree, with a frontmatter fingerprint and a one-line `purpose` per node.
+- A structural change made with no agent in the loop is reflected (skeleton re-synced) and/or flagged (`⚠ stale` on lagging prose) at the next session start.
+- The drift signal and self-heal are LLM-free; warn-only at this slice (no blocking gate yet) but a stale doc is never _silently_ wrong.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- defer: exact shape-fingerprint contents per input (src dirs / deps / dependency-cruiser config / schema — in or out of the hash). Resolved as the first define-behavior scenario (ticket → First scenarios to write).

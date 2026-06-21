@@ -10,7 +10,7 @@ last_modified: 2026-06-21T03:20:41.930Z
 
 # Always-fresh point-in-time architecture docs (monorepo-aware)
 
-**Goal:** Guarantee every safeword project has an accurate, point-in-time `architecture.md` describing the system _as it is now_ — self-healing on its structural facts, drift-detected at every context-entry point, and structured hierarchically so monorepos stay navigable.
+**Goal:** Guarantee every safeword project has an accurate, point-in-time `architecture.md` describing the system _as it is now_ — structural facts self-healing, any stale prose visibly flagged (never silently wrong), drift caught even from out-of-band human edits, and structured hierarchically so monorepos stay navigable.
 
 **Why:** A stale architecture doc doesn't just sit there — agents reuse and build on it, so wrong context compounds (context poisoning) and degrades agent performance. Today safeword's `architecture.md` is a _decision log_ (ADRs, consulted before work), with no concept of freshness, no detection of out-of-band human changes, and no monorepo structure. We want a _state document_ that cannot silently lie.
 
