@@ -228,7 +228,7 @@ function groupByEpic(entries: TicketEntry[]): [string, TicketEntry[]][] {
     if (bucket) bucket.push(entry);
     else groups.set(key, [entry]);
   }
-  return [...groups.entries()].toSorted(([a], [b]) => {
+  return [...groups].toSorted(([a], [b]) => {
     if (a === NO_EPIC_GROUP) return 1;
     if (b === NO_EPIC_GROUP) return -1;
     return a.localeCompare(b);
@@ -295,16 +295,16 @@ export function syncTickets(cwd: string): TicketSyncResult {
 
   const { active, completed, skipped } = readTickets(ticketsDirectory, relativeLabel);
 
-  const wroteActive = writeIfChanged(indexPath, buildIndexContent(active, { variant: 'active' }));
+  const isWroteActive = writeIfChanged(indexPath, buildIndexContent(active, { variant: 'active' }));
 
   const completedDirectory = nodePath.join(ticketsDirectory, COMPLETED_DIRNAME);
-  const wroteCompleted =
+  const isWroteCompleted =
     completed.length > 0 || existsSync(completedDirectory)
       ? writeIfChanged(completedIndexPath, buildIndexContent(completed, { variant: 'completed' }))
       : false;
 
   return {
-    wrote: wroteActive || wroteCompleted,
+    wrote: isWroteActive || isWroteCompleted,
     active,
     completed,
     skipped,

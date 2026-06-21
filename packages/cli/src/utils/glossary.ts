@@ -120,14 +120,18 @@ export function lookupGlossaryReference(
 function groupAliasesByLine(entries: readonly ParsedGlossaryEntry[]): Map<string, number[]> {
   const grouped = new Map<string, number[]>();
   for (const entry of entries) {
-    for (const alias of entry.aliases) {
-      if (alias.length === 0) continue;
-      const lines = grouped.get(alias) ?? [];
-      lines.push(entry.lineNumber);
-      grouped.set(alias, lines);
-    }
+    addEntryAliasesToGroup(entry, grouped);
   }
   return grouped;
+}
+
+function addEntryAliasesToGroup(entry: ParsedGlossaryEntry, grouped: Map<string, number[]>): void {
+  for (const alias of entry.aliases) {
+    if (alias.length === 0) continue;
+    const lines = grouped.get(alias) ?? [];
+    lines.push(entry.lineNumber);
+    grouped.set(alias, lines);
+  }
 }
 
 /**
@@ -362,7 +366,7 @@ export function parseGlossary(content: string): ParsedGlossaryEntry[] {
   let activeField: StringFieldKey | undefined;
 
   for (const [index, line] of lines.entries()) {
-    if (skip[index]) continue;
+    if (skip[index] === true) continue;
     const headerName = parseTermHeader(line);
     if (headerName !== undefined) {
       if (current) entries.push(current);

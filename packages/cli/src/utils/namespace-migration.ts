@@ -78,10 +78,12 @@ function rewriteLegacyPathOverrides(cwd: string): string[] {
 
   const rewritten: string[] = [];
   for (const [key, value] of Object.entries(parsed.paths)) {
-    if (typeof value === 'string' && value.startsWith(`${LEGACY_ROOT}/`)) {
-      parsed.paths[key] = `${DEFAULT_ROOT}${value.slice(LEGACY_ROOT.length)}`;
-      rewritten.push(key);
+    if (!(typeof value === 'string' && value.startsWith(`${LEGACY_ROOT}/`))) {
+    	continue;
     }
+
+    parsed.paths[key] = `${DEFAULT_ROOT}${value.slice(LEGACY_ROOT.length)}`;
+    rewritten.push(key);
   }
   if (rewritten.length > 0) {
     writeFileSync(configPath, `${JSON.stringify(parsed, undefined, 2)}\n`);

@@ -82,7 +82,7 @@ export function createTicket(
 
 function renderSpecMarkdown(title: string): string {
   const template = readFileSync(nodePath.join(getTemplatesDirectory(), 'spec-template.md'), 'utf8');
-  return template.replace('{title}', title);
+  return template.replace('{title}', () => title);
 }
 
 function mintAndClaim(

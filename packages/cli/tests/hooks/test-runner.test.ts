@@ -37,9 +37,10 @@ function makeProject(scripts: Record<string, string>): string {
 }
 
 afterEach(() => {
-  for (const directory of temporaryDirectories.splice(0)) {
+  for (const directory of temporaryDirectories) {
     rmSync(directory, { force: true, recursive: true });
   }
+  temporaryDirectories.length = 0;
 });
 
 describe('runTests (resolves its suite via safeword test-plan)', () => {

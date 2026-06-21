@@ -41,9 +41,9 @@ describe('Tailwind config', () => {
       expect(severity).toBe('error');
     });
 
-    it('better-tailwindcss/no-unregistered-classes is error', () => {
+    it('better-tailwindcss/no-unknown-classes is error', () => {
       const severity = getSeverity(
-        getRuleConfig(tailwindConfig, 'better-tailwindcss/no-unregistered-classes'),
+        getRuleConfig(tailwindConfig, 'better-tailwindcss/no-unknown-classes'),
       );
       expect(severity).toBe('error');
     });
@@ -139,6 +139,30 @@ describe('Tailwind config', () => {
 
       // 3 correctness + 8 stylistic = 11 total
       expect(tailwindRules.length).toBe(11);
+    });
+  });
+
+  describe('referenced rules exist in the plugin (no dead rule names)', () => {
+    it('every better-tailwindcss rule we configure is exported by the loaded plugin', () => {
+      // Pull the actual plugin instance out of the config so the check is
+      // grounded in what ESLint loads at runtime — a config-shape assertion
+      // alone cannot catch a rule that was renamed/removed upstream (e.g.
+      // no-unregistered-classes → no-unknown-classes in better-tailwindcss 4.6).
+      const configWithPlugin = tailwindConfig.find(
+        (config: any) => config.plugins?.['better-tailwindcss'],
+      );
+      expect(configWithPlugin).toBeDefined();
+      const plugin = configWithPlugin.plugins['better-tailwindcss'];
+      const exportedRules = new Set(Object.keys(plugin.rules ?? {}));
+      expect(exportedRules.size).toBeGreaterThan(0);
+
+      const referenced = Object.keys(getAllRules(tailwindConfig)).filter(name =>
+        name.startsWith('better-tailwindcss/'),
+      );
+      const dead = referenced.filter(
+        name => !exportedRules.has(name.replace('better-tailwindcss/', '')),
+      );
+      expect(dead).toEqual([]);
     });
   });
 });

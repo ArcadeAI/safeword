@@ -21,7 +21,9 @@ describe('isDogfoodRepo', () => {
     return directory;
   }
   afterEach(() => {
-    for (const directory of created.splice(0)) rmSync(directory, { recursive: true, force: true });
+    const directories = [...created];
+    created.length = 0;
+    for (const directory of directories) rmSync(directory, { recursive: true, force: true });
   });
 
   it('detects the dogfood repo by the canonical templates directory', () => {

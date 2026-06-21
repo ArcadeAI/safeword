@@ -9,7 +9,9 @@ import { hasJsSource } from '../../src/utils/project-detector';
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
-  for (const dir of temporaryDirectories.splice(0)) rmSync(dir, { force: true, recursive: true });
+  const directories = [...temporaryDirectories];
+  temporaryDirectories.length = 0;
+  for (const dir of directories) rmSync(dir, { force: true, recursive: true });
 });
 
 function makeRepo(files: Record<string, string>): string {

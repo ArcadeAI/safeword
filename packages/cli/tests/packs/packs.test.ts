@@ -23,15 +23,15 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-let testDirectory: string;
+const fixture: { testDirectory: string } = { testDirectory: '' };
 
 beforeEach(() => {
-  testDirectory = createTemporaryDirectory();
+  fixture.testDirectory = createTemporaryDirectory();
 });
 
 afterEach(() => {
-  if (testDirectory) {
-    removeTemporaryDirectory(testDirectory);
+  if (fixture.testDirectory) {
+    removeTemporaryDirectory(fixture.testDirectory);
   }
 });
 
@@ -69,12 +69,12 @@ describe('Pack Registry', () => {
 
   it('Test 1.2: Detects languages from project markers', () => {
     // Create project with both Python and TypeScript markers
-    createPythonProject(testDirectory);
-    createPackageJson(testDirectory, {
+    createPythonProject(fixture.testDirectory);
+    createPackageJson(fixture.testDirectory, {
       devDependencies: { typescript: '^5.0.0' },
     });
 
-    const detected = detectLanguages(testDirectory);
+    const detected = detectLanguages(fixture.testDirectory);
 
     // Should detect both (order doesn't matter)
     expect(detected).toContain('python');
@@ -83,17 +83,17 @@ describe('Pack Registry', () => {
   });
 
   it('Test 1.8: Detects Python from requirements.txt only', () => {
-    writeTestFile(testDirectory, 'requirements.txt', 'flask>=3.0\n');
+    writeTestFile(fixture.testDirectory, 'requirements.txt', 'flask>=3.0\n');
 
-    const detected = detectLanguages(testDirectory);
+    const detected = detectLanguages(fixture.testDirectory);
 
     expect(detected).toContain('python');
   });
 
   it('Test 1.6: Detects Rust from Cargo.toml', () => {
-    createRustProject(testDirectory);
+    createRustProject(fixture.testDirectory);
 
-    const detected = detectLanguages(testDirectory);
+    const detected = detectLanguages(fixture.testDirectory);
 
     expect(detected).toContain('rust');
     expect(detected).toHaveLength(1);
@@ -101,12 +101,12 @@ describe('Pack Registry', () => {
 
   it('Test 1.7: Detects multiple languages including Rust', () => {
     // Create project with TypeScript AND Rust
-    createPackageJson(testDirectory, {
+    createPackageJson(fixture.testDirectory, {
       devDependencies: { typescript: '^5.0.0' },
     });
-    createRustProject(testDirectory);
+    createRustProject(fixture.testDirectory);
 
-    const detected = detectLanguages(testDirectory);
+    const detected = detectLanguages(fixture.testDirectory);
 
     expect(detected).toContain('typescript');
     expect(detected).toContain('rust');
@@ -121,15 +121,15 @@ describe('Pack Registry', () => {
 describe('Config Tracking', () => {
   it('Test 1.3: Reads installed packs from config', () => {
     // Empty config → empty array
-    writeSafewordConfig(testDirectory, { installedPacks: [] });
-    expect(getInstalledPacks(testDirectory)).toEqual([]);
-    expect(isPackInstalled(testDirectory, 'python')).toBe(false);
+    writeSafewordConfig(fixture.testDirectory, { installedPacks: [] });
+    expect(getInstalledPacks(fixture.testDirectory)).toEqual([]);
+    expect(isPackInstalled(fixture.testDirectory, 'python')).toBe(false);
 
     // With installed pack
-    writeSafewordConfig(testDirectory, { installedPacks: ['python'] });
-    expect(getInstalledPacks(testDirectory)).toEqual(['python']);
-    expect(isPackInstalled(testDirectory, 'python')).toBe(true);
-    expect(isPackInstalled(testDirectory, 'go')).toBe(false);
+    writeSafewordConfig(fixture.testDirectory, { installedPacks: ['python'] });
+    expect(getInstalledPacks(fixture.testDirectory)).toEqual(['python']);
+    expect(isPackInstalled(fixture.testDirectory, 'python')).toBe(true);
+    expect(isPackInstalled(fixture.testDirectory, 'go')).toBe(false);
   });
 });
 
@@ -139,14 +139,14 @@ describe('Config Tracking', () => {
 
 describe('Pack Installation', () => {
   it('Test 1.4: Installs pack and updates config', () => {
-    createPythonProject(testDirectory);
-    initGitRepo(testDirectory);
-    writeSafewordConfig(testDirectory, { installedPacks: [] });
+    createPythonProject(fixture.testDirectory);
+    initGitRepo(fixture.testDirectory);
+    writeSafewordConfig(fixture.testDirectory, { installedPacks: [] });
 
-    installPack('python', testDirectory);
+    installPack('python', fixture.testDirectory);
 
     // Config updated
-    const config = readSafewordConfig(testDirectory);
+    const config = readSafewordConfig(fixture.testDirectory);
     expect(config.installedPacks).toContain('python');
 
     // Pack setup ran - setupPythonTooling now returns empty (reconciliation handles files)
@@ -155,29 +155,29 @@ describe('Pack Installation', () => {
   });
 
   it('Test 1.5: Skips already-installed packs', () => {
-    createPythonProject(testDirectory);
-    initGitRepo(testDirectory);
-    writeSafewordConfig(testDirectory, { installedPacks: ['python'] });
-    const initialPyproject = readTestFile(testDirectory, 'pyproject.toml');
+    createPythonProject(fixture.testDirectory);
+    initGitRepo(fixture.testDirectory);
+    writeSafewordConfig(fixture.testDirectory, { installedPacks: ['python'] });
+    const initialPyproject = readTestFile(fixture.testDirectory, 'pyproject.toml');
 
-    installPack('python', testDirectory);
+    installPack('python', fixture.testDirectory);
 
     // Config unchanged
-    const config = readSafewordConfig(testDirectory);
+    const config = readSafewordConfig(fixture.testDirectory);
     expect(config.installedPacks).toEqual(['python']);
 
     // Setup not called (pyproject unchanged)
-    expect(readTestFile(testDirectory, 'pyproject.toml')).toBe(initialPyproject);
+    expect(readTestFile(fixture.testDirectory, 'pyproject.toml')).toBe(initialPyproject);
   });
 
   it('Test 1.6: Fresh install writes config without `version` field (ticket 154)', () => {
-    createPythonProject(testDirectory);
-    initGitRepo(testDirectory);
+    createPythonProject(fixture.testDirectory);
+    initGitRepo(fixture.testDirectory);
 
-    installPack('python', testDirectory);
+    installPack('python', fixture.testDirectory);
 
     // Read raw JSON — the `version` key must not exist on disk
-    const raw = JSON.parse(readTestFile(testDirectory, '.safeword/config.json')) as Record<
+    const raw = JSON.parse(readTestFile(fixture.testDirectory, '.safeword/config.json')) as Record<
       string,
       unknown
     >;

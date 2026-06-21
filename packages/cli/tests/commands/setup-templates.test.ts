@@ -164,11 +164,11 @@ describe('Setup - Template Bundling (Story 1)', () => {
       /learnings\//, // Example learning file paths in documentation
     ];
 
-    for (const mdFile of allMdFiles) {
-      const content = readFileSync(mdFile, 'utf8');
-      const links = content.match(linkPattern) || [];
-      totalLinks += links.length;
-
+    const collectBrokenLinksForFile = (
+      mdFile: string,
+      links: string[],
+    ): { file: string; link: string }[] => {
+      const broken: { file: string; link: string }[] = [];
       for (const link of links) {
         // Skip example/placeholder links
         if (examplePatterns.some(p => p.test(link))) {
@@ -179,12 +179,21 @@ describe('Setup - Template Bundling (Story 1)', () => {
         const relativePath = link;
 
         if (!fileExists(temporaryDirectory, relativePath)) {
-          brokenLinks.push({
+          broken.push({
             file: mdFile.replace(`${temporaryDirectory}/`, ''),
             link,
           });
         }
       }
+      return broken;
+    };
+
+    for (const mdFile of allMdFiles) {
+      const content = readFileSync(mdFile, 'utf8');
+      const links = content.match(linkPattern) || [];
+      totalLinks += links.length;
+
+      brokenLinks.push(...collectBrokenLinksForFile(mdFile, links));
     }
 
     // Report all broken links

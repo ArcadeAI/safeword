@@ -29,7 +29,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const RUFF_AVAILABLE = isRuffInstalled();
+const IS_RUFF_AVAILABLE = isRuffInstalled();
 
 describe('E2E: Add Language to Existing Project', () => {
   let projectDirectory: string;
@@ -91,7 +91,7 @@ version = "0.1.0"
       expect(safewordRuff).toContain('extend = "../ruff.toml"');
     });
 
-    it.skipIf(!RUFF_AVAILABLE)('Ruff works on Python files', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('Ruff works on Python files', () => {
       writeTestFile(projectDirectory, 'test.py', 'x = 1\n');
 
       const result = spawnSync('ruff', ['check', 'test.py'], {

@@ -109,7 +109,7 @@ describe('dependency readiness hook support', () => {
       },
       installArtifact: 'node_modules',
     });
-    expect(plan?.inputPaths.toSorted()).toEqual([
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
       'bun.lock',
       'package.json',
       'packages/cli/package.json',
@@ -132,7 +132,7 @@ describe('dependency readiness hook support', () => {
 
     const plan = detectDependencyPlan(projectDirectory);
 
-    expect(plan?.inputPaths.toSorted()).toEqual([
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
       'bun.lock',
       'package.json',
       'packages/cli/package.json',
@@ -159,7 +159,7 @@ describe('dependency readiness hook support', () => {
 
     const plan = detectDependencyPlan(projectDirectory);
 
-    expect(plan?.inputPaths.toSorted()).toEqual([
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
       'bun.lock',
       'package.json',
       'packages/app/package.json',
@@ -189,7 +189,7 @@ describe('dependency readiness hook support', () => {
 
     const plan = detectDependencyPlan(projectDirectory);
 
-    expect(plan?.inputPaths.toSorted()).toEqual([
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
       'bun.lock',
       'package.json',
       'packages/app/package.json',

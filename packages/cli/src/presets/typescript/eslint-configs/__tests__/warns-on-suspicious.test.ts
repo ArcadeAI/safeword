@@ -44,7 +44,7 @@ function expectLintError(errors: Linter.LintMessage[], severity: number = ERROR)
 function getRuleConfig(config: any[], ruleId: string): unknown {
   for (let i = config.length - 1; i >= 0; i--) {
     const c = config[i];
-    if (c && typeof c === 'object' && 'rules' in c && c.rules && ruleId in c.rules) {
+    if (c && typeof c === 'object' && 'rules' in c && c.rules && Object.hasOwn(c.rules, ruleId)) {
       return c.rules[ruleId];
     }
   }

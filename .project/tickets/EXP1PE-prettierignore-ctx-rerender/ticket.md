@@ -2,10 +2,10 @@
 id: EXP1PE
 slug: prettierignore-ctx-rerender
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-20T22:30:00.000Z
-last_modified: 2026-06-20T22:50:00.000Z
+last_modified: 2026-06-21T00:44:00.000Z
 ---
 
 # ctx-aware + re-rendered .prettierignore for a custom projectRoot (#293)

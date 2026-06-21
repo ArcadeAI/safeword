@@ -71,13 +71,9 @@ function definitions(title: string, ...blocks: string[]): string {
 
 describe('emitGherkinFeature — AC1: faithful Gherkin emission', () => {
   it('gherkin-typescript.DEV1.AC1.doc_becomes_a_feature_with_rules', () => {
-    const out = emitGherkinFeature(
-      definitions(
-        'My Feature',
-        rule('first rule', scenario('demo.DEV1.AC1.one')),
-        rule('second rule', scenario('demo.DEV1.AC1.two')),
-      ),
-    );
+    const firstRule = rule('first rule', scenario('demo.DEV1.AC1.one'));
+    const secondRule = rule('second rule', scenario('demo.DEV1.AC1.two'));
+    const out = emitGherkinFeature(definitions('My Feature', firstRule, secondRule));
     const parsed = parseFeature(out);
     expect(parsed.feature?.name).toBe('My Feature');
     const ruleNames = (parsed.feature?.children ?? [])
@@ -87,32 +83,25 @@ describe('emitGherkinFeature — AC1: faithful Gherkin emission', () => {
   });
 
   it('gherkin-typescript.DEV1.AC1.scenario_becomes_a_named_scenario', () => {
-    const out = emitGherkinFeature(definitions('F', rule('r', scenario('demo.DEV1.AC1.example'))));
+    const oneRule = rule('r', scenario('demo.DEV1.AC1.example'));
+    const out = emitGherkinFeature(definitions('F', oneRule));
     expect(scenariosOf(out).map(s => s.name)).toContain('demo.DEV1.AC1.example');
   });
 
   it('gherkin-typescript.DEV1.AC1.steps_render_as_given_when_then_and', () => {
-    const out = emitGherkinFeature(
-      definitions(
-        'F',
-        rule(
-          'r',
-          scenario(
-            'demo.DEV1.AC1.s',
-            'Given a cart\nWhen I pay\nThen it clears\nAnd a receipt prints',
-          ),
-        ),
-      ),
+    const stepScenario = scenario(
+      'demo.DEV1.AC1.s',
+      'Given a cart\nWhen I pay\nThen it clears\nAnd a receipt prints',
     );
+    const out = emitGherkinFeature(definitions('F', rule('r', stepScenario)));
     const [s] = scenariosOf(out);
     expect(s?.stepKeywords).toEqual(['Given', 'When', 'Then', 'And']);
     expect(s?.stepTexts).toEqual(['a cart', 'I pay', 'it clears', 'a receipt prints']);
   });
 
   it('gherkin-typescript.DEV1.AC1.lineage_becomes_a_tag', () => {
-    const out = emitGherkinFeature(
-      definitions('F', rule('r', scenario('gherkin-typescript.DEV1.AC1.example'))),
-    );
+    const taggedRule = rule('r', scenario('gherkin-typescript.DEV1.AC1.example'));
+    const out = emitGherkinFeature(definitions('F', taggedRule));
     expect(scenariosOf(out)[0]?.tags).toEqual(['@gherkin-typescript.DEV1.AC1']);
     // Placement: the line directly above `Scenario:` is exactly the tag token.
     const lines = out.split('\n');
@@ -121,7 +110,8 @@ describe('emitGherkinFeature — AC1: faithful Gherkin emission', () => {
   });
 
   it('gherkin-typescript.DEV1.AC1.free_text_scenario_emits_untagged', () => {
-    const out = emitGherkinFeature(definitions('F', rule('r', scenario('plain words here'))));
+    const plainRule = rule('r', scenario('plain words here'));
+    const out = emitGherkinFeature(definitions('F', plainRule));
     const [s] = scenariosOf(out);
     expect(s?.name).toBe('plain words here');
     expect(s?.tags).toEqual([]);
@@ -129,7 +119,8 @@ describe('emitGherkinFeature — AC1: faithful Gherkin emission', () => {
 
   it('gherkin-typescript.DEV1.AC1.hostile_title_emits_a_valid_feature', () => {
     const hostile = 'gherkin-typescript.DEV1.AC1.has spaces (parens) and @at';
-    const out = emitGherkinFeature(definitions('F', rule('r', scenario(hostile))));
+    const hostileRule = rule('r', scenario(hostile));
+    const out = emitGherkinFeature(definitions('F', hostileRule));
     expect(parsesAsGherkin(out)).toBe(true);
     const [s] = scenariosOf(out);
     // Tag comes from the parsed AC ref (whitespace-free), never the raw title.
@@ -138,17 +129,15 @@ describe('emitGherkinFeature — AC1: faithful Gherkin emission', () => {
   });
 
   it('gherkin-typescript.DEV1.AC1.bodyless_scenario_emits_a_stepless_scenario', () => {
-    const out = emitGherkinFeature(
-      definitions('F', rule('r', scenario('demo.DEV1.AC1.bodyless', ''))),
-    );
+    const bodylessRule = rule('r', scenario('demo.DEV1.AC1.bodyless', ''));
+    const out = emitGherkinFeature(definitions('F', bodylessRule));
     expect(parsesAsGherkin(out)).toBe(true);
     expect(scenariosOf(out)[0]?.stepKeywords).toEqual([]);
   });
 
   it('gherkin-typescript.DEV1.AC1.emitted_feature_parses_with_official_parser', () => {
-    const out = emitGherkinFeature(
-      definitions('F', rule('r', scenario('demo.DEV1.AC1.one'), scenario('demo.DEV1.AC1.two'))),
-    );
+    const twoScenarioRule = rule('r', scenario('demo.DEV1.AC1.one'), scenario('demo.DEV1.AC1.two'));
+    const out = emitGherkinFeature(definitions('F', twoScenarioRule));
     expect(parsesAsGherkin(out)).toBe(true);
   });
 });

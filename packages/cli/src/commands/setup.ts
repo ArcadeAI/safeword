@@ -111,9 +111,10 @@ function setupWorkspaceFormatScripts(cwd: string, ctx: ProjectContext): string[]
     const isGlobPattern = pattern.endsWith('/*');
     const workspacePath = isGlobPattern ? pattern.slice(0, -2) : pattern;
 
-    const patternUpdates = isGlobPattern
-      ? processGlobWorkspacePattern(cwd, workspacePath)
-      : processExplicitWorkspacePath(cwd, workspacePath);
+    const processWorkspacePattern = isGlobPattern
+      ? processGlobWorkspacePattern
+      : processExplicitWorkspacePath;
+    const patternUpdates = processWorkspacePattern(cwd, workspacePath);
 
     updated.push(...patternUpdates);
   }
@@ -185,7 +186,7 @@ function getPythonTools(includeImportLinter: boolean): string[] {
  * This function handles dependency installation.
  */
 function setupPython(cwd: string): PythonSetupStatus {
-  let installFailed = false;
+  let isInstallFailed = false;
 
   // Detect layers for import-linter
   const layers = detectPythonLayers(cwd);
@@ -196,20 +197,20 @@ function setupPython(cwd: string): PythonSetupStatus {
     const tools = getPythonTools(hasLayers);
     const pm = detectPythonPackageManager(cwd);
     if (pm === 'pip') {
-      installFailed = true;
+      isInstallFailed = true;
     } else {
       info(`\nInstalling Python tools (${tools.join(', ')})...`);
-      const installed = installPythonDependencies(cwd, tools);
-      if (installed) {
+      const isInstalled = installPythonDependencies(cwd, tools);
+      if (isInstalled) {
         success('Python tools installed');
       } else {
-        installFailed = true;
+        isInstallFailed = true;
       }
     }
   }
 
   // Note: files are now created by reconciliation, not returned here
-  return { files: [], installFailed, importLinter: hasLayers };
+  return { files: [], installFailed: isInstallFailed, importLinter: hasLayers };
 }
 
 interface SetupSummaryOptions {
@@ -448,11 +449,11 @@ export async function setup(options: SetupOptions): Promise<void> {
     process.exit(1);
   }
 
-  const packageJsonCreated = ensurePackageJson(cwd);
+  const isPackageJsonCreated = ensurePackageJson(cwd);
 
   header('Safeword Setup');
   info(`Version: ${VERSION}`);
-  if (packageJsonCreated) info('Created package.json (none found)');
+  if (isPackageJsonCreated) info('Created package.json (none found)');
   warnIfBunMissing();
   warnIfCodexBelowHookFloor();
 
@@ -484,7 +485,7 @@ export async function setup(options: SetupOptions): Promise<void> {
     printSetupSummary({
       cwd,
       result,
-      packageJsonCreated,
+      packageJsonCreated: isPackageJsonCreated,
       languages,
       archFiles,
       workspaceUpdates,

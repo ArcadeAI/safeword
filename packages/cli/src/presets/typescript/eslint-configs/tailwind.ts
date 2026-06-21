@@ -5,7 +5,7 @@
  * All rules enabled at error level (LLMs ignore warnings).
  *
  * Includes 11 rules:
- * - Correctness: no-conflicting-classes, no-unregistered-classes, no-restricted-classes
+ * - Correctness: no-conflicting-classes, no-unknown-classes, no-restricted-classes
  * - Stylistic: enforce-consistent-class-order, enforce-shorthand-classes, no-duplicate-classes,
  *   no-deprecated-classes, enforce-consistent-line-wrapping, no-unnecessary-whitespace,
  *   enforce-consistent-variable-syntax, enforce-consistent-important-position
@@ -39,7 +39,7 @@ export const tailwindConfig: any[] = lazyConfigArray(() => {
       rules: {
         // Correctness rules - catch LLM mistakes
         'better-tailwindcss/no-conflicting-classes': 'error',
-        'better-tailwindcss/no-unregistered-classes': 'error',
+        'better-tailwindcss/no-unknown-classes': 'error',
         'better-tailwindcss/no-restricted-classes': 'error', // no-op by default, configurable
 
         // Stylistic rules - enforce consistency

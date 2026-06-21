@@ -182,7 +182,7 @@ describe('cross-branch ticket creation (real git fixture)', () => {
       expect(secondMerge.status).toBe(0);
 
       const ticketsDirectory = nodePath.join(projectDirectory, '.project', 'tickets');
-      const folders = readdirSync(ticketsDirectory).toSorted();
+      const folders = readdirSync(ticketsDirectory).toSorted((a, b) => a.localeCompare(b));
       expect(folders).toEqual(['COLLID-bar', 'COLLID-foo']);
 
       const scriptPath = nodePath.join(

@@ -21,17 +21,17 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-let projectDirectory: string;
+const shared: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeAll(async () => {
-  projectDirectory = createTemporaryDirectory();
-  createTypeScriptPackageJson(projectDirectory);
-  initGitRepo(projectDirectory);
-  await setupOrThrow(projectDirectory);
+  shared.projectDirectory = createTemporaryDirectory();
+  createTypeScriptPackageJson(shared.projectDirectory);
+  initGitRepo(shared.projectDirectory);
+  await setupOrThrow(shared.projectDirectory);
 });
 
 afterAll(() => {
-  if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+  if (shared.projectDirectory) removeTemporaryDirectory(shared.projectDirectory);
 });
 
 const VALID_PLAN = `# Impl Plan: test
@@ -71,34 +71,34 @@ interface TicketFixture {
 
 function writeTicket(fixture: TicketFixture): void {
   const folder = `.project/tickets/${fixture.id}`;
-  mkdirSync(nodePath.join(projectDirectory, folder), { recursive: true });
+  mkdirSync(nodePath.join(shared.projectDirectory, folder), { recursive: true });
   writeTestFile(
-    projectDirectory,
+    shared.projectDirectory,
     `${folder}/ticket.md`,
     `---\nid: ${fixture.id}\ntype: ${fixture.type}\nphase: ${fixture.phase}\nstatus: in_progress\nlast_modified: 2026-01-06T10:00:00Z\n---\n# Test\n`,
   );
   if (fixture.type === 'feature') {
     writeTestFile(
-      projectDirectory,
+      shared.projectDirectory,
       `${folder}/test-definitions.md`,
       '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
     );
   }
   if (fixture.spec) {
     writeTestFile(
-      projectDirectory,
+      shared.projectDirectory,
       `${folder}/spec.md`,
       '# Spec\n\n## Jobs To Be Done\n\nskip: fixture\n',
     );
   }
   if (fixture.implPlan !== undefined) {
-    writeTestFile(projectDirectory, `${folder}/impl-plan.md`, fixture.implPlan);
+    writeTestFile(shared.projectDirectory, `${folder}/impl-plan.md`, fixture.implPlan);
   }
 }
 
 function runStopHook(ticketId: string): string {
   const sessionId = `session-${ticketId}`;
-  const transcriptPath = nodePath.join(projectDirectory, `transcript-${ticketId}.jsonl`);
+  const transcriptPath = nodePath.join(shared.projectDirectory, `transcript-${ticketId}.jsonl`);
   writeFileSync(
     transcriptPath,
     `${JSON.stringify({
@@ -113,13 +113,13 @@ function runStopHook(ticketId: string): string {
     })}\n`,
   );
   writeFileSync(
-    nodePath.join(projectDirectory, '.project', `quality-state-${sessionId}.json`),
+    nodePath.join(shared.projectDirectory, '.project', `quality-state-${sessionId}.json`),
     JSON.stringify({ activeTicket: ticketId }),
   );
   const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
     input: JSON.stringify({ transcript_path: transcriptPath, session_id: sessionId }),
-    cwd: projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    cwd: shared.projectDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
     encoding: 'utf8',
   });
   try {

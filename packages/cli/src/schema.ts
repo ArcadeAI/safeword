@@ -244,7 +244,7 @@ const CODEX_SKILL_TEMPLATE_FILES = [
 
 const CODEX_SKILL_DIRS = [
   ...new Set(
-    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/')[0]}`),
+    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/', 1)[0]}`),
   ),
 ];
 

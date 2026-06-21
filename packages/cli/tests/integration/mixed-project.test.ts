@@ -29,7 +29,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const RUFF_AVAILABLE = isRuffInstalled();
+const IS_RUFF_AVAILABLE = isRuffInstalled();
 
 describe('E2E: Mixed Project (TypeScript + Python)', () => {
   let projectDirectory: string;
@@ -113,7 +113,7 @@ version = "0.1.0"
     }).toThrow();
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('Ruff runs on Python files', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('Ruff runs on Python files', () => {
     writeTestFile(projectDirectory, 'src/valid.py', 'x = 1\n');
 
     const result = spawnSync('ruff', ['check', 'src/valid.py'], {
@@ -123,7 +123,7 @@ version = "0.1.0"
     expect(result.status).toBe(0);
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('Ruff detects Python violations', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('Ruff detects Python violations', () => {
     writeTestFile(projectDirectory, 'src/bad.py', 'import os\nx = 1\n');
 
     const result = spawnSync('ruff', ['check', 'src/bad.py'], {
@@ -147,7 +147,7 @@ version = "0.1.0"
       expect(formatted.trim()).toBe('const x = 1;');
     });
 
-    it.skipIf(!RUFF_AVAILABLE)('routes .py files to Ruff', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('routes .py files to Ruff', () => {
       const filePath = nodePath.join(projectDirectory, 'src/lint-py.py');
       writeTestFile(projectDirectory, 'src/lint-py.py', 'x=1;y=2');
 

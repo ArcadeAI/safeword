@@ -6,6 +6,7 @@
 
 import { chmodSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 

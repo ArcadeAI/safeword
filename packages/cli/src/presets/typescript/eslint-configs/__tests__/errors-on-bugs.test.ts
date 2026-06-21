@@ -54,10 +54,7 @@ function matchesTypeScript(files: unknown): boolean {
     }
     // Check for global patterns that match all files (not extension-specific)
     // e.g., "**/*" but not "**/*.js"
-    if (p === '**/*' || p === '*' || p === '**') {
-      return true;
-    }
-    return false;
+    return ['**/*', '*', '**'].includes(p);
   });
 }
 
@@ -71,7 +68,7 @@ function matchesTypeScript(files: unknown): boolean {
 function getRuleConfigForTs(config: any[], ruleId: string): unknown {
   for (let i = config.length - 1; i >= 0; i--) {
     const c = config[i];
-    if (c && typeof c === 'object' && 'rules' in c && c.rules && ruleId in c.rules) {
+    if (c && typeof c === 'object' && 'rules' in c && c.rules && Object.hasOwn(c.rules, ruleId)) {
       // Skip if this config only applies to JS files
       if (!matchesTypeScript(c.files)) {
         continue;
@@ -204,14 +201,15 @@ export { grouped };
       expectLintError(errors);
     });
 
-    it('unicorn/prevent-abbreviations errors on non-standard abbreviations', () => {
+    it('unicorn/name-replacements errors on non-standard abbreviations', () => {
       // ctx, dir, err, etc. are allowed - but uncommon ones like 'str', 'num' are not
+      // (renamed from unicorn/prevent-abbreviations in eslint-plugin-unicorn 68)
       const code = `function process(str, num) {
   return str + num;
 }
 export { process };
 `;
-      const errors = lintJs(code, 'unicorn/prevent-abbreviations');
+      const errors = lintJs(code, 'unicorn/name-replacements');
       expectLintError(errors);
     });
 
@@ -223,11 +221,12 @@ export { value };
       expectLintError(errors);
     });
 
-    it('unicorn/no-array-for-each errors on forEach', () => {
+    it('unicorn/no-for-each errors on forEach', () => {
+      // renamed from unicorn/no-array-for-each in eslint-plugin-unicorn 68
       const code = `const items = [1, 2, 3];
 items.forEach(item => console.log(item));
 `;
-      const errors = lintJs(code, 'unicorn/no-array-for-each');
+      const errors = lintJs(code, 'unicorn/no-for-each');
       expectLintError(errors);
     });
 

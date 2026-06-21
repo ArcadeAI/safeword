@@ -13,16 +13,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectWorkspaces,
-  generateDepCruiseConfigFile,
-  generateDepCruiseMainConfig,
+  generateDependencyCruiseConfigFile,
+  generateDependencyCruiseMainConfig,
 } from '../../src/utils/depcruise-config.js';
 import { removeTemporaryDirectory } from '../helpers.js';
 
 describe('DepCruise Config Generator', () => {
-  describe('generateDepCruiseConfigFile', () => {
+  describe('generateDependencyCruiseConfigFile', () => {
     it('generates circular dependency rule', () => {
       // Test 1.1: Config always includes no-circular rule regardless of architecture
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -44,7 +44,7 @@ describe('DepCruise Config Generator', () => {
 
     it('generates monorepo layer rules from workspaces', () => {
       // Test 1.2: Detects workspaces and generates hierarchy rules
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: true,
         workspaces: ['packages/*', 'apps/*', 'libs/*'],
@@ -62,7 +62,7 @@ describe('DepCruise Config Generator', () => {
     });
 
     it('generates orphan detection rule with comprehensive exclusions', () => {
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -81,7 +81,7 @@ describe('DepCruise Config Generator', () => {
     });
 
     it('generates no-deprecated-deps rule', () => {
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -92,7 +92,7 @@ describe('DepCruise Config Generator', () => {
     });
 
     it('generates no-dev-deps-in-src rule as warning', () => {
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -106,7 +106,7 @@ describe('DepCruise Config Generator', () => {
     });
 
     it('includes doNotFollow for node_modules and .safeword', () => {
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -117,7 +117,7 @@ describe('DepCruise Config Generator', () => {
     });
 
     it('includes exclude patterns for build artifacts', () => {
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -131,7 +131,7 @@ describe('DepCruise Config Generator', () => {
     });
 
     it('enables TypeScript pre-compilation deps analysis', () => {
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -140,7 +140,7 @@ describe('DepCruise Config Generator', () => {
     });
 
     it('configures modern module resolution options', () => {
-      const config = generateDepCruiseConfigFile({
+      const config = generateDependencyCruiseConfigFile({
         elements: [],
         isMonorepo: false,
       });
@@ -152,10 +152,10 @@ describe('DepCruise Config Generator', () => {
     });
   });
 
-  describe('generateDepCruiseMainConfig', () => {
+  describe('generateDependencyCruiseMainConfig', () => {
     it('generates main config that imports generated', () => {
       // Test 1.4: Main config imports and spreads generated rules
-      const config = generateDepCruiseMainConfig();
+      const config = generateDependencyCruiseMainConfig();
 
       // Imports from .safeword
       expect(config).toContain('./.safeword/depcruise-config.cjs');

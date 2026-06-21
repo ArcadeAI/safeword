@@ -12,7 +12,7 @@
 export function getRuleConfig(config: any[], ruleId: string): any {
   let result: any;
   for (const configObject of config) {
-    if (configObject.rules && ruleId in configObject.rules) {
+    if (configObject.rules && Object.hasOwn(configObject.rules, ruleId)) {
       result = configObject.rules[ruleId];
     }
   }
@@ -38,14 +38,15 @@ export function getSeverity(ruleConfig: any): number | string | undefined {
  * Normalizes string severities to their numeric equivalents.
  */
 export function getSeverityNumber(ruleConfig: unknown): number {
-  if (typeof ruleConfig === 'number') return ruleConfig;
-  if (typeof ruleConfig === 'string') {
-    if (ruleConfig === 'error') return 2;
-    if (ruleConfig === 'warn') return 1;
-    return 0;
+  let current: unknown = ruleConfig;
+  while (Array.isArray(current) && current.length > 0) {
+    current = current[0];
   }
-  if (Array.isArray(ruleConfig) && ruleConfig.length > 0) {
-    return getSeverityNumber(ruleConfig[0]);
+  if (typeof current === 'number') return current;
+  if (typeof current === 'string') {
+    if (current === 'error') return 2;
+    if (current === 'warn') return 1;
+    return 0;
   }
   return 0;
 }

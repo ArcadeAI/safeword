@@ -145,11 +145,13 @@ function checkArrowBody(
 
   // Block body - check return statements
   if (body.type === 'BlockStatement') {
-    for (const stmt of body.body) {
-      if (stmt.type === 'ReturnStatement' && stmt.argument) {
-        const found = containsAccumulatorSpread(stmt.argument, accName);
-        if (found) return found;
+    for (const statement of body.body) {
+      if (!(statement.type === 'ReturnStatement' && statement.argument)) {
+      	continue;
       }
+
+      const found = containsAccumulatorSpread(statement.argument, accName);
+      if (found) return found;
     }
   }
 

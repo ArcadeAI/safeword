@@ -25,36 +25,36 @@ import {
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
 
-let projectDirectory: string;
+const fixture: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeEach(() => {
-  projectDirectory = createTemporaryDirectory();
-  initGitRepo(projectDirectory);
-  writeTestFile(projectDirectory, 'seed.txt', 'seed\n');
+  fixture.projectDirectory = createTemporaryDirectory();
+  initGitRepo(fixture.projectDirectory);
+  writeTestFile(fixture.projectDirectory, 'seed.txt', 'seed\n');
   execSync('git add seed.txt && git commit -m initial', {
-    cwd: projectDirectory,
+    cwd: fixture.projectDirectory,
     stdio: 'pipe',
   });
 });
 
 afterEach(() => {
-  removeTemporaryDirectory(projectDirectory);
+  removeTemporaryDirectory(fixture.projectDirectory);
 });
 
 /** Stage >400 lines of uncommitted non-meta change. */
 function stageLargeChange(): void {
   const lines = Array.from({ length: 420 }, (_, i) => `const x${i} = ${i};`).join('\n');
-  writeTestFile(projectDirectory, 'large-file.ts', lines);
-  execSync('git add large-file.ts', { cwd: projectDirectory, stdio: 'pipe' });
+  writeTestFile(fixture.projectDirectory, 'large-file.ts', lines);
+  execSync('git add large-file.ts', { cwd: fixture.projectDirectory, stdio: 'pipe' });
 }
 
 function seedState(): void {
   const head = execSync('git rev-parse --short HEAD', {
-    cwd: projectDirectory,
+    cwd: fixture.projectDirectory,
     encoding: 'utf8',
   }).trim();
   writeFileSync(
-    nodePath.join(projectDirectory, '.safeword-project', 'quality-state-test.json'),
+    nodePath.join(fixture.projectDirectory, '.safeword-project', 'quality-state-test.json'),
     JSON.stringify({ locSinceCommit: 0, lastCommitHash: head, activeTicket: null, gate: null }),
   );
 }
@@ -65,15 +65,15 @@ function runPostTool(): { gate: string | null } {
       session_id: 'test',
       hook_event_name: 'PostToolUse',
       tool_name: 'Edit',
-      tool_input: { file_path: nodePath.join(projectDirectory, 'large-file.ts') },
+      tool_input: { file_path: nodePath.join(fixture.projectDirectory, 'large-file.ts') },
     }),
-    cwd: projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    cwd: fixture.projectDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: fixture.projectDirectory },
     encoding: 'utf8',
   });
   const state = JSON.parse(
     readFileSync(
-      nodePath.join(projectDirectory, '.safeword-project', 'quality-state-test.json'),
+      nodePath.join(fixture.projectDirectory, '.safeword-project', 'quality-state-test.json'),
       'utf8',
     ),
   );
@@ -83,7 +83,7 @@ function runPostTool(): { gate: string | null } {
 describe('LOC gate × git operation (MT27QG)', () => {
   it('loc_gate_still_arms_with_no_operation', () => {
     // create the state dir, then seed
-    writeTestFile(projectDirectory, '.safeword-project/.keep', '');
+    writeTestFile(fixture.projectDirectory, '.safeword-project/.keep', '');
     seedState();
     stageLargeChange();
 
@@ -91,15 +91,15 @@ describe('LOC gate × git operation (MT27QG)', () => {
   });
 
   it('loc_gate_does_not_arm_mid_merge', () => {
-    writeTestFile(projectDirectory, '.safeword-project/.keep', '');
+    writeTestFile(fixture.projectDirectory, '.safeword-project/.keep', '');
     seedState();
     stageLargeChange();
     // Simulate a merge in progress.
     const head = execSync('git rev-parse HEAD', {
-      cwd: projectDirectory,
+      cwd: fixture.projectDirectory,
       encoding: 'utf8',
     }).trim();
-    writeFileSync(nodePath.join(projectDirectory, '.git', 'MERGE_HEAD'), `${head}\n`);
+    writeFileSync(nodePath.join(fixture.projectDirectory, '.git', 'MERGE_HEAD'), `${head}\n`);
 
     expect(runPostTool().gate).not.toBe('loc');
   });

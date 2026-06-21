@@ -25,17 +25,17 @@ interface ResetOptions {
 function uninstallPackages(cwd: string, packages: string[]): void {
   if (packages.length === 0) return;
 
-  const uninstallCmd = getUninstallCommand(packages, cwd);
+  const uninstallCommand = getUninstallCommand(packages, cwd);
 
   info('\nUninstalling devDependencies...');
-  info(`Running: ${uninstallCmd}`);
+  info(`Running: ${uninstallCommand}`);
 
   try {
-    execSync(uninstallCmd, { cwd, stdio: 'inherit' });
+    execSync(uninstallCommand, { cwd, stdio: 'inherit' });
     success('Uninstalled safeword devDependencies');
   } catch {
     warn('Failed to uninstall some packages. Run manually:');
-    listItem(uninstallCmd);
+    listItem(uninstallCommand);
   }
 }
 
@@ -69,12 +69,12 @@ export async function reset(options: ResetOptions): Promise<void> {
     return;
   }
 
-  const fullReset = options.full ?? false;
-  const mode = fullReset ? 'uninstall-full' : 'uninstall';
+  const isFullReset = options.full ?? false;
+  const mode = isFullReset ? 'uninstall-full' : 'uninstall';
 
   header('Safeword Reset');
   info(
-    fullReset
+    isFullReset
       ? 'Performing full reset (including linting configuration)...'
       : 'Removing safeword configuration...',
   );
@@ -83,8 +83,8 @@ export async function reset(options: ResetOptions): Promise<void> {
     const ctx = createProjectContext(cwd);
     const result = await reconcile(SAFEWORD_SCHEMA, mode, ctx);
 
-    if (fullReset) uninstallPackages(cwd, result.packagesToRemove);
-    printResetSummary(result, fullReset);
+    if (isFullReset) uninstallPackages(cwd, result.packagesToRemove);
+    printResetSummary(result, isFullReset);
   } catch (error_) {
     error(`Reset failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
