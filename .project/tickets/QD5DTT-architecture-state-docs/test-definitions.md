@@ -46,27 +46,27 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Prose reconciled with the current structure shows no marker
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aa1a84c
+- [x] GREEN c92933e
+- [ ] REFACTOR skip: simple verdict mapping, no structural improvement needed
 
 ### Scenario: Prose that has fallen behind the structure is marked stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aa1a84c
+- [x] GREEN c92933e
+- [ ] REFACTOR skip: simple verdict mapping, no structural improvement needed
 
 ### Scenario: A section describing a removed node is flagged orphaned, not merely stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aa1a84c
+- [x] GREEN c92933e
+- [ ] REFACTOR skip: simple verdict mapping, no structural improvement needed
 
 ### Scenario: A newly added node gets a purpose placeholder and is not marked stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED aa1a84c
+- [x] GREEN c92933e
+- [ ] REFACTOR skip: simple verdict mapping, no structural improvement needed
 
 ## Rule: Structural facts self-heal at session start
 
