@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 3205/3205 tests pass (5 skipped) — full `packages/cli` vitest suite, 216 files
+**Test Suite:** ✓ 3207/3207 tests pass (5 skipped) — full `packages/cli` vitest suite, 216 files
 **Gherkin:** ✅ Acceptance lane passes — 90 scenarios / 1049 steps green (`features/architecture-state-docs.feature` now executable via black-box CLI steps)
 **Build:** ✅ Success — `safeword test-plan --kind build`
 **Lint:** ✅ Clean — eslint + lint-gherkin + tsc --noEmit
@@ -35,5 +35,13 @@ Wiring revealed `selfHeal` would overwrite a hand-authored architecture doc. Add
 - Slice 2: enforcement gates (block on staleness markers).
 - Slice 3: monorepo hierarchy (derived root index + workspace-discovered colocated leaves; per-node fingerprints).
 - Slice 4: `architecture-guide.md` state-vs-ADR split; `eslint-plugin-boundaries` ↔ ESLint 10 reconciliation.
+
+## Final whole-ticket review (post second-wave)
+
+An independent fresh-context `/quality-review` over the **complete** branch diff (covering the CLI command, SessionStart hook, ownership guard, BDD steps, and registration that landed after the first whole-ticket pass) returned REQUEST CHANGES on one must-fix, now resolved:
+
+- **Must-fix:** CRLF-round-tripped safeword doc was misclassified as foreign (the `\n`-anchored frontmatter regex), silently halting self-heal. Fixed — frontmatter parsing is CRLF-tolerant + exact-line marker match; regression tests added (CRLF-owned heals; `safeword-architecture-v2` treated as foreign).
+- Applied: deterministic node ordering, dropped a vacuous purpose-floor BDD step (unit-tested instead), CLI exit-status assertion in the lane.
+- Reviewer confirmed solid: registration parity across the three Claude surfaces, byte-identical template/dogfood hook, non-blocking hook, no ReDoS/injection.
 
 Ready to mark done.

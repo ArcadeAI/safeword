@@ -2,8 +2,8 @@
 id: QD5DTT
 slug: architecture-state-docs
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-06-21T03:20:41.930Z
 last_modified: 2026-06-21T04:55:00.000Z
 scope:
@@ -106,6 +106,7 @@ Addresses the "epic wearing a feature label" packaging note. `/bdd` runs on **Sl
 
 - 2026-06-21T03:20:41Z Started: Created ticket QD5DTT.
 - 2026-06-21T03:21:00Z Context: Design converged across three `/figure-it-out` sessions (refresh method, drift enforcement, monorepo structure + leaf placement). Captured decisions + evidence above.
+- 2026-06-21T17:58:00Z Done: final whole-ticket /quality-review over the full diff (second wave) → must-fix CRLF ownership-guard blind spot fixed + 4 improvements; full suite 3207/3207; BDD 90 scenarios; lint/typecheck/audit clean. Marked done. Opening PR.
 - 2026-06-21T17:00:00Z Verify: full suite 3205/3205 pass (216 files); BDD lane 90 scenarios; lint+typecheck clean; build pass; /audit clean (no arch violations/dead code/dupes, de-exported 4 knip symbols); dep drift clean. verify.md written. Awaiting done confirmation.
 - 2026-06-21T16:19:00Z Wire: `safeword architecture` CLI command (RED 4189392 / GREEN 2e8c978) invokes selfHeal; SessionStart hook `session-architecture-heal.ts` shells to it, registered across schema/config/dogfood-settings (88a3153), hook-coverage exempted, parity green (157 pairs). Safety: wiring revealed selfHeal would overwrite a hand-written ARCHITECTURE.md — added an ownership guard (generator marker → `skipped` for foreign docs; RED f6cfb7b / GREEN 2590ff9). Verified the repo's own ARCHITECTURE.md is skipped byte-for-byte. done_when now met end-to-end.
 - 2026-06-21T14:58:00Z Implement: all 16 scenarios green (22 unit/integration tests across 4 modules: skeleton, fingerprint, reconcile, document). Full suite 3202 passed. Whole-ticket `/quality-review` (independent fork) caught dead reconcile module + silent-orphan bug → cross-scenario refactor (82e1dc1) wired reconcileSections as sole status authority, renders orphans, stable paths. impl-plan reconciled (status implemented; module-enumeration decision changed from DetectedArchitecture; SessionStart hook wiring recorded as remaining for done_when).
