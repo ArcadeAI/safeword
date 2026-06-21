@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Every skeleton node carries a non-empty purpose
 
-- [ ] RED
+- [x] RED e55e9fd
 - [ ] GREEN
 - [ ] REFACTOR
 
