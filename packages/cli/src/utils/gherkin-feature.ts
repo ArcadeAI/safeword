@@ -286,19 +286,19 @@ function findTextLintIssues(content: string, filePath: string | undefined): Gher
     issues.push(issue('new-line-at-eof', 'Feature file should end with a newline.'));
   }
 
-  let previousBlank = false;
+  let isPreviousBlank = false;
   for (const [index, line] of content.split('\n').entries()) {
     const lineNumber = index + 1;
     if (/[ \t]$/.test(line)) {
       issues.push(issue('no-trailing-spaces', 'Line has trailing whitespace.', lineNumber));
     }
-    const blank = line.trim() === '';
-    if (blank && previousBlank) {
+    const isBlank = line.trim() === '';
+    if (isBlank && isPreviousBlank) {
       issues.push(
         issue('no-multiple-empty-lines', 'Avoid multiple consecutive blank lines.', lineNumber),
       );
     }
-    previousBlank = blank;
+    isPreviousBlank = isBlank;
   }
   return issues;
 }

@@ -172,9 +172,9 @@ describe('evaluateImplementStopTypecheck (Rules 2 + 4 — surface as advice)', (
   it('does not run tsc and returns no advice at done phase (Rule 4)', () => {
     const projectDirectory = makeProject();
     touch(nodePath.join(projectDirectory, 'tsconfig.json'));
-    let ran = false;
+    let isRan = false;
     const runner = (): TypecheckRunResult => {
-      ran = true;
+      isRan = true;
       return { available: true, ok: false, output: 'should not be called' };
     };
 
@@ -184,7 +184,7 @@ describe('evaluateImplementStopTypecheck (Rules 2 + 4 — surface as advice)', (
     );
 
     expect(advice).toBeNull();
-    expect(ran).toBe(false);
+    expect(isRan).toBe(false);
   });
 
   it('returns no advice when no tsc binary is available', () => {

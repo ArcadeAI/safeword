@@ -24,17 +24,17 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-let projectDirectory: string;
+const shared: { projectDirectory: string; ticketSeq: number } = { projectDirectory: '', ticketSeq: 0 };
 
 beforeAll(async () => {
-  projectDirectory = createTemporaryDirectory();
-  createTypeScriptPackageJson(projectDirectory);
-  initGitRepo(projectDirectory);
-  await setupOrThrow(projectDirectory);
+  shared.projectDirectory = createTemporaryDirectory();
+  createTypeScriptPackageJson(shared.projectDirectory);
+  initGitRepo(shared.projectDirectory);
+  await setupOrThrow(shared.projectDirectory);
 });
 
 afterAll(() => {
-  if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+  if (shared.projectDirectory) removeTemporaryDirectory(shared.projectDirectory);
 });
 
 // A legacy scenario block (bare [x], no annotations) — ledger-exempt, but it
@@ -57,7 +57,6 @@ const annotatedLoop = (name: string, red: string, green: string) =>
 // Each fixture stays in_progress, so the hook's most-recent-in_progress
 // resolution must pick the ticket under test — give each a strictly increasing
 // last_modified so the newest write wins.
-let ticketSeq = 0;
 
 function writeTicket(
   ticketId: string,
@@ -65,12 +64,12 @@ function writeTicket(
   body: string,
   crossScenarioRow?: string,
 ): void {
-  ticketSeq += 1;
-  const lastModified = `2026-06-20T10:${String(ticketSeq).padStart(2, '0')}:00Z`;
+  shared.ticketSeq += 1;
+  const lastModified = `2026-06-20T10:${String(shared.ticketSeq).padStart(2, '0')}:00Z`;
   const folder = `.project/tickets/${ticketId}`;
-  execSync(`mkdir -p "${projectDirectory}/${folder}"`, { cwd: projectDirectory });
+  execSync(`mkdir -p "${shared.projectDirectory}/${folder}"`, { cwd: shared.projectDirectory });
   writeTestFile(
-    projectDirectory,
+    shared.projectDirectory,
     `${folder}/ticket.md`,
     `---\nid: ${ticketId}\ntype: ${type}\nphase: done\nstatus: in_progress\nlast_modified: ${lastModified}\n---\n# Test\n`,
   );
@@ -85,16 +84,16 @@ function writeTicket(
     '',
     ...(crossScenarioRow === undefined ? [] : [crossScenarioRow, '']),
   ].join('\n');
-  writeTestFile(projectDirectory, `${folder}/test-definitions.md`, testDefs);
+  writeTestFile(shared.projectDirectory, `${folder}/test-definitions.md`, testDefs);
   writeTestFile(
-    projectDirectory,
+    shared.projectDirectory,
     `${folder}/verify.md`,
     'Verified\n\n## Verify Checklist\n\n**Test Suite:** ✓ 1/1 tests pass\n',
   );
 }
 
 function writeSkillLog(entries: string[]): void {
-  const dir = nodePath.join(projectDirectory, '.project');
+  const dir = nodePath.join(shared.projectDirectory, '.project');
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     nodePath.join(dir, 'skill-invocations.log'),
@@ -103,15 +102,15 @@ function writeSkillLog(entries: string[]): void {
 }
 
 function twoReachableShas(): [string, string] {
-  execSync('git commit --allow-empty -q -m loop-c1', { cwd: projectDirectory });
-  const a = execSync('git rev-parse --short HEAD', { cwd: projectDirectory }).toString().trim();
-  execSync('git commit --allow-empty -q -m loop-c2', { cwd: projectDirectory });
-  const b = execSync('git rev-parse --short HEAD', { cwd: projectDirectory }).toString().trim();
+  execSync('git commit --allow-empty -q -m loop-c1', { cwd: shared.projectDirectory });
+  const a = execSync('git rev-parse --short HEAD', { cwd: shared.projectDirectory }).toString().trim();
+  execSync('git commit --allow-empty -q -m loop-c2', { cwd: shared.projectDirectory });
+  const b = execSync('git rev-parse --short HEAD', { cwd: shared.projectDirectory }).toString().trim();
   return [a, b];
 }
 
 function runDoneGate(sessionId: string): { exitCode: number; reason: string } {
-  const transcriptPath = nodePath.join(projectDirectory, 'transcript.jsonl');
+  const transcriptPath = nodePath.join(shared.projectDirectory, 'transcript.jsonl');
   writeFileSync(
     transcriptPath,
     `${JSON.stringify({
@@ -133,8 +132,8 @@ function runDoneGate(sessionId: string): { exitCode: number; reason: string } {
       // so the task fixtures reach the ledger/skill gates under test.
       last_assistant_message: '1/1 tests pass',
     }),
-    cwd: projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    cwd: shared.projectDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
     encoding: 'utf8',
   });
   const exitCode = result.status ?? 0;

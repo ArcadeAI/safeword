@@ -89,9 +89,9 @@ function runSafeword(projectRoot: string, args: string[], options: { fakeCodexBi
     encoding: 'utf8',
     env: {
       ...process.env,
-      ...(options.fakeCodexBin
-        ? { PATH: `${options.fakeCodexBin}${nodePath.delimiter}${process.env.PATH ?? ''}` }
-        : {}),
+      ...(options.fakeCodexBin && {
+        PATH: `${options.fakeCodexBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      }),
       SAFEWORD_NO_MODIFY: '1',
       SAFEWORD_SKIP_INSTALL: '1',
     },
@@ -176,7 +176,7 @@ function runCodexHook(
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: projectRoot,
-      ...(options.fallbackMode ? { SAFEWORD_CODEX_DENY_MODE: 'exit-code' } : {}),
+      ...(options.fallbackMode && { SAFEWORD_CODEX_DENY_MODE: 'exit-code' }),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });

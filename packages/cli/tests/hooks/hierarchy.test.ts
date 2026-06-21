@@ -59,22 +59,21 @@ function createTicket(
 // Tests
 // ---------------------------------------------------------------------------
 
-let temporaryDirectory: string;
-let ticketsDirectory: string;
+const directories: { temporary: string; tickets: string } = { temporary: '', tickets: '' };
 
 beforeEach(() => {
-  temporaryDirectory = createTemporaryDirectory();
-  ticketsDirectory = nodePath.join(temporaryDirectory, '.safeword-project', 'tickets');
-  mkdirSync(ticketsDirectory, { recursive: true });
+  directories.temporary = createTemporaryDirectory();
+  directories.tickets = nodePath.join(directories.temporary, '.safeword-project', 'tickets');
+  mkdirSync(directories.tickets, { recursive: true });
 });
 
 afterEach(() => {
-  removeTemporaryDirectory(temporaryDirectory);
+  removeTemporaryDirectory(directories.temporary);
 });
 
 describe('readTicketFrontmatter', () => {
   it('parses quoted string parent and children', () => {
-    const ticketDirectory = createTicket(ticketsDirectory, '013a-bdd-compression', {
+    const ticketDirectory = createTicket(directories.tickets, '013a-bdd-compression', {
       id: "'013a'",
       type: 'feature',
       status: 'done',
@@ -90,7 +89,7 @@ describe('readTicketFrontmatter', () => {
   });
 
   it('parses unquoted number parent and children array', () => {
-    const ticketDirectory = createTicket(ticketsDirectory, '001-epic', {
+    const ticketDirectory = createTicket(directories.tickets, '001-epic', {
       id: '001',
       type: 'epic',
       status: 'in_progress',
@@ -103,7 +102,7 @@ describe('readTicketFrontmatter', () => {
   });
 
   it('handles null parent', () => {
-    const ticketDirectory = createTicket(ticketsDirectory, '025-hierarchy', {
+    const ticketDirectory = createTicket(directories.tickets, '025-hierarchy', {
       id: '025',
       type: 'feature',
       parent: null,
@@ -114,7 +113,7 @@ describe('readTicketFrontmatter', () => {
   });
 
   it('handles missing parent field', () => {
-    const ticketDirectory = createTicket(ticketsDirectory, '030-standalone', {
+    const ticketDirectory = createTicket(directories.tickets, '030-standalone', {
       id: '030',
       type: 'task',
     });
@@ -124,7 +123,7 @@ describe('readTicketFrontmatter', () => {
   });
 
   it('handles missing children field', () => {
-    const ticketDirectory = createTicket(ticketsDirectory, '016-epic', {
+    const ticketDirectory = createTicket(directories.tickets, '016-epic', {
       id: '016',
       type: 'epic',
     });
@@ -136,29 +135,29 @@ describe('readTicketFrontmatter', () => {
 
 describe('resolveTicketDirectory', () => {
   it('resolves ticket ID to directory path', () => {
-    createTicket(ticketsDirectory, '013a-bdd-compression', { id: "'013a'" });
+    createTicket(directories.tickets, '013a-bdd-compression', { id: "'013a'" });
 
-    const resolved = resolveTicketDirectory('013a', ticketsDirectory);
-    expect(resolved).toBe(nodePath.join(ticketsDirectory, '013a-bdd-compression'));
+    const resolved = resolveTicketDirectory('013a', directories.tickets);
+    expect(resolved).toBe(nodePath.join(directories.tickets, '013a-bdd-compression'));
   });
 
   it('returns null for non-existent ticket', () => {
-    const resolved = resolveTicketDirectory('999', ticketsDirectory);
+    const resolved = resolveTicketDirectory('999', directories.tickets);
     expect(resolved).toBeNull();
   });
 
   it('returns null when multiple directories match', () => {
-    createTicket(ticketsDirectory, '013-epic-a', { id: '013' });
-    createTicket(ticketsDirectory, '013-epic-b', { id: '013' });
+    createTicket(directories.tickets, '013-epic-a', { id: '013' });
+    createTicket(directories.tickets, '013-epic-b', { id: '013' });
 
-    const resolved = resolveTicketDirectory('013', ticketsDirectory);
+    const resolved = resolveTicketDirectory('013', directories.tickets);
     expect(resolved).toBeNull();
   });
 });
 
 describe('updateTicketStatus', () => {
   it('updates status, phase, and last_modified', () => {
-    const ticketDirectory = createTicket(ticketsDirectory, '013a-bdd', {
+    const ticketDirectory = createTicket(directories.tickets, '013a-bdd', {
       id: "'013a'",
       status: 'in_progress',
       phase: 'done',
@@ -178,7 +177,7 @@ describe('updateTicketStatus', () => {
 describe('findNextWork', () => {
   // Scenario 1: Navigate to next undone sibling
   it('navigates to next undone sibling', () => {
-    createTicket(ticketsDirectory, '001-epic', {
+    createTicket(directories.tickets, '001-epic', {
       id: '001',
       type: 'epic',
       status: 'in_progress',
@@ -187,26 +186,26 @@ describe('findNextWork', () => {
 
     // Children are unquoted numbers [6, 7, 8] — YAML failsafe keeps as strings
     // Directory names use the same unpadded format to match
-    const currentDirectory = createTicket(ticketsDirectory, '6-feature-a', {
+    const currentDirectory = createTicket(directories.tickets, '6-feature-a', {
       id: 6,
       status: 'done',
       phase: 'done',
       parent: '001',
     });
 
-    createTicket(ticketsDirectory, '7-feature-b', {
+    createTicket(directories.tickets, '7-feature-b', {
       id: 7,
       status: 'in_progress',
       parent: '001',
     });
 
-    createTicket(ticketsDirectory, '8-feature-c', {
+    createTicket(directories.tickets, '8-feature-c', {
       id: 8,
       status: 'ready',
       parent: '001',
     });
 
-    const result = findNextWork(currentDirectory, ticketsDirectory);
+    const result = findNextWork(currentDirectory, directories.tickets);
     expect(result.type).toBe('navigate');
     if (result.type !== 'navigate') throw new Error('Expected navigate');
     expect(result.ticketId).toBe('7');
@@ -215,38 +214,38 @@ describe('findNextWork', () => {
 
   // Scenario 2: Skip done siblings, find next undone
   it('skips done siblings and finds next undone', () => {
-    createTicket(ticketsDirectory, '013-epic', {
+    createTicket(directories.tickets, '013-epic', {
       id: "'013'",
       type: 'epic',
       status: 'in_progress',
       children: ['013a', '013b', '013c', '013d'],
     });
 
-    createTicket(ticketsDirectory, '013a-feat', {
+    createTicket(directories.tickets, '013a-feat', {
       id: "'013a'",
       status: 'done',
       parent: "'013'",
     });
 
-    const currentDirectory = createTicket(ticketsDirectory, '013b-feat', {
+    const currentDirectory = createTicket(directories.tickets, '013b-feat', {
       id: "'013b'",
       status: 'done',
       parent: "'013'",
     });
 
-    createTicket(ticketsDirectory, '013c-feat', {
+    createTicket(directories.tickets, '013c-feat', {
       id: "'013c'",
       status: 'done',
       parent: "'013'",
     });
 
-    createTicket(ticketsDirectory, '013d-feat', {
+    createTicket(directories.tickets, '013d-feat', {
       id: "'013d'",
       status: 'in_progress',
       parent: "'013'",
     });
 
-    const result = findNextWork(currentDirectory, ticketsDirectory);
+    const result = findNextWork(currentDirectory, directories.tickets);
     expect(result.type).toBe('navigate');
     if (result.type !== 'navigate') throw new Error('Expected navigate');
     expect(result.ticketId).toBe('013d');
@@ -254,26 +253,26 @@ describe('findNextWork', () => {
 
   // Scenario 3: All siblings done — cascade parent to done
   it('returns cascade-done when all siblings are done', () => {
-    createTicket(ticketsDirectory, '013-epic', {
+    createTicket(directories.tickets, '013-epic', {
       id: "'013'",
       type: 'epic',
       status: 'in_progress',
       children: ['013a', '013b'],
     });
 
-    createTicket(ticketsDirectory, '013a-feat', {
+    createTicket(directories.tickets, '013a-feat', {
       id: "'013a'",
       status: 'done',
       parent: "'013'",
     });
 
-    const currentDirectory = createTicket(ticketsDirectory, '013b-feat', {
+    const currentDirectory = createTicket(directories.tickets, '013b-feat', {
       id: "'013b'",
       status: 'done',
       parent: "'013'",
     });
 
-    const result = findNextWork(currentDirectory, ticketsDirectory);
+    const result = findNextWork(currentDirectory, directories.tickets);
     expect(result.type).toBe('cascade-done');
     if (result.type !== 'cascade-done') throw new Error('Expected cascade-done');
     expect(result.parentId).toBe('013');
@@ -282,45 +281,45 @@ describe('findNextWork', () => {
 
   // Scenario 5: Standalone ticket (no parent) — allow stop
   it('returns all-done for standalone ticket with no parent', () => {
-    const currentDirectory = createTicket(ticketsDirectory, '025-standalone', {
+    const currentDirectory = createTicket(directories.tickets, '025-standalone', {
       id: '025',
       status: 'done',
       phase: 'done',
       parent: null,
     });
 
-    const result = findNextWork(currentDirectory, ticketsDirectory);
+    const result = findNextWork(currentDirectory, directories.tickets);
     expect(result.type).toBe('all-done');
   });
 
   // Scenario 6: Broken hierarchy — parent directory missing
   it('returns all-done when parent directory is missing', () => {
-    const currentDirectory = createTicket(ticketsDirectory, '050-orphan', {
+    const currentDirectory = createTicket(directories.tickets, '050-orphan', {
       id: '050',
       status: 'done',
       phase: 'done',
       parent: "'999'",
     });
 
-    const result = findNextWork(currentDirectory, ticketsDirectory);
+    const result = findNextWork(currentDirectory, directories.tickets);
     expect(result.type).toBe('all-done');
   });
 
   // Scenario 7: Children field empty or missing
   it('returns all-done when parent has no children field', () => {
-    createTicket(ticketsDirectory, '016-epic', {
+    createTicket(directories.tickets, '016-epic', {
       id: '016',
       type: 'epic',
       status: 'in_progress',
     });
 
-    const currentDirectory = createTicket(ticketsDirectory, '016a-feat', {
+    const currentDirectory = createTicket(directories.tickets, '016a-feat', {
       id: "'016a'",
       status: 'done',
       parent: '016',
     });
 
-    const result = findNextWork(currentDirectory, ticketsDirectory);
+    const result = findNextWork(currentDirectory, directories.tickets);
     expect(result.type).toBe('all-done');
   });
 });

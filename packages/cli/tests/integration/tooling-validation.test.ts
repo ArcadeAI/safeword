@@ -94,7 +94,7 @@ requires-python = ">=3.10"
 // Suite 2: mypy Type Error Detection
 // =============================================================================
 
-const MYPY_AVAILABLE = isMypyInstalled();
+const IS_MYPY_AVAILABLE = isMypyInstalled();
 
 describe('E2E: mypy Type Error Detection', () => {
   let projectDirectory: string;
@@ -119,15 +119,14 @@ describe('E2E: mypy Type Error Detection', () => {
     expect(config).toContain('show_error_codes = True');
   });
 
-  it.skipIf(!MYPY_AVAILABLE)('mypy runs without error on valid code', () => {
+  it.skipIf(!IS_MYPY_AVAILABLE)('mypy runs without error on valid code', () => {
     writeTestFile(
       projectDirectory,
       'src/valid_types.py',
-      `def greet(name: str) -> str:
-    return f"Hello, {name}"
-
-result: str = greet("world")
-`,
+      'def greet(name: str) -> str:\n' +
+        '    return f"Hello, {name}"\n' +
+        '\n' +
+        'result: str = greet("world")\n',
     );
 
     const result = spawnSync('mypy', ['src/valid_types.py'], {
@@ -138,7 +137,7 @@ result: str = greet("world")
     expect(result.status).toBe(0);
   });
 
-  it.skipIf(!MYPY_AVAILABLE)('mypy catches type errors', () => {
+  it.skipIf(!IS_MYPY_AVAILABLE)('mypy catches type errors', () => {
     writeTestFile(
       projectDirectory,
       'src/bad_types.py',
@@ -162,7 +161,7 @@ result: int = add_numbers("hello", 42)
     expect(result.stdout).toMatch(/str|incompatible/i);
   });
 
-  it.skipIf(!MYPY_AVAILABLE)('mypy catches return type errors', () => {
+  it.skipIf(!IS_MYPY_AVAILABLE)('mypy catches return type errors', () => {
     writeTestFile(
       projectDirectory,
       'src/bad_return.py',

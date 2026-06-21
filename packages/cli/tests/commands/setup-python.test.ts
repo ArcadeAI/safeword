@@ -19,18 +19,6 @@ import {
   writeTestFile,
 } from '../helpers';
 
-let projectDirectory: string;
-
-beforeEach(() => {
-  projectDirectory = createTemporaryDirectory();
-});
-
-afterEach(() => {
-  if (projectDirectory) {
-    removeTemporaryDirectory(projectDirectory);
-  }
-});
-
 /**
  * Helper to create a polyglot project (JS + Python)
  */
@@ -57,6 +45,18 @@ function createPolyglotProject(dir: string): void {
 }
 
 describe('Test Suite 3: Conditional Setup for Python Projects', () => {
+  let projectDirectory: string;
+
+  beforeEach(() => {
+    projectDirectory = createTemporaryDirectory();
+  });
+
+  afterEach(() => {
+    if (projectDirectory) {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
   describe('Test 3.1: Installs the JS toolchain for Python-only projects (BDD lane, ticket 102b)', () => {
     it.skipIf(process.env.SAFEWORD_RUN_INSTALL_TESTS !== '1')(
       'should install eslint and cucumber for Python-only project (the lane ships TS step files)',

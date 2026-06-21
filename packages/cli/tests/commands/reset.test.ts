@@ -126,7 +126,7 @@ describe('Test Suite 11: Reset', () => {
       await createConfiguredProject(temporaryDirectory);
 
       // Verify skills exist after setup
-      const skillsExist = fileExists(temporaryDirectory, '.claude/skills');
+      const isSkillsExist = fileExists(temporaryDirectory, '.claude/skills');
 
       const result = await runCli(['reset', '--yes'], {
         cwd: temporaryDirectory,
@@ -137,7 +137,7 @@ describe('Test Suite 11: Reset', () => {
 
       // After reset, safeword skills should be gone
       // but .claude/skills directory may remain if empty or have other skills
-      if (skillsExist) {
+      if (isSkillsExist) {
         // Check no safeword-* directories remain
         // This would require listing directory contents
       }

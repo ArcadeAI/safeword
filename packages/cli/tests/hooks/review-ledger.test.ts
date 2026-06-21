@@ -45,7 +45,7 @@ describe('reviewGateForNextAsset (DEV1.AC1 — per-asset stamp gates the next as
   });
 
   it('empty_skip_reason_rejected (SM1.AC2): an empty skip reason does not satisfy the gate', () => {
-    const stamps: ReviewStamp[] = [{ scope: 'jtbd', skipReason: '   ' }];
+    const stamps: ReviewStamp[] = [{ scope: 'jtbd', skipReason: ' '.repeat(3) }];
     expect(reviewGateForNextAsset('jtbd', stamps).ok).toBe(false);
   });
 });

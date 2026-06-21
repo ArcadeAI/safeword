@@ -20,19 +20,6 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-let projectDirectory: string;
-
-beforeAll(async () => {
-  projectDirectory = createTemporaryDirectory();
-  createTypeScriptPackageJson(projectDirectory);
-  initGitRepo(projectDirectory);
-  await setupOrThrow(projectDirectory);
-});
-
-afterAll(() => {
-  if (projectDirectory) removeTemporaryDirectory(projectDirectory);
-});
-
 function writeFeatureTicketAtDone(directory: string, ticketId: string): void {
   const folder = `.project/tickets/${ticketId}`;
   execSync(`mkdir -p "${directory}/${folder}"`, { cwd: directory });
@@ -99,6 +86,19 @@ function runStopHookWithSession(
 }
 
 describe('skill-invocation gate: end-to-end (147)', () => {
+  let projectDirectory: string;
+
+  beforeAll(async () => {
+    projectDirectory = createTemporaryDirectory();
+    createTypeScriptPackageJson(projectDirectory);
+    initGitRepo(projectDirectory);
+    await setupOrThrow(projectDirectory);
+  });
+
+  afterAll(() => {
+    if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+  });
+
   it('feature done blocks when /verify and /audit log entries are missing in this session', () => {
     writeFeatureTicketAtDone(projectDirectory, '901');
     writeSkillLog(projectDirectory, []);

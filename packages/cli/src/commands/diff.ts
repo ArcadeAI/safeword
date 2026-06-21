@@ -137,34 +137,36 @@ function actionsToDiffs(actions: Action[], cwd: string): FileDiff[] {
   const seenPaths = new Set<string>();
 
   for (const action of actions) {
-    if (action.type === 'write') {
-      if (seenPaths.has(action.path)) continue;
-      seenPaths.add(action.path);
+    if (action.type !== 'write') {
+    	continue;
+    }
 
-      const fullPath = nodePath.join(cwd, action.path);
-      const currentContent = readFileSafe(fullPath);
+    if (seenPaths.has(action.path)) continue;
+    seenPaths.add(action.path);
 
-      if (currentContent === undefined) {
-        diffs.push({
-          path: action.path,
-          status: 'added',
-          newContent: action.content,
-        });
-      } else if (currentContent.trim() === action.content.trim()) {
-        diffs.push({
-          path: action.path,
-          status: 'unchanged',
-          currentContent,
-          newContent: action.content,
-        });
-      } else {
-        diffs.push({
-          path: action.path,
-          status: 'modified',
-          currentContent,
-          newContent: action.content,
-        });
-      }
+    const fullPath = nodePath.join(cwd, action.path);
+    const currentContent = readFileSafe(fullPath);
+
+    if (currentContent === undefined) {
+      diffs.push({
+        path: action.path,
+        status: 'added',
+        newContent: action.content,
+      });
+    } else if (currentContent.trim() === action.content.trim()) {
+      diffs.push({
+        path: action.path,
+        status: 'unchanged',
+        currentContent,
+        newContent: action.content,
+      });
+    } else {
+      diffs.push({
+        path: action.path,
+        status: 'modified',
+        currentContent,
+        newContent: action.content,
+      });
     }
   }
 

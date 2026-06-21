@@ -10,7 +10,7 @@ import nodePath from 'node:path';
 import type { DetectedArchitecture } from './boundaries.js';
 import { readJson } from './fs.js';
 
-export interface DepCruiseArchitecture extends DetectedArchitecture {
+export interface DependencyCruiseArchitecture extends DetectedArchitecture {
   workspaces?: string[];
 }
 
@@ -72,7 +72,7 @@ function generateMonorepoRules(workspaces: string[]): string {
 /**
  * Generate .safeword/depcruise-config.cjs content (forbidden rules + options)
  */
-export function generateDepCruiseConfigFile(arch: DepCruiseArchitecture): string {
+export function generateDependencyCruiseConfigFile(arch: DependencyCruiseArchitecture): string {
   const monorepoRules = arch.workspaces ? generateMonorepoRules(arch.workspaces) : '';
   const hasMonorepoRules = monorepoRules.length > 0;
 
@@ -161,7 +161,7 @@ export function generateDepCruiseConfigFile(arch: DepCruiseArchitecture): string
 /**
  * Generate .dependency-cruiser.js (main config that imports generated)
  */
-export function generateDepCruiseMainConfig(): string {
+export function generateDependencyCruiseMainConfig(): string {
   return `/**
  * Dependency Cruiser Configuration
  *

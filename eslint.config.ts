@@ -83,6 +83,22 @@ export default defineConfig([
     },
   },
 
+  // Cucumber step definitions — the Cucumber API binds `this` to the World in
+  // `function () {}` step callbacks (arrow functions break that binding), and
+  // setWorldConstructor/Given/When/Then/Before/After are top-level registration
+  // side effects by design. unicorn 68's no-this-outside-of-class and
+  // no-top-level-side-effects are fundamentally incompatible with that idiom.
+  // (The scaffolded root `features/` lane is ignored above; this covers our own
+  // packages/cli/features/ suite, which is typechecked and stays linted.)
+  {
+    name: 'cucumber-steps-override',
+    files: ['**/features/**/*.ts'],
+    rules: {
+      'unicorn/no-this-outside-of-class': 'off',
+      'unicorn/no-top-level-side-effects': 'off',
+    },
+  },
+
   // Website package overrides - Astro has virtual modules and special patterns
   {
     name: 'website-package-override',

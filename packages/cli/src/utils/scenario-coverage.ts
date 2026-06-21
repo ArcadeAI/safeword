@@ -67,7 +67,8 @@ export function parseAcIdsByJtbd(specContent: string): Map<string, string[]> {
   let state: WalkState = { inSection: false, currentJtbd: undefined };
 
   for (const [index, line] of lines.entries()) {
-    if (skip[index]) continue;
+    const isSkipped = skip[index];
+    if (isSkipped) continue;
     const heading = parseHeading(line);
     if (heading !== undefined) state = advance(state, heading, byJtbd);
   }
@@ -182,7 +183,8 @@ function parseScenarioTitles(content: string): string[] {
   const skip = computeSkipMask(lines);
   const titles: string[] = [];
   for (const [index, line] of lines.entries()) {
-    if (skip[index]) continue;
+    const isSkipped = skip[index];
+    if (isSkipped) continue;
     const trimmed = line.trim();
     if (trimmed.startsWith(SCENARIO_PREFIX)) {
       titles.push(trimmed.slice(SCENARIO_PREFIX.length).trim());
@@ -193,5 +195,5 @@ function parseScenarioTitles(content: string): string[] {
 
 /** First whitespace-delimited token of a heading's text (its id). */
 function firstToken(text: string): string {
-  return text.split(/\s+/)[0] ?? '';
+  return text.split(/\s+/, 1)[0] ?? '';
 }

@@ -35,19 +35,28 @@ const PYTHON_LAYERS: Record<string, string[]> = {
  * @param cwd - Project root directory
  * @returns Array of detected layer names in dependency order (domain first)
  */
+/**
+ * Whether any of the given layer patterns exists under `cwd` (either at
+ * `src/{pattern}` or `{pattern}`).
+ */
+function hasAnyLayerPattern(cwd: string, patterns: readonly string[]): boolean {
+  for (const pattern of patterns) {
+    // Check common locations: src/{pattern}, {pattern}
+    const srcPath = nodePath.join(cwd, 'src', pattern);
+    const rootPath = nodePath.join(cwd, pattern);
+    if (exists(srcPath) || exists(rootPath)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function detectPythonLayers(cwd: string): string[] {
   const detected: string[] = [];
 
   for (const [layer, patterns] of Object.entries(PYTHON_LAYERS)) {
-    for (const pattern of patterns) {
-      // Check common locations: src/{pattern}, {pattern}
-      const srcPath = nodePath.join(cwd, 'src', pattern);
-      const rootPath = nodePath.join(cwd, pattern);
-
-      if (exists(srcPath) || exists(rootPath)) {
-        detected.push(layer);
-        break; // Only add layer once
-      }
+    if (hasAnyLayerPattern(cwd, patterns)) {
+      detected.push(layer);
     }
   }
 

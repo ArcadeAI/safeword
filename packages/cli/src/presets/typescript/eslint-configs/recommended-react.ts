@@ -66,7 +66,8 @@ function withSeverity(ruleConfig: unknown, severity: 'error' | 'off'): unknown {
 function normalizeEslintReactRulesToError(config: { rules?: Record<string, unknown> }) {
   const overrides: Record<string, unknown> = {};
 
-  for (const [ruleId, ruleConfig] of Object.entries(config.rules ?? {})) {
+  const ruleEntries = Object.entries(config.rules ?? {});
+  for (const [ruleId, ruleConfig] of ruleEntries) {
     if (ruleId.startsWith('@eslint-react/')) {
       overrides[ruleId] = withSeverity(ruleConfig, 'error');
     }

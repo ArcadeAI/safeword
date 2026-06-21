@@ -37,7 +37,7 @@ function applyOverride(existingConfig: string, overrideBlock: string): string {
   const match = /\n\](\)?);\s*$/.exec(existingConfig);
   if (!match) throw new Error('applyOverride: could not locate closing bracket');
   const close = match[1] ?? '';
-  return existingConfig.replace(/\n\]\)?;\s*$/, `\n${overrideBlock}]${close};\n`);
+  return existingConfig.replace(/\n\]\)?;\s*$/, () => `\n${overrideBlock}]${close};\n`);
 }
 
 async function runUpgradeAndAssertFileUnchanged(

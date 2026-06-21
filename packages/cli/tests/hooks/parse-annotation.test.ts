@@ -167,7 +167,7 @@ describe('isValidSkipReason', () => {
   });
 
   it('rejects a whitespace-only string', () => {
-    expect(isValidSkipReason('    ')).toBe(false);
+    expect(isValidSkipReason(' '.repeat(4))).toBe(false);
   });
 
   it('rejects a tab-only string', () => {

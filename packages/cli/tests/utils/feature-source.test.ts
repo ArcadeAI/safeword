@@ -21,9 +21,10 @@ function writeProjectFile(project: string, relativePath: string, content = ''): 
 }
 
 afterEach(() => {
-  for (const directory of temporaryDirectories.splice(0)) {
+  for (const directory of temporaryDirectories) {
     rmSync(directory, { force: true, recursive: true });
   }
+  temporaryDirectories.length = 0;
 });
 
 describe('findFeatureSourcePath', () => {

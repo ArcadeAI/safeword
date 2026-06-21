@@ -9,7 +9,8 @@ import { indexFilesInTree } from '../../src/utils/fs';
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
-  for (const dir of temporaryDirectories.splice(0)) rmSync(dir, { force: true, recursive: true });
+  for (const dir of temporaryDirectories) rmSync(dir, { force: true, recursive: true });
+  temporaryDirectories.length = 0;
 });
 
 function makeRepo(files: Record<string, string>): string {

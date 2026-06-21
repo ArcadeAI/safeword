@@ -16,31 +16,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { maybeAutoPatchOrNudge, shouldEmitVendoredIgnoresNudge } from './vendored-ignores-nudge.js';
 
-let temporaryDirectory: string;
+const state: { temporaryDirectory: string } = { temporaryDirectory: '' };
 
 function setupConfig(filename: string, body: string): string {
-  const fullPath = nodePath.join(temporaryDirectory, filename);
+  const fullPath = nodePath.join(state.temporaryDirectory, filename);
   writeFileSync(fullPath, body, 'utf8');
   return fullPath;
 }
 
 beforeEach(() => {
-  temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-nudge-'));
+  state.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-nudge-'));
 });
 
 afterEach(() => {
-  if (existsSync(temporaryDirectory)) {
-    rmSync(temporaryDirectory, { recursive: true, force: true });
+  if (existsSync(state.temporaryDirectory)) {
+    rmSync(state.temporaryDirectory, { recursive: true, force: true });
   }
 });
 
 describe('shouldEmitVendoredIgnoresNudge', () => {
   it('emits when existing JS eslint config does not reference .safeword/', () => {
-    const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
-    writeFileSync(cfg, "export default [{ files: ['**/*.ts'] }];\n", 'utf8');
+    const config = nodePath.join(state.temporaryDirectory, 'eslint.config.mjs');
+    writeFileSync(config, "export default [{ files: ['**/*.ts'] }];\n", 'utf8');
     expect(
       shouldEmitVendoredIgnoresNudge({
-        cwd: temporaryDirectory,
+        cwd: state.temporaryDirectory,
         existingEslintConfig: 'eslint.config.mjs',
         hasJavaScript: true,
       }),
@@ -48,11 +48,11 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   });
 
   it('stays silent when existing eslint config already references .safeword/', () => {
-    const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
-    writeFileSync(cfg, "export default [{ ignores: ['.safeword/**'] }];\n", 'utf8');
+    const config = nodePath.join(state.temporaryDirectory, 'eslint.config.mjs');
+    writeFileSync(config, "export default [{ ignores: ['.safeword/**'] }];\n", 'utf8');
     expect(
       shouldEmitVendoredIgnoresNudge({
-        cwd: temporaryDirectory,
+        cwd: state.temporaryDirectory,
         existingEslintConfig: 'eslint.config.mjs',
         hasJavaScript: true,
       }),
@@ -60,15 +60,15 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   });
 
   it('stays silent when existing eslint config already mentions vendoredIgnores (manual 153 application)', () => {
-    const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
+    const config = nodePath.join(state.temporaryDirectory, 'eslint.config.mjs');
     writeFileSync(
-      cfg,
+      config,
       "import s from 'safeword/eslint';\nexport default [...s.configs.vendoredIgnores];\n",
       'utf8',
     );
     expect(
       shouldEmitVendoredIgnoresNudge({
-        cwd: temporaryDirectory,
+        cwd: state.temporaryDirectory,
         existingEslintConfig: 'eslint.config.mjs',
         hasJavaScript: true,
       }),
@@ -78,7 +78,7 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   it('stays silent when no existing eslint config (fresh project)', () => {
     expect(
       shouldEmitVendoredIgnoresNudge({
-        cwd: temporaryDirectory,
+        cwd: state.temporaryDirectory,
         existingEslintConfig: undefined,
         hasJavaScript: true,
       }),
@@ -86,11 +86,11 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   });
 
   it('stays silent on non-JS projects regardless of stray eslint config', () => {
-    const cfg = nodePath.join(temporaryDirectory, '.eslintrc');
-    writeFileSync(cfg, '{}', 'utf8');
+    const config = nodePath.join(state.temporaryDirectory, '.eslintrc');
+    writeFileSync(config, '{}', 'utf8');
     expect(
       shouldEmitVendoredIgnoresNudge({
-        cwd: temporaryDirectory,
+        cwd: state.temporaryDirectory,
         existingEslintConfig: '.eslintrc',
         hasJavaScript: false,
       }),
@@ -102,7 +102,7 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
     try {
       expect(
         shouldEmitVendoredIgnoresNudge({
-          cwd: temporaryDirectory,
+          cwd: state.temporaryDirectory,
           existingEslintConfig: 'does-not-exist.mjs',
           hasJavaScript: true,
         }),
@@ -131,18 +131,18 @@ describe('maybeAutoPatchOrNudge', () => {
     setupConfig('eslint.config.mjs', original);
 
     maybeAutoPatchOrNudge({
-      cwd: temporaryDirectory,
+      cwd: state.temporaryDirectory,
       existingEslintConfig: 'eslint.config.mjs',
       hasJavaScript: true,
       noModify: true,
     });
 
-    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+    expect(readFileSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
       original,
     );
-    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
-      false,
-    );
+    expect(
+      existsSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs.safeword-bak')),
+    ).toBe(false);
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('...safeword.configs.vendoredIgnores,');
   });
@@ -153,18 +153,18 @@ describe('maybeAutoPatchOrNudge', () => {
     process.env.SAFEWORD_NO_MODIFY = '1';
 
     maybeAutoPatchOrNudge({
-      cwd: temporaryDirectory,
+      cwd: state.temporaryDirectory,
       existingEslintConfig: 'eslint.config.mjs',
       hasJavaScript: true,
       noModify: false,
     });
 
-    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+    expect(readFileSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
       original,
     );
-    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
-      false,
-    );
+    expect(
+      existsSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs.safeword-bak')),
+    ).toBe(false);
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('...safeword.configs.vendoredIgnores,');
   });
@@ -175,13 +175,13 @@ describe('maybeAutoPatchOrNudge', () => {
     setupConfig('eslint.config.mjs', original);
 
     maybeAutoPatchOrNudge({
-      cwd: temporaryDirectory,
+      cwd: state.temporaryDirectory,
       existingEslintConfig: 'eslint.config.mjs',
       hasJavaScript: true,
       noModify: true,
     });
 
-    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+    expect(readFileSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
       original,
     );
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
@@ -192,17 +192,20 @@ describe('maybeAutoPatchOrNudge', () => {
     setupConfig('eslint.config.mjs', "export default [{ files: ['**/*.ts'] }];\n");
 
     maybeAutoPatchOrNudge({
-      cwd: temporaryDirectory,
+      cwd: state.temporaryDirectory,
       existingEslintConfig: 'eslint.config.mjs',
       hasJavaScript: true,
       noModify: false,
     });
 
-    const patched = readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8');
-    expect(patched).toContain('...safeword.configs.vendoredIgnores,');
-    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
-      true,
+    const patched = readFileSync(
+      nodePath.join(state.temporaryDirectory, 'eslint.config.mjs'),
+      'utf8',
     );
+    expect(patched).toContain('...safeword.configs.vendoredIgnores,');
+    expect(
+      existsSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs.safeword-bak')),
+    ).toBe(true);
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('eslint.config.mjs');
     expect(output).toContain('.safeword-bak');
@@ -213,18 +216,18 @@ describe('maybeAutoPatchOrNudge', () => {
     setupConfig('eslint.config.mjs', original);
 
     maybeAutoPatchOrNudge({
-      cwd: temporaryDirectory,
+      cwd: state.temporaryDirectory,
       existingEslintConfig: 'eslint.config.mjs',
       hasJavaScript: true,
       noModify: false,
     });
 
-    expect(readFileSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
+    expect(readFileSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs'), 'utf8')).toBe(
       original,
     );
-    expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs.safeword-bak'))).toBe(
-      false,
-    );
+    expect(
+      existsSync(nodePath.join(state.temporaryDirectory, 'eslint.config.mjs.safeword-bak')),
+    ).toBe(false);
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain("Couldn't auto-patch");
     expect(output).toContain('...safeword.configs.vendoredIgnores,');

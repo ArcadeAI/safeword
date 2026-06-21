@@ -23,18 +23,6 @@ const HOOK = nodePath.join(
   'session-author-model.ts',
 );
 
-let dir: string;
-let envFile: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-author-model-'));
-  envFile = nodePath.join(dir, 'env');
-});
-
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
 function run(stdin: object, env: Record<string, string>): void {
   spawnSync('bun', [HOOK], {
     input: JSON.stringify(stdin),
@@ -44,6 +32,18 @@ function run(stdin: object, env: Record<string, string>): void {
 }
 
 describe('session-author-model capture', () => {
+  let dir: string;
+  let envFile: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-author-model-'));
+    envFile = nodePath.join(dir, 'env');
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it('writes SAFEWORD_AUTHOR_MODEL from the SessionStart model field', () => {
     run(
       { model: 'claude-opus-4-8', hook_event_name: 'SessionStart' },

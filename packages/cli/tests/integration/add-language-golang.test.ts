@@ -29,7 +29,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
+const IS_GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
 
 describe('E2E: Add Go to Existing TypeScript Project', () => {
   let projectDirectory: string;
@@ -106,7 +106,7 @@ func main() {
       expect(goConfig).toContain('linters:');
     });
 
-    it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint works on Go files', () => {
+    it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint works on Go files', () => {
       const result = spawnSync('golangci-lint', ['run', 'main.go'], {
         cwd: projectDirectory,
         encoding: 'utf8',

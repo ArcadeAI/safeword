@@ -37,10 +37,12 @@ function directoryHasSqlFiles(directory: string): boolean {
     if (entries.some(entry => entry.isFile() && entry.name.endsWith('.sql'))) return true;
     // Check subdirectories for .sql files (prisma/migrations/20210313_init/migration.sql)
     for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const subEntries = readdirSync(nodePath.join(directory, entry.name));
-        if (subEntries.some(f => f.endsWith('.sql'))) return true;
+      if (!entry.isDirectory()) {
+      	continue;
       }
+
+      const subEntries = readdirSync(nodePath.join(directory, entry.name));
+      if (subEntries.some(f => f.endsWith('.sql'))) return true;
     }
     return false;
   } catch {

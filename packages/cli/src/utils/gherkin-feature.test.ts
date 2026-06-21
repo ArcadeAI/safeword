@@ -206,18 +206,21 @@ describe('findGherkinLintIssues', () => {
       { filePath: 'features/demo.feature' },
     );
 
+    const usesMissing = expect.stringContaining('uses <missing>');
+    const usesOwner = expect.stringContaining('uses <owner>');
+    const definesUnused = expect.stringContaining('defines <unused>');
     expect(issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          message: expect.stringContaining('uses <missing>'),
+          message: usesMissing,
           rule: 'no-unused-variables',
         }),
         expect.objectContaining({
-          message: expect.stringContaining('uses <owner>'),
+          message: usesOwner,
           rule: 'no-unused-variables',
         }),
         expect.objectContaining({
-          message: expect.stringContaining('defines <unused>'),
+          message: definesUnused,
           rule: 'no-unused-variables',
         }),
       ]),

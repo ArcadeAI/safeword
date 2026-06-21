@@ -57,16 +57,17 @@ export function parseScenarios(testDefinitionsContent: string): ParsedScenario[]
   const scenarios: ParsedScenario[] = [];
   let currentRule: string | undefined;
   let current: ParsedScenario | undefined;
-  let collectingSteps = false;
+  let isCollectingSteps = false;
 
   const flush = (): void => {
     if (current !== undefined) scenarios.push(current);
     current = undefined;
-    collectingSteps = false;
+    isCollectingSteps = false;
   };
 
   for (const [index, line] of lines.entries()) {
-    if (skip[index]) continue;
+    const isSkipped = skip[index];
+    if (isSkipped) continue;
     const heading = classifyHeading(line);
     if (heading !== undefined) {
       flush();
@@ -74,10 +75,10 @@ export function parseScenarios(testDefinitionsContent: string): ParsedScenario[]
       else if (heading.kind === 'other') currentRule = undefined;
       else if (currentRule !== undefined) {
         current = { rule: currentRule, title: heading.title, steps: [] };
-        collectingSteps = true;
+        isCollectingSteps = true;
       }
-    } else if (collectingSteps && current !== undefined) {
-      collectingSteps = appendStep(current, line);
+    } else if (isCollectingSteps && current !== undefined) {
+      isCollectingSteps = appendStep(current, line);
     }
   }
   flush();
