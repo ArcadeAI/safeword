@@ -15,8 +15,8 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Every skeleton node carries a non-empty purpose
 
 - [x] RED e55e9fd
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 1cce7a9
+- [ ] REFACTOR skip: simple filter + constant, no structural improvement needed
 
 ### Scenario: A file outside any module is not listed as a node
 
