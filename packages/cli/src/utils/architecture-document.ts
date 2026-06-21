@@ -18,7 +18,7 @@ import { reconcileSections, type SectionStatus } from './architecture-reconcile.
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
 import { resolveGeneratedArchitecturePath } from './configured-paths.js';
 
-type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped';
+type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped' | 'noop';
 
 export interface SelfHealResult {
   action: SelfHealAction;
@@ -67,9 +67,10 @@ export function selfHeal(projectDirectory: string): SelfHealResult {
   const path = resolveGeneratedArchitecturePath(projectDirectory);
   const fingerprint = shapeFingerprint(projectDirectory);
   const existing = readExisting(path);
-  const action = decideAction(existing, fingerprint);
+  const hasModules = extractSkeleton(projectDirectory).nodes.length > 0;
+  const action = decideAction(existing, fingerprint, hasModules);
 
-  if (action !== 'unchanged' && action !== 'skipped') {
+  if (action !== 'unchanged' && action !== 'skipped' && action !== 'noop') {
     mkdirSync(nodePath.dirname(path), { recursive: true });
     const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
     writeFileSync(path, renderDocument(projectDirectory, fingerprint, priorStamps));
@@ -86,8 +87,15 @@ function readExisting(path: string): string | undefined {
   }
 }
 
-function decideAction(existing: string | undefined, fingerprint: string): SelfHealAction {
-  if (existing === undefined) return 'created';
+function decideAction(
+  existing: string | undefined,
+  fingerprint: string,
+  hasModules: boolean,
+): SelfHealAction {
+  // Don't birth an empty doc: a contentless "## Modules" implies "no modules",
+  // which is false for a monorepo the single-repo extractor can't read yet.
+  // An existing doc still heals toward empty (orphan markers show real removals).
+  if (existing === undefined) return hasModules ? 'created' : 'noop';
 
   // Never touch a document safeword does not own — a hand-written architecture
   // doc has no generator marker and must be left exactly as-is.

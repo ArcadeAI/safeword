@@ -138,4 +138,23 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(content).toMatch(/orphaned/i);
     expect(content).toContain('billing');
   });
+
+  it('does not create a doc when there are no modules and none exists (noop)', () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true, force: true });
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('noop');
+    expect(existsSync(documentPath(context.directory))).toBe(false);
+  });
+
+  it('heals an existing doc toward empty when all modules are removed (not noop)', () => {
+    selfHeal(context.directory);
+    rmSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true, force: true });
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('healed');
+    expect(existsSync(documentPath(context.directory))).toBe(true);
+  });
 });
