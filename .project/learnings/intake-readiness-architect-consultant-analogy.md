@@ -15,6 +15,15 @@ Two intake axes this adds:
 
 Tools named: Architecture Characteristics Worksheet, quality scenarios, fit criteria. "Prototypes help elicit NFRs but never replace written fit criteria."
 
+### Fresh-evidence sharpening: constraint decay (the load-bearing finding for a coding agent)
+
+A 2026 study ("Constraint Decay: The Fragility of LLM Agents in Backend Code Generation", arXiv 2605.06445) shows LLM coding-agent performance *declines as structural / non-functional constraints accumulate*, and that NFRs (architectural patterns, DBs, ORMs) are exactly what agents fail on. This cuts two ways and settles the design:
+
+- Constraints are **where coding agents fail** → surface the load-bearing ones at intake (don't defer to build).
+- But piling on constraints **degrades** the agent → surface only the *load-bearing* one ("what must not break / who depends / reversible?"), never an exhaustive NFR sweep. An NFR quality-attributes survey is self-defeating — it triggers the decay it's meant to prevent.
+
+The classic cost-of-late-defect curve (requirements defects ~20–400× cheaper to fix early; one defect propagates across design+code+tests) directionally supports early constraint capture — but note the honest caveat that this evidence is "sparse and very old," so it is corroborating, not load-bearing. The 2026 agentic-coding consensus is to balance upfront spec clarity with iterative refinement, not front-load everything.
+
 ## Consultant's signature move: the problem behind the problem + the stakeholder landscape
 
 - **"Search for the problem behind the problem" and remain curious.** Consultants assume the stated problem is a symptom — the sharpest form of the XY-problem guard.

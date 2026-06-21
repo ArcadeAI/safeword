@@ -6,14 +6,14 @@ What world-class product managers ask at intake, mapped to the safeword agent's 
 
 ## The headline: intake is BOUNDED, not exhaustive
 
-Marty Cagan's **Opportunity Assessment** is the canonical PM intake, and the load-bearing fact is it is *small and self-limiting* — four questions, explicitly "sufficient 90% of the time":
+Marty Cagan's **Opportunity Assessment** is the canonical PM intake. The full SVPG version is **10 questions** (not four — an earlier draft of this note over-condensed it), but Cagan's explicit design goal is "quick, lightweight, yet effective," and he deliberately moved *away* from heavy PRDs toward lightweight artifacts. The load-bearing core distils to four:
 
 1. **What business objective is this focused on?** — the *why* / outcome
 2. **How will you know if you've succeeded?** — the success signal / done-state
 3. **What problem are you solving for the customer?** — the problem, **not** the requested solution
 4. **Who are you solving it for?** — the persona
 
-This is a calibrated stopping rule — the same "know when you know enough" theme as the clarifying-question research (`propose-and-converge-research.md`). World-class PMs do not chase completeness; they hit a bounded core and stop.
+Two facts matter more than the exact count. First, it is a *calibrated stopping rule* — the same "know when you know enough" theme as the clarifying-question research (`propose-and-converge-research.md`); world-class PMs hit a bounded core and stop. Second, Cagan says the assessment is worth running *even when the decision is already made* (e.g. mandated top-down) because it makes you better-informed — the value is in the thinking, not the gate.
 
 ## Four supporting moves from the PM canon
 

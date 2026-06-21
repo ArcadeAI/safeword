@@ -26,10 +26,24 @@ Recommend a **soft readiness gate framed by value-of-information triage**, not a
 
 ## Scope
 
-- A generative readiness self-test the model runs before advancing Clarify→Build: name what changes, what stays the same, the observable done-state, **and the single biggest remaining unknown plus its blast radius**.
+- A generative readiness self-test the model runs before advancing Clarify→Build — five plain-English, blast-radius-gated prompts (no jargon, ≤5, generative not checkbox), derived from four independent intake disciplines (see Research below):
+  1. **Intent** — why, and for whom?
+  2. **Done** — what's the measurable end-state?
+  3. **Constraints** — what must not break, who depends on this, is it reversible?
+  4. **Riskiest assumption** — what am I most likely wrong about?
+  5. **Request shape** — is this the problem, or someone's guess at the fix?
 - Surface it every Clarify turn via the existing `prompt-questions.ts` reminder (replaces dormant-by-default with an explicit nudge).
 - Reuse the shipped `## Open Questions` section in `spec.md` (ticket V6N5PW) as the ledger of unresolved unknowns.
 - Codify the VoI triage rule in SAFEWORD.md: reversible/local → run; irreversible/high-blast → resolve unknowns first.
+
+## Research (four genuine /figure-it-out passes)
+
+The five-prompt core converges from four independent intake disciplines — cross-domain agreement is the strongest signal the shape is right:
+
+- **Leadership / mission command** → clarify *intent + end-state*, take prudent risk within it; depth scales with readiness × blast radius. (`intake-readiness-leadership-analogy.md`)
+- **Product management / Cagan** → bounded core (objective, success-signal, problem-not-solution, who) + *riskiest assumption*; lightweight, not a brief. (`intake-readiness-pm-analogy.md`)
+- **Architecture** → *constraints / what-must-not-break* as the expensive-to-retrofit axis, made measurable. Bounded hard by **constraint decay** — agents degrade as constraints pile up, so surface only the load-bearing one. ([arXiv 2605.06445](https://arxiv.org/abs/2605.06445))
+- **Consulting** → *problem-behind-the-problem* / request-shape normalization (under-specified non-technical ask vs. solution-in-disguise technical ask). (`intake-readiness-architect-consultant-analogy.md`)
 
 ## Out of scope
 
@@ -40,8 +54,9 @@ Recommend a **soft readiness gate framed by value-of-information triage**, not a
 ## Done when
 
 - The model emits an explicit go/no-go readiness check at the Clarify→Build boundary, scaled by blast radius.
-- A per-turn reminder surfaces the readiness self-test during Clarify (no longer purely SAFEWORD.md prose).
-- The self-test is generative (forces naming the biggest unknown + blast radius), not a yes/no tick — guarding the premortem failure where it degrades to a rubber-stamp.
+- A per-turn reminder surfaces the five-prompt readiness self-test during Clarify (no longer purely SAFEWORD.md prose).
+- The self-test is generative (forces naming the riskiest assumption + constraints/blast-radius), not a yes/no tick — guarding the premortem failure where it degrades to a rubber-stamp.
+- The constraint prompt stays scoped to "what must not break / reversibility" — not an NFR quality-attributes survey (constraint-decay guard).
 
 ## Open Questions
 
@@ -52,3 +67,4 @@ Recommend a **soft readiness gate framed by value-of-information triage**, not a
 
 - 2026-06-21T03:41:30.915Z Started: Created ticket TPP6Y2
 - 2026-06-21T03:41Z Scoped from /figure-it-out: soft readiness gate + VoI triage (Option A framed by C); rejected hard gate (B). Linked as first child of epic 169 (pm-grade-intake). Scope/out_of_scope/done_when set; two open questions recorded for user to resolve before implement.
+- 2026-06-21T04:13Z Ran three more genuine /figure-it-out passes (leadership, PM, architect/consultant) — captured as learnings. Folded the convergent five-prompt self-test core (intent / done / constraints / riskiest-assumption / request-shape) into scope + done_when. Fresh evidence added: Cagan is 10 questions not 4 (lightweight by design); constraint decay (arXiv 2605.06445) bounds the constraint prompt to "what must not break", not an NFR sweep. Two scope open questions still unresolved.
