@@ -2,7 +2,7 @@
 id: TPP6Y2
 slug: pm-grade-intake-readiness-gate
 type: task
-phase: implement
+phase: verify
 status: in_progress
 epic: pm-grade-intake
 parent: '169'
