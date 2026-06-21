@@ -11,6 +11,9 @@
 import { type Dirent, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+/** Placeholder purpose for a freshly extracted node awaiting human prose. */
+export const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
+
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
   name: string;
@@ -42,7 +45,7 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
     .map(entry => ({
       name: entry.name,
       path: nodePath.join('src', entry.name),
-      purpose: '',
+      purpose: PURPOSE_PLACEHOLDER,
     }));
 
   return { nodes, skipped: [] };
@@ -53,6 +56,6 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
  * carry a non-empty one-line purpose. Catches a doc whose purpose was blanked
  * (e.g. hand-edited away), which would otherwise leave the floor unenforced.
  */
-export function purposeFloorViolations(_nodes: SkeletonNode[]): string[] {
-  return [];
+export function purposeFloorViolations(nodes: SkeletonNode[]): string[] {
+  return nodes.filter(node => node.purpose.trim().length === 0).map(node => node.name);
 }
