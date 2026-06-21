@@ -2,10 +2,25 @@
 id: QD5DTT
 slug: architecture-state-docs
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 created: 2026-06-21T03:20:41.930Z
-last_modified: 2026-06-21T03:20:41.930Z
+last_modified: 2026-06-21T04:55:00.000Z
+scope:
+  - Slice 1 only (single-repo, never silently lies)
+  - Deterministic skeleton extractor reusing DetectedArchitecture (boundaries.ts) — emits top-level src layout, deps, dependency-cruiser boundary config, schema files, each with code references and a one-line purpose floor
+  - Shape-fingerprint over the skeleton inputs, stored in .project/architecture.md frontmatter (doc fingerprint + per-section reconciled stamps)
+  - SessionStart self-heal — re-extract the skeleton (LLM-free) when the fingerprint moved; write per-section "stale" markers and orphan flags
+out_of_scope:
+  - Enforcement gates / blocking on markers (Slice 2)
+  - Monorepo hierarchy — root index, workspace-discovered colocated leaves (Slice 3)
+  - /architecture resync skill and architecture-guide.md state-vs-ADR split (Slice 4)
+  - Non-TypeScript language packs
+  - LLM prose generation or semantic repair (Slice 1 writes markers only, never rewrites prose)
+done_when:
+  - A fresh single-repo TS project gets a .project/architecture.md whose skeleton matches the real tree, with code references, a one-line purpose per node, and a frontmatter fingerprint
+  - A structural change made outside any agent session is re-synced (skeleton) and/or its lagging prose flagged (stale marker) at the next SessionStart
+  - The drift signal and self-heal are LLM-free — no model call in the path
 ---
 
 # Always-fresh point-in-time architecture docs (monorepo-aware)
@@ -91,5 +106,6 @@ Addresses the "epic wearing a feature label" packaging note. `/bdd` runs on **Sl
 
 - 2026-06-21T03:20:41Z Started: Created ticket QD5DTT.
 - 2026-06-21T03:21:00Z Context: Design converged across three `/figure-it-out` sessions (refresh method, drift enforcement, monorepo structure + leaf placement). Captured decisions + evidence above.
+- 2026-06-21T04:55:00Z Complete: intake (Slice 1) — drafted spec.md (NTB1/TB1 JTBDs + ACs), `/self-review` Tier 1 passed and stamped (notes: NTB1.AC1↔TB1.AC1 partition, TB1.AC2-as-coverage, add a no-src/unparseable failure scenario), set scope/out_of_scope/done_when, advanced phase → define-behavior. SM deliberately excluded (enforcement is Slice 2).
 - 2026-06-21T04:42:00Z Merged origin/main (#300 ESLint 10, #297). Re-ran `bun ci` (clean). Impact analysis via `/figure-it-out`: #300 is semantically inert for the ticket (unicorn renames + test churn, no behavior change). But forensics found the repo enforces boundaries via **dependency-cruiser, not eslint-plugin-boundaries** (latter is docs-only) → repointed the fingerprint input + named `boundaries.ts`/`DetectedArchitecture` as extractor reuse (shrinks Slice 1), narrowed the ESLint-10 NOTE to the Slice 4 guide split, recorded the no-abbreviation convention. No decision reversed.
 - 2026-06-21T04:35:00Z Review + figure-it-out: `/quality-review` flagged epic-sized scope + a prose-freshness hole in "cannot silently lie" (prose can't be shape-fingerprinted). Resolved via Decision 6 (advisory prose + deterministic staleness markers + `purpose` floor + inform-early/block-later escalation; evidence: USPTO 11531822, neugierig rethinking-errors, ESLint-warnings-anti-pattern). Split AC #2 into self-heal/marker/escalation criteria, added Delivery Slices (scopes `/bdd` to Slice 1). Verified dependency-cruiser 17.4.3 alive; noted ESLint 10 currency check for eslint-plugin-boundaries at implement. Next: `/bdd` on Slice 1 → spec.md then per-tier fingerprint scenario.
