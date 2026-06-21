@@ -17,7 +17,7 @@ import { reconcileSections, type SectionStatus } from './architecture-reconcile.
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
 import { resolveConfiguredPath } from './configured-paths.js';
 
-export type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated';
+export type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped';
 
 export interface SelfHealResult {
   action: SelfHealAction;
@@ -25,6 +25,20 @@ export interface SelfHealResult {
 }
 
 const FINGERPRINT_KEY = 'fingerprint';
+
+/** Frontmatter ownership marker — only documents carrying it are safeword's to rewrite. */
+const GENERATOR_KEY = 'generator';
+const GENERATOR_VALUE = 'safeword-architecture';
+
+/**
+ * Whether safeword owns this document, i.e. it carries the generator marker.
+ * A document without it is hand-authored (or foreign) and must never be
+ * overwritten — the marker survives even when the fingerprint is corrupted.
+ */
+function isSafewordOwned(content: string): boolean {
+  const frontmatter = /^---\n([\s\S]*?)\n---/.exec(content);
+  return frontmatter?.[1].includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ?? false;
+}
 
 /** Parse the recorded fingerprint from a document's frontmatter, or undefined. */
 export function readDocumentFingerprint(content: string): string | undefined {
@@ -48,7 +62,7 @@ export function selfHeal(projectDirectory: string): SelfHealResult {
   const existing = readExisting(path);
   const action = decideAction(existing, fingerprint);
 
-  if (action !== 'unchanged') {
+  if (action !== 'unchanged' && action !== 'skipped') {
     mkdirSync(nodePath.dirname(path), { recursive: true });
     const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
     writeFileSync(path, renderDocument(projectDirectory, fingerprint, priorStamps));
@@ -67,6 +81,10 @@ function readExisting(path: string): string | undefined {
 
 function decideAction(existing: string | undefined, fingerprint: string): SelfHealAction {
   if (existing === undefined) return 'created';
+
+  // Never touch a document safeword does not own — a hand-written architecture
+  // doc has no generator marker and must be left exactly as-is.
+  if (!isSafewordOwned(existing)) return 'skipped';
 
   const recorded = readDocumentFingerprint(existing);
   if (recorded === undefined) return 'regenerated';
@@ -118,7 +136,7 @@ function renderDocument(
     })
     .join('\n');
 
-  return `---\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Modules\n\n${sections}`;
+  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Modules\n\n${sections}`;
 }
 
 function renderSection(node: SkeletonNode, stamp: string, status: SectionStatus): string {
