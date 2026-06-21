@@ -79,7 +79,7 @@ function runCodexHook(
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: projectRoot,
-      ...(options.fallbackMode ? { SAFEWORD_CODEX_DENY_MODE: 'exit-code' } : {}),
+      ...(options.fallbackMode && { SAFEWORD_CODEX_DENY_MODE: 'exit-code' }),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });

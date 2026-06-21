@@ -386,14 +386,14 @@ describe('file scoping', () => {
     });
 
     // All Astro configs with astro/ rules should have .astro file scope
-    const allAstroScoped = astroRulesConfigs.every(config => {
+    const isAllAstroScoped = astroRulesConfigs.every(config => {
       if ('files' in config && Array.isArray(config.files)) {
         return config.files.some((f: string) => f.includes('.astro'));
       }
       // Astro plugin may set files via a different mechanism
       return true;
     });
-    expect(allAstroScoped).toBe(true);
+    expect(isAllAstroScoped).toBe(true);
   });
 
   it('combined config lints .ts files without errors', () => {

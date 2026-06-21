@@ -260,7 +260,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       // Safeword hooks should be added (they have structure { hooks: [{ command: '...' }] })
       const hasSafeword = settings.hooks?.SessionStart?.some(
         (h: { hooks?: { command?: string }[] }) =>
-          h.hooks?.some((cmd: { command?: string }) => cmd.command?.includes('.safeword')),
+          h.hooks?.some((command: { command?: string }) => command.command?.includes('.safeword')),
       );
       expect(hasSafeword).toBe(true);
     });

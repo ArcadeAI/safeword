@@ -129,10 +129,10 @@ describe.skipIf(!CAN_RUN)('live smoke: safeword steers a real Claude agent', () 
     const output = JSON.parse(result.stdout) as {
       permission_denials?: { tool_name?: string }[];
     };
-    const deniedWrite = (output.permission_denials ?? []).some(d => d.tool_name === 'Write');
+    const isDeniedWrite = (output.permission_denials ?? []).some(d => d.tool_name === 'Write');
 
     expect(
-      deniedWrite,
+      isDeniedWrite,
       `Expected safeword's hook to deny the agent's Write. permission_denials=${JSON.stringify(
         output.permission_denials,
       )}`,

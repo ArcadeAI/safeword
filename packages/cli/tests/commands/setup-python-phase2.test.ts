@@ -331,7 +331,7 @@ strict = true
 // Test Suite 6: Auto-Install Python Tools
 // =============================================================================
 
-const UV_AVAILABLE = isUvInstalled();
+const IS_UV_AVAILABLE = isUvInstalled();
 
 describe('Suite 6: Auto-Install Python Tools', () => {
   it(
@@ -354,7 +354,7 @@ describe('Suite 6: Auto-Install Python Tools', () => {
     TIMEOUT_SETUP,
   );
 
-  it.skipIf(!UV_AVAILABLE)(
+  it.skipIf(!IS_UV_AVAILABLE)(
     'Test 6.2: Auto-installs tools for uv projects',
     async () => {
       // Arrange - uv project with uv.lock

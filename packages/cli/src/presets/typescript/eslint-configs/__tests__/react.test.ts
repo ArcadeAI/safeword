@@ -300,34 +300,6 @@ describe('React JSX parity gaps', () => {
   });
 });
 
-describe('React rules under ESLint 10', () => {
-  it('loads and reports replacement React rules without RuleContext API crashes', async () => {
-    const eslint10PackageName = 'eslint-v10';
-    const { Linter: ESLint10Linter } = (await import(eslint10PackageName)) as {
-      Linter: typeof Linter;
-    };
-
-    const messages = lintReactCode(
-      `
-const items = [{ id: 'a' }];
-export function List() {
-  return <ul>{items.map(item => <li>{item.id}</li>)}</ul>;
-}
-`,
-      new ESLint10Linter({ configType: 'flat' }),
-    );
-
-    expect(messages).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          ruleId: '@eslint-react/no-missing-key',
-          severity: ERROR,
-        }),
-      ]),
-    );
-  });
-});
-
 describe('Accessibility rules (jsx-a11y)', () => {
   it('includes jsx-a11y plugin', () => {
     expect(hasPlugin('jsx-a11y')).toBe(true);

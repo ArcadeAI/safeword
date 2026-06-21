@@ -30,7 +30,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const RUFF_AVAILABLE = isRuffInstalled();
+const IS_RUFF_AVAILABLE = isRuffInstalled();
 
 // Single setup for all hook tests - sharing avoids 3 separate bun installs
 // Tests must be idempotent or restore state after modification (see try/finally blocks)
@@ -1064,7 +1064,7 @@ describe('E2E: Python Lint Hook', () => {
   });
 
   describe('Test 2.4: Ruff fixes Python files via lint hook', () => {
-    it.skipIf(!RUFF_AVAILABLE)('should format Python files when run through lint hook', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('should format Python files when run through lint hook', () => {
       // Create badly formatted Python file
       const badCode = 'x=1;y=2';
       writeTestFile(projectDirectory, 'format-test.py', badCode);
@@ -1079,7 +1079,7 @@ describe('E2E: Python Lint Hook', () => {
       expect(formatted).toContain('y = 2');
     });
 
-    it.skipIf(!RUFF_AVAILABLE)('should fix auto-fixable lint issues', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('should fix auto-fixable lint issues', () => {
       // Create file with unused import (auto-fixable with --fix)
       const codeWithUnusedImport = 'import os\nx = 1\n';
       writeTestFile(projectDirectory, 'fix-test.py', codeWithUnusedImport);
@@ -1094,7 +1094,7 @@ describe('E2E: Python Lint Hook', () => {
       expect(fixed).toContain('x = 1');
     });
 
-    it.skipIf(!RUFF_AVAILABLE)(
+    it.skipIf(!IS_RUFF_AVAILABLE)(
       'should output additionalContext JSON when unfixable errors remain',
       () => {
         // F841 (unused variable after return) is not auto-fixable without --unsafe-fixes
@@ -1114,7 +1114,7 @@ describe('E2E: Python Lint Hook', () => {
       },
     );
 
-    it.skipIf(!RUFF_AVAILABLE)('should output no JSON when all errors are auto-fixed', () => {
+    it.skipIf(!IS_RUFF_AVAILABLE)('should output no JSON when all errors are auto-fixed', () => {
       // Unused import is fully auto-fixable — no remaining errors
       const autoFixable = 'import os\nx = 1\n';
       writeTestFile(projectDirectory, 'clean-after-fix.py', autoFixable);

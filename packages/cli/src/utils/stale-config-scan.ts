@@ -64,18 +64,18 @@ const CURATED_ROOT_CONFIGS: readonly string[] = [
 
 /** True when any line outside the managed prettier block references the legacy root. */
 function prettierignoreHasCustomerReference(content: string): boolean {
-  let insideManagedBlock = false;
+  let isInsideManagedBlock = false;
   for (const line of content.split('\n')) {
     if (line.includes(MANAGED_PRETTIER_MARKER)) {
-      insideManagedBlock = true;
+      isInsideManagedBlock = true;
       continue;
     }
     // The managed block is safeword-written and contiguous; a blank line ends it.
-    if (insideManagedBlock && line.trim() === '') {
-      insideManagedBlock = false;
+    if (isInsideManagedBlock && line.trim() === '') {
+      isInsideManagedBlock = false;
       continue;
     }
-    if (!insideManagedBlock && line.includes(LEGACY_REFERENCE)) return true;
+    if (!isInsideManagedBlock && line.includes(LEGACY_REFERENCE)) return true;
   }
   return false;
 }

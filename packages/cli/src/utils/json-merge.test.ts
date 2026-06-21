@@ -7,18 +7,18 @@ describe('assignOrPrune', () => {
     const target: Record<string, unknown> = { keep: 1 };
     const value = { a: 1 };
 
-    const kept = assignOrPrune(target, 'nested', value);
+    const isKept = assignOrPrune(target, 'nested', value);
 
-    expect(kept).toBe(true);
+    expect(isKept).toBe(true);
     expect(target).toEqual({ keep: 1, nested: { a: 1 } });
   });
 
   it('deletes an existing key and returns false when the value is empty', () => {
     const target: Record<string, unknown> = { keep: 1, nested: { old: 1 } };
 
-    const kept = assignOrPrune(target, 'nested', {});
+    const isKept = assignOrPrune(target, 'nested', {});
 
-    expect(kept).toBe(false);
+    expect(isKept).toBe(false);
     expect(target).toEqual({ keep: 1 });
     expect('nested' in target).toBe(false);
   });
@@ -26,9 +26,9 @@ describe('assignOrPrune', () => {
   it('is a no-op (returns false) when pruning an absent key', () => {
     const target: Record<string, unknown> = { keep: 1 };
 
-    const kept = assignOrPrune(target, 'missing', {});
+    const isKept = assignOrPrune(target, 'missing', {});
 
-    expect(kept).toBe(false);
+    expect(isKept).toBe(false);
     expect(target).toEqual({ keep: 1 });
   });
 });

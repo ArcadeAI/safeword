@@ -34,8 +34,8 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const CLIPPY_AVAILABLE = isClippyInstalled();
-const RUSTFMT_AVAILABLE = isRustfmtInstalled();
+const IS_CLIPPY_AVAILABLE = isClippyInstalled();
+const IS_RUSTFMT_AVAILABLE = isRustfmtInstalled();
 
 describe('E2E: Rust Golden Path', () => {
   let projectDirectory: string;
@@ -99,7 +99,7 @@ describe('E2E: Rust Golden Path', () => {
     expect(cargoToml).toContain('unsafe_code');
   });
 
-  it.skipIf(!CLIPPY_AVAILABLE)('clippy config is valid', () => {
+  it.skipIf(!IS_CLIPPY_AVAILABLE)('clippy config is valid', () => {
     // cargo clippy should run without config errors
     const result = spawnSync('cargo', ['clippy', '--', '--version'], {
       cwd: projectDirectory,
@@ -110,7 +110,7 @@ describe('E2E: Rust Golden Path', () => {
     expect(result.status).toBe(0);
   });
 
-  it.skipIf(!CLIPPY_AVAILABLE)('clippy runs on valid code', () => {
+  it.skipIf(!IS_CLIPPY_AVAILABLE)('clippy runs on valid code', () => {
     // main.rs from createRustProject should be valid
     const result = spawnSync('cargo', ['clippy'], {
       cwd: projectDirectory,
@@ -120,7 +120,7 @@ describe('E2E: Rust Golden Path', () => {
     expect(result.status).toBe(0);
   });
 
-  it.skipIf(!CLIPPY_AVAILABLE)('clippy detects unwrap_used violation', () => {
+  it.skipIf(!IS_CLIPPY_AVAILABLE)('clippy detects unwrap_used violation', () => {
     // Modify main.rs to include an unwrap call (files must be in module tree to be checked)
     writeTestFile(
       projectDirectory,
@@ -143,7 +143,7 @@ describe('E2E: Rust Golden Path', () => {
     expect(result.stdout + result.stderr).toMatch(/unwrap_used|unwrap/i);
   });
 
-  it.skipIf(!RUSTFMT_AVAILABLE)('rustfmt formats files', () => {
+  it.skipIf(!IS_RUSTFMT_AVAILABLE)('rustfmt formats files', () => {
     writeTestFile(projectDirectory, 'src/ugly.rs', `fn main(){println!("no spaces")}`);
 
     spawnSync('rustfmt', ['src/ugly.rs'], { cwd: projectDirectory });
@@ -152,7 +152,7 @@ describe('E2E: Rust Golden Path', () => {
     expect(formatted).toContain('fn main() {');
   });
 
-  it.skipIf(!RUSTFMT_AVAILABLE)('lint hook processes .rs files', () => {
+  it.skipIf(!IS_RUSTFMT_AVAILABLE)('lint hook processes .rs files', () => {
     const filePath = nodePath.join(projectDirectory, 'src/hook-test.rs');
     writeTestFile(projectDirectory, 'src/hook-test.rs', `fn hook_test(){println!("test")}`);
 
@@ -588,7 +588,7 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     }
   });
 
-  it.skipIf(!RUSTFMT_AVAILABLE)('lint hook formats .rs files without safeword config', () => {
+  it.skipIf(!IS_RUSTFMT_AVAILABLE)('lint hook formats .rs files without safeword config', () => {
     const filePath = nodePath.join(projectDirectory, 'src/fallback-test.rs');
     writeTestFile(projectDirectory, 'src/fallback-test.rs', `fn fallback_test(){println!("test")}`);
 
@@ -698,7 +698,7 @@ describe('E2E: Add Rust to Existing TypeScript Project', () => {
       expect(fileExists(projectDirectory, '.safeword/eslint.config.mjs')).toBe(true);
     });
 
-    it.skipIf(!RUSTFMT_AVAILABLE)('rustfmt works on Rust files', () => {
+    it.skipIf(!IS_RUSTFMT_AVAILABLE)('rustfmt works on Rust files', () => {
       writeTestFile(projectDirectory, 'src/test.rs', `fn test(){println!("test")}`);
 
       const filePath = nodePath.join(projectDirectory, 'src/test.rs');
@@ -771,7 +771,7 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
     }
   });
 
-  it.skipIf(!CLIPPY_AVAILABLE)(
+  it.skipIf(!IS_CLIPPY_AVAILABLE)(
     'lint hook runs cargo clippy with -p <package> for workspace member (Scenario 10)',
     () => {
       // Create a file with a clippy-fixable issue: single_char_pattern
@@ -800,7 +800,7 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
     },
   );
 
-  it.skipIf(!CLIPPY_AVAILABLE)(
+  it.skipIf(!IS_CLIPPY_AVAILABLE)(
     'lint hook skips clippy for virtual workspace root files (no package)',
     () => {
       // Create a build.rs at workspace root (no [package] section in root Cargo.toml)

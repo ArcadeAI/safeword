@@ -89,10 +89,12 @@ function parseFrontmatter(
   // Find closing ---
   let endIndex = -1;
   for (let i = 1; i < lines.length; i++) {
-    if (lines[i]?.trim() === '---') {
-      endIndex = i;
-      break;
+    if (lines[i]?.trim() !== '---') {
+    	continue;
     }
+
+    endIndex = i;
+    break;
   }
 
   if (endIndex === -1) {
@@ -218,11 +220,13 @@ function findBrokenMarkdownLinks(body: string, baseDirectory: string): string[] 
   const brokenLinks: string[] = [];
 
   for (const link of links) {
-    if (link.path.endsWith('.md')) {
-      const fullPath = nodePath.join(baseDirectory, link.path);
-      if (!existsSync(fullPath)) {
-        brokenLinks.push(`[${link.text}](${link.path})`);
-      }
+    if (!link.path.endsWith('.md')) {
+    	continue;
+    }
+
+    const fullPath = nodePath.join(baseDirectory, link.path);
+    if (!existsSync(fullPath)) {
+      brokenLinks.push(`[${link.text}](${link.path})`);
     }
   }
 
@@ -353,13 +357,15 @@ describe('Skills Validation (Claude Code Format)', () => {
 
       // File reference validation
       it('should have valid markdown file references in body', () => {
-        if (parsed?.body) {
-          const brokenLinks = findBrokenMarkdownLinks(
-            parsed.body,
-            nodePath.join(SKILLS_DIR, skillDirectory),
-          );
-          expect(brokenLinks, `Broken markdown links: ${brokenLinks.join(', ')}`).toHaveLength(0);
+        if (!parsed?.body) {
+        	return;
         }
+
+        const brokenLinks = findBrokenMarkdownLinks(
+          parsed.body,
+          nodePath.join(SKILLS_DIR, skillDirectory),
+        );
+        expect(brokenLinks, `Broken markdown links: ${brokenLinks.join(', ')}`).toHaveLength(0);
       });
 
       // Skills use short, action-oriented names (bdd, debug, refactor, quality-review)
@@ -421,20 +427,24 @@ describe('Commands Validation (Claude Code Format)', () => {
 
       it('should have description field for /help display', () => {
         // Safeword commands should have descriptions
-        if (parsed) {
-          expect(
-            parsed.frontmatter.description,
-            'Commands should have description for /help',
-          ).toBeDefined();
-          expect(parsed.frontmatter.description).not.toBe('');
+        if (!parsed) {
+        	return;
         }
+
+        expect(
+          parsed.frontmatter.description,
+          'Commands should have description for /help',
+        ).toBeDefined();
+        expect(parsed.frontmatter.description).not.toBe('');
       });
 
       it('should have markdown body (not just frontmatter)', () => {
-        if (parsed) {
-          expect(parsed.body, 'Command needs content after frontmatter').not.toBe('');
-          expect(parsed.body?.length, 'Body should have content').toBeGreaterThan(MIN_BODY_LENGTH);
+        if (!parsed) {
+        	return;
         }
+
+        expect(parsed.body, 'Command needs content after frontmatter').not.toBe('');
+        expect(parsed.body?.length, 'Body should have content').toBeGreaterThan(MIN_BODY_LENGTH);
       });
 
       it('should not use $0 (invalid argument)', () => {
@@ -491,10 +501,10 @@ describe('Commands Validation (Claude Code Format)', () => {
       // Validate argument pattern usage
       it('should use valid argument patterns ($1, $2, $ARGUMENTS)', () => {
         // Check if command uses any argument patterns
-        const usesArguments =
+        const isUsesArguments =
           content.includes('$1') || content.includes('$2') || content.includes('$ARGUMENTS');
 
-        if (usesArguments) {
+        if (isUsesArguments) {
           const invalidPatterns = findInvalidArgumentPatterns(content);
           expect(
             invalidPatterns,
@@ -505,10 +515,12 @@ describe('Commands Validation (Claude Code Format)', () => {
 
       // File reference validation for commands
       it('should have valid markdown file references in body', () => {
-        if (parsed?.body) {
-          const brokenLinks = findBrokenMarkdownLinks(parsed.body, COMMANDS_DIR);
-          expect(brokenLinks, `Broken markdown links: ${brokenLinks.join(', ')}`).toHaveLength(0);
+        if (!parsed?.body) {
+        	return;
         }
+
+        const brokenLinks = findBrokenMarkdownLinks(parsed.body, COMMANDS_DIR);
+        expect(brokenLinks, `Broken markdown links: ${brokenLinks.join(', ')}`).toHaveLength(0);
       });
     });
   }

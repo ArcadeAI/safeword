@@ -10,10 +10,10 @@ import nodePath from 'node:path';
 
 import { detectArchitecture } from '../utils/boundaries.js';
 import {
-  type DepCruiseArchitecture,
+  type DepCruiseArchitecture as DependencyCruiseArchitecture,
   detectWorkspaces,
-  generateDepCruiseConfigFile,
-  generateDepCruiseMainConfig,
+  generateDepCruiseConfigFile as generateDependencyCruiseConfigFile,
+  generateDepCruiseMainConfig as generateDependencyCruiseMainConfig,
 } from '../utils/depcruise-config.js';
 import { exists } from '../utils/fs.js';
 import { error, info, success } from '../utils/output.js';
@@ -27,7 +27,7 @@ interface SyncConfigResult {
  * Core sync logic - writes depcruise configs to disk
  * Can be called from setup or as standalone command
  */
-export function syncConfigCore(cwd: string, arch: DepCruiseArchitecture): SyncConfigResult {
+export function syncConfigCore(cwd: string, arch: DependencyCruiseArchitecture): SyncConfigResult {
   const safewordDirectory = nodePath.join(cwd, '.safeword');
   const result: SyncConfigResult = {
     generatedConfig: false,
@@ -36,7 +36,7 @@ export function syncConfigCore(cwd: string, arch: DepCruiseArchitecture): SyncCo
 
   // Generate and write .safeword/depcruise-config.cjs (CJS for compatibility)
   const generatedConfigPath = nodePath.join(safewordDirectory, 'depcruise-config.cjs');
-  const generatedConfig = generateDepCruiseConfigFile(arch);
+  const generatedConfig = generateDependencyCruiseConfigFile(arch);
   writeFileSync(generatedConfigPath, generatedConfig);
   result.generatedConfig = true;
 
@@ -44,7 +44,7 @@ export function syncConfigCore(cwd: string, arch: DepCruiseArchitecture): SyncCo
   // Use .cjs extension to work in ESM projects (type: "module")
   const mainConfigPath = nodePath.join(cwd, '.dependency-cruiser.cjs');
   if (!exists(mainConfigPath)) {
-    const mainConfig = generateDepCruiseMainConfig();
+    const mainConfig = generateDependencyCruiseMainConfig();
     writeFileSync(mainConfigPath, mainConfig);
     result.createdMainConfig = true;
   }
@@ -55,7 +55,7 @@ export function syncConfigCore(cwd: string, arch: DepCruiseArchitecture): SyncCo
 /**
  * Build full architecture info by combining detected layers with workspaces
  */
-export function buildArchitecture(cwd: string): DepCruiseArchitecture {
+export function buildArchitecture(cwd: string): DependencyCruiseArchitecture {
   const arch = detectArchitecture(cwd);
   const workspaces = detectWorkspaces(cwd);
   return { ...arch, workspaces };
@@ -64,7 +64,7 @@ export function buildArchitecture(cwd: string): DepCruiseArchitecture {
 /**
  * Check if architecture was detected (layers, monorepo structure, or workspaces)
  */
-export function hasArchitectureDetected(arch: DepCruiseArchitecture): boolean {
+export function hasArchitectureDetected(arch: DependencyCruiseArchitecture): boolean {
   return arch.elements.length > 0 || arch.isMonorepo || (arch.workspaces?.length ?? 0) > 0;
 }
 
@@ -75,13 +75,13 @@ export function hasArchitectureDetected(arch: DepCruiseArchitecture): boolean {
  */
 function checkConfig(
   cwd: string,
-  arch: DepCruiseArchitecture,
+  arch: DependencyCruiseArchitecture,
 ): { matches: true } | { matches: false; reason: 'missing' | 'drifted' } {
   const generatedConfigPath = nodePath.join(cwd, '.safeword', 'depcruise-config.cjs');
   if (!exists(generatedConfigPath)) {
     return { matches: false, reason: 'missing' };
   }
-  const generated = generateDepCruiseConfigFile(arch);
+  const generated = generateDependencyCruiseConfigFile(arch);
   const onDisk = readFileSync(generatedConfigPath, 'utf8');
   return generated === onDisk ? { matches: true } : { matches: false, reason: 'drifted' };
 }

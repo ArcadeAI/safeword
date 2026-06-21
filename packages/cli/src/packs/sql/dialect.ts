@@ -96,7 +96,7 @@ const PROVIDER_TO_DIALECT: Record<string, string> = {
 export function detectSqlDialect(cwd: string): string | undefined {
   return (
     detectFromProfiles(cwd) ??
-    detectFromPythonDeps(cwd) ??
+    detectFromPythonDependencies(cwd) ??
     detectFromSqlcConfig(cwd) ??
     detectFromPrismaSchema(cwd) ??
     detectFromDrizzleConfig(cwd) ??
@@ -153,7 +153,7 @@ function detectFromProfiles(cwd: string): string | undefined {
 }
 
 /** Signal 2: dbt-{adapter} packages in Python dependency files. */
-function detectFromPythonDeps(cwd: string): string | undefined {
+function detectFromPythonDependencies(cwd: string): string | undefined {
   const directory = findInTree(cwd, 'requirements.txt') ?? findInTree(cwd, 'pyproject.toml');
   if (!directory) return undefined;
 

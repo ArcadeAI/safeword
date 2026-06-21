@@ -34,18 +34,18 @@ function addKnipIgnores(
   config: { ignore: string[]; ignoreDependencies: string[] },
   ctx: ProjectContext,
 ): void {
-  const allDeps = ctx.developmentDeps;
+  const allDependencies = ctx.developmentDeps;
 
   // Framework build/cache directories
   if (ctx.projectType.nextjs) config.ignore.push('.next/**');
   if (ctx.projectType.astro) config.ignore.push('.astro/**');
-  if ('storybook' in allDeps || '@storybook/react' in allDeps) {
+  if ('storybook' in allDependencies || '@storybook/react' in allDependencies) {
     config.ignore.push('.storybook/**', 'storybook-static/**');
   }
-  if ('turbo' in allDeps) config.ignore.push('.turbo/**');
+  if ('turbo' in allDependencies) config.ignore.push('.turbo/**');
 
   // Electron - Knip has no Electron plugin
-  if ('electron' in allDeps || 'electron' in ctx.productionDeps) {
+  if ('electron' in allDependencies || 'electron' in ctx.productionDeps) {
     config.ignore.push('electron/**', 'dist-electron/**', 'out/**');
   }
 }
@@ -57,18 +57,18 @@ function addKnipIgnoreDependencies(
   config: { ignore: string[]; ignoreDependencies: string[] },
   ctx: ProjectContext,
 ): void {
-  const allDeps = ctx.developmentDeps;
+  const allDependencies = ctx.developmentDeps;
 
   // Dependencies used via config files, not imports
   if (ctx.projectType.tailwind) {
     config.ignoreDependencies.push('tailwindcss', '@tailwindcss/typography', '@tailwindcss/forms');
   }
   if (ctx.projectType.playwright) config.ignoreDependencies.push('@playwright/test');
-  if ('husky' in allDeps) config.ignoreDependencies.push('husky');
-  if ('lint-staged' in allDeps) config.ignoreDependencies.push('lint-staged');
+  if ('husky' in allDependencies) config.ignoreDependencies.push('husky');
+  if ('lint-staged' in allDependencies) config.ignoreDependencies.push('lint-staged');
 
   // Electron ecosystem packages
-  if ('electron' in allDeps || 'electron' in ctx.productionDeps) {
+  if ('electron' in allDependencies || 'electron' in ctx.productionDeps) {
     config.ignoreDependencies.push(
       'electron',
       'electron-builder',

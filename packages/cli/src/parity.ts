@@ -36,13 +36,13 @@ function checkPair(
 ): ParityFailure | undefined {
   const templateFile = nodePath.join(templatesDirectory, template);
   const dogfoodFile = nodePath.join(rootDirectory, destinationPath);
-  const templateExists = existsSync(templateFile);
-  const dogfoodExists = existsSync(dogfoodFile);
+  const isTemplateExists = existsSync(templateFile);
+  const isDogfoodExists = existsSync(dogfoodFile);
 
-  if (!templateExists || !dogfoodExists) {
+  if (!isTemplateExists || !isDogfoodExists) {
     const missing: string[] = [];
-    if (!templateExists) missing.push(template);
-    if (!dogfoodExists) missing.push(destinationPath);
+    if (!isTemplateExists) missing.push(template);
+    if (!isDogfoodExists) missing.push(destinationPath);
     return { kind: 'pair', message: `[PAIR] Missing file(s): ${missing.join(', ')}` };
   }
 

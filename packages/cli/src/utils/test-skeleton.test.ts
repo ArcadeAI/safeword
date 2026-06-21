@@ -75,7 +75,7 @@ describe('emitVitestSkeleton — AC1: faithful scenario→test mapping', () => {
     expect(countTests(out)).toBe(1);
     expect(out).toContain('"codify.DEV1.AC1.bodyless"');
     // No step comments in the generated body (the only `//` is the file header).
-    const generatedBody = out.split("from 'vitest';")[1] ?? '';
+    const generatedBody = out.split("from 'vitest';", 2)[1] ?? '';
     expect(generatedBody).not.toContain('//');
   });
 

@@ -196,7 +196,7 @@ function resolvePython(
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
   if (kind === 'build') return undefined; // no standard Python build step
-  if (!PYTHON_MANIFESTS.some(manifest => index.has(manifest))) return undefined;
+  if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
   const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
   if (pytestConfigured(index) || isAvailable('pytest')) {

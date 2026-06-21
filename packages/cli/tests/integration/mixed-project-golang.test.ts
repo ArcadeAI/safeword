@@ -30,7 +30,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
+const IS_GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
 
 describe('E2E: Mixed Project (TypeScript + Go)', () => {
   let projectDirectory: string;
@@ -126,7 +126,7 @@ func main() {
     }).toThrow();
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint runs on Go files', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint runs on Go files', () => {
     // main.go should be valid
     const result = spawnSync('golangci-lint', ['run', 'main.go'], {
       cwd: projectDirectory,
@@ -135,7 +135,7 @@ func main() {
     expect(result.status).toBe(0);
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint detects Go violations', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint detects Go violations', () => {
     // Unused import will be caught by 'unused' linter in standard set
     writeTestFile(
       projectDirectory,
@@ -170,7 +170,7 @@ func bad() {
       expect(formatted.trim()).toBe('const x = 1;');
     });
 
-    it.skipIf(!GOLANGCI_LINT_AVAILABLE)('routes .go files to golangci-lint', () => {
+    it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('routes .go files to golangci-lint', () => {
       const filePath = nodePath.join(projectDirectory, 'lint-go.go');
       writeTestFile(
         projectDirectory,

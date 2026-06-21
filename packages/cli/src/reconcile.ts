@@ -68,11 +68,11 @@ function getConditionalPackages(
 ): string[] {
   const packages: string[] = [];
 
-  for (const [key, deps] of Object.entries(conditionalPackages)) {
+  for (const [key, dependencies] of Object.entries(conditionalPackages)) {
     // "standard" means !existingFormatter - only for projects without existing formatter
     if (key === 'standard') {
       if (!projectType.existingFormatter) {
-        packages.push(...deps);
+        packages.push(...dependencies);
       }
       continue;
     }
@@ -81,9 +81,9 @@ function getConditionalPackages(
     if (projectType[key as keyof ProjectType]) {
       // For projects with existing formatter, skip prettier-related packages
       if (projectType.existingFormatter) {
-        packages.push(...deps.filter(pkg => !PRETTIER_PACKAGES.has(pkg)));
+        packages.push(...dependencies.filter(pkg => !PRETTIER_PACKAGES.has(pkg)));
       } else {
-        packages.push(...deps);
+        packages.push(...dependencies);
       }
     }
   }
@@ -256,10 +256,12 @@ function planExistingDirectoriesRemoval(
   const actions: Action[] = [];
   const removed: string[] = [];
   for (const dir of directories) {
-    if (exists(nodePath.join(cwd, dir))) {
-      actions.push({ type: 'rmdir', path: dir });
-      removed.push(dir);
+    if (!exists(nodePath.join(cwd, dir))) {
+    	continue;
     }
+
+    actions.push({ type: 'rmdir', path: dir });
+    removed.push(dir);
   }
   return { actions, removed };
 }
@@ -272,10 +274,12 @@ function planExistingFilesRemoval(
   const actions: Action[] = [];
   const removed: string[] = [];
   for (const filePath of files) {
-    if (exists(nodePath.join(cwd, filePath))) {
-      actions.push({ type: 'rm', path: filePath });
-      removed.push(filePath);
+    if (!exists(nodePath.join(cwd, filePath))) {
+    	continue;
     }
+
+    actions.push({ type: 'rm', path: filePath });
+    removed.push(filePath);
   }
   return { actions, removed };
 }
@@ -397,11 +401,11 @@ export async function reconcile(
   // sync today, but the signature reserves room for async I/O without
   // breaking callers. Token await keeps the contract honest.
   await Promise.resolve();
-  const dryRun = options?.dryRun ?? false;
+  const isDryRun = options?.dryRun ?? false;
 
   const plan = computePlan(withResolvedNamespaceRoot(schema, ctx), mode, ctx);
 
-  if (dryRun) {
+  if (isDryRun) {
     return {
       actions: plan.actions,
       applied: false,
@@ -825,9 +829,9 @@ function executeAction(action: Action, ctx: ProjectContext, result: ExecutionRes
 
 function executeWrite(cwd: string, path: string, content: string, result: ExecutionResult): void {
   const fullPath = nodePath.join(cwd, path);
-  const existed = exists(fullPath);
+  const isExisted = exists(fullPath);
   writeFile(fullPath, content);
-  (existed ? result.updated : result.created).push(path);
+  (isExisted ? result.updated : result.created).push(path);
 }
 
 // ============================================================================
@@ -861,7 +865,7 @@ function fileNeedsUpdate(installedPath: string, newContent: string): boolean {
 export function computePackagesToInstall(
   schema: SafewordSchema,
   projectType: ProjectType,
-  installedDevelopmentDeps: Record<string, string>,
+  installedDevelopmentDependencies: Record<string, string>,
   cwd?: string,
 ): string[] {
   // Combine base packages with conditional packages
@@ -876,14 +880,14 @@ export function computePackagesToInstall(
   // Strip version specifier (e.g. 'eslint@^9' → 'eslint') when checking installed deps
   return needed.filter(pkg => {
     const name = stripVersionSpecifier(pkg);
-    return !workspaceMembers.has(name) && !(name in installedDevelopmentDeps);
+    return !workspaceMembers.has(name) && !(name in installedDevelopmentDependencies);
   });
 }
 
 function computePackagesToRemove(
   schema: SafewordSchema,
   projectType: ProjectType,
-  installedDevelopmentDeps: Record<string, string>,
+  installedDevelopmentDependencies: Record<string, string>,
 ): string[] {
   const safewordPackages = [
     ...schema.packages.base,
@@ -892,7 +896,7 @@ function computePackagesToRemove(
 
   // Only remove packages that are actually installed
   // Strip version specifier (e.g. 'eslint@^9' → 'eslint') when checking installed deps
-  return safewordPackages.filter(pkg => stripVersionSpecifier(pkg) in installedDevelopmentDeps);
+  return safewordPackages.filter(pkg => stripVersionSpecifier(pkg) in installedDevelopmentDependencies);
 }
 
 /**

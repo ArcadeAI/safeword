@@ -193,5 +193,5 @@ function parseScenarioTitles(content: string): string[] {
 
 /** First whitespace-delimited token of a heading's text (its id). */
 function firstToken(text: string): string {
-  return text.split(/\s+/)[0] ?? '';
+  return text.split(/\s+/, 1)[0] ?? '';
 }

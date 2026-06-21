@@ -216,7 +216,8 @@ const basePluginsUnscoped: any[] = [
       'unicorn/switch-case-braces': 'error',
       'unicorn/catch-error-name': 'error',
       'unicorn/no-array-reduce': 'error', // LLMs write confusing reduce
-      'unicorn/prevent-abbreviations': [
+      // Renamed from unicorn/prevent-abbreviations in eslint-plugin-unicorn 68.
+      'unicorn/name-replacements': [
         'error',
         {
           allowList: {
@@ -246,7 +247,7 @@ const basePluginsUnscoped: any[] = [
         },
       ],
       'unicorn/no-null': 'error', // Use undefined
-      'unicorn/no-array-for-each': 'error', // Use for...of
+      'unicorn/no-for-each': 'error', // Use for...of (renamed from no-array-for-each in unicorn 68)
       'unicorn/no-negated-condition': 'error', // Clearer conditionals
       // Cherry-picked from 'all' config - high value for LLM code
       'unicorn/no-unused-properties': 'error', // Dead code in enum-like objects

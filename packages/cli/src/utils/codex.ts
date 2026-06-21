@@ -39,7 +39,7 @@ function parseVersionCore(core: string): [number, number, number] | undefined {
 function parseSemver(version: string): ParsedSemver | undefined {
   const trimmed = version.trim();
   const normalized = trimmed.startsWith('v') ? trimmed.slice(1) : trimmed;
-  const withoutBuildMetadata = normalized.split('+')[0] ?? '';
+  const withoutBuildMetadata = normalized.split('+', 1)[0] ?? '';
   const [core = '', prerelease] = withoutBuildMetadata.split('-', 2);
   const parsedCore = parseVersionCore(core);
   if (!parsedCore) return undefined;
@@ -70,7 +70,7 @@ function compareSemver(a: string, b: string): -1 | 0 | 1 {
 }
 
 function parseCodexVersion(output: string): string | undefined {
-  const tokens = output.replaceAll('\n', ' ').replaceAll('\t', ' ').split(' ');
+  const tokens = output.replaceAll(/[\n\t]/g, ' ').split(' ');
   for (const token of tokens) {
     const trimmed = token.trim();
     const normalized = trimmed.startsWith('v') ? trimmed.slice(1) : trimmed;

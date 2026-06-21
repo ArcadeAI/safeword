@@ -254,9 +254,9 @@ const SQLFLUFF_CONFIG_FILES = ['.sqlfluff', 'setup.cfg'];
  * Detect JavaScript framework dependencies from package.json.
  */
 function detectFrameworks(
-  deps: Record<string, string>,
-  developmentDeps: Record<string, string>,
-  allDeps: Record<string, string>,
+  dependencies: Record<string, string>,
+  developmentDependencies: Record<string, string>,
+  allDependencies: Record<string, string>,
 ): Pick<
   ProjectType,
   | 'typescript'
@@ -268,16 +268,16 @@ function detectFrameworks(
   | 'tailwind'
   | 'tanstackQuery'
 > {
-  const hasNextJs = 'next' in deps;
+  const hasNextJs = 'next' in dependencies;
   return {
-    typescript: 'typescript' in allDeps,
-    react: 'react' in deps || 'react' in developmentDeps || hasNextJs,
+    typescript: 'typescript' in allDependencies,
+    react: 'react' in dependencies || 'react' in developmentDependencies || hasNextJs,
     nextjs: hasNextJs,
-    astro: 'astro' in deps || 'astro' in developmentDeps,
-    vitest: 'vitest' in developmentDeps,
-    playwright: '@playwright/test' in developmentDeps,
-    tailwind: TAILWIND_PACKAGES.some(pkg => pkg in allDeps),
-    tanstackQuery: TANSTACK_QUERY_PACKAGES.some(pkg => pkg in allDeps),
+    astro: 'astro' in dependencies || 'astro' in developmentDependencies,
+    vitest: 'vitest' in developmentDependencies,
+    playwright: '@playwright/test' in developmentDependencies,
+    tailwind: TAILWIND_PACKAGES.some(pkg => pkg in allDependencies),
+    tanstackQuery: TANSTACK_QUERY_PACKAGES.some(pkg => pkg in allDependencies),
   };
 }
 
@@ -439,13 +439,13 @@ export function hasJsSource(cwd: string, maxDepth = 6): boolean {
 }
 
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
-  const deps = packageJson.dependencies ?? {};
-  const developmentDeps = packageJson.devDependencies ?? {};
-  const allDeps = { ...deps, ...developmentDeps };
+  const dependencies = packageJson.dependencies ?? {};
+  const developmentDependencies = packageJson.devDependencies ?? {};
+  const allDependencies = { ...dependencies, ...developmentDependencies };
   const scripts = packageJson.scripts ?? {};
 
   return {
-    ...detectFrameworks(deps, developmentDeps, allDeps),
+    ...detectFrameworks(dependencies, developmentDependencies, allDependencies),
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,

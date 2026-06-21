@@ -36,8 +36,8 @@ afterEach(() => {
 
 describe('shouldEmitVendoredIgnoresNudge', () => {
   it('emits when existing JS eslint config does not reference .safeword/', () => {
-    const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
-    writeFileSync(cfg, "export default [{ files: ['**/*.ts'] }];\n", 'utf8');
+    const config = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
+    writeFileSync(config, "export default [{ files: ['**/*.ts'] }];\n", 'utf8');
     expect(
       shouldEmitVendoredIgnoresNudge({
         cwd: temporaryDirectory,
@@ -48,8 +48,8 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   });
 
   it('stays silent when existing eslint config already references .safeword/', () => {
-    const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
-    writeFileSync(cfg, "export default [{ ignores: ['.safeword/**'] }];\n", 'utf8');
+    const config = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
+    writeFileSync(config, "export default [{ ignores: ['.safeword/**'] }];\n", 'utf8');
     expect(
       shouldEmitVendoredIgnoresNudge({
         cwd: temporaryDirectory,
@@ -60,9 +60,9 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   });
 
   it('stays silent when existing eslint config already mentions vendoredIgnores (manual 153 application)', () => {
-    const cfg = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
+    const config = nodePath.join(temporaryDirectory, 'eslint.config.mjs');
     writeFileSync(
-      cfg,
+      config,
       "import s from 'safeword/eslint';\nexport default [...s.configs.vendoredIgnores];\n",
       'utf8',
     );
@@ -86,8 +86,8 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
   });
 
   it('stays silent on non-JS projects regardless of stray eslint config', () => {
-    const cfg = nodePath.join(temporaryDirectory, '.eslintrc');
-    writeFileSync(cfg, '{}', 'utf8');
+    const config = nodePath.join(temporaryDirectory, '.eslintrc');
+    writeFileSync(config, '{}', 'utf8');
     expect(
       shouldEmitVendoredIgnoresNudge({
         cwd: temporaryDirectory,

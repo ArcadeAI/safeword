@@ -178,16 +178,16 @@ describe('installPythonDependencies', () => {
   });
 
   // Conditional tests - only run if package manager is available
-  const UV_AVAILABLE = isUvInstalled();
-  const POETRY_AVAILABLE = isPoetryInstalled();
+  const IS_UV_AVAILABLE = isUvInstalled();
+  const IS_POETRY_AVAILABLE = isPoetryInstalled();
 
-  it.skipIf(!UV_AVAILABLE)('installs tools with uv', () => {
+  it.skipIf(!IS_UV_AVAILABLE)('installs tools with uv', () => {
     createPythonProject(projectDirectory, { manager: 'uv' });
 
     // This actually runs uv add --dev ruff
-    const result = installPythonDependencies(projectDirectory, ['ruff']);
+    const isResult = installPythonDependencies(projectDirectory, ['ruff']);
 
-    expect(result).toBe(true);
+    expect(isResult).toBe(true);
 
     // Verify ruff is now in pyproject.toml
     const pyproject = readTestFile(projectDirectory, 'pyproject.toml');
@@ -200,13 +200,13 @@ describe('installPythonDependencies', () => {
   // - The uv test above exercises the same installPythonDependencies code path
   // - Production code has 60s timeout to prevent hanging (see setup.ts)
   // Re-enable with: POETRY_AVAILABLE && process.env.TEST_POETRY === "1"
-  it.skipIf(!POETRY_AVAILABLE || !process.env.TEST_POETRY)('installs tools with poetry', () => {
+  it.skipIf(!IS_POETRY_AVAILABLE || !process.env.TEST_POETRY)('installs tools with poetry', () => {
     createPythonProject(projectDirectory, { manager: 'poetry' });
 
     // This actually runs poetry add --group dev ruff
-    const result = installPythonDependencies(projectDirectory, ['ruff']);
+    const isResult = installPythonDependencies(projectDirectory, ['ruff']);
 
-    expect(result).toBe(true);
+    expect(isResult).toBe(true);
 
     // Verify ruff is now in pyproject.toml
     const pyproject = readTestFile(projectDirectory, 'pyproject.toml');

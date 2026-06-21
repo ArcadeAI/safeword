@@ -156,11 +156,11 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
   }
 
   if (result.packagesToRemove.length > 0) {
-    const uninstallCmd = getUninstallCommand(result.packagesToRemove, cwd);
+    const uninstallCommand = getUninstallCommand(result.packagesToRemove, cwd);
     warn(`\n${result.packagesToRemove.length} package(s) are now bundled in safeword:`);
     for (const pkg of result.packagesToRemove) listItem(pkg);
     info("\nIf you don't use these elsewhere, you can remove them:");
-    listItem(uninstallCmd);
+    listItem(uninstallCommand);
   }
 
   if (reconciledCodexConfig(result)) {
@@ -181,8 +181,8 @@ function installPythonBasedTools(pythonDirectory: string, packages: string[], la
     return;
   }
   info(`\nInstalling ${label} (${packages.join(', ')})...`);
-  const installed = installPythonDependencies(pythonDirectory, packages);
-  if (installed) {
+  const isInstalled = installPythonDependencies(pythonDirectory, packages);
+  if (isInstalled) {
     success(`${label} installed`);
   } else {
     warn(`${label} install failed. Install manually:`);
@@ -266,10 +266,10 @@ async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean
   if (options.migrateNamespace !== undefined) return options.migrateNamespace;
 
   // An injected confirm seam counts as interactive — it IS the TTY stand-in.
-  const interactive =
+  const isInteractive =
     options.confirmMigration !== undefined ||
-    (process.stdin.isTTY === true && process.stdout.isTTY === true);
-  if (!interactive) {
+    (process.stdin.isTTY && process.stdout.isTTY);
+  if (!isInteractive) {
     info(
       'Namespace: this project uses the legacy .safeword-project/ — run `safeword upgrade --migrate-namespace` to converge on .project/ (recommended).',
     );
