@@ -76,4 +76,16 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
 
     expect(skeleton.nodes).toEqual([]);
   });
+
+  it('is content-agnostic — a malformed file in a module never aborts extraction', () => {
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'auth', 'broken.ts'),
+      'function ( { this is not valid typescript <<<',
+    );
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toContain('auth');
+  });
 });

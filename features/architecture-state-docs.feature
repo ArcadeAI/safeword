@@ -41,11 +41,10 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
       Then an empty skeleton is produced without error
 
     @architecture-state-docs.NTB1.AC1
-    Scenario: An unparseable source file does not abort extraction
-      Given a project with one source file that cannot be parsed
+    Scenario: Extraction is content-agnostic — a malformed file never aborts it
+      Given a project with a module containing a malformed source file
       When the architecture doc is generated
-      Then the unparseable file is recorded as skipped
-      And the rest of the skeleton is still produced
+      Then the module is still listed in the skeleton
 
   Rule: Stale prose is visibly flagged, never silently wrong
 

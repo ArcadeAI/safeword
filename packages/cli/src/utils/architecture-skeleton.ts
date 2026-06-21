@@ -26,8 +26,6 @@ export interface SkeletonNode {
 export interface Skeleton {
   /** Structural nodes, one per top-level module. */
   nodes: SkeletonNode[];
-  /** Source files that could not be parsed and were skipped, by relative path. */
-  skipped: string[];
 }
 
 export function extractSkeleton(projectDirectory: string): Skeleton {
@@ -37,7 +35,7 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   try {
     entries = readdirSync(sourceDirectory, { withFileTypes: true });
   } catch {
-    return { nodes: [], skipped: [] };
+    return { nodes: [] };
   }
 
   const nodes = entries
@@ -48,7 +46,7 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
       purpose: PURPOSE_PLACEHOLDER,
     }));
 
-  return { nodes, skipped: [] };
+  return { nodes };
 }
 
 /**
