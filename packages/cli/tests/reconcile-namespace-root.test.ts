@@ -272,7 +272,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
       'utf8',
     );
     expect(ownedPaths).not.toContain("'./'");
-    expect(ownedPaths).not.toMatch(/^\s*'',?\s*$/m);
+    expect(ownedPaths).not.toMatch(/^[ \t]*'',?[ \t]*$/m);
   });
 
   it('DEV1.AC4.upgrade_on_project_repo_stays_project', async () => {
