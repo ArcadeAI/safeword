@@ -141,6 +141,14 @@ Configured during `safeword setup` (opt-in). **Non-secret** provider/target live
 - **Setup validation:** if `provider !== none` but no credential resolves, setup warns loudly (prevents the silent "CI sync runs, does nothing, exits 0" trap).
 - **CI / non-interactive auth:** Arcade Headers mode works, but `Arcade-User-ID` is a **user identity, not a service account** — if that user's OAuth grant lapses, sync fails (often silently). v1 must either pin a dedicated service identity or document the limitation with an explicit CLI warning (see Done-when).
 
+### When no tracker is configured (the base case, not a failure)
+
+The entire **local** system — tickets, work logs, the `blocked_on` gate, the INDEX, the dependency graph — works standalone with **zero** tracker. Projection is purely additive; removing it changes nothing local. (If "no tracker" were degraded, we'd have coupled execution to an external service — the seam refuses exactly that. No-tracker working is the design's proof.) Three unconfigured behaviors:
+
+1. **`provider: none` (default)** — `sync-tracker` is a friendly no-op: prints "no tracker configured; run `safeword setup` to add one", exits 0. Never an error; solo/agent-only repos never see tracker surface at all.
+2. **Provider set but no credential resolves** — loud warning, non-zero/visible failure; **never silently exits 0** (the CI "runs, does nothing, looks fine" trap).
+3. **An unsupported tracker** (Asana/Trello/plain text/none of the above) — treated as `none` for v1; local system fully functional; the `custom` adapter is the deferred path (out of scope).
+
 ## Out of scope
 
 - **The dependency-graph projection** — epic/parent → sub-issues, blocked_on/depends_on → tracker relations, `type` → issue-type, and the topological-parent ordering they require. This is the **v2** ([relations-and-hierarchy projection](../M1FGRJ-tracker-relations-projection/ticket.md)), which `depends_on` this skeleton.
@@ -163,6 +171,7 @@ Configured during `safeword setup` (opt-in). **Non-secret** provider/target live
 - **Field ownership** holds: safeword writes existence/title/labels/back-link and sets status once at creation; on re-sync it updates only title/labels and **never** writes status/assignee/priority — with **one universal exception**: it closes the issue when local status is terminal (the only status write, supported by every tracker). It touches only issues in its tracker-map.
 - **Identity:** issues are created via a safeword bot identity, carry a back-link to the canonical ticket, and a body banner naming the repo as source; no safeword ID in the title.
 - **Secrets:** tokens are read from OS keychain / env var, never `.safeword/config.json`, never logged; `setup` warns if `provider !== none` and no credential resolves.
+- **No-tracker base case:** with `provider: none` (default), `sync-tracker` is a friendly no-op (exit 0) and the local system is fully unaffected; a set-but-uncredentialed provider warns loudly instead of silently succeeding.
 - **CI auth:** the `Arcade-User-ID` user-identity limitation is resolved — either a dedicated service identity is supported, or the CLI emits an explicit warning naming the silent-failure mode.
 - Re-running is idempotent via the `.safeword/tracker-map.json` sidecar; **partial-failure resume** is tested (a crash mid-corpus does not double-create). **Missing/corrupt sidecar** at re-run does NOT blind-recreate — it reconciles by scanning for the back-link, or requires an explicit `--reset-tracker-map`.
 - **Body egress:** default `minimal` (no spec/work-log body); `full` is opt-in; `full`→public-repo emits a loud egress warning.
