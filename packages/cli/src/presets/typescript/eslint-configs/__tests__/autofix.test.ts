@@ -7,6 +7,8 @@
  * - After fix, no fixable errors remain
  */
 
+import { fileURLToPath } from 'node:url';
+
 import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
@@ -14,12 +16,15 @@ import { recommended } from '../recommended.js';
 
 const linter = new Linter({ configType: 'flat' });
 
+// Absolute path under __tests__ so sonarjs test-aware rules can resolve a topDir.
+const MJS_FILE = fileURLToPath(new URL('inline.mjs', import.meta.url));
+
 /**
  * Run verifyAndFix and return results.
  * @param code - Source code to lint and fix
  * @param filename - Filename for config matching
  */
-function lintAndFix(code: string, filename = 'test.mjs') {
+function lintAndFix(code: string, filename = MJS_FILE) {
   return linter.verifyAndFix(code, recommended, { filename });
 }
 
@@ -28,7 +33,7 @@ function lintAndFix(code: string, filename = 'test.mjs') {
  * @param code - Source code to check
  * @param filename - Filename for config matching
  */
-function hasFixableErrors(code: string, filename = 'test.mjs') {
+function hasFixableErrors(code: string, filename = MJS_FILE) {
   return linter.verify(code, recommended, { filename }).some(r => r.fix !== undefined);
 }
 
