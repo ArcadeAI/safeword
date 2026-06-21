@@ -5,6 +5,8 @@
  * so LLMs must fix them before moving on.
  */
 
+import { fileURLToPath } from 'node:url';
+
 import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
@@ -15,13 +17,16 @@ const ERROR = 2;
 
 const jsLinter = new Linter({ configType: 'flat' });
 
+// Absolute path under __tests__ so sonarjs test-aware rules can resolve a topDir.
+const MJS_FILE = fileURLToPath(new URL('inline.mjs', import.meta.url));
+
 /**
  * Lint JS code and return errors for a specific rule.
  * @param code - Source code to lint
  * @param ruleId - Rule ID to filter for
  */
 function lintJs(code: string, ruleId: string) {
-  const results = jsLinter.verify(code, recommended, { filename: 'test.mjs' });
+  const results = jsLinter.verify(code, recommended, { filename: MJS_FILE });
   return results.filter(r => r.ruleId === ruleId);
 }
 
@@ -130,13 +135,13 @@ exec(cmd);
   });
 
   describe('sonarjs rules (recommended)', () => {
-    it('sonarjs/os-command errors on exec with variable', () => {
+    it('sonarjs/no-os-command-from-path errors on exec with variable', () => {
       // Note: security/detect-child-process only works with require(), not import
       const code = `import { exec } from 'node:child_process';
 const cmd = 'rm -rf /';
 exec(cmd);
 `;
-      const errors = lintJs(code, 'sonarjs/os-command');
+      const errors = lintJs(code, 'sonarjs/no-os-command-from-path');
       expectLintError(errors);
     });
   });

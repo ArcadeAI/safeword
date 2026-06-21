@@ -185,7 +185,7 @@ describe('SETTINGS_HOOKS', () => {
 
   it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, and git-bare-race fix', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks.length).toBe(4);
+    expect(preToolHooks).toHaveLength(4);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks

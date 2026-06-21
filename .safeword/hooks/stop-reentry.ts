@@ -14,7 +14,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { getTicketInfo } from './lib/active-ticket';
-import { getStateFilePath } from './lib/quality-state.ts';
+import { readSessionState } from './lib/quality-state.ts';
 import { resolveProjectRoot } from './lib/re-entry';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
@@ -53,13 +53,7 @@ function extractLastNextImperative(text: string): string | null {
  * the session never bound a ticket (or state is unreadable).
  */
 function readSessionTicketId(projectDirectory: string, sessionId: string): string | null {
-  try {
-    const raw = readFileSync(getStateFilePath(projectDirectory, sessionId), 'utf8');
-    const state = JSON.parse(raw) as { activeTicket?: string | null };
-    return state.activeTicket ?? null;
-  } catch {
-    return null;
-  }
+  return readSessionState(projectDirectory, sessionId)?.activeTicket ?? null;
 }
 
 /**

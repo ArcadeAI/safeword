@@ -551,7 +551,7 @@ describe('Skills and Commands Cross-Validation', () => {
     }
 
     // Skill directory names should match the name: field in frontmatter
-    expect(mismatches.length).toBe(0);
+    expect(mismatches).toHaveLength(0);
   });
 
   it('should not have duplicate skill names', () => {

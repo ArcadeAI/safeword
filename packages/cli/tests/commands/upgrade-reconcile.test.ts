@@ -489,9 +489,10 @@ statusMessage = "Checking safeword PreToolUse gates"
         const stdout = (error as { stdout?: string }).stdout || '';
 
         // If we see upgrade output, the reconcile worked
-        if (stdout.includes('Upgrade') || stdout.includes('Upgrading')) {
+        const sawUpgradeOutput = stdout.includes('Upgrade') || stdout.includes('Upgrading');
+        if (sawUpgradeOutput) {
           // Upgrade ran, might have failed on bun install
-          expect(true).toBe(true);
+          expect(sawUpgradeOutput).toBe(true);
         } else {
           throw error;
         }
@@ -508,8 +509,8 @@ statusMessage = "Checking safeword PreToolUse gates"
           encoding: 'utf8',
           timeout: 30_000,
         });
-        // Should not reach here
-        expect(true).toBe(false);
+        // Should not reach here — upgrade must refuse a downgrade
+        expect.fail('upgrade should have refused to downgrade a newer project');
       } catch (error) {
         const stderr = (error as { stderr?: string }).stderr || '';
         expect(stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
@@ -530,8 +531,8 @@ statusMessage = "Checking safeword PreToolUse gates"
           encoding: 'utf8',
           timeout: 30_000,
         });
-        // Should not reach here
-        expect(true).toBe(false);
+        // Should not reach here — upgrade must error on an unconfigured project
+        expect.fail('upgrade should have errored on an unconfigured project');
       } catch (error) {
         const stderr = (error as { stderr?: string }).stderr || '';
         expect(stderr.toLowerCase()).toContain('not configured');
