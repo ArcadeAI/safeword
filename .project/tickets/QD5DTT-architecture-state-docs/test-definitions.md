@@ -6,25 +6,31 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ## Rule: The skeleton reflects the real project
 
-### Scenario: Each top-level module appears with a code reference
+### Scenario: The listed modules equal the real tree, with resolving references
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Every skeleton node carries a one-line purpose
+### Scenario: Every skeleton node carries a non-empty purpose
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A non-structural file is not listed as a node
+### Scenario: A file outside any module is not listed as a node
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A project with no src directory still produces a doc
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A src directory with zero modules produces an empty skeleton
 
 - [ ] RED
 - [ ] GREEN
@@ -50,13 +56,13 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Prose describing a removed node is flagged as orphaned
+### Scenario: A section describing a removed node is flagged orphaned, not merely stale
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A newly added node requires a purpose but is not marked stale
+### Scenario: A newly added node gets a purpose placeholder and is not marked stale
 
 - [ ] RED
 - [ ] GREEN
@@ -64,7 +70,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ## Rule: Structural facts self-heal at session start
 
-### Scenario: A moved fingerprint triggers re-extraction at session start
+### Scenario: A moved fingerprint heals the doc to the current shape
 
 - [ ] RED
 - [ ] GREEN
@@ -82,15 +88,21 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: The fingerprint captures shape, not noise
-
-### Scenario Outline: The fingerprint moves only for structural change
+### Scenario: A doc with a missing or corrupt fingerprint is regenerated, never left unreconciled
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An out-of-band structural change is detected at the next session start
+## Rule: The fingerprint captures shape, not noise
+
+### Scenario Outline: The fingerprint changes only for structural change
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An out-of-band change is healed and its lagging prose flagged at session start
 
 - [ ] RED
 - [ ] GREEN

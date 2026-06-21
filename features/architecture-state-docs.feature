@@ -9,28 +9,36 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
   Rule: The skeleton reflects the real project
 
     @architecture-state-docs.NTB1.AC1
-    Scenario: Each top-level module appears with a code reference
-      Given a single-repo TypeScript project with modules under src/
+    Scenario: The listed modules equal the real tree, with resolving references
+      Given a project whose src/ contains exactly the modules auth and billing
       When the architecture doc is generated
-      Then every top-level module is listed with a reference to its location
+      Then the doc lists exactly auth and billing, with no others
+      And each module's reference points to its real path (src/auth, src/billing)
 
     @architecture-state-docs.NTB1.AC1
-    Scenario: Every skeleton node carries a one-line purpose
+    Scenario: Every skeleton node carries a non-empty purpose
       Given a single-repo TypeScript project
       When the architecture doc is generated
-      Then every skeleton node has a one-line purpose
+      Then every skeleton node has a non-empty one-line purpose
+      And a node emitted without a purpose is recorded as a purpose-floor violation
 
     @architecture-state-docs.NTB1.AC1
-    Scenario: A non-structural file is not listed as a node
-      Given a project containing a loose script that is not part of any module
+    Scenario: A file outside any module is not listed as a node
+      Given a project with a stray script at scripts/build.ts outside src/
       When the architecture doc is generated
-      Then that file does not appear as a skeleton node
+      Then scripts/build.ts does not appear as a skeleton node
 
     @architecture-state-docs.NTB1.AC1
     Scenario: A project with no src directory still produces a doc
       Given a project that has no src directory
       When the architecture doc is generated
       Then a minimal skeleton is produced without error
+
+    @architecture-state-docs.NTB1.AC1
+    Scenario: A src directory with zero modules produces an empty skeleton
+      Given a project whose src/ exists but contains no modules
+      When the architecture doc is generated
+      Then an empty skeleton is produced without error
 
     @architecture-state-docs.NTB1.AC1
     Scenario: An unparseable source file does not abort extraction
@@ -49,30 +57,33 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
 
     @architecture-state-docs.NTB1.AC2
     Scenario: Prose that has fallen behind the structure is marked stale
-      Given a doc whose prose section is stamped with an older skeleton fingerprint
+      Given a doc whose prose section describes a node that still exists
+      And that section is stamped with an older skeleton fingerprint
       When the doc is reconciled
       Then that prose section is marked stale
 
     @architecture-state-docs.NTB1.AC2
-    Scenario: Prose describing a removed node is flagged as orphaned
-      Given a doc with a prose section describing a module that no longer exists
+    Scenario: A section describing a removed node is flagged orphaned, not merely stale
+      Given a doc with a drifted-stamp prose section describing a module that no longer exists
       When the doc is reconciled
       Then that prose section is flagged as orphaned
+      And it is not labelled merely stale
 
     @architecture-state-docs.NTB1.AC2
-    Scenario: A newly added node requires a purpose but is not marked stale
+    Scenario: A newly added node gets a purpose placeholder and is not marked stale
       Given a project with a module that has no prose in the doc yet
       When the doc is reconciled
-      Then the new node requires a one-line purpose
+      Then the new node is emitted with a purpose placeholder awaiting prose
       And the new node is not marked stale
 
   Rule: Structural facts self-heal at session start
 
     @architecture-state-docs.TB1.AC1
-    Scenario: A moved fingerprint triggers re-extraction at session start
+    Scenario: A moved fingerprint heals the doc to the current shape
       Given a doc whose recorded fingerprint differs from the project's current shape
       When a session starts
-      Then the skeleton is re-extracted to match the current shape
+      Then the doc's skeleton matches the current shape
+      And the recorded fingerprint equals the current shape's fingerprint
 
     @architecture-state-docs.TB1.AC1
     Scenario: An unchanged fingerprint leaves the doc untouched
@@ -86,25 +97,33 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
       When a session starts
       Then an architecture doc is created from the current structure
 
+    @architecture-state-docs.TB1.AC1
+    Scenario: A doc with a missing or corrupt fingerprint is regenerated, never left unreconciled
+      Given a doc whose frontmatter fingerprint is missing or corrupt
+      When a session starts
+      Then the skeleton is regenerated from the current structure
+      And the doc is not left silently unreconciled
+
   Rule: The fingerprint captures shape, not noise
 
     @architecture-state-docs.TB1.AC2
-    Scenario Outline: The fingerprint moves only for structural change
+    Scenario Outline: The fingerprint changes only for structural change
       Given a doc whose fingerprint matches the project's current shape
       When the project changes by <change>
       Then the fingerprint <result>
 
       Examples:
-        | change                                  | result        |
-        | adding a top-level module               | moves         |
-        | adding a dependency                     | moves         |
-        | changing a dependency-cruiser boundary rule | moves     |
-        | adding a schema file                    | moves         |
-        | bumping only a dependency version       | does not move |
-        | editing only a comment in a source file | does not move |
+        | change                                      | result                                  |
+        | adding a top-level module                   | differs from the recorded fingerprint   |
+        | adding a dependency                         | differs from the recorded fingerprint   |
+        | changing a dependency-cruiser boundary rule | differs from the recorded fingerprint   |
+        | adding a schema file                        | differs from the recorded fingerprint   |
+        | bumping only a dependency version           | is unchanged from the recorded fingerprint |
+        | editing only a comment in a source file     | is unchanged from the recorded fingerprint |
 
     @architecture-state-docs.TB1.AC2
-    Scenario: An out-of-band structural change is detected at the next session start
+    Scenario: An out-of-band change is healed and its lagging prose flagged at session start
       Given a structural change was committed with no agent in the loop
       When a session starts
-      Then the change is detected as drift from the recorded fingerprint
+      Then the skeleton is re-synced to the change
+      And any prose left behind by the change is flagged
