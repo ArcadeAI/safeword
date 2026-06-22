@@ -2,8 +2,8 @@
 id: K2ZP40
 slug: let-codex-earn-self-review-stamps-without-render-time-shell
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 scope:
   - Add explicit manual fallback guidance to `/self-review` surfaces when Claude-style render-time `!` execution does not run.
   - Clarify that `write-review-stamp.ts` can earn the content-bound review stamp without `CLAUDE_SESSION_ID`.
@@ -18,7 +18,7 @@ done_when:
   - Surface-contract tests cover the manual fallback wording.
   - Existing review-stamp helper and gate tests continue to pass.
 created: 2026-06-15T22:53:45.782Z
-last_modified: 2026-06-15T23:56:22Z
+last_modified: 2026-06-21T21:52:00Z
 ---
 
 # Let Codex earn self-review stamps without render-time shell
@@ -43,6 +43,7 @@ This was found during the `HMZSCD` codebase sweep. It is related to the same por
 
 ## Work Log
 
+- 2026-06-21T21:52:00Z Closed: self-review manual write-review-stamp.ts fallback verified on origin/main, byte-aligned dogfood+template; review-stamp helper/gate tests pass. Shipped 2026-06-16 but the ticket was left in_progress; closing administratively (one of the #294 stale set).
 - 2026-06-15T23:56:22Z Verified: Focused surface suite passed and `tests/integration/review-stamp.test.ts` passed, confirming stamp helper semantics still work unchanged.
 - 2026-06-15T23:55:00Z Implemented: `/self-review` templates and dogfood copies now include an explicit `write-review-stamp.ts spec` fallback for clients that do not execute Claude-style render-time `!` lines, and clarify the stamp is content-bound rather than `CLAUDE_SESSION_ID` proof.
 - 2026-06-15T23:50:00Z RED: Added failing surface-contract coverage across template and dogfood self-review command/skill copies.
