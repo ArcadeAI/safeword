@@ -10,6 +10,23 @@ allowed-tools: '*'
 
 Deep review with web research to verify against current ecosystem. Complements automatic hook.
 
+## Invocation log
+
+This skill is required at the done-gate for tickets with **two or more RGR loops** (W610WW) — the whole-ticket review half of the cross-scenario pass. The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /quality-review was actually invoked. Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding. Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution, so the fallback below is explicit. Hand-writing review notes cannot produce this gate proof.
+
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID}" || echo "[skill-invocation-log] FAILED - no session-scoped proof logged"`
+
+If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
+
+```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
+```
+
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no session id` (non-Claude runtime with no session binding), or still does not print `quality-review ✓`**: a ≥2-loop ticket must fail closed if no real current-session proof can be logged. Do not mark such a ticket done or hand-write review notes as a substitute for the gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the client lacks a compatible session id, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
+
+Single-loop tickets, patches, and no-ticket reviews may continue after recording that session-scoped proof was unavailable and not required by the gate.
+
 **When to use this skill (not automatic hook):**
 
 - **Explicit web research**: "double check against latest docs", "verify versions", "check security"
@@ -28,6 +45,7 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 | define-behavior | Testing patterns, BDD research and patterns     |
 | scenario-gate   | Architecture patterns, test layer strategy      |
 | implement       | **Library versions, deprecated APIs, security** |
+| verify          | Flaky-test & regression patterns, coverage gaps |
 | done            | CI/CD patterns, release checklists              |
 
 ## 2. Research Angles (Primary Value)
@@ -67,6 +85,7 @@ Fetch official documentation for libraries in use.
 **Versions:** [✓/⚠️/❌] [Latest version check]
 **Documentation:** [✓/⚠️/❌] [Current docs check]
 **Security:** [✓/⚠️/❌] [Vulnerability check]
+**No-bloat:** [✓/⚠️/❌] [smallest thing that works, or name the cut]
 
 **Verdict:** [APPROVE / REQUEST CHANGES / NEEDS DISCUSSION]
 
@@ -93,16 +112,21 @@ Run the review in passes (MAX_PASSES = 3), not one-and-done.
 
 Each pass:
 
-1. **Review with a fresh, independent reviewer.** Spawn a sub-agent on a
-   _different model than yours_ when your harness supports it — a same-model,
-   same-context reviewer shares your blind spots, and ungrounded self-correction
-   can _degrade_ code rather than improve it. Hand it only the diff and the
-   ticket scope, have it apply §1–3, and return the Output Format above.
+1. **Review with a fresh, independent reviewer** — one that doesn't share your
+   blind spots. A same-model, same-context reviewer shares them, and ungrounded
+   self-correction can _degrade_ code rather than improve it. **Prefer a
+   different model of comparable-or-better capability; if you don't have one,
+   run a fresh-context pass on your own model** — the usual path, since most
+   setups run a single model. Never review on a _weaker_ model: a fresh context
+   on your own model beats a weaker different one. Hand the reviewer only the
+   diff and the ticket scope, have it apply §1–3, and return the Output Format
+   above.
    - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
      auto-spawn, and `/agent` only switches between existing threads. Cursor:
      subagents.
-   - No sub-agent available? Do a fresh-context pass and switch models manually —
-     independence is the point, not the mechanism.
+   - No sub-agent? Re-read in a fresh context (a different comparable-or-better
+     model if you can switch to one). Independence is the point, not the
+     mechanism.
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
 3. **Decide.** Stop when **Critical issues = None** — remaining suggestions are

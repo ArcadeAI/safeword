@@ -5,6 +5,8 @@
  * All security rules now at error - no distinction between "high confidence" and "advisory".
  */
 
+import { fileURLToPath } from 'node:url';
+
 import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
@@ -14,13 +16,16 @@ const ERROR = 2;
 
 const jsLinter = new Linter({ configType: 'flat' });
 
+// Absolute path under __tests__ so sonarjs test-aware rules can resolve a topDir.
+const MJS_FILE = fileURLToPath(new URL('inline.mjs', import.meta.url));
+
 /**
  * Lint JS code and return messages for a specific rule.
  * @param code - Source code to lint
  * @param ruleId - Rule ID to filter for
  */
 function lintJs(code: string, ruleId: string) {
-  const results = jsLinter.verify(code, recommended, { filename: 'test.mjs' });
+  const results = jsLinter.verify(code, recommended, { filename: MJS_FILE });
   return results.filter(r => r.ruleId === ruleId);
 }
 
@@ -44,7 +49,7 @@ function expectLintError(errors: Linter.LintMessage[], severity: number = ERROR)
 function getRuleConfig(config: any[], ruleId: string): unknown {
   for (let i = config.length - 1; i >= 0; i--) {
     const c = config[i];
-    if (c && typeof c === 'object' && 'rules' in c && c.rules && ruleId in c.rules) {
+    if (c && typeof c === 'object' && 'rules' in c && c.rules && Object.hasOwn(c.rules, ruleId)) {
       return c.rules[ruleId];
     }
   }

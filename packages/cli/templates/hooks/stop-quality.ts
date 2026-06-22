@@ -14,7 +14,7 @@ import {
 } from './lib/active-ticket.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
-import { validateLedger } from './lib/ledger-validation.ts';
+import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
   AUTHOR_MODEL_ENV,
   hashArtifact,
@@ -30,12 +30,12 @@ import {
   EXPLAIN_HINT,
   type FailureEntry,
   getStateFilePath,
-  type QualityState,
+  readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase, shouldReviewStep } from './lib/review-trigger.ts';
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
-import { checkSkillInvocations, getRequiredSkillsForPhase } from './lib/skill-invocation-log.ts';
+import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
@@ -89,15 +89,8 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
 
   // Try session-scoped resolution first
   if (sessionId) {
-    const stateFile = getStateFilePath(projectDir, sessionId);
-    if (!existsSync(stateFile)) return fallbackGlobalScan();
-
-    let state: QualityState;
-    try {
-      state = JSON.parse(readFileSync(stateFile, 'utf8'));
-    } catch {
-      return fallbackGlobalScan();
-    }
+    const state = readSessionState(projectDir, sessionId);
+    if (!state) return fallbackGlobalScan();
 
     if (!state.activeTicket) return empty;
 
@@ -118,18 +111,6 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
   }
 
   return fallbackGlobalScan();
-}
-
-/** Read session state file once. Returns null if unavailable. */
-function readSessionState(sessionId?: string): QualityState | null {
-  if (!sessionId) return null;
-  const stateFile = getStateFilePath(projectDir, sessionId);
-  if (!existsSync(stateFile)) return null;
-  try {
-    return JSON.parse(readFileSync(stateFile, 'utf8'));
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -501,6 +482,19 @@ if (currentPhase === 'done') {
 
   const hasScenarios = checkScenariosComplete(ticketInfo);
 
+  // Read the ledger once: the whole-ticket quality-review + refactor pass
+  // (W610WW) gates on whether it applies to this ledger, and ledger validation
+  // reuses the same content. A ticket with no test-definitions.md → pass N/A.
+  let ledgerContent: string | undefined;
+  let wholeTicketPass = false;
+  if (ticketInfo.folder) {
+    const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
+    if (existsSync(testDefsPath)) {
+      ledgerContent = readFileSync(testDefsPath, 'utf8');
+      wholeTicketPass = wholeTicketPassApplies(ledgerContent);
+    }
+  }
+
   // Verify.md artifact gate — replaces text-pattern matching for audit evidence.
   // verify.md is written by /verify skill when all checks pass.
   if (ticketInfo.folder) {
@@ -516,12 +510,15 @@ if (currentPhase === 'done') {
     }
   }
 
-  // Skill-invocation gate (ticket 147) — feature tickets entering done must have
-  // current-session log entries for required skills (/verify and /audit).
-  // Helper invocation in those skills writes the log; hand-written verify.md
-  // cannot produce the entries. Honors stop_hook_active bypass for consistency.
-  if (isFeature && !stopHookActive && input.session_id) {
-    const requiredSkills = getRequiredSkillsForPhase(currentPhase);
+  // Skill-invocation gate (ticket 147 + W610WW) — required skills follow the
+  // whole-ticket pass: features keep /verify + /audit; any ticket the pass
+  // applies to (≥2 annotated loops — see wholeTicketPassApplies) also needs
+  // /quality-review (the review half of the cross-scenario pass). Single-loop and
+  // pure-legacy tickets require nothing, so the gate is silent for them. Helper
+  // invocation in those skills writes the log; hand-written verify.md cannot
+  // produce the entries. Honors stop_hook_active.
+  const requiredSkills = requiredSkillsForDone(isFeature, wholeTicketPass);
+  if (requiredSkills.length > 0 && !stopHookActive && input.session_id) {
     const skillCheck = checkSkillInvocations({
       sessionId: input.session_id,
       required: requiredSkills,
@@ -531,7 +528,7 @@ if (currentPhase === 'done') {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       const missingList = skillCheck.missing.map(s => `/${s}`).join(' and ');
       hardBlockDone(
-        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking a feature ticket done. The helper-written log (skill-invocations.log under the project namespace root) proves current-session invocation; hand-written verify.md does not satisfy this feature-ticket gate. If you ran ${missingList} but no session-scoped proof was logged, inline shell execution may have been denied, the fallback helper may not have been run, the client may not have provided a compatible session id, or Bun could not run the installed helper. Check the invocation-log block at the top of the skill and .safeword/hooks/record-skill-invocation.ts.`,
+        `Required skill invocation(s) missing in this session: ${missingList}. Run ${missingList} before marking this ticket done. The helper-written log (skill-invocations.log under the project namespace root) proves current-session invocation; hand-written verify.md does not satisfy this gate. If you ran ${missingList} but no session-scoped proof was logged, inline shell execution may have been denied, the fallback helper may not have been run, the client may not have provided a compatible session id, or Bun could not run the installed helper. Check the invocation-log block at the top of the skill and .safeword/hooks/record-skill-invocation.ts.`,
       );
     }
   }
@@ -544,43 +541,41 @@ if (currentPhase === 'done') {
         `Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
       );
     }
-
-    // Annotation ledger validation (ticket J7VBGJ, Rules 3 + 4): every
-    // [x] R/G/R checkbox must carry a SHA or skip:<reason>; SHAs distinct
-    // and reachable; at least one real SHA per scenario; cross-scenario row
-    // present and valid. Pure-legacy tickets (no annotations) are exempt.
-    if (ticketInfo.folder) {
-      const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
-      if (existsSync(testDefsPath)) {
-        const content = readFileSync(testDefsPath, 'utf8');
-        const isReachable = (sha: string): boolean => {
-          try {
-            // execFileSync (no shell) — sha is a file-derived annotation value;
-            // passing it as an arg, not interpolated into a shell string, closes
-            // the command-injection sink (ledger-validation also rejects non-hex).
-            execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], {
-              cwd: projectDir,
-              stdio: 'pipe',
-            });
-            return true;
-          } catch {
-            return false;
-          }
-        };
-        const validation = validateLedger(content, isReachable);
-        if (!validation.ok) {
-          recordFailure(projectDir, input.session_id, 'done-gate-ledger-invalid');
-          hardBlockDone(
-            `TDD annotation ledger validation failed in test-definitions.md:\n${validation.errors.map(e => `  - ${e}`).join('\n')}`,
-          );
-        }
-      }
-    }
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence
     if (!TEST_EVIDENCE_PATTERN.test(combinedText)) {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(getDoneHardBlockMessage(ticketInfo.type, false));
+    }
+  }
+
+  // Annotation ledger validation (ticket J7VBGJ, Rules 3 + 4 + W610WW): runs for
+  // ANY build ticket with a test-definitions.md — task or feature, not fenced to
+  // features. Every [x] R/G/R checkbox must carry a SHA or skip:<reason>; SHAs
+  // distinct and reachable; at least one real SHA per scenario; the cross-scenario
+  // refactor row present and valid when the whole-ticket pass applies (≥2 annotated
+  // loops). Pure-legacy and single-loop tickets are exempt inside validateLedger.
+  if (ledgerContent !== undefined) {
+    const isReachable = (sha: string): boolean => {
+      try {
+        // execFileSync (no shell) — sha is a file-derived annotation value;
+        // passing it as an arg, not interpolated into a shell string, closes
+        // the command-injection sink (ledger-validation also rejects non-hex).
+        execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], {
+          cwd: projectDir,
+          stdio: 'pipe',
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const validation = validateLedger(ledgerContent, isReachable);
+    if (!validation.ok) {
+      recordFailure(projectDir, input.session_id, 'done-gate-ledger-invalid');
+      hardBlockDone(
+        `TDD annotation ledger validation failed in test-definitions.md:\n${validation.errors.map(e => `  - ${e}`).join('\n')}`,
+      );
     }
   }
 
@@ -641,7 +636,7 @@ if (typecheckAdvice.advice !== null) {
 // this Stop path catches a boundary PostToolUse didn't see (e.g. a non-edit
 // phase bump) and the ordinary interactive stop. Dedup via lastReviewedStep /
 // lastReviewedPhase so each boundary is reviewed once across both triggers.
-const sessionState = readSessionState(input.session_id);
+const sessionState = readSessionState(projectDir, input.session_id);
 
 // Derive TDD step from test-definitions.md (not cache)
 const tddStep =

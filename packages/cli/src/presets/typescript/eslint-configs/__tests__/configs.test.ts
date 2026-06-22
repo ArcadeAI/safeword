@@ -8,6 +8,8 @@
  * - Catch invalid code with expected errors
  */
 
+import { fileURLToPath } from 'node:url';
+
 import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
@@ -16,6 +18,11 @@ import { astroConfig } from '../astro.js';
 import { JS_TS_FILES } from '../base.js';
 import { recommended } from '../recommended.js';
 import { recommendedTypeScript } from '../recommended-typescript.js';
+
+// Absolute paths under __tests__ so sonarjs test-aware rules can resolve a topDir.
+// The extension drives which config block matches.
+const MJS_FILE = fileURLToPath(new URL('inline.mjs', import.meta.url));
+const TS_FILE = fileURLToPath(new URL('inline.ts', import.meta.url));
 
 describe('recommended config', () => {
   it('is a non-empty array', () => {
@@ -47,7 +54,7 @@ describe('recommended config', () => {
 
     // Verify config can be used - this will throw if invalid
     expect(() => {
-      linter.verify('const x = 1;', recommended);
+      linter.verify('const x = 1;', recommended, { filename: MJS_FILE });
     }).not.toThrow();
   });
 
@@ -60,7 +67,7 @@ export const add = (a, b) => a + b;
 `;
 
     const results = linter.verify(validCode, recommended, {
-      filename: 'test.mjs',
+      filename: MJS_FILE,
     });
     const errors = results.filter(r => r.severity === 2);
 
@@ -76,7 +83,7 @@ const userInput = 'alert(1)';
 eval(userInput);
 `;
 
-    const results = linter.verify(invalidCode, recommended);
+    const results = linter.verify(invalidCode, recommended, { filename: MJS_FILE });
     const errors = results.filter(r => r.severity === 2);
 
     expect(errors.length).toBeGreaterThan(0);
@@ -93,12 +100,12 @@ try {
 }
 `;
 
-    const results = linter.verify(code, recommended);
+    const results = linter.verify(code, recommended, { filename: MJS_FILE });
     const safewordErrors = results.filter(
       r => r.ruleId === 'safeword/no-incomplete-error-handling',
     );
 
-    expect(safewordErrors.length).toBe(1);
+    expect(safewordErrors).toHaveLength(1);
   });
 });
 
@@ -167,7 +174,7 @@ describe('recommendedTypeScript config', () => {
     expect(() => {
       // Just verify the config is valid ESLint config format
       linter.verify('const x: number = 1;', recommendedTypeScript, {
-        filename: 'test.ts',
+        filename: TS_FILE,
       });
     }).not.toThrow();
   });
@@ -305,12 +312,12 @@ const x = 1;
 export default x;
 `;
 
-    const results = linter.verify(code, recommended, { filename: 'test.mjs' });
+    const results = linter.verify(code, recommended, { filename: MJS_FILE });
     const descriptionErrors = results.filter(
       r => r.ruleId === 'eslint-comments/require-description',
     );
 
-    expect(descriptionErrors.length).toBe(1);
+    expect(descriptionErrors).toHaveLength(1);
   });
 
   it('allows described disable comments', () => {
@@ -322,12 +329,12 @@ const x = 1;
 export default x;
 `;
 
-    const results = linter.verify(code, recommended, { filename: 'test.mjs' });
+    const results = linter.verify(code, recommended, { filename: MJS_FILE });
     const descriptionErrors = results.filter(
       r => r.ruleId === 'eslint-comments/require-description',
     );
 
-    expect(descriptionErrors.length).toBe(0);
+    expect(descriptionErrors).toHaveLength(0);
   });
 
   it('includes reportUnusedDisableDirectives at error', () => {
@@ -386,14 +393,14 @@ describe('file scoping', () => {
     });
 
     // All Astro configs with astro/ rules should have .astro file scope
-    const allAstroScoped = astroRulesConfigs.every(config => {
+    const isAllAstroScoped = astroRulesConfigs.every(config => {
       if ('files' in config && Array.isArray(config.files)) {
         return config.files.some((f: string) => f.includes('.astro'));
       }
       // Astro plugin may set files via a different mechanism
       return true;
     });
-    expect(allAstroScoped).toBe(true);
+    expect(isAllAstroScoped).toBe(true);
   });
 
   it('combined config lints .ts files without errors', () => {
@@ -402,7 +409,7 @@ describe('file scoping', () => {
 
     // Should not throw for TypeScript files
     expect(() => {
-      linter.verify('const x = 1;', combinedConfig, { filename: 'test.ts' });
+      linter.verify('const x = 1;', combinedConfig, { filename: TS_FILE });
     }).not.toThrow();
   });
 });

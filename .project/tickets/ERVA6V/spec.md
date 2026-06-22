@@ -12,7 +12,7 @@ Keep the impl plan honest: when implementation finishes, the plan is reconciled 
 
 ## Personas
 
-- Agent-Driven Developer (DEV)
+- Technical Builder (TB)
 - Safeword Maintainer (SM)
 
 ## Vocabulary
@@ -23,7 +23,7 @@ Keep the impl plan honest: when implementation finishes, the plan is reconciled 
 
 ### plan-reconciliation.DEV1 — Trust the plan as a record of what shipped
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I read a finished feature's impl plan, I want it to reflect what was actually built — including decisions that changed mid-flight — so I can rely on it instead of diffing it against the code.
 

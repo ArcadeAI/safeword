@@ -229,7 +229,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     expect(existsSync(bogus)).toBe(false);
   });
 
-  it('renders ticket=<id>/<phase> when an active ticket exists in this worktree', () => {
+  it('renders ticket=<id>/<phase> for the ticket bound to this session', () => {
     // Create an active ticket in the project directory.
     const ticketsDirectory = nodePath.join(
       projectDirectory,
@@ -253,6 +253,13 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     ].join('\n');
     writeFileSync(nodePath.join(ticketsDirectory, 'ticket.md'), ticketContent);
 
+    // Bind the ticket to THIS session, as post-tool-quality does when an edit
+    // touches a ticket.md. The re-entry tag reads the per-session binding (#274).
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword-project', 'quality-state-sess_test_ticket.json'),
+      JSON.stringify({ activeTicket: '645W8H' }),
+    );
+
     const transcriptPath = makeTranscript(
       projectDirectory,
       'Wrapping up.\n\n**Next:** keep going on Slice 1',
@@ -266,5 +273,50 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
 
     expect(line).toContain('ticket=645W8H/scenario-gate');
     expect(line).not.toContain('ticket=∅/freeform');
+  });
+
+  it('renders ∅/freeform when a worktree ticket exists but is NOT bound to this session (#274)', () => {
+    // A backlog ticket sits in the worktree, in_progress, freshly modified — but
+    // this session never bound it (no quality-state-<sessionId>.json). The old
+    // global-most-recent scan mislabeled the brief with this unrelated ticket;
+    // the per-session resolver must emit the freeform sentinel instead.
+    const ticketsDirectory = nodePath.join(
+      projectDirectory,
+      '.safeword-project',
+      'tickets',
+      '9E6Q4V',
+    );
+    mkdirSync(ticketsDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketsDirectory, 'ticket.md'),
+      [
+        '---',
+        'id: 9E6Q4V',
+        'slug: unrelated-backlog',
+        'type: task',
+        'phase: intake',
+        'status: in_progress',
+        'last_modified: 2026-06-19T21:44:00.000Z',
+        '---',
+        '',
+        '# Unrelated backlog ticket',
+        '',
+      ].join('\n'),
+    );
+    // Deliberately NO quality-state-<sessionId>.json — this session has no binding.
+
+    const transcriptPath = makeTranscript(
+      projectDirectory,
+      'Did unrelated work.\n\n**Next:** carry on',
+    );
+
+    const result = runStopReentryHook(projectDirectory, transcriptPath, 'sess_unbound');
+    expect(result.status).toBe(0);
+
+    const logPath = nodePath.join(projectDirectory, '.safeword-project', 're-entry.md');
+    const line = readFileSync(logPath, 'utf8').trim();
+
+    expect(line).toContain('ticket=∅/freeform');
+    expect(line).not.toContain('9E6Q4V');
   });
 });

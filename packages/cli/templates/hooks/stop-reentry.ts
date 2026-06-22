@@ -13,7 +13,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { getActiveTicket } from './lib/active-ticket';
+import { getTicketInfo } from './lib/active-ticket';
+import { readSessionState } from './lib/quality-state.ts';
 import { resolveProjectRoot } from './lib/re-entry';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
@@ -45,25 +46,29 @@ function extractLastNextImperative(text: string): string | null {
   return null;
 }
 
-function readTicketIdFromFrontmatter(projectDirectory: string, folder: string): string | null {
-  const ticketPath = join(resolveNamespaceRoot(projectDirectory), 'tickets', folder, 'ticket.md');
-  try {
-    const content = readFileSync(ticketPath, 'utf8');
-    const idMatch = /^id:\s*(.+)$/m.exec(content);
-    if (!idMatch) return null;
-    // YAML failsafe schema may quote leading-zero ids; strip wrapping quotes.
-    return idMatch[1].trim().replace(/^['"]|['"]$/g, '');
-  } catch {
-    return null;
-  }
+/**
+ * The session's bound ticket id, from the per-session quality-state
+ * (`quality-state-<sessionId>.json` `activeTicket`) — set when an edit touches a
+ * ticket.md, auto-cleared when the ticket reaches done/backlog. Returns null when
+ * the session never bound a ticket (or state is unreadable).
+ */
+function readSessionTicketId(projectDirectory: string, sessionId: string): string | null {
+  return readSessionState(projectDirectory, sessionId)?.activeTicket ?? null;
 }
 
-function resolveTicketField(projectDirectory: string): string {
-  const active = getActiveTicket(projectDirectory);
-  if (!active.folder || !active.phase) return 'ticket=∅/freeform';
-  const id = readTicketIdFromFrontmatter(projectDirectory, active.folder);
-  if (!id) return 'ticket=∅/freeform';
-  return `ticket=${id}/${active.phase}`;
+/**
+ * The re-entry brief records what THIS session worked on, so the ticket tag comes
+ * from the per-session binding — NOT a global "most recent in_progress ticket"
+ * scan, which surfaces an unrelated backlog ticket whenever the session has no
+ * bound ticket (issue #274). There is deliberately no global fallback: an unbound
+ * session is honestly `∅/freeform`.
+ */
+function resolveTicketField(projectDirectory: string, sessionId: string): string {
+  const ticketId = readSessionTicketId(projectDirectory, sessionId);
+  if (!ticketId) return 'ticket=∅/freeform';
+  const { phase } = getTicketInfo(projectDirectory, ticketId);
+  if (!phase) return 'ticket=∅/freeform';
+  return `ticket=${ticketId}/${phase}`;
 }
 
 function readLastAssistantText(transcriptPath: string): string {
@@ -111,7 +116,7 @@ async function main(): Promise<void> {
   const imperative = extractLastNextImperative(assistantText);
   if (!imperative) return;
 
-  const ticketField = resolveTicketField(projectRoot);
+  const ticketField = resolveTicketField(projectRoot, session_id);
 
   const timestamp = new Date().toISOString();
   const line = `${timestamp} ${session_id} ${ticketField} Next: ${imperative}\n`;

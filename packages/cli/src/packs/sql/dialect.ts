@@ -96,7 +96,7 @@ const PROVIDER_TO_DIALECT: Record<string, string> = {
 export function detectSqlDialect(cwd: string): string | undefined {
   return (
     detectFromProfiles(cwd) ??
-    detectFromPythonDeps(cwd) ??
+    detectFromPythonDependencies(cwd) ??
     detectFromSqlcConfig(cwd) ??
     detectFromPrismaSchema(cwd) ??
     detectFromDrizzleConfig(cwd) ??
@@ -153,7 +153,7 @@ function detectFromProfiles(cwd: string): string | undefined {
 }
 
 /** Signal 2: dbt-{adapter} packages in Python dependency files. */
-function detectFromPythonDeps(cwd: string): string | undefined {
+function detectFromPythonDependencies(cwd: string): string | undefined {
   const directory = findInTree(cwd, 'requirements.txt') ?? findInTree(cwd, 'pyproject.toml');
   if (!directory) return undefined;
 
@@ -170,9 +170,11 @@ function detectFromPythonDeps(cwd: string): string | undefined {
     if (!content) return undefined;
 
     // Match dbt-{adapter} packages, skipping dbt-core (framework, not adapter)
-    const adapters = [...content.matchAll(/dbt-(\w+)/g)]
+    const adapters = content
+      .matchAll(/dbt-(\w+)/g)
       .map(m => m[1])
-      .filter((a): a is string => a !== undefined && a !== 'core');
+      .filter((a): a is string => a !== undefined && a !== 'core')
+      .toArray();
     for (const adapter of adapters) {
       const dialect = ADAPTER_TO_DIALECT[adapter];
       if (dialect) return dialect;

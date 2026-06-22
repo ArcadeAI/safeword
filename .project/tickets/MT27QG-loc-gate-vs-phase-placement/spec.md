@@ -22,13 +22,13 @@ it git-operation-aware.
 
 ## Personas
 
-- **Safeword Maintainer (SM)** / **Agent-Driven Developer (DEV)** — both hit the gate; the deadlock strands anyone whose agent edits during a merge/rebase/cherry-pick.
+- **Safeword Maintainer (SM)** / **Technical Builder (TB)** — both hit the gate; the deadlock strands anyone whose agent edits during a merge/rebase/cherry-pick.
 
 ## Jobs To Be Done
 
 ### loc-gate-vs-phase-placement.DEV1 — Resolve a merge without the blast-radius gate deadlocking me
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my agent is mid-merge (or rebase/cherry-pick) and needs to edit files to
 > resolve conflicts, I want the LOC gate to stand down, so blast-radius control

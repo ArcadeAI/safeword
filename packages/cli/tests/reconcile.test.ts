@@ -80,6 +80,15 @@ describe('Reconcile - Reconciliation Engine', () => {
     return defaultContent;
   }
 
+  // Write .safeword/config.json with a custom paths.projectRoot (issue #273 tests).
+  function writeProjectRootConfig(projectRoot: string) {
+    mkdirSync(nodePath.join(temporaryDirectory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(temporaryDirectory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot } }),
+    );
+  }
+
   // Helper to create project context
   /**
    *
@@ -293,6 +302,115 @@ describe('Reconcile - Reconciliation Engine', () => {
       }
     });
 
+    it('excludes a custom paths.projectRoot from an existing biome.json (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'biome.json'),
+        `${JSON.stringify({ files: { includes: ['**'] } }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const biome = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'biome.json'), 'utf8'),
+      ) as { files: { includes: string[] } };
+      expect(biome.files.includes).toContain('!team-ns'); // custom root excluded
+      expect(biome.files.includes).toContain('!.safeword'); // base dirs preserved
+    });
+
+    it('excludes a custom paths.projectRoot from an existing dprint.json (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'dprint.json'),
+        `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const dprint = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'dprint.json'), 'utf8'),
+      ) as { excludes: string[] };
+      expect(dprint.excludes).toContain('team-ns/**'); // custom root excluded
+      expect(dprint.excludes).toContain('.safeword/**'); // base dirs preserved
+    });
+
+    it('ignores a custom paths.projectRoot in an existing .markdownlint-cli2.jsonc (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ config: { default: true }, ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const cli2 = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ) as { ignores: string[] };
+      expect(cli2.ignores).toContain('**/team-ns/**'); // custom root, leading-globstar form
+      expect(cli2.ignores).toContain('**/.safeword/**'); // base dirs preserved
+    });
+
+    it('adds a custom paths.projectRoot to knip.json ignore (#273)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+
+      await reconcile(
+        SAFEWORD_SCHEMA,
+        'install',
+        createContext({ projectType: { hasJsSource: true } }),
+      );
+
+      const knip = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'knip.json'), 'utf8'),
+      ) as { ignore: string[] };
+      expect(knip.ignore).toContain('team-ns/**'); // custom root ignored by knip
+      expect(knip.ignore).toContain('.project/**'); // well-known roots preserved
+    });
+
+    it('removes a custom paths.projectRoot from dprint.json on uninstall (#273 symmetry)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      // Use the real context builder: it resolves namespaceRoot up front (the CLI
+      // does this before uninstall removes .safeword/config.json), which is what
+      // lets unmerge clean up the custom root rather than orphan it.
+      const { createProjectContext } = await import('../src/utils/context.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, 'dprint.json'),
+        `${JSON.stringify({ excludes: ['node_modules'] }, undefined, 2)}\n`,
+      );
+
+      const dprintPath = nodePath.join(temporaryDirectory, 'dprint.json');
+      const excludesAfter = (): string[] =>
+        (JSON.parse(readFileSync(dprintPath, 'utf8')) as { excludes?: string[] }).excludes ?? [];
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(temporaryDirectory));
+      expect(excludesAfter()).toContain('team-ns/**'); // added on install
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(temporaryDirectory));
+      // unmerge removes exactly what merge added — including the custom root.
+      expect(excludesAfter()).not.toContain('team-ns/**');
+      expect(excludesAfter()).not.toContain('.safeword/**');
+      expect(excludesAfter()).toContain('node_modules'); // user entry preserved
+    });
+
     it('SAFEWORD_IGNORE_DIRS covers every safeword-owned dot-directory the schema manages (no drift)', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const { SAFEWORD_IGNORE_DIRS, computeSafewordPathPrefixes } =
@@ -347,6 +465,135 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).toContain('# Safeword - managed prettier exclusions (owned dirs)');
     });
 
+    const PRETTIER_HEADER = '# Safeword - managed prettier exclusions (owned dirs)';
+    const prettierDirectories = [
+      '.husky/_',
+      '.safeword/',
+      '.claude/',
+      '.cursor/',
+      '.codex/',
+      '.agents/',
+      '.project/',
+      '.safeword-project/',
+    ].join('\n');
+    const currentPrettierBlock = `\n${PRETTIER_HEADER}\n${prettierDirectories}\n`;
+    const countHeaders = (content: string): number => content.split(PRETTIER_HEADER).length - 1;
+
+    it('prettierignore excludes a custom paths.projectRoot on fresh install (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('team-ns/'); // custom root excluded
+      expect(content).toContain('dist/'); // customer content preserved
+    });
+
+    it('prettierignore re-renders in place to add a custom root on upgrade — exactly one block (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      // Existing custom-root install: current block WITHOUT the custom root yet,
+      // and a customer ignore line AFTER the managed block.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        `dist/${currentPrettierBlock}coverage/\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('team-ns/'); // custom root now excluded
+      expect(content).toContain('dist/'); // customer content before preserved
+      expect(content).toContain('coverage/'); // customer line AFTER the block preserved
+      expect(countHeaders(content)).toBe(1); // re-rendered in place, not appended
+    });
+
+    it('prettierignore does not churn a default install on upgrade (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+      const afterInstall = readFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        'utf8',
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+      const afterUpgrade = readFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        'utf8',
+      );
+
+      expect(afterUpgrade).toBe(afterInstall); // byte-identical — no churn, one block
+      expect(countHeaders(afterUpgrade)).toBe(1);
+    });
+
+    it('prettierignore adds no bare repo-root entry for projectRoot "." (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('.');
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      // No bare './' or empty entry that would exclude the whole repo.
+      expect(content).not.toMatch(/^\.\/$/m);
+      expect(content).not.toMatch(/^\/$/m);
+    });
+
+    it('prettierignore re-render preserves a customer line after the block even if it equals an owned dir (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      // Customer manually duplicated `.claude/` (an owned dir) right AFTER the block.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.prettierignore'),
+        `dist/${currentPrettierBlock}.claude/\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).toContain('team-ns/'); // re-rendered with the custom root
+      expect(countHeaders(content)).toBe(1);
+      // The block has one `.claude/`; the customer's trailing one must survive → two total.
+      expect(content.split('.claude/').length - 1).toBe(2);
+    });
+
+    it('prettierignore block is removed on uninstall, customer content preserved (#293)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { createProjectContext } = await import('../src/utils/context.js');
+
+      createPackageJson();
+      writeProjectRootConfig('team-ns');
+      writeFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'dist/\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(temporaryDirectory));
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(temporaryDirectory));
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
+      expect(content).not.toContain(PRETTIER_HEADER); // managed block gone
+      expect(content).not.toContain('team-ns/');
+      expect(content).toContain('dist/'); // customer content preserved
+    });
+
     it('excludes every safeword-owned dir from an existing dprint.json', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
@@ -389,6 +636,107 @@ describe('Reconcile - Reconciliation Engine', () => {
       for (const dir of SAFEWORD_IGNORE_DIRS) {
         expect(oxfmt.ignorePatterns).toContain(`${dir}/**`);
       }
+    });
+
+    it('ignores every safeword-owned dir in an existing .markdownlint-cli2.jsonc (ticket #262)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_IGNORE_DIRS } = await import('../src/owned-paths.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ config: { default: true }, ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      const cli2 = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ) as { config: unknown; ignores: string[] };
+      expect(cli2.ignores).toContain('dist/**'); // customer entry preserved
+      expect(cli2.config).toEqual({ default: true }); // rule config untouched
+      // Leading-globstar form (not a bare dir glob): lint-staged passes absolute
+      // paths, and the leading globstar is required to match them.
+      for (const dir of SAFEWORD_IGNORE_DIRS) {
+        expect(cli2.ignores).toContain(`**/${dir}/**`);
+      }
+    });
+
+    it('does not create .markdownlint-cli2.jsonc when the repo has no markdownlint config (skipIfMissing)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(existsSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'))).toBe(false);
+    });
+
+    it('removes safeword ignore globs from .markdownlint-cli2.jsonc on uninstall, preserving customer entries', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+
+      const cli2 = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ) as { ignores: string[] };
+      expect(cli2.ignores).toEqual(['dist/**']); // safeword globs gone, customer entry kept
+    });
+
+    it('warns (instead of silently skipping) when a jsonMerge target exists but does not parse', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      // A real-world commented .markdownlint-cli2.jsonc (JSONC). JSON.parse fails on
+      // the comment, so the merge is skipped — but it must not be skipped silently.
+      const commented = '{\n  // my markdownlint config\n  "ignores": ["dist/**"]\n}\n';
+      writeFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), commented);
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(result.warnings.some(w => w.includes('.markdownlint-cli2.jsonc'))).toBe(true);
+      expect(result.warnings.some(w => w.includes('ignores'))).toBe(true);
+      // The customer's commented file is left untouched (never clobbered).
+      expect(
+        readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
+      ).toBe(commented);
+    });
+
+    it('stays silent (no warning) when a skipIfMissing jsonMerge target is genuinely absent', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(result.warnings.some(w => w.includes('.markdownlint-cli2.jsonc'))).toBe(false);
+    });
+
+    it('does not warn when a jsonMerge target parses cleanly', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'),
+        `${JSON.stringify({ ignores: ['dist/**'] }, undefined, 2)}\n`,
+      );
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'install', createContext());
+
+      expect(result.warnings.some(w => w.includes('.markdownlint-cli2.jsonc'))).toBe(false);
     });
 
     it('should merge JSON files', async () => {
@@ -689,7 +1037,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       // Nothing should be updated
-      expect(result.updated.length).toBe(0);
+      expect(result.updated).toHaveLength(0);
     });
 
     it('should skip managed files if user modified them', async () => {
@@ -979,6 +1327,196 @@ describe('Reconcile - Reconciliation Engine', () => {
     });
   });
 
+  describe('reconcile() - MCP server merge (#255)', () => {
+    // Regression: #255 — MCP reconcile must not clobber user-customized servers.
+    it('should preserve a user-customized context7 entry on upgrade (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      // User authored a custom context7 transport with headers.
+      const customContext7 = {
+        url: 'https://mcp.context7.com/mcp',
+        headers: { Authorization: 'Bearer user-token' },
+      };
+      writeFileSync(
+        mcpPath,
+        JSON.stringify({ mcpServers: { context7: customContext7 } }, undefined, 2),
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const result = JSON.parse(readFileSync(mcpPath, 'utf8')) as {
+        mcpServers: Record<string, unknown>;
+      };
+      // User's customization survives reconcile/upgrade...
+      expect(result.mcpServers.context7).toEqual(customContext7);
+      // ...and the missing default (playwright) is still injected.
+      expect(result.mcpServers.playwright).toBeDefined();
+    });
+
+    it('should preserve unrelated user MCP servers on upgrade (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      const customServer = { command: 'bunx', args: ['@acme/custom-mcp@latest'] };
+      writeFileSync(mcpPath, JSON.stringify({ mcpServers: { acme: customServer } }, undefined, 2));
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const result = JSON.parse(readFileSync(mcpPath, 'utf8')) as {
+        mcpServers: Record<string, unknown>;
+      };
+      expect(result.mcpServers.acme).toEqual(customServer);
+      expect(result.mcpServers.context7).toBeDefined();
+      expect(result.mcpServers.playwright).toBeDefined();
+    });
+
+    it('should seed default MCP servers when none are present (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { MCP_SERVERS } = await import('../src/utils/install.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const result = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, '.mcp.json'), 'utf8'),
+      ) as { mcpServers: Record<string, unknown> };
+      expect(result.mcpServers.context7).toEqual(MCP_SERVERS.context7);
+      expect(result.mcpServers.playwright).toEqual(MCP_SERVERS.playwright);
+    });
+
+    it('should not rewrite .mcp.json when servers are already correct (#255)', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      // A user-authored server ordered before our managed ones; both defaults present.
+      const onDisk = `${JSON.stringify(
+        {
+          mcpServers: {
+            acme: { command: 'bunx', args: ['@acme/custom-mcp@latest'] },
+            context7: { url: 'https://mcp.context7.com/mcp' },
+            playwright: { command: 'bunx', args: ['@playwright/mcp@latest'] },
+          },
+        },
+        undefined,
+        2,
+      )}\n`;
+      writeFileSync(mcpPath, onDisk);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      // Idempotent: byte-identical, no key reordering churn.
+      expect(readFileSync(mcpPath, 'utf8')).toBe(onDisk);
+    });
+  });
+
+  describe('reconcile() - Codex MCP parity (#269)', () => {
+    it('configures context7 and playwright MCP servers in Codex config on install', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      // context7 over the hosted streamable-HTTP transport (parity with MCP_SERVERS).
+      expect(content).toContain('[mcp_servers.context7]');
+      expect(content).toContain('url = "https://mcp.context7.com/mcp"');
+      // playwright over stdio.
+      expect(content).toContain('[mcp_servers.playwright]');
+      expect(content).toContain('command = "bunx"');
+      expect(content).toContain('args = ["@playwright/mcp@latest"]');
+    });
+
+    it('strips safeword MCP servers from a user-extended Codex config on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      // User appends their own config below safeword's managed content.
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        `${readCodexConfigTemplate()}\nmodel = "gpt-5-codex"\n`,
+      );
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      // User content survives; safeword's MCP servers are removed.
+      expect(content).toContain('model = "gpt-5-codex"');
+      expect(content).not.toContain('[mcp_servers.context7]');
+      expect(content).not.toContain('[mcp_servers.playwright]');
+    });
+
+    it('retrofits MCP servers into an existing pre-MCP Codex config on upgrade', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      // Simulate a config from a safeword version that predates MCP parity:
+      // the hooks scaffold, but no [mcp_servers.*] tables. Strip the exact MCP
+      // block so this stays correct regardless of template section ordering.
+      const { CODEX_MCP_SERVERS_BLOCK } = await import('../src/schema.js');
+      const preMcp = readCodexConfigTemplate().replace(CODEX_MCP_SERVERS_BLOCK, '');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preMcp);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('[mcp_servers.context7]');
+      expect(content).toContain('url = "https://mcp.context7.com/mcp"');
+      expect(content).toContain('[mcp_servers.playwright]');
+      // Idempotent: retrofit appends exactly one context7 table, not a duplicate.
+      expect(content.match(/\[mcp_servers\.context7\]/g)).toHaveLength(1);
+    });
+
+    it('does not overwrite or duplicate a user-authored context7 on upgrade', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      // User already has a customized context7 in their Codex config.
+      const { CODEX_MCP_SERVERS_BLOCK } = await import('../src/schema.js');
+      const base = readCodexConfigTemplate().replace(CODEX_MCP_SERVERS_BLOCK, '').trimEnd();
+      const customized = `${base}\n[mcp_servers.context7]\nurl = "https://example.test/custom"\n`;
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), customized);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      // User's customization survives; no duplicate table injected.
+      expect(content).toContain('url = "https://example.test/custom"');
+      expect(content).not.toContain('url = "https://mcp.context7.com/mcp"');
+      expect(content.match(/\[mcp_servers\.context7\]/g)).toHaveLength(1);
+    });
+  });
+
   describe('reconcile() - dryRun option', () => {
     it('should not make any changes in dryRun mode', async () => {
       const { reconcile } = await import('../src/reconcile.js');
@@ -1034,8 +1572,8 @@ describe('Reconcile - Reconciliation Engine', () => {
       });
 
       // No actions means healthy
-      expect(result.actions.filter(a => a.type === 'write').length).toBe(0);
-      expect(result.updated.length).toBe(0);
+      expect(result.actions.filter(a => a.type === 'write')).toHaveLength(0);
+      expect(result.updated).toHaveLength(0);
     });
   });
 
@@ -1124,7 +1662,7 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const projectType = { ...DEFAULT_PROJECT_TYPE };
 
-      const installedDevelopmentDeps = {
+      const installedDevelopmentDependencies = {
         eslint: '^8.0.0',
         prettier: '^3.0.0',
         knip: '^5.0.0',
@@ -1133,7 +1671,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = computePackagesToInstall(
         SAFEWORD_SCHEMA,
         projectType,
-        installedDevelopmentDeps,
+        installedDevelopmentDependencies,
       );
 
       expect(result).not.toContain(ESLINT_PACKAGE);

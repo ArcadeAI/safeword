@@ -28,7 +28,7 @@ describe('cucumber-js acceptance lane (SM1.AC1)', () => {
       });
       const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
       expect(result.status, output).toBe(0);
-      expect(output).toMatch(/[1-9]\d* scenarios? \([1-9]\d* passed\)/);
+      expect(output).toMatch(/\b[1-9]\d* scenarios? \([1-9]\d* passed\)/);
       expect(output).not.toMatch(/undefined|pending/);
     },
     TIMEOUT_SETUP,

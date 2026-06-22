@@ -59,7 +59,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Persona
 
-**Definition:** A user archetype the project serves, defined in `.safeword-project/personas.md` with a `**Role:**` line and a short code (e.g. `DEV`, `SM`). JTBDs and scenarios reference personas by name or code.
+**Definition:** A user archetype the project serves, defined in `.safeword-project/personas.md` with a `**Role:**` line and a short code (e.g. `TB`, `SM`). JTBDs and scenarios reference personas by name or code.
 
 ## Acceptance Criterion
 

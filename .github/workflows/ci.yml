@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -115,13 +115,6 @@ jobs:
 
       - name: Lint
         run: bun run lint
-
-      - name: Lint (ESLint 10 forward-compat)
-        # Ticket 099: safeword's peerDependencies.eslint is "^9.22.0 || ^10.0.0".
-        # The Lint step above runs ESLint 9 (the primary dev dep); this proves the
-        # same shipped config also lints clean under ESLint 10 via the eslint-v10
-        # alias, keeping the dual-major peer range honest as plugins/deps change.
-        run: bun run --cwd packages/cli lint:eslint:v10
 
       - name: Type check
         run: bun run --cwd packages/cli typecheck

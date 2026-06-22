@@ -26,8 +26,8 @@ describe('cleanup-zombies.sh', () => {
   });
 
   function runScript(args: string[] = []): string {
-    const cmd = `bash "${SCRIPT_PATH}" --dry-run ${args.join(' ')}`;
-    return execSync(cmd, { cwd: temporaryDirectory, encoding: 'utf8' });
+    const command = `bash "${SCRIPT_PATH}" --dry-run ${args.join(' ')}`;
+    return execSync(command, { cwd: temporaryDirectory, encoding: 'utf8' });
   }
 
   function createFile(relativePath: string, content = ''): void {

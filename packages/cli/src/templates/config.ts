@@ -311,9 +311,18 @@ function hook(command: string) {
   return { hooks: [{ type: 'command', command }] };
 }
 
-/** Create a hook entry that runs in the background without blocking */
-function asyncHook(command: string) {
-  return { hooks: [{ type: 'command', command, async: true }] };
+/**
+ * Create a background hook that does not block session start but can still
+ * surface a message: with `asyncRewake`, Claude Code runs the hook detached and
+ * — only when the hook exits with code 2 — delivers its stderr to Claude as a
+ * system reminder (https://code.claude.com/docs/en/hooks). Used by the
+ * auto-upgrade hook so a pending upgrade never stalls session start, yet
+ * "upgraded" / "major available" / "blocked" messages still reach the user.
+ * Degrades safely: a Claude Code build that doesn't know the flag treats the
+ * entry as an ordinary (synchronous) hook — i.e. today's blocking behavior.
+ */
+function asyncRewakeHook(command: string) {
+  return { hooks: [{ type: 'command', command, asyncRewake: true }] };
 }
 
 /** Create a hook entry with a tool matcher (PreToolUse, PostToolUse) */
@@ -341,7 +350,7 @@ export const SETTINGS_HOOKS = {
   SessionStart: [
     hook(`bash ${HOOKS_DIR}/session-bun-check.sh`),
     hook(`bun ${HOOKS_DIR}/session-dependency-readiness.ts`),
-    hook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
+    asyncRewakeHook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
     hook(`bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),
@@ -349,7 +358,6 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/session-start-reentry.ts`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     matchedHook('compact', `bun ${HOOKS_DIR}/session-compact-context.ts`),
-    asyncHook(`bun ${HOOKS_DIR}/session-update-check.ts`),
   ],
   UserPromptSubmit: [
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),

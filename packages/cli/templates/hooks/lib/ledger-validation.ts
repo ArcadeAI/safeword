@@ -174,6 +174,32 @@ function validateCrossScenario(
   }
 }
 
+/**
+ * Whether the whole-ticket quality-review + refactor pass applies to a ledger —
+ * the single W610WW trigger shared by BOTH halves of the pass: the cross-scenario
+ * refactor row (here, in `validateLedger`) and the `/quality-review` requirement
+ * (at the done-gate's skill check). It fires above one RGR loop — `scenarios.length
+ * >= 2` AND at least one annotated checkbox. A single-loop ticket has nothing to
+ * cross; a pure-legacy ticket (no annotations anywhere) stays exempt regardless of
+ * count. Driving both halves from one predicate is what keeps the legacy exemption
+ * consistent across the row and the review (and is the "one derived trigger" SM1
+ * asked for).
+ */
+export function wholeTicketPassApplies(content: string): boolean {
+  return wholeTicketPassFromScenarios(parseLedger(content).scenarios);
+}
+
+/**
+ * The whole-ticket-pass predicate over already-parsed scenarios — so a caller
+ * that has parsed the ledger (validateLedger) doesn't parse it a second time.
+ */
+function wholeTicketPassFromScenarios(scenarios: ScenarioLedger[]): boolean {
+  const hasAnyAnnotation = scenarios.some(s =>
+    [s.red, s.green, s.refactor].some(box => box?.annotation),
+  );
+  return scenarios.length >= 2 && hasAnyAnnotation;
+}
+
 export function validateLedger(
   content: string,
   isReachable: (sha: string) => boolean,
@@ -185,13 +211,11 @@ export function validateLedger(
     validateScenario(scenario, isReachable, errors);
   }
 
-  // Cross-scenario row enforcement: required iff this is a new-format ticket
-  // (any annotated checkbox) OR the row already exists. Pure legacy tickets
-  // (no annotations anywhere) are exempt.
-  const hasAnyAnnotation = scenarios.some(s =>
-    [s.red, s.green, s.refactor].some(box => box?.annotation),
-  );
-  if (hasAnyAnnotation || crossScenario) {
+  // Cross-scenario row enforcement: required iff the whole-ticket pass applies
+  // (≥2 annotated loops — see wholeTicketPassApplies), OR the row already exists
+  // (back-compat: a present row is always validated). Pure-legacy and single-loop
+  // tickets stay exempt.
+  if (wholeTicketPassFromScenarios(scenarios) || crossScenario) {
     validateCrossScenario(crossScenario, isReachable, errors);
   }
 

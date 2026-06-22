@@ -11,14 +11,14 @@ A single pure resolver, exposed as `safeword test-plan`, that emits the correct 
 
 ## Personas
 
-- Agent-Driven Developer (DEV)
+- Technical Builder (TB)
 - Safeword Maintainer (SM)
 
 ## Jobs To Be Done
 
 ### test-plan-resolver.DEV1 — trustworthy done-gate across languages
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my agent finishes work in a Python/Go/Rust or polyglot repo, I want the gate to run my real suite(s), so "done" means verified — not a silent pass.
 

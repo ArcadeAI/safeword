@@ -96,13 +96,13 @@ const ALTERNATIVE_FORMATTER_FILES = [
   'deno.jsonc',
 ] as const;
 
-type DepsRecord = Record<string, string | undefined>;
+type DependenciesRecord = Record<string, string | undefined>;
 type ScriptsRecord = Record<string, string | undefined>;
 
 /**
  * Read dependencies from a package.json file.
  */
-function readPackageDeps(pkgPath: string): DepsRecord {
+function readPackageDependencies(pkgPath: string): DependenciesRecord {
   try {
     if (!existsSync(pkgPath)) return {};
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
@@ -124,85 +124,85 @@ function getMonorepoPatterns(rootDirectory: string): string[] {
 /**
  * Scan a workspace directory for package.json files.
  */
-function scanWorkspaceDirectory(rootDirectory: string, pattern: string): DepsRecord {
+function scanWorkspaceDirectory(rootDirectory: string, pattern: string): DependenciesRecord {
   if (!pattern.endsWith('/*')) return {};
 
   const baseDirectory = path.join(rootDirectory, pattern.slice(0, -2));
   if (!existsSync(baseDirectory)) return {};
 
-  const allDeps: DepsRecord = {};
+  const allDependencies: DependenciesRecord = {};
   try {
     const entries = readdirSync(baseDirectory, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
         Object.assign(
-          allDeps,
-          readPackageDeps(path.join(baseDirectory, entry.name, 'package.json')),
+          allDependencies,
+          readPackageDependencies(path.join(baseDirectory, entry.name, 'package.json')),
         );
       }
     }
   } catch {
     // Ignore read errors
   }
-  return allDeps;
+  return allDependencies;
 }
 
 /**
  * Collect all dependencies from root and workspace package.json files.
  * Supports npm/yarn workspaces and common monorepo patterns.
  */
-function collectAllDeps(rootDirectory: string): DepsRecord {
+function collectAllDependencies(rootDirectory: string): DependenciesRecord {
   const rootPackagePath = path.join(rootDirectory, 'package.json');
-  const allDeps = readPackageDeps(rootPackagePath);
+  const allDependencies = readPackageDependencies(rootPackagePath);
 
   // Scan each workspace pattern
   for (const pattern of getMonorepoPatterns(rootDirectory)) {
-    Object.assign(allDeps, scanWorkspaceDirectory(rootDirectory, pattern));
+    Object.assign(allDependencies, scanWorkspaceDirectory(rootDirectory, pattern));
   }
 
-  return allDeps;
+  return allDependencies;
 }
 
 /**
  * Check if Tailwind CSS is installed.
  */
-function hasTailwind(deps: DepsRecord): boolean {
-  return TAILWIND_PACKAGES.some(pkg => pkg in deps);
+function hasTailwind(dependencies: DependenciesRecord): boolean {
+  return TAILWIND_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**
  * Check if TanStack Query is installed.
  */
-function hasTanstackQuery(deps: DepsRecord): boolean {
-  return TANSTACK_QUERY_PACKAGES.some(pkg => pkg in deps);
+function hasTanstackQuery(dependencies: DependenciesRecord): boolean {
+  return TANSTACK_QUERY_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**
  * Check if Vitest is installed.
  */
-function hasVitest(deps: DepsRecord): boolean {
-  return 'vitest' in deps;
+function hasVitest(dependencies: DependenciesRecord): boolean {
+  return 'vitest' in dependencies;
 }
 
 /**
  * Check if Playwright is installed.
  */
-function hasPlaywright(deps: DepsRecord): boolean {
-  return PLAYWRIGHT_PACKAGES.some(pkg => pkg in deps);
+function hasPlaywright(dependencies: DependenciesRecord): boolean {
+  return PLAYWRIGHT_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**
  * Check if Turborepo is installed.
  */
-function hasTurbo(deps: DepsRecord): boolean {
-  return 'turbo' in deps;
+function hasTurbo(dependencies: DependenciesRecord): boolean {
+  return 'turbo' in dependencies;
 }
 
 /**
  * Check if Storybook is installed.
  */
-function hasStorybook(deps: DepsRecord): boolean {
-  return STORYBOOK_PACKAGES.some(pkg => pkg in deps);
+function hasStorybook(dependencies: DependenciesRecord): boolean {
+  return STORYBOOK_PACKAGES.some(pkg => Object.hasOwn(dependencies, pkg));
 }
 
 /**
@@ -210,12 +210,12 @@ function hasStorybook(deps: DepsRecord): boolean {
  * Returns the most specific framework detected.
  */
 function detectFramework(
-  deps: DepsRecord,
+  dependencies: DependenciesRecord,
 ): 'next' | 'react' | 'astro' | 'typescript' | 'javascript' {
-  if ('next' in deps) return 'next';
-  if ('astro' in deps) return 'astro'; // Check before React (Astro+React has both)
-  if ('react' in deps) return 'react';
-  if ('typescript' in deps || 'typescript-eslint' in deps) return 'typescript';
+  if ('next' in dependencies) return 'next';
+  if ('astro' in dependencies) return 'astro'; // Check before React (Astro+React has both)
+  if ('react' in dependencies) return 'react';
+  if ('typescript' in dependencies || 'typescript-eslint' in dependencies) return 'typescript';
   return 'javascript';
 }
 
@@ -400,7 +400,7 @@ export const detect = {
   NEXT_CONFIG_FILES,
 
   // Core utilities
-  collectAllDeps,
+  collectAllDeps: collectAllDependencies,
   detectFramework,
   getIgnores,
 

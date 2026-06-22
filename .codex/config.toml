@@ -22,3 +22,10 @@ type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
 timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.playwright]
+command = "bunx"
+args = ["@playwright/mcp@latest"]

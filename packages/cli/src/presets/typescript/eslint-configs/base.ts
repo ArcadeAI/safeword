@@ -212,11 +212,31 @@ const basePluginsUnscoped: any[] = [
       //   - Packages with CJS-only dependencies
       //   - Gradual ESM migration in progress
       'unicorn/prefer-module': 'off',
+      //
+      // consistent-boolean-name (new in unicorn 68's recommended set): demands an
+      // is/has/can/should/was/did/will prefix on every boolean identifier —
+      // including function declarations that return a status boolean. It cannot
+      // distinguish a boolean *state variable* (where the prefix helps) from an
+      // *action function that returns success/changed* (where it corrupts the
+      // name): installPythonDependencies -> isInstallPythonDependencies,
+      // writeIfChanged -> isWriteIfChanged, exists -> isExisting. Even the JS
+      // stdlib rejects the premise (Array.includes, String.startsWith, Map.has all
+      // return boolean with no prefix). The rule offers no checkFunctions/allowList
+      // knob to scope it, and we ship at error-level into customer agent code, so
+      // the overreach is unfixable by config. Re-enable scoped to variables if
+      // unicorn ever adds a checkFunctions:false option.
+      'unicorn/consistent-boolean-name': 'off',
+      //
+      // filename-case: unicorn 68 began checking directory names too. Dunder
+      // dirs (__tests__, __mocks__, __snapshots__) are an ecosystem convention,
+      // not kebab-case violations — ignore that segment, keep the rule otherwise.
+      'unicorn/filename-case': ['error', { case: 'kebabCase', ignore: [/^__\w+__$/] }],
       // Escalated to error for LLM code
       'unicorn/switch-case-braces': 'error',
       'unicorn/catch-error-name': 'error',
       'unicorn/no-array-reduce': 'error', // LLMs write confusing reduce
-      'unicorn/prevent-abbreviations': [
+      // Renamed from unicorn/prevent-abbreviations in eslint-plugin-unicorn 68.
+      'unicorn/name-replacements': [
         'error',
         {
           allowList: {
@@ -246,7 +266,7 @@ const basePluginsUnscoped: any[] = [
         },
       ],
       'unicorn/no-null': 'error', // Use undefined
-      'unicorn/no-array-for-each': 'error', // Use for...of
+      'unicorn/no-for-each': 'error', // Use for...of (renamed from no-array-for-each in unicorn 68)
       'unicorn/no-negated-condition': 'error', // Clearer conditionals
       // Cherry-picked from 'all' config - high value for LLM code
       'unicorn/no-unused-properties': 'error', // Dead code in enum-like objects

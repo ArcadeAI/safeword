@@ -39,7 +39,7 @@ export function groupByLine<T extends { lineNumber: number }>(
  */
 export function findDuplicates(grouped: Map<string, number[]>, kind: string): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const [value, lines] of grouped.entries()) {
+  for (const [value, lines] of grouped) {
     if (lines.length <= 1) continue;
     for (const line of lines) {
       const others = lines.filter(other => other !== line).join(', ');

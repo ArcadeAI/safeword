@@ -34,7 +34,11 @@ Answer IN ORDER. Stop at first match:
 - Poor naming (unclear what something does)
 - Wrong level of abstraction (special cases piled on shared infrastructure instead of a generalized mechanism; detect via _shotgun surgery_ — one logical change forces edits in many places)
 
-**Scout first (optional).** When the target is "clean this up" with no named smell, surface candidates before diving in: run `/lint` + `/audit` for the mechanical smells (long function, deep nesting, magic literals, duplication, dead code — already detected there), then apply judgment for the semantic ones (reuse / duplicated intent, wrong level of abstraction). Produce a _prioritized_ list and work it one smell at a time (never in parallel). If you cap the list, say what you dropped — a scout that reads as "nothing else" when it truncated is a bug.
+**Scout first.** Default for any multi-smell or unnamed request ("clean this up", "tidy this module"). Skip it only when the user named one specific smell — then go straight to Phase 3 with a one-entry ledger.
+
+Discovery is the one phase that may **fan out**. Sweep in independent read-only passes — `/lint` + `/audit` for the mechanical smells (long function, deep nesting, magic literals, duplication, dead code — already detected there), plus separate judgment passes for the semantic ones (reuse / duplicated intent, wrong level of abstraction). Per smell category or per module these passes are independent, so run them concurrently (sub-agents where your harness supports it) and merge the findings — the same fan-out-then-merge _shape_ as `quality-review`'s independent reviewer passes. The **model policy differs**, though: these are discovery passes, not reviews of your own work, so `quality-review`'s _no-weaker_ reviewer rule does **not** apply — you (the orchestrator) verify the merged ledger. Spread the passes across smells/modules; cheaper or varied models are fine. _Coverage_ diversity is the lever here, not model tier.
+
+Merge into a **ledger**, not a loose list: each entry is a smell + location, ordered _prioritized and dependency-aware_ — leaf-first, so no fix lands before the change it depends on (the Mikado ordering). Persist it as the Phase 5 checklist and never silently truncate — if you cap it, say what you dropped. A scout that reads as "nothing else" when it truncated is a bug.
 
 ---
 
@@ -85,6 +89,8 @@ it('processOrder returns current behavior', () => {
 ## Phase 3: REFACTOR
 
 **Iron Law:** ONE refactoring at a time. Run tests after EVERY change.
+
+**Discovery fans out; mutation never does.** The scout step (in "When to Use", above) may run parallel read-only passes. Execution is the opposite — one change, in isolation, then test, then commit — because the safety net lives here. Parallel or batched edits forfeit the revert protocol (Phase 4), break `git bisect`, and destroy single-change test attribution: you can no longer tell which edit turned the suite red. The Iron Law is **per-edit, not per-session** — you still work through every ledger entry (Phase 5), just one at a time.
 
 ### Refactoring Catalog
 
@@ -187,13 +193,17 @@ git checkout -- <changed-files>
 
 ## Phase 5: ITERATE
 
+Walk the scout ledger **leaf-first**. Each entry gets its own Phase 3 → Phase 4 cycle; mark it done (or struck, with a reason) before starting the next. The ledger is the completeness contract — you stop when every entry is resolved or explicitly deferred, not when you're tired of the diff. Don't let an unfinished ledger read as "nothing left."
+
 ```text
-More refactoring needed?
-├─ Yes → Return to Phase 3 (one more refactoring)
+Ledger entries remaining?
+├─ Yes → take next leaf-first entry → Phase 3 (one refactoring) → Phase 4 → mark done
 └─ No → Done
     ├─ Run `/audit` to verify no dead code or new issues
-    └─ Report: "Refactoring complete. Changes: [summary]"
+    └─ Report: "Refactoring complete. Resolved: [ledger summary]. Deferred: [items + why]."
 ```
+
+A single-named-smell request has a one-entry ledger — resolve it, audit, done.
 
 **Audit catches:** Dead code left behind, new duplication (should decrease!), architecture violations.
 

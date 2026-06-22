@@ -311,7 +311,7 @@ describe('safeword codify', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Feature:');
       expect(result.stdout).not.toContain('describe(');
-      expect((result.stdout.match(/^\s*Scenario:/gm) ?? []).length).toBe(2);
+      expect(result.stdout.match(/^[ \t]*Scenario:/gm) ?? []).toHaveLength(2);
     },
     TIMEOUT_QUICK,
   );

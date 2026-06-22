@@ -19,18 +19,6 @@ import {
   writeTestFile,
 } from '../helpers';
 
-let projectDirectory: string;
-
-beforeEach(() => {
-  projectDirectory = createTemporaryDirectory();
-});
-
-afterEach(() => {
-  if (projectDirectory) {
-    removeTemporaryDirectory(projectDirectory);
-  }
-});
-
 /**
  * Helper to create a polyglot project (JS + Go)
  */
@@ -57,6 +45,18 @@ function createJsGoProject(dir: string): void {
 }
 
 describe('Test Suite: Conditional Setup for Go Projects', () => {
+  let projectDirectory: string;
+
+  beforeEach(() => {
+    projectDirectory = createTemporaryDirectory();
+  });
+
+  afterEach(() => {
+    if (projectDirectory) {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
   describe('Test: Installs the JS toolchain for Go-only projects (BDD lane, ticket 102b)', () => {
     it.skipIf(process.env.SAFEWORD_RUN_INSTALL_TESTS !== '1')(
       'should install eslint and cucumber for Go-only project (the lane ships TS step files)',

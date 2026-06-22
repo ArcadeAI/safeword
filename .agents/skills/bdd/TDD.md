@@ -61,7 +61,7 @@ Then they see the dashboard
 
 **Annotation rule (enforced by hook):** every `[x]` transition must carry either a commit SHA (proving which commit did that step) or `skip: <non-empty reason>` (a deliberate, auditable omission). Bare `[x]` without an annotation is blocked at the write-time hook. Pre-existing bare `[x]` from before this rule shipped is silently allowed — the validation is forward-looking only.
 
-At the bottom of `test-definitions.md`, add one feature-level row for the cross-scenario refactor pass (same annotation rule applies):
+At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-scenario refactor pass (same annotation rule applies). It's **completed at implement-exit** (see "whole-ticket quality review + refactor" below), and the done-gate requires it only when the ticket has **two or more RGR loops** — a single-loop ticket has nothing to cross and may leave it unmarked:
 
 ```markdown
 ## Feature-level cross-scenario refactor
@@ -95,6 +95,16 @@ At the bottom of `test-definitions.md`, add one feature-level row for the cross-
 
 Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `/refactor`). If no, proceed to next scenario.
 
+## Implement exit: whole-ticket quality review + refactor
+
+All scenarios green → before reconciling the plan, do one pass over the **whole ticket** (not a single loop). Skip it only when the ticket has a single RGR loop — there's nothing to cross.
+
+1. **Quality-review the whole diff.** Run `/quality-review` across everything the ticket changed — the review's findings are the refactor ledger. The done-gate requires a logged `/quality-review` invocation for ≥2-loop tickets (see the skill's invocation-log block).
+2. **Refactor the findings.** Work the cross-scenario cleanups `/quality-review` surfaced — shared fixtures, duplicated logic, naming drift that only shows up across loops. One change → test → commit, per the `/refactor` skill. Only real wins; don't gold-plate.
+3. **Record the row.** Mark the `## Feature-level cross-scenario refactor` row with the refactor commit `<sha>`, or `skip: <reason>` when no cross-loop cleanup was warranted. The done-gate hard-blocks a ≥2-loop ticket whose row is missing or carries an empty `skip:`.
+
+Then reconcile the plan.
+
 ## Implement exit: reconcile the plan
 
 All scenarios complete → reconcile `impl-plan.md` against what actually shipped, **before** advancing to verify (the stop hook blocks `verify`/`done` while the plan still says `planned`):
@@ -125,10 +135,10 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
 
-**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author**, because a same-model reviewer shares the author's blind spots (correlated errors). This means an explicit different-model subagent — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
+**Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. This means an explicit different-model subagent — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts --model < reviewer-model-id > impl-plan
 ```
 
-The gate compares that tag against the author model (captured at SessionStart); an absent tag fails closed. If no independent reviewer is available, log a deliberate `skip: <reason>` rather than stamping a same-model review.
+The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If you can't run a different model, log a deliberate `skip: <reason>` rather than stamping a same-model review. (This gate is stricter than quality-review's advisory loop, which accepts a fresh-context pass on your own model — here a genuinely different model, or an explicit `skip:`, is required.)

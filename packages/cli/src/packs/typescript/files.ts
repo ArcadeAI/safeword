@@ -9,8 +9,13 @@
  * Inline disables target only generator arrow functions, not regular functions in this file.
  */
 
-import { SAFEWORD_IGNORE_DIRS } from '../../owned-paths.js';
+import {
+  dirGlobExcludeMerge,
+  resolvedIgnoreDirectories,
+  resolvedNamespaceDirectory,
+} from '../../owned-paths.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
+import { assignOrPrune } from '../../utils/json-merge.js';
 import type {
   FileDefinition,
   JsonMergeDefinition,
@@ -25,22 +30,19 @@ import type {
 /**
  * Add framework-specific ignores to Knip config.
  */
-function addKnipIgnores(
-  config: { ignore: string[]; ignoreDependencies: string[] },
-  ctx: ProjectContext,
-): void {
-  const allDeps = ctx.developmentDeps;
+function addKnipIgnores(config: { ignore: string[] }, ctx: ProjectContext): void {
+  const allDependencies = ctx.developmentDeps;
 
   // Framework build/cache directories
   if (ctx.projectType.nextjs) config.ignore.push('.next/**');
   if (ctx.projectType.astro) config.ignore.push('.astro/**');
-  if ('storybook' in allDeps || '@storybook/react' in allDeps) {
+  if ('storybook' in allDependencies || '@storybook/react' in allDependencies) {
     config.ignore.push('.storybook/**', 'storybook-static/**');
   }
-  if ('turbo' in allDeps) config.ignore.push('.turbo/**');
+  if ('turbo' in allDependencies) config.ignore.push('.turbo/**');
 
   // Electron - Knip has no Electron plugin
-  if ('electron' in allDeps || 'electron' in ctx.productionDeps) {
+  if ('electron' in allDependencies || 'electron' in ctx.productionDeps) {
     config.ignore.push('electron/**', 'dist-electron/**', 'out/**');
   }
 }
@@ -49,21 +51,21 @@ function addKnipIgnores(
  * Add framework-specific ignoreDependencies to Knip config.
  */
 function addKnipIgnoreDependencies(
-  config: { ignore: string[]; ignoreDependencies: string[] },
+  config: { ignoreDependencies: string[] },
   ctx: ProjectContext,
 ): void {
-  const allDeps = ctx.developmentDeps;
+  const allDependencies = ctx.developmentDeps;
 
   // Dependencies used via config files, not imports
   if (ctx.projectType.tailwind) {
     config.ignoreDependencies.push('tailwindcss', '@tailwindcss/typography', '@tailwindcss/forms');
   }
   if (ctx.projectType.playwright) config.ignoreDependencies.push('@playwright/test');
-  if ('husky' in allDeps) config.ignoreDependencies.push('husky');
-  if ('lint-staged' in allDeps) config.ignoreDependencies.push('lint-staged');
+  if ('husky' in allDependencies) config.ignoreDependencies.push('husky');
+  if ('lint-staged' in allDependencies) config.ignoreDependencies.push('lint-staged');
 
   // Electron ecosystem packages
-  if ('electron' in allDeps || 'electron' in ctx.productionDeps) {
+  if ('electron' in allDependencies || 'electron' in ctx.productionDeps) {
     config.ignoreDependencies.push(
       'electron',
       'electron-builder',
@@ -81,8 +83,19 @@ function addKnipIgnoreDependencies(
  * Knip plugins auto-enable based on deps, so we just configure ignore patterns.
  */
 function getKnipConfig(ctx: ProjectContext): object {
+  // A custom paths.projectRoot is added alongside the two well-known roots so
+  // Knip doesn't scan (and false-positive on) the custom namespace dir (#273).
+  // NB: Knip's ignore is intentionally just the namespace roots, not the full
+  // safewordIgnoreDirectories/resolvedIgnoreDirectories list — so resolve the
+  // custom root directly here rather than reusing that composer.
+  const customRoot = resolvedNamespaceDirectory(ctx);
   const config = {
-    ignore: ['.safeword/**', '.project/**', '.safeword-project/**'],
+    ignore: [
+      '.safeword/**',
+      '.project/**',
+      '.safeword-project/**',
+      ...(customRoot === undefined ? [] : [`${customRoot}/**`]),
+    ],
     ignoreDependencies: ['safeword', 'dependency-cruiser'],
   };
 
@@ -130,14 +143,18 @@ function getPrettierPlugins(projectType: {
 const BIOME_JSON_MERGE: JsonMergeDefinition = {
   keys: ['files.includes'],
   skipIfMissing: true, // Only modify if project already uses Biome
-  merge: existing => {
+  merge: (existing, ctx) => {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
     // Add safeword exclusions (! prefix) if not already present, sourced from
     // the single SAFEWORD_IGNORE_DIRS list (ticket EYRK34) so Biome skips every
-    // safeword-owned dir, not just .safeword/. Biome v2.2.0+ doesn't need /**.
-    const safewordExcludes = ['!eslint.config.mjs', ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`)];
+    // safeword-owned dir, not just .safeword/ — including a custom paths.projectRoot
+    // (issue #273). Biome v2.2.0+ doesn't need /**.
+    const safewordExcludes = [
+      '!eslint.config.mjs',
+      ...resolvedIgnoreDirectories(ctx).map(dir => `!${dir}`),
+    ];
     const newIncludes = [...existingIncludes];
     for (const exclude of safewordExcludes) {
       if (!newIncludes.includes(exclude)) {
@@ -153,16 +170,17 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
       },
     };
   },
-  unmerge: (existing, _ctx) => {
+  unmerge: (existing, ctx) => {
     const files = (existing.files as Record<string, unknown>) ?? {};
     const existingIncludes = Array.isArray(files.includes) ? files.includes : [];
 
     // Remove safeword exclusions from includes list (current set + the legacy
-    // '!.safeword/**' folder form, cleaned up on unmerge).
+    // '!.safeword/**' folder form, cleaned up on unmerge). Mirrors merge, so a
+    // custom paths.projectRoot exclusion is also removed (issue #273).
     const safewordExcludes = new Set([
       '!eslint.config.mjs',
       '!.safeword/**',
-      ...SAFEWORD_IGNORE_DIRS.map(dir => `!${dir}`),
+      ...resolvedIgnoreDirectories(ctx).map(dir => `!${dir}`),
     ]);
     const cleanedIncludes = existingIncludes.filter(
       (entry: string) => !safewordExcludes.has(entry),
@@ -186,37 +204,6 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
     return { ...existing, files: cleanedFiles };
   },
 };
-
-/**
- * Build a JSON-merge that adds safeword-owned dirs (as `<dir>/**` globs) to a
- * customer formatter's string-array exclude field so the formatter skips them
- * (ticket EYRK34). Sourced from the single SAFEWORD_IGNORE_DIRS list; used for
- * dprint (`excludes`) and oxfmt (`ignorePatterns`). `skipIfMissing` → only ever
- * touches a config the customer already has.
- */
-function dirGlobExcludeMerge(field: string): JsonMergeDefinition {
-  const safewordGlobs = SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/**`);
-  return {
-    keys: [field],
-    skipIfMissing: true,
-    merge: existing => {
-      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
-      const merged = [...current];
-      for (const glob of safewordGlobs) {
-        if (!merged.includes(glob)) merged.push(glob);
-      }
-      return { ...existing, [field]: merged };
-    },
-    unmerge: existing => {
-      const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
-      const cleaned = current.filter(entry => !safewordGlobs.includes(entry));
-      // Drop the field without a dynamic `delete` or unused binding, re-adding it
-      // only when entries remain.
-      const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
-      return cleaned.length > 0 ? { ...rest, [field]: cleaned } : rest;
-    },
-  };
-}
 
 // dprint's `excludes` and oxfmt's `ignorePatterns` both take a glob list (EYRK34).
 const DPRINT_JSON_MERGE = dirGlobExcludeMerge('excludes');
@@ -334,7 +321,8 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
  * Add a script if it doesn't exist.
  */
 function addScriptIfMissing(scripts: Record<string, string>, name: string, command: string): void {
-  if (!scripts[name]) scripts[name] = command;
+  const existing = scripts[name];
+  if (!existing) scripts[name] = command;
 }
 
 const GHERKIN_LINT_SCRIPT = 'safeword lint-gherkin';
@@ -419,12 +407,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       delete scripts.publint;
       delete scripts['test:bdd'];
 
-      if (Object.keys(scripts).length > 0) {
-        result.scripts = scripts;
-      } else {
-        delete result.scripts;
-      }
-
+      assignOrPrune(result, 'scripts', scripts);
       return result;
     },
   },

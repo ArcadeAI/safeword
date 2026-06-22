@@ -32,7 +32,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const RUFF_AVAILABLE = isRuffInstalled();
+const IS_RUFF_AVAILABLE = isRuffInstalled();
 
 describe('E2E: Python Golden Path', () => {
   let projectDirectory: string;
@@ -67,7 +67,7 @@ describe('E2E: Python Golden Path', () => {
     expect(ruffToml).toContain('customer-owned');
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('ruff config is valid and runs', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('ruff config is valid and runs', () => {
     writeTestFile(projectDirectory, 'src/valid.py', 'x = 1\n');
 
     // Should not throw - ruff check runs successfully
@@ -80,7 +80,7 @@ describe('E2E: Python Golden Path', () => {
     expect(result.status).toBe(0);
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('ruff detects violations', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('ruff detects violations', () => {
     // Unused import, which is flagged by Ruff
     writeTestFile(projectDirectory, 'src/bad.py', 'import os\nx = 1\n');
 
@@ -94,7 +94,7 @@ describe('E2E: Python Golden Path', () => {
     expect(result.stdout).toContain('F401'); // unused import
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('ruff formats files', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('ruff formats files', () => {
     // Badly formatted Python - extra spaces, missing newline
     writeTestFile(projectDirectory, 'src/ugly.py', 'x=1;y=2');
 
@@ -106,7 +106,7 @@ describe('E2E: Python Golden Path', () => {
     expect(formatted).toContain('y = 2');
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('post-tool-lint hook processes Python files', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('post-tool-lint hook processes Python files', () => {
     const filePath = nodePath.join(projectDirectory, 'src/hook-test.py');
     // Intentionally badly formatted
     writeTestFile(projectDirectory, 'src/hook-test.py', 'x=1;y=2');
@@ -168,7 +168,7 @@ describe('E2E: Python Setup Idempotency', () => {
     expect(ruffToml).toContain('customer-owned');
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('Ruff still works after running setup twice', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('Ruff still works after running setup twice', () => {
     writeTestFile(projectDirectory, 'src/idempotent.py', 'x = 1\n');
 
     const result = spawnSync('ruff', ['check', 'src/idempotent.py'], {
@@ -214,7 +214,7 @@ describe('E2E: Python Lint Hook Fallback', () => {
     }
   });
 
-  it.skipIf(!RUFF_AVAILABLE)('lint hook formats files without safeword Ruff config', () => {
+  it.skipIf(!IS_RUFF_AVAILABLE)('lint hook formats files without safeword Ruff config', () => {
     writeTestFile(projectDirectory, 'src/fallback.py', 'x=1;y=2');
     const filePath = nodePath.join(projectDirectory, 'src/fallback.py');
 

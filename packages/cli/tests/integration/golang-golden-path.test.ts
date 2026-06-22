@@ -32,7 +32,7 @@ import {
   writeTestFile,
 } from '../helpers';
 
-const GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
+const IS_GOLANGCI_LINT_AVAILABLE = isGolangciLintInstalled();
 
 // golangci-lint's FIRST run cold-starts (~62s: type-checks the code, compiling
 // stdlib deps, then initializes the curated linter set and builds its cache),
@@ -73,7 +73,7 @@ describe('E2E: Go Golden Path', () => {
     expect(config).toContain('gofumpt');
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint runs on valid code', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint runs on valid code', () => {
     // main.go from createGoProject should be valid
     const result = spawnSync('golangci-lint', ['run', 'main.go'], {
       cwd: projectDirectory,
@@ -83,7 +83,7 @@ describe('E2E: Go Golden Path', () => {
     expect(result.status).toBe(0);
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint detects violations', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint detects violations', () => {
     // Create a file with an unused import (caught by 'unused' linter in standard set)
     writeTestFile(
       projectDirectory,
@@ -108,7 +108,7 @@ func bad() {
     expect(result.stdout + result.stderr).toMatch(/unused|import/i);
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint fmt formats files', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint fmt formats files', () => {
     // Create a badly formatted Go file
     writeTestFile(
       projectDirectory,
@@ -125,7 +125,7 @@ func main(){println("no spaces")}`,
     expect(formatted).toContain('func main() {');
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('post-tool-lint hook processes Go files', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('post-tool-lint hook processes Go files', () => {
     const filePath = nodePath.join(projectDirectory, 'hook-test.go');
     // Intentionally badly formatted
     writeTestFile(
@@ -191,14 +191,17 @@ describe('E2E: Go Setup Idempotency', () => {
     expect(config).toContain('linters:');
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('golangci-lint still works after running setup twice', () => {
-    // main.go from createGoProject should still be valid
-    const result = spawnSync('golangci-lint', ['run', 'main.go'], {
-      cwd: projectDirectory,
-      encoding: 'utf8',
-    });
-    expect(result.status).toBe(0);
-  });
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)(
+    'golangci-lint still works after running setup twice',
+    () => {
+      // main.go from createGoProject should still be valid
+      const result = spawnSync('golangci-lint', ['run', 'main.go'], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+    },
+  );
 
   it('config files remain valid', () => {
     expect(fileExists(projectDirectory, '.golangci.yml')).toBe(true);
@@ -232,7 +235,7 @@ describe('E2E: Go Lint Hook Fallback', () => {
     }
   });
 
-  it.skipIf(!GOLANGCI_LINT_AVAILABLE)('lint hook formats files without safeword config', () => {
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('lint hook formats files without safeword config', () => {
     writeTestFile(
       projectDirectory,
       'fallback.go',

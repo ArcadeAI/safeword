@@ -61,9 +61,8 @@ function codifySync(ticket: string, options: CodifyOptions): void {
 
 function parseCodifyScenarios(source: CodifySource): ParsedScenario[] {
   try {
-    return source.kind === 'feature'
-      ? parseFeatureScenarios(source.content)
-      : parseScenarios(source.content);
+    const parse = source.kind === 'feature' ? parseFeatureScenarios : parseScenarios;
+    return parse(source.content);
   } catch (parseError: unknown) {
     if (parseError instanceof FeatureParseError) {
       fail(`${source.displayPath}: invalid Gherkin feature: ${parseError.message}`);

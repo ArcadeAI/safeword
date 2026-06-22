@@ -24,21 +24,39 @@ export type {
   ManagedFileDefinition,
   ProjectContext,
 } from './packs/types.js';
-import { generateOwnedPathsModule, SAFEWORD_IGNORE_DIRS } from './owned-paths.js';
-import type { FileDefinition, JsonMergeDefinition, ManagedFileDefinition } from './packs/types.js';
+import {
+  dirGlobExcludeMerge,
+  generateOwnedPathsModule,
+  resolvedIgnoreDirectories,
+  resolvedNamespaceDirectory,
+} from './owned-paths.js';
+import type {
+  FileDefinition,
+  JsonMergeDefinition,
+  ManagedFileDefinition,
+  ProjectContext,
+} from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
+import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
 
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
-  content: string;
+  // Static string, or a factory resolved with ctx at plan time so the block can
+  // depend on the resolved namespace root (e.g. a custom paths.projectRoot, #293).
+  content: string | ((ctx: ProjectContext) => string);
   marker: string; // Used to detect if already applied & for removal
   applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
   unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
   removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
+  // When set (append patches only), re-render the managed block in place on
+  // upgrade instead of skip-on-marker — so a ctx-dependent block (e.g. a custom
+  // projectRoot added to .prettierignore) heals on existing installs. A no-op
+  // when the block is already current, so unchanged installs never churn (#293).
+  rerender?: boolean;
 }
 
 export interface ContractDefinition {
@@ -56,7 +74,11 @@ export interface SafewordSchema {
   ownedFiles: Record<string, FileDefinition>; // Overwrite on upgrade (if changed)
   managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
   jsonMerges: Record<string, JsonMergeDefinition>;
-  textPatches: Record<string, TextPatchDefinition>;
+  // A file may carry an ordered list of patches (e.g. .codex/config.toml's hook
+  // retrofit + MCP-server retrofit). Patches apply in list order and unpatch in
+  // reverse, so the patch that owns file removal (removeFileIfContentEquals)
+  // runs last on uninstall. See #269.
+  textPatches: Record<string, TextPatchDefinition | TextPatchDefinition[]>;
   legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
   packages: {
@@ -76,32 +98,67 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
   keys: ['mcpServers.context7', 'mcpServers.playwright'],
   removeFileIfEmpty: true,
   merge: existing => {
-    const mcpServers = (existing.mcpServers as Record<string, unknown>) ?? {};
-    return {
-      ...existing,
-      mcpServers: {
-        ...mcpServers,
-        context7: MCP_SERVERS.context7,
-        playwright: MCP_SERVERS.playwright,
-      },
-    };
+    const mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
+    // Add-if-missing: preserve any user-authored entry — including its key
+    // ordering — and inject safeword's default only when the server key is
+    // absent. This keeps `upgrade` from clobbering a customized
+    // context7/playwright definition (e.g. a hosted HTTP transport), and
+    // spreading existing first means an already-correct file produces an
+    // identical merge (no write churn). (#255)
+    mcpServers.context7 ??= MCP_SERVERS.context7;
+    mcpServers.playwright ??= MCP_SERVERS.playwright;
+    return { ...existing, mcpServers };
   },
   unmerge: existing => {
     const result = { ...existing };
     const mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
 
+    // Blind-delete on uninstall: removing the server names safeword introduced
+    // is the predictable inverse of install and matches the package.json /
+    // .cursor/hooks.json unmerges. A value-match "delete-if-ours" was
+    // considered but rejected — it can't tell a user customization from a
+    // server installed by an older safeword version (different default value),
+    // so it would orphan stale entries. uninstall is an explicit destructive
+    // action; #255 is about upgrade not clobbering, which the merge handles.
     delete mcpServers.context7;
     delete mcpServers.playwright;
 
-    if (Object.keys(mcpServers).length > 0) {
-      result.mcpServers = mcpServers;
-    } else {
-      delete result.mcpServers;
-    }
-
+    assignOrPrune(result, 'mcpServers', mcpServers);
     return result;
   },
 };
+
+/**
+ * markdownlint-cli2 `ignores` merge — add safeword-owned dirs so a consuming
+ * repo's markdownlint never flags safeword's generated agent docs (ticket #262,
+ * extends the EYRK34 formatter-ignore family alongside prettier/biome/dprint/oxfmt).
+ *
+ * Why this and not `.markdownlintignore`: markdownlint-cli2 does NOT read
+ * `.markdownlintignore` at all (it's a markdownlint-cli v1 file), and even when a
+ * tool honors it, lint-staged passes explicit absolute file paths that bypass
+ * ignore-file globbing entirely. The cli2 `ignores` array is the one mechanism
+ * that filters files even when passed explicitly — verified against lint-staged's
+ * default absolute-path invocation.
+ *
+ * Glob form (see the call below) prefixes each dir with a leading globstar,
+ * unlike the bare trailing-globstar form used by dprint/oxfmt: lint-staged passes
+ * absolute paths by default, and the leading globstar is required for the glob to
+ * match `/abs/repo/.claude/...`. It also still matches the relative tree-glob and
+ * relative-explicit invocations.
+ *
+ * `ignores` is a cli2-only option, so it lives solely in `.markdownlint-cli2.jsonc`
+ * (the standard `.markdownlint.*` rule files have no `ignores` field). `skipIfMissing`
+ * → only ever touches a config the customer already has, never imposes markdownlint.
+ *
+ * Limitation (shared by the sibling biome/dprint/oxfmt `.jsonc` merges): the merge
+ * engine parses with `JSON.parse`, so a `.markdownlint-cli2.jsonc` that actually
+ * uses comments parses as undefined and `skipIfMissing` makes this a safe no-op —
+ * the ignores aren't added, but the customer's commented config is never clobbered.
+ * Stripping comments to parse would round-trip the file through `JSON.stringify` and
+ * destroy those comments, which is worse than the no-op; comment-preserving JSONC
+ * editing is a future improvement for the whole merge engine, not this ticket.
+ */
+const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
 const CODEX_PROMPT_TIMESTAMP_HOOK_PATCH = `
 [[hooks.UserPromptSubmit]]
@@ -133,6 +190,20 @@ type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
 timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
+`;
+
+// MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
+// context7 uses the hosted streamable-HTTP transport (url); playwright uses
+// stdio (command/args) — matching MCP_SERVERS. Shipped via the codex/config.toml
+// template and re-applied as a retrofit text-patch on upgrade. Must byte-match
+// the block appended to that template (exported so tests strip it exactly).
+export const CODEX_MCP_SERVERS_BLOCK = `
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.playwright]
+command = "bunx"
+args = ["@playwright/mcp@latest"]
 `;
 
 const CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS = `
@@ -173,7 +244,7 @@ const CODEX_SKILL_TEMPLATE_FILES = [
 
 const CODEX_SKILL_DIRS = [
   ...new Set(
-    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/')[0]}`),
+    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/', 1)[0]}`),
   ),
 ];
 
@@ -189,29 +260,60 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
 // ============================================================================
 
 /**
- * Runtime/transient state files safeword's hooks write to the working tree
- * every turn (update-cache, quality-state, failure-counts, skill-invocations,
- * re-entry, dependency-readiness). They must be gitignored — and untracked on upgrade if a customer
- * committed them before the ignore rule existed — because the hooks read/write
- * these paths directly, so git tracking is never consulted. Single source for
- * the managed `.gitignore` block (below) and the upgrade-time untrack.
+ * Transient state files safeword's hooks write under the *resolved namespace
+ * root* every turn, as root-relative names (quality-state, failure-counts,
+ * skill-invocations, re-entry, dependency-readiness). Single source for both
+ * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
+ * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
+ * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
+ * siblings (tickets/, learnings/, personas.md, glossary.md) stay tracked.
  */
-// Both namespace roots are listed: hooks write transient state under the
-// resolved root (TAGWZ8), which is `.project/` on fresh installs and
-// `.safeword-project/` on legacy ones.
+const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
+  'quality-state*.json',
+  'failure-counts.json',
+  'skill-invocations.log',
+  're-entry.md',
+  'dependency-readiness.json',
+];
+
+/**
+ * Runtime/transient state files safeword's hooks write to the working tree
+ * every turn (update-cache plus the namespace-root state above). They must be
+ * gitignored — and untracked on upgrade if a customer committed them before the
+ * ignore rule existed — because the hooks read/write these paths directly, so
+ * git tracking is never consulted. Single source for the repo-root managed
+ * `.gitignore` block (below) and the upgrade-time untrack.
+ *
+ * Both well-known namespace roots are listed: hooks write transient state under
+ * the resolved root (TAGWZ8), which is `.project/` on fresh installs and
+ * `.safeword-project/` on legacy ones. A *custom* `paths.projectRoot` is covered
+ * by the per-root `.gitignore` (`NAMESPACE_GITIGNORE_CONTENT`) instead, since a
+ * static repo-root block cannot name an arbitrary root (issue #272).
+ */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
-  '.project/quality-state*.json',
-  '.project/failure-counts.json',
-  '.project/skill-invocations.log',
-  '.project/re-entry.md',
-  '.project/dependency-readiness.json',
-  '.safeword-project/quality-state*.json',
-  '.safeword-project/failure-counts.json',
-  '.safeword-project/skill-invocations.log',
-  '.safeword-project/re-entry.md',
-  '.safeword-project/dependency-readiness.json',
+  ...['.project', '.safeword-project'].flatMap(root =>
+    NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
+  ),
 ];
+
+/**
+ * Content of the `.gitignore` written *inside* the resolved namespace root
+ * (issue #272). Because the ignore rules live with the files they describe, a
+ * custom `paths.projectRoot` is handled for free — the file lands wherever the
+ * root resolves, and git applies each pattern relative to that directory. The
+ * legacy-prefixed managed-file key is remapped to the resolved root by
+ * `withResolvedNamespaceRoot`.
+ *
+ * Patterns are leading-slash-anchored so they match only the transient files at
+ * the namespace root — where the hooks write them — and never a same-named file
+ * deeper in the tree (e.g. a `tickets/.../re-entry.md`). This mirrors the
+ * repo-root block, whose `.project/re-entry.md` entries are likewise anchored.
+ */
+const NAMESPACE_GITIGNORE_PATTERNS = NAMESPACE_TRANSIENT_BASENAMES.map(name => `/${name}`).join(
+  '\n',
+);
+const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-managed)\n${NAMESPACE_GITIGNORE_PATTERNS}\n`;
 
 /**
  * Top-level dirs a customer's prettier must skip so safeword's files don't dirty
@@ -221,8 +323,19 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
  * roots are covered — plus husky's generated `_` dir. Previously this listed only
  * the INDEX markdown under each root (TAGWZ8/1GGD28); the whole `.project/` is
  * safeword-generated, so excluding it wholesale also covers tickets and learnings.
+ *
+ * Resolved per-ctx (issue #293) so a custom `paths.projectRoot` is excluded too —
+ * for the two well-known roots this is identical to the old static list, so a
+ * default/legacy install's `.prettierignore` block is byte-identical (no churn).
  */
-const MANAGED_PRETTIER_PATHS = ['.husky/_', ...SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/`)];
+function managedPrettierPaths(ctx: ProjectContext): string[] {
+  return ['.husky/_', ...resolvedIgnoreDirectories(ctx).map(dir => `${dir}/`)];
+}
+
+// Header line of the managed .prettierignore block — also its marker (re-applied
+// and re-rendered against this exact string). The "(owned dirs)" suffix marks the
+// post-EYRK34 format; the stable prefix is what stale-config-scan detects.
+const PRETTIER_EXCLUSIONS_HEADER = '# Safeword - managed prettier exclusions (owned dirs)';
 
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
@@ -336,6 +449,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/commands/audit.md',
     '.claude/commands/cleanup-zombies.md',
     '.safeword/.gherkin-lintrc',
+    // Merged into session-auto-upgrade.ts — check + apply now run in one pass (XQ9CXA)
+    '.safeword/hooks/session-update-check.ts',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -450,11 +565,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/learning-verification-stamps.ts': {
       template: 'hooks/lib/learning-verification-stamps.ts',
     },
+    '.safeword/hooks/lib/readiness-pointer.ts': { template: 'hooks/lib/readiness-pointer.ts' },
 
     // Generated at setup/upgrade from SAFEWORD_SCHEMA itself — the prefix list
     // the auto-upgrade hook uses to decide which files to stage. See owned-paths.ts.
     '.safeword/hooks/lib/owned-paths.ts': {
-      generator: (): string => generateOwnedPathsModule(SAFEWORD_SCHEMA),
+      generator: (ctx): string =>
+        generateOwnedPathsModule(SAFEWORD_SCHEMA, resolvedNamespaceDirectory(ctx)),
     },
 
     // Hooks - TypeScript with Bun runtime
@@ -511,9 +628,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-auto-upgrade.ts': {
       template: 'hooks/session-auto-upgrade.ts',
-    },
-    '.safeword/hooks/session-update-check.ts': {
-      template: 'hooks/session-update-check.ts',
     },
     '.safeword/hooks/session-cleanup-quality.ts': {
       template: 'hooks/session-cleanup-quality.ts',
@@ -797,6 +911,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'glossary-template.md',
       configKey: 'glossary',
     },
+
+    // Per-root `.gitignore` for hook-written transient state. The legacy-prefixed
+    // key is remapped to the resolved namespace root by withResolvedNamespaceRoot,
+    // so a custom `paths.projectRoot` ignores its own transient files even though
+    // the static repo-root block can't name that root (issue #272). Created once;
+    // the repo-root block stays the belt-and-suspenders for `.project/`/legacy.
+    '.safeword-project/.gitignore': {
+      content: NAMESPACE_GITIGNORE_CONTENT,
+    },
   },
 
   // JSON files where we merge specific keys
@@ -833,17 +956,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         }
 
         const result = { ...existing };
-        if (Object.keys(cleanedHooks).length > 0) {
-          result.hooks = cleanedHooks;
-        } else {
-          delete result.hooks;
-        }
+        assignOrPrune(result, 'hooks', cleanedHooks);
         return result;
       },
     },
 
     '.mcp.json': MCP_JSON_MERGE,
     '.cursor/mcp.json': MCP_JSON_MERGE,
+
+    // markdownlint-cli2 ignores - hide safeword's generated agent docs from a
+    // consuming repo's markdown lint hooks (ticket #262). cli2's only JSON config
+    // form is `.jsonc`; yaml/cjs/mjs variants fall back to manual wiring.
+    '.markdownlint-cli2.jsonc': MARKDOWNLINT_CLI2_IGNORES_MERGE,
 
     '.cursor/hooks.json': {
       keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],
@@ -867,10 +991,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         delete hooks.afterFileEdit;
         delete hooks.stop;
 
-        if (Object.keys(hooks).length > 0) {
-          result.hooks = hooks;
-        } else {
-          delete result.hooks;
+        // `version` is only meaningful while safeword's hooks remain; drop it
+        // alongside an emptied hooks container.
+        if (!assignOrPrune(result, 'hooks', hooks)) {
           delete result.version;
         }
 
@@ -905,20 +1028,45 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // stale-config-scan still detects the block.
     '.prettierignore': {
       operation: 'append',
-      content: `\n# Safeword - managed prettier exclusions (owned dirs)\n${MANAGED_PRETTIER_PATHS.join('\n')}\n`,
-      marker: '# Safeword - managed prettier exclusions (owned dirs)',
+      // ctx factory + rerender (issue #293): a custom paths.projectRoot is excluded,
+      // and the block re-renders in place on upgrade for an existing custom-root
+      // install. Default/legacy output is byte-identical, so those installs no-op.
+      content: ctx => `\n${PRETTIER_EXCLUSIONS_HEADER}\n${managedPrettierPaths(ctx).join('\n')}\n`,
+      rerender: true,
+      marker: PRETTIER_EXCLUSIONS_HEADER,
     },
-    '.codex/config.toml': {
-      operation: 'append',
-      content: CODEX_PROMPT_TIMESTAMP_HOOK_PATCH,
-      marker: '.safeword/hooks/prompt-timestamp.ts',
-      applyWhenContentIncludes: [
-        '# Safeword Codex project configuration.',
-        '.safeword/hooks/codex/pre-tool-quality.ts',
-      ],
-      unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
-      removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
-    },
+    '.codex/config.toml': [
+      // Primary patch: retrofits the prompt-timestamp hook onto pre-existing
+      // configs and owns file removal on uninstall (runs LAST on unpatch).
+      {
+        operation: 'append',
+        content: CODEX_PROMPT_TIMESTAMP_HOOK_PATCH,
+        marker: '.safeword/hooks/prompt-timestamp.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+        unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+        removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+      },
+      // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /
+      // .cursor/mcp.json. Marker is the context7 table header, so an existing
+      // (safeword- or user-authored) [mcp_servers.context7] suppresses the
+      // append — never clobbering or duplicating a user's entry. Guarded to
+      // safeword-scaffolded configs only.
+      {
+        operation: 'append',
+        content: CODEX_MCP_SERVERS_BLOCK,
+        marker: '[mcp_servers.context7]',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+        // No unpatchContent/removeFileIfContentEquals by design: unpatch removes
+        // this patch's `content` (the MCP block), and the primary patch above —
+        // running last on the reversed unpatch — owns file removal.
+      },
+    ],
   },
 
   // Cleanup-only text patches. Safeword used to prepend these blocks to

@@ -144,6 +144,21 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Grep')).toBe(false);
   });
 
+  it('should run the auto-upgrade hook as a non-blocking asyncRewake hook', () => {
+    // Pins ticket XQ9CXA: the upgrade runs in the background (never blocks
+    // session start) yet can still surface "upgraded" / "major available" /
+    // "blocked" messages via exit-2 rewake. Reverting it to a blocking sync
+    // hook (dropping asyncRewake) fails this test.
+    const command = SETTINGS_HOOKS.SessionStart.flatMap((entry: HookEntry) => entry.hooks).find(
+      (hook: HookCommand) =>
+        hook.type === 'command' && hook.command.includes('session-auto-upgrade'),
+    ) as { asyncRewake?: boolean } | undefined;
+    if (!command) {
+      throw new Error('session-auto-upgrade hook not found');
+    }
+    expect(command.asyncRewake).toBe(true);
+  });
+
   it('should have PostToolUse quality observer matcher that includes Bash', () => {
     const qualityHook = SETTINGS_HOOKS.PostToolUse.find((h: HookEntry) =>
       h.hooks.some(
@@ -170,7 +185,7 @@ describe('SETTINGS_HOOKS', () => {
 
   it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, and git-bare-race fix', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks.length).toBe(4);
+    expect(preToolHooks).toHaveLength(4);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks

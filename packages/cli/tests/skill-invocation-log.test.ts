@@ -182,6 +182,90 @@ describe('skill-invocation log: README guidance (HMZSCD)', () => {
   });
 });
 
+// /quality-review carries an invocation-log line (W610WW) — the review half of
+// the whole-ticket cross-scenario pass, required at done for >=2-loop tickets.
+const qualityReviewForms: [string, string][] = [
+  [
+    'quality-review template skill',
+    readFileSync(nodePath.join(templatesDirectory, 'skills/quality-review/SKILL.md'), 'utf8'),
+  ],
+  [
+    'quality-review dogfood claude skill',
+    readFileSync(nodePath.join(repoRoot, '.claude/skills/quality-review/SKILL.md'), 'utf8'),
+  ],
+  [
+    'quality-review dogfood agents skill',
+    readFileSync(nodePath.join(repoRoot, '.agents/skills/quality-review/SKILL.md'), 'utf8'),
+  ],
+];
+
+describe('skill-invocation log: /quality-review carries its invocation line (W610WW)', () => {
+  it.each(qualityReviewForms)(
+    '%s calls the reusable invocation helper with the quality-review token',
+    (_name, content) => {
+      expect(content).toContain(
+        'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review',
+      );
+    },
+  );
+
+  it.each(qualityReviewForms)(
+    '%s scopes the requirement to tickets with two or more RGR loops',
+    (_name, content) => {
+      expect(content).toContain('two or more RGR loops');
+    },
+  );
+
+  it.each(qualityReviewForms)(
+    '%s references $CLAUDE_PROJECT_DIR via the PROJECT_DIR fallback',
+    (_name, content) => {
+      expect(content).toMatch(/\$\{CLAUDE_PROJECT_DIR(:-[^}]*)?\}/);
+    },
+  );
+});
+
+// /audit's depcruise drift check (#264) must resolve the locally installed
+// safeword CLI, not pin to the npm registry's `@latest` — otherwise audit
+// behavior depends on whatever the registry currently publishes instead of the
+// repo's installed/pinned version. Mirrors the local-first resolver /verify
+// already uses for `safeword test-plan`.
+const auditDriftForms: [string, string][] = [
+  ['audit template skill', auditSkill],
+  ['audit template command', auditCommand],
+  [
+    'audit dogfood claude skill',
+    readFileSync(nodePath.join(repoRoot, '.claude/skills/audit/SKILL.md'), 'utf8'),
+  ],
+  [
+    'audit dogfood agents skill',
+    readFileSync(nodePath.join(repoRoot, '.agents/skills/audit/SKILL.md'), 'utf8'),
+  ],
+  [
+    'audit dogfood cursor command',
+    readFileSync(nodePath.join(repoRoot, '.cursor/commands/audit.md'), 'utf8'),
+  ],
+];
+
+describe('audit drift check resolves the local safeword CLI, not @latest (#264)', () => {
+  it.each(auditDriftForms)(
+    '%s does not pin the depcruise drift check to safeword@latest',
+    (_name, content) => {
+      expect(content).not.toContain('bunx safeword@latest sync-config');
+    },
+  );
+
+  it.each(auditDriftForms)(
+    '%s prefers the locally installed safeword binary before bunx',
+    (_name, content) => {
+      expect(content).toContain('node_modules/.bin/safeword');
+      // The in-repo source checkout is the middle fallback — assert it too so a
+      // regression that drops the dogfood branch can't pass silently.
+      expect(content).toContain('bun packages/cli/src/cli.ts');
+      expect(content).toContain('$SW sync-config --check');
+    },
+  );
+});
+
 describe('self-review stamp fallback surfaces (K2ZP40)', () => {
   it.each(selfReviewForms)(
     '%s documents a manual write-review-stamp fallback for non-Claude render contexts',

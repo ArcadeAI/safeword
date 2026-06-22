@@ -28,7 +28,9 @@ function isHookEntry(h: unknown): h is HookEntry {
  */
 function isSafewordHook(h: unknown): boolean {
   if (!isHookEntry(h)) return false;
-  return h.hooks.some(cmd => typeof cmd.command === 'string' && cmd.command.includes('.safeword'));
+  return h.hooks.some(
+    command => typeof command.command === 'string' && command.command.includes('.safeword'),
+  );
 }
 
 /**

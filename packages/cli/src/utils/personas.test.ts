@@ -106,7 +106,7 @@ describe('derivePersonaCode', () => {
     });
 
     it('whitespace-only returns empty', () => {
-      expect(derivePersonaCode('   ')).toBe('');
+      expect(derivePersonaCode(' '.repeat(3))).toBe('');
     });
 
     it('punctuation-only returns empty', () => {

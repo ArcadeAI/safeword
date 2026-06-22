@@ -22,13 +22,13 @@ doctor-style diagnostic for CI and debugging.
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — runs `safeword setup`/`upgrade` on their project and needs breakage surfaced at the moment it happens, not discovered sessions later.
+- **Technical Builder (TB)** — runs `safeword setup`/`upgrade` on their project and needs breakage surfaced at the moment it happens, not discovered sessions later.
 
 ## Jobs To Be Done
 
 ### self-verify-setup-upgrade.DEV1 — Know immediately when setup or upgrade left the project broken
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I run `safeword setup` or `safeword upgrade`, I want the command to
 > verify the configuration it just wrote and fail loudly if it's broken, so I
@@ -46,7 +46,7 @@ doctor-style diagnostic for CI and debugging.
 
 ### self-verify-setup-upgrade.DEV2 — Trust the install without learning safeword's diagnostic commands
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I install or upgrade safeword, I want health verification to happen
 > without me knowing a separate command exists, so the tool carries its own

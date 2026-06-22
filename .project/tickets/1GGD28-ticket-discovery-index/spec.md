@@ -19,7 +19,7 @@ grep instead.
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — accumulates a ticket corpus across many sessions and needs to find prior/related work without learning safeword internals. Covers the Safeword Maintainer (SM), who is a DEV in their own dogfood sessions.
+- **Technical Builder (TB)** — accumulates a ticket corpus across many sessions and needs to find prior/related work without learning safeword internals. Covers the Safeword Maintainer (SM), who is a DEV in their own dogfood sessions.
 
 ## Vocabulary
 
@@ -29,7 +29,7 @@ Uses existing glossary terms: Ticket, Epic (as the `epic:` frontmatter grouping 
 
 ### ticket-discovery-index.DEV1 — Discover existing tickets by capability
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I want to know whether the ticket corpus already covers a capability, I
 > want to grep a single generated index instead of scanning hundreds of

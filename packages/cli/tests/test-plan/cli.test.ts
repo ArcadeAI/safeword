@@ -9,7 +9,8 @@ import { runCli } from '../helpers.js';
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
-  for (const dir of temporaryDirectories.splice(0)) rmSync(dir, { force: true, recursive: true });
+  for (const dir of temporaryDirectories) rmSync(dir, { force: true, recursive: true });
+  temporaryDirectories.length = 0;
 });
 
 function makeGoRepo(): string {

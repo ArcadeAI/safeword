@@ -169,7 +169,10 @@ describe('Schema - Single Source of Truth', () => {
     // ignored in safeword's own repo but missing from the shipped textPatch.
     it('ignores all generated transient files', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      const content = SAFEWORD_SCHEMA.textPatches['.gitignore']?.content ?? '';
+      const gitignorePatch = SAFEWORD_SCHEMA.textPatches['.gitignore'];
+      const content =
+        (Array.isArray(gitignorePatch) ? gitignorePatch[0]?.content : gitignorePatch?.content) ??
+        '';
       for (const entry of [
         '.safeword/.update-cache.json',
         '.safeword-project/quality-state*.json',
@@ -355,7 +358,7 @@ describe('Schema - Single Source of Truth', () => {
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
       const claudeSkills = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
         .filter(path => path.startsWith('.claude/skills/') && path.endsWith('/SKILL.md'))
-        .map(path => path.split('/')[2])
+        .map(path => path.split('/', 3)[2])
         .filter(isDefined)
         // Exclude BDD (split into multiple Cursor rules) and action skills (Cursor commands, not rules)
         .filter(name => name !== 'bdd' && !ACTION_SKILLS.has(name))
@@ -419,8 +422,8 @@ describe('Schema - Single Source of Truth', () => {
       // Cursor commands must be a superset of Claude commands
       // (Cursor needs explicit commands for all capabilities since it has no skills)
       // Claude commands are standalone-only — skills auto-create /slash-commands
-      for (const cmd of claudeCommands) {
-        expect(cursorCommands, `Cursor missing Claude command: ${cmd}`).toContain(cmd);
+      for (const command of claudeCommands) {
+        expect(cursorCommands, `Cursor missing Claude command: ${command}`).toContain(command);
       }
     });
   });
@@ -535,7 +538,8 @@ describe('Schema - Single Source of Truth', () => {
       function collectFiles(directory: string, prefix: string): string[] {
         const results: string[] = [];
         if (!existsSync(directory)) return results;
-        for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const entries = readdirSync(directory, { withFileTypes: true });
+        for (const entry of entries) {
           if (entry.name.startsWith('.')) continue;
           const relativePath = `${prefix}/${entry.name}`;
           if (entry.isDirectory()) {

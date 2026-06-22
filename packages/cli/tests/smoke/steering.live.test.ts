@@ -48,9 +48,10 @@ const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-qu
  * require >= 2.x (older claude lacks the flags this test uses). Undefined => skip.
  */
 function resolveClaude(): string | undefined {
-  for (const bin of [process.env.SMOKE_CLAUDE_BIN, 'claude'].filter(Boolean) as string[]) {
+  const candidateBins = [process.env.SMOKE_CLAUDE_BIN, 'claude'].filter(Boolean) as string[];
+  for (const bin of candidateBins) {
     const probe = spawnSync(bin, ['--version'], { encoding: 'utf8' });
-    const major = /(\d+)\.\d+\.\d+/.exec(probe.stdout ?? '');
+    const major = /\b(\d+)\.\d+\.\d+/.exec(probe.stdout ?? '');
     if (probe.status === 0 && major && Number(major[1]) >= MIN_MAJOR) return bin;
   }
   return undefined;
@@ -129,10 +130,10 @@ describe.skipIf(!CAN_RUN)('live smoke: safeword steers a real Claude agent', () 
     const output = JSON.parse(result.stdout) as {
       permission_denials?: { tool_name?: string }[];
     };
-    const deniedWrite = (output.permission_denials ?? []).some(d => d.tool_name === 'Write');
+    const isDeniedWrite = (output.permission_denials ?? []).some(d => d.tool_name === 'Write');
 
     expect(
-      deniedWrite,
+      isDeniedWrite,
       `Expected safeword's hook to deny the agent's Write. permission_denials=${JSON.stringify(
         output.permission_denials,
       )}`,

@@ -41,22 +41,22 @@ describe('getEslintPeerMismatchWarning', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
   });
 
-  it('returns undefined when eslint is in the supported major (9.x as caret range)', () => {
+  it('returns a warning for eslint 9.x (dropped when safeword moved to ESLint 10)', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
       JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '^9.39.4' } }),
     );
-    expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
+    expect(getEslintPeerMismatchWarning(temporaryDirectory)).not.toBeUndefined();
   });
 
-  it('returns undefined for a pinned 9.x version', () => {
+  it('returns a warning for a pinned 9.x version', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
       JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '9.39.4' } }),
     );
-    expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
+    expect(getEslintPeerMismatchWarning(temporaryDirectory)).not.toBeUndefined();
   });
 
   it('returns undefined when eslint is in the supported major (10.x as caret range)', () => {
@@ -116,14 +116,14 @@ describe('getEslintPeerMismatchWarning', () => {
     expect(getEslintPeerMismatchWarning(temporaryDirectory)).toBeUndefined();
   });
 
-  it('warning message names the safeword supported majors (9 and 10) and the conflict', () => {
+  it('warning message names the safeword supported major (10) and the conflict', () => {
     writeTestFile(
       temporaryDirectory,
       'package.json',
-      JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '^11.0.0' } }),
+      JSON.stringify({ name: 'x', version: '0.0.0', devDependencies: { eslint: '^9.0.0' } }),
     );
     const warning = getEslintPeerMismatchWarning(temporaryDirectory);
-    expect(warning).toContain('9');
-    expect(warning).toContain('10');
+    expect(warning).toContain('10'); // supported major
+    expect(warning).toContain('9'); // the conflicting declared major
   });
 });

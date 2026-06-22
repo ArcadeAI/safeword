@@ -4,7 +4,7 @@
 
 ## Steps
 
-1. **Cross-scenario refactor** if clear wins exist (shared fixtures, duplicate logic). Run full test suite after. Only refactor if clear wins exist — don't gold-plate. Mark the feature-level `- [ ] cross-scenario` row at the bottom of `test-definitions.md` with either `<sha>` (the refactor commit) or `skip: <reason>` (none warranted). The done-gate hard-blocks if this row is missing or has an empty `skip:` reason on tickets using the annotated checkbox format.
+1. **Cross-scenario refactor** is done at **implement-exit**, not here — see `TDD.md` → "Implement exit: whole-ticket quality review + refactor" (run `/quality-review` over the whole diff, then `/refactor` the findings, then record the row). By the time you reach verify, the feature-level `- [ ] cross-scenario` row should already carry `<sha>` or `skip: <reason>` for any ticket with ≥2 RGR loops. If it doesn't, go back and complete that step — the done-gate hard-blocks a ≥2-loop ticket whose row is missing or has an empty `skip:` reason.
 2. **Run /verify** — tests, build, lint, scenario validation, doc references, dependency drift. /verify writes `verify.md` to the ticket folder on success.
 3. **Run /audit** — architecture, dead code, duplication, outdated deps.
 

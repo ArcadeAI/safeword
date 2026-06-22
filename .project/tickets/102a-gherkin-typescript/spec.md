@@ -13,7 +13,7 @@ Safeword orchestrates BDD but never executes the specs it produces — Given/Whe
 
 ## Personas
 
-**Agent-Driven Developer (DEV)** — runs safeword's BDD flow; wants scenarios to become runnable acceptance tests instead of hand-copied vitest.
+**Technical Builder (TB)** — runs safeword's BDD flow; wants scenarios to become runnable acceptance tests instead of hand-copied vitest.
 
 **Safeword Maintainer (SM)** — builds safeword; wants safeword's own repo to execute `.feature` tests (dogfood the capability it will ship to customers).
 
@@ -27,7 +27,7 @@ Safeword orchestrates BDD but never executes the specs it produces — Given/Whe
 
 ### gherkin-typescript.DEV1 — Generate a runnable `.feature` from my scenarios
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I've defined a ticket's scenarios, I want to generate a Gherkin `.feature` from them, so my specs are executable acceptance tests instead of Markdown I hand-translate into vitest.
 

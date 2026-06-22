@@ -45,6 +45,8 @@ If the user references a ticket ID/slug or says "resume" / "continue", skip Clar
 
 Before proceeding, run the **specificity self-test**: can you describe the behavior that changes, the behavior that stays the same, and an observable "done" state? Any "no" means open questions remain — surface them.
 
+**Readiness triage.** The five-dimension check the prompt pointer abbreviates: intent (why, and for whom), done (a measurable end-state), constraints (what must not break, reversibility), riskiest assumption (and the cheapest way to test it before building), and request shape (is this the problem, or someone's guess at the fix?). Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics.
+
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
 Exit: user accepts your proposal. For features, intake builds four artifacts in order, each anchoring the next: author the Jobs To Be Done in `spec.md` first — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):

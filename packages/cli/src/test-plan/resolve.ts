@@ -139,7 +139,8 @@ function resolveJs(
       ? entry('javascript', root, `${pm} run build`, pm, isAvailable(pm))
       : undefined;
   }
-  const script = kind === 'verify' ? pickVerifyScript(scripts) : pickTestScript(scripts);
+  const pickScript = kind === 'verify' ? pickVerifyScript : pickTestScript;
+  const script = pickScript(scripts);
   return script ? entry('javascript', root, `${pm} run ${script}`, pm, isAvailable(pm)) : undefined;
 }
 
@@ -148,7 +149,7 @@ function firstScript(
   scripts: Record<string, string>,
   priority: readonly string[],
 ): string | undefined {
-  return priority.find(name => name in scripts);
+  return priority.find(name => Object.hasOwn(scripts, name));
 }
 
 /** Prefer a gate-tuned `test:done` subset, else `test`; undefined when neither exists. */
@@ -196,7 +197,7 @@ function resolvePython(
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
   if (kind === 'build') return undefined; // no standard Python build step
-  if (!PYTHON_MANIFESTS.some(manifest => index.has(manifest))) return undefined;
+  if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
   const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
   if (pytestConfigured(index) || isAvailable('pytest')) {

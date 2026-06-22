@@ -22,17 +22,17 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-let projectDirectory: string;
+const fixture: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeAll(async () => {
-  projectDirectory = createTemporaryDirectory();
-  createTypeScriptPackageJson(projectDirectory);
-  initGitRepo(projectDirectory);
-  await setupOrThrow(projectDirectory);
+  fixture.projectDirectory = createTemporaryDirectory();
+  createTypeScriptPackageJson(fixture.projectDirectory);
+  initGitRepo(fixture.projectDirectory);
+  await setupOrThrow(fixture.projectDirectory);
 });
 
 afterAll(() => {
-  if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+  if (fixture.projectDirectory) removeTemporaryDirectory(fixture.projectDirectory);
 });
 
 /** A feature closed by the sidestep: status:done but phase still intake, with
@@ -91,10 +91,10 @@ function runStopHook(targetDirectory: string, sessionId: string): { reason: stri
 
 describe('status-close done-gate (2JMQMX)', () => {
   it('blocks a feature closed by status:done with no verify.md', () => {
-    writeFeatureClosedByStatus(projectDirectory, '910');
-    writeSessionState(projectDirectory, 'session-910', '910');
+    writeFeatureClosedByStatus(fixture.projectDirectory, '910');
+    writeSessionState(fixture.projectDirectory, 'session-910', '910');
 
-    const result = runStopHook(projectDirectory, 'session-910');
+    const result = runStopHook(fixture.projectDirectory, 'session-910');
 
     // The surfaced phase:'done' reached the real done-gate, which blocked on the
     // missing evidence — the sidestep is closed.

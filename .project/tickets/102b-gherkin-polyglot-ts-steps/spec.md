@@ -13,7 +13,7 @@ Safeword's whole purpose is BDD/TDD discipline — so the executable-Gherkin acc
 
 ## Personas
 
-**Agent-Driven Developer (DEV)** — runs `safeword setup` on a real project (any stack) and expects safeword's BDD discipline, including a runnable acceptance lane, to be set up for them.
+**Technical Builder (TB)** — runs `safeword setup` on a real project (any stack) and expects safeword's BDD discipline, including a runnable acceptance lane, to be set up for them.
 
 ## Vocabulary
 
@@ -25,7 +25,7 @@ Safeword's whole purpose is BDD/TDD discipline — so the executable-Gherkin acc
 
 ### gherkin-setup.DEV1 — Get a runnable acceptance lane from `safeword setup`, in any project
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I set up safeword on my project — whatever language it is — I want the executable-Gherkin acceptance lane installed as part of that setup, so running `.feature` tests is built in rather than something I hand-wire.
 

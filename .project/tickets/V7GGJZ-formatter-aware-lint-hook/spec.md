@@ -18,7 +18,7 @@ eliminates the prettier-vs-formatter churn that makes safeword unwelcome in esta
 
 ## Personas
 
-- **Agent-Driven Developer (DEV)** — runs an AI agent under safeword on a real repo that already has a formatter.
+- **Technical Builder (TB)** — runs an AI agent under safeword on a real repo that already has a formatter.
 
 ## Vocabulary
 
@@ -29,7 +29,7 @@ eliminates the prettier-vs-formatter churn that makes safeword unwelcome in esta
 
 ### formatter-aware-lint-hook.DEV1 — Keep my formatter's style; no churn from the agent
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When I run an agent under safeword on a repo whose JS/TS formatting is owned by a non-Prettier
 > formatter (Biome, dprint, oxfmt, deno), I want the auto-lint hook to not reformat my files with
@@ -43,7 +43,7 @@ eliminates the prettier-vs-formatter churn that makes safeword unwelcome in esta
 
 ### formatter-aware-lint-hook.DEV2 — Format with my own Prettier config
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my repo has its own Prettier config, I want agent edits formatted with my config, so they
 > match my house style rather than safeword's defaults.
@@ -52,7 +52,7 @@ eliminates the prettier-vs-formatter churn that makes safeword unwelcome in esta
 
 ### formatter-aware-lint-hook.DEV3 — Still get formatting on a greenfield repo
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my repo has no formatter of its own, I want safeword to keep formatting my files with its
 > defaults, so I still get consistent formatting from the agent.
@@ -61,7 +61,7 @@ eliminates the prettier-vs-formatter churn that makes safeword unwelcome in esta
 
 ### formatter-aware-lint-hook.DEV4 — Don't push Prettier on me
 
-**Persona:** Agent-Driven Developer (DEV)
+**Persona:** Technical Builder (TB)
 
 > When my repo uses a non-Prettier formatter, I don't want safeword's session start warning that
 > Prettier is missing or telling me to install it, so I'm not pushed toward a tool I don't use.
