@@ -3,10 +3,10 @@ id: DC6276
 slug: ship-explain-to-cursor
 parent: K6CAJN-ntb-experience-epic
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-22T03:46:00Z
-last_modified: 2026-06-22T03:46:00Z
+last_modified: 2026-06-22T03:58:00Z
 ---
 
 # Ship /explain to Cursor
@@ -29,3 +29,4 @@ last_modified: 2026-06-22T03:46:00Z
 ## Work Log
 
 - 2026-06-22T03:46:00Z Created from the cross-agent figure-it-out — the real Cursor gap behind 19E2XQ (Cursor has no `/explain` at all).
+- 2026-06-22T03:58:00Z Shipped: .cursor/commands/explain.md (read-only contract in prose) + schema registration + guard test. Resolved the latent ACTION_SKILLS inconsistency. 492/492 tests, lint clean. Closed.

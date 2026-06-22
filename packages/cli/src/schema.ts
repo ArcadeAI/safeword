@@ -843,9 +843,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'cursor/rules/bdd-splitting.mdc',
     },
 
-    // Cursor commands (8 files - Cursor needs explicit commands for all capabilities)
+    // Cursor commands (Cursor needs explicit commands for all capabilities)
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
     '.cursor/commands/debug.md': { template: 'commands/debug.md' },
+    '.cursor/commands/explain.md': { template: 'commands/explain.md' },
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
     '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
