@@ -409,6 +409,21 @@ function findRelationAdvisories(cwd: string): string[] {
     return [...dangling, ...cycle];
   };
 
+  // MBGQ89: a blocked_on_override is stale once every listed blocker is `done`
+  // (done auto-unblocks, so the override no longer does anything — clean it up).
+  const statusById = new Map(entries.map(entry => [entry.id, entry.status]));
+  const staleOverrides = entries
+    .filter(
+      entry =>
+        entry.blockedOnOverride !== undefined &&
+        entry.blockedOn.length > 0 &&
+        entry.blockedOn.every(id => statusById.get(id) === 'done'),
+    )
+    .map(
+      entry =>
+        `${refOf(entry.id)}: blocked_on_override is stale — every blocker is done; remove it`,
+    );
+
   return [
     ...advisoriesFor(
       entries.map(entry => ({ id: entry.id, dependsOn: entry.dependsOn })),
@@ -420,6 +435,7 @@ function findRelationAdvisories(cwd: string): string[] {
       'blocked_on',
       'blocked_on',
     ),
+    ...staleOverrides,
   ];
 }
 

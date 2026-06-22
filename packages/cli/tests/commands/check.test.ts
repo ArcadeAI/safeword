@@ -583,6 +583,39 @@ describe('Test Suite 8: Health Check', () => {
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).not.toMatch(/blocked_on.*dangling ref|blocked_on cycle/i);
     });
+
+    it('warns that a blocked_on_override is stale once every blocker is done', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeFrontmatterTicket('OVR1-stale', [
+        'id: OVR1',
+        'status: open',
+        'blocked_on: [BLK9]',
+        'blocked_on_override: BLK9 was cancelled, proceeding',
+      ]);
+      writeFrontmatterTicket('BLK9-done', ['id: BLK9', 'status: done']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/OVR1.*stale.*override/i);
+    });
+
+    it('does not flag an override while a blocker is still non-done', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeFrontmatterTicket('OVR2-live', [
+        'id: OVR2',
+        'status: open',
+        'blocked_on: [BLK8]',
+        'blocked_on_override: BLK8 cancelled, proceeding inline',
+      ]);
+      writeFrontmatterTicket('BLK8-cancelled', ['id: BLK8', 'status: cancelled']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/stale.*override/i);
+    });
   });
 
   describe('Test 8.7: Scenario-lineage coverage advisory (XT1FFM)', () => {

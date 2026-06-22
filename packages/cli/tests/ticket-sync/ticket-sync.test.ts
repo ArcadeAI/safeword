@@ -86,6 +86,39 @@ describe('ticket-sync', () => {
     });
   });
 
+  // ── MBGQ89: blocked_on_override surfacing ──
+
+  describe('blocked_on_override surfacing (MBGQ89)', () => {
+    it('parses blocked_on_override onto the entry', () => {
+      writeTicket(
+        'OVR111-x',
+        {
+          id: 'OVR111',
+          status: 'open',
+          blocked_on: '[BLK1]',
+          blocked_on_override: 'BLK1 cancelled; schema still needed',
+        },
+        '# X\n',
+      );
+      expect(entryFor('OVR111')?.blockedOnOverride).toBe('BLK1 cancelled; schema still needed');
+    });
+
+    it('surfaces the override reason in the INDEX', () => {
+      writeTicket(
+        'OVR111-x',
+        {
+          id: 'OVR111',
+          status: 'open',
+          blocked_on: '[BLK1]',
+          blocked_on_override: 'BLK1 cancelled; schema still needed',
+        },
+        '# X\n',
+      );
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('override: BLK1 cancelled; schema still needed');
+    });
+  });
+
   // ── AC1: entries carry id, title, status, epic, goal, path ──
 
   describe('AC1 — entry fields and parsing', () => {

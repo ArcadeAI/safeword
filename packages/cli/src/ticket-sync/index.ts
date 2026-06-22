@@ -37,6 +37,7 @@ export interface TicketEntry {
   goal: string | undefined; // the **Goal:** one-liner, when present
   dependsOn: string[]; // ticket ids this one depends on (directed edge); [] when none
   blockedOn: string[]; // ticket ids this one is hard-blocked on (gates phase advance); [] when none
+  blockedOnOverride: string | undefined; // reason recorded to advance past a non-done blocker; undefined when none
 }
 
 export interface TicketSyncResult {
@@ -128,6 +129,7 @@ function parseTicket(
       goal: goalLine(bodyLines),
       dependsOn: parseTicketIdList(fields.get('depends_on')),
       blockedOn: parseTicketIdList(fields.get('blocked_on')),
+      blockedOnOverride: fields.get('blocked_on_override'),
     },
   };
 }
@@ -217,6 +219,7 @@ function renderEntry(
   }
   const blocking = blocks.get(entry.id) ?? [];
   if (blocking.length > 0) lines.push(`  blocks: ${renderRelation(blocking, labelById)}`);
+  if (entry.blockedOnOverride !== undefined) lines.push(`  override: ${entry.blockedOnOverride}`);
   lines.push(`  → \`${entry.relativePath}\``);
   return lines;
 }
