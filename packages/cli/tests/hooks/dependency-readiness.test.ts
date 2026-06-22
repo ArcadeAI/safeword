@@ -201,6 +201,80 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
+  it('detects an npm project and plans npm ci (#327)', () => {
+    writeJson('package.json', { name: 'npm-project', packageManager: 'npm@10.0.0' });
+    writeTestFile(projectDirectory, 'package-lock.json', '{}');
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan).toMatchObject({
+      manager: 'npm',
+      installCommand: { binary: 'npm', args: ['ci'], display: 'npm ci' },
+    });
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package-lock.json',
+      'package.json',
+    ]);
+  });
+
+  it('treats package-lock.json alone as npm (#327)', () => {
+    writeJson('package.json', { name: 'npm-single' });
+    writeTestFile(projectDirectory, 'package-lock.json', '{}');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('npm');
+  });
+
+  it('stays unsupported when npm is declared but no package-lock.json exists (#327)', () => {
+    writeJson('package.json', { name: 'npm-no-lock', packageManager: 'npm@10.0.0' });
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+  });
+
+  it('plans a frozen-lockfile install for yarn classic (#327)', () => {
+    writeJson('package.json', { name: 'yarn-classic', packageManager: 'yarn@1.22.22' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+      'yarn install --frozen-lockfile',
+    );
+  });
+
+  it('plans an immutable install for yarn berry (#327)', () => {
+    writeJson('package.json', { name: 'yarn-berry', packageManager: 'yarn@4.3.1' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+      'yarn install --immutable',
+    );
+  });
+
+  it('detects yarn berry from .yarnrc.yml when no packageManager is declared (#327)', () => {
+    writeJson('package.json', { name: 'yarn-berry-rc' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+    writeTestFile(projectDirectory, '.yarnrc.yml', 'nodeLinker: node-modules\n');
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan?.manager).toBe('yarn');
+    expect(plan?.installCommand.display).toBe('yarn install --immutable');
+  });
+
+  it('tracks pnpm workspace package manifests globbed from pnpm-workspace.yaml (#327)', () => {
+    writeJson('package.json', { name: 'pnpm-ws', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeJson('packages/cli/package.json', { name: '@ws/cli' });
+    writeJson('packages/core/package.json', { name: '@ws/core' });
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package.json',
+      'packages/cli/package.json',
+      'packages/core/package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+    ]);
+  });
+
   it('tracks package manifests matched by recursive workspace globs', () => {
     writeJson('package.json', {
       name: 'recursive-workspace-project',
