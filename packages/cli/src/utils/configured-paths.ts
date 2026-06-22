@@ -189,7 +189,7 @@ export function resolveLearningsDirectory(cwd: string): string {
 }
 
 /** Fixed filename of the auto-generated architecture state document. */
-export const GENERATED_ARCHITECTURE_FILENAME = 'architecture.generated.md';
+const GENERATED_ARCHITECTURE_FILENAME = 'architecture.generated.md';
 
 /**
  * Absolute path of the auto-generated architecture state document, under the
