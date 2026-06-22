@@ -71,6 +71,31 @@ describe('runTests (resolves its suite via safeword test-plan)', () => {
     expect(result.output).toContain('test:bdd');
   });
 
+  it('flags toolchainMissing when the runner binary is not found (exit 127)', () => {
+    // A test command whose binary is absent: the shell emits "command not found"
+    // and exits 127 — an uninstalled toolchain, not a red test. (Issue #325.)
+    const project = makeProject({
+      'test:done': 'echo "vitest: command not found" 1>&2; exit 127',
+    });
+
+    const result = runTests(project);
+
+    expect(result.skipped).toBe(false);
+    expect(result.passed).toBe(false);
+    expect(result.toolchainMissing).toBe(true);
+  });
+
+  it('does not flag toolchainMissing for an ordinary test failure', () => {
+    const project = makeProject({
+      'test:done': 'echo "1 test failed" 1>&2; exit 1',
+    });
+
+    const result = runTests(project);
+
+    expect(result.passed).toBe(false);
+    expect(result.toolchainMissing).toBeFalsy();
+  });
+
   it('skips when the project has no runnable test scripts', () => {
     const project = makeProject({});
 
