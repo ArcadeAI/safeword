@@ -43,6 +43,9 @@ const DEPENDENCY_SECTIONS = [
   'optionalDependencies',
 ] as const;
 
+/** Stable string ordering for the fingerprint's sorted inputs. */
+const byString = (a: string, b: string): number => a.localeCompare(b);
+
 interface ShapeInputs {
   /** Top-level module names. */
   moduleNames: string[];
@@ -57,7 +60,7 @@ interface ShapeInputs {
 function collectShapeInputs(projectDirectory: string): ShapeInputs {
   const moduleNames = extractSkeleton(projectDirectory)
     .nodes.map(node => node.name)
-    .toSorted((a, b) => a.localeCompare(b));
+    .toSorted(byString);
 
   return {
     moduleNames,
@@ -84,7 +87,7 @@ function readDependencyNames(projectDirectory: string): string[] {
     }
   }
 
-  return [...names].toSorted((a, b) => a.localeCompare(b));
+  return [...names].toSorted(byString);
 }
 
 function readBoundaryConfig(projectDirectory: string): string {
@@ -109,7 +112,7 @@ function collectSchemaFiles(projectDirectory: string): string[] {
     }
   }
 
-  return schemaFiles.toSorted((a, b) => a.localeCompare(b));
+  return schemaFiles.toSorted(byString);
 }
 
 function scanDirectoryForSchema(

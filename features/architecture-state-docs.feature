@@ -1,7 +1,7 @@
 @architecture-state-docs
 Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
 
-  The architecture state doc (.project/architecture.md) describes the system as
+  The architecture state doc (.project/architecture.generated.md) describes the system as
   it is now. Its structural facts are extracted deterministically and self-heal
   at session start; any prose that has fallen behind the structure is visibly
   flagged, so the doc may be incomplete but is never silently wrong.
@@ -28,16 +28,16 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
       Then scripts/build.ts does not appear as a skeleton node
 
     @architecture-state-docs.NTB1.AC1
-    Scenario: A project with no src directory still produces a doc
+    Scenario: A project with no modules produces no doc, without error
       Given a project that has no src directory
       When the architecture doc is generated
-      Then a minimal skeleton is produced without error
+      Then no architecture doc is written
 
     @architecture-state-docs.NTB1.AC1
-    Scenario: A src directory with zero modules produces an empty skeleton
+    Scenario: An empty src directory produces no doc, without error
       Given a project whose src/ exists but contains no modules
       When the architecture doc is generated
-      Then an empty skeleton is produced without error
+      Then no architecture doc is written
 
     @architecture-state-docs.NTB1.AC1
     Scenario: Extraction is content-agnostic — a malformed file never aborts it

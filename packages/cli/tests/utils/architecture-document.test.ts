@@ -2,8 +2,7 @@
  * Integration tests for the architecture state-document self-heal (ticket
  * QD5DTT, Slice 1). Covers the "structural facts self-heal at session start"
  * rule from features/architecture-state-docs.feature. Temp-dir fixtures; the
- * document lands at the configured paths.architecture (default
- * <root>/architecture.md).
+ * document lands at the fixed generated path (<namespace-root>/architecture.generated.md).
  */
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -13,13 +12,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { readDocumentFingerprint, selfHeal } from '../../src/utils/architecture-document.js';
 import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
-import { resolveConfiguredPath } from '../../src/utils/configured-paths.js';
+import { resolveGeneratedArchitecturePath } from '../../src/utils/configured-paths.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const context: { directory: string } = { directory: '' };
 
 function documentPath(directory: string): string {
-  return resolveConfiguredPath(directory, 'architecture');
+  return resolveGeneratedArchitecturePath(directory);
 }
 
 beforeEach(() => {
@@ -91,6 +90,20 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(foreign);
   });
 
+  it('skips (not noop) a foreign doc even when the skeleton is empty', () => {
+    // No modules here, but a foreign doc exists: ownership wins over the
+    // empty-skeleton noop — the doc must be left untouched, never noop'd away.
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true, force: true });
+    const foreign = '# Our Architecture\n\nHand-written, no marker.\n';
+    mkdirSync(nodePath.dirname(documentPath(context.directory)), { recursive: true });
+    writeFileSync(documentPath(context.directory), foreign);
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('skipped');
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(foreign);
+  });
+
   it('recognizes a safeword-owned doc with CRLF line endings (heals, never skips)', () => {
     selfHeal(context.directory);
     // Re-encode an owned doc with CRLF (git core.autocrlf) and a stale fingerprint.
@@ -138,5 +151,24 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     const content = readFileSync(documentPath(context.directory), 'utf8');
     expect(content).toMatch(/orphaned/i);
     expect(content).toContain('billing');
+  });
+
+  it('does not create a doc when there are no modules and none exists (noop)', () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true, force: true });
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('noop');
+    expect(existsSync(documentPath(context.directory))).toBe(false);
+  });
+
+  it('heals an existing doc toward empty when all modules are removed (not noop)', () => {
+    selfHeal(context.directory);
+    rmSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true, force: true });
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('healed');
+    expect(existsSync(documentPath(context.directory))).toBe(true);
   });
 });

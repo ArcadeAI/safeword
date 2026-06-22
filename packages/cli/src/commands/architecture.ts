@@ -3,7 +3,7 @@
  * QD5DTT, Slice 1).
  *
  * Thin CLI entry over `selfHeal`: re-extracts the skeleton and reconciles prose
- * markers at the configured `paths.architecture`. The SessionStart hook shells
+ * markers at the generated `.project/architecture.generated.md`. The SessionStart hook shells
  * out to this command so the heal logic lives in one place (the CLI), not
  * duplicated into the hook lib.
  */

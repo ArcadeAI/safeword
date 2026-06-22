@@ -32,7 +32,7 @@ function dir(world: ArchitectureWorld): string {
 
 function documentPath(world: ArchitectureWorld): string {
   // No config in the temp project → default namespace root `.project`.
-  return nodePath.join(dir(world), '.project', 'architecture.md');
+  return nodePath.join(dir(world), '.project', 'architecture.generated.md');
 }
 
 function makeModule(world: ArchitectureWorld, name: string): void {
@@ -133,14 +133,10 @@ Then(/^scripts\/build\.ts does not appear as a skeleton node$/, function (this: 
   assert.doesNotMatch(readDocument(this), /### (scripts|build\.ts)/);
 });
 
-Then('a minimal skeleton is produced without error', function (this: ArchitectureWorld) {
-  assert.match(this.stdout ?? '', /created|unchanged/i);
-  assert.ok(existsSync(documentPath(this)));
-});
-
-Then('an empty skeleton is produced without error', function (this: ArchitectureWorld) {
-  assert.ok(existsSync(documentPath(this)));
-  assert.doesNotMatch(readDocument(this), /^### /m);
+Then('no architecture doc is written', function (this: ArchitectureWorld) {
+  // The command succeeds (runArchitecture asserts exit 0); with nothing to
+  // describe, no doc is born — an empty "## Modules" would be silently wrong.
+  assert.ok(!existsSync(documentPath(this)));
 });
 
 Then('the module is still listed in the skeleton', function (this: ArchitectureWorld) {
