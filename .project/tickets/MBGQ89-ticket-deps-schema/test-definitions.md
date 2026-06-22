@@ -42,47 +42,47 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`.
 
 ### Scenario: Advancing out of intake is denied while a blocker is in progress
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario: Advancing out of intake is allowed once the blocker is done
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario: Any non-done blocker among several denies the advance
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario: All-done blockers allow the advance
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario: A blocker with unreadable status fails safe and denies the advance
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ## Rule: Non-done terminal blockers require a reasoned override
 
 ### Scenario: A cancelled blocker without an override denies the advance
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario Outline: A substantive override allows advance past a terminal-but-not-done blocker
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario: An override's reason is surfaced in the INDEX
 
@@ -94,9 +94,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`.
 
 ### Scenario: An override with a trivial reason is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario: A stale override is flagged once every blocker is done
 
@@ -108,20 +108,20 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`.
 
 ### Scenario: A blocker added after intake does not retroactively block
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ### Scenario: A non-phase edit is never blocked
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
 
 ## Rule: A dependency cycle does not hang the gate
 
 ### Scenario: The gate short-circuits on a cycle instead of looping
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fc65f8f
+- [x] GREEN fc65f8f
+- [x] REFACTOR fc65f8f
