@@ -97,6 +97,18 @@ Grouping/filtering by epic and type comes from **labels** (free, stable) — tha
 
 Re-running reconciles, never duplicates, via a per-ticket `TrackerRef` kept in a **sidecar `.safeword/tracker-map.json`** — _not_ ticket frontmatter, so the canonical files stay pure (no sync write-back into the source of truth). The map distinguishes "created + ref recorded" from "created but ref-write failed" so a crashed mid-corpus run resumes cleanly rather than double-creating. Rate-limited writes with backoff (a first sync is one call per ticket across the corpus). (On Linear, the back-link **attachment** URL is also a native per-issue unique key — a secondary anchor, but the sidecar stays canonical for cross-provider uniformity.)
 
+### Birthplace — internal-first vs external-first (`figure-it-out` 2026-06-22)
+
+Not every unit of work is born as a safeword ticket projected outward. The deciding axis is **execute vs coordinate**, and the heuristic is one question:
+
+> **"Am I starting the work now?"** → **internal-first** (create the safeword ticket — the execution anchor — then project it out). Otherwise → **external-first** (file it straight in the tracker's triage/inbox), and **promote to an internal ticket on pickup.** When in doubt, file external — it's the cheap, reversible choice that lives in triage until someone commits.
+
+- **Internal-first:** work you're executing now — it needs the anchor (spec, scenarios, work log, `blocked_on` gate). The default for agent-driven build work.
+- **External-first:** coordination-only items — bug reports, feature requests, process ideas, not-now follow-ups — that humans/users file where they live (the tracker's [Triage inbox](https://linear.app/docs/triage)). Creating a local anchor before there's anything to execute is empty ceremony.
+- **Promotion (external → internal) on pickup:** a _creation_, not a back-sync (one-way still holds). `safeword ticket new` makes the anchor, links it to the originating issue (`external: <issue-url>` on the ticket; a "now tracked by ticket X" note on the issue), and from then on it projects file→tracker normally. The issue's prior human discussion stays in the tracker (humans own comments — field ownership). Fire the dedup nudge (1GGD28) at `ticket new` so a promotion doesn't duplicate an existing ticket/issue.
+
+Reconciles with field ownership: an external-first item is a "human-born issue safeword doesn't manage" **until** promoted. _Worked example:_ GitHub issue #333 (a process improvement, out-of-scope for current work, filed for team prioritization) was correctly **external-first**; it becomes an internal ticket only if/when we build it.
+
 ### Field ownership — one writer per field (`figure-it-out` 2026-06-21)
 
 The collision risk is that safeword and Linear both move the same issue (Linear auto-statuses off PRs). Resolved by the **single-writer-per-field** rule ([source](https://fintechly.com/infrastructure/infrastructure-system-of-record-vs-source-of-truth/)) — the Terraform `ignore_changes` posture: own the fields you declare, look away from the rest.
