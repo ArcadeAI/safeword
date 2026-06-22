@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
+import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
@@ -397,6 +398,24 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
         );
       }
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// blocked_on hard gate (ticket MBGQ89) — ALWAYS-ON. On a ticket.md edit that
+// advances phase out of intake, deny while any same-repo blocked_on target is
+// not done (override with a substantive reason). Joins the phase-gate family.
+// ---------------------------------------------------------------------------
+
+if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  const denial = evaluateBlockedOnGate(priorContent, proposedContent, id => {
+    const info = getTicketInfo(projectDirectory, id);
+    return { found: info.folder !== undefined, status: info.status };
+  });
+  if (denial !== undefined) {
+    deny(denial.reason, denial.additionalContext);
   }
 }
 
