@@ -32,6 +32,15 @@ describe('Test Suite 8: Health Check', () => {
     removeTemporaryDirectory(temporaryDirectory);
   });
 
+  /** Write a ticket.md with the given frontmatter lines under .project/tickets/<folder>/. */
+  function writeFrontmatterTicket(folder: string, frontmatter: string[]): void {
+    writeTestFile(
+      temporaryDirectory,
+      `.project/tickets/${folder}/ticket.md`,
+      ['---', ...frontmatter, '---', '', `# ${folder}`, ''].join('\n'),
+    );
+  }
+
   describe('Test 8.1: Shows CLI version', () => {
     it('should display CLI version', async () => {
       await createConfiguredProject(temporaryDirectory);
@@ -484,19 +493,23 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('AKZJXC: structured-relation advisories (depends_on)', () => {
-    function writeRelatedTicket(folder: string, frontmatter: string[]): void {
-      writeTestFile(
-        temporaryDirectory,
-        `.project/tickets/${folder}/ticket.md`,
-        ['---', ...frontmatter, '---', '', `# ${folder}`, ''].join('\n'),
-      );
-    }
-
     it('warns on a dangling depends_on and a dependency cycle, zero-exit', async () => {
       await createConfiguredProject(temporaryDirectory);
-      writeRelatedTicket('REL001-dangler', ['id: REL001', 'status: open', 'depends_on: [GHOST9]']);
-      writeRelatedTicket('REL002-loop-a', ['id: REL002', 'status: open', 'depends_on: [REL003]']);
-      writeRelatedTicket('REL003-loop-b', ['id: REL003', 'status: open', 'depends_on: [REL002]']);
+      writeFrontmatterTicket('REL001-dangler', [
+        'id: REL001',
+        'status: open',
+        'depends_on: [GHOST9]',
+      ]);
+      writeFrontmatterTicket('REL002-loop-a', [
+        'id: REL002',
+        'status: open',
+        'depends_on: [REL003]',
+      ]);
+      writeFrontmatterTicket('REL003-loop-b', [
+        'id: REL003',
+        'status: open',
+        'depends_on: [REL002]',
+      ]);
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -508,14 +521,67 @@ describe('Test Suite 8: Health Check', () => {
 
     it('stays silent for a corpus with valid relations', async () => {
       await createConfiguredProject(temporaryDirectory);
-      writeRelatedTicket('REL010-dep', ['id: REL010', 'status: open', 'depends_on: [REL011]']);
-      writeRelatedTicket('REL011-base', ['id: REL011', 'status: open']);
+      writeFrontmatterTicket('REL010-dep', ['id: REL010', 'status: open', 'depends_on: [REL011]']);
+      writeFrontmatterTicket('REL011-base', ['id: REL011', 'status: open']);
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).not.toMatch(/dangling ref|dependency cycle/i);
+    });
+  });
+
+  describe('MBGQ89: blocked_on relation advisories (warn-only)', () => {
+    it('warns on a dangling blocked_on, a cycle, and a self-cycle, zero-exit', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeFrontmatterTicket('BLK001-dangler', [
+        'id: BLK001',
+        'status: open',
+        'blocked_on: [GHOST9]',
+      ]);
+      writeFrontmatterTicket('BLK002-loop-a', [
+        'id: BLK002',
+        'status: open',
+        'blocked_on: [BLK003]',
+      ]);
+      writeFrontmatterTicket('BLK003-loop-b', [
+        'id: BLK003',
+        'status: open',
+        'blocked_on: [BLK002]',
+      ]);
+      writeFrontmatterTicket('BLK004-self', ['id: BLK004', 'status: open', 'blocked_on: [BLK004]']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/blocked_on GHOST9.*dangling ref/i);
+      expect(combined).toMatch(/blocked_on cycle among:.*BLK002.*BLK003/i);
+      expect(combined).toMatch(/blocked_on cycle among:.*BLK004/i);
+    });
+
+    it('treats a ticket with neither epic nor blocked_on as clean (fields optional)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeFrontmatterTicket('BLK020-bare', ['id: BLK020', 'status: open']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/BLK020.*(dangling ref|cycle)/i);
+    });
+
+    it('stays silent for valid blocked_on relations', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeFrontmatterTicket('BLK010-dep', ['id: BLK010', 'status: open', 'blocked_on: [BLK011]']);
+      writeFrontmatterTicket('BLK011-base', ['id: BLK011', 'status: done']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/blocked_on.*dangling ref|blocked_on cycle/i);
     });
   });
 

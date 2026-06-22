@@ -36,6 +36,7 @@ export interface TicketEntry {
   epic: string | undefined; // undefined → grouped under "(no epic)"
   goal: string | undefined; // the **Goal:** one-liner, when present
   dependsOn: string[]; // ticket ids this one depends on (directed edge); [] when none
+  blockedOn: string[]; // ticket ids this one is hard-blocked on (gates phase advance); [] when none
 }
 
 export interface TicketSyncResult {
@@ -126,6 +127,7 @@ function parseTicket(
       epic,
       goal: goalLine(bodyLines),
       dependsOn: parseTicketIdList(fields.get('depends_on')),
+      blockedOn: parseTicketIdList(fields.get('blocked_on')),
     },
   };
 }
