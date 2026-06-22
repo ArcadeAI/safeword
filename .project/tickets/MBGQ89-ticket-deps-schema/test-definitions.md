@@ -8,35 +8,35 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`.
 
 ### Scenario: A ticket carrying neither field validates cleanly
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7d339de
+- [x] GREEN 7d339de
+- [x] REFACTOR 7d339de
 
 ## Rule: Relations validation warns, never blocks
 
 ### Scenario: An unresolvable blocked_on id is warned, not errored
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7d339de
+- [x] GREEN 7d339de
+- [x] REFACTOR 7d339de
 
 ### Scenario: A blocked_on cycle is warned, not errored
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7d339de
+- [x] GREEN 7d339de
+- [x] REFACTOR 7d339de
 
 ### Scenario: A self-referential blocked_on is warned
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7d339de
+- [x] GREEN 7d339de
+- [x] REFACTOR 7d339de
 
 ### Scenario: A clean corpus produces no relation advisories
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7d339de
+- [x] GREEN 7d339de
+- [x] REFACTOR 7d339de
 
 ## Rule: blocked_on gates phase-advance out of intake
 
