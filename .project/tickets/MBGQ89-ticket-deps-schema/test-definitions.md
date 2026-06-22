@@ -86,9 +86,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`.
 
 ### Scenario: An override's reason is surfaced in the INDEX
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c6c4901
+- [x] GREEN c6c4901
+- [x] REFACTOR c6c4901
 
 ## Rule: The override must be honest
 
@@ -100,9 +100,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`.
 
 ### Scenario: A stale override is flagged once every blocker is done
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c6c4901
+- [x] GREEN c6c4901
+- [x] REFACTOR c6c4901
 
 ## Rule: The gate fires only on the intake-exit transition (grandfather)
 

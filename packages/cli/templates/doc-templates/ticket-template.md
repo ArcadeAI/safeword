@@ -14,6 +14,15 @@ phase: intake | define-behavior | scenario-gate | implement | done
   - feature: progresses through all phases via BDD workflow
   - on close: status: done → phase: done; status: cancelled | superseded → preserve last-active phase
 status: in_progress | done | cancelled | superseded | wontfix | blocked
+
+Relations (all optional, omit when none):
+  epic: <slug-or-id>             # groups this ticket under an epic
+  blocked_on: [<id>, <id>]       # HARD deps — the phase gate refuses to advance out of
+                                 #   intake until every listed ticket is `done`
+  blocked_on_override: <reason>  # advance past a non-done blocked_on on purpose; needs a
+                                 #   real reason (logged, shown in the INDEX). cancelled/
+                                 #   superseded/wontfix blockers require this to proceed
+  depends_on: [<id>]             # SOFT deps — surfaced by `safeword check` / INDEX, not enforced
 -->
 
 # Title
