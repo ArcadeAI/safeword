@@ -59,7 +59,9 @@ function isTerminatingBranch(statement: Statement): boolean {
  */
 function ifStatementTerminates(statement: Statement & { type: 'IfStatement' }): boolean {
   const isConsequentTerminates = isTerminatingBranch(statement.consequent);
-  const isAlternateTerminates = statement.alternate ? isTerminatingBranch(statement.alternate) : false;
+  const isAlternateTerminates = statement.alternate
+    ? isTerminatingBranch(statement.alternate)
+    : false;
   return isConsequentTerminates && isAlternateTerminates;
 }
 
