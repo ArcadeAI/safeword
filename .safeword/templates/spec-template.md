@@ -14,6 +14,18 @@ guidance comments.
 This is the single source of truth for motivation — ticket.md drops its
 **Why:** line and points here. -->
 
+## Intake Brief
+
+<!-- The decide-to-build framing for substantial features (advisory — write
+`skip: <reason>` on any line that doesn't apply). Intent above is the positive
+"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
+If cost-of-inaction is low and reversibility is high, ask whether this is a
+feature at all, or a leaner task. -->
+
+- **Requested by:** <who asked for this — distinct from the persona it serves>
+- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
+- **Reversibility:** <how hard to undo once shipped — one-way or two-way door>
+
 ## References
 
 <!-- Related tickets, prior art, designs, external docs. Optional. -->
