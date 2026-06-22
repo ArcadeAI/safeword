@@ -1,5 +1,5 @@
-import { execSync, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -9,9 +9,12 @@ import {
   READINESS_POINTER_WORD_CAP,
   shouldSurfaceReadiness,
 } from '../../../../.safeword/hooks/lib/readiness-pointer';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
-
-const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+import {
+  createTemporaryDirectory,
+  readRepoFile,
+  removeTemporaryDirectory,
+  repoRoot,
+} from '../helpers';
 
 function runPromptHook(projectDirectory: string): string {
   const result = spawnSync('bun', ['.safeword/hooks/prompt-questions.ts'], {
@@ -94,19 +97,13 @@ describe('readiness pointer (TPP6Y2)', () => {
 
   // Rule: SAFEWORD.md carries the triage guidance
   it('SAFEWORD.md states the value-of-information triage', () => {
-    const safeword = readFileSync(
-      nodePath.join(repoRoot, 'packages/cli/templates/SAFEWORD.md'),
-      'utf8',
-    );
+    const safeword = readRepoFile('packages/cli/templates/SAFEWORD.md');
     expect(safeword.toLowerCase()).toContain('reversible');
     expect(safeword.toLowerCase()).toContain('irreversible');
   });
 
   it('SAFEWORD.md defines readiness as edge-case-level questions', () => {
-    const safeword = readFileSync(
-      nodePath.join(repoRoot, 'packages/cli/templates/SAFEWORD.md'),
-      'utf8',
-    );
+    const safeword = readRepoFile('packages/cli/templates/SAFEWORD.md');
     expect(safeword.toLowerCase()).toContain('edge-case');
     expect(safeword.toLowerCase()).toContain('not basics');
   });
