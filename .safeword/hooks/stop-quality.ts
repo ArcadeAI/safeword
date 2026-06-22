@@ -12,10 +12,7 @@ import {
   getTicketInfo,
   resolveStopPhase,
 } from './lib/active-ticket.ts';
-import {
-  formatDependencyRecovery,
-  getDependencyReadiness,
-} from './lib/dependency-readiness.ts';
+import { formatDependencyRecovery, getDependencyReadiness } from './lib/dependency-readiness.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';

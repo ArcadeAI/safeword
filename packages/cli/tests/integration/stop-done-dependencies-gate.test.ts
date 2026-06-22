@@ -132,8 +132,13 @@ describe('stop-quality done-gate dependency readiness (#325)', () => {
 
     const run = runStop(cwd);
 
-    // It will still block further down the done-gate (no verify.md), but the
-    // reason must not be the dependency-recovery message — readiness is satisfied.
-    expect(run.stdout).not.toContain('dependencies are not installed');
+    // Positively assert it advanced PAST the readiness gate to a later one: a
+    // task at done with no verify.md blocks on that instead. (A negative-only
+    // "no recovery message" check could pass even if the gate were skipped.)
+    expect(run.status).toBe(0);
+    const parsed = JSON.parse(run.stdout) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).not.toContain('dependencies are not installed');
+    expect(parsed.reason).toContain('verify.md');
   });
 });
