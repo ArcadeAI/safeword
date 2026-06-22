@@ -8,17 +8,21 @@ allowed-tools: '*'
 
 Step-aware quality review at TDD phase boundaries. Fires when a sub-checkbox is marked in test-definitions.md during implement phase.
 
+These per-step reviews are **advisory self-checks** — the only hard gates in the implement phase are the commit ledger (`test-definitions.md` annotations) and the done-gate. Use these reviews to catch problems early; don't treat them as blocking walls.
+
 ## Detect Step
 
-Read the gate message to determine which TDD step is next:
+Key the review off the **last checked** box in the current scenario — that's the step you just completed:
 
-| Gate triggered | Step just completed           | Review focus              |
-| -------------- | ----------------------------- | ------------------------- |
-| `tdd:green`    | RED (test written)            | Review test quality       |
-| `tdd:refactor` | GREEN (implementation passes) | Review implementation     |
-| `tdd:red`      | REFACTOR (cleanup done)       | Review completed scenario |
+| Last checked (step just done) | Review focus              |
+| ----------------------------- | ------------------------- |
+| RED (test written)            | Review test quality       |
+| GREEN (implementation passes) | Review implementation     |
+| REFACTOR (cleanup done)       | Review completed scenario |
 
-## GREEN Gate (RED just completed — review test)
+Depth scales with the step: lightweight after RED, moderate after GREEN, full after REFACTOR.
+
+## After RED — review the test
 
 Focused review (~1 minute). Check the test that was just written:
 
@@ -27,34 +31,35 @@ Focused review (~1 minute). Check the test that was just written:
 - **Behavior, not implementation?** Tests observable outcomes. Red flag: mocking internals, checking call counts.
 - **Fails for the right reason?** Missing behavior, not syntax errors.
 - **Right test type?** Load the testing skill and consult its scope hierarchy (E2E > Integration > Unit). Was a higher-scope test practical here? Did we drop to unit when integration would catch more?
-- **Coverage adequacy?** Consult testing guide's bug detection matrix. Ask: "What could still break that this test wouldn't catch?" Flag gaps — missing edge cases, error paths, or boundary values — as candidates for additional scenarios.
+- **Coverage adequacy?** Consult testing guide's bug detection matrix. Ask: "What could still break that this test wouldn't catch?" Flag gaps — missing edge cases, error paths, or boundary values. **Where a gap goes:** a missing scenario is a scope change, not a mid-implement edit — defer it to a follow-up ticket, or loop back to define-behavior and re-run the scenario-gate. Don't silently append scenarios to a signed-off `test-definitions.md`.
 
 If issues found: fix before implementing. If clean: commit and proceed to implementation.
 
-## REFACTOR Gate (GREEN just completed — review implementation)
+## After GREEN — review the implementation
 
 Moderate review (~1-2 minutes). Check the implementation:
 
 - **Minimal?** Only code the test requires. No anticipatory design.
 - **Correct?** Does it actually satisfy the test's intent, not just make it pass by coincidence?
-- **No regressions?** Full test suite still passes.
+- **No regressions?** Run the **targeted** suite for the module under test. The full-suite regression check belongs once per scenario, at scenario close (after REFACTOR) — not at every GREEN.
 - **Run /refactor** for structural cleanup.
 
 If issues found: fix before refactoring. If clean: run /refactor, commit, proceed.
 
-## RED Gate (REFACTOR just completed — review completed scenario)
+## After REFACTOR — review the completed scenario
 
 Full review (~2-3 minutes). The entire scenario is done. Review the complete unit:
 
-- **Test + implementation alignment?** Does the test cover the scenario's Given/When/Then?
-- **Run /quality-review** for ecosystem verification (versions, deprecated APIs, security).
+- **Test + implementation alignment?** Does the test cover the scenario's Given/When/Then? This is a **local** review — no web research needed.
+- **Full suite green?** Run the full suite once here to catch cross-module regressions.
+- **New external dependency or API in this scenario?** Only then run **/quality-review** for ecosystem verification (versions, deprecated APIs, security) — verify it at the moment you introduce it, before later scenarios build on it. A scenario that adds no new third-party/external surface (internal modules, stdlib, or a second use of an already-reviewed dep don't count) skips this; the whole-ticket pass at implement-exit is the catch-all.
 - **Ready for next scenario?** Any loose ends or technical debt to note?
 
 If issues found: address before starting next scenario. If clean: commit and proceed to next `[ ] RED`.
 
-### Concrete example (GREEN gate)
+### Concrete example (after RED — reviewing the test)
 
-**Context:** Agent just wrote a failing test for scenario 2 (verbose shows passing files). The `tdd:green` gate fires.
+**Context:** Agent just wrote a failing test for scenario 2 (verbose shows passing files) — RED is the last checked box, so the review focuses on the test.
 
 **Agent review:**
 
@@ -73,18 +78,19 @@ If issues found: address before starting next scenario. If clean: commit and pro
 
 Every review ends with a **Next:** line on its own line — imperative, name the file/command/scenario. Don't end with "proceed" or "commit and move on" alone; name what to do.
 
-- GREEN gate clean → `**Next:** implement minimum code in {file} to make this test pass.`
-- GREEN gate issues → `**Next:** rewrite assertion in {file}:{line} to check observable output, then re-review.`
-- REFACTOR gate clean → `**Next:** run /refactor on {file}, then commit and mark next [ ] RED.`
-- RED gate clean → `**Next:** commit, then start scenario {N} — write the failing test in {file}.`
+- After RED, clean → `**Next:** implement minimum code in {file} to make this test pass.`
+- After RED, issues → `**Next:** rewrite assertion in {file}:{line} to check observable output, then re-review.`
+- After GREEN, clean → `**Next:** run /refactor on {file}, then commit and mark next [ ] RED.`
+- After REFACTOR, clean → `**Next:** commit, then start scenario {N} — write the failing test in {file}.`
 
 A review without a Next: line is incomplete.
 
 ## Reminders
 
-1. **Depth matches step** — lightweight for GREEN, moderate for REFACTOR, full for RED
-2. **Single source of truth** — this skill owns all TDD review content
-3. **Commit clears the gate** — review, then commit to proceed
-4. **Mark sub-checkbox** — ensure the current step's `[x]` is marked in test-definitions.md
+1. **Depth matches step** — lightweight after RED, moderate after GREEN, full after REFACTOR
+2. **Local by default** — per-step reviews need no web research; reserve **/quality-review** for a scenario that introduces a new external dependency/API and for the whole-ticket pass at implement-exit
+3. **Single source of truth** — this skill owns all TDD review content
+4. **Advisory, not a wall** — these reviews guide; the commit ledger and done-gate are the hard gates. Review, then commit to proceed
+5. **Mark sub-checkbox** — ensure the current step's `[x]` is marked in test-definitions.md
 
 **Voice:** plainspoken and concise — write to be scanned.
