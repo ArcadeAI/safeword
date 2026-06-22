@@ -107,7 +107,8 @@ export function removeTemporaryDirectory(dir: string): void {
  */
 export function createPackageJson(dir: string, overrides: Record<string, unknown> = {}): void {
   // Merge devDependencies to ensure local safeword is always included
-  const existingDevelopmentDependencies = (overrides.devDependencies as Record<string, string>) ?? {};
+  const existingDevelopmentDependencies =
+    (overrides.devDependencies as Record<string, string>) ?? {};
   const pkg = {
     name: 'test-project',
     version: '1.0.0',
@@ -130,7 +131,8 @@ export function createSafewordBasePackageJson(
   dir: string,
   overrides: Record<string, unknown> = {},
 ): void {
-  const existingDevelopmentDependencies = (overrides.devDependencies as Record<string, string>) ?? {};
+  const existingDevelopmentDependencies =
+    (overrides.devDependencies as Record<string, string>) ?? {};
   createPackageJson(dir, {
     ...overrides,
     devDependencies: {

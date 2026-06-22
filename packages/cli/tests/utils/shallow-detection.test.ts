@@ -40,7 +40,11 @@ describe('existsInTree', () => {
   });
 
   it('finds file at depth 2 (monorepo pattern)', () => {
-    writeTestFile(shared.projectDirectory, 'apps/engine/go.mod', 'module example.com/apps/engine\n');
+    writeTestFile(
+      shared.projectDirectory,
+      'apps/engine/go.mod',
+      'module example.com/apps/engine\n',
+    );
     expect(existsInTree(shared.projectDirectory, 'go.mod')).toBe(true);
   });
 
@@ -77,7 +81,11 @@ describe('existsInTree', () => {
   });
 
   it('excludes dbt_packages directory', () => {
-    writeTestFile(shared.projectDirectory, 'dbt_packages/some_pkg/dbt_project.yml', 'name: vendored\n');
+    writeTestFile(
+      shared.projectDirectory,
+      'dbt_packages/some_pkg/dbt_project.yml',
+      'name: vendored\n',
+    );
     expect(existsInTree(shared.projectDirectory, 'dbt_project.yml')).toBe(false);
   });
 
@@ -241,7 +249,11 @@ describe('SQL pack detection', () => {
   });
 
   it('Tier 2: detects SQL from db/migrations/ with .sql', () => {
-    writeTestFile(shared.projectDirectory, 'db/migrations/001_init.sql', 'CREATE TABLE users (id INT);');
+    writeTestFile(
+      shared.projectDirectory,
+      'db/migrations/001_init.sql',
+      'CREATE TABLE users (id INT);',
+    );
     expect(sqlPack.detect(shared.projectDirectory)).toBe(true);
   });
 

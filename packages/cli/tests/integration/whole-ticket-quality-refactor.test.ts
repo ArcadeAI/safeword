@@ -24,7 +24,10 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-const shared: { projectDirectory: string; ticketSeq: number } = { projectDirectory: '', ticketSeq: 0 };
+const shared: { projectDirectory: string; ticketSeq: number } = {
+  projectDirectory: '',
+  ticketSeq: 0,
+};
 
 beforeAll(async () => {
   shared.projectDirectory = createTemporaryDirectory();
@@ -103,9 +106,13 @@ function writeSkillLog(entries: string[]): void {
 
 function twoReachableShas(): [string, string] {
   execSync('git commit --allow-empty -q -m loop-c1', { cwd: shared.projectDirectory });
-  const a = execSync('git rev-parse --short HEAD', { cwd: shared.projectDirectory }).toString().trim();
+  const a = execSync('git rev-parse --short HEAD', { cwd: shared.projectDirectory })
+    .toString()
+    .trim();
   execSync('git commit --allow-empty -q -m loop-c2', { cwd: shared.projectDirectory });
-  const b = execSync('git rev-parse --short HEAD', { cwd: shared.projectDirectory }).toString().trim();
+  const b = execSync('git rev-parse --short HEAD', { cwd: shared.projectDirectory })
+    .toString()
+    .trim();
   return [a, b];
 }
 
