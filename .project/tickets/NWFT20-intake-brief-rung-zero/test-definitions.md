@@ -6,18 +6,18 @@ Task — content/scaffold assertions on the spec template + bdd DISCOVERY guidan
 
 ### Scenario: spec-template.md has an Intake Brief section after Intent with the three fields
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1b804aa
+- [x] GREEN f581a8e
+- [x] REFACTOR skip: single template section, no structural improvement needed
 
 ## Rule: DISCOVERY authors the brief as rung 0
 
 ### Scenario: DISCOVERY.md adds the brief before Jobs To Be Done and folds it into the JTBD gate with a feature-vs-task triage question
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1b804aa
+- [x] GREEN f74979d
+- [x] REFACTOR skip: prose guidance, no structural improvement needed
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario skip: two doc-content scenarios, no cross-loop duplication
+- [x] cross-scenario skip: two doc-content scenarios, no cross-loop duplication
