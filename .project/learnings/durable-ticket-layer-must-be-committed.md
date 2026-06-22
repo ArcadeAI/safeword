@@ -1,5 +1,7 @@
 # Durable Ticket Layer Must Be Committed (Relocate, Don't Git-Ignore)
 
+Covers: ticket store git-tracking, committed-vs-ignored split, ephemeral/cloud persistence, file-canonical seam, paths.projectRoot relocation.
+
 **Discovered:** 2026-06-22, during the sync-tracker (JS5K5G) design — stress-testing "what if `.project/` were git-ignored?"
 
 ## The invariant
