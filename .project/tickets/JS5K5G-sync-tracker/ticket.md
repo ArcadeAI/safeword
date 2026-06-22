@@ -134,6 +134,8 @@ Ride each tracker's native provenance; add one banner. No competing IDs.
 
 ### Configuration & setup (secrets stay out of the repo)
 
+> The **interactive wiring** — when connect is triggered and where the human authorizes (OAuth / GitHub App / PAT) + verify-before-sync — is owned by the sibling [tracker-connect-flow (2TK5AD)](../2TK5AD-tracker-connect-flow/ticket.md). This section is the config/secret _shape_ it writes.
+
 Configured during `safeword setup` (opt-in). **Non-secret** provider/target lives in committed config; the **token never does.**
 
 ```json
