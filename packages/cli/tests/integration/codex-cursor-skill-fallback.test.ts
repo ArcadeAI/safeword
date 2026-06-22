@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -32,8 +32,8 @@ import {
   initGitRepo,
   removeTemporaryDirectory,
   setupOrThrow,
-  writeTestFile,
 } from '../helpers.js';
+import { runDoneGate, writeFeatureTicketAtDone } from './done-gate-harness.js';
 
 // The done-gate's gated skills. record-skill-invocation.ts is skill-name
 // agnostic, so the fallback mechanism is exercised across all three.
@@ -68,59 +68,6 @@ function runFallback(
 function logContents(projectDirectory: string): string {
   const logPath = nodePath.join(projectDirectory, '.project', 'skill-invocations.log');
   return existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
-}
-
-function writeFeatureTicketAtDone(directory: string, ticketId: string): void {
-  const folder = `.project/tickets/${ticketId}`;
-  mkdirSync(nodePath.join(directory, folder), { recursive: true });
-  // verify.md + test-definitions.md present so only the skill-invocation gate
-  // is in play (other done-gate checks are already satisfied).
-  writeTestFile(
-    directory,
-    `${folder}/ticket.md`,
-    `---\nid: ${ticketId}\ntype: feature\nphase: done\nstatus: in_progress\nlast_modified: 2026-01-06T10:00:00Z\n---\n# Test\n`,
-  );
-  writeTestFile(
-    directory,
-    `${folder}/test-definitions.md`,
-    '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
-  );
-  writeTestFile(
-    directory,
-    `${folder}/verify.md`,
-    'Verified: 2026-01-06\n\n## Verify Checklist\n\n**Test Suite:** ✓ 1/1 tests pass\n',
-  );
-}
-
-function runDoneGate(
-  projectDirectory: string,
-  sessionId: string,
-): { exitCode: number; reason: string } {
-  const transcriptPath = nodePath.join(projectDirectory, 'transcript.jsonl');
-  writeFileSync(
-    transcriptPath,
-    `${JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [
-          { type: 'text', text: 'done' },
-          { type: 'tool_use', name: 'Edit' },
-        ],
-      },
-    })}\n`,
-  );
-  const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-    input: JSON.stringify({ transcript_path: transcriptPath, session_id: sessionId }),
-    cwd: projectDirectory,
-    env: nonClaudeEnvironment(projectDirectory),
-    encoding: 'utf8',
-  });
-  try {
-    return { exitCode: result.status ?? 0, reason: JSON.parse(result.stdout.trim()).reason ?? '' };
-  } catch {
-    return { exitCode: result.status ?? 0, reason: '' };
-  }
 }
 
 describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () => {
@@ -168,7 +115,7 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     runFallback(projectDirectory, 'verify', sessionId);
     runFallback(projectDirectory, 'audit', sessionId);
 
-    const result = runDoneGate(projectDirectory, sessionId);
+    const result = runDoneGate(projectDirectory, sessionId, nonClaudeEnvironment(projectDirectory));
 
     // Fallback-recorded proof satisfies the gate — no missing-invocation block.
     expect(result.reason).not.toMatch(/Required skill invocation/);
@@ -180,7 +127,11 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     runFallback(projectDirectory, 'verify', '');
     runFallback(projectDirectory, 'audit', '');
 
-    const result = runDoneGate(projectDirectory, 'codex-session-952');
+    const result = runDoneGate(
+      projectDirectory,
+      'codex-session-952',
+      nonClaudeEnvironment(projectDirectory),
+    );
 
     expect(result.reason).toContain('/verify');
     expect(result.reason).toContain('/audit');
