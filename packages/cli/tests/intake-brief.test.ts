@@ -1,14 +1,6 @@
-import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
-
-function read(relativePath: string): string {
-  return readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
-}
+import { readRepoFile as read } from './helpers';
 
 describe('intake brief rung-0 (NWFT20)', () => {
   it('spec-template.md carries an Intake Brief section, after Intent, with the three fields', () => {
