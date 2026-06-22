@@ -2,7 +2,7 @@
 id: NWFT20
 slug: intake-brief-rung-zero
 type: task
-phase: implement
+phase: verify
 status: in_progress
 epic: pm-grade-intake
 parent: '169'
