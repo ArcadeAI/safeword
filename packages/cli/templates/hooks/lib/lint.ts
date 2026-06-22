@@ -193,11 +193,11 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
   if (upgradeAttempted) return false;
   upgradeAttempted = true;
 
-  console.error(`SAFEWORD: ${packName} pack missing, running upgrade...`);
+  console.error(`${packName} pack missing, running upgrade...`);
 
   const result = await $`bunx safeword@latest upgrade`.nothrow().quiet();
   if (result.exitCode !== 0) {
-    console.error('SAFEWORD: Upgrade failed. Run manually: bunx safeword upgrade');
+    console.error('Upgrade failed. Run manually: bunx safeword upgrade');
     return false;
   }
 
@@ -205,7 +205,7 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
   // a location safeword can't auto-detect.
   if (!hasConfig(configPath)) {
     console.error(
-      `SAFEWORD: ${packName} config not created after upgrade. ` +
+      `${packName} config not created after upgrade. ` +
         `Linting with ${packName} defaults (no strict safeword rules).`,
     );
   }
@@ -218,11 +218,9 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
       .nothrow()
       .quiet();
   if (commitResult.exitCode !== 0) {
-    console.error(
-      'SAFEWORD: Could not auto-commit .safeword/ changes (not a git repo or no changes)',
-    );
+    console.error('Could not auto-commit .safeword/ changes (not a git repo or no changes)');
   } else {
-    console.error('SAFEWORD: Upgrade complete and committed');
+    console.error('Upgrade complete and committed');
   }
 
   return hasConfig(configPath);
