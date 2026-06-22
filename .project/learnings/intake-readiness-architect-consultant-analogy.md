@@ -6,50 +6,50 @@ What a world-class engineer/architect and a top-tier consultant ask at intake wh
 
 ## Architect's signature move: make the fuzzy measurable + surface constraints
 
-Architects are pulled into elicitation early (>60% involvement) and their distinctive contribution is turning vague quality words into **measurable fit criteria / quality scenarios**. "No one can explain what they mean by performance, scalability, usability, maintainability" — the architect's job is to make the "-ilities" concrete and measurable. Rule of thumb: *if a tester cannot measure success, the requirement is incomplete.*
+Architects are pulled into elicitation early (>60% involvement) and their distinctive contribution is turning vague quality words into **measurable fit criteria / quality scenarios**. "No one can explain what they mean by performance, scalability, usability, maintainability" — the architect's job is to make the "-ilities" concrete and measurable. Rule of thumb: _if a tester cannot measure success, the requirement is incomplete._
 
 Two intake axes this adds:
 
-1. **Non-functional / constraint questions.** Scale, performance, security, compatibility, *what must not break*, *who maintains this*, *what can't change*. These drive architecture and are expensive to retrofit — i.e. exactly the irreversible / high-blast category the readiness gate already cares about.
+1. **Non-functional / constraint questions.** Scale, performance, security, compatibility, _what must not break_, _who maintains this_, _what can't change_. These drive architecture and are expensive to retrofit — i.e. exactly the irreversible / high-blast category the readiness gate already cares about.
 2. **Fit criteria over vibes.** "How will I know it's done" must be a measurable criterion, not a feeling. Sharpens `done_when`.
 
 Tools named: Architecture Characteristics Worksheet, quality scenarios, fit criteria. "Prototypes help elicit NFRs but never replace written fit criteria."
 
 ### Fresh-evidence sharpening: constraint decay (the load-bearing finding for a coding agent)
 
-A 2026 study ("Constraint Decay: The Fragility of LLM Agents in Backend Code Generation", arXiv 2605.06445) shows LLM coding-agent performance *declines as structural / non-functional constraints accumulate*, and that NFRs (architectural patterns, DBs, ORMs) are exactly what agents fail on. This cuts two ways and settles the design:
+A 2026 study ("Constraint Decay: The Fragility of LLM Agents in Backend Code Generation", arXiv 2605.06445) shows LLM coding-agent performance _declines as structural / non-functional constraints accumulate_, and that NFRs (architectural patterns, DBs, ORMs) are exactly what agents fail on. This cuts two ways and settles the design:
 
 - Constraints are **where coding agents fail** → surface the load-bearing ones at intake (don't defer to build).
-- But piling on constraints **degrades** the agent → surface only the *load-bearing* one ("what must not break / who depends / reversible?"), never an exhaustive NFR sweep. An NFR quality-attributes survey is self-defeating — it triggers the decay it's meant to prevent.
+- But piling on constraints **degrades** the agent → surface only the _load-bearing_ one ("what must not break / who depends / reversible?"), never an exhaustive NFR sweep. An NFR quality-attributes survey is self-defeating — it triggers the decay it's meant to prevent.
 
 The classic cost-of-late-defect curve (requirements defects ~20–400× cheaper to fix early; one defect propagates across design+code+tests) directionally supports early constraint capture — but note the honest caveat that this evidence is "sparse and very old," so it is corroborating, not load-bearing. The 2026 agentic-coding consensus is to balance upfront spec clarity with iterative refinement, not front-load everything.
 
 ## Consultant's signature move: the problem behind the problem + the stakeholder landscape
 
 - **"Search for the problem behind the problem" and remain curious.** Consultants assume the stated problem is a symptom — the sharpest form of the XY-problem guard.
-- **Stakeholder dynamics over advice.** "More engagements fail because of stakeholder dynamics than bad advice." Surface *who* the stakeholders are and their conflicting views before starting; talk to the people closest to the problem, not just the point of contact.
-- **The killer probe:** *"What would need to be true for this to be a definitive yes for you?"* — reveals hidden decision criteria and unnamed stakeholders in one question. High information gain; worth stealing for gate copy.
+- **Stakeholder dynamics over advice.** "More engagements fail because of stakeholder dynamics than bad advice." Surface _who_ the stakeholders are and their conflicting views before starting; talk to the people closest to the problem, not just the point of contact.
+- **The killer probe:** _"What would need to be true for this to be a definitive yes for you?"_ — reveals hidden decision criteria and unnamed stakeholders in one question. High information gain; worth stealing for gate copy.
 - **Scope explicitly** to prevent scope creep.
 
 ## The specific ask: technical vs non-technical requester
 
 The expert's real job is to **normalize the request shape** to the same intent + constraints + fit-criteria core, regardless of who sent it:
 
-- **Non-technical requester → under-specified.** Gives outcomes in domain language; omits the non-functionals they don't know to state (security, scale, failure modes). Expert *translates* to technical requirements, fills the unstated NFRs, restates in the requester's language, and confirms. "Avoid ambiguous terms; every requirement must support validation."
+- **Non-technical requester → under-specified.** Gives outcomes in domain language; omits the non-functionals they don't know to state (security, scale, failure modes). Expert _translates_ to technical requirements, fills the unstated NFRs, restates in the requester's language, and confirms. "Avoid ambiguous terms; every requirement must support validation."
 - **Technical requester → over-specified as a solution.** Often hands a solution (X) rather than the problem (Y). Expert reverse-engineers the intent and pressure-tests the proposed approach — the risk is anchoring on their stated solution.
 
-Both failure shapes — under-specified and solution-in-disguise — collapse to the same core. A coding agent receives both kinds constantly, so the intake must detect *which shape* it got and correct for it.
+Both failure shapes — under-specified and solution-in-disguise — collapse to the same core. A coding agent receives both kinds constantly, so the intake must detect _which shape_ it got and correct for it.
 
 ## The four-domain convergence
 
-| Domain | Adds to the readiness core |
-| --- | --- |
-| Mission command | Intent + end-state; prudent risk within intent |
-| PM (Cagan) | Objective, success-signal, problem-not-solution, who; riskiest assumption |
-| Architect | **Constraints / non-functionals; make done-state measurable** |
-| Consultant | **Problem-behind-the-problem; stakeholder landscape; "definitive yes" probe; request-shape normalization** |
+| Domain          | Adds to the readiness core                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| Mission command | Intent + end-state; prudent risk within intent                                                             |
+| PM (Cagan)      | Objective, success-signal, problem-not-solution, who; riskiest assumption                                  |
+| Architect       | **Constraints / non-functionals; make done-state measurable**                                              |
+| Consultant      | **Problem-behind-the-problem; stakeholder landscape; "definitive yes" probe; request-shape normalization** |
 
-Four independent fields converge on a small, bounded, problem/outcome-focused intake — and the two new axes (constraints + request-shape) are precisely what a *coding* agent needs that generic intent-clarification misses.
+Four independent fields converge on a small, bounded, problem/outcome-focused intake — and the two new axes (constraints + request-shape) are precisely what a _coding_ agent needs that generic intent-clarification misses.
 
 ## What this adds to TPP6Y2's self-test
 

@@ -6,19 +6,19 @@ What world-class product managers ask at intake, mapped to the safeword agent's 
 
 ## The headline: intake is BOUNDED, not exhaustive
 
-Marty Cagan's **Opportunity Assessment** is the canonical PM intake. The full SVPG version is **10 questions** (not four — an earlier draft of this note over-condensed it), but Cagan's explicit design goal is "quick, lightweight, yet effective," and he deliberately moved *away* from heavy PRDs toward lightweight artifacts. The load-bearing core distils to four:
+Marty Cagan's **Opportunity Assessment** is the canonical PM intake. The full SVPG version is **10 questions** (not four — an earlier draft of this note over-condensed it), but Cagan's explicit design goal is "quick, lightweight, yet effective," and he deliberately moved _away_ from heavy PRDs toward lightweight artifacts. The load-bearing core distils to four:
 
-1. **What business objective is this focused on?** — the *why* / outcome
+1. **What business objective is this focused on?** — the _why_ / outcome
 2. **How will you know if you've succeeded?** — the success signal / done-state
 3. **What problem are you solving for the customer?** — the problem, **not** the requested solution
 4. **Who are you solving it for?** — the persona
 
-Two facts matter more than the exact count. First, it is a *calibrated stopping rule* — the same "know when you know enough" theme as the clarifying-question research (`propose-and-converge-research.md`); world-class PMs hit a bounded core and stop. Second, Cagan says the assessment is worth running *even when the decision is already made* (e.g. mandated top-down) because it makes you better-informed — the value is in the thinking, not the gate.
+Two facts matter more than the exact count. First, it is a _calibrated stopping rule_ — the same "know when you know enough" theme as the clarifying-question research (`propose-and-converge-research.md`); world-class PMs hit a bounded core and stop. Second, Cagan says the assessment is worth running _even when the decision is already made_ (e.g. mandated top-down) because it makes you better-informed — the value is in the thinking, not the gate.
 
 ## Four supporting moves from the PM canon
 
 - **Job, not stated want (JTBD).** "What job is the customer hiring this for?" — surface underlying motivation, not the literal request. The XY-problem guard.
-- **Risk lens (Cagan's four big risks).** Pressure-test value, usability, feasibility, business viability. Teresa Torres' Opportunity Solution Tree terminates in *assumptions* — discovery is assumption-hunting.
+- **Risk lens (Cagan's four big risks).** Pressure-test value, usability, feasibility, business viability. Teresa Torres' Opportunity Solution Tree terminates in _assumptions_ — discovery is assumption-hunting.
 - **End-state first (Amazon Working Backwards / PR-FAQ).** Write the press release before building — articulate "done" before starting.
 - **Disambiguate terms before acting.** "When you say engagement, do you mean opens or click-through?" Clarify ambiguous words first.
 
@@ -28,7 +28,7 @@ Cagan's four questions ARE commander's intent in PM clothing: objective + succes
 
 ## Mapping to safeword (the gate adds little, recognizes a lot)
 
-Safeword *already* extracts Cagan's four: `spec.md` writes JTBD (problem + who) against a personas file, and `done_when` is the success signal. The readiness gate is not new fields — it is recognizing the existing intake IS the opportunity assessment, plus the one move both PMs and the military insist on that the current self-test underweights:
+Safeword _already_ extracts Cagan's four: `spec.md` writes JTBD (problem + who) against a personas file, and `done_when` is the success signal. The readiness gate is not new fields — it is recognizing the existing intake IS the opportunity assessment, plus the one move both PMs and the military insist on that the current self-test underweights:
 
 **"Name the biggest unknown" → "Name the riskiest assumption."** A risk, not just a gap. PMs chase the assumption most likely to be wrong and cheapest to check — not maximal coverage.
 

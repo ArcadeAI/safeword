@@ -147,7 +147,7 @@ function checkArrowBody(
   if (body.type === 'BlockStatement') {
     for (const statement of body.body) {
       if (!(statement.type === 'ReturnStatement' && statement.argument)) {
-      	continue;
+        continue;
       }
 
       const found = containsAccumulatorSpread(statement.argument, accName);

@@ -11,6 +11,7 @@ import {
   readDependencyBootstrapConfig,
   toDependencyReadinessState,
   writeDependencyReadinessState,
+  writeInstallMarker,
 } from './lib/dependency-readiness.ts';
 
 interface SessionStartOutput {
@@ -34,6 +35,7 @@ if (readiness.status === 'unsupported') {
 
 if (readiness.status === 'ready') {
   writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
+  writeInstallMarker(projectDirectory, readiness);
   process.exit(0);
 }
 
@@ -51,11 +53,12 @@ if (config.autoInstall && readiness.plan !== undefined) {
 
   if (result.status === 0 && readiness.status === 'ready') {
     writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
-    emitContext(`SAFEWORD: dependencies bootstrapped with \`${display}\`.`);
+    writeInstallMarker(projectDirectory, readiness);
+    emitContext(`dependencies bootstrapped with \`${display}\`.`);
   }
 
   const message = [
-    `SAFEWORD: dependency bootstrap failed while running \`${display}\`.`,
+    `dependency bootstrap failed while running \`${display}\`.`,
     'Run the install command manually, inspect the package manager output, then retry.',
     trimOutput(result.stderr) || trimOutput(result.stdout),
   ]

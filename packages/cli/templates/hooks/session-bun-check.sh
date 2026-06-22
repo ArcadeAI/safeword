@@ -11,7 +11,7 @@ if [ ! -d "$PROJECT_DIR/.safeword" ]; then
 fi
 
 if ! command -v bun &> /dev/null; then
-  echo "SAFEWORD: bun is required for quality hooks but was not found in PATH." >&2
+  echo "bun is required for quality hooks but was not found in PATH." >&2
   echo "All quality gates, auto-linting, and review hooks are inactive without it." >&2
   echo "" >&2
   echo "Install: curl -fsSL https://bun.sh/install | bash" >&2

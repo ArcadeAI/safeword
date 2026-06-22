@@ -587,6 +587,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-lint-check.ts': {
       template: 'hooks/session-lint-check.ts',
     },
+    '.safeword/hooks/session-architecture-heal.ts': {
+      template: 'hooks/session-architecture-heal.ts',
+    },
     '.safeword/hooks/session-author-model.ts': {
       template: 'hooks/session-author-model.ts',
     },

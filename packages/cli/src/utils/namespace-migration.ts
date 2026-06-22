@@ -79,7 +79,7 @@ function rewriteLegacyPathOverrides(cwd: string): string[] {
   const rewritten: string[] = [];
   for (const [key, value] of Object.entries(parsed.paths)) {
     if (!(typeof value === 'string' && value.startsWith(`${LEGACY_ROOT}/`))) {
-    	continue;
+      continue;
     }
 
     parsed.paths[key] = `${DEFAULT_ROOT}${value.slice(LEGACY_ROOT.length)}`;

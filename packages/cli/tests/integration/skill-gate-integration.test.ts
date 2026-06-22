@@ -5,7 +5,6 @@
  * when /verify and /audit log entries are missing in the current session.
  */
 
-import { execSync, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -17,28 +16,8 @@ import {
   initGitRepo,
   removeTemporaryDirectory,
   setupOrThrow,
-  writeTestFile,
 } from '../helpers.js';
-
-function writeFeatureTicketAtDone(directory: string, ticketId: string): void {
-  const folder = `.project/tickets/${ticketId}`;
-  execSync(`mkdir -p "${directory}/${folder}"`, { cwd: directory });
-  writeTestFile(
-    directory,
-    `${folder}/ticket.md`,
-    `---\nid: ${ticketId}\ntype: feature\nphase: done\nstatus: in_progress\nlast_modified: 2026-01-06T10:00:00Z\n---\n# Test\n`,
-  );
-  writeTestFile(
-    directory,
-    `${folder}/test-definitions.md`,
-    '# Test Definitions\n\n## Rule: Test rule\n\n- [x] Scenario one\n',
-  );
-  writeTestFile(
-    directory,
-    `${folder}/verify.md`,
-    'Verified: 2026-01-06\n\n## Verify Checklist\n\n**Test Suite:** ✓ 1/1 tests pass\n',
-  );
-}
+import { runDoneGate, writeFeatureTicketAtDone } from './done-gate-harness.js';
 
 function writeSkillLog(directory: string, entries: string[]): void {
   const safewordDirectory = nodePath.join(directory, '.project');
@@ -47,42 +26,6 @@ function writeSkillLog(directory: string, entries: string[]): void {
     nodePath.join(safewordDirectory, 'skill-invocations.log'),
     entries.length > 0 ? `${entries.join('\n')}\n` : '',
   );
-}
-
-function runStopHookWithSession(
-  targetDirectory: string,
-  sessionId: string,
-): { exitCode: number; reason: string } {
-  const transcriptPath = nodePath.join(targetDirectory, 'transcript.jsonl');
-  writeFileSync(
-    transcriptPath,
-    `${JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [
-          { type: 'text', text: 'done' },
-          { type: 'tool_use', name: 'Edit' },
-        ],
-      },
-    })}\n`,
-  );
-  const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-    input: JSON.stringify({
-      transcript_path: transcriptPath,
-      session_id: sessionId,
-    }),
-    cwd: targetDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
-    encoding: 'utf8',
-  });
-  const exitCode = result.status ?? 0;
-  try {
-    const parsed = JSON.parse(result.stdout.trim());
-    return { exitCode, reason: parsed.reason ?? '' };
-  } catch {
-    return { exitCode, reason: '' };
-  }
 }
 
 describe('skill-invocation gate: end-to-end (147)', () => {
@@ -103,7 +46,7 @@ describe('skill-invocation gate: end-to-end (147)', () => {
     writeFeatureTicketAtDone(projectDirectory, '901');
     writeSkillLog(projectDirectory, []);
 
-    const result = runStopHookWithSession(projectDirectory, 'session-901');
+    const result = runDoneGate(projectDirectory, 'session-901');
 
     expect(result.exitCode).toBe(0);
     expect(result.reason).toContain('/verify');
@@ -117,7 +60,7 @@ describe('skill-invocation gate: end-to-end (147)', () => {
     writeFeatureTicketAtDone(projectDirectory, '902');
     writeSkillLog(projectDirectory, ['2026-05-15T00:00:00Z session-902 verify']);
 
-    const result = runStopHookWithSession(projectDirectory, 'session-902');
+    const result = runDoneGate(projectDirectory, 'session-902');
 
     expect(result.exitCode).toBe(0);
     expect(result.reason).toContain('/audit');
@@ -131,11 +74,13 @@ describe('skill-invocation gate: end-to-end (147)', () => {
       '2026-05-15T00:00:01Z session-903 audit',
     ]);
 
-    const result = runStopHookWithSession(projectDirectory, 'session-903');
+    const result = runDoneGate(projectDirectory, 'session-903');
 
     // The skill gate passed; whether downstream gates also pass depends on
-    // other ticket state. Asserting only on the skill-gate message absence.
-    expect(result.reason).not.toMatch(/Required skill invocation/);
+    // other ticket state. Assert exit code + raw stdout (not `reason`): a hook
+    // crash yields an empty reason that would match negatively for free.
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain('Required skill invocation');
   });
 
   it('feature done with only OTHER session entries still blocks', () => {
@@ -145,7 +90,7 @@ describe('skill-invocation gate: end-to-end (147)', () => {
       '2026-05-15T00:00:01Z some-other-session audit',
     ]);
 
-    const result = runStopHookWithSession(projectDirectory, 'session-904');
+    const result = runDoneGate(projectDirectory, 'session-904');
 
     expect(result.exitCode).toBe(0);
     expect(result.reason).toContain('/verify');

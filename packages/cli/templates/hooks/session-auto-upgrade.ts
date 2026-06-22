@@ -181,7 +181,7 @@ if (decision === 'notify') {
   // Major bump — may carry breaking changes, so we notify rather than apply.
   // exit 2 delivers this message to Claude (asyncRewake rewake contract).
   console.error(
-    `SAFEWORD: v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
+    `v${latest} available (${bump}) — run \`bunx safeword@${latest} upgrade\` to update`,
   );
   process.exit(2);
 }
@@ -288,7 +288,7 @@ try {
 
   if (failure.reachedCap) {
     console.error(
-      `SAFEWORD: auto-upgrade to v${latest} failed ${MAX_UPGRADE_ATTEMPTS}× — run \`bunx safeword@${latest} upgrade\` manually, or disable with \`autoUpgrade: false\` in .safeword/config.json`,
+      `auto-upgrade to v${latest} failed ${MAX_UPGRADE_ATTEMPTS}× — run \`bunx safeword@${latest} upgrade\` manually, or disable with \`autoUpgrade: false\` in .safeword/config.json`,
     );
     process.exit(2);
   }
@@ -307,5 +307,5 @@ try {
 }
 
 // exit 2 surfaces the outcome to Claude (asyncRewake rewake contract).
-console.error(`SAFEWORD: Auto-upgraded v${currentVersion} → v${latest}`);
+console.error(`Auto-upgraded v${currentVersion} → v${latest}`);
 process.exit(2);

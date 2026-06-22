@@ -10,6 +10,7 @@ import {
   isDependencyBackedCommand,
   toDependencyReadinessState,
   writeDependencyReadinessState,
+  writeInstallMarker,
 } from './lib/dependency-readiness.ts';
 
 interface HookInput {
@@ -53,6 +54,7 @@ if (command === undefined || !isDependencyBackedCommand(command)) {
 const readiness = getDependencyReadiness(projectDirectory);
 if (readiness.status === 'ready' || readiness.status === 'unsupported') {
   writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
+  writeInstallMarker(projectDirectory, readiness);
   process.exit(0);
 }
 
