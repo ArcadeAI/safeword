@@ -829,7 +829,7 @@
   → `.project/tickets/M1FGRJ-tracker-relations-projection`
 - **Local ticket schema: epic + blocked_on, warn-only + one blocked_on hard gate (MBGQ89)** (in_progress, epic: —)
   Promote `epic` and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't `done` (other terminal states need a reasoned override). (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); `parent`/`paired_with` are deferred — no consumer yet.)
-  → `.project/tickets/MBGQ89`
+  → `.project/tickets/MBGQ89-ticket-deps-schema`
 - **Independent evidence-backed architecture gate for features (MR5M3A)** (done, epic: —)
   Layer the missing independent challenge onto #204's impl-plan: require the design to be generated from cited evidence (the /figure-it-out trace) and then survive a fresh-context adversarial review before implementation completes — the one defense against correlated single-agent errors that #204 leaves out.
   → `.project/tickets/MR5M3A-architecture-gate`

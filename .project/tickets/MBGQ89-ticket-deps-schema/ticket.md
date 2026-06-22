@@ -3,10 +3,10 @@ id: MBGQ89
 slug: ticket-deps-schema
 title: 'Local ticket schema: epic + blocked_on, warn-only + one blocked_on hard gate'
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 created: 2026-05-24T15:40:55.511Z
-last_modified: 2026-06-20T16:18:00Z
+last_modified: 2026-06-22T04:20:00Z
 scope:
   - Add TWO optional frontmatter fields to the canonical ticket schema — epic (slug-or-id, already used informally + rendered in INDEX) and blocked_on (array of ids, the gated dependency). depends_on already shipped via AKZJXC. parent + paired_with deferred (no consumer yet).
   - Validation is warn-only (extends AKZJXC's validator) — existence of referenced same-repo ids and blocked_on cycles surface as warnings, never errors. Consistent with every existing relations check.
@@ -106,3 +106,4 @@ Joins the existing phase-advancement gates in `pre-tool-quality.ts` (scenario-ga
 - 2026-06-20T16:10:00Z Refined gate semantics via `/figure-it-out` (quality-review surfaced the issues). **Only `done` auto-unblocks**; cancelled/superseded/wontfix require the reasoned override (GitHub Actions `!cancelled()` precedent — abandoned ≠ finished). Override now the single non-`done` mechanism: non-trivial reason required, commit-visible, INDEX-surfaced (closes the "agent self-grants" hole). Added stale-override warning (closes the "sticky override" bug — quality-review #9), cycle short-circuit in the hook (#12), and an explicit grandfather-gap acknowledgement (#10).
 - 2026-06-20T16:18:00Z De-bloated (bloat check): cut from four fields to **two** — `epic` (load-bearing: already INDEX-rendered) + `blocked_on` (the gated dependency). Deferred `parent` + `paired_with` + the paired_with symmetry check to "when a consumer appears" (YAGNI — nothing reads them today). Validation drops to existence + cycle.
 - 2026-06-21T17:56:00Z **Revalidated on pickup (premise holds).** Verified against codebase: AKZJXC's `depends_on` shipped (`utils/ticket-relations.ts`, 4 fns); the relations validator is wired in `health.ts:findRelationAdvisories` (this is what MBGQ89 extends); the phase-gate family is real (17 `deny()` in `pre-tool-quality.ts`); `epic` is INDEX-rendered (`ticket-sync/index.ts` groups by epic). **Caveat:** branch is **29 commits behind origin/main**, two touching target files (#286 quality-hooks shared-state refactor → the `pre-tool-quality.ts` the gate edits; #300 ESLint 10). Bites at IMPLEMENT, not scenario-writing — **integrate origin/main before the implement phase.** Proceeding to `/bdd` for scenarios.
+- 2026-06-22T04:20:00Z Complete: define-behavior — 17 scenarios across 7 rules (incl. a Scenario Outline over the three terminal-not-done states). Authored spec.md (JTBD DEV1 + 5 ACs), dimensions.md (rewritten to the two-field scope), the tagged `.feature`, and the R/G/R ledger. `/review-spec` run + fixes applied: dropped the cross-repo-silent scenario (S5) — all unresolvable bare ids warn, resolving the S3/S5 contradiction; split the override-allow vs INDEX-surfaced Then (Atomic); strengthened "is valid" → "no advisory, exit 0"; dropped the parser scenario (implementation); added self-block + unreadable-status cases. Resolved opens: `blocked_on_override` is a single reason per advance; the gate governs tool-mediated writes only (noted). Phase → scenario-gate.
