@@ -77,8 +77,10 @@ describe('skill-invocation gate: end-to-end (147)', () => {
     const result = runDoneGate(projectDirectory, 'session-903');
 
     // The skill gate passed; whether downstream gates also pass depends on
-    // other ticket state. Asserting only on the skill-gate message absence.
-    expect(result.reason).not.toMatch(/Required skill invocation/);
+    // other ticket state. Assert exit code + raw stdout (not `reason`): a hook
+    // crash yields an empty reason that would match negatively for free.
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain('Required skill invocation');
   });
 
   it('feature done with only OTHER session entries still blocks', () => {

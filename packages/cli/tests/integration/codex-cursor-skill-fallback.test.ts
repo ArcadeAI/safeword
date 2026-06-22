@@ -92,9 +92,13 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
       expect(exitCode).toBe(0);
       expect(output).toContain(`${skill} ✓`);
       // The recorded line is session-bound and in the gate-readable format.
+      // Mirror the gate's parser (checkSkillInvocations): a gate-readable line
+      // is `<timestamp> <session-id> <skill>`. Assert that exact 3-token shape,
+      // not a substring, so producer/consumer format drift is caught.
       const recorded = logContents(projectDirectory)
         .split('\n')
-        .some(line => line.includes(sessionId) && line.trim().endsWith(` ${skill}`));
+        .map(line => line.trim().split(/\s+/))
+        .some(tokens => tokens.length >= 3 && tokens[1] === sessionId && tokens[2] === skill);
       expect(recorded).toBe(true);
     });
 
@@ -115,10 +119,15 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     runFallback(projectDirectory, 'verify', sessionId);
     runFallback(projectDirectory, 'audit', sessionId);
 
-    const result = runDoneGate(projectDirectory, sessionId, nonClaudeEnvironment(projectDirectory));
+    // The gate binds the session from stdin, not env, so the default env is fine
+    // here — the non-Claude simulation lives in runFallback's recording.
+    const result = runDoneGate(projectDirectory, sessionId);
 
     // Fallback-recorded proof satisfies the gate — no missing-invocation block.
-    expect(result.reason).not.toMatch(/Required skill invocation/);
+    // Assert exit code + raw stdout (not `reason`): a hook crash yields an empty
+    // reason that would satisfy a negative match vacuously.
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain('Required skill invocation');
   });
 
   it('feature done FAILS CLOSED with a clear, CLAUDE_SESSION_ID-free message when the fallback cannot bind a session', () => {
@@ -127,11 +136,7 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     runFallback(projectDirectory, 'verify', '');
     runFallback(projectDirectory, 'audit', '');
 
-    const result = runDoneGate(
-      projectDirectory,
-      'codex-session-952',
-      nonClaudeEnvironment(projectDirectory),
-    );
+    const result = runDoneGate(projectDirectory, 'codex-session-952');
 
     expect(result.reason).toContain('/verify');
     expect(result.reason).toContain('/audit');

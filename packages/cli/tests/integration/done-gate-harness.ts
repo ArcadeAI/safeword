@@ -47,7 +47,7 @@ export function runDoneGate(
   projectDirectory: string,
   sessionId: string,
   environment?: NodeJS.ProcessEnv,
-): { exitCode: number; reason: string } {
+): { exitCode: number; reason: string; stdout: string } {
   const resolvedEnvironment = environment ?? {
     ...process.env,
     CLAUDE_PROJECT_DIR: projectDirectory,
@@ -72,9 +72,14 @@ export function runDoneGate(
     env: resolvedEnvironment,
     encoding: 'utf8',
   });
+  const stdout = result.stdout ?? '';
+  const exitCode = result.status ?? 0;
   try {
-    return { exitCode: result.status ?? 0, reason: JSON.parse(result.stdout.trim()).reason ?? '' };
+    return { exitCode, reason: JSON.parse(stdout.trim()).reason ?? '', stdout };
   } catch {
-    return { exitCode: result.status ?? 0, reason: '' };
+    // Non-JSON stdout (e.g. a hook crash) yields no parsed reason. Callers
+    // asserting the gate PASSED must check exitCode and/or raw stdout — a
+    // negative `not.toContain` against an empty reason would pass vacuously.
+    return { exitCode, reason: '', stdout };
   }
 }
