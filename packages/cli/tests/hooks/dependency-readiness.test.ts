@@ -142,6 +142,65 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
   });
 
+  it('detects a pnpm workspace and plans a frozen pnpm install (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    const plan = detectDependencyPlan(projectDirectory);
+
+    expect(plan).toMatchObject({
+      manager: 'pnpm',
+      installCommand: {
+        binary: 'pnpm',
+        args: ['install', '--frozen-lockfile'],
+        display: 'pnpm install --frozen-lockfile',
+      },
+      installArtifact: 'node_modules',
+    });
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+    ]);
+  });
+
+  it('prefers pnpm over a coexisting bun lockfile when the project signals pnpm (#323)', () => {
+    writeJson('package.json', { name: 'mixed', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('pnpm');
+  });
+
+  it('treats pnpm-lock.yaml alone (no bun lockfile) as pnpm (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-single' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('pnpm');
+  });
+
+  it('keeps bun precedence when bun.lock coexists with pnpm-lock.yaml and no pnpm signal (#323)', () => {
+    writeJson('package.json', { name: 'ambiguous' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeTestFile(projectDirectory, 'bun.lock', '# bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('bun');
+  });
+
+  it('reports missing then ready for a pnpm project (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    const missing = getDependencyReadiness(projectDirectory);
+    expect(missing.status).toBe('missing');
+    expect(missing.installCommand).toBe('pnpm install --frozen-lockfile');
+
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
   it('tracks package manifests matched by recursive workspace globs', () => {
     writeJson('package.json', {
       name: 'recursive-workspace-project',

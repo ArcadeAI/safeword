@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
 
-export type DependencyManager = 'bun';
+export type DependencyManager = 'bun' | 'pnpm';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
 
 export interface InstallCommand {
@@ -113,28 +113,50 @@ export function detectDependencyPlan(projectDirectory: string): DependencyPlan |
   );
   if (packageJson === undefined) return undefined;
 
-  const bunLockfile = BUN_LOCKFILES.find(lockfile =>
+  const packageManager =
+    typeof packageJson.packageManager === 'string' ? packageJson.packageManager : undefined;
+  const manager = detectDependencyManager(projectDirectory, packageManager);
+
+  if (manager === 'bun') return buildBunPlan(projectDirectory, packageJson);
+  if (manager === 'pnpm') return buildPnpmPlan(projectDirectory);
+  return undefined;
+}
+
+/**
+ * Resolve the readiness-supported package manager (bun or pnpm), or undefined
+ * when unsupported. Precedence mirrors install.ts: a pnpm workspace or a `pnpm@`
+ * declaration beats a coexisting bun lockfile; otherwise a bun lockfile wins;
+ * `pnpm-lock.yaml` is pnpm when no bun lockfile is present. A declared npm/yarn
+ * manager (unsupported by this gate) abstains rather than misfiring bun, so a
+ * stray bun.lock never recommends `bun ci` in a non-bun project (#321/#323).
+ */
+function detectDependencyManager(
+  projectDirectory: string,
+  packageManager: string | undefined,
+): DependencyManager | undefined {
+  const bunLockfilePresent = BUN_LOCKFILES.some(lockfile =>
     existsSync(nodePath.join(projectDirectory, lockfile)),
   );
-  const packageManager = packageJson.packageManager;
+  const pnpmLockfilePresent = existsSync(nodePath.join(projectDirectory, 'pnpm-lock.yaml'));
+  const prefersPnpm =
+    existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml')) ||
+    (packageManager?.startsWith('pnpm@') ?? false);
+  const declaresOtherManager =
+    packageManager !== undefined && /^(?:npm|yarn)@/.test(packageManager);
 
-  // Abstain for projects that are explicitly not bun, even when a bun lockfile
-  // coexists: a non-bun `packageManager` declaration (authoritative), or a pnpm
-  // workspace (mirrors install.ts, where pnpm-workspace.yaml beats a bun
-  // lockfile). Without this, a stray bun.lock makes the gate misfire `bun ci`
-  // at a pnpm workspace (#321).
-  const declaresNonBunManager =
-    typeof packageManager === 'string' && /^(?:pnpm|npm|yarn)@/.test(packageManager);
-  if (declaresNonBunManager || existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))) {
-    return undefined;
-  }
+  if (declaresOtherManager && !prefersPnpm) return undefined;
+  if (pnpmLockfilePresent && (prefersPnpm || !bunLockfilePresent)) return 'pnpm';
+  if (bunLockfilePresent && !prefersPnpm) return 'bun';
+  return undefined;
+}
 
-  const usesBun =
-    (typeof packageManager === 'string' && packageManager.startsWith('bun@')) ||
-    bunLockfile !== undefined;
-
-  if (!usesBun || bunLockfile === undefined) return undefined;
-
+function buildBunPlan(
+  projectDirectory: string,
+  packageJson: Record<string, unknown>,
+): DependencyPlan {
+  const bunLockfile =
+    BUN_LOCKFILES.find(lockfile => existsSync(nodePath.join(projectDirectory, lockfile))) ??
+    'bun.lock';
   const inputPaths = uniqueSorted([
     'package.json',
     bunLockfile,
@@ -143,10 +165,32 @@ export function detectDependencyPlan(projectDirectory: string): DependencyPlan |
 
   return {
     manager: 'bun',
+    installCommand: { binary: 'bun', args: ['ci'], display: 'bun ci' },
+    installArtifact: INSTALL_ARTIFACT,
+    inputPaths,
+  };
+}
+
+/**
+ * pnpm readiness plan: `pnpm install --frozen-lockfile` (the frozen analog of
+ * `bun ci`). Fingerprints package.json, the pnpm lockfile, and the workspace
+ * config; per-workspace-manifest tracking (as the bun path does) is a follow-up.
+ */
+function buildPnpmPlan(projectDirectory: string): DependencyPlan {
+  const inputPaths = uniqueSorted([
+    'package.json',
+    'pnpm-lock.yaml',
+    ...(existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))
+      ? ['pnpm-workspace.yaml']
+      : []),
+  ]);
+
+  return {
+    manager: 'pnpm',
     installCommand: {
-      binary: 'bun',
-      args: ['ci'],
-      display: 'bun ci',
+      binary: 'pnpm',
+      args: ['install', '--frozen-lockfile'],
+      display: 'pnpm install --frozen-lockfile',
     },
     installArtifact: INSTALL_ARTIFACT,
     inputPaths,
