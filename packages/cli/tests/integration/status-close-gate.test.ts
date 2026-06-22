@@ -83,9 +83,10 @@ function runStopHook(targetDirectory: string, sessionId: string): { reason: stri
     encoding: 'utf8',
   });
   try {
-    return { reason: JSON.parse(result.stdout.trim()).reason ?? '' };
+    const parsed = JSON.parse(result.stdout.trim());
+    return { reason: parsed.reason ?? '', systemMessage: parsed.systemMessage ?? '' };
   } catch {
-    return { reason: '' };
+    return { reason: '', systemMessage: '' };
   }
 }
 
@@ -101,5 +102,7 @@ describe('status-close done-gate (2JMQMX)', () => {
     expect(result.reason.toLowerCase()).toContain('verify.md');
     // ZCYD5P: the done-gate block also points to /explain.
     expect(result.reason).toContain('Run `/explain` for a plain-English version');
+    // 19E2XQ: the hint also rides systemMessage (the user-facing field).
+    expect(result.systemMessage).toContain('Run `/explain` for a plain-English version');
   });
 });

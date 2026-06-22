@@ -6,7 +6,7 @@ phase: intake
 status: backlog
 created: 2026-06-21T14:24:00Z
 last_modified: 2026-06-21T14:24:00Z
-children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, 19E2XQ, O3OG0N, B6J2TY]
+children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, 19E2XQ, DC6276, O3OG0N, B6J2TY]
 ---
 
 # Epic: Make safeword legible to the Non-Technical Builder
@@ -19,15 +19,16 @@ children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, 19E2XQ, O3OG0N, B6J2TY]
 
 ## Children (priority order)
 
-| ID         | Sev | Title                                                                       |
-| ---------- | --- | --------------------------------------------------------------------------- |
-| **QQJK5S** | H1  | Make the "Talking to the user" plainness contract persona-aware             |
-| **UJSZXB** | H2  | Humanize first-run runtime/dependency failures (bun, deps-not-installed)    |
-| **KRUEWC** | H3  | De-jargon the interactive CLI; auto-default the namespace-move prompt       |
-| **5XOUDJ** | M1  | Surface `/explain` to the NTB (README + proactive-offer rule)               |
-| **19E2XQ** | M1+ | Make the `/explain` block-hint reliably reach the user (5XOUDJ fast-follow) |
-| **O3OG0N** | M2  | Add an NTB front door — "driving safeword without reading code"             |
-| **B6J2TY** | M3  | Confirm the agent strips verdict/phase jargon; gloss CONFIDENT/BLOCKED      |
+| ID         | Sev | Title                                                                                              |
+| ---------- | --- | -------------------------------------------------------------------------------------------------- |
+| **QQJK5S** | H1  | Make the "Talking to the user" plainness contract persona-aware                                    |
+| **UJSZXB** | H2  | Humanize first-run runtime/dependency failures (bun, deps-not-installed)                           |
+| **KRUEWC** | H3  | De-jargon the interactive CLI; auto-default the namespace-move prompt                              |
+| **5XOUDJ** | M1  | Surface `/explain` to the NTB (README + proactive-offer rule)                                      |
+| **19E2XQ** | M1+ | Make the `/explain` block-hint reliably reach the user — Claude systemMessage (5XOUDJ fast-follow) |
+| **DC6276** | M1+ | Ship `/explain` to Cursor — the command doesn't exist there at all                                 |
+| **O3OG0N** | M2  | Add an NTB front door — "driving safeword without reading code"                                    |
+| **B6J2TY** | M3  | Confirm the agent strips verdict/phase jargon; gloss CONFIDENT/BLOCKED                             |
 
 ## Out of scope
 
@@ -39,3 +40,5 @@ children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, 19E2XQ, O3OG0N, B6J2TY]
 - 2026-06-21T14:24:00Z Created: Epic + 6 children from PRODUCT-AUDIT-ntb.md findings (H1-H3, M1-M3).
 - 2026-06-21T17:48:00Z QQJK5S (H1) shipped + closed — plainness contract now threads NTB+TB.
 - 2026-06-21T20:04:00Z Added 19E2XQ (M1+) — the `/explain` block-hint reliability fix, split from 5XOUDJ per its figure-it-out. 7 children now.
+- 2026-06-21T20:07:00Z 5XOUDJ (M1) shipped + closed — `/explain` in README + offer-on-confusion rule.
+- 2026-06-22T03:46:00Z Cross-agent figure-it-out: scoped 19E2XQ to Claude `systemMessage` (Codex already covered via stderr), and added DC6276 (M1+) — ship `/explain` to Cursor, which lacks it entirely. 8 children now.

@@ -444,7 +444,15 @@ Run /verify, show output, then try again.`;
  * No bypass: stop_hook_active does not skip this check.
  */
 function hardBlockDone(reason: string): never {
-  console.log(JSON.stringify({ decision: 'block', reason: `${reason}\n\n${EXPLAIN_HINT}` }));
+  // systemMessage surfaces the hint to the USER (the `reason` field reaches the
+  // model, not reliably the human — issue #17356). Additive: reason unchanged.
+  console.log(
+    JSON.stringify({
+      decision: 'block',
+      reason: `${reason}\n\n${EXPLAIN_HINT}`,
+      systemMessage: EXPLAIN_HINT,
+    }),
+  );
   process.exit(0);
 }
 
