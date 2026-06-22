@@ -142,6 +142,139 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
   });
 
+  it('detects a pnpm workspace and plans a frozen pnpm install (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    const plan = detectDependencyPlan(projectDirectory);
+
+    expect(plan).toMatchObject({
+      manager: 'pnpm',
+      installCommand: {
+        binary: 'pnpm',
+        args: ['install', '--frozen-lockfile'],
+        display: 'pnpm install --frozen-lockfile',
+      },
+      installArtifact: 'node_modules',
+    });
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+    ]);
+  });
+
+  it('prefers pnpm over a coexisting bun lockfile when the project signals pnpm (#323)', () => {
+    writeJson('package.json', { name: 'mixed', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('pnpm');
+  });
+
+  it('treats pnpm-lock.yaml alone (no bun lockfile) as pnpm (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-single' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('pnpm');
+  });
+
+  it('keeps bun precedence when bun.lock coexists with pnpm-lock.yaml and no pnpm signal (#323)', () => {
+    writeJson('package.json', { name: 'ambiguous' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeTestFile(projectDirectory, 'bun.lock', '# bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('bun');
+  });
+
+  it('reports missing then ready for a pnpm project (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    const missing = getDependencyReadiness(projectDirectory);
+    expect(missing.status).toBe('missing');
+    expect(missing.installCommand).toBe('pnpm install --frozen-lockfile');
+
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('detects an npm project and plans npm ci (#327)', () => {
+    writeJson('package.json', { name: 'npm-project', packageManager: 'npm@10.0.0' });
+    writeTestFile(projectDirectory, 'package-lock.json', '{}');
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan).toMatchObject({
+      manager: 'npm',
+      installCommand: { binary: 'npm', args: ['ci'], display: 'npm ci' },
+    });
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package-lock.json',
+      'package.json',
+    ]);
+  });
+
+  it('treats package-lock.json alone as npm (#327)', () => {
+    writeJson('package.json', { name: 'npm-single' });
+    writeTestFile(projectDirectory, 'package-lock.json', '{}');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('npm');
+  });
+
+  it('stays unsupported when npm is declared but no package-lock.json exists (#327)', () => {
+    writeJson('package.json', { name: 'npm-no-lock', packageManager: 'npm@10.0.0' });
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+  });
+
+  it('plans a frozen-lockfile install for yarn classic (#327)', () => {
+    writeJson('package.json', { name: 'yarn-classic', packageManager: 'yarn@1.22.22' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+      'yarn install --frozen-lockfile',
+    );
+  });
+
+  it('plans an immutable install for yarn berry (#327)', () => {
+    writeJson('package.json', { name: 'yarn-berry', packageManager: 'yarn@4.3.1' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+      'yarn install --immutable',
+    );
+  });
+
+  it('detects yarn berry from .yarnrc.yml when no packageManager is declared (#327)', () => {
+    writeJson('package.json', { name: 'yarn-berry-rc' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+    writeTestFile(projectDirectory, '.yarnrc.yml', 'nodeLinker: node-modules\n');
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan?.manager).toBe('yarn');
+    expect(plan?.installCommand.display).toBe('yarn install --immutable');
+  });
+
+  it('tracks pnpm workspace package manifests globbed from pnpm-workspace.yaml (#327)', () => {
+    writeJson('package.json', { name: 'pnpm-ws', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeJson('packages/cli/package.json', { name: '@ws/cli' });
+    writeJson('packages/core/package.json', { name: '@ws/core' });
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package.json',
+      'packages/cli/package.json',
+      'packages/core/package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+    ]);
+  });
+
   it('tracks package manifests matched by recursive workspace globs', () => {
     writeJson('package.json', {
       name: 'recursive-workspace-project',
