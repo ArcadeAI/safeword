@@ -2,8 +2,8 @@
 id: CTAZT5
 slug: rename-generated-architecture-doc
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-21T19:59:00.000Z
 last_modified: 2026-06-21T20:03:00.000Z
 ---
@@ -21,3 +21,4 @@ last_modified: 2026-06-21T20:03:00.000Z
 - 2026-06-21T21:25:00Z Decisions (via /figure-it-out), implemented D1:
   - **D1 (empty-doc):** Don't birth an empty doc — `selfHeal` returns a new `noop` action when no doc exists and the skeleton has no modules (a contentless "## Modules" would falsely imply "no modules", e.g. for a monorepo the single-repo extractor can't read). An existing doc still heals toward empty (orphan markers show real removals). Revised the two no-modules BDD scenarios to assert "no doc is written" instead of "an empty doc is produced". Verified the dogfood monorepo now noops (writes nothing).
   - **D2 (commit vs gitignore):** Commit the generated doc, do NOT gitignore — it's a deterministic, meaningful-diff, agent/human-read artifact (lockfile pattern; precedent: committed `.safeword/depcruise-config.cjs`). No code change. D1 ensures committing never means committing noise.
+- 2026-06-22T04:31:00Z Done: two independent reviews (rename diff + full diff, both APPROVE); applied 5 doc-accuracy fixes + precedence test + skeleton dedupe; /figure-it-out resolved D1 (no empty docs → noop) and D2 (keep committed); /refactor extracted byString comparator + de-exported dead constant. Audit clean (knip/depcruise/jscpd); full suite 3239 pass. Marked done; opening PR.
