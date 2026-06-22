@@ -117,6 +117,18 @@ export function detectDependencyPlan(projectDirectory: string): DependencyPlan |
     existsSync(nodePath.join(projectDirectory, lockfile)),
   );
   const packageManager = packageJson.packageManager;
+
+  // Abstain for projects that are explicitly not bun, even when a bun lockfile
+  // coexists: a non-bun `packageManager` declaration (authoritative), or a pnpm
+  // workspace (mirrors install.ts, where pnpm-workspace.yaml beats a bun
+  // lockfile). Without this, a stray bun.lock makes the gate misfire `bun ci`
+  // at a pnpm workspace (#321).
+  const declaresNonBunManager =
+    typeof packageManager === 'string' && /^(?:pnpm|npm|yarn)@/.test(packageManager);
+  if (declaresNonBunManager || existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))) {
+    return undefined;
+  }
+
   const usesBun =
     (typeof packageManager === 'string' && packageManager.startsWith('bun@')) ||
     bunLockfile !== undefined;

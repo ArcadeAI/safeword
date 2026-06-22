@@ -117,6 +117,31 @@ describe('dependency readiness hook support', () => {
     ]);
   });
 
+  it('abstains (unsupported) for a pnpm workspace with a coexisting bun lockfile (#321)', () => {
+    writeJson('package.json', {
+      name: 'pnpm-workspace-project',
+      packageManager: 'pnpm@9.0.0',
+      workspaces: ['packages/*'],
+    });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    // A stray/legacy bun lockfile must not flip this pnpm workspace to `bun ci`.
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
+  });
+
+  it('abstains when packageManager declares a non-bun manager despite a coexisting bun lockfile (#321)', () => {
+    writeJson('package.json', {
+      name: 'declared-pnpm-project',
+      packageManager: 'pnpm@9.0.0',
+    });
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
+  });
+
   it('tracks package manifests matched by recursive workspace globs', () => {
     writeJson('package.json', {
       name: 'recursive-workspace-project',
