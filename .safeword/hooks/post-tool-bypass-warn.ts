@@ -89,7 +89,7 @@ for (const { pattern, category, example } of BYPASS_PATTERNS) {
 // If bypass patterns found, output warning
 if (foundPatterns.length > 0) {
   const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? 'unknown';
-  console.log(`⚠️ SAFEWORD: Bypass pattern detected in ${filePath}
+  console.log(`⚠️ Bypass pattern detected in ${filePath}
 
 Found:
 ${foundPatterns.join('\n')}

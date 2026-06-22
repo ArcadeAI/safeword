@@ -300,7 +300,7 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
       : 'dependencies are not installed in this worktree';
 
   return [
-    `SAFEWORD: ${problem}.`,
+    `${problem}.`,
     `Run \`${installCommand}\` from the project root, then retry the command.`,
   ].join('\n');
 }

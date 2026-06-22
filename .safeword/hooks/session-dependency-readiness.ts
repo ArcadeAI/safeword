@@ -54,11 +54,11 @@ if (config.autoInstall && readiness.plan !== undefined) {
   if (result.status === 0 && readiness.status === 'ready') {
     writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
     writeInstallMarker(projectDirectory, readiness);
-    emitContext(`SAFEWORD: dependencies bootstrapped with \`${display}\`.`);
+    emitContext(`dependencies bootstrapped with \`${display}\`.`);
   }
 
   const message = [
-    `SAFEWORD: dependency bootstrap failed while running \`${display}\`.`,
+    `dependency bootstrap failed while running \`${display}\`.`,
     'Run the install command manually, inspect the package manager output, then retry.',
     trimOutput(result.stderr) || trimOutput(result.stdout),
   ]
