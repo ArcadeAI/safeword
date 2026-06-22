@@ -22,3 +22,13 @@ Precedent: every local-first tracker (git-bug, Fossil, Sciit) commits its issue 
 ## The escape hatch for "not in my product repo"
 
 Teams that don't want tickets in their code repo should **relocate `paths.projectRoot`** (sibling dir/repo/dedicated branch) — which preserves the commit/persistence property — **not git-ignore**, which destroys it. Relocate, don't ignore.
+
+## Managing "pollution" (commit ≠ index; index-ignore ≠ access-block)
+
+Keeping the tree committed does **not** mean the coding agent must index it. "Pollution" is three separate surfaces with three different tools — none of them git-ignore (verified 2026-06-22):
+
+1. **Agent retrieval/index** — _mostly a Cursor problem._ Cursor keeps an embedding index; a large ticket tree dilutes `@codebase` retrieval. Fix: **`.cursorindexingignore`** (drops them from the index but keeps them readable on @-mention — the access-preserving variant; **not** `.cursorignore`, which blocks access and would blind the safeword agent). **Claude Code does not index at all** — it uses agentic ripgrep on demand ([no RAG/vector by design](https://vadim.blog/claude-code-no-indexing/)), so the index-pollution fear barely applies; don't blanket-ignore (it'd hide tickets from the agent's own grep). **Codex** `.codexignore` is requested but not reliably respected yet — no action.
+2. **Human PR-diff + merge churn** — the magnet is the auto-generated `INDEX*.md` (rewritten on every ticket creation). Mark it generated: `.gitattributes` → `INDEX*.md linguist-generated=true merge=union`. Per-ticket folders + Crockford IDs (ticket 080) already isolate the tickets themselves.
+3. **"Not in my repo at all"** — relocate `projectRoot` (above).
+
+**Setup implication:** `safeword setup` may _offer_ (opt-in, like the tracker) to write `.cursorindexingignore` for the project root + the `.gitattributes` generated-marker for `INDEX*.md`. Opt-in because it edits the user's repo.
