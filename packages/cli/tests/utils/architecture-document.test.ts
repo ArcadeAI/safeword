@@ -90,6 +90,20 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(foreign);
   });
 
+  it('skips (not noop) a foreign doc even when the skeleton is empty', () => {
+    // No modules here, but a foreign doc exists: ownership wins over the
+    // empty-skeleton noop — the doc must be left untouched, never noop'd away.
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true, force: true });
+    const foreign = '# Our Architecture\n\nHand-written, no marker.\n';
+    mkdirSync(nodePath.dirname(documentPath(context.directory)), { recursive: true });
+    writeFileSync(documentPath(context.directory), foreign);
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('skipped');
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(foreign);
+  });
+
   it('recognizes a safeword-owned doc with CRLF line endings (heals, never skips)', () => {
     selfHeal(context.directory);
     // Re-encode an owned doc with CRLF (git core.autocrlf) and a stale fingerprint.

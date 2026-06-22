@@ -67,13 +67,13 @@ export function selfHeal(projectDirectory: string): SelfHealResult {
   const path = resolveGeneratedArchitecturePath(projectDirectory);
   const fingerprint = shapeFingerprint(projectDirectory);
   const existing = readExisting(path);
-  const hasModules = extractSkeleton(projectDirectory).nodes.length > 0;
-  const action = decideAction(existing, fingerprint, hasModules);
+  const nodes = extractSkeleton(projectDirectory).nodes;
+  const action = decideAction(existing, fingerprint, nodes.length > 0);
 
   if (action !== 'unchanged' && action !== 'skipped' && action !== 'noop') {
     mkdirSync(nodePath.dirname(path), { recursive: true });
     const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
-    writeFileSync(path, renderDocument(projectDirectory, fingerprint, priorStamps));
+    writeFileSync(path, renderDocument(nodes, fingerprint, priorStamps));
   }
 
   return { action, path };
@@ -126,12 +126,10 @@ function parseSectionStamps(content: string): Map<string, string> {
 }
 
 function renderDocument(
-  projectDirectory: string,
+  nodes: SkeletonNode[],
   fingerprint: string,
   priorStamps: Map<string, string>,
 ): string {
-  const nodes = extractSkeleton(projectDirectory).nodes;
-
   // reconcileSections is the single source of truth for per-section status;
   // this layer only renders markers from its verdicts.
   const verdicts = reconcileSections({
