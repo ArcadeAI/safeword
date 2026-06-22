@@ -1,6 +1,6 @@
 # Verify Checklist
 
-**Test Suite:** ✓ 3208/3208 tests pass (5 skipped; full `bun run test`, 213 files)
+**Test Suite:** ✓ 3260/3260 tests pass (5 skipped; full `bun run test`, 219 files; post-merge with main)
 **Gherkin:** ✅ Acceptance lane passes (18 scenarios, 100 steps)
 **Build:** ✅ Success (tsup + DTS)
 **Lint:** ✅ Clean (eslint src tests + lint-gherkin + tsc --noEmit)
