@@ -166,6 +166,16 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-git-bare-fix.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-architecture-stage.ts"
+          }
+        ]
       }
     ],
     "PostToolUse": [

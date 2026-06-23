@@ -36,20 +36,20 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The CI check fails when the committed doc would change (outline ×3)
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED a908539
+- [x] GREEN a908539
 - [ ] REFACTOR
 
 ### Scenario: The CI check defaults to on when no config file is present
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED a908539
+- [x] GREEN a908539
 - [ ] REFACTOR
 
 ### Scenario: The CI check passes when nothing needs to change (outline ×3)
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED a908539
+- [x] GREEN a908539
 - [ ] REFACTOR
 
 ## Rule: Enforcement is on by default and can be opted out per project

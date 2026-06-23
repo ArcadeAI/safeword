@@ -9,27 +9,72 @@
  *
  * `--check` is the CI backstop: a dry-run of `selfHeal` that writes nothing and
  * exits non-zero when the committed doc is stale (a would-change action), so a
- * silently-wrong doc cannot reach the main branch. Honors the per-project
- * opt-out (`architectureDocEnforcement: false`).
+ * silently-wrong doc cannot reach the main branch.
+ *
+ * `--stage` is the commit-time auto-fix: regenerate a stale doc via `selfHeal`
+ * and `git add` it into the in-flight commit, so the commit lands fresh. Never
+ * blocks (always exits zero). Both gated surfaces honor the per-project opt-out
+ * (`architectureDocEnforcement: false`).
  */
 
+import { execFileSync } from 'node:child_process';
+import nodePath from 'node:path';
 import process from 'node:process';
 
-import { isWouldChangeAction, planSelfHeal, selfHeal } from '../utils/architecture-document.js';
+import {
+  isWouldChangeAction,
+  planSelfHeal,
+  selfHeal,
+  type SelfHealResult,
+} from '../utils/architecture-document.js';
 import { isArchitectureDocumentEnforcementEnabled } from '../utils/configured-paths.js';
 import { error, success } from '../utils/output.js';
 
 export function architecture(
   cwd: string = process.cwd(),
-  options: { check?: boolean } = {},
+  options: { check?: boolean; stage?: boolean } = {},
 ): Promise<void> {
   if (options.check) {
     return architectureCheck(cwd);
+  }
+  if (options.stage) {
+    return architectureStage(cwd);
   }
 
   const result = selfHeal(cwd);
   success(`Architecture state document ${result.action}: ${result.path}`);
   return Promise.resolve();
+}
+
+/**
+ * Commit-time auto-fix. Regenerates a stale doc and stages it into the in-flight
+ * commit; leaves a current/`noop`/foreign doc untouched. Never blocks — git
+ * failures are swallowed so the commit always proceeds.
+ */
+function architectureStage(cwd: string): Promise<void> {
+  if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
+    success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
+    return Promise.resolve();
+  }
+
+  const result = selfHeal(cwd);
+  if (isWouldChangeAction(result.action)) {
+    stageDocument(cwd, result);
+    success(`Architecture doc ${result.action} and staged.`);
+  } else {
+    success(`Architecture doc needs no change (${result.action}).`);
+  }
+  return Promise.resolve();
+}
+
+/** `git add` the regenerated doc; best-effort — a git failure never blocks the commit. */
+function stageDocument(cwd: string, result: SelfHealResult): void {
+  try {
+    const relativePath = nodePath.relative(cwd, result.path);
+    execFileSync('git', ['add', '--', relativePath], { cwd, stdio: 'ignore' });
+  } catch {
+    // Outside a git repo, or git unavailable: nothing to stage, never block.
+  }
 }
 
 /**
