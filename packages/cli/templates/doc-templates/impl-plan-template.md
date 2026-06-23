@@ -13,11 +13,16 @@ leave one blank. Fill each section, then delete the guidance comments.
 
 ## Approach
 
-<!-- How each scenario/behavior will be satisfied: which component or layer
-owns it, the test-layer assignment (unit < integration < E2E — highest layer
-that covers it with acceptable feedback speed), and the build order so each
-task builds on what's already green. This absorbs the scenario-gate exit's
-test-layer + sequencing step — record that output here. -->
+<!-- Open by naming the riskiest assumption this design rests on and the
+cheapest scenario that proves it — concrete and scenario-bound, not vacuous;
+if no single slice is load-bearing, say so. Then how each scenario/behavior
+will be satisfied: which component or layer owns it, the test-layer assignment
+(unit < integration < E2E — highest layer that covers it with acceptable
+feedback speed), and the build order so each task builds on what's already
+green — among dependency-free work, sequence the load-bearing slice (the one
+proving that riskiest assumption) first, so a wrong design fails on slice 1
+while it's still cheap. This absorbs the scenario-gate exit's test-layer +
+sequencing step — record that output here. -->
 
 ## Decisions
 
