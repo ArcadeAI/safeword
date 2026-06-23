@@ -44,6 +44,13 @@ function freshTemporaryDirectory(): string {
   return mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
 }
 
+/** Write `features/demo.feature` with the given Gherkin content. */
+function writeFeatureFile(world: SafewordWorld, content: string): void {
+  const featuresDirectory = nodePath.join(world.temporaryDirectory, 'features');
+  mkdirSync(featuresDirectory, { recursive: true });
+  writeFileSync(nodePath.join(featuresDirectory, 'demo.feature'), content);
+}
+
 Given('a ticket {string} with one scenario', function (this: SafewordWorld, id: string) {
   this.temporaryDirectory = freshTemporaryDirectory();
   const ticketDirectory = nodePath.join(
@@ -103,10 +110,8 @@ Given('a ticket {string} with two acceptance criteria', function (this: Safeword
 Given(
   'a feature source for {string} that covers {string}',
   function (this: SafewordWorld, _id: string, acReference: string) {
-    const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
-    mkdirSync(featuresDirectory, { recursive: true });
-    writeFileSync(
-      nodePath.join(featuresDirectory, 'demo.feature'),
+    writeFeatureFile(
+      this,
       [
         'Feature: Demo',
         '',
@@ -133,12 +138,10 @@ Given(
       'tickets',
       `${id}-demo`,
     );
-    const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
     mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(featuresDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '# demo');
-    writeFileSync(
-      nodePath.join(featuresDirectory, 'demo.feature'),
+    writeFeatureFile(
+      this,
       [
         'Feature: Demo feature source',
         '',
@@ -171,12 +174,10 @@ Given(
       'tickets',
       `${id}-demo`,
     );
-    const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
     mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(featuresDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '# demo');
-    writeFileSync(
-      nodePath.join(featuresDirectory, 'demo.feature'),
+    writeFeatureFile(
+      this,
       [
         'Feature: Demo feature source',
         '',
@@ -198,10 +199,8 @@ Given(
 );
 
 Given('an invalid feature source for {string}', function (this: SafewordWorld, _id: string) {
-  const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
-  mkdirSync(featuresDirectory, { recursive: true });
-  writeFileSync(
-    nodePath.join(featuresDirectory, 'demo.feature'),
+  writeFeatureFile(
+    this,
     ['Feature: Broken', '  Rule: r', '    Scenario: bad', '      Given ok', '      nope', ''].join(
       '\n',
     ),
