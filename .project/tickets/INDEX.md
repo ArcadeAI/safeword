@@ -858,7 +858,7 @@
   Extend `safeword sync-tracker` from a flat board to a **dependency-aware** projection: map safeword's `epic`/`parent` to tracker **sub-issues/parents**, `blocked_on`/`depends_on` to tracker **issue relations**, and `type` to native **issue-types** — so the external roadmap shows ordering and hierarchy, not just grouping.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
   → `.project/tickets/M1FGRJ-tracker-relations-projection`
-- **Local ticket schema: epic + blocked_on, warn-only + one blocked_on hard gate (MBGQ89)** (in_progress, epic: —)
+- **Local ticket schema: epic + blocked_on, warn-only + one blocked_on hard gate (MBGQ89)** (done, epic: —)
   Promote `epic` and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't `done` (other terminal states need a reasoned override). (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); `parent`/`paired_with` are deferred — no consumer yet.)
   → `.project/tickets/MBGQ89-ticket-deps-schema`
 - **Independent evidence-backed architecture gate for features (MR5M3A)** (done, epic: —)
