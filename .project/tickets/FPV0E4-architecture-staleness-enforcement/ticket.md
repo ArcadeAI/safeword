@@ -2,10 +2,25 @@
 id: FPV0E4
 slug: architecture-staleness-enforcement
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-06-22T23:37:04.081Z
-last_modified: 2026-06-22T23:37:04.081Z
+last_modified: 2026-06-23T00:55:00.000Z
+scope:
+  - Commit-time auto-fix-and-stage of the generated architecture doc via an agent-scoped PreToolUse hook (regenerate via Slice-1 selfHeal + git add; never blocks)
+  - CI hard-fail backstop via `safeword architecture --check` (dry-run selfHeal; exit non-zero on a would-change action created/healed/regenerated)
+  - Default-on enforcement with a per-project opt-out config key `architectureDocEnforcement` (false disables both surfaces)
+  - Tiered + noop-aware + ownership-aware threshold (foreign docs and lagging prose stay advisory on both surfaces)
+out_of_scope:
+  - Monorepo / multi-package architecture (Slice 3)
+  - LLM prose generation (Slice 2 stays deterministic and LLM-free)
+  - Any change to the hand-curated paths.architecture ADR/decision record
+  - Blocking the commit on stale prose / placeholder completeness (prose is advisory)
+done_when:
+  - An agent commit after a structural change lands with the regenerated doc staged in it, unblocked, with no hand-run command (default config)
+  - `safeword architecture --check` exits non-zero on a stale committed doc and zero on a fresh/noop/foreign doc
+  - `architectureDocEnforcement: false` disables both the commit-time hook and the CI check
+  - All scenarios in features/architecture-staleness-enforcement.feature pass via the BDD lane, and the check is dogfooded in safeword's own CI
 ---
 
 # Architecture doc staleness enforcement (Slice 2 — auto-fix on commit, fail CI, opt-out)
@@ -127,3 +142,13 @@ two never fight.
   `architectureDocEnforcement` (default-on) and foreign-doc pass-only both
   confirmed by user ("/figure-it-out" = my call). Advancing to define-behavior /
   BDD.
+- 2026-06-23T00:55:00Z Complete: define-behavior - 8 scenarios (2 outlines) across
+  4 rules, spec.md (3 TB JTBDs / 7 ACs) + dimensions.md written. Advancing to
+  scenario-gate for independent /review-spec.
+- 2026-06-23T01:05:00Z Complete: scenario-gate - independent /review-spec
+  (fresh-context reviewer) returned PASS-WITH-NITS (1 must-fix: vacuous opt-out
+  assertion + 4 strengthenings). Applied all (TB3.AC1 enabled-vs-disabled
+  contrast, exit-code assertions, noop on commit surface, fingerprint assertion,
+  config-absent default-on scenario); re-review returned PASS, no regressions.
+  9 scenarios validated (AODI), stamp recorded; impl-plan.md written (planner
+  seam + 5-task build order). Advancing to implement.
