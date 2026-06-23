@@ -61,23 +61,58 @@ inform-early/block-later contract needs its block-later half.
 4. **Tiered + noop-aware.** Only structural change acts; monorepo-root noop and
    unchanged docs never fire.
 
-## Open questions for /figure-it-out
+## Resolved design (/figure-it-out, 2026-06-23)
 
-- **"Stale enough to act" threshold** — exactly which `selfHeal` actions /
-  reconcile statuses trigger auto-fix vs. hard-fail vs. pass. (`healed`,
-  `regenerated`, `created` → auto-fix+stage? `skipped` → fail? `unchanged`,
-  `noop` → pass? unresolved `placeholder` prose → fail-for-human?)
-- **What counts as "human required"** — the precise hard-fail set and its
-  message. Foreign doc (`skipped`) is the clear case; are there others?
-- **Config surface** — key name and shape alongside the existing
-  `architectureReviewGate` (note: that gate is a dev-workflow design-review gate,
-  _not_ doc-freshness — naming must not conflate them). Likely
-  `architectureDocEnforcement` / `architecture.enforce` or similar.
-- **Wiring** — which local hook carries the auto-fix (pre-commit vs. the
-  existing stop hook), and how CI invokes the hard check (a `safeword`
-  subcommand / flag, e.g. `safeword architecture --check`).
-- **Auto-fix safety** — must not clobber a user's staged changes to the doc, and
-  must not fight the SessionStart self-heal (idempotent, same render path).
+**Tier line = structural fact vs. prose.** Structure is machine-derivable → we
+enforce it. Prose is human/LLM work (out of scope) → stays advisory.
+
+**Threshold — map of `selfHeal` action → behavior:**
+
+| Action                               | Local (commit)                    | CI (backstop) |
+| ------------------------------------ | --------------------------------- | ------------- |
+| `created` / `healed` / `regenerated` | auto-write + `git add` (no block) | **fail**      |
+| `unchanged` / `noop`                 | pass                              | pass          |
+| `skipped` (foreign doc)              | pass (advisory)                   | pass          |
+
+So CI fails **iff** the action ∈ `{created, healed, regenerated}` — i.e. running
+the heal _would_ change the tree. `--check` is `selfHeal` in dry-run: compute
+`decideAction`, write nothing, map to an exit code.
+
+**No commit-time hard-fail** — auto-fix-and-stage makes blocking unnecessary
+(the "auto-fix not hard-fail" decision). The hard-fail lives **only in CI** and
+fires for one reason: the doc is stale and the local hook was bypassed
+(`--no-verify`, opted-out locally, or an out-of-band human edit). Human action
+to clear it: `safeword architecture`, then commit.
+
+**Foreign doc (`skipped`) is pass-only, never a hard-fail** — a doc with no
+`generator:` marker is the user hand-authoring by choice; the Slice-1 contract
+is to never touch it and we can't compute freshness for prose we don't own.
+**Unresolved prose markers** (`stale`/`orphaned`/`placeholder`) likewise do not
+fail — writing prose is out of scope; they remain visible warnings (Slice-1
+"incomplete-but-never-silently-wrong" contract).
+
+**Config:** `architectureDocEnforcement` — flat top-level boolean,
+**default `true`**; set `false` to opt out. The `Doc` token keeps it distinct
+from `architectureReviewGate` (the dev-workflow design-review gate). (Rejected
+nesting under `architecture: {}` — visually collides with `paths.architecture`.)
+
+**Wiring:**
+
+- **Local auto-fix:** new dedicated PreToolUse hook
+  `pre-tool-architecture-stage.ts` (matcher reuses the existing `Bash` →
+  `git commit` pattern from `pre-tool-quality.ts`). Runs `selfHeal`; if the doc
+  was mutated, `git add`s it and lets the commit proceed — never blocks. Not
+  folded into `pre-tool-quality.ts` (that gates REFACTOR test-files only).
+- **CI backstop:** new `safeword architecture --check` flag (dry-run → exit 1 on
+  `{created, healed, regenerated}`), dogfooded as a CI `lint`-job step and
+  documented as the recommended customer CI step.
+
+**Auto-fix safety:** the doc is `.generated.` machine-owned; the
+ownership-marker guard already makes `selfHeal` skip foreign content, so the only
+file ever staged is one we just regenerated from live structure — no user
+content to lose. A BDD scenario pins "commit-time stage never discards unrelated
+staged changes". Idempotent / same render path as the SessionStart heal, so the
+two never fight.
 
 ## Work Log
 
@@ -87,3 +122,8 @@ inform-early/block-later contract needs its block-later half.
   tiered, noop-aware. Created after #316 (Slice 1) + #331 (rename) merged.
   Next: /figure-it-out on the "stale enough to act" threshold + config surface,
   then BDD.
+- 2026-06-23T00:50:00Z /figure-it-out resolved the threshold, hard-fail set,
+  config key, and wiring (see "Resolved design"). Config key
+  `architectureDocEnforcement` (default-on) and foreign-doc pass-only both
+  confirmed by user ("/figure-it-out" = my call). Advancing to define-behavior /
+  BDD.
