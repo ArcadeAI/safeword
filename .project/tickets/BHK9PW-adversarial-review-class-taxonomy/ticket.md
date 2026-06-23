@@ -2,10 +2,10 @@
 id: BHK9PW
 slug: adversarial-review-class-taxonomy
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-23T05:48:00.000Z
-last_modified: 2026-06-23T06:06:00.000Z
+last_modified: 2026-06-23T06:17:00.000Z
 ---
 
 # Unify adversarial review under a 3-class reviewer taxonomy
@@ -49,5 +49,6 @@ Re-scoped feature → **task** (2026-06-23, `/figure-it-out`): the intake survey
 - 2026-06-23T05:48:00Z Created from `/figure-it-out` analysis of adversarial-review coverage. Classified feature (multi-artifact: doc + new gate + surface realignment, dependencies on B6MZ4Z/7A0B2K/2VCSZY).
 - 2026-06-23T05:48:00Z Drafted the PRINCIPLES.md taxonomy subsection (see `principles-taxonomy-draft.md`) for review before editing the live file.
 - 2026-06-23T06:06:00Z RE-SCOPE via `/figure-it-out` (option A): feature → task. Dropped the redundant spec-gate; kept taxonomy doc + verify class-2 label + audit split. Applied `verify`/`audit` SKILL edits to template + `.claude` + `.agents` (byte-parity verified). Spawning a fresh-context class-1 review of the change before commit (dogfooding the taxonomy).
+- 2026-06-23T06:17:00Z CLOSED done (user confirmed). Audit call settled: audit stays class-2; the class-1 architecture-soundness judgment lives in the Architecture Review Gate + quality-review (option 2 — a new class-1 pass inside audit — rejected as duplicating the arch-gate). Shipped in commits f42a2f2 (taxonomy + ticket) and 376c3a7 (verify/audit labels + review fixes). 53/53 targeted tests pass; template↔dogfood byte-parity verified.
 - 2026-06-23T06:13:00Z CLASS-1 REVIEW (fresh-context, same-model per no-weaker rule — Opus author has no stronger model) found 1 BLOCKING + 2 SHOULD-FIX. BLOCKING: the audit note claimed a class-1 architecture-soundness pass the audit body never performs (all its checks are mechanical/observable) — corrected to "audit = class-2; the class-1 arch-soundness counterpart lives in the Architecture Review Gate + quality-review." SHOULD-FIX: PRINCIPLES routing question mis-routed author-produced tests to class-1 → reworded to lead with observable-fact/judgment/new-candidates; "Independent observation" term collided with the §1 hierarchy tier name → reworded to "Tier-2 verification." Re-ran parity + verify/audit skill tests: 53/53 pass. So the "audit split" the user approved became "audit is class-2, class-1 arch judgment documented to live elsewhere" — accurate to what audit actually does.
 - 2026-06-23T05:58:00Z INTAKE SURVEY — scope-shrinking discovery. The phase-exit review gate (NMSD94, `pre-tool-quality.ts:382-401`) fires on **any** phase advance: `detectPhaseAdvance` (`review-ledger.ts:171`) has no phase filter. So when `reviewGate` is on, leaving **intake** already requires an independent fork-review stamp on `<ticket>:phase:intake`. The "missing class-1 spec-review gate" is therefore **already implemented** for the autonomous/reviewGate-on case — a standalone spec gate would be redundant bloat. Genuinely-unowned remainder: (a) cross-model enforcement on phase-exit reviews → already owned by **7A0B2K**; (b) auto-on under YOLO → already owned by **2VCSZY**; (c) the taxonomy doc → DONE; (d) verify class-2 labeling + audit class-1/class-2 split → docs/skill only, the real remaining in-scope work. Conclusion: re-scope from feature → task; drop the new-gate scope line; keep doc + labeling work. Decision surfaced to user.
