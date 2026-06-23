@@ -5,8 +5,9 @@ type: feature
 phase: intake
 status: blocked
 depends_on: [JS5K5G]
+external: https://github.com/ArcadeAI/safeword/issues/347
 created: 2026-06-20T16:15:56.239Z
-last_modified: 2026-06-20T16:16:00Z
+last_modified: 2026-06-23T05:11:00Z
 ---
 
 # sync-tracker v2 — project the dependency graph (relations, sub-issues, types)
@@ -41,4 +42,5 @@ last_modified: 2026-06-20T16:16:00Z
 
 ## Work Log
 
+- 2026-06-23T05:11:00Z Backlogged. JS5K5G (v1) shipped → the `depends_on` block is satisfied (ready, not dependency-blocked). Deferred by prioritization, not readiness; surfaced as a coordination/backlog home at GitHub [#347](https://github.com/ArcadeAI/safeword/issues/347) for team prioritization (`external:` back-link added). Canonical spec stays here; promote to active work on pickup (re-run intake to refresh against the now-settled GitHub deps/sub-issue APIs).
 - 2026-06-20T16:16:00Z Created as the v2 split from JS5K5G — the dependency-graph projection deferred out of the v1 walking skeleton (cost/adoption/API-recency). `depends_on: [JS5K5G]`; status blocked until v1 ships.
