@@ -2,7 +2,7 @@
 id: XG9SFP
 slug: architecture-monorepo-hierarchy
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-06-23T02:34:25.862Z
 last_modified: 2026-06-23T02:40:00.000Z
@@ -125,3 +125,11 @@ allowlists `dist`+`templates`; website is `private`.
   fan-out. User decisions: leaf coverage = packages-with-src (via reused noop),
   full slice now. Next: BDD define-behavior, first scenario pins the
   root/leaf fingerprint-input boundary.
+- 2026-06-23T02:55:00Z Complete: define-behavior + scenario-gate. spec.md (NTB1 +
+  TB1 + TB2, 8 ACs), dimensions, 15 scenarios across 5 rules. Independent
+  /review-spec returned BLOCK (2 must-fix: single-repo byte-identity guard +
+  attribution outline missing boundary-config/edge inputs; 5 strengthenings).
+  Applied all (byte-identity Then, boundary-config + edge attribution, all-noop
+  root, foreign-doc, opt-out, package preservation/removal, two-leaf fresh
+  fan-out); re-review PASS, no regressions. Stamp recorded; impl-plan.md written
+  (healTarget generalization + 7-task build order). Advancing to implement.
