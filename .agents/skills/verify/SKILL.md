@@ -10,6 +10,8 @@ allowed-tools: '*'
 
 Prove a ticket meets its criteria. Works with or without an active ticket.
 
+**Reviewer class:** verify is _class-2 — independent observation_ (PRINCIPLES.md §1). It checks observable facts (tests pass, build succeeds, scenarios complete) against ground truth, so the test suite and parsers are the independent party. No fresh-context or cross-model reviewer applies — a cheap/weaker judge is fine; cross-modeling a test run buys nothing.
+
 ## Invocation log
 
 This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding. Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution, so the fallback below is explicit. Hand-writing verify.md cannot produce this feature-gate proof.
