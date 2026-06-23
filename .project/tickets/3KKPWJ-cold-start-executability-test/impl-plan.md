@@ -1,6 +1,19 @@
 # Impl Plan: Cold-start executability test for high-blast intake
 
-**Status:** planned
+**Status:** implemented
+
+<!--
+Reconciliation (implement exit, commit ef826fb): shipped as planned except the
+instruction home — a **guide** (`.safeword/guides/cold-start-check.md`), not a
+registered skill (see the Decisions table row "Instruction home"; survey found a
+skill needs 5-surface parity wiring, too heavy for an advisory check). Build
+order collapsed to a single slice (the deliverable is prose + one schema entry,
+no code kernel) rather than the staged 1→5 sequence, but every planned surface
+landed: guide, DISCOVERY Intake Exit rung, SAFEWORD pointer, schema managed-file
+entry, and the 19 content scenarios. Decisions, Arch alignment (no ADR), and
+Known deviations (writes to Open Questions vs replan's chat-only) all hold as
+written. No new deviations beyond skill→guide.
+-->
 
 ## Approach
 
