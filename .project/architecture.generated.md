@@ -19,7 +19,6 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
-
 ## Dependencies
 
 _No inter-package dependencies._

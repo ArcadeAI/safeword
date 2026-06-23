@@ -367,7 +367,7 @@ function renderRootIndex(model: MonorepoModel, fingerprint: string): string {
   const dependencies =
     model.edges.length === 0 ? '_No inter-package dependencies._\n' : `${edgeLines}\n`;
 
-  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n\n## Dependencies\n\n${dependencies}`;
+  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n## Dependencies\n\n${dependencies}`;
 }
 
 function renderPackageSection(node: PackageNode, stamp: string): string {
