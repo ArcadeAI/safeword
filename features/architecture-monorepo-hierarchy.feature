@@ -67,7 +67,7 @@ Feature: Hierarchical architecture docs for monorepos (Slice 3)
     @architecture-monorepo-hierarchy.TB2.AC1
     Scenario Outline: A change moves only the fingerprint of the node that owns it
       Given a monorepo whose docs are all freshly generated
-      When the project changes by <change>
+      When the monorepo changes by <change>
       Then the <node> doc is re-synced
       And the <other> doc is left untouched
 
@@ -90,37 +90,37 @@ Feature: Hierarchical architecture docs for monorepos (Slice 3)
     Scenario: The check fails when any single leaf is stale
       Given a monorepo whose docs are all freshly generated
       And one package has a structural change not yet reflected in its leaf doc
-      When the architecture check runs
-      Then the check exits non-zero
+      When the architecture check runs across the monorepo
+      Then the monorepo check exits non-zero
 
     @architecture-monorepo-hierarchy.TB2.AC2
     Scenario: The check passes when the root and every leaf are fresh
       Given a monorepo with a root index and two fresh leaf docs
-      When the architecture check runs
-      Then the check exits zero
+      When the architecture check runs across the monorepo
+      Then the monorepo check exits zero
 
     @architecture-monorepo-hierarchy.TB2.AC2
     Scenario: Staging refreshes and stages every changed node at once
       Given a monorepo whose docs are all freshly generated
       And both the package set and one package's structure have changed
-      When the agent commits the project
+      When the agent commits the monorepo
       Then the root index and the changed leaf doc are both staged
-      And the commit is not blocked
+      And the monorepo commit is not blocked
 
     @architecture-monorepo-hierarchy.TB2.AC2
     Scenario: A foreign doc at a node path is left untouched and does not fail the check
       Given a monorepo whose docs are all freshly generated
       And a leaf path holds a doc with no safeword generator marker
-      When the architecture check runs
-      Then the check exits zero
-      And the foreign doc is left untouched
+      When the architecture check runs across the monorepo
+      Then the monorepo check exits zero
+      And the foreign leaf doc is left untouched
 
     @architecture-monorepo-hierarchy.TB2.AC2
     Scenario: Opting out passes the check even when a leaf is stale
       Given a monorepo with architectureDocEnforcement disabled
       And one package has a structural change not yet reflected in its leaf doc
-      When the architecture check runs
-      Then the check exits zero
+      When the architecture check runs across the monorepo
+      Then the monorepo check exits zero
 
   Rule: Single-repo behavior is unchanged
 

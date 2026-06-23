@@ -156,7 +156,7 @@ function rootIndexTarget(projectDirectory: string): HealTarget {
     path: resolveGeneratedArchitecturePath(projectDirectory),
     fingerprint,
     hasContent: model.packages.length > 0,
-    render: priorStamps => renderRootIndex(model, fingerprint, priorStamps),
+    render: () => renderRootIndex(model, fingerprint),
   };
 }
 
@@ -285,31 +285,16 @@ function renderOrphanSection(name: string): string {
 /**
  * Render the derived monorepo root index (ticket XG9SFP): a `## Packages`
  * section (one reconciled subsection per package) plus a `## Dependencies`
- * section listing inter-package edges. Reuses the same ownership marker,
- * fingerprint frontmatter, and reconcile machinery as the single-repo doc, so
- * the root index self-heals and flags stale prose identically.
+ * section listing inter-package edges. Shares the ownership marker and
+ * fingerprint frontmatter with the single-repo doc, so the root index self-heals
+ * identically. Unlike the leaf/single-repo doc it does NOT carry reconcile
+ * orphan/stale markers: the root index is fully derived (no human prose to
+ * protect), so a removed package is simply dropped rather than left as an
+ * accumulating ghost section — freshness is the package set + fingerprint, not
+ * per-section prose markers.
  */
-function renderRootIndex(
-  model: MonorepoModel,
-  fingerprint: string,
-  priorStamps: Map<string, string>,
-): string {
-  const verdicts = reconcileSections({
-    priorStamps: Object.fromEntries(priorStamps),
-    nodeNames: model.packages.map(node => node.name),
-    fingerprint,
-  });
-  const packageByName = new Map(model.packages.map(node => [node.name, node]));
-
-  const sections = verdicts
-    .map(verdict => {
-      const node = packageByName.get(verdict.node);
-      const stamp = priorStamps.get(verdict.node) ?? fingerprint;
-      return node === undefined
-        ? renderOrphanSection(verdict.node)
-        : renderPackageSection(node, stamp, verdict.status);
-    })
-    .join('\n');
+function renderRootIndex(model: MonorepoModel, fingerprint: string): string {
+  const sections = model.packages.map(node => renderPackageSection(node, fingerprint)).join('\n');
 
   const edgeLines = model.edges.map(edge => `- \`${edge.from}\` → \`${edge.to}\``).join('\n');
   const dependencies =
@@ -318,9 +303,6 @@ function renderRootIndex(
   return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n\n## Dependencies\n\n${dependencies}`;
 }
 
-function renderPackageSection(node: PackageNode, stamp: string, status: SectionStatus): string {
-  const marker =
-    status === 'stale' ? '\n> ⚠ stale: structure changed since this section was reconciled.\n' : '';
-
-  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n${node.purpose}\n${marker}`;
+function renderPackageSection(node: PackageNode, stamp: string): string {
+  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n${node.purpose}\n`;
 }
