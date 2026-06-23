@@ -45,5 +45,16 @@ last_modified: 2026-06-23T03:43:37.802Z
     (surgical, no unrelated 0.49→0.55 drift pulled in); both dogfood files byte-identical.
   - Tests: lib units (readSessionReports isolation, surfacing factual-phrasing) +
     integration spawn of the real hook (emits additionalContext / silent on empty).
-  - Still DEFERRED — Increment 2b: wire a crash-capture backstop into hook
-    `catch → exit 0` sites so hook exceptions (not just CLI exits) populate the spool.
+  - (superseded) Increment 2b below wires the crash-capture backstop.
+- 2026-06-23T06:00:00Z Increment 2b (hook crash-capture backstop), GREEN:
+  - `lib/self-report.ts`: `installCrashCapture(hookName)` registers
+    uncaughtException/unhandledRejection handlers that capture a sanitized signal
+    then exit 0 — preserving safeword's swallow-and-continue contract while no
+    longer discarding the bug. Reads the installed version from `.safeword/version`.
+    Explicitly-caught expected conditions never reach it, so it only fires on real bugs.
+  - Wired into the four core hooks that run on every tool call / session end:
+    post-tool-quality, pre-tool-quality, stop-quality, post-tool-lint (one import +
+    one call each; dogfood copies byte-identical). Remaining hooks can adopt the
+    same one-liner incrementally.
+  - Integration test: a fixture hook that installs the backstop then throws →
+    captured (source + errorClass, message never stored) and still exits 0.

@@ -18,6 +18,9 @@ import {
 } from './lib/quality-state.ts';
 import { selectMostAdvancedStep, shouldReviewPhase } from './lib/review-trigger.ts';
 import { isNamespacePath } from './lib/namespace-root.ts';
+import { installCrashCapture } from './lib/self-report.ts';
+
+installCrashCapture('post-tool-quality');
 
 interface HookInput {
   session_id?: string;

@@ -31,6 +31,9 @@ import {
   recordFailure,
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { installCrashCapture } from './lib/self-report.ts';
+
+installCrashCapture('pre-tool-quality');
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 

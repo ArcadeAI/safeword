@@ -4,6 +4,9 @@
 // Also surfaces missing tool warnings via plain stdout.
 
 import { lintFile } from './lib/lint.ts';
+import { installCrashCapture } from './lib/self-report.ts';
+
+installCrashCapture('post-tool-lint');
 
 interface HookInput {
   tool_input?: {

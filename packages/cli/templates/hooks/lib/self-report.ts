@@ -157,6 +157,44 @@ export function recordSignal(
   }
 }
 
+/** Best-effort read of the installed safeword version (`.safeword/version`). */
+function readInstalledVersion(projectDirectory: string): string {
+  try {
+    return (
+      readFileSync(nodePath.join(projectDirectory, '.safeword', 'version'), 'utf8').trim() ||
+      'unknown'
+    );
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Install a crash backstop for a hook: an UNCAUGHT exception or rejection is
+ * captured as a sanitized signal, then the hook exits 0 — preserving safeword's
+ * swallow-and-continue contract (a hook must never break the host session) while
+ * no longer throwing the bug signal away. Expected, explicitly-caught conditions
+ * (no stdin, no git) never reach here, so this only fires on genuine bugs.
+ */
+export function installCrashCapture(
+  hookName: string,
+  projectDirectory: string = process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+): void {
+  const handler = (reason: unknown): void => {
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    const sessionId = process.env.CLAUDE_SESSION_ID ?? process.env.CLAUDE_CODE_SESSION_ID ?? 'hook';
+    recordSignal(
+      projectDirectory,
+      sessionId,
+      { source: hookName, errorClass: error.name, stack: error.stack },
+      readInstalledVersion(projectDirectory),
+    );
+    process.exit(0);
+  };
+  process.on('uncaughtException', handler);
+  process.on('unhandledRejection', handler);
+}
+
 /** Parse one spool file into records, skipping blank/malformed lines. */
 function parseSpoolFile(filePath: string): SelfReportRecord[] {
   let content: string;
