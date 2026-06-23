@@ -2,10 +2,26 @@
 id: JT852Q
 slug: architecture-resync-skill
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-06-23T03:46:29.788Z
-last_modified: 2026-06-23T05:02:00.000Z
+last_modified: 2026-06-23T05:14:00.000Z
+scope:
+  - parseSectionProse(content) → Map<name, prose> (CRLF-tolerant; excludes the reconciled + stale/orphan marker lines), mirroring parseSectionStamps
+  - Thread priorProse through renderDocument/renderSection; existing node → prose verbatim, new node → PURPOSE_PLACEHOLDER
+  - Evolve the section format so prose is its own block after the machine-owned `path` code-reference line
+  - Stamp-drift still emits the ⚠ stale marker with prose preserved; single-repo + monorepo leaves both persist; root index untouched
+  - Update Slice-1/2/3 tests asserting the old inline `path` — purpose format; re-render this repo's committed generated docs once
+out_of_scope:
+  - The /architecture LLM resync skill (layer B) → deferred ticket RYKVR5
+  - Any LLM involvement (this ticket stays deterministic)
+  - Changing the shape-fingerprint or the --check/--stage enforcement contracts
+  - Root-index per-node prose (the derived index has none)
+done_when:
+  - A doc with written prose heals to `unchanged` with prose byte-identical (round-trip); a new module gets the placeholder; a moved fingerprint preserves prose and flags ⚠ stale
+  - Single-repo and monorepo leaf docs both persist prose; the root index is unaffected
+  - Full suite green (old-format assertions updated); this repo's generated docs re-rendered + committed; architecture --check passes
+  - All scenarios in features/architecture-prose-persistence.feature pass via the BDD lane
 ---
 
 # `/architecture` prose persistence (JT852Q, scoped) — LLM resync skill deferred
@@ -105,3 +121,17 @@ property: heal twice ⇒ `unchanged`, prose byte-identical.
   /figure-it-out resolved the format evolution (prose as its own block) +
   preservation mechanism (parseSectionProse/priorProse). Scope: A now, B later.
   Next: BDD define-behavior, first scenario = the round-trip property.
+- 2026-06-23T05:15:00Z Complete: define-behavior — spec.md (TB1 + NTB1, 4 ACs),
+  dimensions, 7 scenarios across 3 rules in
+  features/architecture-prose-persistence.feature. Advancing to scenario-gate
+  for independent /review-spec.
+- 2026-06-23T05:25:00Z Complete: scenario-gate — independent /review-spec returned
+  BLOCK (round-trip scenarios vacuous: unchanged short-circuits the write, so
+  parse→render never ran; placeholder-vs-written never pinned the constant).
+  Reworked all scenarios onto the WRITE path (heal triggered by adding a module),
+  pinned exact prose/placeholder values, added CRLF + empty-prose + already-stale
+  - fixed-point + monorepo-leaf + root-index-untouched; dropped a would-be-vacuous
+    legacy-migration scenario (old docs only ever held the placeholder). Re-review
+    PASS-WITH-NITS, BLOCK cleared (nits → step defs). 11 scenarios, stamp recorded;
+    impl-plan.md written (parseSectionProse/priorProse, 7-task build order).
+    Advancing to implement.
