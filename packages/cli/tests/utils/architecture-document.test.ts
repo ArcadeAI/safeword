@@ -222,6 +222,122 @@ describe('planSelfHeal — dry-run action, writes nothing (FPV0E4 Slice 2)', () 
   });
 });
 
+const PLACEHOLDER = 'No description yet — awaiting prose.';
+
+/** Extract a single `### name` section's text (to its next heading or EOF). */
+function sectionText(content: string, name: string): string {
+  const chunk = content.split('\n### ').find(part => part.startsWith(`${name}\n`));
+  return chunk === undefined ? '' : `### ${chunk.split('\n## ', 1)[0]}`;
+}
+
+describe('selfHeal — per-section prose persistence (JT852Q layer A)', () => {
+  /** Create the doc, then replace auth's placeholder with real prose on disk. */
+  function seedWithProse(prose: string): void {
+    selfHeal(context.directory);
+    const path = documentPath(context.directory);
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(PLACEHOLDER, () => prose),
+    );
+  }
+
+  function addModule(name: string): void {
+    mkdirSync(nodePath.join(context.directory, 'src', name), { recursive: true });
+  }
+
+  function read(): string {
+    return readFileSync(documentPath(context.directory), 'utf8');
+  }
+
+  it('preserves an unaffected section prose byte-identical across a writing heal', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('healed');
+    expect(sectionText(read(), 'auth')).toContain('Handles login and tokens.');
+    expect(sectionText(read(), 'auth')).not.toContain(PLACEHOLDER);
+  });
+
+  it('births a new module with the placeholder, not the neighbour prose', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    expect(sectionText(read(), 'billing')).toContain(PLACEHOLDER);
+    expect(sectionText(read(), 'auth')).toContain('Handles login and tokens.');
+    expect(sectionText(read(), 'auth')).not.toContain(PLACEHOLDER);
+  });
+
+  it('restores the placeholder when a section prose was emptied (writing heal)', () => {
+    seedWithProse('Handles login and tokens.');
+    const path = documentPath(context.directory);
+    writeFileSync(path, readFileSync(path, 'utf8').replace('Handles login and tokens.', ''));
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    expect(sectionText(read(), 'auth')).toContain(PLACEHOLDER);
+  });
+
+  it('preserves prose and flags the section stale on a structural change', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('Handles login and tokens.');
+    expect(auth).toMatch(/stale/i);
+  });
+
+  it('keeps exactly one stale marker when re-healing an already-stale section', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+    selfHeal(context.directory); // auth now stale
+    addModule('reports');
+    selfHeal(context.directory); // heal again
+
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('Handles login and tokens.');
+    expect(auth.match(/⚠ stale/g) ?? []).toHaveLength(1);
+  });
+
+  it('preserves a multi-paragraph description across a writing heal', () => {
+    seedWithProse('First paragraph.\n\nSecond paragraph.');
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('First paragraph.');
+    expect(auth).toContain('Second paragraph.');
+  });
+
+  it('preserves prose when the doc uses CRLF line endings', () => {
+    seedWithProse('Handles login and tokens.');
+    const path = documentPath(context.directory);
+    writeFileSync(path, readFileSync(path, 'utf8').replaceAll('\n', '\r\n'));
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    expect(read()).toContain('Handles login and tokens.');
+  });
+
+  it('reaches a byte-identical fixed point after a writing heal', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+    expect(selfHeal(context.directory).action).toBe('healed');
+    const after = read();
+
+    expect(selfHeal(context.directory).action).toBe('unchanged');
+    expect(read()).toBe(after);
+  });
+});
+
 describe('isWouldChangeAction — the enforcement threshold (FPV0E4 Slice 2)', () => {
   it('is true exactly for created, healed, and regenerated', () => {
     expect(isWouldChangeAction('created')).toBe(true);

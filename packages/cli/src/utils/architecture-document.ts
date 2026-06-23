@@ -103,7 +103,7 @@ interface HealTarget {
   fingerprint: string;
   /** Whether the target has content to render — drives the noop/created decision. */
   hasContent: boolean;
-  render: (priorStamps: Map<string, string>) => string;
+  render: (priorStamps: Map<string, string>, priorProse: Map<string, string>) => string;
 }
 
 function healTarget(target: HealTarget): SelfHealResult {
@@ -113,7 +113,8 @@ function healTarget(target: HealTarget): SelfHealResult {
   if (isWouldChangeAction(action)) {
     mkdirSync(nodePath.dirname(target.path), { recursive: true });
     const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
-    writeFileSync(target.path, target.render(priorStamps));
+    const priorProse = existing === undefined ? new Map() : parseSectionProse(existing);
+    writeFileSync(target.path, target.render(priorStamps, priorProse));
   }
 
   return { action, path: target.path };
@@ -132,7 +133,8 @@ function singleRepoTarget(projectDirectory: string): HealTarget {
     path: resolveGeneratedArchitecturePath(projectDirectory),
     fingerprint,
     hasContent: nodes.length > 0,
-    render: priorStamps => renderDocument(nodes, fingerprint, priorStamps),
+    render: (priorStamps, priorProse) =>
+      renderDocument(nodes, fingerprint, priorStamps, priorProse),
   };
 }
 
@@ -144,7 +146,8 @@ function leafTarget(packageDirectory: string): HealTarget {
     path: nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
     fingerprint,
     hasContent: nodes.length > 0,
-    render: priorStamps => renderDocument(nodes, fingerprint, priorStamps),
+    render: (priorStamps, priorProse) =>
+      renderDocument(nodes, fingerprint, priorStamps, priorProse),
   };
 }
 
@@ -242,10 +245,57 @@ function parseSectionStamps(content: string): Map<string, string> {
   return stamps;
 }
 
+/**
+ * Map each section's node name to its preserved prose (ticket JT852Q) — the twin
+ * of {@link parseSectionStamps}. The prose region is the section body after the
+ * machine-owned `` `path` `` code-reference line, excluding the reconciled marker
+ * and the `> ⚠ stale`/`> ⚠ orphaned` blockquote markers. Empty/whitespace-only
+ * prose is omitted (so the render falls back to the placeholder, honoring the
+ * purpose floor). CRLF-tolerant, so a heal preserves prose written under either
+ * line ending. This is what lets a deterministic heal keep a module's
+ * description instead of resetting it to the placeholder.
+ */
+function parseSectionProse(content: string): Map<string, string> {
+  const prose = new Map<string, string>();
+  let name: string | undefined;
+  let inProse = false;
+  let buffer: string[] = [];
+
+  const flush = (): void => {
+    if (name !== undefined) {
+      const text = buffer.join('\n').trim();
+      if (text.length > 0) prose.set(name, text);
+    }
+    buffer = [];
+    inProse = false;
+  };
+
+  for (const line of content.split(/\r?\n/)) {
+    const heading = /^### (.+)$/.exec(line);
+    if (heading?.[1] !== undefined) {
+      flush();
+      name = heading[1].trim();
+    } else if (line.startsWith('## ')) {
+      flush();
+      name = undefined;
+    } else if (name === undefined || line.startsWith(RECONCILED_PREFIX) || line.startsWith('> ⚠')) {
+      // Outside a section, or a machine-owned marker line — never prose.
+    } else if (!inProse && /^`[^`]*`\s*$/.test(line)) {
+      inProse = true; // the code-reference line; prose begins after it
+    } else if (inProse) {
+      buffer.push(line);
+    }
+  }
+  flush();
+
+  return prose;
+}
+
 function renderDocument(
   nodes: SkeletonNode[],
   fingerprint: string,
   priorStamps: Map<string, string>,
+  priorProse: Map<string, string>,
 ): string {
   // reconcileSections is the single source of truth for per-section status;
   // this layer only renders markers from its verdicts.
@@ -262,20 +312,30 @@ function renderDocument(
       // A section the heal has seen before keeps its prior stamp; a brand-new
       // node is stamped current (a placeholder awaiting prose, not stale).
       const stamp = priorStamps.get(verdict.node) ?? fingerprint;
+      // Preserve prior prose; a new (or emptied) section falls back to the
+      // placeholder the skeleton carries (the purpose floor).
+      const prose = priorProse.get(verdict.node) ?? node?.purpose ?? '';
       return node === undefined
         ? renderOrphanSection(verdict.node)
-        : renderSection(node, stamp, verdict.status);
+        : renderSection(node, stamp, verdict.status, prose);
     })
     .join('\n');
 
   return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Modules\n\n${sections}`;
 }
 
-function renderSection(node: SkeletonNode, stamp: string, status: SectionStatus): string {
+function renderSection(
+  node: SkeletonNode,
+  stamp: string,
+  status: SectionStatus,
+  prose: string,
+): string {
   const marker =
     status === 'stale' ? '\n> ⚠ stale: structure changed since this section was reconciled.\n' : '';
 
-  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n\`${node.path}\` — ${node.purpose}\n${marker}`;
+  // Prose is its own block after the machine-owned code-reference line, so a
+  // deterministic heal can preserve it (ticket JT852Q).
+  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n\`${node.path}\`\n\n${prose}\n${marker}`;
 }
 
 function renderOrphanSection(name: string): string {
