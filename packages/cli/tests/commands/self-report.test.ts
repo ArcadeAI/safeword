@@ -75,4 +75,24 @@ describe('selfReport (QYYC5Y)', () => {
     expect(parsed.groups[0]?.signature).toBe('TypeError@post-tool-quality');
     expect(parsed.groups[0]?.count).toBe(1);
   });
+
+  it('emits ready-to-file issue drafts under --format issue', async () => {
+    recordSignal(
+      projectDirectory,
+      's1',
+      { source: 'post-tool-quality', errorClass: 'TypeError' },
+      '1',
+    );
+
+    await selfReport({ format: 'issue' }, projectDirectory);
+    const drafts = JSON.parse(logs.join('\n')) as {
+      title: string;
+      labels: string[];
+      body: string;
+    }[];
+
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.title).toBe('[self-report] TypeError@post-tool-quality');
+    expect(drafts[0]?.labels).toContain('self-reported');
+  });
 });

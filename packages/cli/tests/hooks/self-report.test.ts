@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildRecord,
+  formatIssueDrafts,
   formatSelfReportSurfacing,
   readReports,
   readSessionReports,
@@ -255,6 +256,48 @@ describe('self-report capture (QYYC5Y)', () => {
       // Factual framing — no imperative "you must / file an issue" command.
       expect(line?.toLowerCase()).not.toContain('you must');
       expect(line?.toLowerCase()).not.toContain('file an issue');
+    });
+  });
+
+  describe('formatIssueDrafts (#353)', () => {
+    it('emits one sanitized draft per signature, titled by the dedup signature', () => {
+      recordSignal(
+        projectDirectory,
+        's',
+        {
+          source: 'post-tool-quality',
+          errorClass: 'TypeError',
+          stack:
+            'TypeError: x\n    at f (/h/safeword/packages/cli/templates/hooks/post-tool-quality.ts:9:1)',
+        },
+        '0.55.0',
+      );
+      recordSignal(
+        projectDirectory,
+        's',
+        { source: 'post-tool-quality', errorClass: 'TypeError' },
+        '0.55.0',
+      );
+      recordSignal(projectDirectory, 's', { source: 'check', exitCode: 1 }, '0.55.0');
+
+      const drafts = formatIssueDrafts(readReports(projectDirectory));
+
+      expect(drafts).toHaveLength(2);
+      const typeError = drafts.find(draft => draft.signature === 'TypeError@post-tool-quality');
+      expect(typeError?.title).toBe('[self-report] TypeError@post-tool-quality');
+      expect(typeError?.labels).toContain('self-reported');
+      expect(typeError?.body).toContain('Occurrences this report:** 2');
+      expect(typeError?.body).toContain('0.55.0');
+      // The safeword-internal frame survives; the title is the dedup key.
+      expect(typeError?.body).toContain('post-tool-quality.ts:9:1');
+
+      const exitDraft = drafts.find(draft => draft.signature === 'exit1@check');
+      expect(exitDraft?.body).toContain('Exit code:** 1');
+      expect(exitDraft?.body).toContain('No stack frames');
+    });
+
+    it('returns no drafts for an empty spool', () => {
+      expect(formatIssueDrafts([])).toEqual([]);
     });
   });
 });

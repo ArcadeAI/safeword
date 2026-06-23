@@ -12,6 +12,7 @@
 import process from 'node:process';
 
 import {
+  formatIssueDrafts,
   readReports,
   type SelfReportRecord,
   summarizeReports,
@@ -20,6 +21,8 @@ import { header, info, listItem } from '../utils/output.js';
 
 export interface SelfReportOptions {
   json?: boolean;
+  /** Output format: 'human' (default), 'json', or 'issue' (ready-to-file drafts). */
+  format?: 'human' | 'json' | 'issue';
 }
 
 export function selfReport(
@@ -28,8 +31,16 @@ export function selfReport(
 ): Promise<void> {
   const records: SelfReportRecord[] = readReports(cwd);
   const groups = summarizeReports(records);
+  const format = options.format ?? (options.json ? 'json' : 'human');
 
-  if (options.json) {
+  if (format === 'issue') {
+    // Ready-to-file, sanitized issue drafts. The agent searches for each title,
+    // then comments-or-creates (dedup) — see issue #353.
+    info(JSON.stringify(formatIssueDrafts(records), undefined, 2));
+    return Promise.resolve();
+  }
+
+  if (format === 'json') {
     info(JSON.stringify({ total: records.length, groups }, undefined, 2));
     return Promise.resolve();
   }

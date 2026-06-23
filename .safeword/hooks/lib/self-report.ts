@@ -246,13 +246,18 @@ export interface SelfReportGroup {
   exitCode?: number;
 }
 
+/** Stable signature for a record — the dedup key (class@source, or exitN@source). */
+export function signatureOf(record: SelfReportRecord): string {
+  return record.errorClass
+    ? `${record.errorClass}@${record.source}`
+    : `exit${record.exitCode ?? '?'}@${record.source}`;
+}
+
 /** Group records by signature (class@source, or cli:source:exit), count desc. */
 export function summarizeReports(records: SelfReportRecord[]): SelfReportGroup[] {
   const groups = new Map<string, SelfReportGroup>();
   for (const record of records) {
-    const signature = record.errorClass
-      ? `${record.errorClass}@${record.source}`
-      : `exit${record.exitCode ?? '?'}@${record.source}`;
+    const signature = signatureOf(record);
     const existing = groups.get(signature);
     if (existing) {
       existing.count += 1;
@@ -270,6 +275,53 @@ export function summarizeReports(records: SelfReportRecord[]): SelfReportGroup[]
     .values()
     .toArray()
     .toSorted((a, b) => b.count - a.count);
+}
+
+/** A ready-to-file GitHub issue draft for one self-report signature. */
+export interface SelfReportIssueDraft {
+  signature: string;
+  title: string;
+  body: string;
+  labels: string[];
+}
+
+/**
+ * Build a sanitized, ready-to-file issue draft per signature. The agent's job is
+ * only transport: search for an open issue with the title, then comment-or-create.
+ * The body is assembled from ALLOWLISTED record fields only — the same fields the
+ * capture sanitizer permits — so no customer data can reach a public issue here.
+ */
+export function formatIssueDrafts(records: SelfReportRecord[]): SelfReportIssueDraft[] {
+  return summarizeReports(records).map(group => {
+    const matching = records.filter(record => signatureOf(record) === group.signature);
+    const versions = [...new Set(matching.map(record => record.safewordVersion))].sort();
+    const frames = matching.find(record => record.frames?.length)?.frames ?? [];
+
+    const lines = [
+      'Safeword self-reported this signal from its own runtime — a bug or rough edge in safeword, not in the host project.',
+      '',
+      `- **Signature:** \`${group.signature}\``,
+      `- **Occurrences this report:** ${group.count}`,
+      `- **Source:** \`${group.source}\``,
+      group.errorClass
+        ? `- **Error class:** \`${group.errorClass}\``
+        : `- **Exit code:** ${group.exitCode ?? 'unknown'}`,
+      `- **Safeword version(s):** ${versions.join(', ') || 'unknown'}`,
+      '',
+      frames.length > 0
+        ? ['**Stack (safeword-internal frames only):**', '```', ...frames, '```'].join('\n')
+        : '_No stack frames captured (CLI-exit signal)._',
+      '',
+      '<sub>Auto-drafted by `safeword self-report --format issue`; sanitized at capture (allowlist-only, no customer data).</sub>',
+    ];
+
+    return {
+      signature: group.signature,
+      title: `[self-report] ${group.signature}`,
+      body: lines.join('\n'),
+      labels: ['self-reported'],
+    };
+  });
 }
 
 /**

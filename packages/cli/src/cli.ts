@@ -149,9 +149,14 @@ program
   .command('self-report')
   .description("View safeword's own captured runtime signals (zero-egress local spool)")
   .option('--json', 'Emit machine-readable JSON instead of a human summary')
-  .action(async (options: { json?: boolean }) => {
+  .option(
+    '--format <format>',
+    'Output format: human (default), json, or issue (ready-to-file sanitized drafts)',
+  )
+  .action(async (options: { json?: boolean; format?: string }) => {
     const { selfReport } = await import('./commands/self-report.js');
-    await selfReport({ json: options.json });
+    const format = options.format as 'human' | 'json' | 'issue' | undefined;
+    await selfReport({ json: options.json, format });
   });
 
 program
