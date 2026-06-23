@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   dependencyInputFingerprint,
   detectDependencyPlan,
+  formatDependencyRecovery,
   getDependencyReadiness,
   isDependencyBackedCommand,
   readDependencyBootstrapConfig,
@@ -451,6 +452,39 @@ describe('dependency readiness hook support', () => {
     // marker still matches the current content, so it stays ready.
     utimesSync(artifact, past, past);
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('stale recovery documents the no-op escape so the gate cannot loop', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+
+    // Version-bump-style change: tracked content differs from the marker while
+    // the artifact mtime sits behind it — exactly the case a no-op `bun ci`
+    // cannot heal (it reports "no changes" and never re-stamps the marker).
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(artifact, past, past);
+
+    const stale = getDependencyReadiness(projectDirectory);
+    expect(stale.status).toBe('stale');
+
+    const recovery = formatDependencyRecovery(stale);
+    expect(recovery).toContain('bun ci');
+    expect(recovery).toContain('reports no changes');
+    expect(recovery).toContain('touch node_modules');
+  });
+
+  it('missing recovery installs for real, so it omits the touch escape', () => {
+    writeBunProject();
+
+    const missing = getDependencyReadiness(projectDirectory);
+    expect(missing.status).toBe('missing');
+
+    const recovery = formatDependencyRecovery(missing);
+    expect(recovery).toContain('bun ci');
+    expect(recovery).not.toContain('touch node_modules');
   });
 
   it('reads explicit auto-install opt-in from safeword config', () => {
