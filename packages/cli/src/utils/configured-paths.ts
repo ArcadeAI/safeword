@@ -203,8 +203,12 @@ export function resolveLearningsDirectory(cwd: string): string {
   return nodePath.join(resolveNamespaceRoot(cwd), 'learnings');
 }
 
-/** Fixed filename of the auto-generated architecture state document. */
-const GENERATED_ARCHITECTURE_FILENAME = 'architecture.generated.md';
+/**
+ * Fixed filename of the auto-generated architecture state document — used both
+ * for the namespace-root doc/root index and for colocated monorepo leaf docs
+ * (`packages/<pkg>/architecture.generated.md`, ticket XG9SFP).
+ */
+export const GENERATED_ARCHITECTURE_FILENAME = 'architecture.generated.md';
 
 /**
  * Absolute path of the auto-generated architecture state document, under the

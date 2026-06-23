@@ -1,20 +1,21 @@
 /**
- * `safeword architecture` — refresh the generated architecture state document
- * (ticket QD5DTT, Slice 1) and, with `--check`, enforce its freshness in CI
- * (ticket FPV0E4, Slice 2).
+ * `safeword architecture` — refresh the generated architecture state document(s)
+ * (ticket QD5DTT, Slice 1; FPV0E4, Slice 2; XG9SFP, Slice 3).
  *
- * Default mode is a thin CLI entry over `selfHeal`: re-extracts the skeleton and
- * reconciles prose markers at the generated `.project/architecture.generated.md`.
- * The SessionStart hook shells out to it so the heal logic lives in one place.
+ * Default mode is a thin CLI entry over `selfHealProject`: re-extracts the
+ * skeleton and reconciles prose markers for every node — one doc for a
+ * single-repo, or a derived root index plus colocated per-package leaf docs for a
+ * monorepo. The SessionStart hook shells out to it so the heal logic lives in one
+ * place.
  *
- * `--check` is the CI backstop: a dry-run of `selfHeal` that writes nothing and
- * exits non-zero when the committed doc is stale (a would-change action), so a
- * silently-wrong doc cannot reach the main branch.
+ * `--check` is the CI backstop: a dry-run that writes nothing and exits non-zero
+ * when ANY node is stale (a would-change action), so a silently-wrong doc cannot
+ * reach the main branch.
  *
- * `--stage` is the commit-time auto-fix: regenerate a stale doc via `selfHeal`
- * and `git add` it into the in-flight commit, so the commit lands fresh. Never
- * blocks (always exits zero). Both gated surfaces honor the per-project opt-out
- * (`architectureDocEnforcement: false`).
+ * `--stage` is the commit-time auto-fix: regenerate every stale node via
+ * `selfHealProject` and `git add` each into the in-flight commit, so the commit
+ * lands fresh. Never blocks (always exits zero). Both gated surfaces honor the
+ * per-project opt-out (`architectureDocEnforcement: false`).
  */
 
 import { execFileSync } from 'node:child_process';
@@ -23,8 +24,8 @@ import process from 'node:process';
 
 import {
   isWouldChangeAction,
-  planSelfHeal,
-  selfHeal,
+  planSelfHealProject,
+  selfHealProject,
   type SelfHealResult,
 } from '../utils/architecture-document.js';
 import { isArchitectureDocumentEnforcementEnabled } from '../utils/configured-paths.js';
@@ -41,15 +42,17 @@ export function architecture(
     return architectureStage(cwd);
   }
 
-  const result = selfHeal(cwd);
-  success(`Architecture state document ${result.action}: ${result.path}`);
+  const results = selfHealProject(cwd);
+  for (const result of results) {
+    success(`Architecture state document ${result.action}: ${result.path}`);
+  }
   return Promise.resolve();
 }
 
 /**
- * Commit-time auto-fix. Regenerates a stale doc and stages it into the in-flight
- * commit; leaves a current/`noop`/foreign doc untouched. Never blocks — git
- * failures are swallowed so the commit always proceeds.
+ * Commit-time auto-fix. Regenerates every stale node and stages it into the
+ * in-flight commit; leaves current/`noop`/foreign nodes untouched. Never blocks
+ * — git failures are swallowed so the commit always proceeds.
  */
 function architectureStage(cwd: string): Promise<void> {
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
@@ -57,12 +60,15 @@ function architectureStage(cwd: string): Promise<void> {
     return Promise.resolve();
   }
 
-  const result = selfHeal(cwd);
-  if (isWouldChangeAction(result.action)) {
+  const changed = selfHealProject(cwd).filter(result => isWouldChangeAction(result.action));
+  if (changed.length === 0) {
+    success('Architecture docs need no change.');
+    return Promise.resolve();
+  }
+
+  for (const result of changed) {
     stageDocument(cwd, result);
-    success(`Architecture doc ${result.action} and staged.`);
-  } else {
-    success(`Architecture doc needs no change (${result.action}).`);
+    success(`Architecture doc ${result.action} and staged: ${result.path}`);
   }
   return Promise.resolve();
 }
@@ -78,9 +84,9 @@ function stageDocument(cwd: string, result: SelfHealResult): void {
 }
 
 /**
- * CI staleness backstop. Exits non-zero when the doc is stale (would change),
- * passes when it is current/`noop`/foreign or when enforcement is opted out.
- * Writes nothing — the fix is the human running `safeword architecture`.
+ * CI staleness backstop. Exits non-zero when ANY node is stale (would change),
+ * passes when every node is current/`noop`/foreign or when enforcement is opted
+ * out. Writes nothing — the fix is the human running `safeword architecture`.
  */
 function architectureCheck(cwd: string): Promise<void> {
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
@@ -88,14 +94,14 @@ function architectureCheck(cwd: string): Promise<void> {
     return Promise.resolve();
   }
 
-  const action = planSelfHeal(cwd);
-  if (isWouldChangeAction(action)) {
+  const stale = planSelfHealProject(cwd).filter(action => isWouldChangeAction(action));
+  if (stale.length > 0) {
     error(
-      `Architecture doc is stale (${action}). Run \`safeword architecture\` to regenerate it, then commit the result.`,
+      `Architecture docs are stale (${stale.join(', ')}). Run \`safeword architecture\` to regenerate, then commit the result.`,
     );
     process.exit(1);
   }
 
-  success('Architecture doc is current.');
+  success('Architecture docs are current.');
   return Promise.resolve();
 }

@@ -14,9 +14,19 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { shapeFingerprint } from './architecture-fingerprint.js';
+import {
+  discoverLeafDirectories,
+  extractMonorepoModel,
+  monorepoFingerprint,
+  type MonorepoModel,
+  type PackageNode,
+} from './architecture-monorepo.js';
 import { reconcileSections, type SectionStatus } from './architecture-reconcile.js';
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
-import { resolveGeneratedArchitecturePath } from './configured-paths.js';
+import {
+  GENERATED_ARCHITECTURE_FILENAME,
+  resolveGeneratedArchitecturePath,
+} from './configured-paths.js';
 
 export type SelfHealAction =
   | 'created'
@@ -82,43 +92,108 @@ export function readDocumentFingerprint(content: string): string | undefined {
 
 const RECONCILED_PREFIX = '<!-- reconciled:';
 
-/** Everything both the dry-run and the write path need, computed once. */
-interface HealPlan {
-  action: SelfHealAction;
+/**
+ * A single doc the self-heal machinery operates on. The ownership guard,
+ * `decideAction`, fingerprint read/write, and stamp preservation are all shared
+ * across the single-repo doc, the monorepo root index, and each leaf — only the
+ * path, fingerprint, and renderer differ (ticket XG9SFP).
+ */
+interface HealTarget {
   path: string;
   fingerprint: string;
-  existing: string | undefined;
-  nodes: SkeletonNode[];
+  /** Whether the target has content to render — drives the noop/created decision. */
+  hasContent: boolean;
+  render: (priorStamps: Map<string, string>) => string;
 }
 
-function computeHealPlan(projectDirectory: string): HealPlan {
-  const path = resolveGeneratedArchitecturePath(projectDirectory);
+function healTarget(target: HealTarget): SelfHealResult {
+  const existing = readExisting(target.path);
+  const action = decideAction(existing, target.fingerprint, target.hasContent);
+
+  if (isWouldChangeAction(action)) {
+    mkdirSync(nodePath.dirname(target.path), { recursive: true });
+    const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
+    writeFileSync(target.path, target.render(priorStamps));
+  }
+
+  return { action, path: target.path };
+}
+
+/** Dry-run of {@link healTarget}: the action it would take, writing nothing. */
+function planTarget(target: HealTarget): SelfHealAction {
+  return decideAction(readExisting(target.path), target.fingerprint, target.hasContent);
+}
+
+/** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
+function singleRepoTarget(projectDirectory: string): HealTarget {
   const fingerprint = shapeFingerprint(projectDirectory);
-  const existing = readExisting(path);
   const nodes = extractSkeleton(projectDirectory).nodes;
-  const action = decideAction(existing, fingerprint, nodes.length > 0);
-  return { action, path, fingerprint, existing, nodes };
+  return {
+    path: resolveGeneratedArchitecturePath(projectDirectory),
+    fingerprint,
+    hasContent: nodes.length > 0,
+    render: priorStamps => renderDocument(nodes, fingerprint, priorStamps),
+  };
+}
+
+/** A colocated leaf: the package's own skeleton at `packages/<pkg>/architecture.generated.md`. */
+function leafTarget(packageDirectory: string): HealTarget {
+  const fingerprint = shapeFingerprint(packageDirectory);
+  const nodes = extractSkeleton(packageDirectory).nodes;
+  return {
+    path: nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
+    fingerprint,
+    hasContent: nodes.length > 0,
+    render: priorStamps => renderDocument(nodes, fingerprint, priorStamps),
+  };
+}
+
+/** The derived root index: the package graph at the namespace-root path. */
+function rootIndexTarget(projectDirectory: string): HealTarget {
+  const fingerprint = monorepoFingerprint(projectDirectory);
+  const model = extractMonorepoModel(projectDirectory);
+  return {
+    path: resolveGeneratedArchitecturePath(projectDirectory),
+    fingerprint,
+    hasContent: model.packages.length > 0,
+    render: priorStamps => renderRootIndex(model, fingerprint, priorStamps),
+  };
+}
+
+/** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
+function projectTargets(projectDirectory: string): HealTarget[] {
+  const leaves = discoverLeafDirectories(projectDirectory);
+  if (leaves.length === 0) return [singleRepoTarget(projectDirectory)];
+  return [rootIndexTarget(projectDirectory), ...leaves.map(leaf => leafTarget(leaf))];
+}
+
+export function selfHeal(projectDirectory: string): SelfHealResult {
+  return healTarget(singleRepoTarget(projectDirectory));
 }
 
 /**
  * Dry-run of {@link selfHeal}: report the action it *would* take, writing
- * nothing. The Slice-2 enforcement surfaces (CI `--check`, commit-time stage)
- * use this to decide whether the doc is stale without mutating the tree.
+ * nothing. The Slice-2 enforcement surfaces use this to decide whether the
+ * single-repo doc is stale without mutating the tree.
  */
 export function planSelfHeal(projectDirectory: string): SelfHealAction {
-  return computeHealPlan(projectDirectory).action;
+  return planTarget(singleRepoTarget(projectDirectory));
 }
 
-export function selfHeal(projectDirectory: string): SelfHealResult {
-  const { action, path, fingerprint, existing, nodes } = computeHealPlan(projectDirectory);
+/**
+ * Self-heal every node of a project (ticket XG9SFP): a single-repo project
+ * heals one doc (byte-identical to {@link selfHeal}); a monorepo heals the
+ * derived root index plus one colocated leaf per package with a `src/` tree
+ * (empty-skeleton packages noop). Each node is fingerprinted independently, so
+ * an unchanged node returns `unchanged` and is left untouched.
+ */
+export function selfHealProject(projectDirectory: string): SelfHealResult[] {
+  return projectTargets(projectDirectory).map(target => healTarget(target));
+}
 
-  if (isWouldChangeAction(action)) {
-    mkdirSync(nodePath.dirname(path), { recursive: true });
-    const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
-    writeFileSync(path, renderDocument(nodes, fingerprint, priorStamps));
-  }
-
-  return { action, path };
+/** Dry-run of {@link selfHealProject}: the action per node, writing nothing. */
+export function planSelfHealProject(projectDirectory: string): SelfHealAction[] {
+  return projectTargets(projectDirectory).map(target => planTarget(target));
 }
 
 function readExisting(path: string): string | undefined {
@@ -205,4 +280,47 @@ function renderSection(node: SkeletonNode, stamp: string, status: SectionStatus)
 
 function renderOrphanSection(name: string): string {
   return `### ${name}\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n`;
+}
+
+/**
+ * Render the derived monorepo root index (ticket XG9SFP): a `## Packages`
+ * section (one reconciled subsection per package) plus a `## Dependencies`
+ * section listing inter-package edges. Reuses the same ownership marker,
+ * fingerprint frontmatter, and reconcile machinery as the single-repo doc, so
+ * the root index self-heals and flags stale prose identically.
+ */
+function renderRootIndex(
+  model: MonorepoModel,
+  fingerprint: string,
+  priorStamps: Map<string, string>,
+): string {
+  const verdicts = reconcileSections({
+    priorStamps: Object.fromEntries(priorStamps),
+    nodeNames: model.packages.map(node => node.name),
+    fingerprint,
+  });
+  const packageByName = new Map(model.packages.map(node => [node.name, node]));
+
+  const sections = verdicts
+    .map(verdict => {
+      const node = packageByName.get(verdict.node);
+      const stamp = priorStamps.get(verdict.node) ?? fingerprint;
+      return node === undefined
+        ? renderOrphanSection(verdict.node)
+        : renderPackageSection(node, stamp, verdict.status);
+    })
+    .join('\n');
+
+  const edgeLines = model.edges.map(edge => `- \`${edge.from}\` → \`${edge.to}\``).join('\n');
+  const dependencies =
+    model.edges.length === 0 ? '_No inter-package dependencies._\n' : `${edgeLines}\n`;
+
+  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n\n## Dependencies\n\n${dependencies}`;
+}
+
+function renderPackageSection(node: PackageNode, stamp: string, status: SectionStatus): string {
+  const marker =
+    status === 'stale' ? '\n> ⚠ stale: structure changed since this section was reconciled.\n' : '';
+
+  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n${node.purpose}\n${marker}`;
 }
