@@ -3,7 +3,7 @@ id: JS5K5G
 slug: sync-tracker
 title: 'safeword sync-tracker — one-way projection to Linear + GitHub Issues'
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-05-24T21:44:38.516Z
 last_modified: 2026-06-23T01:30:00Z
@@ -227,6 +227,7 @@ The entire **local** system — tickets, work logs, the `blocked_on` gate, the I
 
 ## Work Log
 
+- 2026-06-23T02:40:00Z Complete: implement (6 build steps, bottom-up TDD) — payload (f4c50ee), tracker-map sidecar (827655a), secrets+backoff (fafa40d), writers+TrackerClient seam (1e86033), orchestrator single call site (6412112), CLI command + config read + corpus walk + live gh adapter (1328141). 54 tracker-sync unit tests; all 21 scenarios stamped. Full suite 3286 passed / 5 pre-existing skips (222 files, exit 0); eslint + tsc + gherkin + depcruise (no violations) + jscpd (0 clones) + sync-config (in sync) all clean. impl-plan reconciled → implemented; Linear live client deferred to 2TK5AD (writer logic ships + tested). Advanced to verify.
 - 2026-06-23T01:40:00Z Complete: scenario-gate — independent /review-spec pass returned CHANGES REQUESTED (2 blockers: AC5↔AC9 missing-sidecar conflict; vacuous "no writer calls"). Resolved: connect seeds an empty sidecar so present+empty=first-run vs absent=lost-refuse (AC9 now covers missing AND corrupt); AC1 drops the vacuous clause, AC2 → Scenario Outline (linear|github) with a call-recording stub. Applied should-strengthens (AC3 back-link URL, AC7 payload field-set, AC11 sentinel, AC13 fake-timer retry-count, AC10 warn-before-create). Re-review PASS, 0 blocking. Wrote impl-plan.md (tracker-sync/ module, all-unit test layers, 6-step build order); stamped Tier-2 review. 21 scenarios / 11 rules. Advanced to implement.
 - 2026-06-23T01:32:00Z Complete: define-behavior — distilled scope/out_of_scope/done_when into frontmatter, authored spec.md (JTBD sync-tracker.TB1, persona TB, 13 ACs), dimensions.md (10 dimensions), features/sync-tracker.feature (20 scenarios across 11 rules, @wip — proof lives in vitest), test-definitions.md R/G/R ledger. AC-coverage clean. Advanced to scenario-gate.
 - 2026-05-24T21:44:38.516Z Started: Created ticket JS5K5G.

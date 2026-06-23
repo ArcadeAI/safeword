@@ -1,6 +1,23 @@
 # Impl Plan: safeword sync-tracker — one-way projection (v1)
 
-**Status:** planned
+**Status:** implemented
+
+<!--
+Reconciliation (implement-phase exit): shipped as planned. The tracker-sync
+module, all-unit test layers, and the 6-step bottom-up build order held exactly
+(payload f4c50ee · tracker-map 827655a · secrets+backoff fafa40d · writers
+1e86033 · orchestrator 6412112 · CLI wiring 1328141). All six Decisions held.
+Two reconciliation notes:
+  - Arch alignment "minimize deps" held strongly: the live GitHub adapter shells
+    out to `gh` (zero new runtime deps) rather than adding an SDK; no new
+    template/managed file was added, so the schema.ts "no unregistered
+    templates" contract needed no entry (the ticketBridge block is read-only
+    here; its WRITE/template is 2TK5AD's).
+  - The missing-sidecar decision shipped as the "require --reset-tracker-map"
+    branch (the simpler of the two pre-approved options); back-link reconcile was
+    not built (would need a tracker list API, out of v1 scope).
+See "Known deviations" for the Linear live-client deferral.
+-->
 
 ## Approach
 
@@ -59,10 +76,20 @@ ARCHITECTURE.md is a single record (no ADR directory). This implementation honor
 
 ## Known deviations
 
-skip: no deviations planned. Outbound network in a command is consistent with the
-"off the per-turn loop" decision (not a deviation). The cross-ticket dependency on
-2TK5AD seeding the sidecar is implemented defensively (absent-on-configured →
-refuse), so JS5K5G is correct even if run before connect seeds the file.
+Outbound network in a command is consistent with the "off the per-turn loop"
+decision (not a deviation). The cross-ticket dependency on 2TK5AD seeding the
+sidecar is implemented defensively (absent-on-configured → refuse), so JS5K5G is
+correct even if run before connect seeds the file.
+
+**Shipped deviation — Linear live client deferred to 2TK5AD.** The done-when says
+"both Linear and GitHub writers ship." Both _writer logics_ ship and are
+unit-tested over the `TrackerClient` port (writers.test.ts). GitHub's live client
+is wired (`gh` subprocess); Linear's live client needs the Arcade integration,
+whose auth/setup is owned by the connect-flow ticket (2TK5AD), so it surfaces an
+actionable error pending that work rather than adding an Arcade SDK dependency
+unilaterally here. Acceptable because: (a) the seam is proven for both providers,
+(b) the deferred piece is a pure I/O shim with a clear owner, (c) no live tracker
+is exercised in tests by design. Tracked as a follow-up against 2TK5AD.
 
 ## Assessment triggers
 
