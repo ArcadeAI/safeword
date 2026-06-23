@@ -180,11 +180,12 @@ The arc end to end: a persona from `personas.md`, a job that names it, criteria 
 Before proceeding to define-behavior (the Intake Brief is advisory — a missing or `skip:`'d field never blocks this exit; only `scope` / `out_of_scope` / `done_when` are required):
 
 0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
-1. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
-2. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
-3. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
-4. **Update frontmatter:** `phase: define-behavior`
-5. **Add work log entry:**
+1. **Cold-start executability check (one-way-door features only)** — read the intake brief's _recorded_ Reversibility field; do not re-judge reversibility here. Offer the cold-start check **only when** that recorded field reads one-way-door or cross-cutting (data model, public API, or migration). A two-way-door, missing, or `skip:`'d Reversibility field gets no offer. The check (see `.safeword/guides/cold-start-check.md`) spawns a context-free sub-agent to judge whether the captured spec could be planned from scratch, and appends any gaps to Open Questions — so run it before resolving them. It is advisory; it never blocks. Under YOLO mode (G2E72G) the offer auto-accepts: the check runs, the auto-decision is recorded in the work log, and each auto-appended gap is recorded as `defer: <reason>` so the auto-confirming exit isn't silently waved through.
+2. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
+3. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
+4. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
+5. **Update frontmatter:** `phase: define-behavior`
+6. **Add work log entry:**
 
    ```
    - {timestamp} Complete: intake - Understanding converged, scope established
