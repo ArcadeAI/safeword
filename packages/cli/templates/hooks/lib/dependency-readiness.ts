@@ -428,10 +428,23 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
       ? 'dependency inputs changed after the last install'
       : 'dependencies are not installed in this worktree';
 
-  return [
+  const lines = [
     `${problem}.`,
     `Run \`${installCommand}\` from the project root, then retry the command.`,
-  ].join('\n');
+  ];
+
+  // A version-bump pull changes the input fingerprint without changing resolved
+  // dependencies, so the install reports "no changes" and does not refresh the
+  // marker — which would otherwise leave this stale check looping. No package
+  // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
+  // document the one-step escape for that no-op case.
+  if (readiness.status === 'stale') {
+    lines.push(
+      'If it reports no changes, the lockfile is already satisfied — run `touch node_modules` to clear this check.',
+    );
+  }
+
+  return lines.join('\n');
 }
 
 function collectWorkspacePackageJsonPaths(
