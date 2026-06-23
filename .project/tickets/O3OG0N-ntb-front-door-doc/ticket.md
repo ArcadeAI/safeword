@@ -3,10 +3,10 @@ id: O3OG0N
 slug: ntb-front-door-doc
 parent: K6CAJN-ntb-experience-epic
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-21T14:24:00Z
-last_modified: 2026-06-21T14:24:00Z
+last_modified: 2026-06-23T06:05:00Z
 ---
 
 # Add an NTB front door — "driving safeword without reading code"
