@@ -3,10 +3,10 @@ id: JS5K5G
 slug: sync-tracker
 title: 'safeword sync-tracker — one-way projection to Linear + GitHub Issues'
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-05-24T21:44:38.516Z
-last_modified: 2026-06-23T01:30:00Z
+last_modified: 2026-06-23T03:15:00Z
 scope:
   - A `safeword sync-tracker` command that projects the ticket corpus one-way (file → tracker) into Linear OR GitHub Issues as FLAT, label-grouped issues. Files stay canonical; the tracker is a projection, never a second master.
   - One call site `projectTicket(payload, provider)` over a provider-neutral `IssuePayload` (title, body, labels[], assignee?, state). Two concrete writers (Linear, GitHub) behind it — no plugin/adapter framework (rule of three; extract at provider #3).

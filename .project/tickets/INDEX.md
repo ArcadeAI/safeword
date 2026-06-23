@@ -837,7 +837,7 @@
 - **Auto-install deps in fresh worktrees via SessionStart hook (JNVP4W)** (backlog, epic: —)
   A freshly created git worktree auto-installs its dependencies on session start, so commits (and tests/lint) work immediately instead of failing at the pre-commit guard with "node_modules not installed."
   → `.project/tickets/JNVP4W-worktree-auto-deps`
-- **safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)** (in_progress, epic: —)
+- **safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)** (done, epic: —)
   A `safeword sync-tracker` command that projects safeword's tickets **one-way (file → tracker)** into the customer's real tracker — **Linear and GitHub Issues** — as a **flat, groupable status board** (no dependency graph in v1), while the local files stay the source of truth. Two providers, one call site, a shared payload; no plugin interface.
   blocks: Tracker connect/onboarding flow — interactive wiring (when + where the human authorizes) (2TK5AD), Breach issue projection — signal breach → tracker issue (deferred stub) (K51FYZ), sync-tracker v2 — project the dependency graph (relations, sub-issues, types) (M1FGRJ)
   → `.project/tickets/JS5K5G-sync-tracker`
