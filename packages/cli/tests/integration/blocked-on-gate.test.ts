@@ -70,6 +70,23 @@ describe('MBGQ89 blocked_on phase gate (wired, always-on)', () => {
     writeFileSync(subjectFile, subjectBody(phase, ...extra));
   }
 
+  /** Drive the gate with an Edit that flips `phase: <from>` → `phase: <to>`. */
+  function advanceViaEdit(fromPhase: string, toPhase: string): HookResult {
+    const result = spawnSync('bun', [GATE_PATH], {
+      input: JSON.stringify({
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: subjectFile,
+          old_string: `phase: ${fromPhase}`,
+          new_string: `phase: ${toPhase}`,
+        },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+    });
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
+
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'blocked-on-gate-'));
     ticketsRoot = nodePath.join(projectRoot, '.safeword-project', 'tickets');
@@ -93,6 +110,21 @@ describe('MBGQ89 blocked_on phase gate (wired, always-on)', () => {
     seedSubject('intake', 'blocked_on: [BLK1]');
     writeBlocker('BLK1', 'done');
     expectHookAllow(advance('define-behavior', 'blocked_on: [BLK1]'));
+  });
+
+  it('denies an Edit payload that advances out of intake while a blocker is unmet', () => {
+    // The gate reads the on-disk prior content and reconstructs the post-Edit
+    // text, so an Edit that only flips the phase line must be caught the same as
+    // a full Write — exercises the Edit/MultiEdit branch of nextContentAfterEdit.
+    seedSubject('intake', 'blocked_on: [BLK1]');
+    writeBlocker('BLK1', 'in_progress');
+    expectHookDeny(advanceViaEdit('intake', 'define-behavior'), 'BLOCKED on BLK1');
+  });
+
+  it('allows an Edit payload past the intake exit once the blocker is done', () => {
+    seedSubject('intake', 'blocked_on: [BLK1]');
+    writeBlocker('BLK1', 'done');
+    expectHookAllow(advanceViaEdit('intake', 'define-behavior'));
   });
 
   it('denies when any of several blockers is not done', () => {

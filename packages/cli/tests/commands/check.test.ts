@@ -616,6 +616,28 @@ describe('Test Suite 8: Health Check', () => {
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).not.toMatch(/stale.*override/i);
     });
+
+    it('does not flag an override stale when a blocker is done but another is dangling', async () => {
+      // Staleness requires *every* listed blocker to be resolvably done. A
+      // dangling id has no status, so it is not done — the override is still
+      // load-bearing and must not be called stale (only the dangling-ref warns).
+      await createConfiguredProject(temporaryDirectory);
+      writeFrontmatterTicket('OVR3-mixed', [
+        'id: OVR3',
+        'status: open',
+        'blocked_on: [BLK7, GHOST7]',
+        'blocked_on_override: BLK7 done but GHOST7 lives in the customer tracker',
+      ]);
+      writeFrontmatterTicket('BLK7-done', ['id: BLK7', 'status: done']);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/stale.*override/i);
+      // the dangling blocker is still surfaced, just not as a stale override
+      expect(combined).toMatch(/blocked_on GHOST7.*dangling ref/i);
+    });
   });
 
   describe('Test 8.7: Scenario-lineage coverage advisory (XT1FFM)', () => {
