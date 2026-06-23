@@ -128,6 +128,13 @@ jobs:
       - name: Architecture check
         run: bun run deps
 
+      - name: Architecture doc freshness (FPV0E4)
+        # Hard backstop: fails the build if the generated architecture state doc
+        # (.project/architecture.generated.md) is stale — i.e. the commit-time
+        # auto-fix hook was bypassed or a doc was hand-committed out of band.
+        # Honors the per-project opt-out (architectureDocEnforcement: false).
+        run: bun packages/cli/src/cli.ts architecture --check
+
       - name: Duplicate ticket-ID guard
         # ticket 158: two ticket folders with the same `id:` frontmatter is
         # silent corruption — block merges if it ever lands.

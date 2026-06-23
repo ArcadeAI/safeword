@@ -122,10 +122,11 @@ Then(
 );
 
 Then('every skeleton node has a non-empty one-line purpose', function (this: ArchitectureWorld) {
-  // Each module section carries a `path` — purpose line: every `### name` is followed by a non-empty em-dash purpose.
+  // JT852Q format: each module section carries its `path` code-reference on its
+  // own line, then a non-empty prose block (the purpose floor).
   const content = readDocument(this);
   for (const section of content.split(/^### /m).slice(1)) {
-    assert.match(section, /—\s*\S+/);
+    assert.match(section, /`[^`]+`\n\n\S/);
   }
 });
 
