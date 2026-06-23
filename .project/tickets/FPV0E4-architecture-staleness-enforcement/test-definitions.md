@@ -10,13 +10,13 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e8ab049
 - [x] GREEN e8ab049
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ### Scenario: Auto-staging preserves an unrelated staged change
 
 - [x] RED e8ab049
 - [x] GREEN e8ab049
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ## Rule: A doc that needs no change is left untouched at commit time
 
@@ -24,13 +24,13 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e8ab049
 - [x] GREEN e8ab049
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ### Scenario: A foreign hand-written doc is never auto-staged
 
 - [x] RED e8ab049
 - [x] GREEN e8ab049
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ## Rule: A stale architecture doc cannot reach the main branch
 
@@ -38,19 +38,19 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a908539
 - [x] GREEN a908539
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ### Scenario: The CI check defaults to on when no config file is present
 
 - [x] RED a908539
 - [x] GREEN a908539
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ### Scenario: The CI check passes when nothing needs to change (outline ×3)
 
 - [x] RED a908539
 - [x] GREEN a908539
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ## Rule: Enforcement is on by default and can be opted out per project
 
@@ -58,10 +58,10 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e8ab049
 - [x] GREEN e8ab049
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12
 
 ### Scenario: Opting out makes the CI check pass despite a stale doc
 
 - [x] RED a908539
 - [x] GREEN a908539
-- [ ] REFACTOR
+- [x] REFACTOR 8231c12

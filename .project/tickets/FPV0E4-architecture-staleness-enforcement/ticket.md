@@ -2,10 +2,10 @@
 id: FPV0E4
 slug: architecture-staleness-enforcement
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-22T23:37:04.081Z
-last_modified: 2026-06-23T00:55:00.000Z
+last_modified: 2026-06-23T02:25:00.000Z
 scope:
   - Commit-time auto-fix-and-stage of the generated architecture doc via an agent-scoped PreToolUse hook (regenerate via Slice-1 selfHeal + git add; never blocks)
   - CI hard-fail backstop via `safeword architecture --check` (dry-run selfHeal; exit non-zero on a would-change action created/healed/regenerated)
@@ -152,3 +152,9 @@ two never fight.
   config-absent default-on scenario); re-review returned PASS, no regressions.
   9 scenarios validated (AODI), stamp recorded; impl-plan.md written (planner
   seam + 5-task build order). Advancing to implement.
+- 2026-06-23T02:25:00Z Complete: implement + verify + done. All 9 scenarios
+  R/G/R (a908539, e8ab049, 8231c12). Independent code review PASS-WITH-NITS
+  (zero blocking); applied nits (dead step removed, end-to-end real-commit test,
+  hook edge comment). /verify: 3296/3296 tests pass, Gherkin 115/115, build +
+  lint clean, dep drift clean. /audit passed (0 cycles, no new dead code, config
+  in sync). verify.md written. Closing FPV0E4.
