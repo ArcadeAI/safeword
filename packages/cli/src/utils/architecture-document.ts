@@ -1,8 +1,9 @@
 /**
  * Architecture state-document self-heal (ticket QD5DTT, Slice 1).
  *
- * Reads the document at the configured `paths.architecture`, compares its
- * recorded shape-fingerprint against the live one, and deterministically
+ * Reads the generated architecture state document at the fixed
+ * `<namespace-root>/architecture.generated.md`, compares its recorded
+ * shape-fingerprint against the live one, and deterministically
  * (LLM-free) re-extracts the skeleton when they differ — creating the document
  * when absent and regenerating it when its fingerprint is missing or corrupt.
  * This is the SessionStart entry point that keeps structural facts fresh,
@@ -15,9 +16,9 @@ import nodePath from 'node:path';
 import { shapeFingerprint } from './architecture-fingerprint.js';
 import { reconcileSections, type SectionStatus } from './architecture-reconcile.js';
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
-import { resolveConfiguredPath } from './configured-paths.js';
+import { resolveGeneratedArchitecturePath } from './configured-paths.js';
 
-type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped';
+type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped' | 'noop';
 
 export interface SelfHealResult {
   action: SelfHealAction;
@@ -63,15 +64,16 @@ export function readDocumentFingerprint(content: string): string | undefined {
 const RECONCILED_PREFIX = '<!-- reconciled:';
 
 export function selfHeal(projectDirectory: string): SelfHealResult {
-  const path = resolveConfiguredPath(projectDirectory, 'architecture');
+  const path = resolveGeneratedArchitecturePath(projectDirectory);
   const fingerprint = shapeFingerprint(projectDirectory);
   const existing = readExisting(path);
-  const action = decideAction(existing, fingerprint);
+  const nodes = extractSkeleton(projectDirectory).nodes;
+  const action = decideAction(existing, fingerprint, nodes.length > 0);
 
-  if (action !== 'unchanged' && action !== 'skipped') {
+  if (action !== 'unchanged' && action !== 'skipped' && action !== 'noop') {
     mkdirSync(nodePath.dirname(path), { recursive: true });
     const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
-    writeFileSync(path, renderDocument(projectDirectory, fingerprint, priorStamps));
+    writeFileSync(path, renderDocument(nodes, fingerprint, priorStamps));
   }
 
   return { action, path };
@@ -85,8 +87,15 @@ function readExisting(path: string): string | undefined {
   }
 }
 
-function decideAction(existing: string | undefined, fingerprint: string): SelfHealAction {
-  if (existing === undefined) return 'created';
+function decideAction(
+  existing: string | undefined,
+  fingerprint: string,
+  hasModules: boolean,
+): SelfHealAction {
+  // Don't birth an empty doc: a contentless "## Modules" implies "no modules",
+  // which is false for a monorepo the single-repo extractor can't read yet.
+  // An existing doc still heals toward empty (orphan markers show real removals).
+  if (existing === undefined) return hasModules ? 'created' : 'noop';
 
   // Never touch a document safeword does not own — a hand-written architecture
   // doc has no generator marker and must be left exactly as-is.
@@ -117,12 +126,10 @@ function parseSectionStamps(content: string): Map<string, string> {
 }
 
 function renderDocument(
-  projectDirectory: string,
+  nodes: SkeletonNode[],
   fingerprint: string,
   priorStamps: Map<string, string>,
 ): string {
-  const nodes = extractSkeleton(projectDirectory).nodes;
-
   // reconcileSections is the single source of truth for per-section status;
   // this layer only renders markers from its verdicts.
   const verdicts = reconcileSections({

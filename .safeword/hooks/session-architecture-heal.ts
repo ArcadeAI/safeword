@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Safeword: Architecture state-document self-heal (SessionStart)
-// Refreshes the architecture state doc at the configured paths.architecture so
+// Refreshes the generated architecture state doc (.project/architecture.generated.md) so
 // structural facts stay fresh — including after out-of-band human edits. Skips
 // any document safeword does not own (no generator marker), so a hand-written
 // ARCHITECTURE.md is never overwritten. Best-effort: never blocks a session.

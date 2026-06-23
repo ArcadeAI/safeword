@@ -10,7 +10,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { architecture } from '../../src/commands/architecture.js';
-import { resolveConfiguredPath } from '../../src/utils/configured-paths.js';
+import { resolveGeneratedArchitecturePath } from '../../src/utils/configured-paths.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const context: { directory: string } = { directory: '' };
@@ -32,6 +32,6 @@ describe('architecture command', () => {
   it('refreshes the architecture document at the configured location', async () => {
     await architecture(context.directory);
 
-    expect(existsSync(resolveConfiguredPath(context.directory, 'architecture'))).toBe(true);
+    expect(existsSync(resolveGeneratedArchitecturePath(context.directory))).toBe(true);
   });
 });
