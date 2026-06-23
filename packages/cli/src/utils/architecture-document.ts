@@ -18,11 +18,30 @@ import { reconcileSections, type SectionStatus } from './architecture-reconcile.
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
 import { resolveGeneratedArchitecturePath } from './configured-paths.js';
 
-type SelfHealAction = 'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped' | 'noop';
+export type SelfHealAction =
+  | 'created'
+  | 'healed'
+  | 'unchanged'
+  | 'regenerated'
+  | 'skipped'
+  | 'noop';
 
 export interface SelfHealResult {
   action: SelfHealAction;
   path: string;
+}
+
+/** Actions that mutate the doc on disk — the enforcement threshold (FPV0E4). */
+const WOULD_CHANGE_ACTIONS = new Set<SelfHealAction>(['created', 'healed', 'regenerated']);
+
+/**
+ * Whether an action would change the tree — the single threshold both Slice-2
+ * surfaces share. The commit-time hook stages when true; `--check` exits
+ * non-zero when true. `unchanged`/`noop` (nothing to do) and `skipped` (foreign
+ * doc, not ours to touch) are all false.
+ */
+export function isWouldChangeAction(action: SelfHealAction): boolean {
+  return WOULD_CHANGE_ACTIONS.has(action);
 }
 
 const FINGERPRINT_KEY = 'fingerprint';
@@ -63,14 +82,37 @@ export function readDocumentFingerprint(content: string): string | undefined {
 
 const RECONCILED_PREFIX = '<!-- reconciled:';
 
-export function selfHeal(projectDirectory: string): SelfHealResult {
+/** Everything both the dry-run and the write path need, computed once. */
+interface HealPlan {
+  action: SelfHealAction;
+  path: string;
+  fingerprint: string;
+  existing: string | undefined;
+  nodes: SkeletonNode[];
+}
+
+function computeHealPlan(projectDirectory: string): HealPlan {
   const path = resolveGeneratedArchitecturePath(projectDirectory);
   const fingerprint = shapeFingerprint(projectDirectory);
   const existing = readExisting(path);
   const nodes = extractSkeleton(projectDirectory).nodes;
   const action = decideAction(existing, fingerprint, nodes.length > 0);
+  return { action, path, fingerprint, existing, nodes };
+}
 
-  if (action !== 'unchanged' && action !== 'skipped' && action !== 'noop') {
+/**
+ * Dry-run of {@link selfHeal}: report the action it *would* take, writing
+ * nothing. The Slice-2 enforcement surfaces (CI `--check`, commit-time stage)
+ * use this to decide whether the doc is stale without mutating the tree.
+ */
+export function planSelfHeal(projectDirectory: string): SelfHealAction {
+  return computeHealPlan(projectDirectory).action;
+}
+
+export function selfHeal(projectDirectory: string): SelfHealResult {
+  const { action, path, fingerprint, existing, nodes } = computeHealPlan(projectDirectory);
+
+  if (isWouldChangeAction(action)) {
     mkdirSync(nodePath.dirname(path), { recursive: true });
     const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
     writeFileSync(path, renderDocument(nodes, fingerprint, priorStamps));

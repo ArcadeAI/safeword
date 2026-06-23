@@ -10,7 +10,12 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { readDocumentFingerprint, selfHeal } from '../../src/utils/architecture-document.js';
+import {
+  isWouldChangeAction,
+  planSelfHeal,
+  readDocumentFingerprint,
+  selfHeal,
+} from '../../src/utils/architecture-document.js';
 import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
 import { resolveGeneratedArchitecturePath } from '../../src/utils/configured-paths.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -170,5 +175,63 @@ describe('selfHeal — structural facts self-heal at session start', () => {
 
     expect(result.action).toBe('healed');
     expect(existsSync(documentPath(context.directory))).toBe(true);
+  });
+});
+
+describe('planSelfHeal — dry-run action, writes nothing (FPV0E4 Slice 2)', () => {
+  it('reports the action selfHeal would take without writing the doc', () => {
+    const action = planSelfHeal(context.directory);
+
+    expect(action).toBe('created');
+    expect(existsSync(documentPath(context.directory))).toBe(false);
+  });
+
+  it('agrees with selfHeal on the action for an unchanged doc', () => {
+    selfHeal(context.directory);
+
+    expect(planSelfHeal(context.directory)).toBe('unchanged');
+    // A second plan call still mutates nothing.
+    const before = readFileSync(documentPath(context.directory), 'utf8');
+    planSelfHeal(context.directory);
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(before);
+  });
+
+  it('reports healed for a moved fingerprint without touching the doc', () => {
+    selfHeal(context.directory);
+    const before = readFileSync(documentPath(context.directory), 'utf8');
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+
+    expect(planSelfHeal(context.directory)).toBe('healed');
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(before);
+  });
+
+  it('reports noop for a project with no modules and no doc', () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true, force: true });
+
+    expect(planSelfHeal(context.directory)).toBe('noop');
+    expect(existsSync(documentPath(context.directory))).toBe(false);
+  });
+
+  it('reports skipped for a foreign doc and leaves it untouched', () => {
+    const foreign = '# Our Architecture\n\nHand-written, no marker.\n';
+    mkdirSync(nodePath.dirname(documentPath(context.directory)), { recursive: true });
+    writeFileSync(documentPath(context.directory), foreign);
+
+    expect(planSelfHeal(context.directory)).toBe('skipped');
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(foreign);
+  });
+});
+
+describe('isWouldChangeAction — the enforcement threshold (FPV0E4 Slice 2)', () => {
+  it('is true exactly for created, healed, and regenerated', () => {
+    expect(isWouldChangeAction('created')).toBe(true);
+    expect(isWouldChangeAction('healed')).toBe(true);
+    expect(isWouldChangeAction('regenerated')).toBe(true);
+  });
+
+  it('is false for unchanged, noop, and skipped', () => {
+    expect(isWouldChangeAction('unchanged')).toBe(false);
+    expect(isWouldChangeAction('noop')).toBe(false);
+    expect(isWouldChangeAction('skipped')).toBe(false);
   });
 });
