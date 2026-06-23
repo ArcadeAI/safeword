@@ -429,9 +429,11 @@ function warnIfBunMissing(): void {
   try {
     execSync('bun --version', { stdio: 'pipe' });
   } catch {
-    warn('bun not found — quality hooks will not work without it.');
-    info('  Install: curl -fsSL https://bun.sh/install | bash');
-    info('  Hooks will hard-block at session start until bun is available.');
+    warn(
+      'safeword needs a small tool called "bun" to run its safety checks, and it isn\'t installed.',
+    );
+    info('  Install bun (about 30 seconds): curl -fsSL https://bun.sh/install | bash');
+    info("  Until then, safeword's checks can't run and your agent works unguarded.");
   }
 }
 

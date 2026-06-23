@@ -3,10 +3,10 @@ id: UJSZXB
 slug: humanize-first-run-runtime
 parent: K6CAJN-ntb-experience-epic
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-21T14:24:00Z
-last_modified: 2026-06-21T14:24:00Z
+last_modified: 2026-06-23T05:19:00Z
 ---
 
 # Humanize first-run runtime and dependency failures
