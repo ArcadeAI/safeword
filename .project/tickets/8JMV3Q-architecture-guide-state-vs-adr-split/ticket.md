@@ -2,10 +2,10 @@
 id: 8JMV3Q
 slug: architecture-guide-state-vs-adr-split
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-23T03:46:29.732Z
-last_modified: 2026-06-23T03:50:00.000Z
+last_modified: 2026-06-23T03:54:00.000Z
 ---
 
 # Architecture guide: state-vs-ADR split + polyglot boundary enforcement (Slice 4, scoped)
@@ -71,3 +71,12 @@ and inconsistent with what safeword actually generates (dependency-cruiser).
   enforcement reconcile (resync skill deferred to JT852Q). User constraint:
   enforcement "has to work polyglot" → concept + per-language matrix, not a
   JS-only plugin. Next: write the split, update parity + references, review, verify.
+- 2026-06-23T03:54:00Z Complete: wrote the two-genre split + generated-doc section
+  - polyglot enforcement matrix; mirrored both guide copies + SAFEWORD.md (parity
+    159 pairs green), markdown lint clean (1014 files). Independent review:
+    PASS-WITH-NITS — every shipped-behavior claim verified against code, split
+    non-duplicating, matrix correct; one in-scope nit (architecture-template.md
+    both copies still prescribed eslint-plugin-boundaries with a now-dangling
+    section anchor) FIXED → repointed to the polyglot section. No other dangling
+    refs. Closing 8JMV3Q (full suite is the belt-and-suspenders confirm on a
+    docs-only change).
