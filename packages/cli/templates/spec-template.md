@@ -24,7 +24,7 @@ feature at all, or a leaner task. -->
 
 - **Requested by:** <who asked for this — distinct from the persona it serves>
 - **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door>
+- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
 
 ## References
 

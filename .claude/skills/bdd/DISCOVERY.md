@@ -57,7 +57,7 @@ Rung 0 — before framing the jobs, capture the decide-to-build brief in `spec.m
 
 - **Requested by** — who asked, distinct from the persona the feature serves.
 - **Cost of inaction** — what changes, breaks, or is lost if we don't build it. (Framing inaction as a risk is sharper than framing action as an opportunity.)
-- **Reversibility** — how hard this is to undo once shipped (one-way vs. two-way door). The readiness pointer raises this live in chat during Clarify; the brief is where it's written down and kept for later review.
+- **Reversibility** — how hard this is to undo once shipped (one-way vs. two-way door). Count cross-cutting changes (data model, public API, migration) as one-way for this purpose. The readiness pointer raises this live in chat during Clarify; the brief is where it's written down and kept for later review.
 
 The brief frames _whether and how much_ to build before JTBD frames _what_. Its payoff is **triage**: when cost-of-inaction is low and reversibility is high, the feature may not warrant the full ladder — raise it at the gate below. Don't add a separate stop; present the brief together with the jobs at the **JTBD sub-phase gate**, whose question now also asks "is this a feature, or a task?" Features only — tasks and patches skip the brief and lean on the readiness pointer.
 

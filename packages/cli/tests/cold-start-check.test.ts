@@ -65,6 +65,11 @@ describe('cold-start check — behaves correctly under YOLO (@NTB1.AC1)', () => 
   it('records auto-appended gaps as defer: so the auto-confirming exit is not silently blocked', () => {
     const discovery = read(DISCOVERY).toLowerCase();
     expect(discovery).toContain('defer:');
+    // The guide must explain *why* defer: is the reconciliation — that the
+    // auto-confirming exit treats a non-empty Open Questions list as resolved.
+    const guide = read(GUIDE).toLowerCase();
+    expect(guide).toContain('defer:');
+    expect(guide).toMatch(/auto-confirming|treats[^.]*resolved|as resolved/);
   });
 });
 
@@ -141,9 +146,12 @@ describe('cold-start check — advisory, never blocks (@NTB1.AC3)', () => {
 });
 
 describe('cold-start check — invokable on demand (@TB1.AC3)', () => {
-  it('SAFEWORD.md points to the check as runnable on demand', () => {
+  it('SAFEWORD.md points to the check, scoped to one-way-door and runnable on demand', () => {
     const safeword = read(SAFEWORD).toLowerCase();
     expect(safeword).toContain('cold-start');
+    // Pointer must keep its scoping, not drift to an unconditional mention.
+    expect(safeword).toContain('one-way');
+    expect(safeword).toMatch(/on demand|on-demand/);
   });
 
   it('on-demand invocation works even when the auto-offer would not fire', () => {
