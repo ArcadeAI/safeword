@@ -292,6 +292,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.safeword/self-reports/',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -541,6 +542,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/lib/dependency-readiness.ts',
     },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
     },

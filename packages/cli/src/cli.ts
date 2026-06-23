@@ -4,7 +4,14 @@ import process from 'node:process';
 
 import { Command } from 'commander';
 
+import { recordCliExit } from './self-report-capture.js';
 import { VERSION } from './version.js';
+
+// Self-observation (issue #345): capture safeword's own non-zero exits. Gated to
+// configured safeword projects and best-effort, so it never alters CLI behavior.
+process.on('exit', code => {
+  recordCliExit(code);
+});
 
 const program = new Command();
 
@@ -136,6 +143,15 @@ program
   .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
     const { codify } = await import('./commands/codify.js');
     await codify(ticketId, options);
+  });
+
+program
+  .command('self-report')
+  .description("View safeword's own captured runtime signals (zero-egress local spool)")
+  .option('--json', 'Emit machine-readable JSON instead of a human summary')
+  .action(async (options: { json?: boolean }) => {
+    const { selfReport } = await import('./commands/self-report.js');
+    await selfReport({ json: options.json });
   });
 
 program
