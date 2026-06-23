@@ -155,6 +155,7 @@ Read the matching guide when its trigger fires:
 | Choosing test type, doing TDD, or a test is failing            | `./.safeword/guides/testing-guide.md`           |
 | Creating or updating a design doc                              | `./.safeword/guides/design-doc-guide.md`        |
 | Making an architectural decision or writing an ADR             | `./.safeword/guides/architecture-guide.md`      |
+| Understanding the generated `architecture.generated.md` doc    | `./.safeword/guides/architecture-guide.md`      |
 | Data-heavy project needing formal data architecture            | `./.safeword/guides/data-architecture-guide.md` |
 | Writing learnings or agent config (CLAUDE.md, .cursor/rules)   | `./.safeword/guides/llm-writing-guide.md`       |
 | Updating CLAUDE.md, SAFEWORD.md, or any context file           | `./.safeword/guides/context-files-guide.md`     |

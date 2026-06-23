@@ -615,6 +615,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
     },
+    '.safeword/hooks/pre-tool-architecture-stage.ts': {
+      template: 'hooks/pre-tool-architecture-stage.ts',
+    },
     '.safeword/hooks/codex/pre-tool-quality.ts': {
       template: 'hooks/codex/pre-tool-quality.ts',
     },

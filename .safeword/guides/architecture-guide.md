@@ -4,6 +4,48 @@
 
 ---
 
+## Two Architecture Documents (Know Which You're Looking At)
+
+A safeword project carries two architecture documents. They are different genres
+that rot differently — keep them apart and never edit one as if it were the other.
+
+|               | Generated state doc                                                                                         | Hand-curated decision doc                   |
+| ------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **File**      | `<namespace-root>/architecture.generated.md` (plus `packages/<pkg>/architecture.generated.md` in monorepos) | `ARCHITECTURE.md` (or `paths.architecture`) |
+| **Answers**   | "What the system **is** right now"                                                                          | "**Why** we decided X"                      |
+| **Owner**     | Machine — carries a `generator: safeword-architecture` marker                                               | Humans                                      |
+| **Editing**   | Never by hand; regenerated deterministically                                                                | In place, by people                         |
+| **Freshness** | Self-heals at session start; enforced in commits + CI                                                       | Reviewed like any doc                       |
+
+The rest of this guide is the how-to for the **hand-curated decision doc** — the
+genre you author. The generated state doc is summarized next: you read it, you
+don't write it.
+
+## The Generated State Document (read it, don't write it)
+
+Safeword keeps a deterministic, point-in-time map of the system fresh on its own
+(no LLM):
+
+- **What it is** — a Markdown file at `<namespace-root>/architecture.generated.md`
+  carrying a `generator: safeword-architecture` marker, listing the top-level
+  `src/` modules with a code reference and one-line purpose each. In a monorepo it
+  is a thin **root index** (package list + one-line purposes + inter-package
+  dependency edges) plus a colocated **leaf doc** in every package that has a
+  `src/` tree (`packages/<pkg>/architecture.generated.md`).
+- **Stays fresh on its own** — a SessionStart hook re-extracts the structure and
+  re-stamps a shape-fingerprint, so structural facts are always current (even
+  after out-of-band human edits). Prose that has fallen behind the structure is
+  flagged `⚠ stale` rather than left silently wrong. A doc safeword does not own
+  (no marker) is never touched.
+- **Enforced, not just suggested** — `safeword architecture --check` fails CI when
+  a committed doc is stale; a commit-time hook regenerates and stages it
+  automatically. Both honor `architectureDocEnforcement` (default-on; set `false`
+  to opt out).
+- **Don't hand-edit it** — your edits are overwritten on the next heal. Record
+  durable decisions in the hand-curated doc below instead.
+
+---
+
 ## Survey & Reconcile (Before You Propose)
 
 The order is load-bearing (full version in `@.safeword/SAFEWORD.md` → Clarify):
@@ -337,62 +379,32 @@ project/
 | Brownfield adoption                  | Start with warnings-only mode, fix violations incrementally, then enforce |
 | Monorepo with multiple apps          | Each app has own layers; shared packages are explicit dependencies        |
 
-### Enforcement with eslint-plugin-boundaries
+### Enforcing Boundaries (Polyglot)
 
-**Setup:**
+The layer rules above are a language-agnostic _concept_: who may import whom.
+`ARCHITECTURE.md` is the single source of truth for the rules; enforce them with
+the tool native to each language. Safeword wires up the JS/TS one for you.
 
-1. Install: `bun add -D eslint-plugin-boundaries`
+| Language   | Enforcement                                 | How                                                                                                                                                                                                       |
+| ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JS/TS**  | **dependency-cruiser** (safeword-generated) | `safeword sync-config` generates `.safeword/depcruise-config.cjs` from your detected layers; `bun run deps` and CI fail on a forbidden edge. `eslint-plugin-boundaries` is a viable IDE-time alternative. |
+| **Python** | **import-linter**                           | Declare layer contracts in your `importlinter` config; `lint-imports` fails on a forbidden import. (Circular imports also fail at runtime.)                                                               |
+| **Go**     | **the compiler** (+ depguard)               | Circular package imports are a build error — if it builds, there are none. Enforce directional layer rules with `depguard` via golangci-lint.                                                             |
+| **Rust**   | **the compiler** (+ cargo-deny)             | The module system rejects circular module dependencies at build time. Gate crate-level dependencies with `cargo-deny`.                                                                                    |
 
-2. Add to `eslint.config.mjs`:
+**Concept → config:** define the layers and allowed dependencies in
+`ARCHITECTURE.md` (the table above), then let the per-language tool be the gate.
+Don't restate the rules in tool config as a second source of truth — generate or
+derive the tool config from the documented layers where you can (safeword does
+this for JS/TS via `sync-config`).
 
-```javascript
-import boundaries from 'eslint-plugin-boundaries';
+**Common issues (any tool):**
 
-export default defineConfig([
-  // ... other configs ...
-  {
-    name: 'boundaries-config',
-    files: ['**/*.{js,ts,tsx}'],
-    plugins: { boundaries },
-    settings: {
-      'boundaries/include': ['src/**/*'],
-      'boundaries/elements': [
-        { type: 'app', pattern: 'src/app/**/*' },
-        { type: 'domain', pattern: 'src/domain/**/*' },
-        { type: 'infra', pattern: 'src/infra/**/*' },
-        { type: 'shared', pattern: 'src/shared/**/*' },
-      ],
-    },
-    rules: {
-      'boundaries/element-types': [
-        'error',
-        {
-          default: 'disallow',
-          rules: [
-            { from: 'app', allow: ['domain', 'infra', 'shared'] },
-            { from: 'domain', allow: ['shared'] },
-            { from: 'infra', allow: ['domain', 'shared'] },
-            { from: 'shared', allow: [] },
-          ],
-        },
-      ],
-      'boundaries/no-unknown-files': 'error',
-    },
-  },
-]);
-```
-
-3. Define layers in `ARCHITECTURE.md` (see template)
-
-4. Errors appear in IDE + CI automatically
-
-**Common Issues:**
-
-| Issue                            | Fix                                                                      |
-| -------------------------------- | ------------------------------------------------------------------------ |
-| "Unknown file" errors            | Ensure all source files are in defined layers                            |
-| False positives on tests         | Exclude test files: `'boundaries/include': ['src/**/*', '!**/*.test.*']` |
-| External library imports flagged | External deps are allowed by default; check `boundaries/ignore` setting  |
+| Issue                            | Fix                                                                         |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| "Unknown file" / unlayered files | Ensure every source file maps to a defined layer (or is explicitly ignored) |
+| False positives on tests         | Exclude test files from the layer globs                                     |
+| External library imports flagged | External deps are allowed by default; check the tool's ignore setting       |
 
 ---
 
