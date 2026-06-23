@@ -2,7 +2,7 @@
 id: 3KKPWJ
 slug: cold-start-executability-test
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 epic: pm-grade-intake
 parent: '169'
@@ -62,3 +62,5 @@ The sharpest sufficiency oracle in epic 169: strip the "I already know what they
   - Hardened NTB1.AC1 to key off the **recorded** Reversibility field (mitigates the premortem's liberal-judgment risk). Made the output-discipline divergence a conscious call: this writes to Open Questions (vs replan's chat-only) because that is intake's drained sink. NTB1.AC2 (presentation) vs TB1.AC2 (persistence) sharpened to avoid duplicate scenarios.
 - 2026-06-23T03:49Z /quality-review re-review (fresh independent reviewer) → **APPROVE**, 0 criticals; all four resolutions confirmed consistent. Carry-forward into define-behavior: under YOLO the check auto-appends gaps to Open Questions, but the Intake Exit gate requires Open Questions empty/`defer:`'d — write a scenario pinning how auto-generated gaps reconcile with an auto-confirming exit (become `defer:`, or the one case where YOLO exit legitimately waits).
 - 2026-06-23T04:27Z Complete: intake — scope gate signed off. Frontmatter scope/out_of_scope/done_when set. Phase → define-behavior.
+- 2026-06-23T04:31Z Complete: define-behavior — 16 scenarios across 7 rules, user-accepted; test-definitions.md ledger saved. Phase → scenario-gate.
+- 2026-06-23T04:40Z Complete: scenario-gate — two independent /review-spec passes (fresh subagents). Pass 1: does-not-pass, 3 must-fix (vacuous recorded-field guard, bundled spawn scenario hiding the no-conversation thesis, unobservable verdict scenarios) + 6 should-strengthen. Rewrote ledger → 19 scenarios. Pass 2: PASSES, 0 must-fix; applied both should-strengthens (banned-term jargon negative, empty/non-empty append split). Review stamp recorded; impl-plan.md written (test layers + build order). Phase → implement.
