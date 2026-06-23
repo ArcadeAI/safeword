@@ -84,6 +84,15 @@ program
     await syncConfig({ check: options.check });
   });
 
+program
+  .command('sync-tracker')
+  .description('Project the ticket corpus one-way into the configured tracker (Linear/GitHub)')
+  .option('--reset-tracker-map', 'Rebuild the tracker-map sidecar from scratch')
+  .action(async (options: { resetTrackerMap?: boolean }) => {
+    const { syncTrackerCommand } = await import('./commands/sync-tracker.js');
+    await syncTrackerCommand({ resetTrackerMap: options.resetTrackerMap });
+  });
+
 const ticket = program.command('ticket').description('Ticket management');
 
 ticket
