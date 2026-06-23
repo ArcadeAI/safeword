@@ -3,49 +3,105 @@ id: JT852Q
 slug: architecture-resync-skill
 type: feature
 phase: intake
-status: backlog
+status: in_progress
 created: 2026-06-23T03:46:29.788Z
-last_modified: 2026-06-23T03:47:00.000Z
+last_modified: 2026-06-23T05:02:00.000Z
 ---
 
-# `/architecture` on-demand LLM-prose resync skill (deferred from Slice 4)
+# `/architecture` prose persistence (JT852Q, scoped) — LLM resync skill deferred
 
-**Goal:** An on-demand `/architecture` skill that fills in / refreshes the
-slow-moving narrative prose of the generated architecture docs — the layer the
-deterministic engine deliberately leaves as `PURPOSE_PLACEHOLDER` / flags
-`⚠ stale` — then re-stamps each section's `reconciled` fingerprint so the
-markers clear.
+**Goal:** Make per-section prose in the generated architecture docs **survive
+deterministic heals** — today `selfHeal` overwrites every section's purpose with
+the placeholder, so prose can never persist. This is the deterministic foundation
+the LLM resync skill needs; the LLM skill itself is deferred again (see below).
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
-## Status: BACKLOG — deferred from Slice 4
+## Reframing (intake, 2026-06-23)
 
-Slice 4 (epic QD5DTT line 103) bundled this skill with the guide split. Split out
-deliberately: this is the **first LLM-prose capability** in the architecture-doc
-system (Slices 1–3 are strictly deterministic / LLM-free), so it warrants its own
-design pass rather than riding a docs change. The guide split + polyglot
-enforcement reconcile ship first as ticket **8JMV3Q**.
+JT852Q was written as "a `/architecture` LLM-prose skill," but framing found the
+load-bearing blocker: `renderDocument` always renders `node.purpose`, and
+`extractSkeleton` hard-codes `PURPOSE_PLACEHOLDER`. `selfHeal` preserves
+per-section _stamps_ but **not prose**, so any prose an LLM writes is clobbered at
+the next SessionStart/commit heal. So this ticket splits:
 
-## Sketch (to design at intake)
+- **(A) Prose persistence — THIS ticket (deterministic, no LLM).** `selfHeal`
+  preserves existing per-section prose across heals; new nodes get the
+  placeholder; stamp-drift still flags `⚠ stale` (prose preserved but flagged).
+- **(B) The `/architecture` LLM resync skill — deferred again** to a new ticket.
+  It writes prose into placeholder/stale sections and re-stamps. Sits on (A).
 
-- Reads the generated docs (root + leaves), finds sections whose prose is a
-  placeholder or carries a `⚠ stale` / orphan marker.
-- Uses the LLM to write the narrative ("what this layer is for, how it fits"),
-  bounded to the slow-moving prose — never the deterministic skeleton/fingerprint.
-- Re-runs the deterministic stamp so `reconciled: <fingerprint>` matches the live
-  shape and the markers clear (the "repair step" of epic decision 3 — semantic
-  LLM as repair, never the primary drift signal).
-- Monorepo-aware (Slice 3): resync the root index overview + each leaf.
+User decision (`/figure-it-out` = my call): build **(A) now, (B) later**.
 
-## Open questions (intake)
+## Resolved design (/figure-it-out, 2026-06-23)
 
-- Stamp authority: does the skill re-run `safeword architecture` to re-stamp, or
-  stamp inline? (Keep the deterministic engine the single source of truth.)
-- Scope control: resync-all vs only-flagged sections; cost on large monorepos.
-- Quality floor: how to keep LLM prose honest (cite code refs the skeleton knows).
+**Section format evolves** so the machine region is explicitly bounded and the
+prose is its own block:
+
+```
+### auth
+
+<!-- reconciled: <stamp> -->
+
+`src/auth`
+
+<prose — preserved across heals; placeholder only for a brand-new node>
+```
+
+Machine owns: `### name`, the `<!-- reconciled -->` marker, the `` `path` ``
+code-reference, and the `⚠ stale`/`⚠ orphaned` markers. Prose = the section body
+after the `` `path` `` line, excluding those markers.
+
+**Mechanism** (mirrors `parseSectionStamps`/`priorStamps`): add
+`parseSectionProse(content) → Map<name, prose>` (CRLF-tolerant; excludes marker
+lines), thread `priorProse` through `renderDocument`; `renderSection` uses
+`priorProse.get(name) ?? PURPOSE_PLACEHOLDER`. New node → placeholder; existing
+node → prose verbatim; stamp-drift still emits `⚠ stale` with prose preserved.
+Single-repo + monorepo leaves identical; root index has no per-node prose
+(untouched).
+
+**Rejected:** keep the one-line `` `path` — purpose `` (fragile `—` delimiter,
+one-line cap, forces a second migration when the LLM writes paragraphs); sidecar
+prose file (second artifact per doc + per leaf, breaks the self-describing
+single-doc + colocated model).
+
+**Premortem (pin first):** parse/render not being exact inverses → an unchanged
+doc heals byte-different → `--check` churns forever. First RED is the round-trip
+property: heal twice ⇒ `unchanged`, prose byte-identical.
+
+## Scope
+
+- `parseSectionProse` + thread `priorProse` through `renderDocument`/`renderSection`.
+- New section format (prose as its own block); preserve prose across heals; new
+  node → placeholder; stamp-drift preserves prose + flags `⚠ stale`.
+- Update Slice-1/2/3 tests that assert the old inline `` `path` — purpose `` format.
+- Re-render this repo's committed generated docs once (format change).
+
+## Out of scope
+
+- The `/architecture` LLM resync skill (B) → new deferred ticket.
+- Any LLM involvement (this ticket stays deterministic).
+- Changing the fingerprint/enforcement contracts.
+
+## Done when
+
+- A doc with hand/LLM-written prose heals to `unchanged` and keeps the prose
+  byte-identical (round-trip); a new module gets the placeholder; a moved
+  fingerprint preserves prose but flags `⚠ stale`.
+- Single-repo + monorepo leaves both preserve prose; root index unchanged.
+- Full suite green (with old-format test assertions updated); this repo's
+  generated docs re-rendered + committed; `--check` passes.
+
+## Open questions
+
+- none — mechanism + format resolved; round-trip is the first scenario.
 
 ## Work Log
 
 - 2026-06-23T03:46:29Z Started: Created ticket JT852Q.
-- 2026-06-23T03:47:00Z Deferred to backlog — split from Slice 4 so the guide
-  ships now (8JMV3Q) and the first LLM-prose capability gets its own design.
+- 2026-06-23T03:47:00Z Deferred to backlog during Slice 4.
+- 2026-06-23T05:09:00Z Intake reframed: prose is clobbered today, so JT852Q =
+  deterministic prose-persistence (A) + the LLM skill (B, deferred again).
+  /figure-it-out resolved the format evolution (prose as its own block) +
+  preservation mechanism (parseSectionProse/priorProse). Scope: A now, B later.
+  Next: BDD define-behavior, first scenario = the round-trip property.
