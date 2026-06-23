@@ -93,6 +93,16 @@ program
     await syncTrackerCommand({ resetTrackerMap: options.resetTrackerMap });
   });
 
+program
+  .command('architecture')
+  .description(
+    'Refresh the generated architecture state document (.project/architecture.generated.md)',
+  )
+  .action(async () => {
+    const { architecture } = await import('./commands/architecture.js');
+    await architecture();
+  });
+
 const ticket = program.command('ticket').description('Ticket management');
 
 ticket

@@ -2,8 +2,8 @@
 id: HMZSCD
 slug: let-codex-verify-task-tickets-without-claude-session-proof
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 scope:
   - Align `/verify` and `/audit` invocation-log instructions with the actual done-gate policy: feature tickets still require current-session skill proof; task/patch tickets may continue with `verify.md` when session proof is unavailable.
   - Let the invocation helper accept an explicit session id argument so Claude skill surfaces can pass `${CLAUDE_SESSION_ID}` directly instead of relying only on an exported environment variable.
@@ -22,7 +22,7 @@ done_when:
   - README and done-gate failure text match the feature-only invocation-proof enforcement.
   - Focused invocation-log and verify/audit surface tests pass.
 created: 2026-06-15T22:50:05.640Z
-last_modified: 2026-06-16T01:29:30Z
+last_modified: 2026-06-21T21:52:00Z
 ---
 
 # Let Codex verify task tickets without Claude session proof
@@ -74,6 +74,7 @@ last_modified: 2026-06-16T01:29:30Z
 
 ## Work Log
 
+- 2026-06-21T21:52:00Z Closed: deliverables verified on origin/main (explicit session-id arg in record-skill-invocation.ts, verify/audit task-fallback wording, generic done-gate message, README fix); done_when re-confirmed — focused suites pass (skill-invocation-log, record-skill-invocation, review-stamp). Work shipped 2026-06-16 but the ticket was left in_progress; closing administratively (one of the #294 stale set).
 - 2026-06-16T01:29:30Z Follow-up: Updated README permission guidance from stale inline `node -e`/`mkdir -p`/`echo` fragments to the current Bun helper pattern (`Bash(bun */.safeword/hooks/record-skill-invocation.ts*)`) and added README contract coverage. Revalidated focused invocation-log tests, related hook/gate tests, `test:done`, and `git diff --check`. Figure-it-out review chose not to rewrite generated skill commands or auto-install Claude permissions because Claude evaluates compound Bash commands per subcommand and repo-installed permission grants should remain an explicit user/team choice.
 - 2026-06-15T23:56:22Z Verified: Focused suite passed (`tests/hooks/record-skill-invocation.test.ts`, `tests/skill-invocation-log.test.ts`, `tests/integration/skill-gate-integration.test.ts`); broader hook/schema suite passed (`test:done`, 457 tests).
 - 2026-06-15T23:55:00Z Implemented: `record-skill-invocation.ts` now accepts an explicit session id argument with `CLAUDE_SESSION_ID` fallback; verify/audit templates and dogfood copies pass `${CLAUDE_SESSION_ID}` explicitly and document feature fail-closed vs task/patch/no-ticket fallback behavior; done-gate and README wording now describe missing session-scoped proof generically.

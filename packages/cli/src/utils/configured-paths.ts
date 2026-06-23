@@ -188,6 +188,22 @@ export function resolveLearningsDirectory(cwd: string): string {
   return nodePath.join(resolveNamespaceRoot(cwd), 'learnings');
 }
 
+/** Fixed filename of the auto-generated architecture state document. */
+const GENERATED_ARCHITECTURE_FILENAME = 'architecture.generated.md';
+
+/**
+ * Absolute path of the auto-generated architecture state document, under the
+ * resolved namespace root (e.g. `.project/architecture.generated.md`).
+ *
+ * Deliberately fixed, NOT overridable via `paths.architecture`: the generated
+ * point-in-time state doc is a separate artifact from the hand-curated
+ * decision/ADR record that `paths.architecture` points to. The `.generated.`
+ * infix marks it as machine-owned (do not hand-edit).
+ */
+export function resolveGeneratedArchitecturePath(cwd: string): string {
+  return nodePath.join(resolveNamespaceRoot(cwd), GENERATED_ARCHITECTURE_FILENAME);
+}
+
 /**
  * The default (non-overridden) absolute location of a configurable read
  * target: `<resolveNamespaceRoot(cwd)>/<key>.md`.

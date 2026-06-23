@@ -288,6 +288,18 @@ export function readTestFile(dir: string, relativePath: string): string {
 }
 
 /**
+ * Absolute path to the repo root, resolved from this file's location without a
+ * subprocess (ticket #335). tests/helpers.ts is three levels below the root:
+ * tests → cli → packages → root.
+ */
+export const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+
+/** Read a file by its repo-root-relative path. */
+export function readRepoFile(relativePath: string): string {
+  return readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
+}
+
+/**
  * Writes a file to the test directory
  * @param dir
  * @param relativePath

@@ -79,7 +79,7 @@ At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-s
 - Modify test files in a REFACTOR commit — blocked at commit-time (test changes during cleanup are behavior changes in disguise)
 - Add extra checkboxes like `- [ ] REVIEW` — only RED/GREEN/REFACTOR
 
-**Evidence before claims:** Show test output, don't just claim "tests pass". Run FULL suite at GREEN to catch regressions.
+**Evidence before claims:** Show test output, don't just claim "tests pass". Run the targeted suite at GREEN for fast feedback; run the FULL suite once at scenario close (after REFACTOR) to catch cross-module regressions.
 
 ### Red Flags — STOP:
 

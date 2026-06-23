@@ -10,12 +10,12 @@ Intake advances through sub-phases (load personas/glossary → JTBD → AC → e
 2. **Ask** the sub-phase's closing question (below).
 3. **Wait** for confirmation. Any forward-moving reply advances — an explicit "looks good" / "proceed", or an amendment you fold in and re-present. A new concern loops back; you don't advance until it's resolved.
 
-| Sub-phase           | Closing question                                                                                    |
-| ------------------- | --------------------------------------------------------------------------------------------------- |
-| Personas / glossary | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)              |
-| Jobs To Be Done     | _"Do these jobs cover who this serves and why? Anything missing or mis-framed?"_                    |
-| Acceptance Criteria | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_ |
-| Engineering scope   | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                 |
+| Sub-phase           | Closing question                                                                                                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Personas / glossary | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)                                                                                                       |
+| Jobs To Be Done     | _"Here's who asked, the cost of not doing it, and how reversible it is — plus the jobs it serves. Given that, is this a feature, or a task? And do the jobs cover who this serves and why?"_ |
+| Acceptance Criteria | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_                                                                                          |
+| Engineering scope   | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                                                                                                          |
 
 **On resume** (picked up mid-sub-phase across sessions): re-present the captured artifact for re-confirmation rather than assuming the prior signoff still stands — context may have shifted.
 
@@ -50,6 +50,16 @@ At intake start, read the configured glossary file (`paths.glossary`, default `<
 - **If a domain term comes up during intake that isn't in the glossary** — flag it, don't invent a definition. Ask whether it's a new term to define in the configured glossary file, or a synonym for an existing one. Use `validateGlossaryReference` semantics (exact name or alias match; offer the suggestion when only casing differs).
 
 Project-wide terms live in the configured glossary file; vocabulary used in only one spec stays in that ticket. Never extract terms from prose automatically — humans curate the glossary.
+
+## Author Intake Brief
+
+Rung 0 — before framing the jobs, capture the decide-to-build brief in `spec.md`'s `## Intake Brief`. Three advisory lines (write `skip: <reason>` where one doesn't apply):
+
+- **Requested by** — who asked, distinct from the persona the feature serves.
+- **Cost of inaction** — what changes, breaks, or is lost if we don't build it. (Framing inaction as a risk is sharper than framing action as an opportunity.)
+- **Reversibility** — how hard this is to undo once shipped (one-way vs. two-way door). Count cross-cutting changes (data model, public API, migration) as one-way for this purpose. The readiness pointer raises this live in chat during Clarify; the brief is where it's written down and kept for later review.
+
+The brief frames _whether and how much_ to build before JTBD frames _what_. Its payoff is **triage**: when cost-of-inaction is low and reversibility is high, the feature may not warrant the full ladder — raise it at the gate below. Don't add a separate stop; present the brief together with the jobs at the **JTBD sub-phase gate**, whose question now also asks "is this a feature, or a task?" Features only — tasks and patches skip the brief and lean on the readiness pointer.
 
 ## Author Jobs To Be Done
 
@@ -95,6 +105,8 @@ If any answer is vague, you have open questions — surface them, and record eac
 
 **When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
 
+**When the option space is empty** (a vague idea with no candidate approaches yet) — call `/brainstorm` to diverge and generate options first; converge on one with `/figure-it-out` after.
+
 **When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/figure-it-out` to weigh options against current docs and research before drafting scope.
 
 **When the feature leans on a library or framework** — read the installed version's docs before proposing API shapes or done-when criteria. Scope baked on training memory of a different version is silently wrong. Check `package.json` / lockfile first, then the source wired up (Context7, official docs, README at the pinned ref).
@@ -127,7 +139,7 @@ The job below names `Platform Operator (PO)`; it resolves against the file, so i
 > fleet without coordinated downtime.
 ```
 
-**JTBD gate** → present the job, ask _"Do these jobs cover who this serves and why?"_, wait for signoff before decomposing.
+**JTBD gate** → present the brief and the job together, ask _"Given who asked, the cost of inaction, and how reversible this is — is this a feature, or a task? And do the jobs cover who this serves and why?"_, wait for signoff before decomposing.
 
 **3 · Acceptance Criteria — capabilities under the job.** Each AC is one guarantee the operator can observe, not a mechanism:
 
@@ -167,14 +179,15 @@ The arc end to end: a persona from `personas.md`, a job that names it, criteria 
 
 ## Intake Exit (REQUIRED)
 
-Before proceeding to define-behavior:
+Before proceeding to define-behavior (the Intake Brief is advisory — a missing or `skip:`'d field never blocks this exit; only `scope` / `out_of_scope` / `done_when` are required):
 
 0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
-1. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
-2. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
-3. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
-4. **Update frontmatter:** `phase: define-behavior`
-5. **Add work log entry:**
+1. **Cold-start executability check (one-way-door features only)** — read the intake brief's _recorded_ Reversibility field; do not re-judge reversibility here. Offer the cold-start check **only when** that recorded field reads one-way-door or cross-cutting (data model, public API, or migration). A two-way-door, missing, or `skip:`'d Reversibility field gets no offer. The check (see `.safeword/guides/cold-start-check.md`) spawns a context-free sub-agent to judge whether the captured spec could be planned from scratch, and appends any gaps to Open Questions — so run it before resolving them. It is advisory; it never blocks. Under YOLO mode (G2E72G) the offer auto-accepts: the check runs, the auto-decision is recorded in the work log, and each auto-appended gap is recorded as `defer: <reason>` so the auto-confirming exit isn't silently waved through.
+2. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
+3. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
+4. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
+5. **Update frontmatter:** `phase: define-behavior`
+6. **Add work log entry:**
 
    ```
    - {timestamp} Complete: intake - Understanding converged, scope established

@@ -41,6 +41,13 @@ export interface TestResult {
   output: string;
   /** true if no test command was found — caller should skip, not block. */
   skipped: boolean;
+  /**
+   * true when a command failed because its binary was not found (exit 127 /
+   * "command not found") — an environment problem (uninstalled toolchain), not a
+   * red test. Lets the caller surface an install recovery instead of "tests
+   * failed". (Issue #325.)
+   */
+  toolchainMissing?: boolean;
 }
 
 /** Timeout for test suite execution (60 seconds). */
@@ -155,7 +162,11 @@ function truncateOutput(output: string): string {
   return '...(truncated)\n' + tail.slice(-MAX_OUTPUT_CHARS);
 }
 
-function runSingleTestCommand(testCommand: TestCommand): { passed: boolean; output: string } {
+function runSingleTestCommand(testCommand: TestCommand): {
+  passed: boolean;
+  output: string;
+  toolchainMissing?: boolean;
+} {
   try {
     const output = execSync(testCommand.command, {
       cwd: testCommand.cwd,
@@ -166,6 +177,7 @@ function runSingleTestCommand(testCommand: TestCommand): { passed: boolean; outp
     return { passed: true, output: formatCommandOutput(testCommand, output) };
   } catch (error) {
     const err = error as NodeJS.ErrnoException & {
+      status?: number;
       stdout?: string;
       stderr?: string;
       killed?: boolean;
@@ -181,12 +193,16 @@ function runSingleTestCommand(testCommand: TestCommand): { passed: boolean; outp
     }
 
     const combined = (err.stdout ?? '') + (err.stderr ?? '');
+    // Exit 127 (or a shell "command not found") means the runner binary is
+    // absent — an uninstalled toolchain, not a failing test.
+    const toolchainMissing = err.status === 127 || /command not found|: not found/i.test(combined);
     return {
       passed: false,
       output: formatCommandOutput(
         testCommand,
         combined || `${testCommand.script} exited with non-zero status`,
       ),
+      toolchainMissing,
     };
   }
 }
@@ -209,7 +225,12 @@ export function runTests(cwd: string = projectDir): TestResult {
     const result = runSingleTestCommand(testCommand);
     outputs.push(result.output);
     if (!result.passed)
-      return { passed: false, output: truncateOutput(outputs.join('\n\n')), skipped: false };
+      return {
+        passed: false,
+        output: truncateOutput(outputs.join('\n\n')),
+        skipped: false,
+        toolchainMissing: result.toolchainMissing,
+      };
   }
 
   return { passed: true, output: truncateOutput(outputs.join('\n\n')), skipped: false };

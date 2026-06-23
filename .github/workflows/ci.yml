@@ -124,6 +124,12 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Format check
+        # prettier --check . — guards against formatting drift that eslint
+        # does not catch. Pre-commit (lint-staged) only formats staged files,
+        # so drift could land on main undetected before this step existed.
+        run: bun run format:check
+
       - name: Type check
         run: bun run --cwd packages/cli typecheck
 

@@ -588,6 +588,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-lint-check.ts': {
       template: 'hooks/session-lint-check.ts',
     },
+    '.safeword/hooks/session-architecture-heal.ts': {
+      template: 'hooks/session-architecture-heal.ts',
+    },
     '.safeword/hooks/session-author-model.ts': {
       template: 'hooks/session-author-model.ts',
     },
@@ -648,6 +651,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Guides
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
+    },
+    '.safeword/guides/cold-start-check.md': {
+      template: 'guides/cold-start-check.md',
     },
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',

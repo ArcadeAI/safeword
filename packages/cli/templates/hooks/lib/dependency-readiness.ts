@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
 
-export type DependencyManager = 'bun';
+export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
 
 export interface InstallCommand {
@@ -107,38 +107,167 @@ const DEPENDENCY_BINARIES = new Set([
   'vitest',
 ]);
 
+const MANAGER_LOCKFILES: Record<DependencyManager, readonly string[]> = {
+  bun: BUN_LOCKFILES,
+  pnpm: ['pnpm-lock.yaml'],
+  npm: ['package-lock.json'],
+  yarn: ['yarn.lock'],
+};
+
+// Lockfile-only precedence when nothing declares a manager — mirrors install.ts:
+// a bun lockfile beats pnpm-lock.yaml, then yarn.lock, then package-lock.json.
+const LOCKFILE_PRECEDENCE: readonly DependencyManager[] = ['bun', 'pnpm', 'yarn', 'npm'];
+
 export function detectDependencyPlan(projectDirectory: string): DependencyPlan | undefined {
   const packageJson = readJsonFile<Record<string, unknown>>(
     nodePath.join(projectDirectory, 'package.json'),
   );
   if (packageJson === undefined) return undefined;
 
-  const bunLockfile = BUN_LOCKFILES.find(lockfile =>
+  const packageManager =
+    typeof packageJson.packageManager === 'string' ? packageJson.packageManager : undefined;
+
+  switch (detectDependencyManager(projectDirectory, packageManager)) {
+    case 'bun':
+      return buildBunPlan(projectDirectory, packageJson);
+    case 'pnpm':
+      return buildPnpmPlan(projectDirectory);
+    case 'npm':
+      return buildNpmPlan(projectDirectory, packageJson);
+    case 'yarn':
+      return buildYarnPlan(projectDirectory, packageJson, packageManager);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Resolve the readiness-supported package manager (bun, pnpm, npm, or yarn), or
+ * undefined when unsupported. An explicit `packageManager` declaration is
+ * authoritative (honored when its lockfile exists); otherwise a pnpm workspace
+ * forces pnpm (beats a coexisting bun lockfile — mirrors install.ts); otherwise
+ * the manager is chosen by lockfile in install.ts precedence (bun > pnpm-lock >
+ * yarn > npm). Every manager requires its lockfile to produce a plan, so a
+ * declared-but-uninstalled manager (or a stray foreign lockfile in another
+ * manager's project) abstains rather than misfiring (#321/#323/#327).
+ */
+function detectDependencyManager(
+  projectDirectory: string,
+  packageManager: string | undefined,
+): DependencyManager | undefined {
+  const declared = parseDeclaredManager(packageManager);
+  if (declared !== undefined) {
+    return managerLockfilePresent(projectDirectory, declared) ? declared : undefined;
+  }
+
+  if (existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))) {
+    return managerLockfilePresent(projectDirectory, 'pnpm') ? 'pnpm' : undefined;
+  }
+
+  return LOCKFILE_PRECEDENCE.find(manager => managerLockfilePresent(projectDirectory, manager));
+}
+
+function parseDeclaredManager(packageManager: string | undefined): DependencyManager | undefined {
+  const match = packageManager?.match(/^(bun|pnpm|npm|yarn)@/);
+  return match ? (match[1] as DependencyManager) : undefined;
+}
+
+function managerLockfilePresent(projectDirectory: string, manager: DependencyManager): boolean {
+  return MANAGER_LOCKFILES[manager].some(lockfile =>
     existsSync(nodePath.join(projectDirectory, lockfile)),
   );
-  const packageManager = packageJson.packageManager;
-  const usesBun =
-    (typeof packageManager === 'string' && packageManager.startsWith('bun@')) ||
-    bunLockfile !== undefined;
+}
 
-  if (!usesBun || bunLockfile === undefined) return undefined;
-
-  const inputPaths = uniqueSorted([
-    'package.json',
-    bunLockfile,
-    ...collectWorkspacePackageJsonPaths(projectDirectory, packageJson),
-  ]);
-
+function buildBunPlan(
+  projectDirectory: string,
+  packageJson: Record<string, unknown>,
+): DependencyPlan {
+  const bunLockfile =
+    BUN_LOCKFILES.find(lockfile => existsSync(nodePath.join(projectDirectory, lockfile))) ??
+    'bun.lock';
   return {
     manager: 'bun',
+    installCommand: { binary: 'bun', args: ['ci'], display: 'bun ci' },
+    installArtifact: INSTALL_ARTIFACT,
+    inputPaths: uniqueSorted([
+      'package.json',
+      bunLockfile,
+      ...collectWorkspacePackageJsonPaths(projectDirectory, packageJson),
+    ]),
+  };
+}
+
+/**
+ * pnpm readiness plan: `pnpm install --frozen-lockfile` (the frozen analog of
+ * `bun ci`), fingerprinting package.json, the pnpm lockfile, the workspace
+ * config, and the workspace package manifests it globs in.
+ */
+function buildPnpmPlan(projectDirectory: string): DependencyPlan {
+  const workspaceConfigPresent = existsSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'));
+  return {
+    manager: 'pnpm',
     installCommand: {
-      binary: 'bun',
-      args: ['ci'],
-      display: 'bun ci',
+      binary: 'pnpm',
+      args: ['install', '--frozen-lockfile'],
+      display: 'pnpm install --frozen-lockfile',
     },
     installArtifact: INSTALL_ARTIFACT,
-    inputPaths,
+    inputPaths: uniqueSorted([
+      'package.json',
+      'pnpm-lock.yaml',
+      ...(workspaceConfigPresent ? ['pnpm-workspace.yaml'] : []),
+      ...collectPnpmWorkspacePackageJsonPaths(projectDirectory),
+    ]),
   };
+}
+
+function buildNpmPlan(
+  projectDirectory: string,
+  packageJson: Record<string, unknown>,
+): DependencyPlan {
+  return {
+    manager: 'npm',
+    installCommand: { binary: 'npm', args: ['ci'], display: 'npm ci' },
+    installArtifact: INSTALL_ARTIFACT,
+    inputPaths: uniqueSorted([
+      'package.json',
+      'package-lock.json',
+      ...collectWorkspacePackageJsonPaths(projectDirectory, packageJson),
+    ]),
+  };
+}
+
+/**
+ * yarn readiness plan. Classic (v1) uses `--frozen-lockfile`; berry (v2+) uses
+ * `--immutable` (its rename of the same CI guard), detected via a `yarn@<major>`
+ * declaration or a `.yarnrc.yml`.
+ */
+function buildYarnPlan(
+  projectDirectory: string,
+  packageJson: Record<string, unknown>,
+  packageManager: string | undefined,
+): DependencyPlan {
+  const args = isYarnBerry(projectDirectory, packageManager)
+    ? ['install', '--immutable']
+    : ['install', '--frozen-lockfile'];
+  return {
+    manager: 'yarn',
+    installCommand: { binary: 'yarn', args, display: `yarn ${args.join(' ')}` },
+    installArtifact: INSTALL_ARTIFACT,
+    inputPaths: uniqueSorted([
+      'package.json',
+      'yarn.lock',
+      ...collectWorkspacePackageJsonPaths(projectDirectory, packageJson),
+    ]),
+  };
+}
+
+function isYarnBerry(projectDirectory: string, packageManager: string | undefined): boolean {
+  if (packageManager?.startsWith('yarn@')) {
+    const major = Number.parseInt(packageManager.slice('yarn@'.length), 10);
+    return Number.isFinite(major) && major >= 2;
+  }
+  return existsSync(nodePath.join(projectDirectory, '.yarnrc.yml'));
 }
 
 export function dependencyInputFingerprint(projectDirectory: string, plan: DependencyPlan): string {
@@ -299,10 +428,23 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
       ? 'dependency inputs changed after the last install'
       : 'dependencies are not installed in this worktree';
 
-  return [
-    `SAFEWORD: ${problem}.`,
+  const lines = [
+    `${problem}.`,
     `Run \`${installCommand}\` from the project root, then retry the command.`,
-  ].join('\n');
+  ];
+
+  // A version-bump pull changes the input fingerprint without changing resolved
+  // dependencies, so the install reports "no changes" and does not refresh the
+  // marker — which would otherwise leave this stale check looping. No package
+  // manager offers a cheap "lockfile already satisfied" probe (pnpm#4861), so
+  // document the one-step escape for that no-op case.
+  if (readiness.status === 'stale') {
+    lines.push(
+      'If it reports no changes, the lockfile is already satisfied — run `touch node_modules` to clear this check.',
+    );
+  }
+
+  return lines.join('\n');
 }
 
 function collectWorkspacePackageJsonPaths(
@@ -310,6 +452,52 @@ function collectWorkspacePackageJsonPaths(
   rootPackageJson: Record<string, unknown>,
 ): string[] {
   return expandWorkspacePatterns(projectDirectory, readWorkspacePatterns(rootPackageJson));
+}
+
+function collectPnpmWorkspacePackageJsonPaths(projectDirectory: string): string[] {
+  return expandWorkspacePatterns(projectDirectory, readPnpmWorkspacePackages(projectDirectory));
+}
+
+/**
+ * Extract the `packages:` block-list globs from pnpm-workspace.yaml without a
+ * YAML dependency (hooks are zero-third-party). Handles the standard block
+ * sequence, quotes, comments, and `!` negation (passed through to
+ * expandWorkspacePatterns). An inline flow sequence (`packages: [...]`) yields
+ * nothing — uncommon in pnpm-workspace.yaml.
+ */
+function readPnpmWorkspacePackages(projectDirectory: string): string[] {
+  let content: string;
+  try {
+    content = readFileSync(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'), 'utf8');
+  } catch {
+    return [];
+  }
+
+  const patterns: string[] = [];
+  let insidePackages = false;
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    if (!insidePackages) {
+      if (/^packages:\s*$/.test(line)) insidePackages = true;
+      continue;
+    }
+    const item = line.match(/^\s*-\s*(.+?)\s*$/);
+    if (item?.[1] !== undefined) {
+      patterns.push(stripYamlQuotes(item[1]));
+      continue;
+    }
+    // A new top-level key (non-indented, non-comment, non-item) ends the block.
+    if (/^[^\s#-]/.test(line)) insidePackages = false;
+  }
+  return patterns;
+}
+
+function stripYamlQuotes(value: string): string {
+  const trimmed = value.trim();
+  const quoted =
+    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+    (trimmed.startsWith('"') && trimmed.endsWith('"'));
+  return quoted ? trimmed.slice(1, -1) : trimmed;
 }
 
 function readWorkspacePatterns(rootPackageJson: Record<string, unknown>): string[] {
