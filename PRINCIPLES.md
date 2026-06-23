@@ -33,7 +33,7 @@ This extends to testing: specify WHAT the system does (behavior), not HOW it doe
 | An _observable fact_ (tests pass, types check, citation present)    | self-report bias       | cheap **observation** — test suite, parser, or a small judge; a weaker model is fine, even preferred                        |
 | _New candidates_ (design options, refactor smells, research angles) | narrow framing         | **producer** fan-out — varied or cheaper models on purpose; the no-weaker rule does **not** apply                           |
 
-One question routes it: _is the check an observable fact, a judgment about work a model produced, or the generation of new candidates?_ Observable fact → observation. Judgment on produced work → review. New candidates → producer. Only the review class earns the no-weaker / cross-model rule; applying it to the other two wastes tokens (cross-modeling a test run buys nothing) or collapses the angle diversity that is the whole point of fan-out.
+One question routes it: _is the check a judgment about work a model produced, an observable fact, or the generation of new candidates?_ Judgment on produced work → review. Observable fact → observation. New candidates → producer. Only the review class earns the no-weaker / cross-model rule; applying it to the other two wastes tokens (cross-modeling a test run buys nothing) or collapses the angle diversity that is the whole point of fan-out.
 
 ---
 
