@@ -51,3 +51,4 @@ Source: `https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG
 
 - 2026-05-31T21:05:09.533Z Started: Created ticket 8R54HV
 - 2026-05-31 Reviewed CC 2.1.117–2.1.159; filed 10 child tickets grouped into 3 tiers.
+- 2026-06-23 Confirmed CC now ships `PreCompact`/`PostCompact` hooks ([hooks](https://code.claude.com/docs/en/hooks.md)) — `PostCompact` runs in the new context and can re-inject `additionalContext`. Feeds P30CRP (compaction-resistant SAFEWORD.md reinjection) and the SKQR0G Opus-4.8 "trim per-turn control" thread (CLAUDE.md also re-injects after `/compact`). Not in this epic's child-ticket table yet — flag for inclusion when the compaction surface is picked up.
