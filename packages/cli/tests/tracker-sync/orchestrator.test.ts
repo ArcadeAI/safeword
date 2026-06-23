@@ -130,6 +130,40 @@ describe('sync-tracker orchestrator', () => {
     expect(writers.github.creates).toHaveLength(0);
   });
 
+  // AC8 — per-ticket persistence: an earlier create survives a later failure,
+  // so a re-run reconciles the finished one and never double-creates it.
+  it('persists an earlier create before a later ticket fails', async () => {
+    seedEmptySidecar();
+    const first: TicketInput = { ...ticket, id: 'AAA111' };
+    const second: TicketInput = { ...ticket, id: 'BBB222' };
+    let calls = 0;
+    const flaky: ReturnType<typeof fakeWriter> = {
+      provider: 'github',
+      creates: [],
+      updates: [],
+      create(payload) {
+        calls += 1;
+        flaky.creates.push(payload);
+        if (calls === 2) return Promise.reject(new Error('boom'));
+        const ref: TrackerReference = { provider: 'github', id: String(calls) };
+        return Promise.resolve(ref);
+      },
+      update() {
+        return Promise.resolve();
+      },
+    };
+
+    const dependencies = makeDependencies({
+      tickets: [first, second],
+      writers: { linear: fakeWriter('linear'), github: flaky },
+    });
+    await expect(syncTracker(dependencies)).rejects.toThrow('boom');
+
+    const reloaded = loadTrackerMap(sidecarPath);
+    expect(reloaded.ok && reloaded.map.lookup('AAA111')?.status).toBe('recorded');
+    expect(reloaded.ok && reloaded.map.lookup('BBB222')).toBeUndefined();
+  });
+
   // AC8 — pending entry reconciles, never double-creates
   it('reconciles a pending ticket instead of creating again', async () => {
     const map = new TrackerMap();

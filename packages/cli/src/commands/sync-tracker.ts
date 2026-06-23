@@ -43,6 +43,14 @@ export async function syncTrackerCommand(options: SyncTrackerCommandOptions = {}
     },
   };
 
-  const result = await syncTracker(dependencies);
-  if (result.exitCode !== 0) process.exitCode = result.exitCode;
+  try {
+    const result = await syncTracker(dependencies);
+    if (result.exitCode !== 0) process.exitCode = result.exitCode;
+  } catch (error) {
+    // A live-adapter failure (e.g. a `gh` label that doesn't pre-exist, or auth)
+    // aborts the run; earlier creates are already persisted to the sidecar, so a
+    // re-run resumes. Surface the message (the token is never in it) and exit 1.
+    process.stderr.write(`sync-tracker failed: ${(error as Error).message}\n`);
+    process.exitCode = 1;
+  }
 }

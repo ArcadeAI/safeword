@@ -11,6 +11,7 @@
 
 import { execFileSync } from 'node:child_process';
 
+import { isRateLimit, RateLimitError } from './backoff.js';
 import type { Provider } from './types.js';
 import {
   type CreateRequest,
@@ -20,38 +21,51 @@ import {
   type UpdateRequest,
 } from './writers.js';
 
+/**
+ * Run `gh` with an argument array (never a shell — no injection path). On a
+ * rate-limit failure rethrow as RateLimitError so withBackoff retries; other
+ * failures (e.g. a label that doesn't pre-exist in the repo — `gh` rejects the
+ * whole create) propagate so the operator sees the real `gh` message. The token
+ * is read by `gh` from the environment, never passed as an argument.
+ */
+function runGh(arguments_: string[]): string {
+  try {
+    return execFileSync('gh', arguments_, { encoding: 'utf8' });
+  } catch (error) {
+    const stderr = (error as { stderr?: Buffer | string }).stderr?.toString() ?? '';
+    const message = `${stderr}${(error as Error).message ?? ''}`;
+    if (isRateLimit(message)) throw new RateLimitError(message);
+    throw error;
+  }
+}
+
 /** Adapter over `gh` for GitHub Issues. `repo` targets `owner/name`. */
 function githubClient(repo: string | undefined): TrackerClient {
   const repoArguments = repo === undefined ? [] : ['--repo', repo];
   return {
     createIssue(request: CreateRequest) {
       const labels = request.labels.flatMap(label => ['--label', label]);
-      const url = execFileSync(
-        'gh',
-        [
-          'issue',
-          'create',
-          '--title',
-          request.title,
-          '--body',
-          request.body,
-          ...labels,
-          ...repoArguments,
-        ],
-        { encoding: 'utf8' },
-      ).trim();
+      const url = runGh([
+        'issue',
+        'create',
+        '--title',
+        request.title,
+        '--body',
+        request.body,
+        ...labels,
+        ...repoArguments,
+      ]).trim();
       const id = url.split('/').pop() ?? url;
       return Promise.resolve({ id, url });
     },
     updateIssue(request: UpdateRequest) {
       const labels = request.labels.flatMap(label => ['--add-label', label]);
-      execFileSync(
-        'gh',
-        ['issue', 'edit', request.id, '--title', request.title, ...labels, ...repoArguments],
-        { encoding: 'utf8' },
-      );
+      runGh(['issue', 'edit', request.id, '--title', request.title, ...labels, ...repoArguments]);
+      // edit + close are two gh calls (no atomic "edit and close"); a failure
+      // between them leaves a partial update, but updates are idempotent and the
+      // ref is already recorded, so a re-run reconciles with no double-create.
       if (request.state === 'closed') {
-        execFileSync('gh', ['issue', 'close', request.id, ...repoArguments], { encoding: 'utf8' });
+        runGh(['issue', 'close', request.id, ...repoArguments]);
       }
       return Promise.resolve();
     },

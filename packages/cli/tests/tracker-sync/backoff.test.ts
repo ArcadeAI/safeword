@@ -1,6 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { RateLimitError, withBackoff } from '../../src/tracker-sync/backoff.js';
+import { isRateLimit, RateLimitError, withBackoff } from '../../src/tracker-sync/backoff.js';
+
+describe('isRateLimit signal detection (sync-tracker.TB1.AC13)', () => {
+  it.each([
+    'API rate limit exceeded for user',
+    'You have exceeded a secondary rate limit',
+    'request failed with HTTP 429',
+  ])('treats %j as a rate-limit signal', message => {
+    expect(isRateLimit(message)).toBe(true);
+  });
+
+  it.each(['could not add label: not found', 'authentication required', 'no issues found'])(
+    'does not treat %j as a rate-limit signal',
+    message => {
+      expect(isRateLimit(message)).toBe(false);
+    },
+  );
+});
 
 /**
  * Rate-limited writes are retried with backoff (JS5K5G AC13). The sleep is

@@ -12,6 +12,14 @@ export class RateLimitError extends Error {
   }
 }
 
+/**
+ * Recognize a rate-limit signal in a tracker/CLI error message so a live adapter
+ * (which throws a generic Error) can rethrow as RateLimitError and get retried.
+ */
+export function isRateLimit(message: string): boolean {
+  return /rate limit|\b429\b|\bAPI rate limit exceeded\b|secondary rate/i.test(message);
+}
+
 export interface BackoffOptions {
   sleep: (ms: number) => Promise<void>;
   maxRetries: number;

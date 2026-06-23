@@ -7,8 +7,6 @@
  * runs only on the explicit command / CI.
  */
 
-import { existsSync } from 'node:fs';
-
 import { withBackoff } from './backoff.js';
 import { buildPayload } from './payload.js';
 import { resolveCredential } from './secrets.js';
@@ -85,7 +83,13 @@ function loadSidecarOrRefuse(
   return { ok: false, exitCode: 1 };
 }
 
-/** Project one ticket: create (AC5), update (AC6), or reconcile (AC8). */
+/**
+ * Project one ticket: create (AC5), update (AC6), or reconcile (AC8). Persists
+ * the sidecar per ticket so a mid-corpus crash never strands a just-created
+ * issue out of the map: on create the ref is marked `pending` and saved BEFORE
+ * the in-memory record, so a crash before completion leaves a pending entry the
+ * next run reconciles (AC8) instead of double-creating.
+ */
 async function projectOne(args: {
   ticket: TicketInput;
   map: TrackerMap;
@@ -93,6 +97,7 @@ async function projectOne(args: {
   writers: Record<Provider, TrackerWriter>;
   bodyMode: BodyMode;
   sleep: (ms: number) => Promise<void>;
+  sidecarPath: string;
 }): Promise<void> {
   const payload = buildPayload(args.ticket, { bodyMode: args.bodyMode });
   const action = planTicketSync(args.map, args.ticket.id);
@@ -102,12 +107,17 @@ async function projectOne(args: {
       () => dispatchCreate(args.writers, args.provider, payload),
       backoff,
     );
+    // Persist the ref as pending the instant the issue exists, then promote.
+    args.map.markPending(args.ticket.id, ref);
+    args.map.save(args.sidecarPath);
     args.map.record(args.ticket.id, ref);
+    args.map.save(args.sidecarPath);
     return;
   }
   // update (AC6) and reconcile (AC8) both write outward only — no second create.
   if (action.kind === 'reconcile') args.map.record(args.ticket.id, action.ref);
   await withBackoff(() => args.writers[args.provider].update(action.ref, payload), backoff);
+  args.map.save(args.sidecarPath);
 }
 
 export async function syncTracker(
@@ -137,6 +147,8 @@ export async function syncTracker(
   const sleep =
     dependencies.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
   for (const ticket of dependencies.tickets) {
+    // Each ticket persists itself; a failure aborts the run but earlier
+    // creates are already saved (resume re-projects only the unfinished ones).
     await projectOne({
       ticket,
       map: sidecar.map,
@@ -144,11 +156,8 @@ export async function syncTracker(
       writers: dependencies.writers,
       bodyMode,
       sleep,
+      sidecarPath: dependencies.sidecarPath,
     });
-  }
-
-  if (dependencies.resetTrackerMap === true || existsSync(dependencies.sidecarPath)) {
-    sidecar.map.save(dependencies.sidecarPath);
   }
   return { exitCode: 0 };
 }
