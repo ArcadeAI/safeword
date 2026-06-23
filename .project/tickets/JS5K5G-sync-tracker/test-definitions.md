@@ -31,21 +31,21 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: an active ticket maps to an open payload with epic and type labels
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4c50ee
+- [x] GREEN f4c50ee
+- [x] REFACTOR f4c50ee
 
 ### Scenario: a terminal ticket maps to a closed payload
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4c50ee
+- [x] GREEN f4c50ee
+- [x] REFACTOR f4c50ee
 
 ### Scenario: a ticket with no epic yields only the type label
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4c50ee
+- [x] GREEN f4c50ee
+- [x] REFACTOR f4c50ee
 
 ## Rule: One call site routes to the provider's writer
 
@@ -117,9 +117,9 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: the default body omits the spec and work log
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4c50ee
+- [x] GREEN f4c50ee
+- [x] REFACTOR f4c50ee
 
 ### Scenario: body full to a public github repo emits an egress warning
 
