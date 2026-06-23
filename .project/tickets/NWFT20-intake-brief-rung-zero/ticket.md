@@ -2,8 +2,8 @@
 id: NWFT20
 slug: intake-brief-rung-zero
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: pm-grade-intake
 parent: '169'
 created: 2026-06-22T13:39:25.521Z
@@ -44,3 +44,4 @@ done_when:
 
 - 2026-06-22T13:39:25.521Z Started: Created ticket NWFT20
 - 2026-06-22T13:39Z Scoped from #330 + two /figure-it-out passes (revalidation → 3 new fields; integration → rung-0, confirmed at JTBD gate, no new gate). Frontmatter scope/out_of_scope/done_when set. Advisory, features-only. Ready to run /bdd.
+- 2026-06-23T00:47Z Complete: 2 RGR loops (intake-brief section + DISCOVERY rung-0), 2 scenarios. /verify + /audit + /quality-review logged; verify.md present. PR #336 CI green, squash-merged to main (2147c05). Quality-review caught SAFEWORD.md drift; audit caught workflow.mdx drift — both fixed. Phase → done, status → done.
