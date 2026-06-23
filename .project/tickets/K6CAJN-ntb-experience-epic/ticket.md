@@ -2,10 +2,10 @@
 id: K6CAJN
 slug: ntb-experience-epic
 type: epic
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-21T14:24:00Z
-last_modified: 2026-06-21T14:24:00Z
+last_modified: 2026-06-23T06:24:00Z
 children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, 19E2XQ, DC6276, O3OG0N, B6J2TY]
 ---
 
@@ -42,3 +42,4 @@ children: [QQJK5S, UJSZXB, KRUEWC, 5XOUDJ, 19E2XQ, DC6276, O3OG0N, B6J2TY]
 - 2026-06-21T20:04:00Z Added 19E2XQ (M1+) — the `/explain` block-hint reliability fix, split from 5XOUDJ per its figure-it-out. 7 children now.
 - 2026-06-21T20:07:00Z 5XOUDJ (M1) shipped + closed — `/explain` in README + offer-on-confusion rule.
 - 2026-06-22T03:46:00Z Cross-agent figure-it-out: scoped 19E2XQ to Claude `systemMessage` (Codex already covered via stderr), and added DC6276 (M1+) — ship `/explain` to Cursor, which lacks it entirely. 8 children now.
+- 2026-06-23T06:24:00Z Epic complete — 8/8 children done (QQJK5S, 5XOUDJ, 19E2XQ, DC6276, UJSZXB, KRUEWC, O3OG0N, B6J2TY). Every PRODUCT-AUDIT-ntb.md finding (H1-H3, M1-M3) closed, plus two cross-agent fast-follows (19E2XQ, DC6276).
