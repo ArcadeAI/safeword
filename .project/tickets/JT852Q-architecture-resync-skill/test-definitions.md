@@ -8,66 +8,66 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An unaffected section's prose is byte-identical across a writing heal
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ### Scenario: Prose survives a writing heal when the doc uses CRLF line endings
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ### Scenario: A multi-paragraph description survives a writing heal intact
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ## Rule: An unchanged doc is a fixed point (no enforcement churn)
 
 ### Scenario: Healing a doc with prose and no structural change is a no-op
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ## Rule: Structure still heals while prose is kept
 
 ### Scenario: A newly added module is born with the placeholder, not a neighbour's prose
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ### Scenario: A section whose prose was deleted falls back to the placeholder
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ### Scenario: A structural change preserves the exact prose and flags it stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ### Scenario: Re-healing an already-stale section keeps prose and one stale marker
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ## Rule: Persistence applies to every doc that carries per-section prose
 
 ### Scenario: A monorepo leaf doc preserves its prose across a writing heal
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
 
 ### Scenario: The derived root index has no per-node prose to preserve
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2a742a1
+- [x] GREEN 2a742a1
+- [x] REFACTOR dc99df2
