@@ -2,8 +2,8 @@
 id: 3KKPWJ
 slug: cold-start-executability-test
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: pm-grade-intake
 parent: '169'
 created: 2026-06-23T02:43:49.732Z
@@ -63,6 +63,7 @@ The sharpest sufficiency oracle in epic 169: strip the "I already know what they
 - 2026-06-23T03:49Z /quality-review re-review (fresh independent reviewer) → **APPROVE**, 0 criticals; all four resolutions confirmed consistent. Carry-forward into define-behavior: under YOLO the check auto-appends gaps to Open Questions, but the Intake Exit gate requires Open Questions empty/`defer:`'d — write a scenario pinning how auto-generated gaps reconcile with an auto-confirming exit (become `defer:`, or the one case where YOLO exit legitimately waits).
 - 2026-06-23T04:27Z Complete: intake — scope gate signed off. Frontmatter scope/out_of_scope/done_when set. Phase → define-behavior.
 - 2026-06-23T04:31Z Complete: define-behavior — 16 scenarios across 7 rules, user-accepted; test-definitions.md ledger saved. Phase → scenario-gate.
+- 2026-06-23T05:25Z Complete: /refactor — extracted lowercased file-reader helpers in the test (removed 20 read().toLowerCase() repetitions), 19/19 green, behavior unchanged. Second /quality-review pass → APPROVE, 0 criticals (re-review of the vocab + test-hardening delta). Phase → done, status → done (user confirmed by moving to PR + next ticket).
 - 2026-06-23T05:14Z /quality-review (done-gate, fresh independent reviewer) → APPROVE, 0 criticals. Applied two worthwhile improvements: unified the cross-cutting trigger vocabulary into the Reversibility field definition (capture now produces what the trigger matches), and hardened the YOLO-defer + SAFEWORD-pointer test assertions. 21/21 + parity green. Awaiting user confirmation for done.
 - 2026-06-23T05:03Z Complete: verify — full vitest suite 3286/3286 pass (5 skipped), Gherkin lane 98 scenarios pass, build clean, lint clean, 19/19 scenarios, no dep drift. /verify + /audit logged; audit passed (config in sync, refs resolve). verify.md written. Awaiting user confirmation for done.
 - 2026-06-23T04:48Z Complete: implement — guide + DISCOVERY rung + SAFEWORD pointer + schema entry; 19/19 scenarios GREEN (commit ef826fb), parity + schema + sibling suites green. Reconciled skill→guide for no-bloat (recorded in impl-plan). Phase → verify.
