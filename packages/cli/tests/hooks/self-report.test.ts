@@ -75,6 +75,45 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(sanitizeStackFrames(undefined)).toEqual([]);
       expect(sanitizeStackFrames('Error: just a message')).toEqual([]);
     });
+
+    it('does NOT leak a customer dir that merely contains "safeword" as a substring', () => {
+      // Regression: substring match used to keep `my-safeword/secret.ts` etc.
+      const stack = [
+        'Error: boom',
+        '    at a (/Users/joe/my-safeword/secret.ts:1:1)',
+        '    at b (/srv/acme-safeword/private/keys.ts:2:2)',
+      ].join('\n');
+      expect(sanitizeStackFrames(stack)).toEqual([]);
+    });
+
+    it('does NOT leak a customer repo literally named "safeword" (non-internal tail)', () => {
+      const stack = [
+        'Error: boom',
+        '    at biz (/Users/joe/code/safeword/src/customer-secret-logic.ts:12:3)',
+        '    at c (/home/x/safeword/app/private-keys.ts:1:1)',
+      ].join('\n');
+      // Segment matches, but the tail is not a safeword-internal prefix → dropped.
+      expect(sanitizeStackFrames(stack)).toEqual([]);
+    });
+
+    it('does NOT leak a token-shaped filename sitting after a safeword/ segment', () => {
+      const stack = 'Error: x\n    at f (/tmp/safeword/.cache/token_ghp_SECRET.ts:1:1)';
+      const frames = sanitizeStackFrames(stack);
+      expect(frames.join('\n')).not.toContain('ghp_');
+      expect(frames.join('\n')).not.toContain('token_');
+      expect(frames).toEqual([]);
+    });
+
+    it('caps the number of retained frames', () => {
+      const deep = [
+        'Error: deep',
+        ...Array.from(
+          { length: 50 },
+          (_unused, i) => `    at fn${i} (/x/safeword/packages/cli/a.ts:${i}:1)`,
+        ),
+      ].join('\n');
+      expect(sanitizeStackFrames(deep).length).toBeLessThanOrEqual(20);
+    });
   });
 
   describe('buildRecord allowlist', () => {

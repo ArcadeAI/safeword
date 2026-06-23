@@ -49,13 +49,16 @@ export interface SelfReportContext {
 
 const SELF_REPORT_DIR = nodePath.join('.safeword', 'self-reports');
 
-// The marker that identifies a frame as safeword-internal across every install
-// layout: source dogfood (/…/safeword/packages/cli/…), published
-// (/…/node_modules/safeword/dist/…), materialized (/…/.safeword/hooks/…), and
-// the plugin cache (/…/plugins/cache/…/safeword/…). All contain the segment
-// "safeword". A customer absolute path (/Users/x/secret/app.ts) does not, so it
-// is dropped entirely — no path tail leaks.
-const SAFEWORD_SEGMENT = 'safeword';
+// A frame is safeword-internal only when BOTH hold: its path contains a
+// separator-bounded segment exactly equal to `safeword` or `.safeword` (NOT a
+// substring — `my-safeword/` or `acme-safeword/` must not match), AND the tail
+// after that segment begins with a known safeword-internal prefix. The segment
+// check drops customer absolute paths; the tail-prefix allowlist additionally
+// drops a customer project that merely happens to be named `safeword`. Anything
+// else is dropped whole — no prefix, filename, or token-shaped tail can leak.
+const SAFEWORD_SEGMENTS = new Set(['safeword', '.safeword']);
+const INTERNAL_TAIL_PREFIXES = ['packages/cli/', 'hooks/', 'dist/', 'templates/'];
+const MAX_FRAMES = 20;
 
 /** Absolute path of the per-session spool file. */
 export function spoolPath(projectDirectory: string, sessionId: string): string {
@@ -77,9 +80,30 @@ function sanitizeErrorClass(value: string): string {
 }
 
 /**
+ * If `location` lies inside safeword, return its internal tail (path relative to
+ * the safeword install, with the absolute/home prefix stripped). Otherwise
+ * undefined. Separator-bounded segment match (`/` and `\`) + internal-prefix
+ * allowlist — see SAFEWORD_SEGMENTS / INTERNAL_TAIL_PREFIXES. Tries safeword
+ * segments from last to first so the most specific (e.g. materialized
+ * `.safeword/hooks/…`) wins.
+ */
+function safewordInternalTail(location: string): string | undefined {
+  const segments = location.split(/[/\\]/);
+  for (let index = segments.length - 1; index >= 0; index--) {
+    const segment = segments[index];
+    if (segment === undefined || !SAFEWORD_SEGMENTS.has(segment)) continue;
+    const tail = segments.slice(index + 1).join('/');
+    if (INTERNAL_TAIL_PREFIXES.some(prefix => tail.startsWith(prefix))) return tail;
+  }
+  return undefined;
+}
+
+/**
  * Keep only safeword-internal stack frames, with the absolute/home prefix
- * stripped (cut at the last "safeword" segment). Customer frames are dropped.
- * Returns cleaned frame strings like `at fn (packages/cli/.../foo.ts:42:10)`.
+ * stripped. Customer frames — including those under a path that merely contains
+ * "safeword" as a substring or a customer repo named "safeword" — are dropped.
+ * Returns cleaned frame strings like `at fn (packages/cli/.../foo.ts:42:10)`,
+ * capped at MAX_FRAMES.
  */
 export function sanitizeStackFrames(stack: string | undefined): string[] {
   if (!stack) return [];
@@ -101,14 +125,11 @@ export function sanitizeStackFrames(stack: string | undefined): string[] {
       location = rest.trim();
     }
 
-    // Keep the frame only if its location lies inside safeword, and rebuild the
-    // path tail from the last "safeword/" segment so no absolute/home prefix
-    // survives. Customer locations have no such segment and are dropped whole.
-    const markerIndex = location.toLowerCase().lastIndexOf(`${SAFEWORD_SEGMENT}/`);
-    if (markerIndex === -1) continue;
-    const tail = location.slice(markerIndex + SAFEWORD_SEGMENT.length + 1);
+    const tail = safewordInternalTail(location);
+    if (tail === undefined) continue;
 
     frames.push(fn ? `at ${fn} (${tail})` : `at ${tail}`);
+    if (frames.length >= MAX_FRAMES) break;
   }
   return frames;
 }
