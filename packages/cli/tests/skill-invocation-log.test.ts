@@ -6,7 +6,8 @@ import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+import { repoRoot } from './helpers';
+
 const templatesDirectory = nodePath.join(repoRoot, 'packages/cli/templates');
 
 const verifyCommand = readFileSync(nodePath.join(templatesDirectory, 'commands/verify.md'), 'utf8');
