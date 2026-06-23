@@ -3,10 +3,41 @@ id: JS5K5G
 slug: sync-tracker
 title: 'safeword sync-tracker — one-way projection to Linear + GitHub Issues'
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-05-24T21:44:38.516Z
-last_modified: 2026-06-20T12:32:00Z
+last_modified: 2026-06-23T01:30:00Z
+scope:
+  - A `safeword sync-tracker` command that projects the ticket corpus one-way (file → tracker) into Linear OR GitHub Issues as FLAT, label-grouped issues. Files stay canonical; the tracker is a projection, never a second master.
+  - One call site `projectTicket(payload, provider)` over a provider-neutral `IssuePayload` (title, body, labels[], assignee?, state). Two concrete writers (Linear, GitHub) behind it — no plugin/adapter framework (rule of three; extract at provider #3).
+  - Mapping each ticket → flat payload — title (no safeword ID prefix), `epic:`/`type:` labels, state from status (active→open, terminal→closed), body = banner + back-link.
+  - Idempotency via a sidecar `.safeword/tracker-map.json` (NOT frontmatter) — first run creates + records ref; re-run updates; partial-failure (pending ref) resumes without double-create; missing/corrupt sidecar refuses to blind-recreate (requires --reset-tracker-map).
+  - Field ownership (one writer per field) — safeword owns existence/title/labels/back-link and sets status ONCE at creation; never writes status/assignee/priority on re-sync. The one universal status write is close-on-terminal.
+  - Identity — issues created via a bot identity, a back-link to the canonical ticket, and a body banner; no rival ID in the title.
+  - Egress — body defaults to `minimal` (no spec/work-log); `full` is opt-in; `full`→public GitHub repo emits a loud egress warning.
+  - Secrets — tokens from OS keychain / env var only, never `.safeword/config.json`, never logged; setup warns if provider set but no credential resolves.
+  - No-tracker base case — `provider: none` (default) is a friendly no-op (exit 0); set-but-uncredentialed warns loudly (never silent exit 0); unsupported tracker treated as none.
+  - CI/non-interactive auth — the `Arcade-User-ID` user-identity limitation is surfaced as an explicit warning naming the silent-failure mode.
+  - Corpus writes rate-limited with backoff. All writers tested against mocked clients — no live tracker in tests.
+out_of_scope:
+  - The dependency-graph projection — epic/parent→sub-issues, blocked_on/depends_on→tracker relations, type→issue-type, topological ordering. This is v2 (M1FGRJ), which depends_on this skeleton.
+  - A pluggable adapter interface, `custom` provider, dynamic adapter loading — deferred to provider #3.
+  - Two-way sync / read-back of human edits — terminal-state advisory pull is a later, separable follow-up.
+  - GitHub Projects v2 board placement (and Linear rich-board arrangement) — v1 ships labeled items; the team composes the board. Turnkey placement → v2.
+  - The breach→issue caller — deferred stub K51FYZ, blocked on the signals layer (1W107W).
+  - Jira, Slack, and any third provider (analyzed for seam-validation only).
+done_when:
+  - `safeword sync-tracker` projects the corpus one-way to the configured provider as flat issues (title, status→state, epic+type labels, assignee, link-back).
+  - Both Linear and GitHub writers ship behind one call site + shared `IssuePayload`, using stable create/update only (no relations/sub-issue/issue-type calls).
+  - Field ownership holds — safeword writes existence/title/labels/back-link, sets status once at creation, and on re-sync updates only title/labels and never status/assignee/priority, with the one universal exception of closing the issue when local status is terminal. It touches only issues in its tracker-map.
+  - Identity — issues created via a bot identity, carry a back-link to the ticket and a body banner naming the repo as source; no safeword ID in the title.
+  - Secrets — tokens read from keychain/env, never `.safeword/config.json`, never logged; setup warns if provider set and no credential resolves.
+  - No-tracker base case — `provider: none` is a friendly no-op (exit 0), local system unaffected; a set-but-uncredentialed provider warns loudly instead of silently succeeding.
+  - CI auth — the `Arcade-User-ID` user-identity limitation is surfaced as an explicit CLI warning naming the silent-failure mode.
+  - Re-running is idempotent via the sidecar; partial-failure resume is tested (no double-create); missing/corrupt sidecar does NOT blind-recreate (reconcile or require --reset-tracker-map).
+  - Body egress — default `minimal`; `full` opt-in; `full`→public-repo emits a loud egress warning.
+  - Corpus writes rate-limited with backoff; `.safeword/config.json` carries the `ticketBridge` block (default `provider: none`, `body: minimal`).
+  - Both writers covered by unit tests against mocked MCP/`gh` clients; no live tracker in tests.
 ---
 
 # safeword sync-tracker — one-way projection to Linear + GitHub Issues
@@ -196,6 +227,8 @@ The entire **local** system — tickets, work logs, the `blocked_on` gate, the I
 
 ## Work Log
 
+- 2026-06-23T01:40:00Z Complete: scenario-gate — independent /review-spec pass returned CHANGES REQUESTED (2 blockers: AC5↔AC9 missing-sidecar conflict; vacuous "no writer calls"). Resolved: connect seeds an empty sidecar so present+empty=first-run vs absent=lost-refuse (AC9 now covers missing AND corrupt); AC1 drops the vacuous clause, AC2 → Scenario Outline (linear|github) with a call-recording stub. Applied should-strengthens (AC3 back-link URL, AC7 payload field-set, AC11 sentinel, AC13 fake-timer retry-count, AC10 warn-before-create). Re-review PASS, 0 blocking. Wrote impl-plan.md (tracker-sync/ module, all-unit test layers, 6-step build order); stamped Tier-2 review. 21 scenarios / 11 rules. Advanced to implement.
+- 2026-06-23T01:32:00Z Complete: define-behavior — distilled scope/out_of_scope/done_when into frontmatter, authored spec.md (JTBD sync-tracker.TB1, persona TB, 13 ACs), dimensions.md (10 dimensions), features/sync-tracker.feature (20 scenarios across 11 rules, @wip — proof lives in vitest), test-definitions.md R/G/R ledger. AC-coverage clean. Advanced to scenario-gate.
 - 2026-05-24T21:44:38.516Z Started: Created ticket JS5K5G.
 - 2026-05-24T21:45:00.000Z Drafted: alert-routing scope.
 - 2026-06-20T11:58:00Z Reframed alert-routing → generic ticket bridge.
