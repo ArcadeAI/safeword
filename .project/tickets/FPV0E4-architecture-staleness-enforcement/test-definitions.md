@@ -8,28 +8,28 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A would-change doc is regenerated and staged into the commit (outline ×3)
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED e8ab049
+- [x] GREEN e8ab049
 - [ ] REFACTOR
 
 ### Scenario: Auto-staging preserves an unrelated staged change
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED e8ab049
+- [x] GREEN e8ab049
 - [ ] REFACTOR
 
 ## Rule: A doc that needs no change is left untouched at commit time
 
 ### Scenario: A doc that needs no change is not staged (outline ×2: unchanged, noop)
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED e8ab049
+- [x] GREEN e8ab049
 - [ ] REFACTOR
 
 ### Scenario: A foreign hand-written doc is never auto-staged
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED e8ab049
+- [x] GREEN e8ab049
 - [ ] REFACTOR
 
 ## Rule: A stale architecture doc cannot reach the main branch
@@ -56,12 +56,12 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The commit-time auto-fix obeys the enforcement switch (outline ×2)
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED e8ab049
+- [x] GREEN e8ab049
 - [ ] REFACTOR
 
 ### Scenario: Opting out makes the CI check pass despite a stale doc
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED a908539
+- [x] GREEN a908539
 - [ ] REFACTOR
