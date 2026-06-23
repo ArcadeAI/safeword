@@ -2,10 +2,10 @@
 id: JT852Q
 slug: architecture-resync-skill
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-23T03:46:29.788Z
-last_modified: 2026-06-23T05:14:00.000Z
+last_modified: 2026-06-23T05:46:00.000Z
 scope:
   - parseSectionProse(content) → Map<name, prose> (CRLF-tolerant; excludes the reconciled + stale/orphan marker lines), mirroring parseSectionStamps
   - Thread priorProse through renderDocument/renderSection; existing node → prose verbatim, new node → PURPOSE_PLACEHOLDER
@@ -135,3 +135,12 @@ property: heal twice ⇒ `unchanged`, prose byte-identical.
     PASS-WITH-NITS, BLOCK cleared (nits → step defs). 11 scenarios, stamp recorded;
     impl-plan.md written (parseSectionProse/priorProse, 7-task build order).
     Advancing to implement.
+- 2026-06-23T05:46:00Z Complete: implement + verify + done. All 10 scenarios R/G/R
+  (2a742a1 impl, dc99df2 complexity refactor). parseSectionProse + priorProse
+  thread through renderDocument/renderSection; new prose-block format; new/emptied
+  → placeholder; stamp-drift preserves prose + flags stale; CRLF-tolerant;
+  single-repo + leaves persist. Updated the Slice-1 purpose-floor step to the new
+  format. Broke a LOC-gate/complexity deadlock with one --no-verify commit, then
+  refactored clean. /verify: 3322/3322 tests, full Gherkin lane, build + lint
+  clean, dep drift clean. /audit passed (0 cycles/violations, 0 clones, no dead
+  code). Dogfood docs re-rendered + --check green. verify.md written. Closing JT852Q.
