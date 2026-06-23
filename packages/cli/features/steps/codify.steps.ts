@@ -39,8 +39,13 @@ const DEMO_DEFINITIONS = [
   '',
 ].join('\n');
 
+/** A fresh, isolated temp project directory for one scenario. */
+function freshTemporaryDirectory(): string {
+  return mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+}
+
 Given('a ticket {string} with one scenario', function (this: SafewordWorld, id: string) {
-  this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+  this.temporaryDirectory = freshTemporaryDirectory();
   const ticketDirectory = nodePath.join(
     this.temporaryDirectory,
     '.safeword-project',
@@ -52,7 +57,7 @@ Given('a ticket {string} with one scenario', function (this: SafewordWorld, id: 
 });
 
 Given('a ticket {string} with two acceptance criteria', function (this: SafewordWorld, id: string) {
-  this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+  this.temporaryDirectory = freshTemporaryDirectory();
   const ticketDirectory = nodePath.join(
     this.temporaryDirectory,
     '.project',
@@ -121,7 +126,7 @@ Given(
 Given(
   'a ticket {string} with a feature source containing two scenarios',
   function (this: SafewordWorld, id: string) {
-    this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+    this.temporaryDirectory = freshTemporaryDirectory();
     const ticketDirectory = nodePath.join(
       this.temporaryDirectory,
       '.safeword-project',
@@ -159,7 +164,7 @@ Given(
 Given(
   'a ticket {string} with a Scenario Outline feature source',
   function (this: SafewordWorld, id: string) {
-    this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+    this.temporaryDirectory = freshTemporaryDirectory();
     const ticketDirectory = nodePath.join(
       this.temporaryDirectory,
       '.safeword-project',
