@@ -261,34 +261,41 @@ function parseSectionProse(content: string): Map<string, string> {
   let inProse = false;
   let buffer: string[] = [];
 
-  const flush = (): void => {
+  const flush = (next: string | undefined): void => {
     if (name !== undefined) {
       const text = buffer.join('\n').trim();
       if (text.length > 0) prose.set(name, text);
     }
+    name = next;
     buffer = [];
     inProse = false;
   };
 
   for (const line of content.split(/\r?\n/)) {
-    const heading = /^### (.+)$/.exec(line);
-    if (heading?.[1] !== undefined) {
-      flush();
-      name = heading[1].trim();
+    const heading = /^### (.+)$/.exec(line)?.[1];
+    if (heading !== undefined) {
+      flush(heading.trim());
     } else if (line.startsWith('## ')) {
-      flush();
-      name = undefined;
-    } else if (name === undefined || line.startsWith(RECONCILED_PREFIX) || line.startsWith('> ⚠')) {
-      // Outside a section, or a machine-owned marker line — never prose.
-    } else if (!inProse && /^`[^`]*`\s*$/.test(line)) {
-      inProse = true; // the code-reference line; prose begins after it
-    } else if (inProse) {
-      buffer.push(line);
+      flush(undefined);
+    } else if (name !== undefined) {
+      inProse = accumulateProseLine(line, inProse, buffer);
     }
   }
-  flush();
+  flush(undefined);
 
   return prose;
+}
+
+/**
+ * Classify one line inside a section: machine-owned markers are skipped; the
+ * `` `path` `` code-reference opens the prose region; every line after it is
+ * prose. Returns the next `inProse` state.
+ */
+function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): boolean {
+  if (line.startsWith(RECONCILED_PREFIX) || line.startsWith('> ⚠')) return inProse;
+  if (!inProse) return /^`[^`]*`\s*$/.test(line);
+  buffer.push(line);
+  return true;
 }
 
 function renderDocument(
