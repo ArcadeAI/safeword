@@ -15,7 +15,7 @@ export interface IssuePayload {
   body: string;
   /** Includes `epic:<slug>` and `type:<type>` so the board groups/filters. */
   labels: string[];
-  assignee?: string;
+  // No assignee — field ownership (AC7) cedes it to the tracker; a v2 concern.
   state: 'open' | 'closed';
 }
 

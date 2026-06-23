@@ -7,23 +7,35 @@
 
 import process from 'node:process';
 
-import { buildWriterRegistry } from '../tracker-sync/clients.js';
+import { buildWriterRegistry, resolveRepoVisibility } from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { readCorpus } from '../tracker-sync/corpus.js';
-import { syncTracker, type SyncTrackerDependencies } from '../tracker-sync/index.js';
-
-const SUPPORTED = new Set(['linear', 'github']);
+import {
+  SUPPORTED_PROVIDERS,
+  syncTracker,
+  type SyncTrackerDependencies,
+} from '../tracker-sync/index.js';
+import type { Provider } from '../tracker-sync/types.js';
 
 export interface SyncTrackerCommandOptions {
   resetTrackerMap?: boolean;
+}
+
+/** Resolve repo visibility only when it can gate egress (github + full body). */
+function egressVisibility(
+  provider: Provider | undefined,
+  body: string | undefined,
+  repo: string | undefined,
+): 'public' | 'private' | undefined {
+  return provider === 'github' && body === 'full' ? resolveRepoVisibility(repo) : undefined;
 }
 
 export async function syncTrackerCommand(options: SyncTrackerCommandOptions = {}): Promise<void> {
   const cwd = process.cwd();
   const config = readTicketBridgeConfig(cwd);
 
-  const provider = SUPPORTED.has(config.provider)
-    ? (config.provider as 'linear' | 'github')
+  const provider = SUPPORTED_PROVIDERS.has(config.provider as Provider)
+    ? (config.provider as Provider)
     : undefined;
   const dependencies: SyncTrackerDependencies = {
     config,
@@ -37,6 +49,7 @@ export async function syncTrackerCommand(options: SyncTrackerCommandOptions = {}
     resetTrackerMap: options.resetTrackerMap,
     nonInteractive: process.env.CI !== undefined,
     arcadeUserId: process.env.ARCADE_USER_ID,
+    repoVisibility: egressVisibility(provider, config.body, config.target?.repo),
 
     log: message => {
       console.log(message);

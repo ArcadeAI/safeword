@@ -14,7 +14,7 @@ import { loadTrackerMap, planTicketSync, TrackerMap } from './tracker-map.js';
 import type { BodyMode, Provider, TicketInput } from './types.js';
 import { dispatchCreate, type TrackerWriter } from './writers.js';
 
-const SUPPORTED_PROVIDERS = new Set<Provider>(['linear', 'github']);
+export const SUPPORTED_PROVIDERS = new Set<Provider>(['linear', 'github']);
 const BACKOFF = { maxRetries: 3, baseMs: 50 };
 
 export interface TicketBridgeConfig {
@@ -61,8 +61,12 @@ function emitAdvisories(
         'silently if its OAuth grant lapses. Use a dedicated service identity for CI.',
     );
   }
-  if (bodyMode === 'full' && provider === 'github' && dependencies.repoVisibility === 'public') {
-    dependencies.log('⚠️  Egress warning: projecting full ticket bodies to a PUBLIC GitHub repo.');
+  // Fail-safe: warn unless the repo is confirmed private (undefined visibility,
+  // e.g. gh unavailable, still warns — a spurious notice beats a silent leak).
+  if (bodyMode === 'full' && provider === 'github' && dependencies.repoVisibility !== 'private') {
+    dependencies.log(
+      '⚠️  Egress warning: projecting full ticket bodies to a GitHub repo not confirmed private.',
+    );
   }
 }
 

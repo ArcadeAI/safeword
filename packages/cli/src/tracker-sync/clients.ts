@@ -12,6 +12,7 @@
 import { execFileSync } from 'node:child_process';
 
 import { isRateLimit, RateLimitError } from './backoff.js';
+import { reconcileOwnedLabels } from './labels.js';
 import type { Provider } from './types.js';
 import {
   type CreateRequest,
@@ -55,12 +56,44 @@ function githubClient(repo: string | undefined): TrackerClient {
         ...labels,
         ...repoArguments,
       ]).trim();
-      const id = url.split('/').pop() ?? url;
+      // `gh issue create` has no --json; it prints the issue URL. The trailing
+      // path segment is the number — the idempotency key — so validate it.
+      const id = url.split('/').pop()?.trim() ?? '';
+      if (!/^\d+$/.test(id)) {
+        throw new Error(`Could not parse a GitHub issue number from gh output: "${url}"`);
+      }
       return Promise.resolve({ id, url });
     },
     updateIssue(request: UpdateRequest) {
-      const labels = request.labels.flatMap(label => ['--add-label', label]);
-      runGh(['issue', 'edit', request.id, '--title', request.title, ...labels, ...repoArguments]);
+      // Reconcile owned labels so a changed epic:/type: replaces the stale one
+      // (--add-label only adds). Read current labels, diff, add + remove.
+      const current = runGh([
+        'issue',
+        'view',
+        request.id,
+        '--json',
+        'labels',
+        '--jq',
+        '.labels[].name',
+        ...repoArguments,
+      ])
+        .split('\n')
+        .map(name => name.trim())
+        .filter(Boolean);
+      const { add, remove } = reconcileOwnedLabels(current, request.labels);
+      const labelArguments = [
+        ...add.flatMap(label => ['--add-label', label]),
+        ...remove.flatMap(label => ['--remove-label', label]),
+      ];
+      runGh([
+        'issue',
+        'edit',
+        request.id,
+        '--title',
+        request.title,
+        ...labelArguments,
+        ...repoArguments,
+      ]);
       // edit + close are two gh calls (no atomic "edit and close"); a failure
       // between them leaves a partial update, but updates are idempotent and the
       // ref is already recorded, so a re-run reconciles with no double-create.
@@ -70,6 +103,28 @@ function githubClient(repo: string | undefined): TrackerClient {
       return Promise.resolve();
     },
   };
+}
+
+/**
+ * Resolve a GitHub repo's visibility for the AC10 egress guard. Returns
+ * `undefined` when it can't be determined (e.g. `gh` missing) — the caller
+ * treats anything other than a confirmed `private` as warn-worthy (fail-safe:
+ * a spurious egress warning beats a silent leak to a public repo).
+ */
+export function resolveRepoVisibility(repo: string | undefined): 'public' | 'private' | undefined {
+  if (repo === undefined) return undefined;
+  try {
+    const visibility = execFileSync(
+      'gh',
+      ['repo', 'view', repo, '--json', 'visibility', '--jq', '.visibility'],
+      { encoding: 'utf8' },
+    )
+      .trim()
+      .toLowerCase();
+    return visibility === 'public' ? 'public' : 'private';
+  } catch {
+    return undefined;
+  }
 }
 
 /** A client whose every call throws `message` — for not-yet-wired / unused providers. */

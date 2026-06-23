@@ -222,6 +222,28 @@ describe('sync-tracker orchestrator', () => {
     expect(ordered.indexOf('warning')).toBeLessThan(ordered.indexOf('create'));
   });
 
+  it('does not warn about egress when the repo is confirmed private', async () => {
+    seedEmptySidecar();
+    await syncTracker(
+      makeDependencies({
+        config: { provider: 'github', body: 'full', target: { repo: 'acme/repo' } },
+        repoVisibility: 'private',
+      }),
+    );
+    expect(messages.join('\n')).not.toMatch(/egress/i);
+  });
+
+  it('warns (fail-safe) when body full and visibility is unknown', async () => {
+    seedEmptySidecar();
+    await syncTracker(
+      makeDependencies({
+        config: { provider: 'github', body: 'full', target: { repo: 'acme/repo' } },
+        repoVisibility: undefined,
+      }),
+    );
+    expect(messages.join('\n')).toMatch(/egress/i);
+  });
+
   // AC11 — the token never appears in output
   it('never prints the resolved token', async () => {
     seedEmptySidecar();
