@@ -2,10 +2,10 @@
 id: QYYC5Y
 slug: self-report-capture
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-23T03:43:37.802Z
-last_modified: 2026-06-23T03:43:37.802Z
+last_modified: 2026-06-23T14:50:00.000Z
 ---
 
 # Capture safeword's own runtime signals to a sanitized local spool (#345)
