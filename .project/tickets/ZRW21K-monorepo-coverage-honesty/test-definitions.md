@@ -8,44 +8,44 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A pnpm monorepo produces a root index and per-package leaf docs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 15702b4
+- [x] GREEN 15702b4
+- [x] REFACTOR 15702b4
 
 ### Scenario: A single repo with no workspace config stays a single-repo doc
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 15702b4
+- [x] GREEN 15702b4
+- [x] REFACTOR 15702b4
 
 ### Scenario: An npm-workspaces monorepo is still discovered
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 15702b4
+- [x] GREEN 15702b4
+- [x] REFACTOR 15702b4
 
 ### Scenario: package.json workspaces win when both config files are present
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 15702b4
+- [x] GREEN 15702b4
+- [x] REFACTOR 15702b4
 
 ### Scenario: A pnpm-workspace.yaml the parser cannot read degrades gracefully
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 15702b4
+- [x] GREEN 15702b4
+- [x] REFACTOR 15702b4
 
 ## Rule: The root index is honest about packages it cannot introspect
 
 ### Scenario: A package with no recognized source layout is marked, not placeholdered
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 15702b4
+- [x] GREEN 15702b4
+- [x] REFACTOR 15702b4
 
 ### Scenario: In a mixed monorepo, only the un-introspected package carries the marker
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 15702b4
+- [x] GREEN 15702b4
+- [x] REFACTOR 15702b4
