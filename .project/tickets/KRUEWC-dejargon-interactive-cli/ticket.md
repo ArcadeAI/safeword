@@ -3,10 +3,10 @@ id: KRUEWC
 slug: dejargon-interactive-cli
 parent: K6CAJN-ntb-experience-epic
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-21T14:24:00Z
-last_modified: 2026-06-21T14:24:00Z
+last_modified: 2026-06-23T05:29:00Z
 ---
 
 # De-jargon the interactive CLI; auto-default the namespace-move prompt

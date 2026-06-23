@@ -157,7 +157,9 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
 
   if (result.packagesToRemove.length > 0) {
     const uninstallCommand = getUninstallCommand(result.packagesToRemove, cwd);
-    warn(`\n${result.packagesToRemove.length} package(s) are now bundled in safeword:`);
+    warn(
+      `\n${result.packagesToRemove.length} package(s) now come built into safeword, so your project no longer needs its own copy:`,
+    );
     for (const pkg of result.packagesToRemove) listItem(pkg);
     info("\nIf you don't use these elsewhere, you can remove them:");
     listItem(uninstallCommand);
@@ -270,13 +272,13 @@ async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean
     options.confirmMigration !== undefined || (process.stdin.isTTY && process.stdout.isTTY);
   if (!isInteractive) {
     info(
-      'Namespace: this project uses the legacy .safeword-project/ — run `safeword upgrade --migrate-namespace` to converge on .project/ (recommended).',
+      'This project still uses the older internal folder name (.safeword-project). To update it to the current standard (.project), run: safeword upgrade --migrate-namespace',
     );
     return false;
   }
   const confirm = options.confirmMigration ?? promptNoDefault;
   return confirm(
-    'Move project namespace from .safeword-project/ to .project/ (recommended)? [y/N] ',
+    'Safeword can update an internal folder name to the current standard (.safeword-project becomes .project). It keeps your history and is safe. Do this now? [y/N] ',
   );
 }
 

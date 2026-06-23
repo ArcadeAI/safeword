@@ -379,7 +379,7 @@ function logArchitectureDetected(arch: ReturnType<typeof buildArchitecture>): vo
     detected.push(`workspaces: ${arch.workspaces.join(', ')}`);
   }
   info(`\nArchitecture detected: ${detected.join('; ')}`);
-  info('Generated dependency-cruiser config for /audit command');
+  info('Set up the project-structure checks that /audit uses');
 }
 
 /**
