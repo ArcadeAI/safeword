@@ -42,6 +42,13 @@ if (!existsSync(nodePath.join(projectDir, '.safeword'))) process.exit(0);
 
 // Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
 // owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
+//
+// The CLI stages the doc into the index, which lands in a plain `git commit` /
+// `git commit -m`. It can miss two less-common forms: `git commit <pathspec>`
+// (the pathspec overrides the index) and `git commit -a` for a brand-new
+// untracked doc (`-a` only re-stages tracked files). In those cases the doc is
+// regenerated and staged but not committed — caught by the CI `architecture
+// --check` backstop, which is exactly why that backstop exists.
 const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
 const [command, args] = existsSync(localCli)
   ? ['bun', [localCli, 'architecture', '--stage']]

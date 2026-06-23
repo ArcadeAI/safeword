@@ -251,10 +251,6 @@ Then(/^the stale doc is (.+)$/, function (this: EnforcementWorld, result: string
 
 // --- Thens: CI surface (exit code) ---
 
-Then('the check fails', function (this: EnforcementWorld) {
-  assert.notEqual(this.checkStatus, 0, 'check passed but should have failed');
-});
-
 Then('the check exits non-zero', function (this: EnforcementWorld) {
   assert.notEqual(this.checkStatus, 0, 'check passed but should have failed');
 });

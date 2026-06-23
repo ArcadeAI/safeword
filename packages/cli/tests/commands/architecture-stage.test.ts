@@ -86,6 +86,30 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(content).toContain('billing');
   });
 
+  it('lands the regenerated doc in the actual commit a plain `git commit` makes', async () => {
+    // End-to-end: stage like the hook, then commit like the agent, and inspect
+    // HEAD — proves "staged in THAT commit" at the commit level, not just the index.
+    selfHeal(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+
+    const stage = await runCli(['architecture', '--stage'], { cwd: context.directory });
+    expect(stage.exitCode).toBe(0);
+    execFileSync('git', ['commit', '-m', 'agent change'], { cwd: context.directory });
+
+    const committed = execFileSync('git', ['show', '--name-only', '--format=', 'HEAD'], {
+      cwd: context.directory,
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter(line => line.length > 0);
+    expect(committed).toContain(DOC_RELATIVE);
+    const headDocument = execFileSync('git', ['show', `HEAD:${DOC_RELATIVE}`], {
+      cwd: context.directory,
+      encoding: 'utf8',
+    });
+    expect(headDocument).toContain('billing');
+  });
+
   it('does not stage a doc that already matches the current shape', async () => {
     selfHeal(context.directory);
 
