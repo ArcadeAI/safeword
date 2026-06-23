@@ -212,15 +212,34 @@ When('I run {string}', async function (this: SafewordWorld, argumentLine: string
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
       [CLI_PATH, ...argumentLine.split(' ')],
-      { cwd: this.temporaryDirectory },
+      { cwd: this.temporaryDirectory, timeout: 30_000, maxBuffer: 16 * 1024 * 1024 },
     );
     this.result = { stdout, stderr, exitCode: 0 };
   } catch (error: unknown) {
-    const failure = error as { stdout?: string; stderr?: string; code?: number };
+    const failure = error as {
+      stdout?: string;
+      stderr?: string;
+      code?: number | string;
+      signal?: string;
+      killed?: boolean;
+      message?: string;
+    };
+    const stdout = failure.stdout ?? '';
+    const stderr = failure.stderr ?? '';
+    // A non-zero exit that still produced output is the normal "check found
+    // problems" path. Empty output means the subprocess never reported — it
+    // crashed, was killed (OOM/timeout → signal), or failed to spawn (missing
+    // dist → ENOENT). Preserve that diagnostic instead of a blank, so a rare CI
+    // flake is debuggable rather than a confusing "output does not contain X"
+    // with nothing to go on.
+    const noOutputDiagnostic =
+      stdout === '' && stderr === ''
+        ? `[no subprocess output] code=${String(failure.code)} signal=${String(failure.signal)} killed=${String(failure.killed)} cli=${CLI_PATH}: ${failure.message ?? ''}`
+        : '';
     this.result = {
-      stdout: failure.stdout ?? '',
-      stderr: failure.stderr ?? '',
-      exitCode: failure.code ?? 1,
+      stdout,
+      stderr: `${stderr}${noOutputDiagnostic}`,
+      exitCode: typeof failure.code === 'number' ? failure.code : 1,
     };
   }
 });
