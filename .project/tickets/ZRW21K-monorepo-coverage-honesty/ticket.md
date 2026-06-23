@@ -2,10 +2,10 @@
 id: ZRW21K
 slug: monorepo-coverage-honesty
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-23T15:07:27.754Z
-last_modified: 2026-06-23T15:12:00.000Z
+last_modified: 2026-06-23T16:19:00.000Z
 scope:
   - pnpm-workspace.yaml discovery — detectWorkspaces also reads a pnpm-workspace.yaml `packages:` list when package.json has no `workspaces` field (so pnpm monorepos get the root index + leaf docs)
   - Un-introspected-package marker — a discovered package whose skeleton is empty (no recognized `src/` modules → noop leaf, no leaf doc) is marked in the root index ("not introspected — no recognized source layout") instead of rendering a bare placeholder that reads as authoritative-complete
@@ -76,3 +76,11 @@ WBM8JE).
   regression. Re-review PASS-WITH-NITS (nits = a tag-misread + degradation
   strength, non-blocking). Stamp recorded; impl-plan written (detectPnpmWorkspaces
   - `??` precedence + introspected flag). Advancing to implement.
+- 2026-06-23T16:19:00Z Complete: implement + verify + done. All 7 scenarios R/G/R
+  (15702b4). detectPnpmWorkspaces + collectPnpmGlobs (dependency-free block-list
+  parse), `??` precedence, introspected flag → root-index marker + fingerprint.
+  /verify: full suite green (3350 pass, fresh build), 7 BDD scenarios, build +
+  lint clean. /audit passed (0 cycles/violations, 0 clones, no dead code).
+  Investigated a lone full-suite failure → stale `dist/` (cold-start-check guide
+  from #348 not in the old build); clean rebuild → green, unrelated to ZRW21K.
+  Dogfood root index re-rendered + --check green. verify.md written. Closing.
