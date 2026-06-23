@@ -2,10 +2,10 @@
 id: XG9SFP
 slug: architecture-monorepo-hierarchy
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-23T02:34:25.862Z
-last_modified: 2026-06-23T02:40:00.000Z
+last_modified: 2026-06-23T03:20:00.000Z
 scope:
   - Monorepo detection + leaf discovery (reuse detectWorkspaces, expand globs via node:fs globSync, keep dirs with a package.json)
   - Derived root index at .project/architecture.generated.md (package set + each package's one-line purpose + inter-package dependency edges) with its own monorepoFingerprint and ownership/staleness machinery
@@ -133,3 +133,11 @@ allowlists `dist`+`templates`; website is `private`.
   root, foreign-doc, opt-out, package preservation/removal, two-leaf fresh
   fan-out); re-review PASS, no regressions. Stamp recorded; impl-plan.md written
   (healTarget generalization + 7-task build order). Advancing to implement.
+- 2026-06-23T03:20:00Z Complete: implement + verify + done. All 15 scenarios R/G/R
+  (c9e5df9, f3766ed). Built architecture-monorepo.ts (discover/model/fingerprint),
+  healTarget+selfHealProject orchestration (single-repo byte-identical), renderRootIndex,
+  --check/--stage fan-out. Decision: root index drops removed packages (fully
+  derived, no prose) rather than orphaning. /verify: 3314/3314 tests, 132/132
+  Gherkin, build+lint clean, dep drift clean. /audit passed (0 cycles/violations,
+  0 clones, no dead code). Dogfood: this repo's root index + cli/website leaves
+  committed and passing --check. verify.md written. Closing XG9SFP.

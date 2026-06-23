@@ -47,7 +47,7 @@ export interface PackageNode {
   purpose: string;
 }
 
-export interface PackageEdge {
+interface PackageEdge {
   from: string;
   to: string;
 }
