@@ -9,7 +9,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { readTickets, type TicketEntry } from '../ticket-sync/index.js';
+import { readTickets, type TicketEntry, TICKETS_RELATIVE_PATH } from '../ticket-sync/index.js';
+import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import type { TicketInput } from './types.js';
 
 /** Read the `type:` frontmatter value from a ticket.md, defaulting to `task`. */
@@ -45,7 +46,9 @@ export function toTicketInput(
 
 /** Read all active tickets as TicketInput[] for projection. */
 export function readCorpus(cwd: string, repo: string | undefined): TicketInput[] {
-  return readTickets(cwd).active.map(entry => {
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  const relativeLabel = nodePath.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
+  return readTickets(ticketsDirectory, relativeLabel).active.map(entry => {
     const ticketPath = nodePath.join(cwd, entry.relativePath, 'ticket.md');
     const bodyMarkdown = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : undefined;
     return toTicketInput(entry, readType(entry.relativePath, cwd), repo, bodyMarkdown);
