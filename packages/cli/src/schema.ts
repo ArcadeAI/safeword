@@ -639,6 +639,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/stop-self-report.ts': { template: 'hooks/stop-self-report.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
       template: 'hooks/session-start-reentry.ts',
     },

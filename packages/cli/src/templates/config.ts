@@ -364,7 +364,11 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),
     hook(`bun ${HOOKS_DIR}/prompt-questions.ts`),
   ],
-  Stop: [hook(`bun ${HOOKS_DIR}/stop-quality.ts`), hook(`bun ${HOOKS_DIR}/stop-reentry.ts`)],
+  Stop: [
+    hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
+    hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
+    hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
+  ],
   PreToolUse: [
     matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-dependency-readiness.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),

@@ -16,7 +16,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildRecord,
+  formatSelfReportSurfacing,
   readReports,
+  readSessionReports,
   recordSignal,
   sanitizeStackFrames,
   type SelfReportSignal,
@@ -212,6 +214,47 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(groups[0]?.count).toBe(2);
       expect(groups[0]?.signature).toContain('TypeError');
       expect(groups[1]?.count).toBe(1);
+    });
+  });
+
+  describe('readSessionReports', () => {
+    it('returns only the named session, not other sessions in the spool', () => {
+      recordSignal(projectDirectory, 'mine', { source: 'stop-quality', errorClass: 'Error' }, '1');
+      recordSignal(projectDirectory, 'other', { source: 'check', exitCode: 1 }, '1');
+
+      const mine = readSessionReports(projectDirectory, 'mine');
+      expect(mine).toHaveLength(1);
+      expect(mine[0]?.source).toBe('stop-quality');
+    });
+
+    it('returns an empty array when the session has no spool', () => {
+      expect(readSessionReports(projectDirectory, 'nope')).toEqual([]);
+    });
+  });
+
+  describe('formatSelfReportSurfacing', () => {
+    it('returns null when there is nothing to surface', () => {
+      expect(formatSelfReportSurfacing([])).toBeUndefined();
+    });
+
+    it('states the count + breakdown as a fact, not an imperative', () => {
+      recordSignal(
+        projectDirectory,
+        's',
+        { source: 'post-tool-quality', errorClass: 'TypeError' },
+        '1',
+      );
+      recordSignal(projectDirectory, 's', { source: 'check', exitCode: 1 }, '1');
+
+      const line = formatSelfReportSurfacing(readSessionReports(projectDirectory, 's'));
+
+      expect(line).toContain('Safeword recorded 2');
+      expect(line).toContain('TypeError@post-tool-quality (×1)');
+      expect(line).toContain('exit1@check (×1)');
+      expect(line).toContain('safeword self-report');
+      // Factual framing — no imperative "you must / file an issue" command.
+      expect(line?.toLowerCase()).not.toContain('you must');
+      expect(line?.toLowerCase()).not.toContain('file an issue');
     });
   });
 });

@@ -60,6 +60,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'record-skill-invocation.ts':
     'manual helper for skill/command invocation proof; covered by tests/hooks/record-skill-invocation.test.ts',
   'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',
+  'stop-self-report.ts':
+    'stop hook, fires at session end — not assertable in a tool-based live run; covered deterministically by tests/integration/stop-self-report.test.ts',
   // Core hooks covered deterministically elsewhere (not re-run live, to save cost)
   'post-tool-lint.ts':
     'PostToolUse lint hook; exercised end-to-end by tests/integration/golden-path.test.ts',

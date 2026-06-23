@@ -191,6 +191,14 @@ export function readReports(projectDirectory: string): SelfReportRecord[] {
   return files.flatMap(name => parseSpoolFile(nodePath.join(dir, name)));
 }
 
+/** Read only the records captured for one session (its single spool file). */
+export function readSessionReports(
+  projectDirectory: string,
+  sessionId: string,
+): SelfReportRecord[] {
+  return parseSpoolFile(spoolPath(projectDirectory, sessionId));
+}
+
 /** One grouped signature with its occurrence count. */
 export interface SelfReportGroup {
   signature: string;
@@ -224,4 +232,21 @@ export function summarizeReports(records: SelfReportRecord[]): SelfReportGroup[]
     .values()
     .toArray()
     .toSorted((a, b) => b.count - a.count);
+}
+
+/**
+ * Build the Stop-time surfacing line for a session's records, or null when there
+ * is nothing to surface. Phrased as a FACTUAL statement (no imperative / no
+ * out-of-band command) so Claude treats it as context rather than tripping its
+ * prompt-injection defenses (https://code.claude.com/docs/en/hooks).
+ */
+export function formatSelfReportSurfacing(records: SelfReportRecord[]): string | undefined {
+  if (records.length === 0) return undefined;
+  const breakdown = summarizeReports(records)
+    .map(group => `${group.signature} (×${group.count})`)
+    .join(', ');
+  return (
+    `Safeword recorded ${records.length} of its own internal signal(s) this session: ${breakdown}. ` +
+    'These are safeword bugs or rough edges, not your edits; run `safeword self-report` to inspect them.'
+  );
 }
