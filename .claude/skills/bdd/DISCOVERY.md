@@ -57,7 +57,7 @@ Rung 0 — before framing the jobs, capture the decide-to-build brief in `spec.m
 
 - **Requested by** — who asked, distinct from the persona the feature serves.
 - **Cost of inaction** — what changes, breaks, or is lost if we don't build it. (Framing inaction as a risk is sharper than framing action as an opportunity.)
-- **Reversibility** — how hard this is to undo once shipped (one-way vs. two-way door). The readiness pointer raises this live in chat during Clarify; the brief is where it's written down and kept for later review.
+- **Reversibility** — how hard this is to undo once shipped (one-way vs. two-way door). Count cross-cutting changes (data model, public API, migration) as one-way for this purpose. The readiness pointer raises this live in chat during Clarify; the brief is where it's written down and kept for later review.
 
 The brief frames _whether and how much_ to build before JTBD frames _what_. Its payoff is **triage**: when cost-of-inaction is low and reversibility is high, the feature may not warrant the full ladder — raise it at the gate below. Don't add a separate stop; present the brief together with the jobs at the **JTBD sub-phase gate**, whose question now also asks "is this a feature, or a task?" Features only — tasks and patches skip the brief and lean on the readiness pointer.
 
@@ -104,6 +104,8 @@ Follow the understanding pattern from SAFEWORD.md — including contribution tec
 If any answer is vague, you have open questions — surface them, and record each unresolved one in `spec.md`'s `## Open Questions` section (the equivalent of Example Mapping's red "question" cards) so it isn't lost across turns or sessions. Delete a question when it's answered, or mark it `defer: <reason>` for a deliberate punt.
 
 **When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
+
+**When the option space is empty** (a vague idea with no candidate approaches yet) — call `/brainstorm` to diverge and generate options first; converge on one with `/figure-it-out` after.
 
 **When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/figure-it-out` to weigh options against current docs and research before drafting scope.
 
@@ -180,11 +182,12 @@ The arc end to end: a persona from `personas.md`, a job that names it, criteria 
 Before proceeding to define-behavior (the Intake Brief is advisory — a missing or `skip:`'d field never blocks this exit; only `scope` / `out_of_scope` / `done_when` are required):
 
 0. **Specificity self-test passed** — you can concretely answer: what changes, what stays the same, observable done state
-1. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
-2. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
-3. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
-4. **Update frontmatter:** `phase: define-behavior`
-5. **Add work log entry:**
+1. **Cold-start executability check (one-way-door features only)** — read the intake brief's _recorded_ Reversibility field; do not re-judge reversibility here. Offer the cold-start check **only when** that recorded field reads one-way-door or cross-cutting (data model, public API, or migration). A two-way-door, missing, or `skip:`'d Reversibility field gets no offer. The check (see `.safeword/guides/cold-start-check.md`) spawns a context-free sub-agent to judge whether the captured spec could be planned from scratch, and appends any gaps to Open Questions — so run it before resolving them. It is advisory; it never blocks. Under YOLO mode (G2E72G) the offer auto-accepts: the check runs, the auto-decision is recorded in the work log, and each auto-appended gap is recorded as `defer: <reason>` so the auto-confirming exit isn't silently waved through.
+2. **Open Questions resolved** — `spec.md`'s `## Open Questions` is empty/answered, or each remaining line carries `defer: <reason>`. A long unresolved list means intake isn't done — keep converging.
+3. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
+4. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
+5. **Update frontmatter:** `phase: define-behavior`
+6. **Add work log entry:**
 
    ```
    - {timestamp} Complete: intake - Understanding converged, scope established
