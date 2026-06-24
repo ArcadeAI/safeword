@@ -120,6 +120,36 @@ gated behind a seeded-defect eval).
   Next: scale to ~20 across more bases incl. a held-out TEST cluster, then a corpus
   baseline run (the only token spend in Phase 2 — also empirically certifies the
   clean bases: a must-fix on any certifiedClean fixture flags a base to harden).
+- 2026-06-24T04:25:00Z **Validation baseline on the 7-fixture corpus** (Sonnet 4.6,
+  temp 0, ~7 calls) — ran the cheap check before scaling to 20. New decoupled
+  report renders correctly. Findings:
+  - **Recall 100%** (must-fix 6/6, should-strengthen 1/1) — every seeded/injected
+    defect caught and correctly categorized. The mutants are well-formed. BUT the
+    current operators are "easy"; for recall headroom GEPA can chase, the scale-up
+    needs SUBTLER mutants (vacuous-trivially-true, determinism-order/concurrency,
+    conflict) more likely to be missed.
+  - **Precision weakness found + characterized (the decision-relevant result).**
+    Baseline false alarms = 1.25 per certified-clean fixture. ALL are the skill
+    over-applying a vacuous-\* MUST-FIX to scenarios that assert a concrete value
+    or a falsifiable outcome — definitional misfires (e.g. `vacuous-existence-only`
+    on `Then the "python" entry command is "tox"`, which asserts the value; the
+    real discrimination concern was SEPARATELY + correctly raised as advisory
+    `missing-negative-case`). Adjudicated: the bases are genuinely clean, the
+    must-fix flags are true false positives. So `certifiedClean: true` is correct;
+    no relabeling. Two sharper observations: (a) the skill over-flags MORE when the
+    spec is otherwise clean (adversarial hunting — an obvious defect "absorbs" its
+    attention, cf. resolver-vacuous-existence FA 0); (b) the vacuous SUBTYPE it
+    assigns is inconsistent across fixtures (existence-only vs given-echo vs
+    non-claim) — low-confidence over-flagging.
+  - **The eval's recall↔precision tension is well-posed:** a vacuous-\* flag is a TP
+    on a vacuous mutant but an FA on a clean concrete-value Then, so GEPA cannot cut
+    false alarms by suppressing the lens without losing recall — it must sharpen the
+    boundary (flag existence-only Thens, NOT concrete-value Thens). The metric
+    resists the suppression trap by construction.
+  - **Open values question surfaced to user:** review-spec is DELIBERATELY adversarial
+    ("treat them as if you're trying to break them"). Is the vacuous over-flagging a
+    bug to optimize away, or intentional err-loud behavior? That decides whether
+    precision is a legitimate GEPA target. Pending user steer before Phase 4.
 
 ---
 
