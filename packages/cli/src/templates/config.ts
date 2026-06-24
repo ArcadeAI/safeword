@@ -299,7 +299,18 @@ ${prettier.configEntry}
 export const CURSOR_HOOKS = {
   sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
   beforeSubmitPrompt: [{ command: 'bun ./.safeword/hooks/cursor/before-submit-prompt.ts' }],
+  // Blocking edit gate. Matcher limits it to the `Write` tool (Cursor's only edit
+  // tool) so it never spawns on Read/Grep/Task. Denies edits when a feature at the
+  // implement phase has no test-definitions.md, and on LOC blast-radius overflow.
+  preToolUse: [{ command: 'bun ./.safeword/hooks/cursor/pre-tool-quality.ts', matcher: 'Write' }],
+  // Blocking commit gate (a REFACTOR commit may not touch test files).
+  beforeShellExecution: [{ command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts' }],
   afterFileEdit: [{ command: 'bun ./.safeword/hooks/cursor/after-file-edit.ts' }],
+  // Maintains the per-session quality state (LOC, commit-clears-gate, ticket
+  // binding) the blocking edit gate reads. Matched to edits + shell only.
+  postToolUse: [
+    { command: 'bun ./.safeword/hooks/cursor/post-tool-quality.ts', matcher: 'Write|Shell' },
+  ],
   stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts' }],
 };
 

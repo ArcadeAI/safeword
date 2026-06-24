@@ -92,6 +92,19 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
         true,
       );
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/stop.ts')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/before-submit-prompt.ts')).toBe(
+        true,
+      );
+      expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/gate-adapter.ts')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/pre-tool-quality.ts')).toBe(
+        true,
+      );
+      expect(
+        fileExists(temporaryDirectory, '.safeword/hooks/cursor/before-shell-execution.ts'),
+      ).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/post-tool-quality.ts')).toBe(
+        true,
+      );
     });
 
     it('should reference correct hook script paths in hooks.json', async () => {
@@ -112,6 +125,18 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       expect(hooksConfig.hooks.beforeSubmitPrompt[0].command).toBe(
         'bun ./.safeword/hooks/cursor/before-submit-prompt.ts',
       );
+      expect(hooksConfig.hooks.preToolUse[0].command).toBe(
+        'bun ./.safeword/hooks/cursor/pre-tool-quality.ts',
+      );
+      // preToolUse is scoped to the edit tool so it never spawns on reads/searches.
+      expect(hooksConfig.hooks.preToolUse[0].matcher).toBe('Write');
+      expect(hooksConfig.hooks.beforeShellExecution[0].command).toBe(
+        'bun ./.safeword/hooks/cursor/before-shell-execution.ts',
+      );
+      expect(hooksConfig.hooks.postToolUse[0].command).toBe(
+        'bun ./.safeword/hooks/cursor/post-tool-quality.ts',
+      );
+      expect(hooksConfig.hooks.postToolUse[0].matcher).toBe('Write|Shell');
     });
   });
 

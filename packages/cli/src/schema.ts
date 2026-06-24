@@ -882,6 +882,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/cursor/before-submit-prompt.ts': {
       template: 'hooks/cursor/before-submit-prompt.ts',
     },
+    '.safeword/hooks/cursor/gate-adapter.ts': {
+      template: 'hooks/cursor/gate-adapter.ts',
+    },
+    '.safeword/hooks/cursor/pre-tool-quality.ts': {
+      template: 'hooks/cursor/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/cursor/before-shell-execution.ts': {
+      template: 'hooks/cursor/before-shell-execution.ts',
+    },
+    '.safeword/hooks/cursor/post-tool-quality.ts': {
+      template: 'hooks/cursor/post-tool-quality.ts',
+    },
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },
 
@@ -991,7 +1003,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         'version',
         'hooks.sessionStart',
         'hooks.beforeSubmitPrompt',
+        'hooks.preToolUse',
+        'hooks.beforeShellExecution',
         'hooks.afterFileEdit',
+        'hooks.postToolUse',
         'hooks.stop',
       ],
       removeFileIfEmpty: true,
