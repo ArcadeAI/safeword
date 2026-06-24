@@ -341,6 +341,33 @@ describe('ticket-sync', () => {
   });
 
   describe('conflict-marker guidance (398)', () => {
+    it('does not report benign marker-like ticket content as an index conflict', () => {
+      writeTicket(
+        'benign-markers',
+        { id: 'SAFE', status: 'backlog' },
+        [
+          'Setext heading',
+          '=======',
+          '',
+          '```',
+          '>>>>>>> fenced sample, not an index merge marker',
+          '```',
+          '',
+          '**Goal:** =======',
+          '',
+        ].join('\n'),
+      );
+
+      const first = syncTickets(temporaryDirectory);
+      expect(first.indexConflicts).toEqual([]);
+
+      const indexContent = readFileSync(first.indexPath, 'utf8');
+      expect(indexContent).toContain('  =======');
+
+      const second = syncTickets(temporaryDirectory);
+      expect(second.indexConflicts).toEqual([]);
+    });
+
     it('reports conflicted index files in the sync result and rewrites them cleanly', () => {
       writeTicket('active-ticket', { id: 'ACT', status: 'backlog' });
       writeTicket('done-ticket', { id: 'DONE', status: 'done' }, '', { completed: true });
