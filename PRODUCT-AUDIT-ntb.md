@@ -105,13 +105,13 @@ infrastructure. Consider a setup-time preflight so the NTB hits this in `setup`
 `setup`, `upgrade`, and `check` run in a terminal the NTB reads raw — no agent
 between them and the output, no `/explain`. The content assumes a developer:
 
-| Surface | Verbatim | Why it dead-ends an NTB |
-| --- | --- | --- |
-| `setup.ts` (eslint peer warning) | "eslint@X (major Y) … ESLint APIs / peerDependencies" | Tool names + packaging jargon with no plain framing |
-| `setup.ts:381-382` | "Architecture detected… Generated dependency-cruiser config for /audit command" | "dependency-cruiser" is an opaque tool name |
-| `setup.ts:310-322` (Next steps) | "Run `safeword check` to verify setup" → "Commit the new files to git" | Assumes git fluency; gives no orientation to _what safeword will now do_ or how to recover when the agent is blocked |
-| `upgrade.ts:278-280` | **"Move project namespace from `.safeword-project/` to `.project/` (recommended)? [y/N]"** | A blocking y/N decision expressed entirely in directory/namespace jargon — the NTB has zero basis to answer |
-| `reset.ts:30,53-57` | "Uninstalling devDependencies…", "Preserved: eslint.config.mjs, .prettierrc…" | Pure tool inventory |
+| Surface                          | Verbatim                                                                                   | Why it dead-ends an NTB                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `setup.ts` (eslint peer warning) | "eslint@X (major Y) … ESLint APIs / peerDependencies"                                      | Tool names + packaging jargon with no plain framing                                                                  |
+| `setup.ts:381-382`               | "Architecture detected… Generated dependency-cruiser config for /audit command"            | "dependency-cruiser" is an opaque tool name                                                                          |
+| `setup.ts:310-322` (Next steps)  | "Run `safeword check` to verify setup" → "Commit the new files to git"                     | Assumes git fluency; gives no orientation to _what safeword will now do_ or how to recover when the agent is blocked |
+| `upgrade.ts:278-280`             | **"Move project namespace from `.safeword-project/` to `.project/` (recommended)? [y/N]"** | A blocking y/N decision expressed entirely in directory/namespace jargon — the NTB has zero basis to answer          |
+| `reset.ts:30,53-57`              | "Uninstalling devDependencies…", "Preserved: eslint.config.mjs, .prettierrc…"              | Pure tool inventory                                                                                                  |
 
 The `upgrade` y/N prompt (H3's sharpest point) is the worst case: it _halts_ on a
 choice the NTB cannot make. Most of the rest is informational and could be
