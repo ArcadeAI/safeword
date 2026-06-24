@@ -35,6 +35,8 @@ export interface TicketEntry {
   status: string;
   epic: string | undefined; // undefined → grouped under "(no epic)"
   goal: string | undefined; // the **Goal:** one-liner, when present
+  externalIssue: string | undefined; // canonical tracker issue link (optional)
+  externalPullRequests: string[]; // active/relevant PR links (optional)
   dependsOn: string[]; // ticket ids this one depends on (directed edge); [] when none
   blockedOn: string[]; // ticket ids this one is hard-blocked on (gates phase advance); [] when none
   blockedOnOverride: string | undefined; // reason recorded to advance past a non-done blocker; undefined when none
@@ -96,6 +98,24 @@ function goalLine(bodyLines: string[]): string | undefined {
   return undefined;
 }
 
+/** Parse comma/YAML-list fields into normalized string arrays. */
+function parseStringList(raw: string | undefined): string[] {
+  if (raw === undefined) return [];
+  const normalized = raw.trim();
+  if (normalized === '') return [];
+
+  const listBody =
+    normalized.startsWith('[') && normalized.endsWith(']')
+      ? normalized.slice(1, -1)
+      : normalized;
+
+  return listBody
+    .split(',')
+    .map(item => stripQuotes(item.trim()))
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
 /**
  * Parse a single ticket.md. Returns the entry (minus relativePath) when it has
  * an `id:`, or a skip reason. Title resolves frontmatter `title` → first H1 →
@@ -126,6 +146,8 @@ function parseTicket(
       title,
       status,
       epic,
+      externalIssue: fields.get('external_issue') ?? fields.get('external'),
+      externalPullRequests: parseStringList(fields.get('external_prs')),
       goal: goalLine(bodyLines),
       dependsOn: parseTicketIdList(fields.get('depends_on')),
       blockedOn: parseTicketIdList(fields.get('blocked_on')),
@@ -220,6 +242,12 @@ function renderEntry(
   const blocking = blocks.get(entry.id) ?? [];
   if (blocking.length > 0) lines.push(`  blocks: ${renderRelation(blocking, labelById)}`);
   if (entry.blockedOnOverride !== undefined) lines.push(`  override: ${entry.blockedOnOverride}`);
+  if (entry.externalIssue !== undefined && entry.externalIssue.length > 0) {
+    lines.push(`  external issue: ${entry.externalIssue}`);
+  }
+  if (entry.externalPullRequests.length > 0) {
+    lines.push(`  external PRs: ${entry.externalPullRequests.join(', ')}`);
+  }
   lines.push(`  → \`${entry.relativePath}\``);
   return lines;
 }

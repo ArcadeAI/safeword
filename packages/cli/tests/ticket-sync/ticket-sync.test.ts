@@ -137,6 +137,56 @@ describe('ticket-sync', () => {
       expect(content).toContain(`${TICKETS_RELATIVE_PATH}/ABC123-do-thing`);
     });
 
+    it('external_issue_and_legacy_external_alias_parse', () => {
+      writeTicket(
+        'EXT111-x',
+        {
+          id: 'EXT111',
+          status: 'backlog',
+          external_issue: 'https://github.com/ArcadeAI/safeword/issues/393',
+          external_prs: '[https://github.com/ArcadeAI/safeword/pull/400, https://github.com/ArcadeAI/safeword/pull/401]',
+        },
+        '# External links\n',
+      );
+      writeTicket(
+        'EXT112-y',
+        {
+          id: 'EXT112',
+          status: 'backlog',
+          external: 'https://github.com/ArcadeAI/safeword/issues/394',
+          external_prs: '["https://github.com/ArcadeAI/safeword/pull/402"]',
+        },
+        '# Legacy external\n',
+      );
+
+      const ext111 = entryFor('EXT111');
+      const ext112 = entryFor('EXT112');
+
+      expect(ext111?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/393');
+      expect(ext111?.externalPullRequests).toEqual([
+        'https://github.com/ArcadeAI/safeword/pull/400',
+        'https://github.com/ArcadeAI/safeword/pull/401',
+      ]);
+      expect(ext112?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/394');
+    });
+
+    it('renders_external_issue_and_prs_in_index_output', () => {
+      writeTicket(
+        'EXT113-x',
+        {
+          id: 'EXT113',
+          status: 'backlog',
+          external_issue: 'https://github.com/ArcadeAI/safeword/issues/395',
+          external_prs: '[https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411]',
+        },
+        '# External render\n',
+      );
+
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('external issue: https://github.com/ArcadeAI/safeword/issues/395');
+      expect(content).toContain('external PRs: https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411');
+    });
+
     it('title_falls_back_to_h1_then_slug', () => {
       writeTicket('H1ONLY-x', { id: 'H1ONLY', status: 'backlog' }, '# H1 Title Here\n\nbody\n');
       writeTicket('NOH1-y', { id: 'NOH1', status: 'backlog' }, 'no heading, no title\n');

@@ -6,6 +6,7 @@ phase: intake
 status: blocked
 epic: auto-upgrade-cross-agent
 parent: BJX7WR
+external: https://github.com/ArcadeAI/safeword/issues/393
 created: 2026-06-20T12:54:31.996Z
 last_modified: 2026-06-20T12:54:31.996Z
 ---
