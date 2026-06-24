@@ -34,7 +34,7 @@ export async function runEvalWithTraces(
     traces.push({
       name: fx.name,
       output,
-      score: scoreFixture(fx.name, output.detections, fx.expected),
+      score: scoreFixture(fx.name, output.detections, fx.expected, fx.certifiedClean),
     });
   }
   return { score: aggregate(traces.map(t => t.score)), traces };
@@ -53,18 +53,27 @@ export async function runEval(
 export function formatReport(score: AggregateScore): string {
   const pct = (n: number): string => `${(n * 100).toFixed(1)}%`;
   const lines: string[] = [
-    `F1 ${pct(score.f1)}  |  precision ${pct(score.precision)}  recall ${pct(score.recall)}  (tp ${score.tp} fp ${score.fp} fn ${score.fn})`,
+    // Recall (primary) and false alarms (guard) are reported SEPARATELY — there
+    // is no single F1, by design (see evaluator.ts).
+    `RECALL ${pct(score.recall)}  (caught ${score.seededCaught}/${score.seededTotal} seeded` +
+      `  ·  must-fix ${pct(score.mustFix.recall)} ${score.mustFix.tp}/${score.mustFix.tp + score.mustFix.fn}` +
+      `  ·  should-strengthen ${pct(score.shouldStrengthen.recall)} ${score.shouldStrengthen.tp}/${score.shouldStrengthen.tp + score.shouldStrengthen.fn})`,
+    `FALSE ALARMS ${score.falseAlarms} on ${score.cleanFixtures} certified-clean fixture(s)` +
+      ` (rate ${score.falseAlarmRate.toFixed(2)}/fixture)  ·  unlabeled (not penalized) ${score.unlabeled}`,
     '',
     'Per fixture:',
     ...score.perFixture.map(
       f =>
-        `  ${f.name.padEnd(22)} f1 ${pct(f.f1)}  (tp ${f.truePositives.length} fp ${f.falsePositives.length} fn ${f.falseNegatives.length})`,
+        `  ${f.name.padEnd(22)} recall ${pct(f.recall)}` +
+        `  (tp ${f.truePositives.length} fn ${f.falseNegatives.length}` +
+        ` · FA ${f.falseAlarms.length}${f.certifiedClean ? '' : ' n/a'} · unlabeled ${f.unlabeled.length})`,
     ),
     '',
-    'Per defect type (ASI — where it misses):',
+    'Per defect type (ASI — where it misses / false-alarms):',
     ...score.perDefect.map(
       d =>
-        `  ${d.defectType.padEnd(24)} recall ${pct(d.recall)}  (tp ${d.tp} fp ${d.fp} fn ${d.fn})`,
+        `  ${d.defectType.padEnd(24)} ${d.severity.padEnd(17)} recall ${pct(d.recall)}` +
+        `  (tp ${d.tp} fn ${d.fn} · FA ${d.falseAlarms})`,
     ),
   ];
   return lines.join('\n');

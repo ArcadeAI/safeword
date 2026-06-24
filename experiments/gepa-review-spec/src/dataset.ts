@@ -15,6 +15,8 @@ export const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
 
 interface ExpectedFile {
   split?: 'train' | 'test';
+  /** See `Fixture.certifiedClean`. Defaults to false. */
+  certifiedClean?: boolean;
   defects: ExpectedDefect[];
 }
 
@@ -34,6 +36,7 @@ export function loadFixtures(dir: string = FIXTURES_DIR): Fixture[] {
         featureSource,
         expected: parsed.defects,
         split: parsed.split ?? 'train',
+        certifiedClean: parsed.certifiedClean ?? false,
       };
     });
 }

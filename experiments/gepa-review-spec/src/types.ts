@@ -39,6 +39,39 @@ export type DefectType = (typeof DEFECT_TYPES)[number];
 export type Severity = 'must-fix' | 'should-strengthen';
 
 /**
+ * Default severity for each defect type — derived by the HARNESS, never read
+ * from the model's output. This is the anti-gaming pin: a false-alarm signal
+ * keyed on a model-reported severity would let an optimizer dodge the signal by
+ * downgrading every finding to `should-strengthen`. By fixing severity to the
+ * type taxonomy, "report less / report softer" can't buy a better score.
+ *
+ * - **must-fix** = structural correctness defects in a single scenario (vacuous
+ *   assertion, non-atomic/non-observable scenario, a determinism flake, a
+ *   self-contradiction). A confident must-fix claim on a *clean* base is a real
+ *   false alarm — this is the only class the precision signal counts.
+ * - **should-strengthen** = coverage lenses (missing boundary/failure/security/
+ *   persona/negative-case). These fire on *any* non-exhaustive spec by design,
+ *   so raising one is correct behavior, never a false alarm.
+ */
+export const DEFAULT_SEVERITY: Record<DefectType, Severity> = {
+  'vacuous-existence-only': 'must-fix',
+  'vacuous-given-echo': 'must-fix',
+  'vacuous-trivially-true': 'must-fix',
+  'vacuous-non-claim': 'must-fix',
+  'non-atomic': 'must-fix',
+  'non-observable': 'must-fix',
+  'determinism-time': 'must-fix',
+  'determinism-order': 'must-fix',
+  'determinism-concurrency': 'must-fix',
+  conflict: 'must-fix',
+  'missing-negative-case': 'should-strengthen',
+  boundary: 'should-strengthen',
+  failure: 'should-strengthen',
+  security: 'should-strengthen',
+  persona: 'should-strengthen',
+};
+
+/**
  * Where a defect lives. Most defects are pinned to one scenario
  * (`scenario`). Set-level findings — a missing rejection path, a
  * cross-scenario conflict, an uncovered boundary — are `fixture`-scoped:
@@ -65,6 +98,16 @@ export interface Fixture {
   featureSource: string;
   expected: ExpectedDefect[];
   split: 'train' | 'test';
+  /**
+   * The base spec was adjudicated to ZERO latent must-fix defects, so its
+   * `expected` list is exhaustive for the must-fix class. Only on a certified
+   * base does an unmatched must-fix detection count as a false alarm; on an
+   * ordinary positive fixture an unmatched finding is `unlabeled`, never a
+   * false positive (the corpus can't be assumed exhaustive — bpref's
+   * "unjudged ≠ wrong"). Set true for clean negatives and single-mutation
+   * fixtures whose clean base was certified.
+   */
+  certifiedClean: boolean;
 }
 
 /** One defect the skill reported. */

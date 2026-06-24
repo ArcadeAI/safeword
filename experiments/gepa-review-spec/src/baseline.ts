@@ -4,11 +4,13 @@
  * Run (needs a key, spends tokens):
  *   ANTHROPIC_API_KEY=sk-... bun experiments/gepa-review-spec/src/baseline.ts
  *
- * Prints the baseline F1 + per-defect breakdown. That number is the bar any
- * GEPA-evolved candidate must beat on the held-out split.
+ * Prints recall (the trustworthy primary) and false alarms (must-fix on
+ * certified-clean bases only) SEPARATELY — never a single F1. Recall on the
+ * held-out split is the bar a GEPA-evolved candidate must beat without raising
+ * the false-alarm count.
  *
  * Set SAFEWORD_EVAL_TRACE=1 to also print each fixture's raw model response and
- * its true/false-positive/false-negative diff — the human-read verification that
+ * its TP / FN / false-alarm / unlabeled diff — the human-read verification that
  * the auto-score matches what the model actually said (Phase 3b).
  */
 
@@ -49,14 +51,12 @@ function formatTrace(trace: FixtureTrace, fixtures: Fixture[]): string {
     output.detections.length
       ? output.detections.map(d => `  • ${det(d)}`).join('\n')
       : '  (none parsed)',
-    `--- DIFF (f1 ${(score.f1 * 100).toFixed(1)}%  tp ${score.truePositives.length} fp ${score.falsePositives.length} fn ${score.falseNegatives.length}) ---`,
-    `  TP (correctly caught):`,
+    `--- DIFF (recall ${(score.recall * 100).toFixed(1)}%  tp ${score.truePositives.length} fn ${score.falseNegatives.length}` +
+      ` · FA ${score.falseAlarms.length}${score.certifiedClean ? '' : ' [n/a — not certified clean]'}` +
+      ` · unlabeled ${score.unlabeled.length}) ---`,
+    `  TP (seeded & caught):`,
     ...(score.truePositives.length
       ? score.truePositives.map(d => `    ✓ ${det(d)}`)
-      : ['    (none)']),
-    `  FP (false alarms — hurt precision):`,
-    ...(score.falsePositives.length
-      ? score.falsePositives.map(d => `    ✗ ${det(d)}`)
       : ['    (none)']),
     `  FN (seeded but missed — hurt recall):`,
     ...(score.falseNegatives.length
@@ -65,6 +65,10 @@ function formatTrace(trace: FixtureTrace, fixtures: Fixture[]): string {
             `    ! ${e.defectType} @ "${e.scope === 'fixture' ? '*' : (e.scenarioId ?? '?')}"${e.note ? ` — ${e.note}` : ''}`,
         )
       : ['    (none)']),
+    `  FA (must-fix on a certified-clean base — the ONLY true false positives):`,
+    ...(score.falseAlarms.length ? score.falseAlarms.map(d => `    ✗ ${det(d)}`) : ['    (none)']),
+    `  UNLABELED (unmatched, NOT penalized — under-labeling or advisory lens):`,
+    ...(score.unlabeled.length ? score.unlabeled.map(d => `    ~ ${det(d)}`) : ['    (none)']),
   ];
   return lines.join('\n');
 }

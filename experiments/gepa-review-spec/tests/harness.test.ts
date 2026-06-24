@@ -4,7 +4,7 @@ import { parseDetections, fakeRunner } from '../src/task';
 import type { Detection } from '../src/types';
 
 describe('dataset', () => {
-  it('loads the seed corpus with parsed labels and splits', () => {
+  it('loads the seed corpus with parsed labels, splits, and clean-certification', () => {
     const fixtures = loadFixtures();
     expect(fixtures.length).toBeGreaterThanOrEqual(3);
     expect(trainSplit(fixtures).length).toBeGreaterThan(0);
@@ -12,9 +12,11 @@ describe('dataset', () => {
 
     const refund = fixtures.find(f => f.name === 'payment-refund');
     expect(refund?.expected).toHaveLength(2);
+    expect(refund?.certifiedClean).toBe(false); // a positive fixture is not a clean base
 
     const clean = fixtures.find(f => f.name === 'inventory-sync');
     expect(clean?.expected).toHaveLength(0);
+    expect(clean?.certifiedClean).toBe(true); // adjudicated clean → false alarms count here
   });
 });
 
@@ -38,7 +40,7 @@ describe('parseDetections', () => {
 });
 
 describe('runEval', () => {
-  it('a perfect skill (returns each fixture’s seeded defects) scores f1 = 1', async () => {
+  it('a perfect skill (returns each fixture’s seeded defects) scores recall 1 with no false alarms', async () => {
     const fixtures = loadFixtures();
     // Build a lookup from feature source -> the detections a perfect skill would emit.
     const perfect = new Map<string, Detection[]>(
@@ -49,16 +51,17 @@ describe('runEval', () => {
     );
     const runner = fakeRunner((_skill, source) => perfect.get(source) ?? []);
     const score = await runEval('candidate prompt', fixtures, runner);
-    expect(score.f1).toBe(1);
-    expect(score.fn).toBe(0);
-    expect(score.fp).toBe(0);
+    expect(score.recall).toBe(1);
+    expect(score.seededCaught).toBe(score.seededTotal);
+    expect(score.falseAlarms).toBe(0);
   });
 
-  it('a skill that finds nothing has recall 0 on the defective fixtures', async () => {
+  it('a skill that finds nothing has recall 0 on the defective fixtures and raises no false alarms', async () => {
     const fixtures = trainSplit(loadFixtures());
     const runner = fakeRunner(() => []);
     const score = await runEval('candidate prompt', fixtures, runner);
-    expect(score.tp).toBe(0);
+    expect(score.seededCaught).toBe(0);
     expect(score.recall).toBe(0);
+    expect(score.falseAlarms).toBe(0);
   });
 });

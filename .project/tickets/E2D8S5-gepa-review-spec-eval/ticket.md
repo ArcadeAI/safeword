@@ -63,6 +63,42 @@ gated behind a seeded-defect eval).
     needs an honesty fix (severity-split P/R + mutation-certified-clean bases)
     before corpus expansion. Surfacing to user before proceeding past the
     "only if 3b looks trustworthy" gate. (refs commit `1dc4ae0e`)
+- 2026-06-24T04:12:00Z **Scoring-honesty decision (`/figure-it-out`, user-approved).**
+  Three literatures converged on one design (citations in ticket discussion):
+  - **Precision over an under-labeled positive corpus is formally unidentifiable**
+    (PU learning, Elkan & Noto 2008) — so don't try to measure it there. Treat an
+    unmatched finding on a non-certified fixture as _unlabeled, not wrong_ (IR
+    "unjudged ≠ wrong" / bpref, Buckley & Voorhees 2004).
+  - **Manufacture trustworthy negatives:** false-alarm rate depends only on the
+    negative cells, so a _certified-clean_ base measures it exactly with zero
+    positive labeling. A single-mutation fixture (one injected defect over a
+    certified-clean base) is both a recall probe and a precision probe.
+  - **Severity is harness-derived from defect TYPE, never model-reported** — a
+    model-reported severity would let GEPA dodge the false-alarm signal by
+    downgrading every finding to should-strengthen (a fresh suppression vector).
+  - **Kill the single F1 headline** (it was the gameable scalar); report recall +
+    false-alarm rate separately. Guard GEPA with a recall floor on must-fix +
+    frozen held-out + tripwires (Amodei et al. 2016; Manheim & Garrabrant 2018);
+    GEPA's Pareto front + per-instance `{score, feedback}` support this natively.
+  - **Premortem mitigation baked in:** a "clean" base is only eligible after
+    review-spec is run on it and every must-fix adjudicated to zero (found-clean
+    specs are 35–60% mislabeled in the literature). Equivalent-mutant curation is
+    manual for Gherkin (no compiler → no TCE); one mutation per fixture.
+- 2026-06-24T04:12:00Z **Refactored the scoring contract** (`evaluator.ts` + seams,
+  pure/no-tokens, gates Phase 2+4):
+  - `DEFAULT_SEVERITY: Record<DefectType, Severity>` in `types.ts` (structural →
+    must-fix; coverage lenses → should-strengthen). `Fixture.certifiedClean` added;
+    `dataset.ts` parses it.
+  - `scoreFixture` now emits `truePositives` / `falseNegatives` / **`falseAlarms`**
+    (must-fix unmatched on a certified-clean base ONLY) / **`unlabeled`** (every
+    other unmatched finding — never penalized). `aggregate` reports `recall`
+    (primary) + `mustFix`/`shouldStrengthen` tallies + `falseAlarms`/`cleanFixtures`/
+    `falseAlarmRate` + `unlabeled`; **no `f1`/`precision` headline.**
+  - `inventory-sync` marked `certifiedClean: true` (Phase 3b adjudicated it: only
+    advisory findings, zero must-fix — exactly the certification the premortem
+    requires).
+  - 16/16 unit tests pass (was 12; +4 lock the new semantics); `tsc --strict` clean
+    on `src/`.
 
 ---
 
@@ -87,9 +123,9 @@ gated behind a seeded-defect eval).
 ## Acceptance Criteria
 
 - [x] Phase 1: seeded-defect corpus with labeled `*.expected.json` + train/test split.
-- [x] Phase 2: deterministic scorer (precision/recall/F1 + per-defect ASI breakdown).
+- [x] Phase 2: deterministic scorer — revised for precision-honesty to recall (primary) + false-alarm rate on certified-clean bases + per-defect ASI; F1/precision-over-positives dropped as unidentifiable (see work-log 04:12Z).
 - [x] Phase 3a: baseline runner wired (`src/baseline.ts`).
-- [ ] Phase 3b: baseline run on a live key; auto-score confirmed to match a human read on the 3 seed fixtures.
+- [x] Phase 3b: baseline ran on a live key; parsing rock-solid and recall (100%) confirmed against a human read on all 3 seed fixtures. Surfaced that precision-as-labeled was untrustworthy → drove the scoring-contract refactor.
 - [ ] Phase 1+: corpus expanded to ~20 fixtures, ideally via mutation of safeword's own shipping `.feature` files (mutation operator = ground-truth label).
 - [ ] Phase 4: Python GEPA adapter that calls this harness as its metric; one optimization run completed within a logged token budget.
 - [ ] Phase 5: GEPA winner judged on the **held-out** split + human review; accepted only if held-out detection ↑, FP not worse, and voice/auditability preserved.
