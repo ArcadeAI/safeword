@@ -105,9 +105,7 @@ function parseStringList(raw: string | undefined): string[] {
   if (normalized === '') return [];
 
   const listBody =
-    normalized.startsWith('[') && normalized.endsWith(']')
-      ? normalized.slice(1, -1)
-      : normalized;
+    normalized.startsWith('[') && normalized.endsWith(']') ? normalized.slice(1, -1) : normalized;
 
   return listBody
     .split(',')

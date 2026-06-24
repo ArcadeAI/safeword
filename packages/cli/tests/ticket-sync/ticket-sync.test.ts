@@ -144,7 +144,8 @@ describe('ticket-sync', () => {
           id: 'EXT111',
           status: 'backlog',
           external_issue: 'https://github.com/ArcadeAI/safeword/issues/393',
-          external_prs: '[https://github.com/ArcadeAI/safeword/pull/400, https://github.com/ArcadeAI/safeword/pull/401]',
+          external_prs:
+            '[https://github.com/ArcadeAI/safeword/pull/400, https://github.com/ArcadeAI/safeword/pull/401]',
         },
         '# External links\n',
       );
@@ -177,14 +178,17 @@ describe('ticket-sync', () => {
           id: 'EXT113',
           status: 'backlog',
           external_issue: 'https://github.com/ArcadeAI/safeword/issues/395',
-          external_prs: '[https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411]',
+          external_prs:
+            '[https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411]',
         },
         '# External render\n',
       );
 
       const content = buildIndexContent(activeEntries(), { variant: 'active' });
       expect(content).toContain('external issue: https://github.com/ArcadeAI/safeword/issues/395');
-      expect(content).toContain('external PRs: https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411');
+      expect(content).toContain(
+        'external PRs: https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411',
+      );
     });
 
     it('title_falls_back_to_h1_then_slug', () => {
