@@ -8,8 +8,14 @@ import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
-// CLAUDE_CODE_SESSION_ID is set (and CLAUDE_SESSION_ID is empty) in remote container sessions (web, GitHub Actions).
-const ENV_SESSION_ID = process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID;
+// CLAUDE_CODE_SESSION_ID is set (and CLAUDE_SESSION_ID is empty) in remote
+// container sessions (web, GitHub Actions). Codex exposes CODEX_THREAD_ID
+// instead; the done gate treats session ids as opaque tokens, so the thread id
+// is a compatible proof binding.
+const ENV_SESSION_ID =
+  process.env.CLAUDE_SESSION_ID ||
+  process.env.CLAUDE_CODE_SESSION_ID ||
+  process.env.CODEX_THREAD_ID;
 
 export function recordSkillInvocation(
   projectDirectory: string,
@@ -20,7 +26,7 @@ export function recordSkillInvocation(
     throw new Error(`Invalid skill name "${skillName}"`);
   }
   if (sessionId === undefined || sessionId.trim().length === 0) {
-    // Non-Claude runtimes (Codex, etc.) don't expose a session id — skip silently.
+    // Runtimes without a compatible session id skip silently.
     return;
   }
 
