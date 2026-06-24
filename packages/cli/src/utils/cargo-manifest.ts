@@ -18,17 +18,49 @@ const DEPENDENCY_TABLES = ['dependencies', 'dev-dependencies', 'build-dependenci
  * entries are collected, comments and trailing commas are ignored.
  */
 export function readCargoWorkspaceMembers(content: string): string[] | undefined {
-  if (!/^\[workspace\]\s*$/m.test(content)) return undefined;
+  const body = workspaceMembersArrayBody(content.split(/\r?\n/));
+  if (body === undefined) return undefined;
 
-  const array = /members\s*=\s*\[([^\]]*)\]/.exec(content);
-  if (array?.[1] === undefined) return undefined;
-
-  const globs = array[1]
+  const globs = body
     .matchAll(/"([^"]*)"|'([^']*)'/g)
     .map(match => match[1] ?? match[2] ?? '')
     .filter(glob => glob.length > 0)
     .toArray();
   return globs.length > 0 ? globs : undefined;
+}
+
+/**
+ * The comment-stripped text inside the `[workspace]` table's `members = [ … ]` array,
+ * or `undefined` when there is no such array. Table-scoped (a `members` key under any
+ * other table is ignored) and comment-aware (a `]` inside a `#` comment does not close
+ * the array early) — both via the same line scan, so neither silently mis-reads.
+ */
+function workspaceMembersArrayBody(lines: string[]): string | undefined {
+  let inWorkspace = false;
+  let body: string | undefined;
+
+  for (const rawLine of lines) {
+    const line = stripComment(rawLine);
+    const trimmed = line.trim();
+
+    if (body === undefined) {
+      const header = /^\[\[?([^[\]]+)\]\]?\s*$/.exec(trimmed);
+      if (header?.[1] !== undefined) {
+        inWorkspace = header[1].trim() === 'workspace';
+        continue;
+      }
+      const opening = inWorkspace ? /members\s*=\s*\[(.*)$/.exec(trimmed) : undefined;
+      if (opening?.[1] === undefined) continue;
+      body = opening[1];
+    } else {
+      body += `\n${line}`;
+    }
+
+    const close = body.indexOf(']');
+    if (close !== -1) return body.slice(0, close);
+  }
+
+  return body;
 }
 
 /** The `[package] name`, or `undefined` when there is no `[package]` table with a name. */

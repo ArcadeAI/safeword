@@ -33,6 +33,23 @@ describe('readCargoWorkspaceMembers', () => {
     const toml = '[workspace]\nmembers = [\n  "a", # the a crate\n  "b",\n]\n';
     expect(readCargoWorkspaceMembers(toml)).toEqual(['a', 'b']);
   });
+
+  it('reads members from the [workspace] table, not a metadata members key', () => {
+    const toml = [
+      '[package.metadata.bundle]',
+      'members = ["META/wrong"]',
+      '',
+      '[workspace]',
+      'members = ["crates/*"]',
+      '',
+    ].join('\n');
+    expect(readCargoWorkspaceMembers(toml)).toEqual(['crates/*']);
+  });
+
+  it('does not drop members after a comment containing a closing bracket', () => {
+    const toml = '[workspace]\nmembers = [\n  "a", # see crates[] note\n  "b",\n  "c",\n]\n';
+    expect(readCargoWorkspaceMembers(toml)).toEqual(['a', 'b', 'c']);
+  });
 });
 
 describe('readCargoPackageName', () => {
