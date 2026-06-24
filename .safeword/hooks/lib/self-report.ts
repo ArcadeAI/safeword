@@ -299,6 +299,26 @@ export function installCrashCapture(
   process.on('unhandledRejection', handler);
 }
 
+/**
+ * Capture a gate-escalation signal: a safeword gate (`pattern`) has fired enough
+ * times across sessions to escalate — a candidate false-positive / friction in
+ * safeword's own gates. Stored as `{agent}:GateEscalation@{pattern}`. Best-effort
+ * and config-gated (`selfReport.capture`); never affects the caller's flow.
+ */
+export function captureGateEscalation(
+  projectDirectory: string,
+  sessionId: string | undefined,
+  pattern: string,
+): void {
+  if (!readSelfReportConfig(projectDirectory).capture) return;
+  recordSignal(
+    projectDirectory,
+    sessionId ?? 'hook',
+    { source: pattern, agent: detectAgent(), errorClass: 'GateEscalation' },
+    readInstalledVersion(projectDirectory),
+  );
+}
+
 /** Parse one spool file into records, skipping blank/malformed lines. */
 function parseSpoolFile(filePath: string): SelfReportRecord[] {
   let content: string;

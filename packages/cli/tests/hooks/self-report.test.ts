@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildRecord,
+  captureGateEscalation,
   detectAgent,
   formatIssueDrafts,
   formatSelfReportSurfacing,
@@ -405,6 +406,29 @@ describe('self-report capture (QYYC5Y)', () => {
           { sessionId: 's', safewordVersion: '1' },
         ).agent,
       ).toBe('unknown');
+    });
+  });
+
+  describe('captureGateEscalation (Slice 1b)', () => {
+    it('records a GateEscalation signal for the gate pattern', () => {
+      captureGateEscalation(projectDirectory, 's', 'done-gate-tests-failed');
+      const records = readReports(projectDirectory);
+      expect(records).toHaveLength(1);
+      expect(records[0]?.errorClass).toBe('GateEscalation');
+      expect(records[0]?.source).toBe('done-gate-tests-failed');
+      expect(summarizeReports(records)[0]?.signature).toContain(
+        'GateEscalation@done-gate-tests-failed',
+      );
+    });
+
+    it('is suppressed when selfReport.capture is false', () => {
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(projectDirectory, '.safeword', 'config.json'),
+        JSON.stringify({ selfReport: { capture: false } }),
+      );
+      captureGateEscalation(projectDirectory, 's', 'loc');
+      expect(readReports(projectDirectory)).toHaveLength(0);
     });
   });
 

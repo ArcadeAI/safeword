@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './namespace-root.js';
+import { captureGateEscalation } from './self-report.js';
 
 export const LOC_THRESHOLD = 400;
 /** Counter threshold for CLAUDE.md escalation suggestions. */
@@ -162,6 +163,13 @@ export function recordFailure(
         entry.lastSeen = new Date().toISOString().slice(0, 10);
         counters[pattern] = entry;
         writeCounters(projectDirectory, counters);
+
+        // Self-observation (#344): a gate that has fired enough to escalate is a
+        // candidate false-positive in safeword's own gates. Emit exactly at the
+        // crossing so volume is bounded to one signal per pattern. Best-effort.
+        if (entry.count === ESCALATION_THRESHOLD) {
+          captureGateEscalation(projectDirectory, sessionId, pattern);
+        }
       }
       state.incrementedPatterns = incremented;
 
