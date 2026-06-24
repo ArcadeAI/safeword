@@ -21,7 +21,7 @@ Feature: Python language pack — pyproject discovery, package extraction, depen
 
     @architecture-python-language-pack.TB1.AC2
     Scenario: A flat-layout Python project lists root packages and modules, not tooling files
-      Given a flat-layout Python project with a package "core", a module "utils", and a conftest.py
+      Given a flat-layout Python project with a package dir "core", a module file "utils.py", and a conftest.py
       When safeword generates the architecture doc
       Then the doc lists the module "core"
       And the doc lists the module "utils"

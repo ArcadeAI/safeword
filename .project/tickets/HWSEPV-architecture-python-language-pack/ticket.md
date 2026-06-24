@@ -2,7 +2,7 @@
 id: HWSEPV
 slug: architecture-python-language-pack
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 created: 2026-06-24T05:31:11.433Z
 last_modified: 2026-06-24T05:35:00.000Z
@@ -82,3 +82,9 @@ LanguagePack registry refactor inside this slice (rule-of-N — abstract after a
   extraction, PEP 508 name extraction for deps; Poetry/requirements/setup.py + the
   registry refactor scoped out (the refactor to its own post-4-langs ticket). Next:
   define-behavior. One open item: verify uv workspace TOML syntax at implement.
+- 2026-06-24T05:39:00Z Complete: scenario-gate. Independent /review-spec PASS-WITH-NITS
+  (every scenario RED today for a new-behavior reason; marker-distinctness + drift
+  observability confirmed). Applied nit 1 (scenario 2 Given pins package-dir + module-file
+  so both flat-layout branches are exercised); accepted nit 2 as-is (drift scenario keeps
+  the Go/Rust shape, unit-backstopped). Stamp recorded; impl-plan written. Advancing to
+  implement (gate: verify uv members syntax before GREEN).

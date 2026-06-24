@@ -63,6 +63,14 @@ pinned by unit tests as a secondary layer, listed under "Unit-pinned" below.
 - The `the doc does not list the module "X"` Then (scenario 2's tooling exclusion) already
   exists from the Rust slice — no new step definition is required; the Python-specific Givens
   live in a new `steps/architecture-python-language-pack.steps.ts`.
+- **Scenario 2 Given pins both flat-layout branches** (scenario-gate nit): "a package dir
+  `core` (with **init**.py)" AND "a module file `utils.py`" — so the fixture exercises root
+  `__init__.py`-dir extraction AND root `*.py` extraction, not just one. Do not collapse both
+  to `.py` files.
+- **Scenario 5 (drift) keeps the Go/Rust shape** (asserts stale-after-add, no explicit
+  fresh-before anchor) — a deliberate cross-pack-consistency choice; the false-positive guard
+  (a version bump does NOT move the fingerprint) is unit-pinned, which backstops an
+  "always-stale" bug. Changing only Python's drift scenario would diverge from the shipped lanes.
 
 ## Unit-pinned (secondary — fine-grained internals beneath the black-box scenarios)
 
