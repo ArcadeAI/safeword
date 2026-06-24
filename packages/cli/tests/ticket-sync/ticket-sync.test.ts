@@ -340,6 +340,36 @@ describe('ticket-sync', () => {
     });
   });
 
+  describe('conflict-marker guidance (398)', () => {
+    it('reports conflicted index files in the sync result and rewrites them cleanly', () => {
+      writeTicket('active-ticket', { id: 'ACT', status: 'backlog' });
+      writeTicket('done-ticket', { id: 'DONE', status: 'done' }, '', { completed: true });
+      syncTickets(temporaryDirectory);
+
+      const conflictMarker = [
+        '<<<<<<< HEAD',
+        'conflict',
+        '=======',
+        'incoming',
+        '>>>>>>> branch',
+      ].join('\n');
+      writeFileSync(nodePath.join(ticketsDirectory, INDEX_FILENAME), conflictMarker);
+      writeFileSync(
+        nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME),
+        ['<<<<<<< HEAD', 'keep', '=======', 'alt', '>>>>>>> branch'].join('\n'),
+      );
+
+      const result = syncTickets(temporaryDirectory);
+      expect(result.indexConflicts).toEqual([
+        nodePath.join(ticketsDirectory, INDEX_FILENAME),
+        nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME),
+      ]);
+      expect(result.wrote).toBe(true);
+      expect(readFileSync(result.indexPath, 'utf8')).not.toMatch(/^(?:<{7}|={7}|>{7})/m);
+      expect(readFileSync(result.completedIndexPath, 'utf8')).not.toMatch(/^(?:<{7}|={7}|>{7})/m);
+    });
+  });
+
   // ── adversarial robustness (folded from scenario-gate) ──
 
   describe('robustness', () => {

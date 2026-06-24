@@ -39,4 +39,11 @@ export function syncTicketsCommand(options: SyncTicketsOptions = {}): void {
   if (result.skipped.length > 0) {
     warn(`${result.skipped.length} ticket folder(s) skipped — see stderr for details`);
   }
+
+  if (result.indexConflicts.length > 0) {
+    warn(
+      `Detected merge-conflict markers in ${result.indexConflicts.length} ticket index file(s). ` +
+        'Run `safeword sync-tickets --quiet` to regenerate cleanly.',
+    );
+  }
 }

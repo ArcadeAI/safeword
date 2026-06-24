@@ -532,6 +532,27 @@ describe('Test Suite 8: Health Check', () => {
     });
   });
 
+  describe('ticket index conflict advisory (ticket 398)', () => {
+    it('warns when ticket index files still contain merge-conflict markers and keeps exit green', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeFrontmatterTicket('T001-clean', ['id: T001', 'status: backlog']);
+      writeTestFile(
+        temporaryDirectory,
+        '.project/tickets/INDEX.md',
+        ['<<<<<<< HEAD', 'index', '=======', 'incoming', '>>>>>>> branch'].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], {
+        cwd: temporaryDirectory,
+      });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/merge-conflict markers/i);
+      expect(combined).toMatch(/safeword sync-tickets --quiet/i);
+    });
+  });
+
   describe('MBGQ89: blocked_on relation advisories (warn-only)', () => {
     it('warns on a dangling blocked_on, a cycle, and a self-cycle, zero-exit', async () => {
       await createConfiguredProject(temporaryDirectory);

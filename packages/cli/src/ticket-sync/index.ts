@@ -49,6 +49,19 @@ export interface TicketSyncResult {
   skipped: { folder: string; reason: string }[];
   indexPath: string;
   completedIndexPath: string;
+  indexConflicts: string[];
+}
+
+/** Detect Git merge-conflict markers in generated artifact content. */
+function hasMergeConflictMarkers(content: string): boolean {
+  const mergePattern = /^(?:<{7}|={7}|>{7})(?:\s|$)/m;
+  return mergePattern.test(content);
+}
+
+function detectConflictedIndex(indexPath: string): string | undefined {
+  if (!existsSync(indexPath)) return undefined;
+  const content = readFileSync(indexPath, 'utf8');
+  return hasMergeConflictMarkers(content) ? indexPath : undefined;
 }
 
 /** Strip a single layer of matching surrounding quotes. */
@@ -319,9 +332,21 @@ export function syncTickets(cwd: string): TicketSyncResult {
   const relativeLabel = nodePath.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
   const indexPath = nodePath.join(ticketsDirectory, INDEX_FILENAME);
   const completedIndexPath = nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME);
+  const indexConflicts = [
+    detectConflictedIndex(indexPath),
+    detectConflictedIndex(completedIndexPath),
+  ].filter((path): path is string => path !== undefined);
 
   if (!existsSync(ticketsDirectory)) {
-    return { wrote: false, active: [], completed: [], skipped: [], indexPath, completedIndexPath };
+    return {
+      wrote: false,
+      active: [],
+      completed: [],
+      skipped: [],
+      indexPath,
+      completedIndexPath,
+      indexConflicts: [],
+    };
   }
 
   const { active, completed, skipped } = readTickets(ticketsDirectory, relativeLabel);
@@ -341,5 +366,6 @@ export function syncTickets(cwd: string): TicketSyncResult {
     skipped,
     indexPath,
     completedIndexPath,
+    indexConflicts,
   };
 }

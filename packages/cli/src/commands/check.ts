@@ -97,6 +97,12 @@ function regenerateTicketIndex(cwd: string): void {
     if (result.wrote) {
       info('Regenerated ticket index (INDEX.md / INDEX-completed.md)');
     }
+    if (result.indexConflicts.length > 0) {
+      warn(
+        `Ticket index file(s) contained merge-conflict markers: ${result.indexConflicts.join(', ')}. ` +
+          'Run `safeword sync-tickets --quiet` after resolving the merge conflict.',
+      );
+    }
   } catch (error: unknown) {
     // Best-effort: index freshness must never fail the health check. Surface
     // under DEBUG, then return — the deliberate swallow point.
