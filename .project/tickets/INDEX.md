@@ -273,33 +273,33 @@
   Make the Codex parity epic comply with safeword's feature-files-as-source workflow.
   → `.project/tickets/XK5N14-ensure-codex-feature-file-coverage`
 
-### cursor-changelog-alignment
+### cursor-optimization
 
-- **Migrate Cursor Rules to @reference Pattern (151)** (done, epic: cursor-changelog-alignment)
+- **Migrate Cursor Rules to @reference Pattern (151)** (done, epic: cursor-optimization)
   Convert the four duplicate-content Cursor rules (`safeword-debugging.mdc`, `safeword-quality-reviewing.mdc`, `safeword-refactoring.mdc`, `safeword-testing.mdc`) to the `@reference` pattern so each rule is a thin pointer to the corresponding Claude skill file. Single source of truth, zero drift risk.
   → `.project/tickets/151-migrate-cursor-rules-to-reference-pattern`
-- **Re-architect done/stop gate for Cursor (stop cannot block) (AKNWZK)** (in_progress, epic: cursor-changelog-alignment)
+- **Re-architect done/stop gate for Cursor (stop cannot block) (AKNWZK)** (in_progress, epic: cursor-optimization)
   Make the done gate behave correctly on Cursor, where `stop` cannot block — it can only auto-continue via `followup_message`, capped by `loop_limit` (default 5).
   → `.project/tickets/AKNWZK-cursor-stop-gate-rearchitect`
-- **Set failClosed:true on Cursor gating hooks (default is fail-open) (ANAXG4)** (in_progress, epic: cursor-changelog-alignment)
+- **Set failClosed:true on Cursor gating hooks (default is fail-open) (ANAXG4)** (in_progress, epic: cursor-optimization)
   Mark safeword's security/gating Cursor hooks `failClosed: true` so a crashed/timed-out/invalid-JSON hook denies rather than silently letting the action through.
   → `.project/tickets/ANAXG4-cursor-failclosed-gating-hooks`
-- **Package safeword as Cursor Team-Marketplace plugin (Required mode) (DXYKJX)** (in_progress, epic: cursor-changelog-alignment)
+- **Package safeword as Cursor Team-Marketplace plugin (Required mode) (DXYKJX)** (in_progress, epic: cursor-optimization)
   Ship safeword as a Cursor Team-Marketplace plugin bundling hooks + rules + commands/skills + MCP, with "Required" install mode for enforcement.
   → `.project/tickets/DXYKJX-cursor-marketplace-plugin-packaging`
-- **Wire beforeSubmitPrompt as Cursor turn-start blocking gate (F2TKR3)** (in_progress, epic: cursor-changelog-alignment)
+- **Wire beforeSubmitPrompt as Cursor turn-start blocking gate (F2TKR3)** (in_progress, epic: cursor-optimization)
   Add a `beforeSubmitPrompt` hook — the only true turn-start chokepoint on Cursor that can block — to inject the phase reminder and hard-gate when a phase precondition is unmet.
   → `.project/tickets/F2TKR3-cursor-before-submit-prompt-gate`
-- **Add Cursor sessionStart hook for context injection (RBZR3F)** (done, epic: cursor-changelog-alignment)
+- **Add Cursor sessionStart hook for context injection (RBZR3F)** (done, epic: cursor-optimization)
   Inject SAFEWORD phase/context at session open via `sessionStart`'s `additional_context` + `env`, instead of relying solely on `.cursor/rules`.
   → `.project/tickets/RBZR3F-cursor-session-start-hook`
-- **Port phase/LOC gates to Cursor preToolUse + beforeShellExecution deny (T3DV1K)** (in_progress, epic: cursor-changelog-alignment)
+- **Port phase/LOC gates to Cursor preToolUse + beforeShellExecution deny (T3DV1K)** (in_progress, epic: cursor-optimization)
   Replace observe-only `afterFileEdit` with real blocking: `preToolUse` (deny edits before `test-definitions.md`) and `beforeShellExecution` (LOC/commit gate, dangerous-command policy).
   → `.project/tickets/T3DV1K-cursor-blocking-edit-shell-gates`
-- **Verify hook deny wins over Cursor Auto-review Run Mode (3.6) (TDX8NT)** (in_progress, epic: cursor-changelog-alignment)
+- **Verify hook deny wins over Cursor Auto-review Run Mode (3.6) (TDX8NT)** (in_progress, epic: cursor-optimization)
   Confirm that safeword's `beforeShellExecution` / `beforeMCPExecution` deny still wins when Cursor's Auto-review Run Mode classifier auto-approves Shell/MCP/Fetch calls.
   → `.project/tickets/TDX8NT-cursor-autoreview-deny-precedence`
-- **Epic: Cursor optimization (VAX3Z2)** (open, epic: cursor-changelog-alignment)
+- **Epic: Cursor optimization (VAX3Z2)** (open, epic: cursor-optimization)
   Restore real enforcement to safeword's Cursor integration — it currently relies on the two _non-blocking_ hook events — and pick up the blocking chokepoints + distribution path Cursor now offers.
   → `.project/tickets/VAX3Z2-cursor-changelog-alignment-epic`
 

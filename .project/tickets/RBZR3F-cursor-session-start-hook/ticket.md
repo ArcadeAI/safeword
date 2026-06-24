@@ -4,7 +4,7 @@ slug: cursor-session-start-hook
 type: task
 phase: intake
 status: done
-epic: cursor-changelog-alignment
+epic: cursor-optimization
 relates_to: VAX3Z2
 last_modified: 2026-06-24T04:30:00Z
 ---

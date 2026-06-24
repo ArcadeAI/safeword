@@ -4,14 +4,14 @@ slug: cursor-changelog-alignment-epic
 type: feature
 phase: intake
 status: open
-epic: cursor-changelog-alignment
+epic: cursor-optimization
 created: 2026-05-31T21:09:47.366Z
 last_modified: 2026-06-24T04:30:00Z
 ---
 
 # Epic: Cursor optimization
 
-_(originally "Cursor changelog + docs alignment"; broadened 2026-06-24 to the single home for all Cursor work. Id `VAX3Z2` and epic key `cursor-changelog-alignment` are unchanged to avoid churning child frontmatter.)_
+_(originally "Cursor changelog + docs alignment"; broadened 2026-06-24 to the single home for all Cursor work, and the epic key renamed `cursor-changelog-alignment` → `cursor-optimization` across all children. Id `VAX3Z2` and the ticket directory slug are unchanged.)_
 
 **Goal:** Restore real enforcement to safeword's Cursor integration — it currently relies on the two _non-blocking_ hook events — and pick up the blocking chokepoints + distribution path Cursor now offers.
 
@@ -57,7 +57,7 @@ cursor.com/docs/hooks(.md), /docs/context/rules, /docs/context/commands, cursor.
 
 ## Tickets
 
-Core children (own the `cursor-changelog-alignment` epic key). Status revalidated 2026-06-24:
+Core children (own the `cursor-optimization` epic key). Status revalidated 2026-06-24:
 
 | ID         | Title                                                              | Tier                | Status          |
 | ---------- | ------------------------------------------------------------------ | ------------------- | --------------- |

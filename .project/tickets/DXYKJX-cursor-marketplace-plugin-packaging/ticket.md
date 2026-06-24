@@ -4,7 +4,7 @@ slug: cursor-marketplace-plugin-packaging
 type: task
 phase: intake
 status: in_progress
-epic: cursor-changelog-alignment
+epic: cursor-optimization
 relates_to: VAX3Z2
 ---
 
