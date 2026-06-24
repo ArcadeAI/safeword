@@ -2,10 +2,10 @@
 id: QHXE6W
 slug: self-report-filing
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-06-24T04:11:57.301Z
-last_modified: 2026-06-24T04:11:57.301Z
+last_modified: 2026-06-24T04:33:00.000Z
 ---
 
 # Agent filing loop + selfReport.\* config gating (#353)
