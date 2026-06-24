@@ -59,26 +59,26 @@ cursor.com/docs/hooks(.md), /docs/context/rules, /docs/context/commands, cursor.
 
 Core children (own the `cursor-optimization` epic key). Status revalidated 2026-06-24:
 
-| ID         | Title                                                              | Tier                | Status          |
-| ---------- | ------------------------------------------------------------------ | ------------------- | --------------- |
+| ID         | Title                                                              | Tier                | Status           |
+| ---------- | ------------------------------------------------------------------ | ------------------- | ---------------- |
 | **RBZR3F** | Add `sessionStart` context injection                               | restore enforcement | ✅ done          |
 | **151**    | Migrate four Cursor rules to `@reference` pattern                  | drift/parity        | ✅ done (folded) |
-| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement | open            |
-| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | open            |
-| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | open            |
-| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | open            |
-| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | open            |
-| **DXYKJX** | Package as Team-Marketplace plugin (Required mode)                 | distribution        | open            |
+| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement | open             |
+| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | open             |
+| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | open             |
+| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | open             |
+| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | open             |
+| **DXYKJX** | Package as Team-Marketplace plugin (Required mode)                 | distribution        | open             |
 
 ### Cross-epic Cursor work (soft-linked, not re-parented)
 
 These are Cursor-specific deliverables whose natural home is a cross-agent epic. They keep their parent and carry `relates_to: VAX3Z2`, so this epic indexes all Cursor work without orphaning them from their Claude+Cursor+Codex coordination.
 
-| ID         | Title                                          | Home epic               | Status      |
-| ---------- | ---------------------------------------------- | ----------------------- | ----------- |
-| **1833FW** | Keep Cursor verify evidence aligned            | agent-surface-refactor  | in_progress |
-| **F1HTQ4** | Generate Cursor command/rule wrappers from meta | agent-surface-refactor  | in_progress |
-| **Y6HZR7** | Auto-upgrade under Cursor                      | auto-upgrade-cross-agent | blocked     |
+| ID         | Title                                           | Home epic                | Status      |
+| ---------- | ----------------------------------------------- | ------------------------ | ----------- |
+| **1833FW** | Keep Cursor verify evidence aligned             | agent-surface-refactor   | in_progress |
+| **F1HTQ4** | Generate Cursor command/rule wrappers from meta | agent-surface-refactor   | in_progress |
+| **Y6HZR7** | Auto-upgrade under Cursor                       | auto-upgrade-cross-agent | blocked     |
 
 ## Sequencing
 

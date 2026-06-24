@@ -879,6 +879,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/cursor/after-file-edit.ts': {
       template: 'hooks/cursor/after-file-edit.ts',
     },
+    '.safeword/hooks/cursor/before-submit-prompt.ts': {
+      template: 'hooks/cursor/before-submit-prompt.ts',
+    },
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },
 
@@ -984,7 +987,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.markdownlint-cli2.jsonc': MARKDOWNLINT_CLI2_IGNORES_MERGE,
 
     '.cursor/hooks.json': {
-      keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],
+      keys: [
+        'version',
+        'hooks.sessionStart',
+        'hooks.beforeSubmitPrompt',
+        'hooks.afterFileEdit',
+        'hooks.stop',
+      ],
       removeFileIfEmpty: true,
       merge: existing => {
         const hooks = (existing.hooks as Record<string, unknown[]>) ?? {};

@@ -109,6 +109,9 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
         'bun ./.safeword/hooks/cursor/after-file-edit.ts',
       );
       expect(hooksConfig.hooks.stop[0].command).toBe('bun ./.safeword/hooks/cursor/stop.ts');
+      expect(hooksConfig.hooks.beforeSubmitPrompt[0].command).toBe(
+        'bun ./.safeword/hooks/cursor/before-submit-prompt.ts',
+      );
     });
   });
 

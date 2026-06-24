@@ -298,6 +298,7 @@ ${prettier.configEntry}
 // Note: Cursor runs hooks from the workspace root, so use ./ prefix
 export const CURSOR_HOOKS = {
   sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
+  beforeSubmitPrompt: [{ command: 'bun ./.safeword/hooks/cursor/before-submit-prompt.ts' }],
   afterFileEdit: [{ command: 'bun ./.safeword/hooks/cursor/after-file-edit.ts' }],
   stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts' }],
 };
