@@ -68,6 +68,7 @@ const MAX_MESSAGES_FOR_TOOLS = 5;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
+const PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
 const USAGE_LIMIT_PATTERN = /\b(usage limit reached|5-hour limit reached)\b/i;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -78,6 +79,11 @@ interface TicketInfo {
   phase: BddPhase | undefined;
   type: string | undefined;
   folder: string | undefined;
+}
+
+interface VerifyArtifactStatus {
+  ok: boolean;
+  reason?: string;
 }
 
 /**
@@ -436,8 +442,31 @@ Run /audit, show output, then try again.`;
 Expected evidence formats:
 - "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)
 - "**Gherkin:** ✅ Acceptance lane passes" or "Skipped — no test:bdd script" (acceptance lane evidence)${auditLine}
+- "**PR Scope:** ✅ Diff matches ticket scope" or a skipped status with a reason
 
 Run /verify, show output, then try again.`;
+}
+
+function checkVerifyArtifact(content: string): VerifyArtifactStatus {
+  const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
+  if (!prScopeMatch?.groups?.status) {
+    return {
+      ok: false,
+      reason:
+        'verify.md is missing PR scope evidence. Run /verify again so it records `**PR Scope:**` before marking done.',
+    };
+  }
+
+  const status = prScopeMatch.groups.status;
+  if (/❌|piggybacked changes/i.test(status)) {
+    return {
+      ok: false,
+      reason:
+        'verify.md says PR scope failed. Revert or split the piggybacked work, or explicitly accept the scope change in the ticket artifacts before marking done.',
+    };
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -526,17 +555,25 @@ if (currentPhase === 'done') {
   }
 
   // Verify.md artifact gate — replaces text-pattern matching for audit evidence.
-  // verify.md is written by /verify skill when all checks pass.
+  // verify.md is written by /verify skill when all checks pass, including the
+  // PR-scope evidence that keeps unrelated work out of the closing change.
   if (ticketInfo.folder) {
     const verifyPath = `${ticketsDir}/${ticketInfo.folder}/verify.md`;
     const verifyExists = existsSync(verifyPath);
-    const verifyValid = verifyExists && readFileSync(verifyPath, 'utf8').trim().length > 0;
+    const verifyContent = verifyExists ? readFileSync(verifyPath, 'utf8') : '';
+    const verifyValid = verifyContent.trim().length > 0;
 
     if (!verifyValid) {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(
         `No valid verify.md found in ticket folder. Run /verify to generate evidence before marking done.`,
       );
+    }
+
+    const verifyArtifactStatus = checkVerifyArtifact(verifyContent);
+    if (!verifyArtifactStatus.ok) {
+      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      hardBlockDone(verifyArtifactStatus.reason ?? 'verify.md PR scope evidence is invalid.');
     }
   }
 

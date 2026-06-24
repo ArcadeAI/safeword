@@ -242,12 +242,13 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       expect(message.toLowerCase()).toMatch(/tests.*pass/);
     });
 
-    it('done evidence cites /audit AND /verify AND verify.md AND scope drift AND scenario coverage AND refactoring', () => {
+    it('done evidence cites /audit AND /verify AND verify.md AND PR scope AND scenario coverage AND refactoring', () => {
       const message = getQualityMessage('done');
       expect(message).toContain('/audit');
       expect(message).toContain('/verify');
       expect(message).toContain('verify.md');
-      expect(message.toLowerCase()).toContain('scope drift');
+      expect(message.toLowerCase()).toContain('pr scope');
+      expect(message.toLowerCase()).toContain('no piggybacked work');
       expect(message.toLowerCase()).toContain('scenario coverage');
       expect(message.toLowerCase()).toContain('refactoring');
     });
