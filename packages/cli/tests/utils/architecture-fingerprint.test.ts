@@ -113,3 +113,62 @@ describe('shapeFingerprint — captures shape, not noise', () => {
     }
   });
 });
+
+describe('shapeFingerprint — Go module dependencies (ticket ZD70P1)', () => {
+  function writeGoModule(directory: string, requires: string[]): void {
+    const indented = requires.map(requireLine => `\t${requireLine}`).join('\n');
+    const block = requires.length === 0 ? '' : `\nrequire (\n${indented}\n)\n`;
+    writeFileSync(
+      nodePath.join(directory, 'go.mod'),
+      `module example.com/app\n\ngo 1.22\n${block}`,
+    );
+  }
+
+  function scaffoldGo(directory: string, requires: string[]): void {
+    mkdirSync(nodePath.join(directory, 'cmd', 'server'), { recursive: true });
+    writeGoModule(directory, requires);
+  }
+
+  it('moves when a go.mod require is added', () => {
+    scaffoldGo(context.directory, ['github.com/a/one v1.0.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writeGoModule(context.directory, ['github.com/a/one v1.0.0', 'github.com/b/two v1.0.0']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('moves when a go.mod require is removed', () => {
+    scaffoldGo(context.directory, ['github.com/a/one v1.0.0', 'github.com/b/two v1.0.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writeGoModule(context.directory, ['github.com/a/one v1.0.0']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('does not move when only a require version is bumped (versions excluded)', () => {
+    scaffoldGo(context.directory, ['github.com/a/one v1.0.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writeGoModule(context.directory, ['github.com/a/one v2.0.0']);
+
+    expect(shapeFingerprint(context.directory)).toBe(before);
+  });
+
+  it('reads a single-line require directive', () => {
+    scaffoldGo(context.directory, []);
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      'module example.com/app\n\ngo 1.22\n',
+    );
+    const before = shapeFingerprint(context.directory);
+
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      'module example.com/app\n\ngo 1.22\n\nrequire github.com/a/one v1.0.0\n',
+    );
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+});

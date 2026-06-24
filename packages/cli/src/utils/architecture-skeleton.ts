@@ -11,8 +11,18 @@
 import { type Dirent, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { exists, isDirectory } from './fs.js';
+
 /** Placeholder purpose for a freshly extracted node awaiting human prose. */
 const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
+
+/**
+ * Conventional top-level directories of a Go module (ticket ZD70P1). Used as the
+ * structural modules when a directory has a `go.mod` and no `src/` tree, so a Go
+ * project is described by its real layout instead of the empty skeleton that left
+ * it "not introspected".
+ */
+const GO_LAYOUT_DIRECTORIES = ['cmd', 'internal', 'pkg'] as const;
 
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
@@ -29,29 +39,53 @@ export interface Skeleton {
 }
 
 export function extractSkeleton(projectDirectory: string): Skeleton {
-  const sourceDirectory = nodePath.join(projectDirectory, 'src');
+  // The `src/` layout (TS/JS) is authoritative and unchanged: when it yields
+  // modules, that is the skeleton.
+  const sourceNodes = enumerateModuleDirectories(
+    nodePath.join(projectDirectory, 'src'),
+    name => `src/${name}`,
+  );
+  if (sourceNodes.length > 0) return { nodes: sourceNodes };
 
-  let entries: Dirent[];
-  try {
-    entries = readdirSync(sourceDirectory, { withFileTypes: true });
-  } catch {
-    return { nodes: [] };
+  // No `src/` modules: a Go module (a `go.mod` is present) is described by its
+  // conventional top-level layout directories instead (ticket ZD70P1). A flat Go
+  // package with none of these stays an empty skeleton — honestly "not
+  // introspected" (ZRW21K), never falsely complete.
+  if (exists(nodePath.join(projectDirectory, 'go.mod'))) {
+    return { nodes: goLayoutNodes(projectDirectory) };
   }
 
-  const nodes = entries
-    .filter(entry => entry.isDirectory())
-    .map(entry => ({
-      name: entry.name,
-      // Forward slashes always — the rendered doc and fingerprint must be
-      // platform-stable (the fingerprint normalizes paths the same way).
-      path: `src/${entry.name}`,
-      purpose: PURPOSE_PLACEHOLDER,
-    }))
-    // Sort by name so the rendered document is deterministic across
-    // filesystems (readdirSync order is not guaranteed), like the fingerprint.
-    .toSorted((a, b) => a.name.localeCompare(b.name));
+  return { nodes: sourceNodes };
+}
 
-  return { nodes };
+/**
+ * The immediate subdirectories of `directory` as skeleton nodes, sorted by name
+ * (readdirSync order is not guaranteed; the rendered doc and fingerprint must be
+ * deterministic). `pathFor` maps a module name to its forward-slashed code
+ * reference — platform-stable, the way the fingerprint normalizes paths.
+ */
+function enumerateModuleDirectories(
+  directory: string,
+  pathFor: (name: string) => string,
+): SkeletonNode[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  return entries
+    .filter(entry => entry.isDirectory())
+    .map(entry => ({ name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER }))
+    .toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The recognized Go layout directories that actually exist, as sorted nodes. */
+function goLayoutNodes(projectDirectory: string): SkeletonNode[] {
+  return GO_LAYOUT_DIRECTORIES.filter(name => isDirectory(nodePath.join(projectDirectory, name)))
+    .map(name => ({ name, path: name, purpose: PURPOSE_PLACEHOLDER }))
+    .toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
 /**

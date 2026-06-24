@@ -76,6 +76,15 @@ export function shapeFingerprint(projectDirectory: string): string {
 }
 
 function readDependencyNames(projectDirectory: string): string[] {
+  const names = new Set<string>(readPackageJsonDependencyNames(projectDirectory));
+  // Go module requires (ticket ZD70P1): a `go.mod`'s require set is part of the
+  // shape, so Go dependency drift moves the fingerprint the same way a package.json
+  // dependency change does. A JS-only project has no go.mod, so this is a no-op there.
+  for (const goModule of readGoModuleRequires(projectDirectory)) names.add(goModule);
+  return [...names].toSorted(byString);
+}
+
+function readPackageJsonDependencyNames(projectDirectory: string): string[] {
   const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
   if (manifest === undefined) return [];
 
@@ -87,7 +96,51 @@ function readDependencyNames(projectDirectory: string): string[] {
     }
   }
 
-  return [...names].toSorted(byString);
+  return [...names];
+}
+
+/**
+ * Module paths from a `go.mod`'s require directives — keys only, versions
+ * excluded (a version bump is noise, like a package.json version bump). Reads both
+ * the `require (\n  path v1\n)` block and single-line `require path v1` forms; a
+ * dependency-free parse, consistent with the go.work / pnpm hand-parses.
+ */
+function readGoModuleRequires(projectDirectory: string): string[] {
+  let content: string;
+  try {
+    content = readFileSync(nodePath.join(projectDirectory, 'go.mod'), 'utf8');
+  } catch {
+    return [];
+  }
+
+  const lines = content.split(/\r?\n/);
+  const modules = new Set<string>();
+  collectGoRequireBlock(lines, modules);
+  collectGoRequireLines(lines, modules);
+  return [...modules].toSorted(byString);
+}
+
+/** Module paths from the `require (\n … \n)` block, stopping at the closing paren. */
+function collectGoRequireBlock(lines: string[], modules: Set<string>): void {
+  const start = lines.findIndex(line => /^require\s*\(\s*$/.test(line.trim()));
+  if (start === -1) return;
+
+  const blockLines = lines.slice(start + 1);
+  for (const line of blockLines) {
+    const trimmed = line.trim();
+    if (trimmed === ')') break;
+    if (trimmed === '' || trimmed.startsWith('//')) continue;
+    const [modulePath] = trimmed.split(/\s+/);
+    if (modulePath !== undefined && modulePath.length > 0) modules.add(modulePath);
+  }
+}
+
+/** Module paths from single-line `require <path> <version>` directives. */
+function collectGoRequireLines(lines: string[], modules: Set<string>): void {
+  for (const line of lines) {
+    const match = /^require\s+(\S+)\s+\S/.exec(line.trim());
+    if (match?.[1] !== undefined) modules.add(match[1]);
+  }
 }
 
 function readBoundaryConfig(projectDirectory: string): string {
