@@ -1,78 +1,80 @@
 # Impl Plan: Go language pack (ZD70P1)
 
-Outside-in TDD. Three production seams + a black-box step file. Order is chosen so
-the keystone (extraction) lands first and immediately turns single-repo Go scenarios
-green, then discovery wires the monorepo, then fingerprint closes drift.
+**Status:** implemented
 
-## Production changes (by axis)
+_Reconciled against what shipped: all six Decisions held as written (no
+mid-build reversals); Arch alignment holds (pure derive/parse, honest "not
+introspected" for flat Go, JS byte-identical); the one addition beyond the
+original plan — the `manifest-block.ts` / `manifest-dependencies.ts` extraction —
+is recorded under Known deviations (an `/audit`-driven, behavior-preserving
+dedup)._
 
-### Axis 2 — Extraction (keystone): `architecture-skeleton.ts`
+## Approach
 
-- `extractSkeleton(dir)`: keep the `src/` branch FIRST and unchanged (TS byte-identical).
-  When `src/` is absent/empty AND `dir/go.mod` exists, enumerate the recognized Go
-  layout dirs that are present — `cmd`, `internal`, `pkg` — as nodes, each
-  `path: "<name>"`, sorted, placeholder purpose. Flat Go (none present) → `{nodes: []}`
-  (stays "not introspected").
-- Node `path` for Go is the bare dir name (no `src/` prefix); the renderer just
-  prints it in a code span, so this is fine and platform-stable.
+Outside-in TDD over three production seams + a black-box step file. The extractor
+is convention-driven (it enumerates directories), not language-parsing, so each
+axis is a small extension point. Build order — keystone first so single-repo Go
+turns green immediately, then discovery wires the monorepo, then fingerprint closes
+drift:
 
-### Axis 1 — Discovery: `architecture-monorepo.ts`
+1. **Extraction (keystone)** — `architecture-skeleton.ts`: `src/` stays
+   authoritative (TS byte-identical); when it yields nothing and a `go.mod` is
+   present, enumerate the recognized Go layout dirs (`cmd`/`internal`/`pkg`) as
+   modules. Flat Go → empty skeleton. _Unit_ (`architecture-skeleton.test.ts`).
+   Fixes single-repo Go AND monorepo Go leaves at once, and feeds the fingerprint's
+   `moduleNames` for free.
+2. **Discovery** — `architecture-monorepo.ts`: `detectGoWork` (dependency-free
+   `use` parse) appended to the `??` source chain; keep-predicate generalized to
+   "has package.json OR go.mod"; Go package name from the `go.mod` `module`
+   directive. _Unit_ (`architecture-monorepo.test.ts`).
+3. **Fingerprint** — `architecture-fingerprint.ts`: union the `go.mod` `require`
+   module paths (keys, not versions) into the dependency set. _Unit_
+   (`architecture-fingerprint.test.ts`).
+4. **Black-box BDD + dogfood** — `steps/architecture-go-language-pack.steps.ts`
+   over real fixtures; the dependency-drift AC is proven via `architecture --check`
+   reporting stale. Shared fixture helpers extracted to
+   `steps/support/architecture-fixtures.ts` (imported by the ZRW21K lane too).
 
-- `detectGoWork(projectDirectory)`: dependency-free parse of `go.work`, mirroring
-  `detectPnpmWorkspaces`. Collect `use` targets from both the block form
-  `use (\n  ./a\n  ./b\n)` and single-line `use ./a`. Skip blanks, comments (`//`),
-  and any entry that isn't a clean relative path (the "unreadable entry" is skipped,
-  not fatal). Return the relative dirs, or `undefined` when no `use` target parses.
-- `discoverLeafDirectories`: extend the source chain to
-  `detectWorkspaces(...) ?? detectPnpmWorkspaces(...) ?? detectGoWork(...)`.
-- Generalize the keep-predicate: keep a globbed dir if it has `package.json` OR
-  `go.mod` (extract a `hasRecognizedManifest(dir)` helper). go.work `use` targets are
-  exact dirs (not globs), but route them through the same glob/keep path for one
-  code path — `globSync` on a literal relative path returns it.
-- `packageName(dir)`: if no package.json name, and `go.mod` exists, read its `module`
-  directive (first `module <path>` line); fallback basename. Keep JS path first.
+Test-layer rationale: parse/extract/fingerprint are pure → unit; which docs appear
+and what `--check` reports are a process-boundary contract → the `.feature` lane.
 
-### Axis 3 — Fingerprint: `architecture-fingerprint.ts`
+## Decisions
 
-- `readDependencyNames(dir)`: union the existing package.json dep names with
-  `readGoModRequires(dir)` — the module paths from `go.mod`'s `require` block (both
-  the `require (\n  path v1\n)` block and single-line `require path v1`), keys only,
-  versions excluded. So a require add/remove moves `shapeFingerprint`. JS-only dirs
-  are unaffected (no go.mod → empty Go set).
+| Decision         | Choice                                                                | Alternatives considered                | Rejected because                                                                        |
+| ---------------- | --------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
+| Go extraction    | Directory-convention enumeration of `cmd`/`internal`/`pkg`            | Parse Go source / use the Go toolchain | Conventions are deterministic and dependency-free; matches the pnpm/go.work hand-parses |
+| src vs Go layout | `src/` wins; Go layout read only when no `src/` and a `go.mod` exists | Merge both                             | Keeps every TS/JS doc byte-identical — zero regression surface                          |
+| Discovery wiring | `detectGoWork` appended to `??` chain after JS/pnpm                   | Fold into shared `detectWorkspaces`    | That feeds `sync-config`; scoping go.work to the architecture feature avoids drift      |
+| Leaf predicate   | keep a dir with package.json **OR** go.mod                            | package.json only                      | Go leaves have no package.json — they'd be silently dropped                             |
+| Drift coverage   | Black-box scenario via `architecture --check` + a unit pin            | Unit test only                         | Scenario-gate review: the fingerprint IS observable (frontmatter + `--check`)           |
+| Go identity      | `go.mod` `module` directive, fallback basename                        | Always basename                        | The module path is the canonical identity, mirroring package.json `name`                |
 
-## Test changes
+## Arch alignment
 
-### Unit (RED→GREEN per axis, fast)
+Honors `ARCHITECTURE.md` and the state-doc contract:
 
-- `architecture-skeleton.test.ts`: Go layout extraction; src/ precedence; flat Go → empty.
-- `architecture-monorepo.test.ts`: detectGoWork block + single-line + skip-bad-entry
-  - no-use → undefined; discovery via go.work; mixed keep-predicate.
-- `architecture-fingerprint.test.ts`: go.mod require add/removes the fingerprint;
-  JS fingerprint untouched.
-
-### Black-box BDD: `steps/architecture-go-language-pack.steps.ts`
-
-- **Helper sharing (avoid jscpd clones with ZRW21K's steps):** the dir/rootDoc/
-  leafDocExists/packageSection/writeJson helpers are near-identical to
-  `steps/monorepo-coverage-honesty.steps.ts`. Extract them to
-  `steps/support/architecture-fixtures.ts` and import from BOTH step files (refactor
-  ZRW21K's file to import too — behavior-preserving, keeps the audit's 0-clone bar).
-- Reuse the shared `When 'safeword generates the architecture doc'` and the generic
-  Thens (`a root index lists the package`, `has its own colocated leaf doc`,
-  `is marked "..." in the root index`, `line does not show the "..." placeholder`,
-  `single-repo module doc`, `the command succeeds`) — do NOT redefine (cucumber
-  global registry → duplicate-step error).
-- New Go Givens (write go.mod/go.work/cmd/internal/pkg fixtures); new Thens
-  `the doc lists the module "<name>"`, `safeword reports the architecture doc is stale`;
-  new Whens `a require is added to its go.mod`, `safeword checks the architecture doc`
-  (runs `architecture --check`, captures exit).
-- **Scenario-4 fixture (review note):** a valid `use ./svc` PLUS one junk line the
-  parser skips — proves partial-skip, not total-degrade.
+- **Deterministic, LLM-free engine** — extraction/discovery/fingerprint are pure
+  derive/parse; no new source of truth, no LLM.
+- **Never silently wrong** — a flat Go package stays the honest ZRW21K "not
+  introspected" marker; the omission is visible, not faked.
+- **Polyglot promise** — Go plugs into the same heal-target + fingerprint machinery
+  as JS, the seam WBM8JE's Rust/Python slices reuse.
 
 ## Known deviations
 
-- `detectWorkspaces` (the sync-config truth source) stays untouched; go.work plugs in
-  via the `??` chain in `discoverLeafDirectories` only — same scope guard ZRW21K used
-  for pnpm.
-- Out of scope (ticket.md): inter-package Go edges, both-config-at-root polyglot,
-  go.mod replace / build tags / sub-modules, Rust/Python.
+- go.work discovery lives beside `detectWorkspaces` (via the `??` chain), not
+  inside it — a deliberate scope guard so `sync-config` is untouched, mirroring how
+  ZRW21K scoped pnpm.
+- During verify, `/audit` jscpd flagged the new block parsers + the duplicated
+  `DEPENDENCY_SECTIONS` loop; extracted `manifest-block.ts` and
+  `manifest-dependencies.ts` (behavior-preserving) to hold the 0-clone bar.
+
+## Assessment triggers
+
+- **WBM8JE Rust/Python slices** land — they will want Cargo `[workspace]` /
+  `go.work` / pnpm discovery in one place; revisit whether `detectGoWork` /
+  `detectPnpmWorkspaces` should merge into a single multi-manifest discovery.
+- Inter-package Go edges become needed — that requires a `go.mod` module-path →
+  workspace-directory map; its own slice (out of scope here).
+- Go changes its layout conventions or `go.work`/`go.mod` grammar — revisit the
+  hand-parsers and the `cmd`/`internal`/`pkg` recognized set.
