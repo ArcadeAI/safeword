@@ -98,7 +98,7 @@ describe('E2E: Python Golden Path', () => {
     // Badly formatted Python - extra spaces, missing newline
     writeTestFile(projectDirectory, 'src/ugly.py', 'x=1;y=2');
 
-    execSync('ruff format src/ugly.py', { cwd: projectDirectory });
+    execSync('ruff format src/ugly.py', { cwd: projectDirectory, stdio: 'pipe' });
 
     const formatted = readTestFile(projectDirectory, 'src/ugly.py');
     // Ruff format adds spaces around = and newlines
