@@ -2,7 +2,7 @@
 id: YKFA5X
 slug: architecture-rust-language-pack
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 created: 2026-06-24T04:07:49.850Z
 last_modified: 2026-06-24T04:12:00.000Z
@@ -82,3 +82,10 @@ module nesting (their own concerns).
   (Rust modules are commonly files), a manifest-keyed branch mirroring Go. TOML
   hand-parsed (zero-dep posture; only a transitive `toml` exists, unsafe to rely on,
   and the CLI must run under Node). Next: define-behavior.
+- 2026-06-24T04:15:00Z Complete: scenario-gate. Independent /review-spec PASS-WITH-NITS
+  (verified every scenario is RED today for a NEW-behavior reason; vacuity, AODI,
+  marker-distinctness, drift-observability all checked). Addressed the required fix
+  (recorded the new `does not list the module` step in the ledger) + both nits
+  (file-module Givens on S2/S4/S5, load-bearing-RED note). Stamp recorded; impl-plan
+  written (TOML-subset parser first, then extraction keystone, discovery, fingerprint).
+  Advancing to implement.

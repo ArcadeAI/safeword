@@ -22,7 +22,7 @@ Feature: Rust language pack — Cargo workspace discovery, src extraction, Cargo
 
     @architecture-rust-language-pack.TB1.AC2
     Scenario: A Cargo workspace produces a root index and per-crate leaf docs
-      Given a Cargo workspace listing a crate "svc" with src modules
+      Given a Cargo workspace listing a crate "svc" with a src module file
       When safeword generates the architecture doc
       Then a root index lists the package "svc"
       And the package "svc" has its own colocated leaf doc
@@ -37,7 +37,7 @@ Feature: Rust language pack — Cargo workspace discovery, src extraction, Cargo
 
     @architecture-rust-language-pack.TB2.AC1
     Scenario: Adding a Cargo dependency makes the architecture doc go stale
-      Given a single-crate Rust project with src modules whose architecture doc has been generated
+      Given a single-crate Rust project with a src module file whose architecture doc has been generated
       When a dependency is added to its Cargo.toml
       And safeword checks the architecture doc
       Then safeword reports the architecture doc is stale
@@ -46,7 +46,7 @@ Feature: Rust language pack — Cargo workspace discovery, src extraction, Cargo
 
     @architecture-rust-language-pack.TB2.AC2
     Scenario: A mixed JS and Rust monorepo introspects both packages
-      Given a monorepo whose workspaces include a JS package "web" with a src tree and a Rust crate "svc" with src modules
+      Given a monorepo whose workspaces include a JS package "web" with a src tree and a Rust crate "svc" with a src module file
       When safeword generates the architecture doc
       Then the package "web" has its own colocated leaf doc
       And the package "svc" has its own colocated leaf doc

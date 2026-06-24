@@ -48,6 +48,24 @@ pinned by unit tests as a secondary layer, listed under "Unit-pinned" below.
 - [ ] GREEN
 - [ ] REFACTOR
 
+## New step definitions (on the critical path — must be authored at RED)
+
+- **`the doc does not list the module "X"`** — NEW negative Then (the existing Go
+  step only has the positive `the doc lists the module "X"`). Asserts
+  `assert.doesNotMatch(rootDoc(world), /^### X$/m)`. Scenario 1's root-exclusion
+  assertion (`lib.rs` not listed) depends on it; without it that step no-ops as
+  undefined/pending. Rust-specific Givens (single-crate, Cargo workspace, file/dir
+  modules, root-only crate, mixed JS+Rust) are also new and live in the new
+  `steps/architecture-rust-language-pack.steps.ts`.
+
+## Scenario notes (coverage honesty)
+
+- **Scenario 1's load-bearing RED is the `config` (file) assertion.** A Rust crate
+  with a module DIR already gets a `## Modules` doc today, so `lists "handlers"`,
+  `single-repo module doc`, and `does not list "lib"` all pass pre-implementation;
+  only `lists the module "config"` (a `src/config.rs` FILE) is RED today. Do NOT
+  weaken the fixture to a dir-only module — that would make the scenario vacuous.
+
 ## Unit-pinned (secondary — fine-grained internals beneath the black-box scenarios)
 
 - **TB2.AC1 fine-grain — Cargo dependency fingerprint:** adding/removing a key in a
