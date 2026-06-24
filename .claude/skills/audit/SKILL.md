@@ -37,6 +37,73 @@ Task, patch, and no-ticket audit work may continue after recording that session-
 # Ensure we're in the project root regardless of prior CWD state
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 
+# Stack-specific checks are gated by project manifests. A package.json may be a
+# safeword lane host in Python, Rust, or Go installs, so JavaScript checks run
+# from package.json evidence while native stack checks run independently.
+# JavaScript-specific checks still run only when package.json exists; skip
+# JavaScript checks for projects without package.json evidence.
+
+# Detect package manager from lockfiles/packageManager for JavaScript package commands.
+detect_package_manager() {
+  if [ -f bun.lock ] || [ -f bun.lockb ]; then
+    echo bun
+    return
+  fi
+  if [ -f pnpm-lock.yaml ]; then
+    echo pnpm
+    return
+  fi
+  if [ -f yarn.lock ]; then
+    echo yarn
+    return
+  fi
+  if [ -f package-lock.json ]; then
+    echo npm
+    return
+  fi
+  node -e 'try { const pm = JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager || ""; console.log(pm.split("@")[0] || "npm"); } catch { console.log("npm"); }'
+}
+
+has_python_project() {
+  [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || [ -f setup.cfg ] || [ -f Pipfile ]
+}
+
+has_go_project() {
+  [ -f go.mod ]
+}
+
+has_rust_project() {
+  [ -f Cargo.toml ]
+}
+
+run_yarn_outdated_check() {
+  YARN_VERSION="$(yarn --version 2> /dev/null || true)"
+  case "$YARN_VERSION" in
+    0.* | 1.*)
+      echo "Yarn Classic outdated check: running yarn outdated"
+      yarn outdated 2>&1 || true
+      ;;
+    "")
+      echo "Manual evidence required: yarn.lock found but yarn is unavailable; cannot check outdated JavaScript dependencies."
+      ;;
+    *)
+      echo "Yarn modern detected. Manual evidence required: modern Yarn does not provide the Yarn Classic noninteractive 'yarn outdated' command; review dependency freshness with 'yarn upgrade-interactive' or project CI evidence."
+      ;;
+  esac
+}
+
+run_python_outdated_check() {
+  if [ -f uv.lock ]; then
+    uv pip list --outdated 2>&1 || true
+  elif [ -f poetry.lock ] || grep -q '^\[tool\.poetry\]' pyproject.toml 2> /dev/null; then
+    poetry show --outdated 2>&1 || true
+  elif [ -f Pipfile ]; then
+    pipenv update --outdated 2>&1 || true
+  else
+    python -m pip list --outdated 2>&1 || pip list --outdated 2>&1 || true
+  fi
+}
+
 # =========================================================================
 # DETECT CONFIG DRIFT (read-only — no writes)
 # =========================================================================
@@ -74,8 +141,8 @@ DEPCRUISE_CONFIG=""
 # If your Go project builds, it has no circular dependencies.
 
 # 1d. Architecture - Rust
-# Note: Rust's module system and compiler reject circular module dependencies at
-# build time. If your crate builds, it has no circular module dependencies.
+# Note: Cargo validates Rust module/package structure during build and test.
+# Clippy runs below as Rust-specific static analysis when available.
 
 # =========================================================================
 # DEAD CODE DETECTION
@@ -96,9 +163,9 @@ DEPCRUISE_CONFIG=""
   golangci-lint run --enable unused --out-format colored-line-number 2>&1 || true
 }
 
-# 2d. Dead code - Rust (clippy flags dead_code / unused)
-[ -f Cargo.toml ] && command -v cargo > /dev/null && {
-  cargo clippy --quiet 2>&1 || true
+# 2d. Rust-specific checks (Clippy catches unused code and quality issues)
+[ -f Cargo.toml ] && {
+  cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true
 }
 
 # =========================================================================
@@ -114,25 +181,29 @@ bunx jscpd . --min-lines 10 --reporters console 2>&1 || true
 
 # 4a. Outdated - TypeScript/JS
 [ -f package.json ] && {
-  bun outdated 2>&1 || npm outdated 2>&1 || true
-}
+  case "$(detect_package_manager)" in
+    bun) bun outdated 2>&1 || true ;;
+    npm) npm outdated 2>&1 || true ;;
+    pnpm) pnpm outdated 2>&1 || true ;;
+    yarn) run_yarn_outdated_check ;;
+    *) echo "Skipping outdated JavaScript dependencies: unsupported package manager" ;;
+  esac
+} || echo "Skipping outdated JavaScript dependencies: no package.json; skip JavaScript package checks"
 
-# 4b. Outdated - Python (uv > poetry > pip)
-([ -f pyproject.toml ] || [ -f requirements.txt ]) && {
-  uv pip list --outdated 2>&1 || poetry show --outdated 2>&1 || pip list --outdated 2>&1 || true
-}
+# 4b. Outdated - Python-specific checks (uv > poetry > pipenv > pip)
+if has_python_project; then
+  run_python_outdated_check
+fi
 
-# 4c. Outdated - Go
-[ -f go.mod ] && {
+# 4c. Outdated - Go-specific checks
+if has_go_project; then
   go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"
-}
+fi
 
-# 4d. Outdated - Rust (requires cargo-outdated)
-[ -f Cargo.toml ] && {
-  if command -v cargo-outdated > /dev/null; then
-    cargo outdated 2>&1 || true
-  else echo "Rust outdated check skipped — install with: cargo install cargo-outdated"; fi
-}
+# 4d. Outdated - Rust-specific checks
+if has_rust_project; then
+  cargo update --dry-run 2>&1 || true
+fi
 ```
 
 #### Outdated Package Triage
