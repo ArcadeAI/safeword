@@ -3,10 +3,10 @@ id: JZQ85C
 slug: ntb-low-jargon-surfaces
 parent: K6CAJN-ntb-experience-epic
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-24T02:21:00Z
-last_modified: 2026-06-24T02:21:00Z
+last_modified: 2026-06-24T02:46:00Z
 ---
 
 # De-jargon the three LOW NTB surfaces
