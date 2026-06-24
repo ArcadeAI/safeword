@@ -281,6 +281,25 @@ gated behind a seeded-defect eval).
   - Net: the eval is a sound durable asset; the two fixes harden the precision axis + floor integrity
     it leans on. A FUTURE re-run (with the leak stripped + floor hardened + varied defect-count per
     fixture) is the path to a *non-gamed* GEPA attempt — but that's optional; the verdict stands.
+- 2026-06-24T18:23:00Z **Harvest attempt — the eval caught a HUMAN change regressing recall.** Hand-
+  authored two calibration blocks into a candidate `review-spec` (not the shipped skill): (a) "Not
+  vacuous — don't over-flag" (concrete-value / falsifiable-empty Thens aren't vacuous; judge in
+  context); (b) "Atomicity is about behaviors, not assertion count" (multi-clause Then of one outcome
+  is atomic). Validated through the eval (`validate-skill.ts`):
+  - **Precision win, real:** false alarms train 15→9 (−40%), held-out 17→15 (−12%); all four vacuous
+    mutants still caught — the boundary the calibration targets held.
+  - **BUT a recall regression:** train caught 12/13 — missed `resolver-determinism-order`. I first read
+    it as temp-0 noise (the seed flipped on it across the 18- vs 20-fixture runs). **Wrong — confirmation
+    bias.** A 5× resample settled it: **SEED 4/5 caught, CANDIDATE 0/5.** The calibration genuinely
+    suppresses positional-order detection — most likely the atomicity block telling the skill a
+    multi-clause `Then` ("first is X, second is Y") is fine, bleeding into "don't scrutinise positional
+    multi-clause Thens" where the ordering defect lives. So the candidate FAILS the accept gate (recall
+    floor), the same trade-recall-for-precision failure as GEPA's winner — milder, honest, but caught.
+  - **The meta-result (the real deliverable):** the eval caught a careful, principled, human-vetted
+    change trading away a real catch — exactly as it caught the machine's gaming. No prompt change,
+    human or machine, should ship unmeasured. The harvest does NOT ship as-written. Likely-shippable
+    fix (untested): drop the atomicity block, keep the clean vacuous calibration (which accounts for
+    most of the FA win, since the baseline over-flags were overwhelmingly vacuous-*), then re-validate.
 
 ---
 
