@@ -94,6 +94,19 @@ program
   });
 
 program
+  .command('connect <provider>')
+  .description('Connect a tracker (linear/github): write config, verify auth, seed the sidecar')
+  .option('--repo <owner/name>', 'GitHub target repository')
+  .option('--team <team>', 'Linear target team')
+  .option('--workspace <workspace>', 'Linear target workspace')
+  .action(
+    async (provider: string, options: { repo?: string; team?: string; workspace?: string }) => {
+      const { connectCommand } = await import('./commands/connect.js');
+      await connectCommand(provider, options);
+    },
+  );
+
+program
   .command('architecture')
   .description(
     'Refresh the generated architecture state document (.project/architecture.generated.md)',
