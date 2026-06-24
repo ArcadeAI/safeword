@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   claudeDenialReason,
+  decideFromGate,
   extractFilePath,
+  GATE_UNAVAILABLE_REASON,
   mapCursorToolName,
   toCursorDecision,
 } from '../../templates/hooks/cursor/gate-adapter.js';
@@ -77,6 +79,37 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
         permission: 'deny',
         user_message: 'blocked',
         agent_message: 'blocked',
+      });
+    });
+  });
+
+  describe('decideFromGate (ANAXG4 fail-closed)', () => {
+    it('denies when the gate failed to run (crash / never started)', () => {
+      // The whole point of ANAXG4: a broken gate must block, not silently allow.
+      // stdout is empty here precisely because the gate crashed before emitting.
+      expect(decideFromGate({ stdout: '', failed: true })).toEqual({
+        permission: 'deny',
+        user_message: GATE_UNAVAILABLE_REASON,
+        agent_message: GATE_UNAVAILABLE_REASON,
+      });
+    });
+
+    it('denies on failure even if partial stdout leaked before the crash', () => {
+      expect(decideFromGate({ stdout: 'half-written', failed: true }).permission).toBe('deny');
+    });
+
+    it('allows when the gate ran cleanly and stayed silent', () => {
+      expect(decideFromGate({ stdout: '', failed: false })).toEqual({ permission: 'allow' });
+    });
+
+    it('passes through a clean denial verdict from the gate', () => {
+      const stdout = JSON.stringify({
+        hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'no tests' },
+      });
+      expect(decideFromGate({ stdout, failed: false })).toEqual({
+        permission: 'deny',
+        user_message: 'no tests',
+        agent_message: 'no tests',
       });
     });
   });

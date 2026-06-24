@@ -103,13 +103,31 @@ export function toCursorDecision(reason: string | undefined): CursorDecision {
   return { permission: 'deny', user_message: reason, agent_message: reason };
 }
 
+/** Outcome of spawning the Claude source-of-truth gate. */
+export interface ClaudeGateResult {
+  /** The gate's stdout (its allow/deny verdict as JSON), or '' on failure. */
+  stdout: string;
+  /**
+   * True when the gate could not be run to a clean verdict — it failed to spawn
+   * (e.g. `bun` missing) or crashed (non-zero exit). The gate always exits 0 for
+   * BOTH allow and deny (the verdict travels in stdout), so a non-zero exit can
+   * only mean an unhandled crash, never a normal denial. This lets the adapter
+   * tell "gate ran and allowed" apart from "gate never produced a verdict".
+   */
+  failed: boolean;
+}
+
+/** Message shown when the gate itself could not run, so the action is fail-closed. */
+export const GATE_UNAVAILABLE_REASON =
+  'Safeword gate could not run (it crashed or failed to start), so this action was blocked. ' +
+  'Check the Hooks output channel, then retry once the gate runs cleanly.';
+
 /**
- * Spawn a Claude source-of-truth hook with the translated input and return its
- * stdout. `CLAUDE_PROJECT_DIR` is set so the gate resolves project state from the
- * Cursor workspace root. Returns '' if the spawn fails — callers treat that as
- * allow (fail-open).
+ * Spawn a Claude source-of-truth hook with the translated input. `CLAUDE_PROJECT_DIR`
+ * is set so the gate resolves project state from the Cursor workspace root. Reports
+ * both the stdout verdict and whether the gate actually ran — see `ClaudeGateResult`.
  */
-export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): string {
+export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): ClaudeGateResult {
   const result = spawnSync('bun', [claudeHookPath], {
     cwd: process.cwd(),
     input: JSON.stringify(input),
@@ -117,5 +135,28 @@ export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): s
     env: { ...process.env, CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd() },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  return result.stdout ?? '';
+  // `error` => the process never started; non-zero/null `status` => it crashed.
+  const failed = result.error != null || result.status !== 0;
+  return { stdout: result.stdout ?? '', failed };
+}
+
+/**
+ * Turn a gate run into a Cursor decision, FAIL-CLOSED (ANAXG4). A gate that
+ * crashed or never started denies the action rather than silently allowing it —
+ * the whole point of the blocking gates. Only a gate that ran cleanly and stayed
+ * silent (or said allow) permits the action.
+ *
+ * This is the safeword posture; Cursor's `failClosed: true` on the hook is the
+ * outer backstop for the rarer case where this adapter wrapper itself crashes,
+ * times out, or emits invalid JSON.
+ */
+export function decideFromGate(result: ClaudeGateResult): CursorDecision {
+  if (result.failed) {
+    return {
+      permission: 'deny',
+      user_message: GATE_UNAVAILABLE_REASON,
+      agent_message: GATE_UNAVAILABLE_REASON,
+    };
+  }
+  return toCursorDecision(claudeDenialReason(result.stdout));
 }

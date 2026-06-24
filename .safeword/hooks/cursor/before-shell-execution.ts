@@ -13,9 +13,8 @@ import { fileURLToPath } from 'node:url';
 import {
   type ClaudeGateInput,
   type CursorShellInput,
-  claudeDenialReason,
+  decideFromGate,
   runClaudeHook,
-  toCursorDecision,
 } from './gate-adapter.ts';
 
 async function readInput(): Promise<CursorShellInput> {
@@ -50,6 +49,7 @@ const translated: ClaudeGateInput = {
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
-const reason = claudeDenialReason(runClaudeHook(claudeHookPath, translated));
-process.stdout.write(JSON.stringify(toCursorDecision(reason)) + '\n');
+// Fail-closed: a gate that crashed or never started denies the command (ANAXG4).
+const decision = decideFromGate(runClaudeHook(claudeHookPath, translated));
+process.stdout.write(JSON.stringify(decision) + '\n');
 process.exit(0);
