@@ -12,47 +12,47 @@ pinned by unit tests as a secondary layer, listed under "Unit-pinned" below.
 
 ### Scenario: A src-layout Python project lists its top-level src modules
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83f7904
+- [x] GREEN 83f7904
+- [x] REFACTOR 83f7904
 
 ### Scenario: A flat-layout Python project lists root packages and modules, not tooling files
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83f7904
+- [x] GREEN 83f7904
+- [x] REFACTOR 83f7904
 
 ### Scenario: A uv workspace produces a root index and per-package leaf docs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83f7904
+- [x] GREEN 83f7904
+- [x] REFACTOR 83f7904
 
 ### Scenario: A package with no recognized modules is marked, not introspected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83f7904
+- [x] GREEN 83f7904
+- [x] REFACTOR 83f7904
 
 ### Scenario: Adding a Python dependency makes the architecture doc go stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83f7904
+- [x] GREEN 83f7904
+- [x] REFACTOR 83f7904
 
 ## Rule: Polyglot repos introspect every language without regressing JS
 
 ### Scenario: A mixed JS and Python monorepo introspects both packages
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83f7904
+- [x] GREEN 83f7904
+- [x] REFACTOR 83f7904
 
 ### Scenario: A pure JS single-repo is unchanged by the Python extractor
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 83f7904
+- [x] GREEN 83f7904
+- [x] REFACTOR 83f7904
 
 ## Scenario notes (coverage honesty)
 
