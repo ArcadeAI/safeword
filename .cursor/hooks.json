@@ -6,9 +6,34 @@
         "command": "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor"
       }
     ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "bun ./.safeword/hooks/cursor/before-submit-prompt.ts",
+        "failClosed": true
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "bun ./.safeword/hooks/cursor/pre-tool-quality.ts",
+        "matcher": "Write",
+        "failClosed": true
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "bun ./.safeword/hooks/cursor/before-shell-execution.ts",
+        "failClosed": true
+      }
+    ],
     "afterFileEdit": [
       {
         "command": "bun ./.safeword/hooks/cursor/after-file-edit.ts"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "bun ./.safeword/hooks/cursor/post-tool-quality.ts",
+        "matcher": "Write|Shell"
       }
     ],
     "stop": [

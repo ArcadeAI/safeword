@@ -138,6 +138,27 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       );
       expect(hooksConfig.hooks.postToolUse[0].matcher).toBe('Write|Shell');
     });
+
+    it('should set failClosed only on the blocking gate hooks (ANAXG4)', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup', '--yes'], { cwd: temporaryDirectory });
+
+      const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
+
+      // Blocking gates deny on crash/timeout/invalid-JSON instead of failing open.
+      expect(hooksConfig.hooks.beforeSubmitPrompt[0].failClosed).toBe(true);
+      expect(hooksConfig.hooks.preToolUse[0].failClosed).toBe(true);
+      expect(hooksConfig.hooks.beforeShellExecution[0].failClosed).toBe(true);
+
+      // Observational hooks stay fail-open (default) — a crashing lint/state/nudge
+      // hook must never block legitimate work.
+      expect(hooksConfig.hooks.sessionStart[0].failClosed).toBeUndefined();
+      expect(hooksConfig.hooks.afterFileEdit[0].failClosed).toBeUndefined();
+      expect(hooksConfig.hooks.postToolUse[0].failClosed).toBeUndefined();
+      expect(hooksConfig.hooks.stop[0].failClosed).toBeUndefined();
+    });
   });
 
   describe('Cursor MCP Configuration', () => {
