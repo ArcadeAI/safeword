@@ -26,6 +26,7 @@ export const COMPLETED_DIRNAME = 'completed';
 
 const NO_EPIC_GROUP = '(no epic)';
 const SKIP_DIRECTORIES = new Set([COMPLETED_DIRNAME, 'tmp']);
+const MERGE_CONFLICT_MARKER_PATTERN = /^(?:<{7}|={7}|>{7})(?:\s|$)/m;
 
 export interface TicketEntry {
   id: string;
@@ -54,8 +55,7 @@ export interface TicketSyncResult {
 
 /** Detect Git merge-conflict markers in generated artifact content. */
 function hasMergeConflictMarkers(content: string): boolean {
-  const mergePattern = /^(?:<{7}|={7}|>{7})(?:\s|$)/m;
-  return mergePattern.test(content);
+  return MERGE_CONFLICT_MARKER_PATTERN.test(content);
 }
 
 function detectConflictedIndex(indexPath: string): string | undefined {
