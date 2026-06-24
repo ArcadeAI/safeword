@@ -87,3 +87,10 @@ inter-package Go edges (a module-path→directory mapping problem, its own slice
   - manifest-dependencies); knip no new dead code; zero new deps; dogfood --check
     current (no JS/TS regression). Rebased cleanly onto origin/main (#355). impl-plan
     reconciled to implemented. verify.md written. Awaiting confirmation to close.
+- 2026-06-24T03:49:00Z /quality-review (done-gate, 7-loop ticket): primary-source
+  research (go.dev/ref/mod) + independent reviewer found 2 critical parser bugs the
+  green suite missed (single-block fixtures only): readDelimitedBlock read only the
+  FIRST require/use block (go mod tidy splits indirect deps into a 2nd block →
+  drift undetected); normalizeUseTarget dropped `use ./svc // comment` (idiomatic).
+  Fixed both (TDD: 3 new regression tests RED→GREEN); independent re-review APPROVE.
+  Full suite green (3390 pass / 5 skip), lint + 14 BDD scenarios clean.

@@ -171,4 +171,22 @@ describe('shapeFingerprint — Go module dependencies (ticket ZD70P1)', () => {
 
     expect(shapeFingerprint(context.directory)).not.toBe(before);
   });
+
+  it('reads every require block, not just the first (go mod tidy splits indirect deps)', () => {
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+    // The `go mod tidy` default on Go 1.17+: direct deps in one block, indirect
+    // deps in a SECOND block. A change confined to the indirect block must still
+    // move the fingerprint, or drift in indirect deps goes undetected.
+    const twoBlock = (indirect: string): string =>
+      `module example.com/app\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/one v1.0.0\n)\n\nrequire (\n\t${indirect} // indirect\n)\n`;
+    writeFileSync(nodePath.join(context.directory, 'go.mod'), twoBlock('golang.org/x/text v0.3.0'));
+    const before = shapeFingerprint(context.directory);
+
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      twoBlock('golang.org/x/tools v0.1.0'),
+    );
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
 });

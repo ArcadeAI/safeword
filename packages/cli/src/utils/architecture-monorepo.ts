@@ -261,9 +261,13 @@ function collectGoWorkSingleLines(lines: string[], directories: string[]): void 
   }
 }
 
-/** A clean relative member dir (quotes + leading `./` stripped), or undefined if junk. */
+/** A clean relative member dir (trailing comment, quotes + leading `./` stripped), or undefined if junk. */
 function normalizeUseTarget(raw: string): string | undefined {
-  const unquoted = raw.trim().replaceAll(/^["']|["']$/g, '');
+  // A `use ./svc // comment` entry is idiomatic Go (the docs' own example); strip
+  // the trailing comment before the junk check, or the whole entry is dropped.
+  const commentAt = raw.indexOf('//');
+  const noComment = (commentAt === -1 ? raw : raw.slice(0, commentAt)).trim();
+  const unquoted = noComment.replaceAll(/^["']|["']$/g, '');
   if (unquoted === '' || /\s/.test(unquoted)) return undefined; // empty or multi-token junk
   return unquoted.replace(/^\.\//, '');
 }

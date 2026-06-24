@@ -26,6 +26,31 @@
 
 Per ticket.md out_of_scope, the following are explicit limitations of this slice (each an honest omission, not silent): inter-package Go dependency edges in the root index, both-config-at-root polyglot (JS wins the `??` chain), `go.mod` `replace` / build tags / sub-modules, and Rust/Python (separate WBM8JE slices). A flat single-package Go module (no cmd/internal/pkg) stays the honest "not introspected" marker.
 
+## Quality-review cycle (done-gate, ≥2-loop ticket)
+
+`/quality-review` with primary-source research (go.dev/ref/mod, fetched this session)
+
+- an independent fresh-context reviewer found **two critical parser bugs** the
+  unit/BDD suites missed because every fixture used a single block:
+
+* **C1 (HIGH) — multi-block `require` dropped.** `readDelimitedBlock` read only the
+  FIRST `keyword ( … )` block. `go mod tidy` (Go 1.17+) writes indirect deps into a
+  SECOND `require ( … )` block, so all indirect-dep drift went undetected — defeating
+  the headline "Go dep drift is caught" AC. Same root cause for two `use ( … )`
+  blocks in go.work (C2).
+* **Trailing-comment `use` dropped.** `normalizeUseTarget` rejected any entry with
+  whitespace, so the idiomatic `use ./svc // comment` (go.dev's own example) was
+  silently dropped → Go monorepo invisible.
+
+**Fix (one surgical change each, TDD):** `readDelimitedBlock` rewritten to collect
+every matching block and terminate on any `)`-prefixed line (covers `) // comment`);
+`normalizeUseTarget` strips a trailing `//` comment before the junk check. Three
+regression tests added (two-block go.mod fingerprint move; two-`use`-block discovery;
+trailing-comment `use`), each confirmed RED before the fix and GREEN after. Lint +
+typecheck clean; 14 architecture BDD scenarios green; independent re-review verdict
+**APPROVE** (no new defect; multi-block state machine verified against opener-inside-block,
+nested-paren, `)`-leading-entry, and require-vs-replace-bleed vectors).
+
 ## Audit
 
 Audit passed — 0 errors, 0 warnings. No circular dependencies or layer violations,

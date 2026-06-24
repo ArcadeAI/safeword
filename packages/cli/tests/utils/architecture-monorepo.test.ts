@@ -264,6 +264,28 @@ describe('discoverLeafDirectories — go.work discovery (ticket ZD70P1)', () => 
     ]);
   });
 
+  it('discovers packages across more than one use block', () => {
+    clearRootManifest(context.directory);
+    writeGoWork(context.directory, 'go 1.22\n\nuse (\n\t./svc\n)\n\nuse (\n\t./gateway\n)\n');
+    makeGoPackage(context.directory, 'svc', { layout: true });
+    makeGoPackage(context.directory, 'gateway', { layout: true });
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'gateway'),
+      nodePath.join(context.directory, 'svc'),
+    ]);
+  });
+
+  it('discovers a use entry that carries a trailing comment', () => {
+    clearRootManifest(context.directory);
+    writeGoWork(context.directory, 'go 1.22\n\nuse ./svc // the service module\n');
+    makeGoPackage(context.directory, 'svc', { layout: true });
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'svc'),
+    ]);
+  });
+
   it('returns no leaves when go.work has no use directive', () => {
     clearRootManifest(context.directory);
     writeGoWork(context.directory, 'go 1.22\n');
