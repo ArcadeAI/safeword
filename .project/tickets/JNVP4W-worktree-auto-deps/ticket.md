@@ -2,10 +2,10 @@
 id: JNVP4W
 slug: worktree-auto-deps
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-06-06T18:13:21.754Z
-last_modified: 2026-06-06T18:13:21.754Z
+last_modified: 2026-06-24T04:25:00.000Z
 ---
 
 # Auto-install deps in fresh worktrees via SessionStart hook
@@ -53,3 +53,4 @@ last_modified: 2026-06-06T18:13:21.754Z
 - 2026-06-06T18:14:00.000Z Drafted: Goal/Why/Scope/Done-when + /figure-it-out decision (SessionStart auto-install, --frozen-lockfile) and rejected alternatives. Sourced from the 0AWSY8 replan session where the block was hit.
 - 2026-06-06T22:55:00.000Z Corrected (quality-review + /figure-it-out): fixed the WorktreeCreate rationale — it DOES fire for isolation:"worktree"; real reasons to reject are VCS-adapter/replaces-git + drops .worktreeinclude (#27744 open). Recorded the blocking-not-async decision (SessionStart blocks init; order early so the chain + first commit see node_modules), degrade-exits-0, and the CLAUDE_PROJECT_DIR gate. Softened "offline" → "offline from a warm cache." Still build-deferred.
 - 2026-06-10T20:18:00.000Z Status → backlog (was in_progress since filing): build stays deferred; in_progress was polluting active-ticket detection for the whole Phase-1 session. Plan is converged — pick up from the figure-it-out decisions above.
+- 2026-06-24T04:25:00.000Z Built (status → done). Chose **B over the plan's A** (`/figure-it-out` 2026-06-24): rather than a new bun-only bash hook, extended the existing `session-dependency-readiness.ts` — already at chain position 1 (right after `session-bun-check.sh`, the slot the plan wanted), already multi-PM via the install plan (#328), already degrade-exit-0 — to bootstrap when `status === 'missing'` (node_modules absent) regardless of `autoInstall`, via a new exported `shouldBootstrapDependencies(status, autoInstall)` in the dep-readiness lib. Kept the plan's still-valid parts: narrow absent-only trigger (not `stale`), degrade-exit-0, pre-commit guard as defense-in-depth. Tests: 3 unit cases for the decision + the session-hook integration test now asserts install-attempt + degrade. Shipped via an isolated worktree (main checkout was on a parallel Codex branch).
