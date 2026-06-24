@@ -1,6 +1,15 @@
 # Impl Plan: Python language pack (HWSEPV)
 
-**Status:** planned
+**Status:** implemented
+
+_Reconciled against what shipped: all six Decisions held as written — src+flat extraction,
+PEP 621 + uv standard, PEP 508 name extraction, TOML-machinery reuse, manifest-keyed
+dispatch, and the registry refactor deferred. The anticipated "Known deviation" landed: the
+shared TOML primitives were extracted into `toml.ts` and cargo-manifest refactored to
+delegate (its 15 tests stayed green, 0 clone). One unplanned fix beyond the deviation: the
+array close-bracket scan now skips a `]` inside a quoted value (so Python extras `foo[extra]`
+and Cargo char-class globs parse), surfaced by the first pyproject-deps test. The uv
+`members` syntax open question was verified against uv docs (correct as assumed)._
 
 ## Approach
 
