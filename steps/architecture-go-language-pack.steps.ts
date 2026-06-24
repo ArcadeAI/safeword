@@ -7,7 +7,6 @@
  */
 
 import { strict as assert } from 'node:assert';
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -15,8 +14,8 @@ import { Given, Then, When } from '@cucumber/cucumber';
 
 import {
   type ArchitectureWorld,
-  CLI_PATH,
   rootDoc,
+  runArchitecture,
   worldDir as dir,
   writeJson,
 } from './support/architecture-fixtures.ts';
@@ -56,15 +55,6 @@ function makeGoPackage(world: ArchitectureWorld, name: string, options: { layout
 
 function writeGoWork(world: ArchitectureWorld, body: string): void {
   writeFileSync(nodePath.join(dir(world), 'go.work'), body);
-}
-
-function runArchitecture(world: ArchitectureWorld, args: string[] = []): void {
-  const result = spawnSync('bun', [CLI_PATH, 'architecture', ...args], {
-    cwd: dir(world),
-    encoding: 'utf8',
-    timeout: 30_000,
-  });
-  world.status = result.status ?? 1;
 }
 
 // --- Givens ---

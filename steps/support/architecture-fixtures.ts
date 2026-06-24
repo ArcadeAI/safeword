@@ -6,6 +6,7 @@
  * duplicated fixture scaffolding) and one cleanup hook.
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
@@ -31,6 +32,16 @@ export function worldDir(world: ArchitectureWorld): string {
 export function writeJson(path: string, value: unknown): void {
   mkdirSync(nodePath.dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(value));
+}
+
+/** Drive the real `safeword architecture` CLI in the world's project dir; record exit. */
+export function runArchitecture(world: ArchitectureWorld, args: string[] = []): void {
+  const result = spawnSync('bun', [CLI_PATH, 'architecture', ...args], {
+    cwd: worldDir(world),
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  world.status = result.status ?? 1;
 }
 
 /** The derived root index / single-repo doc at `.project/architecture.generated.md`. */
