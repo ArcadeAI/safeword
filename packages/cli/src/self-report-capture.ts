@@ -13,7 +13,7 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { recordSignal } from '../templates/hooks/lib/self-report.js';
+import { readSelfReportConfig, recordSignal } from '../templates/hooks/lib/self-report.js';
 import { VERSION } from './version.js';
 
 export function recordCliExit(
@@ -23,6 +23,7 @@ export function recordCliExit(
 ): void {
   if (!code) return; // 0 / undefined — clean exit, nothing to report
   if (!existsSync(nodePath.join(cwd, '.safeword'))) return;
+  if (!readSelfReportConfig(cwd).capture) return; // honor selfReport.capture = false
 
   // argv[2] is the subcommand (e.g. 'check'); the sanitizer bounds it to a safe
   // token, so flags or junk can't smuggle anything into the record.

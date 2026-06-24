@@ -2,7 +2,7 @@
  * CLI-side non-zero-exit producer (ticket QYYC5Y, issue #345).
  */
 
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -42,6 +42,16 @@ describe('recordCliExit (QYYC5Y)', () => {
   it('never creates a spool outside a safeword project', () => {
     // No .safeword/ dir present.
     recordCliExit(1, ['node', 'cli', 'check'], directory);
+    expect(readReports(directory)).toHaveLength(0);
+  });
+
+  it('honors selfReport.capture = false (does not record)', () => {
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ selfReport: { capture: false } }),
+    );
+    recordCliExit(2, ['node', 'cli', 'check'], directory);
     expect(readReports(directory)).toHaveLength(0);
   });
 });

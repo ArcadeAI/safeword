@@ -19,6 +19,7 @@ import {
   formatIssueDrafts,
   formatSelfReportSurfacing,
   readReports,
+  readSelfReportConfig,
   readSessionReports,
   recordSignal,
   sanitizeStackFrames,
@@ -337,6 +338,65 @@ describe('self-report capture (QYYC5Y)', () => {
 
     it('returns no drafts for an empty spool', () => {
       expect(formatIssueDrafts([])).toEqual([]);
+    });
+  });
+
+  describe('readSelfReportConfig (#353)', () => {
+    function writeConfig(value: unknown): void {
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(projectDirectory, '.safeword', 'config.json'),
+        JSON.stringify(value),
+      );
+    }
+
+    it('defaults to capture-on / surface-on / file-OFF when absent', () => {
+      expect(readSelfReportConfig(projectDirectory)).toEqual({
+        capture: true,
+        surface: true,
+        file: false,
+      });
+    });
+
+    it('reads explicit booleans and ignores non-booleans', () => {
+      writeConfig({ selfReport: { file: true, surface: false, capture: 'yes' } });
+      expect(readSelfReportConfig(projectDirectory)).toEqual({
+        capture: true, // 'yes' is not a boolean → default
+        surface: false,
+        file: true,
+      });
+    });
+
+    it('falls back to defaults on malformed config', () => {
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), 'not json');
+      expect(readSelfReportConfig(projectDirectory).file).toBe(false);
+    });
+  });
+
+  describe('surfacing file pointer + spool cap (#353)', () => {
+    it('appends a factual filing pointer to the guide only when file is enabled', () => {
+      recordSignal(projectDirectory, 's', { source: 'check', exitCode: 1 }, '1');
+      const records = readSessionReports(projectDirectory, 's');
+
+      const without = formatSelfReportSurfacing(records);
+      expect(without).not.toContain('self-report-filing.md');
+
+      const withFile = formatSelfReportSurfacing(records, { file: true });
+      expect(withFile).toContain('.safeword/guides/self-report-filing.md');
+      expect(withFile).toContain('selfReport.file');
+    });
+
+    it('caps the spool so a crash-loop cannot grow it without bound', () => {
+      for (let i = 0; i < 250; i++) {
+        recordSignal(
+          projectDirectory,
+          'loop',
+          { source: 'post-tool-quality', errorClass: 'E' },
+          '1',
+        );
+      }
+      expect(readSessionReports(projectDirectory, 'loop').length).toBeLessThanOrEqual(200);
     });
   });
 });

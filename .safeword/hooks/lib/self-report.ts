@@ -49,6 +49,40 @@ export interface SelfReportContext {
 
 const SELF_REPORT_DIR = nodePath.join('.safeword', 'self-reports');
 
+/** Caps the spool file so a crash-looping hook can't grow it without bound. */
+const MAX_RECORDS_PER_FILE = 200;
+
+/**
+ * Per-project self-observation policy (`.safeword/config.json` → `selfReport`).
+ * Defaults are capture-on / surface-on / file-OFF: an external install observes
+ * itself locally but never files to GitHub without explicit opt-in.
+ */
+export interface SelfReportConfig {
+  capture: boolean;
+  surface: boolean;
+  file: boolean;
+}
+
+const SELF_REPORT_DEFAULTS: SelfReportConfig = { capture: true, surface: true, file: false };
+
+/** Read the `selfReport` policy, falling back to defaults on any missing/bad input. */
+export function readSelfReportConfig(projectDirectory: string): SelfReportConfig {
+  try {
+    const raw = readFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), 'utf8');
+    const parsed = JSON.parse(raw) as {
+      selfReport?: Partial<Record<keyof SelfReportConfig, unknown>>;
+    };
+    const config = parsed.selfReport ?? {};
+    return {
+      capture: typeof config.capture === 'boolean' ? config.capture : SELF_REPORT_DEFAULTS.capture,
+      surface: typeof config.surface === 'boolean' ? config.surface : SELF_REPORT_DEFAULTS.surface,
+      file: typeof config.file === 'boolean' ? config.file : SELF_REPORT_DEFAULTS.file,
+    };
+  } catch {
+    return { ...SELF_REPORT_DEFAULTS };
+  }
+}
+
 // A frame is safeword-internal only when BOTH hold: its path contains a
 // separator-bounded segment exactly equal to `safeword` or `.safeword` (NOT a
 // substring — `my-safeword/` or `acme-safeword/` must not match), AND the tail
@@ -169,12 +203,25 @@ export function recordSignal(
   safewordVersion: string,
 ): void {
   try {
-    const record = buildRecord(signal, { sessionId, safewordVersion });
     const file = spoolPath(projectDirectory, sessionId);
+    // Bound a crash-loop: once the session spool is full, stop appending.
+    if (countSpoolRecords(file) >= MAX_RECORDS_PER_FILE) return;
+    const record = buildRecord(signal, { sessionId, safewordVersion });
     mkdirSync(nodePath.dirname(file), { recursive: true });
     appendFileSync(file, `${JSON.stringify(record)}\n`);
   } catch {
     // Self-observation must never break the host. Swallow.
+  }
+}
+
+/** Count non-blank lines in a spool file (0 when absent/unreadable). */
+function countSpoolRecords(file: string): number {
+  try {
+    return readFileSync(file, 'utf8')
+      .split('\n')
+      .filter(line => line.trim()).length;
+  } catch {
+    return 0;
   }
 }
 
@@ -202,14 +249,17 @@ export function installCrashCapture(
   projectDirectory: string = process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
 ): void {
   const handler = (reason: unknown): void => {
-    const error = reason instanceof Error ? reason : new Error(String(reason));
-    const sessionId = process.env.CLAUDE_SESSION_ID ?? process.env.CLAUDE_CODE_SESSION_ID ?? 'hook';
-    recordSignal(
-      projectDirectory,
-      sessionId,
-      { source: hookName, errorClass: error.name, stack: error.stack },
-      readInstalledVersion(projectDirectory),
-    );
+    if (readSelfReportConfig(projectDirectory).capture) {
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      const sessionId =
+        process.env.CLAUDE_SESSION_ID ?? process.env.CLAUDE_CODE_SESSION_ID ?? 'hook';
+      recordSignal(
+        projectDirectory,
+        sessionId,
+        { source: hookName, errorClass: error.name, stack: error.stack },
+        readInstalledVersion(projectDirectory),
+      );
+    }
     process.exit(0);
   };
   process.on('uncaughtException', handler);
@@ -351,13 +401,23 @@ export function formatIssueDrafts(records: SelfReportRecord[]): SelfReportIssueD
  * out-of-band command) so Claude treats it as context rather than tripping its
  * prompt-injection defenses (https://code.claude.com/docs/en/hooks).
  */
-export function formatSelfReportSurfacing(records: SelfReportRecord[]): string | undefined {
+export function formatSelfReportSurfacing(
+  records: SelfReportRecord[],
+  options: { file?: boolean } = {},
+): string | undefined {
   if (records.length === 0) return undefined;
   const breakdown = summarizeReports(records)
     .map(group => `${group.signature} (×${group.count})`)
     .join(', ');
+  // A FACTUAL pointer when filing is enabled — the imperative procedure lives in
+  // the guide, so this stays context (not an out-of-band command Claude surfaces).
+  const filing = options.file
+    ? ' Filing is enabled (`selfReport.file`); the procedure for turning these into ' +
+      'GitHub issues is in `.safeword/guides/self-report-filing.md`.'
+    : '';
   return (
     `Safeword recorded ${records.length} of its own internal signal(s) this session: ${breakdown}. ` +
-    'These are safeword bugs or rough edges, not your edits; run `safeword self-report` to inspect them.'
+    'These are safeword bugs or rough edges, not your edits; run `safeword self-report` to inspect them.' +
+    filing
   );
 }

@@ -8,7 +8,11 @@
 // Claude's prompt-injection defenses and gets surfaced verbatim instead of acted
 // on (https://code.claude.com/docs/en/hooks). Best-effort: never blocks Stop.
 
-import { formatSelfReportSurfacing, readSessionReports } from './lib/self-report.ts';
+import {
+  formatSelfReportSurfacing,
+  readSelfReportConfig,
+  readSessionReports,
+} from './lib/self-report.ts';
 
 interface HookInput {
   session_id?: string;
@@ -26,8 +30,12 @@ async function main(): Promise<void> {
   if (!sessionId) return;
 
   const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const config = readSelfReportConfig(projectDirectory);
+  if (!config.surface) return; // selfReport.surface = false → stay silent
+
   const additionalContext = formatSelfReportSurfacing(
     readSessionReports(projectDirectory, sessionId),
+    { file: config.file },
   );
   if (!additionalContext) return;
 

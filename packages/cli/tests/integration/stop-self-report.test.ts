@@ -8,12 +8,21 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { recordSignal } from '../../templates/hooks/lib/self-report.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+
+function writeSelfReportConfig(directory: string, selfReport: Record<string, boolean>): void {
+  mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+  writeFileSync(
+    nodePath.join(directory, '.safeword', 'config.json'),
+    JSON.stringify({ selfReport }),
+  );
+}
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-self-report.ts');
@@ -63,5 +72,27 @@ describe('stop-self-report hook (QYYC5Y)', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe('');
+  });
+
+  it('stays silent when selfReport.surface is false (#353)', () => {
+    recordSignal(projectDirectory, 'sess-2', { source: 'check', exitCode: 1 }, '1.0.0');
+    writeSelfReportConfig(projectDirectory, { surface: false });
+
+    const result = runHook(projectDirectory, 'sess-2');
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('appends the filing-guide pointer when selfReport.file is true (#353)', () => {
+    recordSignal(projectDirectory, 'sess-3', { source: 'check', exitCode: 1 }, '1.0.0');
+    writeSelfReportConfig(projectDirectory, { file: true });
+
+    const result = runHook(projectDirectory, 'sess-3');
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    expect(parsed.hookSpecificOutput.additionalContext).toContain(
+      '.safeword/guides/self-report-filing.md',
+    );
   });
 });
