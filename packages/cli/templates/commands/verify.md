@@ -49,7 +49,9 @@ If no ticket is found, skip scenario validation (step 3) and parent check (step 
 Run these in sequence, reporting each result:
 
 1. **Run `/lint`** to auto-fix style issues first
-2. Then run verification:
+2. Then run target-project verification checks from project evidence.
+
+**Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. `package.json may be safeword lane-host evidence` in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
 Per-language test/build commands come from `safeword test-plan` — one source of
 truth (the same plan the stop-hook gate runs). Eval its shell plan in a child
@@ -58,6 +60,9 @@ non-zero so the gate blocks. The Gherkin acceptance lane runs separately (it is
 not a `test-plan` suite).
 
 ```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+cd "$PROJECT_DIR" || exit 1
+
 # Resolve a test-plan-capable safeword CLI — prefer the locally installed one
 # (a bare `bunx safeword` can resolve the published CLI, which may predate test-plan).
 if [ -x node_modules/.bin/safeword ]; then
@@ -80,7 +85,13 @@ fi
 bash -c "$($SW test-plan --kind build --format sh)"
 ```
 
-The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.
+The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.
+
+Regression fixtures covered by `safeword test-plan` and its tests:
+
+- **no-build JavaScript:** a `test` script with no `build` script runs tests and has no JavaScript build entry.
+- **non-Bun JavaScript:** lockfiles and `packageManager` select the matching package manager instead of assuming Bun.
+- **non-JavaScript installs:** Python, Rust, and Go manifests are resolved independently of any safeword lane-host `package.json`.
 
 ### 3. Validate Test Definitions (skip if no ticket)
 
@@ -137,7 +148,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
-**Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
+**Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md/package.json)
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
 **Reconcile:** ✅ No pattern deviation (or ⚠️ N deviations, M missing uplevel ticket — soft, never blocks)
 **Experience:** ✅ No new friction (or ⚠️ N friction points / dulled peak, or ⏭️ N/A — not persona-facing) — soft, never blocks
