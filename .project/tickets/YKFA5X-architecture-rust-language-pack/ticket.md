@@ -19,6 +19,7 @@ out_of_scope:
   - Module CONTENTS / nesting — only the TOP-level `src/` modules are listed; `src/foo/bar.rs`, a module's internals, and `mod.rs` resolution are out
   - `[workspace.dependencies]` inheritance, target-specific deps, optional/feature deps, build-target tables — out (the three flat dependency tables cover the common case)
   - Mixed ROOT polyglot where both a Cargo `[workspace]` and `package.json` workspaces sit at the repo root — JS wins the `??` chain; a noted limitation
+  - Cross-manifest dependency-name masking — a single directory carrying BOTH a `package.json` and a `Cargo.toml` that share a literal dependency name unions to one fingerprint entry, so dropping it from one manifest while it survives in the other does not move the fingerprint (a contrived polyglot-leaf edge surfaced by the done-gate /quality-review; documented, not code-changed in this slice)
   - Python language pack — separate WBM8JE slice
   - Changing the JS/TS/Go discovery, extraction, or fingerprint behavior in any observable way (pure addition; regression-guarded)
 done_when:
