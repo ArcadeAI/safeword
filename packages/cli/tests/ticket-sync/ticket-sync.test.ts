@@ -159,15 +159,15 @@ describe('ticket-sync', () => {
         '# Legacy external\n',
       );
 
-      const ext111 = entryFor('EXT111');
-      const ext112 = entryFor('EXT112');
+      const extension111 = entryFor('EXT111');
+      const extension112 = entryFor('EXT112');
 
-      expect(ext111?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/393');
-      expect(ext111?.externalPullRequests).toEqual([
+      expect(extension111?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/393');
+      expect(extension111?.externalPullRequests).toEqual([
         'https://github.com/ArcadeAI/safeword/pull/400',
         'https://github.com/ArcadeAI/safeword/pull/401',
       ]);
-      expect(ext112?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/394');
+      expect(extension112?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/394');
     });
 
     it('renders_external_issue_and_prs_in_index_output', () => {

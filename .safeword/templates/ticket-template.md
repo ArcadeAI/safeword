@@ -23,6 +23,8 @@ Relations (all optional, omit when none):
                                  #   real reason (logged, shown in the INDEX). cancelled/
                                  #   superseded/wontfix blockers require this to proceed
   depends_on: [<id>]             # SOFT deps — surfaced by `safeword check` / INDEX, not enforced
+  external_issue: <https://.../issues/nnn>  # direct tracker issue URL for triage
+  external_prs: [<https://.../pull/nnn>, ...]  # direct tracker PR URLs for in-flight/merged PRs
 -->
 
 # Title
