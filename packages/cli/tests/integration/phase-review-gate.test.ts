@@ -30,6 +30,10 @@ const ticketBody = (phase: string): string =>
     'last_modified: 2026-06-03T00:00:00.000Z',
     'scope:',
     '  - does a thing',
+    'out_of_scope:',
+    '  - unrelated things',
+    'done_when:',
+    '  - thing is done',
     '---',
     '',
     '# Ticket',
@@ -121,6 +125,11 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     mkdirSync(ticketDirectory, { recursive: true });
     ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
     writeFileSync(ticketFile, ticketBody('define-behavior'));
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n\n## Jobs To Be Done\n\nskip: phase-review fixture\n',
+    );
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: phase-review fixture\n');
     writeConfig(true);
   });
 

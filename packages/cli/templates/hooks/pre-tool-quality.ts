@@ -7,7 +7,12 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
+import {
+  evaluateFeatureTicketReadiness,
+  formatFeatureTicketReadiness,
+  getTicketInfo,
+  parseTddStep,
+} from './lib/active-ticket.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
@@ -390,6 +395,49 @@ function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: 
     return priorContent.replace(toolInput.old_string, toolInput.new_string ?? '');
   }
   return priorContent;
+}
+
+function frontmatterScalar(
+  meta: Record<string, string | string[]>,
+  key: string,
+): string | undefined {
+  const value = meta[key];
+  return Array.isArray(value) ? undefined : value;
+}
+
+function frontmatterFromContent(content: string): Record<string, string | string[]> {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  return match ? parseFrontmatter(match[1] ?? '') : {};
+}
+
+// Feature readiness gate (#404): block new entries into define-behavior before
+// scenario work starts. The existing test-definitions.md gate still guards the
+// first scenario-file write; this catches the earlier phase edit.
+if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  const priorMeta = frontmatterFromContent(priorContent);
+  const proposedMeta = frontmatterFromContent(proposedContent);
+  const priorPhase = frontmatterScalar(priorMeta, 'phase');
+  const proposedPhase = frontmatterScalar(proposedMeta, 'phase');
+  const proposedType = frontmatterScalar(proposedMeta, 'type');
+
+  if (
+    proposedType === 'feature' &&
+    proposedPhase === 'define-behavior' &&
+    priorPhase !== proposedPhase
+  ) {
+    const ticketFolder = nodePath.basename(nodePath.dirname(editedFile));
+    const readiness = evaluateFeatureTicketReadiness(projectDirectory, ticketFolder, {
+      ticketContent: proposedContent,
+    });
+    if (!readiness.ok) {
+      deny(
+        formatFeatureTicketReadiness(readiness),
+        'Complete the listed intake artifacts, then retry the phase change into define-behavior.',
+      );
+    }
+  }
 }
 
 // Review gate (NMSD94, Tier 2) — DEFAULT-OFF, same flag as Tier 1. On a

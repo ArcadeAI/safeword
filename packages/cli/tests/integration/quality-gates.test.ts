@@ -70,13 +70,14 @@ function runPreToolQuality(
   toolName: string,
   filePath?: string,
   sessionId = 'test-session',
+  toolInput: Record<string, unknown> = {},
 ) {
   return spawnSync('bun', [PRE_TOOL_QUALITY], {
     input: JSON.stringify({
       session_id: sessionId,
       hook_event_name: 'PreToolUse',
       tool_name: toolName,
-      tool_input: filePath ? { file_path: filePath } : {},
+      tool_input: filePath ? { file_path: filePath, ...toolInput } : toolInput,
     }),
     cwd,
     env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
@@ -1656,6 +1657,126 @@ describe('Quality Gates', () => {
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('non-empty reason');
+    });
+
+    it('9.14: denies feature phase advance into define-behavior when scope frontmatter is missing', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'type: feature', 'phase: intake', '---', '# Test'].join('\n'),
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('Feature ticket is not ready for define-behavior');
+      expect(reason).toContain('scope');
+      expect(reason).toContain('out_of_scope');
+      expect(reason).toContain('done_when');
+    });
+
+    it('9.15: denies feature phase advance into define-behavior when spec and dimensions are missing', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: intake',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('spec.md');
+      expect(reason).toContain('dimensions.md');
+    });
+
+    it('9.16: allows ready feature phase advance into define-behavior', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: intake',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: ready fixture; JTBD/AC content covered elsewhere\n',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+        'skip: single behavioral dimension, no partitioning to enumerate\n',
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('9.17: does not apply feature readiness to task phase advance', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'type: task', 'phase: intake', '---', '# Test'].join('\n'),
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
     });
   });
   // =========================================================================

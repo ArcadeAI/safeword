@@ -251,6 +251,62 @@ describe('Phase Derivation (#124)', () => {
 
       expect(output).toContain('Ticket: test-ticket (099)');
     });
+
+    it('1.4: warns legacy define-behavior features about missing readiness before scenario guidance', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', {
+        phase: 'define-behavior',
+        type: 'feature',
+      });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      const readinessIndex = output.indexOf('Feature ticket is not ready for define-behavior');
+      const scenarioIndex = output.indexOf('Present scenarios to user for review');
+      expect(readinessIndex).toBeGreaterThan(-1);
+      expect(scenarioIndex).toBeGreaterThan(-1);
+      expect(readinessIndex).toBeLessThan(scenarioIndex);
+      expect(output).toContain('scope');
+      expect(output).toContain('spec.md');
+      expect(output).toContain('dimensions.md');
+    });
+
+    it('1.5: keeps the normal scenario guidance for ready define-behavior features', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: define-behavior',
+          'status: in_progress',
+          'last_modified: 2026-04-15T12:00:00Z',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '',
+          '# Ticket 099',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: ready prompt fixture\n',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/dimensions.md',
+        'skip: single behavioral dimension, no partitioning to enumerate\n',
+      );
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('Present scenarios to user for review');
+      expect(output).not.toContain('Feature ticket is not ready for define-behavior');
+    });
   });
 
   // =========================================================================

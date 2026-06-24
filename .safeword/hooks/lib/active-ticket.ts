@@ -8,7 +8,11 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
+
+import { parseFrontmatter } from './hierarchy.js';
+import { evaluateAcGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
+import { isValidSkipReason } from './parse-annotation.js';
 
 export interface ActiveTicketInfo {
   phase: string | undefined;
@@ -33,6 +37,168 @@ const EMPTY_DETAILS: TicketDetails = {
   folder: undefined,
   slug: undefined,
 };
+
+export interface FeatureTicketReadinessIssue {
+  item: string;
+  reason: string;
+  remediation: string;
+}
+
+export interface FeatureTicketReadiness {
+  ok: boolean;
+  issues: FeatureTicketReadinessIssue[];
+}
+
+const REQUIRED_READINESS_FRONTMATTER = ['scope', 'out_of_scope', 'done_when'] as const;
+
+/**
+ * A required frontmatter field counts as missing when it is absent, the literal
+ * string `'null'`, or empty — including an empty block sequence (which parses to
+ * `[]`) or a list of only blank items.
+ */
+function isMissingReadinessFrontmatterField(value: string | string[] | undefined): boolean {
+  if (value === undefined || value === 'null') return true;
+  return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
+}
+
+function addReadinessIssue(
+  issues: FeatureTicketReadinessIssue[],
+  item: string,
+  reason: string,
+  remediation: string,
+): void {
+  issues.push({ item, reason, remediation });
+}
+
+function readPersonasForReadiness(projectDirectory: string): string {
+  const personasPath = resolvePersonasPath(projectDirectory);
+  return existsSync(personasPath) ? readFileSync(personasPath, 'utf8') : '';
+}
+
+function resolvePersonasPath(projectDirectory: string): string {
+  const defaultPath = nodePath.join(resolveNamespaceRoot(projectDirectory), 'personas.md');
+  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  if (!existsSync(configFile)) return defaultPath;
+  const configured = readConfiguredPersonasPath(readFileSync(configFile, 'utf8'));
+  if (configured === undefined) return defaultPath;
+  return nodePath.isAbsolute(configured) ? configured : nodePath.join(projectDirectory, configured);
+}
+
+function readConfiguredPersonasPath(rawConfig: string): string | undefined {
+  try {
+    const parsed = JSON.parse(rawConfig) as { paths?: { personas?: unknown } };
+    const configured = parsed.paths?.personas;
+    return typeof configured === 'string' && configured.trim() !== '' ? configured : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function evaluateFeatureTicketReadiness(
+  projectDirectory: string,
+  ticketFolder: string,
+  options: { ticketContent?: string } = {},
+): FeatureTicketReadiness {
+  const issues: FeatureTicketReadinessIssue[] = [];
+  const ticketDirectory = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticketFolder,
+  );
+  const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
+  const ticketContent =
+    options.ticketContent ?? (existsSync(ticketFile) ? readFileSync(ticketFile, 'utf8') : '');
+  const frontmatterMatch = ticketContent.match(/^---\n([\s\S]*?)\n---/);
+
+  if (!frontmatterMatch) {
+    addReadinessIssue(
+      issues,
+      'ticket.md frontmatter',
+      'missing YAML frontmatter',
+      'Add ticket.md frontmatter with scope, out_of_scope, and done_when.',
+    );
+  } else {
+    const meta = parseFrontmatter(frontmatterMatch[1] ?? '');
+    const missing = REQUIRED_READINESS_FRONTMATTER.filter(field =>
+      isMissingReadinessFrontmatterField(meta[field]),
+    );
+    if (missing.length > 0) {
+      addReadinessIssue(
+        issues,
+        'ticket.md frontmatter',
+        `missing: ${missing.join(', ')}`,
+        'Add scope, out_of_scope, and done_when to ticket.md frontmatter.',
+      );
+    }
+  }
+
+  const specFile = nodePath.join(ticketDirectory, 'spec.md');
+  if (!existsSync(specFile)) {
+    addReadinessIssue(
+      issues,
+      'spec.md',
+      'missing',
+      'Author spec.md with Jobs To Be Done and Acceptance Criteria, or a deliberate skip reason where allowed.',
+    );
+  } else {
+    const specContent = readFileSync(specFile, 'utf8');
+    const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForReadiness(projectDirectory));
+    if (!jtbdVerdict.ok) {
+      addReadinessIssue(
+        issues,
+        'spec.md',
+        `JTBD gate: ${jtbdVerdict.reason}`,
+        'Add a Job To Be Done under `## Jobs To Be Done`, or write `skip: <reason>` there.',
+      );
+    }
+
+    const acVerdict = evaluateAcGate(specContent);
+    if (!acVerdict.ok) {
+      addReadinessIssue(
+        issues,
+        'spec.md',
+        `AC gate: ${acVerdict.reason}`,
+        'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n>`, or add a per-JTBD `skip: <reason>`.',
+      );
+    }
+  }
+
+  const dimensionsFile = nodePath.join(ticketDirectory, 'dimensions.md');
+  if (!existsSync(dimensionsFile)) {
+    addReadinessIssue(
+      issues,
+      'dimensions.md',
+      'missing',
+      'Create dimensions.md with a dimension table, or write `skip: <non-empty reason>` as the entire content.',
+    );
+  } else {
+    const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
+    const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
+    if (skipMatch && !isValidSkipReason(skipMatch[1] ?? '')) {
+      addReadinessIssue(
+        issues,
+        'dimensions.md',
+        '`skip:` declaration has no reason after the colon',
+        'Either write a dimension table, or use `skip: <reason>` explaining why no dimensions need enumerating.',
+      );
+    }
+  }
+
+  return { ok: issues.length === 0, issues };
+}
+
+export function formatFeatureTicketReadiness(readiness: FeatureTicketReadiness): string {
+  if (readiness.ok) return 'Feature ticket is ready for define-behavior.';
+
+  const remediations = [...new Set(readiness.issues.map(issue => issue.remediation))];
+  return [
+    'Feature ticket is not ready for define-behavior.',
+    'Missing or invalid readiness:',
+    ...readiness.issues.map(issue => `- ${issue.item}: ${issue.reason}`),
+    'Remediation:',
+    ...remediations.map(remediation => `- ${remediation}`),
+  ].join('\n');
+}
 
 /**
  * Look up a specific ticket's phase and status by ID.
