@@ -53,3 +53,10 @@ cursor.com/docs/hooks (`stop` non-blocking, `loop_limit` default 5 / null)
   Set `preToolUse` `timeout: 90` (close edit runs the suite) and `stop`
   `loop_limit: 1`. Tests: lib unit (`done-gate.test.ts`), adapter helper units
   (`cursor-gate-adapter.test.ts`), and end-to-end (`cursor-pretooluse-gate.test.ts`).
+- 2026-06-24 /quality-review (fresh-context pass) → APPROVE, no criticals. Took two
+  fixes: match ticket.md by `basename` not `endsWith` (a `*ticket.md` file can no
+  longer be mis-gated), and added `done-gate-failing-suite.test.ts` (mocked) to pin
+  the "failing suite blocks the close" premise. Known limitation (deferred,
+  negligible): if a `status: done` edit's content can't be read, detection fails
+  open at the logic layer — only a wrapper crash hits Cursor's `failClosed`. Cursor's
+  sole edit tool sends full content, so the multi-line frontmatter is always present.

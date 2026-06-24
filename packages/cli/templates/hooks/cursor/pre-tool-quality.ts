@@ -57,7 +57,7 @@ if (!filePath) emitAllowAndExit();
 // ticket.md to `status: done`. "Full" enforcement: evaluateDoneEvidence runs the
 // test suite (the one artifact prose can't fake) plus the verify.md/scenario
 // checks, sharing its logic with the Stop gate via lib/done-gate.ts (no drift).
-if (filePath.endsWith('ticket.md')) {
+if (nodePath.basename(filePath) === 'ticket.md') {
   const proposedContent = extractWriteContent(input.tool_input);
   if (detectDoneTransition(proposedContent)) {
     const ticketDir = nodePath.resolve(nodePath.dirname(filePath));
