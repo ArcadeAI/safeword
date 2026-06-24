@@ -34,9 +34,13 @@ async function readInput(): Promise<CursorPreToolInput> {
   }
 }
 
-function emitAllowAndExit(): never {
-  process.stdout.write(JSON.stringify({ permission: 'allow' }) + '\n');
+function emitDecisionAndExit(decision: CursorDecision): never {
+  process.stdout.write(JSON.stringify(decision) + '\n');
   process.exit(0);
+}
+
+function emitAllowAndExit(): never {
+  emitDecisionAndExit({ permission: 'allow' });
 }
 
 const input = await readInput();
@@ -72,13 +76,11 @@ if (nodePath.basename(filePath) === 'ticket.md') {
 
     const verdict = evaluateDoneEvidence({ projectDir: process.cwd(), ticketDir, ticketType });
     if (!verdict.ok) {
-      const denial: CursorDecision = {
+      emitDecisionAndExit({
         permission: 'deny',
         user_message: verdict.reason,
         agent_message: verdict.reason,
-      };
-      process.stdout.write(JSON.stringify(denial) + '\n');
-      process.exit(0);
+      });
     }
     // Evidence present — allow. ticket.md is a meta path the edit gate permits
     // anyway, so there is nothing further to check.
@@ -99,6 +101,4 @@ const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
 // Fail-closed: a gate that crashed or never started denies the edit (ANAXG4).
-const decision = decideFromGate(runClaudeHook(claudeHookPath, translated));
-process.stdout.write(JSON.stringify(decision) + '\n');
-process.exit(0);
+emitDecisionAndExit(decideFromGate(runClaudeHook(claudeHookPath, translated)));
