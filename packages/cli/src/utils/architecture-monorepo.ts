@@ -17,6 +17,8 @@ import nodePath from 'node:path';
 import { extractSkeleton } from './architecture-skeleton.js';
 import { detectWorkspaces } from './depcruise-config.js';
 import { isDirectory, readFileSafe, readJson } from './fs.js';
+import { readDelimitedBlock } from './manifest-block.js';
+import { dependencySectionNames } from './manifest-dependencies.js';
 
 /** Placeholder purpose for a freshly modelled package awaiting prose. */
 const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
@@ -28,14 +30,6 @@ const DEPENDENCY_CRUISER_CONFIG_NAMES = [
   '.dependency-cruiser.mjs',
   '.dependency-cruiser.json',
 ];
-
-/** Manifest sections whose workspace-internal keys become inter-package edges. */
-const DEPENDENCY_SECTIONS = [
-  'dependencies',
-  'devDependencies',
-  'peerDependencies',
-  'optionalDependencies',
-] as const;
 
 const byString = (a: string, b: string): number => a.localeCompare(b);
 
@@ -169,16 +163,7 @@ function readGoModuleName(packageDirectory: string): string | undefined {
 
 function manifestDependencyNames(packageDirectory: string): string[] {
   const manifest = readManifest(packageDirectory);
-  if (manifest === undefined) return [];
-
-  const names = new Set<string>();
-  for (const section of DEPENDENCY_SECTIONS) {
-    const entry = manifest[section];
-    if (entry !== null && typeof entry === 'object') {
-      for (const name of Object.keys(entry)) names.add(name);
-    }
-  }
-  return [...names];
+  return manifest === undefined ? [] : dependencySectionNames(manifest);
 }
 
 function readBoundaryConfig(projectDirectory: string): string {
@@ -260,15 +245,8 @@ function detectGoWork(projectDirectory: string): string[] | undefined {
 
 /** Member directories from a `use (\n  ./x\n)` block, stopping at the closing paren. */
 function collectGoWorkBlock(lines: string[], directories: string[]): void {
-  const start = lines.findIndex(line => /^use\s*\(\s*$/.test(line.trim()));
-  if (start === -1) return;
-
-  const blockLines = lines.slice(start + 1);
-  for (const line of blockLines) {
-    const trimmed = line.trim();
-    if (trimmed === ')') break;
-    if (trimmed === '' || trimmed.startsWith('//')) continue;
-    const target = normalizeUseTarget(trimmed);
+  for (const entry of readDelimitedBlock(lines, /^use\s*\(\s*$/)) {
+    const target = normalizeUseTarget(entry);
     if (target !== undefined) directories.push(target);
   }
 }

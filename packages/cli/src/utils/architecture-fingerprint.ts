@@ -14,6 +14,8 @@ import { type Dirent, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
+import { readDelimitedBlock } from './manifest-block.js';
+import { dependencySectionNames } from './manifest-dependencies.js';
 
 /** Candidate dependency-cruiser config filenames, in resolution order. */
 const DEPENDENCY_CRUISER_CONFIG_NAMES = [
@@ -34,14 +36,6 @@ const SHAPE_SCAN_EXCLUDED_DIRECTORIES = new Set([
   'dist',
   'node_modules',
 ]);
-
-/** Dependency manifest sections whose *keys* contribute to the shape. */
-const DEPENDENCY_SECTIONS = [
-  'dependencies',
-  'devDependencies',
-  'peerDependencies',
-  'optionalDependencies',
-] as const;
 
 /** Stable string ordering for the fingerprint's sorted inputs. */
 const byString = (a: string, b: string): number => a.localeCompare(b);
@@ -86,17 +80,7 @@ function readDependencyNames(projectDirectory: string): string[] {
 
 function readPackageJsonDependencyNames(projectDirectory: string): string[] {
   const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
-  if (manifest === undefined) return [];
-
-  const names = new Set<string>();
-  for (const section of DEPENDENCY_SECTIONS) {
-    const entry = manifest[section];
-    if (entry !== null && typeof entry === 'object') {
-      for (const name of Object.keys(entry)) names.add(name);
-    }
-  }
-
-  return [...names];
+  return manifest === undefined ? [] : dependencySectionNames(manifest);
 }
 
 /**
@@ -122,15 +106,8 @@ function readGoModuleRequires(projectDirectory: string): string[] {
 
 /** Module paths from the `require (\n … \n)` block, stopping at the closing paren. */
 function collectGoRequireBlock(lines: string[], modules: Set<string>): void {
-  const start = lines.findIndex(line => /^require\s*\(\s*$/.test(line.trim()));
-  if (start === -1) return;
-
-  const blockLines = lines.slice(start + 1);
-  for (const line of blockLines) {
-    const trimmed = line.trim();
-    if (trimmed === ')') break;
-    if (trimmed === '' || trimmed.startsWith('//')) continue;
-    const [modulePath] = trimmed.split(/\s+/);
+  for (const entry of readDelimitedBlock(lines, /^require\s*\(\s*$/)) {
+    const [modulePath] = entry.split(/\s+/);
     if (modulePath !== undefined && modulePath.length > 0) modules.add(modulePath);
   }
 }
