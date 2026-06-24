@@ -39,6 +39,7 @@
 
 - **Auto-upgrade under Codex (7R1D3B)** (blocked, epic: auto-upgrade-cross-agent)
   Codex users get safeword's seamless patch/minor auto-upgrade (today Claude-Code-only) without manual `safeword upgrade` and within Codex's synchronous hook contract.
+  external issue: https://github.com/ArcadeAI/safeword/issues/393
   → `.project/tickets/7R1D3B-auto-upgrade-codex`
 - **Epic: Cross-agent auto-upgrade (Cursor + Codex) (BJX7WR)** (in_progress, epic: auto-upgrade-cross-agent)
   Extend safeword's seamless auto-upgrade — today Claude-Code-only — to the other two supported agents, Cursor and Codex, so customers on any agent stay current without manual `safeword upgrade`.
@@ -248,6 +249,7 @@
   Ship safeword as a Codex plugin distributed via Codex's marketplace, parallel to the Cursor packaging ticket (DXYKJX).
   → `.project/tickets/6WJ1RS-codex-plugin-marketplace-packaging`
 - **Prove Codex parity in a trusted customer repo (CXP9LM)** (in_progress, epic: codex-changelog-alignment)
+  external issue: https://github.com/ArcadeAI/safeword/issues/394
   → `.project/tickets/CXP9LM-codex-live-parity-smoke`
 - **Map safeword lifecycle events to Codex hook events (design) (HPP49X)** (done, epic: codex-changelog-alignment)
   Design doc mapping safeword's five gate moments onto Codex hook events.
@@ -263,6 +265,7 @@
   → `.project/tickets/QGHVXZ-codex-commands-skills-vs-prompts`
 - **Epic: OpenAI Codex changelog + docs alignment (QM5G9M)** (open, epic: codex-changelog-alignment)
   Bring safeword's gate model to OpenAI Codex (the `codex` CLI), now that research confirms Codex's enforcement surfaces are a clean fit.
+  external issue: https://github.com/ArcadeAI/safeword/issues/395
   → `.project/tickets/QM5G9M-codex-changelog-alignment-epic`
 - **Pin minimum codex CLI version that supports required hooks (WR4HRA)** (done, epic: codex-changelog-alignment)
   Record the minimum `codex` CLI version safeword requires, and warn below it during setup and upgrade.
@@ -905,9 +908,10 @@
 - **De-jargon the interactive CLI; auto-default the namespace-move prompt (KRUEWC)** (done, epic: —)
   Make the unmediated terminal surface (`setup`/`upgrade`/`check`) answerable by a non-coder, and never halt on a jargon-only decision.
   → `.project/tickets/KRUEWC-dejargon-interactive-cli`
-- **sync-tracker v2 — project the dependency graph (relations, sub-issues, types) (M1FGRJ)** (blocked, epic: —)
+- **sync-tracker v2 — project the dependency graph (relations, sub-issues, types) (M1FGRJ)** (in_progress, epic: —)
   Extend `safeword sync-tracker` from a flat board to a **dependency-aware** projection: map safeword's `epic`/`parent` to tracker **sub-issues/parents**, `blocked_on`/`depends_on` to tracker **issue relations**, and `type` to native **issue-types** — so the external roadmap shows ordering and hierarchy, not just grouping.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
+  external issue: https://github.com/ArcadeAI/safeword/issues/347
   → `.project/tickets/M1FGRJ-tracker-relations-projection`
 - **Local ticket schema: epic + blocked_on, warn-only + one blocked_on hard gate (MBGQ89)** (done, epic: —)
   Promote `epic` and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't `done` (other terminal states need a reasoned override). (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); `parent`/`paired_with` are deferred — no consumer yet.)
@@ -1024,7 +1028,7 @@
   Extend the repo-level extension contract (70G298) with a third precedence layer — personal extensions that an individual contributor can layer on top of both safeword core AND repo-level extensions. Personal extensions live in a gitignored location by default so personal customizations don't leak into the team's repo.
   blocked by: Make safeword extensible at the repo/organization level — customer-specific rules, hooks, skills, conventions (70G298)
   → `.project/tickets/XSDQZ0`
-- **Document Codex parity for developers (Y5GS4X)** (in_progress, epic: —)
+- **Document Codex parity for developers (Y5GS4X)** (done, epic: —)
   Make safeword's public developer docs reflect Codex as a first-class installed surface alongside Claude Code and Cursor.
   → `.project/tickets/Y5GS4X-document-codex-parity-for-developers`
 - **Rust language pack — Cargo workspace discovery, src extraction, Cargo.toml fingerprint (YKFA5X)** (done, epic: —)
