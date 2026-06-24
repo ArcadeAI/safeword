@@ -330,3 +330,83 @@ describe('extractMonorepoModel — Go package identity (ticket ZD70P1)', () => {
     expect(model.packages[0]?.introspected).toBe(true);
   });
 });
+
+describe('discoverLeafDirectories — Cargo workspace discovery (ticket YKFA5X)', () => {
+  function makeCargoCrate(root: string, name: string, options: { module?: string } = {}): void {
+    const dir = nodePath.join(root, 'crates', name);
+    mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir, 'Cargo.toml'), `[package]\nname = "${name}"\n`);
+    if (options.module !== undefined) {
+      writeFileSync(nodePath.join(dir, 'src', `${options.module}.rs`), '// rust\n');
+    }
+  }
+
+  it('discovers crates from a Cargo workspace members array', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["crates/*"]\n',
+    );
+    makeCargoCrate(context.directory, 'svc', { module: 'config' });
+    makeCargoCrate(context.directory, 'api', { module: 'routes' });
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'crates', 'api'),
+      nodePath.join(context.directory, 'crates', 'svc'),
+    ]);
+  });
+
+  it('keeps a crate directory that has a Cargo.toml but no package.json', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["crates/*"]\n',
+    );
+    makeCargoCrate(context.directory, 'svc', { module: 'config' });
+
+    expect(discoverLeafDirectories(context.directory)).toContain(
+      nodePath.join(context.directory, 'crates', 'svc'),
+    );
+  });
+
+  it('lets package.json workspaces win over a Cargo workspace when both are present', () => {
+    // Root manifest (from beforeEach) declares workspaces: ['packages/*'].
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["crates/*"]\n',
+    );
+    makeCargoCrate(context.directory, 'svc', { module: 'config' });
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+
+    const leaves = discoverLeafDirectories(context.directory);
+
+    expect(leaves).toEqual([nodePath.join(context.directory, 'packages', 'web')]);
+    expect(leaves).not.toContain(nodePath.join(context.directory, 'crates', 'svc'));
+  });
+
+  it('returns no leaves when Cargo.toml has no [workspace] table', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(nodePath.join(context.directory, 'Cargo.toml'), '[package]\nname = "solo"\n');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([]);
+  });
+});
+
+describe('extractMonorepoModel — Rust crate identity (ticket YKFA5X)', () => {
+  it('names a Rust crate from its Cargo.toml [package] name', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["crates/svc"]\n',
+    );
+    const dir = nodePath.join(context.directory, 'crates', 'svc');
+    mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir, 'Cargo.toml'), '[package]\nname = "acme-svc"\n');
+    writeFileSync(nodePath.join(dir, 'src', 'config.rs'), '// rust\n');
+
+    const model = extractMonorepoModel(context.directory);
+
+    expect(model.packages.map(node => node.name)).toEqual(['acme-svc']);
+    expect(model.packages[0]?.introspected).toBe(true);
+  });
+});

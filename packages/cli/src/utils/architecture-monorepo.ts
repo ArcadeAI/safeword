@@ -15,6 +15,7 @@ import { globSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
+import { readCargoPackageName, readCargoWorkspaceMembers } from './cargo-manifest.js';
 import { detectWorkspaces } from './depcruise-config.js';
 import { isDirectory, readFileSafe, readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
@@ -72,7 +73,8 @@ export function discoverLeafDirectories(projectDirectory: string): string[] {
   const patterns =
     detectWorkspaces(projectDirectory) ??
     detectPnpmWorkspaces(projectDirectory) ??
-    detectGoWork(projectDirectory);
+    detectGoWork(projectDirectory) ??
+    detectCargoWorkspace(projectDirectory);
   if (patterns === undefined) return [];
 
   const matches = new Set<string>();
@@ -93,7 +95,8 @@ export function discoverLeafDirectories(projectDirectory: string): string[] {
 function hasRecognizedManifest(directory: string): boolean {
   return (
     readJson(nodePath.join(directory, 'package.json')) !== undefined ||
-    readFileSafe(nodePath.join(directory, 'go.mod')) !== undefined
+    readFileSafe(nodePath.join(directory, 'go.mod')) !== undefined ||
+    readFileSafe(nodePath.join(directory, 'Cargo.toml')) !== undefined
   );
 }
 
@@ -149,9 +152,14 @@ function readManifest(packageDirectory: string): Record<string, unknown> | undef
 function packageName(packageDirectory: string): string {
   const name = readManifest(packageDirectory)?.name;
   if (typeof name === 'string' && name.length > 0) return name;
-  // A Go package's identity is its go.mod `module` directive (ticket ZD70P1),
-  // the analogue of package.json `name`; fall back to the directory basename.
-  return readGoModuleName(packageDirectory) ?? nodePath.basename(packageDirectory);
+  // A Go package's identity is its go.mod `module` directive and a Rust crate's is
+  // its Cargo.toml `[package] name` (tickets ZD70P1, YKFA5X) — the analogues of
+  // package.json `name`; fall back to the directory basename.
+  return (
+    readGoModuleName(packageDirectory) ??
+    readCargoCrateName(packageDirectory) ??
+    nodePath.basename(packageDirectory)
+  );
 }
 
 /** The `module` path declared in a directory's `go.mod`, if any. */
@@ -159,6 +167,12 @@ function readGoModuleName(packageDirectory: string): string | undefined {
   const content = readFileSafe(nodePath.join(packageDirectory, 'go.mod'));
   if (content === undefined) return undefined;
   return /^module\s+(\S+)/m.exec(content)?.[1];
+}
+
+/** The `[package] name` declared in a directory's `Cargo.toml`, if any. */
+function readCargoCrateName(packageDirectory: string): string | undefined {
+  const content = readFileSafe(nodePath.join(packageDirectory, 'Cargo.toml'));
+  return content === undefined ? undefined : readCargoPackageName(content);
 }
 
 function manifestDependencyNames(packageDirectory: string): string[] {
@@ -270,4 +284,15 @@ function normalizeUseTarget(raw: string): string | undefined {
   const unquoted = noComment.replaceAll(/^["']|["']$/g, '');
   if (unquoted === '' || /\s/.test(unquoted)) return undefined; // empty or multi-token junk
   return unquoted.replace(/^\.\//, '');
+}
+
+/**
+ * Read workspace member globs from a `Cargo.toml` `[workspace] members` array (ticket
+ * YKFA5X) — Cargo stores its workspace list here, not in package.json. Returns the
+ * path globs, or `undefined` when the file is absent or has no parseable members
+ * array (so a single crate, or an unparseable manifest, degrades to no-workspaces).
+ */
+function detectCargoWorkspace(projectDirectory: string): string[] | undefined {
+  const content = readFileSafe(nodePath.join(projectDirectory, 'Cargo.toml'));
+  return content === undefined ? undefined : readCargoWorkspaceMembers(content);
 }
