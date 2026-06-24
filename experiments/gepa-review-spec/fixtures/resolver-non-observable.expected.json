@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A manifest inside an excluded directory is ignored",
+      "defectType": "non-observable",
+      "severity": "must-fix",
+      "note": "mutation operator: externalize→internalize. The observable outcome (\"the plan has no rust entry\") was replaced with an assertion on internal state (\"the resolver's internal exclude-set contains target\"), which is not externally visible. Other two scenarios unchanged & clean."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "The resolver handles tox repos and empty repos",
+      "defectType": "non-atomic",
+      "severity": "must-fix",
+      "note": "mutation operator: merge-scenarios. Two independent behaviors (tox command resolution; empty-plan for no manifest) were combined into one scenario with two When/Then pairs. The excluded-directory scenario is unchanged & clean."
+    }
+  ]
+}

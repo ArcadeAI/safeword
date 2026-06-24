@@ -99,6 +99,27 @@ gated behind a seeded-defect eval).
     requires).
   - 16/16 unit tests pass (was 12; +4 lock the new semantics); `tsc --strict` clean
     on `src/`.
+- 2026-06-24T04:30:00Z **Phase 2 corpus expansion — approach + Batch 1.** Pattern:
+  excerpt a small (3-scenario) CLEAN base from a real safeword `.feature`, hand-
+  adjudicate it clean, then apply ONE semantic **mutation operator** per fixture
+  (the operator IS the label). The unmutated base is a certified-clean NEGATIVE;
+  each single-mutation variant is a POSITIVE (certifiedClean=true) whose only
+  must-fix is the injected one, so any other must-fix on it is a true false alarm.
+  Held-out TEST split will use DISTINCT bases so GEPA never sees those scenarios.
+  Mutation operator → defect-type table (must-fix unless noted):
+  `weaken-Then-to-existence`→vacuous-existence-only · `echo-the-Given`→vacuous-given-echo
+  · `precondition-into-assertion`→vacuous-trivially-true · `Then-to-non-claim`→vacuous-non-claim
+  · `merge-scenarios`→non-atomic · `externalize→internalize`→non-observable
+  · `add-wall-clock`→determinism-time · `assert-unordered-as-ordered`→determinism-order
+  · `unsequenced-concurrency`→determinism-concurrency · `contradict-a-sibling`→conflict
+  · `delete-the-rejection-scenario`→missing-negative-case (should-strengthen, fixture-scope).
+  **Batch 1** (from `features/test-plan-resolver.feature`, all TRAIN): `resolver-clean`
+  (certified-clean negative) + `resolver-vacuous-existence`, `resolver-non-observable`,
+  `resolver-non-atomic`. Corpus now 7 fixtures (6 train / 1 test); all defect types
+  valid, label severities consistent with `DEFAULT_SEVERITY`; 16/16 tests still pass.
+  Next: scale to ~20 across more bases incl. a held-out TEST cluster, then a corpus
+  baseline run (the only token spend in Phase 2 — also empirically certifies the
+  clean bases: a must-fix on any certifiedClean fixture flags a base to harden).
 
 ---
 
