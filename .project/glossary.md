@@ -39,7 +39,9 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Ticket
 
-**Definition:** The folder for one unit of multi-step work — current tickets created by `safeword ticket new` live at `<namespace-root>/tickets/{ID}-{slug}/`, with lookup still accepting historical `<namespace-root>/tickets/{ID}/` and legacy numeric `<namespace-root>/tickets/{id}-{slug}/` folders. Holds `ticket.md` (frontmatter + work log), `spec.md`, `test-definitions.md`, and `verify.md`. Acts as the context anchor across sessions.
+**Definition:** A safeword **ticket** is the local **execution anchor** for one unit of multi-step work — your agent's working dossier (spec, scenarios, work log) whose job is to keep the agent on track across sessions, _not_ a tracker item to be triaged. Current tickets created by `safeword ticket new` live at `<namespace-root>/tickets/{ID}-{slug}/`, with lookup still accepting historical `<namespace-root>/tickets/{ID}/` and legacy numeric `<namespace-root>/tickets/{id}-{slug}/` folders. Holds `ticket.md` (frontmatter + work log), `spec.md`, `test-definitions.md`, and `verify.md`. Acts as the context anchor across sessions.
+
+**Ticket vs. issue (vocabulary discipline):** safeword always says **"ticket"** for this local repo artifact and **"issue"** (or Jira's "work item") for the thing in an external tracker. The names are deliberately kept distinct — no dev tracker (Linear/GitHub/Jira) calls its unit a "ticket," so the term stays unambiguous when `sync-tracker` projects a ticket _into_ an issue. When context is thin, qualify: "safeword ticket" vs "tracker issue."
 
 ## Sizing
 

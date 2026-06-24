@@ -383,22 +383,60 @@ function findRelationAdvisories(cwd: string): string[] {
     return [];
   }
 
-  const nodes = entries.map(entry => ({ id: entry.id, dependsOn: entry.dependsOn }));
   const labelById = new Map(entries.map(entry => [entry.id, entry.title]));
   const refOf = (id: string): string => {
     const title = labelById.get(id);
     return title === undefined ? id : formatTicketReference(id, title);
   };
 
-  const dangling = findDanglingDependencies(nodes).map(
-    ({ from, missing }) => `${refOf(from)}: depends_on ${missing} — no such ticket (dangling ref)`,
-  );
-  const cyclic = findTicketsInCycles(nodes);
-  const cycle =
-    cyclic.length > 0
-      ? [`dependency cycle among: ${cyclic.map(id => refOf(id)).join(', ')} (break the loop)`]
-      : [];
-  return [...dangling, ...cycle];
+  // Same warn-only checks (dangling + cycle) over each directed relation field:
+  // depends_on (soft, AKZJXC) and blocked_on (hard, MBGQ89). The finders are
+  // generic over the edge set; only the field name and cycle wording differ.
+  const advisoriesFor = (
+    nodes: { id: string; dependsOn: string[] }[],
+    danglingField: string,
+    cycleLabel: string,
+  ): string[] => {
+    const dangling = findDanglingDependencies(nodes).map(
+      ({ from, missing }) =>
+        `${refOf(from)}: ${danglingField} ${missing} — no such ticket (dangling ref)`,
+    );
+    const cyclic = findTicketsInCycles(nodes);
+    const cycle =
+      cyclic.length > 0
+        ? [`${cycleLabel} cycle among: ${cyclic.map(id => refOf(id)).join(', ')} (break the loop)`]
+        : [];
+    return [...dangling, ...cycle];
+  };
+
+  // MBGQ89: a blocked_on_override is stale once every listed blocker is `done`
+  // (done auto-unblocks, so the override no longer does anything — clean it up).
+  const statusById = new Map(entries.map(entry => [entry.id, entry.status]));
+  const staleOverrides = entries
+    .filter(
+      entry =>
+        entry.blockedOnOverride !== undefined &&
+        entry.blockedOn.length > 0 &&
+        entry.blockedOn.every(id => statusById.get(id) === 'done'),
+    )
+    .map(
+      entry =>
+        `${refOf(entry.id)}: blocked_on_override is stale — every blocker is done; remove it`,
+    );
+
+  return [
+    ...advisoriesFor(
+      entries.map(entry => ({ id: entry.id, dependsOn: entry.dependsOn })),
+      'depends_on',
+      'dependency',
+    ),
+    ...advisoriesFor(
+      entries.map(entry => ({ id: entry.id, dependsOn: entry.blockedOn })),
+      'blocked_on',
+      'blocked_on',
+    ),
+    ...staleOverrides,
+  ];
 }
 
 /**
