@@ -1,6 +1,15 @@
 # Impl Plan: Rust language pack (YKFA5X)
 
-**Status:** planned
+**Status:** implemented
+
+_Reconciled against what shipped: all five Decisions held as written (no mid-build
+reversals) — directory-convention Rust extraction, hand-rolled TOML subset, a single
+`cargo-manifest.ts` parser module, manifest-keyed dispatch, and black-box drift via
+`--check`. Arch alignment holds (pure derive/parse, honest "not introspected" for a
+root-only crate, JS/Go byte-identical). Two additions beyond the original plan are
+recorded under Known deviations: the `runArchitecture` fixture lift and the
+verify-phase rework of `readCargoWorkspaceMembers` (a /quality-review fix, not a
+design change)._
 
 ## Approach
 
@@ -62,6 +71,14 @@ appear and what `--check` reports are a process-boundary contract → the `.feat
 - Cargo parsing lives in a new `cargo-manifest.ts` rather than inline (Go kept its
   readers inline). Justified: three Cargo readers ship together, so co-location is
   warranted now; the cross-language merge of detect\* discovery still waits for Python.
+- `runArchitecture` (the CLI-spawn step helper) was lifted from the Go step file into
+  `steps/support/architecture-fixtures.ts` and is now imported by both the Go and Rust
+  step files — a behavior-identical de-dup so the Rust lane didn't re-clone the logic.
+- `readCargoWorkspaceMembers` was reworked during verify from a whole-file regex to a
+  table-scoped, comment-stripped line scan (`workspaceMembersArrayBody`) after the
+  /quality-review found the regex read the wrong `members` array (unscoped) and dropped
+  members on a `]`-in-comment. A correctness fix within the same subset, not a scope or
+  design change; two regression tests pin it.
 
 ## Assessment triggers
 
