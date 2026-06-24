@@ -11,6 +11,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -248,7 +249,29 @@ describe('Quality Gates', () => {
       expect(state.locSinceCommit).toBeGreaterThanOrEqual(400);
     });
 
-    it('1.3: PreToolUse blocks with commit reminder at LOC gate', () => {
+    it('1.3: PostToolUse clears LOC gate when diff drops below threshold without commit', () => {
+      const largeFilePath = nodePath.join(projectDirectory, 'large-file.ts');
+      const lines = Array.from({ length: 420 }, (_, i) => `const x${i} = ${i};`).join('\n');
+      writeTestFile(projectDirectory, 'large-file.ts', lines);
+      execSync('git add large-file.ts', { cwd: projectDirectory, stdio: 'pipe' });
+
+      const armedResult = runPostToolQuality(projectDirectory, 'Edit', largeFilePath);
+
+      expect(armedResult.status).toBe(0);
+      expect(readState(projectDirectory).gate).toBe('loc');
+
+      execSync('git restore --staged large-file.ts', { cwd: projectDirectory, stdio: 'pipe' });
+      rmSync(largeFilePath);
+
+      const clearedResult = runPostToolQuality(projectDirectory, 'Bash', largeFilePath);
+
+      expect(clearedResult.status).toBe(0);
+      const state = readState(projectDirectory);
+      expect(state.locSinceCommit).toBe(0);
+      expect(state.gate).toBeNull();
+    });
+
+    it('1.4: PreToolUse blocks with commit reminder at LOC gate', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 450,
@@ -268,9 +291,30 @@ describe('Quality Gates', () => {
       expect(reason).toContain('Commit');
       // ZCYD5P: every hard-block gate message points to /explain.
       expect(reason).toContain('Run `/explain` for a plain-English version');
+      // 19E2XQ: the hint also rides systemMessage — the field Claude Code
+      // surfaces to the USER (permissionDecisionReason reaches the model and can
+      // be swallowed before the human sees it, issue #17356).
+      expect(output.systemMessage).toContain('Run `/explain` for a plain-English version');
     });
 
-    it('1.4: LOC gate clears on commit', () => {
+    it('1.5: PreToolUse allows stale LOC gate when stored LOC is below threshold', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        lastKnownPhase: null,
+        gate: 'loc',
+      });
+
+      const result = runPreToolQuality(projectDirectory, 'Edit');
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+    });
+
+    it('1.6: LOC gate clears on commit', () => {
       // State has a stale hash — doesn't match current HEAD
       writeState(projectDirectory, {
         locSinceCommit: 500,

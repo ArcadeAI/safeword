@@ -77,6 +77,14 @@ jobs:
         env:
           TEST_POETRY: '1'
 
+      - name: Acceptance lane (cucumber)
+        # Guards the Gherkin acceptance lane against features merged with no step
+        # definitions and no @wip tag — a persistently-red lane masks real
+        # regressions (issue #341). Runs after Build because some step defs spawn
+        # the built CLI (dist/cli.js). Features whose proof lives in vitest are
+        # @wip-excluded by convention, each with a one-line pointer in the .feature.
+        run: bun run test:bdd
+
       - name: Release-gate tests (supply-chain + dogfood parity)
         # Runs the *.release.test.ts files excluded from the main suite.
         # Includes the no-install-scripts.release.test.ts guard which would

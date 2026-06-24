@@ -205,6 +205,11 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(
         existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality.ts')),
       ).toBe(true);
+      expect(
+        existsSync(
+          nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality-helpers.ts'),
+        ),
+      ).toBe(true);
     });
 
     it('should wire Codex prompt timestamp and PreToolUse config to safeword hooks', async () => {

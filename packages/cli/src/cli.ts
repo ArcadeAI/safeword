@@ -85,6 +85,15 @@ program
   });
 
 program
+  .command('sync-tracker')
+  .description('Project the ticket corpus one-way into the configured tracker (Linear/GitHub)')
+  .option('--reset-tracker-map', 'Rebuild the tracker-map sidecar from scratch')
+  .action(async (options: { resetTrackerMap?: boolean }) => {
+    const { syncTrackerCommand } = await import('./commands/sync-tracker.js');
+    await syncTrackerCommand({ resetTrackerMap: options.resetTrackerMap });
+  });
+
+program
   .command('architecture')
   .description(
     'Refresh the generated architecture state document (.project/architecture.generated.md)',

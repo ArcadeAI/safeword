@@ -9,6 +9,7 @@ import {
   formatDependencyRecovery,
   getDependencyReadiness,
   readDependencyBootstrapConfig,
+  shouldBootstrapDependencies,
   toDependencyReadinessState,
   writeDependencyReadinessState,
   writeInstallMarker,
@@ -41,7 +42,10 @@ if (readiness.status === 'ready') {
 
 const config = readDependencyBootstrapConfig(projectDirectory);
 
-if (config.autoInstall && readiness.plan !== undefined) {
+if (
+  shouldBootstrapDependencies(readiness.status, config.autoInstall) &&
+  readiness.plan !== undefined
+) {
   const { binary, args, display } = readiness.plan.installCommand;
   const result = spawnSync(binary, args, {
     cwd: projectDirectory,

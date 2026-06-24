@@ -41,19 +41,43 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   let ticketDirectory: string;
   let ticketFile: string;
 
-  function runGateWrite(newPhase: string): HookResult {
+  function runGateWrite(
+    newPhase: string,
+    extraEnvironment: Record<string, string> = {},
+  ): HookResult {
+    // Control the ambient author model: tests that exercise cross-model pass it
+    // explicitly; everything else runs with it unset so same-model defaults are
+    // deterministic regardless of the dev's SessionStart env.
+    const childEnvironment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectRoot,
+      ...extraEnvironment,
+    };
+    if (!('SAFEWORD_AUTHOR_MODEL' in extraEnvironment))
+      delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Write',
         tool_input: { file_path: ticketFile, content: ticketBody(newPhase) },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: childEnvironment,
     });
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
-  function runGateEdit(fromPhase: string, toPhase: string): HookResult {
+  function runGateEdit(
+    fromPhase: string,
+    toPhase: string,
+    extraEnvironment: Record<string, string> = {},
+  ): HookResult {
+    const childEnvironment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectRoot,
+      ...extraEnvironment,
+    };
+    if (!('SAFEWORD_AUTHOR_MODEL' in extraEnvironment))
+      delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Edit',
@@ -64,7 +88,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
         },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: childEnvironment,
     });
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
@@ -76,11 +100,18 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     });
   }
 
-  function writeConfig(reviewGate: boolean): void {
+  function stampPhaseModel(phase: string, model: string): void {
+    spawnSync('bun', [STAMP_PATH, '--model', model, '--phase', phase], {
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, CLAUDE_SESSION_ID: 'sess-1' },
+    });
+  }
+
+  function writeConfig(reviewGate: boolean, crossModelReview = false): void {
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(projectRoot, '.safeword', 'config.json'),
-      JSON.stringify({ reviewGate }),
+      JSON.stringify({ reviewGate, crossModelReview }),
     );
   }
 
@@ -131,5 +162,76 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   it('is inert when reviewGate is off (default)', () => {
     writeConfig(false);
     expectHookAllow(runGateWrite('implement'));
+  });
+
+  describe('cross-model (7A0B2K) — phase-exit review must be a different model', () => {
+    it('blocks when the phase stamp model equals the author model', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      expectHookDeny(
+        runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
+    });
+
+    it('allows when the phase stamp model differs from the author model', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
+      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('blocks when the phase stamp records no model (fails closed)', () => {
+      writeConfig(true, true);
+      stampPhase('define-behavior');
+      expectHookDeny(
+        runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
+    });
+
+    it('allows when crossModelReview is OFF even if stamp model equals author', () => {
+      writeConfig(true, false);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('a logged skip bypasses the cross-model requirement', () => {
+      writeConfig(true, true);
+      stampPhase('define-behavior', 'docs-only', 'phase');
+      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('passes when a different-model re-review follows a same-model stamp', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
+      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('passes regardless of stamp order — cross-model first, same-model after', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('blocks via the Edit path too when the stamp model equals the author', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      expectHookDeny(
+        runGateEdit('define-behavior', 'implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
+    });
+
+    it('blocks a backward phase move under cross-model with a same-model stamp', () => {
+      writeConfig(true, true);
+      writeFileSync(ticketFile, ticketBody('implement'));
+      stampPhaseModel('implement', 'claude-opus-4-8');
+      expectHookDeny(
+        runGateWrite('define-behavior', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
+    });
   });
 });

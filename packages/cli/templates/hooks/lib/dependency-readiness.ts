@@ -345,6 +345,24 @@ export function readDependencyBootstrapConfig(projectDirectory: string): Depende
   };
 }
 
+/**
+ * Whether SessionStart should auto-install dependencies for this readiness
+ * status. A `missing` install artifact (no `node_modules` — e.g. a fresh git
+ * worktree) is bootstrapped UNCONDITIONALLY: the worktree is unusable and a
+ * commit would bypass the husky guard chain (lint-staged can't resolve its
+ * tools), so install regardless of the `autoInstall` opt-in. The opt-in still
+ * governs the softer `stale` re-install (deps present but inputs changed).
+ * (JNVP4W)
+ */
+export function shouldBootstrapDependencies(
+  status: DependencyReadinessStatus,
+  autoInstall: boolean,
+): boolean {
+  if (status === 'missing') return true;
+  if (status === 'stale') return autoInstall;
+  return false;
+}
+
 export function isDependencyBackedCommand(command: string): boolean {
   const segments = splitShellSegments(command);
 
@@ -425,12 +443,13 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
   const installCommand = readiness.installCommand ?? 'install dependencies';
   const problem =
     readiness.status === 'stale'
-      ? 'dependency inputs changed after the last install'
-      : 'dependencies are not installed in this worktree';
+      ? "the project's tool list changed since it was last set up, so safeword's checks may be out of date"
+      : "this project's tools aren't installed yet, so safeword's checks can't run";
 
   const lines = [
     `${problem}.`,
-    `Run \`${installCommand}\` from the project root, then retry the command.`,
+    `Install them with this command from the project folder, then try again:`,
+    `  ${installCommand}`,
   ];
 
   // A version-bump pull changes the input fingerprint without changing resolved

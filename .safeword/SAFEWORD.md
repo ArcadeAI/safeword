@@ -184,6 +184,8 @@ Safeword runs hooks each turn to track your phase and TDD step. Three gates hard
 
 The prompt hook injects your current phase each turn as a reminder.
 
+When a gate blocks, the user can run `/explain` for a plain-English version of the block — what it's asking for and how to clear it. Offer it in one line when the user seems unsure (asks "what?", pastes a block back, or stalls); stay quiet when they're moving fine. Don't make them ask twice to understand a block.
+
 ---
 
 ## Talking to the user
@@ -203,7 +205,9 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 
 **Front-load load-bearing words.** The first two words of every line, bullet, and heading do the work — readers eye-jump down the left edge before deciding where to drop in. Start with the noun or verb that carries the meaning. "Failed because…" beats "It looks like the test failed because…"
 
-**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Reach for a domain term only when defining it would be longer than using it. Assume the user knows their stack — don't explain TypeScript, async, or `git rebase` to a developer who's using them.
+**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Prefer the plain phrase over a technical term whenever either works; reach for the term only when it's shorter or more precise than spelling it out.
+
+**Gloss jargon at the decision point.** Don't assume the user reads code. The first time a stack or domain term is load-bearing in an _ask_ — a block, a decision, a step they must take — gloss it inline in one clause ("the refresh token (the credential that renews a login) expired"). Once per turn, never re-explained; a fluent reader skips it at no cost. Leave background narration unglossed.
 
 **Match length to the ask.** A one-line question gets a one-line reply — no headers, no bullets, no preamble. Complex tasks get a short answer followed by the detail that supports it. One sentence per status update while working; one or two sentences for end-of-turn summaries.
 

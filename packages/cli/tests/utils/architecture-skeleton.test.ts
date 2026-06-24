@@ -89,3 +89,124 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
     expect(skeleton.nodes.map(node => node.name)).toContain('auth');
   });
 });
+
+describe('extractSkeleton — Go layout (ticket ZD70P1)', () => {
+  function writeGoModule(directory: string, modulePath = 'example.com/app'): void {
+    writeFileSync(nodePath.join(directory, 'go.mod'), `module ${modulePath}\n\ngo 1.22\n`);
+  }
+
+  it('lists the recognized Go layout directories as modules when there is a go.mod', () => {
+    writeGoModule(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+    mkdirSync(nodePath.join(context.directory, 'internal', 'store'), { recursive: true });
+    mkdirSync(nodePath.join(context.directory, 'pkg', 'api'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['cmd', 'internal', 'pkg']);
+    const pathByName = Object.fromEntries(skeleton.nodes.map(node => [node.name, node.path]));
+    expect(pathByName.cmd).toBe('cmd');
+    expect(pathByName.internal).toBe('internal');
+    expect(pathByName.pkg).toBe('pkg');
+  });
+
+  it('lists only the recognized Go directories that are present', () => {
+    writeGoModule(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+    mkdirSync(nodePath.join(context.directory, 'docs'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['cmd']);
+  });
+
+  it('keeps the src layout authoritative — go.mod is ignored when src modules exist', () => {
+    writeGoModule(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'core'), { recursive: true });
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['core']);
+    expect(skeleton.nodes[0]?.path).toBe(nodePath.join('src', 'core'));
+  });
+
+  it('produces an empty skeleton for a flat Go package with no recognized layout', () => {
+    writeGoModule(context.directory);
+    writeFileSync(nodePath.join(context.directory, 'main.go'), 'package main\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([]);
+  });
+
+  it('does not treat cmd/internal/pkg as modules without a go.mod', () => {
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([]);
+  });
+});
+
+describe('extractSkeleton — Rust layout (ticket YKFA5X)', () => {
+  function writeCargo(directory: string, name = 'app'): void {
+    writeFileSync(nodePath.join(directory, 'Cargo.toml'), `[package]\nname = "${name}"\n`);
+  }
+
+  function writeRustFile(directory: string, file: string): void {
+    mkdirSync(nodePath.join(directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'src', file), '// rust\n');
+  }
+
+  it('lists src module files and dirs, excluding the lib.rs/main.rs roots', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'lib.rs');
+    writeRustFile(context.directory, 'config.rs');
+    mkdirSync(nodePath.join(context.directory, 'src', 'handlers'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['config', 'handlers']);
+    const pathByName = Object.fromEntries(skeleton.nodes.map(node => [node.name, node.path]));
+    expect(pathByName.config).toBe('src/config.rs');
+    expect(pathByName.handlers).toBe('src/handlers');
+  });
+
+  it('excludes main.rs as a crate root', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'main.rs');
+    writeRustFile(context.directory, 'cli.rs');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['cli']);
+  });
+
+  it('produces an empty skeleton for a crate with only a root file', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'lib.rs');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([]);
+  });
+
+  it('lists FILE modules even when a dir module is also present (not dir-only)', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'error.rs');
+    mkdirSync(nodePath.join(context.directory, 'src', 'store'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['error', 'store']);
+  });
+
+  it('does not list src/*.rs files without a Cargo.toml (TS stays dir-only)', () => {
+    writeRustFile(context.directory, 'thing.rs');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([]);
+  });
+});

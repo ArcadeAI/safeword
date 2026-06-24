@@ -91,6 +91,22 @@ Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — th
 
 **Pause and confirm** the AC list grouped by JTBD with the user before advancing — this is the AC **Sub-phase gate** (see above). Iterate until they sign off, then build engineering scope (Understanding) on top.
 
+## Author the Rave Moment
+
+Optional, and only for the **highest persona-facing surface** in the tree — the epic if there is one, else this feature. Child features under an epic that already named one inherit it; internal/plumbing work skips it. Advisory: it never blocks intake exit.
+
+The jobs above say what a persona can _do_. The rave moment says what would make them _tell a peer about it_ — a different and higher bar. It needs three things at once:
+
+- **The moment** — one specific beat they'd screenshot or recount, not a diffuse "it's nice." People remember the peak and the ending, not the average — name the peak.
+- **The expectation it beats** — the dread, status-quo pain, or competitor clunk it's measured against. A moment that beats nothing is table-stakes, not a rave.
+- **The one-sentence test** — can the persona repeat it to a peer with the same problem, in a way that makes _them_ look in-the-know? If it can't be said in a sentence, it won't travel.
+
+**Ground it in evidence — don't write it from your priors.** A moment invented from memory is how you get a plausible-but-fake rave, so it isn't optional: **run `/figure-it-out` every time**, handing it the three criteria above as the brief, to research the real dread, the competitor's actual clunk, and what genuinely travels here. (Where that skill isn't available, do that research inline — the grounding is the requirement; the skill is only the tool.) If the real gap is persona intent or raw ideation, it routes you to `/elicit` or `/brainstorm`.
+
+Aim for **awe** ("whoa, it just did that"), not mild satisfaction — low-arousal "fine" doesn't get shared. Write it to `spec.md`'s `## Rave Moment` (e.g., oauth-flow: _"I expected a coordinated flag-day; the old key just kept working while I rolled the fleet"_). If nothing clears the expectation bar, write `skip: table-stakes` — "no rave here" is an honest, common answer, not a gap to fill. Manufacturing one to fill the field is the failure mode; the beaten-expectation requirement is the guard.
+
+`/verify`'s experience lens walks this moment as the persona later and asks whether it landed.
+
 ## Understanding (Propose-and-Converge)
 
 Follow the understanding pattern from SAFEWORD.md — including contribution techniques. Converge until the user accepts a proposal with structured scope (Scope, Out of Scope, Done When) written to the ticket spec.

@@ -282,9 +282,11 @@ describe('E2E: SessionStart Hooks', () => {
       });
 
       expect(result.status).toBe(2);
-      expect(result.stderr).toContain('bun is required');
-      expect(result.stderr).toContain('quality hooks');
-      expect(result.stderr).toContain('Install');
+      // UJSZXB: plain-language, safety-framed wording for the NTB (no "PATH" /
+      // "quality hooks" jargon) — still names bun and the install step.
+      expect(result.stderr).toContain('bun');
+      expect(result.stderr).toContain('safety checks');
+      expect(result.stderr).toContain('Install bun');
     });
   });
 
