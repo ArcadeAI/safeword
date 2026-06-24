@@ -8,31 +8,22 @@
 
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import nodeOs from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { After, Given, Then, When } from '@cucumber/cucumber';
+import { Given, Then, When } from '@cucumber/cucumber';
 
-import type { SafewordWorld } from './world.js';
+import {
+  type ArchitectureWorld,
+  CLI_PATH,
+  leafDocExists,
+  packageSection,
+  rootDoc,
+  worldDir as dir,
+  writeJson,
+} from './support/architecture-fixtures.ts';
 
-const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
-const CLI_PATH = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
-
-interface CoverageWorld extends SafewordWorld {
-  dir?: string;
-  status?: number;
-}
-
-function dir(world: CoverageWorld): string {
-  world.dir ??= mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'arch-coverage-bdd-'));
-  return world.dir;
-}
-
-function writeJson(path: string, value: unknown): void {
-  mkdirSync(nodePath.dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(value));
-}
+type CoverageWorld = ArchitectureWorld;
 
 /** A workspace package under packages/<name>, optionally with a src/ module. */
 function makePackage(world: CoverageWorld, name: string, options: { src?: boolean } = {}): void {
@@ -45,27 +36,6 @@ function writePnpmWorkspace(world: CoverageWorld, globs: string[]): void {
   const body = ['packages:', ...globs.map(glob => `  - "${glob}"`)].join('\n');
   writeFileSync(nodePath.join(dir(world), 'pnpm-workspace.yaml'), `${body}\n`);
 }
-
-function rootDoc(world: CoverageWorld): string {
-  const path = nodePath.join(dir(world), '.project', 'architecture.generated.md');
-  return existsSync(path) ? readFileSync(path, 'utf8') : '';
-}
-
-function leafDocExists(world: CoverageWorld, name: string): boolean {
-  return existsSync(nodePath.join(dir(world), 'packages', name, 'architecture.generated.md'));
-}
-
-/** A `### name` package section of the root index (to its next heading or EOF). */
-function packageSection(world: CoverageWorld, name: string): string {
-  const chunk = rootDoc(world)
-    .split('\n### ')
-    .find(part => part.startsWith(`${name}\n`));
-  return chunk === undefined ? '' : `### ${chunk.split('\n## ')[0]}`;
-}
-
-After(function (this: CoverageWorld) {
-  if (this.dir !== undefined) rmSync(this.dir, { recursive: true, force: true });
-});
 
 // --- Givens ---
 
