@@ -2,7 +2,7 @@
 id: HWSEPV
 slug: architecture-python-language-pack
 type: feature
-phase: intake
+phase: scenario-gate
 status: in_progress
 created: 2026-06-24T05:31:11.433Z
 last_modified: 2026-06-24T05:35:00.000Z

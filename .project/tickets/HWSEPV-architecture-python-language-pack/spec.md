@@ -1,103 +1,95 @@
 # Spec: Python language pack — pyproject discovery, package extraction, dependency fingerprint
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
-
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Teach the generated architecture state-doc to introspect Python projects — a
+src-layout or flat-layout single package and a uv workspace — so a package gets real
+structural extraction (its top-level modules) and dependency-drift detection, rather
+than the honest-but-empty "not introspected" marker. Third and final WBM8JE language
+pack; the strongest reuse of the existing seam (pyproject.toml is TOML, like Cargo.toml).
 
 ## Intake Brief
 
-<!-- The decide-to-build framing for substantial features (advisory — write
-`skip: <reason>` on any line that doesn't apply). Intent above is the positive
-"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
-If cost-of-inaction is low and reversibility is high, ask whether this is a
-feature at all, or a leaner task. -->
-
-- **Requested by:** <who asked for this — distinct from the persona it serves>
-- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
+- **Requested by:** WBM8JE epic completion (the user, after ZD70P1/Go and YKFA5X/Rust) —
+  the last of the three deferred language packs.
+- **Cost of inaction:** A Python project (single package or uv workspace) gets no
+  architecture doc, or — in a mixed JS+Python monorepo — its Python packages stay marked
+  "not introspected." The polyglot promise reads as "no dynamic languages."
+- **Reversibility:** Two-way door. Pure addition behind the existing manifest-keyed seam;
+  JS/TS/Go/Rust behavior is regression-guarded and unchanged. No data-model or public-API
+  change — the doc format and fingerprint inputs only gain Python entries.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Parent epic **WBM8JE**; siblings **ZD70P1** (Go) and **YKFA5X** (Rust — the TOML
+  parser this reuses).
+- Verified this session: PEP 621 (packaging.python.org) — `[project] name` and
+  `dependencies` (array of PEP 508 specifier strings).
+- Seams: `architecture-skeleton.ts` (extraction), `architecture-monorepo.ts` (discovery),
+  `architecture-fingerprint.ts` (drift), `cargo-manifest.ts` (TOML-subset reader, reused).
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- **Technical Builder (TB)** — here, in its Python/polyglot flavor: a developer running an
+  AI coding agent on a repo (or monorepo) that mixes Python with TypeScript/Go/Rust, or is
+  pure Python. TB is stack-agnostic by definition; they want the architecture doc to
+  describe the Python code, not skip it.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **pyproject.toml** — the standard Python project manifest (TOML). `[project]` (PEP 621)
+  holds `name` and `dependencies`; `[tool.uv.workspace]` holds a uv workspace `members` list.
+- **src-layout** — package code under `src/<pkg>/`; **flat-layout** — package dirs at the
+  project root.
+- **Package** — an importable directory containing `__init__.py`; a **module** is a `.py`
+  file. The top-level packages and modules are the structural units listed.
+- **Introspected** — a package with a recognized layout (so it gets a real leaf doc), vs.
+  "not introspected" (listed but explicitly undescribed).
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### architecture-python-language-pack.TB1 — See my Python package's structure in the doc
 
-Uncomment and customize:
+**Persona:** Technical Builder (TB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I generate the architecture doc for a Python project, I want its top-level modules
+> (src-layout or flat-layout) listed with the same structure a TS/Go/Rust repo gets, so I
+> can review and annotate the real shape instead of an empty placeholder.
 
-**Persona:** Platform Operator (PO)
+#### architecture-python-language-pack.TB1.AC1 — A src-layout Python project produces a doc listing its top-level modules
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### architecture-python-language-pack.TB1.AC2 — A flat-layout Python project lists its top-level packages/modules, excluding tooling/dunder files
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### architecture-python-language-pack.TB1.AC3 — A uv workspace produces a root index plus a leaf doc per member package with modules
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+### architecture-python-language-pack.TB2 — Catch dependency drift, and never lose my other-language docs
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+**Persona:** Technical Builder (TB)
 
-## Rave Moment
+> When a package's `[project] dependencies` change, I want the architecture doc to register
+> the drift; and when my repo mixes Python and JS, I want both introspected and my existing
+> JS docs untouched, so the doc stays trustworthy across languages.
 
-<!-- Optional, and only for the highest persona-facing surface in the tree (the
-epic if there is one, else this feature). Child features under an epic that
-already named one inherit it — skip here; internal/plumbing work skips entirely.
-Advisory; never blocks intake exit. The one moment a persona would tell a peer
-about: name the moment, the expectation it beats, and the one sentence they'd
-repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
-`skip: table-stakes`.
+#### architecture-python-language-pack.TB2.AC1 — Adding/removing a dependency in a package's [project] dependencies moves that package's shape-fingerprint
 
-### <slug> — <the moment in a few words>
+#### architecture-python-language-pack.TB2.AC2 — A mixed JS+Python monorepo introspects both, with the JS output byte-identical to today
 
-- **Moment:** <the specific beat they'd screenshot or recount>
-- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
-- **They'd say:** "<the one repeatable, status-conferring sentence>"
--->
+#### architecture-python-language-pack.TB2.AC3 — A pure JS/TS (or Go/Rust) repo's discovery, extraction, and fingerprint are unchanged (no regression)
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- A Python project — src/flat single package or uv workspace — gets a real, structurally
+  accurate architecture doc with zero hand-run commands, identical in shape to what
+  npm/pnpm/go.work/Cargo projects already get.
+- Python dependency drift is a first-class drift signal (fingerprint moves).
+- The polyglot promise holds across four languages: mixing Python and JS introspects both;
+  the JS half is provably unchanged. With four packs in, the cross-language registry
+  refactor becomes the right next step (its own ticket).
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- **uv `[tool.uv.workspace] members` exact TOML syntax** — assumed a glob array like Cargo;
+  verify against uv docs at implement-time before relying on it.
+- All other forks resolved during intake (modern PEP 621 + uv standard; src+flat extraction;
+  PEP 508 name extraction). Poetry/requirements/setup.py, namespace packages, module
+  nesting, and the registry refactor are explicit out-of-scope limitations in ticket.md.
