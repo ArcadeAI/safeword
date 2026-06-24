@@ -551,7 +551,11 @@ if (!state.gate) {
 
 // LOC gate stands down during a git merge/rebase/cherry-pick/revert so it can't
 // block the edits that resolve the operation (ticket MT27QG).
-if (state.gate === 'loc' && !isGitOperationInProgress(projectDirectory)) {
+if (
+  state.gate === 'loc' &&
+  state.locSinceCommit >= LOC_THRESHOLD &&
+  !isGitOperationInProgress(projectDirectory)
+) {
   recordFailure(projectDirectory, input.session_id, 'loc-exceeded');
   deny(`${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
 
