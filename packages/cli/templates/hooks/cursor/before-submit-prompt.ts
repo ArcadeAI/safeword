@@ -52,20 +52,26 @@ if (!existsSync('.safeword')) {
 }
 
 const active = getActiveTicket(process.cwd());
-const phase = active.phase;
 const folder = active.folder ?? '';
 
-const needsDefinitions = phase === 'implement' || phase === 'verify' || phase === 'done';
+// Parity with the Claude-side gate (pre-tool-quality.ts): only FEATURES at the
+// `implement` phase require test-definitions.md. Tasks and patches are exempt
+// (per #126 — their sizing boundary makes them lighter), and other phases are
+// not gated here. Mis-scoping this would block normal task/patch work on every
+// prompt once the ticket reaches a later phase.
+const isFeatureImplement = active.type === 'feature' && active.phase === 'implement';
 const hasDefinitions = findTestDefinitions(process.cwd(), folder);
 
-if (needsDefinitions && !hasDefinitions) {
+if (isFeatureImplement && !hasDefinitions) {
   const msg =
-    `Phase "${phase}" requires test-definitions.md before any implementation or verification work. ` +
-    `Create the file in .project/tickets/${folder}/ then resubmit.`;
+    'Feature at implement phase requires test-definitions.md before writing application code. ' +
+    `Create test-definitions.md in .project/tickets/${folder}/ with RED/GREEN/REFACTOR scenarios, then resubmit.`;
   const out: BeforeSubmitOutput = { continue: false, user_message: msg };
   process.stdout.write(JSON.stringify(out) + '\n');
   process.exit(0);
 }
 
-// Allow
+// Allow — explicit per Cursor's documented output contract ({ continue: true }).
+const allow: BeforeSubmitOutput = { continue: true };
+process.stdout.write(JSON.stringify(allow) + '\n');
 process.exit(0);
