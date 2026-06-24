@@ -121,7 +121,9 @@ describe('stop-quality done-gate dependency readiness (#325)', () => {
     expect(run.status).toBe(0);
     const parsed = JSON.parse(run.stdout) as { decision?: string; reason?: string };
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toContain('dependencies are not installed');
+    // UJSZXB reworded this to plain language ("this project's tools aren't
+    // installed yet …"); the install command is still surfaced verbatim.
+    expect(parsed.reason).toContain("tools aren't installed");
     expect(parsed.reason).toContain('bun ci');
     // The whole point: a missing toolchain must not masquerade as a red test.
     expect(parsed.reason).not.toContain('Tests failed');
@@ -138,7 +140,7 @@ describe('stop-quality done-gate dependency readiness (#325)', () => {
     expect(run.status).toBe(0);
     const parsed = JSON.parse(run.stdout) as { decision?: string; reason?: string };
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).not.toContain('dependencies are not installed');
+    expect(parsed.reason).not.toContain("tools aren't installed");
     expect(parsed.reason).toContain('verify.md');
   });
 });

@@ -10,6 +10,8 @@ allowed-tools: '*'
 
 Prove a ticket meets its criteria. Works with or without an active ticket.
 
+**Reviewer class:** verify is _class-2 — independent observation_ (PRINCIPLES.md §1). It checks observable facts (tests pass, build succeeds, scenarios complete) against ground truth, so the test suite and parsers are the independent party. No fresh-context or cross-model reviewer applies — a cheap/weaker judge is fine; cross-modeling a test run buys nothing.
+
 ## Invocation log
 
 This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding. Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution, so the fallback below is explicit. Hand-writing verify.md cannot produce this feature-gate proof.
@@ -144,9 +146,19 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
 **Reconcile:** ✅ No pattern deviation (or ⚠️ N deviations, M missing uplevel ticket — soft, never blocks)
+**Experience:** ✅ No new friction (or ⚠️ N friction points / dulled peak, or ⏭️ N/A — not persona-facing) — soft, never blocks
 ```
 
 **Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings (see `.safeword/guides/architecture-guide.md` → Survey & Reconcile), confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
+
+**Experience** is soft — it never blocks the done gate (it has no done-gate evidence pattern; a ⚠️ here never hard-blocks `done`). Run it for persona-facing work; use `N/A` for internal/plumbing. It is the one _class-1 qualitative judgment_ in an otherwise _class-2_ skill (PRINCIPLES.md §1): no parser stands in as the independent party here, so this lens alone carries the self-preference risk the rest of verify doesn't — which is why the walk-artifact below is mandatory. Two lenses:
+
+- **Friction (every persona-facing feature):** did this add a step, a wait, a re-entry, or a dead-end the persona didn't have before? Walk the changed flow as the persona and inspect its _ending_ specifically — last impressions dominate the memory and are the most under-designed. Effort erodes advocacy faster than peaks build it, so a new friction point is the higher-priority finding. **Record the walk as evidence, not a verdict:** `Walked <persona> through <flow>; worst step = <the one most likely to make them bounce>; new steps vs before = <n>`. Name the _worst_ step, not a tidy summary — you are grading your own work, and a bare `✅` or a flattering "feels clean" is exactly the self-rating this artifact exists to defeat.
+- **Peak (only when the ticket or its parent declared a `## Rave Moment` in `spec.md`):** walk that moment as the persona — does it still land, and did this work advance or endanger it? A peak that quietly degraded is a finding even when every test is green.
+
+A ⚠️ Experience finding routes to **Agent's next actions** if you'll fix it now, or to **Decisions needed** if it's a scope/value call for the user. It is never a reason to hold `done` on its own.
+
+**Escalation.** Verify's class-2 checks need no fresh-context reviewer — a test run is its own independent party. This lens is the class-1 exception, so it does: the inline self-check is the cheap first guard, and if shipped work keeps clearing it while real friction reaches users, that is the signal to move _the Experience lens alone_ to an independent reviewer (a fresh-context fork, or a persona-walk of the running product), not to keep trusting the inline pass.
 
 **Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 

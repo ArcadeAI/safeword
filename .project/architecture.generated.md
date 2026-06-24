@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: e5e3f59c49fd25673e3b6e0b1f1cbab1849e16493a29eac2fff1d5818769ef04
+fingerprint: 8787b9bdac85eb47beb60a6268f5989dd286a6239cdd43e75be0c4f48ee8e2e5
 ---
 
 # Architecture
@@ -9,13 +9,13 @@ fingerprint: e5e3f59c49fd25673e3b6e0b1f1cbab1849e16493a29eac2fff1d5818769ef04
 
 ### @safeword/website
 
-<!-- reconciled: e5e3f59c49fd25673e3b6e0b1f1cbab1849e16493a29eac2fff1d5818769ef04 -->
+<!-- reconciled: 8787b9bdac85eb47beb60a6268f5989dd286a6239cdd43e75be0c4f48ee8e2e5 -->
 
 No description yet — awaiting prose.
 
 ### safeword
 
-<!-- reconciled: e5e3f59c49fd25673e3b6e0b1f1cbab1849e16493a29eac2fff1d5818769ef04 -->
+<!-- reconciled: 8787b9bdac85eb47beb60a6268f5989dd286a6239cdd43e75be0c4f48ee8e2e5 -->
 
 No description yet — awaiting prose.
 

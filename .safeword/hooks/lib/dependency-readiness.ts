@@ -425,12 +425,13 @@ export function formatDependencyRecovery(readiness: DependencyReadiness): string
   const installCommand = readiness.installCommand ?? 'install dependencies';
   const problem =
     readiness.status === 'stale'
-      ? 'dependency inputs changed after the last install'
-      : 'dependencies are not installed in this worktree';
+      ? "the project's tool list changed since it was last set up, so safeword's checks may be out of date"
+      : "this project's tools aren't installed yet, so safeword's checks can't run";
 
   const lines = [
     `${problem}.`,
-    `Run \`${installCommand}\` from the project root, then retry the command.`,
+    `Install them with this command from the project folder, then try again:`,
+    `  ${installCommand}`,
   ];
 
   // A version-bump pull changes the input fingerprint without changing resolved

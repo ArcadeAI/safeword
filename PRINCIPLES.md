@@ -25,6 +25,16 @@ Design enforcement at the highest tier that's practical. When you reach for a se
 
 This extends to testing: specify WHAT the system does (behavior), not HOW it does it (implementation). Behavior-biased tests are natural gates against regressions — they fail when the system breaks, not when internals change.
 
+**Match the reviewer to the threat.** Tier-2 verification above is not one mechanism — what a check should be depends on what it defends against:
+
+| The check is…                                                       | Threat                 | Reviewer                                                                                                                    |
+| ------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Your own _judgment/work_ (spec, scenarios, code, design)            | correlated blind spots | independent **review** — fresh-context sub-agent, **never weaker** than the author, a _different model_ when stakes warrant |
+| An _observable fact_ (tests pass, types check, citation present)    | self-report bias       | cheap **observation** — test suite, parser, or a small judge; a weaker model is fine, even preferred                        |
+| _New candidates_ (design options, refactor smells, research angles) | narrow framing         | **producer** fan-out — varied or cheaper models on purpose; the no-weaker rule does **not** apply                           |
+
+One question routes it: _is the check a judgment about work a model produced, an observable fact, or the generation of new candidates?_ Judgment on produced work → review. Observable fact → observation. New candidates → producer. Only the review class earns the no-weaker / cross-model rule; applying it to the other two wastes tokens (cross-modeling a test run buys nothing) or collapses the angle diversity that is the whole point of fan-out.
+
 ---
 
 ## 2. Fire at boundaries, not every turn

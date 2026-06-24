@@ -14,10 +14,13 @@ import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
+  AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
   gatePhaseAdvance,
   hashArtifact,
+  isCrossModelReviewRequired,
   isReviewGateEnabled,
+  modelsMatch,
   parseReviewStamps,
   type ReviewStamp,
   reviewGateForNextAsset,
@@ -103,6 +106,11 @@ function readConfiguredPersonasPath(rawConfig: string): string | undefined {
 
 function deny(reason: string, additionalContext?: string): never {
   const output: Record<string, unknown> = {
+    // systemMessage is the top-level field Claude Code surfaces to the USER
+    // (permissionDecisionReason goes to the model and can be swallowed before the
+    // user sees it — issue #17356). The hint rides both: the reason for the model
+    // + Codex adapter, systemMessage for the human. Augment, never replace.
+    systemMessage: EXPLAIN_HINT,
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
@@ -131,6 +139,15 @@ const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 function isReviewGateOn(): boolean {
   const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
   return isReviewGateEnabled(existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined);
+}
+
+// Whether phase-exit reviews must run on a different model than the author
+// (ticket 7A0B2K, reusing MR5M3A's `crossModelReview` knob). Off by default.
+function isCrossModelOn(): boolean {
+  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  return isCrossModelReviewRequired(
+    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
+  );
 }
 
 // The review stamps both gates read from the shared skill-invocation-log
@@ -395,6 +412,25 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
           `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or append a skip reason to log a deliberate skip).`,
         );
+      }
+      // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
+      // model different from the author. Evaluate over ALL real-review stamps at this
+      // scope (the log is append-only, so a corrected re-review can follow a same-model
+      // attempt) — pass if any is cross-model. A logged skip records no real-review
+      // stamp, so it deliberately bypasses this, matching the arch-gate's escape valve.
+      else if (isCrossModelOn()) {
+        const realReviews = stamps.filter(
+          s => s.scope === phaseScope && s.skipReason === undefined,
+        );
+        const hasCrossModelReview = realReviews.some(
+          s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
+        );
+        if (realReviews.length > 0 && !hasCrossModelReview) {
+          deny(
+            `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
+            `Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), then record it via \`bun .safeword/hooks/write-review-stamp.ts --model <id> --phase ${exitedPhase}\`.`,
+          );
+        }
       }
     }
   }

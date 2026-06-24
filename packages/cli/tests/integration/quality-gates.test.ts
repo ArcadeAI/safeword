@@ -268,6 +268,10 @@ describe('Quality Gates', () => {
       expect(reason).toContain('Commit');
       // ZCYD5P: every hard-block gate message points to /explain.
       expect(reason).toContain('Run `/explain` for a plain-English version');
+      // 19E2XQ: the hint also rides systemMessage — the field Claude Code
+      // surfaces to the USER (permissionDecisionReason reaches the model and can
+      // be swallowed before the human sees it, issue #17356).
+      expect(output.systemMessage).toContain('Run `/explain` for a plain-English version');
     });
 
     it('1.4: LOC gate clears on commit', () => {
