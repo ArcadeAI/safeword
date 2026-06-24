@@ -14,6 +14,7 @@ import { type Dirent, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
+import { readCargoDependencyNames } from './cargo-manifest.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 
@@ -75,12 +76,26 @@ function readDependencyNames(projectDirectory: string): string[] {
   // shape, so Go dependency drift moves the fingerprint the same way a package.json
   // dependency change does. A JS-only project has no go.mod, so this is a no-op there.
   for (const goModule of readGoModuleRequires(projectDirectory)) names.add(goModule);
+  // Cargo dependencies (ticket YKFA5X): a crate's Cargo.toml dependency keys are part
+  // of the shape too. A non-Rust project has no Cargo.toml, so this is a no-op there.
+  for (const crate of readCargoDependencies(projectDirectory)) names.add(crate);
   return [...names].toSorted(byString);
 }
 
 function readPackageJsonDependencyNames(projectDirectory: string): string[] {
   const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
   return manifest === undefined ? [] : dependencySectionNames(manifest);
+}
+
+/** Dependency names from a directory's `Cargo.toml`, or `[]` when there is none. */
+function readCargoDependencies(projectDirectory: string): string[] {
+  try {
+    return readCargoDependencyNames(
+      readFileSync(nodePath.join(projectDirectory, 'Cargo.toml'), 'utf8'),
+    );
+  } catch {
+    return [];
+  }
 }
 
 /**

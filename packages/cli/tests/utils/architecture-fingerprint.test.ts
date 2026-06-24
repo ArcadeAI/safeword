@@ -190,3 +190,43 @@ describe('shapeFingerprint — Go module dependencies (ticket ZD70P1)', () => {
     expect(shapeFingerprint(context.directory)).not.toBe(before);
   });
 });
+
+describe('shapeFingerprint — Cargo dependencies (ticket YKFA5X)', () => {
+  function writeCargo(directory: string, dependencies: string[]): void {
+    const block = dependencies.length === 0 ? '' : `\n[dependencies]\n${dependencies.join('\n')}\n`;
+    writeFileSync(nodePath.join(directory, 'Cargo.toml'), `[package]\nname = "app"\n${block}`);
+  }
+
+  function scaffoldCrate(directory: string, dependencies: string[]): void {
+    mkdirSync(nodePath.join(directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'src', 'config.rs'), '// rust\n');
+    writeCargo(directory, dependencies);
+  }
+
+  it('moves when a Cargo dependency is added', () => {
+    scaffoldCrate(context.directory, ['serde = "1.0"']);
+    const before = shapeFingerprint(context.directory);
+
+    writeCargo(context.directory, ['serde = "1.0"', 'tokio = "1"']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('moves when a Cargo dependency is removed', () => {
+    scaffoldCrate(context.directory, ['serde = "1.0"', 'tokio = "1"']);
+    const before = shapeFingerprint(context.directory);
+
+    writeCargo(context.directory, ['serde = "1.0"']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('does not move when only a Cargo dependency version is bumped (versions excluded)', () => {
+    scaffoldCrate(context.directory, ['serde = "1.0"']);
+    const before = shapeFingerprint(context.directory);
+
+    writeCargo(context.directory, ['serde = "2.0"']);
+
+    expect(shapeFingerprint(context.directory)).toBe(before);
+  });
+});
