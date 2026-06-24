@@ -908,7 +908,7 @@
 - **De-jargon the interactive CLI; auto-default the namespace-move prompt (KRUEWC)** (done, epic: —)
   Make the unmediated terminal surface (`setup`/`upgrade`/`check`) answerable by a non-coder, and never halt on a jargon-only decision.
   → `.project/tickets/KRUEWC-dejargon-interactive-cli`
-- **sync-tracker v2 — project the dependency graph (relations, sub-issues, types) (M1FGRJ)** (in_progress, epic: —)
+- **sync-tracker v2 — project the dependency graph (relations, sub-issues, types) (M1FGRJ)** (done, epic: —)
   Extend `safeword sync-tracker` from a flat board to a **dependency-aware** projection: map safeword's `epic`/`parent` to tracker **sub-issues/parents**, `blocked_on`/`depends_on` to tracker **issue relations**, and `type` to native **issue-types** — so the external roadmap shows ordering and hierarchy, not just grouping.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
   external issue: https://github.com/ArcadeAI/safeword/issues/347
