@@ -7,8 +7,38 @@
  * with each candidate prompt and reads `AggregateScore` back.
  */
 
-import { aggregate, scoreFixture, type AggregateScore } from './evaluator';
-import type { Fixture, SkillRunner } from './types';
+import { aggregate, scoreFixture, type AggregateScore, type FixtureScore } from './evaluator';
+import type { Fixture, RunOutput, SkillRunner } from './types';
+
+/** One fixture's run + score, kept together for trace inspection / debugging. */
+export interface FixtureTrace {
+  name: string;
+  output: RunOutput;
+  score: FixtureScore;
+}
+
+/**
+ * Run a candidate prompt over a set of fixtures, scoring each and keeping its
+ * raw output. This is the workhorse; `runEval` is the score-only convenience.
+ * The traces are what the baseline prints for a human read and what a GEPA
+ * adapter reads as the reflective trace (raw response + per-defect diff).
+ */
+export async function runEvalWithTraces(
+  skillPrompt: string,
+  fixtures: Fixture[],
+  runner: SkillRunner,
+): Promise<{ score: AggregateScore; traces: FixtureTrace[] }> {
+  const traces: FixtureTrace[] = [];
+  for (const fx of fixtures) {
+    const output = await runner.run(skillPrompt, fx.featureSource);
+    traces.push({
+      name: fx.name,
+      output,
+      score: scoreFixture(fx.name, output.detections, fx.expected),
+    });
+  }
+  return { score: aggregate(traces.map(t => t.score)), traces };
+}
 
 /** Run a candidate prompt over a set of fixtures and score it. */
 export async function runEval(
@@ -16,12 +46,7 @@ export async function runEval(
   fixtures: Fixture[],
   runner: SkillRunner,
 ): Promise<AggregateScore> {
-  const perFixture = [];
-  for (const fx of fixtures) {
-    const out = await runner.run(skillPrompt, fx.featureSource);
-    perFixture.push(scoreFixture(fx.name, out.detections, fx.expected));
-  }
-  return aggregate(perFixture);
+  return (await runEvalWithTraces(skillPrompt, fixtures, runner)).score;
 }
 
 /** Compact, human-readable report for the CLI baseline. */
