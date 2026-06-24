@@ -92,9 +92,6 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
         true,
       );
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/stop.ts')).toBe(true);
-      expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/before-submit-prompt.ts')).toBe(
-        true,
-      );
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/gate-adapter.ts')).toBe(true);
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/pre-tool-quality.ts')).toBe(
         true,
@@ -122,9 +119,9 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
         'bun ./.safeword/hooks/cursor/after-file-edit.ts',
       );
       expect(hooksConfig.hooks.stop[0].command).toBe('bun ./.safeword/hooks/cursor/stop.ts');
-      expect(hooksConfig.hooks.beforeSubmitPrompt[0].command).toBe(
-        'bun ./.safeword/hooks/cursor/before-submit-prompt.ts',
-      );
+      // F2TKR3: no beforeSubmitPrompt gate — the phase gate lives at preToolUse
+      // (path-aware, session-bound) to avoid the prompt-send catch-22.
+      expect(hooksConfig.hooks.beforeSubmitPrompt).toBeUndefined();
       expect(hooksConfig.hooks.preToolUse[0].command).toBe(
         'bun ./.safeword/hooks/cursor/pre-tool-quality.ts',
       );
@@ -148,7 +145,6 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
 
       // Blocking gates deny on crash/timeout/invalid-JSON instead of failing open.
-      expect(hooksConfig.hooks.beforeSubmitPrompt[0].failClosed).toBe(true);
       expect(hooksConfig.hooks.preToolUse[0].failClosed).toBe(true);
       expect(hooksConfig.hooks.beforeShellExecution[0].failClosed).toBe(true);
 

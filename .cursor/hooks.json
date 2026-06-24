@@ -6,12 +6,6 @@
         "command": "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor"
       }
     ],
-    "beforeSubmitPrompt": [
-      {
-        "command": "bun ./.safeword/hooks/cursor/before-submit-prompt.ts",
-        "failClosed": true
-      }
-    ],
     "preToolUse": [
       {
         "command": "bun ./.safeword/hooks/cursor/pre-tool-quality.ts",

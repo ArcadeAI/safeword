@@ -880,9 +880,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/cursor/after-file-edit.ts': {
       template: 'hooks/cursor/after-file-edit.ts',
     },
-    '.safeword/hooks/cursor/before-submit-prompt.ts': {
-      template: 'hooks/cursor/before-submit-prompt.ts',
-    },
     '.safeword/hooks/cursor/gate-adapter.ts': {
       template: 'hooks/cursor/gate-adapter.ts',
     },
@@ -1003,7 +1000,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       keys: [
         'version',
         'hooks.sessionStart',
-        'hooks.beforeSubmitPrompt',
         'hooks.preToolUse',
         'hooks.beforeShellExecution',
         'hooks.afterFileEdit',
