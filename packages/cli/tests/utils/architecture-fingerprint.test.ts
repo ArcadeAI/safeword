@@ -230,3 +230,47 @@ describe('shapeFingerprint — Cargo dependencies (ticket YKFA5X)', () => {
     expect(shapeFingerprint(context.directory)).toBe(before);
   });
 });
+
+describe('shapeFingerprint — Python dependencies (ticket HWSEPV)', () => {
+  function writePyproject(directory: string, dependencies: string[]): void {
+    const quoted = dependencies.map(dependency => `"${dependency}"`).join(', ');
+    const dependencies_ = dependencies.length === 0 ? '' : `dependencies = [${quoted}]\n`;
+    writeFileSync(
+      nodePath.join(directory, 'pyproject.toml'),
+      `[project]\nname = "app"\n${dependencies_}`,
+    );
+  }
+
+  function scaffoldPython(directory: string, dependencies: string[]): void {
+    mkdirSync(nodePath.join(directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'src', 'api.py'), '');
+    writePyproject(directory, dependencies);
+  }
+
+  it('moves when a pyproject dependency is added', () => {
+    scaffoldPython(context.directory, ['requests>=2.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writePyproject(context.directory, ['requests>=2.0', 'numpy']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('moves when a pyproject dependency is removed', () => {
+    scaffoldPython(context.directory, ['requests>=2.0', 'numpy']);
+    const before = shapeFingerprint(context.directory);
+
+    writePyproject(context.directory, ['requests>=2.0']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('does not move when only a version constraint changes (versions excluded)', () => {
+    scaffoldPython(context.directory, ['requests>=2.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writePyproject(context.directory, ['requests>=3.0']);
+
+    expect(shapeFingerprint(context.directory)).toBe(before);
+  });
+});
