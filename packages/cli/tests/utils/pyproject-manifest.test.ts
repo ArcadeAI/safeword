@@ -47,3 +47,19 @@ describe('readPyprojectDependencies', () => {
     expect(readPyprojectDependencies('[project]\nname = "app"\n')).toEqual([]);
   });
 });
+
+describe('readPyprojectDependencies — PEP 508 url reference (HWSEPV review)', () => {
+  it('extracts names and keeps later deps when one is a url reference with #egg', () => {
+    const toml = [
+      '[project]',
+      'name = "app"',
+      'dependencies = [',
+      '  "requests>=2.0",',
+      '  "mylib @ git+https://h/r.git#egg=mylib",',
+      '  "numpy",',
+      ']',
+      '',
+    ].join('\n');
+    expect(readPyprojectDependencies(toml)).toEqual(['requests', 'mylib', 'numpy']);
+  });
+});

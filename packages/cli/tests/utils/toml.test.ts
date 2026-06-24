@@ -71,3 +71,32 @@ describe('readTomlTableString', () => {
     expect(readTomlTableString(toml, 'project', 'name')).toBe('real');
   });
 });
+
+describe('readTomlTableArray / readTomlTableString — # inside a quoted value (HWSEPV review)', () => {
+  it('keeps array entries after a value containing a # (a PEP 508 url dep)', () => {
+    const toml = [
+      '[project]',
+      'dependencies = [',
+      '  "requests>=2.0",',
+      '  "mylib @ git+https://h/r.git#egg=mylib",',
+      '  "numpy",',
+      ']',
+      '',
+    ].join('\n');
+    expect(readTomlTableArray(toml, 'project', 'dependencies')).toEqual([
+      'requests>=2.0',
+      'mylib @ git+https://h/r.git#egg=mylib',
+      'numpy',
+    ]);
+  });
+
+  it('reads a string value that itself contains a #', () => {
+    expect(readTomlTableString('[project]\nname = "a#b"\n', 'project', 'name')).toBe('a#b');
+  });
+
+  it('still strips a real trailing comment after a quoted value', () => {
+    expect(readTomlTableString('[project]\nname = "real" # the name\n', 'project', 'name')).toBe(
+      'real',
+    );
+  });
+});

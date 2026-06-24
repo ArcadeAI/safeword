@@ -119,8 +119,24 @@ function tableHeader(line: string): string | undefined {
   return match?.[1] === undefined ? undefined : match[1].trim();
 }
 
-/** Drop an inline `# comment` (line-level; the subset has no `#` inside its values). */
+/**
+ * Drop an inline `# comment`, but only a `#` that is NOT inside a quoted string — a
+ * PEP 508 URL dependency (`"pkg @ git+https://…#egg=pkg"`) legitimately carries a `#`
+ * inside its value, and cutting there would break the quote and silently drop later
+ * array entries. Same per-line quote-state machine as `topLevelCloseBracket`.
+ */
 export function stripTomlComment(line: string): string {
-  const hash = line.indexOf('#');
-  return hash === -1 ? line : line.slice(0, hash);
+  let quote = '';
+  let index = 0;
+  while (index < line.length) {
+    const character = line[index];
+    if (quote === '') {
+      if (character === '"' || character === "'") quote = character;
+      else if (character === '#') return line.slice(0, index);
+    } else if (character === quote) {
+      quote = '';
+    }
+    index += 1;
+  }
+  return line;
 }
