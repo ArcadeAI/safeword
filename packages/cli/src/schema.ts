@@ -880,6 +880,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/cursor/after-file-edit.ts': {
       template: 'hooks/cursor/after-file-edit.ts',
     },
+    '.safeword/hooks/cursor/gate-adapter.ts': {
+      template: 'hooks/cursor/gate-adapter.ts',
+    },
+    '.safeword/hooks/cursor/pre-tool-quality.ts': {
+      template: 'hooks/cursor/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/cursor/before-shell-execution.ts': {
+      template: 'hooks/cursor/before-shell-execution.ts',
+    },
+    '.safeword/hooks/cursor/post-tool-quality.ts': {
+      template: 'hooks/cursor/post-tool-quality.ts',
+    },
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },
 
@@ -985,7 +997,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.markdownlint-cli2.jsonc': MARKDOWNLINT_CLI2_IGNORES_MERGE,
 
     '.cursor/hooks.json': {
-      keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],
+      keys: [
+        'version',
+        'hooks.sessionStart',
+        'hooks.preToolUse',
+        'hooks.beforeShellExecution',
+        'hooks.afterFileEdit',
+        'hooks.postToolUse',
+        'hooks.stop',
+      ],
       removeFileIfEmpty: true,
       merge: existing => {
         const hooks = (existing.hooks as Record<string, unknown[]>) ?? {};
@@ -1000,11 +1020,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       },
       unmerge: existing => {
         const result = { ...existing };
-        const hooks = { ...(existing.hooks as Record<string, unknown[]>) };
+        const existingHooks = (existing.hooks as Record<string, unknown[]>) ?? {};
 
-        delete hooks.sessionStart;
-        delete hooks.afterFileEdit;
-        delete hooks.stop;
+        // Keep only hooks safeword did NOT install. Derived from CURSOR_HOOKS so
+        // the unmerge can never drift from the merge as new hooks are added — the
+        // old hardcoded delete-list missed newly-wired events, leaving a
+        // non-empty hooks.json that kept .cursor/ alive after reset.
+        const safewordHookNames = new Set(Object.keys(CURSOR_HOOKS));
+        const hooks = Object.fromEntries(
+          Object.entries(existingHooks).filter(([name]) => !safewordHookNames.has(name)),
+        );
 
         // `version` is only meaningful while safeword's hooks remain; drop it
         // alongside an emptied hooks container.

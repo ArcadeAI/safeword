@@ -4,12 +4,14 @@ slug: cursor-changelog-alignment-epic
 type: feature
 phase: intake
 status: open
-epic: cursor-changelog-alignment
+epic: cursor-optimization
 created: 2026-05-31T21:09:47.366Z
-last_modified: 2026-05-31T21:53:21.000Z
+last_modified: 2026-06-24T04:30:00Z
 ---
 
-# Epic: Cursor changelog + docs alignment
+# Epic: Cursor optimization
+
+_(originally "Cursor changelog + docs alignment"; broadened 2026-06-24 to the single home for all Cursor work, and the epic key renamed `cursor-changelog-alignment` → `cursor-optimization` across all children. Id `VAX3Z2` and the ticket directory slug are unchanged.)_
 
 **Goal:** Restore real enforcement to safeword's Cursor integration — it currently relies on the two _non-blocking_ hook events — and pick up the blocking chokepoints + distribution path Cursor now offers.
 
@@ -55,15 +57,28 @@ cursor.com/docs/hooks(.md), /docs/context/rules, /docs/context/commands, cursor.
 
 ## Tickets
 
-| ID         | Title                                                              | Tier                |
-| ---------- | ------------------------------------------------------------------ | ------------------- |
-| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement |
-| **RBZR3F** | Add `sessionStart` context injection                               | restore enforcement |
-| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement |
-| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         |
-| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         |
-| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        |
-| **DXYKJX** | Package as Team-Marketplace plugin (Required mode)                 | distribution        |
+Core children (own the `cursor-optimization` epic key). Status revalidated 2026-06-24:
+
+| ID         | Title                                                              | Tier                | Status           |
+| ---------- | ------------------------------------------------------------------ | ------------------- | ---------------- |
+| **RBZR3F** | Add `sessionStart` context injection                               | restore enforcement | ✅ done          |
+| **151**    | Migrate four Cursor rules to `@reference` pattern                  | drift/parity        | ✅ done (folded) |
+| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement | open             |
+| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | open             |
+| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | open             |
+| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | open             |
+| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | open             |
+| **DXYKJX** | Package as Team-Marketplace plugin (Required mode)                 | distribution        | open             |
+
+### Cross-epic Cursor work (soft-linked, not re-parented)
+
+These are Cursor-specific deliverables whose natural home is a cross-agent epic. They keep their parent and carry `relates_to: VAX3Z2`, so this epic indexes all Cursor work without orphaning them from their Claude+Cursor+Codex coordination.
+
+| ID         | Title                                           | Home epic                | Status      |
+| ---------- | ----------------------------------------------- | ------------------------ | ----------- |
+| **1833FW** | Keep Cursor verify evidence aligned             | agent-surface-refactor   | in_progress |
+| **F1HTQ4** | Generate Cursor command/rule wrappers from meta | agent-surface-refactor   | in_progress |
+| **Y6HZR7** | Auto-upgrade under Cursor                       | auto-upgrade-cross-agent | blocked     |
 
 ## Sequencing
 
@@ -79,3 +94,4 @@ Epic **8R54HV** (Claude Code) — reuse gate logic; note Cursor's `stop` can't b
 - 2026-05-31 Placeholder created; Cursor integration confirmed present.
 - 2026-05-31 Researched Cursor hooks/rules/commands/changelog (live docs). Found current gates non-blocking; filed 7 child tickets.
 - 2026-06-16 Gap noted (from FJKM4X): guides loaded via `.safeword/guides/` tell agents to "call `/figure-it-out`" — a literal slash command in Claude Code. In Cursor, `safeword-figure-it-out.mdc` already uses the `@reference` pattern correctly, but it has `alwaysApply: false` and activates by description match, not by explicit invocation from guide text. There is no direct bridge from "guide says call figure-it-out" to "MDC rule loads the procedure." In practice the context conditions overlap so the rule likely activates correctly, but it is not mechanically guaranteed the way Claude Code's slash command invocation is. Consider: (a) `alwaysApply: true` for figure-it-out.mdc since it's always relevant when a design choice surfaces, or (b) a guide-aware rule activation mechanism if Cursor exposes one.
+- 2026-06-24 **Consolidated all Cursor work under this epic + revalidated; broadened title to "Cursor optimization."** Checked GitHub issues — no Cursor epic exists there (ticket-system-only); only tangential open issues are #292 (Claude Code plugin spike) and #19 (MCP-in-plugin), nothing to fold. Folded pure-Cursor **151** (rules → `@reference`) in as a core child. Soft-linked three cross-agent Cursor tickets via `relates_to` without re-parenting: **1833FW**, **F1HTQ4** (agent-surface-refactor), **Y6HZR7** (auto-upgrade-cross-agent). **Revalidation against live code closed two as done:** RBZR3F (`sessionStart` already wired in `.cursor/hooks.json` → `session-safeword-context.ts`, emits `additional_context` for cursor) and 151 (the four rules are already 6-line `@reference` pointers; structural `checkCursorRulesThin` guard live; status was just never flipped). Remaining open children re-verified as still needed: F2TKR3/T3DV1K (`beforeSubmitPrompt`/`preToolUse`/`beforeShellExecution` not wired in `.cursor/hooks.json`), ANAXG4 (no `failClosed` anywhere), AKNWZK (done-gate rearchitect still pending — note: the `followup_message` nudge mechanism already exists in `cursor/stop.ts` for quality-review, useful precedent), TDX8NT + DXYKJX (unstarted). No duplicate tickets found; 151↔G1A6BS cover disjoint rule sets.

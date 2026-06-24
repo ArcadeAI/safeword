@@ -296,9 +296,49 @@ ${prettier.configEntry}
 // Cursor hooks configuration (.cursor/hooks.json format)
 // See: https://cursor.com/docs/agent/hooks
 // Note: Cursor runs hooks from the workspace root, so use ./ prefix
+//
+// failClosed (ANAXG4): Cursor hooks default to fail-open — a hook that crashes,
+// times out, or emits invalid JSON lets the action through. The BLOCKING gates
+// carry `failClosed: true` so a broken gate denies instead of silently vanishing.
+// OBSERVATIONAL hooks are deliberately left fail-open (the default): a crashing
+// lint/state/nudge hook must never block legitimate work.
 export const CURSOR_HOOKS = {
+  // Observational: injects standing context. Fail-open — a failed inject must not
+  // block the session from starting.
   sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
+  // NOTE (F2TKR3): there is deliberately NO beforeSubmitPrompt gate. That hook
+  // fires at prompt-send time, where Cursor exposes only the prompt text — no tool
+  // name or file path — so it cannot tell "create test-definitions.md" from "write
+  // application code". A block there is a catch-22: it would stop the very prompt
+  // that asks the agent to create the scenarios. The phase gate lives at the edit
+  // layer below (preToolUse), which is path-aware (META_PATHS lets scenario/meta
+  // files through) and session-bound — exact parity with the Claude side.
+  //
+  // Blocking edit gate. Matcher limits it to the `Write` tool (Cursor's only edit
+  // tool) so it never spawns on Read/Grep/Task. Denies edits when a feature at the
+  // implement phase has no test-definitions.md, and on LOC blast-radius overflow.
+  preToolUse: [
+    {
+      command: 'bun ./.safeword/hooks/cursor/pre-tool-quality.ts',
+      matcher: 'Write',
+      failClosed: true,
+    },
+  ],
+  // Blocking commit gate (a REFACTOR commit may not touch test files).
+  beforeShellExecution: [
+    { command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts', failClosed: true },
+  ],
+  // Observational: triggers lint on edited files. Fail-open — a lint crash must
+  // not block the edit.
   afterFileEdit: [{ command: 'bun ./.safeword/hooks/cursor/after-file-edit.ts' }],
+  // Observational: maintains the per-session quality state (LOC, commit-clears-gate,
+  // ticket binding) the blocking edit gate reads. Matched to edits + shell only.
+  // Fail-open — if it crashes the gate simply lacks fuel and degrades to allow,
+  // which must never block work.
+  postToolUse: [
+    { command: 'bun ./.safeword/hooks/cursor/post-tool-quality.ts', matcher: 'Write|Shell' },
+  ],
+  // Observational: nudges a quality review. Cursor `stop` cannot block anyway.
   stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts' }],
 };
 
