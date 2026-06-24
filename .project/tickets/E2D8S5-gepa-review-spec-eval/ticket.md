@@ -3,9 +3,9 @@ id: E2D8S5
 slug: gepa-review-spec-eval
 type: feature
 phase: intake
-status: in_progress
+status: done
 created: 2026-06-24T02:04:25.443Z
-last_modified: 2026-06-24T02:04:25.443Z
+last_modified: 2026-06-24T18:58:00.000Z
 ---
 
 # GEPA prompt optimization for the review-spec skill
@@ -315,6 +315,18 @@ gated behind a seeded-defect eval).
   - The skill stays **untouched** — the safe, disciplined outcome. Follow-up to make a future attempt
     adjudicable: expand + de-noise the corpus (more domains so held-out can measure a subtle precision
     change; sharpen `determinism-order` so recall is a clean signal, not a 4/5 coin-flip).
+- 2026-06-24T18:58:00Z **CLOSED — status: done (user-accepted).** Disposition: the spike met its primary
+  goal — a behavioral eval that reliably gates prompt changes to `review-spec`. It gated THREE distinct
+  changes, shipping none: GEPA's gamed winner (rejected), a hand-authored calibration that regressed
+  recall (caught), and a tightened calibration that didn't generalize to held-out (validation withheld).
+  **The shipped `review-spec` skill is byte-untouched** (verified) — the disciplined outcome: nothing
+  earned the change. Durable assets left behind under `experiments/gepa-review-spec/`: the eval (3 seams +
+  family-matched, precision-honest metric), a 20-fixture mutated corpus (12 train / 8 held-out), the
+  Python GEPA adapter, and two reusable harnesses (`rescore.ts` for token-free re-scoring of cached runs,
+  `validate-skill.ts` as the accept-gate front-end). Closed without the feature done-gate ceremony
+  (test-definitions.md / full `/verify`): this is an isolated research spike that shipped no product code;
+  its own 20/20 unit tests pass and `tsc --strict` is clean. Open follow-ups (separate tickets, not now):
+  expand + de-noise the corpus; safeword bug #397 (INDEX corruption).
 
 ---
 
