@@ -1,0 +1,81 @@
+---
+id: E2D8S5
+slug: gepa-review-spec-eval
+type: feature
+phase: intake
+status: in_progress
+created: 2026-06-24T02:04:25.443Z
+last_modified: 2026-06-24T02:04:25.443Z
+---
+
+# GEPA prompt optimization for the review-spec skill
+
+**Goal:** Use GEPA (reflective prompt evolution) to measurably improve the
+`review-spec` skill, leaving behind a reusable behavioral eval as the durable
+asset whether or not GEPA itself ever ships a change.
+
+**Why:** Safeword has ~11,500 lines of hand-tuned prompts but no metric that
+scores prompt _behavior_. `review-spec` is the one skill whose output is
+objectively scoreable (seed a `.feature` file with known defects, measure how
+many it catches), so it is the only place GEPA's value is even testable. The
+eval is high-leverage on its own as the first behavioral regression guard for a
+skill. Origin: `/figure-it-out` session (Option A — narrow offline GEPA pilot
+gated behind a seeded-defect eval).
+
+## Work Log
+
+- 2026-06-24T02:05:00Z Scaffolded Phases 1-3 under `experiments/gepa-review-spec/`:
+  dataset/task/evaluator seams + harness, deterministic set-matching metric (no
+  LLM judge), seeded-defect corpus (3 seed fixtures), baseline runner. 12/12
+  unit tests pass. (refs: branch `claude/geppa-optimize-anything-icmta2`)
+- 2026-06-24T02:05:00Z Added `experiments/` to ESLint ignores (out of tsconfig
+  surface, like `scripts/`/`features/`).
+- 2026-06-24T02:05:00Z Blocked: Phase 3 baseline needs a live `ANTHROPIC_API_KEY`,
+  not available in the web session. This is the cheapest test of the riskiest
+  assumption (can the skill's free-form findings be parsed and scored reliably?).
+
+---
+
+## Scope
+
+**In scope:**
+
+- A behavioral eval for `review-spec`: seeded-defect corpus + deterministic
+  metric + baseline.
+- A narrow, offline GEPA pilot that evolves only `review-spec/SKILL.md`.
+- Decoupled dataset/task/evaluator seams so a LangSmith or Phoenix adapter is a
+  drop-in later (not built now).
+
+**Out of scope:**
+
+- Optimizing any other skill or prompt (voice/philosophy docs are subjective —
+  machine-evolution threatens auditability).
+- Wiring GEPA into CI / continuous optimization.
+- Adopting LangSmith or Arize as a dependency now (YAGNI; seams keep the door
+  open).
+
+## Acceptance Criteria
+
+- [x] Phase 1: seeded-defect corpus with labeled `*.expected.json` + train/test split.
+- [x] Phase 2: deterministic scorer (precision/recall/F1 + per-defect ASI breakdown).
+- [x] Phase 3a: baseline runner wired (`src/baseline.ts`).
+- [ ] Phase 3b: baseline run on a live key; auto-score confirmed to match a human read on the 3 seed fixtures.
+- [ ] Phase 1+: corpus expanded to ~20 fixtures, ideally via mutation of safeword's own shipping `.feature` files (mutation operator = ground-truth label).
+- [ ] Phase 4: Python GEPA adapter that calls this harness as its metric; one optimization run completed within a logged token budget.
+- [ ] Phase 5: GEPA winner judged on the **held-out** split + human review; accepted only if held-out detection ↑, FP not worse, and voice/auditability preserved.
+
+### Risks
+
+- **Riskiest assumption:** the skill's free-form findings parse/score reliably.
+  Cheapest test: baseline on the 3 seed fixtures before expanding the corpus. If
+  noisy, tighten `EVAL_OUTPUT_CONTRACT` in `src/task.ts` (the eval wrapper —
+  never the shipped skill).
+- **Overfitting:** GEPA could overfit injected defects. Mitigate: hold out a
+  test split GEPA never sees; gate the final winner on held-out + human review,
+  never the training score.
+
+### Related Files
+
+- `experiments/gepa-review-spec/` — the scaffold (README, src seams, fixtures, tests).
+- `experiments/gepa-review-spec/src/adapters/README.md` — GEPA / LangSmith / Phoenix adapter notes.
+- `.claude/skills/review-spec/SKILL.md` — the optimization target (untouched until Phase 5).
