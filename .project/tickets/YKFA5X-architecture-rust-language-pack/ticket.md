@@ -2,8 +2,8 @@
 id: YKFA5X
 slug: architecture-rust-language-pack
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-06-24T04:07:49.850Z
 last_modified: 2026-06-24T04:12:00.000Z
 scope:
@@ -90,3 +90,10 @@ module nesting (their own concerns).
   (file-module Givens on S2/S4/S5, load-bearing-RED note). Stamp recorded; impl-plan
   written (TOML-subset parser first, then extraction keystone, discovery, fingerprint).
   Advancing to implement.
+- 2026-06-24T05:29:00Z Closed. Done-gate: /verify green (3421 pass / 5 skip, 6 Rust
+  - 20 architecture BDD scenarios), /audit 0 errors (1 accepted import-boilerplate
+    clone), /quality-review TWO passes APPROVE (pass 1 found + fixed 2 silent-wrong Cargo
+    members-parser bugs; pass 2 broad — empirically verified extraction/discovery/
+    fingerprint/regression, no changes). /refactor scout: code clean; the cross-language
+    4-site parallelism (Generalize-the-Mechanism) deferred to the Python slice as its
+    opening refactor. impl-plan reconciled to implemented. phase=done.
