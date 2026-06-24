@@ -11,6 +11,7 @@ import {
   getDependencyReadiness,
   isDependencyBackedCommand,
   readDependencyBootstrapConfig,
+  shouldBootstrapDependencies,
   writeInstallMarker,
 } from '../../templates/hooks/lib/dependency-readiness.js';
 import {
@@ -487,6 +488,23 @@ describe('dependency readiness hook support', () => {
     expect(recovery).not.toContain('touch node_modules');
   });
 
+  it('bootstraps a missing install artifact even when auto-install is off (JNVP4W)', () => {
+    // The fix: a fresh worktree (no node_modules) installs unconditionally, so a
+    // commit never bypasses the husky guard chain — even with autoInstall off.
+    expect(shouldBootstrapDependencies('missing', false)).toBe(true);
+    expect(shouldBootstrapDependencies('missing', true)).toBe(true);
+  });
+
+  it('leaves the stale re-install behind the auto-install opt-in', () => {
+    expect(shouldBootstrapDependencies('stale', false)).toBe(false);
+    expect(shouldBootstrapDependencies('stale', true)).toBe(true);
+  });
+
+  it('never bootstraps a ready or unsupported worktree', () => {
+    expect(shouldBootstrapDependencies('ready', true)).toBe(false);
+    expect(shouldBootstrapDependencies('unsupported', true)).toBe(false);
+  });
+
   it('reads explicit auto-install opt-in from safeword config', () => {
     writeBunProject();
 
@@ -560,24 +578,23 @@ describe('dependency readiness hook support', () => {
     });
   });
 
-  it('session hook reports missing dependencies and writes readiness state', () => {
+  it('session hook auto-installs a missing worktree (JNVP4W), degrading if the install fails', () => {
     writeBunProject();
     markSafewordProject();
 
+    // node_modules absent → the hook bootstraps (`bun ci`) regardless of the
+    // autoInstall opt-in. The fixture's lockfile is a stub, so the install
+    // fails — exercising the degrade: exit 0, a 'failed' state, never a wedge.
     const result = runHook(SESSION_HOOK);
 
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
-    expect(output.hookSpecificOutput).toMatchObject({
-      hookEventName: 'SessionStart',
-    });
+    expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
     expect(output.hookSpecificOutput.additionalContext).toContain('bun ci');
 
     const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
-    expect(state).toMatchObject({
-      status: 'missing',
-      installCommand: 'bun ci',
-    });
+    expect(state.status).toBe('failed');
+    expect(state.installCommand).toBe('bun ci');
   });
 
   it('session hook bootstraps dependencies when auto-install is explicitly enabled', () => {
