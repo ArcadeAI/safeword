@@ -215,17 +215,19 @@ export interface UpgradeOptions {
 }
 
 /**
- * Default confirm seam: one-line readline [y/N] prompt, Enter = no,
+ * Default confirm seam: one-line readline [Y/n] prompt, Enter = yes,
  * stdin EOF/close = decline. `rl.question()`'s promise never settles when
  * the input closes (nodejs/node#53497), so the close event is raced in
- * explicitly — otherwise a Ctrl+D mid-prompt would hang the upgrade.
- * Streams injectable for tests.
+ * explicitly with an `undefined` sentinel — otherwise a Ctrl+D mid-prompt would hang
+ * the upgrade. Streams injectable for tests.
  *
- * Defaults to NO — namespace migration is destructive (moves thousands of
- * tracked files). Agentic environments hit Enter automatically; the safe
- * default prevents silent namespace deletion (issue #227).
+ * Defaults to YES (ticket AV3PYY) — a non-technical user who hits Enter gets the
+ * recommended migration. This consciously accepts the issue-#227 tradeoff
+ * (agentic environments auto-Enter, so Yes-default lets an agent migrate without
+ * explicit consent); the EOF/close path still declines, so a *deliberate* Enter
+ * is required to accept — a dead/closed stream never migrates.
  */
-export async function promptNoDefault(
+export async function promptYesDefault(
   question: string,
   input: NodeJS.ReadableStream = process.stdin,
   output: NodeJS.WritableStream = process.stdout,
@@ -235,13 +237,14 @@ export async function promptNoDefault(
   try {
     const answer = await Promise.race([
       rl.question(question),
-      new Promise<string>(resolve =>
+      new Promise<undefined>(resolve =>
         rl.once('close', () => {
-          resolve('');
+          resolve(undefined);
         }),
       ),
     ]);
-    return /^y/i.test(answer.trim());
+    if (answer === undefined) return false; // EOF/close — decline, never hang or auto-migrate
+    return !/^n/i.test(answer.trim()); // Enter/empty = yes; only an explicit "n…" declines
   } catch {
     return false; // defensive — treat any prompt failure as decline
   } finally {
@@ -276,9 +279,9 @@ async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean
     );
     return false;
   }
-  const confirm = options.confirmMigration ?? promptNoDefault;
+  const confirm = options.confirmMigration ?? promptYesDefault;
   return confirm(
-    'Safeword can update an internal folder name to the current standard (.safeword-project becomes .project). It keeps your history and is safe. Do this now? [y/N] ',
+    'Safeword can update an internal folder name to the current standard (.safeword-project becomes .project). It keeps your history and is safe. Do this now? [Y/n] ',
   );
 }
 
