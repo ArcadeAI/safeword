@@ -2,7 +2,7 @@
 id: YKFA5X
 slug: architecture-rust-language-pack
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-06-24T04:07:49.850Z
 last_modified: 2026-06-24T04:12:00.000Z
