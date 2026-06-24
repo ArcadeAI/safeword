@@ -150,6 +150,31 @@ gated behind a seeded-defect eval).
     ("treat them as if you're trying to break them"). Is the vacuous over-flagging a
     bug to optimize away, or intentional err-loud behavior? That decides whether
     precision is a legitimate GEPA target. Pending user steer before Phase 4.
+- 2026-06-24T04:45:00Z **Decision (`/figure-it-out`): precision IS a legitimate GEPA
+  target — as a definitional fix behind a hard recall floor.** Two evidence strands:
+  - **Safeword's own philosophy is high-signal, not err-loud** (so the over-flagging
+    is a bug by safeword's bar, not intended adversarialism): `PRINCIPLES.md:44`
+    "High-frequency enforcement destroys its own signal … 304 fires, 5 useful catches
+    — 97% noise"; `review-spec/SKILL.md:69` "Looks Good … never padding"; `:52`
+    de-escalates gaps to should-strengthen; `quality-review/SKILL.md:107` uncertain
+    claims "can inform, never block". Stamping a must-fix vacuous label on a
+    concrete-value/falsifiable Then is a definitional misfire, not the intended
+    "catch the scenario that passes for the wrong reason."
+  - **External recipe makes it safe:** "reduce FP" as a LONE scalar trains
+    under-reporting drift; safe only behind a hard recall-floor constraint + Pareto
+    objectives + held-out multi-dimensional gate (verifier-gaming arXiv 2604.15149;
+    ParetoPrompt ICLR 2025). The fix must be DEFINITIONAL (repair the vacuous
+    boundary → Pareto-improvable), not a strictness-threshold shift (hits the P/R
+    cliff). Single-metric optimization also drifts voice (arXiv 2601.22025) → Phase 5
+    held-out + auditability gate is mandatory, not optional.
+  - **Corpus spec sharpened by the premortem:** the recall floor only protects defects
+    IN the corpus, so the vacuous mutants MUST include adversarial "concrete-looking-
+    but-vacuous" cases (given-echo, trivially-true) in BOTH train and held-out — else
+    GEPA games the floor with the cheap rule "never flag a Then containing a value."
+  - **Phase 4 objective fixed:** maximize precision (cut must-fix false alarms on
+    certified-clean bases) SUBJECT TO must-fix recall = 100% (hard floor; a candidate
+    that drops any seeded must-fix is rejected, never traded), recall + FA as separate
+    Pareto objectives (already built into `aggregate`), held-out + voice gate at Phase 5.
 
 ---
 
