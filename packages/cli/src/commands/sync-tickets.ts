@@ -14,6 +14,7 @@ import process from 'node:process';
 
 import { syncTickets } from '../ticket-sync/index.js';
 import { info, success, warn } from '../utils/output.js';
+import { buildIndexConflictSummary } from './ticket-index-warnings.js';
 
 interface SyncTicketsOptions {
   quiet?: boolean;
@@ -41,9 +42,6 @@ export function syncTicketsCommand(options: SyncTicketsOptions = {}): void {
   }
 
   if (result.indexConflicts.length > 0) {
-    warn(
-      `Detected merge-conflict markers in ${result.indexConflicts.length} ticket index file(s). ` +
-        'Run `safeword sync-tickets --quiet` to regenerate cleanly.',
-    );
+    warn(buildIndexConflictSummary(result.indexConflicts.length));
   }
 }

@@ -12,6 +12,7 @@ import { checkHealth, type HealthStatus, reportHealthSummary } from '../health.j
 import { syncTickets } from '../ticket-sync/index.js';
 import { header, info, keyValue, success, warn } from '../utils/output.js';
 import { isNewerVersion } from '../utils/version.js';
+import { buildIndexConflictListMessage } from './ticket-index-warnings.js';
 
 interface CheckOptions {
   offline?: boolean;
@@ -98,10 +99,7 @@ function regenerateTicketIndex(cwd: string): void {
       info('Regenerated ticket index (INDEX.md / INDEX-completed.md)');
     }
     if (result.indexConflicts.length > 0) {
-      warn(
-        `Ticket index file(s) contained merge-conflict markers: ${result.indexConflicts.join(', ')}. ` +
-          'Run `safeword sync-tickets --quiet` after resolving the merge conflict.',
-      );
+      warn(buildIndexConflictListMessage(result.indexConflicts));
     }
   } catch (error: unknown) {
     // Best-effort: index freshness must never fail the health check. Surface
