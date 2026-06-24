@@ -33,7 +33,9 @@ export function readCargoWorkspaceMembers(content: string): string[] | undefined
  * The comment-stripped text inside the `[workspace]` table's `members = [ … ]` array,
  * or `undefined` when there is no such array. Table-scoped (a `members` key under any
  * other table is ignored) and comment-aware (a `]` inside a `#` comment does not close
- * the array early) — both via the same line scan, so neither silently mis-reads.
+ * the array early) — both via the same line scan, so neither silently mis-reads. The one
+ * remaining limit: a member glob whose string literally contains `]` (a char-class glob
+ * like `"crates/[ab]/*"`, which Cargo member paths never use) ends the array early.
  */
 function workspaceMembersArrayBody(lines: string[]): string | undefined {
   let inWorkspace = false;
