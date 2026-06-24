@@ -12,41 +12,41 @@ pinned by unit tests as a secondary layer, listed under "Unit-pinned" below.
 
 ### Scenario: A single-crate Rust project lists its src modules, files and dirs, not the root
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0afd962
+- [x] GREEN 0afd962
+- [x] REFACTOR 0afd962
 
 ### Scenario: A Cargo workspace produces a root index and per-crate leaf docs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0afd962
+- [x] GREEN 0afd962
+- [x] REFACTOR 0afd962
 
 ### Scenario: A crate with only a root file is marked, not introspected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0afd962
+- [x] GREEN 0afd962
+- [x] REFACTOR 0afd962
 
 ### Scenario: Adding a Cargo dependency makes the architecture doc go stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0afd962
+- [x] GREEN 0afd962
+- [x] REFACTOR 0afd962
 
 ## Rule: Polyglot repos introspect every language without regressing JS
 
 ### Scenario: A mixed JS and Rust monorepo introspects both packages
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0afd962
+- [x] GREEN 0afd962
+- [x] REFACTOR 0afd962
 
 ### Scenario: A pure JS single-repo is unchanged by the Rust extractor
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0afd962
+- [x] GREEN 0afd962
+- [x] REFACTOR 0afd962
 
 ## New step definitions (on the critical path — must be authored at RED)
 
