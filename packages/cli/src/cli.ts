@@ -84,6 +84,24 @@ program
     await syncConfig({ check: options.check });
   });
 
+program
+  .command('architecture')
+  .description(
+    'Refresh the generated architecture state document (.project/architecture.generated.md)',
+  )
+  .option(
+    '--check',
+    'Report staleness without writing (exits non-zero when the doc is stale; CI backstop)',
+  )
+  .option(
+    '--stage',
+    'Regenerate a stale doc and git-add it into the in-flight commit (never blocks)',
+  )
+  .action(async (options: { check?: boolean; stage?: boolean }) => {
+    const { architecture } = await import('./commands/architecture.js');
+    await architecture(process.cwd(), { check: options.check, stage: options.stage });
+  });
+
 const ticket = program.command('ticket').description('Ticket management');
 
 ticket

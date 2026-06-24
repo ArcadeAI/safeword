@@ -11,7 +11,7 @@ if [ ! -d "$PROJECT_DIR/.safeword" ]; then
 fi
 
 if ! command -v bun &> /dev/null; then
-  echo "SAFEWORD: safeword needs a small tool called \"bun\" to run its safety checks, and it isn't installed yet." >&2
+  echo "safeword needs a small tool called \"bun\" to run its safety checks, and it isn't installed yet." >&2
   echo "Until it is, safeword can't catch unsafe or untested changes — the agent runs unguarded." >&2
   echo "" >&2
   echo "Install bun (about 30 seconds), then restart your terminal and your agent session:" >&2

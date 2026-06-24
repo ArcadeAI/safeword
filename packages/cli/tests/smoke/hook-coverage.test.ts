@@ -42,6 +42,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'session-cleanup-quality.ts': SESSION_STARTUP,
   'session-start-reentry.ts': SESSION_STARTUP,
   'session-author-model.ts': SESSION_STARTUP,
+  'session-architecture-heal.ts':
+    'session hook; shells to `safeword architecture` whose selfHeal is covered by tests/utils/architecture-document.test.ts and tests/commands/architecture.test.ts',
   'session-dependency-readiness.ts':
     'session hook; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
   // Prompt hooks fire at prompt-submit, not on tool calls.
@@ -67,6 +69,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'PreToolUse config.json guard; deterministic, covered by tests/hooks/config-guard-patterns.test.ts',
   'pre-tool-dependency-readiness.ts':
     'PreToolUse dependency guard; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
+  'pre-tool-architecture-stage.ts':
+    'PreToolUse git-commit hook; shells to `safeword architecture --stage` whose regenerate-and-stage behavior is covered by tests/commands/architecture-stage.test.ts',
   'stop-quality.ts':
     'stop hook (done gate); fires at session end, not on a tool call — not live-assertable in one turn',
   // Infra shell hooks — not agent-steering gates

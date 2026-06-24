@@ -1,5 +1,5 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -7,9 +7,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   dependencyInputFingerprint,
   detectDependencyPlan,
+  formatDependencyRecovery,
   getDependencyReadiness,
   isDependencyBackedCommand,
   readDependencyBootstrapConfig,
+  writeInstallMarker,
 } from '../../templates/hooks/lib/dependency-readiness.js';
 import {
   createTemporaryDirectory,
@@ -113,6 +115,164 @@ describe('dependency readiness hook support', () => {
       'bun.lock',
       'package.json',
       'packages/cli/package.json',
+    ]);
+  });
+
+  it('abstains (unsupported) for a pnpm workspace with a coexisting bun lockfile (#321)', () => {
+    writeJson('package.json', {
+      name: 'pnpm-workspace-project',
+      packageManager: 'pnpm@9.0.0',
+      workspaces: ['packages/*'],
+    });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    // A stray/legacy bun lockfile must not flip this pnpm workspace to `bun ci`.
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
+  });
+
+  it('abstains when packageManager declares a non-bun manager despite a coexisting bun lockfile (#321)', () => {
+    writeJson('package.json', {
+      name: 'declared-pnpm-project',
+      packageManager: 'pnpm@9.0.0',
+    });
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+    expect(getDependencyReadiness(projectDirectory).status).toBe('unsupported');
+  });
+
+  it('detects a pnpm workspace and plans a frozen pnpm install (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    const plan = detectDependencyPlan(projectDirectory);
+
+    expect(plan).toMatchObject({
+      manager: 'pnpm',
+      installCommand: {
+        binary: 'pnpm',
+        args: ['install', '--frozen-lockfile'],
+        display: 'pnpm install --frozen-lockfile',
+      },
+      installArtifact: 'node_modules',
+    });
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+    ]);
+  });
+
+  it('prefers pnpm over a coexisting bun lockfile when the project signals pnpm (#323)', () => {
+    writeJson('package.json', { name: 'mixed', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('pnpm');
+  });
+
+  it('treats pnpm-lock.yaml alone (no bun lockfile) as pnpm (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-single' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('pnpm');
+  });
+
+  it('keeps bun precedence when bun.lock coexists with pnpm-lock.yaml and no pnpm signal (#323)', () => {
+    writeJson('package.json', { name: 'ambiguous' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeTestFile(projectDirectory, 'bun.lock', '# bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('bun');
+  });
+
+  it('reports missing then ready for a pnpm project (#323)', () => {
+    writeJson('package.json', { name: 'pnpm-project', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+
+    const missing = getDependencyReadiness(projectDirectory);
+    expect(missing.status).toBe('missing');
+    expect(missing.installCommand).toBe('pnpm install --frozen-lockfile');
+
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('detects an npm project and plans npm ci (#327)', () => {
+    writeJson('package.json', { name: 'npm-project', packageManager: 'npm@10.0.0' });
+    writeTestFile(projectDirectory, 'package-lock.json', '{}');
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan).toMatchObject({
+      manager: 'npm',
+      installCommand: { binary: 'npm', args: ['ci'], display: 'npm ci' },
+    });
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package-lock.json',
+      'package.json',
+    ]);
+  });
+
+  it('treats package-lock.json alone as npm (#327)', () => {
+    writeJson('package.json', { name: 'npm-single' });
+    writeTestFile(projectDirectory, 'package-lock.json', '{}');
+
+    expect(detectDependencyPlan(projectDirectory)?.manager).toBe('npm');
+  });
+
+  it('stays unsupported when npm is declared but no package-lock.json exists (#327)', () => {
+    writeJson('package.json', { name: 'npm-no-lock', packageManager: 'npm@10.0.0' });
+    writeTestFile(projectDirectory, 'bun.lock', '# stray bun lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
+  });
+
+  it('plans a frozen-lockfile install for yarn classic (#327)', () => {
+    writeJson('package.json', { name: 'yarn-classic', packageManager: 'yarn@1.22.22' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+      'yarn install --frozen-lockfile',
+    );
+  });
+
+  it('plans an immutable install for yarn berry (#327)', () => {
+    writeJson('package.json', { name: 'yarn-berry', packageManager: 'yarn@4.3.1' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+
+    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+      'yarn install --immutable',
+    );
+  });
+
+  it('detects yarn berry from .yarnrc.yml when no packageManager is declared (#327)', () => {
+    writeJson('package.json', { name: 'yarn-berry-rc' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+    writeTestFile(projectDirectory, '.yarnrc.yml', 'nodeLinker: node-modules\n');
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan?.manager).toBe('yarn');
+    expect(plan?.installCommand.display).toBe('yarn install --immutable');
+  });
+
+  it('tracks pnpm workspace package manifests globbed from pnpm-workspace.yaml (#327)', () => {
+    writeJson('package.json', { name: 'pnpm-ws', packageManager: 'pnpm@9.0.0' });
+    writeTestFile(projectDirectory, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*'\n");
+    writeTestFile(projectDirectory, 'pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+    writeJson('packages/cli/package.json', { name: '@ws/cli' });
+    writeJson('packages/core/package.json', { name: '@ws/core' });
+
+    const plan = detectDependencyPlan(projectDirectory);
+    expect(plan?.inputPaths.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'package.json',
+      'packages/cli/package.json',
+      'packages/core/package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
     ]);
   });
 
@@ -233,6 +393,98 @@ describe('dependency readiness hook support', () => {
       status: 'ready',
       installCommand: 'bun ci',
     });
+  });
+
+  it('stays ready after a content-preserving op bumps input mtimes past the artifact', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+
+    // A hook stamps the marker once dependencies resolve ready.
+    const ready = getDependencyReadiness(projectDirectory);
+    expect(ready.status).toBe('ready');
+    writeInstallMarker(projectDirectory, ready);
+
+    // Simulate a rebase/checkout: input mtimes jump forward while content is
+    // unchanged, and a no-op `bun ci` never touches the artifact.
+    const future = new Date(Date.now() + 60_000);
+    for (const input of ['package.json', 'bun.lock', 'packages/cli/package.json']) {
+      utimesSync(path.join(projectDirectory, input), future, future);
+    }
+
+    expect(getDependencyReadiness(projectDirectory)).toMatchObject({
+      status: 'ready',
+      reason: 'install_artifact_current',
+    });
+
+    // Without the marker the mtime fallback would (incorrectly) flag stale —
+    // proving the marker is what keeps the worktree usable after a rebase.
+    rmSync(path.join(artifact, '.safeword-deps-fingerprint'));
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+  });
+
+  it('reports stale when tracked input content changes, then ready once re-stamped', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+
+    // A genuine dependency-spec change: content differs from the marker, and the
+    // artifact has not been reinstalled yet (mtime behind the changed input).
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(artifact, past, past);
+
+    expect(getDependencyReadiness(projectDirectory)).toMatchObject({
+      status: 'stale',
+      reason: 'install_artifact_stale',
+    });
+
+    // Reinstall bumps the artifact mtime (bun repoints symlinks); the mtime
+    // fallback then resolves ready and the hook re-stamps the new fingerprint.
+    const future = new Date(Date.now() + 60_000);
+    utimesSync(artifact, future, future);
+    const reinstalled = getDependencyReadiness(projectDirectory);
+    expect(reinstalled.status).toBe('ready');
+    writeInstallMarker(projectDirectory, reinstalled);
+
+    // A later rebase pushes the artifact mtime behind again, but the refreshed
+    // marker still matches the current content, so it stays ready.
+    utimesSync(artifact, past, past);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('stale recovery documents the no-op escape so the gate cannot loop', () => {
+    writeBunProject();
+    const artifact = path.join(projectDirectory, 'node_modules');
+    mkdirSync(artifact);
+    writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
+
+    // Version-bump-style change: tracked content differs from the marker while
+    // the artifact mtime sits behind it — exactly the case a no-op `bun ci`
+    // cannot heal (it reports "no changes" and never re-stamps the marker).
+    writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(artifact, past, past);
+
+    const stale = getDependencyReadiness(projectDirectory);
+    expect(stale.status).toBe('stale');
+
+    const recovery = formatDependencyRecovery(stale);
+    expect(recovery).toContain('bun ci');
+    expect(recovery).toContain('reports no changes');
+    expect(recovery).toContain('touch node_modules');
+  });
+
+  it('missing recovery installs for real, so it omits the touch escape', () => {
+    writeBunProject();
+
+    const missing = getDependencyReadiness(projectDirectory);
+    expect(missing.status).toBe('missing');
+
+    const recovery = formatDependencyRecovery(missing);
+    expect(recovery).toContain('bun ci');
+    expect(recovery).not.toContain('touch node_modules');
   });
 
   it('reads explicit auto-install opt-in from safeword config', () => {
@@ -413,5 +665,35 @@ describe('dependency readiness hook support', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe('');
+  });
+
+  it('session hook stamps the install marker when dependencies are ready', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+
+    const result = runHook(SESSION_HOOK);
+
+    expect(result.status).toBe(0);
+    const plan = detectDependencyPlan(projectDirectory);
+    if (plan === undefined) throw new Error('expected Bun dependency plan');
+    expect(readTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint')).toBe(
+      dependencyInputFingerprint(projectDirectory, plan),
+    );
+  });
+
+  it('does not stamp a marker for unsupported projects', () => {
+    // No package.json/lockfile → unsupported readiness carries no plan or
+    // fingerprint. writeInstallMarker must no-op rather than crash, since the
+    // pre-tool hook calls it on the unsupported branch.
+    const readiness = getDependencyReadiness(projectDirectory);
+    expect(readiness.status).toBe('unsupported');
+
+    expect(() => {
+      writeInstallMarker(projectDirectory, readiness);
+    }).not.toThrow();
+    expect(
+      existsSync(path.join(projectDirectory, 'node_modules', '.safeword-deps-fingerprint')),
+    ).toBe(false);
   });
 });

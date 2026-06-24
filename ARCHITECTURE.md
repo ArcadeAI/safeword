@@ -353,9 +353,9 @@ CLI command
 
 ### Peer
 
-| Package  | Version  | Purpose                        |
-| -------- | -------- | ------------------------------ |
-| `eslint` | `^9.0.0` | Required by consuming projects |
+| Package  | Version   | Purpose                        |
+| -------- | --------- | ------------------------------ |
+| `eslint` | `^10.4.0` | Required by consuming projects |
 
 ---
 

@@ -39,8 +39,20 @@ const DEMO_DEFINITIONS = [
   '',
 ].join('\n');
 
+/** A fresh, isolated temp project directory for one scenario. */
+function freshTemporaryDirectory(): string {
+  return mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+}
+
+/** Write `features/demo.feature` with the given Gherkin content. */
+function writeFeatureFile(world: SafewordWorld, content: string): void {
+  const featuresDirectory = nodePath.join(world.temporaryDirectory, 'features');
+  mkdirSync(featuresDirectory, { recursive: true });
+  writeFileSync(nodePath.join(featuresDirectory, 'demo.feature'), content);
+}
+
 Given('a ticket {string} with one scenario', function (this: SafewordWorld, id: string) {
-  this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+  this.temporaryDirectory = freshTemporaryDirectory();
   const ticketDirectory = nodePath.join(
     this.temporaryDirectory,
     '.safeword-project',
@@ -52,7 +64,7 @@ Given('a ticket {string} with one scenario', function (this: SafewordWorld, id: 
 });
 
 Given('a ticket {string} with two acceptance criteria', function (this: SafewordWorld, id: string) {
-  this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+  this.temporaryDirectory = freshTemporaryDirectory();
   const ticketDirectory = nodePath.join(
     this.temporaryDirectory,
     '.project',
@@ -98,10 +110,8 @@ Given('a ticket {string} with two acceptance criteria', function (this: Safeword
 Given(
   'a feature source for {string} that covers {string}',
   function (this: SafewordWorld, _id: string, acReference: string) {
-    const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
-    mkdirSync(featuresDirectory, { recursive: true });
-    writeFileSync(
-      nodePath.join(featuresDirectory, 'demo.feature'),
+    writeFeatureFile(
+      this,
       [
         'Feature: Demo',
         '',
@@ -121,19 +131,17 @@ Given(
 Given(
   'a ticket {string} with a feature source containing two scenarios',
   function (this: SafewordWorld, id: string) {
-    this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+    this.temporaryDirectory = freshTemporaryDirectory();
     const ticketDirectory = nodePath.join(
       this.temporaryDirectory,
       '.safeword-project',
       'tickets',
       `${id}-demo`,
     );
-    const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
     mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(featuresDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '# demo');
-    writeFileSync(
-      nodePath.join(featuresDirectory, 'demo.feature'),
+    writeFeatureFile(
+      this,
       [
         'Feature: Demo feature source',
         '',
@@ -159,19 +167,17 @@ Given(
 Given(
   'a ticket {string} with a Scenario Outline feature source',
   function (this: SafewordWorld, id: string) {
-    this.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bdd-'));
+    this.temporaryDirectory = freshTemporaryDirectory();
     const ticketDirectory = nodePath.join(
       this.temporaryDirectory,
       '.safeword-project',
       'tickets',
       `${id}-demo`,
     );
-    const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
     mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(featuresDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '# demo');
-    writeFileSync(
-      nodePath.join(featuresDirectory, 'demo.feature'),
+    writeFeatureFile(
+      this,
       [
         'Feature: Demo feature source',
         '',
@@ -193,10 +199,8 @@ Given(
 );
 
 Given('an invalid feature source for {string}', function (this: SafewordWorld, _id: string) {
-  const featuresDirectory = nodePath.join(this.temporaryDirectory, 'features');
-  mkdirSync(featuresDirectory, { recursive: true });
-  writeFileSync(
-    nodePath.join(featuresDirectory, 'demo.feature'),
+  writeFeatureFile(
+    this,
     ['Feature: Broken', '  Rule: r', '    Scenario: bad', '      Given ok', '      nope', ''].join(
       '\n',
     ),
@@ -212,15 +216,34 @@ When('I run {string}', async function (this: SafewordWorld, argumentLine: string
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
       [CLI_PATH, ...argumentLine.split(' ')],
-      { cwd: this.temporaryDirectory },
+      { cwd: this.temporaryDirectory, timeout: 30_000, maxBuffer: 16 * 1024 * 1024 },
     );
     this.result = { stdout, stderr, exitCode: 0 };
   } catch (error: unknown) {
-    const failure = error as { stdout?: string; stderr?: string; code?: number };
+    const failure = error as {
+      stdout?: string;
+      stderr?: string;
+      code?: number | string;
+      signal?: string;
+      killed?: boolean;
+      message?: string;
+    };
+    const stdout = failure.stdout ?? '';
+    const stderr = failure.stderr ?? '';
+    // A non-zero exit that still produced output is the normal "check found
+    // problems" path. Empty output means the subprocess never reported — it
+    // crashed, was killed (OOM/timeout → signal), or failed to spawn (missing
+    // dist → ENOENT). Preserve that diagnostic instead of a blank, so a rare CI
+    // flake is debuggable rather than a confusing "output does not contain X"
+    // with nothing to go on.
+    const noOutputDiagnostic =
+      stdout === '' && stderr === ''
+        ? `[no subprocess output] code=${String(failure.code)} signal=${String(failure.signal)} killed=${String(failure.killed)} cli=${CLI_PATH}: ${failure.message ?? ''}`
+        : '';
     this.result = {
-      stdout: failure.stdout ?? '',
-      stderr: failure.stderr ?? '',
-      exitCode: failure.code ?? 1,
+      stdout,
+      stderr: `${stderr}${noOutputDiagnostic}`,
+      exitCode: typeof failure.code === 'number' ? failure.code : 1,
     };
   }
 });

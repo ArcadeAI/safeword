@@ -183,9 +183,9 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Grep')).toBe(false);
   });
 
-  it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, and git-bare-race fix', () => {
+  it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, git-bare-race fix, and architecture staging', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks).toHaveLength(4);
+    expect(preToolHooks).toHaveLength(5);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks
@@ -197,6 +197,22 @@ describe('SETTINGS_HOOKS', () => {
     expect(commands.some((c: string) => c.includes('pre-tool-quality'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-config-guard'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-git-bare-fix'))).toBe(true);
+    expect(commands.some((c: string) => c.includes('pre-tool-architecture-stage'))).toBe(true);
+  });
+
+  it('architecture-stage hook uses Bash matcher with a git-commit if-filter to scope the spawn', () => {
+    const stageHook = SETTINGS_HOOKS.PreToolUse.find((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) =>
+          hook.type === 'command' && hook.command.includes('pre-tool-architecture-stage'),
+      ),
+    );
+    expect(stageHook).toBeDefined();
+    expect(stageHook?.matcher).toBe('Bash');
+    const command = stageHook?.hooks.find((h: HookCommand) => h.type === 'command') as
+      | { if?: string; command: string }
+      | undefined;
+    expect(command?.if).toBe('Bash(git commit*)');
   });
 
   it('git-bare-race hook uses Bash matcher with if-filter to avoid spawning on non-git Bash calls', () => {

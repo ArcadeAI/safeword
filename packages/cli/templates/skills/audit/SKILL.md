@@ -10,6 +10,8 @@ allowed-tools: '*'
 
 Run a comprehensive code audit. Execute checks and report results by severity.
 
+**Reviewer class:** audit is _class-2 — independent observation_ (PRINCIPLES.md §1). Every check below — config drift, circular deps, layer violations, dead code, duplication, doc drift, test-quality patterns — confirms an observable fact, so a cheap checker suffices and no cross-model reviewer applies. The _class-1_ counterpart — judging whether the architecture is actually _sound_ — is not audit's job; it lives in the Architecture Review Gate (`ARCHITECTURE.md` → "Architecture Review Gate") and `quality-review`, where the fresh-context, never-weaker, cross-model-when-on rule belongs.
+
 ## Invocation log
 
 This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /audit was actually invoked. Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding. Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution, so the fallback below is explicit. Hand-writing audit results cannot produce this feature-gate proof.
@@ -41,7 +43,14 @@ cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 
 # 0. Compare generated vs on-disk depcruise config. Non-zero exit = drift.
 #    /audit must never mutate the working tree; surface stale config as W007.
-bunx safeword@latest sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
+#    Resolve the locally installed safeword CLI first so the check reflects the
+#    repo's pinned version, not whatever the npm registry currently calls @latest.
+if [ -x node_modules/.bin/safeword ]; then
+  SW="node_modules/.bin/safeword"
+elif [ -f packages/cli/src/cli.ts ]; then
+  SW="bun packages/cli/src/cli.ts"
+else SW="bunx safeword"; fi
+$SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
 
 # =========================================================================
 # ARCHITECTURE CHECKS (circular deps, layer violations)

@@ -565,6 +565,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/learning-verification-stamps.ts': {
       template: 'hooks/lib/learning-verification-stamps.ts',
     },
+    '.safeword/hooks/lib/readiness-pointer.ts': { template: 'hooks/lib/readiness-pointer.ts' },
 
     // Generated at setup/upgrade from SAFEWORD_SCHEMA itself — the prefix list
     // the auto-upgrade hook uses to decide which files to stage. See owned-paths.ts.
@@ -585,6 +586,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-lint-check.ts': {
       template: 'hooks/session-lint-check.ts',
+    },
+    '.safeword/hooks/session-architecture-heal.ts': {
+      template: 'hooks/session-architecture-heal.ts',
     },
     '.safeword/hooks/session-author-model.ts': {
       template: 'hooks/session-author-model.ts',
@@ -609,6 +613,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/pre-tool-architecture-stage.ts': {
+      template: 'hooks/pre-tool-architecture-stage.ts',
     },
     '.safeword/hooks/codex/pre-tool-quality.ts': {
       template: 'hooks/codex/pre-tool-quality.ts',
@@ -646,6 +653,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Guides
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
+    },
+    '.safeword/guides/cold-start-check.md': {
+      template: 'guides/cold-start-check.md',
     },
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',

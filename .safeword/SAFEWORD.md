@@ -45,9 +45,13 @@ If the user references a ticket ID/slug or says "resume" / "continue", skip Clar
 
 Before proceeding, run the **specificity self-test**: can you describe the behavior that changes, the behavior that stays the same, and an observable "done" state? Any "no" means open questions remain — surface them.
 
+**Readiness triage.** The five-dimension check the prompt pointer abbreviates: intent (why, and for whom), done (a measurable end-state), constraints (what must not break, reversibility), riskiest assumption (and the cheapest way to test it before building), and request shape (is this the problem, or someone's guess at the fix?). Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. For one-way-door features, intake offers a deeper **cold-start executability check** at exit (`.safeword/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
+
+**PM-grade intake** is the name for how these fit together, scaled by blast radius: the readiness pointer nudges every turn · the Intake Brief (who asked · cost of inaction · reversibility) is authored for features · the cold-start executability check fires only for one-way-door work — with `/elicit`, `/brainstorm`, and `/figure-it-out` pulled in as the gaps demand (unknown intent · empty option space · options to weigh). One protocol, not three disconnected mechanisms.
+
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, intake builds four artifacts in order, each anchoring the next: author the Jobs To Be Done in `spec.md` first — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
+Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
@@ -151,6 +155,7 @@ Read the matching guide when its trigger fires:
 | Choosing test type, doing TDD, or a test is failing            | `./.safeword/guides/testing-guide.md`           |
 | Creating or updating a design doc                              | `./.safeword/guides/design-doc-guide.md`        |
 | Making an architectural decision or writing an ADR             | `./.safeword/guides/architecture-guide.md`      |
+| Understanding the generated `architecture.generated.md` doc    | `./.safeword/guides/architecture-guide.md`      |
 | Data-heavy project needing formal data architecture            | `./.safeword/guides/data-architecture-guide.md` |
 | Writing learnings or agent config (CLAUDE.md, .cursor/rules)   | `./.safeword/guides/llm-writing-guide.md`       |
 | Updating CLAUDE.md, SAFEWORD.md, or any context file           | `./.safeword/guides/context-files-guide.md`     |

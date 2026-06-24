@@ -38,7 +38,7 @@ function directoryHasSqlFiles(directory: string): boolean {
     // Check subdirectories for .sql files (prisma/migrations/20210313_init/migration.sql)
     for (const entry of entries) {
       if (!entry.isDirectory()) {
-      	continue;
+        continue;
       }
 
       const subEntries = readdirSync(nodePath.join(directory, entry.name));

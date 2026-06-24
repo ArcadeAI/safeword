@@ -61,7 +61,10 @@ function writeSessionState(directory: string, sessionId: string, ticketId: strin
   );
 }
 
-function runStopHook(targetDirectory: string, sessionId: string): { reason: string } {
+function runStopHook(
+  targetDirectory: string,
+  sessionId: string,
+): { reason: string; systemMessage: string } {
   const transcriptPath = nodePath.join(targetDirectory, 'transcript.jsonl');
   writeFileSync(
     transcriptPath,

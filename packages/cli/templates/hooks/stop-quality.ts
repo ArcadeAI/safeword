@@ -12,6 +12,7 @@ import {
   getTicketInfo,
   resolveStopPhase,
 } from './lib/active-ticket.ts';
+import { formatDependencyRecovery, getDependencyReadiness } from './lib/dependency-readiness.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
@@ -480,10 +481,31 @@ if (currentPhase === 'done') {
   // Features need test + Gherkin acceptance + scenario + audit evidence; tasks need test only.
   const isFeature = ticketInfo.type === 'feature';
 
+  // Dependencies must be installed before the test gate can run. Otherwise a
+  // missing toolchain surfaces as a false "tests failed" (the runner's command
+  // exits 127). Fail closed with the install recovery instead — a verification
+  // gate that cannot run its check must not pass. The recovery (`bun ci`) is
+  // idempotent and re-stamps the freshness marker, so even a false `stale`
+  // self-heals on the next install. (Issue #325.)
+  const readiness = getDependencyReadiness(projectDir);
+  if (readiness.status === 'missing' || readiness.status === 'stale') {
+    recordFailure(projectDir, input.session_id, 'done-gate-deps-missing');
+    hardBlockDone(formatDependencyRecovery(readiness));
+  }
+
   // Run tests directly — authoritative external gate, cannot be gamed by prose.
   // skipped=true means no test command found (package.json missing or no scripts.test).
   const testResult = runTests(projectDir);
   if (!testResult.skipped && !testResult.passed) {
+    // toolchainMissing covers the readiness check's blind spot: an `unsupported`
+    // project (no recognized lockfile) whose test binary is still absent. Surface
+    // the missing-toolchain cause, not a misleading red-test verdict.
+    if (testResult.toolchainMissing) {
+      recordFailure(projectDir, input.session_id, 'done-gate-toolchain-missing');
+      hardBlockDone(
+        `Test toolchain not found — dependencies are likely not installed. Install them, then retry.\n\n${testResult.output}`,
+      );
+    }
     recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
     hardBlockDone(`Tests failed. Fix failures before marking done.\n\n${testResult.output}`);
   }

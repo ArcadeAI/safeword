@@ -107,7 +107,8 @@ export function removeTemporaryDirectory(dir: string): void {
  */
 export function createPackageJson(dir: string, overrides: Record<string, unknown> = {}): void {
   // Merge devDependencies to ensure local safeword is always included
-  const existingDevelopmentDependencies = (overrides.devDependencies as Record<string, string>) ?? {};
+  const existingDevelopmentDependencies =
+    (overrides.devDependencies as Record<string, string>) ?? {};
   const pkg = {
     name: 'test-project',
     version: '1.0.0',
@@ -130,7 +131,8 @@ export function createSafewordBasePackageJson(
   dir: string,
   overrides: Record<string, unknown> = {},
 ): void {
-  const existingDevelopmentDependencies = (overrides.devDependencies as Record<string, string>) ?? {};
+  const existingDevelopmentDependencies =
+    (overrides.devDependencies as Record<string, string>) ?? {};
   createPackageJson(dir, {
     ...overrides,
     devDependencies: {
@@ -283,6 +285,18 @@ export function runCliSync(
  */
 export function readTestFile(dir: string, relativePath: string): string {
   return readFileSync(nodePath.join(dir, relativePath), 'utf8');
+}
+
+/**
+ * Absolute path to the repo root, resolved from this file's location without a
+ * subprocess (ticket #335). tests/helpers.ts is three levels below the root:
+ * tests → cli → packages → root.
+ */
+export const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+
+/** Read a file by its repo-root-relative path. */
+export function readRepoFile(relativePath: string): string {
+  return readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
 }
 
 /**

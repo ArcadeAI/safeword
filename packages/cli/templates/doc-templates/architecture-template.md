@@ -62,7 +62,7 @@
 
 ### Boundary Enforcement
 
-Boundaries enforced via `eslint-plugin-boundaries`. See `.safeword/guides/architecture-guide.md` → Enforcement with eslint-plugin-boundaries for setup.
+Boundaries enforced per-language (see `.safeword/guides/architecture-guide.md` → Enforcing Boundaries (Polyglot)); for JS/TS, safeword generates the dependency-cruiser config via `safeword sync-config`.
 
 ---
 

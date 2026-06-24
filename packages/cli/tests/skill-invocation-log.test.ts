@@ -6,7 +6,8 @@ import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+import { repoRoot } from './helpers';
+
 const templatesDirectory = nodePath.join(repoRoot, 'packages/cli/templates');
 
 const verifyCommand = readFileSync(nodePath.join(templatesDirectory, 'commands/verify.md'), 'utf8');
@@ -220,6 +221,48 @@ describe('skill-invocation log: /quality-review carries its invocation line (W61
     '%s references $CLAUDE_PROJECT_DIR via the PROJECT_DIR fallback',
     (_name, content) => {
       expect(content).toMatch(/\$\{CLAUDE_PROJECT_DIR(:-[^}]*)?\}/);
+    },
+  );
+});
+
+// /audit's depcruise drift check (#264) must resolve the locally installed
+// safeword CLI, not pin to the npm registry's `@latest` — otherwise audit
+// behavior depends on whatever the registry currently publishes instead of the
+// repo's installed/pinned version. Mirrors the local-first resolver /verify
+// already uses for `safeword test-plan`.
+const auditDriftForms: [string, string][] = [
+  ['audit template skill', auditSkill],
+  ['audit template command', auditCommand],
+  [
+    'audit dogfood claude skill',
+    readFileSync(nodePath.join(repoRoot, '.claude/skills/audit/SKILL.md'), 'utf8'),
+  ],
+  [
+    'audit dogfood agents skill',
+    readFileSync(nodePath.join(repoRoot, '.agents/skills/audit/SKILL.md'), 'utf8'),
+  ],
+  [
+    'audit dogfood cursor command',
+    readFileSync(nodePath.join(repoRoot, '.cursor/commands/audit.md'), 'utf8'),
+  ],
+];
+
+describe('audit drift check resolves the local safeword CLI, not @latest (#264)', () => {
+  it.each(auditDriftForms)(
+    '%s does not pin the depcruise drift check to safeword@latest',
+    (_name, content) => {
+      expect(content).not.toContain('bunx safeword@latest sync-config');
+    },
+  );
+
+  it.each(auditDriftForms)(
+    '%s prefers the locally installed safeword binary before bunx',
+    (_name, content) => {
+      expect(content).toContain('node_modules/.bin/safeword');
+      // The in-repo source checkout is the middle fallback — assert it too so a
+      // regression that drops the dogfood branch can't pass silently.
+      expect(content).toContain('bun packages/cli/src/cli.ts');
+      expect(content).toContain('$SW sync-config --check');
     },
   );
 });
