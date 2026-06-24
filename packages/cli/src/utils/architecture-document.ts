@@ -371,5 +371,11 @@ function renderRootIndex(model: MonorepoModel, fingerprint: string): string {
 }
 
 function renderPackageSection(node: PackageNode, stamp: string): string {
-  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n${node.purpose}\n`;
+  // An un-introspected package (no recognized source layout, so no leaf doc) is
+  // marked explicitly — never shown with the bare prose placeholder, which would
+  // read as "described but empty" rather than "safeword can't see this" (ZRW21K).
+  const body = node.introspected
+    ? node.purpose
+    : '> ⚠ not introspected — no recognized source layout';
+  return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n${body}\n`;
 }

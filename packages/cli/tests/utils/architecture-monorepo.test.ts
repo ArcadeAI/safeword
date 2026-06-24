@@ -75,6 +75,72 @@ describe('discoverLeafDirectories', () => {
   });
 });
 
+describe('discoverLeafDirectories — pnpm + precedence (ZRW21K)', () => {
+  function writePnpmWorkspace(root: string, globs: string[]): void {
+    const body = ['packages:', ...globs.map(glob => `  - "${glob}"`)].join('\n');
+    writeFileSync(nodePath.join(root, 'pnpm-workspace.yaml'), `${body}\n`);
+  }
+
+  it('discovers packages from pnpm-workspace.yaml when package.json has no workspaces', () => {
+    writeManifest(context.directory, { name: 'root' }); // no `workspaces` field
+    writePnpmWorkspace(context.directory, ['packages/*']);
+    makePackage(context.directory, 'web');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'packages', 'web'),
+    ]);
+  });
+
+  it('lets package.json workspaces win when both config files are present', () => {
+    // beforeEach already set workspaces: ['packages/*'].
+    writePnpmWorkspace(context.directory, ['apps/*']);
+    makePackage(context.directory, 'web'); // under packages/ (npm side)
+    writeManifest(nodePath.join(context.directory, 'apps', 'svc'), { name: 'svc' }); // pnpm side
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'packages', 'web'),
+    ]);
+  });
+
+  it('falls back to no workspaces when pnpm-workspace.yaml is unparseable (flow style)', () => {
+    writeManifest(context.directory, { name: 'root' }); // no `workspaces`
+    writeFileSync(
+      nodePath.join(context.directory, 'pnpm-workspace.yaml'),
+      'packages: ["packages/*"]\n', // flow style — out of scope, must degrade
+    );
+    makePackage(context.directory, 'web');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([]);
+  });
+});
+
+describe('extractMonorepoModel — introspected flag (ZRW21K)', () => {
+  it('marks a package with a src tree introspected and one without not introspected', () => {
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    makePackage(context.directory, 'svc'); // no modules → no src tree
+
+    const model = extractMonorepoModel(context.directory);
+    const byName = new Map(model.packages.map(node => [node.name, node]));
+
+    expect(byName.get('web')?.introspected).toBe(true);
+    expect(byName.get('svc')?.introspected).toBe(false);
+  });
+});
+
+describe('monorepoFingerprint — introspection status is part of the root shape (ZRW21K)', () => {
+  it('moves when a package gains a src tree (so the root index re-renders)', () => {
+    makePackage(context.directory, 'svc'); // no src tree
+    const before = monorepoFingerprint(context.directory);
+
+    mkdirSync(nodePath.join(context.directory, 'packages', 'svc', 'src', 'api'), {
+      recursive: true,
+    });
+    const after = monorepoFingerprint(context.directory);
+
+    expect(after).not.toBe(before);
+  });
+});
+
 describe('extractMonorepoModel', () => {
   it('lists every package with a placeholder purpose', () => {
     makePackage(context.directory, 'core');
