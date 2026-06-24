@@ -1023,11 +1023,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       },
       unmerge: existing => {
         const result = { ...existing };
-        const hooks = { ...(existing.hooks as Record<string, unknown[]>) };
+        const existingHooks = (existing.hooks as Record<string, unknown[]>) ?? {};
 
-        delete hooks.sessionStart;
-        delete hooks.afterFileEdit;
-        delete hooks.stop;
+        // Keep only hooks safeword did NOT install. Derived from CURSOR_HOOKS so
+        // the unmerge can never drift from the merge as new hooks are added — the
+        // old hardcoded delete-list missed newly-wired events, leaving a
+        // non-empty hooks.json that kept .cursor/ alive after reset.
+        const safewordHookNames = new Set(Object.keys(CURSOR_HOOKS));
+        const hooks = Object.fromEntries(
+          Object.entries(existingHooks).filter(([name]) => !safewordHookNames.has(name)),
+        );
 
         // `version` is only meaningful while safeword's hooks remain; drop it
         // alongside an emptied hooks container.
