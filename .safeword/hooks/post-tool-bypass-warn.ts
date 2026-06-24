@@ -89,14 +89,12 @@ for (const { pattern, category, example } of BYPASS_PATTERNS) {
 // If bypass patterns found, output warning
 if (foundPatterns.length > 0) {
   const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? 'unknown';
-  console.log(`⚠️ Bypass pattern detected in ${filePath}
+  console.log(`⚠️ The agent tried to silence a safety check instead of fixing the underlying code, in ${filePath}
 
 Found:
 ${foundPatterns.join('\n')}
 
-Per SAFEWORD policy: Fix code, don't weaken enforcement.
-Scope suppressions to the problem: line > block > file > project.
-If this is justified, document the evidence in a comment.`);
+Fix the code rather than turning the check off. If a suppression is genuinely justified, make it as narrow as possible (a single line, not a whole file) and leave a comment explaining why.`);
 }
 
 process.exit(0);
