@@ -300,6 +300,21 @@ gated behind a seeded-defect eval).
     human or machine, should ship unmeasured. The harvest does NOT ship as-written. Likely-shippable
     fix (untested): drop the atomicity block, keep the clean vacuous calibration (which accounts for
     most of the FA win, since the baseline over-flags were overwhelmingly vacuous-*), then re-validate.
+- 2026-06-24T18:49:00Z **Harvest iteration 2 — recall fixed, but precision doesn't generalize.** Dropped
+  the atomicity block, kept the "Not vacuous" calibration; re-validated:
+  - **Recall regression FIXED:** `determinism-order` 0/5 → **4/4** resample (matches seed's ~4/5). The
+    atomicity block was the culprit, confirmed.
+  - **Precision win is train-only:** train false alarms 14→**7** (−50%), but **held-out 18→17 (−1, within
+    temp-0 noise).** The calibration strongly helps the resolver domain it was authored from and barely
+    moves the formatter held-out — the overfitting signature the held-out split exists to catch.
+  - **Verdict: do NOT ship on this evidence.** By the experiment's own discipline (ship only on a clear
+    held-out improvement), a neutral held-out signal is a no-ship — even though the guidance is principled
+    and recall-safe. Shipping on "the guidance is correct anyway" is the exact trust-me-it's-good the eval
+    exists to replace. The eval did its job a THIRD time: gamed-machine-winner (rejected) → careful-human-
+    change-regressing-recall (caught) → principled-change-that-doesn't-generalize (validation withheld).
+  - The skill stays **untouched** — the safe, disciplined outcome. Follow-up to make a future attempt
+    adjudicable: expand + de-noise the corpus (more domains so held-out can measure a subtle precision
+    change; sharpen `determinism-order` so recall is a clean signal, not a 4/5 coin-flip).
 
 ---
 
