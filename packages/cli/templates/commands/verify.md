@@ -59,15 +59,37 @@ not a `test-plan` suite).
 
 ```bash
 # Resolve a test-plan-capable safeword CLI — prefer the locally installed one
-# (a bare `bunx safeword` can resolve the published CLI, which may predate test-plan).
-if [ -x node_modules/.bin/safeword ]; then
+# only if it actually supports test-plan.
+supports_test_plan() {
+  case "$CANDIDATE" in
+    node_modules/.bin/safeword) node_modules/.bin/safeword test-plan --help > /dev/null 2>&1 ;;
+    "bun packages/cli/src/cli.ts") bun packages/cli/src/cli.ts test-plan --help > /dev/null 2>&1 ;;
+    "bunx safeword") bunx safeword test-plan --help > /dev/null 2>&1 ;;
+  esac
+}
+
+run_safeword() {
+  case "$SW" in
+    node_modules/.bin/safeword) node_modules/.bin/safeword "$@" ;;
+    "bun packages/cli/src/cli.ts") bun packages/cli/src/cli.ts "$@" ;;
+    "bunx safeword") bunx safeword "$@" ;;
+  esac
+}
+
+CANDIDATE="node_modules/.bin/safeword"
+if [ -x node_modules/.bin/safeword ] && supports_test_plan; then
   SW="node_modules/.bin/safeword"
-elif [ -f packages/cli/src/cli.ts ]; then
+elif CANDIDATE="bun packages/cli/src/cli.ts" && [ -f packages/cli/src/cli.ts ] && supports_test_plan; then
   SW="bun packages/cli/src/cli.ts"
-else SW="bunx safeword"; fi
+elif CANDIDATE="bunx safeword" && supports_test_plan; then
+  SW="bunx safeword"
+else
+  echo "No test-plan-capable safeword CLI found. Tried node_modules/.bin/safeword, packages/cli/src/cli.ts, and bunx safeword." >&2
+  exit 1
+fi
 
 # --- Test suite (resolved by safeword test-plan — one source of truth) ---
-bash -c "$($SW test-plan --kind verify --format sh)"
+bash -c "$(run_safeword test-plan --kind verify --format sh)"
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
@@ -77,7 +99,7 @@ else
 fi
 
 # --- Build check (resolved by safeword test-plan) ---
-bash -c "$($SW test-plan --kind build --format sh)"
+bash -c "$(run_safeword test-plan --kind build --format sh)"
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.
