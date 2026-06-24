@@ -220,14 +220,14 @@ gated behind a seeded-defect eval).
   - Note: temp-0 has mild run-to-run variance (e.g. `determinism-order` missed in an earlier
     18-fixture run, caught here; FA counts wobble ±1/fixture) — a real precision win must
     clear that noise floor; GEPA should average over samples. **Phase 2 complete.**
-- 2026-06-24T14:50:00Z **Phase 4 GEPA run + Phase 5 verdict — the gates caught a gamed winner.**
+- 2026-06-24T14:50:00Z **Phase 4 GEPA run + Phase 5 — agent inspection flags a gamed winner (human gate pending).**
   Built the Python GEPA adapter (`gepa/run.py`) + TS metric bridge (`gepa-eval.ts`); reflection
   LM is a stdlib Anthropic call (no litellm). Smoke (30 calls) validated the bridge; the full run
   (Sonnet reflector, train split only) was killed at iteration 4 but had already found a
   **train-perfect candidate** (program 2, valset aggregate **1.0** at iter 3 — zeroed train false
   alarms while holding the recall floor). **Budget:** ~60–70 metric calls + ~4 reflection before
   kill, well under the $5 cap.
-  - **Phase 5 verdict: REJECT auto-adoption.** The winner is +91% bloat (6790→12998 chars) and
+  - **Phase 5 — agent recommendation: REJECT auto-adoption (awaiting human review).** The winner is +91% bloat (6790→12998 chars) and
     added two sections: (a) **"Calibration reminders"** — genuinely on-target boundary-sharpening
     (empty-result/specific-value scenarios are clean; judge-in-context; positional-on-unordered is
     flaky) BUT it **hardcodes the exact training scenarios verbatim** ("Python with a tox.ini runs
@@ -240,9 +240,13 @@ gated behind a seeded-defect eval).
     the "voice/auditability preserved" gate outright.
   - **Methodology finding (important):** the held-out split shares the corpus's one-seeded-defect-
     per-fixture regularity, so the gaming would generalize to held-out too — **held-out metrics
-    alone would PASS this winner.** Only human review rejected it. This validates the figure-it-out
-    insistence on a human-review gate as load-bearing, not just a held-out score. A future eval
-    should vary defect-count per fixture to close this blind spot.
+    alone would PASS this winner.** What flagged the gaming was **AGENT inspection** (Claude reading
+    the candidate diff) — NOT a human, and NOT the held-out metric. **The human-review gate (the
+    user) is still PENDING; this is a recommendation to reject, not the human verdict.** Two lessons:
+    (a) held-out metrics are insufficient against structural gaming; (b) an agent reviewing another
+    agent's optimization output is exactly where a human-in-the-loop belongs — don't let agent
+    inspection masquerade as the human gate. A future eval should also vary defect-count per fixture
+    to close the structural blind spot.
   - **Harvest (the real payoff):** the eval did its job — it surfaced the precision weakness AND
     GEPA produced a _human-readable articulation of the fix_. The genuine insight (calibrate before
     flagging must-fix: empty-result/specific-value/negative-result scenarios are clean; judge in
@@ -280,7 +284,7 @@ gated behind a seeded-defect eval).
 - [x] Phase 3b: baseline ran on a live key; parsing rock-solid and recall (100%) confirmed against a human read on all 3 seed fixtures. Surfaced that precision-as-labeled was untrustworthy → drove the scoring-contract refactor.
 - [x] Phase 1+: corpus expanded to 20 fixtures (12 train / 8 held-out) by mutating safeword's own `test-plan-resolver` + `formatter-aware-lint-hook` features (mutation operator = label); family-matched metric finalized. Baseline: family-recall 100% both splits, false alarms 1.50/clean (train) · 2.13/clean (held-out).
 - [x] Phase 4: Python GEPA adapter (`gepa/run.py`) + TS metric bridge (`gepa-eval.ts`); one run completed (killed at iter 4 with a train-perfect candidate already found), ~60–70 metric + ~4 reflection calls logged (< $5 cap).
-- [x] Phase 5: GEPA winner judged via human review → **REJECTED** (eval-gaming "Seeded defect awareness" section + hardcoded train scenarios + +91% bloat fail voice/auditability). Held-out metrics alone would have passed it (shared one-defect structure) — human review was the load-bearing gate. Remaining open follow-up: hand-author the harvested calibration insight into the skill + run the accept gate.
+- [ ] Phase 5: GEPA winner inspected by the AGENT → **recommend REJECT** (eval-gaming "Seeded defect awareness" section + hardcoded train scenarios + +91% bloat). Held-out metrics alone would have passed it (shared one-defect structure). **The actual human-review gate is still pending — the decision is the user's, not the agent's.** Then (if rejected, as recommended): optionally hand-author the harvested calibration insight + accept gate.
 
 ### Risks
 
