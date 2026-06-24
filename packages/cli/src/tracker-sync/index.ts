@@ -21,6 +21,8 @@ export interface TicketBridgeConfig {
   /** `none`, `linear`, `github`, or any unsupported string (treated as none). */
   provider: string;
   body?: BodyMode;
+  // `workspace`/`team` (Linear) and `defaultAssignee` are read but not consumed in
+  // v1 — placeholders for the v2 graph projection / Linear writer (M1FGRJ).
   target?: { workspace?: string; team?: string; repo?: string };
   defaultAssignee?: string;
 }
