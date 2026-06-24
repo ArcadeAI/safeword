@@ -3,8 +3,8 @@ name: refactor
 description: Improve code structure without changing behavior. Use when
   refactoring, restructuring, simplifying, or extracting code. Also for reducing
   duplication, renaming for clarity, or addressing code smells. Enforces one
-  change → test → commit cycle. NOT for style/formatting (use /lint), features,
-  or bug fixes.
+  change → test → commit when the commit can stay scoped. NOT for
+  style/formatting (use /lint), features, or bug fixes.
 allowed-tools: '*'
 ---
 
@@ -162,8 +162,30 @@ After each refactoring:
 
 1. **Run tests** - Must pass
 2. **Regression checklist** (tests can miss these) - did the change silently drop a guard/anchor an extract or move was carrying, introduce setup/teardown asymmetry in a test, give a predicate method a side effect, or flip a config default? If any, fix or revert before continuing.
-3. **If tests pass (and the checklist is clean):** Commit with `refactor: [what changed]`
+3. **If tests pass (and the checklist is clean):** Run the commit safety check below, then commit with `refactor: [what changed]` only when the commit can stay scoped.
 4. **If tests fail:** Revert immediately
+
+### Commit Safety Check
+
+Before committing a green refactor, inspect `git status --short --branch` and
+the files changed by this refactor.
+
+Choose exactly one outcome:
+
+- **clean branch** — if the branch is named and the only changes are this
+  refactor plus its required tests/generated mirrors, commit with
+  `refactor: [what changed]`.
+- **mixed dirty tree** — if pre-existing feature or user changes are present,
+  commit only the isolated refactor files when they can be staged without
+  unrelated work. If isolation is not obvious, do not create a mixed
+  feature+refactor commit; defer the commit, report why, and leave unrelated
+  work untouched.
+- **detached HEAD** — create or switch to a branch before committing. If branch
+  creation would disturb the user's state or unrelated work is already present,
+  defer the commit and report the exact branch/worktree reason.
+
+Deferring a commit is not skipping the Iron Law; it is preserving the same
+single-change attribution the Iron Law exists to protect.
 
 ### Revert Protocol
 
@@ -233,13 +255,14 @@ A single-named-smell request has a one-entry ledger — resolve it, audit, done.
 
 ## Anti-Patterns
 
-| Don't                           | Do                                    |
-| ------------------------------- | ------------------------------------- |
-| Batch multiple refactorings     | One refactoring → test → commit       |
-| "Fix" a failed refactoring      | Revert, then try smaller step         |
-| Refactor without tests          | Add characterization tests first      |
-| Change behavior during refactor | That's a feature/fix, not refactoring |
-| Skip the commit                 | Commit after every green test         |
+| Don't                                  | Do                                                            |
+| -------------------------------------- | ------------------------------------------------------------- |
+| Batch multiple refactorings            | One refactoring → test → commit                               |
+| "Fix" a failed refactoring             | Revert, then try smaller step                                 |
+| Refactor without tests                 | Add characterization tests first                              |
+| Change behavior during refactor        | That's a feature/fix, not refactoring                         |
+| Create a mixed feature+refactor commit | Commit only an isolated refactor, or defer with the reason    |
+| Skip a safe commit                     | Commit after every green test when the commit can stay scoped |
 
 ---
 
@@ -248,6 +271,6 @@ A single-named-smell request has a one-entry ledger — resolve it, audit, done.
 1. **One change at a time** - Never batch refactorings
 2. **Tests before refactoring** - No safety net = no refactoring
 3. **Revert on failure** - Don't fix, revert and retry smaller
-4. **Commit after each success** - `refactor: [description]`
+4. **Commit after each success when safe** - `refactor: [description]`, or defer with a concrete mixed-tree/detached-HEAD reason
 5. **Smallest scope first** - Rename < Extract < Move < Restructure
 6. **Audit when done** - Run `/audit` to verify no dead code or new issues
