@@ -107,6 +107,10 @@ export function scoreFixture(
   const truePositives: Detection[] = [];
   const caughtSeeds: ExpectedDefect[] = [];
   const falseNegatives: ExpectedDefect[] = [];
+  // `scenario::family` of caught scenario-scope seeds, and bare families of
+  // caught fixture-scope seeds — used to spare redundant subtypes from FA.
+  const caughtFamiliesByScenario = new Set<string>();
+  const caughtFamiliesFixture = new Set<string>();
 
   for (const e of expected) {
     const scope = e.scope ?? 'scenario';
@@ -129,6 +133,12 @@ export function scoreFixture(
       consumed.add(key(match));
       truePositives.push(match);
       caughtSeeds.push(e);
+      // Remember what was caught at the FAMILY level so a second, redundant
+      // subtype on the same scenario (or fixture-wide for set-level seeds) is
+      // not re-penalized as a false alarm below — it's just the skill hedging
+      // between subtypes of a defect it already correctly caught.
+      if (scope === 'fixture') caughtFamiliesFixture.add(eFamily);
+      else caughtFamiliesByScenario.add(`${e.scenarioId}::${eFamily}`);
     } else {
       falseNegatives.push(e);
     }
@@ -136,12 +146,19 @@ export function scoreFixture(
 
   // Unmatched detections split by the decoupled rule: a must-fix finding on a
   // certified-clean base is a true false alarm; everything else is unlabeled
-  // (unjudged ≠ wrong) and never counts against the candidate.
+  // (unjudged ≠ wrong) and never counts against the candidate. A detection that
+  // is a redundant same-family subtype of an already-caught defect is unlabeled,
+  // never a false alarm — otherwise family matching would just relocate the
+  // double-penalty from the recall axis to the precision axis.
   const falseAlarms: Detection[] = [];
   const unlabeled: Detection[] = [];
   for (const d of deduped) {
     if (consumed.has(key(d))) continue;
-    if (certifiedClean && DEFAULT_SEVERITY[d.defectType] === 'must-fix') {
+    const dFamily = defectFamily(d.defectType);
+    const redundant =
+      caughtFamiliesByScenario.has(`${d.scenarioId}::${dFamily}`) ||
+      caughtFamiliesFixture.has(dFamily);
+    if (!redundant && certifiedClean && DEFAULT_SEVERITY[d.defectType] === 'must-fix') {
       falseAlarms.push(d);
     } else {
       unlabeled.push(d);

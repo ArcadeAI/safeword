@@ -28,19 +28,27 @@ function arg(name: string): string | undefined {
 }
 
 /**
- * Per-fixture objective (higher is better). A missed must-fix is catastrophic
- * (0) so recall strictly dominates; above the floor, each false alarm costs 0.1
- * (floored at 0.4, always > a miss) so precision is the gradient GEPA climbs.
+ * Per-fixture objective (higher is better). The recall floor is HARD: a missed
+ * must-fix scores a large negative, so a candidate with ANY miss is strictly
+ * worse than every miss-free candidate regardless of how clean it is elsewhere.
+ * (A per-fixture `0` would NOT do this — a single miss averages away under GEPA's
+ * minibatch mean, letting a candidate trade a recall miss for false-alarm gains;
+ * caught in quality-review.) Above the floor, each false alarm costs 0.1 (floored
+ * at 0.4) so precision is the gradient GEPA climbs. Final acceptance ALSO requires
+ * aggregate must-fix recall == 1.0 (the Phase-5 gate), independent of this score.
  */
 function objective(s: FixtureScore): number {
-  if (s.falseNegatives.length > 0) return 0;
+  if (s.falseNegatives.length > 0) return -1000 * s.falseNegatives.length;
   return Math.max(0.4, 1 - 0.1 * s.falseAlarms.length);
 }
 
 function feedback(s: FixtureScore, fx: Fixture): string {
-  const lines: string[] = [
-    `Fixture "${fx.name}" (${fx.certifiedClean ? 'certified-clean base — only its seeded defect, if any, is real' : 'positive'}):`,
-  ];
+  // NOTE: this text is shown to the GEPA reflection LM. Keep it to per-finding
+  // corrections — never reveal the corpus's structure (e.g. "exactly one seeded
+  // defect", "certified-clean base"). Telling the reflector the eval's shape is a
+  // gaming accelerant: an earlier version leaked it and GEPA promptly wrote a
+  // "be skeptical of a second defect" rule that games the eval (quality-review).
+  const lines: string[] = [`Review of feature "${fx.name}":`];
   for (const d of s.truePositives) {
     lines.push(`  GOOD — you correctly flagged "${d.scenarioId}" as ${d.defectType}.`);
   }

@@ -54,6 +54,42 @@ describe('scoreFixture — recall (the trustworthy primary)', () => {
     expect(s.falseAlarms).toHaveLength(0);
   });
 
+  it('a redundant same-family subtype on an already-caught scenario is unlabeled, NOT a second false alarm', () => {
+    // The skill flags the seeded vacuous scenario under TWO vacuous subtypes
+    // (hedging). The first matches the seed (TP); the second must not be punished
+    // as a false alarm — that would relocate the family double-penalty to the FA
+    // axis (which is the sole GEPA target). It is a redundant subtype of a caught
+    // defect → unlabeled.
+    const s = scoreFixture(
+      'mutant',
+      [
+        { scenarioId: 'S1', defectType: 'vacuous-given-echo' },
+        { scenarioId: 'S1', defectType: 'vacuous-existence-only' },
+      ],
+      [{ scenarioId: 'S1', defectType: 'vacuous-trivially-true', severity: 'must-fix' }],
+      true,
+    );
+    expect(s.caughtSeeds).toHaveLength(1);
+    expect(s.recall).toBe(1);
+    expect(s.falseAlarms).toHaveLength(0); // the second vacuous subtype is NOT a false alarm
+    expect(s.unlabeled).toHaveLength(1);
+  });
+
+  it('a redundant same-family detection for a fixture-scope caught seed is unlabeled, not a false alarm', () => {
+    const s = scoreFixture(
+      'mutant',
+      [
+        { scenarioId: 'S1', defectType: 'conflict' },
+        { scenarioId: 'S2', defectType: 'conflict' }, // the same set-level conflict, reported twice
+      ],
+      [{ scope: 'fixture', defectType: 'conflict', severity: 'must-fix' }],
+      true,
+    );
+    expect(s.caughtSeeds).toHaveLength(1);
+    expect(s.falseAlarms).toHaveLength(0);
+    expect(s.unlabeled).toHaveLength(1);
+  });
+
   it('a DIFFERENT-family detection on a seeded scenario does not match — still a miss, and a false alarm on a clean base', () => {
     const s = scoreFixture(
       'mutant',

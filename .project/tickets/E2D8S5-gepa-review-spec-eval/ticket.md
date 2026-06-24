@@ -255,6 +255,32 @@ gated behind a seeded-defect eval).
     examples and all eval-awareness. That distillation + the accept gate is the remaining open step.
   - Raw GEPA outputs (winner, run-dir) are gitignored (gamed/bloated; not adoptable). The durable
     asset is the eval + these gates, which performed exactly as designed.
+- 2026-06-24T15:10:00Z **`/quality-review` (independent fresh-context reviewer).** Corroborated both
+  conclusions with verified evidence (reject the winner — "Seeded defect awareness" verbatim in
+  run_log.txt is eval-gaming; held-out blind spot — confirmed every certified-clean fixture in BOTH
+  splits has ≤1 must-fix, so the gaming generalizes to held-out). Versions/security clean (verified:
+  `claude-sonnet-4-6` is current per platform.claude.com models overview; `gepa` 0.1.1 latest, MIT;
+  API headers non-deprecated; key read from env only, never logged; artifacts gitignored). It also
+  found **two real metric bugs I'd missed** — fixed this pass:
+  - **Recall floor not enforced where GEPA selects.** The per-fixture `0` for a miss averages away
+    under GEPA's minibatch mean (run_log shows a candidate with a miss `[0.0,1.0,1.0]` carried on the
+    Pareto front). Fixed `gepa-eval.ts`: a miss now scores a large negative (`-1000·misses`) so any
+    candidate with a miss strictly loses to every miss-free one; documented that final acceptance also
+    requires aggregate must-fix recall == 1.0.
+  - **Family-matching relocated the double-penalty to the FA axis.** Dedup keyed on exact subtype, so
+    a second same-family subtype on an already-caught scenario (or fixture-family) was counted as a
+    false alarm — polluting the precision signal GEPA climbs, and incentivising under-reporting subtypes.
+    Fixed `evaluator.ts`: such redundant detections are now `unlabeled`, not false alarms (+2 unit
+    tests, 20/20). Re-scoring the cached 20-fixture baseline is **unchanged** (FA 1.50 train / 2.13
+    held-out) — the skill didn't trigger the case in that run, so the recorded baseline stands; the fix
+    protects future runs.
+  - **Feedback leaked the corpus structure** (`gepa-eval.ts` said "certified-clean base — only its
+    seeded defect is real"; `run.py` label "1.0 = all defects caught…") — the gaming accelerant that
+    taught GEPA the eval's shape. Stripped to per-finding corrections only. Also: pinned `gepa==0.1.1`,
+    refreshed stale README status.
+  - Net: the eval is a sound durable asset; the two fixes harden the precision axis + floor integrity
+    it leans on. A FUTURE re-run (with the leak stripped + floor hardened + varied defect-count per
+    fixture) is the path to a *non-gamed* GEPA attempt — but that's optional; the verdict stands.
 
 ---
 

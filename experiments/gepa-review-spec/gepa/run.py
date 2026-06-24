@@ -100,7 +100,7 @@ class ReviewSpecAdapter(gepa.GEPAAdapter):
         records = [
             {
                 "Feature reviewed": r["name"],
-                "Score (1.0 = all defects caught, zero false alarms)": r["score"],
+                "Score (higher is better)": r["score"],
                 "What you got right / wrong": r["feedback"],
             }
             for r in (eval_batch.trajectories or [])

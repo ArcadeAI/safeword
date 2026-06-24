@@ -4,9 +4,10 @@ A behavioral eval for the `review-spec` skill, built so it can later drive a
 [GEPA](https://github.com/gepa-ai/gepa) prompt-optimization loop — and so it can
 later be lifted onto LangSmith or Arize Phoenix without a rewrite.
 
-**Status:** Phases 1–3 done + corpus built (Phase 2). 20 fixtures (12 train /
-8 held-out) mutated from safeword's own `test-plan-resolver` and
-`formatter-aware-lint-hook` features. Metric is decoupled recall vs false-alarms
+**Status:** Phases 1–5 run. 20 fixtures (12 train / 8 held-out) mutated from
+safeword's own `test-plan-resolver` and `formatter-aware-lint-hook` features. One
+GEPA run completed; its winner was **rejected** at review (it gamed the eval —
+see the ticket work log). Metric is decoupled recall vs false-alarms
 with **family-level** recall matching (see `evaluator.ts`). Baseline (Sonnet 4.6,
 temp 0): **family-recall 100%** on both splits; false alarms **1.50/clean-fixture**
 (train), **2.13/clean-fixture** (held-out) — so precision (over-flagging clean
