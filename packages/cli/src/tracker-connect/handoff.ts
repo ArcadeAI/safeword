@@ -14,8 +14,8 @@ export function handoffSteps(provider: Provider, target: ConnectTarget): string[
     return [
       `Install the safeword[bot] GitHub App for ${repo}:`,
       '  https://github.com/apps/safeword/installations/new',
-      'Or, if you can’t install the App, paste a Personal Access Token (PAT)',
-      'with repo scope when prompted.',
+      'Or, if you can’t install the App, export a Personal Access Token (PAT)',
+      'with repo scope as GITHUB_TOKEN before connecting.',
     ];
   }
   return [

@@ -17,17 +17,16 @@ import { createSecretStore } from './secret-store.js';
 import type { ConnectResult, ConnectTarget } from './types.js';
 import { createVerifyClient } from './verify.js';
 
-const HAS_ENV_VAR = new Set<string>(['github', 'linear']);
-
 /** Resolve ports + env credential and run `connectTracker`; `log` is injected by the caller. */
 export function runConnect(
   provider: string,
   target: ConnectTarget,
   log: (message: string) => void,
 ): Promise<ConnectResult> {
-  const token = HAS_ENV_VAR.has(provider)
-    ? process.env[CREDENTIAL_ENV_VAR[provider as Provider]]
-    : undefined;
+  // Only the supported providers have a credential env var; an unsupported one
+  // yields no token and `connectTracker` rejects it before the token is used.
+  const envVariable = CREDENTIAL_ENV_VAR[provider as Provider] as string | undefined;
+  const token = envVariable ? process.env[envVariable] : undefined;
 
   return connectTracker({
     cwd: process.cwd(),
