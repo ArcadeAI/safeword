@@ -2,8 +2,17 @@
 id: GJGSS3
 slug: quiet-expected-negative-path-test-output
 type: task
-phase: intake
+phase: define-behavior
 status: in_progress
+scope:
+  - Capture expected negative-path diagnostics in tests instead of leaking them into passing suite output.
+  - Cover the known noisy duplicate-ticket lookup fixture and formatter command fixtures.
+out_of_scope:
+  - Changing user-facing CLI warning text.
+  - Hiding unexpected subprocess failures.
+done_when:
+  - Expected noisy diagnostics are captured and asserted inside tests.
+  - Focused verification passes for the touched tests.
 created: 2026-06-24T14:49:00.471Z
 last_modified: 2026-06-24T14:56:44.000Z
 ---

@@ -82,7 +82,7 @@ describe('E2E: Golden Path', () => {
   it('prettier formats files', () => {
     writeTestFile(projectDirectory, 'src/ugly.ts', 'const x=1;const y=2;\n');
 
-    execSync('bunx prettier --write src/ugly.ts', { cwd: projectDirectory });
+    execSync('bunx prettier --write src/ugly.ts', { cwd: projectDirectory, stdio: 'pipe' });
 
     const formatted = readTestFile(projectDirectory, 'src/ugly.ts');
     // Prettier adds spaces and may split lines
