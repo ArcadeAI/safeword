@@ -74,10 +74,16 @@ status: in_progress
 - [timestamp] Complete: [result]
 ```
 
-**Frontmatter values (enum — do not invent new keys or values):**
+**Frontmatter values:**
 
 - `status`: `in_progress | done | cancelled | superseded | wontfix | blocked`
 - `phase`: `intake | define-behavior | scenario-gate | implement | done` (see ticket-template.md)
+- `parent`: `<id>` (optional)
+- `epic`: `<slug-or-id>` (optional)
+- `blocked_on`: `[<id>, <id>]` (optional)
+- `depends_on`: `[<id>]` (optional)
+- `external_issue`: `<https://.../issues/nnn>` (optional; one canonical issue/link)
+- `external_prs`: `[<https://.../pull/nnn>, ...]` (optional; active or relevant PR links)
 
 **Rules:**
 

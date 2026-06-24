@@ -4,6 +4,7 @@ slug: codex-live-parity-smoke
 type: task
 phase: intake
 status: in_progress
+external: https://github.com/ArcadeAI/safeword/issues/394
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 depends_on:
