@@ -2,7 +2,7 @@
 id: ZD70P1
 slug: architecture-go-language-pack
 type: feature
-phase: scenario-gate
+phase: verify
 status: in_progress
 created: 2026-06-24T02:21:10.704Z
 last_modified: 2026-06-24T02:25:00.000Z

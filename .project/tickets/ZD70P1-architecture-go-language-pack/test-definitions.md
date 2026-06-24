@@ -13,47 +13,47 @@ unit tests as a secondary layer, listed under "Unit-pinned" below.
 
 ### Scenario: A single-repo Go project produces a module doc from its Go layout
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8677fe9
+- [x] GREEN 8677fe9
+- [x] REFACTOR 8677fe9
 
 ### Scenario: A go.work monorepo produces a root index and per-package leaf docs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8677fe9
+- [x] GREEN 8677fe9
+- [x] REFACTOR 8677fe9
 
 ### Scenario: A flat Go package with no recognized layout is marked, not introspected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8677fe9
+- [x] GREEN 8677fe9
+- [x] REFACTOR 8677fe9
 
 ### Scenario: A go.work with an unreadable entry still introspects its readable packages
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8677fe9
+- [x] GREEN 8677fe9
+- [x] REFACTOR 8677fe9
 
 ### Scenario: Adding a Go dependency makes the architecture doc go stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8677fe9
+- [x] GREEN 8677fe9
+- [x] REFACTOR 8677fe9
 
 ## Rule: Polyglot repos introspect both languages without regressing JS
 
 ### Scenario: A mixed JS and Go monorepo introspects both packages
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8677fe9
+- [x] GREEN 8677fe9
+- [x] REFACTOR 8677fe9
 
 ### Scenario: A pure JS single-repo is unchanged by the Go extractor
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8677fe9
+- [x] GREEN 8677fe9
+- [x] REFACTOR 8677fe9
 
 ## Unit-pinned (secondary — fine-grained internals beneath the black-box scenarios)
 
