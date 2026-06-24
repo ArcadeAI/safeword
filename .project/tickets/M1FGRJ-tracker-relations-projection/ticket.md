@@ -2,12 +2,30 @@
 id: M1FGRJ
 slug: tracker-relations-projection
 type: feature
-phase: intake
-status: blocked
+phase: verify
+status: in_progress
 depends_on: [JS5K5G]
 external: https://github.com/ArcadeAI/safeword/issues/347
 created: 2026-06-20T16:15:56.239Z
-last_modified: 2026-06-23T05:11:00Z
+last_modified: 2026-06-24T17:10:00Z
+scope:
+  - Extend `IssuePayload` with native graph intent — issue type, resolvable parent, and dependency relations — while preserving v1 `epic:`/`type:` labels as fallback.
+  - Project `parent:`/resolvable `epic:` to native parent/sub-issue relationships where a provider supports them.
+  - Project `depends_on:`/`blocked_on:` to native tracker issue relations where the related tickets already have sidecar refs.
+  - Sort the corpus parent-before-child before writing, because GitHub links existing issues for parent/sub-issue relationships.
+  - Keep projection idempotent by reusing `.safeword/tracker-map.json`; never create blind issues for dangling/cross-branch relation refs.
+  - Cover the provider behavior with unit tests against mocked clients and `gh` command arguments; no live tracker in tests.
+out_of_scope:
+  - Rebuilding the v1 `sync-tracker` command, auth, sidecar, body-egress, or flat issue creation/update mechanics.
+  - Two-way relation read-back or importing tracker changes into ticket files.
+  - Jira or any new provider.
+  - Taking ownership of GitHub Projects v2 Status values; v1 deliberately ceded status except close-on-terminal, so Status-field writes need a separate field-ownership decision.
+done_when:
+  - `parent:`/resolvable `epic:` fields project to native parent/sub-issue links for supported providers, and unresolved values fall back to v1 labels without failing the run.
+  - `depends_on:`/`blocked_on:` fields project to native blocking relations for supported providers when the target refs exist in the sidecar.
+  - Ticket projection runs parent-before-child and remains idempotent across create, update, and pending-entry reconcile paths.
+  - Native issue type is passed to providers that support it while the `type:<type>` label remains as fallback.
+  - Unit tests cover payload mapping, corpus ordering, writer graph requests, and GitHub `gh issue edit` argument generation; no live tracker required.
 ---
 
 # sync-tracker v2 — project the dependency graph (relations, sub-issues, types)
@@ -42,5 +60,7 @@ last_modified: 2026-06-23T05:11:00Z
 
 ## Work Log
 
+- 2026-06-24T17:10:00Z Implemented v2 graph projection. `IssuePayload` now carries `issueType`; corpus reads `parent:`/`slug` plus existing `depends_on:`/`blocked_on:`; sync order now visits known parents/dependencies before dependents; graph projection runs after create/update/reconcile using sidecar refs. GitHub adapter emits `gh issue edit --type/--parent/--add-blocked-by` and retries without `--type` when the repo lacks that issue type. Verification artifact added; ticket left in_progress pending maintainer/user confirmation before marking done.
+- 2026-06-24T16:30:00Z Picked up after origin/main sync. JS5K5G is complete, so the dependency block is satisfied. Added missing frontmatter scope/out_of_scope/done_when, dimensions, and a TB JTBD/spec before entering implementation.
 - 2026-06-23T05:11:00Z Backlogged. JS5K5G (v1) shipped → the `depends_on` block is satisfied (ready, not dependency-blocked). Deferred by prioritization, not readiness; surfaced as a coordination/backlog home at GitHub [#347](https://github.com/ArcadeAI/safeword/issues/347) for team prioritization (`external:` back-link added). Canonical spec stays here; promote to active work on pickup (re-run intake to refresh against the now-settled GitHub deps/sub-issue APIs).
 - 2026-06-20T16:16:00Z Created as the v2 split from JS5K5G — the dependency-graph projection deferred out of the v1 walking skeleton (cost/adoption/API-recency). `depends_on: [JS5K5G]`; status blocked until v1 ships.

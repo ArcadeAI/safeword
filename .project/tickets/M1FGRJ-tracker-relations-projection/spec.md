@@ -1,74 +1,78 @@
-# Spec: sync-tracker v2 — project the dependency graph (relations, sub-issues, types)
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: sync-tracker v2 — project the dependency graph
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Extend `safeword sync-tracker` from a flat issue mirror to a dependency-aware
+coordination mirror. Local ticket files remain canonical, while supported
+trackers receive native hierarchy, type, and dependency links when their APIs can
+represent them.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- GitHub issue: <https://github.com/ArcadeAI/safeword/issues/347>
+- Parent implementation: `../JS5K5G-sync-tracker/ticket.md`
+- Local relation source: `depends_on:` from `../AKZJXC-ticket-relations/ticket.md`
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- Technical Builder (TB)
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Native hierarchy:** a tracker parent/sub-issue relationship, not a label.
+- **Native relation:** a tracker blocking/blocked-by edge, not prose in the body.
+- **Fallback label:** the existing v1 `epic:<slug>` or `type:<type>` label when
+  the tracker cannot set a native field.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### tracker-relations.TB1 — Mirror ordering and dependencies without moving source of truth
 
-Uncomment and customize:
+**Persona:** Technical Builder (TB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When my local ticket corpus has parents, epics, types, and dependencies, I want
+> `safeword sync-tracker` to project those fields into my external tracker, so I
+> can coordinate roadmap order and blockers with teammates without editing the
+> tracker by hand.
 
-**Persona:** Platform Operator (PO)
+#### tracker-relations.TB1.AC1 — Parents exist before children are linked
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+Tickets with a resolvable `parent:` or `epic:` link are projected after their
+parent so providers that link existing issues can succeed without a second pass.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### tracker-relations.TB1.AC2 — Native hierarchy is attempted only for known parents
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+If `parent:` or `epic:` resolves to a known ticket in the current corpus, the
+writer receives the parent tracker ref. If it does not resolve, the v1 labels
+remain and native hierarchy is skipped.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### tracker-relations.TB1.AC3 — Dependencies become native issue relations
+
+Each `depends_on:` or `blocked_on:` edge whose target resolves to a synced ticket
+is projected as a native blocked-by/dependency relation. Dangling or cross-branch
+refs are skipped without creating a blind issue.
+
+#### tracker-relations.TB1.AC4 — Type promotion keeps the label fallback
+
+Writers receive the ticket's type as the native issue type candidate while the v1
+`type:<type>` label remains in the payload for providers or repositories without
+native issue-type support.
+
+#### tracker-relations.TB1.AC5 — Graph projection is idempotent
+
+The writer receives a graph request after create, update, or pending-entry
+reconcile. Re-running the command replays the same graph links against the same
+sidecar refs rather than creating duplicate issues.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- `sync-tracker` produces parent-before-child create/update order.
+- `IssuePayload` carries native type and graph intent without removing v1 labels.
+- Writers expose graph projection through mocked unit-testable methods.
+- The live GitHub adapter uses current `gh issue edit` graph flags where
+  available and treats unsupported issue types as a label fallback.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- defer: GitHub Projects v2 Status-field ownership needs a separate decision
+  because v1 deliberately ceded status except for close-on-terminal.

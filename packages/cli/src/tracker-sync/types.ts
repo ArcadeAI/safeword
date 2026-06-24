@@ -13,6 +13,8 @@ export interface IssuePayload {
   title: string;
   /** v1: markdown. Jira (v3) widens this to ADF — the one non-neutral field. */
   body: string;
+  /** Native issue-type candidate for providers that support it; labels remain fallback. */
+  issueType: string;
   /** Includes `epic:<slug>` and `type:<type>` so the board groups/filters. */
   labels: string[];
   // No assignee — field ownership (AC7) cedes it to the tracker; a v2 concern.
@@ -26,10 +28,18 @@ export interface IssuePayload {
  */
 export interface TicketInput {
   id: string;
+  /** Optional slug/folder aliases let parent references resolve across ticket styles. */
+  slug?: string;
+  folder?: string;
   title: string;
   status: string;
   type: string;
   epic: string | undefined;
+  parent?: string;
+  /** Soft dependency edges: this ticket is blocked by these ticket ids. */
+  dependsOn?: string[];
+  /** Hard blocker edges: this ticket is blocked by these ticket ids. */
+  blockedOn?: string[];
   /** Canonical back-link target — the repo URL/path of this ticket. */
   ticketUrl: string;
   /** Full body markdown, included only when egress is `full`. */

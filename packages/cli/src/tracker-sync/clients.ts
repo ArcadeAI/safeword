@@ -17,6 +17,7 @@ import type { Provider } from './types.js';
 import {
   type CreateRequest,
   createWriter,
+  type GraphRequest,
   type TrackerClient,
   type TrackerWriter,
   type UpdateRequest,
@@ -40,9 +41,31 @@ function runGh(arguments_: string[]): string {
   }
 }
 
+function commandErrorMessage(error: unknown): string {
+  const stderr = (error as { stderr?: Buffer | string }).stderr?.toString() ?? '';
+  return `${stderr}${(error as Error).message ?? ''}`;
+}
+
+function isUnsupportedIssueTypeError(error: unknown): boolean {
+  const message = commandErrorMessage(error);
+  return /type/i.test(message) && /not found|does not exist|invalid|unsupported/i.test(message);
+}
+
 /** Adapter over `gh` for GitHub Issues. `repo` targets `owner/name`. */
 function githubClient(repo: string | undefined): TrackerClient {
   const repoArguments = repo === undefined ? [] : ['--repo', repo];
+  const graphEditArguments = (
+    request: GraphRequest,
+    options: { includeType: boolean },
+  ): string[] => [
+    'issue',
+    'edit',
+    request.id,
+    ...(options.includeType ? ['--type', request.issueType] : []),
+    ...(request.parentId === undefined ? [] : ['--parent', request.parentId]),
+    ...request.blockedByIds.flatMap(id => ['--add-blocked-by', id]),
+    ...repoArguments,
+  ];
   return {
     createIssue(request: CreateRequest) {
       const labels = request.labels.flatMap(label => ['--label', label]);
@@ -102,6 +125,15 @@ function githubClient(repo: string | undefined): TrackerClient {
       }
       return Promise.resolve();
     },
+    projectGraph(request: GraphRequest) {
+      try {
+        runGh(graphEditArguments(request, { includeType: true }));
+      } catch (error) {
+        if (!isUnsupportedIssueTypeError(error)) throw error;
+        runGh(graphEditArguments(request, { includeType: false }));
+      }
+      return Promise.resolve();
+    },
   };
 }
 
@@ -132,7 +164,7 @@ function throwingClient(message: string): TrackerClient {
   const fail = (): never => {
     throw new Error(message);
   };
-  return { createIssue: fail, updateIssue: fail };
+  return { createIssue: fail, updateIssue: fail, projectGraph: fail };
 }
 
 /** The Linear live client is pending the Arcade integration (2TK5AD). */

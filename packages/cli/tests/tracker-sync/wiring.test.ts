@@ -32,6 +32,9 @@ function recordingWriter(provider: Provider): TrackerWriter & { creates: unknown
     update() {
       return Promise.resolve();
     },
+    projectGraph() {
+      return Promise.resolve();
+    },
   };
 }
 

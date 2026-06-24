@@ -26,11 +26,14 @@ describe('sync-tracker corpus mapping', () => {
         title: 'Wire it up',
         status: 'in_progress',
         epic: 'bridge',
+        dependsOn: ['BASE01'],
+        blockedOn: ['GATE02'],
         relativePath: '.project/tickets/AB12CD-wire',
       },
       'feature',
       'acme/repo',
       'body text',
+      { parent: 'PARENT1', slug: 'wire-it-up' },
     );
     expect(input).toEqual({
       id: 'AB12CD',
@@ -38,6 +41,11 @@ describe('sync-tracker corpus mapping', () => {
       status: 'in_progress',
       type: 'feature',
       epic: 'bridge',
+      parent: 'PARENT1',
+      dependsOn: ['BASE01'],
+      blockedOn: ['GATE02'],
+      slug: 'wire-it-up',
+      folder: 'AB12CD-wire',
       ticketUrl: 'https://github.com/acme/repo/tree/HEAD/.project/tickets/AB12CD-wire',
       bodyMarkdown: 'body text',
     });
@@ -66,7 +74,17 @@ describe('sync-tracker corpus mapping', () => {
     it('maps an active ticket: parses type, includes full body, derives the back-link', () => {
       writeTicket(
         'AB12CD-wire',
-        ['id: AB12CD', 'type: feature', 'status: in_progress', 'epic: bridge', 'title: Wire it up'],
+        [
+          'id: AB12CD',
+          'slug: wire-it-up',
+          'parent: PARENT1',
+          'type: feature',
+          'status: in_progress',
+          'epic: bridge',
+          'depends_on: [BASE01]',
+          'blocked_on: [GATE02]',
+          'title: Wire it up',
+        ],
         '# Wire it up\n\nspec body',
       );
 
@@ -75,6 +93,11 @@ describe('sync-tracker corpus mapping', () => {
       expect(corpus).toHaveLength(1);
       expect(corpus[0]?.type).toBe('feature');
       expect(corpus[0]?.epic).toBe('bridge');
+      expect(corpus[0]?.parent).toBe('PARENT1');
+      expect(corpus[0]?.dependsOn).toEqual(['BASE01']);
+      expect(corpus[0]?.blockedOn).toEqual(['GATE02']);
+      expect(corpus[0]?.slug).toBe('wire-it-up');
+      expect(corpus[0]?.folder).toBe('AB12CD-wire');
       expect(corpus[0]?.ticketUrl).toBe(
         'https://github.com/acme/repo/tree/HEAD/.project/tickets/AB12CD-wire',
       );
