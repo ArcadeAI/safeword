@@ -4,8 +4,14 @@ A behavioral eval for the `review-spec` skill, built so it can later drive a
 [GEPA](https://github.com/gepa-ai/gepa) prompt-optimization loop — and so it can
 later be lifted onto LangSmith or Arize Phoenix without a rewrite.
 
-**Status:** Phases 1–3 scaffolded (corpus seed + metric + baseline runner).
-Phase 4 (GEPA) and the full corpus are not built yet.
+**Status:** Phases 1–3 done + corpus built (Phase 2). 20 fixtures (12 train /
+8 held-out) mutated from safeword's own `test-plan-resolver` and
+`formatter-aware-lint-hook` features. Metric is decoupled recall vs false-alarms
+with **family-level** recall matching (see `evaluator.ts`). Baseline (Sonnet 4.6,
+temp 0): **family-recall 100%** on both splits; false alarms **1.50/clean-fixture**
+(train), **2.13/clean-fixture** (held-out) — so precision (over-flagging clean
+concrete-value Thens) is the sole GEPA target, behind a hard 100% recall floor.
+Phase 4 (the Python GEPA adapter) is next.
 
 **Isolation:** everything lives here, under `experiments/`. No runtime
 dependency is added to `packages/cli`; the shipped `review-spec/SKILL.md` is
@@ -25,12 +31,12 @@ judge-reliability problems that plague fuzzy evals.
 The eval is split to match how LangSmith and Phoenix both model an eval
 (dataset + target/task + evaluator), so a platform adapter is a thin wrapper.
 
-| Seam          | File               | Role                                                                      |
-| ------------- | ------------------ | ------------------------------------------------------------------------- |
-| **dataset**   | `src/dataset.ts`   | load `{ input: .feature, reference: labels }` fixtures + train/test split |
-| **task**      | `src/task.ts`      | run a candidate prompt over a feature file → `Detection[]`                |
-| **evaluator** | `src/evaluator.ts` | pure metric: precision / recall / F1 + per-defect ASI breakdown           |
-| harness       | `src/harness.ts`   | composes the three; platform-agnostic                                     |
+| Seam          | File               | Role                                                                         |
+| ------------- | ------------------ | ---------------------------------------------------------------------------- |
+| **dataset**   | `src/dataset.ts`   | load `{ input: .feature, reference: labels }` fixtures + train/test split    |
+| **task**      | `src/task.ts`      | run a candidate prompt over a feature file → `Detection[]`                   |
+| **evaluator** | `src/evaluator.ts` | pure metric: family-level recall + false-alarm rate (no F1) + per-defect ASI |
+| harness       | `src/harness.ts`   | composes the three; platform-agnostic                                        |
 
 See `src/adapters/README.md` for how to drop in a LangSmith, Phoenix, or GEPA
 adapter against these seams.
@@ -40,12 +46,22 @@ adapter against these seams.
 `fixtures/<name>.feature` + `fixtures/<name>.expected.json`. Each defect is
 labeled with a `defectType` (mapped to a `review-spec` check), a `severity`, and
 a `scope` (`scenario` = pinned to one scenario; `fixture` = set-level, matched
-if reported anywhere in the file). Clean fixtures (no defects) measure false
-positives.
+if reported anywhere in the file).
 
-Three seed fixtures exist as the **cheapest test** of the riskiest assumption —
-that the skill's free-form findings can be parsed and scored reliably. Validate
-that on these three before expanding to the full ~20.
+20 fixtures, mostly built by the **certified-clean-base → single-mutation** pattern:
+excerpt a clean 3-scenario base from a real safeword `.feature`, then apply ONE
+semantic mutation operator (the operator IS the label). A fixture is
+`certifiedClean` when its base was adjudicated free of must-fix defects — only
+then does an unmatched must-fix detection count as a false alarm (on an ordinary
+positive it's `unlabeled`, never penalized, because the corpus isn't exhaustive).
+Recall is matched at the **defect-family** level so a defensible subtype swap
+(e.g. `vacuous-given-echo` for a `vacuous-trivially-true` seed) is a catch, not a
+double-penalty. The held-out (`test`) split uses a DISTINCT base
+(`formatter-aware-lint-hook`) GEPA never trains on.
+
+`rescore.ts <trace>` re-scores a saved `SAFEWORD_EVAL_TRACE=1` run with the
+current metric, token-free — handy for comparing GEPA candidates against a cached
+baseline without re-calling the API.
 
 ## Running
 

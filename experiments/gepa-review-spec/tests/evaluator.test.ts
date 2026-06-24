@@ -38,6 +38,34 @@ describe('scoreFixture — recall (the trustworthy primary)', () => {
     expect(s.unlabeled).toHaveLength(0);
   });
 
+  it('matches a vacuous seed at the FAMILY level — a different vacuous subtype on the same scenario is caught, not double-penalized', () => {
+    // The skill flagged the scenario as vacuous-given-echo; we seeded it as
+    // vacuous-trivially-true. Same family, same scenario -> caught (TP), and NOT
+    // counted as a false alarm on the certified-clean base.
+    const s = scoreFixture(
+      'mutant',
+      [{ scenarioId: 'S1', defectType: 'vacuous-given-echo' }],
+      [{ scenarioId: 'S1', defectType: 'vacuous-trivially-true', severity: 'must-fix' }],
+      true,
+    );
+    expect(s.caughtSeeds).toHaveLength(1);
+    expect(s.recall).toBe(1);
+    expect(s.falseNegatives).toHaveLength(0);
+    expect(s.falseAlarms).toHaveLength(0);
+  });
+
+  it('a DIFFERENT-family detection on a seeded scenario does not match — still a miss, and a false alarm on a clean base', () => {
+    const s = scoreFixture(
+      'mutant',
+      [{ scenarioId: 'S1', defectType: 'non-atomic' }],
+      [{ scenarioId: 'S1', defectType: 'vacuous-existence-only', severity: 'must-fix' }],
+      true,
+    );
+    expect(s.falseNegatives).toHaveLength(1);
+    expect(s.recall).toBe(0);
+    expect(s.falseAlarms).toHaveLength(1);
+  });
+
   it('deduplicates repeated detections (no double credit)', () => {
     const expected: ExpectedDefect[] = [
       { scenarioId: 'S1', defectType: 'non-atomic', severity: 'must-fix' },

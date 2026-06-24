@@ -196,6 +196,30 @@ gated behind a seeded-defect eval).
     the cross-cutting checks measured as `unlabeled`.
   - All defect types valid; 16/16 unit tests pass. Next: corpus baseline run (last Phase 2
     token spend) to validate the full corpus + empirically certify the new clean bases.
+- 2026-06-24T05:20:00Z **Official 20-fixture baseline + a metric correction (family
+  matching).** Ran the full baseline (Sonnet 4.6, temp 0). The trace exposed a metric
+  flaw: the skill catches a `vacuous-trivially-true` scenario but labels it
+  `vacuous-given-echo` (a defensible call — the Then echoes the Given), and the
+  exact-subtype matcher double-penalized that as BOTH a recall miss AND a false alarm.
+  - **Fix:** recall now matches at the DEFECT-FAMILY level (`defectFamily` in types.ts):
+    any `vacuous-*` catches a `vacuous-*` seed on the same scenario; same for
+    `determinism-*`. Genuine over-flags on CLEAN scenarios are untouched (no seed there),
+    so precision is intact. ASI still reports exact subtypes. `aggregate` now credits
+    recall by the SEED's type (via `caughtSeeds`). +2 unit tests (18/18); tsc clean.
+  - **Re-scored the SAME cached responses** (token-free, via new `rescore.ts`) to isolate
+    the metric change from temp-0 variance:
+    - **TRAIN: family-recall 100%** (12/12 must-fix), false alarms **1.50/clean-fixture**.
+    - **TEST/held-out: family-recall 100%** (6/6 must-fix), false alarms **2.13/clean-fixture**.
+  - **Reframing (this is the GEPA brief):** the skill's family-level recall is SATURATED at
+    100% on both splits — there is no recall headroom; the "subtle mutants" are all caught.
+    The **sole** optimization target is **precision** (cut the ~1.5–2.1 must-fix false alarms
+    per clean fixture — the over-flagging of concrete-value/falsifiable Thens). The hard
+    recall floor is therefore an exact **100% family-recall**; any candidate below it is
+    rejected. Phase 5 gate becomes: held-out false alarms ↓, family-recall stays 100%, voice
+    preserved.
+  - Note: temp-0 has mild run-to-run variance (e.g. `determinism-order` missed in an earlier
+    18-fixture run, caught here; FA counts wobble ±1/fixture) — a real precision win must
+    clear that noise floor; GEPA should average over samples. **Phase 2 complete.**
 
 ---
 
@@ -223,7 +247,7 @@ gated behind a seeded-defect eval).
 - [x] Phase 2: deterministic scorer — revised for precision-honesty to recall (primary) + false-alarm rate on certified-clean bases + per-defect ASI; F1/precision-over-positives dropped as unidentifiable (see work-log 04:12Z).
 - [x] Phase 3a: baseline runner wired (`src/baseline.ts`).
 - [x] Phase 3b: baseline ran on a live key; parsing rock-solid and recall (100%) confirmed against a human read on all 3 seed fixtures. Surfaced that precision-as-labeled was untrustworthy → drove the scoring-contract refactor.
-- [ ] Phase 1+: corpus expanded to ~20 fixtures, ideally via mutation of safeword's own shipping `.feature` files (mutation operator = ground-truth label).
+- [x] Phase 1+: corpus expanded to 20 fixtures (12 train / 8 held-out) by mutating safeword's own `test-plan-resolver` + `formatter-aware-lint-hook` features (mutation operator = label); family-matched metric finalized. Baseline: family-recall 100% both splits, false alarms 1.50/clean (train) · 2.13/clean (held-out).
 - [ ] Phase 4: Python GEPA adapter that calls this harness as its metric; one optimization run completed within a logged token budget.
 - [ ] Phase 5: GEPA winner judged on the **held-out** split + human review; accepted only if held-out detection ↑, FP not worse, and voice/auditability preserved.
 

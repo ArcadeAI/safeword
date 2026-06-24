@@ -36,6 +36,21 @@ export const DEFECT_TYPES = [
 
 export type DefectType = (typeof DEFECT_TYPES)[number];
 
+/**
+ * Recall is matched at the FAMILY level, not the exact subtype. The `vacuous-*`
+ * subtypes (and the `determinism-*` subtypes) overlap heavily — a Then that
+ * echoes its Given is both `vacuous-given-echo` and `vacuous-trivially-true`, and
+ * the skill's choice between them is a defensible judgment call, not a miss.
+ * Scoring exact-subtype would double-penalize a correct catch as both a recall
+ * miss AND a false alarm, and would push an optimizer to chase our arbitrary
+ * sub-labels instead of real behavior. So a seed is CAUGHT when the skill flags
+ * the same scenario with any defect in the same family. Genuine over-flags on
+ * CLEAN scenarios are unaffected (no seed there to match), so precision is intact.
+ * The per-defect ASI breakdown still reports exact subtypes for diagnosis.
+ */
+export const defectFamily = (t: DefectType): string =>
+  t.startsWith('vacuous-') ? 'vacuous' : t.startsWith('determinism-') ? 'determinism' : t;
+
 export type Severity = 'must-fix' | 'should-strengthen';
 
 /**

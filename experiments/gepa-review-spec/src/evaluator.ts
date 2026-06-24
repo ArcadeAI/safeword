@@ -27,13 +27,15 @@
  */
 
 import type { Detection, DefectType, ExpectedDefect, Severity } from './types';
-import { DEFECT_TYPES, DEFAULT_SEVERITY } from './types';
+import { DEFECT_TYPES, DEFAULT_SEVERITY, defectFamily } from './types';
 
 export interface FixtureScore {
   name: string;
   certifiedClean: boolean;
-  /** Seeded defects the candidate caught. */
+  /** The detections that matched a seed (family-level) — what the skill said. */
   truePositives: Detection[];
+  /** The seeds that were caught — drives recall + per-type ASI (seed types). */
+  caughtSeeds: ExpectedDefect[];
   /** Seeded defects the candidate missed. */
   falseNegatives: ExpectedDefect[];
   /**
@@ -103,23 +105,30 @@ export function scoreFixture(
   const deduped = [...new Map(detections.map(d => [key(d), d])).values()];
   const consumed = new Set<string>();
   const truePositives: Detection[] = [];
+  const caughtSeeds: ExpectedDefect[] = [];
   const falseNegatives: ExpectedDefect[] = [];
 
   for (const e of expected) {
     const scope = e.scope ?? 'scenario';
+    const eFamily = defectFamily(e.defectType);
+    // Family-level match: any same-family detection on the seed's scenario
+    // counts as catching it (see `defectFamily`). Fixture-scoped seeds match
+    // anywhere in the file.
     let match: Detection | undefined;
     if (scope === 'fixture') {
-      // Set-level: any detection of this defect type counts.
-      match = deduped.find(d => d.defectType === e.defectType && !consumed.has(key(d)));
+      match = deduped.find(d => defectFamily(d.defectType) === eFamily && !consumed.has(key(d)));
     } else {
       match = deduped.find(
         d =>
-          d.scenarioId === e.scenarioId && d.defectType === e.defectType && !consumed.has(key(d)),
+          d.scenarioId === e.scenarioId &&
+          defectFamily(d.defectType) === eFamily &&
+          !consumed.has(key(d)),
       );
     }
     if (match) {
       consumed.add(key(match));
       truePositives.push(match);
+      caughtSeeds.push(e);
     } else {
       falseNegatives.push(e);
     }
@@ -143,10 +152,11 @@ export function scoreFixture(
     name,
     certifiedClean,
     truePositives,
+    caughtSeeds,
     falseNegatives,
     falseAlarms,
     unlabeled,
-    recall: recallOf(truePositives.length, falseNegatives.length),
+    recall: recallOf(caughtSeeds.length, falseNegatives.length),
   };
 }
 
@@ -168,11 +178,14 @@ export function aggregate(perFixture: FixtureScore[]): AggregateScore {
     if (f.certifiedClean) cleanFixtures += 1;
     falseAlarms += f.falseAlarms.length;
     unlabeled += f.unlabeled.length;
-    seededCaught += f.truePositives.length;
-    seededTotal += f.truePositives.length + f.falseNegatives.length;
-    for (const d of f.truePositives) {
-      byDefect.get(d.defectType)!.tp += 1;
-      sev[DEFAULT_SEVERITY[d.defectType]].tp += 1;
+    seededCaught += f.caughtSeeds.length;
+    seededTotal += f.caughtSeeds.length + f.falseNegatives.length;
+    // Credit recall + ASI by the SEED's type (not the detection's), so a
+    // family-level catch with a different subtype still scores against the
+    // type we actually seeded.
+    for (const e of f.caughtSeeds) {
+      byDefect.get(e.defectType)!.tp += 1;
+      sev[DEFAULT_SEVERITY[e.defectType]].tp += 1;
     }
     for (const d of f.falseAlarms) byDefect.get(d.defectType)!.falseAlarms += 1;
     for (const e of f.falseNegatives) {
