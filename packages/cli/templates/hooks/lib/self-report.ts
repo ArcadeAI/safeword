@@ -18,10 +18,32 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+/** The agent harness safeword is running under. */
+export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
+
+const AGENT_IDS = new Set<AgentId>(['claude', 'cursor', 'codex', 'unknown']);
+
+/**
+ * Best-effort detection of the running agent from the environment. `claude` is
+ * reliable (Claude Code sets CLAUDE_*); cursor/codex are detected by their env
+ * prefixes when present and fall back to `unknown` otherwise. Hooks/CLI that know
+ * their agent for certain may pass it explicitly via the signal instead.
+ */
+export function detectAgent(env: Record<string, string | undefined> = process.env): AgentId {
+  if (env.CLAUDE_PROJECT_DIR || env.CLAUDE_SESSION_ID || env.CLAUDE_CODE_SESSION_ID)
+    return 'claude';
+  const keys = Object.keys(env);
+  if (keys.some(key => key.startsWith('CURSOR'))) return 'cursor';
+  if (keys.some(key => key.startsWith('CODEX') || key.startsWith('SAFEWORD_CODEX'))) return 'codex';
+  return 'unknown';
+}
+
 /** Caller-supplied raw signal. Free-form fields are sanitized before storage. */
 export interface SelfReportSignal {
   /** Hook name or CLI command that produced the signal (sanitized to a token). */
   source: string;
+  /** The agent harness this fired under. Bounded to the AgentId enum on storage. */
+  agent?: AgentId;
   /** Error constructor/name, e.g. 'TypeError'. Sanitized to a bare identifier. */
   errorClass?: string;
   /** Raw `error.stack` string. Frame-filtered to safeword-internal frames only. */
@@ -36,6 +58,7 @@ export interface SelfReportRecord {
   sessionId: string;
   safewordVersion: string;
   source: string;
+  agent: AgentId;
   errorClass?: string;
   frames?: string[];
   exitCode?: number;
@@ -175,6 +198,8 @@ export function buildRecord(signal: SelfReportSignal, ctx: SelfReportContext): S
     sessionId: sanitizeToken(ctx.sessionId) || 'unknown',
     safewordVersion: sanitizeToken(ctx.safewordVersion) || 'unknown',
     source: sanitizeToken(signal.source) || 'unknown',
+    // Bounded to the enum on storage — deny-by-default for an unexpected value.
+    agent: signal.agent && AGENT_IDS.has(signal.agent) ? signal.agent : 'unknown',
   };
 
   if (signal.errorClass) {
@@ -256,7 +281,7 @@ export function installCrashCapture(
       recordSignal(
         projectDirectory,
         sessionId,
-        { source: hookName, errorClass: error.name, stack: error.stack },
+        { source: hookName, agent: detectAgent(), errorClass: error.name, stack: error.stack },
         readInstalledVersion(projectDirectory),
       );
     }
@@ -312,16 +337,23 @@ export function readSessionReports(
 export interface SelfReportGroup {
   signature: string;
   count: number;
+  agent: AgentId;
   source: string;
   errorClass?: string;
   exitCode?: number;
 }
 
-/** Stable signature for a record — the dedup key (class@source, or exitN@source). */
+/**
+ * Stable signature for a record — the dedup key. Agent-prefixed
+ * (`{agent}:{class}@{source}` or `{agent}:exitN@{source}`) so the same failure in
+ * Claude vs Cursor vs Codex files as distinct, attributed issues.
+ */
 export function signatureOf(record: SelfReportRecord): string {
-  return record.errorClass
+  const agent = record.agent ?? 'unknown';
+  const core = record.errorClass
     ? `${record.errorClass}@${record.source}`
     : `exit${record.exitCode ?? '?'}@${record.source}`;
+  return `${agent}:${core}`;
 }
 
 /** Group records by signature (class@source, or cli:source:exit), count desc. */
@@ -336,6 +368,7 @@ export function summarizeReports(records: SelfReportRecord[]): SelfReportGroup[]
       groups.set(signature, {
         signature,
         count: 1,
+        agent: record.agent ?? 'unknown',
         source: record.source,
         errorClass: record.errorClass,
         exitCode: record.exitCode,
@@ -372,6 +405,7 @@ export function formatIssueDrafts(records: SelfReportRecord[]): SelfReportIssueD
       'Safeword self-reported this signal from its own runtime — a bug or rough edge in safeword, not in the host project.',
       '',
       `- **Signature:** \`${group.signature}\``,
+      `- **Agent:** \`${group.agent}\``,
       `- **Occurrences this report:** ${group.count}`,
       `- **Source:** \`${group.source}\``,
       group.errorClass

@@ -53,8 +53,8 @@ describe('selfReport (QYYC5Y)', () => {
     const out = logs.join('\n');
 
     expect(out).toContain('2 signature(s)');
-    expect(out).toContain('2×  TypeError@post-tool-quality');
-    expect(out).toContain('1×  exit1@check');
+    expect(out).toContain('2×  unknown:TypeError@post-tool-quality');
+    expect(out).toContain('1×  unknown:exit1@check');
   });
 
   it('emits machine-readable JSON under --json', async () => {
@@ -72,7 +72,7 @@ describe('selfReport (QYYC5Y)', () => {
     };
 
     expect(parsed.total).toBe(1);
-    expect(parsed.groups[0]?.signature).toBe('TypeError@post-tool-quality');
+    expect(parsed.groups[0]?.signature).toBe('unknown:TypeError@post-tool-quality');
     expect(parsed.groups[0]?.count).toBe(1);
   });
 
@@ -92,7 +92,7 @@ describe('selfReport (QYYC5Y)', () => {
     }[];
 
     expect(drafts).toHaveLength(1);
-    expect(drafts[0]?.title).toBe('[self-report] TypeError@post-tool-quality');
+    expect(drafts[0]?.title).toBe('[self-report] unknown:TypeError@post-tool-quality');
     expect(drafts[0]?.labels).toContain('self-reported');
   });
 });

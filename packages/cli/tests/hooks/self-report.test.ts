@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildRecord,
+  detectAgent,
   formatIssueDrafts,
   formatSelfReportSurfacing,
   readReports,
@@ -306,6 +307,7 @@ describe('self-report capture (QYYC5Y)', () => {
         's',
         {
           source: 'post-tool-quality',
+          agent: 'claude',
           errorClass: 'TypeError',
           stack:
             'TypeError: x\n    at f (/h/safeword/packages/cli/templates/hooks/post-tool-quality.ts:9:1)',
@@ -315,29 +317,86 @@ describe('self-report capture (QYYC5Y)', () => {
       recordSignal(
         projectDirectory,
         's',
-        { source: 'post-tool-quality', errorClass: 'TypeError' },
+        { source: 'post-tool-quality', agent: 'claude', errorClass: 'TypeError' },
         '0.55.0',
       );
-      recordSignal(projectDirectory, 's', { source: 'check', exitCode: 1 }, '0.55.0');
+      recordSignal(
+        projectDirectory,
+        's',
+        { source: 'check', agent: 'claude', exitCode: 1 },
+        '0.55.0',
+      );
 
       const drafts = formatIssueDrafts(readReports(projectDirectory));
 
       expect(drafts).toHaveLength(2);
-      const typeError = drafts.find(draft => draft.signature === 'TypeError@post-tool-quality');
-      expect(typeError?.title).toBe('[self-report] TypeError@post-tool-quality');
+      // Signature + title are agent-prefixed so cross-agent bugs file separately.
+      const typeError = drafts.find(
+        draft => draft.signature === 'claude:TypeError@post-tool-quality',
+      );
+      expect(typeError?.title).toBe('[self-report] claude:TypeError@post-tool-quality');
       expect(typeError?.labels).toContain('self-reported');
+      expect(typeError?.body).toContain('Agent:** `claude`');
       expect(typeError?.body).toContain('Occurrences this report:** 2');
       expect(typeError?.body).toContain('0.55.0');
       // The safeword-internal frame survives; the title is the dedup key.
       expect(typeError?.body).toContain('post-tool-quality.ts:9:1');
 
-      const exitDraft = drafts.find(draft => draft.signature === 'exit1@check');
+      const exitDraft = drafts.find(draft => draft.signature === 'claude:exit1@check');
       expect(exitDraft?.body).toContain('Exit code:** 1');
       expect(exitDraft?.body).toContain('No stack frames');
     });
 
+    it('files the same failure under different agents as distinct signatures', () => {
+      recordSignal(
+        projectDirectory,
+        's',
+        { source: 'stop-quality', agent: 'claude', errorClass: 'E' },
+        '1',
+      );
+      recordSignal(
+        projectDirectory,
+        's',
+        { source: 'stop-quality', agent: 'cursor', errorClass: 'E' },
+        '1',
+      );
+
+      const drafts = formatIssueDrafts(readReports(projectDirectory));
+      const signatures = drafts
+        .map(draft => draft.signature)
+        .toSorted((a, b) => a.localeCompare(b));
+      expect(signatures).toEqual(['claude:E@stop-quality', 'cursor:E@stop-quality']);
+    });
+
     it('returns no drafts for an empty spool', () => {
       expect(formatIssueDrafts([])).toEqual([]);
+    });
+  });
+
+  describe('agent attribution (#345 follow-up)', () => {
+    it('detectAgent reads the harness from the environment', () => {
+      expect(detectAgent({ CLAUDE_PROJECT_DIR: '/x' })).toBe('claude');
+      expect(detectAgent({ CLAUDE_CODE_SESSION_ID: 'abc' })).toBe('claude');
+      expect(detectAgent({ CURSOR_TRACE_ID: '1' })).toBe('cursor');
+      expect(detectAgent({ CODEX_SANDBOX: '1' })).toBe('codex');
+      expect(detectAgent({})).toBe('unknown');
+    });
+
+    it('records the signal agent, bounded to the enum (deny-by-default)', () => {
+      expect(
+        buildRecord({ source: 'x', agent: 'cursor' }, { sessionId: 's', safewordVersion: '1' })
+          .agent,
+      ).toBe('cursor');
+      // Missing → unknown; a bogus value is not stored verbatim.
+      expect(buildRecord({ source: 'x' }, { sessionId: 's', safewordVersion: '1' }).agent).toBe(
+        'unknown',
+      );
+      expect(
+        buildRecord(
+          { source: 'x', agent: 'evil' as unknown as 'claude' },
+          { sessionId: 's', safewordVersion: '1' },
+        ).agent,
+      ).toBe('unknown');
     });
   });
 

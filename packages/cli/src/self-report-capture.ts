@@ -13,7 +13,11 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { readSelfReportConfig, recordSignal } from '../templates/hooks/lib/self-report.js';
+import {
+  detectAgent,
+  readSelfReportConfig,
+  recordSignal,
+} from '../templates/hooks/lib/self-report.js';
 import { VERSION } from './version.js';
 
 export function recordCliExit(
@@ -30,5 +34,5 @@ export function recordCliExit(
   const source = argv[2] ?? 'unknown';
   const sessionId = process.env.CLAUDE_SESSION_ID ?? process.env.CLAUDE_CODE_SESSION_ID ?? 'cli';
 
-  recordSignal(cwd, sessionId, { source, exitCode: code }, VERSION);
+  recordSignal(cwd, sessionId, { source, agent: detectAgent(), exitCode: code }, VERSION);
 }
