@@ -5,7 +5,7 @@ type: task
 phase: intake
 status: in_progress
 created: 2026-06-24T14:49:00.471Z
-last_modified: 2026-06-24T14:51:30.000Z
+last_modified: 2026-06-24T14:52:28.000Z
 ---
 
 # Quiet expected negative-path test output
@@ -27,6 +27,20 @@ During the PR #387 revalidation run, `bun run test -- --reporter=dot` passed, bu
 
 Those messages are useful assertions inside their tests, but noisy in a successful full-suite run.
 
+## Observed Environment
+
+- Date observed: 2026-06-24
+- Worktree: `/Users/alex/.codex/worktrees/222a/safeword`
+- Branch: `codex/revalidate-verify-audit-main`
+- PR: #387
+- Local head when filed: `02c95d351d3392215be21a8db6d9d94d23658e05`
+- Base `origin/main`: `48e52173b3a3ec978cebe79793046f6a7afa3d08`
+- OS: macOS 26.5.1 (25F80), `arm64`
+- Shell: zsh 5.9
+- Bun: 1.3.14
+- Node: v24.16.0
+- Safeword: CLI v0.55.0, project config v0.55.0
+
 ## Acceptance Criteria
 
 - [ ] Tests that intentionally exercise error or edge paths capture expected stdout/stderr instead of leaking it into passing test output.
@@ -47,5 +61,6 @@ Several tests invoke real CLI or external tool flows and assert failure behavior
 
 ## Work Log
 
+- 2026-06-24T14:52:28Z Updated: Added observed environment for the PR #387 full-suite output run.
 - 2026-06-24T14:51:30Z Filed: Captured noisy-but-passing full-suite diagnostics from PR #387 revalidation.
 - 2026-06-24T14:49:00.471Z Started: Created ticket GJGSS3

@@ -5,7 +5,7 @@ type: task
 phase: intake
 status: in_progress
 created: 2026-06-24T14:49:00.438Z
-last_modified: 2026-06-24T14:51:30.000Z
+last_modified: 2026-06-24T14:52:28.000Z
 ---
 
 # Reduce generated ticket index merge conflicts
@@ -23,6 +23,20 @@ bun packages/cli/src/cli.ts sync-tickets --quiet
 ```
 
 That worked, but it is a recurring rough edge: generated, tracked indexes are high-churn files, so unrelated ticket additions or status edits on parallel branches can force manual conflict handling.
+
+## Observed Environment
+
+- Date observed: 2026-06-24
+- Worktree: `/Users/alex/.codex/worktrees/222a/safeword`
+- Branch: `codex/revalidate-verify-audit-main`
+- PR: #387
+- Local head when filed: `02c95d351d3392215be21a8db6d9d94d23658e05`
+- Base `origin/main`: `48e52173b3a3ec978cebe79793046f6a7afa3d08`
+- OS: macOS 26.5.1 (25F80), `arm64`
+- Shell: zsh 5.9
+- Bun: 1.3.14
+- Node: v24.16.0
+- Safeword: CLI v0.55.0, project config v0.55.0
 
 ## Acceptance Criteria
 
@@ -44,5 +58,6 @@ The index is generated from ticket folders but committed as a shared file. Any b
 
 ## Work Log
 
+- 2026-06-24T14:52:28Z Updated: Added observed environment for the PR #387 conflict/revalidation run.
 - 2026-06-24T14:51:30Z Filed: Captured PR #387 catch-up rough edge where `.project/tickets/INDEX.md` was the only conflict and required regeneration.
 - 2026-06-24T14:49:00.438Z Started: Created ticket MF1DGA
