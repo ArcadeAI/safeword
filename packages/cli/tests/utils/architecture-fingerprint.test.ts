@@ -113,3 +113,120 @@ describe('shapeFingerprint — captures shape, not noise', () => {
     }
   });
 });
+
+describe('shapeFingerprint — Go module dependencies (ticket ZD70P1)', () => {
+  function writeGoModule(directory: string, requires: string[]): void {
+    const indented = requires.map(requireLine => `\t${requireLine}`).join('\n');
+    const block = requires.length === 0 ? '' : `\nrequire (\n${indented}\n)\n`;
+    writeFileSync(
+      nodePath.join(directory, 'go.mod'),
+      `module example.com/app\n\ngo 1.22\n${block}`,
+    );
+  }
+
+  function scaffoldGo(directory: string, requires: string[]): void {
+    mkdirSync(nodePath.join(directory, 'cmd', 'server'), { recursive: true });
+    writeGoModule(directory, requires);
+  }
+
+  it('moves when a go.mod require is added', () => {
+    scaffoldGo(context.directory, ['github.com/a/one v1.0.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writeGoModule(context.directory, ['github.com/a/one v1.0.0', 'github.com/b/two v1.0.0']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('moves when a go.mod require is removed', () => {
+    scaffoldGo(context.directory, ['github.com/a/one v1.0.0', 'github.com/b/two v1.0.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writeGoModule(context.directory, ['github.com/a/one v1.0.0']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('does not move when only a require version is bumped (versions excluded)', () => {
+    scaffoldGo(context.directory, ['github.com/a/one v1.0.0']);
+    const before = shapeFingerprint(context.directory);
+
+    writeGoModule(context.directory, ['github.com/a/one v2.0.0']);
+
+    expect(shapeFingerprint(context.directory)).toBe(before);
+  });
+
+  it('reads a single-line require directive', () => {
+    scaffoldGo(context.directory, []);
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      'module example.com/app\n\ngo 1.22\n',
+    );
+    const before = shapeFingerprint(context.directory);
+
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      'module example.com/app\n\ngo 1.22\n\nrequire github.com/a/one v1.0.0\n',
+    );
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('reads every require block, not just the first (go mod tidy splits indirect deps)', () => {
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+    // The `go mod tidy` default on Go 1.17+: direct deps in one block, indirect
+    // deps in a SECOND block. A change confined to the indirect block must still
+    // move the fingerprint, or drift in indirect deps goes undetected.
+    const twoBlock = (indirect: string): string =>
+      `module example.com/app\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/one v1.0.0\n)\n\nrequire (\n\t${indirect} // indirect\n)\n`;
+    writeFileSync(nodePath.join(context.directory, 'go.mod'), twoBlock('golang.org/x/text v0.3.0'));
+    const before = shapeFingerprint(context.directory);
+
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      twoBlock('golang.org/x/tools v0.1.0'),
+    );
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+});
+
+describe('shapeFingerprint — Cargo dependencies (ticket YKFA5X)', () => {
+  function writeCargo(directory: string, dependencies: string[]): void {
+    const block = dependencies.length === 0 ? '' : `\n[dependencies]\n${dependencies.join('\n')}\n`;
+    writeFileSync(nodePath.join(directory, 'Cargo.toml'), `[package]\nname = "app"\n${block}`);
+  }
+
+  function scaffoldCrate(directory: string, dependencies: string[]): void {
+    mkdirSync(nodePath.join(directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'src', 'config.rs'), '// rust\n');
+    writeCargo(directory, dependencies);
+  }
+
+  it('moves when a Cargo dependency is added', () => {
+    scaffoldCrate(context.directory, ['serde = "1.0"']);
+    const before = shapeFingerprint(context.directory);
+
+    writeCargo(context.directory, ['serde = "1.0"', 'tokio = "1"']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('moves when a Cargo dependency is removed', () => {
+    scaffoldCrate(context.directory, ['serde = "1.0"', 'tokio = "1"']);
+    const before = shapeFingerprint(context.directory);
+
+    writeCargo(context.directory, ['serde = "1.0"']);
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
+
+  it('does not move when only a Cargo dependency version is bumped (versions excluded)', () => {
+    scaffoldCrate(context.directory, ['serde = "1.0"']);
+    const before = shapeFingerprint(context.directory);
+
+    writeCargo(context.directory, ['serde = "2.0"']);
+
+    expect(shapeFingerprint(context.directory)).toBe(before);
+  });
+});

@@ -14,6 +14,9 @@ import { type Dirent, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
+import { readCargoDependencyNames } from './cargo-manifest.js';
+import { readDelimitedBlock } from './manifest-block.js';
+import { dependencySectionNames } from './manifest-dependencies.js';
 
 /** Candidate dependency-cruiser config filenames, in resolution order. */
 const DEPENDENCY_CRUISER_CONFIG_NAMES = [
@@ -34,14 +37,6 @@ const SHAPE_SCAN_EXCLUDED_DIRECTORIES = new Set([
   'dist',
   'node_modules',
 ]);
-
-/** Dependency manifest sections whose *keys* contribute to the shape. */
-const DEPENDENCY_SECTIONS = [
-  'dependencies',
-  'devDependencies',
-  'peerDependencies',
-  'optionalDependencies',
-] as const;
 
 /** Stable string ordering for the fingerprint's sorted inputs. */
 const byString = (a: string, b: string): number => a.localeCompare(b);
@@ -76,18 +71,68 @@ export function shapeFingerprint(projectDirectory: string): string {
 }
 
 function readDependencyNames(projectDirectory: string): string[] {
-  const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
-  if (manifest === undefined) return [];
+  const names = new Set<string>(readPackageJsonDependencyNames(projectDirectory));
+  // Go module requires (ticket ZD70P1): a `go.mod`'s require set is part of the
+  // shape, so Go dependency drift moves the fingerprint the same way a package.json
+  // dependency change does. A JS-only project has no go.mod, so this is a no-op there.
+  for (const goModule of readGoModuleRequires(projectDirectory)) names.add(goModule);
+  // Cargo dependencies (ticket YKFA5X): a crate's Cargo.toml dependency keys are part
+  // of the shape too. A non-Rust project has no Cargo.toml, so this is a no-op there.
+  for (const crate of readCargoDependencies(projectDirectory)) names.add(crate);
+  return [...names].toSorted(byString);
+}
 
-  const names = new Set<string>();
-  for (const section of DEPENDENCY_SECTIONS) {
-    const entry = manifest[section];
-    if (entry !== null && typeof entry === 'object') {
-      for (const name of Object.keys(entry)) names.add(name);
-    }
+function readPackageJsonDependencyNames(projectDirectory: string): string[] {
+  const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
+  return manifest === undefined ? [] : dependencySectionNames(manifest);
+}
+
+/** Dependency names from a directory's `Cargo.toml`, or `[]` when there is none. */
+function readCargoDependencies(projectDirectory: string): string[] {
+  try {
+    return readCargoDependencyNames(
+      readFileSync(nodePath.join(projectDirectory, 'Cargo.toml'), 'utf8'),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Module paths from a `go.mod`'s require directives — keys only, versions
+ * excluded (a version bump is noise, like a package.json version bump). Reads both
+ * the `require (\n  path v1\n)` block and single-line `require path v1` forms; a
+ * dependency-free parse, consistent with the go.work / pnpm hand-parses.
+ */
+function readGoModuleRequires(projectDirectory: string): string[] {
+  let content: string;
+  try {
+    content = readFileSync(nodePath.join(projectDirectory, 'go.mod'), 'utf8');
+  } catch {
+    return [];
   }
 
-  return [...names].toSorted(byString);
+  const lines = content.split(/\r?\n/);
+  const modules = new Set<string>();
+  collectGoRequireBlock(lines, modules);
+  collectGoRequireLines(lines, modules);
+  return [...modules].toSorted(byString);
+}
+
+/** Module paths from the `require (\n … \n)` block, stopping at the closing paren. */
+function collectGoRequireBlock(lines: string[], modules: Set<string>): void {
+  for (const entry of readDelimitedBlock(lines, /^require\s*\(\s*$/)) {
+    const [modulePath] = entry.split(/\s+/);
+    if (modulePath !== undefined && modulePath.length > 0) modules.add(modulePath);
+  }
+}
+
+/** Module paths from single-line `require <path> <version>` directives. */
+function collectGoRequireLines(lines: string[], modules: Set<string>): void {
+  for (const line of lines) {
+    const match = /^require\s+(\S+)\s+\S/.exec(line.trim());
+    if (match?.[1] !== undefined) modules.add(match[1]);
+  }
 }
 
 function readBoundaryConfig(projectDirectory: string): string {
