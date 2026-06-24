@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   claudeDenialReason,
   decideFromGate,
+  detectDoneTransition,
   extractFilePath,
+  extractWriteContent,
   GATE_UNAVAILABLE_REASON,
   mapCursorToolName,
+  parseTicketType,
   toCursorDecision,
 } from '../../templates/hooks/cursor/gate-adapter.js';
 
@@ -80,6 +83,54 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
         user_message: 'blocked',
         agent_message: 'blocked',
       });
+    });
+  });
+
+  describe('extractWriteContent (AKNWZK done-edit)', () => {
+    it('reads the common content field names', () => {
+      expect(extractWriteContent({ content: 'a' })).toBe('a');
+      expect(extractWriteContent({ contents: 'b' })).toBe('b');
+      expect(extractWriteContent({ new_string: 'c' })).toBe('c');
+    });
+
+    it('falls back to the longest multi-line string under an unknown field name', () => {
+      const body = 'line one\nline two\nstatus: done\n';
+      expect(extractWriteContent({ mystery_field: body, file_path: 'x/ticket.md' })).toBe(body);
+    });
+
+    it('returns undefined when there is no content-like value', () => {
+      expect(extractWriteContent({ file_path: 'x/ticket.md' })).toBeUndefined();
+      expect(extractWriteContent({})).toBeUndefined();
+      expect(extractWriteContent(undefined)).toBeUndefined();
+    });
+  });
+
+  describe('detectDoneTransition (AKNWZK done-edit)', () => {
+    it('matches frontmatter that closes the ticket', () => {
+      expect(detectDoneTransition('---\nstatus: done\n---')).toBe(true);
+      expect(detectDoneTransition('---\nstatus: "done"\n---')).toBe(true);
+    });
+
+    it('does NOT match entering the done phase (phase: done, still in progress)', () => {
+      expect(detectDoneTransition('---\nphase: done\nstatus: in_progress\n---')).toBe(false);
+    });
+
+    it('does NOT match prose mentioning done or other statuses', () => {
+      expect(detectDoneTransition('We are status: in_progress and nearly done')).toBe(false);
+      expect(detectDoneTransition('status: blocked')).toBe(false);
+      expect(detectDoneTransition(undefined)).toBe(false);
+    });
+  });
+
+  describe('parseTicketType (AKNWZK done-edit)', () => {
+    it('reads the type frontmatter', () => {
+      expect(parseTicketType('---\ntype: feature\n---')).toBe('feature');
+      expect(parseTicketType('---\ntype: task\n---')).toBe('task');
+    });
+
+    it('returns undefined when type is absent', () => {
+      expect(parseTicketType('---\nstatus: done\n---')).toBeUndefined();
+      expect(parseTicketType(undefined)).toBeUndefined();
     });
   });
 

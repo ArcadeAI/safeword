@@ -8,16 +8,21 @@
 // denial onto Cursor's { permission: 'deny' } decision. Enforces the
 // implement-phase test-definitions gate and the LOC blast-radius gate.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { evaluateDoneEvidence } from '../lib/done-gate.ts';
 import {
   type ClaudeGateInput,
+  type CursorDecision,
   type CursorPreToolInput,
   decideFromGate,
+  detectDoneTransition,
   extractFilePath,
+  extractWriteContent,
   mapCursorToolName,
+  parseTicketType,
   runClaudeHook,
 } from './gate-adapter.ts';
 
@@ -46,6 +51,40 @@ if (claudeTool !== 'Write' || !existsSync('.safeword')) {
 
 const filePath = extractFilePath(input.tool_input);
 if (!filePath) emitAllowAndExit();
+
+// Done-edit gate (AKNWZK): Cursor's `stop` cannot block, so the done gate that
+// lives in Claude's Stop hook is enforced here instead — at the edit that flips a
+// ticket.md to `status: done`. "Full" enforcement: evaluateDoneEvidence runs the
+// test suite (the one artifact prose can't fake) plus the verify.md/scenario
+// checks, sharing its logic with the Stop gate via lib/done-gate.ts (no drift).
+if (filePath.endsWith('ticket.md')) {
+  const proposedContent = extractWriteContent(input.tool_input);
+  if (detectDoneTransition(proposedContent)) {
+    const ticketDir = nodePath.resolve(nodePath.dirname(filePath));
+    // Type comes from the proposed frontmatter; fall back to the on-disk ticket
+    // (the closing edit rarely changes `type`) so features still require scenarios.
+    let ticketType = parseTicketType(proposedContent);
+    if (!ticketType) {
+      const onDiskTicket = nodePath.join(ticketDir, 'ticket.md');
+      if (existsSync(onDiskTicket))
+        ticketType = parseTicketType(readFileSync(onDiskTicket, 'utf8'));
+    }
+
+    const verdict = evaluateDoneEvidence({ projectDir: process.cwd(), ticketDir, ticketType });
+    if (!verdict.ok) {
+      const denial: CursorDecision = {
+        permission: 'deny',
+        user_message: verdict.reason,
+        agent_message: verdict.reason,
+      };
+      process.stdout.write(JSON.stringify(denial) + '\n');
+      process.exit(0);
+    }
+    // Evidence present — allow. ticket.md is a meta path the edit gate permits
+    // anyway, so there is nothing further to check.
+    emitAllowAndExit();
+  }
+}
 
 // Pass the original tool_input through (so content-aware checks still see their
 // fields) with a normalized file_path the gate is guaranteed to read.
