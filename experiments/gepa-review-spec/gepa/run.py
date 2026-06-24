@@ -15,6 +15,9 @@ get ANTHROPIC_API_KEY):
 
     op run --env-file=... -- ./gepa/.venv/bin/python gepa/run.py --max-metric-calls 250
 """
+# Research script (not library code): prints are the CLI output, and the
+# subprocess/urlopen calls take only harness-controlled inputs.
+# ruff: noqa: T201, S603, S310, PERF203, PLW1510
 
 from __future__ import annotations
 
@@ -30,9 +33,7 @@ import gepa
 
 HERE = Path(__file__).resolve().parent
 EXPERIMENT_DIR = HERE.parent
-SKILL_PATH = (
-    EXPERIMENT_DIR.parent.parent / ".claude" / "skills" / "review-spec" / "SKILL.md"
-)
+SKILL_PATH = EXPERIMENT_DIR.parent.parent / ".claude" / "skills" / "review-spec" / "SKILL.md"
 EVAL_SCRIPT = EXPERIMENT_DIR / "gepa-eval.ts"
 BUN = os.environ.get("BUN_BIN", "bun")
 TASK_MODEL = os.environ.get("SAFEWORD_EVAL_MODEL", "claude-sonnet-4-6")
@@ -42,9 +43,7 @@ REFLECTION_MODEL = os.environ.get("SAFEWORD_REFLECTION_MODEL", "claude-sonnet-4-
 def anthropic_complete(prompt) -> str:
     """Reflection LM: a minimal Anthropic Messages call (stdlib only)."""
     key = os.environ["ANTHROPIC_API_KEY"]
-    messages = (
-        [{"role": "user", "content": prompt}] if isinstance(prompt, str) else prompt
-    )
+    messages = [{"role": "user", "content": prompt}] if isinstance(prompt, str) else prompt
     body = json.dumps(
         {"model": REFLECTION_MODEL, "max_tokens": 8192, "messages": messages}
     ).encode()
@@ -62,7 +61,7 @@ def anthropic_complete(prompt) -> str:
             with urllib.request.urlopen(req, timeout=180) as resp:
                 data = json.loads(resp.read())
             return "".join(b.get("text", "") for b in data["content"])
-        except Exception as exc:  # noqa: BLE001 — retry transient API errors
+        except Exception as exc:
             if attempt == 3:
                 raise
             print(f"  [reflection retry {attempt + 1}: {exc}]", file=sys.stderr)
@@ -95,9 +94,7 @@ class ReviewSpecAdapter(gepa.GEPAAdapter):
         results = [by_name[name] for name in batch]
         scores = [float(r["score"]) for r in results]
         trajectories = results if capture_traces else None
-        return gepa.EvaluationBatch(
-            outputs=results, scores=scores, trajectories=trajectories
-        )
+        return gepa.EvaluationBatch(outputs=results, scores=scores, trajectories=trajectories)
 
     def make_reflective_dataset(self, candidate, eval_batch, components_to_update):
         records = [
@@ -108,7 +105,7 @@ class ReviewSpecAdapter(gepa.GEPAAdapter):
             }
             for r in (eval_batch.trajectories or [])
         ]
-        return {component: records for component in components_to_update}
+        return dict.fromkeys(components_to_update, records)
 
 
 def main() -> None:
@@ -142,7 +139,7 @@ def main() -> None:
         reflection_lm=anthropic_complete,
         max_metric_calls=args.max_metric_calls,
         reflection_minibatch_size=args.minibatch,
-        display_progress_bar=True,
+        display_progress_bar=False,
         track_best_outputs=True,
         seed=0,
         run_dir=args.run_dir,

@@ -3,3 +3,5 @@ __pycache__/
 runs/
 .candidate.txt
 winner.md
+winner-full.md
+seed-check.md
