@@ -27,6 +27,26 @@
 
 Per ticket.md out_of_scope: Poetry `[tool.poetry]` / `requirements.txt` / `setup.py` (PEP 621 is the modern standard; a Poetry-only project degrades to basename identity + empty deps), PEP 420 namespace packages (no `__init__.py`), module nesting, and the cross-language LanguagePack registry refactor (deferred to a dedicated post-4-packs ticket — now actionable, all four packs exist).
 
+## Quality-review cycle (done-gate, ≥2-loop ticket)
+
+`/quality-review` with primary-source research (PEP 508 / pyproject spec, fetched this
+session) + an independent fresh-context reviewer found **one critical silently-wrong
+bug** the unit/BDD suites missed (every fixture used a clean dep string):
+
+- **`stripTomlComment` cut at the first `#` even inside a quoted value.** A PEP 508 URL
+  dependency (`"pkg @ git+https://…#egg=pkg"` — documented modern direct-reference
+  syntax) broke the quote, so the multi-line `[project] dependencies` array truncated
+  and later entries (e.g. `numpy`) silently vanished from the fingerprint shape set —
+  drift in them would never be caught. Breaches the slice's own "never silently wrong" bar.
+
+**Fix:** made `stripTomlComment` quote-aware (only cuts a `#` outside a quoted string,
+reusing the `topLevelCloseBracket` per-line quote-state machine). Three regression tests
+(multi-line array with a `#egg=` url dep; `name = "a#b"`; trailing comment after a quoted
+value), RED before and GREEN after. Cargo's 15 tests stay green; independent re-review
+verdict **APPROVE** (fix verified by reproducing the original failing inputs). The reviewer
+also confirmed the cargo refactor is behavior-preserving — and its new exact-key match is
+itself a latent bug fix (the old unanchored regex matched `exclude-members` as `members`).
+
 ## Audit
 
 Audit passed — 0 errors, 1 accepted warning (import-boilerplate clone). No circular
