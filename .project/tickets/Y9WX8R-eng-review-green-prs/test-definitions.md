@@ -14,8 +14,10 @@ Deferred — not deterministic scenarios:
   review) and NTB1.AC1 quality (prose genuinely plain). Covered by a curated
   golden set + rubric/LLM-judge; effective-FP rate (TB2.AC3) is the online
   metric. NTB1.AC1's structural half (next-action present) is scenario'd.
-- `skip: architectural constraint, validated by audit not runtime` — SM1.AC4
-  (skill/schema/receipt factored as a shared core so Phase B reuses them).
+- `skip: architectural constraint` — SM1.AC3 (verification path has no LLM
+  dependency — a pure function over flag+receipt+sha; the C-rule gate scenarios
+  exercise it deterministically) and SM1.AC4 (skill/schema/receipt factored as a
+  shared core so Phase B reuses them). Validated by audit, not runtime scenarios.
 
 ## Rule: A review result must be well-formed to be recorded
 
@@ -55,6 +57,12 @@ Deferred — not deterministic scenarios:
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: eng-review-green-prs.TB1.AC3.unparseable_review_result_rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Approval is bound to the exact commit reviewed
 
 ### Scenario: eng-review-green-prs.TB3.AC1.approval_binds_to_reviewed_commit
@@ -69,7 +77,21 @@ Deferred — not deterministic scenarios:
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: eng-review-green-prs.TB3.AC3.skip_with_reason_is_auditable
+## Rule: A deliberate skip is an audited break-glass bypass, not an approval
+
+### Scenario: eng-review-green-prs.TB3.AC3.skip_permits_merge_under_enabled_gate
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: eng-review-green-prs.TB3.AC3.skip_is_recorded_distinct_from_approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: eng-review-green-prs.TB3.AC3.skip_with_empty_reason_rejected
 
 - [ ] RED
 - [ ] GREEN

@@ -35,7 +35,7 @@ A diff-focused engineering review that runs on a green PR before merge — the j
 
 #### eng-review-green-prs.TB1.AC1 — The review reads context, not just the diff
 
-The verdict reflects the diff _plus_ the stated intent (PR body / linked ticket goal+AC), the surrounding files the diff touches, and the test files that ran.
+The verdict reflects the diff _plus_ the stated intent (PR body / linked ticket goal+AC), the surrounding files the diff touches, and the test files that ran. _(Coverage: `eval: golden-set @ implement` — whether context actually improves the review is non-deterministic; verified by a curated golden set + rubric, not a Gherkin scenario.)_
 
 #### eng-review-green-prs.TB1.AC2 — Every finding is concrete and evidence-bound
 
@@ -77,9 +77,9 @@ An APPROVE writes a receipt scoped `<pr-number>@<head-sha>` to the review ledger
 
 After a new commit, the prior receipt is stale and no longer satisfies the gate.
 
-#### eng-review-green-prs.TB3.AC3 — Deliberate omissions are auditable
+#### eng-review-green-prs.TB3.AC3 — A deliberate skip is an audited break-glass bypass, not an approval
 
-A `skip:reason` path exists for intentional omissions, reusing existing ledger semantics.
+A `skip:reason` permits merge under an enabled gate (so the gate is never disabled or gamed), but is recorded as a _distinct, attributed_ disposition retaining its reason — never as an approval. An empty-reason skip is rejected. (Break-glass / audited-waiver pattern: a bypass people can't take openly is one they take secretly, so it lives inside the system, visible. Time-boxed expiry and periodic skip-rate review are Phase-B hardening.)
 
 ### eng-review-green-prs.NTB1 — Trust a merge I can't audit
 
@@ -111,11 +111,11 @@ With `prReviewGate` ON, a fresh head-bound receipt is required before merge.
 
 #### eng-review-green-prs.SM1.AC3 — Verification is cheap and LLM-free
 
-The receipt-verification check runs deterministically without invoking an LLM, suitable for a local hook or CI job.
+The receipt-verification check runs deterministically without invoking an LLM, suitable for a local hook or CI job. _(Coverage: architectural constraint on the verification path, asserted by unit-level design — that the gate function is pure over flag+receipt+sha with no model dependency — not a behavioral scenario. The C-rule gate scenarios already exercise it deterministically.)_
 
 #### eng-review-green-prs.SM1.AC4 — Shared core leaves Phase B open
 
-The skill, verdict schema, and receipt are factored so a later CI-runs-the-review phase reuses them without rework.
+The skill, verdict schema, and receipt are factored so a later CI-runs-the-review phase reuses them without rework. _(Coverage: `skip: architectural constraint, validated by audit not a runtime scenario`.)_
 
 ## Outcomes
 

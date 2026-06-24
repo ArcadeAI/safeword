@@ -45,6 +45,12 @@ Feature: Eng review on green PRs with verifiable provenance
       When the result is validated
       Then the result is rejected because a non-approving verdict must state a next action
 
+    @eng-review-green-prs.TB1.AC3
+    Scenario: eng-review-green-prs.TB1.AC3.unparseable_review_result_rejected
+      Given review output that does not parse as a structured result
+      When the result is validated
+      Then the result is rejected as malformed so the gate fails closed
+
   Rule: Approval is bound to the exact commit reviewed
 
     @eng-review-green-prs.TB3.AC1
@@ -59,11 +65,26 @@ Feature: Eng review on green PRs with verifiable provenance
       When a new commit "C2" is pushed and the merge gate is checked for pull request 7 at head commit "C2"
       Then no valid approval is found
 
+  Rule: A deliberate skip is an audited break-glass bypass, not an approval
+
     @eng-review-green-prs.TB3.AC3
-    Scenario: eng-review-green-prs.TB3.AC3.skip_with_reason_is_auditable
-      Given a review skipped for pull request 7 at head commit "C1" with reason "vendored bundle, not project code"
-      When the review record for pull request 7 at commit "C1" is read
-      Then an auditable skip is recorded carrying the reason text
+    Scenario: eng-review-green-prs.TB3.AC3.skip_permits_merge_under_enabled_gate
+      Given the PR review gate is enabled
+      And a review is skipped for pull request 7 at head commit "C1" with reason "vendored bundle, not project code"
+      When the merge gate is evaluated for pull request 7 at head commit "C1"
+      Then merge is permitted
+
+    @eng-review-green-prs.TB3.AC3
+    Scenario: eng-review-green-prs.TB3.AC3.skip_is_recorded_distinct_from_approval
+      Given a review is skipped for pull request 7 at head commit "C1" with reason "vendored bundle, not project code"
+      When the merge record for pull request 7 at commit "C1" is read
+      Then the merge basis is recorded as a skip rather than an approval, retaining the reason for audit
+
+    @eng-review-green-prs.TB3.AC3
+    Scenario: eng-review-green-prs.TB3.AC3.skip_with_empty_reason_rejected
+      Given a review skip for pull request 7 at head commit "C1" with an empty reason
+      When the skip is recorded
+      Then the skip is rejected because a deliberate bypass must state a reason
 
   Rule: The merge gate is opt-in and blocks only on blockers
 
