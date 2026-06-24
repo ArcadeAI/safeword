@@ -2,8 +2,9 @@
 
 ## Result
 
-Implemented and verified the unit-testable graph projection slice. Ticket remains
-`in_progress` until the maintainer confirms it should be marked done.
+Implemented and verified the unit-testable graph projection slice. Merged to
+`main` via [#406](https://github.com/ArcadeAI/safeword/pull/406) and marked done
+after maintainer confirmation.
 
 ## Evidence
 

@@ -2,12 +2,12 @@
 id: M1FGRJ
 slug: tracker-relations-projection
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 depends_on: [JS5K5G]
 external: https://github.com/ArcadeAI/safeword/issues/347
 created: 2026-06-20T16:15:56.239Z
-last_modified: 2026-06-24T17:10:00Z
+last_modified: 2026-06-24T19:01:00Z
 scope:
   - Extend `IssuePayload` with native graph intent — issue type, resolvable parent, and dependency relations — while preserving v1 `epic:`/`type:` labels as fallback.
   - Project `parent:`/resolvable `epic:` to native parent/sub-issue relationships where a provider supports them.
@@ -60,6 +60,7 @@ done_when:
 
 ## Work Log
 
+- 2026-06-24T19:01:00Z Maintainer confirmed marking done. #406 merged the M1FGRJ implementation to `main`; closing GitHub issue #347 and updating local ticket state to done.
 - 2026-06-24T17:10:00Z Implemented v2 graph projection. `IssuePayload` now carries `issueType`; corpus reads `parent:`/`slug` plus existing `depends_on:`/`blocked_on:`; sync order now visits known parents/dependencies before dependents; graph projection runs after create/update/reconcile using sidecar refs. GitHub adapter emits `gh issue edit --type/--parent/--add-blocked-by` and retries without `--type` when the repo lacks that issue type. Verification artifact added; ticket left in_progress pending maintainer/user confirmation before marking done.
 - 2026-06-24T16:30:00Z Picked up after origin/main sync. JS5K5G is complete, so the dependency block is satisfied. Added missing frontmatter scope/out_of_scope/done_when, dimensions, and a TB JTBD/spec before entering implementation.
 - 2026-06-23T05:11:00Z Backlogged. JS5K5G (v1) shipped → the `depends_on` block is satisfied (ready, not dependency-blocked). Deferred by prioritization, not readiness; surfaced as a coordination/backlog home at GitHub [#347](https://github.com/ArcadeAI/safeword/issues/347) for team prioritization (`external:` back-link added). Canonical spec stays here; promote to active work on pickup (re-run intake to refresh against the now-settled GitHub deps/sub-issue APIs).
