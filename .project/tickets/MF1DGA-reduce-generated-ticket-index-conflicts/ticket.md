@@ -5,7 +5,7 @@ type: task
 phase: intake
 status: in_progress
 created: 2026-06-24T14:49:00.438Z
-last_modified: 2026-06-24T14:52:28.000Z
+last_modified: 2026-06-24T14:56:44.000Z
 ---
 
 # Reduce generated ticket index merge conflicts
@@ -13,6 +13,8 @@ last_modified: 2026-06-24T14:52:28.000Z
 **Goal:** Reduce avoidable merge conflicts from the tracked generated ticket index.
 
 **Why:** Active PR traffic repeatedly touches `.project/tickets/INDEX.md`; unrelated branches can conflict even when their only overlap is generated ticket metadata.
+
+**GitHub:** https://github.com/ArcadeAI/safeword/issues/398
 
 ## Problem
 
@@ -58,6 +60,7 @@ The index is generated from ticket folders but committed as a shared file. Any b
 
 ## Work Log
 
+- 2026-06-24T14:56:44Z Filed: Created GitHub issue #398 and linked it here.
 - 2026-06-24T14:52:28Z Updated: Added observed environment for the PR #387 conflict/revalidation run.
 - 2026-06-24T14:51:30Z Filed: Captured PR #387 catch-up rough edge where `.project/tickets/INDEX.md` was the only conflict and required regeneration.
 - 2026-06-24T14:49:00.438Z Started: Created ticket MF1DGA

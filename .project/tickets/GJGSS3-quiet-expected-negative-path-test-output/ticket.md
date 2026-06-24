@@ -5,7 +5,7 @@ type: task
 phase: intake
 status: in_progress
 created: 2026-06-24T14:49:00.471Z
-last_modified: 2026-06-24T14:52:28.000Z
+last_modified: 2026-06-24T14:56:44.000Z
 ---
 
 # Quiet expected negative-path test output
@@ -13,6 +13,8 @@ last_modified: 2026-06-24T14:52:28.000Z
 **Goal:** Keep passing full test runs quiet when negative-path fixtures intentionally print errors.
 
 **Why:** Expected CLI and tool diagnostics in successful tests make long `dot` reporter runs harder to scan for real failures.
+
+**GitHub:** https://github.com/ArcadeAI/safeword/issues/399
 
 ## Problem
 
@@ -61,6 +63,7 @@ Several tests invoke real CLI or external tool flows and assert failure behavior
 
 ## Work Log
 
+- 2026-06-24T14:56:44Z Filed: Created GitHub issue #399 and linked it here.
 - 2026-06-24T14:52:28Z Updated: Added observed environment for the PR #387 full-suite output run.
 - 2026-06-24T14:51:30Z Filed: Captured noisy-but-passing full-suite diagnostics from PR #387 revalidation.
 - 2026-06-24T14:49:00.471Z Started: Created ticket GJGSS3
