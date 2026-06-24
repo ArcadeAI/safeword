@@ -2,8 +2,8 @@
 id: W0E292
 slug: codex-hook-adapter-helpers
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 parent: S3T6JA
 epic: agent-surface-refactor
 scope:
@@ -18,7 +18,7 @@ done_when:
   - Pure tests cover apply_patch target extraction, direct-tool forwarding, and denial reason parsing.
   - Schema registration covers any new deployed helper file.
 created: 2026-06-14T01:39:34.081Z
-last_modified: 2026-06-24T02:14:08Z
+last_modified: 2026-06-24T04:38:32Z
 ---
 
 # Make Codex hook adapter behavior easier to test
@@ -47,6 +47,7 @@ last_modified: 2026-06-24T02:14:08Z
 
 ## Work Log
 
+- 2026-06-24T04:38:32Z Verified and closed: Ran clean-worktree generated verify plan (3382 tests passed, 3 skipped), `bun run lint`, `bun run test:bdd` (149 scenarios passed), focused Codex adapter tests (53 passed), and `git diff --check`. Build plan was empty. Recorded verification in `verify.md` and marked the task done.
 - 2026-06-24T02:14:08Z Implemented: Extracted Codex adapter translation and denial parsing into `hooks/codex/pre-tool-quality-helpers.ts`, registered the helper in schema, and dogfooded the installed `.safeword/hooks/codex/` copy. Added unit tests for apply_patch translation, direct-tool forwarding, unsupported-tool ignoring, and denial reason parsing. Added setup coverage that the helper is installed with Codex project assets. Verified `bun run --cwd packages/cli test tests/hooks/codex-pre-tool-quality-helpers.test.ts tests/integration/codex-pretooluse-spike.test.ts tests/schema.test.ts tests/commands/setup-reconcile.test.ts`, `bun run --cwd packages/cli typecheck`, targeted ESLint, and `git diff --check`.
 - 2026-06-14T02:05:00Z Reviewed: Added schema-registration and installed-template execution guardrails.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected pure helper extraction, not a generic adapter framework.
