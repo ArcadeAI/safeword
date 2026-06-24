@@ -5,11 +5,13 @@
 import { existsSync } from 'node:fs';
 
 import { lintFile } from '../lib/lint.ts';
+import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
 
 interface CursorInput {
   workspace_roots?: string[];
   file_path?: string;
   conversation_id?: string;
+  generation_id?: string;
 }
 
 // Read hook input from stdin
@@ -22,7 +24,8 @@ try {
 
 const workspace = input.workspace_roots?.[0];
 const file = input.file_path;
-const convId = input.conversation_id ?? 'default';
+const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
+const markerKey = getRunStorageKey(runIdentity) ?? 'cursor-default';
 
 // Exit silently if no file or file doesn't exist
 if (!file || !(await Bun.file(file).exists())) {
@@ -40,7 +43,7 @@ if (!existsSync('.safeword')) {
 }
 
 // Set marker file for stop hook to know edits were made
-const markerFile = `/tmp/safeword-cursor-edited-${convId}`;
+const markerFile = `/tmp/safeword-cursor-edited-${markerKey}`;
 await Bun.write(markerFile, '');
 
 // Lint the file

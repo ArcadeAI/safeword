@@ -164,7 +164,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('no session id');
+    expect(result.stdout).toContain('no run identity');
     expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
       false,
     );
