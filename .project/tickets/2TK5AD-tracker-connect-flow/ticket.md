@@ -2,11 +2,31 @@
 id: 2TK5AD
 slug: tracker-connect-flow
 type: feature
-phase: intake
-status: blocked
+phase: implement
+status: in_progress
 depends_on: [JS5K5G]
 created: 2026-06-22T13:41:56.003Z
-last_modified: 2026-06-22T13:42:00Z
+last_modified: 2026-06-24T03:47:00Z
+scope:
+  - Two opt-in entry points — `safeword setup` offers tracker connect with a single yes/no prompt (default NO; resolved open question: setup delegates to the connect flow, it does not inline its own), and a standalone `safeword connect <provider>` command for later setup / re-config / switching providers.
+  - Per-provider human handoff — the agent writes the non-secret config (provider/target), then prints the exact credential steps and waits — Linear via Arcade OAuth authorize (browser approve), GitHub via the `safeword[bot]` GitHub App install or a pasted PAT fallback.
+  - Verify-before-first-sync — after wiring, run a no-op identity/auth verification (WhoAmI) and report pass/fail; on failure name the exact missing piece (no credential, wrong scope, App not installed). Resolved open question — v1 verifies auth via WhoAmI (non-destructive); a real one-ticket write-scope dry-run is noted as a follow-up.
+  - Seed the empty `.safeword/tracker-map.json` sidecar on successful connect — this is the JS5K5G contract (present+empty = first run; absent = refuse), closing the "first run needs --reset-tracker-map" gap.
+  - Secrets — token to OS keychain (preferred) or env var; never `.safeword/config.json`; never logged. (Reuses JS5K5G's secret-resolution rules.)
+  - Pollution opt-ins offered at connect time — `.cursorindexingignore` for the project root and a `.gitattributes` generated-marker for `INDEX*.md`.
+  - All external auth/verify/keychain I/O injected so the orchestration is tested with real internal components, mocking only the boundary (no live tracker/keychain in tests).
+out_of_scope:
+  - The projection mechanics (JS5K5G) and the dependency-graph/board projection (M1FGRJ).
+  - Two-way auth / token-rotation automation — manual re-`connect` for v1.
+  - A dedicated CI service-identity broker (JS5K5G open question) — surface the limitation, don't solve it here.
+  - Actually performing the live OAuth/App-install handshake in tests — the human/browser/Arcade steps are the untestable boundary; only the orchestration around them is covered.
+done_when:
+  - `safeword setup` offers tracker connect (opt-in, default no) and a standalone `safeword connect <provider>` command exists.
+  - Each supported provider (Linear, GitHub) has a documented human-handoff path (OAuth / App / PAT) with the agent printing the exact steps and waiting.
+  - Connect ends with a verification call that reports pass/fail and names the missing piece on failure.
+  - Secrets land in keychain/env, never committed config; connect offers the `.cursorindexingignore` + `.gitattributes` opt-ins.
+  - A successful connect seeds the empty `.safeword/tracker-map.json` so the first `sync-tracker` run does not refuse.
+  - Orchestration covered by unit + wiring tests with the auth/verify/keychain boundary mocked; no live tracker or keychain in tests.
 ---
 
 # Tracker connect/onboarding flow — interactive wiring (when + where the human authorizes)
@@ -61,5 +81,6 @@ After wiring, run a no-op verification (`WhoAmI` / a single dry-run projection) 
 
 ## Work Log
 
+- 2026-06-24T03:50:00Z Complete: define-behavior. JS5K5G shipped (PR #349) → unblocked. Building on a stacked branch `claude/tracker-connect-flow-2tk5ad` off the #349 branch (own PR, base=#349 branch) to keep it independently reviewable. Resolved both open questions (setup delegates to connect; verify = non-destructive WhoAmI). Authored spec.md (JTBD tracker-connect-flow.TB1, persona TB, 8 ACs), dimensions.md, features/tracker-connect-flow.feature (13 scenarios / 7 rules, @wip — proof in vitest), test-definitions.md. AC-coverage clean. Applying the #363 lesson: the impl will be tested through the real orchestration with only the boundary (keychain / auth-verify client / prompt) mocked, incl. a command-level wiring test. Advanced to scenario-gate.
 - 2026-06-22T13:41:56.003Z Started: Created ticket 2TK5AD.
 - 2026-06-22T13:42:00Z Filed as the sibling to JS5K5G (per the birthplace rule: execute-now-ish wiring work → internal-first). Owns the human handoff JS5K5G's setup section was thin on: when (setup opt-in + `connect` command), where (per-provider auth: Arcade OAuth / GitHub App / PAT), and verify-before-sync. `depends_on: JS5K5G`; status blocked until the projection skeleton lands.
