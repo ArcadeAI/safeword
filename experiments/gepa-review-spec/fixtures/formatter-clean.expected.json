@@ -1,0 +1,6 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [],
+  "note": "HELD-OUT base. Excerpt of three clean scenarios from features/formatter-aware-lint-hook.feature (distinct from the resolver train base, so GEPA never sees these scenarios). Hand-adjudicated clean; the certified-clean negative parent of the formatter-* held-out mutants."
+}

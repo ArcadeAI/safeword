@@ -175,6 +175,27 @@ gated behind a seeded-defect eval).
     certified-clean bases) SUBJECT TO must-fix recall = 100% (hard floor; a candidate
     that drops any seeded must-fix is rejected, never traded), recall + FA as separate
     Pareto objectives (already built into `aggregate`), held-out + voice gate at Phase 5.
+- 2026-06-24T05:00:00Z **Corpus Batch 2 — expanded to 18 fixtures (12 train / 6 test).**
+  - **Held-out TEST cluster** from `features/formatter-aware-lint-hook.feature` (a
+    DISTINCT base — GEPA never sees these scenarios): `formatter-clean` (certified-clean
+    negative) + `formatter-vacuous-existence`, `formatter-vacuous-given-echo`,
+    `formatter-non-atomic`, `formatter-non-observable`. Joins `inventory-sync` → 6 test.
+  - **TRAIN additions** (resolver base): `resolver-vacuous-given-echo`,
+    `resolver-vacuous-trivially-true`, `resolver-vacuous-non-claim`,
+    `resolver-determinism-order`, `resolver-determinism-time`, `resolver-conflict`.
+  - **Adversarial-vacuous in BOTH splits** (the premortem requirement): given-echo +
+    trivially-true Thens that assert a concrete value yet are vacuous — pins the boundary
+    GEPA must learn (flag THESE, not resolver-clean's real "command is tox").
+  - Seeded coverage: vacuous-existence ×3, given-echo ×2, trivially-true ×1, non-claim ×1,
+    non-atomic ×3, non-observable ×2, determinism-time ×2, determinism-order ×1,
+    conflict ×1, missing-negative-case ×1. Subtler types (order/conflict/trivially-true)
+    added for recall headroom (the easy ops baselined at 100%).
+  - **Gap (noted, not forced):** `determinism-concurrency` has no clean fit in the
+    resolver/formatter domains; skipped rather than ship an equivalent mutant. Advisory
+    lenses (boundary/failure/security/persona) are intentionally NOT seeded — they are
+    the cross-cutting checks measured as `unlabeled`.
+  - All defect types valid; 16/16 unit tests pass. Next: corpus baseline run (last Phase 2
+    token spend) to validate the full corpus + empirically certify the new clean bases.
 
 ---
 

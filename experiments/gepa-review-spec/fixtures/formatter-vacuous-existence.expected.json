@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "Edits follow the customer's Prettier style, not safeword's",
+      "defectType": "vacuous-existence-only",
+      "severity": "must-fix",
+      "note": "mutation operator: weaken-Then-to-existence. The style assertion ('formatted with double quotes') was replaced with 'the file is formatted', which a no-op pass-through would satisfy. Other two scenarios unchanged & clean."
+    }
+  ]
+}

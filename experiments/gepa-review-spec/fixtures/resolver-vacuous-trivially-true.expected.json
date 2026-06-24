@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "Requesting a plan that already lists python",
+      "defectType": "vacuous-trivially-true",
+      "severity": "must-fix",
+      "note": "ADVERSARIAL-VACUOUS: the Given ('a plan that already contains a python entry') makes the Then ('the plan includes a python entry') true regardless of the When. The assertion names a real thing but is trivially satisfied by setup. Other two scenarios unchanged & clean."
+    }
+  ]
+}

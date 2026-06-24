@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A file already written with double quotes still has double quotes",
+      "defectType": "vacuous-given-echo",
+      "severity": "must-fix",
+      "note": "ADVERSARIAL-VACUOUS (held-out): the Then asserts a concrete style ('uses double quotes') yet is vacuous — the Given already establishes the file uses double quotes, so a no-op edit passes; it never exercises the formatter deferring to the repo's style. Other two scenarios unchanged & clean."
+    }
+  ]
+}
