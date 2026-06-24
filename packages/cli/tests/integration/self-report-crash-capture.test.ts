@@ -60,4 +60,28 @@ describe('installCrashCapture (QYYC5Y)', () => {
     expect(JSON.stringify(records[0])).not.toContain('kaboom');
     expect(records[0]?.frames).toBeUndefined();
   });
+
+  it('attributes the crash to the explicitly-passed agent (cursor/codex hooks)', () => {
+    const fixture = nodePath.join(directory, 'cursor-hook.ts');
+    writeFileSync(
+      fixture,
+      [
+        `import { installCrashCapture } from ${JSON.stringify(LIB)};`,
+        `installCrashCapture('cursor-after-file-edit', ${JSON.stringify(directory)}, 'cursor');`,
+        "throw new Error('boom');",
+      ].join('\n'),
+    );
+
+    const result = spawnSync('bun', [fixture], {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    expect(result.status).toBe(0);
+    const records = readReports(directory);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.agent).toBe('cursor');
+    expect(records[0]?.source).toBe('cursor-after-file-edit');
+  });
 });

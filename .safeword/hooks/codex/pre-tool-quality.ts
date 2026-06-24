@@ -9,6 +9,10 @@ import { spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { installCrashCapture } from '../lib/self-report.ts';
+
+installCrashCapture('codex-pre-tool-quality', undefined, 'codex');
+
 interface CodexHookInput {
   session_id?: string;
   tool_name?: string;
@@ -144,6 +148,9 @@ function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      // Authoritative agent attribution for the spawned hook: it runs under Codex,
+      // not Claude, even though we set CLAUDE_PROJECT_DIR for its path resolution.
+      SAFEWORD_AGENT: 'codex',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });

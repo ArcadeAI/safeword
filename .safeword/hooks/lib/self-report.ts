@@ -24,12 +24,14 @@ export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
 const AGENT_IDS = new Set<AgentId>(['claude', 'cursor', 'codex', 'unknown']);
 
 /**
- * Best-effort detection of the running agent from the environment. `claude` is
- * reliable (Claude Code sets CLAUDE_*); cursor/codex are detected by their env
- * prefixes when present and fall back to `unknown` otherwise. Hooks/CLI that know
- * their agent for certain may pass it explicitly via the signal instead.
+ * Detect the running agent. `SAFEWORD_AGENT` is authoritative when set to a known
+ * id — the cross-process channel an adapter uses so a hook it spawns inherits the
+ * right attribution. Otherwise: `claude` is reliable (CLAUDE_*); cursor/codex are
+ * detected by their env prefixes; else `unknown`.
  */
 export function detectAgent(env: Record<string, string | undefined> = process.env): AgentId {
+  const declared = env.SAFEWORD_AGENT;
+  if (declared && AGENT_IDS.has(declared as AgentId)) return declared as AgentId;
   if (env.CLAUDE_PROJECT_DIR || env.CLAUDE_SESSION_ID || env.CLAUDE_CODE_SESSION_ID)
     return 'claude';
   const keys = Object.keys(env);
@@ -272,6 +274,7 @@ function readInstalledVersion(projectDirectory: string): string {
 export function installCrashCapture(
   hookName: string,
   projectDirectory: string = process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+  agent?: AgentId,
 ): void {
   const handler = (reason: unknown): void => {
     if (readSelfReportConfig(projectDirectory).capture) {
@@ -281,7 +284,12 @@ export function installCrashCapture(
       recordSignal(
         projectDirectory,
         sessionId,
-        { source: hookName, agent: detectAgent(), errorClass: error.name, stack: error.stack },
+        {
+          source: hookName,
+          agent: agent ?? detectAgent(),
+          errorClass: error.name,
+          stack: error.stack,
+        },
         readInstalledVersion(projectDirectory),
       );
     }

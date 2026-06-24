@@ -382,6 +382,14 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(detectAgent({})).toBe('unknown');
     });
 
+    it('SAFEWORD_AGENT is authoritative over env prefixes (cross-process channel)', () => {
+      // The Codex adapter sets CLAUDE_PROJECT_DIR for path resolution but the hook
+      // really runs under Codex — SAFEWORD_AGENT must win.
+      expect(detectAgent({ SAFEWORD_AGENT: 'codex', CLAUDE_PROJECT_DIR: '/x' })).toBe('codex');
+      // A bogus declaration is ignored, falling back to env detection.
+      expect(detectAgent({ SAFEWORD_AGENT: 'bogus', CLAUDE_PROJECT_DIR: '/x' })).toBe('claude');
+    });
+
     it('records the signal agent, bounded to the enum (deny-by-default)', () => {
       expect(
         buildRecord({ source: 'x', agent: 'cursor' }, { sessionId: 's', safewordVersion: '1' })

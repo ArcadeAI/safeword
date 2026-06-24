@@ -7,6 +7,9 @@ import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
+import { installCrashCapture } from '../lib/self-report.ts';
+
+installCrashCapture('cursor-stop', undefined, 'cursor');
 
 interface CursorInput {
   workspace_roots?: string[];
