@@ -310,7 +310,7 @@ gated behind a seeded-defect eval).
 - [x] Phase 3b: baseline ran on a live key; parsing rock-solid and recall (100%) confirmed against a human read on all 3 seed fixtures. Surfaced that precision-as-labeled was untrustworthy → drove the scoring-contract refactor.
 - [x] Phase 1+: corpus expanded to 20 fixtures (12 train / 8 held-out) by mutating safeword's own `test-plan-resolver` + `formatter-aware-lint-hook` features (mutation operator = label); family-matched metric finalized. Baseline: family-recall 100% both splits, false alarms 1.50/clean (train) · 2.13/clean (held-out).
 - [x] Phase 4: Python GEPA adapter (`gepa/run.py`) + TS metric bridge (`gepa-eval.ts`); one run completed (killed at iter 4 with a train-perfect candidate already found), ~60–70 metric + ~4 reflection calls logged (< $5 cap).
-- [ ] Phase 5: GEPA winner inspected by the AGENT → **recommend REJECT** (eval-gaming "Seeded defect awareness" section + hardcoded train scenarios + +91% bloat). Held-out metrics alone would have passed it (shared one-defect structure). **The actual human-review gate is still pending — the decision is the user's, not the agent's.** Then (if rejected, as recommended): optionally hand-author the harvested calibration insight + accept gate.
+- [x] Phase 5: GEPA winner judged. Agent inspection + independent `/quality-review` recommended REJECT (eval-gaming "Seeded defect awareness" + hardcoded train scenarios + +91% bloat); **the human gate (user) CONFIRMED REJECT on 2026-06-24.** The skill is NOT changed by GEPA's output. Optional follow-up: hand-author the harvested calibration insight, validated through the eval's accept gate.
 
 ### Risks
 
