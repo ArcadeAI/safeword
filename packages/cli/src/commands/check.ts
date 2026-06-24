@@ -11,6 +11,7 @@ import process from 'node:process';
 import { checkHealth, type HealthStatus, reportHealthSummary } from '../health.js';
 import { syncTickets } from '../ticket-sync/index.js';
 import { header, info, keyValue, success, warn } from '../utils/output.js';
+import { buildIndexConflictListMessage } from '../utils/ticket-index-warnings.js';
 import { isNewerVersion } from '../utils/version.js';
 
 interface CheckOptions {
@@ -96,6 +97,9 @@ function regenerateTicketIndex(cwd: string): void {
     const result = syncTickets(cwd);
     if (result.wrote) {
       info('Regenerated ticket index (INDEX.md / INDEX-completed.md)');
+    }
+    if (result.indexConflicts.length > 0) {
+      warn(buildIndexConflictListMessage(result.indexConflicts));
     }
   } catch (error: unknown) {
     // Best-effort: index freshness must never fail the health check. Surface
