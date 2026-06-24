@@ -147,6 +147,21 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
     expect(entryFor(plan, 'javascript')?.command).toBe('pnpm run test');
   });
+
+  it('an npm-locked JS repo uses npm for test and build plans', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest run', build: 'tsc' } }),
+      'package-lock.json': '{}',
+    });
+
+    expect(
+      entryFor(resolveTestPlan(root, { isToolAvailable: allTools }), 'javascript')?.command,
+    ).toBe('npm run test');
+    expect(
+      entryFor(resolveTestPlan(root, { kind: 'build', isToolAvailable: allTools }), 'javascript')
+        ?.command,
+    ).toBe('npm run build');
+  });
 });
 
 describe('resolveTestPlan — missing toolchains stay visible', () => {

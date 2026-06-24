@@ -8,3 +8,13 @@
 .safeword-project/tickets/INDEX.md
 .safeword-project/tickets/INDEX-completed.md
 .safeword-project/learnings/INDEX.md
+
+# Safeword - managed prettier exclusions (owned dirs)
+.husky/_
+.safeword/
+.claude/
+.cursor/
+.codex/
+.agents/
+.project/
+.safeword-project/
