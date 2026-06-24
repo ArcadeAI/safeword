@@ -33,6 +33,36 @@ gated behind a seeded-defect eval).
 - 2026-06-24T02:05:00Z Blocked: Phase 3 baseline needs a live `ANTHROPIC_API_KEY`,
   not available in the web session. This is the cheapest test of the riskiest
   assumption (can the skill's free-form findings be parsed and scored reliably?).
+- 2026-06-24T03:33:00Z **Phase 3b — real baseline ran** (claude-sonnet-4-6, temp 0,
+  3 fixtures, key injected via `op run`). Added a `SAFEWORD_EVAL_TRACE=1` mode
+  (`runEvalWithTraces`) that prints each fixture's raw response + TP/FP/FN diff.
+  - **Baseline F1:** TRAIN **66.7%** (P 50.0% / R 100.0%, tp 4 fp 4 fn 0);
+    TEST/held-out **0.0%** (P 0.0% / R 100.0%, tp 0 fp 3 fn 0).
+  - **Parsing: rock-solid.** 3/3 responses emitted one well-formed trailing
+    `json` block; every `defectType` was a valid enum value; every scope (pinned
+    vs `*`) was correct. The parser correctly ignored the `gherkin` fences in the
+    skill's proposed-fix blocks. **No `EVAL_OUTPUT_CONTRACT` change needed.**
+  - **Recall: trustworthy.** 100% across all 3 fixtures — every seeded defect was
+    caught, correctly categorized, and pinned to the right scenario. Auto-score
+    matches a human read on the recall side.
+  - **Precision: NOT trustworthy as labeled — the decision-relevant finding.**
+    All 7 "false positives" are _legitimate_ review-spec findings, not
+    hallucinations: e.g. `vacuous-given-echo` on the partial-refund Then (50−20=30
+    is arithmetic on the Given), `vacuous-existence-only` on "the session is
+    expired" (a label, not a falsifiable observable), a self-contradictory
+    active/ended `Then`, and — on the _clean_ held-out fixture — `boundary`
+    (no zero-stock scenario) and `failure` (no malformed-payload scenario). The
+    corpus is **under-labeled**, and the "a clean fixture measures false
+    positives" assumption is **broken for the cross-cutting lenses**: boundary /
+    failure / missing-negative-case fire on _any_ non-exhaustive spec by design,
+    so flagging them is correct behavior, not a false alarm.
+  - **Implication (gates Phase 2+4):** recall on seeded defects is the only
+    trustworthy scalar today. Expanding to 20 fixtures + running GEPA against the
+    current F1 would let GEPA _game precision by suppressing real findings_ —
+    actively degrading the skill while the metric climbs. The scoring contract
+    needs an honesty fix (severity-split P/R + mutation-certified-clean bases)
+    before corpus expansion. Surfacing to user before proceeding past the
+    "only if 3b looks trustworthy" gate. (refs commit `1dc4ae0e`)
 
 ---
 
