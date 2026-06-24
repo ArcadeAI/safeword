@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.55.0",
+  "version": "0.56.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -32,8 +32,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "pretest": "tsup",
-    "test": "vitest run",
+    "test": "node scripts/run-vitest-with-build-lock.mjs",
     "pretest:bdd": "tsup",
     "test:bdd": "cucumber-js",
     "test:done": "vitest run tests/hooks/ tests/schema.test.ts",

@@ -538,6 +538,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/run-identity.ts': { template: 'hooks/lib/run-identity.ts' },
     '.safeword/hooks/lib/dependency-readiness.ts': {
       template: 'hooks/lib/dependency-readiness.ts',
     },

@@ -10,7 +10,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTicketInfo } from '../../../../.safeword/hooks/lib/active-ticket';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -30,6 +30,21 @@ function makeTicket(projectDirectory: string, folder: string, id: string): void 
   const ticketsDirectory = nodePath.join(projectDirectory, '.safeword-project', 'tickets', folder);
   mkdirSync(ticketsDirectory, { recursive: true });
   writeFileSync(nodePath.join(ticketsDirectory, 'ticket.md'), FRONTMATTER(id));
+}
+
+function captureStderr<T>(callback: () => T): { stderr: string; result: T } {
+  let stderr = '';
+  const writeSpy = vi
+    .spyOn(process.stderr, 'write')
+    .mockImplementation((chunk: string | Uint8Array) => {
+      stderr += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
+      return true;
+    });
+  try {
+    return { result: callback(), stderr };
+  } finally {
+    writeSpy.mockRestore();
+  }
 }
 
 describe('getTicketInfo — dual-format lookup', () => {
@@ -87,7 +102,8 @@ describe('getTicketInfo — dual-format lookup', () => {
   it('returns empty details (does not silently pick) when two folders match the same ID', () => {
     makeTicket(projectDirectory, '7K9M3P', '7K9M3P');
     makeTicket(projectDirectory, '7K9M3P-spurious', '7K9M3P');
-    const result = getTicketInfo(projectDirectory, '7K9M3P');
+    const { result, stderr } = captureStderr(() => getTicketInfo(projectDirectory, '7K9M3P'));
     expect(result.folder).toBeUndefined();
+    expect(stderr).toContain('Ambiguous ticket ID "7K9M3P": 7K9M3P, 7K9M3P-spurious');
   });
 });

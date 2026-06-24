@@ -17,6 +17,8 @@ import {
 } from './pre-tool-quality-helpers.ts';
 
 const EXIT_CODE_DENY_MODE = 'exit-code';
+const CLAUDE_EXPLAIN_HINT = 'Run `/explain` for a plain-English version of this block.';
+const CODEX_EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 
 async function readInput(): Promise<CodexHookInput | undefined> {
   try {
@@ -31,6 +33,10 @@ function writeHookOutput(result: { stdout?: string | null; stderr?: string | nul
   if (result.stderr !== '') process.stderr.write(result.stderr ?? '');
 }
 
+function formatCodexReason(reason: string): string {
+  return reason.replaceAll(CLAUDE_EXPLAIN_HINT, CODEX_EXPLAIN_HINT);
+}
+
 function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
   return spawnSync('bun', [claudeHookPath], {
     cwd: process.cwd(),
@@ -39,6 +45,7 @@ function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      SAFEWORD_AGENT_RUNTIME: 'codex',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -58,13 +65,15 @@ const results = translatedInputs.map(translated => runClaudeHook(claudeHookPath,
 for (const result of results) {
   const reason = denialReasonFromHookOutput(result.stdout ?? '');
   if (reason === undefined) continue;
+  const codexReason = formatCodexReason(reason);
 
   if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
-    console.error(reason);
+    console.error(codexReason);
     process.exit(2);
   }
 
-  writeHookOutput(result);
+  process.stdout.write(formatCodexReason(result.stdout ?? ''));
+  if (result.stderr !== '') process.stderr.write(formatCodexReason(result.stderr ?? ''));
   process.exit(result.status ?? 0);
 }
 

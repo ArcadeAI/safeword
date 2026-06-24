@@ -118,7 +118,7 @@ func main(){println("no spaces")}`,
     );
 
     // Run golangci-lint fmt
-    execSync('golangci-lint fmt ugly.go', { cwd: projectDirectory });
+    execSync('golangci-lint fmt ugly.go', { cwd: projectDirectory, stdio: 'pipe' });
 
     const formatted = readTestFile(projectDirectory, 'ugly.go');
     // gofumpt adds proper spacing

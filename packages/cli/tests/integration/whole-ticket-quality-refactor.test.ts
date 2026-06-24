@@ -91,7 +91,7 @@ function writeTicket(
   writeTestFile(
     shared.projectDirectory,
     `${folder}/verify.md`,
-    'Verified\n\n## Verify Checklist\n\n**Test Suite:** ✓ 1/1 tests pass\n',
+    'Verified\n\n## Verify Checklist\n\n**Test Suite:** ✓ 1/1 tests pass\n**PR Scope:** ✅ Diff matches ticket scope\n',
   );
 }
 

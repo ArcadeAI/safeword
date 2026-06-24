@@ -2,10 +2,10 @@
 id: Y5GS4X
 slug: document-codex-parity-for-developers
 type: task
-phase: intake
-status: in_progress
+status: done
+phase: done
 created: 2026-06-14T11:51:36.329Z
-last_modified: 2026-06-14T12:00:00.000Z
+last_modified: 2026-06-24T15:42:13Z
 scope:
   - Update the README parity and getting-help sections so Codex is named beside Claude Code and Cursor, not implied as a hidden/secondary surface.
   - Update website docs that explain supported agents, setup output, hooks, skills, commands, and configuration so they mention Codex's installed assets: `.codex/config.toml`, `.agents/skills/`, and `.safeword/hooks/codex/pre-tool-quality.ts`.
@@ -36,3 +36,4 @@ done_when:
 - 2026-06-14T11:56:35Z Figure-it-out: Best plan is targeted docs parity, not implementation. Update README plus website landing, quick start, FAQ, CLI reference, configuration, and hooks/skills reference. Name Codex where support is equivalent; explicitly avoid saying Codex has slash-command files.
 - 2026-06-14T12:08:24Z Implemented: Updated README plus website landing, quick start, FAQ, CLI reference, configuration, and hooks/skills reference. Added Codex installed paths, hook trust guidance, and command-surface caveats without changing implementation.
 - 2026-06-14T12:08:24Z Verified: Prettier unchanged, markdownlint clean, website build clean, website typecheck clean, and wording scan has no remaining Claude/Cursor-only support claims in touched docs.
+- 2026-06-24T15:42:13Z Resolved in local tracker: frontmatter moved to `status: done`, `phase: done` after completion evidence and to align local status with shipped work evidence.

@@ -193,6 +193,58 @@ interface CliResult {
   exitCode: number;
 }
 
+function normalizeCommandOutput(value?: string | Buffer): string {
+  if (!value) {
+    return '';
+  }
+
+  return value.toString();
+}
+
+export interface CommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+/**
+ * Runs an arbitrary shell command and captures stdout/stderr.
+ * Use this for negative-path assertions where CLI output is expected and should
+ * remain asserted in tests instead of leaking to test output.
+ */
+export function runCommandSync(
+  command: string,
+  options: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeout?: number;
+  } = {},
+): CommandResult {
+  const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_SYNC } = options;
+
+  try {
+    const stdout = execSync(command, {
+      cwd,
+      env: { ...process.env, ...env },
+      timeout,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { stdout, stderr: '', exitCode: 0 };
+  } catch (error: unknown) {
+    const execError = error as {
+      stdout?: string | Buffer;
+      stderr?: string | Buffer;
+      status?: number;
+    };
+    return {
+      stdout: normalizeCommandOutput(execError.stdout),
+      stderr: normalizeCommandOutput(execError.stderr),
+      exitCode: execError.status ?? 1,
+    };
+  }
+}
+
 /**
  * Runs the CLI with the given arguments in the specified directory
  * Uses built CLI (dist/cli.js)

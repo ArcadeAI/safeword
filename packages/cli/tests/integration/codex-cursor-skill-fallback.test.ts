@@ -116,7 +116,7 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
       const { exitCode, output } = runFallback(projectDirectory, skill, '');
 
       expect(exitCode).toBe(0);
-      expect(output.toLowerCase()).toContain('no session id');
+      expect(output.toLowerCase()).toContain('no run identity');
       // Nothing recorded — no silent mis-binding to an empty/ambient session.
       expect(logContents(projectDirectory)).toBe(before);
     });

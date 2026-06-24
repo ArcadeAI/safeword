@@ -33,7 +33,7 @@ export function writeFeatureTicketAtDone(directory: string, ticketId: string): v
   writeTestFile(
     directory,
     `${folder}/verify.md`,
-    'Verified: 2026-01-06\n\n## Verify Checklist\n\n**Test Suite:** ✓ 1/1 tests pass\n',
+    'Verified: 2026-01-06\n\n## Verify Checklist\n\n**Test Suite:** ✓ 1/1 tests pass\n**PR Scope:** ✅ Diff matches ticket scope\n',
   );
 }
 

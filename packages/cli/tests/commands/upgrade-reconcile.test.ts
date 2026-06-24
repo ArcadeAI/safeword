@@ -7,7 +7,6 @@
  * TDD RED phase - these tests verify reconcile integration.
  */
 
-import { execSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -15,7 +14,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { installFakeCodexCli, removeTemporaryDirectory, runCli } from '../helpers';
+import { installFakeCodexCli, removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
 
 const __dirname = import.meta.dirname;
 
@@ -476,26 +475,17 @@ statusMessage = "Checking safeword PreToolUse gates"
       createConfiguredProject('0.5.0');
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        const result = execSync(`bunx tsx ${cliPath} upgrade`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
+      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
 
-        expect(result).toContain('Upgrade');
-      } catch (error) {
-        // Check if upgrade itself worked even if bun install timed out
-        const stdout = (error as { stdout?: string }).stdout || '';
-
-        // If we see upgrade output, the reconcile worked
-        const sawUpgradeOutput = stdout.includes('Upgrade') || stdout.includes('Upgrading');
-        if (sawUpgradeOutput) {
-          // Upgrade ran, might have failed on bun install
-          expect(sawUpgradeOutput).toBe(true);
-        } else {
-          throw error;
-        }
+      if (result.exitCode === 0) {
+        expect(result.stdout).toContain('Upgrade');
+      } else {
+        const sawUpgradeOutput =
+          result.stdout.includes('Upgrade') || result.stdout.includes('Upgrading');
+        expect(sawUpgradeOutput).toBe(true);
       }
     });
 
@@ -503,18 +493,12 @@ statusMessage = "Checking safeword PreToolUse gates"
       createConfiguredProject('99.99.99');
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        execSync(`bunx tsx ${cliPath} upgrade`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
-        // Should not reach here — upgrade must refuse a downgrade
-        expect.fail('upgrade should have refused to downgrade a newer project');
-      } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr || '';
-        expect(stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
-      }
+      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
     });
 
     it('should error on unconfigured project', () => {
@@ -525,18 +509,12 @@ statusMessage = "Checking safeword PreToolUse gates"
       );
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        execSync(`bunx tsx ${cliPath} upgrade`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
-        // Should not reach here — upgrade must error on an unconfigured project
-        expect.fail('upgrade should have errored on an unconfigured project');
-      } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr || '';
-        expect(stderr.toLowerCase()).toContain('not configured');
-      }
+      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr.toLowerCase()).toContain('not configured');
     });
   });
 });

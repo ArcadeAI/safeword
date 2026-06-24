@@ -11,8 +11,8 @@ import { withBackoff } from './backoff.js';
 import { buildPayload } from './payload.js';
 import { resolveCredential } from './secrets.js';
 import { loadTrackerMap, planTicketSync, TrackerMap } from './tracker-map.js';
-import type { BodyMode, Provider, TicketInput } from './types.js';
-import { dispatchCreate, type TrackerWriter } from './writers.js';
+import type { BodyMode, Provider, TicketInput, TrackerReference } from './types.js';
+import { dispatchCreate, type GraphProjection, type TrackerWriter } from './writers.js';
 
 export const SUPPORTED_PROVIDERS = new Set<Provider>(['linear', 'github']);
 const BACKOFF = { maxRetries: 3, baseMs: 50 };
@@ -49,6 +49,99 @@ export interface SyncTrackerResult {
 /** Narrow a configured provider to a supported one, else undefined. */
 function supportedProvider(provider: string): Provider | undefined {
   return SUPPORTED_PROVIDERS.has(provider as Provider) ? (provider as Provider) : undefined;
+}
+
+function isString(value: string | undefined): value is string {
+  return value !== undefined;
+}
+
+function ticketAliases(ticket: TicketInput): string[] {
+  return [ticket.id, ticket.slug, ticket.folder].filter(isString);
+}
+
+function aliasMap(tickets: TicketInput[]): Map<string, string> {
+  const aliases = new Map<string, string>();
+  for (const ticket of tickets) {
+    for (const alias of ticketAliases(ticket)) aliases.set(alias, ticket.id);
+  }
+  return aliases;
+}
+
+function resolveTicketReference(
+  raw: string | undefined,
+  aliases: Map<string, string>,
+): string | undefined {
+  if (raw === undefined || raw.length === 0) return undefined;
+  return aliases.get(raw);
+}
+
+function prerequisiteIds(ticket: TicketInput, aliases: Map<string, string>): string[] {
+  const prerequisites = [
+    resolveTicketReference(ticket.parent, aliases),
+    resolveTicketReference(ticket.epic, aliases),
+    ...(ticket.dependsOn ?? []).map(id => resolveTicketReference(id, aliases)),
+    ...(ticket.blockedOn ?? []).map(id => resolveTicketReference(id, aliases)),
+  ];
+  return [...new Set(prerequisites.filter(isString).filter(id => id !== ticket.id))];
+}
+
+function orderTicketsForProjection(tickets: TicketInput[]): TicketInput[] {
+  const aliases = aliasMap(tickets);
+  const byId = new Map(tickets.map(ticket => [ticket.id, ticket]));
+  const ordered: TicketInput[] = [];
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+
+  function visit(ticket: TicketInput): void {
+    if (visited.has(ticket.id)) return;
+    if (visiting.has(ticket.id)) return;
+    visiting.add(ticket.id);
+    for (const prerequisite of prerequisiteIds(ticket, aliases)) {
+      const target = byId.get(prerequisite);
+      if (target !== undefined) visit(target);
+    }
+    visiting.delete(ticket.id);
+    visited.add(ticket.id);
+    ordered.push(ticket);
+  }
+
+  for (const ticket of tickets) visit(ticket);
+  return ordered;
+}
+
+function sameProviderReference(
+  map: TrackerMap,
+  ticketId: string | undefined,
+  provider: Provider,
+): TrackerReference | undefined {
+  if (ticketId === undefined) return undefined;
+  const ref = map.lookup(ticketId)?.ref;
+  return ref?.provider === provider ? ref : undefined;
+}
+
+function buildGraphProjection(args: {
+  ticket: TicketInput;
+  map: TrackerMap;
+  provider: Provider;
+  aliases: Map<string, string>;
+}): GraphProjection {
+  const parentId =
+    resolveTicketReference(args.ticket.parent, args.aliases) ??
+    resolveTicketReference(args.ticket.epic, args.aliases);
+  const relationIds = [...(args.ticket.dependsOn ?? []), ...(args.ticket.blockedOn ?? [])].map(id =>
+    resolveTicketReference(id, args.aliases),
+  );
+  return {
+    parent: sameProviderReference(args.map, parentId, args.provider),
+    blockedBy: new Map(
+      relationIds
+        .map(id => sameProviderReference(args.map, id, args.provider))
+        .filter((ref): ref is TrackerReference => ref !== undefined)
+        .map(ref => [ref.id, ref]),
+    )
+      .values()
+      .toArray(),
+  };
 }
 
 /** Pre-write advisories that don't block the run: CI auth (AC12) + egress (AC10). */
@@ -104,10 +197,12 @@ async function projectOne(args: {
   bodyMode: BodyMode;
   sleep: (ms: number) => Promise<void>;
   sidecarPath: string;
+  aliases: Map<string, string>;
 }): Promise<void> {
   const payload = buildPayload(args.ticket, { bodyMode: args.bodyMode });
   const action = planTicketSync(args.map, args.ticket.id);
   const backoff = { sleep: args.sleep, ...BACKOFF };
+  let currentReference: TrackerReference;
   if (action.kind === 'create') {
     const ref = await withBackoff(
       () => dispatchCreate(args.writers, args.provider, payload),
@@ -118,12 +213,25 @@ async function projectOne(args: {
     args.map.save(args.sidecarPath);
     args.map.record(args.ticket.id, ref);
     args.map.save(args.sidecarPath);
-    return;
+    currentReference = ref;
+  } else {
+    // update (AC6) and reconcile (AC8) both write outward only — no second create.
+    if (action.kind === 'reconcile') args.map.record(args.ticket.id, action.ref);
+    await withBackoff(() => args.writers[args.provider].update(action.ref, payload), backoff);
+    args.map.save(args.sidecarPath);
+    currentReference = action.ref;
   }
-  // update (AC6) and reconcile (AC8) both write outward only — no second create.
-  if (action.kind === 'reconcile') args.map.record(args.ticket.id, action.ref);
-  await withBackoff(() => args.writers[args.provider].update(action.ref, payload), backoff);
-  args.map.save(args.sidecarPath);
+
+  const graph = buildGraphProjection({
+    ticket: args.ticket,
+    map: args.map,
+    provider: args.provider,
+    aliases: args.aliases,
+  });
+  await withBackoff(
+    () => args.writers[args.provider].projectGraph(currentReference, payload, graph),
+    backoff,
+  );
 }
 
 export async function syncTracker(
@@ -152,7 +260,9 @@ export async function syncTracker(
 
   const sleep =
     dependencies.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
-  for (const ticket of dependencies.tickets) {
+  const tickets = orderTicketsForProjection(dependencies.tickets);
+  const aliases = aliasMap(tickets);
+  for (const ticket of tickets) {
     // Each ticket persists itself; a failure aborts the run but earlier
     // creates are already saved (resume re-projects only the unfinished ones).
     await projectOne({
@@ -163,6 +273,7 @@ export async function syncTracker(
       bodyMode,
       sleep,
       sidecarPath: dependencies.sidecarPath,
+      aliases,
     });
   }
   return { exitCode: 0 };

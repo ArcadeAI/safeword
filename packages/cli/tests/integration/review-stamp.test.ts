@@ -69,6 +69,20 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
+  function runStampWithoutRuntimeIdentity(...args: string[]): HookResult {
+    const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: projectRoot };
+    delete env.CLAUDE_SESSION_ID;
+    delete env.CLAUDE_CODE_SESSION_ID;
+    delete env.CODEX_THREAD_ID;
+
+    const result = spawnSync('bun', [STAMP_PATH, ...args], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env,
+    });
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
+
   function runGate(): HookResult {
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
@@ -188,5 +202,13 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     const stamp = runStamp('--ticket', TICKET_ID, 'spec');
     expect(stamp.status).toBe(0);
     expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+  });
+
+  it('fails visibly instead of stamping unknown-session when no runtime identity is available', () => {
+    const stamp = runStampWithoutRuntimeIdentity('spec');
+
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('missing run identity');
+    expect(readLog()).not.toContain('unknown-session');
   });
 });

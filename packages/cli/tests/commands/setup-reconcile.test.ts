@@ -7,7 +7,6 @@
  * TDD RED phase - these tests verify reconcile integration.
  */
 
-import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -20,6 +19,7 @@ import {
   installFakeCodexCli,
   removeTemporaryDirectory,
   runCli,
+  runCommandSync,
   setupReconcileTest,
 } from '../helpers';
 
@@ -314,26 +314,21 @@ describe('Setup Command - Reconcile Integration', () => {
       );
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        const result = execSync(`bunx tsx ${cliPath} setup`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 120_000,
-        });
+      const result = runCommandSync(`bunx tsx ${cliPath} setup`, {
+        cwd: temporaryDirectory,
+        timeout: 120_000,
+      });
 
-        expect(result).toContain('Setup');
-      } catch (error) {
-        // Check if setup itself worked even if bun install timed out
-        const stdout = (error as { stdout?: string }).stdout || '';
-
-        // If we see setup output and .safeword exists, the reconcile worked
-        const sawSetupOutput = stdout.includes('Setup') || stdout.includes('Created');
+      if (result.exitCode === 0) {
+        expect(result.stdout).toContain('Setup');
+      } else {
+        // If setup timed out, accept if output shows the command path ran.
+        const sawSetupOutput = result.stdout.includes('Setup') || result.stdout.includes('Created');
         const safewordCreated = existsSync(nodePath.join(temporaryDirectory, '.safeword'));
-        if (sawSetupOutput && safewordCreated) {
-          expect(sawSetupOutput).toBe(true);
-          expect(safewordCreated).toBe(true);
-        } else {
-          throw error;
+        if (!sawSetupOutput || !safewordCreated) {
+          expect.fail(
+            `setup should have failed with recognized setup output. exitCode=${result.exitCode}, stderr=${result.stderr}`,
+          );
         }
       }
     });
@@ -350,18 +345,12 @@ describe('Setup Command - Reconcile Integration', () => {
       });
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        execSync(`bunx tsx ${cliPath} setup`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
-        // Should not reach here — setup must error on an already configured project
-        expect.fail('setup should have thrown on an already configured project');
-      } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr || '';
-        expect(stderr.toLowerCase()).toContain('already configured');
-      }
+      const result = runCommandSync(`bunx tsx ${cliPath} setup`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr.toLowerCase()).toContain('already configured');
     });
   });
 });

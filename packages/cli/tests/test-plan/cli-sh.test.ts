@@ -38,7 +38,12 @@ async function renderSh(root: string, kind: 'test' | 'build' = 'test'): Promise<
 /** Eval a rendered script in bash; return { stdout, code }. */
 function evalScript(script: string, cwd: string): { stdout: string; code: number } {
   try {
-    const stdout = execSync('bash', { input: script, cwd, encoding: 'utf8' });
+    const stdout = execSync('bash', {
+      input: script,
+      cwd,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
     return { stdout, code: 0 };
   } catch (error) {
     const err = error as { stdout?: string; status?: number };
