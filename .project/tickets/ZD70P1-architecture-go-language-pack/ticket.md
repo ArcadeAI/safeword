@@ -2,8 +2,8 @@
 id: ZD70P1
 slug: architecture-go-language-pack
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-06-24T02:21:10.704Z
 last_modified: 2026-06-24T02:25:00.000Z
 scope:
@@ -94,3 +94,8 @@ inter-package Go edges (a module-path→directory mapping problem, its own slice
   drift undetected); normalizeUseTarget dropped `use ./svc // comment` (idiomatic).
   Fixed both (TDD: 3 new regression tests RED→GREEN); independent re-review APPROVE.
   Full suite green (3390 pass / 5 skip), lint + 14 BDD scenarios clean.
+- 2026-06-24T04:05:00Z Closed. /refactor scout: code already at the right structure
+  (0 actioned, 3 candidates deferred with reasons — black-box/test-layer separations
+  - a rule-of-three go-manifest.ts extraction the impl-plan defers to the Rust/Python
+    slices). Gates: /verify green, /audit 0/0, /quality-review APPROVE (caught + fixed
+    2 critical parser bugs). phase=done. Pushing branch.
