@@ -2,10 +2,10 @@
 id: 7A0B2K
 slug: scenario-review-cross-model
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-12T02:37:21.358Z
-last_modified: 2026-06-24T00:46:00.000Z
+last_modified: 2026-06-24T03:02:00.000Z
 ---
 
 # Wire the phase-exit fork review to the cross-model knob
@@ -28,9 +28,11 @@ The NMSD94 phase-exit gate (`pre-tool-quality.ts`) is **already generalized** �
 ## Done when
 
 - Phase-exit gate blocks a same-model (or untagged) review under `crossModelReview`, allows a different-model one, stays inert when the flag is off, and the skip valve still works. ✅
-- Full suite green; typecheck clean. ⏳ (full run in progress)
+- Full suite green; typecheck clean. ✅
 
 ## Work Log
 
 - 2026-06-12T02:37:21.358Z Started: Created ticket 7A0B2K
 - 2026-06-24T00:46:00Z Implemented via TDD (RED: 2 failing cross-model cases → GREEN: ceiling-raiser in phase-exit gate). Reused MR5M3A primitives verbatim. Scoped to the general phase-exit gate (covers scenario-gate + all phases) per the taxonomy. 13/13 phase-gate tests pass; 75/75 across phase-gate + arch-gate + review-gate + review-ledger + models-match; typecheck clean. Synced dogfood copy. Full suite running before commit.
+- 2026-06-24T02:18:00Z Full suite green (exit 0). PR #357 opened, CI green (lint + test), merged to main (commit fd8676e).
+- 2026-06-24T03:02:00Z CLOSED done (user confirmed). Implementation shipped in #357; this commit only flips ticket frontmatter to done.
