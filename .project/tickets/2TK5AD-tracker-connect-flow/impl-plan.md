@@ -1,6 +1,11 @@
 # Impl Plan: tracker connect/onboarding flow (2TK5AD)
 
-**Status:** planned
+**Status:** implemented
+
+Steps 1–5 landed: `a582747` (ports + handoff), `17cffeb` (orchestration AC2–AC7),
+`1d719f4` (command + wiring test + live boundary shims), `4375205` (setup offer
+AC1/AC8). Build steps 3 and 5 merged — the command commit also carried the
+`verify.ts`/`secret-store.ts` shims behind the injected ports.
 
 ## Approach
 
