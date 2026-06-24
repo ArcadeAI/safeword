@@ -210,3 +210,49 @@ describe('extractSkeleton — Rust layout (ticket YKFA5X)', () => {
     expect(skeleton.nodes).toEqual([]);
   });
 });
+
+describe('extractSkeleton — Python layout (ticket HWSEPV)', () => {
+  function writePyproject(directory: string, name = 'app'): void {
+    writeFileSync(nodePath.join(directory, 'pyproject.toml'), `[project]\nname = "${name}"\n`);
+  }
+
+  it('lists src-layout modules: src packages and src .py files, excluding dunder', () => {
+    writePyproject(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'api'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'db.py'), '');
+    writeFileSync(nodePath.join(context.directory, 'src', '__init__.py'), '');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['api', 'db']);
+    const pathByName = Object.fromEntries(skeleton.nodes.map(node => [node.name, node.path]));
+    expect(pathByName.api).toBe('src/api');
+    expect(pathByName.db).toBe('src/db.py');
+  });
+
+  it('lists flat-layout root packages and modules, excluding tooling and dunder', () => {
+    writePyproject(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'core'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'core', '__init__.py'), '');
+    writeFileSync(nodePath.join(context.directory, 'utils.py'), '');
+    writeFileSync(nodePath.join(context.directory, 'conftest.py'), '');
+    writeFileSync(nodePath.join(context.directory, '__init__.py'), '');
+    mkdirSync(nodePath.join(context.directory, 'tests'), { recursive: true }); // no __init__.py → not a package
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['core', 'utils']);
+  });
+
+  it('produces an empty skeleton for a project with no recognized modules', () => {
+    writePyproject(context.directory);
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+
+  it('does not extract Python modules without a pyproject.toml', () => {
+    writeFileSync(nodePath.join(context.directory, 'thing.py'), '');
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+});

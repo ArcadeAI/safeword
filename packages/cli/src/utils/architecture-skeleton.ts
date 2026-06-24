@@ -30,6 +30,18 @@ const GO_LAYOUT_DIRECTORIES = ['cmd', 'internal', 'pkg'] as const;
  */
 const RUST_ROOT_FILES = new Set(['lib.rs', 'main.rs']);
 
+/**
+ * Files never listed as Python modules (ticket HWSEPV) — tooling scripts and dunder
+ * modules are not top-level structural units.
+ */
+const PYTHON_EXCLUDED_FILES = new Set([
+  'setup.py',
+  'conftest.py',
+  'noxfile.py',
+  '__init__.py',
+  '__main__.py',
+]);
+
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
   name: string;
@@ -51,6 +63,14 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // src-dir path so a crate's file modules are not lost.
   if (exists(nodePath.join(projectDirectory, 'Cargo.toml'))) {
     return { nodes: rustModuleNodes(projectDirectory) };
+  }
+
+  // A Python project (a `pyproject.toml` is present) is described by its top-level
+  // modules — src-layout uses `src/` packages + `src/*.py`, flat-layout uses root
+  // `__init__.py` dirs + root `*.py` (ticket HWSEPV). Dispatched before the plain
+  // src-dir path so a src-layout crate's `*.py` modules are not lost.
+  if (exists(nodePath.join(projectDirectory, 'pyproject.toml'))) {
+    return { nodes: pythonModuleNodes(projectDirectory) };
   }
 
   // The `src/` layout (TS/JS) is authoritative and unchanged: when it yields
@@ -134,6 +154,75 @@ function rustModuleNodes(projectDirectory: string): SkeletonNode[] {
     const name = entry.name.slice(0, -'.rs'.length);
     if (!byName.has(name)) {
       byName.set(name, { name, path: `src/${entry.name}`, purpose: PURPOSE_PLACEHOLDER });
+    }
+  }
+  return byName
+    .values()
+    .toArray()
+    .toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * A Python project's top-level modules (ticket HWSEPV). src-layout (a `src/` dir
+ * exists): every `src/` subdirectory and every `src/*.py` module. flat-layout (no
+ * `src/`): every root directory that holds an `__init__.py` (a package — so `tests/`,
+ * `docs/` and other non-package dirs are skipped) and every root `*.py` module.
+ * Tooling/dunder files are excluded; a project with none → empty ("not introspected").
+ */
+function pythonModuleNodes(projectDirectory: string): SkeletonNode[] {
+  const sourceDirectory = nodePath.join(projectDirectory, 'src');
+  if (isDirectory(sourceDirectory)) {
+    return pythonModulesFrom(
+      sourceDirectory,
+      name => `src/${name}`,
+      () => true,
+    );
+  }
+  return pythonModulesFrom(
+    projectDirectory,
+    name => name,
+    directory => exists(nodePath.join(directory, '__init__.py')),
+  );
+}
+
+/**
+ * Python modules under `directory`: each subdirectory `keepPackageDirectory` accepts and each
+ * non-excluded `*.py` file, as sorted nodes (a dir wins over a same-named file). `pathFor`
+ * maps a raw entry name to its forward-slashed code reference.
+ */
+function pythonModulesFrom(
+  directory: string,
+  pathFor: (entryName: string) => string,
+  keepPackageDirectory: (absoluteDirectory: string) => boolean,
+): SkeletonNode[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const byName = new Map<string, SkeletonNode>();
+  for (const entry of entries) {
+    if (entry.isDirectory() && keepPackageDirectory(nodePath.join(directory, entry.name))) {
+      byName.set(entry.name, {
+        name: entry.name,
+        path: pathFor(entry.name),
+        purpose: PURPOSE_PLACEHOLDER,
+      });
+    }
+  }
+  for (const entry of entries) {
+    if (
+      entry.isDirectory() ||
+      !entry.name.endsWith('.py') ||
+      PYTHON_EXCLUDED_FILES.has(entry.name)
+    ) {
+      continue;
+    }
+    const name = entry.name.slice(0, -'.py'.length);
+    if (!byName.has(name)) {
+      byName.set(name, { name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER });
     }
   }
   return byName
