@@ -35,6 +35,12 @@ describe('sync-tracker payload builder (sync-tracker.TB1.AC3, AC10)', () => {
     expect(labels).toContain('type:feature');
   });
 
+  it('keeps the native issue type candidate alongside the fallback type label', () => {
+    const payload = buildPayload(activeTicket, { bodyMode: 'minimal' });
+    expect(payload.issueType).toBe('feature');
+    expect(payload.labels).toContain('type:feature');
+  });
+
   it('puts the mirror banner and a back-link to the ticket in the body', () => {
     const { body } = buildPayload(activeTicket, { bodyMode: 'minimal' });
     expect(body).toContain('Mirror of safeword ticket AB12CD');

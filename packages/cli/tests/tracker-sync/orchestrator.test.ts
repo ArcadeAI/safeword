@@ -9,19 +9,21 @@ import { syncTracker, type SyncTrackerDependencies } from '../../src/tracker-syn
 import { CREDENTIAL_ENV_VAR } from '../../src/tracker-sync/secrets.js';
 import { loadTrackerMap, TrackerMap } from '../../src/tracker-sync/tracker-map.js';
 import type { Provider, TicketInput, TrackerReference } from '../../src/tracker-sync/types.js';
-import type { TrackerWriter } from '../../src/tracker-sync/writers.js';
+import type { GraphProjection, TrackerWriter } from '../../src/tracker-sync/writers.js';
 
 /** A programmable fake writer that records calls (and can fail create once). */
 function fakeWriter(
   provider: Provider,
   options: { failCreateOnce?: boolean } = {},
-): TrackerWriter & { creates: unknown[]; updates: unknown[] } {
+): TrackerWriter & { creates: unknown[]; graphs: unknown[]; updates: unknown[] } {
   const creates: unknown[] = [];
+  const graphs: unknown[] = [];
   const updates: unknown[] = [];
   let attempts = 0;
   return {
     provider,
     creates,
+    graphs,
     updates,
     create(payload) {
       creates.push(payload);
@@ -36,6 +38,10 @@ function fakeWriter(
       updates.push({ ref, payload });
       return Promise.resolve();
     },
+    projectGraph(ref, payload, graph) {
+      graphs.push({ ref, payload, graph });
+      return Promise.resolve();
+    },
   };
 }
 
@@ -47,6 +53,8 @@ const ticket: TicketInput = {
   epic: 'bridge',
   ticketUrl: 'https://github.com/acme/repo/tree/main/.project/tickets/AB12CD-wire',
   bodyMarkdown: 'internal body',
+  dependsOn: [],
+  blockedOn: [],
 };
 
 describe('sync-tracker orchestrator', () => {
@@ -140,6 +148,7 @@ describe('sync-tracker orchestrator', () => {
     const flaky: ReturnType<typeof fakeWriter> = {
       provider: 'github',
       creates: [],
+      graphs: [],
       updates: [],
       create(payload) {
         calls += 1;
@@ -149,6 +158,10 @@ describe('sync-tracker orchestrator', () => {
         return Promise.resolve(ref);
       },
       update() {
+        return Promise.resolve();
+      },
+      projectGraph(ref, payload, graph) {
+        flaky.graphs.push({ ref, payload, graph });
         return Promise.resolve();
       },
     };
@@ -270,5 +283,55 @@ describe('sync-tracker orchestrator', () => {
     expect(flaky.creates).toHaveLength(2);
     const reloaded = loadTrackerMap(sidecarPath);
     expect(reloaded.ok && reloaded.map.lookup('AB12CD') !== undefined).toBe(true);
+  });
+
+  it('creates parent tickets before children even when IDs sort the other way', async () => {
+    seedEmptySidecar();
+    const child: TicketInput = { ...ticket, id: 'AAA111', title: 'Child', parent: 'ZZZ999' };
+    const parent: TicketInput = { ...ticket, id: 'ZZZ999', title: 'Parent' };
+    const trackingWriter = fakeWriter('github');
+
+    await syncTracker(
+      makeDependencies({
+        tickets: [child, parent],
+        writers: { linear: fakeWriter('linear'), github: trackingWriter },
+      }),
+    );
+
+    expect(trackingWriter.creates.map(payload => (payload as { title: string }).title)).toEqual([
+      'Parent',
+      'Child',
+    ]);
+    const childGraph = trackingWriter.graphs.at(-1) as { graph: GraphProjection } | undefined;
+    expect(childGraph?.graph.parent?.id).toBe('1');
+  });
+
+  it('replays graph links on an idempotent update without creating duplicates', async () => {
+    const map = new TrackerMap();
+    map.record('BASE01', { provider: 'github', id: '10' });
+    map.record('CHILD1', { provider: 'github', id: '20' });
+    map.save(sidecarPath);
+    const base: TicketInput = { ...ticket, id: 'BASE01', title: 'Base' };
+    const child: TicketInput = {
+      ...ticket,
+      id: 'CHILD1',
+      title: 'Child',
+      dependsOn: ['BASE01'],
+      blockedOn: ['MISSING'],
+    };
+    const trackingWriter = fakeWriter('github');
+
+    await syncTracker(
+      makeDependencies({
+        tickets: [child, base],
+        writers: { linear: fakeWriter('linear'), github: trackingWriter },
+      }),
+    );
+
+    expect(trackingWriter.creates).toHaveLength(0);
+    const childGraph = trackingWriter.graphs.find(
+      (call: unknown) => (call as { ref: TrackerReference }).ref.id === '20',
+    ) as { graph: GraphProjection } | undefined;
+    expect(childGraph?.graph.blockedBy.map(ref => ref.id)).toEqual(['10']);
   });
 });

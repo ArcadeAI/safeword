@@ -27,16 +27,30 @@ export interface UpdateRequest {
   state?: 'closed';
 }
 
+export interface GraphProjection {
+  parent?: TrackerReference;
+  blockedBy: TrackerReference[];
+}
+
+export interface GraphRequest {
+  id: string;
+  issueType: string;
+  parentId?: string;
+  blockedByIds: string[];
+}
+
 /** The provider-neutral port each provider adapter implements (Arcade / gh). */
 export interface TrackerClient {
   createIssue(request: CreateRequest): Promise<{ id: string; url?: string }>;
   updateIssue(request: UpdateRequest): Promise<void>;
+  projectGraph(request: GraphRequest): Promise<void>;
 }
 
 export interface TrackerWriter {
   readonly provider: Provider;
   create(payload: IssuePayload): Promise<TrackerReference>;
   update(ref: TrackerReference, payload: IssuePayload): Promise<void>;
+  projectGraph(ref: TrackerReference, payload: IssuePayload, graph: GraphProjection): Promise<void>;
 }
 
 /** Build a writer for `provider` over an injected client. */
@@ -56,6 +70,14 @@ export function createWriter(provider: Provider, client: TrackerClient): Tracker
       // The one universal status write: close when the ticket is terminal.
       if (payload.state === 'closed') request.state = 'closed';
       await client.updateIssue(request);
+    },
+    async projectGraph(ref, payload, graph) {
+      await client.projectGraph({
+        id: ref.id,
+        issueType: payload.issueType,
+        parentId: graph.parent?.id,
+        blockedByIds: graph.blockedBy.map(blocker => blocker.id),
+      });
     },
   };
 }

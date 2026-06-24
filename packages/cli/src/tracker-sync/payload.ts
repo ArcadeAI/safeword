@@ -38,6 +38,7 @@ export function buildPayload(ticket: TicketInput, options: { bodyMode: BodyMode 
   return {
     title: ticket.title,
     body: buildBody(ticket, options.bodyMode),
+    issueType: ticket.type,
     labels,
     state: TERMINAL_STATUSES.has(ticket.status) ? 'closed' : 'open',
   };

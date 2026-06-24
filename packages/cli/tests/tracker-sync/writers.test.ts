@@ -5,6 +5,8 @@ import {
   type CreateRequest,
   createWriter,
   dispatchCreate,
+  type GraphProjection,
+  type GraphRequest,
   type TrackerClient,
   type UpdateRequest,
 } from '../../src/tracker-sync/writers.js';
@@ -18,16 +20,23 @@ import {
 /** A fake client that records every request it receives. */
 function recordingClient(): TrackerClient & {
   creates: CreateRequest[];
+  graphs: GraphRequest[];
   updates: UpdateRequest[];
 } {
   const creates: CreateRequest[] = [];
+  const graphs: GraphRequest[] = [];
   const updates: UpdateRequest[] = [];
   return {
     creates,
+    graphs,
     updates,
     createIssue: (request: CreateRequest) => {
       creates.push(request);
       return Promise.resolve({ id: '42', url: 'https://x/issues/42' });
+    },
+    projectGraph: (request: GraphRequest) => {
+      graphs.push(request);
+      return Promise.resolve();
     },
     updateIssue: (request: UpdateRequest) => {
       updates.push(request);
@@ -39,10 +48,15 @@ function recordingClient(): TrackerClient & {
 const activePayload: IssuePayload = {
   title: 'Wire it up',
   body: 'banner + back-link',
+  issueType: 'feature',
   labels: ['epic:bridge', 'type:feature'],
   state: 'open',
 };
 const ref: TrackerReference = { provider: 'github', id: '42' };
+const graph: GraphProjection = {
+  parent: { provider: 'github', id: '100' },
+  blockedBy: [{ provider: 'github', id: '7' }],
+};
 
 describe('sync-tracker writers (sync-tracker.TB1.AC4, AC7)', () => {
   // AC4 — one call site routes to the provider's writer
@@ -92,5 +106,14 @@ describe('sync-tracker writers (sync-tracker.TB1.AC4, AC7)', () => {
     expect(request?.state).toBe('closed');
     expect(request && 'assignee' in request).toBe(false);
     expect(request && 'priority' in request).toBe(false);
+  });
+
+  it('projects native type, parent, and blocking refs through the graph port', async () => {
+    const client = recordingClient();
+    await createWriter('github', client).projectGraph(ref, activePayload, graph);
+
+    expect(client.graphs).toEqual([
+      { id: '42', issueType: 'feature', parentId: '100', blockedByIds: ['7'] },
+    ]);
   });
 });

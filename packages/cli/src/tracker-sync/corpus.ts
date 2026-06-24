@@ -13,9 +13,31 @@ import { readTickets, type TicketEntry, TICKETS_RELATIVE_PATH } from '../ticket-
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import type { TicketInput } from './types.js';
 
+type TicketProjectionEntry = Pick<
+  TicketEntry,
+  'id' | 'title' | 'status' | 'epic' | 'relativePath'
+> &
+  Partial<Pick<TicketEntry, 'dependsOn' | 'blockedOn'>>;
+
 /** Parse the `type:` frontmatter value from ticket.md content, defaulting to `task`. */
 function parseType(content: string): string {
   return /^type:\s*(\S+)/m.exec(content)?.[1] ?? 'task';
+}
+
+/** Parse a scalar frontmatter field from the hand-rolled ticket format. */
+function parseScalar(content: string, field: string): string | undefined {
+  const prefix = `${field}:`;
+  const line = content.split('\n').find(candidate => candidate.startsWith(prefix));
+  const value = line?.slice(prefix.length).trim();
+  if (value === undefined || value.length === 0) return undefined;
+  if (
+    value.length >= 2 &&
+    ((value.startsWith("'") && value.endsWith("'")) ||
+      (value.startsWith('"') && value.endsWith('"')))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 /** Build the back-link URL for a ticket from the configured repo, else its path. */
@@ -25,17 +47,23 @@ export function backLinkUrl(relativePath: string, repo: string | undefined): str
 
 /** Map a ticket entry + its type to the neutral TicketInput. */
 export function toTicketInput(
-  entry: Pick<TicketEntry, 'id' | 'title' | 'status' | 'epic' | 'relativePath'>,
+  entry: TicketProjectionEntry,
   type: string,
   repo: string | undefined,
   bodyMarkdown: string | undefined,
+  graph: { parent?: string; slug?: string } = {},
 ): TicketInput {
   return {
     id: entry.id,
+    slug: graph.slug,
+    folder: nodePath.basename(entry.relativePath),
     title: entry.title,
     status: entry.status,
     type,
     epic: entry.epic,
+    parent: graph.parent,
+    dependsOn: entry.dependsOn ?? [],
+    blockedOn: entry.blockedOn ?? [],
     ticketUrl: backLinkUrl(entry.relativePath, repo),
     bodyMarkdown,
   };
@@ -49,6 +77,9 @@ export function readCorpus(cwd: string, repo: string | undefined): TicketInput[]
     // Read ticket.md once; derive both the type and the body from its content.
     const ticketPath = nodePath.join(cwd, entry.relativePath, 'ticket.md');
     const content = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : undefined;
-    return toTicketInput(entry, parseType(content ?? ''), repo, content);
+    return toTicketInput(entry, parseType(content ?? ''), repo, content, {
+      parent: parseScalar(content ?? '', 'parent'),
+      slug: parseScalar(content ?? '', 'slug'),
+    });
   });
 }
