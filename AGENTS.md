@@ -63,14 +63,14 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 | Mechanism     | What It Does                         | Enforcement | Can Chain? |
 | ------------- | ------------------------------------ | ----------- | ---------- |
 | **Skills**    | Guidance documents in same context   | Soft        | No         |
-| **Subagents** | Isolated execution, separate context | Soft        | No nesting |
+| **Subagents** | Isolated execution, separate context | Soft        | Yes (nested, ≤5 deep) |
 | **Hooks**     | Shell commands on lifecycle events   | Hard        | N/A        |
 
 **Skills** add knowledge to the current conversation. Claude decides when to apply them based on semantic matching. They cannot invoke other skills or guarantee execution.
 
 **Subagents** run in isolated context windows with configurable tool access. They're good for task isolation but:
 
-- Cannot spawn other subagents (no nesting)
+- Can spawn nested subagents (up to 5 levels deep, since Claude Code v2.1.172) — but delegation is still soft (Claude decides when to spawn), so don't rely on a chain firing
 - Don't inherit skills unless explicitly configured
 - Claude decides when to delegate (soft enforcement)
 
@@ -83,7 +83,7 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 **Design principles:**
 
 1. **Don't rely on skill-to-skill handoffs** — they depend on agent memory
-2. **Don't expect subagents to chain** — no nesting allowed
+2. **Don't _rely_ on subagent chains for guarantees** — nesting works (≤5 deep) but delegation is soft; use hooks where it must happen
 3. **Use hooks for guaranteed enforcement** — they always run
 4. **Inline guidance when handoffs fail** — merge skills instead of delegating
 
