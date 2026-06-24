@@ -6,6 +6,7 @@ phase: intake
 status: in_progress
 parent: S3T6JA
 epic: agent-surface-refactor
+relates_to: VAX3Z2
 depends_on:
   - 1833FW
   - Y06KJS

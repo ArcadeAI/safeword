@@ -6,6 +6,7 @@ phase: intake
 status: blocked
 epic: auto-upgrade-cross-agent
 parent: BJX7WR
+relates_to: VAX3Z2
 created: 2026-06-20T12:54:31.933Z
 last_modified: 2026-06-20T12:54:31.933Z
 ---

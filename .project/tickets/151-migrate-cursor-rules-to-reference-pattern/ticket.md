@@ -2,9 +2,11 @@
 id: 151
 type: task
 phase: intake
-status: pending
+status: done
+epic: cursor-changelog-alignment
+relates_to: VAX3Z2
 created: 2026-05-17T19:35:00Z
-last_modified: 2026-06-18T14:40:00Z
+last_modified: 2026-06-24T04:30:00Z
 ---
 
 # Migrate Cursor Rules to @reference Pattern
@@ -63,3 +65,4 @@ Parity-check only validates template ↔ dogfood within the same toolchain. It d
 - 2026-06-18 11:54 UTC — Refresh during a quality-review pass. (1) `safeword-quality-reviewing.mdc` grew 157→186 lines: commit `bb429c40` added a shared "Loop" block to both the `.md` skill and this `.mdc`. On conversion, the `.mdc`'s 8-step protocol is intentionally dropped and the Loop survives via the `@reference` to the skill — audit accordingly. (2) The 7 `bdd-*` rules are already `@reference` (ticket `G1A6BS`), so the BDD out-of-scope note is resolved. (3) `@reference` mechanic confirmed current in Cursor docs; large-file (150–300 line) expansion depth still unverified — investigation item 2 stands. (4) Reframed the equivalence guard as a structural "must-be-pointer" check.
 - 2026-06-18 14:40 UTC — **Converted all 4 rules to `@reference`** (branch `ticket-151-cursor-rules-reference`, off main after #257 merged). Drift audit (independent sub-agent): debugging / refactoring / testing are stale duplicates their skills already supersede → mechanical convert, zero loss; quality-reviewing was genuinely divergent (legacy 8-step generic protocol). **Maintainer decision: DROP the 8-step** — the automatic quality hook already covers general review, and the skill deliberately focuses on web research + the Loop. No Cursor-specific content (`globs`/`@docs`/IDE directives) in any rule; no contributor docs reference the old convention (nothing to update). Each rule keeps its `description`/`alwaysApply` frontmatter; body replaced with `@.claude/skills/<dir>/SKILL.md`. Cursor `@reference` mechanic verified for ≤282-line targets (13 rules already use it; large-file limits start in the thousands). `parity-check --mode=all` clean (157 pairs + 3 contracts). **Remaining:** the structural must-be-pointer guard (done-when item 3) — deferred to a focused follow-up.
 - 2026-06-18 15:17 UTC — **Structural guard landed** (`checkCursorRulesThin` in `packages/cli/src/parity.ts`, tests in `parity.test.ts`): `parity-check` now fails any `cursor/rules/*.mdc` whose body isn't a pure `@reference`, in BOTH modes — so pre-commit (`--mode=contracts-only`) hard-blocks a re-fattened rule before it lands. All done-when items now satisfied (4 rules converted · drift documented · guard in place · `parity-check` clean · 17/17 parity tests pass). Ready to close on merge of PR #260.
+- 2026-06-24 — **Closed as done; folded into the Cursor epic (VAX3Z2).** Revalidation during epic consolidation confirmed all done-when items shipped: the four rules (`safeword-debugging/quality-reviewing/refactoring/testing`.mdc) are each 6-line `@.claude/skills/<dir>/SKILL.md` pointers in `.cursor/rules/`, and the must-be-pointer guard is live. Status was stale at `pending` — only the field went unflipped. Set `status: done`, added `epic: cursor-changelog-alignment` (pure-Cursor work, hard-folded). Sibling `G1A6BS` (bdd rules → `@reference`, done) covered the disjoint bdd-rule set — related, not a duplicate.
