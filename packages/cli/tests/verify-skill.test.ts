@@ -56,6 +56,7 @@ describe('verify report structure (146)', () => {
       expect(content).toContain('✓ X/X tests pass');
       expect(content).toContain('**Gherkin:**');
       expect(content).toContain('All N scenarios marked complete');
+      expect(content).toContain('**PR Scope:**');
       expect(content).toContain('Audit passed');
       expect(content).not.toContain('Without all three patterns');
     });
@@ -137,6 +138,30 @@ describe('verify report structure (146)', () => {
     it.each(surfaces)('%s explicitly states empty sections are hidden', (_name, content) => {
       expect(content.toLowerCase()).toContain('empty sections are hidden');
     });
+  });
+
+  describe('Rule: PR scope prevents piggybacked changes', () => {
+    it.each(surfaces)('%s includes PR Scope in the Verify Checklist', (_name, content) => {
+      expect(content).toContain('**PR Scope:**');
+      expect(content).toContain('Diff matches ticket scope');
+      expect(content).toContain('Piggybacked changes');
+    });
+
+    it.each(surfaces)('%s blocks all-green collapse when PR scope fails', (_name, content) => {
+      expect(content).toMatch(/PR Scope[\s\S]*one purpose/);
+      expect(content).toMatch(/PR scope fails[\s\S]*do not collapse/);
+      expect(content).toContain('Ready to mark done');
+    });
+
+    it.each(surfaces)(
+      '%s routes unrelated work to split, revert, or scope decision',
+      (_name, content) => {
+        expect(content).toContain('Nice-to-have refactors');
+        expect(content).toContain('opportunistic fixes');
+        expect(content).toContain('separate tickets/PRs');
+        expect(content).toContain('split/revert/follow-up action');
+      },
+    );
   });
 
   describe('Rule: section 2 consumes safeword test-plan (5FF0ZD)', () => {

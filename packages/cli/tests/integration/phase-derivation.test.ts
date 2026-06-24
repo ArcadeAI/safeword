@@ -492,7 +492,7 @@ describe('Phase Derivation (#124)', () => {
       writeTestFile(
         projectDirectory,
         `${ticketFolder}/verify.md`,
-        'Verified: 2026-04-15T18:00:00Z\n\n## Verify Checklist\n\n**Test Suite:** ✓ 10/10 tests pass\n',
+        'Verified: 2026-04-15T18:00:00Z\n\n## Verify Checklist\n\n**Test Suite:** ✓ 10/10 tests pass\n**PR Scope:** ✅ Diff matches ticket scope\n',
       );
       // Skill-invocation gate (ticket 147): feature ticket entering done
       // requires current-session log entries for /verify and /audit.

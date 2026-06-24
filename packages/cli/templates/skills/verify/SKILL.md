@@ -160,7 +160,21 @@ Do NOT flag:
 - Type-only packages (`@types/*`) and standard-library imports
 - Tooling/dev dependencies (linters, formatters, test utils — across any language) — only flag deps that represent architectural choices
 
-### 6. Report Results
+### 6. Check PR Scope (skip if no ticket)
+
+Compare the final change set against the ticket's `scope`, `out_of_scope`, and `done_when`.
+
+Use the best available diff:
+
+- Active PR diff, when the user gave one.
+- Otherwise branch diff against the upstream/default branch, plus uncommitted changes.
+- If no base is knowable, inspect `git status --short` and the commits/files touched this session.
+
+Flag any changed file or behavior that only serves a different outcome than the ticket. Required supporting cleanup is fine. Nice-to-have refactors, opportunistic fixes, drive-by docs edits, and follow-up discoveries are separate tickets/PRs.
+
+If PR scope fails, do not collapse to "Ready to mark done." Put the concrete split/revert/follow-up action in **Agent's next actions**, or put the scope decision in **Decisions needed** when the user must decide whether to expand the ticket.
+
+### 7. Report Results
 
 Structure the report in three sections, in this order. **Empty sections are hidden entirely** — no "None" placeholders, no empty headers.
 
@@ -176,11 +190,14 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
+**PR Scope:** ✅ Diff matches ticket scope (or ❌ Piggybacked changes: <paths/behaviors>, or ⏭️ Skipped — no ticket/diff)
 **Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md/package.json)
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
 **Reconcile:** ✅ No pattern deviation (or ⚠️ N deviations, M missing uplevel ticket — soft, never blocks)
 **Experience:** ✅ No new friction (or ⚠️ N friction points / dulled peak, or ⏭️ N/A — not persona-facing) — soft, never blocks
 ```
+
+**PR Scope** is the final "one purpose" guard. It blocks the all-green collapse: if it is ❌, the ticket is not ready to mark done until the unrelated work is reverted, split into another ticket/PR, or explicitly accepted as a scope change and reflected in the ticket artifacts.
 
 **Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings (see `.safeword/guides/architecture-guide.md` → Survey & Reconcile), confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
 
@@ -198,6 +215,7 @@ A ⚠️ Experience finding routes to **Agent's next actions** if you'll fix it 
 - `✓ X/X tests pass` — proves test suite ran
 - `**Gherkin:**` — proves the acceptance lane ran or was explicitly skipped
 - `All N scenarios marked complete` — proves scenarios checked
+- `**PR Scope:**` — proves the final diff was checked against ticket scope
 - `Audit passed` — proves /audit ran (run /audit separately)
 
 Without the required patterns in Status, the done phase will hard block.
@@ -234,7 +252,7 @@ Only include this section when there are concrete forward actions the agent will
 
 #### All-green collapse
 
-When **all Status checks pass AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
+When **all Status checks pass, PR Scope is ✅/skipped for a valid reason, AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
 
 > Ready to mark done.
 

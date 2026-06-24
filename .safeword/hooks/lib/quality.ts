@@ -63,7 +63,7 @@ const PHASE_EVIDENCE: Record<BddPhase, string> = {
     'Phase: implement. CONFIDENT cites the passing artifact (X/X tests pass; scenario checked off).',
   verify:
     'Phase: verify. CONFIDENT cites /verify result (X/X tests; N/N scenarios complete) and that no scenarios are stale.',
-  done: "Phase: done. CONFIDENT cites /audit passed, /verify passed, verify.md present, scope drift checked, scenario coverage validated (no behaviors emerged that aren't in test-definitions), and any clear-win cross-scenario refactoring done.",
+  done: "Phase: done. CONFIDENT cites /audit passed, /verify passed, verify.md present, PR scope checked against the ticket (no piggybacked work), scenario coverage validated (no behaviors emerged that aren't in test-definitions), and any clear-win cross-scenario refactoring done.",
 };
 
 /** TDD-step-specific evidence for implement phase (RED/GREEN/REFACTOR). */
