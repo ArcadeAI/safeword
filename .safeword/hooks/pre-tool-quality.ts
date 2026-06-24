@@ -106,6 +106,11 @@ function readConfiguredPersonasPath(rawConfig: string): string | undefined {
 
 function deny(reason: string, additionalContext?: string): never {
   const output: Record<string, unknown> = {
+    // systemMessage is the top-level field Claude Code surfaces to the USER
+    // (permissionDecisionReason goes to the model and can be swallowed before the
+    // user sees it — issue #17356). The hint rides both: the reason for the model
+    // + Codex adapter, systemMessage for the human. Augment, never replace.
+    systemMessage: EXPLAIN_HINT,
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',

@@ -108,6 +108,18 @@ The framework is **project-local**: it writes to `.safeword/`, `.claude/`, `.cur
 
 ---
 
+## Driving safeword without reading code
+
+Safeword is built for people who ship software by directing an AI agent but don't read the code themselves. You stay in control by watching three things — no diff-reading required:
+
+- **When the agent gets stopped.** Safeword blocks the agent when it tries to skip a step — shipping code with no tests, or closing work it hasn't verified. A block is safeword protecting you, not an error: the message says what's needed and the next action to clear it.
+- **The end-of-turn verdict.** When the agent finishes a stretch of work it ends with a plain-English call — **CONFIDENT** (here's what I did and what's next) or **BLOCKED** (here's the one decision I need from you). That's your cue to continue, redirect, or step in.
+- **`/explain`.** Any time a message doesn't make sense — a block, a verdict, or "where are we?" — type `/explain` for a plain-English version: what it means and what to do next. Works in Claude Code, Cursor, and Codex.
+
+You direct in plain language; safeword keeps the agent honest. Auditing the code is the job it's doing for you.
+
+---
+
 ## What's Inside
 
 Key directories created in your project:
@@ -251,6 +263,7 @@ Key directories created in your project:
 - `/bdd` - Force BDD flow for current task
 - `/cleanup-zombies` - Kill zombie processes on ports
 - `/debug` - Four-phase debugging framework
+- `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
 - `/refactor` - Systematic refactoring with small-step discipline

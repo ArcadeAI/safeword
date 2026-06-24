@@ -426,6 +426,36 @@ describe('Schema - Single Source of Truth', () => {
         expect(cursorCommands, `Cursor missing Claude command: ${command}`).toContain(command);
       }
     });
+
+    it('should have a Cursor command for every action skill (DC6276)', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      // Action skills are disable-model-invocation on Claude/Codex; on Cursor
+      // (no skills) they must each ship as an explicit command — otherwise the
+      // capability is silently absent there (e.g. /explain was missing).
+      const ACTION_SKILLS = [
+        'lint',
+        'verify',
+        'audit',
+        'explain',
+        'cleanup-zombies',
+        'self-review',
+        'review-spec',
+      ];
+
+      const cursorCommands = new Set(
+        Object.keys(SAFEWORD_SCHEMA.ownedFiles)
+          .filter(path => path.startsWith('.cursor/commands/'))
+          .map(path => path.split('/').pop()?.replace(/\.md$/, ''))
+          .filter(isDefined),
+      );
+
+      for (const skill of ACTION_SKILLS) {
+        expect(cursorCommands, `Cursor missing command for action skill: ${skill}`).toContain(
+          skill,
+        );
+      }
+    });
   });
 
   describe('Drift detection', () => {
