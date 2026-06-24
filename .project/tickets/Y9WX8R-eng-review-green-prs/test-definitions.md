@@ -23,45 +23,45 @@ Deferred — not deterministic scenarios:
 
 ### Scenario: eng-review-green-prs.TB1.AC3.valid_result_accepted
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbb98f1
+- [x] GREEN dbb98f1
+- [x] REFACTOR skip: pure validation module, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB1.AC3.invalid_verdict_value_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbb98f1
+- [x] GREEN dbb98f1
+- [x] REFACTOR skip: pure validation module, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB1.AC3.invalid_severity_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbb98f1
+- [x] GREEN dbb98f1
+- [x] REFACTOR skip: pure validation module, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB1.AC2.finding_without_location_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbb98f1
+- [x] GREEN dbb98f1
+- [x] REFACTOR skip: pure validation module, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB1.AC2.finding_without_failure_mode_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbb98f1
+- [x] GREEN dbb98f1
+- [x] REFACTOR skip: pure validation module, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.NTB1.AC1.blocking_verdict_without_next_action_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbb98f1
+- [x] GREEN dbb98f1
+- [x] REFACTOR skip: pure validation module, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB1.AC3.unparseable_review_result_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbb98f1
+- [x] GREEN dbb98f1
+- [x] REFACTOR skip: pure validation module, cleanup folded into GREEN
 
 ## Rule: Approval is bound to the exact commit reviewed
 
