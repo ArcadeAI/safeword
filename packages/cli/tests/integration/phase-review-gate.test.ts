@@ -66,7 +66,18 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
-  function runGateEdit(fromPhase: string, toPhase: string): HookResult {
+  function runGateEdit(
+    fromPhase: string,
+    toPhase: string,
+    extraEnvironment: Record<string, string> = {},
+  ): HookResult {
+    const childEnvironment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectRoot,
+      ...extraEnvironment,
+    };
+    if (!('SAFEWORD_AUTHOR_MODEL' in extraEnvironment))
+      delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Edit',
@@ -77,7 +88,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
         },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: childEnvironment,
     });
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
@@ -195,6 +206,32 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
       stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
       expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('passes regardless of stamp order — cross-model first, same-model after', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('blocks via the Edit path too when the stamp model equals the author', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      expectHookDeny(
+        runGateEdit('define-behavior', 'implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
+    });
+
+    it('blocks a backward phase move under cross-model with a same-model stamp', () => {
+      writeConfig(true, true);
+      writeFileSync(ticketFile, ticketBody('implement'));
+      stampPhaseModel('implement', 'claude-opus-4-8');
+      expectHookDeny(
+        runGateWrite('define-behavior', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
     });
   });
 });
