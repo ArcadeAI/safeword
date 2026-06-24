@@ -24,6 +24,7 @@ import {
   mapCursorToolName,
   parseTicketType,
   runClaudeHook,
+  toCursorDecision,
 } from './gate-adapter.ts';
 
 async function readInput(): Promise<CursorPreToolInput> {
@@ -76,11 +77,7 @@ if (nodePath.basename(filePath) === 'ticket.md') {
 
     const verdict = evaluateDoneEvidence({ projectDir: process.cwd(), ticketDir, ticketType });
     if (!verdict.ok) {
-      emitDecisionAndExit({
-        permission: 'deny',
-        user_message: verdict.reason,
-        agent_message: verdict.reason,
-      });
+      emitDecisionAndExit(toCursorDecision(verdict.reason));
     }
     // Evidence present — allow. ticket.md is a meta path the edit gate permits
     // anyway, so there is nothing further to check.
