@@ -148,3 +148,65 @@ describe('extractSkeleton — Go layout (ticket ZD70P1)', () => {
     expect(skeleton.nodes).toEqual([]);
   });
 });
+
+describe('extractSkeleton — Rust layout (ticket YKFA5X)', () => {
+  function writeCargo(directory: string, name = 'app'): void {
+    writeFileSync(nodePath.join(directory, 'Cargo.toml'), `[package]\nname = "${name}"\n`);
+  }
+
+  function writeRustFile(directory: string, file: string): void {
+    mkdirSync(nodePath.join(directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'src', file), '// rust\n');
+  }
+
+  it('lists src module files and dirs, excluding the lib.rs/main.rs roots', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'lib.rs');
+    writeRustFile(context.directory, 'config.rs');
+    mkdirSync(nodePath.join(context.directory, 'src', 'handlers'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['config', 'handlers']);
+    const pathByName = Object.fromEntries(skeleton.nodes.map(node => [node.name, node.path]));
+    expect(pathByName.config).toBe('src/config.rs');
+    expect(pathByName.handlers).toBe('src/handlers');
+  });
+
+  it('excludes main.rs as a crate root', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'main.rs');
+    writeRustFile(context.directory, 'cli.rs');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['cli']);
+  });
+
+  it('produces an empty skeleton for a crate with only a root file', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'lib.rs');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([]);
+  });
+
+  it('lists FILE modules even when a dir module is also present (not dir-only)', () => {
+    writeCargo(context.directory);
+    writeRustFile(context.directory, 'error.rs');
+    mkdirSync(nodePath.join(context.directory, 'src', 'store'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['error', 'store']);
+  });
+
+  it('does not list src/*.rs files without a Cargo.toml (TS stays dir-only)', () => {
+    writeRustFile(context.directory, 'thing.rs');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([]);
+  });
+});

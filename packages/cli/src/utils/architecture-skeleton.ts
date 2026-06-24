@@ -24,6 +24,12 @@ const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
  */
 const GO_LAYOUT_DIRECTORIES = ['cmd', 'internal', 'pkg'] as const;
 
+/**
+ * Crate-root files of a Rust crate (ticket YKFA5X) — entry points, not modules, so
+ * they are excluded from the listed `src/` modules.
+ */
+const RUST_ROOT_FILES = new Set(['lib.rs', 'main.rs']);
+
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
   name: string;
@@ -39,6 +45,14 @@ export interface Skeleton {
 }
 
 export function extractSkeleton(projectDirectory: string): Skeleton {
+  // A Rust crate (a `Cargo.toml` is present) is described by its top-level `src/`
+  // modules — files AND directories, since a Rust module can be either — minus the
+  // `lib.rs`/`main.rs` crate roots (ticket YKFA5X). Dispatched before the plain
+  // src-dir path so a crate's file modules are not lost.
+  if (exists(nodePath.join(projectDirectory, 'Cargo.toml'))) {
+    return { nodes: rustModuleNodes(projectDirectory) };
+  }
+
   // The `src/` layout (TS/JS) is authoritative and unchanged: when it yields
   // modules, that is the skeleton.
   const sourceNodes = enumerateModuleDirectories(
@@ -85,6 +99,46 @@ function enumerateModuleDirectories(
 function goLayoutNodes(projectDirectory: string): SkeletonNode[] {
   return GO_LAYOUT_DIRECTORIES.filter(name => isDirectory(nodePath.join(projectDirectory, name)))
     .map(name => ({ name, path: name, purpose: PURPOSE_PLACEHOLDER }))
+    .toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * A Rust crate's top-level `src/` modules: each subdirectory (`src/<name>/`) and each
+ * `src/<name>.rs` file, excluding the `lib.rs`/`main.rs` crate roots. A directory wins
+ * over a same-named file (an invalid layout, but keeps the node set unique). Sorted by
+ * name, like every other skeleton. A crate with only a root file → empty (honest "not
+ * introspected").
+ */
+function rustModuleNodes(projectDirectory: string): SkeletonNode[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(nodePath.join(projectDirectory, 'src'), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const byName = new Map<string, SkeletonNode>();
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      byName.set(entry.name, {
+        name: entry.name,
+        path: `src/${entry.name}`,
+        purpose: PURPOSE_PLACEHOLDER,
+      });
+    }
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory() || !entry.name.endsWith('.rs') || RUST_ROOT_FILES.has(entry.name)) {
+      continue;
+    }
+    const name = entry.name.slice(0, -'.rs'.length);
+    if (!byName.has(name)) {
+      byName.set(name, { name, path: `src/${entry.name}`, purpose: PURPOSE_PLACEHOLDER });
+    }
+  }
+  return byName
+    .values()
+    .toArray()
     .toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
