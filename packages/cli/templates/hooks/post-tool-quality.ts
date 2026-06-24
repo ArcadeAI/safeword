@@ -125,6 +125,9 @@ state.locSinceCommit = countLoc();
 // LOC gate (only hard gate remaining — blast radius control). Stands down while
 // a git merge/rebase/cherry-pick/revert is in progress: those incoming lines are
 // not agent edits and must not block conflict resolution (ticket MT27QG).
+if (state.gate === 'loc' && state.locSinceCommit < LOC_THRESHOLD) {
+  state.gate = null;
+}
 if (state.locSinceCommit >= LOC_THRESHOLD && !isGitOperationInProgress(projectDirectory)) {
   state.gate = 'loc';
 }

@@ -511,13 +511,14 @@ describe('Schema - Single Source of Truth', () => {
         }
       }
 
-      // Manually-invoked utilities live beside lifecycle hooks because they
-      // share hook libs and write gate-owned state, but Claude Code never
-      // fires them on an event, so they have no SETTINGS_HOOKS entry.
-      const MANUAL_HOOK_SCRIPTS = new Set([
+      // Non-lifecycle hook modules live beside lifecycle hooks because they
+      // share hook libs or are imported by hook entrypoints, but Claude Code
+      // never fires them directly, so they have no SETTINGS_HOOKS entry.
+      const NON_LIFECYCLE_HOOK_MODULES = new Set([
         'write-review-stamp.ts',
         'resolve-namespace-root.ts',
         'record-skill-invocation.ts',
+        'pre-tool-quality-helpers.ts',
       ]);
 
       // Hook files in ownedFiles (excluding lib/ modules and cursor/ adapters)
@@ -530,7 +531,7 @@ describe('Schema - Single Source of Truth', () => {
         )
         .map(path => path.split('/').pop())
         .filter(isDefined)
-        .filter(file => !MANUAL_HOOK_SCRIPTS.has(file));
+        .filter(file => !NON_LIFECYCLE_HOOK_MODULES.has(file));
 
       const unwired: string[] = [];
       for (const file of hookFiles) {
