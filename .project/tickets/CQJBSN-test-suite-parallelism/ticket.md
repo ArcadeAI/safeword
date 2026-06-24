@@ -2,10 +2,10 @@
 id: CQJBSN
 slug: test-suite-parallelism
 type: task
-phase: intake
-status: backlog
+phase: implement
+status: in_progress
 created: 2026-06-01T01:03:41.848Z
-last_modified: 2026-06-01T01:03:41.848Z
+last_modified: 2026-06-24T05:58:34Z
 ---
 
 # Speed up the vitest suite — lift blanket maxWorkers:1, isolate the offenders
@@ -51,3 +51,5 @@ last_modified: 2026-06-01T01:03:41.848Z
 - 2026-06-01T14:12:00.000Z Interim: bumped `maxWorkers: 1 → 3` (kept `pool: 'forks'`). Full suite green, 146 files / 2358 pass, **~343s vs ~750s sequential (~2.2× faster)**. NOT the full fix — the proper isolation audit + `'50%'` / threads-tiering / CI-vs-local questions remain open.
 - 2026-06-01T15:05:00.000Z Reverted to `maxWorkers: 1` after the 3-worker bump flaked the pre-push gate 2/2 push runs. **(This reasoning was wrong — corrected below.)**
 - 2026-06-01T15:28:00.000Z **Investigated rigorously (user-requested). Two corrections:** (1) The "flake" is NOT a maxWorkers:3 determinism bug — **35/35 isolated runs passed** (npx + bunx, maxWorkers 3 and 5). It only failed during `git push` when the machine was CPU-saturated (load avg ~10 from back-to-back suites). So it's a **rare, load-dependent timing race** in the spawn-heavy integration tier, needing external CPU saturation to trigger — not reproducible at normal load. My earlier "~2/3 flake rate" was an artifact of 2 push-time samples. (2) **The CI block was a TIMEOUT, not a flake** — the `test` job (`timeout-minutes: 20`) was _cancelled_ at 20m13s at maxWorkers:1; sequential is too slow for the 2358-test suite + setup on the 4-vCPU `ubuntu-latest` runner. So maxWorkers:1 is a _guaranteed_ CI failure; the revert was backwards. **Resolution (`/figure-it-out` → option A):** re-set `maxWorkers: 3` (fits the 4-vCPU runner ~2.2×; CI is a dedicated runner with no competing load → the saturation-triggered race won't manifest) + raised CI `timeout-minutes` 20→30 for headroom. The proper two-tier fix (parallel pure-units + sequential spawn-tier) stays this ticket's real scope — it would also remove the residual saturation-race risk.
+- 2026-06-24T05:51:10Z Issue #379: Started focused slice for concurrent `bun run --cwd packages/cli test ...` invocations racing in package `pretest`/`tsup` clean. Scope is the package test command only: serialize build+Vitest for separate focused command processes so parallel agent verification waits instead of false-reding.
+- 2026-06-24T05:58:34Z Issue #379: Implemented package test runner lock around build+Vitest and removed the `pretest` lifecycle hook from `packages/cli` test. Verified with `tests/test-runner-lock.test.ts`, the originally observed two focused commands running concurrently (both 0), `bun run lint`, and `git diff --check`.
