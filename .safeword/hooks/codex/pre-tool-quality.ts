@@ -39,6 +39,7 @@ function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      SAFEWORD_AGENT_RUNTIME: 'codex',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });

@@ -27,16 +27,18 @@ import process from 'node:process';
 import { getInProgressTicketFolders } from './lib/active-ticket.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { resolveRunIdentity } from './lib/run-identity.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-const sessionId =
-  process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID || 'unknown-session';
 const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
 
 function fail(message: string): never {
   process.stdout.write(`[skill-invocation-log] FAILED — ${message}\n`);
   process.exit(1);
 }
+
+const runIdentity = resolveRunIdentity({}, { env: process.env });
+const sessionId = runIdentity.sessionKey ?? fail('missing run identity for review stamp');
 
 // Collapse all whitespace (incl. newlines) to single spaces. The log is one
 // stamp per line, so an un-collapsed reason could inject a second, forged line.

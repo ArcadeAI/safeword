@@ -7,10 +7,12 @@ import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
+import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
 
 interface CursorInput {
   workspace_roots?: string[];
   conversation_id?: string;
+  generation_id?: string;
   status?: string;
 }
 
@@ -49,8 +51,9 @@ if (input.status !== 'completed') {
 // Cursor enforces max 5 auto-submissions, no additional limit needed
 
 // Check if any file edits occurred in this session by looking for marker file
-const convId = input.conversation_id ?? 'default';
-const markerFile = `/tmp/safeword-cursor-edited-${convId}`;
+const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
+const markerKey = getRunStorageKey(runIdentity) ?? 'cursor-default';
+const markerFile = `/tmp/safeword-cursor-edited-${markerKey}`;
 
 if (await Bun.file(markerFile).exists()) {
   // Clean up marker (best-effort; missing file or perm issue is non-fatal)

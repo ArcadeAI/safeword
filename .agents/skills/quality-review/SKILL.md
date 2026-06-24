@@ -12,9 +12,9 @@ Deep review with web research to verify against current ecosystem. Complements a
 
 ## Invocation log
 
-This skill is required at the done-gate for tickets with **two or more RGR loops** (W610WW) — the whole-ticket review half of the cross-scenario pass. The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /quality-review was actually invoked. Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding. Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution, so the fallback below is explicit. Hand-writing review notes cannot produce this gate proof.
+This skill is required at the done-gate for tickets with **two or more RGR loops** (W610WW) — the whole-ticket review half of the cross-scenario pass. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /quality-review was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids and Codex thread ids from the runtime environment, so the fallback below can run without hand-picking an id. Hand-writing review notes cannot produce this gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID}" || echo "[skill-invocation-log] FAILED - no session-scoped proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
 
@@ -23,7 +23,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
-**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no session id` (non-Claude runtime with no session binding), or still does not print `quality-review ✓`**: a ≥2-loop ticket must fail closed if no real current-session proof can be logged. Do not mark such a ticket done or hand-write review notes as a substitute for the gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the client lacks a compatible session id, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ≥2-loop ticket must fail closed if no real current-session proof can be logged. Do not mark such a ticket done or hand-write review notes as a substitute for the gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
 
 Single-loop tickets, patches, and no-ticket reviews may continue after recording that session-scoped proof was unavailable and not required by the gate.
 
