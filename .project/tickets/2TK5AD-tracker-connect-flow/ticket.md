@@ -2,11 +2,11 @@
 id: 2TK5AD
 slug: tracker-connect-flow
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 depends_on: [JS5K5G]
 created: 2026-06-22T13:41:56.003Z
-last_modified: 2026-06-24T03:47:00Z
+last_modified: 2026-06-24T05:11:00Z
 scope:
   - Two opt-in entry points — `safeword setup` offers tracker connect with a single yes/no prompt (default NO; resolved open question: setup delegates to the connect flow, it does not inline its own), and a standalone `safeword connect <provider>` command for later setup / re-config / switching providers.
   - Per-provider human handoff — the agent writes the non-secret config (provider/target), then prints the exact credential steps and waits — Linear via Arcade OAuth authorize (browser approve), GitHub via the `safeword[bot]` GitHub App install or a pasted PAT fallback.
@@ -81,6 +81,7 @@ After wiring, run a no-op verification (`WhoAmI` / a single dry-run projection) 
 
 ## Work Log
 
+- 2026-06-24T05:11:00Z Complete: implement → verify → **done**. Built the flow across 5 steps (`a582747` ports+handoff, `17cffeb` orchestration AC2–AC7, `1d719f4` command+wiring test+live shims, `4375205` setup offer AC1/AC8, plus the verify-phase `3adfbc3` composition-root refactor and `2ad28e2` review refinements). All 8 ACs implemented and tested through the real orchestration with only the boundary (prompt/secret-store/verify) mocked (#363). **Verify:** full suite 3465 passed | 5 skipped, 0 failures; typecheck/eslint/gherkin/prettier/depcruise clean. **/audit:** 0 arch violations; no unused exports in tracker-connect (the lone unused export is JS5K5G's). **/quality-review** (independent fresh-context): APPROVE, no criticals — applied two refinements (handoff text matches env-only v1; dropped a duplicated keyset). depcruise caught a `setup.ts→connect.ts` cross-command import mid-verify → fixed by extracting `tracker-connect/run.ts` (both entry points call `runConnect`). Scope held; no new behaviors emerged outside test-definitions. Linear verify + OS-keychain storage are documented v1 deferrals (surfaced, not silent). verify.md written.
 - 2026-06-24T03:50:00Z Complete: define-behavior. JS5K5G shipped (PR #349) → unblocked. Building on a stacked branch `claude/tracker-connect-flow-2tk5ad` off the #349 branch (own PR, base=#349 branch) to keep it independently reviewable. Resolved both open questions (setup delegates to connect; verify = non-destructive WhoAmI). Authored spec.md (JTBD tracker-connect-flow.TB1, persona TB, 8 ACs), dimensions.md, features/tracker-connect-flow.feature (13 scenarios / 7 rules, @wip — proof in vitest), test-definitions.md. AC-coverage clean. Applying the #363 lesson: the impl will be tested through the real orchestration with only the boundary (keychain / auth-verify client / prompt) mocked, incl. a command-level wiring test. Advanced to scenario-gate.
 - 2026-06-22T13:41:56.003Z Started: Created ticket 2TK5AD.
 - 2026-06-22T13:42:00Z Filed as the sibling to JS5K5G (per the birthplace rule: execute-now-ish wiring work → internal-first). Owns the human handoff JS5K5G's setup section was thin on: when (setup opt-in + `connect` command), where (per-provider auth: Arcade OAuth / GitHub App / PAT), and verify-before-sync. `depends_on: JS5K5G`; status blocked until the projection skeleton lands.

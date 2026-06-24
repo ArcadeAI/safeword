@@ -627,7 +627,7 @@
   → `.project/tickets/2GPM47`
 - **Formatter coexistence: inert install, zero formatter collisions, self-contained ignores (2H2XKH)** (done, epic: —)
   → `.project/tickets/2H2XKH-formatter-coexistence`
-- **Tracker connect/onboarding flow — interactive wiring (when + where the human authorizes) (2TK5AD)** (in_progress, epic: —)
+- **Tracker connect/onboarding flow — interactive wiring (when + where the human authorizes) (2TK5AD)** (done, epic: —)
   Make wiring a tracker a clear, opt-in, human-in-the-loop flow: the agent prepares config and orchestrates, the human does the steps only they can (authorize OAuth / paste a token / install the GitHub App / pick team+repo), and the agent **verifies before any real sync** — closing the "set-but-silently-broken" trap.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
   → `.project/tickets/2TK5AD-tracker-connect-flow`
