@@ -547,7 +547,7 @@ async function maybeOfferTrackerConnect(): Promise<void> {
 
   const { offerTrackerConnect } = await import('../tracker-connect/offer.js');
   const { createPrompt } = await import('../tracker-connect/prompt.js');
-  const { connectCommand } = await import('./connect.js');
+  const { runConnect } = await import('../tracker-connect/run.js');
 
   await offerTrackerConnect({
     prompt: createPrompt(),
@@ -562,13 +562,7 @@ async function maybeOfferTrackerConnect(): Promise<void> {
       const target = provider === 'linear' ? { team: detail } : { repo: detail };
       return { provider, target };
     },
-    connect: async choice => {
-      await connectCommand(choice.provider, {
-        repo: choice.target.repo,
-        team: choice.target.team,
-      });
-      const exitCode = typeof process.exitCode === 'number' ? process.exitCode : 0;
-      return { exitCode, connected: exitCode === 0 };
-    },
+    // Same composition root `safeword connect` runs (AC8) — no sibling-command import.
+    connect: choice => runConnect(choice.provider, choice.target, info),
   });
 }

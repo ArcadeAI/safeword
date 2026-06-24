@@ -1,25 +1,20 @@
 /**
  * `safeword connect <provider>` (2TK5AD) — the standalone entry point. Thin
- * wrapper: collect target + any env credential, build the real boundary ports
- * (prompt / secret store / verify), and hand to the pure connect orchestration.
+ * wrapper over the shared `runConnect` composition root (which builds the real
+ * boundary ports and runs the orchestration); this layer only maps CLI options
+ * to a target, prints via console, and reflects the exit code.
  */
 
 import process from 'node:process';
 
-import { connectTracker } from '../tracker-connect/index.js';
-import { createPrompt } from '../tracker-connect/prompt.js';
-import { createSecretStore } from '../tracker-connect/secret-store.js';
-import { createVerifyClient } from '../tracker-connect/verify.js';
-import { CREDENTIAL_ENV_VAR } from '../tracker-sync/secrets.js';
-import type { Provider } from '../tracker-sync/types.js';
+import { runConnect } from '../tracker-connect/run.js';
+import type { ConnectTarget } from '../tracker-connect/types.js';
 
 export interface ConnectCommandOptions {
   repo?: string;
   team?: string;
   workspace?: string;
 }
-
-const HAS_ENV_VAR = new Set<string>(['github', 'linear']);
 
 function log(message: string): void {
   console.log(message);
@@ -29,20 +24,13 @@ export async function connectCommand(
   provider: string,
   options: ConnectCommandOptions = {},
 ): Promise<void> {
-  const token = HAS_ENV_VAR.has(provider)
-    ? process.env[CREDENTIAL_ENV_VAR[provider as Provider]]
-    : undefined;
+  const target: ConnectTarget = {
+    repo: options.repo,
+    team: options.team,
+    workspace: options.workspace,
+  };
 
-  const result = await connectTracker({
-    cwd: process.cwd(),
-    provider,
-    target: { repo: options.repo, team: options.team, workspace: options.workspace },
-    token,
-    prompt: createPrompt(),
-    secretStore: createSecretStore(),
-    verify: createVerifyClient(),
-    log,
-  });
+  const result = await runConnect(provider, target, log);
 
   if (result.exitCode !== 0) process.exitCode = result.exitCode;
 }
