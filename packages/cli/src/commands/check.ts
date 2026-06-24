@@ -11,8 +11,8 @@ import process from 'node:process';
 import { checkHealth, type HealthStatus, reportHealthSummary } from '../health.js';
 import { syncTickets } from '../ticket-sync/index.js';
 import { header, info, keyValue, success, warn } from '../utils/output.js';
+import { buildIndexConflictListMessage } from '../utils/ticket-index-warnings.js';
 import { isNewerVersion } from '../utils/version.js';
-import { buildIndexConflictListMessage } from './ticket-index-warnings.js';
 
 interface CheckOptions {
   offline?: boolean;

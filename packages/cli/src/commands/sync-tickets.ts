@@ -14,7 +14,7 @@ import process from 'node:process';
 
 import { syncTickets } from '../ticket-sync/index.js';
 import { info, success, warn } from '../utils/output.js';
-import { buildIndexConflictSummary } from './ticket-index-warnings.js';
+import { buildIndexConflictSummary } from '../utils/ticket-index-warnings.js';
 
 interface SyncTicketsOptions {
   quiet?: boolean;
