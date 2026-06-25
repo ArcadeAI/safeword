@@ -30,7 +30,7 @@ is exactly what would have saved the harvest from overfitting to two domains).
 ## What to capture — per skill invocation (the deliverable)
 
 Logged by a hook at each skill call, append-only, to a local spool (cf. epic
-#345). Fields adapted from OpenInference/OTel trace conventions:
+\#345). Fields adapted from OpenInference/OTel trace conventions:
 
 **Identity & linkage**
 

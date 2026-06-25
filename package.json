@@ -31,7 +31,7 @@
     "@cucumber/cucumber": "^13.0.0",
     "@types/node": "^26.0.0",
     "dependency-cruiser": "^17.4.3",
-    "eslint": "^9.39.4",
+    "eslint": "^10.5.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",

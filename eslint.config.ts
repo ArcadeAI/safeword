@@ -16,6 +16,8 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 
 import safeword from './packages/cli/src/presets/typescript/index.js';
 
+const tsconfigRootDirectory = import.meta.dirname;
+
 // Ignores
 const ignores = [
   '**/node_modules/',
@@ -39,6 +41,14 @@ const ignores = [
 
 export default defineConfig([
   { ignores },
+  {
+    name: 'repo/typescript-parser-root',
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: tsconfigRootDirectory,
+      },
+    },
+  },
   ...safeword.configs.recommendedTypeScript,
   ...safeword.configs.vitest,
   ...safeword.configs.playwright,

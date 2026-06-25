@@ -25,7 +25,7 @@ done_when:
   - Failed applies roll back safeword-managed tracked and untracked changes before recording a failure strike.
   - Targeted hook/schema/reconcile tests pass.
 created: 2026-06-20T12:54:31.996Z
-last_modified: 2026-06-25T05:16:18Z
+last_modified: 2026-06-25T05:38:02Z
 ---
 
 # Auto-upgrade under Codex
@@ -63,3 +63,4 @@ last_modified: 2026-06-25T05:16:18Z
 - 2026-06-25T04:43:23Z Caught branch up to `origin/main` after committing the #427 prerequisite. Reapplied #393 work cleanly, fixed a post-rebase Bun module-cache/order issue by moving SAFEWORD.md context helpers into `hooks/lib/safeword-context.ts`, and reverified: focused #393 set (6 files, 109 tests), typecheck, Gherkin lint, and `test:smoke:fast` (51 files, 667 tests) all passed.
 - 2026-06-25T04:46:17Z Reran dogfood `safeword upgrade` on the caught-up base to sync `.safeword/version` to v0.57.0; it exited 0 while reporting the pre-existing feature-lineage health warnings. Dispatcher smoke after the sync passed (`bun run test tests/integration/hooks.test.ts -t "session-codex-start"`).
 - 2026-06-25T05:16:18Z Quality-review found no blocking defects. Refactored rollback loop alias. Verify initially exposed missing/outdated BDD acceptance steps; added #393 step definitions and updated SAFEWORD-context BDD expectations for Codex's dispatcher. Full verify and audit passed with warnings; see `verify.md` and `audit.md`.
+- 2026-06-25T05:38:02Z Caught branch up to latest `origin/main` again and upgraded root ESLint from 9.39.4 to 10.5.0 to match the CLI workspace. Added explicit parser roots/ESLint 10 package-config coverage for this monorepo, fixed the rebased GEPA markdownlint issue, and reverified root lint, package lint, `test:done` (48 files, 586 tests), BDD (159 scenarios, 2837 steps), and build.

@@ -13,6 +13,10 @@ import safeword from './src/presets/typescript/index.js';
 const { detect, configs } = safeword;
 const dependencies = detect.collectAllDeps(import.meta.dirname);
 const framework = detect.detectFramework(dependencies);
+const tsconfigRootDirectory = import.meta.dirname;
+// ESLint 10 resolves flat configs from the linted file, so root `eslint .`
+// reaches this package config for packages/cli/** files.
+const ignores = [...detect.getIgnores(), 'templates/**', 'packages/cli/templates/**'];
 
 // Map framework to base config
 // Note: Astro config only lints .astro files, so we combine it with TypeScript config
@@ -26,7 +30,15 @@ const baseConfigs = {
 };
 
 export default defineConfig([
-  { ignores: detect.getIgnores() },
+  { ignores },
+  {
+    name: 'safeword-package/typescript-parser-root',
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: tsconfigRootDirectory,
+      },
+    },
+  },
 
   ...baseConfigs[framework],
   ...(detect.hasVitest(dependencies) ? configs.vitest : []),
@@ -35,5 +47,13 @@ export default defineConfig([
   ...(detect.hasTanstackQuery(dependencies) ? configs.tanstackQuery : []),
   configs.cli,
   configs.relaxedTypes,
+  {
+    name: 'safeword-package/cucumber-steps-override',
+    files: ['**/features/**/*.ts'],
+    rules: {
+      'unicorn/no-this-outside-of-class': 'off',
+      'unicorn/no-top-level-side-effects': 'off',
+    },
+  },
   eslintConfigPrettier,
 ]);

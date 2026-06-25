@@ -1,8 +1,8 @@
-Verified: 2026-06-25T05:16:18Z
+Verified: 2026-06-25T05:38:02Z
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 582/582 tests pass
+**Test Suite:** ✓ 586/586 focused tests pass
 **Gherkin:** ✅ Acceptance lane passes
 **Build:** ✅ Success
 **Lint:** ✅ Clean
@@ -17,9 +17,13 @@ Audit passed with warnings — `/audit` invocation proof logged for this run; se
 
 Evidence:
 
-- `bun run lint` — clean (`eslint .`, `lint-gherkin`, CLI `tsc --noEmit`)
-- `bash -c "$(bun packages/cli/src/cli.ts test-plan --kind test --format sh)"` — 48 files, 582 tests passed
+- `bunx eslint --version` — v10.5.0
+- `bun run lint` — clean under ESLint 10.5.0 (`eslint .`, `lint-gherkin`, CLI `tsc --noEmit`)
+- `bun run lint:md` — clean after rebase doc fix
+- `bun run --cwd packages/cli lint` — clean under package-local ESLint 10.5.0 config
+- `bun run test:done` — 48 files, 586 tests passed
 - `bun run test:bdd` — 159 scenarios, 2837 steps passed
 - `bun run --cwd packages/cli build` — success; generated JS and declaration output cleanly
+- `bun outdated` — root ESLint warning cleared; only `@types/node`, `knip`, and `turbo` remain outdated at root
 - Targeted acceptance repair: `bunx cucumber-js features/safeword-md-via-hooks.feature packages/cli/features/auto-upgrade-codex.feature --tags 'not @wip'` — 11 scenarios, 202 steps passed
 - Scenario ledger: 16/16 R/G/R lines checked in `test-definitions.md`

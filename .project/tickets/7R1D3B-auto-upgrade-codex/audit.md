@@ -1,4 +1,4 @@
-Audited: 2026-06-25T05:16:18Z
+Audited: 2026-06-25T05:38:02Z
 
 ## Errors
 
@@ -8,14 +8,15 @@ None.
 
 - Knip reports the existing safeword baseline: eslint plugin preset packages, `tsx`/`turbo`, tool binaries used in fixtures, generated hook-path imports, and two exports to review. This branch initially added two new step-file findings; those were removed before final audit.
 - `jscpd` reports 357 clones / 6.86% duplicated lines. The largest categories are expected dogfood/template mirrors (`.agents` vs `packages/cli/templates`) and existing fixture/test repetition. New BDD step boilerplate contributes a small import/setup clone with existing step files.
-- Outdated dev-only packages:
+- Outdated packages after the ESLint 10 refresh:
 
 | Package | Current | Latest | Type | Bump | Risk |
 | --- | --- | --- | --- | --- | --- |
 | `@types/node` | 26.0.0 | 26.0.1 | dev | patch | Low |
 | `knip` | 6.17.1 | 6.20.0 | dev | minor | Low |
 | `turbo` | 2.9.18 | 2.10.0 | dev | minor | Low |
-| `eslint` | 9.39.4 | 10.5.0 | dev | major | High |
+
+Root `eslint` is now current at 10.5.0. CLI workspace outdated packages remain pre-existing dependency-maintenance work: mostly patch/minor ESLint-plugin updates plus `eslint-plugin-unicorn` 69 and TypeScript 6 major bumps, both outside this ticket's auto-upgrade scope.
 
 ## Code Quality
 
@@ -35,8 +36,8 @@ None.
 
 **Outdated Packages:**
 
-- ✅ Low risk (3): safe to update in a dependency-maintenance PR — `@types/node`, `knip`, `turbo`
-- 🔴 High risk (1): defer to a dedicated migration task — `eslint` 10 major
+- ✅ Low risk root dev updates (3): safe to update in a dependency-maintenance PR — `@types/node`, `knip`, `turbo`
+- ⚠️ CLI workspace dependency-maintenance remains outside this slice — `@eslint-react/eslint-plugin`, `@tanstack/eslint-plugin-query`, `eslint-plugin-astro`, `eslint-plugin-import-x`, `eslint-plugin-jsdoc`, `eslint-plugin-turbo`, `eslint-plugin-unicorn`, `typescript-eslint`, `@types/node`, `knip`, `typescript`
 
 **Agent Config:**
 
@@ -66,5 +67,5 @@ Errors: 0 | Warnings: 3 | Passed: 7
 
 Audit passed with warnings
 
-**Next:** Commit the BDD acceptance repair, documentation correction, and verification artifacts, then open the PR.
+**Next:** Commit the rebase, ESLint 10 root upgrade, and verification refresh, then update the PR.
 ```
