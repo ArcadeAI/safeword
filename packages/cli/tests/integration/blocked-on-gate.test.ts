@@ -33,6 +33,9 @@ describe('MBGQ89 blocked_on phase gate (wired, always-on)', () => {
       'type: feature',
       `phase: ${phase}`,
       'status: in_progress',
+      'scope: test scope',
+      'out_of_scope: none',
+      'done_when: ready',
       ...extra,
       '---',
       '',
@@ -92,6 +95,14 @@ describe('MBGQ89 blocked_on phase gate (wired, always-on)', () => {
     ticketsRoot = nodePath.join(projectRoot, '.safeword-project', 'tickets');
     mkdirSync(nodePath.join(ticketsRoot, SUBJECT_ID), { recursive: true });
     subjectFile = nodePath.join(ticketsRoot, SUBJECT_ID, 'ticket.md');
+    writeFileSync(
+      nodePath.join(ticketsRoot, SUBJECT_ID, 'spec.md'),
+      '# Spec\n\n## Jobs To Be Done\n\nskip: blocked_on fixture\n',
+    );
+    writeFileSync(
+      nodePath.join(ticketsRoot, SUBJECT_ID, 'dimensions.md'),
+      'skip: blocked_on fixture\n',
+    );
   });
 
   afterEach(() => {
