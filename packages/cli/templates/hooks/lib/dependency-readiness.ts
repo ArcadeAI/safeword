@@ -373,6 +373,13 @@ export function isDependencyBackedCommand(command: string): boolean {
 const INSTALL_MANAGERS = new Set(['bun', 'pnpm', 'npm', 'yarn']);
 /** Subcommands that perform a dependency install (not `add`/`remove`, which change inputs). */
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
+/**
+ * Flags that make an install update only the lockfile or report a plan WITHOUT
+ * materializing `node_modules`. Stamping after these would mark deps ready while
+ * `node_modules` stays stale — a sticky false-ready — so they disqualify the
+ * command from post-install stamping.
+ */
+const NO_RECONCILE_FLAGS = new Set(['--dry-run', '--lockfile-only', '--package-lock-only']);
 
 /**
  * Whether a command runs a dependency *install* (e.g. `bun ci`, `pnpm install
@@ -389,6 +396,8 @@ function isInstallSegment(segment: string): boolean {
   const [binary, ...args] = stripExecutionPrefixes(tokenizeShellWords(segment));
   if (binary === undefined) return false;
   if (!INSTALL_MANAGERS.has(nodePath.basename(binary))) return false;
+  // A lockfile-only / dry-run install never materializes node_modules.
+  if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
 
   const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
   // Classic `yarn` with no subcommand installs.
