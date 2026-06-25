@@ -10,6 +10,7 @@ import {
   formatDependencyRecovery,
   getDependencyReadiness,
   isDependencyBackedCommand,
+  isDependencyInstallCommand,
   readDependencyBootstrapConfig,
   shouldBootstrapDependencies,
   writeInstallMarker,
@@ -28,6 +29,10 @@ const SESSION_HOOK = path.resolve(
 const PRE_TOOL_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/pre-tool-dependency-readiness.ts',
+);
+const POST_TOOL_HOOK = path.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/post-tool-dependency-readiness.ts',
 );
 
 describe('dependency readiness hook support', () => {
@@ -712,5 +717,75 @@ describe('dependency readiness hook support', () => {
     expect(
       existsSync(path.join(projectDirectory, 'node_modules', '.safeword-deps-fingerprint')),
     ).toBe(false);
+  });
+  describe('post-install fingerprint stamping (#380)', () => {
+    const MARKER = 'node_modules/.safeword-deps-fingerprint';
+
+    function postInput(command: string, result: Record<string, unknown>): string {
+      return JSON.stringify({ tool_name: 'Bash', tool_input: { command }, tool_response: result });
+    }
+
+    /** Recreate the #380 bug state: deps changed, install was a no-op that left
+     *  node_modules mtime stale, and the marker still holds an old fingerprint. */
+    function makeStaleAfterNoopInstall(): string {
+      writeBunProject();
+      mkdirSync(path.join(projectDirectory, '.safeword'), { recursive: true });
+      mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+      writeTestFile(projectDirectory, MARKER, 'old-fingerprint');
+      const past = new Date(Date.now() - 60_000);
+      utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+      const plan = detectDependencyPlan(projectDirectory);
+      if (plan === undefined) throw new Error('expected a dependency plan for the bun fixture');
+      return dependencyInputFingerprint(projectDirectory, plan);
+    }
+
+    it('detects install commands', () => {
+      for (const command of [
+        'bun ci',
+        'bun install',
+        'pnpm install --frozen-lockfile',
+        'npm ci',
+        'yarn',
+        'corepack pnpm install',
+      ]) {
+        expect(isDependencyInstallCommand(command), command).toBe(true);
+      }
+    });
+
+    it('ignores non-install commands', () => {
+      for (const command of ['bun run test', 'eslint .', 'git commit -m x', 'pnpm add zod']) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
+    it('stamps the current fingerprint after a successful no-op install (clears the block)', () => {
+      const fingerprint = makeStaleAfterNoopInstall();
+
+      const result = runHook(POST_TOOL_HOOK, postInput('bun ci', { exit_code: 0, success: true }));
+      expect(result.status).toBe(0);
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe(fingerprint);
+      expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+    });
+
+    it('does NOT stamp when the install command failed (no false ready)', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun ci', { exit_code: 1, success: false }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
+
+    it('does nothing for a non-install command', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun run test', { exit_code: 0, success: true }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
   });
 });

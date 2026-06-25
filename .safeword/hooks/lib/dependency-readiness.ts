@@ -369,6 +369,33 @@ export function isDependencyBackedCommand(command: string): boolean {
   return segments.some(segment => isDependencyBackedSegment(segment));
 }
 
+/** Package managers whose install/ci/i reconciles `node_modules` against the inputs. */
+const INSTALL_MANAGERS = new Set(['bun', 'pnpm', 'npm', 'yarn']);
+/** Subcommands that perform a dependency install (not `add`/`remove`, which change inputs). */
+const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
+
+/**
+ * Whether a command runs a dependency *install* (e.g. `bun ci`, `pnpm install
+ * --frozen-lockfile`, `npm ci`, bare `yarn`). A successful install reconciles
+ * `node_modules` with the current inputs, so the post-tool hook can stamp the
+ * fingerprint marker — making the recommended recovery command clear the
+ * stale-readiness block even when the install is a mtime-preserving no-op (#380).
+ */
+export function isDependencyInstallCommand(command: string): boolean {
+  return splitShellSegments(command).some(segment => isInstallSegment(segment));
+}
+
+function isInstallSegment(segment: string): boolean {
+  const [binary, ...args] = stripExecutionPrefixes(tokenizeShellWords(segment));
+  if (binary === undefined) return false;
+  if (!INSTALL_MANAGERS.has(nodePath.basename(binary))) return false;
+
+  const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
+  // Classic `yarn` with no subcommand installs.
+  if (nodePath.basename(binary) === 'yarn' && subcommand === undefined) return true;
+  return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
+}
+
 export function getDependencyReadinessStatePath(projectDirectory: string): string {
   return nodePath.join(resolveNamespaceRoot(projectDirectory), DEPENDENCY_STATE_FILENAME);
 }

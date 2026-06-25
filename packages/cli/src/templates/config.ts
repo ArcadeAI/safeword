@@ -438,6 +438,10 @@ export const SETTINGS_HOOKS = {
     matchedHook(`${EDIT_TOOLS}|Bash`, `bun ${HOOKS_DIR}/post-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-sync-learnings.ts`),
+    // Stamp the dependency fingerprint after a successful install so the
+    // recommended recovery command clears the readiness block (#380). Fast-exits
+    // on non-install Bash commands.
+    matchedHook('Bash', `bun ${HOOKS_DIR}/post-tool-dependency-readiness.ts`),
   ],
   SessionEnd: [hook(`bun ${HOOKS_DIR}/session-cleanup-quality.ts`)],
 };
