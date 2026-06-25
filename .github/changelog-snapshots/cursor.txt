@@ -1,0 +1,287 @@
+---
+source: https://cursor.com/changelog
+source_key: cursor
+reviewed_at: 2026-06-25T20:07:27.312Z
+---
+
+What's New in Cursor — Latest Updates & Release Notes
+Skip to content Cursor
+Product ↓ Agents
+Cloud
+CLI
+Review
+Tab
+Marketplace ↗
+Enterprise
+Pricing
+Resources ↓ Changelog
+Blog
+Docs
+Community
+Help ↗
+Workshops
+Forum ↗
+Careers
+Product →
+Enterprise
+Pricing
+Resources →
+Sign in Contact Contact sales Download
+3.9 Jun 22, 2026 · Changelog
+Customize Cursor
+Plugins, skills, and MCPs let you customize Cursor for your workflows. The new Customize page brings them into one place.
+You can now add and manage plugins, skills, MCPs, subagents, rules, commands, and hooks at the user, team, or workspace level, and even bring your own custom MCPs.
+# Marketplace leaderboard
+Cursor now shows you a leaderboard of the most popular plugins, skills, and MCPs across your team.
+Add any to your setup with one click from the new Customize page and extend Cursor for your workflow.
+# Plugin canvases
+Plugins now support prebuilt canvases: shared setup templates your team can open and reuse.
+Use the Hex Canvas to build data visualizations.
+Use the Atlassian Canvas to see a realtime view of all our issues, projects, and documents.
+# New Team Marketplaces
+Team marketplaces now support imports of plugin repositories from GitLab, BitBucket, or Azure DevOps so you easily add plugins and distribute them to your team.
+Learn more in our docs.
+3.8 Jun 18, 2026 · Changelog
+Improvements to Cursor Automations
+Cursor Automations save you time by automating repetitive tasks with always-on agents. This release introduces the /automate skill, new triggers for GitHub and Slack, and support for computer use.
+# /automate skill
+Use /automate to create an automation directly in your local agent session.
+Describe the task you want to automate in plain language and Cursor will configure the triggers, instructions, and tools for you.
+# An emoji trigger for Slack
+React to any Slack message with a designated emoji to kick off an automation. At Cursor, we use this to trigger specific automations right from Slack.
+# New GitHub triggers
+Automations now support five additional GitHub triggers:
+Issue comment: when a comment is made on a non-PR issue
+PR review comment: when an inline comment is left on a pull request diff
+PR review submitted: when a PR review is submitted
+Review thread updated: when a review thread on a pull request is marked resolved or unresolved
+Workflow run completed: when a GitHub Actions workflow run finishes on a pull request or branch
+We've added new templates for triaging failed GitHub actions and auto-fixing PR review comments to the Cursor Marketplace to help you get started.
+# Computer use tool for automations
+Cloud agents kicked off by automations can now use their own computers to produce demos or artifacts of their work.
+The computer use tool is enabled by default for every automation, just tell the agent to include a demo of its work in your instructions.
+To get started, update to the latest version of Cursor. Learn more in our docs.
+Improvements (3) ↓ ↑
+Automations can now be saved in an incomplete state, so you can navigate away to set up an MCP auth without losing your progress
+Automations can now open PRs by default; so you no longer have to specify that tool in the UI
+You can now delete memory files in the UI, or prompt your automation to delete outdated memories when it runs
+3.7 Jun 17, 2026 · Changelog
+Cloud Environment Setup and Cloud Subagents in Agents Window
+This release introduces updates to cloud agents in the Agents Window of the Cursor desktop app.
+# Cloud environment setup
+Cursor can now help you set up your dev environment in the cloud in less than 10 minutes. You can watch the agent's progress in a shared terminal session as it handles setup tasks like installing dependencies.
+Your environment is captured in a reusable snapshot, so future cloud agents start up faster with the ability to test changes by running your software. It can iterate over long time horizons until outputs are verified. This benefits your entire team when committed to.cursor/environment.json.
+# Cloud subagents with /in-cloud
+Use /in-cloud to spin up a cloud subagent in its own VM to work on the next task you submit. It runs on its own VM and branch, so your local workspace stays clean and responsive.
+This is especially useful for isolating long-running or parallel work like fixing CI, investigating an issue, or exploring a codebase while you keep working locally.
+You can also ask a cloud subagent to babysit a PR by clicking on the quick-action pill or using /babysit. The cloud agent will iterate remotely to prepare your PR for merge without tying up the local session.
+The cloud subagent can run in the background without interrupting the parent agent, which can continue to run locally or in the cloud.
+# Handoff between local and cloud
+Move agent sessions more reliably between your local computer and the cloud. You can offload long-running work from your machine and run as many cloud agents in parallel as you want. Pull a cloud agent back down to local to test changes yourself.
+Jun 10, 2026 · Changelog
+Bugbot is now over 3x faster, 22% cheaper, and finds 10% more bugs
+The average review time for Bugbot is now ~90 seconds, down from ~5 minutes. Bugbot also finds 10% more bugs per review on average — 0.62, up from 0.56 — and costs ~22% less per run.
+These performance gains are made possible by progress we've made training Composer 2.5, which now powers Bugbot. Bugbot respects model block lists, and speed and performance can vary depending on your configuration.
+# Run Bugbot before you push
+You can now run Bugbot and Security Review with /review before pushing code. /review prompts you to choose which agents to run, or use /review-bugbot and /review-security directly.
+/review also syncs with Bugbot on GitHub and GitLab. If you run /review and then open a PR with the same diff, Bugbot recognizes it, skips the review, and leaves a comment noting it has already reviewed that diff.
+Available in Cursor 3.7+ and on cursor.com/agents, with support in CLI coming soon.
+# Only review what's new in your PR
+You can now configure Bugbot to only review what's new since the last review, keeping feedback focused on your latest updates.
+Learn more in our docs.
+3.7 Jun 5, 2026 · Changelog
+Design Mode Improvements
+With Design Mode in the Cursor browser, you can click, draw, or describe changes by voice to help agents update your UI.
+# Multi-select elements
+Click on two or more elements together in the browser. Cursor sees the selected elements, their code, the surrounding layout, and the visual relationships on the page.
+Ask the agent to make one match the other, remove repeated content, or adjust a group of components at once.
+# Voice input
+Narrate changes through the Design Mode overlay. The mic stays available while an agent is mid-run, so you can queue the next change by voice without waiting for the previous one to finish.
+Next → Older posts
+Product
+Agents
+Teams
+Enterprise
+Pricing
+Code Review
+Tab
+CLI
+Cloud Agents
+Marketplace ↗
+Resources
+Download
+Changelog
+Docs
+Learn ↗
+Forum ↗
+Help ↗
+Workshops
+Status ↗
+Company
+Careers
+Blog
+Community
+Students
+Brand
+Future
+Anysphere ↗
+Legal
+Terms of Service
+Privacy Policy
+Data Use
+Security
+Connect
+X ↗
+LinkedIn ↗
+YouTube ↗
+© 2026 Anysphere, Inc. 🛡 SOC 2 Certified
+🌐 English ↓ English ✓
+简体中文
+日本語
+繁體中文
+Español
+Français
+Português
+한국어
+Deutsch
+हिन्दी
+Skip to content Cursor
+Product ↓ Agents
+Cloud
+CLI
+Review
+Tab
+Marketplace ↗
+Enterprise
+Pricing
+Resources ↓ Changelog
+Blog
+Docs
+Community
+Help ↗
+Workshops
+Forum ↗
+Careers
+Product →
+Enterprise
+Pricing
+Resources →
+Sign in Contact Contact sales Download
+3.9 Jun 22, 2026 · Changelog
+Customize Cursor
+Plugins, skills, and MCPs let you customize Cursor for your workflows. The new Customize page brings them into one place.
+You can now add and manage plugins, skills, MCPs, subagents, rules, commands, and hooks at the user, team, or workspace level, and even bring your own custom MCPs.
+# Marketplace leaderboard
+Cursor now shows you a leaderboard of the most popular plugins, skills, and MCPs across your team.
+Add any to your setup with one click from the new Customize page and extend Cursor for your workflow.
+# Plugin canvases
+Plugins now support prebuilt canvases: shared setup templates your team can open and reuse.
+Use the Hex Canvas to build data visualizations.
+Use the Atlassian Canvas to see a realtime view of all our issues, projects, and documents.
+# New Team Marketplaces
+Team marketplaces now support imports of plugin repositories from GitLab, BitBucket, or Azure DevOps so you easily add plugins and distribute them to your team.
+Learn more in our docs.
+3.8 Jun 18, 2026 · Changelog
+Improvements to Cursor Automations
+Cursor Automations save you time by automating repetitive tasks with always-on agents. This release introduces the /automate skill, new triggers for GitHub and Slack, and support for computer use.
+# /automate skill
+Use /automate to create an automation directly in your local agent session.
+Describe the task you want to automate in plain language and Cursor will configure the triggers, instructions, and tools for you.
+# An emoji trigger for Slack
+React to any Slack message with a designated emoji to kick off an automation. At Cursor, we use this to trigger specific automations right from Slack.
+# New GitHub triggers
+Automations now support five additional GitHub triggers:
+Issue comment: when a comment is made on a non-PR issue
+PR review comment: when an inline comment is left on a pull request diff
+PR review submitted: when a PR review is submitted
+Review thread updated: when a review thread on a pull request is marked resolved or unresolved
+Workflow run completed: when a GitHub Actions workflow run finishes on a pull request or branch
+We've added new templates for triaging failed GitHub actions and auto-fixing PR review comments to the Cursor Marketplace to help you get started.
+# Computer use tool for automations
+Cloud agents kicked off by automations can now use their own computers to produce demos or artifacts of their work.
+The computer use tool is enabled by default for every automation, just tell the agent to include a demo of its work in your instructions.
+To get started, update to the latest version of Cursor. Learn more in our docs.
+Improvements (3) ↓ ↑
+Automations can now be saved in an incomplete state, so you can navigate away to set up an MCP auth without losing your progress
+Automations can now open PRs by default; so you no longer have to specify that tool in the UI
+You can now delete memory files in the UI, or prompt your automation to delete outdated memories when it runs
+3.7 Jun 17, 2026 · Changelog
+Cloud Environment Setup and Cloud Subagents in Agents Window
+This release introduces updates to cloud agents in the Agents Window of the Cursor desktop app.
+# Cloud environment setup
+Cursor can now help you set up your dev environment in the cloud in less than 10 minutes. You can watch the agent's progress in a shared terminal session as it handles setup tasks like installing dependencies.
+Your environment is captured in a reusable snapshot, so future cloud agents start up faster with the ability to test changes by running your software. It can iterate over long time horizons until outputs are verified. This benefits your entire team when committed to.cursor/environment.json.
+# Cloud subagents with /in-cloud
+Use /in-cloud to spin up a cloud subagent in its own VM to work on the next task you submit. It runs on its own VM and branch, so your local workspace stays clean and responsive.
+This is especially useful for isolating long-running or parallel work like fixing CI, investigating an issue, or exploring a codebase while you keep working locally.
+You can also ask a cloud subagent to babysit a PR by clicking on the quick-action pill or using /babysit. The cloud agent will iterate remotely to prepare your PR for merge without tying up the local session.
+The cloud subagent can run in the background without interrupting the parent agent, which can continue to run locally or in the cloud.
+# Handoff between local and cloud
+Move agent sessions more reliably between your local computer and the cloud. You can offload long-running work from your machine and run as many cloud agents in parallel as you want. Pull a cloud agent back down to local to test changes yourself.
+Jun 10, 2026 · Changelog
+Bugbot is now over 3x faster, 22% cheaper, and finds 10% more bugs
+The average review time for Bugbot is now ~90 seconds, down from ~5 minutes. Bugbot also finds 10% more bugs per review on average — 0.62, up from 0.56 — and costs ~22% less per run.
+These performance gains are made possible by progress we've made training Composer 2.5, which now powers Bugbot. Bugbot respects model block lists, and speed and performance can vary depending on your configuration.
+# Run Bugbot before you push
+You can now run Bugbot and Security Review with /review before pushing code. /review prompts you to choose which agents to run, or use /review-bugbot and /review-security directly.
+/review also syncs with Bugbot on GitHub and GitLab. If you run /review and then open a PR with the same diff, Bugbot recognizes it, skips the review, and leaves a comment noting it has already reviewed that diff.
+Available in Cursor 3.7+ and on cursor.com/agents, with support in CLI coming soon.
+# Only review what's new in your PR
+You can now configure Bugbot to only review what's new since the last review, keeping feedback focused on your latest updates.
+Learn more in our docs.
+3.7 Jun 5, 2026 · Changelog
+Design Mode Improvements
+With Design Mode in the Cursor browser, you can click, draw, or describe changes by voice to help agents update your UI.
+# Multi-select elements
+Click on two or more elements together in the browser. Cursor sees the selected elements, their code, the surrounding layout, and the visual relationships on the page.
+Ask the agent to make one match the other, remove repeated content, or adjust a group of components at once.
+# Voice input
+Narrate changes through the Design Mode overlay. The mic stays available while an agent is mid-run, so you can queue the next change by voice without waiting for the previous one to finish.
+Next → Older posts
+Product
+Agents
+Teams
+Enterprise
+Pricing
+Code Review
+Tab
+CLI
+Cloud Agents
+Marketplace ↗
+Resources
+Download
+Changelog
+Docs
+Learn ↗
+Forum ↗
+Help ↗
+Workshops
+Status ↗
+Company
+Careers
+Blog
+Community
+Students
+Brand
+Future
+Anysphere ↗
+Legal
+Terms of Service
+Privacy Policy
+Data Use
+Security
+Connect
+X ↗
+LinkedIn ↗
+YouTube ↗
+© 2026 Anysphere, Inc. 🛡 SOC 2 Certified
+🌐 English ↓ English ✓
+简体中文
+日本語
+繁體中文
+Español
+Français
+Português
+한국어
+Deutsch
+हिन्दी

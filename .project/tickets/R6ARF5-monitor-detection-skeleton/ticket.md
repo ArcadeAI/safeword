@@ -3,9 +3,10 @@ id: R6ARF5
 slug: monitor-detection-skeleton
 type: task
 phase: intake
-status: in_progress
+status: done
 epic: upstream-changelog-monitor
 relates_to: TT1MQW
+last_modified: 2026-06-25T20:06:00Z
 ---
 
 # Scheduled workflow: detect CC changelog change, open issue (skeleton)
@@ -37,5 +38,6 @@ docs.github.com (schedule caveats); raw.githubusercontent.com/anthropics/claude-
 
 ## Work Log
 
+- 2026-06-25T20:06:00Z Implemented the read-only scheduled monitor workflow and source-agnostic issue reporting as part of 3ZRP8G. The workflow checks committed snapshots, opens or updates a source-keyed issue on drift, and never writes snapshots.
 - 2026-05-31 Created from monitor epic.
 - 2026-05-31 Corrected: detection is read-only (no snapshot commit) — fixes the "waiting PR already covers it" misfire. Snapshot advance moved to the closing PR (99XBFG/31B5AM).
