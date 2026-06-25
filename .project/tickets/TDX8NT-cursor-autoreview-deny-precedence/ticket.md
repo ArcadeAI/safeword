@@ -29,6 +29,25 @@ precedence test.
 
 - Cursor changelog: Auto-review applies to Shell, MCP, and Fetch calls.
 - Cursor hooks docs: `beforeShellExecution` can return `allow`, `deny`, or `ask`.
+- Cursor hooks docs: exit code `2` blocks an action, equivalent to `permission: "deny"`.
+- Cursor community reports, 2026-06-24: `deny` is the only shell-hook permission
+  consistently enforced today; `allow` and `ask` are not reliable enough for
+  safeword policy.
+
+## Verification
+
+2026-06-24 on Cursor `3.8.23`, with Run Mode set to Auto-review with sandbox:
+
+- Baseline: the harmless sentinel shell command ran without the temporary deny
+  hook, printed `TDX8NT_SENTINEL_BASELINE_RAN_AUTOREVIEW_SANDBOX`, and wrote
+  `.project/tmp/tdx8nt-sentinel.txt`.
+- Deny test: after adding a temporary `beforeShellExecution` hook with
+  `failClosed:true` and matcher `TDX8NT_SENTINEL_DENY_RAN`, Cursor blocked the
+  same class of shell command with `TDX8NT_SENTINEL_DENIED`.
+- Evidence check: the denied command's stdout did not appear, and
+  `.project/tmp/tdx8nt-denied.txt` was not created.
+- Cleanup: removed the temporary hook and sentinel artifact. No production hook
+  code changed.
 
 ## Work Log
 
@@ -36,3 +55,10 @@ precedence test.
 - 2026-06-24 `/figure-it-out` decision: keep this ticket focused on the shell gate
   that exists today. Split MCP to `JFBFEP` because adding a `beforeMCPExecution`
   gate is policy/design/build work, not just verification.
+- 2026-06-24 `/quality-review` tightened the test plan: prove a baseline command
+  runs first, then prove the temporary deny hook blocks the same command shape in
+  a clean worktree from `origin/main`.
+- 2026-06-24 Verified with Cursor Run Mode set to Auto-review with sandbox:
+  `beforeShellExecution` `deny` blocked the sentinel shell command even though
+  the baseline shell command ran first. This confirms safeword's shell deny path
+  wins for the tested Auto-review-with-sandbox execution path.
