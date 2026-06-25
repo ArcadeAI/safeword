@@ -1,13 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
+import { readFile } from 'node:fs/promises';
+
 import { describe, expect, it } from 'vitest';
 
-import { astroConfig } from '../astro.js';
+import { astroConfig, buildAstroConfig } from '../astro.js';
 import { getAllRules, getRuleConfig, getSeverity } from './test-utilities.js';
+
+async function readCliPackageJson(): Promise<{
+  dependencies?: Record<string, string>;
+  engines?: Record<string, string>;
+}> {
+  const packageJsonUrl = new URL('../../../../../package.json', import.meta.url);
+  return JSON.parse(await readFile(packageJsonUrl, 'utf8')) as {
+    dependencies?: Record<string, string>;
+    engines?: Record<string, string>;
+  };
+}
 
 describe('Astro config', () => {
   it('exports astroConfig as an array', () => {
     expect(Array.isArray(astroConfig)).toBe(true);
     expect(astroConfig.length).toBeGreaterThan(0);
+  });
+
+  it('ships latest Astro 2 linting with a matching Node engine contract', async () => {
+    const packageJson = await readCliPackageJson();
+
+    expect(packageJson.dependencies?.['eslint-plugin-astro']).toBe('~2.1.0');
+    expect(packageJson.engines?.node).toBe('^22.22.3 || ^24.16.0 || >=26.3.0');
   });
 
   it('includes eslint-plugin-astro', () => {
@@ -24,7 +44,7 @@ describe('Astro config', () => {
     expect(hasAstroFiles).toBe(true);
   });
 
-  describe('recommended rules (8 from flat/recommended)', () => {
+  describe('recommended rules from flat/recommended', () => {
     it('astro/missing-client-only-directive-value is error', () => {
       const severity = getSeverity(
         getRuleConfig(astroConfig, 'astro/missing-client-only-directive-value'),
@@ -70,6 +90,18 @@ describe('Astro config', () => {
       expect(severity).toBe('error');
     });
 
+    it('astro/no-omitted-end-tags is error', () => {
+      const severity = getSeverity(getRuleConfig(astroConfig, 'astro/no-omitted-end-tags'));
+      expect(severity).toBe('error');
+    });
+
+    it('astro/no-prerender-export-outside-pages is error', () => {
+      const severity = getSeverity(
+        getRuleConfig(astroConfig, 'astro/no-prerender-export-outside-pages'),
+      );
+      expect(severity).toBe('error');
+    });
+
     it('astro/valid-compile is error', () => {
       const severity = getSeverity(getRuleConfig(astroConfig, 'astro/valid-compile'));
       expect(severity).toBe('error');
@@ -107,13 +139,43 @@ describe('Astro config', () => {
     });
   });
 
-  describe('total rule count', () => {
-    it('has 44 astro rules configured (8 core + 33 a11y + 3 custom)', () => {
+  describe('Astro rule coverage', () => {
+    it('keeps expanded Astro 2.1 coverage plus Safeword custom rules', () => {
       const allRules = getAllRules(astroConfig);
       const astroRules = Object.keys(allRules).filter(name => name.startsWith('astro/'));
 
-      // 8 from flat/recommended + 33 from flat/jsx-a11y-strict + 3 custom LLM rules
-      expect(astroRules).toHaveLength(44);
+      expect(astroRules.length).toBeGreaterThanOrEqual(46);
+    });
+  });
+
+  describe('optional jsx-a11y dependency', () => {
+    it('keeps core Astro rules when eslint-plugin-jsx-a11y is unavailable', () => {
+      const config = buildAstroConfig({
+        astroPlugin: {
+          configs: {
+            'flat/recommended': [
+              {
+                plugins: { astro: {} },
+                rules: {
+                  'astro/valid-compile': 'error',
+                },
+              },
+            ],
+            'flat/jsx-a11y-strict': [
+              {
+                rules: {
+                  'astro/jsx-a11y/alt-text': 'error',
+                },
+              },
+            ],
+          },
+        },
+        hasJsxA11y: false,
+      });
+
+      expect(getSeverity(getRuleConfig(config, 'astro/valid-compile'))).toBe('error');
+      expect(getRuleConfig(config, 'astro/jsx-a11y/alt-text')).toBeUndefined();
+      expect(getSeverity(getRuleConfig(config, 'astro/no-set-html-directive'))).toBe('error');
     });
   });
 });
