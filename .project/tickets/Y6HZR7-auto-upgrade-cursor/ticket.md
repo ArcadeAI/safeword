@@ -8,7 +8,7 @@ epic: auto-upgrade-cross-agent
 parent: BJX7WR
 relates_to: VAX3Z2
 created: 2026-06-20T12:54:31.933Z
-last_modified: 2026-06-25T05:50:00Z
+last_modified: 2026-06-25T05:55:00Z
 ---
 
 # Auto-upgrade under Cursor
@@ -17,7 +17,7 @@ last_modified: 2026-06-25T05:50:00Z
 
 **Parent:** [BJX7WR — cross-agent auto-upgrade](../BJX7WR-auto-upgrade-cross-agent/ticket.md)
 
-**Blocked on:** the epic-level /figure-it-out (shared apply-core extraction + the per-agent non-blocking/messaging contract). Don't start implementation until that lands.
+**Blocked on:** BJX7WR slice 0 — extract the shared apply core from `session-auto-upgrade.ts`. The Cursor contract is now decided: silent `sessionStart` wrapper, exit `0`, git commit as record.
 
 ## Current state
 
@@ -35,13 +35,13 @@ last_modified: 2026-06-25T05:50:00Z
 
 Ran `/figure-it-out` before implementation.
 
-Decision: **still blocked on BJX7WR parent design**. The parent still calls for slice 0 — extracting the agent-agnostic apply core from `session-auto-upgrade.ts` so Claude/Cursor/Codex call one implementation — but the repo still has the full apply path inside `packages/cli/templates/hooks/session-auto-upgrade.ts`. Only smaller helpers (`update-cache`, `version`, owned-path filtering) have been extracted.
+Decision: **still blocked on BJX7WR slice 0 extraction**. The parent now chooses the Cursor contract — silent `sessionStart` wrapper, exit `0`, git commit as record — but the repo still has the full apply path inside `packages/cli/templates/hooks/session-auto-upgrade.ts`. Only smaller helpers (`update-cache`, `version`, owned-path filtering) have been extracted.
 
 Options considered:
 
 - **Wire Claude's script directly into Cursor `sessionStart`: reject.** Cursor has no `asyncRewake`; exit `2` is a block/error path, not a rewake message.
 - **Build a Cursor-specific copy now: reject.** It would duplicate the apply logic the parent explicitly says to share.
-- **Update evidence and stay blocked: choose.** This preserves the parent design constraint and records the current Cursor docs needed for the eventual implementation.
+- **Update evidence and stay blocked on extraction: choose.** This preserves the parent design constraint and records the current Cursor docs needed for the eventual implementation.
 
 ## Scope (pending epic design)
 
@@ -60,3 +60,4 @@ Options considered:
 
 - 2026-06-20T12:54:31.933Z Created (child of BJX7WR). Blocked on epic figure-it-out.
 - 2026-06-25T05:50:00Z Revalidated under Cursor after `/figure-it-out`. Current Cursor hooks docs confirm `sessionStart` is fire-and-forget, `continue:false` / `user_message` are not enforced for session creation, exit `2` is a block path rather than a rewake message, and `failClosed` is for blocking hook failure policy only. Parent BJX7WR slice 0 is still missing: no shared apply core exists yet, so Y6HZR7 remains blocked. No implementation started.
+- 2026-06-25T05:55:00Z Parent design updated: Cursor should use a silent `sessionStart` wrapper around the shared apply core, exit `0`, and rely on the git auto-upgrade commit as the durable record. Remaining blocker is implementation slice 0: extract the shared apply core before wiring Cursor.
