@@ -395,13 +395,14 @@ export function isDependencyInstallCommand(command: string): boolean {
 function isInstallSegment(segment: string): boolean {
   const [binary, ...args] = stripExecutionPrefixes(tokenizeShellWords(segment));
   if (binary === undefined) return false;
-  if (!INSTALL_MANAGERS.has(nodePath.basename(binary))) return false;
+  const basename = nodePath.basename(binary);
+  if (!INSTALL_MANAGERS.has(basename)) return false;
   // A lockfile-only / dry-run install never materializes node_modules.
   if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
 
   const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
   // Classic `yarn` with no subcommand installs.
-  if (nodePath.basename(binary) === 'yarn' && subcommand === undefined) return true;
+  if (basename === 'yarn' && subcommand === undefined) return true;
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
 }
 
