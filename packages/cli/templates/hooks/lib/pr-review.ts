@@ -4,7 +4,7 @@
 // schema lib; `.js` specifiers so tsc resolves the .ts source under test).
 
 import { isValidSkipReason } from './parse-annotation.js';
-import { modelsMatch } from './review-ledger.js';
+import { type GateVerdict, modelsMatch } from './review-ledger.js';
 
 export const VERDICTS = ['APPROVE', 'REQUEST-CHANGES', 'NEEDS-DISCUSSION'] as const;
 export type Verdict = (typeof VERDICTS)[number];
@@ -31,8 +31,13 @@ export type ReviewResultValidation =
   | { ok: true; data: ReviewResult }
   | { ok: false; reason: string };
 
-/** `path:line` — a non-empty path, a colon, then a line number. */
-const LOCATION = /^\S.*:\d+$/;
+/**
+ * `path:line` — a path with no whitespace or colon, a colon, a line number.
+ * Excluding whitespace keeps a prose blob like "looks fragile here:99" from
+ * masquerading as a location; excluding colon from the path segment keeps the
+ * two quantifiers disjoint and non-backtracking (no ReDoS surface).
+ */
+const LOCATION = /^[^\s:]+:\d+$/;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
@@ -61,29 +66,41 @@ function validateFinding(value: unknown, index: number): { reason: string } | un
  * severity), and a next action whenever the verdict is not APPROVE. Returns the
  * narrowed result on success, a human reason on failure — never throws.
  */
+/** Validate the findings array — every entry well-formed — or return a reason. */
+function validateFindings(value: unknown): { findings: Finding[] } | { reason: string } {
+  if (!Array.isArray(value)) return { reason: 'findings must be an array' };
+  for (const [index, finding] of value.entries()) {
+    const failure = validateFinding(finding, index);
+    if (failure !== undefined) return { reason: failure.reason };
+  }
+  return { findings: value as Finding[] };
+}
+
 export function validateReviewResult(data: unknown): ReviewResultValidation {
   if (typeof data !== 'object' || data === null) {
     return { ok: false, reason: 'review result must be an object' };
   }
-  const obj = data as Record<string, unknown>;
+  const object = data as Record<string, unknown>;
 
-  if (!VERDICTS.includes(obj.verdict as Verdict)) {
+  if (!VERDICTS.includes(object.verdict as Verdict)) {
     return { ok: false, reason: `verdict must be one of: ${VERDICTS.join(', ')}` };
   }
 
-  if (!Array.isArray(obj.findings)) {
-    return { ok: false, reason: 'findings must be an array' };
-  }
-  for (const [index, finding] of obj.findings.entries()) {
-    const failure = validateFinding(finding, index);
-    if (failure !== undefined) return { ok: false, reason: failure.reason };
+  const findingsResult = validateFindings(object.findings);
+  if ('reason' in findingsResult) return { ok: false, reason: findingsResult.reason };
+
+  if (object.verdict === 'APPROVE' && findingsResult.findings.some(f => f.severity === 'blocker')) {
+    return {
+      ok: false,
+      reason: 'an APPROVE verdict cannot carry a blocker finding — a blocker means do not merge',
+    };
   }
 
-  if (obj.verdict !== 'APPROVE' && !isNonEmptyString(obj.nextAction)) {
+  if (object.verdict !== 'APPROVE' && !isNonEmptyString(object.nextAction)) {
     return { ok: false, reason: 'a non-approving verdict must state a next action' };
   }
 
-  return { ok: true, data: obj as unknown as ReviewResult };
+  return { ok: true, data: object as unknown as ReviewResult };
 }
 
 /**
@@ -106,8 +123,6 @@ export function parseReviewResult(raw: string): ReviewResultValidation {
 
 // ── Provenance, skip, and the merge gate ────────────────────────────────────
 
-export type GateVerdict = { ok: true } | { ok: false; reason: string };
-
 /**
  * Canonical PR review scope: `<pr-number>@<head-sha>`. A receipt satisfies the
  * gate only for the same PR at the same head commit — pushing a new commit
@@ -126,7 +141,12 @@ export interface PrReceipt {
   hasBlocker: boolean;
   /** Skip receipts only: the non-empty justification, retained for audit. */
   skipReason?: string;
-  /** The reviewing model, when recorded (cross-model enforcement lives in acceptReview). */
+  /**
+   * The reviewing model, when recorded. Cross-model independence is enforced both
+   * at record time ({@link acceptReview}) and again by {@link evaluateMergeGate}
+   * when `crossModelRequired` — the gate refuses a same-model review even if
+   * recording glue minted one.
+   */
   reviewerModel?: string;
 }
 
@@ -181,13 +201,26 @@ export interface MergeGateInput {
   prNumber: number;
   headSha: string;
   receipts: readonly PrReceipt[];
+  /** When true, a fresh review must come from a model other than the author. */
+  crossModelRequired?: boolean;
+  /** The author/main-session model, compared against each review's reviewerModel. */
+  authorModel?: string;
 }
 
 /**
  * The merge gate (default-off via prReviewGate). When on, merge requires a fresh,
- * head-bound receipt. A deliberate skip permits (break-glass — a gate people
- * can't bypass openly gets bypassed secretly). Otherwise only a blocker-severity
- * finding blocks; advisory findings (should-fix / nit) never do.
+ * head-bound receipt. Precedence is findings-driven, not verdict-driven (the
+ * blocker-only design law):
+ *
+ * 1. A concrete blocker finding at this head always blocks — fail closed, even if
+ *    a skip is also present: a blocker contradicts the "review not applicable"
+ *    skip premise, so it must win.
+ * 2. A deliberate skip then permits (break-glass — a gate people can't bypass
+ *    openly gets bypassed secretly), now that no blocker masks it.
+ * 3. Otherwise a fresh non-blocker review permits; advisory findings
+ *    (should-fix / nit) never block. When cross-model review is required, at
+ *    least one such review must be independent (reviewer != author) — enforced
+ *    here as defense in depth, not only at record time.
  */
 export function evaluateMergeGate(input: MergeGateInput): GateVerdict {
   if (!input.gateEnabled) return { ok: true };
@@ -199,12 +232,23 @@ export function evaluateMergeGate(input: MergeGateInput): GateVerdict {
       reason: `no fresh review for ${scope} — review the PR at its current head (or log a skip with a reason) before merge`,
     };
   }
-  if (fresh.some(r => r.kind === 'skip')) return { ok: true };
   if (fresh.some(r => r.kind === 'review' && r.hasBlocker)) {
     return {
       ok: false,
       reason: `merge blocked: an unresolved blocker finding remains for ${scope}`,
     };
+  }
+  if (fresh.some(r => r.kind === 'skip')) return { ok: true };
+  if (input.crossModelRequired) {
+    const independent = fresh.some(
+      r => r.kind === 'review' && !modelsMatch(r.reviewerModel, input.authorModel),
+    );
+    if (!independent) {
+      return {
+        ok: false,
+        reason: `merge blocked: cross-model review requires an independent reviewer (reviewer != author) for ${scope}`,
+      };
+    }
   }
   return { ok: true };
 }
@@ -217,12 +261,12 @@ export function evaluateMergeGate(input: MergeGateInput): GateVerdict {
  * indeterminate) review is rejected so the gate fails closed on independence.
  * Reuses {@link modelsMatch} (trimmed, case-insensitive, indeterminate = match).
  */
-export function acceptReview(opts: {
+export function acceptReview(options: {
   crossModelRequired: boolean;
   authorModel?: string;
   reviewerModel?: string;
 }): GateVerdict {
-  if (opts.crossModelRequired && modelsMatch(opts.reviewerModel, opts.authorModel)) {
+  if (options.crossModelRequired && modelsMatch(options.reviewerModel, options.authorModel)) {
     return {
       ok: false,
       reason: 'same-model review rejected: cross-model review requires an independent reviewer',
@@ -265,12 +309,14 @@ export const DEFAULT_REVIEW_SIZE_THRESHOLD = 100;
  * threshold is thorough, and a small low-risk diff is lightweight. Over-
  * reviewing tiny changes is how a reviewer trains people to ignore it.
  */
-export function selectReviewDepth(opts: {
+export function selectReviewDepth(options: {
   changedLines: number;
   touchesSensitivePath: boolean;
   sizeThreshold?: number;
 }): ReviewDepth {
-  if (opts.touchesSensitivePath) return 'thorough';
-  const threshold = opts.sizeThreshold ?? DEFAULT_REVIEW_SIZE_THRESHOLD;
-  return opts.changedLines > threshold ? 'thorough' : 'lightweight';
+  if (options.touchesSensitivePath) return 'thorough';
+  const threshold = options.sizeThreshold ?? DEFAULT_REVIEW_SIZE_THRESHOLD;
+  return options.changedLines > threshold ? 'thorough' : 'lightweight';
 }
+
+export { type GateVerdict } from './review-ledger.js';
