@@ -658,6 +658,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-dependency-readiness.ts': {
       template: 'hooks/pre-tool-dependency-readiness.ts',
     },
+    '.safeword/hooks/post-tool-dependency-readiness.ts': {
+      template: 'hooks/post-tool-dependency-readiness.ts',
+    },
     '.safeword/hooks/pre-tool-git-bare-fix.sh': {
       template: 'hooks/pre-tool-git-bare-fix.sh',
     },

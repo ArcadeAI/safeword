@@ -70,6 +70,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'PreToolUse config.json guard; deterministic, covered by tests/hooks/config-guard-patterns.test.ts',
   'pre-tool-dependency-readiness.ts':
     'PreToolUse dependency guard; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
+  'post-tool-dependency-readiness.ts':
+    'PostToolUse install-stamp hook, no deny path; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
   'pre-tool-architecture-stage.ts':
     'PreToolUse git-commit hook; shells to `safeword architecture --stage` whose regenerate-and-stage behavior is covered by tests/commands/architecture-stage.test.ts',
   'pre-tool-stale-main.ts':
