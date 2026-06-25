@@ -1225,7 +1225,7 @@ describe('session-safeword-context.ts', () => {
       },
     );
 
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
     expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
@@ -1243,7 +1243,7 @@ describe('session-safeword-context.ts', () => {
       },
     );
 
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.additional_context).toContain('SAFEWORD Agent Instructions');
     expect(output.additional_context).toContain('## Workflow');
@@ -1296,5 +1296,22 @@ describe('session-safeword-context.ts', () => {
     } finally {
       rmSync(staleDirectory, { recursive: true, force: true });
     }
+  });
+});
+
+describe('session-codex-start.ts', () => {
+  it('runs the Codex SessionStart dispatcher and emits SAFEWORD.md context', () => {
+    const result = spawnSync('bun', ['.safeword/hooks/session-codex-start.ts'], {
+      cwd: shared.projectDirectory,
+      env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
+    expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
+    expect(output.hookSpecificOutput.additionalContext).toContain('## Workflow');
   });
 });

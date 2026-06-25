@@ -212,7 +212,7 @@ describe('Setup Command - Reconcile Integration', () => {
       ).toBe(true);
     });
 
-    it('should wire Codex prompt timestamp and PreToolUse config to safeword hooks', async () => {
+    it('should wire Codex hooks through a single SessionStart dispatcher', async () => {
       await setupReconcileTest(temporaryDirectory);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
@@ -224,7 +224,9 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(content).toContain('apply_patch');
       expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
       expect(content).toContain('[[hooks.SessionStart]]');
-      expect(content).toContain('.safeword/hooks/session-safeword-context.ts');
+      expect(content.match(/\[\[hooks\.SessionStart\]\]/g)).toHaveLength(1);
+      expect(content).toContain('.safeword/hooks/session-codex-start.ts');
+      expect(content).not.toContain('.safeword/hooks/session-safeword-context.ts" --agent=codex');
     });
 
     it('should warn when the installed Codex CLI is below the safeword hook floor', async () => {
