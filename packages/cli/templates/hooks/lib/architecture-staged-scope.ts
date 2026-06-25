@@ -83,16 +83,20 @@ function dependencyNames(manifest: Record<string, unknown>): string[] {
   return [...names].toSorted();
 }
 
+/** The raw workspace list — either a top-level array or the `{ packages: [...] }` shape. */
+function workspaceList(field: unknown): unknown[] {
+  if (Array.isArray(field)) return field;
+  if (field !== null && typeof field === 'object') {
+    const packages = (field as { packages?: unknown }).packages;
+    if (Array.isArray(packages)) return packages;
+  }
+  return [];
+}
+
 function workspacePatterns(manifest: Record<string, unknown>): string[] {
-  const field = manifest.workspaces;
-  const list = Array.isArray(field)
-    ? field
-    : field !== null &&
-        typeof field === 'object' &&
-        Array.isArray((field as { packages?: unknown }).packages)
-      ? (field as { packages: unknown[] }).packages
-      : [];
-  return list.filter((item): item is string => typeof item === 'string').toSorted();
+  return workspaceList(manifest.workspaces)
+    .filter((item): item is string => typeof item === 'string')
+    .toSorted();
 }
 
 /** The architecture-relevant inputs a package.json contributes (NOT name/version). */
