@@ -133,55 +133,55 @@ Deferred — not deterministic scenarios:
 
 ### Scenario: eng-review-green-prs.NTB1.AC2.same_model_review_rejected_when_enabled
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.NTB1.AC2.different_model_review_accepted
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.NTB1.AC2.same_model_accepted_when_disabled
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ## Rule: Finding usefulness is measurable
 
 ### Scenario: eng-review-green-prs.TB2.AC3.finding_disposition_is_recorded
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB2.AC3.effective_fp_rate_is_computed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ## Rule: Review thoroughness scales to change risk
 
 ### Scenario: eng-review-green-prs.TB2.AC2.small_low_risk_diff_gets_lightweight_review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB2.AC2.large_diff_gets_thorough_review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB2.AC2.sensitive_path_escalates_regardless_of_size
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 39d3e76
+- [x] GREEN 39d3e76
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ---
 
