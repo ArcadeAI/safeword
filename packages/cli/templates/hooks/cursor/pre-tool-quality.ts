@@ -17,8 +17,8 @@ import {
   type ClaudeGateInput,
   type CursorDecision,
   type CursorPreToolInput,
+  classifyDoneTransition,
   decideFromGate,
-  detectDoneTransition,
   extractFilePath,
   extractWriteContent,
   mapCursorToolName,
@@ -44,6 +44,10 @@ function emitAllowAndExit(): never {
   emitDecisionAndExit({ permission: 'allow' });
 }
 
+const UNPARSEABLE_STATUS_REASON =
+  'Safeword could not parse the ticket status line in this ticket.md edit. ' +
+  'Use a plain status value like `status: in_progress` or `status: done`, then retry.';
+
 const input = await readInput();
 const workspace = input.workspace_roots?.[0];
 if (workspace) process.chdir(workspace);
@@ -64,7 +68,11 @@ if (!filePath) emitAllowAndExit();
 // checks, sharing its logic with the Stop gate via lib/done-gate.ts (no drift).
 if (nodePath.basename(filePath) === 'ticket.md') {
   const proposedContent = extractWriteContent(input.tool_input);
-  if (detectDoneTransition(proposedContent)) {
+  const doneTransition = classifyDoneTransition({ content: proposedContent });
+  if (doneTransition === 'unparseable') {
+    emitDecisionAndExit(toCursorDecision(UNPARSEABLE_STATUS_REASON));
+  }
+  if (doneTransition === 'done') {
     const ticketDir = nodePath.resolve(nodePath.dirname(filePath));
     // Type comes from the proposed frontmatter; fall back to the on-disk ticket
     // (the closing edit rarely changes `type`) so features still require scenarios.

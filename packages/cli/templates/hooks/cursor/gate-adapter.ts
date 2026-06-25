@@ -59,9 +59,8 @@ export function mapCursorToolName(cursorTool: string | undefined): string | unde
   return cursorTool ? TOOL_NAME_MAP[cursorTool] : undefined;
 }
 
-// Cursor's `Write` tool_input field name for the path is not documented, so accept
-// the plausible spellings. The gate only needs the path to decide; content fields
-// are passed through untouched for the checks that use them.
+// Cursor's file-hook docs use `file_path`; keep historical fallbacks after the
+// verified name so old or drifted payloads remain readable without taking priority.
 const PATH_KEYS = ['file_path', 'path', 'target_file'] as const;
 
 /** Extract the edited file path from a Cursor tool_input, tolerating field-name variants. */
@@ -76,9 +75,9 @@ export function extractFilePath(
   return undefined;
 }
 
-// Cursor's `Write` tool_input field name for the file *content* is undocumented,
-// just like the path field. Accept the plausible spellings; the done-transition
-// detection only needs to read the proposed text.
+// Cursor's generic preToolUse docs do not publish a Write-specific schema. Current
+// Write payloads use `content`; Cursor's file-edit docs use `edits[].new_string`.
+// Keep older guessed names after the verified name as tolerant fallbacks.
 const CONTENT_KEYS = ['content', 'contents', 'new_string', 'text', 'file_text', 'code'] as const;
 
 /**
@@ -95,6 +94,8 @@ export function extractWriteContent(
     const value = toolInput[key];
     if (typeof value === 'string' && value !== '') return value;
   }
+  const editContent = extractNewStringsFromEdits(toolInput.edits);
+  if (editContent) return editContent;
   let longest: string | undefined;
   for (const value of Object.values(toolInput)) {
     if (typeof value === 'string' && value.includes('\n')) {
@@ -104,6 +105,29 @@ export function extractWriteContent(
   return longest;
 }
 
+function extractNewStringsFromEdits(edits: unknown): string | undefined {
+  if (!Array.isArray(edits)) return undefined;
+  const newStrings = edits.flatMap(edit => {
+    if (typeof edit !== 'object' || edit === null) return [];
+    const value = (edit as Record<string, unknown>).new_string;
+    return typeof value === 'string' && value !== '' ? [value] : [];
+  });
+  if (newStrings.length === 0) return undefined;
+  return newStrings.join('\n');
+}
+
+export type DoneTransitionStatus = 'done' | 'not_done' | 'unparseable' | 'unknown';
+
+const STATUS_LINE_PATTERN = /^status:\s*(?<status>.*)$/im;
+const KNOWN_NOT_DONE_STATUSES = new Set([
+  'open',
+  'in_progress',
+  'blocked',
+  'cancelled',
+  'superseded',
+  'wontfix',
+]);
+
 /**
  * True when the proposed ticket.md content closes the ticket — i.e. its frontmatter
  * sets `status: done`. Marking `phase: done` (entering the done phase to run /verify)
@@ -111,15 +135,44 @@ export function extractWriteContent(
  * gate later checks. Matches the closing edit only.
  */
 export function detectDoneTransition(content: string | undefined): boolean {
-  if (!content) return false;
-  return /^status:\s*["']?done["']?\s*$/im.test(content);
+  return classifyDoneTransition({ content }) === 'done';
+}
+
+/**
+ * Classify a proposed ticket status line.
+ *
+ * Deliberate miss-direction (P9K783): no readable content remains fail-open so
+ * ordinary ticket work-log saves do not deadlock. A readable but malformed
+ * `status:` line fails closed at the caller, because that is a confirmed status
+ * edit whose close intent cannot be safely classified.
+ */
+export function classifyDoneTransition(params: {
+  content: string | undefined;
+}): DoneTransitionStatus {
+  const { content } = params;
+  if (!content) return 'unknown';
+  const match = STATUS_LINE_PATTERN.exec(content);
+  if (!match?.groups) return 'not_done';
+
+  const normalizedStatus = normalizeFrontmatterScalar(match.groups.status);
+  if (normalizedStatus === 'done') return 'done';
+  if (KNOWN_NOT_DONE_STATUSES.has(normalizedStatus)) return 'not_done';
+  return 'unparseable';
 }
 
 /** Read the `type:` frontmatter value ('feature' | 'task' | ...) from ticket.md content. */
 export function parseTicketType(content: string | undefined): string | undefined {
   if (!content) return undefined;
   const match = /^type:\s*["']?(?<type>[A-Za-z]+)/im.exec(content);
-  return match?.groups?.type;
+  return match?.groups?.type.toLowerCase();
+}
+
+function normalizeFrontmatterScalar(value: string): string {
+  return value
+    .trim()
+    .replace(/^['"](?<inner>.*)['"]$/, '$<inner>')
+    .trim()
+    .toLowerCase();
 }
 
 /**

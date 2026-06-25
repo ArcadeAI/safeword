@@ -40,7 +40,14 @@ If the real field isn't in the list and the fallback picks the wrong value (or n
 
 - AKNWZK work log (deferred limitation noted there).
 - `packages/cli/templates/hooks/cursor/gate-adapter.ts` (`extractFilePath`, `extractWriteContent`, `detectDoneTransition`).
-- Cursor docs: `preToolUse` input exposes `tool_input` but does not document per-tool field names.
+- Live Cursor payload capture, 2026-06-24 on Cursor `3.8.23`: `preToolUse` `Write` sends `tool_input.file_path` and `tool_input.content` for a `ticket.md` edit.
+- Cursor docs, 2026-06-24: `preToolUse` input exposes the generic `tool_input` envelope; file hooks document `file_path`, `content`, and `edits[].new_string`, but the page still does not publish a Write-specific `tool_input` schema.
+
+## Decision
+
+Verified source: a temporary dogfood hook captured a real Cursor `preToolUse` `Write` payload for this ticket file. The path extractor keeps verified `file_path` first. The content extractor keeps verified `content` first and adds documented `edits[].new_string` support before the older guessed fallbacks.
+
+Miss-direction: unreadable `ticket.md` content stays fail-open so ordinary work-log edits do not deadlock. A readable but malformed `status:` line fails closed because safeword can confirm this is a status edit but cannot safely tell whether it is closing the ticket.
 
 ## Work Log
 
@@ -48,3 +55,16 @@ If the real field isn't in the list and the fallback picks the wrong value (or n
 - 2026-06-24 Filed from session review after AKNWZK shipped (PR #415) — the done
   gate's close-detection depends on guessed Cursor payload field names and fails
   open if they're wrong.
+- 2026-06-24 Captured a live Cursor `preToolUse` `Write` payload from this
+  worktree: Cursor `3.8.23` sends `tool_input.file_path` and `tool_input.content`
+  for a `ticket.md` edit.
+- 2026-06-24 Implemented payload hardening: `file_path` and `content` are pinned
+  by regression tests, `edits[].new_string` is supported as the documented
+  file-edit fallback, malformed status lines deny, and unreadable ticket content
+  remains allowed by design. Also folded the PR #415 merge-comment follow-up that
+  makes `type: Feature` still require feature scenario evidence.
+- 2026-06-24 /quality-review found one regression: valid terminal statuses
+  (`cancelled`, `superseded`, `wontfix`) were treated as malformed. Fixed by
+  accepting the documented non-done statuses and pinning them in unit tests.
+- 2026-06-24 Verification: targeted Cursor gate tests passed (38/38), then full
+  suite passed (253 files, 3695 tests passed, 3 skipped).

@@ -200,7 +200,7 @@ describe('Cursor done-edit gate (AKNWZK)', () => {
     rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  it('denies the close edit when verify.md is missing', () => {
+  it('denies the close edit when verified file_path/content fields show missing verify.md', () => {
     const decision = runAdapter(projectRoot, {
       filePath: ticketRelativePath,
       content: doneFrontmatter('task'),
@@ -208,6 +208,33 @@ describe('Cursor done-edit gate (AKNWZK)', () => {
 
     expect(decision.permission).toBe('deny');
     expect(decision.user_message).toContain('verify.md');
+  });
+
+  it('denies a ticket status edit safeword can read but cannot classify', () => {
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketRelativePath,
+      content: [
+        '---',
+        `id: ${TICKET_ID}`,
+        'slug: cursor-gate',
+        'type: task',
+        'phase: done',
+        'status:',
+        '---',
+        '',
+      ].join('\n'),
+    });
+
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('could not parse');
+  });
+
+  it('allows an unreadable ticket.md edit instead of blocking ordinary work-log saves', () => {
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketRelativePath,
+    });
+
+    expect(decision.permission).toBe('allow');
   });
 
   it('allows the close edit for a task with a valid verify.md', () => {

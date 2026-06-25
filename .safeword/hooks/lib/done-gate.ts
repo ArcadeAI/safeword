@@ -10,7 +10,9 @@
 //     imports this function — there is no second copy to drift).
 //   - `evaluateDoneEvidence` is the composite the Cursor edit gate calls. It runs
 //     the same dependency -> tests -> verify.md -> scenarios sequence the Stop
-//     hook performs inline, returning a plain verdict instead of exiting.
+//     hook's dependency/test/verify/scenario subset, returning a plain verdict
+//     instead of exiting. Claude still has transcript-only checks Cursor cannot
+//     run from preToolUse, so the two gates intentionally diverge there.
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -74,11 +76,12 @@ export interface DoneEvidenceVerdict {
 /**
  * Evaluate whether a ticket has the evidence required to be marked done.
  *
- * Mirrors the Claude Stop gate's done sequence — dependencies ready, tests green,
- * verify.md present and in-scope, and (for features) all scenarios complete — but
- * returns a verdict instead of blocking, so the Cursor edit gate can translate it
- * into a `deny` decision. Tests run here ("full" enforcement, ticket AKNWZK): the
- * test suite is the one piece of evidence prose can't fake.
+ * Mirrors the Claude Stop gate's dependency/test/verify/scenario subset — deps
+ * ready, tests green, verify.md present and in-scope, and (for features) all
+ * scenarios complete — but returns a verdict instead of blocking, so the Cursor
+ * edit gate can translate it into a `deny` decision. Tests run here ("full"
+ * enforcement for this subset, ticket AKNWZK): the suite is the one piece of
+ * evidence prose can't fake.
  *
  * Cursor divergence: where the Claude gate falls back to scanning the agent's last
  * message for "X/X tests pass" on a task with no test command, this requires a
