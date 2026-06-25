@@ -58,3 +58,9 @@ done_when:
 - 2026-06-23T15:55:00Z Researched: AI-code-review adoption evidence (/figure-it-out). Key finding — tools die from noise, not weak detection. Google Tricorder "effective false-positive" < ~10% abandonment threshold; ~40% of AI alerts ignored under alert fatigue; quieter tools often preferred over higher-recall noisy ones. Conclusion: precision + provenance is the differentiator, not bug-catch rate.
 - 2026-06-23T15:55:00Z Decided: scope as A-now-B-later, shipped as a safeword capability. Reuse existing review-ledger / cross-model / content-hash rails; the hard parts already exist.
 - 2026-06-23T15:55:00Z Authored: ticket scope/out_of_scope/done_when + spec.md (JTBD/AC). Phase → define-behavior.
+- 2026-06-24T04:30:00Z Authored scenarios: 21 → 25 Gherkin scenarios (after /review-spec found a vacuous skip + missing cases, and /figure-it-out settled skip semantics as break-glass). dimensions.md + impl-plan.md written. Phase → implement.
+- 2026-06-24T04:31:00Z GREEN: result-contract validation (A-rule, 7 scenarios) at dbb98f1.
+- 2026-06-24T14:16:00Z GREEN: provenance + break-glass skip + merge gate (B/skip/C, 10 scenarios) at 07394db; cross-model + effective-FP + depth routing (D/E/F, 8 scenarios) at 39d3e76. All 25 scenarios green. prReviewGate config flag at 6613494.
+- 2026-06-25T14:45:00Z Merged origin/main (64 commits; resolved INDEX conflicts by regenerating; bun ci for new deps). 613/613 green post-merge. Safeword config now v0.57.0.
+- 2026-06-25T14:54:00Z GREEN: /eng-review skill authored + registered across Claude/Codex/Cursor surfaces (404b897). 1233/1233 tests green, parity clean.
+- 2026-06-25T14:54:00Z REMAINING: integration wiring (write receipts to the real skill-invocation-log keyed on PR head-sha; gate-check entry point — hook or CLI — running evaluateMergeGate) and the done-gate (/verify, /audit). Decision core + skill + flag are complete; nothing yet auto-writes receipts or enforces the gate.
