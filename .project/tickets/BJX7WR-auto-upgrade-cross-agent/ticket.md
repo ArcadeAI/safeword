@@ -7,7 +7,7 @@ status: in_progress
 epic: auto-upgrade-cross-agent
 children: [Y6HZR7, 7R1D3B]
 created: 2026-06-20T12:54:31.866Z
-last_modified: 2026-06-25T06:00:00Z
+last_modified: 2026-06-25T19:54:00Z
 ---
 
 # Epic: Cross-agent auto-upgrade (Cursor + Codex)
@@ -41,7 +41,7 @@ The **client session-hook is the primary/universal mechanism** — the only path
 
 Use **one shared apply core plus thin per-agent wrappers**.
 
-- **Slice 0:** land PR #433 (or an equivalent extraction) so the agent-agnostic check/apply/commit flow lives in a reusable hook lib module instead of inside `session-auto-upgrade.ts`. Keep one implementation for version lookup, semver policy, release-age cooldown, opt-outs, dirty/detached/merge pre-flight, strike counter, `bunx safeword@<latest> upgrade`, and safeword-owned-file commit staging.
+- **Slice 0:** PR #433 landed the agent-agnostic check/apply/commit flow in a reusable hook lib module instead of inside `session-auto-upgrade.ts`. Keep one implementation for version lookup, semver policy, release-age cooldown, opt-outs, dirty/detached/merge pre-flight, strike counter, `bunx safeword@<latest> upgrade`, and safeword-owned-file commit staging.
 - **Claude Code wrapper:** keep the current `asyncRewake` behavior. It may continue using exit `2` to surface upgraded / major-available / blocked messages back to Claude as a system reminder.
 - **Cursor wrapper:** call the shared core from `sessionStart`, exit `0`, and treat the auto-upgrade git commit as the durable user-visible record. Do not use exit `2`, `continue:false`, `user_message`, or `failClosed` as a notification strategy; current Cursor docs say `sessionStart` is fire-and-forget and does not enforce blocking responses.
 - **Status / notification:** major-available and repeated-failure outcomes on Cursor should degrade to silent local status plus git history for this slice. A richer user-visible notification path is a follow-up decision, not a blocker for the silent apply path.
@@ -58,12 +58,12 @@ Rejected:
 - [Y6HZR7 — Auto-upgrade under Cursor](../Y6HZR7-auto-upgrade-cursor/ticket.md)
 - [7R1D3B — Auto-upgrade under Codex](../7R1D3B-auto-upgrade-codex/ticket.md)
 
-Slice 0 is in flight in PR #433: extract the agent-agnostic apply core out of `session-auto-upgrade.ts` into a reusable `lib/` module so Claude/Cursor/Codex entry points are thin wrappers. If #433 lands first, Y6HZR7 should build on that shared core rather than re-extract it.
+Slice 0 landed in PR #433: the agent-agnostic apply core is now in a reusable `lib/` module, and the Claude/Codex entry points are thin wrappers. Y6HZR7 should build on that shared core rather than re-extract it.
 
 ## Acceptance (epic-level)
 
 - [ ] Cursor users on a clean tree get patch/minor auto-upgrades without manual action, without breaking session start.
-- [ ] Codex users likewise.
+- [x] Codex users likewise.
 - [ ] All three agents share one apply implementation (no triplicated upgrade/commit logic).
 - [ ] Per-agent message behavior is explicit (surfaced where the agent supports it, silent-with-git-record where it doesn't).
 - [ ] Parity + the existing Claude Code behavior unchanged (no regression to XQ9CXA).
@@ -73,3 +73,4 @@ Slice 0 is in flight in PR #433: extract the agent-agnostic apply core out of `s
 - 2026-06-20T12:54:31.866Z Started: Created epic BJX7WR. Surfaced during XQ9CXA verify: auto-upgrade is Claude-Code-only; the `asyncRewake`/exit-2 contract has no Cursor/Codex equivalent (exit 2 would block those). Apply path is portable; messaging is not. Children: Cursor (Y6HZR7), Codex (7R1D3B).
 - 2026-06-25T05:55:00Z Resolved the Cursor side of the design after `/figure-it-out`: extract one shared apply core first; keep Claude's `asyncRewake` messaging; make Cursor a silent `sessionStart` wrapper that exits `0` and uses the git auto-upgrade commit as the durable record. Cursor notification UX for major-available / repeated-failure outcomes is deferred to a follow-up status strategy. Y6HZR7 remains blocked only on slice 0 extraction before implementation.
 - 2026-06-25T06:00:00Z Checked related PR #433 ("Bring auto-upgrade to Codex users"). It appears to implement slice 0 by adding `hooks/lib/auto-upgrade.ts` and turning Claude auto-upgrade into a wrapper, plus Codex wiring. No file conflict with Y6HZR7's ticket-only PR #440. If #433 lands first, Cursor work should reuse its shared core.
+- 2026-06-25T19:54:00Z Revalidated after PR #433 merged: 7R1D3B is done and GitHub issue #393 is closed. The parent epic remains in progress because Y6HZR7 is still the remaining Cursor implementation child.

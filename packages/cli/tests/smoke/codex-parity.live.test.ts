@@ -6,9 +6,9 @@
  *
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli test:smoke:live
  *
- * The smoke distinguishes supported hook-adapter behavior from current Codex
- * runtime gaps. Unsupported paths are reported as findings instead of silently
- * skipped, because that is the point of CXP9LM's live customer-repo check.
+ * The smoke proves supported hook-adapter behavior in a real Codex session.
+ * Codex may still report subsequent `file_change` execution items; those are
+ * tracked as a runtime boundary, not as the supported PreToolUse adapter path.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -263,16 +263,16 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex customer-repo parity', () => {
     const usedFileChangePath = liveOutput.includes('"type":"file_change"');
 
     expect(
-      liveDenied || usedFileChangePath,
-      `Codex neither denied the edit nor exposed the known file_change path.\n${liveOutput}`,
+      liveDenied,
+      `Codex did not deny the supported apply_patch edit path.\n${liveOutput}`,
     ).toBe(true);
 
-    if (usedFileChangePath && !liveDenied) {
+    if (usedFileChangePath) {
       expect(readFileSync(nodePath.join(projectRoot, TEST_DEFINITIONS_PATH), 'utf8')).toContain(
         '# Test Definitions',
       );
       console.warn(
-        'Codex live smoke finding: codex exec used file_change and bypassed PreToolUse for the requested edit.',
+        'Codex live smoke finding: codex exec reported file_change after the supported apply_patch path was denied.',
       );
     }
   });

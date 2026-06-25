@@ -2,8 +2,8 @@
 id: 6SE3MR
 slug: fake-codex-cli-fixture
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: S3T6JA
 epic: agent-surface-refactor
 scope:
@@ -18,7 +18,7 @@ done_when:
   - The ticket does not introduce a dependency from Cucumber steps onto Vitest-only helpers.
   - Existing Cucumber and Vitest Codex tests still pass.
 created: 2026-06-14T01:39:37.303Z
-last_modified: 2026-06-14T02:05:00Z
+last_modified: 2026-06-25T06:35:00Z
 ---
 
 # Share fake Codex CLI fixtures where it pays off
@@ -47,6 +47,7 @@ last_modified: 2026-06-14T02:05:00Z
 
 ## Work Log
 
+- 2026-06-25T06:35:00Z Revalidated actual duplication: Cucumber and Vitest each write the same two-line fake `codex` executable, but sharing it would couple harnesses for negligible payoff. Closed as a no-code decision; focused Cucumber and Vitest Codex checks pass.
 - 2026-06-14T02:05:00Z Reviewed: Added harness-boundary guardrail.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out selected narrow fixture extraction only.
 - 2026-06-14T01:39:37.303Z Started: Created ticket 6SE3MR.

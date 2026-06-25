@@ -2,34 +2,67 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5/5 targeted Codex adapter tests pass; ✓ 1/1 opt-in Codex live smoke test passes
-**Gherkin:** ⏭️ Skipped — `codex-live-parity-smoke.feature` is tagged `@live @manual`; the executable live coverage is `tests/smoke/codex-parity.live.test.ts`
-**Build:** ⏭️ Skipped — no production build required for this smoke/evidence update
-**Lint:** ⏭️ Skipped — targeted test/evidence update only
-**Scenarios:** ❌ 0/4 complete — live feature scenarios remain manual until unsupported Codex execution paths are resolved or deliberately scoped
-**Dep Drift:** ✅ Clean — no dependency changes
-**Parent Epic:** QM5G9M (siblings: live smoke still open)
-**Reconcile:** ✅ No pattern deviation
-**Experience:** ⚠️ Walked Codex user through clean setup + blocked edit help; worst step = the blocking hint previously said `/explain`, which is Claude/Cursor syntax, not Codex skill syntax. Fixed the Codex adapter to surface `$explain`.
+**Test Suite:** Pass
+**Gherkin:** `packages/cli/features/codex-live-parity-smoke.feature` remains `@live @manual`; executable proof is the opt-in Vitest smoke.
+**Build:** Pass via focused test commands (`tsup` runs before Vitest).
+**Lint:** Not run for the whole repo; docs/ticket-only changes plus focused smoke update.
+**Scenarios:** 4/4 complete inside the documented support boundary.
+**Dep Drift:** Clean — no dependency changes.
+**Parent Epic:** QM5G9M can close after this ticket.
+**Reconcile:** The observed Codex `file_change` path is explicitly documented as outside Safeword's claimed PreToolUse coverage.
+**Experience:** Codex block text points users at `$explain`, and repo-scoped safeword skills are visible in prompt input.
 
 ## Evidence
 
-- `bun install` completed and rebuilt `packages/cli/dist`.
-- `bun run --cwd packages/cli vitest run tests/integration/codex-pretooluse-spike.test.ts`
-  - Result: 5/5 passing.
-- `SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli vitest run tests/smoke/codex-parity.live.test.ts --config vitest.live.config.ts`
-  - Result: 1/1 passing on local `codex-cli 0.141.0`.
-- Clean fixture setup from `node packages/cli/dist/cli.js setup --yes --no-modify` creates `.codex/config.toml`, `.agents/skills/explain/SKILL.md`, and `.safeword/hooks/codex/pre-tool-quality.ts`, and prints the `/hooks` trust next step.
+Local environment:
+
+- Codex CLI: `codex-cli 0.141.0`
+- Revalidation time: 2026-06-25T06:31:00Z
+
+Focused supported-hook tests:
+
+```sh
+SAFEWORD_TEST_LOCK_DIR=/Users/alex/.codex/worktrees/revalidate-codex-active/.test-lock SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli test tests/smoke/codex-parity.live.test.ts --config vitest.live.config.ts
+```
+
+Result:
+
+```text
+Test Files  1 passed (1)
+Tests       1 passed (1)
+```
+
+Run-identity and Codex adapter regression tests also passed during this revalidation:
+
+```sh
+SAFEWORD_TEST_LOCK_DIR=/Users/alex/.codex/worktrees/revalidate-codex-active/.test-lock bun run --cwd packages/cli test tests/hooks/run-identity.test.ts tests/hooks/quality-state-read.test.ts tests/hooks/record-skill-invocation.test.ts tests/integration/review-stamp.test.ts tests/hooks/codex-pre-tool-quality-helpers.test.ts
+```
+
+Result:
+
+```text
+Test Files  5 passed (5)
+Tests       33 passed (33)
+```
+
+Manual prompt-input check:
+
+- Clean fixture created from `node packages/cli/dist/cli.js setup --yes --no-modify`.
+- Fixture contains `.codex/config.toml`, `.agents/skills/explain/SKILL.md`, and `.safeword/hooks/codex/pre-tool-quality.ts`.
+- `codex debug prompt-input` from inside the fixture includes the project safeword instructions and repo skill root (`.agents/skills`).
+
+Manual live edit check:
+
+- A live `codex exec --json --dangerously-bypass-hook-trust --dangerously-bypass-approvals-and-sandbox` run in the fixture attempted the requested `apply_patch` edit.
+- Codex emitted `Command blocked by PreToolUse hook` for the supported `apply_patch` path before later reporting `file_change` execution items after satisfying ticket prerequisites.
+- The opt-in live smoke now requires that supported-path denial instead of accepting `file_change` alone.
 
 ## Findings
 
 - Supported Codex hook payload path works: invoking `.safeword/hooks/codex/pre-tool-quality.ts` with an `apply_patch` payload denies an incomplete feature ticket and allows the same path after `scope`, `out_of_scope`, `done_when`, `dimensions.md`, `spec.md`, and `personas.md` are present.
-- Codex-specific help text now points at `$explain` instead of `/explain`, matching Codex skill invocation syntax while leaving the shared Claude/Cursor hint unchanged.
-- Current `codex exec` live editing on Codex CLI 0.141.0 used a `file_change` execution item for the requested file edit. That path was not intercepted by the configured `PreToolUse` matcher, so the edit succeeded even though the direct supported hook payload would deny it.
-- `codex debug prompt-input` in the clean fixture did not expose repo-scoped `.agents/skills/explain` in the visible skill roots during this run. That keeps the #360 manual `/explain` verification open.
+- Trusted Codex prompt input can see the generated safeword instruction context and repo-scoped `.agents/skills`.
+- Current Codex CLI can report `file_change` execution items during `codex exec`. Official Codex hook docs describe `PreToolUse` matching for `Bash`, `apply_patch`, and MCP tool names, not `file_change`; Safeword now documents `file_change` as outside the supported Codex PreToolUse coverage it claims to enforce.
 
-## Agent's next actions
+## Verdict
 
-- Decide whether safeword can intercept Codex `file_change` via a current hook event/config path; if yes, add support and convert the live smoke from finding-tolerant to denial-required.
-- If Codex intentionally does not expose `file_change` to hooks, update the Codex parity support boundary and decide whether #394 can close with direct-adapter coverage plus the documented live limitation.
-- Run the remaining #360 manual UI check in an interactive Codex session: confirm the block text reaches the screen and `$explain` is invokable/read-only.
+Done. The live/customer smoke proves the supported Codex hook path and documents the current runtime boundary honestly.

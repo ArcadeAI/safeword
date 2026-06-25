@@ -248,6 +248,11 @@ Key directories created in your project:
 - `cursor/stop.ts` - Quality review prompt on Cursor stop
 - `codex/pre-tool-quality.ts` - Adapts Codex PreToolUse events to safeword's quality gate
 
+Codex hook coverage is limited to the documented PreToolUse tool calls that
+Safeword configures (`Bash`, `apply_patch` edit payloads, and MCP tools). Live
+Codex runs can also report `file_change` execution items; those are recorded as
+a runtime boundary, not as edits Safeword claims to guard through PreToolUse.
+
 **Skills** (in `.claude/skills/` and `.agents/skills/`): Specialized agent capabilities
 
 - `bdd/` - BDD orchestrator for feature-level work (Discovery, Scenarios, TDD, Verify, Splitting, Done)
