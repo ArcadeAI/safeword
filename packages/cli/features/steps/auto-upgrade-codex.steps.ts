@@ -3,13 +3,14 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
 
-const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
-const CLI_PATH = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
+const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const TARGET_VERSION = '0.58.0';
 const NOW = Date.parse('2026-06-25T00:00:00Z');
 type SafewordCommand = 'setup';
@@ -43,7 +44,7 @@ function createProjectDirectory(): string {
 }
 
 function runSafeword(projectDirectory: string, command: SafewordCommand): void {
-  execFileSync('bun', [CLI_PATH, command], {
+  execFileSync(process.execPath, [CLI_PATH, command], {
     cwd: projectDirectory,
     env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
     stdio: 'pipe',
@@ -58,20 +59,23 @@ function readProjectFile(projectDirectory: string, relativePath: string): string
   return readFileSync(nodePath.join(projectDirectory, relativePath), 'utf8');
 }
 
-function runBunJson<T>(source: string): T {
+function runBunJson(source: string): unknown {
   const stdout = execFileSync('bun', ['--eval', source], {
     cwd: PROJECT_ROOT,
     encoding: 'utf8',
   });
-  return JSON.parse(stdout) as T;
+  return JSON.parse(stdout) as unknown;
 }
 
 function extractSessionStartCommands(codexConfig: string): string[] {
-  const sessionStartMatch = codexConfig.match(
-    /\[\[hooks\.SessionStart\]\][\s\S]*?(?=\n\[\[hooks\.(?!SessionStart)|\n\[mcp_servers\.|$)/,
-  );
+  const sessionStartSectionPattern =
+    /\[\[hooks\.SessionStart\]\][\s\S]*?(?=\n\[\[hooks\.(?!SessionStart)|\n\[mcp_servers\.|$)/;
+  const sessionStartMatch = sessionStartSectionPattern.exec(codexConfig);
   const sessionStartSection = sessionStartMatch?.[0] ?? '';
-  return [...sessionStartSection.matchAll(/command = '([^']+)'/g)].map(match => match[1] ?? '');
+  return sessionStartSection
+    .matchAll(/command = '(?<command>[^']+)'/g)
+    .map(match => match.groups?.command ?? '')
+    .toArray();
 }
 
 After(function (this: AutoUpgradeCodexWorld) {
@@ -146,11 +150,11 @@ When(
   'the Claude auto-upgrade wrapper handles the shared core outcome',
   function (this: AutoUpgradeCodexWorld) {
     assert.ok(this.majorOutcome, 'major-version outcome was not prepared');
-    const response = runBunJson<{ exitCode: number; stdout?: string; stderr?: string }>(`
+    const response = runBunJson(`
       import { toClaudeAutoUpgradeResponse } from "./packages/cli/templates/hooks/lib/auto-upgrade.ts";
       const outcome = ${JSON.stringify(this.majorOutcome)};
       console.log(JSON.stringify(toClaudeAutoUpgradeResponse(outcome)));
-    `);
+    `) as { exitCode: number; stdout?: string; stderr?: string };
     this.result = {
       stdout: response.stdout ?? '',
       stderr: response.stderr ?? '',
@@ -163,14 +167,14 @@ When(
   'the Codex SessionStart dispatcher handles the shared core outcome',
   function (this: AutoUpgradeCodexWorld) {
     assert.ok(this.majorOutcome, 'major-version outcome was not prepared');
-    const response = runBunJson<{ exitCode: number; stdout?: string; stderr?: string }>(`
+    const response = runBunJson(`
       import { toCodexSessionStartResponse } from "./packages/cli/templates/hooks/lib/auto-upgrade.ts";
       const outcome = ${JSON.stringify(this.majorOutcome)};
       console.log(JSON.stringify(toCodexSessionStartResponse({
         outcome,
         additionalContext: "SAFEWORD.md standing instructions",
       })));
-    `);
+    `) as { exitCode: number; stdout?: string; stderr?: string };
     this.result = {
       stdout: response.stdout ?? '',
       stderr: response.stderr ?? '',
@@ -183,7 +187,7 @@ When(
   'the shared auto-upgrade core records the failed attempt',
   function (this: AutoUpgradeCodexWorld) {
     assert.ok(this.projectDirectory, 'project directory was not created');
-    const result = runBunJson<{ cache: UpdateCache; rollbackCalls: CommandCall[] }>(`
+    const result = runBunJson(`
       import { readFileSync } from "node:fs";
       import path from "node:path";
       import { runAutoUpgrade } from "./packages/cli/templates/hooks/lib/auto-upgrade.ts";
@@ -227,7 +231,7 @@ When(
         rollbackCalls: calls.filter(call => call.command === "git"),
         cache: JSON.parse(readFileSync(path.join(projectDir, ".safeword/.update-cache.json"), "utf8")),
       }));
-    `);
+    `) as { cache: UpdateCache; rollbackCalls: CommandCall[] };
 
     this.rollbackCalls = result.rollbackCalls;
     this.cache = result.cache;
