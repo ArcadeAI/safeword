@@ -176,6 +176,17 @@ matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
+timeout = 120
+statusMessage = "Checking safeword updates and loading standing instructions"
+`;
+
+const CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH = `
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-safeword-context.ts" --agent=codex'
 timeout = 30
 statusMessage = "Loading safeword standing instructions"
@@ -563,6 +574,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/ledger-validation.ts': { template: 'hooks/lib/ledger-validation.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
+    '.safeword/hooks/lib/auto-upgrade.ts': { template: 'hooks/lib/auto-upgrade.ts' },
+    '.safeword/hooks/lib/safeword-context.ts': { template: 'hooks/lib/safeword-context.ts' },
     '.safeword/hooks/lib/update-cache.ts': { template: 'hooks/lib/update-cache.ts' },
     '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
     '.safeword/hooks/lib/learning-verification-stamps.ts': {
@@ -580,6 +593,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-safeword-context.ts': {
       template: 'hooks/session-safeword-context.ts',
+    },
+    '.safeword/hooks/session-codex-start.ts': {
+      template: 'hooks/session-codex-start.ts',
     },
     '.safeword/hooks/session-dependency-readiness.ts': {
       template: 'hooks/session-dependency-readiness.ts',
@@ -1087,7 +1103,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
         ],
-        unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+        unpatchContent: [
+          CODEX_SESSION_START_HOOK_PATCH,
+          CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+          CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+        ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
       },
       // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /

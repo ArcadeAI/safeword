@@ -339,20 +339,19 @@ function warnStaleToolingConfigs(cwd: string): void {
  * update-check. The repair hint must not say "run `safeword upgrade`": this
  * IS upgrade, and an issue its reconcile couldn't fix won't be fixed by
  * running it again. When install was deliberately skipped, the self-verify
- * skips package-presence checks — the upgrade did what it was asked.
+ * skips package-presence checks — the upgrade did what it was asked. Post-apply
+ * diagnostics remain visible but do not change upgrade's exit status: callers
+ * use non-zero to mean the upgrade itself failed and should roll back.
  * @param cwd
  */
 async function selfVerify(cwd: string): Promise<void> {
   const health = await checkHealth(cwd, {
     skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
   });
-  const hasIssues = reportHealthSummary(health, {
+  reportHealthSummary(health, {
     repairHint:
       'Configuration issues remain after the upgrade — this may be a safeword bug. Please report it: https://github.com/ArcadeAI/safeword/issues',
   });
-  if (hasIssues) {
-    process.exit(1);
-  }
 }
 
 function maybeRefreshDepcruiseConfig(

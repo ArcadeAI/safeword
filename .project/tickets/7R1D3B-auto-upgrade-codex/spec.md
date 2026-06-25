@@ -1,74 +1,61 @@
 # Spec: Auto-upgrade under Codex
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
-
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Codex users should receive safeword patch/minor updates automatically at session start, matching the Claude experience without requiring manual `safeword upgrade`.
+
+The implementation must respect Codex's synchronous hook model and avoid racing the existing SAFEWORD.md context injection.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- GitHub issue: https://github.com/ArcadeAI/safeword/issues/393
+- Parent epic: `BJX7WR-auto-upgrade-cross-agent`
+- Rollback hardening: `148-auto-upgrade-rollback`
+- Current Claude hook: `packages/cli/templates/hooks/session-auto-upgrade.ts`
+- Codex config template: `packages/cli/templates/codex/config.toml`
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- Technical Builder (TB)
+- Safeword Maintainer (SM)
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Shared apply core:** Agent-neutral auto-upgrade logic that returns typed outcomes instead of exiting the process.
+- **Codex SessionStart dispatcher:** The single Codex SessionStart hook command that sequences auto-upgrade and SAFEWORD.md context output.
+- **Normal notice:** A non-fatal user-facing outcome such as a major-version notification or successful applied upgrade.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### auto-upgrade-codex.TB1 — Stay current in Codex without manual upgrades
 
-Uncomment and customize:
+**Persona:** Technical Builder (TB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I start a Codex session in a safeword-managed project, I want patch and minor safeword updates to apply automatically without breaking startup context, so I can keep the guardrails current without managing safeword internals.
 
-**Persona:** Platform Operator (PO)
+#### auto-upgrade-codex.TB1.AC1 — Codex startup uses one ordered safeword SessionStart path
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### auto-upgrade-codex.TB1.AC2 — Codex startup still loads SAFEWORD.md standing instructions
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### auto-upgrade-codex.TB1.AC3 — Codex notices never turn normal upgrade outcomes into hook failures
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+### auto-upgrade-codex.SM1 — Maintain one auto-upgrade policy across agents
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+**Persona:** Safeword Maintainer (SM)
+
+> When I change safeword's auto-upgrade policy, I want the apply logic shared across Claude and Codex with agent-specific output adapters, so I can avoid drift while honoring each agent's hook contract.
+
+#### auto-upgrade-codex.SM1.AC1 — Claude keeps its existing asyncRewake notice behavior
+
+#### auto-upgrade-codex.SM1.AC2 — Failed upgrade applies leave no safeword-managed residue behind
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- A generated Codex config has exactly one safeword `SessionStart` command.
+- A Codex session receives SAFEWORD.md context after the auto-upgrade check path completes.
+- Claude major-version and successful-upgrade notices still surface through the existing exit-2 rewake path.
+- Failed auto-upgrade attempts record strikes only after safeword-managed file residue has been rolled back.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- defer: Real-world Codex timeout tuning needs timing data from an actual published upgrade; this slice uses a conservative bounded dispatcher timeout and keeps the apply gated by the existing 24h cache.

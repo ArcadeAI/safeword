@@ -515,6 +515,8 @@ describe('Schema - Single Source of Truth', () => {
       // share hook libs or are imported by hook entrypoints, but Claude Code
       // never fires them directly, so they have no SETTINGS_HOOKS entry.
       const NON_LIFECYCLE_HOOK_MODULES = new Set([
+        // Codex-only dispatcher wired through .codex/config.toml, not Claude SETTINGS_HOOKS.
+        'session-codex-start.ts',
         'write-review-stamp.ts',
         'resolve-namespace-root.ts',
         'record-skill-invocation.ts',
