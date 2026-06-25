@@ -78,7 +78,7 @@ function tableArrayBody(lines: string[], table: string, key: string): string | u
       body += `\n${line}`;
     }
 
-    const close = topLevelCloseBracket(body);
+    const close = indexOfOutsideQuotes(body, ']');
     if (close !== -1) return body.slice(0, close);
   }
 
@@ -86,18 +86,20 @@ function tableArrayBody(lines: string[], table: string, key: string): string | u
 }
 
 /**
- * The index of the array's closing `]` — the first `]` that is NOT inside a quoted
- * string, so a `]` within a value (a Python extra `foo[extra]`, a char-class glob
- * `crates/[ab]/*`) does not end the array early. Returns -1 if none on this text.
+ * The index of the first `target` character that is NOT inside a quoted string, or -1.
+ * The single quote-aware scanner behind both the array's closing `]` (so a `]` inside a
+ * value — a Python extra `foo[extra]`, a char-class glob `crates/[ab]/*` — does not end
+ * the array early) and the inline `#` comment cut (so a `#` inside a PEP 508 URL dep does
+ * not truncate the value). Per-line: TOML basic strings do not span lines.
  */
-function topLevelCloseBracket(text: string): number {
+function indexOfOutsideQuotes(text: string, target: string): number {
   let quote = '';
   let index = 0;
   while (index < text.length) {
     const character = text[index];
     if (quote === '') {
       if (character === '"' || character === "'") quote = character;
-      else if (character === ']') return index;
+      else if (character === target) return index;
     } else if (character === quote) {
       quote = '';
     }
@@ -123,20 +125,9 @@ function tableHeader(line: string): string | undefined {
  * Drop an inline `# comment`, but only a `#` that is NOT inside a quoted string — a
  * PEP 508 URL dependency (`"pkg @ git+https://…#egg=pkg"`) legitimately carries a `#`
  * inside its value, and cutting there would break the quote and silently drop later
- * array entries. Same per-line quote-state machine as `topLevelCloseBracket`.
+ * array entries.
  */
 export function stripTomlComment(line: string): string {
-  let quote = '';
-  let index = 0;
-  while (index < line.length) {
-    const character = line[index];
-    if (quote === '') {
-      if (character === '"' || character === "'") quote = character;
-      else if (character === '#') return line.slice(0, index);
-    } else if (character === quote) {
-      quote = '';
-    }
-    index += 1;
-  }
-  return line;
+  const hash = indexOfOutsideQuotes(line, '#');
+  return hash === -1 ? line : line.slice(0, hash);
 }
