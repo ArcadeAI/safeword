@@ -49,6 +49,12 @@ export interface TextPatchDefinition {
   // depend on the resolved namespace root (e.g. a custom paths.projectRoot, #293).
   content: string | ((ctx: ProjectContext) => string);
   marker: string; // Used to detect if already applied & for removal
+  // On apply, first remove this exact legacy block if present, then add `content`
+  // — a byte-exact, idempotent one-block swap for migrating a managed file (e.g.
+  // replacing a superseded SessionStart hook with its replacement) without a
+  // separate imperative path. A no-op when the block is absent; guarded by
+  // applyWhenContentIncludes so it only touches safeword-scaffolded files.
+  supersedes?: string;
   applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
   unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
   removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
@@ -170,7 +176,7 @@ timeout = 5
 statusMessage = "Adding current timestamp"
 `;
 
-const CODEX_SESSION_START_HOOK_PATCH = `
+export const CODEX_SESSION_START_HOOK_PATCH = `
 [[hooks.SessionStart]]
 matcher = ""
 
@@ -181,7 +187,7 @@ timeout = 120
 statusMessage = "Checking safeword updates and loading standing instructions"
 `;
 
-const CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH = `
+export const CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH = `
 [[hooks.SessionStart]]
 matcher = ""
 
@@ -1109,6 +1115,28 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
         ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+      },
+      // Migrate existing installs (auto-upgrade-codex follow-up to #433): swap the
+      // legacy context-only SessionStart hook for the auto-upgrade dispatcher.
+      // Codex runs same-event hooks concurrently with no ordering, so this must
+      // REPLACE the legacy hook (appending a second SessionStart hook would
+      // double-emit context) — hence `supersedes`. managedFiles is
+      // create-if-missing, so a fresh install gets the dispatcher from the
+      // template while every EXISTING config is skipped by managedFiles and
+      // migrated here. Idempotent: skips when the dispatcher marker is already
+      // present, and the strip no-ops when the legacy block is absent. Guarded to
+      // safeword scaffolds; a user-modified legacy block won't byte-match and is
+      // preserved. Uninstall cleanup is owned by the primary patch's
+      // unpatchContent above.
+      {
+        operation: 'append',
+        content: CODEX_SESSION_START_HOOK_PATCH,
+        marker: '.safeword/hooks/session-codex-start.ts',
+        supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
       },
       // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /
       // .cursor/mcp.json. Marker is the context7 table header, so an existing

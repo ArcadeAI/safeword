@@ -358,6 +358,57 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(timestampHookCount).toBe(1);
     });
 
+    it('migrates a customized legacy Codex config: swaps the context-only SessionStart hook for the auto-upgrade dispatcher', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA, CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH } =
+        await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      // An existing safeword Codex config — managedFiles is create-if-missing, so
+      // it skips an existing file (never overwrites) and the text-patch migration
+      // runs — still wired to the LEGACY context-only SessionStart hook from
+      // before auto-upgrade-codex.
+      const legacyConfig = `# Safeword Codex project configuration.
+#
+# Project-local Codex config loads only after the project is reviewed and trusted.
+
+[features]
+hooks = true
+${CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH}
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+statusMessage = "Checking safeword PreToolUse gates"
+`;
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), legacyConfig);
+
+      const ctx = createProjectContext(temporaryDirectory);
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const upgraded = readFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        'utf8',
+      );
+      // Legacy context-only hook is gone; the auto-upgrade dispatcher is wired.
+      expect(upgraded).not.toContain('session-safeword-context.ts" --agent=codex');
+      expect(upgraded).toContain('.safeword/hooks/session-codex-start.ts');
+      // Exactly one SessionStart dispatcher — concurrent Codex hooks make a
+      // double-wire double-emit context, so the swap must not leave two.
+      expect(upgraded.split('.safeword/hooks/session-codex-start.ts').length - 1).toBe(1);
+
+      // Idempotent: re-running upgrade keeps exactly one dispatcher, no legacy.
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+      const again = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(again.split('.safeword/hooks/session-codex-start.ts').length - 1).toBe(1);
+      expect(again).not.toContain('session-safeword-context.ts" --agent=codex');
+    });
+
     it('should tell users to trust generated Codex hooks after upgrade creates Codex config', async () => {
       createConfiguredProject('0.5.0');
 
