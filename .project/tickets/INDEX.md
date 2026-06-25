@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (333)
+## Tickets (335)
 
 ### agent-surface-refactor
 
@@ -668,6 +668,8 @@
 - **Update PRINCIPLES.md — extend existing 5 by at most 1-2 net-new principles meeting research/measurement bar (3N3Q7B)** (in_progress, epic: —)
   Update safeword's existing [PRINCIPLES.md](/Users/alex/Projects/safeword/PRINCIPLES.md) (5 principles, research-backed, capped explicitly at "few — 5, not 15" per principle 5) by adding AT MOST 1-2 net-new principles that meet the same bar (Anthropic citation, dogfooding measurement, or equivalent primary evidence). Move all the inferred "principles" from earlier work (originally up to 22 candidates from engineering + product + product-systems clusters) that don't meet the bar into the patterns catalog (62PDX1).
   → `.project/tickets/3N3Q7B`
+- **Serialize package tests across checkouts (419)** (done, epic: —)
+  → `.project/tickets/419-global-package-test-lock`
 - **Styled CLI output orphans its glyph on a leading-newline message (check/diff/reset/upgrade) (469YSR)** (done, epic: —)
   Stop the styled output helpers from orphaning their glyph (`✓` / `⚠`) when a message begins with a newline.
   → `.project/tickets/469YSR-styled-output-leading-newline`
@@ -844,6 +846,9 @@
 - **Replan blocker-moved advisory — depends_on target reached terminal status (E11N48)** (done, epic: —)
   When a ticket you depend on reaches a terminal status since you last touched this ticket, replan-on-resume warns the plan may be stale.
   → `.project/tickets/E11N48-replan-blocker-moved`
+- **GEPA prompt optimization for the review-spec skill (E2D8S5)** (done, epic: —)
+  Use GEPA (reflective prompt evolution) to measurably improve the
+  → `.project/tickets/E2D8S5-gepa-review-spec-eval`
 - **Keep refactor commits scoped in mixed worktrees (E5VDEF)** (done, epic: —)
   Keep `/refactor` from creating mixed commits when the worktree already contains unrelated feature work or is detached.
   external issue: https://github.com/ArcadeAI/safeword/issues/407
