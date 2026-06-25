@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { rememberCursorRunIdentity } from '../lib/cursor-run-identity.ts';
 import {
   type ClaudeGateInput,
   type CursorShellInput,
@@ -37,6 +38,13 @@ if (workspace) process.chdir(workspace);
 const command = input.command ?? '';
 if (command === '' || !existsSync('.safeword')) {
   emitAllowAndExit();
+}
+
+if (command.includes('record-skill-invocation.ts')) {
+  rememberCursorRunIdentity({
+    projectDirectory: process.cwd(),
+    conversationId: input.conversation_id,
+  });
 }
 
 const translated: ClaudeGateInput = {

@@ -4,13 +4,18 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
+import { readFreshCursorRunIdentity } from './lib/cursor-run-identity.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
+import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
 
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
-function resolveProofSessionKey(explicitSessionId?: string): string | undefined {
+function resolveProofSessionKey(input: {
+  projectDirectory: string;
+  explicitSessionId?: string;
+}): string | undefined {
+  const { projectDirectory, explicitSessionId } = input;
   if (explicitSessionId !== undefined && explicitSessionId.trim().length > 0) {
     return explicitSessionId.trim();
   }
@@ -19,6 +24,10 @@ function resolveProofSessionKey(explicitSessionId?: string): string | undefined 
   }
   if (process.env.CODEX_THREAD_ID) {
     return resolveRunIdentity({}, { runtime: 'codex', env: process.env }).sessionKey ?? undefined;
+  }
+  const cursorSessionKey = readFreshCursorRunIdentity({ projectDirectory });
+  if (cursorSessionKey !== undefined) {
+    return cursorSessionKey;
   }
   return resolveRunIdentity({}, { env: process.env }).sessionKey ?? undefined;
 }
@@ -31,9 +40,12 @@ export function recordSkillInvocation(
   if (!SKILL_NAME_PATTERN.test(skillName)) {
     throw new Error(`Invalid skill name "${skillName}"`);
   }
-  const proofSessionKey = resolveProofSessionKey(sessionId);
+  const proofSessionKey = resolveProofSessionKey({
+    projectDirectory,
+    explicitSessionId: sessionId,
+  });
   if (proofSessionKey === undefined) {
-    // Runtimes without a compatible run identity skip silently.
+    // Runtimes without a compatible run identity cannot produce gate proof.
     return;
   }
 
@@ -49,7 +61,10 @@ export function recordSkillInvocation(
 if (import.meta.main) {
   const projectDirectory = process.argv[2] ?? process.cwd();
   const skillName = process.argv[3];
-  const sessionId = resolveProofSessionKey(process.argv[4]);
+  const sessionId = resolveProofSessionKey({
+    projectDirectory,
+    explicitSessionId: process.argv[4],
+  });
 
   try {
     if (skillName === undefined) {
@@ -57,7 +72,10 @@ if (import.meta.main) {
     }
 
     if (!sessionId) {
-      console.log(`[skill-invocation-log] no run identity — skipped`);
+      console.log(
+        '[skill-invocation-log] no run identity — no proof logged. ' +
+          'Run this from an agent session with a current run identity; Cursor users should retry after safeword hooks are active so beforeShellExecution can bind conversation_id.',
+      );
       process.exit(0);
     }
 
