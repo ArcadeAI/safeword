@@ -11,6 +11,10 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  parseRecordSkillInvocationCommand,
+  rememberCursorRunIdentity,
+} from '../lib/cursor-run-identity.ts';
+import {
   type ClaudeGateInput,
   type CursorShellInput,
   decideFromGate,
@@ -51,5 +55,14 @@ const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts')
 
 // Fail-closed: a gate that crashed or never started denies the command (ANAXG4).
 const decision = decideFromGate(runClaudeHook(claudeHookPath, translated));
+const proofCommand =
+  decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
+if (proofCommand !== undefined) {
+  rememberCursorRunIdentity({
+    projectDirectory: process.cwd(),
+    conversationId: input.conversation_id,
+    skillName: proofCommand.skillName,
+  });
+}
 process.stdout.write(JSON.stringify(decision) + '\n');
 process.exit(0);

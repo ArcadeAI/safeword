@@ -287,6 +287,7 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
+  'cursor-run-identity.json',
   'failure-counts.json',
   'skill-invocations.log',
   're-entry.md',
@@ -549,6 +550,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
+    '.safeword/hooks/lib/cursor-run-identity.ts': {
+      template: 'hooks/lib/cursor-run-identity.ts',
+    },
     '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
