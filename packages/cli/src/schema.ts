@@ -251,6 +251,7 @@ const CODEX_SKILL_TEMPLATE_FILES = [
   ['testing/SKILL.md', 'skills/testing/SKILL.md'],
   ['ticket-system/SKILL.md', 'skills/ticket-system/SKILL.md'],
   ['verify/SKILL.md', 'skills/verify/SKILL.md'],
+  ['eng-review/SKILL.md', 'skills/eng-review/SKILL.md'],
 ] as const;
 
 const CODEX_SKILL_DIRS = [
@@ -763,6 +764,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/quality-review/SKILL.md': {
       template: 'skills/quality-review/SKILL.md',
     },
+    '.claude/skills/eng-review/SKILL.md': {
+      template: 'skills/eng-review/SKILL.md',
+    },
     '.claude/skills/refactor/SKILL.md': {
       template: 'skills/refactor/SKILL.md',
     },
@@ -841,6 +845,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.cursor/rules/safeword-quality-reviewing.mdc': {
       template: 'cursor/rules/safeword-quality-reviewing.mdc',
+    },
+    '.cursor/rules/safeword-eng-review.mdc': {
+      template: 'cursor/rules/safeword-eng-review.mdc',
     },
     '.cursor/rules/safeword-refactoring.mdc': {
       template: 'cursor/rules/safeword-refactoring.mdc',

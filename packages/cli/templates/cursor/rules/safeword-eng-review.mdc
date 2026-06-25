@@ -1,0 +1,6 @@
+---
+alwaysApply: false
+description: Senior-engineer review of a green PR before merge — correctness beyond the tests, test quality, scope/intent match, design fit, safety. Use when a PR is green and headed for merge, or to re-review after new commits. Emits a structured verdict plus a commit-bound receipt and blocks only on real blockers. Not for ecosystem/version checks (that is quality-review).
+---
+
+@.claude/skills/eng-review/SKILL.md

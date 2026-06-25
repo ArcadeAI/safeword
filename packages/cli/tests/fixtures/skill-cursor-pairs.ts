@@ -32,6 +32,7 @@ export const SKILL_CURSOR_PAIRS: readonly SkillCursorPair[] = [
   { skill: 'elicit', cursorRules: ['safeword-elicitation'] },
   { skill: 'figure-it-out', cursorRules: ['safeword-figure-it-out'] },
   { skill: 'quality-review', cursorRules: ['safeword-quality-reviewing'] },
+  { skill: 'eng-review', cursorRules: ['safeword-eng-review'] },
   { skill: 'refactor', cursorRules: ['safeword-refactoring'] },
   { skill: 'tdd-review', cursorRules: ['safeword-tdd-review'] },
   { skill: 'testing', cursorRules: ['safeword-testing'] },
