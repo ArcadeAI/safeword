@@ -1036,40 +1036,55 @@ function executeTextPatch(cwd: string, path: string, definition: ResolvedTextPat
   }
 
   const fullPath = nodePath.join(cwd, path);
-  let content = readFileSafe(fullPath) ?? '';
+  const original = readFileSafe(fullPath) ?? '';
 
-  // Check if already patched
+  // Supersede: byte-exact strip of the legacy block this patch replaces (a no-op
+  // when absent), so a customized managed file migrates the old block to `content`
+  // on upgrade. Runs before the marker check so the swap still applies when the
+  // replacement block is being added for the first time.
+  const content =
+    definition.supersedes === undefined ? original : original.replace(definition.supersedes, '');
+
+  // Already patched: re-render/heal in place, persisting any supersede strip.
   if (content.includes(definition.marker)) {
-    // Re-renderable block (#293): when the resolved content has drifted from
-    // what's on disk (e.g. a custom paths.projectRoot was added), replace the
-    // managed block in place so existing installs heal on upgrade. A no-op when
-    // the block is already current, so default installs never churn.
-    if (definition.rerender && !content.includes(definition.content)) {
-      const stripped = stripRerenderBlock(content, definition);
-      writeFile(fullPath, stripped + definition.content);
-      return;
-    }
-    // Heal legacy artifact from safeword <=0.30.1: the prepend templates
-    // (CLAUDE_MD_IMPORT_BLOCK, AGENTS_MD_LINK) ended with bare `---` and no
-    // trailing newline, so the `---` separator glued to the user's first
-    // heading line (e.g. `---# CLAUDE.md`). Templates are fixed going
-    // forward; this pass repairs files already corrupted by past installs.
-    // Narrowly scoped: only fires when the safeword marker is present
-    // (proving the block was authored by us) and the exact artifact matches.
-    if (content.includes('\n\n---#')) {
-      const healed = content.replaceAll('\n\n---#', '\n\n---\n\n#');
-      writeFile(fullPath, healed);
-    }
+    healAlreadyPatchedFile(fullPath, original, content, definition);
     return;
   }
 
-  // Apply patch
-  content =
+  // Apply patch (this write also persists any supersede strip above).
+  const patched =
     definition.operation === 'prepend'
       ? definition.content + content
       : content + definition.content;
+  writeFile(fullPath, patched);
+}
 
-  writeFile(fullPath, content);
+// The marker is already present. Re-render a drifted managed block (#293), heal a
+// legacy `---#` separator artifact from safeword <=0.30.1, and/or persist a
+// supersede strip. `content` is post-supersede; `original` is the on-disk text.
+function healAlreadyPatchedFile(
+  fullPath: string,
+  original: string,
+  content: string,
+  definition: ResolvedTextPatch,
+): void {
+  // Re-renderable block (#293): when the resolved content has drifted from what's
+  // on disk (e.g. a custom paths.projectRoot was added), replace the managed block
+  // in place so existing installs heal on upgrade. A no-op when already current.
+  if (definition.rerender && !content.includes(definition.content)) {
+    writeFile(fullPath, stripRerenderBlock(content, definition) + definition.content);
+    return;
+  }
+  // Heal the bare-`---` separator that glued to a heading (`---# CLAUDE.md`) in
+  // files corrupted by past installs. Narrowly scoped: the marker proves we
+  // authored the block, and only the exact artifact is repaired.
+  let healed = content;
+  if (healed.includes('\n\n---#')) {
+    healed = healed.replaceAll('\n\n---#', '\n\n---\n\n#');
+  }
+  // Persist if a heal and/or supersede strip changed the file (the latter is rare
+  // here — a legacy block lingering alongside its replacement).
+  if (healed !== original) writeFile(fullPath, healed);
 }
 
 function computeUnpatchedContent(content: string, definition: ResolvedTextPatch): string {
