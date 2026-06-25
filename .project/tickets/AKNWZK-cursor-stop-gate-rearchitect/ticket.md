@@ -31,7 +31,9 @@ deadlocked the prompt that asks for the evidence). So the real enforcement moves
   enough and a higher cap would just re-nudge noisily.
 - **Documented divergence:** Claude enforces done at the blocking Stop hook; Cursor
   can't block stop, so it enforces one layer earlier at the close edit. Captured in
-  `config.ts` (CURSOR_HOOKS) and `hooks/lib/done-gate.ts`.
+  `config.ts` (CURSOR_HOOKS) and `hooks/lib/done-gate.ts`. Cursor mirrors the
+  dependency/test/verify/scenario evidence subset; it intentionally omits
+  transcript-only Claude checks that are unavailable in Cursor's preToolUse input.
 
 ## Done when
 
@@ -60,3 +62,7 @@ cursor.com/docs/hooks (`stop` non-blocking, `loop_limit` default 5 / null)
   negligible): if a `status: done` edit's content can't be read, detection fails
   open at the logic layer — only a wrapper crash hits Cursor's `failClosed`. Cursor's
   sole edit tool sends full content, so the multi-line frontmatter is always present.
+- 2026-06-24 PR #415 was merged with green CI (`test (node 22)` and `lint`). Merge
+  comment follow-ups landed with P9K783: softened the done-gate parity wording to
+  name the shared subset, documented the transcript-only Cursor/Claude divergence,
+  and made `type: Feature` parse as `feature` so scenario evidence is still required.

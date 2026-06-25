@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  classifyDoneTransition,
   claudeDenialReason,
   decideFromGate,
   detectDoneTransition,
@@ -30,7 +31,7 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
   });
 
   describe('extractFilePath', () => {
-    it('reads the documented file_path field', () => {
+    it('pins Cursor Write path payload to file_path', () => {
       expect(extractFilePath({ file_path: 'src/app.ts' })).toBe('src/app.ts');
     });
 
@@ -87,10 +88,19 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
   });
 
   describe('extractWriteContent (AKNWZK done-edit)', () => {
-    it('reads the common content field names', () => {
-      expect(extractWriteContent({ content: 'a' })).toBe('a');
+    it('pins Cursor Write content payload to content', () => {
+      expect(extractWriteContent({ content: '---\nstatus: done\n---\n' })).toBe(
+        '---\nstatus: done\n---\n',
+      );
+    });
+
+    it('tolerates alternate content field names', () => {
       expect(extractWriteContent({ contents: 'b' })).toBe('b');
       expect(extractWriteContent({ new_string: 'c' })).toBe('c');
+    });
+
+    it('reads Cursor file-edit new_string entries as a documented fallback', () => {
+      expect(extractWriteContent({ edits: [{ new_string: 'status: done' }] })).toBe('status: done');
     });
 
     it('falls back to the longest multi-line string under an unknown field name', () => {
@@ -109,6 +119,7 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
     it('matches frontmatter that closes the ticket', () => {
       expect(detectDoneTransition('---\nstatus: done\n---')).toBe(true);
       expect(detectDoneTransition('---\nstatus: "done"\n---')).toBe(true);
+      expect(detectDoneTransition('---\nstatus: done # verified manually\n---')).toBe(true);
     });
 
     it('does NOT match entering the done phase (phase: done, still in progress)', () => {
@@ -120,12 +131,29 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
       expect(detectDoneTransition('status: blocked')).toBe(false);
       expect(detectDoneTransition(undefined)).toBe(false);
     });
+
+    it('classifies unreadable content as unknown and non-done statuses as not closing', () => {
+      expect(classifyDoneTransition({ content: undefined })).toBe('unknown');
+      expect(classifyDoneTransition({ content: '---\nstatus:\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: done-ish\n---' })).toBe('not_done');
+    });
+
+    it('treats known and legacy non-done statuses as readable but not closing', () => {
+      expect(classifyDoneTransition({ content: '---\nstatus: open\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: cancelled\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: superseded\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: wontfix\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: backlog\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: pending\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: complete\n---' })).toBe('not_done');
+    });
   });
 
   describe('parseTicketType (AKNWZK done-edit)', () => {
     it('reads the type frontmatter', () => {
       expect(parseTicketType('---\ntype: feature\n---')).toBe('feature');
       expect(parseTicketType('---\ntype: task\n---')).toBe('task');
+      expect(parseTicketType('---\ntype: Feature\n---')).toBe('feature');
     });
 
     it('returns undefined when type is absent', () => {

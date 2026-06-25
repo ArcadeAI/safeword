@@ -28,7 +28,7 @@ If the real field isn't in the list and the fallback picks the wrong value (or n
 ## Approach
 
 1. **Verify, don't guess.** Capture a real Cursor `preToolUse` Write payload (a `ticket.md` edit) and pin the actual `tool_input` field names for path and content. Update `PATH_KEYS` / `CONTENT_KEYS` to the verified names (keep the others as tolerant fallbacks).
-2. **Decide the miss-direction deliberately.** For a confirmed `ticket.md` edit whose content can't be read at all, choose fail-open vs fail-closed and document it. (Fail-closed on every unreadable ticket.md edit would block ordinary work-log saves, so the likely answer is a narrower signal — e.g. only when a `status:` line is present but unparseable.)
+2. **Decide the miss-direction deliberately.** For a confirmed `ticket.md` edit whose content can't be read at all, choose fail-open vs fail-closed and document it. The final gate should stay narrow enough to block real closes without deadlocking ordinary ticket edits.
 3. **Regression test** the verified field names so a future Cursor payload change is caught.
 
 ## Done when
@@ -40,7 +40,14 @@ If the real field isn't in the list and the fallback picks the wrong value (or n
 
 - AKNWZK work log (deferred limitation noted there).
 - `packages/cli/templates/hooks/cursor/gate-adapter.ts` (`extractFilePath`, `extractWriteContent`, `detectDoneTransition`).
-- Cursor docs: `preToolUse` input exposes `tool_input` but does not document per-tool field names.
+- Live Cursor payload capture, 2026-06-24 on Cursor `3.8.23`: `preToolUse` `Write` sends `tool_input.file_path` and `tool_input.content` for a `ticket.md` edit.
+- Cursor docs, 2026-06-24: `preToolUse` input exposes the generic `tool_input` envelope; file hooks document `file_path`, `content`, and `edits[].new_string`, but the page still does not publish a Write-specific `tool_input` schema.
+
+## Decision
+
+Verified source: a temporary dogfood hook captured a real Cursor `preToolUse` `Write` payload for this ticket file. The path extractor keeps verified `file_path` first. The content extractor keeps verified `content` first and adds documented `edits[].new_string` support before the older guessed fallbacks.
+
+Miss-direction: unreadable `ticket.md` content stays fail-open so ordinary work-log edits do not deadlock. Readable non-`done` statuses also stay allowed because this hook is a close detector, not a full ticket-status validator.
 
 ## Work Log
 
@@ -48,3 +55,22 @@ If the real field isn't in the list and the fallback picks the wrong value (or n
 - 2026-06-24 Filed from session review after AKNWZK shipped (PR #415) — the done
   gate's close-detection depends on guessed Cursor payload field names and fails
   open if they're wrong.
+- 2026-06-24 Captured a live Cursor `preToolUse` `Write` payload from this
+  worktree: Cursor `3.8.23` sends `tool_input.file_path` and `tool_input.content`
+  for a `ticket.md` edit.
+- 2026-06-24 Implemented payload hardening: `file_path` and `content` are pinned
+  by regression tests, `edits[].new_string` is supported as the documented
+  file-edit fallback, only `status: done` triggers the done gate, and unreadable
+  ticket content remains allowed by design. Also folded the PR #415 merge-comment follow-up that
+  makes `type: Feature` still require feature scenario evidence.
+- 2026-06-24 /quality-review found one regression: valid terminal statuses
+  (`cancelled`, `superseded`, `wontfix`) were treated as malformed. Fixed by
+  accepting the documented non-done statuses and pinning them in unit tests.
+- 2026-06-24 Verification: targeted Cursor gate tests passed (38/38), then full
+  suite passed (253 files, 3695 tests passed, 3 skipped).
+- 2026-06-24 PR #424 follow-up: CI lint caught strict TypeScript errors in
+  named regex group handling. Fixed the template and dogfood copies, then reran
+  package typecheck and targeted Cursor gate tests.
+- 2026-06-24 PR #424 review follow-up: switched status classification to
+  close-only detection after review found legacy repo statuses (`backlog`,
+  `pending`, `complete`) would be falsely blocked by a hand-maintained allowlist.

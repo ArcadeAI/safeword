@@ -17,8 +17,8 @@ import {
   type ClaudeGateInput,
   type CursorDecision,
   type CursorPreToolInput,
+  classifyDoneTransition,
   decideFromGate,
-  detectDoneTransition,
   extractFilePath,
   extractWriteContent,
   mapCursorToolName,
@@ -64,7 +64,8 @@ if (!filePath) emitAllowAndExit();
 // checks, sharing its logic with the Stop gate via lib/done-gate.ts (no drift).
 if (nodePath.basename(filePath) === 'ticket.md') {
   const proposedContent = extractWriteContent(input.tool_input);
-  if (detectDoneTransition(proposedContent)) {
+  const doneTransition = classifyDoneTransition({ content: proposedContent });
+  if (doneTransition === 'done') {
     const ticketDir = nodePath.resolve(nodePath.dirname(filePath));
     // Type comes from the proposed frontmatter; fall back to the on-disk ticket
     // (the closing edit rarely changes `type`) so features still require scenarios.
