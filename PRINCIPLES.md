@@ -88,9 +88,31 @@ Code that is correct but unclear will be misunderstood and broken by the next ch
 
 **Clarity > Simplicity > Correctness** — in that order.
 
-This applies beyond code. Skill files should be concise (3 steps, not 9). Enforcement should be legible (a developer reading the hook should understand what it checks and why). Principles should be few (5, not 15). Documentation should be precise enough that an agent with no prior context can follow it without ambiguity.
+This applies beyond code. Skill files should be concise (3 steps, not 9). Enforcement should be legible (a developer reading the hook should understand what it checks and why). Principles should be few (a handful, not 15). Documentation should be precise enough that an agent with no prior context can follow it without ambiguity.
 
 Delete what isn't needed. Don't abstract for hypothetical reuse. Don't comment what the code already says. Name things so the name is the documentation. When in doubt, choose the simpler solution that works today.
+
+---
+
+## 6. Disconfirm before you commit
+
+_"Agents evaluating their own work exhibit confirmation bias, praising mediocre outputs. Delegating evaluation to independent agents proves far more tractable." — Harness Design for Long-Running Apps (`<namespace-root>/learnings/anthropic-research-feb-apr-2026.md`)_
+
+An agent asked to check its own answer hunts for reasons it's right. Invert the search: spend scrutiny on the answer you are about to pick, not the ones you already discarded. The disconfirming test — the rejection path, the failure mode, the reason you are wrong — is worth more than another reason you are right.
+
+**Two forms, strongest first:**
+
+1. **Independent review** — a separate process evaluates the work (the Stop-hook code review, a Haiku judge, the test suite). Self-evaluation carries a confirmation bias that independent review does not. This is why safeword removed the BDD compliance self-check and delegates review rather than self-reporting it — the same hierarchy as principle 1's "independent observation" tier.
+2. **Disconfirm-first discipline** — when the same agent must reason inline, structure the reasoning to attack its own front-runner: steelman the option you _don't_ prefer first, run the cheapest hypothesis-killing check before confirming a favorite, ask the most discriminating question before the comfortable one.
+
+This discipline already runs throughout safeword under local names. Keep them pointed here, not re-derived:
+
+- **figure-it-out** — steelman the rejected option first; the premortem disconfirms your own choice.
+- **debug** — disconfirm-first: rule hypotheses _out_ with the cheapest test, don't hunt to confirm one.
+- **elicit** — the most discriminating question first (the convergent mirror of debug's disconfirm-first).
+- **review-spec** — argue against your own scenario list: "what breaks that none of these catch?"
+
+Gate the irreversible with independent review; apply disconfirm-first everywhere else.
 
 ---
 
