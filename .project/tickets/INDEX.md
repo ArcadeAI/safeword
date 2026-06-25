@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (329)
+## Tickets (332)
 
 ### agent-surface-refactor
 
@@ -276,30 +276,35 @@
   Make the Codex parity epic comply with safeword's feature-files-as-source workflow.
   → `.project/tickets/XK5N14-ensure-codex-feature-file-coverage`
 
-### cursor-changelog-alignment
+### cursor-optimization
 
-- **Re-architect done/stop gate for Cursor (stop cannot block) (AKNWZK)** (in_progress, epic: cursor-changelog-alignment)
+- **Migrate Cursor Rules to @reference Pattern (151)** (done, epic: cursor-optimization)
+  Convert the four duplicate-content Cursor rules (`safeword-debugging.mdc`, `safeword-quality-reviewing.mdc`, `safeword-refactoring.mdc`, `safeword-testing.mdc`) to the `@reference` pattern so each rule is a thin pointer to the corresponding Claude skill file. Single source of truth, zero drift risk.
+  → `.project/tickets/151-migrate-cursor-rules-to-reference-pattern`
+- **Re-architect done/stop gate for Cursor (stop cannot block) (AKNWZK)** (in_progress, epic: cursor-optimization)
   Make the done gate behave correctly on Cursor, where `stop` cannot block — it can only auto-continue via `followup_message`, capped by `loop_limit` (default 5).
   → `.project/tickets/AKNWZK-cursor-stop-gate-rearchitect`
-- **Set failClosed:true on Cursor gating hooks (default is fail-open) (ANAXG4)** (in_progress, epic: cursor-changelog-alignment)
+- **Set failClosed:true on Cursor gating hooks (default is fail-open) (ANAXG4)** (in_progress, epic: cursor-optimization)
   Mark safeword's security/gating Cursor hooks `failClosed: true` so a crashed/timed-out/invalid-JSON hook denies rather than silently letting the action through.
   → `.project/tickets/ANAXG4-cursor-failclosed-gating-hooks`
-- **Package safeword as Cursor Team-Marketplace plugin (Required mode) (DXYKJX)** (in_progress, epic: cursor-changelog-alignment)
+- **Package safeword as Cursor Team-Marketplace plugin (Required mode) (DXYKJX)** (in_progress, epic: cursor-optimization)
   Ship safeword as a Cursor Team-Marketplace plugin bundling hooks + rules + commands/skills + MCP, with "Required" install mode for enforcement.
   → `.project/tickets/DXYKJX-cursor-marketplace-plugin-packaging`
-- **Wire beforeSubmitPrompt as Cursor turn-start blocking gate (F2TKR3)** (in_progress, epic: cursor-changelog-alignment)
-  Add a `beforeSubmitPrompt` hook — the only true turn-start chokepoint on Cursor that can block — to inject the phase reminder and hard-gate when a phase precondition is unmet.
+- **Wire beforeSubmitPrompt as Cursor turn-start blocking gate (F2TKR3)** (in_progress, epic: cursor-optimization)
   → `.project/tickets/F2TKR3-cursor-before-submit-prompt-gate`
-- **Add Cursor sessionStart hook for context injection (RBZR3F)** (in_progress, epic: cursor-changelog-alignment)
+- **Prevent the Cursor done gate from silently missing ticket closes (P9K783)** (in_progress, epic: cursor-optimization)
+  Make the Cursor done gate's "is this edit closing a ticket?" detection robust against Cursor's actual `Write` payload, instead of relying on guessed field names that fail open.
+  → `.project/tickets/P9K783-cursor-done-gate-payload-detection`
+- **Add Cursor sessionStart hook for context injection (RBZR3F)** (done, epic: cursor-optimization)
   Inject SAFEWORD phase/context at session open via `sessionStart`'s `additional_context` + `env`, instead of relying solely on `.cursor/rules`.
   → `.project/tickets/RBZR3F-cursor-session-start-hook`
-- **Port phase/LOC gates to Cursor preToolUse + beforeShellExecution deny (T3DV1K)** (in_progress, epic: cursor-changelog-alignment)
+- **Port phase/LOC gates to Cursor preToolUse + beforeShellExecution deny (T3DV1K)** (in_progress, epic: cursor-optimization)
   Replace observe-only `afterFileEdit` with real blocking: `preToolUse` (deny edits before `test-definitions.md`) and `beforeShellExecution` (LOC/commit gate, dangerous-command policy).
   → `.project/tickets/T3DV1K-cursor-blocking-edit-shell-gates`
-- **Verify hook deny wins over Cursor Auto-review Run Mode (3.6) (TDX8NT)** (in_progress, epic: cursor-changelog-alignment)
+- **Verify hook deny wins over Cursor Auto-review Run Mode (3.6) (TDX8NT)** (in_progress, epic: cursor-optimization)
   Confirm that safeword's `beforeShellExecution` / `beforeMCPExecution` deny still wins when Cursor's Auto-review Run Mode classifier auto-approves Shell/MCP/Fetch calls.
   → `.project/tickets/TDX8NT-cursor-autoreview-deny-precedence`
-- **Epic: Cursor changelog + docs alignment (VAX3Z2)** (open, epic: cursor-changelog-alignment)
+- **Epic: Cursor optimization (VAX3Z2)** (open, epic: cursor-optimization)
   Restore real enforcement to safeword's Cursor integration — it currently relies on the two _non-blocking_ hook events — and pick up the blocking chokepoints + distribution path Cursor now offers.
   → `.project/tickets/VAX3Z2-cursor-changelog-alignment-epic`
 
@@ -580,9 +585,6 @@
 - **`safeword setup` offers to pre-allow the skill-invocation bash injection (150)** (open, epic: —)
   Have `bunx safeword setup` (and `safeword upgrade` when appropriate) detect whether `.claude/settings.json` pre-approves the two Bash patterns the skill-invocation log injection needs, and — if not — offer to add them. Prevents the failure mode at install time rather than only documenting it.
   → `.project/tickets/150-setup-pre-allow-skill-bash`
-- **Migrate Cursor Rules to @reference Pattern (151)** (pending, epic: —)
-  Convert the four duplicate-content Cursor rules (`safeword-debugging.mdc`, `safeword-quality-reviewing.mdc`, `safeword-refactoring.mdc`, `safeword-testing.mdc`) to the `@reference` pattern so each rule is a thin pointer to the corresponding Claude skill file. Single source of truth, zero drift risk.
-  → `.project/tickets/151-migrate-cursor-rules-to-reference-pattern`
 - **Resolve `bun audit` advisories surfaced 2026-05-18 (152)** (open, epic: —)
   Clear the 4 advisories that `bun audit` flags in safeword's tree (1 high, 3 moderate) by bumping the deps that pull in vulnerable transitives. None of these are caused by safeword's own direct deps — they're all transitives — but they show up in `bun audit` output, which customers run too.
   → `.project/tickets/152-resolve-bun-audit-advisories`
@@ -750,6 +752,14 @@
 - **Worktree-robust .husky/pre-commit PATH (9P3VVH)** (done, epic: —)
   Make this repo's `.husky/pre-commit` resolve `lint-staged` when committing from inside a git worktree. Shipped fix: invoke `node_modules/.bin/lint-staged` by the explicit relative path the hook's own guard already validates — not a `PATH` prepend (the figure-it-out winner over `export PATH=…` and `bunx`, which add coupling/network).
   → `.project/tickets/9P3VVH-worktree-husky-path`
+- **Validate feature ticket readiness before define-behavior (9S6HFC)** (in_progress, epic: —)
+  Prevent agents from starting define-behavior work on feature tickets whose intake artifacts are incomplete.
+  external issue: https://github.com/ArcadeAI/safeword/issues/404
+  → `.project/tickets/9S6HFC-feature-ticket-readiness`
+- **Prevent ESLint 10 install and config regressions (9T13K8)** (done, epic: —)
+  Ship the ESLint 10 follow-up fixes for the generated config crash and the `eslint-plugin-jsx-a11y` peer mismatch as one paired release.
+  external issue: https://github.com/ArcadeAI/safeword/issues/388
+  → `.project/tickets/9T13K8-eslint-10-install-config-regressions`
 - **Re-sync safeword's own depcruise-config.cjs (AK8REW)** (done, epic: —)
   Make `safeword sync-config --check` on this repo exit 0. The committed file was historically prettier-reformatted (long comment string wrapped to two lines); the generator emits it single-line. With v0.37.0's `/audit` change, every audit run on this repo emits W007 until the committed file is re-synced.
   → `.project/tickets/AK8REW`
@@ -831,7 +841,7 @@
 - **Replan blocker-moved advisory — depends_on target reached terminal status (E11N48)** (done, epic: —)
   When a ticket you depend on reaches a terminal status since you last touched this ticket, replan-on-resume warns the plan may be stale.
   → `.project/tickets/E11N48-replan-blocker-moved`
-- **Keep refactor commits scoped in mixed worktrees (E5VDEF)** (in_progress, epic: —)
+- **Keep refactor commits scoped in mixed worktrees (E5VDEF)** (done, epic: —)
   Keep `/refactor` from creating mixed commits when the worktree already contains unrelated feature work or is detached.
   external issue: https://github.com/ArcadeAI/safeword/issues/407
   → `.project/tickets/E5VDEF-refactor-commit-mixed-worktrees`
