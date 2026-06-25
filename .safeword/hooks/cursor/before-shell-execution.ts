@@ -55,7 +55,8 @@ const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts')
 
 // Fail-closed: a gate that crashed or never started denies the command (ANAXG4).
 const decision = decideFromGate(runClaudeHook(claudeHookPath, translated));
-const proofCommand = decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
+const proofCommand =
+  decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
 if (proofCommand !== undefined) {
   rememberCursorRunIdentity({
     projectDirectory: process.cwd(),

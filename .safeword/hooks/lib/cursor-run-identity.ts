@@ -50,9 +50,7 @@ function isBunExecutable(token: string | undefined): boolean {
 
 function isInvocationHelperPath(token: string | undefined): boolean {
   if (token === undefined) return false;
-  return token
-    .replaceAll('\\', '/')
-    .endsWith('/.safeword/hooks/record-skill-invocation.ts');
+  return token.replaceAll('\\', '/').endsWith('/.safeword/hooks/record-skill-invocation.ts');
 }
 
 function tokenizeShellCommand(command: string): string[] {
@@ -129,7 +127,9 @@ function tokenizeShellCommand(command: string): string[] {
   return tokens;
 }
 
-export function parseRecordSkillInvocationCommand(command: string): { skillName: string } | undefined {
+export function parseRecordSkillInvocationCommand(
+  command: string,
+): { skillName: string } | undefined {
   const tokens = tokenizeShellCommand(command);
   let segmentStart = 0;
 
