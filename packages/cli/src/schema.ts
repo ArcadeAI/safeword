@@ -542,6 +542,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
+    '.safeword/hooks/lib/architecture-staged-scope.ts': {
+      template: 'hooks/lib/architecture-staged-scope.ts',
+    },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
     '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
