@@ -28,7 +28,7 @@ If the real field isn't in the list and the fallback picks the wrong value (or n
 ## Approach
 
 1. **Verify, don't guess.** Capture a real Cursor `preToolUse` Write payload (a `ticket.md` edit) and pin the actual `tool_input` field names for path and content. Update `PATH_KEYS` / `CONTENT_KEYS` to the verified names (keep the others as tolerant fallbacks).
-2. **Decide the miss-direction deliberately.** For a confirmed `ticket.md` edit whose content can't be read at all, choose fail-open vs fail-closed and document it. (Fail-closed on every unreadable ticket.md edit would block ordinary work-log saves, so the likely answer is a narrower signal — e.g. only when a `status:` line is present but unparseable.)
+2. **Decide the miss-direction deliberately.** For a confirmed `ticket.md` edit whose content can't be read at all, choose fail-open vs fail-closed and document it. The final gate should stay narrow enough to block real closes without deadlocking ordinary ticket edits.
 3. **Regression test** the verified field names so a future Cursor payload change is caught.
 
 ## Done when
@@ -47,7 +47,7 @@ If the real field isn't in the list and the fallback picks the wrong value (or n
 
 Verified source: a temporary dogfood hook captured a real Cursor `preToolUse` `Write` payload for this ticket file. The path extractor keeps verified `file_path` first. The content extractor keeps verified `content` first and adds documented `edits[].new_string` support before the older guessed fallbacks.
 
-Miss-direction: unreadable `ticket.md` content stays fail-open so ordinary work-log edits do not deadlock. A readable but malformed `status:` line fails closed because safeword can confirm this is a status edit but cannot safely tell whether it is closing the ticket.
+Miss-direction: unreadable `ticket.md` content stays fail-open so ordinary work-log edits do not deadlock. Readable non-`done` statuses also stay allowed because this hook is a close detector, not a full ticket-status validator.
 
 ## Work Log
 
@@ -60,8 +60,8 @@ Miss-direction: unreadable `ticket.md` content stays fail-open so ordinary work-
   for a `ticket.md` edit.
 - 2026-06-24 Implemented payload hardening: `file_path` and `content` are pinned
   by regression tests, `edits[].new_string` is supported as the documented
-  file-edit fallback, malformed status lines deny, and unreadable ticket content
-  remains allowed by design. Also folded the PR #415 merge-comment follow-up that
+  file-edit fallback, only `status: done` triggers the done gate, and unreadable
+  ticket content remains allowed by design. Also folded the PR #415 merge-comment follow-up that
   makes `type: Feature` still require feature scenario evidence.
 - 2026-06-24 /quality-review found one regression: valid terminal statuses
   (`cancelled`, `superseded`, `wontfix`) were treated as malformed. Fixed by
@@ -71,3 +71,6 @@ Miss-direction: unreadable `ticket.md` content stays fail-open so ordinary work-
 - 2026-06-24 PR #424 follow-up: CI lint caught strict TypeScript errors in
   named regex group handling. Fixed the template and dogfood copies, then reran
   package typecheck and targeted Cursor gate tests.
+- 2026-06-24 PR #424 review follow-up: switched status classification to
+  close-only detection after review found legacy repo statuses (`backlog`,
+  `pending`, `complete`) would be falsely blocked by a hand-maintained allowlist.

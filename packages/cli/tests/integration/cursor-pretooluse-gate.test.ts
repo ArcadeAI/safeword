@@ -210,23 +210,24 @@ describe('Cursor done-edit gate (AKNWZK)', () => {
     expect(decision.user_message).toContain('verify.md');
   });
 
-  it('denies a ticket status edit safeword can read but cannot classify', () => {
-    const decision = runAdapter(projectRoot, {
-      filePath: ticketRelativePath,
-      content: [
-        '---',
-        `id: ${TICKET_ID}`,
-        'slug: cursor-gate',
-        'type: task',
-        'phase: done',
-        'status:',
-        '---',
-        '',
-      ].join('\n'),
-    });
+  it('allows readable ticket status edits that are not closing the ticket', () => {
+    for (const status of ['backlog', 'pending', 'complete', 'open']) {
+      const decision = runAdapter(projectRoot, {
+        filePath: ticketRelativePath,
+        content: [
+          '---',
+          `id: ${TICKET_ID}`,
+          'slug: cursor-gate',
+          'type: task',
+          'phase: done',
+          `status: ${status}`,
+          '---',
+          '',
+        ].join('\n'),
+      });
 
-    expect(decision.permission).toBe('deny');
-    expect(decision.user_message).toContain('could not parse');
+      expect(decision.permission).toBe('allow');
+    }
   });
 
   it('allows an unreadable ticket.md edit instead of blocking ordinary work-log saves', () => {

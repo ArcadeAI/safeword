@@ -119,6 +119,7 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
     it('matches frontmatter that closes the ticket', () => {
       expect(detectDoneTransition('---\nstatus: done\n---')).toBe(true);
       expect(detectDoneTransition('---\nstatus: "done"\n---')).toBe(true);
+      expect(detectDoneTransition('---\nstatus: done # verified manually\n---')).toBe(true);
     });
 
     it('does NOT match entering the done phase (phase: done, still in progress)', () => {
@@ -131,16 +132,20 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
       expect(detectDoneTransition(undefined)).toBe(false);
     });
 
-    it('classifies unreadable content as unknown and malformed status as unparseable', () => {
+    it('classifies unreadable content as unknown and non-done statuses as not closing', () => {
       expect(classifyDoneTransition({ content: undefined })).toBe('unknown');
-      expect(classifyDoneTransition({ content: '---\nstatus:\n---' })).toBe('unparseable');
-      expect(classifyDoneTransition({ content: '---\nstatus: done-ish\n---' })).toBe('unparseable');
+      expect(classifyDoneTransition({ content: '---\nstatus:\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: done-ish\n---' })).toBe('not_done');
     });
 
-    it('treats documented non-done terminal statuses as readable but not closing', () => {
+    it('treats known and legacy non-done statuses as readable but not closing', () => {
+      expect(classifyDoneTransition({ content: '---\nstatus: open\n---' })).toBe('not_done');
       expect(classifyDoneTransition({ content: '---\nstatus: cancelled\n---' })).toBe('not_done');
       expect(classifyDoneTransition({ content: '---\nstatus: superseded\n---' })).toBe('not_done');
       expect(classifyDoneTransition({ content: '---\nstatus: wontfix\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: backlog\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: pending\n---' })).toBe('not_done');
+      expect(classifyDoneTransition({ content: '---\nstatus: complete\n---' })).toBe('not_done');
     });
   });
 

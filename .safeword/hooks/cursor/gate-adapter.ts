@@ -116,17 +116,9 @@ function extractNewStringsFromEdits(edits: unknown): string | undefined {
   return newStrings.join('\n');
 }
 
-export type DoneTransitionStatus = 'done' | 'not_done' | 'unparseable' | 'unknown';
+export type DoneTransitionStatus = 'done' | 'not_done' | 'unknown';
 
 const STATUS_LINE_PATTERN = /^status:\s*(?<status>.*)$/im;
-const KNOWN_NOT_DONE_STATUSES = new Set([
-  'open',
-  'in_progress',
-  'blocked',
-  'cancelled',
-  'superseded',
-  'wontfix',
-]);
 
 /**
  * True when the proposed ticket.md content closes the ticket — i.e. its frontmatter
@@ -142,9 +134,9 @@ export function detectDoneTransition(content: string | undefined): boolean {
  * Classify a proposed ticket status line.
  *
  * Deliberate miss-direction (P9K783): no readable content remains fail-open so
- * ordinary ticket work-log saves do not deadlock. A readable but malformed
- * `status:` line fails closed at the caller, because that is a confirmed status
- * edit whose close intent cannot be safely classified.
+ * ordinary ticket work-log saves do not deadlock. This is a close detector, not
+ * a ticket status validator: only `status: done` triggers the done gate, and
+ * every other readable status remains an ordinary ticket edit.
  */
 export function classifyDoneTransition(params: {
   content: string | undefined;
@@ -159,8 +151,7 @@ export function classifyDoneTransition(params: {
 
   const normalizedStatus = normalizeFrontmatterScalar(rawStatus);
   if (normalizedStatus === 'done') return 'done';
-  if (KNOWN_NOT_DONE_STATUSES.has(normalizedStatus)) return 'not_done';
-  return 'unparseable';
+  return 'not_done';
 }
 
 /** Read the `type:` frontmatter value ('feature' | 'task' | ...) from ticket.md content. */
@@ -171,11 +162,29 @@ export function parseTicketType(content: string | undefined): string | undefined
 }
 
 function normalizeFrontmatterScalar(value: string): string {
-  return value
-    .trim()
+  return stripYamlInlineComment(value)
     .replace(/^['"](?<inner>.*)['"]$/, '$<inner>')
     .trim()
     .toLowerCase();
+}
+
+function stripYamlInlineComment(value: string): string {
+  let quote: '"' | "'" | undefined;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if ((char === '"' || char === "'") && quote === undefined) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = undefined;
+      continue;
+    }
+    if (char === '#' && quote === undefined && /\s/.test(value[index - 1] ?? '')) {
+      return value.slice(0, index).trim();
+    }
+  }
+  return value.trim();
 }
 
 /**
