@@ -67,6 +67,7 @@ Core children (own the `cursor-optimization` epic key). Status revalidated 2026-
 | **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | open             |
 | **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | open             |
 | **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | open             |
+| **P9K783** | Harden Cursor done-gate close-detection (verify payload fields)    | correctness         | open             |
 | **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | open             |
 | **DXYKJX** | Package as Team-Marketplace plugin (Required mode)                 | distribution        | open             |
 
