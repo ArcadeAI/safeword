@@ -11,6 +11,7 @@ import {
   formatReviewStamp,
   gatePhaseAdvance,
   hashArtifact,
+  isPrReviewGateEnabled,
   isReviewGateEnabled,
   parseReviewStamps,
   reviewGateForNextAsset,
@@ -144,6 +145,19 @@ describe('isReviewGateEnabled (default-off rollout guard)', () => {
 
   it('is off on malformed config (fail-safe)', () => {
     expect(isReviewGateEnabled('not json {')).toBe(false);
+  });
+});
+
+describe('isPrReviewGateEnabled (default-off rollout guard, ticket Y9WX8R)', () => {
+  it('defaults to off with no config, absent flag, false, or malformed', () => {
+    expect(isPrReviewGateEnabled()).toBe(false);
+    expect(isPrReviewGateEnabled('{}')).toBe(false);
+    expect(isPrReviewGateEnabled('{"prReviewGate": false}')).toBe(false);
+    expect(isPrReviewGateEnabled('not json {')).toBe(false);
+  });
+
+  it('is on only when prReviewGate is explicitly true', () => {
+    expect(isPrReviewGateEnabled('{"prReviewGate": true}')).toBe(true);
   });
 });
 

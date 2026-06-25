@@ -103,6 +103,16 @@ export function isReviewGateEnabled(rawConfig?: string): boolean {
   return configFlagIsTrue(rawConfig, 'reviewGate');
 }
 
+/**
+ * Rollout guard for the eng-review-on-green-PRs merge gate (ticket Y9WX8R): OFF
+ * unless `.safeword/config.json` sets `prReviewGate: true`. Same default-off,
+ * fail-safe-to-off-on-malformed posture as {@link isReviewGateEnabled} — ships
+ * inert so teams adopt PR-merge enforcement on their own timeline.
+ */
+export function isPrReviewGateEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'prReviewGate');
+}
+
 const PHASE_FIELD = /^phase:\s*(\S+)/m;
 
 /**
