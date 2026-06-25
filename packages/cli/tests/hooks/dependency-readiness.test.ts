@@ -718,19 +718,52 @@ describe('dependency readiness hook support', () => {
   describe('git hooks wiring (#364)', () => {
     it('wires committed hooks when core.hooksPath is unset', () => {
       expect(
-        decideGitHooksWiring({ committedHookExists: true, currentHooksPathActive: false }),
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '',
+          currentHooksPathActive: false,
+        }),
+      ).toEqual({ action: 'wire', hooksPath: '.husky' });
+    });
+
+    it('wires when core.hooksPath is husky-managed but not yet populated', () => {
+      // Fresh clone: .husky/_ is configured but husky never ran to fill it.
+      expect(
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '.husky/_',
+          currentHooksPathActive: false,
+        }),
       ).toEqual({ action: 'wire', hooksPath: '.husky' });
     });
 
     it('leaves an already-active hooks path alone', () => {
       expect(
-        decideGitHooksWiring({ committedHookExists: true, currentHooksPathActive: true }),
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '.husky/_',
+          currentHooksPathActive: true,
+        }),
+      ).toEqual({ action: 'none' });
+    });
+
+    it('never clobbers a deliberate custom core.hooksPath without a pre-commit', () => {
+      expect(
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '.myhooks',
+          currentHooksPathActive: false,
+        }),
       ).toEqual({ action: 'none' });
     });
 
     it('does nothing when no committed hook exists', () => {
       expect(
-        decideGitHooksWiring({ committedHookExists: false, currentHooksPathActive: false }),
+        decideGitHooksWiring({
+          committedHookExists: false,
+          currentHooksPath: '',
+          currentHooksPathActive: false,
+        }),
       ).toEqual({ action: 'none' });
     });
 

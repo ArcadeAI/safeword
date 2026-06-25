@@ -229,7 +229,9 @@ describe('SETTINGS_HOOKS', () => {
       .filter((hook: HookCommand) => hook.type === 'command')
       .map((hook: HookCommand) => (hook as { if?: string }).if);
     expect(ifFilters).toEqual(expect.arrayContaining(['Bash(git checkout*)', 'Bash(git switch*)']));
-    expect(staleHooks.every((h: HookEntry) => h.matcher === 'Bash')).toBe(true);
+    expect(staleHooks.every((h: HookEntry) => (h as { matcher?: string }).matcher === 'Bash')).toBe(
+      true,
+    );
   });
 
   it('architecture-stage hook uses Bash matcher with a git-commit if-filter to scope the spawn', () => {

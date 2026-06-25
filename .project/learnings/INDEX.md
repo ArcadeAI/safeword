@@ -63,7 +63,7 @@
   → `.project/learnings/skill-description-design.md`
 - **Editing Existing Templates — All Install Locations** — template edit parity, dogfood-parity test, .agents/ install location, installed copies checklist.
   → `.project/learnings/template-edit-install-locations.md`
-- **Wiring Tests — Mock Only the Process Boundary** — every entry-point needs one real-collaborator wiring test, internal-seam
+- **Wiring Tests — Mock Only the Process Boundary** — every entry-point needs one real-collaborator wiring test, internal-seam mocks, false greens, mock only the process boundary, sync-tracker corpus-walk miss (#349, #363).
   → `.project/learnings/wiring-tests-mock-only-the-boundary.md`
 - **YAML Parsing & Quality Gates: Learnings from Ticket 025** — YAML failsafe schema, quality-state.json, ticket hierarchy.
   → `.project/learnings/yaml-and-quality-gates.md`

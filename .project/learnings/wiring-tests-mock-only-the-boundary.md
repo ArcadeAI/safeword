@@ -1,7 +1,6 @@
 # Wiring Tests — Mock Only the Process Boundary
 
-Covers: every entry-point needs one real-collaborator wiring test, internal-seam
-mocks, false greens, mock only the process boundary, sync-tracker corpus-walk miss (#349, #363).
+Covers: every entry-point needs one real-collaborator wiring test, internal-seam mocks, false greens, mock only the process boundary, sync-tracker corpus-walk miss (#349, #363).
 
 A suite that fakes _internal_ seams can be fully green while the real wiring is
 broken. While building `sync-tracker` (#349), `readCorpus` passed `cwd` to

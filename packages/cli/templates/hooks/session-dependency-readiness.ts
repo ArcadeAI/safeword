@@ -121,7 +121,11 @@ function wireGitHooksIfNeeded(cwd: string): void {
   const currentHooksPathActive =
     currentHooksPath !== '' && existsSync(nodePath.resolve(cwd, currentHooksPath, 'pre-commit'));
 
-  const decision = decideGitHooksWiring({ committedHookExists, currentHooksPathActive });
+  const decision = decideGitHooksWiring({
+    committedHookExists,
+    currentHooksPath,
+    currentHooksPathActive,
+  });
   if (decision.action !== 'wire' || decision.hooksPath === undefined) return;
 
   // Best-effort: a wiring failure (read-only config, no git) must not crash the

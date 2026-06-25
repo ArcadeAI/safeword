@@ -1039,6 +1039,8 @@ export const COMMITTED_HOOKS_DIR = '.husky';
 export interface GitHooksWiringInput {
   /** A committed hook (`.husky/pre-commit`) exists in the repo. */
   committedHookExists: boolean;
+  /** Current value of git `core.hooksPath` (`''` when unset). */
+  currentHooksPath: string;
   /** Whether the directory git's `core.hooksPath` points at holds a usable hook. */
   currentHooksPathActive: boolean;
 }
@@ -1049,14 +1051,26 @@ export interface GitHooksWiringDecision {
 }
 
 /**
+ * Whether `core.hooksPath` is unset or husky-managed (so safeword may wire it).
+ * A non-empty, non-husky value is a deliberate custom hooks path we must not
+ * clobber, even when it has no `pre-commit` — the user owns it.
+ */
+function isHuskyManagedHooksPath(hooksPath: string): boolean {
+  const normalized = hooksPath.replace(/\/+$/, '');
+  return normalized === '' || normalized === COMMITTED_HOOKS_DIR || normalized === '.husky/_';
+}
+
+/**
  * Decide whether to wire git hooks. When a committed `.husky/pre-commit` exists but
- * `core.hooksPath` is unset or points at a directory with no usable hook, wire it to
- * `.husky` so the committed guard fires — the absence of enforcement becomes
+ * `core.hooksPath` is unset (or already husky-managed) and has no usable hook, wire
+ * it to `.husky` so the committed guard fires — the absence of enforcement becomes
  * self-enforcing. Husky resets `core.hooksPath` to `.husky/_` on its next install,
- * so this is a safe bridge for the fresh-clone window.
+ * so this is a safe bridge for the fresh-clone window. A deliberate custom
+ * `core.hooksPath` is left untouched.
  */
 export function decideGitHooksWiring(input: GitHooksWiringInput): GitHooksWiringDecision {
   if (!input.committedHookExists) return { action: 'none' };
   if (input.currentHooksPathActive) return { action: 'none' };
+  if (!isHuskyManagedHooksPath(input.currentHooksPath)) return { action: 'none' };
   return { action: 'wire', hooksPath: COMMITTED_HOOKS_DIR };
 }

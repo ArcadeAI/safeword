@@ -108,7 +108,8 @@ bash -c "$(run_safeword test-plan --kind build --format sh)"
 
 # --- Typecheck: the same `tsc --noEmit` signal CI's lint job runs (#436). A
 #     green targeted-test run is NOT readiness if types are broken. An empty
-#     plan (no `typecheck` script / non-TS project) prints a visible skip. ---
+#     plan (no `typecheck` script / non-TS project) is a silent no-op — when the
+#     ticket touched TypeScript, run `/lint` (which runs tsc) so it isn't a gap. ---
 bash -c "$(run_safeword test-plan --kind typecheck --format sh)"
 ```
 
