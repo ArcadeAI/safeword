@@ -86,6 +86,18 @@ function splitGitList(output: string): string[] {
     .filter(Boolean);
 }
 
+function listChangedFiles(execSync: ExecSyncLike, execOptions: ExecOptions): string[] {
+  return splitGitList(execSync('git diff --name-only', execOptions));
+}
+
+function listStagedFiles(execSync: ExecSyncLike, execOptions: ExecOptions): string[] {
+  return splitGitList(execSync('git diff --cached --name-only', execOptions));
+}
+
+function listUntrackedFiles(execSync: ExecSyncLike, execOptions: ExecOptions): string[] {
+  return splitGitList(execSync('git ls-files --others --exclude-standard', execOptions));
+}
+
 /**
  * Fetch the latest version + publish time from npm's packument. Fails closed:
  * network, parse, or missing publish-time errors return undefined so callers
@@ -352,10 +364,8 @@ export async function runAutoUpgrade({
   try {
     execFileSync('bunx', [`safeword@${latest}`, 'upgrade'], { ...execOptions, stdio: 'pipe' });
 
-    const changedFiles = splitGitList(execSync('git diff --name-only', execOptions));
-    const untrackedFiles = splitGitList(
-      execSync('git ls-files --others --exclude-standard', execOptions),
-    );
+    const changedFiles = listChangedFiles(execSync, execOptions);
+    const untrackedFiles = listUntrackedFiles(execSync, execOptions);
     const filesToStage = [...filterSafewordFiles(changedFiles, untrackedFiles)];
 
     if (filesToStage.length > 0) {
@@ -368,11 +378,9 @@ export async function runAutoUpgrade({
     }
   } catch {
     try {
-      const changedFiles = splitGitList(execSync('git diff --name-only', execOptions));
-      const stagedFiles = splitGitList(execSync('git diff --cached --name-only', execOptions));
-      const untrackedFiles = splitGitList(
-        execSync('git ls-files --others --exclude-standard', execOptions),
-      );
+      const changedFiles = listChangedFiles(execSync, execOptions);
+      const stagedFiles = listStagedFiles(execSync, execOptions);
+      const untrackedFiles = listUntrackedFiles(execSync, execOptions);
       rollbackSafewordManagedFiles({
         projectDir,
         changedFiles,
