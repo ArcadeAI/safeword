@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { getEslintConfig, SETTINGS_HOOKS } from './config.js';
+import { getEslintConfig, getSafewordEslintConfig, SETTINGS_HOOKS } from './config.js';
 
 // Element type of any SETTINGS_HOOKS bucket (PostToolUse, PreToolUse, etc.)
 // Each is a list of { matcher?, hooks: { type, command }[] } entries.
@@ -105,6 +105,22 @@ describe('getEslintConfig monorepo support', () => {
     // Should have logic to apply nextOnlyRules with files scoping
     expect(config).toContain('files:');
     expect(config).toContain('nextPaths');
+  });
+});
+
+describe('getSafewordEslintConfig', () => {
+  it('imports safeword when generated config references safeword.prettierConfig', () => {
+    const config = getSafewordEslintConfig('eslint.config.mjs', false);
+
+    expect(config).toContain('import safeword from "safeword/eslint"');
+    expect(config).toContain('const eslintConfigPrettier = safeword.prettierConfig;');
+  });
+
+  it('does not reference safeword.prettierConfig in formatter-agnostic generated config', () => {
+    const config = getSafewordEslintConfig('eslint.config.mjs', true);
+
+    expect(config).not.toContain('safeword.prettierConfig');
+    expect(config).not.toContain('import safeword from "safeword/eslint"');
   });
 });
 

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { format } from 'prettier';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -306,6 +307,25 @@ describe('ticket-sync', () => {
       const names = [...active.map(entry => entry.folder), ...skipped.map(skip => skip.folder)];
       expect(names).not.toContain(INDEX_FILENAME);
       expect(names).not.toContain(COMPLETED_INDEX_FILENAME);
+    });
+
+    it('generated_index_is_stable_when_markdown_formatter_runs', async () => {
+      writeTicket(
+        'risk',
+        {
+          id: 'RISK',
+          status: 'in_progress',
+          title: "'Phase 2 (optional): LLM pre-triage of diffs'",
+        },
+        '# Risk\n\n**Goal:** Preserve _draft_ prose and **survive generated formatting.\n',
+      );
+
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      const formatted = await format(content, { parser: 'markdown' });
+
+      expect(content).toContain('<!-- prettier-ignore-start -->');
+      expect(content).toContain('<!-- prettier-ignore-end -->');
+      expect(formatted).toBe(content);
     });
   });
 
