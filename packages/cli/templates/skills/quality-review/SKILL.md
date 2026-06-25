@@ -86,6 +86,7 @@ Fetch official documentation for libraries in use.
 **Documentation:** [✓/⚠️/❌] [Current docs check]
 **Security:** [✓/⚠️/❌] [Vulnerability check]
 **No-bloat:** [✓/⚠️/❌] [smallest thing that works, or name the cut]
+**Wiring:** [✓/⚠️/❌] [each new entry-point has a real-collaborator test; mocks only the boundary — name it or justify absence]
 
 **Verdict:** [APPROVE / REQUEST CHANGES / NEEDS DISCUSSION]
 
@@ -101,6 +102,10 @@ Fetch official documentation for libraries in use.
 ```
 
 The `**Next:**` line is required. On APPROVE, name what to do now (proceed, commit, run /verify). On REQUEST CHANGES, name the specific edit and re-review trigger. On NEEDS DISCUSSION, name the question to ask. A verdict that doesn't tell the reader what to do next is incomplete.
+
+### Wiring gate (required)
+
+For each new entry point or command in the diff, confirm a test built from **real collaborators** that mocks only the process boundary (network / fs / clock / subprocess) — and **name it**, or justify its absence. A fully-mocked suite can be green while the real config→module wiring is broken (see `testing/SKILL.md` → Wiring Tests). Internal-seam mocks and `provider: none`-style short circuits do not count as wiring coverage.
 
 ### Provenance gate (required)
 

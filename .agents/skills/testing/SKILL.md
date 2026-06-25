@@ -204,6 +204,37 @@ Eval-specific principles:
 - **One dimension per scorer** — don't bundle factuality + tone + completeness
 - **Deterministic checks first** — regex, schema validation, required fields before LLM-as-judge
 
+### Wiring Tests — Mock Only the Process Boundary
+
+A suite that fakes _internal_ seams can be fully green while the real wiring is
+broken. Name the **process boundary** you mock — the network, filesystem, clock,
+or subprocess at the edge of your code — and mock _only_ that. Every entry point
+or command that wires modules together gets **≥1 test built from real
+collaborators**, faking nothing but that boundary.
+
+```typescript
+// ✅ Wiring test: real config → real corpus walk → real orchestrator,
+//    mocking only the network boundary (the one external service).
+it('files an issue from a real ticket corpus', async () => {
+  writeTicket(tmp, 'T1', { status: 'done' });
+  const sent = [];
+  const result = await syncTracker(tmp, { http: stubHttp(sent) }); // boundary only
+  expect(sent).toHaveLength(1);
+  expect(result.projected).toBe(1);
+});
+
+// ❌ Internal-seam mock: hand-builds the corpus the orchestrator should compute,
+//    so a broken config→corpus wiring (e.g. passing cwd where a dir is expected)
+//    passes every assertion. This is how a real bug survived 21 scenarios + 61 tests.
+it('projects tickets', () => {
+  expect(orchestrate({ tickets: [fakeTicket], config: fakeConfig })).toEqual(...);
+});
+```
+
+If the only way to exercise a code path is through an injected internal value
+(`provider: 'none'`, a hand-passed `repoVisibility`) and never through the real
+command, that path has **no wiring test** — add one.
+
 ---
 
 ## Writing Approach
