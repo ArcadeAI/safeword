@@ -52,3 +52,16 @@ itself a latent bug fix (the old unanchored regex matched `exclude-members` as `
 Audit passed — 0 errors, 1 accepted warning (import-boilerplate clone). No circular
 dependencies or layer violations, no new dead code, no logic duplication, config in
 sync, zero new dependencies, test quality verified.
+
+## Quality-review pass 3 (done-gate)
+
+A third independent fresh-context pass (broad — extraction + 5-language dispatch +
+regression) returned NEEDS DISCUSSION on one real common-case mis-dispatch: a
+maturin/pyo3 native-extension project (both a `pyproject.toml` and a `Cargo.toml` at
+root — pydantic-core, cryptography, polars, ruff, orjson, tokenizers) was routed to the
+Rust extractor (Cargo checked first), silently dropping its `src/*.py` modules. Fixed by
+checking `pyproject.toml` before `Cargo.toml`; one regression test; pure Rust / pure
+Python unaffected. Independent re-review **APPROVE** (verified by re-running the
+fixtures). Three quality-review passes, three real silent-wrong bugs found and fixed
+(buried-AC misframe in scenario-gate; the PEP 508 `#`-in-url drop; this maturin
+mis-dispatch) — the parser and dispatch are now hardened against the common Python shapes.
