@@ -1027,3 +1027,36 @@ function getMtimeMs(path: string): number | undefined {
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].toSorted();
 }
+
+/**
+ * Directory holding committed git hooks. Husky wires git's `core.hooksPath` to
+ * `.husky/_` during `prepare`, which only runs on `npm install` — so a fresh
+ * clone/worktree has no hooks wired until deps are installed, and every committed
+ * pre-commit guard silently does not run (#364).
+ */
+export const COMMITTED_HOOKS_DIR = '.husky';
+
+export interface GitHooksWiringInput {
+  /** A committed hook (`.husky/pre-commit`) exists in the repo. */
+  committedHookExists: boolean;
+  /** Whether the directory git's `core.hooksPath` points at holds a usable hook. */
+  currentHooksPathActive: boolean;
+}
+
+export interface GitHooksWiringDecision {
+  action: 'none' | 'wire';
+  hooksPath?: string;
+}
+
+/**
+ * Decide whether to wire git hooks. When a committed `.husky/pre-commit` exists but
+ * `core.hooksPath` is unset or points at a directory with no usable hook, wire it to
+ * `.husky` so the committed guard fires — the absence of enforcement becomes
+ * self-enforcing. Husky resets `core.hooksPath` to `.husky/_` on its next install,
+ * so this is a safe bridge for the fresh-clone window.
+ */
+export function decideGitHooksWiring(input: GitHooksWiringInput): GitHooksWiringDecision {
+  if (!input.committedHookExists) return { action: 'none' };
+  if (input.currentHooksPathActive) return { action: 'none' };
+  return { action: 'wire', hooksPath: COMMITTED_HOOKS_DIR };
+}

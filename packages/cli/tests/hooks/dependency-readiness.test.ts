@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  decideGitHooksWiring,
   dependencyInputFingerprint,
   detectDependencyPlan,
   formatDependencyRecovery,
@@ -712,5 +713,50 @@ describe('dependency readiness hook support', () => {
     expect(
       existsSync(path.join(projectDirectory, 'node_modules', '.safeword-deps-fingerprint')),
     ).toBe(false);
+  });
+
+  describe('git hooks wiring (#364)', () => {
+    it('wires committed hooks when core.hooksPath is unset', () => {
+      expect(
+        decideGitHooksWiring({ committedHookExists: true, currentHooksPathActive: false }),
+      ).toEqual({ action: 'wire', hooksPath: '.husky' });
+    });
+
+    it('leaves an already-active hooks path alone', () => {
+      expect(
+        decideGitHooksWiring({ committedHookExists: true, currentHooksPathActive: true }),
+      ).toEqual({ action: 'none' });
+    });
+
+    it('does nothing when no committed hook exists', () => {
+      expect(
+        decideGitHooksWiring({ committedHookExists: false, currentHooksPathActive: false }),
+      ).toEqual({ action: 'none' });
+    });
+
+    it('the SessionStart hook activates the committed guard on a fresh worktree', () => {
+      // Fresh clone: committed .husky/pre-commit present, but git never ran husky's
+      // prepare, so core.hooksPath is unset and the guard chain is silently inactive.
+      expect(spawnSync('git', ['init'], { cwd: projectDirectory }).status).toBe(0);
+      mkdirSync(path.join(projectDirectory, '.safeword'), { recursive: true });
+      mkdirSync(path.join(projectDirectory, '.husky'), { recursive: true });
+      writeTestFile(projectDirectory, '.husky/pre-commit', '#!/bin/sh\nexit 1\n');
+      expect(
+        spawnSync('git', ['config', '--get', 'core.hooksPath'], {
+          cwd: projectDirectory,
+          encoding: 'utf8',
+        }).stdout.trim(),
+      ).toBe('');
+
+      const result = runHook(SESSION_HOOK);
+      expect(result.status).toBe(0);
+
+      expect(
+        spawnSync('git', ['config', '--get', 'core.hooksPath'], {
+          cwd: projectDirectory,
+          encoding: 'utf8',
+        }).stdout.trim(),
+      ).toBe('.husky');
+    });
   });
 });
