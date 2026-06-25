@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (332)
+## Tickets (333)
 
 ### agent-surface-refactor
 
@@ -292,6 +292,9 @@
   → `.project/tickets/DXYKJX-cursor-marketplace-plugin-packaging`
 - **Wire beforeSubmitPrompt as Cursor turn-start blocking gate (F2TKR3)** (in_progress, epic: cursor-optimization)
   → `.project/tickets/F2TKR3-cursor-before-submit-prompt-gate`
+- **Add an action-based MCP safety gate for Cursor (JFBFEP)** (in_progress, epic: cursor-optimization)
+  Add a Cursor `beforeMCPExecution` safety gate that keeps MCP first-class while blocking only risky actions.
+  → `.project/tickets/JFBFEP-cursor-mcp-safety-gate`
 - **Prevent the Cursor done gate from silently missing ticket closes (P9K783)** (in_progress, epic: cursor-optimization)
   Make the Cursor done gate's "is this edit closing a ticket?" detection robust against Cursor's actual `Write` payload, instead of relying on guessed field names that fail open.
   → `.project/tickets/P9K783-cursor-done-gate-payload-detection`
@@ -302,7 +305,7 @@
   Replace observe-only `afterFileEdit` with real blocking: `preToolUse` (deny edits before `test-definitions.md`) and `beforeShellExecution` (LOC/commit gate, dangerous-command policy).
   → `.project/tickets/T3DV1K-cursor-blocking-edit-shell-gates`
 - **Verify hook deny wins over Cursor Auto-review Run Mode (3.6) (TDX8NT)** (in_progress, epic: cursor-optimization)
-  Confirm that safeword's `beforeShellExecution` / `beforeMCPExecution` deny still wins when Cursor's Auto-review Run Mode classifier auto-approves Shell/MCP/Fetch calls.
+  Confirm that safeword's `beforeShellExecution` deny still wins when Cursor's Auto-review Run Mode would otherwise auto-approve a shell command.
   → `.project/tickets/TDX8NT-cursor-autoreview-deny-precedence`
 - **Epic: Cursor optimization (VAX3Z2)** (open, epic: cursor-optimization)
   Restore real enforcement to safeword's Cursor integration — it currently relies on the two _non-blocking_ hook events — and pick up the blocking chokepoints + distribution path Cursor now offers.
