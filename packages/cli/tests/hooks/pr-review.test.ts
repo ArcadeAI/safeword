@@ -3,12 +3,17 @@ import { describe, expect, it } from 'vitest';
 // Source of truth lives under templates/ (the .safeword/hooks copy is synced).
 // `.js` specifier so tsc resolves the .ts source in the typecheck graph.
 import {
+  acceptReview,
+  DEFAULT_REVIEW_SIZE_THRESHOLD,
+  effectiveFalsePositiveRate,
   evaluateMergeGate,
   hasFreshApproval,
+  markActedOn,
   parseReviewResult,
   receiptFromResult,
   recordSkip,
   type ReviewResult,
+  selectReviewDepth,
   validateReviewResult,
 } from '../../templates/hooks/lib/pr-review.js';
 
@@ -197,5 +202,75 @@ describe('eng-review merge gate is opt-in and blocks only on blockers', () => {
     expect(verdict.ok).toBe(false);
     if (verdict.ok) return;
     expect(verdict.reason).toMatch(/blocker/i);
+  });
+});
+
+describe('eng-review independence is enforced when required', () => {
+  it('eng-review-green-prs.NTB1.AC2.same_model_review_rejected_when_enabled', () => {
+    const verdict = acceptReview({
+      crossModelRequired: true,
+      authorModel: 'M1',
+      reviewerModel: 'M1',
+    });
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) return;
+    expect(verdict.reason).toMatch(/same.model|independ/i);
+  });
+
+  it('eng-review-green-prs.NTB1.AC2.different_model_review_accepted', () => {
+    const verdict = acceptReview({
+      crossModelRequired: true,
+      authorModel: 'M1',
+      reviewerModel: 'M2',
+    });
+    expect(verdict.ok).toBe(true);
+    expect(receiptFromResult(7, 'C1', approveResult, 'M2').reviewerModel).toBe('M2');
+  });
+
+  it('eng-review-green-prs.NTB1.AC2.same_model_accepted_when_disabled', () => {
+    const verdict = acceptReview({
+      crossModelRequired: false,
+      authorModel: 'M1',
+      reviewerModel: 'M1',
+    });
+    expect(verdict.ok).toBe(true);
+  });
+});
+
+describe('eng-review finding usefulness is measurable', () => {
+  it('eng-review-green-prs.TB2.AC3.finding_disposition_is_recorded', () => {
+    const recorded = markActedOn({ location: 'src/x.ts:42', actedOn: false }, true);
+    expect(recorded.actedOn).toBe(true);
+  });
+
+  it('eng-review-green-prs.TB2.AC3.effective_fp_rate_is_computed', () => {
+    const rate = effectiveFalsePositiveRate([
+      { actedOn: true },
+      { actedOn: false },
+      { actedOn: false },
+      { actedOn: false },
+    ]);
+    expect(rate).toBe(0.75);
+  });
+});
+
+describe('eng-review thoroughness scales to change risk', () => {
+  it('eng-review-green-prs.TB2.AC2.small_low_risk_diff_gets_lightweight_review', () => {
+    expect(selectReviewDepth({ changedLines: 20, touchesSensitivePath: false })).toBe(
+      'lightweight',
+    );
+  });
+
+  it('eng-review-green-prs.TB2.AC2.large_diff_gets_thorough_review', () => {
+    expect(
+      selectReviewDepth({
+        changedLines: DEFAULT_REVIEW_SIZE_THRESHOLD + 1,
+        touchesSensitivePath: false,
+      }),
+    ).toBe('thorough');
+  });
+
+  it('eng-review-green-prs.TB2.AC2.sensitive_path_escalates_regardless_of_size', () => {
+    expect(selectReviewDepth({ changedLines: 5, touchesSensitivePath: true })).toBe('thorough');
   });
 });

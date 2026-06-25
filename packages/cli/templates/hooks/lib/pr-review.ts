@@ -4,6 +4,7 @@
 // schema lib; `.js` specifiers so tsc resolves the .ts source under test).
 
 import { isValidSkipReason } from './parse-annotation.js';
+import { modelsMatch } from './review-ledger.js';
 
 export const VERDICTS = ['APPROVE', 'REQUEST-CHANGES', 'NEEDS-DISCUSSION'] as const;
 export type Verdict = (typeof VERDICTS)[number];
@@ -206,4 +207,70 @@ export function evaluateMergeGate(input: MergeGateInput): GateVerdict {
     };
   }
   return { ok: true };
+}
+
+// ── Independence, finding usefulness, and review depth ──────────────────────
+
+/**
+ * Whether a review may be recorded given the cross-model policy. When required,
+ * the reviewer model must differ from the author model — a same-model (or
+ * indeterminate) review is rejected so the gate fails closed on independence.
+ * Reuses {@link modelsMatch} (trimmed, case-insensitive, indeterminate = match).
+ */
+export function acceptReview(opts: {
+  crossModelRequired: boolean;
+  authorModel?: string;
+  reviewerModel?: string;
+}): GateVerdict {
+  if (opts.crossModelRequired && modelsMatch(opts.reviewerModel, opts.authorModel)) {
+    return {
+      ok: false,
+      reason: 'same-model review rejected: cross-model review requires an independent reviewer',
+    };
+  }
+  return { ok: true };
+}
+
+export interface SurfacedFinding {
+  location: string;
+  /** Whether the developer acted on this finding (vs. dismissed it as noise). */
+  actedOn: boolean;
+}
+
+/** Record a finding's disposition — whether the developer acted on it. */
+export function markActedOn(finding: SurfacedFinding, actedOn: boolean): SurfacedFinding {
+  return { ...finding, actedOn };
+}
+
+/**
+ * The effective false-positive rate (Tricorder's definition): the fraction of
+ * surfaced findings the developer did NOT act on — true-but-trivial included.
+ * This is the metric that predicts abandonment; the design north-star keeps it
+ * under ~10%. An empty set has no signal, so the rate is 0.
+ */
+export function effectiveFalsePositiveRate(dispositions: readonly { actedOn: boolean }[]): number {
+  if (dispositions.length === 0) return 0;
+  const notActedOn = dispositions.filter(d => !d.actedOn).length;
+  return notActedOn / dispositions.length;
+}
+
+export type ReviewDepth = 'lightweight' | 'thorough';
+
+/** Changed-line count above which a diff gets a thorough review by default. */
+export const DEFAULT_REVIEW_SIZE_THRESHOLD = 100;
+
+/**
+ * Scale review depth to change risk: a sensitive-path diff is always thorough
+ * (risk, not line count, escalates depth); otherwise a diff over the size
+ * threshold is thorough, and a small low-risk diff is lightweight. Over-
+ * reviewing tiny changes is how a reviewer trains people to ignore it.
+ */
+export function selectReviewDepth(opts: {
+  changedLines: number;
+  touchesSensitivePath: boolean;
+  sizeThreshold?: number;
+}): ReviewDepth {
+  if (opts.touchesSensitivePath) return 'thorough';
+  const threshold = opts.sizeThreshold ?? DEFAULT_REVIEW_SIZE_THRESHOLD;
+  return opts.changedLines > threshold ? 'thorough' : 'lightweight';
 }
