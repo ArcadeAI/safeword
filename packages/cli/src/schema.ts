@@ -545,6 +545,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/architecture-staged-scope.ts': {
       template: 'hooks/lib/architecture-staged-scope.ts',
     },
+    '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
     '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
@@ -638,6 +639,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-architecture-stage.ts': {
       template: 'hooks/pre-tool-architecture-stage.ts',
+    },
+    '.safeword/hooks/pre-tool-stale-main.ts': {
+      template: 'hooks/pre-tool-stale-main.ts',
     },
     '.safeword/hooks/codex/pre-tool-quality.ts': {
       template: 'hooks/codex/pre-tool-quality.ts',

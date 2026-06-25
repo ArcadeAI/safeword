@@ -432,6 +432,11 @@ export const SETTINGS_HOOKS = {
       'Bash(git commit*)',
       `bun ${HOOKS_DIR}/pre-tool-architecture-stage.ts`,
     ),
+    // Warn (never block) before a checkout/switch to a branch behind its upstream,
+    // so "catch up to main" doesn't silently serve stale content (#366). `if`
+    // scopes the spawn to checkout/switch; the hook re-parses the target.
+    matchedHookWithIf('Bash', 'Bash(git checkout*)', `bun ${HOOKS_DIR}/pre-tool-stale-main.ts`),
+    matchedHookWithIf('Bash', 'Bash(git switch*)', `bun ${HOOKS_DIR}/pre-tool-stale-main.ts`),
   ],
   PostToolUse: [
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-lint.ts`),

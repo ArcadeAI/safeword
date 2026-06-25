@@ -72,6 +72,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'PreToolUse dependency guard; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
   'pre-tool-architecture-stage.ts':
     'PreToolUse git-commit hook; shells to `safeword architecture --stage` whose regenerate-and-stage behavior is covered by tests/commands/architecture-stage.test.ts',
+  'pre-tool-stale-main.ts':
+    'warn-only PreToolUse checkout/switch hook, no deny path; deterministic coverage in tests/hooks/branch-staleness.test.ts',
   'stop-quality.ts':
     'stop hook (done gate); fires at session end, not on a tool call — not live-assertable in one turn',
   // Infra shell hooks — not agent-steering gates
