@@ -37,7 +37,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
   <TabItem label="Codex">
     **Your agent gets the same safeword skills.** Safeword adds repo-scoped skills (`.agents/skills/`) for debugging, BDD/TDD, refactoring, testing, review, and verification.
 
-    **PreToolUse gates run through Codex hooks.** Safeword writes `.codex/config.toml` and a Codex adapter at `.safeword/hooks/codex/pre-tool-quality.ts`. After setup or upgrade, review and trust the project hooks in Codex before relying on those gates.
+    **PreToolUse gates run through Codex hooks.** Safeword writes `.codex/config.toml` and a Codex adapter at `.safeword/hooks/codex/pre-tool-quality.ts`. After setup or upgrade, review and trust the project hooks in Codex before relying on those gates. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and MCP tools.
 
   </TabItem>
 </Tabs>

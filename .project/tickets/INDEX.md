@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (335)
+## Tickets (336)
 
 ### agent-surface-refactor
 
@@ -15,7 +15,7 @@
 - **Clarify versioning skill ownership (2YZDKQ)** (in_progress, epic: agent-surface-refactor)
   Decide what owns the dogfood-only `versioning` skill before manifest generation treats it as drift.
   → `.project/tickets/2YZDKQ-versioning-skill-surface-decision`
-- **Share fake Codex CLI fixtures where it pays off (6SE3MR)** (in_progress, epic: agent-surface-refactor)
+- **Share fake Codex CLI fixtures where it pays off (6SE3MR)** (done, epic: agent-surface-refactor)
   Remove only the fake Codex CLI duplication that is worth sharing.
   → `.project/tickets/6SE3MR-fake-codex-cli-fixture`
 - **Make required skill logging reusable (88QCHJ)** (in_progress, epic: agent-surface-refactor)
@@ -39,7 +39,7 @@
 
 ### auto-upgrade-cross-agent
 
-- **Auto-upgrade under Codex (7R1D3B)** (blocked, epic: auto-upgrade-cross-agent)
+- **Auto-upgrade under Codex (7R1D3B)** (done, epic: auto-upgrade-cross-agent)
   Codex users get safeword's seamless patch/minor auto-upgrade (today Claude-Code-only) without manual `safeword upgrade` and within Codex's synchronous hook contract.
   external issue: https://github.com/ArcadeAI/safeword/issues/393
   → `.project/tickets/7R1D3B-auto-upgrade-codex`
@@ -250,7 +250,7 @@
 - **Package as Codex plugin/marketplace bundle (6WJ1RS)** (done, epic: codex-changelog-alignment)
   Ship safeword as a Codex plugin distributed via Codex's marketplace, parallel to the Cursor packaging ticket (DXYKJX).
   → `.project/tickets/6WJ1RS-codex-plugin-marketplace-packaging`
-- **Prove Codex parity in a trusted customer repo (CXP9LM)** (in_progress, epic: codex-changelog-alignment)
+- **Prove Codex parity in a trusted customer repo (CXP9LM)** (done, epic: codex-changelog-alignment)
   external issue: https://github.com/ArcadeAI/safeword/issues/394
   → `.project/tickets/CXP9LM-codex-live-parity-smoke`
 - **Map safeword lifecycle events to Codex hook events (design) (HPP49X)** (done, epic: codex-changelog-alignment)
@@ -265,7 +265,7 @@
 - **Codex commands surface: skills (RESOLVED → skills) (QGHVXZ)** (done, epic: codex-changelog-alignment)
   Ship safeword's commands/workflows on Codex as **skills** in `.agents/skills/`.
   → `.project/tickets/QGHVXZ-codex-commands-skills-vs-prompts`
-- **Epic: OpenAI Codex changelog + docs alignment (QM5G9M)** (open, epic: codex-changelog-alignment)
+- **Epic: OpenAI Codex changelog + docs alignment (QM5G9M)** (done, epic: codex-changelog-alignment)
   Bring safeword's gate model to OpenAI Codex (the `codex` CLI), now that research confirms Codex's enforcement surfaces are a clean fit.
   external issue: https://github.com/ArcadeAI/safeword/issues/395
   → `.project/tickets/QM5G9M-codex-changelog-alignment-epic`
@@ -792,6 +792,10 @@
 - **Protect advanced workspace glob fallback (B8GCC1)** (in_progress, epic: —)
   Lock in the dependency readiness hook's conservative fallback for unsupported advanced Bun workspace glob syntax.
   → `.project/tickets/B8GCC1-protect-advanced-workspace-glob-fallback`
+- **Keep successful upgrades from failing on health warnings (BBJKR5)** (in_progress, epic: —)
+  Let automation trust `safeword upgrade` exit status as the apply result, while keeping post-upgrade health warnings visible.
+  external issue: https://github.com/ArcadeAI/safeword/issues/427
+  → `.project/tickets/BBJKR5-keep-upgrade-success-on-health-warnings`
 - **Stop installing JS tooling into non-JS projects (BE7C7B)** (done, epic: —)
   A pure Python/Go/Rust/SQL project should not receive a `package.json`, npm dev-deps, or a TypeScript BDD lane it cannot run.
   → `.project/tickets/BE7C7B-gate-js-toolchain-by-language`
@@ -1037,7 +1041,7 @@
 - **Per-language architecture extractors (Go / Rust / Python) — the epic's "language packs" (WBM8JE)** (backlog, epic: —)
   Extend the generated architecture doc beyond the TypeScript/`src/`
   → `.project/tickets/WBM8JE-per-language-architecture-extractors`
-- **Normalize hook run identity across Claude, Codex, and Cursor (WHFTDK)** (in_progress, epic: —)
+- **Normalize hook run identity across Claude, Codex, and Cursor (WHFTDK)** (done, epic: —)
   Keep hook state and proof logs attached to the correct agent run across Claude, Codex, and Cursor.
   external issue: https://github.com/ArcadeAI/safeword/issues/401
   → `.project/tickets/WHFTDK-normalize-hook-run-identity`

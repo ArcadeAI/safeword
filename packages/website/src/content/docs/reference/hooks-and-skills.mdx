@@ -84,9 +84,11 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
   <TabItem label="Codex">
     Safeword installs hook config (`.codex/config.toml`) and repo-scoped skills (`.agents/skills/`) for Codex.
 
-    | When                 | What happens                                      |
-    | -------------------- | ------------------------------------------------- |
-    | Before supported edits | Runs safeword's PreToolUse quality gate adapter |
+    | When                   | What happens                                      |
+    | ---------------------- | ------------------------------------------------- |
+    | Before supported tools | Runs safeword's PreToolUse quality gate adapter |
+
+    Safeword's Codex adapter covers the documented PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and MCP tools. Live Codex runs can also report `file_change` execution items; Safeword records that as a Codex runtime boundary, not as a PreToolUse path it claims to guard.
 
     ### Skills
 

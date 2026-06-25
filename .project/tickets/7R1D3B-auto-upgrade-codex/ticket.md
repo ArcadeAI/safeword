@@ -2,8 +2,8 @@
 id: 7R1D3B
 slug: auto-upgrade-codex
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: auto-upgrade-cross-agent
 parent: BJX7WR
 external: https://github.com/ArcadeAI/safeword/issues/393
@@ -25,7 +25,7 @@ done_when:
   - Failed applies roll back safeword-managed tracked and untracked changes before recording a failure strike.
   - Targeted hook/schema/reconcile tests pass.
 created: 2026-06-20T12:54:31.996Z
-last_modified: 2026-06-25T05:38:02Z
+last_modified: 2026-06-25T19:54:00Z
 ---
 
 # Auto-upgrade under Codex
@@ -42,7 +42,7 @@ last_modified: 2026-06-25T05:38:02Z
 - Codex hooks are **synchronous** with `timeout` + `statusMessage`; **no exit-code rewake**. Exit 2 is a hook failure path, not a user-facing reminder contract.
 - Codex runs matching hooks for the same event concurrently, so auto-upgrade must not be wired as a second `SessionStart` command beside context injection. Use one dispatcher that performs upgrade first, then emits context.
 
-## Scope (pending epic design)
+## Implemented scope
 
 - Replace the Codex SessionStart context command with one dispatcher that invokes the **shared apply core** and then emits SAFEWORD.md context.
 - Apply silently within the hook timeout; the git commit is the record (no exit-2 messaging on Codex). Use `systemMessage`/`additionalContext` for bounded follow-up notices only.
@@ -64,3 +64,4 @@ last_modified: 2026-06-25T05:38:02Z
 - 2026-06-25T04:46:17Z Reran dogfood `safeword upgrade` on the caught-up base to sync `.safeword/version` to v0.57.0; it exited 0 while reporting the pre-existing feature-lineage health warnings. Dispatcher smoke after the sync passed (`bun run test tests/integration/hooks.test.ts -t "session-codex-start"`).
 - 2026-06-25T05:16:18Z Quality-review found no blocking defects. Refactored rollback loop alias. Verify initially exposed missing/outdated BDD acceptance steps; added #393 step definitions and updated SAFEWORD-context BDD expectations for Codex's dispatcher. Full verify and audit passed with warnings; see `verify.md` and `audit.md`.
 - 2026-06-25T05:38:02Z Caught branch up to latest `origin/main` again and upgraded root ESLint from 9.39.4 to 10.5.0 to match the CLI workspace. Added explicit parser roots/ESLint 10 package-config coverage for this monorepo, fixed the rebased GEPA markdownlint issue, and reverified root lint, package lint, `test:done` (48 files, 586 tests), BDD (159 scenarios, 2837 steps), and build.
+- 2026-06-25T19:54:00Z Revalidated after PR #433 merged to `main`: GitHub issue #393 is closed, `verify.md` contains complete evidence, and the Codex child is done. Parent epic BJX7WR remains open for the Cursor child.
