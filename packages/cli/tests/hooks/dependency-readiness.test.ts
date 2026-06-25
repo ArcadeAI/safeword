@@ -760,6 +760,26 @@ describe('dependency readiness hook support', () => {
       }
     });
 
+    it('ignores lockfile-only / dry-run installs (they do not materialize node_modules)', () => {
+      for (const command of [
+        'bun install --dry-run',
+        'npm ci --dry-run',
+        'pnpm install --lockfile-only',
+        'npm install --package-lock-only',
+      ]) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
+    it('does NOT stamp after a dry-run install (no sticky false-ready)', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun install --dry-run', { exit_code: 0, success: true }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
+
     it('stamps the current fingerprint after a successful no-op install (clears the block)', () => {
       const fingerprint = makeStaleAfterNoopInstall();
 
