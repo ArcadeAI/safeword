@@ -164,9 +164,12 @@ export function recordFailure(
         counters[pattern] = entry;
         writeCounters(projectDirectory, counters);
 
-        // Self-observation (#344): a gate that has fired enough to escalate is a
-        // candidate false-positive in safeword's own gates. Emit exactly at the
-        // crossing so volume is bounded to one signal per pattern. Best-effort.
+        // Self-observation (#344): a gate that escalates is worth a maintainer's
+        // look — it may be a too-aggressive gate OR a correct gate firing on a
+        // recurring problem (e.g. tests-failed). The record is a candidate for
+        // review, not an asserted false-positive. Emit once at the crossing; the
+        // bound is one signal per counter-file lifetime (a counter reset re-arms
+        // it). Best-effort — never affects this function's callers.
         if (entry.count === ESCALATION_THRESHOLD) {
           captureGateEscalation(projectDirectory, sessionId, pattern);
         }

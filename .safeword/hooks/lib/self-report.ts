@@ -301,9 +301,10 @@ export function installCrashCapture(
 
 /**
  * Capture a gate-escalation signal: a safeword gate (`pattern`) has fired enough
- * times across sessions to escalate — a candidate false-positive / friction in
- * safeword's own gates. Stored as `{agent}:GateEscalation@{pattern}`. Best-effort
- * and config-gated (`selfReport.capture`); never affects the caller's flow.
+ * times across sessions to escalate — a candidate for maintainer review (a
+ * too-aggressive gate, OR a correct gate firing on a recurring problem; the
+ * record does not assert which). Stored as `{agent}:GateEscalation@{pattern}`.
+ * Best-effort and config-gated (`selfReport.capture`); never affects the caller.
  */
 export function captureGateEscalation(
   projectDirectory: string,
