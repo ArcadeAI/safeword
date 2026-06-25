@@ -60,6 +60,10 @@ function runCursorBeforeShell(input: {
   expect(JSON.parse(result.stdout) as { permission?: string }).toEqual({ permission: 'allow' });
 }
 
+function installedProofCommand(projectDirectory: string, skillName: string): string {
+  return `bun "${projectDirectory}/.safeword/hooks/record-skill-invocation.ts" "${projectDirectory}" ${skillName}`;
+}
+
 describe('record-skill-invocation helper (88QCHJ)', () => {
   it('prints the configured namespace root for command snippets', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
@@ -194,7 +198,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
 
     runCursorBeforeShell({
       projectDirectory,
-      command: `bun "${helperPath}" "${projectDirectory}" quality-review`,
+      command: installedProofCommand(projectDirectory, 'quality-review'),
       conversationId: 'cursor-conversation-uuid',
     });
 
@@ -211,6 +215,107 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     expect(logContent).toMatch(/ cursor-conversation-uuid quality-review$/m);
   });
 
+  it('does not bind Cursor proof when a shell command only mentions the helper', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+
+    runCursorBeforeShell({
+      projectDirectory,
+      command: `echo "${installedProofCommand(projectDirectory, 'quality-review')}"`,
+      conversationId: 'cursor-conversation-uuid',
+    });
+
+    const result = spawnSync('bun', [helperPath, projectDirectory, 'quality-review'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('no proof logged');
+    expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
+      false,
+    );
+  });
+
+  it('does not bind Cursor proof for a helper-looking path that is not the helper', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+
+    runCursorBeforeShell({
+      projectDirectory,
+      command: `bun "${projectDirectory}/.safeword/hooks/record-skill-invocation.ts.bak" "${projectDirectory}" quality-review`,
+      conversationId: 'cursor-conversation-uuid',
+    });
+
+    const result = spawnSync('bun', [helperPath, projectDirectory, 'quality-review'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('no proof logged');
+    expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
+      false,
+    );
+  });
+
+  it('does not replay a Cursor proof cache for a different skill', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+
+    runCursorBeforeShell({
+      projectDirectory,
+      command: installedProofCommand(projectDirectory, 'quality-review'),
+      conversationId: 'cursor-conversation-uuid',
+    });
+
+    const result = spawnSync('bun', [helperPath, projectDirectory, 'audit'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+    const retryOriginalSkill = spawnSync('bun', [helperPath, projectDirectory, 'quality-review'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('no proof logged');
+    expect(retryOriginalSkill.status).toBe(0);
+    expect(retryOriginalSkill.stdout).toContain('no proof logged');
+    expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
+      false,
+    );
+  });
+
+  it('consumes Cursor proof cache after one successful helper run', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+
+    runCursorBeforeShell({
+      projectDirectory,
+      command: installedProofCommand(projectDirectory, 'quality-review'),
+      conversationId: 'cursor-conversation-uuid',
+    });
+
+    const firstOutput = execFileSync('bun', [helperPath, projectDirectory, 'quality-review'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+    const secondResult = spawnSync('bun', [helperPath, projectDirectory, 'quality-review'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+
+    expect(firstOutput.trim()).toBe('[skill-invocation-log] quality-review ✓');
+    expect(secondResult.status).toBe(0);
+    expect(secondResult.stdout).toContain('no proof logged');
+    const logContent = readFileSync(
+      nodePath.join(projectDirectory, '.project', 'skill-invocations.log'),
+      'utf8',
+    );
+    expect(logContent.match(/quality-review/g)).toHaveLength(1);
+  });
+
   it('does not reuse stale Cursor identity cache entries for local shell runs', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
     const projectMetadataDirectory = nodePath.join(projectDirectory, '.project');
@@ -219,6 +324,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
       nodePath.join(projectMetadataDirectory, 'cursor-run-identity.json'),
       JSON.stringify({
         conversationId: 'old-cursor-conversation',
+        skillName: 'verify',
         recordedAt: '2000-01-01T00:00:00.000Z',
       }),
     );

@@ -10,7 +10,10 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { rememberCursorRunIdentity } from '../lib/cursor-run-identity.ts';
+import {
+  parseRecordSkillInvocationCommand,
+  rememberCursorRunIdentity,
+} from '../lib/cursor-run-identity.ts';
 import {
   type ClaudeGateInput,
   type CursorShellInput,
@@ -40,13 +43,6 @@ if (command === '' || !existsSync('.safeword')) {
   emitAllowAndExit();
 }
 
-if (command.includes('record-skill-invocation.ts')) {
-  rememberCursorRunIdentity({
-    projectDirectory: process.cwd(),
-    conversationId: input.conversation_id,
-  });
-}
-
 const translated: ClaudeGateInput = {
   session_id: input.conversation_id,
   hook_event_name: 'PreToolUse',
@@ -59,5 +55,13 @@ const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts')
 
 // Fail-closed: a gate that crashed or never started denies the command (ANAXG4).
 const decision = decideFromGate(runClaudeHook(claudeHookPath, translated));
+const proofCommand = decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
+if (proofCommand !== undefined) {
+  rememberCursorRunIdentity({
+    projectDirectory: process.cwd(),
+    conversationId: input.conversation_id,
+    skillName: proofCommand.skillName,
+  });
+}
 process.stdout.write(JSON.stringify(decision) + '\n');
 process.exit(0);

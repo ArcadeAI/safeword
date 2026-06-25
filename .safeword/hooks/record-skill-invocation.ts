@@ -13,9 +13,10 @@ const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 function resolveProofSessionKey(input: {
   projectDirectory: string;
+  skillName: string;
   explicitSessionId?: string;
 }): string | undefined {
-  const { projectDirectory, explicitSessionId } = input;
+  const { projectDirectory, skillName, explicitSessionId } = input;
   if (explicitSessionId !== undefined && explicitSessionId.trim().length > 0) {
     return explicitSessionId.trim();
   }
@@ -25,7 +26,7 @@ function resolveProofSessionKey(input: {
   if (process.env.CODEX_THREAD_ID) {
     return resolveRunIdentity({}, { runtime: 'codex', env: process.env }).sessionKey ?? undefined;
   }
-  const cursorSessionKey = readFreshCursorRunIdentity({ projectDirectory });
+  const cursorSessionKey = readFreshCursorRunIdentity({ projectDirectory, skillName });
   if (cursorSessionKey !== undefined) {
     return cursorSessionKey;
   }
@@ -42,6 +43,7 @@ export function recordSkillInvocation(
   }
   const proofSessionKey = resolveProofSessionKey({
     projectDirectory,
+    skillName,
     explicitSessionId: sessionId,
   });
   if (proofSessionKey === undefined) {
@@ -61,15 +63,21 @@ export function recordSkillInvocation(
 if (import.meta.main) {
   const projectDirectory = process.argv[2] ?? process.cwd();
   const skillName = process.argv[3];
-  const sessionId = resolveProofSessionKey({
-    projectDirectory,
-    explicitSessionId: process.argv[4],
-  });
 
   try {
     if (skillName === undefined) {
       throw new Error('Missing skill name');
     }
+
+    if (!SKILL_NAME_PATTERN.test(skillName)) {
+      throw new Error(`Invalid skill name "${skillName}"`);
+    }
+
+    const sessionId = resolveProofSessionKey({
+      projectDirectory,
+      skillName,
+      explicitSessionId: process.argv[4],
+    });
 
     if (!sessionId) {
       console.log(
