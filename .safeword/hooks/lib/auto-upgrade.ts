@@ -230,7 +230,6 @@ export function rollbackSafewordManagedFiles({
   const changedOrStagedSet = new Set(changedOrStagedFiles);
   const untrackedSet = new Set(untrackedFiles);
   const resetFiles = filesToRollback.filter(file => changedOrStagedSet.has(file));
-  const checkoutFiles = resetFiles;
   const cleanFiles = filesToRollback.filter(
     file => untrackedSet.has(file) || (stagedFiles.includes(file) && !changedFiles.includes(file)),
   );
@@ -245,7 +244,7 @@ export function rollbackSafewordManagedFiles({
   if (resetFiles.length > 0) {
     execFileSync('git', ['reset', '--', ...resetFiles], execOptions);
   }
-  for (const file of checkoutFiles) {
+  for (const file of resetFiles) {
     try {
       execFileSync('git', ['checkout', '--', file], execOptions);
     } catch {
