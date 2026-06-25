@@ -317,11 +317,18 @@ export const CURSOR_HOOKS = {
   // Blocking edit gate. Matcher limits it to the `Write` tool (Cursor's only edit
   // tool) so it never spawns on Read/Grep/Task. Denies edits when a feature at the
   // implement phase has no test-definitions.md, and on LOC blast-radius overflow.
+  //
+  // Done gate (AKNWZK): this same hook also enforces the done gate. Cursor's `stop`
+  // cannot block, so closing a ticket is gated here — a Write that flips ticket.md to
+  // `status: done` is denied unless the evidence holds (tests green, verify.md in
+  // scope, scenarios complete). That makes done the only edit that runs the test
+  // suite, so the timeout is raised to cover a full run (the suite self-caps at 60s).
   preToolUse: [
     {
       command: 'bun ./.safeword/hooks/cursor/pre-tool-quality.ts',
       matcher: 'Write',
       failClosed: true,
+      timeout: 90,
     },
   ],
   // Blocking commit gate (a REFACTOR commit may not touch test files).
@@ -338,8 +345,12 @@ export const CURSOR_HOOKS = {
   postToolUse: [
     { command: 'bun ./.safeword/hooks/cursor/post-tool-quality.ts', matcher: 'Write|Shell' },
   ],
-  // Observational: nudges a quality review. Cursor `stop` cannot block anyway.
-  stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts' }],
+  // Observational: nudges a quality review. Cursor `stop` cannot block anyway —
+  // the real done enforcement lives in preToolUse (above). loop_limit:1 is
+  // intentional: this is a one-shot reminder (the hook clears its edit marker after
+  // firing), NOT a drive-to-done loop, so a single auto-continue is enough and a
+  // higher cap would just re-nudge noisily.
+  stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts', loop_limit: 1 }],
 };
 
 // Claude Code hooks configuration (.claude/settings.json format)

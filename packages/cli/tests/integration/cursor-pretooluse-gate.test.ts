@@ -42,17 +42,28 @@ interface CursorDecision {
  */
 function runAdapter(
   projectRoot: string,
-  options: { toolName?: string; filePath?: string } = {},
+  options: { toolName?: string; filePath?: string; content?: string } = {},
 ): CursorDecision {
-  const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: projectRoot };
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: projectRoot,
+    // Pin the CLI to repo source so the done-gate's test-runner resolves locally
+    // (no `bunx safeword` network fetch); an empty temp project yields no test
+    // command, so the suite is skipped and verify.md/scenarios carry the verdict.
+    SAFEWORD_CLI: nodePath.resolve(__dirname, '../../src/cli.ts'),
+  };
   delete env.SAFEWORD_AGENT_RUNTIME;
+
+  const toolInput: Record<string, unknown> = {};
+  if (options.filePath) toolInput.file_path = options.filePath;
+  if (options.content !== undefined) toolInput.content = options.content;
 
   const result = spawnSync('bun', [ADAPTER], {
     cwd: projectRoot,
     input: JSON.stringify({
       conversation_id: SESSION_ID,
       tool_name: options.toolName ?? 'Write',
-      tool_input: options.filePath ? { file_path: options.filePath } : {},
+      tool_input: toolInput,
       workspace_roots: [projectRoot],
     }),
     encoding: 'utf8',
@@ -148,6 +159,117 @@ describe('Cursor preToolUse edit-gate parity (F2TKR3)', () => {
     seedActiveTicket(projectRoot);
 
     const decision = runAdapter(projectRoot, { toolName: 'Read', filePath: 'src/app.ts' });
+
+    expect(decision.permission).toBe('allow');
+  });
+});
+
+/**
+ * Cursor done-edit gate (AKNWZK). Cursor's `stop` cannot block, so closing a
+ * ticket is gated at the edit that flips ticket.md to `status: done`. The temp
+ * project has no package.json, so the test suite is skipped (no command found) and
+ * the verify.md / scenario checks carry the verdict — exactly what we want to pin.
+ */
+describe('Cursor done-edit gate (AKNWZK)', () => {
+  let projectRoot: string;
+  let ticketDirectory: string;
+  const ticketRelativePath = `.project/tickets/${TICKET_FOLDER}/ticket.md`;
+
+  const doneFrontmatter = (type: string): string =>
+    [
+      '---',
+      `id: ${TICKET_ID}`,
+      'slug: cursor-gate',
+      `type: ${type}`,
+      'phase: done',
+      'status: done',
+      '---',
+      '',
+    ].join('\n');
+
+  const validVerify = '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n';
+
+  beforeEach(() => {
+    projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'cursor-done-'));
+    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', TICKET_FOLDER);
+    mkdirSync(ticketDirectory, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  it('denies the close edit when verify.md is missing', () => {
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketRelativePath,
+      content: doneFrontmatter('task'),
+    });
+
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('verify.md');
+  });
+
+  it('allows the close edit for a task with a valid verify.md', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), validVerify);
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketRelativePath,
+      content: doneFrontmatter('task'),
+    });
+
+    expect(decision.permission).toBe('allow');
+  });
+
+  it('denies a feature close when scenarios are incomplete', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), validVerify);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '## Rule: x\n- [x] done one\n- [ ] not yet\n',
+    );
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketRelativePath,
+      content: doneFrontmatter('feature'),
+    });
+
+    expect(decision.permission).toBe('deny');
+    expect(decision.user_message).toContain('scenarios');
+  });
+
+  it('allows a feature close when verify.md and all scenarios are complete', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), validVerify);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      '## Rule: x\n- [x] done one\n- [x] done two\n',
+    );
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketRelativePath,
+      content: doneFrontmatter('feature'),
+    });
+
+    expect(decision.permission).toBe('allow');
+  });
+
+  it('does not gate a ticket.md edit that only sets phase: done (not closing)', () => {
+    // Entering the done phase to run /verify is not a close — it must be allowed,
+    // otherwise the agent can never produce the evidence the close later needs.
+    const enteringDone = [
+      '---',
+      `id: ${TICKET_ID}`,
+      'slug: cursor-gate',
+      'type: task',
+      'phase: done',
+      'status: in_progress',
+      '---',
+      '',
+    ].join('\n');
+
+    const decision = runAdapter(projectRoot, {
+      filePath: ticketRelativePath,
+      content: enteringDone,
+    });
 
     expect(decision.permission).toBe('allow');
   });

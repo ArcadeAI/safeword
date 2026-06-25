@@ -10,7 +10,8 @@
       {
         "command": "bun ./.safeword/hooks/cursor/pre-tool-quality.ts",
         "matcher": "Write",
-        "failClosed": true
+        "failClosed": true,
+        "timeout": 90
       }
     ],
     "beforeShellExecution": [
@@ -32,7 +33,8 @@
     ],
     "stop": [
       {
-        "command": "bun ./.safeword/hooks/cursor/stop.ts"
+        "command": "bun ./.safeword/hooks/cursor/stop.ts",
+        "loop_limit": 1
       }
     ]
   }

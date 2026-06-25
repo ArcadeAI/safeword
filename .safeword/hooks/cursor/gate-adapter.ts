@@ -76,6 +76,52 @@ export function extractFilePath(
   return undefined;
 }
 
+// Cursor's `Write` tool_input field name for the file *content* is undocumented,
+// just like the path field. Accept the plausible spellings; the done-transition
+// detection only needs to read the proposed text.
+const CONTENT_KEYS = ['content', 'contents', 'new_string', 'text', 'file_text', 'code'] as const;
+
+/**
+ * Extract the proposed file content from a Cursor tool_input, tolerating field-name
+ * variants. Falls back to the longest multi-line string value present — a Write's
+ * body is far longer than any path/flag field, so this recovers the content even
+ * under an unknown field name.
+ */
+export function extractWriteContent(
+  toolInput: Record<string, unknown> | undefined,
+): string | undefined {
+  if (!toolInput) return undefined;
+  for (const key of CONTENT_KEYS) {
+    const value = toolInput[key];
+    if (typeof value === 'string' && value !== '') return value;
+  }
+  let longest: string | undefined;
+  for (const value of Object.values(toolInput)) {
+    if (typeof value === 'string' && value.includes('\n')) {
+      if (longest === undefined || value.length > longest.length) longest = value;
+    }
+  }
+  return longest;
+}
+
+/**
+ * True when the proposed ticket.md content closes the ticket — i.e. its frontmatter
+ * sets `status: done`. Marking `phase: done` (entering the done phase to run /verify)
+ * is deliberately NOT a transition: that is the step that produces the evidence the
+ * gate later checks. Matches the closing edit only.
+ */
+export function detectDoneTransition(content: string | undefined): boolean {
+  if (!content) return false;
+  return /^status:\s*["']?done["']?\s*$/im.test(content);
+}
+
+/** Read the `type:` frontmatter value ('feature' | 'task' | ...) from ticket.md content. */
+export function parseTicketType(content: string | undefined): string | undefined {
+  if (!content) return undefined;
+  const match = /^type:\s*["']?(?<type>[A-Za-z]+)/im.exec(content);
+  return match?.groups?.type;
+}
+
 /**
  * Parse the Claude gate's stdout. The gate denies with
  * `{ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason } }`

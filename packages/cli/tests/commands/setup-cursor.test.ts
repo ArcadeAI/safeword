@@ -127,6 +127,10 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       );
       // preToolUse is scoped to the edit tool so it never spawns on reads/searches.
       expect(hooksConfig.hooks.preToolUse[0].matcher).toBe('Write');
+      // AKNWZK: the done gate runs the suite on the close edit, so the preToolUse
+      // timeout is raised, and the stop nudge is capped at one auto-continue.
+      expect(hooksConfig.hooks.preToolUse[0].timeout).toBe(90);
+      expect(hooksConfig.hooks.stop[0].loop_limit).toBe(1);
       expect(hooksConfig.hooks.beforeShellExecution[0].command).toBe(
         'bun ./.safeword/hooks/cursor/before-shell-execution.ts',
       );

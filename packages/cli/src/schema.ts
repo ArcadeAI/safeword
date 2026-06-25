@@ -542,6 +542,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/dependency-readiness.ts': {
       template: 'hooks/lib/dependency-readiness.ts',
     },
+    '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
