@@ -68,3 +68,6 @@ Miss-direction: unreadable `ticket.md` content stays fail-open so ordinary work-
   accepting the documented non-done statuses and pinning them in unit tests.
 - 2026-06-24 Verification: targeted Cursor gate tests passed (38/38), then full
   suite passed (253 files, 3695 tests passed, 3 skipped).
+- 2026-06-24 PR #424 follow-up: CI lint caught strict TypeScript errors in
+  named regex group handling. Fixed the template and dogfood copies, then reran
+  package typecheck and targeted Cursor gate tests.

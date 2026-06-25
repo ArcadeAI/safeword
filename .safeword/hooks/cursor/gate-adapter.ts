@@ -154,7 +154,10 @@ export function classifyDoneTransition(params: {
   const match = STATUS_LINE_PATTERN.exec(content);
   if (!match?.groups) return 'not_done';
 
-  const normalizedStatus = normalizeFrontmatterScalar(match.groups.status);
+  const rawStatus = match.groups.status;
+  if (rawStatus === undefined) return 'not_done';
+
+  const normalizedStatus = normalizeFrontmatterScalar(rawStatus);
   if (normalizedStatus === 'done') return 'done';
   if (KNOWN_NOT_DONE_STATUSES.has(normalizedStatus)) return 'not_done';
   return 'unparseable';
@@ -164,7 +167,7 @@ export function classifyDoneTransition(params: {
 export function parseTicketType(content: string | undefined): string | undefined {
   if (!content) return undefined;
   const match = /^type:\s*["']?(?<type>[A-Za-z]+)/im.exec(content);
-  return match?.groups?.type.toLowerCase();
+  return match?.groups?.type?.toLowerCase();
 }
 
 function normalizeFrontmatterScalar(value: string): string {
