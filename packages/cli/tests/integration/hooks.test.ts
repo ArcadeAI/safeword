@@ -1315,3 +1315,18 @@ describe('session-codex-start.ts', () => {
     expect(output.hookSpecificOutput.additionalContext).toContain('## Workflow');
   });
 });
+
+describe('session-cursor-auto-upgrade.ts', () => {
+  it('runs silently and exits successfully when no upgrade should apply', () => {
+    const result = spawnSync('bun', ['.safeword/hooks/session-cursor-auto-upgrade.ts'], {
+      cwd: shared.projectDirectory,
+      env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+      input: JSON.stringify({ workspace_root: shared.projectDirectory }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
+  });
+});

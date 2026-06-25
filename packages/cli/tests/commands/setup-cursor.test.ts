@@ -93,6 +93,9 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       );
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/stop.ts')).toBe(true);
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/gate-adapter.ts')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/hooks/session-cursor-auto-upgrade.ts')).toBe(
+        true,
+      );
       expect(fileExists(temporaryDirectory, '.safeword/hooks/cursor/pre-tool-quality.ts')).toBe(
         true,
       );
@@ -114,6 +117,9 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
       expect(hooksConfig.hooks.sessionStart[0].command).toBe(
         'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor',
+      );
+      expect(hooksConfig.hooks.sessionStart[1].command).toBe(
+        'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts',
       );
       expect(hooksConfig.hooks.afterFileEdit[0].command).toBe(
         'bun ./.safeword/hooks/cursor/after-file-edit.ts',
@@ -155,6 +161,7 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       // Observational hooks stay fail-open (default) — a crashing lint/state/nudge
       // hook must never block legitimate work.
       expect(hooksConfig.hooks.sessionStart[0].failClosed).toBeUndefined();
+      expect(hooksConfig.hooks.sessionStart[1].failClosed).toBeUndefined();
       expect(hooksConfig.hooks.afterFileEdit[0].failClosed).toBeUndefined();
       expect(hooksConfig.hooks.postToolUse[0].failClosed).toBeUndefined();
       expect(hooksConfig.hooks.stop[0].failClosed).toBeUndefined();
