@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 // Source of truth lives under templates/ (the .safeword/hooks copy is synced).
 // `.js` specifier so tsc resolves the .ts source in the typecheck graph.
-import { parseReviewResult, validateReviewResult } from '../../templates/hooks/lib/pr-review.js';
+import {
+  evaluateMergeGate,
+  hasFreshApproval,
+  parseReviewResult,
+  receiptFromResult,
+  recordSkip,
+  type ReviewResult,
+  validateReviewResult,
+} from '../../templates/hooks/lib/pr-review.js';
 
 const aFinding = (over: Record<string, unknown> = {}) => ({
   location: 'src/x.ts:42',
@@ -10,6 +18,8 @@ const aFinding = (over: Record<string, unknown> = {}) => ({
   severity: 'should-fix',
   ...over,
 });
+
+const approveResult: ReviewResult = { verdict: 'APPROVE', findings: [] };
 
 describe('eng-review result contract', () => {
   it('eng-review-green-prs.TB1.AC3.valid_result_accepted', () => {
@@ -77,5 +87,115 @@ describe('eng-review result contract', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toMatch(/malformed|parse/i);
+  });
+});
+
+describe('eng-review provenance is bound to the reviewed commit', () => {
+  it('eng-review-green-prs.TB3.AC1.approval_binds_to_reviewed_commit', () => {
+    const receipt = receiptFromResult(7, 'C1', approveResult);
+    expect(hasFreshApproval(7, 'C1', [receipt])).toBe(true);
+  });
+
+  it('eng-review-green-prs.TB3.AC2.new_commit_voids_prior_approval', () => {
+    const receipt = receiptFromResult(7, 'C1', approveResult);
+    expect(hasFreshApproval(7, 'C2', [receipt])).toBe(false);
+  });
+});
+
+describe('eng-review skip is an audited break-glass bypass, not an approval', () => {
+  it('eng-review-green-prs.TB3.AC3.skip_permits_merge_under_enabled_gate', () => {
+    const skip = recordSkip(7, 'C1', 'vendored bundle, not project code');
+    expect(skip.ok).toBe(true);
+    if (!skip.ok) return;
+    const verdict = evaluateMergeGate({
+      gateEnabled: true,
+      prNumber: 7,
+      headSha: 'C1',
+      receipts: [skip.receipt],
+    });
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('eng-review-green-prs.TB3.AC3.skip_is_recorded_distinct_from_approval', () => {
+    const skip = recordSkip(7, 'C1', 'vendored bundle, not project code');
+    expect(skip.ok).toBe(true);
+    if (!skip.ok) return;
+    expect(skip.receipt.kind).toBe('skip');
+    expect(skip.receipt.kind).not.toBe('review');
+    expect(skip.receipt.skipReason).toBe('vendored bundle, not project code');
+  });
+
+  it('eng-review-green-prs.TB3.AC3.skip_with_empty_reason_rejected', () => {
+    const skip = recordSkip(7, 'C1', ' '.repeat(3));
+    expect(skip.ok).toBe(false);
+    if (skip.ok) return;
+    expect(skip.reason).toMatch(/reason/i);
+  });
+});
+
+describe('eng-review merge gate is opt-in and blocks only on blockers', () => {
+  it('eng-review-green-prs.SM1.AC1.gate_off_never_blocks', () => {
+    const verdict = evaluateMergeGate({
+      gateEnabled: false,
+      prNumber: 7,
+      headSha: 'C1',
+      receipts: [],
+    });
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('eng-review-green-prs.SM1.AC2.gate_on_without_approval_blocks', () => {
+    const verdict = evaluateMergeGate({
+      gateEnabled: true,
+      prNumber: 7,
+      headSha: 'C1',
+      receipts: [],
+    });
+    expect(verdict.ok).toBe(false);
+  });
+
+  it('eng-review-green-prs.SM1.AC2.gate_on_with_fresh_approval_permits', () => {
+    const receipt = receiptFromResult(7, 'C1', approveResult);
+    const verdict = evaluateMergeGate({
+      gateEnabled: true,
+      prNumber: 7,
+      headSha: 'C1',
+      receipts: [receipt],
+    });
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('eng-review-green-prs.TB2.AC1.advisory_only_findings_do_not_block', () => {
+    const advisory: ReviewResult = {
+      verdict: 'REQUEST-CHANGES',
+      findings: [aFinding({ severity: 'should-fix' }), aFinding({ severity: 'nit' })],
+      nextAction: 'address the nits when convenient',
+    };
+    const receipt = receiptFromResult(7, 'C1', advisory);
+    const verdict = evaluateMergeGate({
+      gateEnabled: true,
+      prNumber: 7,
+      headSha: 'C1',
+      receipts: [receipt],
+    });
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('eng-review-green-prs.TB2.AC1.blocker_finding_blocks', () => {
+    const blocking: ReviewResult = {
+      verdict: 'REQUEST-CHANGES',
+      findings: [aFinding({ severity: 'blocker' })],
+      nextAction: 'cap the retry loop',
+    };
+    const receipt = receiptFromResult(7, 'C1', blocking);
+    const verdict = evaluateMergeGate({
+      gateEnabled: true,
+      prNumber: 7,
+      headSha: 'C1',
+      receipts: [receipt],
+    });
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) return;
+    expect(verdict.reason).toMatch(/blocker/i);
   });
 });
