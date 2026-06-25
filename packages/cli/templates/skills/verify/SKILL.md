@@ -111,9 +111,14 @@ fi
 
 # --- Build check (resolved by safeword test-plan) ---
 bash -c "$(run_safeword test-plan --kind build --format sh)"
+
+# --- Typecheck: the same `tsc --noEmit` signal CI's lint job runs (#436). A
+#     green targeted-test run is NOT readiness if types are broken. An empty
+#     plan (no `typecheck` script / non-TS project) prints a visible skip. ---
+bash -c "$(run_safeword test-plan --kind typecheck --format sh)"
 ```
 
-The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.
+The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. **Typecheck is part of the gate, not optional:** when the ticket changed TypeScript, a passing targeted-test run is not "ready" until `test-plan --kind typecheck` (or `/lint`, which runs `tsc --noEmit`) is green — CI's lint job runs it and will go red otherwise. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.
 
 Regression fixtures covered by `safeword test-plan` and its tests:
 
