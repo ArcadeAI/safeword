@@ -256,3 +256,22 @@ describe('extractSkeleton — Python layout (ticket HWSEPV)', () => {
     expect(extractSkeleton(context.directory).nodes).toEqual([]);
   });
 });
+
+describe('extractSkeleton — maturin (pyproject + Cargo) dispatch (HWSEPV review)', () => {
+  it('dispatches a native-extension project to the Python extractor, keeping .py modules', () => {
+    // A maturin/pyo3 project ships BOTH a pyproject.toml and a Cargo.toml at root.
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[project]\nname = "mypkg"\n',
+    );
+    writeFileSync(nodePath.join(context.directory, 'Cargo.toml'), '[package]\nname = "mypkg-rs"\n');
+    mkdirSync(nodePath.join(context.directory, 'src', 'mypkg'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'lib.rs'), '');
+    writeFileSync(nodePath.join(context.directory, 'src', 'db.py'), '');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    // Python-primary: lists the Python package + module, not the Rust crate; src/db.py is NOT dropped.
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['db', 'mypkg']);
+  });
+});

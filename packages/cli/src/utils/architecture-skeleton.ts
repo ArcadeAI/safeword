@@ -57,20 +57,23 @@ export interface Skeleton {
 }
 
 export function extractSkeleton(projectDirectory: string): Skeleton {
-  // A Rust crate (a `Cargo.toml` is present) is described by its top-level `src/`
-  // modules — files AND directories, since a Rust module can be either — minus the
-  // `lib.rs`/`main.rs` crate roots (ticket YKFA5X). Dispatched before the plain
-  // src-dir path so a crate's file modules are not lost.
-  if (exists(nodePath.join(projectDirectory, 'Cargo.toml'))) {
-    return { nodes: rustModuleNodes(projectDirectory) };
-  }
-
   // A Python project (a `pyproject.toml` is present) is described by its top-level
   // modules — src-layout uses `src/` packages + `src/*.py`, flat-layout uses root
-  // `__init__.py` dirs + root `*.py` (ticket HWSEPV). Dispatched before the plain
-  // src-dir path so a src-layout crate's `*.py` modules are not lost.
+  // `__init__.py` dirs + root `*.py` (ticket HWSEPV). Checked BEFORE Cargo because a
+  // native-extension project (maturin/pyo3 — pydantic-core, cryptography, polars …)
+  // ships both a `pyproject.toml` AND a `Cargo.toml`; it is Python-primary (the crate
+  // is a build backend), so it must not dispatch to the Rust extractor and drop its
+  // `*.py` modules. Also before the plain src-dir path so `src/*.py` files aren't lost.
   if (exists(nodePath.join(projectDirectory, 'pyproject.toml'))) {
     return { nodes: pythonModuleNodes(projectDirectory) };
+  }
+
+  // A Rust crate (a `Cargo.toml` is present, and no `pyproject.toml`) is described by
+  // its top-level `src/` modules — files AND directories, since a Rust module can be
+  // either — minus the `lib.rs`/`main.rs` crate roots (ticket YKFA5X). Dispatched
+  // before the plain src-dir path so a crate's file modules are not lost.
+  if (exists(nodePath.join(projectDirectory, 'Cargo.toml'))) {
+    return { nodes: rustModuleNodes(projectDirectory) };
   }
 
   // The `src/` layout (TS/JS) is authoritative and unchanged: when it yields

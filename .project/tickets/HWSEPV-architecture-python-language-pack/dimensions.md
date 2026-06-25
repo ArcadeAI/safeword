@@ -36,3 +36,12 @@
 - **Out of scope here:** Poetry `[tool.poetry]` / `requirements.txt` / `setup.py`, PEP 420
   namespace packages (no `__init__.py`), module nesting, and the cross-language LanguagePack
   registry refactor (its own post-4-packs ticket).
+
+## Boundary note (done-gate /quality-review, pass 3)
+
+- **Native-extension projects (maturin/pyo3)** ship BOTH a `pyproject.toml` and a
+  `Cargo.toml` at root (pydantic-core, cryptography, polars, ruff, orjson, tokenizers).
+  `extractSkeleton` checks `pyproject.toml` BEFORE `Cargo.toml`, so such a project is
+  introspected as Python-primary (its `src/*.py` modules listed; the crate is a build
+  backend), never mis-dispatched to the Rust extractor. Unit-pinned in
+  `architecture-skeleton.test.ts`.
