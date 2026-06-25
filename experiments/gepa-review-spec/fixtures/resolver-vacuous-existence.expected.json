@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "Python with a tox.ini runs tox",
+      "defectType": "vacuous-existence-only",
+      "severity": "must-fix",
+      "note": "mutation operator: weaken-Then-to-existence. The command assertion (\"python\" entry command is \"tox\") was replaced with \"a test plan is returned\", which would pass without the resolver computing any command. Other two scenarios unchanged & clean — a must-fix on them is a false alarm."
+    }
+  ]
+}

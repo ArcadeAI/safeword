@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scope": "fixture",
+      "defectType": "conflict",
+      "severity": "must-fix",
+      "note": "mutation operator: contradict-a-sibling. Two scenarios share the identical Given ('a Cargo.toml only under target') but assert opposite outcomes ('no rust entry' vs 'includes a rust entry') with no distinguishing precondition. Set-level, so fixture-scoped. The tox scenario is unchanged & clean."
+    }
+  ]
+}

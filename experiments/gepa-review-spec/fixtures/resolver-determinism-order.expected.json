@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A JS+Python repo lists javascript before python",
+      "defectType": "determinism-order",
+      "severity": "must-fix",
+      "note": "mutation operator: assert-unordered-as-ordered. The plan is a set of detected-language entries with no specified ordering; asserting positional order (first/second) is flaky. Fix: assert membership (includes javascript AND python), not position. Other two scenarios unchanged & clean."
+    }
+  ]
+}

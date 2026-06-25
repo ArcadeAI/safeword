@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "Python with a tox.ini runs tox",
+      "defectType": "vacuous-non-claim",
+      "severity": "must-fix",
+      "note": "mutation operator: Then-to-non-claim. 'the resolver does not crash' is a non-falsifiable non-claim that asserts nothing about the feature's behaviour (the command resolution). Other two scenarios unchanged & clean."
+    }
+  ]
+}

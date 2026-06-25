@@ -1,0 +1,6 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [],
+  "note": "Excerpt of three crisp single-Then scenarios from features/test-plan-resolver.feature. Hand-adjudicated clean: each is atomic, asserts an observable plan/command value, is deterministic, and two are negative cases (empty plan, excluded dir). The unmutated base used as a certified-clean negative AND the parent of the resolver-* single-mutation positives."
+}
