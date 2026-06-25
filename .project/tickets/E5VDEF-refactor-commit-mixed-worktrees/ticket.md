@@ -2,11 +2,14 @@
 id: E5VDEF
 slug: refactor-commit-mixed-worktrees
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-06-24T18:17:30.463Z
-last_modified: 2026-06-24T19:47:13.000Z
+last_modified: 2026-06-24T23:19:44Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/407
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/413
+  - https://github.com/ArcadeAI/safeword/pull/414
 scope:
   - 'Update the `/refactor` guidance so its one-refactoring -> test -> commit rule handles mixed or detached worktrees without encouraging a commit that bundles unrelated feature work.'
   - 'Teach the skill to inspect git state before the commit step and choose one of three explicit outcomes: commit the isolated refactor files, defer the commit with a reason, or stop and ask when safe isolation is impossible.'
@@ -37,3 +40,4 @@ done_when:
 - 2026-06-24T19:43:00.000Z GREEN: Updated the canonical `/refactor` skill and synced dogfood surfaces with `safeword upgrade`. Focused `refactor-skill.test.ts` now passes 9/9. Removed unrelated `.safeword/version` churn from the branch.
 - 2026-06-24T19:45:17.000Z VERIFY: `refactor-skill.test.ts`, skill/command integration validation, dogfood parity, typecheck, Prettier check, and `git diff --check` all pass.
 - 2026-06-24T19:47:13.000Z PR: Opened [#413](https://github.com/ArcadeAI/safeword/pull/413) to close GitHub issue #407.
+- 2026-06-24T23:19:44Z Complete: [#413](https://github.com/ArcadeAI/safeword/pull/413) merged, [#414](https://github.com/ArcadeAI/safeword/pull/414) aligned the remaining Cursor rule description, and GitHub issue [#407](https://github.com/ArcadeAI/safeword/issues/407) is closed. Marked the local ticket done.
