@@ -138,7 +138,7 @@ function actionsToDiffs(actions: Action[], cwd: string): FileDiff[] {
 
   for (const action of actions) {
     if (action.type !== 'write') {
-    	continue;
+      continue;
     }
 
     if (seenPaths.has(action.path)) continue;

@@ -11,9 +11,9 @@ matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-safeword-context.ts" --agent=codex'
-timeout = 30
-statusMessage = "Loading safeword standing instructions"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
+timeout = 120
+statusMessage = "Checking safeword updates and loading standing instructions"
 
 [[hooks.UserPromptSubmit]]
 

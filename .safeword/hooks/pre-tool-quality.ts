@@ -7,17 +7,26 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { getTicketInfo, parseTddStep } from './lib/active-ticket.ts';
+import {
+  evaluateFeatureTicketReadiness,
+  formatFeatureTicketReadiness,
+  getTicketInfo,
+  parseTddStep,
+} from './lib/active-ticket.ts';
+import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
+  AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
   gatePhaseAdvance,
   hashArtifact,
+  isCrossModelReviewRequired,
   isReviewGateEnabled,
+  modelsMatch,
   parseReviewStamps,
   type ReviewStamp,
   reviewGateForNextAsset,
@@ -103,6 +112,11 @@ function readConfiguredPersonasPath(rawConfig: string): string | undefined {
 
 function deny(reason: string, additionalContext?: string): never {
   const output: Record<string, unknown> = {
+    // systemMessage is the top-level field Claude Code surfaces to the USER
+    // (permissionDecisionReason goes to the model and can be swallowed before the
+    // user sees it — issue #17356). The hint rides both: the reason for the model
+    // + Codex adapter, systemMessage for the human. Augment, never replace.
+    systemMessage: EXPLAIN_HINT,
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
@@ -131,6 +145,15 @@ const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 function isReviewGateOn(): boolean {
   const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
   return isReviewGateEnabled(existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined);
+}
+
+// Whether phase-exit reviews must run on a different model than the author
+// (ticket 7A0B2K, reusing MR5M3A's `crossModelReview` knob). Off by default.
+function isCrossModelOn(): boolean {
+  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  return isCrossModelReviewRequired(
+    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
+  );
 }
 
 // The review stamps both gates read from the shared skill-invocation-log
@@ -374,6 +397,49 @@ function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: 
   return priorContent;
 }
 
+function frontmatterScalar(
+  meta: Record<string, string | string[]>,
+  key: string,
+): string | undefined {
+  const value = meta[key];
+  return Array.isArray(value) ? undefined : value;
+}
+
+function frontmatterFromContent(content: string): Record<string, string | string[]> {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  return match ? parseFrontmatter(match[1] ?? '') : {};
+}
+
+// Feature readiness gate (#404): block new entries into define-behavior before
+// scenario work starts. The existing test-definitions.md gate still guards the
+// first scenario-file write; this catches the earlier phase edit.
+if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  const priorMeta = frontmatterFromContent(priorContent);
+  const proposedMeta = frontmatterFromContent(proposedContent);
+  const priorPhase = frontmatterScalar(priorMeta, 'phase');
+  const proposedPhase = frontmatterScalar(proposedMeta, 'phase');
+  const proposedType = frontmatterScalar(proposedMeta, 'type');
+
+  if (
+    proposedType === 'feature' &&
+    proposedPhase === 'define-behavior' &&
+    priorPhase !== proposedPhase
+  ) {
+    const ticketFolder = nodePath.basename(nodePath.dirname(editedFile));
+    const readiness = evaluateFeatureTicketReadiness(projectDirectory, ticketFolder, {
+      ticketContent: proposedContent,
+    });
+    if (!readiness.ok) {
+      deny(
+        formatFeatureTicketReadiness(readiness),
+        'Complete the listed intake artifacts, then retry the phase change into define-behavior.',
+      );
+    }
+  }
+}
+
 // Review gate (NMSD94, Tier 2) — DEFAULT-OFF, same flag as Tier 1. On a
 // ticket.md edit that changes `phase:`, block leaving the phase until an
 // independent phase-exit review stamp exists for it. The stamp is produced by a
@@ -396,7 +462,44 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
           `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or append a skip reason to log a deliberate skip).`,
         );
       }
+      // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
+      // model different from the author. Evaluate over ALL real-review stamps at this
+      // scope (the log is append-only, so a corrected re-review can follow a same-model
+      // attempt) — pass if any is cross-model. A logged skip records no real-review
+      // stamp, so it deliberately bypasses this, matching the arch-gate's escape valve.
+      else if (isCrossModelOn()) {
+        const realReviews = stamps.filter(
+          s => s.scope === phaseScope && s.skipReason === undefined,
+        );
+        const hasCrossModelReview = realReviews.some(
+          s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
+        );
+        if (realReviews.length > 0 && !hasCrossModelReview) {
+          deny(
+            `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
+            `Re-run with an explicit different-model subagent (not a context:fork, which inherits the author model), then record it via \`bun .safeword/hooks/write-review-stamp.ts --model <id> --phase ${exitedPhase}\`.`,
+          );
+        }
+      }
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// blocked_on hard gate (ticket MBGQ89) — ALWAYS-ON. On a ticket.md edit that
+// advances phase out of intake, deny while any same-repo blocked_on target is
+// not done (override with a substantive reason). Joins the phase-gate family.
+// ---------------------------------------------------------------------------
+
+if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  const denial = evaluateBlockedOnGate(priorContent, proposedContent, id => {
+    const info = getTicketInfo(projectDirectory, id);
+    return { found: info.folder !== undefined, status: info.status };
+  });
+  if (denial !== undefined) {
+    deny(denial.reason, denial.additionalContext);
   }
 }
 
@@ -496,7 +599,11 @@ if (!state.gate) {
 
 // LOC gate stands down during a git merge/rebase/cherry-pick/revert so it can't
 // block the edits that resolve the operation (ticket MT27QG).
-if (state.gate === 'loc' && !isGitOperationInProgress(projectDirectory)) {
+if (
+  state.gate === 'loc' &&
+  state.locSinceCommit >= LOC_THRESHOLD &&
+  !isGitOperationInProgress(projectDirectory)
+) {
   recordFailure(projectDirectory, input.session_id, 'loc-exceeded');
   deny(`${state.locSinceCommit} LOC since last commit (threshold: ${LOC_THRESHOLD}).
 

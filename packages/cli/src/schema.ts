@@ -176,6 +176,17 @@ matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
+timeout = 120
+statusMessage = "Checking safeword updates and loading standing instructions"
+`;
+
+const CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH = `
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-safeword-context.ts" --agent=codex'
 timeout = 30
 statusMessage = "Loading safeword standing instructions"
@@ -531,15 +542,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
+    '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
     '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/run-identity.ts': { template: 'hooks/lib/run-identity.ts' },
     '.safeword/hooks/lib/dependency-readiness.ts': {
       template: 'hooks/lib/dependency-readiness.ts',
     },
+    '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
@@ -561,6 +575,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/ledger-validation.ts': { template: 'hooks/lib/ledger-validation.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
+    '.safeword/hooks/lib/auto-upgrade.ts': { template: 'hooks/lib/auto-upgrade.ts' },
+    '.safeword/hooks/lib/safeword-context.ts': { template: 'hooks/lib/safeword-context.ts' },
     '.safeword/hooks/lib/update-cache.ts': { template: 'hooks/lib/update-cache.ts' },
     '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
     '.safeword/hooks/lib/learning-verification-stamps.ts': {
@@ -579,6 +595,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-safeword-context.ts': {
       template: 'hooks/session-safeword-context.ts',
     },
+    '.safeword/hooks/session-codex-start.ts': {
+      template: 'hooks/session-codex-start.ts',
+    },
     '.safeword/hooks/session-dependency-readiness.ts': {
       template: 'hooks/session-dependency-readiness.ts',
     },
@@ -587,6 +606,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/session-lint-check.ts': {
       template: 'hooks/session-lint-check.ts',
+    },
+    '.safeword/hooks/session-architecture-heal.ts': {
+      template: 'hooks/session-architecture-heal.ts',
     },
     '.safeword/hooks/session-author-model.ts': {
       template: 'hooks/session-author-model.ts',
@@ -612,8 +634,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
     },
+    '.safeword/hooks/pre-tool-architecture-stage.ts': {
+      template: 'hooks/pre-tool-architecture-stage.ts',
+    },
     '.safeword/hooks/codex/pre-tool-quality.ts': {
       template: 'hooks/codex/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/codex/pre-tool-quality-helpers.ts': {
+      template: 'hooks/codex/pre-tool-quality-helpers.ts',
     },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
@@ -648,6 +676,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Guides
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
+    },
+    '.safeword/guides/cold-start-check.md': {
+      template: 'guides/cold-start-check.md',
     },
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',
@@ -845,9 +876,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'cursor/rules/bdd-splitting.mdc',
     },
 
-    // Cursor commands (8 files - Cursor needs explicit commands for all capabilities)
+    // Cursor commands (Cursor needs explicit commands for all capabilities)
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
     '.cursor/commands/debug.md': { template: 'commands/debug.md' },
+    '.cursor/commands/explain.md': { template: 'commands/explain.md' },
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
     '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
@@ -865,6 +897,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {
       template: 'hooks/cursor/after-file-edit.ts',
+    },
+    '.safeword/hooks/cursor/gate-adapter.ts': {
+      template: 'hooks/cursor/gate-adapter.ts',
+    },
+    '.safeword/hooks/cursor/pre-tool-quality.ts': {
+      template: 'hooks/cursor/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/cursor/before-shell-execution.ts': {
+      template: 'hooks/cursor/before-shell-execution.ts',
+    },
+    '.safeword/hooks/cursor/post-tool-quality.ts': {
+      template: 'hooks/cursor/post-tool-quality.ts',
     },
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },
@@ -971,7 +1015,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.markdownlint-cli2.jsonc': MARKDOWNLINT_CLI2_IGNORES_MERGE,
 
     '.cursor/hooks.json': {
-      keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],
+      keys: [
+        'version',
+        'hooks.sessionStart',
+        'hooks.preToolUse',
+        'hooks.beforeShellExecution',
+        'hooks.afterFileEdit',
+        'hooks.postToolUse',
+        'hooks.stop',
+      ],
       removeFileIfEmpty: true,
       merge: existing => {
         const hooks = (existing.hooks as Record<string, unknown[]>) ?? {};
@@ -986,11 +1038,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       },
       unmerge: existing => {
         const result = { ...existing };
-        const hooks = { ...(existing.hooks as Record<string, unknown[]>) };
+        const existingHooks = (existing.hooks as Record<string, unknown[]>) ?? {};
 
-        delete hooks.sessionStart;
-        delete hooks.afterFileEdit;
-        delete hooks.stop;
+        // Keep only hooks safeword did NOT install. Derived from CURSOR_HOOKS so
+        // the unmerge can never drift from the merge as new hooks are added — the
+        // old hardcoded delete-list missed newly-wired events, leaving a
+        // non-empty hooks.json that kept .cursor/ alive after reset.
+        const safewordHookNames = new Set(Object.keys(CURSOR_HOOKS));
+        const hooks = Object.fromEntries(
+          Object.entries(existingHooks).filter(([name]) => !safewordHookNames.has(name)),
+        );
 
         // `version` is only meaningful while safeword's hooks remain; drop it
         // alongside an emptied hooks container.
@@ -1047,7 +1104,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
         ],
-        unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+        unpatchContent: [
+          CODEX_SESSION_START_HOOK_PATCH,
+          CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+          CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+        ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
       },
       // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /

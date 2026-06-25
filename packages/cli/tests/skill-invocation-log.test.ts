@@ -6,7 +6,8 @@ import process from 'node:process';
 
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+import { repoRoot } from './helpers';
+
 const templatesDirectory = nodePath.join(repoRoot, 'packages/cli/templates');
 
 const verifyCommand = readFileSync(nodePath.join(templatesDirectory, 'commands/verify.md'), 'utf8');
@@ -102,13 +103,13 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
       ...verifyForms.map(([name, content]) => [name, content, 'verify'] as const),
       ...auditForms.map(([name, content]) => [name, content, 'audit'] as const),
     ])(
-      '%s documents the fallback when inline shell execution does not run',
+      '%s documents normalized runtime identity fallback when inline shell execution does not run',
       (_name, content, skill) => {
         expect(content).toContain(
-          'Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding',
+          'Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available.',
         );
         expect(content).toContain(
-          'Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution',
+          'The helper also resolves Claude remote-container ids and Codex thread ids from the runtime environment',
         );
         expect(content).toContain(
           'Feature tickets must fail closed if no real current-session proof can be logged.',
@@ -120,13 +121,11 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
           `If no \`[skill-invocation-log] ${skill} ✓\` line appears above, run this fallback before continuing:`,
         );
         expect(content).toContain(
-          `bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ${skill} "\${CLAUDE_SESSION_ID}"`,
-        );
-        expect(content).toContain(
           `bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ${skill} "\${CLAUDE_SESSION_ID:-}"`,
         );
-        expect(content).toContain('no session id');
+        expect(content).toContain('no run identity');
         expect(content).not.toContain('reports `Missing CLAUDE_SESSION_ID`');
+        expect(content).not.toContain('Codex and Cursor docs do not document');
         expect(content).not.toContain('Bash injection runs at render time');
       },
     );
@@ -276,7 +275,7 @@ describe('self-review stamp fallback surfaces (K2ZP40)', () => {
         'CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec',
       );
       expect(content).toContain(
-        'The review stamp is content-bound and does not require `CLAUDE_SESSION_ID`.',
+        'The review stamp is content-bound and uses the normalized runtime identity.',
       );
       expect(content).not.toContain('no `✓` line at all**: STOP');
     },

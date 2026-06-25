@@ -76,7 +76,7 @@ for (const { pattern, category } of PROTECTED_PATTERNS) {
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
         permissionDecision: 'ask',
-        permissionDecisionReason: `⚠️ ${category} change requires approval.\n\nFile: ${filePath}\n\nPer SAFEWORD policy: Fix code, don't weaken configs.\nIf this is a justified change, explain the evidence.`,
+        permissionDecisionReason: `⚠️ The agent wants to change a settings file that controls your safety checks (${category}). Approving this could weaken those checks.\n\nFile: ${filePath}\n\nPrefer fixing the code over loosening the settings. If this change is genuinely needed, the agent should explain why.`,
       },
     };
     console.log(JSON.stringify(output));

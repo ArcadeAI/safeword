@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "The session lint check lists findings in a fixed order",
+      "defectType": "determinism-order",
+      "severity": "must-fix",
+      "note": "HELD-OUT, a type the baseline MISSES on train: the lint check's findings are an unordered set; asserting positional order (first Prettier, second ESLint) is flaky. Fix: assert membership, not position. Placed in held-out so Phase 5 can measure whether a GEPA winner's recall gain on determinism-order generalizes. Other two scenarios unchanged & clean."
+    }
+  ]
+}

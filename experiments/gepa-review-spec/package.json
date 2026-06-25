@@ -1,0 +1,12 @@
+{
+  "name": "@safeword-experiments/gepa-review-spec",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Research spike: behavioral eval for the review-spec skill, GEPA-ready",
+  "comment": "Intentionally NOT a workspace member — kept self-contained so the spike adds no shared deps. Tests reuse the vitest already installed in packages/cli.",
+  "scripts": {
+    "test": "../../packages/cli/node_modules/.bin/vitest run",
+    "baseline": "bun src/baseline.ts"
+  }
+}

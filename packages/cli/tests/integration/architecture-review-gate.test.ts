@@ -101,7 +101,8 @@ function writeTicket(id: string, type: 'feature' | 'task', implPlan?: string, sp
       '# Spec\n\n## Jobs To Be Done\n\nskip: fixture\n',
     );
   }
-  if (implPlan !== undefined) writeTestFile(shared.projectDirectory, `${folder}/impl-plan.md`, implPlan);
+  if (implPlan !== undefined)
+    writeTestFile(shared.projectDirectory, `${folder}/impl-plan.md`, implPlan);
 }
 
 /** Append a design-review stamp for the impl-plan to the invocation log. */
@@ -116,7 +117,10 @@ function writeStamp(
     hashArtifact(options.hashOf ?? planContent),
   );
   const line = `2026-06-12T00:00:00Z sess ${formatReviewStamp(scope, options.skip, options.model)}`;
-  appendFileSync(nodePath.join(shared.projectDirectory, '.project', 'skill-invocations.log'), `${line}\n`);
+  appendFileSync(
+    nodePath.join(shared.projectDirectory, '.project', 'skill-invocations.log'),
+    `${line}\n`,
+  );
 }
 
 function runStopHook(

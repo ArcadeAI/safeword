@@ -38,7 +38,7 @@ const parts: string[] = [];
 
 // Surface warnings as plain text (missing tool binaries)
 if (result.warnings.length > 0) {
-  parts.push(result.warnings.map(w => `SAFEWORD: ${w}`).join('\n'));
+  parts.push(result.warnings.join('\n'));
 }
 
 // Surface remaining lint errors via additionalContext so Claude can fix them

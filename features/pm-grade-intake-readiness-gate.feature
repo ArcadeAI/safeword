@@ -1,3 +1,11 @@
+# Acceptance is proven by the vitest hook lane, not cucumber step definitions:
+# all eight scenarios below (pointer surfaces at pre-classify/intake, suppresses
+# at implement, names five dimensions, length cap, constraint scoping, and the two
+# SAFEWORD.md triage checks) are covered by
+# packages/cli/tests/hooks/readiness-pointer.test.ts (TPP6Y2). Tagged @wip to
+# exclude this feature from the cucumber acceptance lane (proof lives in vitest)
+# while staying discoverable for `safeword check` AC-coverage.
+@wip
 Feature: PM-grade intake readiness gate
   At the Clarify→Build boundary the agent surfaces a compressed five-dimension
   readiness self-test so it captures enough context before acting — without

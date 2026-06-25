@@ -141,7 +141,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/001a-feature/verify.md',
-      'Verified: 2026-01-01T00:00:00Z\n',
+      'Verified: 2026-01-01T00:00:00Z\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
     );
 
     // Next sibling — not done
@@ -213,7 +213,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/013b-feat/verify.md',
-      'Verified: 2026-01-01T00:00:00Z\n',
+      'Verified: 2026-01-01T00:00:00Z\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
     );
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
@@ -267,7 +267,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/013a-feat/verify.md',
-      'Verified: 2026-01-01T00:00:00Z\n',
+      'Verified: 2026-01-01T00:00:00Z\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
     );
 
     // Uncle sibling — not done
@@ -317,7 +317,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/025-standalone/verify.md',
-      'Verified: 2026-01-01T00:00:00Z\n',
+      'Verified: 2026-01-01T00:00:00Z\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
     );
 
     const transcriptPath = createTranscript(projectDirectory, featureEvidence);
@@ -342,7 +342,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/050-orphan/verify.md',
-      'Verified: 2026-01-01T00:00:00Z\n',
+      'Verified: 2026-01-01T00:00:00Z\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
     );
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);
@@ -374,7 +374,7 @@ describe('hierarchy navigation in stop hook', () => {
     writeTestFile(
       projectDirectory,
       '.safeword-project/tickets/016a-feat/verify.md',
-      'Verified: 2026-01-01T00:00:00Z\n',
+      'Verified: 2026-01-01T00:00:00Z\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
     );
 
     const transcriptPath = createTranscript(projectDirectory, taskEvidence);

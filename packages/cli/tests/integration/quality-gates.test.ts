@@ -11,6 +11,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -69,13 +70,14 @@ function runPreToolQuality(
   toolName: string,
   filePath?: string,
   sessionId = 'test-session',
+  toolInput: Record<string, unknown> = {},
 ) {
   return spawnSync('bun', [PRE_TOOL_QUALITY], {
     input: JSON.stringify({
       session_id: sessionId,
       hook_event_name: 'PreToolUse',
       tool_name: toolName,
-      tool_input: filePath ? { file_path: filePath } : {},
+      tool_input: filePath ? { file_path: filePath, ...toolInput } : toolInput,
     }),
     cwd,
     env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
@@ -248,7 +250,29 @@ describe('Quality Gates', () => {
       expect(state.locSinceCommit).toBeGreaterThanOrEqual(400);
     });
 
-    it('1.3: PreToolUse blocks with commit reminder at LOC gate', () => {
+    it('1.3: PostToolUse clears LOC gate when diff drops below threshold without commit', () => {
+      const largeFilePath = nodePath.join(projectDirectory, 'large-file.ts');
+      const lines = Array.from({ length: 420 }, (_, i) => `const x${i} = ${i};`).join('\n');
+      writeTestFile(projectDirectory, 'large-file.ts', lines);
+      execSync('git add large-file.ts', { cwd: projectDirectory, stdio: 'pipe' });
+
+      const armedResult = runPostToolQuality(projectDirectory, 'Edit', largeFilePath);
+
+      expect(armedResult.status).toBe(0);
+      expect(readState(projectDirectory).gate).toBe('loc');
+
+      execSync('git restore --staged large-file.ts', { cwd: projectDirectory, stdio: 'pipe' });
+      rmSync(largeFilePath);
+
+      const clearedResult = runPostToolQuality(projectDirectory, 'Bash', largeFilePath);
+
+      expect(clearedResult.status).toBe(0);
+      const state = readState(projectDirectory);
+      expect(state.locSinceCommit).toBe(0);
+      expect(state.gate).toBeNull();
+    });
+
+    it('1.4: PreToolUse blocks with commit reminder at LOC gate', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 450,
@@ -268,9 +292,30 @@ describe('Quality Gates', () => {
       expect(reason).toContain('Commit');
       // ZCYD5P: every hard-block gate message points to /explain.
       expect(reason).toContain('Run `/explain` for a plain-English version');
+      // 19E2XQ: the hint also rides systemMessage — the field Claude Code
+      // surfaces to the USER (permissionDecisionReason reaches the model and can
+      // be swallowed before the human sees it, issue #17356).
+      expect(output.systemMessage).toContain('Run `/explain` for a plain-English version');
     });
 
-    it('1.4: LOC gate clears on commit', () => {
+    it('1.5: PreToolUse allows stale LOC gate when stored LOC is below threshold', () => {
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: null,
+        lastKnownPhase: null,
+        gate: 'loc',
+      });
+
+      const result = runPreToolQuality(projectDirectory, 'Edit');
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+    });
+
+    it('1.6: LOC gate clears on commit', () => {
       // State has a stale hash — doesn't match current HEAD
       writeState(projectDirectory, {
         locSinceCommit: 500,
@@ -1612,6 +1657,126 @@ describe('Quality Gates', () => {
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('non-empty reason');
+    });
+
+    it('9.14: denies feature phase advance into define-behavior when scope frontmatter is missing', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'type: feature', 'phase: intake', '---', '# Test'].join('\n'),
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('Feature ticket is not ready for define-behavior');
+      expect(reason).toContain('scope');
+      expect(reason).toContain('out_of_scope');
+      expect(reason).toContain('done_when');
+    });
+
+    it('9.15: denies feature phase advance into define-behavior when spec and dimensions are missing', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: intake',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
+      const reason = output.hookSpecificOutput.permissionDecisionReason;
+      expect(reason).toContain('spec.md');
+      expect(reason).toContain('dimensions.md');
+    });
+
+    it('9.16: allows ready feature phase advance into define-behavior', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: intake',
+          'scope: Build morning digest',
+          'out_of_scope: Real-time alerts',
+          'done_when: Daily digest delivered',
+          '---',
+          '# Test',
+        ].join('\n'),
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: ready fixture; JTBD/AC content covered elsewhere\n',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/dimensions.md',
+        'skip: single behavioral dimension, no partitioning to enumerate\n',
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
+    it('9.17: does not apply feature readiness to task phase advance', () => {
+      const ticketPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+      );
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        ['---', 'id: 099', 'type: task', 'phase: intake', '---', '# Test'].join('\n'),
+      );
+
+      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath, 'test-session', {
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
     });
   });
   // =========================================================================

@@ -45,11 +45,13 @@ If the user references a ticket ID/slug or says "resume" / "continue", skip Clar
 
 Before proceeding, run the **specificity self-test**: can you describe the behavior that changes, the behavior that stays the same, and an observable "done" state? Any "no" means open questions remain — surface them.
 
-**Readiness triage.** The five-dimension check the prompt pointer abbreviates: intent (why, and for whom), done (a measurable end-state), constraints (what must not break, reversibility), riskiest assumption (and the cheapest way to test it before building), and request shape (is this the problem, or someone's guess at the fix?). Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics.
+**Readiness triage.** The five-dimension check the prompt pointer abbreviates: intent (why, and for whom), done (a measurable end-state), constraints (what must not break, reversibility), riskiest assumption (and the cheapest way to test it before building), and request shape (is this the problem, or someone's guess at the fix?). Scale depth by blast radius — reversible, local work proceeds; irreversible or high-blast work resolves the open unknowns first. You're ready when your remaining questions are about edge-cases and trade-offs, not basics. For one-way-door features, intake offers a deeper **cold-start executability check** at exit (`.safeword/guides/cold-start-check.md`) — a context-free agent attempts to plan the work from the captured spec alone, surfacing what it couldn't reconstruct; runnable on demand too.
+
+**PM-grade intake** is the name for how these fit together, scaled by blast radius: the readiness pointer nudges every turn · the Intake Brief (who asked · cost of inaction · reversibility) is authored for features · the cold-start executability check fires only for one-way-door work — with `/elicit`, `/brainstorm`, and `/figure-it-out` pulled in as the gaps demand (unknown intent · empty option space · options to weigh). One protocol, not three disconnected mechanisms.
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, intake builds four artifacts in order, each anchoring the next: author the Jobs To Be Done in `spec.md` first — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
+Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
@@ -153,6 +155,7 @@ Read the matching guide when its trigger fires:
 | Choosing test type, doing TDD, or a test is failing            | `./.safeword/guides/testing-guide.md`           |
 | Creating or updating a design doc                              | `./.safeword/guides/design-doc-guide.md`        |
 | Making an architectural decision or writing an ADR             | `./.safeword/guides/architecture-guide.md`      |
+| Understanding the generated `architecture.generated.md` doc    | `./.safeword/guides/architecture-guide.md`      |
 | Data-heavy project needing formal data architecture            | `./.safeword/guides/data-architecture-guide.md` |
 | Writing learnings or agent config (CLAUDE.md, .cursor/rules)   | `./.safeword/guides/llm-writing-guide.md`       |
 | Updating CLAUDE.md, SAFEWORD.md, or any context file           | `./.safeword/guides/context-files-guide.md`     |
@@ -181,6 +184,8 @@ Safeword runs hooks each turn to track your phase and TDD step. Three gates hard
 
 The prompt hook injects your current phase each turn as a reminder.
 
+When a gate blocks, the user can run `/explain` for a plain-English version of the block — what it's asking for and how to clear it. Offer it in one line when the user seems unsure (asks "what?", pastes a block back, or stalls); stay quiet when they're moving fine. Don't make them ask twice to understand a block.
+
 ---
 
 ## Talking to the user
@@ -200,7 +205,9 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 
 **Front-load load-bearing words.** The first two words of every line, bullet, and heading do the work — readers eye-jump down the left edge before deciding where to drop in. Start with the noun or verb that carries the meaning. "Failed because…" beats "It looks like the test failed because…"
 
-**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Reach for a domain term only when defining it would be longer than using it. Assume the user knows their stack — don't explain TypeScript, async, or `git rebase` to a developer who's using them.
+**Speak plainly.** Use everyday words. Don't make the user learn safeword's internal vocabulary (Propose-and-Converge, sizing, gates, phases) — just describe what's happening. Prefer the plain phrase over a technical term whenever either works; reach for the term only when it's shorter or more precise than spelling it out.
+
+**Gloss jargon at the decision point.** Don't assume the user reads code. The first time a stack or domain term is load-bearing in an _ask_ — a block, a decision, a step they must take — gloss it inline in one clause ("the refresh token (the credential that renews a login) expired"). Once per turn, never re-explained; a fluent reader skips it at no cost. Leave background narration unglossed.
 
 **Match length to the ask.** A one-line question gets a one-line reply — no headers, no bullets, no preamble. Complex tasks get a short answer followed by the detail that supports it. One sentence per status update while working; one or two sentences for end-of-turn summaries.
 

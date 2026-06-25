@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.54.0",
+  "version": "0.57.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -27,13 +27,12 @@
     "templates"
   ],
   "engines": {
-    "node": ">=22.12"
+    "node": "^22.22.3 || ^24.16.0 || >=26.3.0"
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "pretest": "tsup",
-    "test": "vitest run",
+    "test": "node scripts/run-vitest-with-build-lock.mjs",
     "pretest:bdd": "tsup",
     "test:bdd": "cucumber-js",
     "test:done": "vitest run tests/hooks/ tests/schema.test.ts",
@@ -69,11 +68,10 @@
     "commander": "15.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
-    "eslint-plugin-astro": "^1.7.0",
+    "eslint-plugin-astro": "~2.1.0",
     "eslint-plugin-better-tailwindcss": "4.6.0",
     "eslint-plugin-import-x": "^4.16.2",
     "eslint-plugin-jsdoc": "^63.0.6",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-playwright": "2.10.4",
     "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -93,6 +91,7 @@
     "@types/node": "^26.0.0",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.5.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "knip": "6.17.1",
     "prettier": "^3.8.4",
     "publint": "^0.3.21",

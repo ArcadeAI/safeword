@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A cached python command is read back",
+      "defectType": "vacuous-given-echo",
+      "severity": "must-fix",
+      "note": "ADVERSARIAL-VACUOUS: the Then asserts a concrete value (\"tox\") yet is vacuous — the Given already states the command is \"tox\", so the scenario exercises the cache read-back, not the manifest->runner derivation the feature is about. Distinguishes from resolver-clean's REAL 'command is tox' (derived from tox.ini). Other two scenarios unchanged & clean."
+    }
+  ]
+}

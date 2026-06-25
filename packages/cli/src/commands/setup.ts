@@ -379,7 +379,7 @@ function logArchitectureDetected(arch: ReturnType<typeof buildArchitecture>): vo
     detected.push(`workspaces: ${arch.workspaces.join(', ')}`);
   }
   info(`\nArchitecture detected: ${detected.join('; ')}`);
-  info('Generated dependency-cruiser config for /audit command');
+  info('Set up the project-structure checks that /audit uses');
 }
 
 /**
@@ -429,9 +429,11 @@ function warnIfBunMissing(): void {
   try {
     execSync('bun --version', { stdio: 'pipe' });
   } catch {
-    warn('bun not found — quality hooks will not work without it.');
-    info('  Install: curl -fsSL https://bun.sh/install | bash');
-    info('  Hooks will hard-block at session start until bun is available.');
+    warn(
+      'safeword needs a small tool called "bun" to run its safety checks, and it isn\'t installed.',
+    );
+    info('  Install bun (about 30 seconds): curl -fsSL https://bun.sh/install | bash');
+    info("  Until then, safeword's checks can't run and your agent works unguarded.");
   }
 }
 
@@ -501,6 +503,10 @@ export async function setup(options: SetupOptions): Promise<void> {
       noModify: options.noModify,
     });
 
+    // 2TK5AD — offer the opt-in tracker connect (default no). Skipped in
+    // non-interactive / scripted / CI runs so setup never hangs on input.
+    await maybeOfferTrackerConnect();
+
     // Self-verify the postcondition (ticket 3293WH): a mutating command
     // proves what it wrote, where the breakage actually is. Config-health
     // only — no update-check. The default "Run `safeword upgrade`" repair
@@ -517,4 +523,46 @@ export async function setup(options: SetupOptions): Promise<void> {
     error(`Setup failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
+}
+
+/** Read one line of free text from stdin (for provider/target selection). */
+async function promptText(question: string): Promise<string> {
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const raw = await rl.question(`${question} `);
+    return raw.trim();
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * 2TK5AD AC1/AC8 — the opt-in `setup` offer. Delegates to the same connect flow
+ * `safeword connect` runs (one code path). Skipped entirely in scripted/CI/
+ * non-interactive runs so setup never blocks on input.
+ */
+async function maybeOfferTrackerConnect(): Promise<void> {
+  if (process.env.CI !== undefined || !process.stdin.isTTY) return;
+
+  const { offerTrackerConnect } = await import('../tracker-connect/offer.js');
+  const { createPrompt } = await import('../tracker-connect/prompt.js');
+  const { runConnect } = await import('../tracker-connect/run.js');
+
+  await offerTrackerConnect({
+    prompt: createPrompt(),
+    chooseConnect: async () => {
+      const answer = await promptText('  Provider (github/linear):');
+      const provider = answer.toLowerCase();
+      // An unrecognized provider falls through to connectTracker, which rejects
+      // it cleanly (AC7) — so chooseConnect has a single return and no undefined.
+      const detail = await promptText(
+        provider === 'linear' ? '  Linear team:' : '  Target repo (owner/name):',
+      );
+      const target = provider === 'linear' ? { team: detail } : { repo: detail };
+      return { provider, target };
+    },
+    // Same composition root `safeword connect` runs (AC8) — no sibling-command import.
+    connect: choice => runConnect(choice.provider, choice.target, info),
+  });
 }

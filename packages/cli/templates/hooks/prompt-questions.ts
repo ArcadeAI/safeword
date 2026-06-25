@@ -4,7 +4,12 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { deriveTddStep, getTicketInfo } from './lib/active-ticket.ts';
+import {
+  deriveTddStep,
+  evaluateFeatureTicketReadiness,
+  formatFeatureTicketReadiness,
+  getTicketInfo,
+} from './lib/active-ticket.ts';
 import { READINESS_POINTER, shouldSurfaceReadiness } from './lib/readiness-pointer.ts';
 import { evaluateReplan } from './lib/replan.ts';
 import {
@@ -87,6 +92,13 @@ if (existsSync(stateFile)) {
         lines.push(
           `- Ticket: ${ticketSlug ? `${ticketSlug} (${state.activeTicket})` : state.activeTicket}`,
         );
+
+        if (phase === 'define-behavior' && ticketInfo.type === 'feature' && ticketInfo.folder) {
+          const readiness = evaluateFeatureTicketReadiness(projectDirectory, ticketInfo.folder);
+          if (!readiness.ok) {
+            lines.push(`- ${formatFeatureTicketReadiness(readiness)}`);
+          }
+        }
 
         const reminder = reminders[phase];
         if (reminder) {

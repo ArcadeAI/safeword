@@ -13,7 +13,10 @@ import { fileURLToPath } from 'node:url';
 import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
-import { recommendedTypeScriptReact } from '../recommended-react.js';
+import {
+  buildRecommendedTypeScriptReact,
+  recommendedTypeScriptReact,
+} from '../recommended-react.js';
 import { getAllRules, getRuleConfig, getSeverityNumber } from './test-utilities.js';
 
 // JSX fixtures below embed `{expr}` JSX braces inside template-literal source
@@ -90,10 +93,34 @@ describe('recommendedTypeScriptReact config', () => {
     expect(packageJson.dependencies).not.toHaveProperty('eslint-plugin-react');
   });
 
+  it('does not ship eslint-plugin-jsx-a11y as a production dependency', async () => {
+    const packageJson = await readCliPackageJson();
+
+    expect(packageJson.dependencies).not.toHaveProperty('eslint-plugin-jsx-a11y');
+    expect(packageJson.devDependencies).toHaveProperty('eslint-plugin-jsx-a11y');
+  });
+
   it('React preset source does not import eslint-plugin-react', async () => {
     const source = await readReactPresetSource();
 
     expect(source).not.toMatch(/from ['"]eslint-plugin-react['"]/u);
+  });
+
+  it('React preset source does not statically import eslint-plugin-jsx-a11y', async () => {
+    const source = await readReactPresetSource();
+
+    expect(source).not.toMatch(/from ['"]eslint-plugin-jsx-a11y['"]/u);
+  });
+
+  it('loads React guardrails when optional jsx-a11y rules are unavailable', () => {
+    const config = buildRecommendedTypeScriptReact({ loadJsxA11yStrictConfig: () => false });
+
+    expect(getRuleConfig(config, '@eslint-react/no-missing-key')).toBeDefined();
+    expect(getRuleConfig(config, 'react-hooks/rules-of-hooks')).toBeDefined();
+    expect(hasPlugin('jsx-a11y')).toBe(true);
+    expect(config.some(entry => entry?.plugins && Object.hasOwn(entry.plugins, 'jsx-a11y'))).toBe(
+      false,
+    );
   });
 });
 

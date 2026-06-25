@@ -1,0 +1,17 @@
+{
+  "split": "train",
+  "defects": [
+    {
+      "scenarioId": "Session expires after inactivity",
+      "defectType": "determinism-time",
+      "severity": "must-fix",
+      "note": "depends on elapsed wall-clock time instead of waiting on an observable expiry condition"
+    },
+    {
+      "scenarioId": "User logs in and then logs out",
+      "defectType": "non-atomic",
+      "severity": "must-fix",
+      "note": "exercises both login and logout with two When/Then pairs in one scenario"
+    }
+  ]
+}

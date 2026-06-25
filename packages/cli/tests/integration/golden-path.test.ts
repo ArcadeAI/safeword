@@ -24,6 +24,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  runCommandSync,
   runLintHook,
   setupOrThrow,
   TIMEOUT_SETUP,
@@ -71,19 +72,17 @@ describe('E2E: Golden Path', () => {
     // Use 'var' which is flagged by recommended rules
     writeTestFile(projectDirectory, 'src/bad.ts', 'var unused = 1;\n');
 
-    // Should throw because of lint errors
-    expect(() => {
-      execSync('bunx eslint src/bad.ts', {
-        cwd: projectDirectory,
-        encoding: 'utf8',
-      });
-    }).toThrow();
+    // Should return non-zero because of lint errors
+    const result = runCommandSync('bunx eslint src/bad.ts', {
+      cwd: projectDirectory,
+    });
+    expect(result.exitCode).not.toBe(0);
   });
 
   it('prettier formats files', () => {
     writeTestFile(projectDirectory, 'src/ugly.ts', 'const x=1;const y=2;\n');
 
-    execSync('bunx prettier --write src/ugly.ts', { cwd: projectDirectory });
+    execSync('bunx prettier --write src/ugly.ts', { cwd: projectDirectory, stdio: 'pipe' });
 
     const formatted = readTestFile(projectDirectory, 'src/ugly.ts');
     // Prettier adds spaces and may split lines

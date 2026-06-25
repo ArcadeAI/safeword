@@ -59,7 +59,7 @@ bunx safeword@latest upgrade
 
 ## safeword check
 
-Verify your installation and report issues. This verification runs automatically after `setup` and `upgrade` — both commands end by checking the configuration they just wrote and exit non-zero if it's broken, so you don't need to run `check` as a routine step.
+Verify your installation and report issues. This verification runs automatically after `setup` and `upgrade`. `setup` and standalone `check` fail closed on broken configuration; `upgrade` still prints post-upgrade diagnostics, but its exit status reflects whether the upgrade apply succeeded.
 
 ```bash
 bunx safeword@latest check

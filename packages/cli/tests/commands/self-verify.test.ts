@@ -6,8 +6,9 @@
  *
  * Integration scenarios run the built CLI against real temp fixtures; the
  * issues-found partitions use a malformed personas.md — the one breakage
- * reconcile never repairs (user content), so the postcondition genuinely
- * fails end-to-end. Seam scenarios import the extracted health module.
+ * reconcile never repairs (user content). Setup still fails closed on that
+ * state; upgrade reports it without turning a successful apply into a failed
+ * command (BBJKR5). Seam scenarios import the extracted health module.
  */
 
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -184,7 +185,7 @@ describe('3293WH: upgrade self-verify (clean fixture)', () => {
   });
 });
 
-describe('3293WH: upgrade self-verify (broken postcondition)', () => {
+describe('3293WH + BBJKR5: upgrade self-verify (reported health issue)', () => {
   let dir: string;
 
   afterAll(() => {
@@ -192,19 +193,29 @@ describe('3293WH: upgrade self-verify (broken postcondition)', () => {
   });
 
   it(
-    'DEV1.AC2.upgrade_with_post_run_issues_exits_nonzero + DEV1.AC5.post_upgrade_failure_hint_omits_run_upgrade (config issues branch)',
+    'BBJKR5.DEV1.AC1.upgrade_reports_existing_health_issues_without_failing + BBJKR5.DEV1.AC2.check_keeps_nonzero_exit_for_existing_health_issue',
     async () => {
       dir = createTemporaryDirectory();
       await createConfiguredProject(dir);
       writeTestFile(dir, '.project/personas.md', BROKEN_PERSONAS);
 
+      const checkBefore = await runCli(['check', '--offline'], { cwd: dir });
+      const checkBeforeOutput = checkBefore.stdout + checkBefore.stderr;
+      expect(checkBefore.exitCode).not.toBe(0);
+      expect(checkBeforeOutput).toMatch(/personas\.md:\d+/);
+
       const result = await runCli(['upgrade'], { cwd: dir });
       const output = result.stdout + result.stderr;
 
-      expect(result.exitCode).not.toBe(0);
+      expect(result.exitCode).toBe(0);
       expect(output).toMatch(/personas\.md:\d+/);
       expect(output).not.toContain(RUN_UPGRADE_HINT);
       expect(output).not.toContain(HEALTHY_LINE);
+
+      const checkAfter = await runCli(['check', '--offline'], { cwd: dir });
+      const checkAfterOutput = checkAfter.stdout + checkAfter.stderr;
+      expect(checkAfter.exitCode).not.toBe(0);
+      expect(checkAfterOutput).toMatch(/personas\.md:\d+/);
     },
     TIMEOUT_SETUP * 2,
   );

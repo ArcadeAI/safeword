@@ -23,6 +23,7 @@ import {
   readSafewordConfig,
   readTestFile,
   removeTemporaryDirectory,
+  runCommandSync,
   runLintHook,
   SAFEWORD_VERSION,
   setupOrThrow,
@@ -105,12 +106,10 @@ version = "0.1.0"
   it('ESLint detects TypeScript violations', () => {
     writeTestFile(projectDirectory, 'src/bad.ts', 'var unused = 1;\n');
 
-    expect(() => {
-      execSync('bunx eslint src/bad.ts', {
-        cwd: projectDirectory,
-        encoding: 'utf8',
-      });
-    }).toThrow();
+    const result = runCommandSync('bunx eslint src/bad.ts', {
+      cwd: projectDirectory,
+    });
+    expect(result.exitCode).not.toBe(0);
   });
 
   it.skipIf(!IS_RUFF_AVAILABLE)('Ruff runs on Python files', () => {

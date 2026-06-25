@@ -4,6 +4,7 @@ slug: codex-live-parity-smoke
 type: task
 phase: intake
 status: in_progress
+external: https://github.com/ArcadeAI/safeword/issues/394
 epic: codex-changelog-alignment
 relates_to: QM5G9M
 depends_on:
@@ -55,4 +56,5 @@ The epic now has generation and hook-spike work, but those are still mostly repo
 
 ## Work Log
 
+- 2026-06-24T15:50:00Z Ran the live Codex parity smoke on Codex CLI 0.141.0 from a clean fixture. Added `tests/smoke/codex-parity.live.test.ts` as an opt-in repeatable smoke (`SAFEWORD_RUN_CODEX_LIVE_SMOKE=1`). Direct Codex hook payloads deny/allow correctly and now point Codex users at `$explain`; live `codex exec` currently performs the requested edit through a `file_change` execution path that is not intercepted by the configured `PreToolUse` matcher. Captured results and unsupported-path findings in `verify.md`; ticket remains in_progress until the unsupported live path is resolved or explicitly scoped out.
 - 2026-06-13 Created from Codex parity review gap: add a real black-box/trusted smoke after 5DEJ8V and N12G95.

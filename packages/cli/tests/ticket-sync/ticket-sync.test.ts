@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { format } from 'prettier';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -86,6 +87,39 @@ describe('ticket-sync', () => {
     });
   });
 
+  // ── MBGQ89: blocked_on_override surfacing ──
+
+  describe('blocked_on_override surfacing (MBGQ89)', () => {
+    it('parses blocked_on_override onto the entry', () => {
+      writeTicket(
+        'OVR111-x',
+        {
+          id: 'OVR111',
+          status: 'open',
+          blocked_on: '[BLK1]',
+          blocked_on_override: 'BLK1 cancelled; schema still needed',
+        },
+        '# X\n',
+      );
+      expect(entryFor('OVR111')?.blockedOnOverride).toBe('BLK1 cancelled; schema still needed');
+    });
+
+    it('surfaces the override reason in the INDEX', () => {
+      writeTicket(
+        'OVR111-x',
+        {
+          id: 'OVR111',
+          status: 'open',
+          blocked_on: '[BLK1]',
+          blocked_on_override: 'BLK1 cancelled; schema still needed',
+        },
+        '# X\n',
+      );
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('override: BLK1 cancelled; schema still needed');
+    });
+  });
+
   // ── AC1: entries carry id, title, status, epic, goal, path ──
 
   describe('AC1 — entry fields and parsing', () => {
@@ -102,6 +136,60 @@ describe('ticket-sync', () => {
       expect(content).toContain('big-epic');
       expect(content).toContain('Make X searchable.');
       expect(content).toContain(`${TICKETS_RELATIVE_PATH}/ABC123-do-thing`);
+    });
+
+    it('external_issue_and_legacy_external_alias_parse', () => {
+      writeTicket(
+        'EXT111-x',
+        {
+          id: 'EXT111',
+          status: 'backlog',
+          external_issue: 'https://github.com/ArcadeAI/safeword/issues/393',
+          external_prs:
+            '[https://github.com/ArcadeAI/safeword/pull/400, https://github.com/ArcadeAI/safeword/pull/401]',
+        },
+        '# External links\n',
+      );
+      writeTicket(
+        'EXT112-y',
+        {
+          id: 'EXT112',
+          status: 'backlog',
+          external: 'https://github.com/ArcadeAI/safeword/issues/394',
+          external_prs: '["https://github.com/ArcadeAI/safeword/pull/402"]',
+        },
+        '# Legacy external\n',
+      );
+
+      const extension111 = entryFor('EXT111');
+      const extension112 = entryFor('EXT112');
+
+      expect(extension111?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/393');
+      expect(extension111?.externalPullRequests).toEqual([
+        'https://github.com/ArcadeAI/safeword/pull/400',
+        'https://github.com/ArcadeAI/safeword/pull/401',
+      ]);
+      expect(extension112?.externalIssue).toBe('https://github.com/ArcadeAI/safeword/issues/394');
+    });
+
+    it('renders_external_issue_and_prs_in_index_output', () => {
+      writeTicket(
+        'EXT113-x',
+        {
+          id: 'EXT113',
+          status: 'backlog',
+          external_issue: 'https://github.com/ArcadeAI/safeword/issues/395',
+          external_prs:
+            '[https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411]',
+        },
+        '# External render\n',
+      );
+
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      expect(content).toContain('external issue: https://github.com/ArcadeAI/safeword/issues/395');
+      expect(content).toContain(
+        'external PRs: https://github.com/ArcadeAI/safeword/pull/410, https://github.com/ArcadeAI/safeword/pull/411',
+      );
     });
 
     it('title_falls_back_to_h1_then_slug', () => {
@@ -220,6 +308,25 @@ describe('ticket-sync', () => {
       expect(names).not.toContain(INDEX_FILENAME);
       expect(names).not.toContain(COMPLETED_INDEX_FILENAME);
     });
+
+    it('generated_index_is_stable_when_markdown_formatter_runs', async () => {
+      writeTicket(
+        'risk',
+        {
+          id: 'RISK',
+          status: 'in_progress',
+          title: "'Phase 2 (optional): LLM pre-triage of diffs'",
+        },
+        '# Risk\n\n**Goal:** Preserve _draft_ prose and **survive generated formatting.\n',
+      );
+
+      const content = buildIndexContent(activeEntries(), { variant: 'active' });
+      const formatted = await format(content, { parser: 'markdown' });
+
+      expect(content).toContain('<!-- prettier-ignore-start -->');
+      expect(content).toContain('<!-- prettier-ignore-end -->');
+      expect(formatted).toBe(content);
+    });
   });
 
   // ── AC4: active/completed split ──
@@ -250,6 +357,63 @@ describe('ticket-sync', () => {
       expect(result.wrote).toBe(false);
       expect(existsSync(result.indexPath)).toBe(false);
       expect(existsSync(result.completedIndexPath)).toBe(false);
+    });
+  });
+
+  describe('conflict-marker guidance (398)', () => {
+    it('does not report benign marker-like ticket content as an index conflict', () => {
+      writeTicket(
+        'benign-markers',
+        { id: 'SAFE', status: 'backlog' },
+        [
+          'Setext heading',
+          '=======',
+          '',
+          '```',
+          '>>>>>>> fenced sample, not an index merge marker',
+          '```',
+          '',
+          '**Goal:** =======',
+          '',
+        ].join('\n'),
+      );
+
+      const first = syncTickets(temporaryDirectory);
+      expect(first.indexConflicts).toEqual([]);
+
+      const indexContent = readFileSync(first.indexPath, 'utf8');
+      expect(indexContent).toContain('  =======');
+
+      const second = syncTickets(temporaryDirectory);
+      expect(second.indexConflicts).toEqual([]);
+    });
+
+    it('reports conflicted index files in the sync result and rewrites them cleanly', () => {
+      writeTicket('active-ticket', { id: 'ACT', status: 'backlog' });
+      writeTicket('done-ticket', { id: 'DONE', status: 'done' }, '', { completed: true });
+      syncTickets(temporaryDirectory);
+
+      const conflictMarker = [
+        '<<<<<<< HEAD',
+        'conflict',
+        '=======',
+        'incoming',
+        '>>>>>>> branch',
+      ].join('\n');
+      writeFileSync(nodePath.join(ticketsDirectory, INDEX_FILENAME), conflictMarker);
+      writeFileSync(
+        nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME),
+        ['<<<<<<< HEAD', 'keep', '=======', 'alt', '>>>>>>> branch'].join('\n'),
+      );
+
+      const result = syncTickets(temporaryDirectory);
+      expect(result.indexConflicts).toEqual([
+        nodePath.join(ticketsDirectory, INDEX_FILENAME),
+        nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME),
+      ]);
+      expect(result.wrote).toBe(true);
+      expect(readFileSync(result.indexPath, 'utf8')).not.toMatch(/^(?:<{7}|={7}|>{7})/m);
+      expect(readFileSync(result.completedIndexPath, 'utf8')).not.toMatch(/^(?:<{7}|={7}|>{7})/m);
     });
   });
 

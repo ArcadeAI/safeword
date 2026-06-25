@@ -118,7 +118,7 @@ func main(){println("no spaces")}`,
     );
 
     // Run golangci-lint fmt
-    execSync('golangci-lint fmt ugly.go', { cwd: projectDirectory });
+    execSync('golangci-lint fmt ugly.go', { cwd: projectDirectory, stdio: 'pipe' });
 
     const formatted = readTestFile(projectDirectory, 'ugly.go');
     // gofumpt adds proper spacing
@@ -191,14 +191,17 @@ describe('E2E: Go Setup Idempotency', () => {
     expect(config).toContain('linters:');
   });
 
-  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint still works after running setup twice', () => {
-    // main.go from createGoProject should still be valid
-    const result = spawnSync('golangci-lint', ['run', 'main.go'], {
-      cwd: projectDirectory,
-      encoding: 'utf8',
-    });
-    expect(result.status).toBe(0);
-  });
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)(
+    'golangci-lint still works after running setup twice',
+    () => {
+      // main.go from createGoProject should still be valid
+      const result = spawnSync('golangci-lint', ['run', 'main.go'], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+    },
+  );
 
   it('config files remain valid', () => {
     expect(fileExists(projectDirectory, '.golangci.yml')).toBe(true);

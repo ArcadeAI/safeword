@@ -52,6 +52,7 @@ describe('NPM Package Structure', () => {
 
     // Session hooks
     expect(files).toContain('session-safeword-context.ts');
+    expect(files).toContain('session-codex-start.ts');
     expect(files).toContain('session-version.ts');
     expect(files).toContain('session-lint-check.ts');
 

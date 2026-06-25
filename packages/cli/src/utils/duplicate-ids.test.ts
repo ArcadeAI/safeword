@@ -58,7 +58,10 @@ describe('findDuplicateTicketIds', () => {
     const duplicates = findDuplicateTicketIds(cwd);
     expect(duplicates).toHaveLength(1);
     expect(duplicates[0]?.id).toBe('7K9M3P');
-    expect(duplicates[0]?.folders.toSorted((a, b) => a.localeCompare(b))).toEqual(['7K9M3P', '7K9M3Q']);
+    expect(duplicates[0]?.folders.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      '7K9M3P',
+      '7K9M3Q',
+    ]);
   });
 
   it('flags two LEGACY-format folders sharing the same id (reads frontmatter, not folder name)', () => {

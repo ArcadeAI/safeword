@@ -4,6 +4,7 @@ slug: codex-changelog-alignment-epic
 type: feature
 phase: intake
 status: open
+external: https://github.com/ArcadeAI/safeword/issues/395
 epic: codex-changelog-alignment
 created: 2026-05-31T21:09:47.366Z
 last_modified: 2026-05-31T21:51:00.000Z

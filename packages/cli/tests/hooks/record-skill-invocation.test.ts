@@ -129,11 +129,34 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     expect(logContent).toMatch(/ remote-session-uuid verify$/m);
   });
 
+  it('falls back to CODEX_THREAD_ID when Claude session ids are unavailable (Codex)', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.project'), { recursive: true });
+
+    const output = execFileSync('bun', [helperPath, projectDirectory, 'quality-review'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_SESSION_ID: '',
+        CLAUDE_CODE_SESSION_ID: '',
+        CODEX_THREAD_ID: 'codex-thread-uuid',
+      },
+    });
+
+    expect(output.trim()).toBe('[skill-invocation-log] quality-review ✓');
+    const logContent = readFileSync(
+      nodePath.join(projectDirectory, '.project', 'skill-invocations.log'),
+      'utf8',
+    );
+    expect(logContent).toMatch(/ codex-thread-uuid quality-review$/m);
+  });
+
   it('exits 0 and skips when no session id is available (non-Claude runtime graceful)', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
     const env = { ...process.env };
     delete env.CLAUDE_SESSION_ID;
     delete env.CLAUDE_CODE_SESSION_ID;
+    delete env.CODEX_THREAD_ID;
 
     const result = spawnSync('bun', [helperPath, projectDirectory, 'verify'], {
       encoding: 'utf8',
@@ -141,7 +164,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('no session id');
+    expect(result.stdout).toContain('no run identity');
     expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
       false,
     );

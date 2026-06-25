@@ -4,7 +4,7 @@ Raw web-search evidence from the TPP6Y2 figure-it-out passes. Synthesized into t
 
 ## When should an LLM agent ask vs. act (the core question)
 
-- **CaRT — "Teaching LLM Agents to Know When They Know Enough"** (arXiv 2510.08517). Frames two opposing failure modes: **over-asking** (wastes effort, frustrates users, erodes trust) and **under-asking** (acts on incomplete info, wrong output). The skill is the *threshold* — recognizing when additional questions yield diminishing returns — not the asking itself. Trains task-completion-feasibility confidence thresholds rather than fixed heuristics. https://arxiv.org/pdf/2510.08517
+- **CaRT — "Teaching LLM Agents to Know When They Know Enough"** (arXiv 2510.08517). Frames two opposing failure modes: **over-asking** (wastes effort, frustrates users, erodes trust) and **under-asking** (acts on incomplete info, wrong output). The skill is the _threshold_ — recognizing when additional questions yield diminishing returns — not the asking itself. Trains task-completion-feasibility confidence thresholds rather than fixed heuristics. https://arxiv.org/pdf/2510.08517
 - **"Learning to Ask: When LLM Agents Meet Unclear Instruction"** (EMNLP 2025 main 1104). Benchmarks clarifying agents; metrics include clarification rate, good-question rate, over-/under-questioning, dialogue efficiency, information recovery. https://aclanthology.org/2025.emnlp-main.1104.pdf
 - **Clarifying agent definition** (emergentmind): generate clarification questions until sufficient info OR further questions yield no added utility, then act. Up to +83% downstream accuracy (CoA / VQA) over strong baselines in some tasks.
 
@@ -15,7 +15,7 @@ Raw web-search evidence from the TPP6Y2 figure-it-out passes. Synthesized into t
 
 ## Structured scaffold vs. internal reasoning (is an explicit question set worth it?)
 
-- **"Exploring the Necessity of Reasoning in LLM-based Agent Scenarios"** (arXiv 2503.11074). Field is *unsettled* on whether explicit structured/tool-based reasoning complements or merely **duplicates** internal model reasoning; explicit reasoning adds computational overhead and can diminish efficiency in time-critical contexts. 2025 study: 17.14% of agent failures are step-repetitions, 13.98% reasoning/action mismatches. https://arxiv.org/pdf/2503.11074
+- **"Exploring the Necessity of Reasoning in LLM-based Agent Scenarios"** (arXiv 2503.11074). Field is _unsettled_ on whether explicit structured/tool-based reasoning complements or merely **duplicates** internal model reasoning; explicit reasoning adds computational overhead and can diminish efficiency in time-critical contexts. 2025 study: 17.14% of agent failures are step-repetitions, 13.98% reasoning/action mismatches. https://arxiv.org/pdf/2503.11074
 - Implication for TPP6Y2: keep the self-test lightweight (≤5 plain prompts), gate by blast radius; an exhaustive structured form risks pure overhead.
 
 ## Constraints are where coding agents fail (load-bearing)

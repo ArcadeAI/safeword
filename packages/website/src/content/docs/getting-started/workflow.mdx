@@ -26,7 +26,7 @@ flowchart TD
     classify -->|"1–2 files, one behavior"| task["task — TDD"]
     classify -->|"3+ files · new state · many flows"| feature["feature — BDD"]
 
-    feature --> phase0["Phase 0 spec:<br/>Jobs To Be Done → Acceptance Criteria → scope"]
+    feature --> phase0["Phase 0 spec:<br/>Intake Brief → Jobs To Be Done → Acceptance Criteria → scope"]
     phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
@@ -46,7 +46,7 @@ flowchart TD
 
 The agent doesn't ask twenty questions and it doesn't guess. It **proposes a direction**, then surfaces the open questions inside that proposal, and converges with you over as many turns as the ambiguity warrants — a clear request takes zero rounds, a vague idea takes two or three.
 
-For a **feature**, this is also where the product framing gets written, in order: Jobs To Be Done (one persona per job) → Acceptance Criteria → engineering scope. Those scope decisions land in the ticket as `scope`, `out_of_scope`, and `done_when`.
+For a **feature**, this is also where the product framing gets written, in order: a short Intake Brief (who asked, the cost of not doing it, how reversible it is) → Jobs To Be Done (one persona per job) → Acceptance Criteria → engineering scope. The brief comes first and doubles as triage — if the cost of inaction is low and the change is easily reversed, it may be a leaner task, not a feature. Those scope decisions land in the ticket as `scope`, `out_of_scope`, and `done_when`.
 
 ## 2 · Classify
 

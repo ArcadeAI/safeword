@@ -16,6 +16,8 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 
 import safeword from './packages/cli/src/presets/typescript/index.js';
 
+const tsconfigRootDirectory = import.meta.dirname;
+
 // Ignores
 const ignores = [
   '**/node_modules/',
@@ -32,12 +34,21 @@ const ignores = [
   '**/.dependency-cruiser.cjs', // CommonJS config file
   'packages/cli/scripts/*.js', // Node.js scripts with CommonJS globals
   'scripts/', // Monorepo dev scripts - standalone Bun scripts not in any tsconfig
+  'experiments/', // Research spikes - self-contained, not in any tsconfig or workspace
   'features/', // Root cucumber lane scaffolded by safeword upgrade - customer-facing, no tsconfig
   'steps/', // Root cucumber step definitions (same lane)
 ];
 
 export default defineConfig([
   { ignores },
+  {
+    name: 'repo/typescript-parser-root',
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: tsconfigRootDirectory,
+      },
+    },
+  },
   ...safeword.configs.recommendedTypeScript,
   ...safeword.configs.vitest,
   ...safeword.configs.playwright,

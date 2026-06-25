@@ -31,7 +31,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" spec
 ```
 
-The review stamp is content-bound and does not require `CLAUDE_SESSION_ID`.
+The review stamp is content-bound and uses the normalized runtime identity.
 
 **If the automatic line and fallback both print `[skill-invocation-log] FAILED`, or still do not print `✓`**: STOP.
 The stamp was not written and the gate will keep blocking. Most likely the bash

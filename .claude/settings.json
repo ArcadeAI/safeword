@@ -54,6 +54,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-architecture-heal.ts"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/session-author-model.ts"
           }
         ]
@@ -156,6 +164,16 @@
             "type": "command",
             "if": "Bash(git *)",
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-git-bare-fix.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-architecture-stage.ts"
           }
         ]
       }

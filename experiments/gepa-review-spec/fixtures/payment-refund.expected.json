@@ -1,0 +1,17 @@
+{
+  "split": "train",
+  "defects": [
+    {
+      "scenarioId": "Refund a completed payment",
+      "defectType": "vacuous-existence-only",
+      "severity": "must-fix",
+      "note": "Then 'a response is returned' asserts existence, not the refunded amount or new balance"
+    },
+    {
+      "scope": "fixture",
+      "defectType": "missing-negative-case",
+      "severity": "should-strengthen",
+      "note": "no rejection counterpart for refunding more than the remaining balance"
+    }
+  ]
+}

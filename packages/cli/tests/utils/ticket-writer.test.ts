@@ -131,13 +131,15 @@ describe('ticket-writer — type-aware ticket.md body (Rule 2)', () => {
 describe('spec-template.md is well-formed (Rule 3)', () => {
   const template = readFileSync(nodePath.join(getTemplatesDirectory(), 'spec-template.md'), 'utf8');
 
-  it('has the seven section headers in canonical order', () => {
+  it('has the nine section headers in canonical order', () => {
     expect(specHeaders(template)).toEqual([
       'Intent',
+      'Intake Brief',
       'References',
       'Personas',
       'Vocabulary',
       'Jobs To Be Done',
+      'Rave Moment',
       'Outcomes',
       'Open Questions',
     ]);
