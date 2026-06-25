@@ -67,67 +67,67 @@ Deferred — not deterministic scenarios:
 
 ### Scenario: eng-review-green-prs.TB3.AC1.approval_binds_to_reviewed_commit
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB3.AC2.new_commit_voids_prior_approval
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ## Rule: A deliberate skip is an audited break-glass bypass, not an approval
 
 ### Scenario: eng-review-green-prs.TB3.AC3.skip_permits_merge_under_enabled_gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB3.AC3.skip_is_recorded_distinct_from_approval
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB3.AC3.skip_with_empty_reason_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ## Rule: The merge gate is opt-in and blocks only on blockers
 
 ### Scenario: eng-review-green-prs.SM1.AC1.gate_off_never_blocks
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.SM1.AC2.gate_on_without_approval_blocks
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.SM1.AC2.gate_on_with_fresh_approval_permits
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB2.AC1.advisory_only_findings_do_not_block
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ### Scenario: eng-review-green-prs.TB2.AC1.blocker_finding_blocks
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 07394db
+- [x] GREEN 07394db
+- [x] REFACTOR skip: pure decision functions, cleanup folded into GREEN
 
 ## Rule: Review independence is enforced when required
 
