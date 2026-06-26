@@ -75,6 +75,7 @@ describe('NPM Package Structure', () => {
 
     // Shared lib
     expect(files).toContain('lib');
+    expect(readdirSync(nodePath.join(hooksPath, 'lib'))).toContain('auto-upgrade-lock.ts');
   });
 
   it('should have templates/guides with methodology files', () => {

@@ -4,6 +4,9 @@
     "sessionStart": [
       {
         "command": "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor"
+      },
+      {
+        "command": "bun ./.safeword/hooks/session-cursor-auto-upgrade.ts"
       }
     ],
     "preToolUse": [

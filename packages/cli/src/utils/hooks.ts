@@ -3,13 +3,17 @@
  */
 
 interface HookCommand {
-  type: string;
+  type?: string;
   command: string;
 }
 
 interface HookEntry {
   matcher?: string;
   hooks: HookCommand[];
+}
+
+interface CursorHookEntry {
+  command: string;
 }
 
 /**
@@ -22,15 +26,18 @@ function isHookEntry(h: unknown): h is HookEntry {
   );
 }
 
+function isCursorHookEntry(h: unknown): h is CursorHookEntry {
+  return typeof h === 'object' && h !== null && typeof (h as CursorHookEntry).command === 'string';
+}
+
 /**
  * Check if a hook entry contains a safeword hook (command contains '.safeword')
  * @param h
  */
 function isSafewordHook(h: unknown): boolean {
+  if (isCursorHookEntry(h)) return h.command.includes('.safeword');
   if (!isHookEntry(h)) return false;
-  return h.hooks.some(
-    command => typeof command.command === 'string' && command.command.includes('.safeword'),
-  );
+  return h.hooks.some(command => command.command.includes('.safeword'));
 }
 
 /**

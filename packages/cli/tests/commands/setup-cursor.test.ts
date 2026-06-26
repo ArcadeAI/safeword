@@ -14,6 +14,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  writeTestFile,
 } from '../helpers';
 
 describe('Test Suite: Setup - Cursor IDE Support', () => {
@@ -144,6 +145,76 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
         'bun ./.safeword/hooks/cursor/post-tool-quality.ts',
       );
       expect(hooksConfig.hooks.postToolUse[0].matcher).toBe('Write|Shell');
+    });
+
+    it('should preserve user-authored Cursor hooks on setup', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.cursor/hooks.json',
+        `${JSON.stringify(
+          {
+            version: 1,
+            hooks: {
+              sessionStart: [{ command: 'node ./scripts/custom-session-start.js' }],
+              preToolUse: [{ command: 'node ./scripts/custom-pre-tool.js', matcher: 'Write' }],
+            },
+          },
+          undefined,
+          2,
+        )}\n`,
+      );
+
+      await runCli(['setup', '--yes'], { cwd: temporaryDirectory });
+
+      const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
+      expect(
+        hooksConfig.hooks.sessionStart.map((hook: { command: string }) => hook.command),
+      ).toEqual([
+        'node ./scripts/custom-session-start.js',
+        'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor',
+        'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts',
+      ]);
+      expect(hooksConfig.hooks.preToolUse).toEqual([
+        { command: 'node ./scripts/custom-pre-tool.js', matcher: 'Write' },
+        {
+          command: 'bun ./.safeword/hooks/cursor/pre-tool-quality.ts',
+          matcher: 'Write',
+          failClosed: true,
+          timeout: 90,
+        },
+      ]);
+    });
+
+    it('should preserve user-authored Cursor hooks on reset', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.cursor/hooks.json',
+        `${JSON.stringify(
+          {
+            version: 1,
+            hooks: {
+              sessionStart: [{ command: 'node ./scripts/custom-session-start.js' }],
+            },
+          },
+          undefined,
+          2,
+        )}\n`,
+      );
+
+      await runCli(['setup', '--yes'], { cwd: temporaryDirectory });
+      await runCli(['reset', '--yes'], { cwd: temporaryDirectory });
+
+      const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
+      expect(hooksConfig).toEqual({
+        version: 1,
+        hooks: {
+          sessionStart: [{ command: 'node ./scripts/custom-session-start.js' }],
+        },
+      });
     });
 
     it('should set failClosed only on the blocking gate hooks (ANAXG4)', async () => {

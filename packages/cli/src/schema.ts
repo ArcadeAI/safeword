@@ -590,6 +590,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
     '.safeword/hooks/lib/auto-upgrade.ts': { template: 'hooks/lib/auto-upgrade.ts' },
+    '.safeword/hooks/lib/auto-upgrade-lock.ts': { template: 'hooks/lib/auto-upgrade-lock.ts' },
     '.safeword/hooks/lib/safeword-context.ts': { template: 'hooks/lib/safeword-context.ts' },
     '.safeword/hooks/lib/update-cache.ts': { template: 'hooks/lib/update-cache.ts' },
     '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
@@ -1055,27 +1056,30 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       ],
       removeFileIfEmpty: true,
       merge: existing => {
-        const hooks = (existing.hooks as Record<string, unknown[]>) ?? {};
+        const existingHooks = (existing.hooks as Record<string, unknown[]>) ?? {};
+        const hooks: Record<string, unknown[]> = { ...existingHooks };
+        for (const [event, newHooks] of Object.entries(CURSOR_HOOKS)) {
+          const eventHooks = hooks[event] ?? [];
+          const nonSafewordHooks = filterOutSafewordHooks(eventHooks);
+          hooks[event] = [...nonSafewordHooks, ...newHooks];
+        }
         return {
           ...existing,
           version: 1, // Required by Cursor
-          hooks: {
-            ...hooks,
-            ...CURSOR_HOOKS,
-          },
+          hooks,
         };
       },
       unmerge: existing => {
         const result = { ...existing };
         const existingHooks = (existing.hooks as Record<string, unknown[]>) ?? {};
 
-        // Keep only hooks safeword did NOT install. Derived from CURSOR_HOOKS so
-        // the unmerge can never drift from the merge as new hooks are added — the
-        // old hardcoded delete-list missed newly-wired events, leaving a
-        // non-empty hooks.json that kept .cursor/ alive after reset.
-        const safewordHookNames = new Set(Object.keys(CURSOR_HOOKS));
+        // Keep only hooks safeword did NOT install. Filtering entries instead of
+        // whole events preserves user-authored Cursor hooks that share an event
+        // with safeword, such as `sessionStart`.
         const hooks = Object.fromEntries(
-          Object.entries(existingHooks).filter(([name]) => !safewordHookNames.has(name)),
+          Object.entries(existingHooks)
+            .map(([name, eventHooks]) => [name, filterOutSafewordHooks(eventHooks)] as const)
+            .filter(([, eventHooks]) => eventHooks.length > 0),
         );
 
         // `version` is only meaningful while safeword's hooks remain; drop it

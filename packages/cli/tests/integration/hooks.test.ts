@@ -19,6 +19,11 @@ import process from 'node:process';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  acquireAutoUpgradeLock,
+  AUTO_UPGRADE_LOCK_MESSAGE,
+  releaseAutoUpgradeLock,
+} from '../../templates/hooks/lib/auto-upgrade-lock.js';
+import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   fileExists,
@@ -1329,4 +1334,63 @@ describe('session-cursor-auto-upgrade.ts', () => {
     expect(result.stdout).toBe('');
     expect(result.stderr).toBe('');
   });
+});
+
+describe('Cursor auto-upgrade lock', () => {
+  it('blocks Cursor writes and shell commands while silent auto-upgrade is running', async () => {
+    const projectDirectory = createTemporaryDirectory();
+
+    try {
+      createTypeScriptPackageJson(projectDirectory);
+      initGitRepo(projectDirectory);
+      await setupOrThrow(projectDirectory);
+
+      const lockPath = acquireAutoUpgradeLock({ projectDir: projectDirectory });
+      expect(lockPath).toBeDefined();
+
+      try {
+        const result = spawnSync('bun', ['.safeword/hooks/cursor/pre-tool-quality.ts'], {
+          cwd: projectDirectory,
+          input: JSON.stringify({
+            workspace_roots: [projectDirectory],
+            conversation_id: 'conversation-1',
+            tool_name: 'Write',
+            tool_input: {
+              file_path: nodePath.join(projectDirectory, 'src/index.ts'),
+              content: 'export const value = 1;\n',
+            },
+          }),
+          encoding: 'utf8',
+        });
+
+        expect(result.status, result.stderr || result.stdout).toBe(0);
+        expect(JSON.parse(result.stdout)).toEqual({
+          permission: 'deny',
+          user_message: AUTO_UPGRADE_LOCK_MESSAGE,
+          agent_message: AUTO_UPGRADE_LOCK_MESSAGE,
+        });
+
+        const shellResult = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
+          cwd: projectDirectory,
+          input: JSON.stringify({
+            workspace_roots: [projectDirectory],
+            conversation_id: 'conversation-1',
+            command: 'printf "changed" > .project/tickets/example.md',
+          }),
+          encoding: 'utf8',
+        });
+
+        expect(shellResult.status, shellResult.stderr || shellResult.stdout).toBe(0);
+        expect(JSON.parse(shellResult.stdout)).toEqual({
+          permission: 'deny',
+          user_message: AUTO_UPGRADE_LOCK_MESSAGE,
+          agent_message: AUTO_UPGRADE_LOCK_MESSAGE,
+        });
+      } finally {
+        releaseAutoUpgradeLock({ lockPath });
+      }
+    } finally {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  }, 180_000);
 });
