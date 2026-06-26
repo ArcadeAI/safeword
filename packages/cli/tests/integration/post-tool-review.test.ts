@@ -1,9 +1,7 @@
 /**
- * Integration tests for the PostToolUse per-step / per-phase review (SXSCJQ).
+ * Integration tests for the PostToolUse per-step / per-phase review surface.
  * Spawns the deployed .safeword/hooks/post-tool-quality.ts and asserts it
- * surfaces the right review as hookSpecificOutput.additionalContext — and,
- * crucially, that a phase/step review fires from the edit alone, with no Stop
- * event (the autonomous-run guarantee).
+ * surfaces phase reviews while keeping ordinary implement-step reviews quiet.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -67,16 +65,15 @@ function defsPath(cwd: string): string {
   return nodePath.join(cwd, TICKET_FOLDER, 'test-definitions.md');
 }
 
-describe('PostToolUse per-step review (S1.1, S1.4, S1.6)', () => {
-  it('surfaces the RED step review on a RED flip (S1.1)', () => {
+describe('PostToolUse implement-step review surface (JENFZX)', () => {
+  it('surfaces no user-facing review on a RED flip during implement (JENFZX)', () => {
     const cwd = project();
     const { context } = run(cwd, 'Edit', {
       file_path: defsPath(cwd),
       old_string: '- [ ] RED',
       new_string: '- [x] RED abc1234',
     });
-    expect(context).toBeDefined();
-    expect(context).toContain('TDD: RED');
+    expect(context).toBeUndefined();
   });
 
   it('surfaces nothing when an edit flips no checkbox (S1.4)', () => {
@@ -89,7 +86,7 @@ describe('PostToolUse per-step review (S1.1, S1.4, S1.6)', () => {
     expect(context).toBeUndefined();
   });
 
-  it('surfaces three distinct step reviews across one turn (S1.6)', () => {
+  it('keeps RED/GREEN/REFACTOR flips quiet across one turn (JENFZX)', () => {
     const cwd = project();
     const red = run(cwd, 'Edit', {
       file_path: defsPath(cwd),
@@ -106,20 +103,19 @@ describe('PostToolUse per-step review (S1.1, S1.4, S1.6)', () => {
       old_string: '- [ ] REFACTOR',
       new_string: '- [x] REFACTOR ccc3333',
     });
-    expect(red.context).toContain('TDD: RED');
-    expect(green.context).toContain('TDD: GREEN');
-    expect(refactor.context).toContain('TDD: REFACTOR');
+    expect(red.context).toBeUndefined();
+    expect(green.context).toBeUndefined();
+    expect(refactor.context).toBeUndefined();
   });
 
-  it('surfaces the most-advanced step when several flip in one edit (S1.5)', () => {
+  it('keeps batched TDD flips quiet during implement (JENFZX)', () => {
     const cwd = project();
     const { context } = run(cwd, 'Edit', {
       file_path: defsPath(cwd),
       old_string: '- [ ] RED\n- [ ] GREEN',
       new_string: '- [x] RED aaa1111\n- [x] GREEN bbb2222',
     });
-    expect(context).toContain('TDD: GREEN');
-    expect(context).not.toContain('TDD: RED');
+    expect(context).toBeUndefined();
   });
 });
 

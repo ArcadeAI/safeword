@@ -6,7 +6,9 @@
 import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 
+import { getTicketInfo } from '../lib/active-ticket.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
+import { readSessionState } from '../lib/quality-state.ts';
 import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
 
 interface CursorInput {
@@ -18,6 +20,13 @@ interface CursorInput {
 
 interface StopOutput {
   followup_message?: string;
+}
+
+function isQuietImplementRun(workspace: string, runIdentity: ReturnType<typeof resolveRunIdentity>): boolean {
+  const state = readSessionState(workspace, runIdentity);
+  const activeTicket = state?.activeTicket;
+  if (!activeTicket) return false;
+  return getTicketInfo(workspace, activeTicket).phase === 'implement';
 }
 
 // Read hook input from stdin
@@ -60,6 +69,11 @@ if (await Bun.file(markerFile).exists()) {
   await unlink(markerFile).catch(error => {
     if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);
   });
+
+  if (isQuietImplementRun(process.cwd(), runIdentity)) {
+    console.log('{}');
+    process.exit(0);
+  }
 
   const output: StopOutput = {
     followup_message: QUALITY_REVIEW_MESSAGE,

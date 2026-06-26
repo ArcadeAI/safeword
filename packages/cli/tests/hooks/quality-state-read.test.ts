@@ -89,4 +89,17 @@ describe('readSessionState', () => {
       expect.objectContaining({ pattern: 'loc-exceeded' }),
     ]);
   });
+
+  it('maps raw Cursor conversation ids to the Cursor-scoped state file', () => {
+    process.env.SAFEWORD_AGENT_RUNTIME = 'cursor';
+    writeFileSync(stateFile('cursor-conversation'), JSON.stringify({ activeTicket: 'RAW' }));
+    writeFileSync(
+      stateFile('cursor-cursor-conversation'),
+      JSON.stringify({ activeTicket: 'CURSOR' }),
+    );
+
+    const state = readSessionState(context.projectDirectory, 'cursor-conversation');
+
+    expect(state?.activeTicket).toBe('CURSOR');
+  });
 });
