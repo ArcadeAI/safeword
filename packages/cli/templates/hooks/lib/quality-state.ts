@@ -50,12 +50,6 @@ export interface QualityState {
    */
   learningsNudgesAcknowledged?: string[];
   /**
-   * The TDD step (red/green/refactor) last surfaced for review. Dedups the
-   * PostToolUse per-step review against the Stop backstop — Stop skips a step
-   * PostToolUse already reviewed this session (ticket SXSCJQ).
-   */
-  lastReviewedStep?: string;
-  /**
    * The BDD phase last surfaced for review. Dedups the per-phase review across
    * the PostToolUse trigger (autonomous-safe) and the Stop backstop, so each
    * phase boundary is reviewed once (ticket SXSCJQ).
@@ -96,7 +90,9 @@ function stateStorageKey(sessionId: string | RunIdentity | undefined): string {
 
   const runtime = process.env.SAFEWORD_AGENT_RUNTIME;
   if (runtime === 'codex' || runtime === 'cursor') {
-    const identity = resolveRunIdentity({ session_id: sessionId }, { runtime });
+    const identityInput =
+      runtime === 'cursor' ? { conversation_id: sessionId } : { session_id: sessionId };
+    const identity = resolveRunIdentity(identityInput, { runtime });
     const scopedKey = getRunStorageKey(identity);
     if (scopedKey !== null) return scopedKey;
   }

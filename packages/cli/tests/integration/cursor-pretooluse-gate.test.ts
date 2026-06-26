@@ -36,9 +36,9 @@ interface CursorDecision {
 
 /**
  * Spawn the Cursor preToolUse adapter with a Cursor-shaped payload and return its
- * decision. SAFEWORD_AGENT_RUNTIME is cleared so the spawned gate resolves session
- * state at the raw conversation_id path — the same path this test seeds, and the
- * same one the production Cursor adapters use (neither sets that env var).
+ * decision. SAFEWORD_AGENT_RUNTIME is cleared here to match Cursor's hook
+ * environment; the adapter sets it only when spawning the shared Claude gate so
+ * state is stored under the Cursor-scoped conversation key.
  */
 function runAdapter(
   projectRoot: string,
@@ -97,7 +97,7 @@ function writeFeatureAtImplement(ticketDirectory: string): void {
 /** Bind the ticket in session state, the way a prior ticket.md edit would have. */
 function seedActiveTicket(projectRoot: string): void {
   writeFileSync(
-    nodePath.join(projectRoot, '.project', `quality-state-${SESSION_ID}.json`),
+    nodePath.join(projectRoot, '.project', `quality-state-cursor-${SESSION_ID}.json`),
     // `gate` is deliberately omitted (absent reads as falsy, like the real null);
     // the eslint config forbids literal null in test sources.
     JSON.stringify({

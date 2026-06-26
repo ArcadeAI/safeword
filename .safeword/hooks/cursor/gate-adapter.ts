@@ -235,15 +235,20 @@ export const GATE_UNAVAILABLE_REASON =
 
 /**
  * Spawn a Claude source-of-truth hook with the translated input. `CLAUDE_PROJECT_DIR`
- * is set so the gate resolves project state from the Cursor workspace root. Reports
- * both the stdout verdict and whether the gate actually ran — see `ClaudeGateResult`.
+ * and `SAFEWORD_AGENT_RUNTIME` are set so the gate resolves project state from
+ * the Cursor workspace root and uses the Cursor-scoped run key. Reports both the
+ * stdout verdict and whether the gate actually ran — see `ClaudeGateResult`.
  */
 export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): ClaudeGateResult {
   const result = spawnSync('bun', [claudeHookPath], {
     cwd: process.cwd(),
     input: JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd() },
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      SAFEWORD_AGENT_RUNTIME: 'cursor',
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   // `error` => the process never started; non-zero/null `status` => it crashed.

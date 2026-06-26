@@ -6,7 +6,7 @@
  * - Reminders: phase/TDD state tracked for prompt hook (no longer blocks edits)
  * - Output validation: LOC gate (only hard block), done gate (in stop hook)
  *
- * PostToolUse tracks LOC, phase changes, TDD step transitions in state file.
+ * PostToolUse tracks LOC, active ticket, and reviewed phase boundaries in the state file.
  * PreToolUse enforces LOC gate + artifact prerequisite. Phase/TDD are reminders only.
  */
 
