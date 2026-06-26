@@ -18,7 +18,7 @@ import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-
 import {
   type ClaudeGateInput,
   type CursorShellInput,
-  decideFromGate,
+  decideFromShellGate,
   runClaudeHook,
   toCursorDecision,
 } from './gate-adapter.ts';
@@ -64,13 +64,14 @@ const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts')
 
 // Fail-closed with a local timeout: return Cursor-readable JSON before Cursor's
 // own cancellation path can reduce the failure to "Canceled: Canceled".
-const decision = decideFromGate(
-  runClaudeHook({
+const decision = decideFromShellGate({
+  command,
+  result: runClaudeHook({
     claudeHookPath,
     input: translated,
     timeoutMs: SHELL_GATE_TIMEOUT_MS,
   }),
-);
+});
 const proofCommand =
   decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
 if (proofCommand !== undefined) {

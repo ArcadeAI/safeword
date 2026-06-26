@@ -230,6 +230,17 @@ export interface ClaudeGateResult {
   failed: boolean;
 }
 
+/**
+ * Matches the only Bash command that the shared pre-tool gate currently protects:
+ * `git commit`. If that gate is unavailable, this command must stay fail-closed
+ * because committing is the irreversible step the refactor gate exists to guard.
+ */
+const FAIL_CLOSED_SHELL_COMMAND = /\bgit\s+commit\b(?!-)/;
+
+export function requiresFailClosedShellGate(command: string): boolean {
+  return FAIL_CLOSED_SHELL_COMMAND.test(command);
+}
+
 /** Message shown when the gate itself could not run, so the action is fail-closed. */
 export const GATE_UNAVAILABLE_REASON =
   'Safeword gate could not run (it crashed or failed to start), so this action was blocked. ' +
@@ -294,4 +305,24 @@ export function decideFromGate(result: ClaudeGateResult): CursorDecision {
     return toCursorDecision(GATE_UNAVAILABLE_REASON);
   }
   return toCursorDecision(claudeDenialReason(result.stdout));
+}
+
+/**
+ * Shell-specific gate decision.
+ *
+ * The delegated Bash gate only inspects `git commit`. When that gate is
+ * unavailable, blocking every shell command creates a deadlock without adding
+ * safety: the unavailable gate would not have denied `git status`, tests, or
+ * audit commands anyway. Keep fail-closed behavior for `git commit`; fail open
+ * for commands outside the delegated gate's scope.
+ */
+export function decideFromShellGate(params: {
+  command: string;
+  result: ClaudeGateResult;
+}): CursorDecision {
+  const { command, result } = params;
+  if (result.failed && !requiresFailClosedShellGate(command)) {
+    return { permission: 'allow' };
+  }
+  return decideFromGate(result);
 }
