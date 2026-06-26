@@ -69,13 +69,19 @@ export async function executeRustSandboxRun(
 ): Promise<RustRunArtifact> {
   const setupResults: RustExecutedSetupCommand[] = [];
   let dockerResult: RustProcessResult | undefined;
+  let setupFailed = false;
 
   for (const step of input.plan.steps) {
     if (step.kind === 'docker-run') {
+      if (setupFailed) continue;
       dockerResult = await input.commandRunner.run({
         argv: step.argv,
         timeoutSeconds: input.plan.docker.timeoutSeconds,
       });
+      continue;
+    }
+
+    if (setupFailed && step.kind !== 'cleanup-cache') {
       continue;
     }
 
@@ -92,7 +98,8 @@ export async function executeRustSandboxRun(
       });
 
       if (result.exitCode !== 0 && step.kind !== 'cleanup-cache') {
-        return buildArtifact(input, setupResults, undefined);
+        setupFailed = true;
+        break;
       }
     }
   }

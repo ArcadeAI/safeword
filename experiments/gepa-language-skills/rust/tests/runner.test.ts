@@ -172,6 +172,51 @@ describe('executeRustSandboxRun', () => {
     expect(artifact.run.commandResults[0].stdout).toBe('cargo ok');
   });
 
+  it('cleans up the Docker cache volume when dependency prefetch fails', async () => {
+    const { task, plan } = prefetchFixtureRun();
+    const calls: RustProcessInvocation[] = [];
+    const commandRunner = {
+      run: async (invocation: RustProcessInvocation) => {
+        calls.push(invocation);
+        if (calls.length === 10) {
+          return {
+            exitCode: 1,
+            stdout: '',
+            stderr: 'fetch failed',
+            durationMs: 10,
+          };
+        }
+        return okResult();
+      },
+    };
+
+    const artifact = await executeRustSandboxRun({
+      task,
+      plan,
+      context: runContext,
+      commandRunner,
+    });
+
+    expect(calls.map(call => call.argv)).toEqual([
+      ['git', 'clone', '--no-checkout', task.repository.url, plan.paths.source],
+      ['git', '-C', plan.paths.source, 'fetch', '--depth', '1', 'origin', task.repository.ref],
+      ['git', '-C', plan.paths.source, 'checkout', '--detach', task.repository.ref],
+      ['rm', '-rf', plan.paths.worktree],
+      ['cp', '-a', `${plan.paths.source}/.`, plan.paths.worktree],
+      ['mkdir', '-p', plan.paths.cache],
+      ['rm', '-f', join(plan.paths.cache, 'prefetch.cid'), join(plan.paths.cache, 'oracle.cid')],
+      ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-prefetch-cache'],
+      ['docker', 'volume', 'create', 'safeword-rust-run-prefetch-cache'],
+      plan.prefetch?.argv,
+      ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-prefetch-cache'],
+    ]);
+    expect(artifact.run.commandResults).toEqual([]);
+    expect(artifact.run.diagnostics).toEqual([
+      `setup failed during dependency-prefetch: ${plan.prefetch?.argv.join(' ')}`,
+    ]);
+    expect(artifact.evaluation.passedCorrectness).toBe(false);
+  });
+
   it('runs a no-patch baseline without invoking git apply', async () => {
     const { task, plan } = baselineFixtureRun();
     const { calls, commandRunner } = fakeRunner(okResult('cargo ok'), 10);
