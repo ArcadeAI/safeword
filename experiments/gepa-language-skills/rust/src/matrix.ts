@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { reviewRustCandidateSkill, summarizeRustCandidateSkill } from './candidate';
 import {
   createRustCommandRunner,
+  emptyRustSecondaryMetrics,
   parseNumericFlag,
   parseRustModelFamily,
   resolveCliPath,
@@ -131,12 +132,7 @@ function parseArgs(argv: string[], cwd: string): RustMatrixCliOptions {
     candidateSkillFile: defaultHumanSeedSkillPath,
     agentTrace: 'Candidate matrix run.',
     patchSummary: 'Candidate patch from matrix patch directory.',
-    secondaryMetrics: {
-      diffLines: 0,
-      durationMs: 0,
-      lintWarnings: 0,
-      testQuality: 0,
-    },
+    secondaryMetrics: emptyRustSecondaryMetrics(),
   };
 
   for (let index = 0; index < argv.length; index += 1) {

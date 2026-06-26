@@ -1,6 +1,6 @@
 import { isAbsolute, resolve } from 'node:path';
 
-import type { RustModelFamily } from './evaluator';
+import type { RustModelFamily, RustSecondaryMetrics } from './evaluator';
 import { createDryRunCommandRunner, createNodeCommandRunner } from './process-runner';
 import type { RustCommandRunner } from './runner';
 
@@ -12,6 +12,15 @@ export function createRustCommandRunner<Mode extends RustCliMode>(
 ): RustCommandRunner {
   if (factory) return factory(mode);
   return mode === 'live' ? createNodeCommandRunner() : createDryRunCommandRunner();
+}
+
+export function emptyRustSecondaryMetrics(): RustSecondaryMetrics {
+  return {
+    diffLines: 0,
+    durationMs: 0,
+    lintWarnings: 0,
+    testQuality: 0,
+  };
 }
 
 export function parseRustModelFamily(value: string): RustModelFamily {
