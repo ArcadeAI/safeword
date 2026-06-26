@@ -72,6 +72,36 @@ describe('Rust model mutation adapters', () => {
     );
   });
 
+  it('parses nested OpenAI output text blocks', async () => {
+    const adapter = createOpenAIRustSkillMutationAdapter({
+      env: { OPENAI_API_KEY: 'sk-test' },
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            output: [
+              {
+                content: [
+                  {
+                    type: 'output_text',
+                    text: JSON.stringify({
+                      skillMarkdown: candidateSkillText('optimized-rust-v5'),
+                      rationale: 'Parsed from nested output blocks.',
+                    }),
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    });
+
+    await expect(adapter.mutate(providerRequest('optimized-rust-v5'))).resolves.toEqual({
+      skillMarkdown: candidateSkillText('optimized-rust-v5'),
+      rationale: 'Parsed from nested output blocks.',
+    });
+  });
+
   it('calls the Anthropic Messages API with sanitized feedback and parses fenced JSON output', async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const adapter = createAnthropicRustSkillMutationAdapter({

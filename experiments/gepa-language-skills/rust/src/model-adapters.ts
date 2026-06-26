@@ -228,25 +228,32 @@ function extractOpenAIOutputText(payload: unknown): string {
     return candidate.output_text;
   }
 
-  const fragments: string[] = [];
-  if (Array.isArray(candidate.output)) {
-    for (const item of candidate.output) {
-      if (!item || typeof item !== 'object') continue;
-      const outputItem = item as { content?: unknown; text?: unknown };
-      if (typeof outputItem.text === 'string') fragments.push(outputItem.text);
-      if (!Array.isArray(outputItem.content)) continue;
-      for (const contentItem of outputItem.content) {
-        if (!contentItem || typeof contentItem !== 'object') continue;
-        const content = contentItem as { text?: unknown };
-        if (typeof content.text === 'string') fragments.push(content.text);
-      }
-    }
-  }
-
+  const fragments = collectOpenAIOutputFragments(candidate.output);
   if (fragments.length === 0) {
     throw new Error('OpenAI API response did not include output text');
   }
   return fragments.join('\n');
+}
+
+function collectOpenAIOutputFragments(output: unknown): string[] {
+  if (!Array.isArray(output)) return [];
+  return output.flatMap(item => {
+    if (!item || typeof item !== 'object') return [];
+    const outputItem = item as { content?: unknown; text?: unknown };
+    return [
+      ...(typeof outputItem.text === 'string' ? [outputItem.text] : []),
+      ...collectTextContentFragments(outputItem.content),
+    ];
+  });
+}
+
+function collectTextContentFragments(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  return content.flatMap(contentItem => {
+    if (!contentItem || typeof contentItem !== 'object') return [];
+    const item = contentItem as { text?: unknown };
+    return typeof item.text === 'string' ? [item.text] : [];
+  });
 }
 
 function extractAnthropicOutputText(payload: unknown): string {
