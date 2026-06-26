@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { evaluateDoneEvidence } from '../lib/done-gate.ts';
+import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
   type ClaudeGateInput,
   type CursorDecision,
@@ -52,6 +53,10 @@ if (workspace) process.chdir(workspace);
 const claudeTool = mapCursorToolName(input.tool_name);
 if (claudeTool !== 'Write' || !existsSync('.safeword')) {
   emitAllowAndExit();
+}
+
+if (isAutoUpgradeLockActive({ projectDir: process.cwd() })) {
+  emitDecisionAndExit(toCursorDecision(AUTO_UPGRADE_LOCK_MESSAGE));
 }
 
 const filePath = extractFilePath(input.tool_input);

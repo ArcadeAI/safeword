@@ -14,11 +14,13 @@ import {
   parseRecordSkillInvocationCommand,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
+import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
   type ClaudeGateInput,
   type CursorShellInput,
   decideFromGate,
   runClaudeHook,
+  toCursorDecision,
 } from './gate-adapter.ts';
 
 async function readInput(): Promise<CursorShellInput> {
@@ -41,6 +43,11 @@ if (workspace) process.chdir(workspace);
 const command = input.command ?? '';
 if (command === '' || !existsSync('.safeword')) {
   emitAllowAndExit();
+}
+
+if (isAutoUpgradeLockActive({ projectDir: process.cwd() })) {
+  process.stdout.write(JSON.stringify(toCursorDecision(AUTO_UPGRADE_LOCK_MESSAGE)) + '\n');
+  process.exit(0);
 }
 
 const translated: ClaudeGateInput = {

@@ -8,7 +8,7 @@ epic: auto-upgrade-cross-agent
 parent: BJX7WR
 relates_to: VAX3Z2
 created: 2026-06-20T12:54:31.933Z
-last_modified: 2026-06-25T23:45:00Z
+last_modified: 2026-06-26T02:20:00Z
 ---
 
 # Auto-upgrade under Cursor
@@ -57,6 +57,22 @@ Options considered:
 
 - Deferred: richer Cursor notification UX for major-available / repeated-failure outcomes after silent apply ships.
 
+## Root Cause
+
+Post-merge `/quality-review` found two risks in the silent Cursor path:
+
+- Cursor `sessionStart` is fire-and-forget, so the auto-upgrade hook can still be
+  running when the agent starts editing. The shared core stages safeword-managed
+  files after `safeword upgrade`, so Cursor writes need a repository lock while
+  the upgrade is active.
+- `.cursor/hooks.json` merged Cursor hook arrays by replacing entire safeword
+  event arrays. Silent upgrade turns that into a higher-risk path because a user
+  could lose custom Cursor hooks without seeing an interactive upgrade step.
+
+Confirmed by inspecting current Cursor docs and the merged code paths in
+`session-cursor-auto-upgrade.ts`, `hooks/lib/auto-upgrade.ts`, and
+`packages/cli/src/schema.ts`.
+
 ## Work Log
 
 - 2026-06-20T12:54:31.933Z Created (child of BJX7WR). Blocked on epic figure-it-out.
@@ -64,3 +80,4 @@ Options considered:
 - 2026-06-25T05:55:00Z Parent design updated: Cursor should use a silent `sessionStart` wrapper around the shared apply core, exit `0`, and rely on the git auto-upgrade commit as the durable record. Remaining blocker is implementation slice 0: extract the shared apply core before wiring Cursor.
 - 2026-06-25T06:00:00Z Checked PR #433. It does not conflict with this ticket file, and it likely supplies the shared core this ticket needs. If #433 lands first, Y6HZR7 should proceed directly to a Cursor wrapper around `hooks/lib/auto-upgrade.ts`.
 - 2026-06-25T23:45:00Z Implemented Cursor wrapper on `cursor/y6hzr7-cursor-auto-upgrade-wrapper`: added `session-cursor-auto-upgrade.ts`, wired it as a second Cursor `sessionStart` command, registered it in schema/package/hook coverage, and added setup + integration tests. Focused tests green: 127/127.
+- 2026-06-26T02:20:00Z Followed up on post-merge quality review: added the missing `impl-plan.md`, preserved user-authored Cursor hook entries during merge/unmerge, dogfooded the new Cursor sessionStart hook, and added a git-dir auto-upgrade lock that makes Cursor write gates wait while silent auto-upgrade runs.
