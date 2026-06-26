@@ -236,6 +236,7 @@ describe('buildRustSandboxRunPlan', () => {
           kind: 'prepare-cache',
           path: '/tmp/safeword-rust-runs/run-001/cache',
           volumeName: 'safeword-rust-run-001-cache',
+          image: dockerImage,
         },
         {
           kind: 'cleanup-cache',

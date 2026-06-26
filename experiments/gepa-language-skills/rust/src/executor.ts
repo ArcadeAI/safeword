@@ -18,6 +18,7 @@ export type RustSandboxStep =
       kind: 'prepare-cache';
       path: string;
       volumeName: string;
+      image: string;
     }
   | {
       kind: 'cleanup-cache';
@@ -115,6 +116,7 @@ export function buildRustSandboxRunPlan(input: RustSandboxRunPlanInput): RustSan
       kind: 'prepare-cache',
       path: cache,
       volumeName: cacheVolumeName,
+      image: input.task.sandbox.runner.image,
     },
     ...(prefetch ? [{ kind: 'dependency-prefetch' as const, argv: prefetch.argv }] : []),
     ...(input.patchFile

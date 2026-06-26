@@ -80,7 +80,7 @@ function prefetchFixtureRun() {
   return { task, plan };
 }
 
-function fakeRunner(finalResult: RustProcessResult = okResult('cargo ok'), finalCallIndex = 11) {
+function fakeRunner(finalResult: RustProcessResult = okResult('cargo ok'), finalCallIndex = 12) {
   const calls: RustProcessInvocation[] = [];
   return {
     calls,
@@ -115,6 +115,19 @@ describe('executeRustSandboxRun', () => {
       ['rm', '-f', join(plan.paths.cache, 'prefetch.cid'), join(plan.paths.cache, 'oracle.cid')],
       ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-001-cache'],
       ['docker', 'volume', 'create', 'safeword-rust-run-001-cache'],
+      [
+        'docker',
+        'run',
+        '--rm',
+        '--network',
+        'none',
+        '--mount',
+        'type=volume,source=safeword-rust-run-001-cache,target=/workspace/cache',
+        plan.docker.argv[plan.docker.argv.indexOf('/bin/bash') - 1],
+        '/bin/bash',
+        '-c',
+        'mkdir -p /workspace/cache/cargo-home /workspace/cache/target && chown -R 1000:1000 /workspace/cache',
+      ],
       ['git', '-C', plan.paths.worktree, 'apply', '/tmp/candidate.patch'],
       plan.docker.argv,
       ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-001-cache'],
@@ -141,7 +154,7 @@ describe('executeRustSandboxRun', () => {
     const commandRunner = {
       run: async (invocation: RustProcessInvocation) => {
         calls.push(invocation);
-        return calls.length === 12 ? okResult('cargo ok') : okResult();
+        return calls.length === 13 ? okResult('cargo ok') : okResult();
       },
     };
 
@@ -162,6 +175,19 @@ describe('executeRustSandboxRun', () => {
       ['rm', '-f', join(plan.paths.cache, 'prefetch.cid'), join(plan.paths.cache, 'oracle.cid')],
       ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-prefetch-cache'],
       ['docker', 'volume', 'create', 'safeword-rust-run-prefetch-cache'],
+      [
+        'docker',
+        'run',
+        '--rm',
+        '--network',
+        'none',
+        '--mount',
+        'type=volume,source=safeword-rust-run-prefetch-cache,target=/workspace/cache',
+        plan.docker.argv[plan.docker.argv.indexOf('/bin/bash') - 1],
+        '/bin/bash',
+        '-c',
+        'mkdir -p /workspace/cache/cargo-home /workspace/cache/target && chown -R 1000:1000 /workspace/cache',
+      ],
       plan.prefetch?.argv,
       ['git', '-C', plan.paths.worktree, 'apply', '/tmp/candidate.patch'],
       plan.docker.argv,
@@ -178,7 +204,7 @@ describe('executeRustSandboxRun', () => {
     const commandRunner = {
       run: async (invocation: RustProcessInvocation) => {
         calls.push(invocation);
-        if (calls.length === 10) {
+        if (calls.length === 11) {
           return {
             exitCode: 1,
             stdout: '',
@@ -207,6 +233,19 @@ describe('executeRustSandboxRun', () => {
       ['rm', '-f', join(plan.paths.cache, 'prefetch.cid'), join(plan.paths.cache, 'oracle.cid')],
       ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-prefetch-cache'],
       ['docker', 'volume', 'create', 'safeword-rust-run-prefetch-cache'],
+      [
+        'docker',
+        'run',
+        '--rm',
+        '--network',
+        'none',
+        '--mount',
+        'type=volume,source=safeword-rust-run-prefetch-cache,target=/workspace/cache',
+        plan.docker.argv[plan.docker.argv.indexOf('/bin/bash') - 1],
+        '/bin/bash',
+        '-c',
+        'mkdir -p /workspace/cache/cargo-home /workspace/cache/target && chown -R 1000:1000 /workspace/cache',
+      ],
       plan.prefetch?.argv,
       ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-prefetch-cache'],
     ]);
@@ -219,7 +258,7 @@ describe('executeRustSandboxRun', () => {
 
   it('runs a no-patch baseline without invoking git apply', async () => {
     const { task, plan } = baselineFixtureRun();
-    const { calls, commandRunner } = fakeRunner(okResult('cargo ok'), 10);
+    const { calls, commandRunner } = fakeRunner(okResult('cargo ok'), 11);
 
     const artifact = await executeRustSandboxRun({
       task,
@@ -242,6 +281,19 @@ describe('executeRustSandboxRun', () => {
       ['rm', '-f', join(plan.paths.cache, 'prefetch.cid'), join(plan.paths.cache, 'oracle.cid')],
       ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-baseline-cache'],
       ['docker', 'volume', 'create', 'safeword-rust-run-baseline-cache'],
+      [
+        'docker',
+        'run',
+        '--rm',
+        '--network',
+        'none',
+        '--mount',
+        'type=volume,source=safeword-rust-run-baseline-cache,target=/workspace/cache',
+        plan.docker.argv[plan.docker.argv.indexOf('/bin/bash') - 1],
+        '/bin/bash',
+        '-c',
+        'mkdir -p /workspace/cache/cargo-home /workspace/cache/target && chown -R 1000:1000 /workspace/cache',
+      ],
       plan.docker.argv,
       ['docker', 'volume', 'rm', '-f', 'safeword-rust-run-baseline-cache'],
     ]);

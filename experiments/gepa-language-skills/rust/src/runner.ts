@@ -134,6 +134,19 @@ function argvForSetupStep(step: Exclude<RustSandboxStep, { kind: 'docker-run' }>
       ['rm', '-f', join(step.path, 'prefetch.cid'), join(step.path, 'oracle.cid')],
       ['docker', 'volume', 'rm', '-f', step.volumeName],
       ['docker', 'volume', 'create', step.volumeName],
+      [
+        'docker',
+        'run',
+        '--rm',
+        '--network',
+        'none',
+        '--mount',
+        `type=volume,source=${step.volumeName},target=/workspace/cache`,
+        step.image,
+        '/bin/bash',
+        '-c',
+        'mkdir -p /workspace/cache/cargo-home /workspace/cache/target && chown -R 1000:1000 /workspace/cache',
+      ],
     ];
   }
 

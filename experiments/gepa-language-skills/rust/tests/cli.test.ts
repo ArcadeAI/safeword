@@ -207,7 +207,7 @@ describe('runRustExperimentCli', () => {
         calls.push(invocation);
         return {
           exitCode: 0,
-          stdout: calls.length === 12 ? 'live oracle ok' : '',
+          stdout: calls.length === 13 ? 'live oracle ok' : '',
           stderr: '',
           durationMs: 1,
         };
@@ -240,7 +240,7 @@ describe('runRustExperimentCli', () => {
 
     expect(exitCode).toBe(0);
     expect(requestedModes).toEqual(['live']);
-    expect(calls).toHaveLength(13);
+    expect(calls).toHaveLength(14);
     const artifact = JSON.parse(readFileSync(artifactPath, 'utf8').trim()) as Record<
       string,
       unknown
