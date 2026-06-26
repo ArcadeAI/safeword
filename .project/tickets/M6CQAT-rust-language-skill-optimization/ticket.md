@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T03:24:48Z
+last_modified: 2026-06-26T03:34:26Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -346,3 +346,15 @@ must preserve the whole-repository split.
   Prettier and markdownlint passed, and `git diff --check` passed. Package-level
   `generate:patches -- --fake-agent` wrote a patch/report, and a follow-on
   `run:matrix -- --dry-run` consumed that generated patch successfully.
+- 2026-06-26T03:32:45Z Quality-review fix: Added a regression proving
+  `--agent-command rust-patch-agent` must stay PATH-resolvable instead of being
+  resolved as a repo-relative file path. The patch generator CLI now passes the
+  agent command string through unchanged while still resolving file and
+  directory flags.
+- 2026-06-26T03:34:26Z Verify: Focused patch-generator test was RED first,
+  then GREEN. Rust experiment suite passed 69 tests, experiment typecheck
+  passed, targeted Prettier and markdownlint passed, `git diff --check` passed,
+  and package-level `generate:patches -- --fake-agent` output was accepted by a
+  follow-on `run:matrix -- --dry-run` smoke. `bun audit` still reports existing
+  root dependency low/moderate advisories; this branch did not modify root
+  dependency manifests or the lockfile.

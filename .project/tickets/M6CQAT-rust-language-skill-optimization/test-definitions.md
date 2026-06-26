@@ -612,6 +612,13 @@ optimizer-only vocabulary, sandbox bypass guidance, and non-Rust guidance
       files, and records a generation report.
 - [x] REFACTOR 2026-06-26T03:23:54Z — patch validation moved into a shared
       helper reused by both patch generation and matrix preflight.
+- [x] RED 2026-06-26T03:32:20Z — quality-review regression failed because
+      `--agent-command rust-patch-agent` was resolved to an experiment-relative
+      file path instead of staying PATH-resolvable.
+- [x] GREEN 2026-06-26T03:32:37Z — the patch generator CLI now preserves the
+      agent command string and still resolves explicit file/directory flags.
+- [x] REFACTOR 2026-06-26T03:32:45Z — no new abstraction needed; command
+      execution continues through the existing runner adapter.
 
 Given a reviewed Rust candidate skill and one or more pilot tasks
 When the patch-generation runner invokes a patch agent adapter

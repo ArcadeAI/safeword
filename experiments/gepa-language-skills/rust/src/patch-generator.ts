@@ -338,7 +338,7 @@ function parseArgs(argv: string[], cwd: string): RustPatchGeneratorCliOptions {
         options.candidateSkillFile = resolveCliPath(cwd, value);
         break;
       case '--agent-command':
-        options.agentCommand = resolveCliPath(cwd, value);
+        options.agentCommand = value;
         break;
       case '--agent-arg':
         options.agentArgs.push(value);

@@ -169,6 +169,56 @@ describe('runRustPatchGeneratorCli', () => {
     );
     expect(existsSync(reportPath)).toBe(true);
   });
+
+  it('keeps bare agent commands PATH-resolvable', async () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'safeword-rust-patch-generator-command-'));
+    const patchDir = join(tempDir, 'patches');
+    const reportPath = join(tempDir, 'patch-report.json');
+    const calls: string[][] = [];
+    const runner: RustCommandRunner = {
+      run: async invocation => {
+        calls.push(invocation.argv);
+        return {
+          exitCode: 0,
+          stdout: JSON.stringify({
+            patch: generatedPatch,
+            summary: 'Command adapter generated a patch.',
+            trace: 'Command adapter trace.',
+          }),
+          stderr: '',
+          durationMs: 1,
+        };
+      },
+    };
+
+    const exitCode = await runRustPatchGeneratorCli(
+      [
+        '--manifest',
+        pilotManifestPath,
+        '--task-id',
+        'fd-cli-filesystem-bugfix',
+        '--patch-dir',
+        patchDir,
+        '--report',
+        reportPath,
+        '--candidate-skill-id',
+        'distilled-rust-ownership-v1',
+        '--candidate-skill-file',
+        distilledSkillPath,
+        '--agent-request-dir',
+        join(tempDir, 'requests'),
+        '--agent-command',
+        'rust-patch-agent',
+      ],
+      { commandRunner: runner },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(calls[0][0]).toBe('rust-patch-agent');
+    expect(readFileSync(join(patchDir, 'fd-cli-filesystem-bugfix.patch'), 'utf8')).toBe(
+      generatedPatch,
+    );
+  });
 });
 
 describe('createCommandRustPatchAgentAdapter', () => {
