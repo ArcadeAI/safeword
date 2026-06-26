@@ -23,7 +23,7 @@ function parseChangedFilesPath(arguments_: string[]): string | null {
   return arguments_[index + 1] ?? null;
 }
 
-function changedTicketDirectories(changedFiles: string[]): string[] {
+function changedTicketRecordDirectories(changedFiles: string[]): string[] {
   const directories = new Set<string>();
 
   for (const file of changedFiles) {
@@ -79,7 +79,7 @@ const changedFiles = readFileSync(changedFilesPath, 'utf8')
   .map(line => line.trim())
   .filter(Boolean);
 
-const violations = changedTicketDirectories(changedFiles)
+const violations = changedTicketRecordDirectories(changedFiles)
   .map(ticketDirectory => validateTicketDirectory(process.cwd(), ticketDirectory))
   .filter((violation): violation is Violation => violation !== null);
 
