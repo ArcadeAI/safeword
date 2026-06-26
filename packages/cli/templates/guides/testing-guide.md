@@ -4,6 +4,16 @@ Test methodology, TDD workflow, and test type selection.
 
 ---
 
+## Related Guides
+
+| Need                              | Guide                                          |
+| --------------------------------- | ---------------------------------------------- |
+| Choose unit/integration/E2E/eval  | This guide                                     |
+| Choose smoke/live/release cadence | `.safeword/guides/verification-lanes-guide.md` |
+| Design AI output evaluations      | `.safeword/guides/llm-evals-guide.md`          |
+
+---
+
 ## Test Philosophy
 
 **Behavior-biased testing:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods). Tests coupled to implementation break on every refactor. Behavioral tests survive.

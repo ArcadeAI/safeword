@@ -307,6 +307,8 @@ it('preserves user input after validation error');
 | Need                             | Action                                            |
 | -------------------------------- | ------------------------------------------------- |
 | Full test type selection guide   | `.safeword/guides/testing-guide.md`               |
+| Smoke/live/release lane guidance | `.safeword/guides/verification-lanes-guide.md`    |
+| LLM eval design guide            | `.safeword/guides/llm-evals-guide.md`             |
 | Test definition template (BDD)   | `.safeword/templates/test-definitions-feature.md` |
 | Test quality review              | `/audit`                                          |
 | Feature-level TDD with scenarios | `/bdd`                                            |
