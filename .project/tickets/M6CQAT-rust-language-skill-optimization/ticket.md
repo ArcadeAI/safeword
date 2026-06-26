@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T03:09:27Z
+last_modified: 2026-06-26T03:13:19Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -326,3 +326,12 @@ must preserve the whole-repository split.
   experiment typecheck passed, targeted Prettier and markdownlint passed, and
   `git diff --check` passed. `bun audit` reported existing root dependency
   low/moderate advisories; this branch did not modify dependency manifests.
+- 2026-06-26T03:13:19Z Refactor: Extracted the shared provider response parse
+  path in `src/model-adapters.ts`, so OpenAI and Anthropic adapters both reuse
+  the same read-JSON, extract-output-text, parse-skill-proposal flow.
+- 2026-06-26T03:13:19Z Verify: Focused model-adapter tests passed, Rust
+  experiment suite passed 64 tests, experiment typecheck passed, targeted
+  Prettier passed, and `git diff --check` passed. Targeted jscpd found no
+  duplicates in `model-adapters.ts`. Forced root ESLint with `--no-ignore`
+  still reports the known experiment/tsconfig mismatch and pre-existing
+  root-rule violations, so it is not a valid experiment lint gate.

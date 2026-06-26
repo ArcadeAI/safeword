@@ -89,8 +89,7 @@ export function createOpenAIRustSkillMutationAdapter(
         }),
       });
 
-      const payload = await readProviderJson(response, 'OpenAI');
-      return parseRustSkillCandidateOutput(extractOpenAIOutputText(payload));
+      return parseProviderSkillProposal(response, 'OpenAI', extractOpenAIOutputText);
     },
   };
 }
@@ -125,8 +124,7 @@ export function createAnthropicRustSkillMutationAdapter(
         }),
       });
 
-      const payload = await readProviderJson(response, 'Anthropic');
-      return parseRustSkillCandidateOutput(extractAnthropicOutputText(payload));
+      return parseProviderSkillProposal(response, 'Anthropic', extractAnthropicOutputText);
     },
   };
 }
@@ -217,6 +215,15 @@ async function readProviderJson(
     throw new Error(`${providerName} API ${response.status}: ${await response.text()}`);
   }
   return (await response.json()) as unknown;
+}
+
+async function parseProviderSkillProposal(
+  response: Response,
+  providerName: 'Anthropic' | 'OpenAI',
+  extractOutputText: (payload: unknown) => string,
+): Promise<RustSkillMutationProposal> {
+  const payload = await readProviderJson(response, providerName);
+  return parseRustSkillCandidateOutput(extractOutputText(payload));
 }
 
 function extractOpenAIOutputText(payload: unknown): string {

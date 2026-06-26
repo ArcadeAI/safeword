@@ -573,6 +573,9 @@ And sanitized feedback generation is not invoked for that record
 - [x] REFACTOR 2026-06-26T01:24:31Z — provider HTTP error handling now shares
       one response reader across OpenAI and Anthropic without changing the
       adapter contracts.
+- [x] REFACTOR 2026-06-26T03:13:19Z — provider response parsing now shares the
+      read-JSON/extract-text/parse-skill-proposal path across OpenAI and
+      Anthropic without changing provider request or error semantics.
 
 Given failed Rust run artifacts and a provider-backed mutation adapter
 When the Rust optimizer loop runs for OpenAI or Anthropic
