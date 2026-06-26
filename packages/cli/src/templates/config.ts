@@ -303,9 +303,12 @@ ${prettier.configEntry}
 // OBSERVATIONAL hooks are deliberately left fail-open (the default): a crashing
 // lint/state/nudge hook must never block legitimate work.
 export const CURSOR_HOOKS = {
-  // Observational: injects standing context. Fail-open — a failed inject must not
-  // block the session from starting.
-  sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
+  // Observational: injects standing context and checks for auto-upgrades.
+  // Fail-open — neither hook may block the session from starting.
+  sessionStart: [
+    { command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' },
+    { command: 'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts' },
+  ],
   // NOTE (F2TKR3): there is deliberately NO beforeSubmitPrompt gate. That hook
   // fires at prompt-send time, where Cursor exposes only the prompt text — no tool
   // name or file path — so it cannot tell "create test-definitions.md" from "write

@@ -611,6 +611,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-codex-start.ts': {
       template: 'hooks/session-codex-start.ts',
     },
+    '.safeword/hooks/session-cursor-auto-upgrade.ts': {
+      template: 'hooks/session-cursor-auto-upgrade.ts',
+    },
     '.safeword/hooks/session-dependency-readiness.ts': {
       template: 'hooks/session-dependency-readiness.ts',
     },
