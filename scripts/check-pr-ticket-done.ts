@@ -28,6 +28,11 @@ interface TicketChange {
   verifyArtifactChanged: boolean;
 }
 
+interface TicketState {
+  status: string | null;
+  phase: string | null;
+}
+
 function parseChangedFilesPath(arguments_: string[]): string | null {
   const index = arguments_.indexOf('--changed-files');
   if (index === -1) return null;
@@ -75,24 +80,34 @@ function frontmatterValue(content: string, key: string): string | null {
   return valueMatch?.[1]?.trim() ?? null;
 }
 
+function readTicketState(projectDirectory: string, ticketDirectory: string): TicketState | null {
+  const ticketPath = nodePath.join(projectDirectory, ticketDirectory, 'ticket.md');
+  if (!existsSync(ticketPath)) {
+    return null;
+  }
+
+  const content = readFileSync(ticketPath, 'utf8');
+  return {
+    status: frontmatterValue(content, 'status'),
+    phase: frontmatterValue(content, 'phase'),
+  };
+}
+
 function validateTicketChange(
   projectDirectory: string,
   change: TicketChange,
 ): { violation: Violation | null; advisory: Advisory | null } {
-  const ticketPath = nodePath.join(projectDirectory, change.ticketDirectory, 'ticket.md');
-  if (!existsSync(ticketPath)) {
+  const ticketState = readTicketState(projectDirectory, change.ticketDirectory);
+  if (!ticketState) {
     return {
       violation: { ticketDirectory: change.ticketDirectory, reason: 'ticket.md is missing' },
       advisory: null,
     };
   }
 
-  const content = readFileSync(ticketPath, 'utf8');
-  const status = frontmatterValue(content, 'status');
-  const phase = frontmatterValue(content, 'phase');
-  if (status === 'done') return { violation: null, advisory: null };
+  if (ticketState.status === 'done') return { violation: null, advisory: null };
 
-  if (status === 'in_progress' && phase === 'done') {
+  if (ticketState.status === 'in_progress' && ticketState.phase === 'done') {
     return {
       violation: {
         ticketDirectory: change.ticketDirectory,
@@ -102,7 +117,7 @@ function validateTicketChange(
     };
   }
 
-  if (status === 'in_progress' && change.verifyArtifactChanged) {
+  if (ticketState.status === 'in_progress' && change.verifyArtifactChanged) {
     return {
       violation: {
         ticketDirectory: change.ticketDirectory,
@@ -117,7 +132,7 @@ function validateTicketChange(
     advisory: change.ticketRecordChanged
       ? {
           ticketDirectory: change.ticketDirectory,
-          status: status ?? '(missing)',
+          status: ticketState.status ?? '(missing)',
         }
       : null,
   };
