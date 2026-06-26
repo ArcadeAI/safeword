@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T03:13:19Z
+last_modified: 2026-06-26T03:24:48Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -335,3 +335,14 @@ must preserve the whole-repository split.
   duplicates in `model-adapters.ts`. Forced root ESLint with `--no-ignore`
   still reports the known experiment/tsconfig mismatch and pre-existing
   root-rule violations, so it is not a valid experiment lint gate.
+- 2026-06-26T03:24:48Z Implement: Added `src/patch-generator.ts` and
+  `generate:patches` to turn a reviewed Rust candidate skill into per-task
+  matrix patch files. The generator supports injectable/fake adapters and an
+  external command adapter, writes a patch-generation report, and sends patch
+  agents split-free task context without local experiment paths. Matrix now
+  reuses shared patch validation from `src/patches.ts`.
+- 2026-06-26T03:24:48Z Verify: Patch-generator test was RED first, then Rust
+  experiment suite passed 68 tests, experiment typecheck passed, targeted
+  Prettier and markdownlint passed, and `git diff --check` passed. Package-level
+  `generate:patches -- --fake-agent` wrote a patch/report, and a follow-on
+  `run:matrix -- --dry-run` consumed that generated patch successfully.

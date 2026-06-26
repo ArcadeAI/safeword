@@ -7,6 +7,7 @@
   "comment": "Intentionally NOT a workspace member — kept self-contained so the experiment adds no shared deps. Tests reuse the vitest already installed in packages/cli.",
   "scripts": {
     "compare:matrix": "bun src/report.ts",
+    "generate:patches": "bun src/patch-generator.ts",
     "optimize:skill": "bun src/optimize.ts",
     "run:matrix": "bun src/matrix.ts",
     "run:pilot": "bun src/cli.ts",

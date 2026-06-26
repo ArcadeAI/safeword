@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { reviewRustCandidateSkill, summarizeRustCandidateSkill } from './candidate';
@@ -15,6 +14,7 @@ import {
 import { loadRustTaskManifest, type RustTask } from './dataset';
 import { buildRustSandboxRunPlan } from './executor';
 import type { RustModelFamily, RustSecondaryMetrics } from './evaluator';
+import { rustPatchFileForTask, validateRustPatchFile } from './patches';
 import { appendRustRunArtifact, executeRustSandboxRun, type RustCommandRunner } from './runner';
 
 export type RustMatrixCliMode = 'dry-run' | 'live';
@@ -190,43 +190,14 @@ function selectTasks(tasks: RustTask[], taskIds: string[]): RustTask[] {
 function collectPatchFiles(patchDir: string, tasks: RustTask[]): Map<string, string> {
   const patchFilesByTask = new Map<string, string>();
   for (const task of tasks) {
-    const patchFile = patchFileForTask(patchDir, task.id);
+    const patchFile = rustPatchFileForTask(patchDir, task.id);
     if (!existsSync(patchFile)) {
       throw new Error(`missing patch for task ${task.id}: ${patchFile}`);
     }
-    validatePatchFile(task, patchFile);
+    validateRustPatchFile(task.id, patchFile);
     patchFilesByTask.set(task.id, patchFile);
   }
   return patchFilesByTask;
-}
-
-function validatePatchFile(task: RustTask, patchFile: string): void {
-  const text = readFileSync(patchFile, 'utf8');
-  if (!text.trim()) {
-    throw new Error(`empty patch for task ${task.id}: ${patchFile}`);
-  }
-  if (!looksLikeUnifiedDiff(text)) {
-    throw new Error(`patch for task ${task.id} is not a unified diff: ${patchFile}`);
-  }
-}
-
-function looksLikeUnifiedDiff(text: string): boolean {
-  const lines = text.split('\n');
-  const hasFileHeader =
-    lines.some(line => line.startsWith('diff --git ')) ||
-    (lines.some(line => line.startsWith('--- ')) && lines.some(line => line.startsWith('+++ ')));
-  const hasHunk = lines.some(line => line.startsWith('@@ '));
-  const hasChangedLine = lines.some(
-    line =>
-      (line.startsWith('+') && !line.startsWith('+++')) ||
-      (line.startsWith('-') && !line.startsWith('---')),
-  );
-
-  return hasFileHeader && hasHunk && hasChangedLine;
-}
-
-function patchFileForTask(patchDir: string, taskId: string): string {
-  return join(patchDir, `${taskId}.patch`);
 }
 
 function helpText(): string {

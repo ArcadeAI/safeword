@@ -603,6 +603,24 @@ output wholesale
 And it still omits repository ids, task ids, split names, source artifact paths,
 optimizer-only vocabulary, sandbox bypass guidance, and non-Rust guidance
 
+### Scenario: Reviewed Rust candidates generate matrix-ready patches
+
+- [x] RED 2026-06-26T03:19:17Z — patch-generator tests failed because
+      `../src/patch-generator` did not exist.
+- [x] GREEN 2026-06-26T03:23:54Z — `generate:patches` now reviews a candidate
+      skill, builds split-free patch-agent requests, writes `<task-id>.patch`
+      files, and records a generation report.
+- [x] REFACTOR 2026-06-26T03:23:54Z — patch validation moved into a shared
+      helper reused by both patch generation and matrix preflight.
+
+Given a reviewed Rust candidate skill and one or more pilot tasks
+When the patch-generation runner invokes a patch agent adapter
+Then it writes one matrix-ready unified diff patch per task
+And it records patch summary and trace metadata in a generation report
+And patch-agent requests omit split names, source artifact paths,
+optimizer-only vocabulary, and local experiment paths
+And invalid generated patches are rejected before matrix evaluation
+
 ## Rule: Product wiring happens only after the Rust skill passes eval gates
 
 ### Scenario: Rust projects install the rust skill conditionally
