@@ -1,18 +1,27 @@
 /**
  * Unit tests for the done-gate annotation ledger validator (ticket J7VBGJ,
  * Rules 3 + 4). Pure function over test-definitions.md content + an injected
- * SHA-reachability oracle (so tests don't need real git).
+ * SHA resolver (so most tests don't need real git).
  *
- * Returns { ok, errors[] }. The wiring layer in stop-quality.ts calls the
- * real `git cat-file -e <sha>^{commit}` to provide the oracle.
+ * Returns { ok, errors[] }. The wiring layer in stop-quality.ts provides a
+ * Git-backed resolver for real commit reachability and rebase fallback.
  */
+
+import { execSync } from 'node:child_process';
 
 import { describe, expect, it } from 'vitest';
 
+import { createLedgerShaResolver } from '../../templates/hooks/lib/ledger-git.js';
 import {
   validateLedger,
   wholeTicketPassApplies,
 } from '../../templates/hooks/lib/ledger-validation.js';
+import {
+  createTemporaryDirectory,
+  initGitRepo,
+  removeTemporaryDirectory,
+  writeTestFile,
+} from '../helpers.js';
 
 const allReachable = (_sha: string) => true;
 
@@ -114,6 +123,25 @@ describe('validateLedger — Rule 3 (per-scenario SHA validity)', () => {
     expect(result.ok).toBe(false);
     expect(result.errors.join('\n')).toContain('foo');
     expect(result.errors.join('\n')).toMatch(/colli[sz]/i);
+  });
+
+  it('Scenario T2b: RED and GREEN resolving to the same canonical SHA fails', () => {
+    const c = content(
+      [
+        '### Scenario: foo',
+        '',
+        '- [x] RED abc1234',
+        '- [x] GREEN def5678',
+        '- [x] REFACTOR 9abcdef',
+      ].join('\n'),
+    );
+    const result = validateLedger(c, sha =>
+      sha === 'abc1234' || sha === 'def5678' ? 'aaaa1111' : sha,
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toContain('foo');
+    expect(result.errors.join('\n')).toMatch(/colli[sz]/i);
+    expect(result.errors.join('\n')).toContain('aaaa1111');
   });
 
   it('Scenario T3: SHA unreachable from HEAD fails, naming the SHA', () => {
@@ -406,5 +434,79 @@ describe('validateLedger — legacy compatibility', () => {
     );
     const result = validateLedger(c, allReachable);
     expect(result.ok).toBe(true);
+  });
+});
+
+describe('validateLedger — rebased SHA compatibility', () => {
+  it('accepts a ledger SHA when its patch is reachable under a new rebased SHA', () => {
+    const projectDirectory = createTemporaryDirectory();
+    try {
+      initGitRepo(projectDirectory);
+      execSync('git checkout -q -b main', { cwd: projectDirectory });
+      writeTestFile(projectDirectory, 'base.txt', 'base\n');
+      execSync('git add base.txt && git commit -q -m base', { cwd: projectDirectory });
+
+      execSync('git switch -q -c feature', { cwd: projectDirectory });
+      writeTestFile(projectDirectory, 'work.txt', 'feature work\n');
+      execSync('git add work.txt && git commit -q -m red-step', { cwd: projectDirectory });
+      const oldSha = execSync('git rev-parse HEAD', { cwd: projectDirectory }).toString().trim();
+
+      execSync('git switch -q main', { cwd: projectDirectory });
+      writeTestFile(projectDirectory, 'main.txt', 'main work\n');
+      execSync('git add main.txt && git commit -q -m main-step', { cwd: projectDirectory });
+
+      execSync('git switch -q feature && git rebase -q main', { cwd: projectDirectory });
+      const newSha = execSync('git rev-parse HEAD', { cwd: projectDirectory }).toString().trim();
+      expect(newSha).not.toBe(oldSha);
+
+      const ledger = content(
+        [
+          '### Scenario: survives rebase',
+          '',
+          `- [x] RED ${oldSha}`,
+          '- [x] GREEN skip: not needed for this regression',
+          '- [x] REFACTOR skip: not needed for this regression',
+        ].join('\n'),
+        '- [x] cross-scenario skip: single-loop ticket',
+      );
+      const resolver = createLedgerShaResolver(projectDirectory);
+
+      expect(validateLedger(ledger, resolver)).toEqual({ ok: true, errors: [] });
+      expect(resolver(oldSha)).toBe(newSha);
+    } finally {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
+  it('rejects a stale ledger SHA when its patch-id matches multiple reachable commits', () => {
+    const projectDirectory = createTemporaryDirectory();
+    try {
+      initGitRepo(projectDirectory);
+      execSync('git checkout -q -b main', { cwd: projectDirectory });
+      writeTestFile(projectDirectory, 'base.txt', 'base\n');
+      execSync('git add base.txt && git commit -q -m base', { cwd: projectDirectory });
+
+      execSync('git switch -q -c feature', { cwd: projectDirectory });
+      writeTestFile(projectDirectory, 'work.txt', 'same patch\n');
+      execSync('git add work.txt && git commit -q -m stale-step', { cwd: projectDirectory });
+      const oldSha = execSync('git rev-parse HEAD', { cwd: projectDirectory }).toString().trim();
+
+      execSync('git switch -q main', { cwd: projectDirectory });
+      writeTestFile(projectDirectory, 'work.txt', 'same patch\n');
+      execSync('git add work.txt && git commit -q -m first-matching-patch', {
+        cwd: projectDirectory,
+      });
+      execSync('git rm -q work.txt && git commit -q -m remove-first-patch', {
+        cwd: projectDirectory,
+      });
+
+      execSync('git switch -q feature && git rebase -q --reapply-cherry-picks main', {
+        cwd: projectDirectory,
+      });
+      const resolver = createLedgerShaResolver(projectDirectory);
+      expect(resolver(oldSha)).toBe(false);
+    } finally {
+      removeTemporaryDirectory(projectDirectory);
+    }
   });
 });

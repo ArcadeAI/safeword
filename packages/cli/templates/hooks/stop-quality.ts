@@ -3,7 +3,6 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import {
@@ -16,6 +15,7 @@ import { formatDependencyRecovery, getDependencyReadiness } from './lib/dependen
 import { checkVerifyArtifact } from './lib/done-gate.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
+import { createLedgerShaResolver } from './lib/ledger-git.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
   AUTHOR_MODEL_ENV,
@@ -596,21 +596,7 @@ if (currentPhase === 'done') {
   // refactor row present and valid when the whole-ticket pass applies (≥2 annotated
   // loops). Pure-legacy and single-loop tickets are exempt inside validateLedger.
   if (ledgerContent !== undefined) {
-    const isReachable = (sha: string): boolean => {
-      try {
-        // execFileSync (no shell) — sha is a file-derived annotation value;
-        // passing it as an arg, not interpolated into a shell string, closes
-        // the command-injection sink (ledger-validation also rejects non-hex).
-        execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], {
-          cwd: projectDir,
-          stdio: 'pipe',
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    const validation = validateLedger(ledgerContent, isReachable);
+    const validation = validateLedger(ledgerContent, createLedgerShaResolver(projectDir));
     if (!validation.ok) {
       recordFailure(projectDir, input.session_id, 'done-gate-ledger-invalid');
       hardBlockDone(
