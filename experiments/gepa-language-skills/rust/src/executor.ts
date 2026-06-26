@@ -74,6 +74,15 @@ export interface RustSandboxRunPlanInput {
 
 type RustDependencyPrefetchCommand = 'cargo fetch --locked' | 'cargo fetch';
 
+interface RustDockerArgvInput {
+  task: RustTask;
+  worktree: string;
+  cacheVolumeName: string;
+  cidFile: string;
+  oracleCommands: string[];
+  networkMode: 'none' | 'bridge';
+}
+
 export function buildRustSandboxRunPlan(input: RustSandboxRunPlanInput): RustSandboxRunPlan {
   const runId = safePathSegment(input.runId, 'runId');
   const source = join(input.runRoot, runId, 'source');
@@ -82,14 +91,14 @@ export function buildRustSandboxRunPlan(input: RustSandboxRunPlanInput): RustSan
   const cacheVolumeName = `safeword-rust-${runId}-cache`;
   const oracleCommands = commandsForTask(input.task);
   const prefetch = buildDependencyPrefetch(input.task, worktree, cacheVolumeName, cache);
-  const dockerArgv = buildDockerArgv(
-    input.task,
+  const dockerArgv = buildDockerArgv({
+    task: input.task,
     worktree,
     cacheVolumeName,
-    join(cache, 'oracle.cid'),
+    cidFile: join(cache, 'oracle.cid'),
     oracleCommands,
-    'none',
-  );
+    networkMode: 'none',
+  });
   const steps: RustSandboxStep[] = [
     {
       kind: 'checkout',
@@ -155,14 +164,8 @@ function commandsForTask(task: RustTask): string[] {
   return [task.oracle.command];
 }
 
-function buildDockerArgv(
-  task: RustTask,
-  worktree: string,
-  cacheVolumeName: string,
-  cidFile: string,
-  oracleCommands: string[],
-  networkMode: 'none' | 'bridge',
-): string[] {
+function buildDockerArgv(input: RustDockerArgvInput): string[] {
+  const { task, worktree, cacheVolumeName, cidFile, oracleCommands, networkMode } = input;
   const repoMount = task.sandbox.mounts.find(
     mount => mount.purpose === 'repo' && mount.mode === 'ro',
   );
@@ -241,14 +244,14 @@ function buildDependencyPrefetch(
   if (task.sandbox.network === 'prefetch-only') {
     const command = prefetchCommandForTask(task);
     return {
-      argv: buildDockerArgv(
+      argv: buildDockerArgv({
         task,
         worktree,
         cacheVolumeName,
-        join(cacheStatePath, 'prefetch.cid'),
-        [command],
-        'bridge',
-      ),
+        cidFile: join(cacheStatePath, 'prefetch.cid'),
+        oracleCommands: [command],
+        networkMode: 'bridge',
+      }),
       command,
       timeoutSeconds: task.sandbox.timeoutSeconds,
       networkMode: 'bridge',
