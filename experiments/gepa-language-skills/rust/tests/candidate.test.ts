@@ -13,6 +13,10 @@ const humanSeedSkillPath = join(
   repoRoot,
   'experiments/gepa-language-skills/rust/candidates/human-seed-rust/SKILL.md',
 );
+const distilledOwnershipSkillPath = join(
+  repoRoot,
+  'experiments/gepa-language-skills/rust/candidates/distilled-rust-ownership-v1/SKILL.md',
+);
 
 describe('Rust candidate skills', () => {
   let tempDir: string | undefined;
@@ -33,6 +37,18 @@ describe('Rust candidate skills', () => {
       path: humanSeedSkillPath,
       description: result.skill.metadata.description,
     });
+  });
+
+  it('loads the provider-distilled ownership skill and passes candidate review', () => {
+    const result = reviewRustCandidateSkill(distilledOwnershipSkillPath);
+
+    expect(result.skill.id).toBe('distilled-rust-ownership-v1');
+    expect(result.skill.body).toContain('Resolving Borrow-Checker Errors');
+    expect(result.skill.body).toContain('E0382');
+    expect(result.skill.text).not.toMatch(
+      /\b(sharkdp\/fd|fd-cli-filesystem-bugfix|sourceArtifact|train|validation|heldout|GEPA|optimizer|mutation|npm|pytest|pip)\b/i,
+    );
+    expect(result.review).toEqual({ accepted: true, blockers: [] });
   });
 
   it('rejects malformed skill files before review', () => {

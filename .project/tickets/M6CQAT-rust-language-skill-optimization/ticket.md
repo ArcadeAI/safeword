@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T01:53:15Z
+last_modified: 2026-06-26T02:49:25Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -308,3 +308,12 @@ must preserve the whole-repository split.
   borrow-checker section for the failed `E0382`-style artifact, while OpenAI's
   candidate stayed closer to the human seed. The next step is human
   distillation into an experiment candidate before matrix evaluation.
+- 2026-06-26T02:49:25Z Implement: Human-distilled the provider-smoke outputs
+  into `candidates/distilled-rust-ownership-v1/SKILL.md`, preserving the
+  actionable borrow-checker guidance without copying raw provider output or
+  introducing repo-specific/eval-aware text. Added a candidate review test for
+  the distilled skill.
+- 2026-06-26T02:49:25Z Verify: Candidate test was RED first, then the
+  distilled candidate passed `reviewRustCandidateSkill`. Rust experiment suite
+  passed 64 tests, experiment typecheck passed, and targeted Prettier plus
+  markdownlint passed.

@@ -576,6 +576,24 @@ And the provider request omits repository ids, task ids, split names, source
 artifact paths, and optimizer-only vocabulary
 And the CLI can select the provider without adding provider SDK dependencies
 
+### Scenario: Provider smoke output is human-distilled into an experiment candidate
+
+- [x] RED 2026-06-26T02:47:29Z — candidate review test failed because
+      `candidates/distilled-rust-ownership-v1/SKILL.md` did not exist.
+- [x] GREEN 2026-06-26T02:48:40Z — the human-distilled ownership candidate now
+      exists, preserves borrow-checker guidance from the provider smoke, and
+      passes the Rust candidate review gate.
+- [x] REFACTOR skip: content-only candidate artifact; no structural cleanup
+      warranted beyond the existing review gate.
+
+Given OpenAI and Anthropic provider-smoke candidates that passed review
+When useful guidance is distilled into a checked-in Rust experiment candidate
+Then the candidate skill passes the same candidate review gate
+And it preserves the useful borrow-checker guidance without copying provider
+output wholesale
+And it still omits repository ids, task ids, split names, source artifact paths,
+optimizer-only vocabulary, sandbox bypass guidance, and non-Rust guidance
+
 ## Rule: Product wiring happens only after the Rust skill passes eval gates
 
 ### Scenario: Rust projects install the rust skill conditionally
