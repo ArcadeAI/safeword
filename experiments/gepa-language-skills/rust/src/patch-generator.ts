@@ -12,7 +12,7 @@ import {
   requiredFlagValue,
   resolveCliPath,
 } from './cli-utils';
-import { loadRustTaskManifest, type RustTask } from './dataset';
+import { loadRustTaskManifest, selectRustTasks, type RustTask } from './dataset';
 import type { RustModelFamily } from './evaluator';
 import { rustPatchFileForTask, validateGeneratedRustPatch } from './patches';
 import type { RustCommandRunner } from './runner';
@@ -171,7 +171,7 @@ export async function generateRustCandidatePatches(
   }
 
   const candidateSkill = loadRustCandidateSkill(input.candidateSkillPath);
-  const tasks = selectTasks(loadRustTaskManifest(input.manifestPath), input.taskIds);
+  const tasks = selectRustTasks(loadRustTaskManifest(input.manifestPath), input.taskIds);
   const patches: RustGeneratedPatchRecord[] = [];
 
   mkdirSync(input.patchDir, { recursive: true });
@@ -355,21 +355,6 @@ function parseArgs(argv: string[], cwd: string): RustPatchGeneratorCliOptions {
   }
 
   return options;
-}
-
-function selectTasks(tasks: RustTask[], taskIds: string[]): RustTask[] {
-  if (taskIds.length === 0) return tasks;
-
-  const selected: RustTask[] = [];
-  for (const taskId of taskIds) {
-    const task = tasks.find(candidate => candidate.id === taskId);
-    if (!task) {
-      throw new Error(`task not found: ${taskId}`);
-    }
-    selected.push(task);
-  }
-
-  return selected;
 }
 
 function taskRequest(task: RustTask): RustPatchAgentTaskRequest {

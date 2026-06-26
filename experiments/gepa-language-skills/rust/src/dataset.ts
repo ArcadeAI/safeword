@@ -63,6 +63,21 @@ export function loadRustTaskManifest(path: string): RustTask[] {
   return validateRustTaskManifest(JSON.parse(readFileSync(path, 'utf8')) as unknown);
 }
 
+export function selectRustTasks(tasks: RustTask[], taskIds: string[]): RustTask[] {
+  if (taskIds.length === 0) return tasks;
+
+  const selected: RustTask[] = [];
+  for (const taskId of taskIds) {
+    const task = tasks.find(candidate => candidate.id === taskId);
+    if (!task) {
+      throw new Error(`task not found: ${taskId}`);
+    }
+    selected.push(task);
+  }
+
+  return selected;
+}
+
 export function validateRustTaskManifest(manifest: unknown): RustTask[] {
   const errors: string[] = [];
   if (!isRecord(manifest)) {

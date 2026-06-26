@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T03:34:26Z
+last_modified: 2026-06-26T03:38:46Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -358,3 +358,7 @@ must preserve the whole-repository split.
   follow-on `run:matrix -- --dry-run` smoke. `bun audit` still reports existing
   root dependency low/moderate advisories; this branch did not modify root
   dependency manifests or the lockfile.
+- 2026-06-26T03:38:46Z Refactor: Extracted duplicated Rust task selection from
+  the matrix and patch-generator CLIs into the dataset module as
+  `selectRustTasks`. Verification: Rust experiment suite passed 69 tests and
+  experiment typecheck passed.

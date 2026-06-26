@@ -11,7 +11,7 @@ import {
   requiredFlagValue,
   resolveCliPath,
 } from './cli-utils';
-import { loadRustTaskManifest, type RustTask } from './dataset';
+import { loadRustTaskManifest, selectRustTasks, type RustTask } from './dataset';
 import { buildRustSandboxRunPlan } from './executor';
 import type { RustModelFamily, RustSecondaryMetrics } from './evaluator';
 import { rustPatchFileForTask, validateRustPatchFile } from './patches';
@@ -69,7 +69,7 @@ export async function runRustMatrixCli(
       );
     }
 
-    const tasks = selectTasks(loadRustTaskManifest(options.manifest), options.taskIds);
+    const tasks = selectRustTasks(loadRustTaskManifest(options.manifest), options.taskIds);
     const patchFilesByTask = collectPatchFiles(options.patchDir, tasks);
     const commandRunner = createRustCommandRunner(options.mode, deps.commandRunnerFactory);
     const candidateSkill = summarizeRustCandidateSkill(candidateSkillReview.skill);
@@ -170,21 +170,6 @@ function parseArgs(argv: string[], cwd: string): RustMatrixCliOptions {
   }
 
   return options;
-}
-
-function selectTasks(tasks: RustTask[], taskIds: string[]): RustTask[] {
-  if (taskIds.length === 0) return tasks;
-
-  const selected: RustTask[] = [];
-  for (const taskId of taskIds) {
-    const task = tasks.find(candidate => candidate.id === taskId);
-    if (!task) {
-      throw new Error(`task not found: ${taskId}`);
-    }
-    selected.push(task);
-  }
-
-  return selected;
 }
 
 function collectPatchFiles(patchDir: string, tasks: RustTask[]): Map<string, string> {
