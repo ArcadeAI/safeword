@@ -2,7 +2,7 @@
  * Regression tests for the ticket-system skill prompt (ticket 158, slice 6).
  *
  * Asserts that the find-max-and-increment guidance is gone and the new
- * `safeword ticket new` instruction is in place. Also walks every shipped
+ * local-first `safeword ticket new` resolver instruction is in place. Also walks every shipped
  * template under packages/cli/templates/ to guard against the same pattern
  * resurfacing elsewhere.
  *
@@ -52,8 +52,15 @@ describe('ticket-system SKILL.md (template)', () => {
     expect(readSkill().toLowerCase()).not.toContain('increment');
   });
 
-  it('references `safeword ticket new` as the way to create a ticket', () => {
-    expect(readSkill()).toContain('safeword ticket new');
+  it('documents the local-first resolver for `safeword ticket new`', () => {
+    const skill = readSkill();
+    expect(skill).toContain('if [ -x node_modules/.bin/safeword ]; then');
+    expect(skill).toContain('SW="node_modules/.bin/safeword"');
+    expect(skill).toContain('elif [ -f packages/cli/src/cli.ts ]; then');
+    expect(skill).toContain('SW="bun packages/cli/src/cli.ts"');
+    expect(skill).toContain('else SW="bunx safeword"; fi');
+    expect(skill).toContain('$SW ticket new <slug>');
+    expect(skill).not.toContain('`safeword ticket new');
   });
 
   it('documents the current ticket folder shape created by the CLI', () => {

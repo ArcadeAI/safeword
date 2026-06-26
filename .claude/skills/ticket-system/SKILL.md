@@ -13,9 +13,21 @@ allowed-tools: '*'
 
 **Namespace root:** Resolve from `paths.projectRoot` in `.safeword/config.json`; if unset, use `.project/` by default, falling back to legacy `.safeword-project/` only when that directory already exists. Substitute the resolved root in every path below.
 
-**Creating a ticket:** Run `safeword ticket new <slug>` (optionally with `--type=patch|task|feature` and `--title="..."`). The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches.
+**Creating a ticket:** Resolve the Safeword CLI locally first, then run `ticket new` through that resolver:
 
-**Location:** `<namespace-root>/tickets/{ID}-{slug}/` for tickets created by `safeword ticket new` (6-char Crockford ID plus normalized slug). Lookup remains backward-compatible with older `{ID}/` Crockford folders and legacy `{numeric-id}-{slug}/` folders — all formats remain reachable by ID.
+```bash
+if [ -x node_modules/.bin/safeword ]; then
+  SW="node_modules/.bin/safeword"
+elif [ -f packages/cli/src/cli.ts ]; then
+  SW="bun packages/cli/src/cli.ts"
+else SW="bunx safeword"; fi
+
+$SW ticket new <slug> # optionally add --type=patch|task|feature and --title="..."
+```
+
+The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches. If the resolver cannot run, stop and report that the CLI is unresolvable; do not hand-mint a fallback ID.
+
+**Location:** `<namespace-root>/tickets/{ID}-{slug}/` for tickets created by the resolved `ticket new` command above (6-char Crockford ID plus normalized slug). Lookup remains backward-compatible with older `{ID}/` Crockford folders and legacy `{numeric-id}-{slug}/` folders — all formats remain reachable by ID.
 
 **Folder structure:**
 
