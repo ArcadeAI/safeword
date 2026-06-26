@@ -482,6 +482,57 @@ Then it emits aggregate baseline and candidate scores
 And it emits per-repository and per-model deltas  
 And it reports whether the held-out gate accepts or rejects the candidate
 
+## Rule: The optimizer loop proposes auditable Rust skill candidates
+
+### Scenario: Fake adapter writes a reviewed candidate from failed artifacts
+
+- [x] RED 2026-06-26T00:37:33Z — optimizer tests failed because
+      `../src/optimize` did not exist.
+- [x] GREEN 2026-06-26T00:39:56Z — `optimizeRustSkillCandidate` now loads
+      failed run artifacts, sends sanitized feedback plus base skill text to an
+      adapter, writes the proposed candidate skill, reviews it, and persists an
+      optimization report.
+- [x] REFACTOR 2026-06-26T00:41:18Z — exposed the package-level
+      `optimize:skill` fake-adapter entrypoint and smoke-tested it against a
+      failed live artifact.
+
+Given failed Rust run artifacts and the current candidate skill text
+When the Rust optimizer loop runs with a fake model adapter
+Then it sends sanitized failure feedback and the base skill text to the adapter
+And it writes a new candidate skill under a candidate-id directory
+And it records a replayable optimization report with the adapter rationale,
+failure count, model families, and review result
+
+### Scenario: Optimizer persists rejected candidate reviews
+
+- [x] RED 2026-06-26T00:37:33Z — optimizer tests failed because no optimizer
+      candidate review/persistence path existed.
+- [x] GREEN 2026-06-26T00:39:56Z — rejected adapter proposals are still written
+      to disk and their review blockers are recorded in the optimization
+      report.
+- [x] REFACTOR 2026-06-26T00:41:18Z — reused the existing Rust candidate review
+      gate so optimizer output cannot bypass anti-memorization checks.
+
+Given the adapter proposes eval-aware or repository-specific Rust guidance
+When the Rust optimizer loop reviews the proposed skill
+Then the candidate is rejected
+And the proposed skill plus blocker reasons are still persisted for audit
+
+### Scenario: Optimizer skips candidate generation without failures
+
+- [x] RED 2026-06-26T00:37:33Z — optimizer tests failed because no skip path
+      existed for all-acceptable artifacts.
+- [x] GREEN 2026-06-26T00:39:56Z — all-acceptable input artifacts now skip the
+      mutation adapter and write an audit report with `skippedReason: no failed
+      runs`.
+- [x] REFACTOR 2026-06-26T00:41:18Z — skip handling shares the same report schema
+      as accepted and rejected optimizer proposals.
+
+Given all input Rust artifacts are acceptable
+When the Rust optimizer loop runs
+Then it does not call the mutation adapter
+And it writes a skip report explaining that no failed runs were available
+
 ## Rule: Product wiring happens only after the Rust skill passes eval gates
 
 ### Scenario: Rust projects install the rust skill conditionally

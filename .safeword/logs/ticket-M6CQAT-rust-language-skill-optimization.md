@@ -182,3 +182,14 @@ created: 2026-06-25T05:41:08Z
 - Final verification for this slice: Rust experiment suite passed 51 tests,
   experiment typecheck passed, targeted Prettier passed, and package-level
   `run:matrix` and `compare:matrix` smokes passed.
+- Added the Rust optimizer loop scaffold. RED: optimizer tests failed because
+  `../src/optimize` did not exist. GREEN: `src/optimize.ts` now loads failed run
+  artifacts, sends sanitized feedback plus base skill text to an injectable
+  mutation adapter, writes proposed candidate skills, runs the existing Rust
+  candidate review gate, persists rejected proposals for audit, and writes a
+  skip report when no failed artifacts are available. Added the package-level
+  `optimize:skill` fake-adapter entrypoint.
+- Final verification for this slice: targeted optimizer tests passed, Rust
+  experiment suite passed 56 tests, experiment typecheck passed, and a
+  package-level `optimize:skill -- --fake-adapter` smoke produced an accepted
+  candidate from a failed live artifact.
