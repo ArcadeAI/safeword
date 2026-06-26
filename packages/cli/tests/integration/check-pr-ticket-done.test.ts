@@ -44,7 +44,7 @@ function writeTicket(
 function runGuard(
   projectDirectory: string,
   changedFiles: string[],
-): { exitCode: number; stderr: string } {
+): { exitCode: number; stderr: string; stdout: string } {
   const changedFilesPath = nodePath.join(projectDirectory, 'changed-files.txt');
   writeFileSync(changedFilesPath, `${changedFiles.join('\n')}\n`);
 
@@ -54,7 +54,7 @@ function runGuard(
     timeout: 10_000,
   });
 
-  return { exitCode: result.status ?? -1, stderr: result.stderr };
+  return { exitCode: result.status ?? -1, stderr: result.stderr, stdout: result.stdout };
 }
 
 describe('scripts/check-pr-ticket-done.ts', () => {
@@ -96,14 +96,26 @@ describe('scripts/check-pr-ticket-done.ts', () => {
     writeTicket(projectDirectory, 'ABC123-demo', { status: 'in_progress', phase: 'implement' });
 
     const { exitCode } = runGuard(projectDirectory, [
-      '.project/tickets/ABC123-demo/verify.md',
+      '.project/tickets/ABC123-demo/impl-plan.md',
       '.project/tickets/ABC123-demo/test-definitions.md',
     ]);
 
     expect(exitCode).toBe(0);
   });
 
-  it('exits non-zero when a changed active ticket is still in progress', () => {
+  it('warns but exits 0 when a changed active ticket is still in progress', () => {
+    writeTicket(projectDirectory, 'ABC123-demo', { status: 'in_progress', phase: 'implement' });
+
+    const { exitCode, stdout } = runGuard(projectDirectory, [
+      '.project/tickets/ABC123-demo/ticket.md',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('::warning');
+    expect(stdout).toContain('status: in_progress');
+  });
+
+  it('exits non-zero when a changed active ticket enters done phase without closing', () => {
     writeTicket(projectDirectory, 'ABC123-demo', { status: 'in_progress', phase: 'done' });
 
     const { exitCode, stderr } = runGuard(projectDirectory, [
@@ -112,7 +124,92 @@ describe('scripts/check-pr-ticket-done.ts', () => {
 
     expect(exitCode).toBe(1);
     expect(stderr).toContain('ABC123-demo/ticket.md');
-    expect(stderr).toContain('status: in_progress');
+    expect(stderr).toContain('phase: done');
+  });
+
+  it('exits non-zero when verify evidence changed but the ticket is still in progress', () => {
+    writeTicket(projectDirectory, 'ABC123-demo', { status: 'in_progress', phase: 'verify' });
+
+    const { exitCode, stderr } = runGuard(projectDirectory, [
+      '.project/tickets/ABC123-demo/verify.md',
+    ]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('ABC123-demo/ticket.md');
+    expect(stderr).toContain('verify.md changed');
+  });
+
+  it('warns but exits 0 for terminal non-done statuses', () => {
+    writeTicket(projectDirectory, 'ABC123-demo', { status: 'cancelled', phase: 'implement' });
+
+    const { exitCode, stdout } = runGuard(projectDirectory, [
+      '.project/tickets/ABC123-demo/ticket.md',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('::warning');
+    expect(stdout).toContain('status: cancelled');
+  });
+
+  it('warns but exits 0 for blocked ticket notes', () => {
+    writeTicket(projectDirectory, 'ABC123-demo', { status: 'blocked', phase: 'implement' });
+
+    const { exitCode, stdout } = runGuard(projectDirectory, [
+      '.project/tickets/ABC123-demo/ticket.md',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('::warning');
+    expect(stdout).toContain('status: blocked');
+  });
+
+  it('warns but exits 0 for open epic updates', () => {
+    writeTicket(projectDirectory, 'ABC123-demo', { status: 'open' });
+
+    const { exitCode, stdout } = runGuard(projectDirectory, [
+      '.project/tickets/ABC123-demo/ticket.md',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('::warning');
+    expect(stdout).toContain('status: open');
+  });
+
+  it('warns but exits 0 when done_when boxes are all checked but no close evidence changed', () => {
+    writeTicket(projectDirectory, 'ABC123-demo', { status: 'in_progress', phase: 'implement' });
+
+    const ticketPath = nodePath.join(
+      projectDirectory,
+      '.project',
+      'tickets',
+      'ABC123-demo',
+      'ticket.md',
+    );
+    writeFileSync(
+      ticketPath,
+      [
+        '---',
+        'id: TICKET',
+        'type: task',
+        'status: in_progress',
+        'phase: implement',
+        '---',
+        '',
+        '# Test',
+        '',
+        '- [x] One',
+        '- [x] Two',
+        '',
+      ].join('\n'),
+    );
+
+    const { exitCode, stdout } = runGuard(projectDirectory, [
+      '.project/tickets/ABC123-demo/ticket.md',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('::warning');
+    expect(stdout).toContain('status: in_progress');
   });
 
   it('exits non-zero when a changed active ticket.md is missing', () => {
