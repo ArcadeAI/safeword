@@ -179,18 +179,7 @@ export async function runRustOptimizerCli(
 
   try {
     const options = parseArgs(argv, cwd);
-    const adapter =
-      deps.adapter ??
-      (options.fakeAdapter
-        ? fakeCliAdapter(options.candidateId)
-        : options.provider
-          ? createRustModelMutationAdapter(options.provider, {
-              env: deps.env,
-              fetch: deps.fetch,
-              maxTokens: options.maxTokens,
-              model: options.model,
-            })
-          : undefined);
+    const adapter = createCliMutationAdapter(options, deps);
     if (!adapter) {
       throw new Error('--fake-adapter or --provider openai|anthropic is required');
     }
@@ -212,6 +201,21 @@ export async function runRustOptimizerCli(
     stderr(error instanceof Error ? error.message : String(error));
     return 1;
   }
+}
+
+function createCliMutationAdapter(
+  options: RustOptimizerCliOptions,
+  deps: RustOptimizerCliDeps,
+): RustSkillMutationAdapter | undefined {
+  if (deps.adapter) return deps.adapter;
+  if (options.fakeAdapter) return fakeCliAdapter(options.candidateId);
+  if (!options.provider) return undefined;
+  return createRustModelMutationAdapter(options.provider, {
+    env: deps.env,
+    fetch: deps.fetch,
+    maxTokens: options.maxTokens,
+    model: options.model,
+  });
 }
 
 function failedRunFeedback(artifacts: RustRunArtifact[]): RustFailedRunFeedback[] {
