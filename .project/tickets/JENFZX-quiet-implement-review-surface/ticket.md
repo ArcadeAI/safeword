@@ -5,7 +5,9 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-06-26T05:31:52.143Z
-last_modified: 2026-06-26T06:20:23Z
+last_modified: 2026-06-26T07:28:36Z
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/471
 relates_to:
   - SXSCJQ
   - W610WW
@@ -55,6 +57,7 @@ Quiet implementation is a visibility policy, not a rigor reduction:
 
 ## Work Log
 
+- 2026-06-26T07:28:36Z PR update: Fixed release-gate dogfood parity drift by syncing prettier-wrapped dogfood hook signatures to their canonical templates. `/quality-review` approved with no blocking issues; `bun audit --json` still reports existing unrelated low/moderate advisories and TypeScript has a newer major, neither introduced by this PR. `/refactor` scout found one stale `quality-gates.test.ts` header comment and cleaned it. Verification: `bun run --cwd packages/cli test:release` pass; focused hook tests 30/30 pass; `quality-gates.test.ts` 77/77 pass; `bun run --cwd packages/cli typecheck` pass; `bun run lint:eslint` pass; `bun run lint:gherkin` pass; `git diff --check` pass.
 - 2026-06-26T06:20:23Z Refactor pass: removed obsolete implement-step review dedup infrastructure after quiet mode made it dead code. Deleted `selectMostAdvancedStep`, `shouldReviewStep`, `lastReviewedStep`, stale step-dedup tests, and old comments in template + dogfood hook copies while keeping phase-review dedup intact. Scoped audit found one stale test label; renamed it and reran affected tests. Verification: affected tests 30/30 pass; broader hook matrix 156/156 pass; audit follow-up tests 12/12 pass; `bun run --cwd packages/cli typecheck` pass; `bun run lint:eslint` pass; `bun run lint:gherkin` pass; `git diff --check` pass. Commit deferred because this worktree is detached and contains the mixed #464 feature diff plus ticket artifacts.
 - 2026-06-26T06:14:05Z Quality-review pass: found and fixed a real Cursor wiring gap. The first Cursor Stop test pre-seeded `quality-state-cursor-*`, but production Cursor PostToolUse was spawning the shared hook without `SAFEWORD_AGENT_RUNTIME=cursor` and passing the full gate result object where stdout was expected, so the Stop hook could miss the active implement ticket. Fixed Cursor adapters to write/read the Cursor-scoped state key, corrected post-tool stdout handling, and changed the regression test to bind the ticket through the real Cursor PostToolUse adapter before Stop. Verification: 16 focused hook/test files pass (253 tests); `bun run --cwd packages/cli typecheck` pass; `bun run lint:eslint` pass; `bun run lint:gherkin` pass; `git diff --check` pass. `bun audit --json` still reports existing low/moderate dependency advisories unrelated to this diff; no package manifests or lockfiles changed.
 - 2026-06-26T05:54:00.000Z Implemented + verified locally: suppressed ordinary implement-step review surfacing in Claude PostToolUse, Claude Stop backstop, and Cursor Stop while preserving phase reviews, typecheck advice, hard gates, and non-implement Cursor follow-ups. Updated TDD/Bdd guidance across Claude/Codex/Cursor mirrors. Tests: focused hook/parity suite 101/101 pass; Cursor stop regression 2/2 pass; `bun run --cwd packages/cli typecheck` pass; `bun run lint:eslint` pass; `bun run lint:gherkin` pass. Not marked done pending user confirmation.
