@@ -1,0 +1,15 @@
+{
+  "name": "@safeword-experiments/gepa-language-skills-rust",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Rust language-skill optimization experiment scaffold",
+  "comment": "Intentionally NOT a workspace member — kept self-contained so the experiment adds no shared deps. Tests reuse the vitest already installed in packages/cli.",
+  "scripts": {
+    "compare:matrix": "bun src/report.ts",
+    "run:matrix": "bun src/matrix.ts",
+    "run:pilot": "bun src/cli.ts",
+    "test": "../../../packages/cli/node_modules/.bin/vitest run",
+    "typecheck": "../../../packages/cli/node_modules/.bin/tsc --noEmit -p tsconfig.json"
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "tasks": [
+    {
+      "id": "fd-cli-filesystem-bugfix",
+      "repository": {
+        "id": "sharkdp/fd",
+        "url": "https://github.com/sharkdp/fd",
+        "ref": "3b3e328b5c15b019d25692e8686aafd9f9b69282"
+      },
+      "split": "train",
+      "prompt": "Fix a CLI filesystem traversal regression while preserving public command semantics and existing tests.",
+      "sandbox": {
+        "runner": {
+          "kind": "docker",
+          "image": "rust:1.96@sha256:6df234c1eb92b0545468fab8c18fc5f9adfb994e7d4f67d81d45fe2fcabf5657"
+        },
+        "timeoutSeconds": 900,
+        "resources": { "cpus": 2, "memoryMb": 4096 },
+        "network": "prefetch-only",
+        "mounts": [
+          { "purpose": "repo", "target": "/workspace/repo", "mode": "ro" },
+          { "purpose": "scratch", "target": "/workspace/scratch", "mode": "rw" }
+        ],
+        "allowDockerSocket": false,
+        "privileged": false,
+        "userIsolation": "non-root"
+      },
+      "commands": ["cargo test --locked"],
+      "oracle": { "kind": "cargo-test", "command": "cargo test --locked" }
+    },
+    {
+      "id": "clap-parser-ergonomics-bugfix",
+      "repository": {
+        "id": "clap-rs/clap",
+        "url": "https://github.com/clap-rs/clap",
+        "ref": "8387c812c4b9726474b8407f81ec97f0acf570ed"
+      },
+      "split": "train",
+      "prompt": "Fix an argument parsing behavior regression without weakening derive or builder API compatibility.",
+      "sandbox": {
+        "runner": {
+          "kind": "docker",
+          "image": "rust:1.96@sha256:6df234c1eb92b0545468fab8c18fc5f9adfb994e7d4f67d81d45fe2fcabf5657"
+        },
+        "timeoutSeconds": 900,
+        "resources": { "cpus": 2, "memoryMb": 4096 },
+        "network": "prefetch-only",
+        "mounts": [
+          { "purpose": "repo", "target": "/workspace/repo", "mode": "ro" },
+          { "purpose": "scratch", "target": "/workspace/scratch", "mode": "rw" }
+        ],
+        "allowDockerSocket": false,
+        "privileged": false,
+        "userIsolation": "non-root"
+      },
+      "commands": ["cargo test --workspace --locked"],
+      "oracle": { "kind": "cargo-test", "command": "cargo test --workspace --locked" }
+    },
+    {
+      "id": "tokio-async-runtime-bugfix",
+      "repository": {
+        "id": "tokio-rs/tokio",
+        "url": "https://github.com/tokio-rs/tokio",
+        "ref": "8f37021c169cc02aeb6918c0cda99cb362268969"
+      },
+      "split": "train",
+      "prompt": "Fix an async runtime edge case while preserving cancellation and scheduling behavior.",
+      "sandbox": {
+        "runner": {
+          "kind": "docker",
+          "image": "rust:1.96@sha256:6df234c1eb92b0545468fab8c18fc5f9adfb994e7d4f67d81d45fe2fcabf5657"
+        },
+        "timeoutSeconds": 900,
+        "resources": { "cpus": 2, "memoryMb": 4096 },
+        "network": "prefetch-only",
+        "mounts": [
+          { "purpose": "repo", "target": "/workspace/repo", "mode": "ro" },
+          { "purpose": "scratch", "target": "/workspace/scratch", "mode": "rw" }
+        ],
+        "allowDockerSocket": false,
+        "privileged": false,
+        "userIsolation": "non-root"
+      },
+      "commands": ["cargo test --workspace --offline"],
+      "oracle": { "kind": "cargo-test", "command": "cargo test --workspace --offline" }
+    },
+    {
+      "id": "ripgrep-search-correctness-bugfix",
+      "repository": {
+        "id": "BurntSushi/ripgrep",
+        "url": "https://github.com/BurntSushi/ripgrep",
+        "ref": "dfe4a81d2591daca76d25ae4e052c34b26578155"
+      },
+      "split": "validation",
+      "prompt": "Fix a search correctness regression while keeping performance-sensitive behavior intact.",
+      "sandbox": {
+        "runner": {
+          "kind": "docker",
+          "image": "rust:1.96@sha256:6df234c1eb92b0545468fab8c18fc5f9adfb994e7d4f67d81d45fe2fcabf5657"
+        },
+        "timeoutSeconds": 900,
+        "resources": { "cpus": 2, "memoryMb": 4096 },
+        "network": "prefetch-only",
+        "mounts": [
+          { "purpose": "repo", "target": "/workspace/repo", "mode": "ro" },
+          { "purpose": "scratch", "target": "/workspace/scratch", "mode": "rw" }
+        ],
+        "allowDockerSocket": false,
+        "privileged": false,
+        "userIsolation": "non-root"
+      },
+      "commands": ["cargo test --locked"],
+      "oracle": { "kind": "cargo-test", "command": "cargo test --locked" }
+    },
+    {
+      "id": "rustls-security-api-bugfix",
+      "repository": {
+        "id": "rustls/rustls",
+        "url": "https://github.com/rustls/rustls",
+        "ref": "aa6af0ad30d0e3c81951e6560efea01dadeb589d"
+      },
+      "split": "validation",
+      "prompt": "Fix a TLS API behavior regression without weakening security invariants or compatibility.",
+      "sandbox": {
+        "runner": {
+          "kind": "docker",
+          "image": "rust:1.96@sha256:6df234c1eb92b0545468fab8c18fc5f9adfb994e7d4f67d81d45fe2fcabf5657"
+        },
+        "timeoutSeconds": 900,
+        "resources": { "cpus": 2, "memoryMb": 4096 },
+        "network": "prefetch-only",
+        "mounts": [
+          { "purpose": "repo", "target": "/workspace/repo", "mode": "ro" },
+          { "purpose": "scratch", "target": "/workspace/scratch", "mode": "rw" }
+        ],
+        "allowDockerSocket": false,
+        "privileged": false,
+        "userIsolation": "non-root"
+      },
+      "commands": ["cargo test -p rustls --locked"],
+      "oracle": { "kind": "cargo-test", "command": "cargo test -p rustls --locked" }
+    },
+    {
+      "id": "cargo-package-manager-bugfix",
+      "repository": {
+        "id": "rust-lang/cargo",
+        "url": "https://github.com/rust-lang/cargo",
+        "ref": "a4277b2e9dc9f886746b2935243bb805a87fe534"
+      },
+      "split": "heldout",
+      "prompt": "Fix a Cargo package-manager behavior regression while preserving workspace and lockfile semantics.",
+      "sandbox": {
+        "runner": {
+          "kind": "docker",
+          "image": "rust:1.96@sha256:6df234c1eb92b0545468fab8c18fc5f9adfb994e7d4f67d81d45fe2fcabf5657"
+        },
+        "timeoutSeconds": 900,
+        "resources": { "cpus": 2, "memoryMb": 4096 },
+        "network": "prefetch-only",
+        "mounts": [
+          { "purpose": "repo", "target": "/workspace/repo", "mode": "ro" },
+          { "purpose": "scratch", "target": "/workspace/scratch", "mode": "rw" }
+        ],
+        "allowDockerSocket": false,
+        "privileged": false,
+        "userIsolation": "non-root"
+      },
+      "commands": ["cargo test -p cargo --lib --locked"],
+      "oracle": { "kind": "cargo-test", "command": "cargo test -p cargo --lib --locked" }
+    },
+    {
+      "id": "rust-analyzer-lsp-analysis-bugfix",
+      "repository": {
+        "id": "rust-lang/rust-analyzer",
+        "url": "https://github.com/rust-lang/rust-analyzer",
+        "ref": "3f41d0b249859a974ca165cc39184948f07b1d81"
+      },
+      "split": "heldout",
+      "prompt": "Fix an IDE analysis regression while preserving incremental semantic behavior and diagnostics quality.",
+      "sandbox": {
+        "runner": {
+          "kind": "docker",
+          "image": "rust:1.96@sha256:6df234c1eb92b0545468fab8c18fc5f9adfb994e7d4f67d81d45fe2fcabf5657"
+        },
+        "timeoutSeconds": 900,
+        "resources": { "cpus": 2, "memoryMb": 4096 },
+        "network": "prefetch-only",
+        "mounts": [
+          { "purpose": "repo", "target": "/workspace/repo", "mode": "ro" },
+          { "purpose": "scratch", "target": "/workspace/scratch", "mode": "rw" }
+        ],
+        "allowDockerSocket": false,
+        "privileged": false,
+        "userIsolation": "non-root"
+      },
+      "commands": ["cargo test -p ide -p hir -p hir-def -p hir-ty --locked"],
+      "oracle": {
+        "kind": "cargo-test",
+        "command": "cargo test -p ide -p hir -p hir-def -p hir-ty --locked"
+      }
+    }
+  ]
+}
