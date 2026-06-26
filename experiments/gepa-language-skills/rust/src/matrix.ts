@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { reviewRustCandidateSkill, summarizeRustCandidateSkill } from './candidate';
+import { parseNumericFlag, parseRustModelFamily, resolveCliPath } from './cli-utils';
 import { loadRustTaskManifest, type RustTask } from './dataset';
 import { buildRustSandboxRunPlan } from './executor';
 import type { RustModelFamily, RustSecondaryMetrics } from './evaluator';
@@ -121,10 +122,10 @@ function parseArgs(argv: string[], cwd: string): RustMatrixCliOptions {
     mode: 'dry-run',
     manifest: defaultManifestPath,
     taskIds: [],
-    patchDir: resolvePath(cwd, 'patches/rust-human-seed'),
-    runRoot: resolvePath(cwd, `${tmpdir()}/safeword-rust-runs`),
+    patchDir: resolveCliPath(cwd, 'patches/rust-human-seed'),
+    runRoot: resolveCliPath(cwd, `${tmpdir()}/safeword-rust-runs`),
     runPrefix: `matrix-${randomUUID()}`,
-    artifact: resolvePath(cwd, 'artifacts/rust-matrix.jsonl'),
+    artifact: resolveCliPath(cwd, 'artifacts/rust-matrix.jsonl'),
     modelFamily: 'gpt-codex',
     candidateSkillId: 'human-seed-rust',
     candidateSkillFile: defaultHumanSeedSkillPath,
@@ -160,31 +161,31 @@ function parseArgs(argv: string[], cwd: string): RustMatrixCliOptions {
 
     switch (arg) {
       case '--manifest':
-        options.manifest = resolvePath(cwd, value);
+        options.manifest = resolveCliPath(cwd, value);
         break;
       case '--task-id':
         options.taskIds.push(value);
         break;
       case '--patch-dir':
-        options.patchDir = resolvePath(cwd, value);
+        options.patchDir = resolveCliPath(cwd, value);
         break;
       case '--run-root':
-        options.runRoot = resolvePath(cwd, value);
+        options.runRoot = resolveCliPath(cwd, value);
         break;
       case '--run-prefix':
         options.runPrefix = value;
         break;
       case '--artifact':
-        options.artifact = resolvePath(cwd, value);
+        options.artifact = resolveCliPath(cwd, value);
         break;
       case '--model-family':
-        options.modelFamily = parseModelFamily(value);
+        options.modelFamily = parseRustModelFamily(value);
         break;
       case '--candidate-skill-id':
         options.candidateSkillId = value;
         break;
       case '--candidate-skill-file':
-        options.candidateSkillFile = resolvePath(cwd, value);
+        options.candidateSkillFile = resolveCliPath(cwd, value);
         break;
       case '--agent-trace':
         options.agentTrace = value;
@@ -193,16 +194,16 @@ function parseArgs(argv: string[], cwd: string): RustMatrixCliOptions {
         options.patchSummary = value;
         break;
       case '--diff-lines':
-        options.secondaryMetrics.diffLines = parseNumber(arg, value);
+        options.secondaryMetrics.diffLines = parseNumericFlag(arg, value);
         break;
       case '--duration-ms':
-        options.secondaryMetrics.durationMs = parseNumber(arg, value);
+        options.secondaryMetrics.durationMs = parseNumericFlag(arg, value);
         break;
       case '--lint-warnings':
-        options.secondaryMetrics.lintWarnings = parseNumber(arg, value);
+        options.secondaryMetrics.lintWarnings = parseNumericFlag(arg, value);
         break;
       case '--test-quality':
-        options.secondaryMetrics.testQuality = parseNumber(arg, value);
+        options.secondaryMetrics.testQuality = parseNumericFlag(arg, value);
         break;
       default:
         throw new Error(`unknown argument: ${arg}`);
@@ -267,23 +268,6 @@ function looksLikeUnifiedDiff(text: string): boolean {
 
 function patchFileForTask(patchDir: string, taskId: string): string {
   return join(patchDir, `${taskId}.patch`);
-}
-
-function parseModelFamily(value: string): RustModelFamily {
-  if (value === 'claude-opus' || value === 'gpt-codex') return value;
-  throw new Error(`--model-family must be claude-opus or gpt-codex, got: ${value}`);
-}
-
-function parseNumber(flag: string, value: string): number {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${flag} must be numeric`);
-  }
-  return parsed;
-}
-
-function resolvePath(cwd: string, path: string): string {
-  return isAbsolute(path) ? path : resolve(cwd, path);
 }
 
 function helpText(): string {

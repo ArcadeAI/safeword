@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { reviewRustCandidateSkill, summarizeRustCandidateSkill } from './candidate';
+import { parseNumericFlag, parseRustModelFamily, resolveCliPath } from './cli-utils';
 import { loadRustTaskManifest } from './dataset';
 import { buildRustSandboxRunPlan } from './executor';
 import type { RustModelFamily, RustSecondaryMetrics } from './evaluator';
@@ -119,8 +119,8 @@ function parseArgs(argv: string[], cwd: string): RustExperimentCliOptions {
   const options: RustExperimentCliOptions = {
     mode: 'dry-run',
     manifest: defaultManifestPath,
-    runRoot: resolvePath(cwd, `${tmpdir()}/safeword-rust-runs`),
-    artifact: resolvePath(cwd, 'artifacts/rust-runs.jsonl'),
+    runRoot: resolveCliPath(cwd, `${tmpdir()}/safeword-rust-runs`),
+    artifact: resolveCliPath(cwd, 'artifacts/rust-runs.jsonl'),
     modelFamily: 'gpt-codex',
     candidateSkillId: 'no-skill',
     agentTrace: 'No agent trace supplied.',
@@ -155,31 +155,31 @@ function parseArgs(argv: string[], cwd: string): RustExperimentCliOptions {
 
     switch (arg) {
       case '--manifest':
-        options.manifest = resolvePath(cwd, value);
+        options.manifest = resolveCliPath(cwd, value);
         break;
       case '--task-id':
         options.taskId = value;
         break;
       case '--patch-file':
-        options.patchFile = resolvePath(cwd, value);
+        options.patchFile = resolveCliPath(cwd, value);
         break;
       case '--run-root':
-        options.runRoot = resolvePath(cwd, value);
+        options.runRoot = resolveCliPath(cwd, value);
         break;
       case '--run-id':
         options.runId = value;
         break;
       case '--artifact':
-        options.artifact = resolvePath(cwd, value);
+        options.artifact = resolveCliPath(cwd, value);
         break;
       case '--model-family':
-        options.modelFamily = parseModelFamily(value);
+        options.modelFamily = parseRustModelFamily(value);
         break;
       case '--candidate-skill-id':
         options.candidateSkillId = value;
         break;
       case '--candidate-skill-file':
-        options.candidateSkillFile = resolvePath(cwd, value);
+        options.candidateSkillFile = resolveCliPath(cwd, value);
         break;
       case '--agent-trace':
         options.agentTrace = value;
@@ -188,16 +188,16 @@ function parseArgs(argv: string[], cwd: string): RustExperimentCliOptions {
         options.patchSummary = value;
         break;
       case '--diff-lines':
-        options.secondaryMetrics.diffLines = parseNumber(arg, value);
+        options.secondaryMetrics.diffLines = parseNumericFlag(arg, value);
         break;
       case '--duration-ms':
-        options.secondaryMetrics.durationMs = parseNumber(arg, value);
+        options.secondaryMetrics.durationMs = parseNumericFlag(arg, value);
         break;
       case '--lint-warnings':
-        options.secondaryMetrics.lintWarnings = parseNumber(arg, value);
+        options.secondaryMetrics.lintWarnings = parseNumericFlag(arg, value);
         break;
       case '--test-quality':
-        options.secondaryMetrics.testQuality = parseNumber(arg, value);
+        options.secondaryMetrics.testQuality = parseNumericFlag(arg, value);
         break;
       default:
         throw new Error(`unknown argument: ${arg}`);
@@ -205,23 +205,6 @@ function parseArgs(argv: string[], cwd: string): RustExperimentCliOptions {
   }
 
   return options;
-}
-
-function parseModelFamily(value: string): RustModelFamily {
-  if (value === 'claude-opus' || value === 'gpt-codex') return value;
-  throw new Error(`--model-family must be claude-opus or gpt-codex, got: ${value}`);
-}
-
-function parseNumber(flag: string, value: string): number {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${flag} must be numeric`);
-  }
-  return parsed;
-}
-
-function resolvePath(cwd: string, path: string): string {
-  return isAbsolute(path) ? path : resolve(cwd, path);
 }
 
 function helpText(): string {

@@ -1,7 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { parseRustModelFamily, resolveCliPath } from './cli-utils';
 import type { RustModelFamily, RustTaskEvaluation } from './evaluator';
 import type { RustRunArtifact } from './runner';
 import {
@@ -227,16 +228,16 @@ function parseArgs(argv: string[], cwd: string): RustReportCliOptions {
 
     switch (arg) {
       case '--baseline':
-        options.baselinePath = resolvePath(cwd, value);
+        options.baselinePath = resolveCliPath(cwd, value);
         break;
       case '--candidate':
-        options.candidatePath = resolvePath(cwd, value);
+        options.candidatePath = resolveCliPath(cwd, value);
         break;
       case '--output':
-        options.outputPath = resolvePath(cwd, value);
+        options.outputPath = resolveCliPath(cwd, value);
         break;
       case '--model-family':
-        options.modelFamilies.push(parseModelFamily(value));
+        options.modelFamilies.push(parseRustModelFamily(value));
         break;
       default:
         throw new Error(`unknown argument: ${arg}`);
@@ -251,15 +252,6 @@ function parseArgs(argv: string[], cwd: string): RustReportCliOptions {
   }
 
   return options as RustReportCliOptions;
-}
-
-function parseModelFamily(value: string): RustModelFamily {
-  if (value === 'claude-opus' || value === 'gpt-codex') return value;
-  throw new Error(`--model-family must be claude-opus or gpt-codex, got: ${value}`);
-}
-
-function resolvePath(cwd: string, path: string): string {
-  return isAbsolute(path) ? path : resolve(cwd, path);
 }
 
 function roundScore(value: number): number {
