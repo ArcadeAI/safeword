@@ -36,6 +36,14 @@ export function parseNumericFlag(flag: string, value: string): number {
   return parsed;
 }
 
+export function requiredFlagValue(argv: string[], index: number, flag: string): string {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
+}
+
 export function resolveCliPath(cwd: string, path: string): string {
   return isAbsolute(path) ? path : resolve(cwd, path);
 }

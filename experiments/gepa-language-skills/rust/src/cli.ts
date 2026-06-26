@@ -8,6 +8,7 @@ import {
   emptyRustSecondaryMetrics,
   parseNumericFlag,
   parseRustModelFamily,
+  requiredFlagValue,
   resolveCliPath,
 } from './cli-utils';
 import { loadRustTaskManifest } from './dataset';
@@ -143,10 +144,7 @@ function parseArgs(argv: string[], cwd: string): RustExperimentCliOptions {
       throw new Error(helpText());
     }
 
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`${arg} requires a value`);
-    }
+    const value = requiredFlagValue(argv, index, arg);
     index += 1;
 
     switch (arg) {

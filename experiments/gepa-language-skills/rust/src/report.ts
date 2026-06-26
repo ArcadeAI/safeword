@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { parseRustModelFamily, resolveCliPath } from './cli-utils';
+import { parseRustModelFamily, requiredFlagValue, resolveCliPath } from './cli-utils';
 import type { RustModelFamily, RustTaskEvaluation } from './evaluator';
 import type { RustRunArtifact } from './runner';
 import { rustScoreGroupKey } from './score-key';
@@ -221,10 +221,7 @@ function parseArgs(argv: string[], cwd: string): RustReportCliOptions {
       throw new Error(helpText());
     }
 
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`${arg} requires a value`);
-    }
+    const value = requiredFlagValue(argv, index, arg);
     index += 1;
 
     switch (arg) {
