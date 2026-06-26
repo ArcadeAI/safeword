@@ -718,11 +718,17 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/llm-writing-guide.md': {
       template: 'guides/llm-writing-guide.md',
     },
+    '.safeword/guides/llm-evals-guide.md': {
+      template: 'guides/llm-evals-guide.md',
+    },
     '.safeword/guides/planning-guide.md': {
       template: 'guides/planning-guide.md',
     },
     '.safeword/guides/testing-guide.md': {
       template: 'guides/testing-guide.md',
+    },
+    '.safeword/guides/verification-lanes-guide.md': {
+      template: 'guides/verification-lanes-guide.md',
     },
     '.safeword/guides/zombie-process-cleanup.md': {
       template: 'guides/zombie-process-cleanup.md',
