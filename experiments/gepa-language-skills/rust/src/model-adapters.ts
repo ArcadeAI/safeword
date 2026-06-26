@@ -3,6 +3,11 @@ import type {
   RustSkillMutationProposal,
   RustSkillMutationRequest,
 } from './optimize';
+import type {
+  RustPatchAgentAdapter,
+  RustPatchAgentRequest,
+  RustPatchProposal,
+} from './patch-generator';
 
 export type RustOptimizerProvider = 'anthropic' | 'openai';
 export type RustProviderFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -40,6 +45,25 @@ const RUST_SKILL_CANDIDATE_SCHEMA = {
   },
 };
 
+const RUST_PATCH_PROPOSAL_CONTRACT = [
+  'You write small Rust code patches for coding-agent tasks.',
+  'Return only a JSON object with string fields patch, summary, and trace.',
+  'The patch field must be a unified diff that can be applied with git apply.',
+  'Use the candidate Rust skill as guidance, but write only task-relevant code changes.',
+  'Do not include split names, artifact paths, hidden harness details, or local experiment paths.',
+].join('\n');
+
+const RUST_PATCH_PROPOSAL_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['patch', 'summary', 'trace'],
+  properties: {
+    patch: { type: 'string' },
+    summary: { type: 'string' },
+    trace: { type: 'string' },
+  },
+};
+
 export function createRustModelMutationAdapter(
   provider: RustOptimizerProvider,
   options: RustModelMutationAdapterOptions = {},
@@ -52,6 +76,22 @@ export function createRustModelMutationAdapter(
     default: {
       const exhaustive: never = provider;
       throw new Error(`unsupported Rust optimizer provider: ${exhaustive}`);
+    }
+  }
+}
+
+export function createRustModelPatchAgentAdapter(
+  provider: RustOptimizerProvider,
+  options: RustModelMutationAdapterOptions = {},
+): RustPatchAgentAdapter {
+  switch (provider) {
+    case 'anthropic':
+      return createAnthropicRustPatchAgentAdapter(options);
+    case 'openai':
+      return createOpenAIRustPatchAgentAdapter(options);
+    default: {
+      const exhaustive: never = provider;
+      throw new Error(`unsupported Rust patch provider: ${exhaustive}`);
     }
   }
 }
@@ -94,6 +134,44 @@ export function createOpenAIRustSkillMutationAdapter(
   };
 }
 
+export function createOpenAIRustPatchAgentAdapter(
+  options: RustModelMutationAdapterOptions = {},
+): RustPatchAgentAdapter {
+  const apiKey = requiredApiKey('OPENAI_API_KEY', options);
+  const fetchImpl = resolveFetch(options.fetch);
+  const model = options.model ?? OPENAI_DEFAULT_MODEL;
+  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+
+  return {
+    generatePatch: async request => {
+      const response = await fetchImpl(OPENAI_API_URL, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          instructions: RUST_PATCH_PROPOSAL_CONTRACT,
+          input: buildRustPatchProposalPrompt(request),
+          max_output_tokens: maxTokens,
+          store: false,
+          text: {
+            format: {
+              type: 'json_schema',
+              name: 'rust_patch_proposal',
+              strict: true,
+              schema: RUST_PATCH_PROPOSAL_SCHEMA,
+            },
+          },
+        }),
+      });
+
+      return parseProviderPatchProposal(response, 'OpenAI', extractOpenAIOutputText);
+    },
+  };
+}
+
 export function createAnthropicRustSkillMutationAdapter(
   options: RustModelMutationAdapterOptions = {},
 ): RustSkillMutationAdapter {
@@ -125,6 +203,41 @@ export function createAnthropicRustSkillMutationAdapter(
       });
 
       return parseProviderSkillProposal(response, 'Anthropic', extractAnthropicOutputText);
+    },
+  };
+}
+
+export function createAnthropicRustPatchAgentAdapter(
+  options: RustModelMutationAdapterOptions = {},
+): RustPatchAgentAdapter {
+  const apiKey = requiredApiKey('ANTHROPIC_API_KEY', options);
+  const fetchImpl = resolveFetch(options.fetch);
+  const model = options.model ?? ANTHROPIC_DEFAULT_MODEL;
+  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+
+  return {
+    generatePatch: async request => {
+      const response = await fetchImpl(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: {
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          system: RUST_PATCH_PROPOSAL_CONTRACT,
+          messages: [
+            {
+              role: 'user',
+              content: buildRustPatchProposalPrompt(request),
+            },
+          ],
+        }),
+      });
+
+      return parseProviderPatchProposal(response, 'Anthropic', extractAnthropicOutputText);
     },
   };
 }
@@ -163,6 +276,32 @@ export function buildRustSkillCandidatePrompt(request: RustSkillMutationRequest)
   ].join('\n');
 }
 
+export function buildRustPatchProposalPrompt(request: RustPatchAgentRequest): string {
+  const sanitize = sanitizePatchProviderText;
+  return [
+    'Create a Rust code patch for this task.',
+    '',
+    `Candidate skill id: ${sanitize(request.candidateSkill.id)}`,
+    `Candidate skill description: ${sanitize(request.candidateSkill.description)}`,
+    '',
+    'Candidate skill text:',
+    '```markdown',
+    sanitize(request.candidateSkill.text),
+    '```',
+    '',
+    'Task context:',
+    `Prompt: ${sanitize(request.task.prompt)}`,
+    `Repository URL: ${sanitize(request.task.repositoryUrl)}`,
+    `Checkout ref: ${sanitize(request.task.checkoutRef)}`,
+    'Allowed commands:',
+    ...request.task.allowedCommands.map(command => `- ${sanitize(command)}`),
+    `Required oracle: ${sanitize(request.task.oracleCommand)}`,
+    '',
+    'Return JSON with patch, summary, and trace.',
+    'The patch must be a unified diff only; keep explanations in summary and trace.',
+  ].join('\n');
+}
+
 function requiredApiKey(
   name: 'ANTHROPIC_API_KEY' | 'OPENAI_API_KEY',
   options: RustModelMutationAdapterOptions,
@@ -195,6 +334,15 @@ function sanitizeProviderText(value: string, request: RustSkillMutationRequest):
     .replace(/\bsourceArtifact\b/gi, '[artifact-field]');
 }
 
+function sanitizePatchProviderText(value: string): string {
+  return value
+    .replace(/\b(train|validation|heldout)\b/gi, '[split]')
+    .replace(/\b(GEPA|optimizer|mutation)\b/gi, '[evaluation-detail]')
+    .replace(/\bsourceArtifact\b/gi, '[artifact-field]')
+    .replace(/experiments\/gepa-language-skills\/rust\/?\S*/gi, '[local-experiment-path]')
+    .replace(/\/Users\/[^\s`)]+/g, '[local-path]');
+}
+
 function providerRedactionTokens(request: RustSkillMutationRequest): string[] {
   return [
     request.sourceArtifact,
@@ -224,6 +372,15 @@ async function parseProviderSkillProposal(
 ): Promise<RustSkillMutationProposal> {
   const payload = await readProviderJson(response, providerName);
   return parseRustSkillCandidateOutput(extractOutputText(payload));
+}
+
+async function parseProviderPatchProposal(
+  response: Response,
+  providerName: 'Anthropic' | 'OpenAI',
+  extractOutputText: (payload: unknown) => string,
+): Promise<RustPatchProposal> {
+  const payload = await readProviderJson(response, providerName);
+  return parseRustPatchProposalOutput(extractOutputText(payload));
 }
 
 function extractOpenAIOutputText(payload: unknown): string {
@@ -309,6 +466,39 @@ function parseRustSkillCandidateOutput(text: string): RustSkillMutationProposal 
   return {
     skillMarkdown: candidate.skillMarkdown,
     rationale: candidate.rationale,
+  };
+}
+
+function parseRustPatchProposalOutput(text: string): RustPatchProposal {
+  const normalized = stripJsonFence(text.trim());
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(normalized) as unknown;
+  } catch (error) {
+    throw new Error(
+      `provider returned invalid Rust patch JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('provider returned a non-object Rust patch proposal');
+  }
+  const candidate = parsed as { patch?: unknown; summary?: unknown; trace?: unknown };
+  if (typeof candidate.patch !== 'string' || candidate.patch.trim() === '') {
+    throw new Error('provider Rust patch proposal is missing patch');
+  }
+  if (typeof candidate.summary !== 'string' || candidate.summary.trim() === '') {
+    throw new Error('provider Rust patch proposal is missing summary');
+  }
+  if (typeof candidate.trace !== 'string' || candidate.trace.trim() === '') {
+    throw new Error('provider Rust patch proposal is missing trace');
+  }
+  return {
+    patch: candidate.patch,
+    summary: candidate.summary,
+    trace: candidate.trace,
   };
 }
 

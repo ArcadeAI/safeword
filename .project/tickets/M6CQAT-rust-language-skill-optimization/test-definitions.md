@@ -619,6 +619,14 @@ optimizer-only vocabulary, sandbox bypass guidance, and non-Rust guidance
       agent command string and still resolves explicit file/directory flags.
 - [x] REFACTOR 2026-06-26T03:32:45Z — no new abstraction needed; command
       execution continues through the existing runner adapter.
+- [x] RED 2026-06-26T03:43:58Z — provider-backed patch generation failed
+      because `generate:patches` rejected `--provider openai`.
+- [x] GREEN 2026-06-26T03:45:35Z — OpenAI provider patch generation now uses
+      the Responses API with structured JSON output, fake-fetch test coverage,
+      and the same reviewed candidate/matrix patch validation path.
+- [x] REFACTOR 2026-06-26T03:46:59Z — provider patch adapters share the
+      existing no-SDK provider module and keep `generate:patches` as the single
+      entrypoint for fake, command, and provider patch agents.
 
 Given a reviewed Rust candidate skill and one or more pilot tasks
 When the patch-generation runner invokes a patch agent adapter

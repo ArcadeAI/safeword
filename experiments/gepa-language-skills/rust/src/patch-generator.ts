@@ -14,6 +14,11 @@ import {
 } from './cli-utils';
 import { loadRustTaskManifest, selectRustTasks, type RustTask } from './dataset';
 import type { RustModelFamily } from './evaluator';
+import {
+  createRustModelPatchAgentAdapter,
+  type RustOptimizerProvider,
+  type RustProviderFetch,
+} from './model-adapters';
 import { rustPatchFileForTask, validateGeneratedRustPatch } from './patches';
 import type { RustCommandRunner } from './runner';
 
@@ -88,6 +93,8 @@ export interface RustPatchGeneratorCliDeps {
   stderr?: (line: string) => void;
   adapter?: RustPatchAgentAdapter;
   commandRunner?: RustCommandRunner;
+  env?: Record<string, string | undefined>;
+  fetch?: RustProviderFetch;
 }
 
 interface RustPatchGeneratorCliOptions {
@@ -103,6 +110,9 @@ interface RustPatchGeneratorCliOptions {
   agentArgs: string[];
   agentRequestDir: string;
   agentTimeoutSeconds?: number;
+  maxTokens?: number;
+  model?: string;
+  provider?: RustOptimizerProvider;
 }
 
 interface CommandRustPatchAgentAdapterOptions {
@@ -229,7 +239,7 @@ export async function runRustPatchGeneratorCli(
     const options = parseArgs(argv, cwd);
     const adapter = createCliPatchAgentAdapter(options, deps);
     if (!adapter) {
-      throw new Error('--fake-agent or --agent-command is required');
+      throw new Error('--fake-agent, --agent-command, or --provider openai|anthropic is required');
     }
 
     const result = await generateRustCandidatePatches({
@@ -261,6 +271,14 @@ function createCliPatchAgentAdapter(
 ): RustPatchAgentAdapter | undefined {
   if (deps.adapter) return deps.adapter;
   if (options.fakeAgent) return fakeCliPatchAgentAdapter();
+  if (options.provider) {
+    return createRustModelPatchAgentAdapter(options.provider, {
+      env: deps.env,
+      fetch: deps.fetch,
+      maxTokens: options.maxTokens,
+      model: options.model,
+    });
+  }
   if (!options.agentCommand) return undefined;
   return createCommandRustPatchAgentAdapter({
     command: options.agentCommand,
@@ -331,6 +349,15 @@ function parseArgs(argv: string[], cwd: string): RustPatchGeneratorCliOptions {
       case '--model-family':
         options.modelFamily = parseRustModelFamily(value);
         break;
+      case '--provider':
+        options.provider = parseProvider(value);
+        break;
+      case '--model':
+        options.model = value;
+        break;
+      case '--max-tokens':
+        options.maxTokens = parseNumericFlag(arg, value);
+        break;
       case '--candidate-skill-id':
         options.candidateSkillId = value;
         break;
@@ -355,6 +382,11 @@ function parseArgs(argv: string[], cwd: string): RustPatchGeneratorCliOptions {
   }
 
   return options;
+}
+
+function parseProvider(value: string): RustOptimizerProvider {
+  if (value === 'openai' || value === 'anthropic') return value;
+  throw new Error('--provider must be openai or anthropic');
 }
 
 function taskRequest(task: RustTask): RustPatchAgentTaskRequest {
@@ -407,7 +439,7 @@ function writeReport(path: string, result: RustPatchGenerationResult): void {
 
 function helpText(): string {
   return [
-    'Usage: bun src/patch-generator.ts [--task-id TASK...] [--patch-dir DIR] [--fake-agent|--agent-command CMD]',
+    'Usage: bun src/patch-generator.ts [--task-id TASK...] [--patch-dir DIR] [--fake-agent|--agent-command CMD|--provider openai|anthropic]',
     '',
     'Generates matrix-ready Rust patch files for a reviewed candidate skill.',
     'Patch files are named <task-id>.patch inside --patch-dir.',

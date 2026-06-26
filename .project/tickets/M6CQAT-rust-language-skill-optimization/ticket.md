@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T03:38:46Z
+last_modified: 2026-06-26T03:46:59Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -362,3 +362,12 @@ must preserve the whole-repository split.
   the matrix and patch-generator CLIs into the dataset module as
   `selectRustTasks`. Verification: Rust experiment suite passed 69 tests and
   experiment typecheck passed.
+- 2026-06-26T03:46:59Z Implement: Added provider-backed Rust patch generation
+  to `generate:patches`. The patch generator can now use `--provider
+  openai|anthropic` with optional `--model` and `--max-tokens`, reusing the
+  no-SDK provider fetch path and structured JSON output contract. Verification:
+  provider CLI test was RED first, then Rust experiment suite passed 70 tests,
+  experiment typecheck passed, targeted Prettier passed, `git diff --check`
+  passed, and fake-agent patch output still fed `run:matrix -- --dry-run`.
+  Live provider smoke was skipped because `OPENAI_API_KEY` and
+  `ANTHROPIC_API_KEY` are not present in the environment.

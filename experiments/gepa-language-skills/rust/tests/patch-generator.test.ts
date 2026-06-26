@@ -170,6 +170,88 @@ describe('runRustPatchGeneratorCli', () => {
     expect(existsSync(reportPath)).toBe(true);
   });
 
+  it('runs an OpenAI patch provider through the CLI entrypoint', async () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'safeword-rust-patch-generator-provider-'));
+    const patchDir = join(tempDir, 'patches');
+    const reportPath = join(tempDir, 'patch-report.json');
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+
+    const exitCode = await runRustPatchGeneratorCli(
+      [
+        '--manifest',
+        pilotManifestPath,
+        '--task-id',
+        'fd-cli-filesystem-bugfix',
+        '--patch-dir',
+        patchDir,
+        '--report',
+        reportPath,
+        '--candidate-skill-id',
+        'distilled-rust-ownership-v1',
+        '--candidate-skill-file',
+        distilledSkillPath,
+        '--model-family',
+        'gpt-codex',
+        '--provider',
+        'openai',
+        '--model',
+        'gpt-test-patch',
+        '--max-tokens',
+        '2048',
+      ],
+      {
+        env: { OPENAI_API_KEY: 'sk-test' },
+        fetch: async (url, init) => {
+          calls.push({ url: String(url), init });
+          return new Response(
+            JSON.stringify({
+              output_text: JSON.stringify({
+                patch: generatedPatch,
+                summary: 'Provider generated a Rust patch.',
+                trace: 'Provider applied the distilled Rust skill to task context.',
+              }),
+            }),
+            { status: 200 },
+          );
+        },
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(readFileSync(join(patchDir, 'fd-cli-filesystem-bugfix.patch'), 'utf8')).toBe(
+      generatedPatch,
+    );
+    expect(existsSync(reportPath)).toBe(true);
+    expect(calls[0].url).toBe('https://api.openai.com/v1/responses');
+    expect(calls[0].init.headers).toMatchObject({
+      authorization: 'Bearer sk-test',
+      'content-type': 'application/json',
+    });
+
+    const body = JSON.parse(String(calls[0].init.body)) as {
+      input: string;
+      instructions: string;
+      max_output_tokens: number;
+      model: string;
+      store: boolean;
+      text: { format: { name: string; type: string } };
+    };
+    expect(body.model).toBe('gpt-test-patch');
+    expect(body.max_output_tokens).toBe(2048);
+    expect(body.store).toBe(false);
+    expect(body.text.format).toMatchObject({
+      type: 'json_schema',
+      name: 'rust_patch_proposal',
+    });
+    expect(body.input).toContain('Resolving Borrow-Checker Errors');
+    expect(body.input).toContain('Fix a CLI filesystem traversal regression');
+    expect(body.input).toContain('https://github.com/sharkdp/fd');
+    expect(`${body.instructions}\n${body.input}`).not.toMatch(
+      /\b(train|validation|heldout|GEPA|optimizer|mutation|sourceArtifact|experiments\/gepa-language-skills|\/Users\/alex)\b/i,
+    );
+  });
+
   it('keeps bare agent commands PATH-resolvable', async () => {
     tempDir = mkdtempSync(join(tmpdir(), 'safeword-rust-patch-generator-command-'));
     const patchDir = join(tempDir, 'patches');
