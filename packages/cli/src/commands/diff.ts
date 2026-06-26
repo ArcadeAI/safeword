@@ -9,8 +9,9 @@ import nodePath from 'node:path';
 import { type Action, reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
-import { exists, readFileSafe } from '../utils/fs.js';
-import { error, header, info, listItem, success } from '../utils/output.js';
+import { exists, readFileSafe, readJson } from '../utils/fs.js';
+import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
 
 interface DiffOptions {
@@ -22,6 +23,69 @@ interface FileDiff {
   status: 'added' | 'modified' | 'unchanged';
   currentContent?: string;
   newContent?: string;
+}
+
+interface UpdateCache {
+  latestVersion?: unknown;
+}
+
+const REGISTRY_TIMEOUT_MS = 3000;
+const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+
+function isComparableVersion(value: unknown): value is string {
+  return typeof value === 'string' && VERSION_PATTERN.test(value);
+}
+
+function newerOfCliAnd(candidate: string): string {
+  return compareVersions(VERSION, candidate) < 0 ? candidate : VERSION;
+}
+
+function readCachedTargetVersion(safewordDirectory: string): string | undefined {
+  const cachePath = nodePath.join(safewordDirectory, '.update-cache.json');
+  const cache = readJson(cachePath) as UpdateCache | undefined;
+  return isComparableVersion(cache?.latestVersion) ? cache.latestVersion : undefined;
+}
+
+async function fetchRegistryLatestVersion(
+  timeout = REGISTRY_TIMEOUT_MS,
+): Promise<string | undefined> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeout);
+
+  try {
+    const response = await fetch('https://registry.npmjs.org/safeword/latest', {
+      signal: controller.signal,
+    });
+    if (!response.ok) return undefined;
+
+    const data = (await response.json()) as { version?: unknown };
+    return isComparableVersion(data.version) ? data.version : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function resolveDiffTargetVersion(safewordDirectory: string): Promise<string> {
+  const registryLatest = await fetchRegistryLatestVersion();
+  if (registryLatest !== undefined) return newerOfCliAnd(registryLatest);
+
+  const cachedLatest = readCachedTargetVersion(safewordDirectory);
+  if (cachedLatest !== undefined) return newerOfCliAnd(cachedLatest);
+
+  return VERSION;
+}
+
+function warnIfCliOlderThanProject(projectVersion: string, targetVersion: string): void {
+  if (!isComparableVersion(projectVersion)) return;
+  if (compareVersions(VERSION, projectVersion) >= 0) return;
+
+  const targetSpec = compareVersions(targetVersion, projectVersion) < 0 ? 'latest' : targetVersion;
+  warn(`CLI v${VERSION} is older than project v${projectVersion}.`);
+  warn(`Run \`bunx safeword@${targetSpec} diff\` for an accurate preview.`);
 }
 
 /**
@@ -190,9 +254,11 @@ export async function diff(options: DiffOptions): Promise<void> {
   // Read project version
   const versionPath = nodePath.join(safewordDirectory, 'version');
   const projectVersion = readFileSafe(versionPath)?.trim() ?? 'unknown';
+  const targetVersion = await resolveDiffTargetVersion(safewordDirectory);
+  warnIfCliOlderThanProject(projectVersion, targetVersion);
 
   header('Safeword Diff');
-  info(`Changes from v${projectVersion} → v${VERSION}`);
+  info(`Changes from v${projectVersion} → v${targetVersion}`);
 
   // Use reconcile with dryRun to compute changes
   const ctx = createProjectContext(cwd);
