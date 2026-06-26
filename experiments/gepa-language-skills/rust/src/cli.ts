@@ -4,10 +4,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { reviewRustCandidateSkill, summarizeRustCandidateSkill } from './candidate';
 import {
+  applyCommonRustCliFlag,
   createRustCommandRunner,
   emptyRustSecondaryMetrics,
-  parseNumericFlag,
-  parseRustModelFamily,
   requiredFlagValue,
   resolveCliPath,
 } from './cli-utils';
@@ -148,53 +147,19 @@ function parseArgs(argv: string[], cwd: string): RustExperimentCliOptions {
     index += 1;
 
     switch (arg) {
-      case '--manifest':
-        options.manifest = resolveCliPath(cwd, value);
-        break;
       case '--task-id':
         options.taskId = value;
         break;
       case '--patch-file':
         options.patchFile = resolveCliPath(cwd, value);
         break;
-      case '--run-root':
-        options.runRoot = resolveCliPath(cwd, value);
-        break;
       case '--run-id':
         options.runId = value;
         break;
-      case '--artifact':
-        options.artifact = resolveCliPath(cwd, value);
-        break;
-      case '--model-family':
-        options.modelFamily = parseRustModelFamily(value);
-        break;
-      case '--candidate-skill-id':
-        options.candidateSkillId = value;
-        break;
-      case '--candidate-skill-file':
-        options.candidateSkillFile = resolveCliPath(cwd, value);
-        break;
-      case '--agent-trace':
-        options.agentTrace = value;
-        break;
-      case '--patch-summary':
-        options.patchSummary = value;
-        break;
-      case '--diff-lines':
-        options.secondaryMetrics.diffLines = parseNumericFlag(arg, value);
-        break;
-      case '--duration-ms':
-        options.secondaryMetrics.durationMs = parseNumericFlag(arg, value);
-        break;
-      case '--lint-warnings':
-        options.secondaryMetrics.lintWarnings = parseNumericFlag(arg, value);
-        break;
-      case '--test-quality':
-        options.secondaryMetrics.testQuality = parseNumericFlag(arg, value);
-        break;
       default:
-        throw new Error(`unknown argument: ${arg}`);
+        if (!applyCommonRustCliFlag(options, arg, value, cwd)) {
+          throw new Error(`unknown argument: ${arg}`);
+        }
     }
   }
 
