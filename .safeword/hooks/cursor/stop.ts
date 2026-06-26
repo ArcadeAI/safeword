@@ -22,7 +22,10 @@ interface StopOutput {
   followup_message?: string;
 }
 
-function isQuietImplementRun(workspace: string, runIdentity: ReturnType<typeof resolveRunIdentity>): boolean {
+function isQuietImplementRun(
+  workspace: string,
+  runIdentity: ReturnType<typeof resolveRunIdentity>,
+): boolean {
   const state = readSessionState(workspace, runIdentity);
   const activeTicket = state?.activeTicket;
   if (!activeTicket) return false;

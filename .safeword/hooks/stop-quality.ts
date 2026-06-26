@@ -120,7 +120,10 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
  * or PostToolUse review won't re-review it. Mirrors the marker PostToolUse sets
  * for phase changes (ticket SXSCJQ).
  */
-function recordReviewMarker(sessionId: string | undefined, patch: { lastReviewedPhase?: string }): void {
+function recordReviewMarker(
+  sessionId: string | undefined,
+  patch: { lastReviewedPhase?: string },
+): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
   if (!existsSync(stateFile)) return;
