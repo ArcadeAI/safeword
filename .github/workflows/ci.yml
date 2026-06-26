@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     # Weekly on Sunday at midnight UTC - catches runner image and environmental drift
     - cron: '0 0 * * 0'
@@ -96,6 +97,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout
@@ -103,6 +107,16 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Ticket closure rides ready PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+        run: |
+          gh pr diff "$PR_NUMBER" --name-only > /tmp/safeword-pr-changed-files.txt
+          unset GH_TOKEN
+          bun scripts/check-pr-ticket-done.ts --changed-files /tmp/safeword-pr-changed-files.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
