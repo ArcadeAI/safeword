@@ -9,6 +9,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { VERSION } from '../../src/version.js';
 import {
   createConfiguredProject,
   createTemporaryDirectory,
@@ -80,6 +81,54 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       // Should mention available update or version difference
       expect(result.stdout.toLowerCase()).toMatch(/update|available|upgrade|newer/i);
+    });
+
+    it('prints a package-manager repair command when project config is newer than CLI', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
+      writeTestFile(temporaryDirectory, '.safeword/version', '999.0.0');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toContain(`Project config (v999.0.0) is newer than CLI (v${VERSION})`);
+      expect(result.stdout).toContain('pnpm add -D safeword@999.0.0 && pnpm exec safeword upgrade');
+    });
+
+    it('uses bun run for the Bun package-manager repair command', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'bun.lock', '');
+      writeTestFile(temporaryDirectory, '.safeword/version', '999.0.0');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('bun add -D safeword@999.0.0 && bun run safeword upgrade');
+    });
+
+    it('uses yarn run for the Yarn package-manager repair command', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'yarn.lock', '');
+      writeTestFile(temporaryDirectory, '.safeword/version', '999.0.0');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('yarn add -D safeword@999.0.0 && yarn run safeword upgrade');
+    });
+
+    it('does not print a shell command when project version is not a package version', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
+      writeTestFile(temporaryDirectory, '.safeword/version', '999.0.0; echo owned');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toContain(
+        'Project version is not safe to use in a package install command',
+      );
+      expect(result.stdout).not.toContain('safeword@999.0.0; echo owned');
     });
   });
 

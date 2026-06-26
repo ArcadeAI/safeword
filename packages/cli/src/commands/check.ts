@@ -10,6 +10,7 @@ import process from 'node:process';
 
 import { checkHealth, type HealthStatus, reportHealthSummary } from '../health.js';
 import { syncTickets } from '../ticket-sync/index.js';
+import { detectPackageManager } from '../utils/install.js';
 import { header, info, keyValue, success, warn } from '../utils/output.js';
 import { buildIndexConflictListMessage } from '../utils/ticket-index-warnings.js';
 import { isNewerVersion } from '../utils/version.js';
@@ -68,16 +69,51 @@ async function reportUpdateStatus(health: HealthStatus): Promise<void> {
   }
 }
 
+function isDigit(char: string): boolean {
+  return char >= '0' && char <= '9';
+}
+
+function isPackageVersionSpecChar(char: string): boolean {
+  return (
+    (char >= 'a' && char <= 'z') ||
+    (char >= 'A' && char <= 'Z') ||
+    isDigit(char) ||
+    char === '.' ||
+    char === '-' ||
+    char === '+'
+  );
+}
+
+function isSafePackageVersion(version: string): boolean {
+  if (version.length === 0 || !version.includes('.')) return false;
+  for (const char of version) {
+    if (!isPackageVersionSpecChar(char)) return false;
+  }
+  return true;
+}
+
 /**
  * Compare project version vs CLI version and report
  * @param health
  */
-function reportVersionMismatch(health: HealthStatus): void {
+function reportVersionMismatch(health: HealthStatus, cwd: string): void {
   if (!health.projectVersion) return;
 
   if (isNewerVersion(health.cliVersion, health.projectVersion)) {
     warn(`Project config (v${health.projectVersion}) is newer than CLI (v${health.cliVersion})`);
-    info('Consider upgrading the CLI');
+
+    if (!isSafePackageVersion(health.projectVersion)) {
+      warn(
+        'Project version is not safe to use in a package install command; inspect .safeword/version.',
+      );
+      return;
+    }
+
+    const pm = detectPackageManager(cwd);
+    const runSafewordUpgrade =
+      pm === 'bun' || pm === 'yarn' ? `${pm} run safeword upgrade` : `${pm} exec safeword upgrade`;
+    info('Update the project-local CLI first:');
+    info(`${pm} add -D safeword@${health.projectVersion} && ${runSafewordUpgrade}`);
   } else if (isNewerVersion(health.projectVersion, health.cliVersion)) {
     info(`\nUpgrade available for project config`);
     info(
@@ -143,7 +179,7 @@ export async function check(options: CheckOptions): Promise<void> {
     await reportUpdateStatus(health);
   }
 
-  reportVersionMismatch(health);
+  reportVersionMismatch(health, cwd);
   const hasIssues = reportHealthSummary(health);
 
   if (hasIssues) {
