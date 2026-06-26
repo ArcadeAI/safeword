@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T01:25:14Z
+last_modified: 2026-06-26T01:53:15Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -294,3 +294,17 @@ must preserve the whole-repository split.
   adapter/optimizer tests passed, the Rust experiment suite passed 62 tests,
   experiment typecheck passed, and targeted Prettier passed. Root ESLint still
   ignores `experiments/` by project configuration.
+- 2026-06-26T01:53:15Z Provider smoke: Ran the real provider-backed optimizer
+  against a disposable failed Rust artifact under `/tmp`. OpenAI
+  `gpt-5.1-codex-max` wrote
+  `/tmp/safeword-rust-provider-smoke/openai/provider-openai-smoke-rust-v1/`
+  and Anthropic `claude-opus-4-8` wrote
+  `/tmp/safeword-rust-provider-smoke/anthropic/provider-anthropic-smoke-rust-v1/`.
+  Both candidates passed `reviewCandidateSkill` with no blockers, and a grep
+  check found no repo ids, task ids, split names, optimizer vocabulary, sandbox
+  bypass guidance, or non-Rust guidance in the generated skill bodies.
+- 2026-06-26T01:53:15Z Decision: Kept provider-smoke candidates out of the
+  repository for now. Anthropic's candidate produced the most actionable
+  borrow-checker section for the failed `E0382`-style artifact, while OpenAI's
+  candidate stayed closer to the human seed. The next step is human
+  distillation into an experiment candidate before matrix evaluation.
