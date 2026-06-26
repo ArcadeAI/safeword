@@ -5,11 +5,15 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { reviewRustCandidateSkill, summarizeRustCandidateSkill } from './candidate';
-import { parseNumericFlag, parseRustModelFamily, resolveCliPath } from './cli-utils';
+import {
+  createRustCommandRunner,
+  parseNumericFlag,
+  parseRustModelFamily,
+  resolveCliPath,
+} from './cli-utils';
 import { loadRustTaskManifest, type RustTask } from './dataset';
 import { buildRustSandboxRunPlan } from './executor';
 import type { RustModelFamily, RustSecondaryMetrics } from './evaluator';
-import { createDryRunCommandRunner, createNodeCommandRunner } from './process-runner';
 import { appendRustRunArtifact, executeRustSandboxRun, type RustCommandRunner } from './runner';
 
 export type RustMatrixCliMode = 'dry-run' | 'live';
@@ -66,11 +70,7 @@ export async function runRustMatrixCli(
 
     const tasks = selectTasks(loadRustTaskManifest(options.manifest), options.taskIds);
     const patchFilesByTask = collectPatchFiles(options.patchDir, tasks);
-    const commandRunner = deps.commandRunnerFactory
-      ? deps.commandRunnerFactory(options.mode)
-      : options.mode === 'live'
-        ? createNodeCommandRunner()
-        : createDryRunCommandRunner();
+    const commandRunner = createRustCommandRunner(options.mode, deps.commandRunnerFactory);
     const candidateSkill = summarizeRustCandidateSkill(candidateSkillReview.skill);
     let failedCount = 0;
 

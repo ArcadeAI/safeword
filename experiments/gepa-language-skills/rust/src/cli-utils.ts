@@ -1,6 +1,18 @@
 import { isAbsolute, resolve } from 'node:path';
 
 import type { RustModelFamily } from './evaluator';
+import { createDryRunCommandRunner, createNodeCommandRunner } from './process-runner';
+import type { RustCommandRunner } from './runner';
+
+export type RustCliMode = 'dry-run' | 'live';
+
+export function createRustCommandRunner<Mode extends RustCliMode>(
+  mode: Mode,
+  factory?: (mode: Mode) => RustCommandRunner,
+): RustCommandRunner {
+  if (factory) return factory(mode);
+  return mode === 'live' ? createNodeCommandRunner() : createDryRunCommandRunner();
+}
 
 export function parseRustModelFamily(value: string): RustModelFamily {
   if (value === 'claude-opus' || value === 'gpt-codex') return value;

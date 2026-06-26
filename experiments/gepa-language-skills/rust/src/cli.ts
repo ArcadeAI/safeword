@@ -3,11 +3,15 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { reviewRustCandidateSkill, summarizeRustCandidateSkill } from './candidate';
-import { parseNumericFlag, parseRustModelFamily, resolveCliPath } from './cli-utils';
+import {
+  createRustCommandRunner,
+  parseNumericFlag,
+  parseRustModelFamily,
+  resolveCliPath,
+} from './cli-utils';
 import { loadRustTaskManifest } from './dataset';
 import { buildRustSandboxRunPlan } from './executor';
 import type { RustModelFamily, RustSecondaryMetrics } from './evaluator';
-import { createDryRunCommandRunner, createNodeCommandRunner } from './process-runner';
 import { appendRustRunArtifact, executeRustSandboxRun, type RustCommandRunner } from './runner';
 
 export type RustExperimentCliMode = 'dry-run' | 'live';
@@ -83,11 +87,7 @@ export async function runRustExperimentCli(
       runId,
       patchFile: options.patchFile,
     });
-    const commandRunner = deps.commandRunnerFactory
-      ? deps.commandRunnerFactory(options.mode)
-      : options.mode === 'live'
-        ? createNodeCommandRunner()
-        : createDryRunCommandRunner();
+    const commandRunner = createRustCommandRunner(options.mode, deps.commandRunnerFactory);
     const artifact = await executeRustSandboxRun({
       task,
       plan,
