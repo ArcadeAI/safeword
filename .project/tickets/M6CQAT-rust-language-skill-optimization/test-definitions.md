@@ -533,6 +533,22 @@ When the Rust optimizer loop runs
 Then it does not call the mutation adapter
 And it writes a skip report explaining that no failed runs were available
 
+### Scenario: Optimizer rejects malformed run artifacts before feedback generation
+
+- [x] RED 2026-06-26T00:50:14Z — quality-review regression failed because a
+      malformed artifact reached `feedbackForGepa` and threw
+      `evaluation.commandResults is not iterable`.
+- [x] GREEN 2026-06-26T00:50:48Z — optimizer artifact validation now rejects
+      records missing the command results or side information needed for
+      sanitized feedback.
+- [x] REFACTOR 2026-06-26T00:50:55Z — JSONL parse errors now include file and
+      line context, matching the comparison reporter boundary.
+
+Given an optimizer input JSONL file contains a malformed Rust run artifact
+When the Rust optimizer loop loads the file
+Then the malformed record is rejected with file and line context
+And sanitized feedback generation is not invoked for that record
+
 ## Rule: Product wiring happens only after the Rust skill passes eval gates
 
 ### Scenario: Rust projects install the rust skill conditionally

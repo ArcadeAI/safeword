@@ -9,7 +9,13 @@ import {
   type RustCandidateSkillSummary,
 } from './candidate';
 import { requiredFlagValue, resolveCliPath } from './cli-utils';
-import { feedbackForGepa, type RustModelFamily, type RustTaskEvaluation } from './evaluator';
+import {
+  feedbackForGepa,
+  type RustCommandResult,
+  type RustEvaluationSideInfo,
+  type RustModelFamily,
+  type RustTaskEvaluation,
+} from './evaluator';
 import type { RustRunArtifact } from './runner';
 
 export interface RustFailedRunFeedback {
@@ -211,7 +217,17 @@ function loadRustRunArtifacts(path: string): RustRunArtifact[] {
 }
 
 function parseRustRunArtifact(path: string, lineNumber: number, line: string): RustRunArtifact {
-  const parsed = JSON.parse(line) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line) as unknown;
+  } catch (error) {
+    throw new Error(
+      `invalid JSON in Rust run artifact ${path}:${lineNumber}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
   if (!isRustRunArtifact(parsed)) {
     throw new Error(`invalid Rust run artifact ${path}:${lineNumber}`);
   }
@@ -245,11 +261,70 @@ function isRustTaskEvaluation(value: unknown): value is RustTaskEvaluation {
     score?: unknown;
     acceptable?: unknown;
     failureReasons?: unknown;
+    commandResults?: unknown;
+    sideInfo?: unknown;
   };
   return (
     typeof candidate.score === 'number' &&
     typeof candidate.acceptable === 'boolean' &&
-    Array.isArray(candidate.failureReasons)
+    Array.isArray(candidate.failureReasons) &&
+    candidate.failureReasons.every(reason => typeof reason === 'string') &&
+    Array.isArray(candidate.commandResults) &&
+    candidate.commandResults.every(isRustCommandResult) &&
+    isRustEvaluationSideInfo(candidate.sideInfo)
+  );
+}
+
+function isRustCommandResult(value: unknown): value is RustCommandResult {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as {
+    kind?: unknown;
+    command?: unknown;
+    exitCode?: unknown;
+    stdout?: unknown;
+    stderr?: unknown;
+    durationMs?: unknown;
+    required?: unknown;
+  };
+
+  return (
+    typeof candidate.kind === 'string' &&
+    typeof candidate.command === 'string' &&
+    typeof candidate.exitCode === 'number' &&
+    typeof candidate.stdout === 'string' &&
+    typeof candidate.stderr === 'string' &&
+    typeof candidate.durationMs === 'number' &&
+    (candidate.required === undefined || typeof candidate.required === 'boolean')
+  );
+}
+
+function isRustEvaluationSideInfo(value: unknown): value is RustEvaluationSideInfo {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as {
+    task?: { id?: unknown; prompt?: unknown; repository?: { id?: unknown }; split?: unknown };
+    modelFamily?: unknown;
+    candidateSkillId?: unknown;
+    agentTrace?: unknown;
+    patchSummary?: unknown;
+    timings?: { totalMs?: unknown; commandMs?: unknown };
+    diagnostics?: unknown;
+  };
+
+  return (
+    typeof candidate.task?.id === 'string' &&
+    typeof candidate.task.prompt === 'string' &&
+    typeof candidate.task.repository?.id === 'string' &&
+    (candidate.task.split === 'train' ||
+      candidate.task.split === 'validation' ||
+      candidate.task.split === 'heldout') &&
+    (candidate.modelFamily === 'claude-opus' || candidate.modelFamily === 'gpt-codex') &&
+    typeof candidate.candidateSkillId === 'string' &&
+    typeof candidate.agentTrace === 'string' &&
+    typeof candidate.patchSummary === 'string' &&
+    typeof candidate.timings?.totalMs === 'number' &&
+    typeof candidate.timings.commandMs === 'number' &&
+    Array.isArray(candidate.diagnostics) &&
+    candidate.diagnostics.every(diagnostic => typeof diagnostic === 'string')
   );
 }
 

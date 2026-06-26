@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T00:43:10Z
+last_modified: 2026-06-26T00:51:58Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -271,3 +271,12 @@ must preserve the whole-repository split.
   optimizer tests passed, the Rust experiment suite passed 56 tests, experiment
   typecheck passed, and a package-level `optimize:skill -- --fake-adapter` smoke
   produced an accepted candidate from a failed live artifact.
+- 2026-06-26T00:50:55Z Quality-review/refactor follow-up: Confirmed the named
+  quality-review and refactor passes had not been run before the scaffold
+  commit, then ran them. Added a malformed-artifact regression and tightened the
+  optimizer JSONL boundary so records missing feedback-required fields are
+  rejected with file/line context before sanitized feedback generation.
+- 2026-06-26T00:51:58Z Verify: Rust experiment suite passed 57 tests,
+  experiment typecheck passed, targeted Prettier and markdownlint passed,
+  `git diff --check` passed, and package-level
+  `optimize:skill -- --fake-adapter` still produced an accepted candidate.

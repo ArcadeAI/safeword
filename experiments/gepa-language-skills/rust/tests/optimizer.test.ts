@@ -157,6 +157,38 @@ describe('optimizeRustSkillCandidate', () => {
     const report = JSON.parse(readFileSync(result.reportPath, 'utf8')) as Record<string, unknown>;
     expect(report).toMatchObject({ skippedReason: 'no failed runs' });
   });
+
+  it('rejects malformed run artifacts before feedback generation', async () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'safeword-rust-optimizer-invalid-'));
+    const artifactPath = join(tempDir, 'artifacts', 'invalid.jsonl');
+    writeJsonl(artifactPath, [
+      {
+        schemaVersion: 'rust-language-skill-run/v0',
+        taskId: 'fd-cli-filesystem-bugfix',
+        repositoryId: 'sharkdp/fd',
+        modelFamily: 'gpt-codex',
+        candidateSkillId: 'human-seed-rust',
+        evaluation: {
+          score: 0,
+          acceptable: false,
+          failureReasons: ['required oracle failed'],
+        },
+      },
+    ]);
+
+    await expect(
+      optimizeRustSkillCandidate({
+        baseSkillPath: humanSeedSkillPath,
+        artifactPath,
+        outputRoot: join(tempDir, 'candidates'),
+        candidateId: 'optimized-rust-invalid',
+        adapter: createFakeRustSkillMutationAdapter({
+          skillMarkdown: candidateSkillText('optimized-rust-invalid'),
+          rationale: 'Should not be used.',
+        }),
+      }),
+    ).rejects.toThrow(/invalid Rust run artifact .*invalid\.jsonl:1/);
+  });
 });
 
 describe('runRustOptimizerCli', () => {

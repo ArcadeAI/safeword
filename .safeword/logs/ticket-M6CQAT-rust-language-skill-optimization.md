@@ -193,3 +193,12 @@ created: 2026-06-25T05:41:08Z
   experiment suite passed 56 tests, experiment typecheck passed, and a
   package-level `optimize:skill -- --fake-adapter` smoke produced an accepted
   candidate from a failed live artifact.
+- Quality-review/refactor follow-up: the named passes had not been run before
+  the scaffold commit. RED: malformed optimizer artifacts reached
+  `feedbackForGepa` and failed with an unhelpful runtime error. GREEN: optimizer
+  JSONL validation now requires the command results and side information needed
+  for feedback generation, and invalid JSON includes file/line context.
+- Final verification for this follow-up: Rust experiment suite passed 57 tests,
+  experiment typecheck passed, targeted Prettier and markdownlint passed,
+  `git diff --check` passed, and package-level
+  `optimize:skill -- --fake-adapter` still produced an accepted candidate.
