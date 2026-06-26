@@ -59,7 +59,7 @@ describe('Rust model mutation adapters', () => {
       store: boolean;
       text: { format: { type: string; name: string } };
     };
-    expect(body.model).toBe('gpt-5.1-codex');
+    expect(body.model).toBe('gpt-5.3-codex');
     expect(body.store).toBe(false);
     expect(body.text.format).toMatchObject({
       type: 'json_schema',

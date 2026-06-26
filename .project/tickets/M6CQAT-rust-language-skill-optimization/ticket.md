@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T02:49:25Z
+last_modified: 2026-06-26T03:09:27Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -317,3 +317,12 @@ must preserve the whole-repository split.
   distilled candidate passed `reviewRustCandidateSkill`. Rust experiment suite
   passed 64 tests, experiment typecheck passed, and targeted Prettier plus
   markdownlint passed.
+- 2026-06-26T03:09:27Z Quality-review fix: Checked current Rust, Cargo,
+  OpenAI, Anthropic, and advisory docs. Found the OpenAI provider default still
+  used deprecated `gpt-5.1-codex`; changed it to current `gpt-5.3-codex` and
+  updated the adapter contract test.
+- 2026-06-26T03:09:27Z Verify: OpenAI adapter test was RED first, then the
+  focused adapter test passed. Rust experiment suite passed 64 tests,
+  experiment typecheck passed, targeted Prettier and markdownlint passed, and
+  `git diff --check` passed. `bun audit` reported existing root dependency
+  low/moderate advisories; this branch did not modify dependency manifests.

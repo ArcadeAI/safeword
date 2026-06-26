@@ -564,6 +564,12 @@ And sanitized feedback generation is not invoked for that record
 - [x] GREEN 2026-06-26T01:22:52Z — the Anthropic adapter now omits sampling
       parameters for Opus 4.8 requests while keeping `model`, `max_tokens`,
       top-level `system`, and user messages intact.
+- [x] RED 2026-06-26T03:08:12Z — quality-review against current OpenAI model
+      docs found the OpenAI adapter still defaulted to deprecated
+      `gpt-5.1-codex`.
+- [x] GREEN 2026-06-26T03:08:42Z — the OpenAI adapter now defaults to current
+      `gpt-5.3-codex` while preserving the Responses API structured-output
+      request contract.
 - [x] REFACTOR 2026-06-26T01:24:31Z — provider HTTP error handling now shares
       one response reader across OpenAI and Anthropic without changing the
       adapter contracts.

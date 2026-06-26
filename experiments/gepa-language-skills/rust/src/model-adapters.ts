@@ -19,7 +19,7 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_DEFAULT_MODEL = 'claude-opus-4-8';
 const DEFAULT_MAX_TOKENS = 4096;
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
-const OPENAI_DEFAULT_MODEL = 'gpt-5.1-codex';
+const OPENAI_DEFAULT_MODEL = 'gpt-5.3-codex';
 
 const RUST_SKILL_CANDIDATE_CONTRACT = [
   'You improve Rust coding guidance for coding agents.',
