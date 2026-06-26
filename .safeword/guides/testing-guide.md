@@ -352,7 +352,13 @@ await waitFor(() => expect(screen.getByText('Success')).toBeVisible());
 ❌ **Implementation details** - Private methods, CSS classes, internal state
 ❌ **Third-party libraries** - Assume React/Axios work, test YOUR code
 ❌ **Trivial code** - Getters/setters with no logic, pass-through functions
-❌ **Incidental UI copy** - Do not pin marketing/help text unless copy is the contract. Prefer role/name or resilient regex for controls. Assert exact text for legal, safety, error, or required user-facing messages.
+❌ **Incidental UI copy** - Marketing/help text when exact wording is not the
+contract
+
+**Copy assertions:**
+
+- Prefer role/name or resilient regex for controls
+- Assert exact text for legal, safety, error, or required user-facing messages
 
 ---
 
@@ -400,12 +406,12 @@ prompts. Treat caching as provider-specific, not guaranteed.
 
 ## Quick Reference
 
-| Need to test...      | Test type   | Technology | Speed  | Cost       |
-| -------------------- | ----------- | ---------- | ------ | ---------- |
-| Pure function        | Unit        | Vitest     | Fast   | Free       |
-| Service integration  | Integration | Vitest     | Medium | Free       |
-| Full user flow       | E2E         | Playwright | Slow   | Free       |
-| AI reasoning quality | LLM eval    | Promptfoo  | Slow   | Varies     |
+| Need to test...      | Test type   | Technology | Speed  | Cost   |
+| -------------------- | ----------- | ---------- | ------ | ------ |
+| Pure function        | Unit        | Vitest     | Fast   | Free   |
+| Service integration  | Integration | Vitest     | Medium | Free   |
+| Full user flow       | E2E         | Playwright | Slow   | Free   |
+| AI reasoning quality | LLM eval    | Promptfoo  | Slow   | Varies |
 
 ---
 

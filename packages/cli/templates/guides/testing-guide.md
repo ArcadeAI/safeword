@@ -352,7 +352,13 @@ await waitFor(() => expect(screen.getByText('Success')).toBeVisible());
 ❌ **Implementation details** - Private methods, CSS classes, internal state
 ❌ **Third-party libraries** - Assume React/Axios work, test YOUR code
 ❌ **Trivial code** - Getters/setters with no logic, pass-through functions
-❌ **Incidental UI copy** - Do not pin marketing/help text unless copy is the contract. Prefer role/name or resilient regex for controls. Assert exact text for legal, safety, error, or required user-facing messages.
+❌ **Incidental UI copy** - Marketing/help text when exact wording is not the
+contract
+
+**Copy assertions:**
+
+- Prefer role/name or resilient regex for controls
+- Assert exact text for legal, safety, error, or required user-facing messages
 
 ---
 
