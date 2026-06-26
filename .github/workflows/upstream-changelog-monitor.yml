@@ -1,0 +1,32 @@
+name: Upstream changelog monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly, off-hour and off-:00 to avoid the busiest scheduler window.
+    - cron: '17 9 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-changelog-monitor
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Run monitor
+        run: bun packages/cli/src/upstream-monitor/run.ts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

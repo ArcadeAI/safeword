@@ -426,7 +426,7 @@
 - **CI gate: a PR that closes a monitor issue must bump the snapshot (31B5AM)** (in_progress, epic: upstream-changelog-monitor)
   Prevent the "addressed but snapshot never moved → monitor fires forever" failure: CI fails any PR that closes a monitor issue without bumping the corresponding snapshot file.
   → `.project/tickets/31B5AM-monitor-snapshot-bump-gate`
-- **Add Cursor + Codex source adapters (HTML hash + releases.atom) (3ZRP8G)** (in_progress, epic: upstream-changelog-monitor)
+- **Add Cursor + Codex source adapters (HTML hash + releases.atom) (3ZRP8G)** (done, epic: upstream-changelog-monitor)
   Generalize the skeleton to all three sources via a small per-source adapter list.
   → `.project/tickets/3ZRP8G-monitor-source-adapters`
 - **Snapshot store = reviewed baseline (advances only on review-closing PR; subsumes 116) (99XBFG)** (in_progress, epic: upstream-changelog-monitor)
@@ -441,10 +441,10 @@
 - **Issue output: idempotent, diff + relevance checklist + in-flight PR links (NBRWN8)** (in_progress, epic: upstream-changelog-monitor)
   Make the opened issue actionable AND deduplicated against work already in flight: one issue per source, carrying the diff, a relevance checklist, and links to any open PR that appears to address the change.
   → `.project/tickets/NBRWN8-monitor-issue-output`
-- **Scheduled workflow: detect CC changelog change, open issue (skeleton) (R6ARF5)** (in_progress, epic: upstream-changelog-monitor)
+- **Scheduled workflow: detect CC changelog change, open issue (skeleton) (R6ARF5)** (done, epic: upstream-changelog-monitor)
   End-to-end walking skeleton for ONE source (Claude Code): scheduled workflow fetches the changelog, diffs against the committed snapshot, opens/updates a GitHub Issue on change. **Detection is read-only — it never writes the snapshot.**
   → `.project/tickets/R6ARF5-monitor-detection-skeleton`
-- **Epic: Automated upstream changelog monitor (CC, Cursor, Codex) (TT1MQW)** (open, epic: upstream-changelog-monitor)
+- **Epic: Automated upstream changelog monitor (CC, Cursor, Codex) (TT1MQW)** (in_progress, epic: upstream-changelog-monitor)
   Automatically detect when Claude Code, Cursor, or OpenAI Codex ship changelog/docs changes, and hand a human/agent the diff to triage — turning the manual review done in this thread into a standing process.
   → `.project/tickets/TT1MQW-upstream-changelog-monitor-epic`
 

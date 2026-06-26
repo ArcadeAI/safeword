@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 5ba924bfe0161fd9d14b96fd8ab887c88c0082bea39062b56d9cd9918c9595ca
+fingerprint: a269dbaedd84d54c4fa979fcca89547589746c19adc8d03f3b933c0234441ef7
 ---
 
 # Architecture
@@ -85,6 +85,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### tracker-sync
 
 <!-- reconciled: 5b032204a124515d544b1fe4e73d3ad3f975d603c0d450c672ecdb5b5bc6bb33 -->
@@ -94,6 +96,14 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### upstream-monitor
+
+<!-- reconciled: a269dbaedd84d54c4fa979fcca89547589746c19adc8d03f3b933c0234441ef7 -->
+
+`src/upstream-monitor`
+
+No description yet — awaiting prose.
 
 ### utils
 

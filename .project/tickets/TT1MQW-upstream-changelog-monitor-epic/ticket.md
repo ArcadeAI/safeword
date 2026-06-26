@@ -3,8 +3,9 @@ id: TT1MQW
 slug: upstream-changelog-monitor-epic
 type: feature
 phase: intake
-status: open
+status: in_progress
 epic: upstream-changelog-monitor
+last_modified: 2026-06-25T20:06:00Z
 ---
 
 # Epic: Automated upstream changelog monitor (CC, Cursor, Codex)
@@ -46,8 +47,8 @@ A uniform "fetch → normalize to text → hash → diff vs snapshot" works for 
 
 | ID         | Title                                                                    | Phase            |
 | ---------- | ------------------------------------------------------------------------ | ---------------- |
-| **R6ARF5** | Detection skeleton: CC source → diff → open issue (read-only)            | walking skeleton |
-| **3ZRP8G** | Cursor + Codex source adapters (HTML hash + releases.atom)               | breadth          |
+| **R6ARF5** | Detection skeleton: CC source → diff → open issue (read-only)            | done             |
+| **3ZRP8G** | Cursor + Codex source adapters (HTML hash + releases.atom)               | done             |
 | **99XBFG** | Snapshot = reviewed baseline; advances only on closing PR (subsumes 116) | state            |
 | **NBRWN8** | Issue: idempotent, diff + checklist + in-flight PR annotation            | output           |
 | **31B5AM** | CI gate: closing PR must bump the snapshot                               | invariant        |
@@ -72,3 +73,4 @@ R6ARF5 (one source, read-only detection) → 99XBFG (snapshot = baseline) → 31
 
 - 2026-05-31 Created. figure-it-out: automate detection, human-triage; scheduled GH Actions + committed snapshots; filed 6 child tickets.
 - 2026-05-31 Hardened against in-flight-PR duplication: detection is read-only; snapshot advances only via the review-closing PR; issue annotates open PRs (annotate, not suppress); added CI bump-gate 31B5AM.
+- 2026-06-25T20:06:00Z Landed the read-only monitor foundation plus breadth adapters: Claude Code markdown, Codex CLI Atom, and Cursor HTML snapshots are now monitored by a scheduled workflow. Remaining children own snapshot-bump enforcement, in-flight PR annotation, heartbeat/failure alerts, and optional LLM pre-triage.
