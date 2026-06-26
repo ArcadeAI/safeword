@@ -18,18 +18,9 @@ function git(cwd: string, args: string[], input?: string): string {
   }).trim();
 }
 
-function commitExists(cwd: string, sha: string): boolean {
+function resolveCommitSha(cwd: string, sha: string): string | undefined {
   try {
-    git(cwd, ['cat-file', '-e', `${sha}^{commit}`]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function fullCommitSha(cwd: string, sha: string): string | undefined {
-  try {
-    return git(cwd, ['rev-parse', `${sha}^{commit}`]);
+    return git(cwd, ['rev-parse', '--verify', `${sha}^{commit}`]);
   } catch {
     return undefined;
   }
@@ -87,9 +78,7 @@ export function createLedgerShaResolver(cwd: string): LedgerShaResolver {
   }
 
   return (sha: string): LedgerShaResolution => {
-    if (!commitExists(cwd, sha)) return false;
-
-    const fullSha = fullCommitSha(cwd, sha);
+    const fullSha = resolveCommitSha(cwd, sha);
     if (!fullSha) return false;
     if (isAncestorOfHead(cwd, fullSha)) return fullSha;
 
