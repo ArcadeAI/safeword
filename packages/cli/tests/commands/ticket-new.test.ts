@@ -121,6 +121,27 @@ describe('safeword ticket new', () => {
   );
 
   it(
+    'feature tickets scaffold scenario-gate prerequisite frontmatter',
+    async () => {
+      await runCli(['ticket', 'new', 'auth-flow', '--type', 'feature'], {
+        cwd: temporaryDirectory,
+      });
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const ticketContent = readFileSync(
+        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
+        'utf8',
+      );
+
+      expect(ticketContent).toMatch(/^scope:\s*$/m);
+      expect(ticketContent).toMatch(/^out_of_scope:\s*$/m);
+      expect(ticketContent).toMatch(/^done_when:\s*$/m);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
     'rejects invalid --type values with exit code 1',
     async () => {
       const result = await runCli(['ticket', 'new', 'foo', '--type', 'bogus'], {
