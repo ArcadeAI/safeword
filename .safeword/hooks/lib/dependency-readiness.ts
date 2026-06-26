@@ -369,6 +369,42 @@ export function isDependencyBackedCommand(command: string): boolean {
   return segments.some(segment => isDependencyBackedSegment(segment));
 }
 
+/** Package managers whose install/ci/i reconciles `node_modules` against the inputs. */
+const INSTALL_MANAGERS = new Set(['bun', 'pnpm', 'npm', 'yarn']);
+/** Subcommands that perform a dependency install (not `add`/`remove`, which change inputs). */
+const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
+/**
+ * Flags that make an install update only the lockfile or report a plan WITHOUT
+ * materializing `node_modules`. Stamping after these would mark deps ready while
+ * `node_modules` stays stale — a sticky false-ready — so they disqualify the
+ * command from post-install stamping.
+ */
+const NO_RECONCILE_FLAGS = new Set(['--dry-run', '--lockfile-only', '--package-lock-only']);
+
+/**
+ * Whether a command runs a dependency *install* (e.g. `bun ci`, `pnpm install
+ * --frozen-lockfile`, `npm ci`, bare `yarn`). A successful install reconciles
+ * `node_modules` with the current inputs, so the post-tool hook can stamp the
+ * fingerprint marker — making the recommended recovery command clear the
+ * stale-readiness block even when the install is a mtime-preserving no-op (#380).
+ */
+export function isDependencyInstallCommand(command: string): boolean {
+  return splitShellSegments(command).some(segment => isInstallSegment(segment));
+}
+
+function isInstallSegment(segment: string): boolean {
+  const [binary, ...args] = stripExecutionPrefixes(tokenizeShellWords(segment));
+  if (binary === undefined) return false;
+  if (!INSTALL_MANAGERS.has(nodePath.basename(binary))) return false;
+  // A lockfile-only / dry-run install never materializes node_modules.
+  if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
+
+  const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
+  // Classic `yarn` with no subcommand installs.
+  if (nodePath.basename(binary) === 'yarn' && subcommand === undefined) return true;
+  return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
+}
+
 export function getDependencyReadinessStatePath(projectDirectory: string): string {
   return nodePath.join(resolveNamespaceRoot(projectDirectory), DEPENDENCY_STATE_FILENAME);
 }
@@ -1026,4 +1062,51 @@ function getMtimeMs(path: string): number | undefined {
 
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].toSorted();
+}
+
+/**
+ * Directory holding committed git hooks. Husky wires git's `core.hooksPath` to
+ * `.husky/_` during `prepare`, which only runs on `npm install` — so a fresh
+ * clone/worktree has no hooks wired until deps are installed, and every committed
+ * pre-commit guard silently does not run (#364).
+ */
+export const COMMITTED_HOOKS_DIR = '.husky';
+
+export interface GitHooksWiringInput {
+  /** A committed hook (`.husky/pre-commit`) exists in the repo. */
+  committedHookExists: boolean;
+  /** Current value of git `core.hooksPath` (`''` when unset). */
+  currentHooksPath: string;
+  /** Whether the directory git's `core.hooksPath` points at holds a usable hook. */
+  currentHooksPathActive: boolean;
+}
+
+export interface GitHooksWiringDecision {
+  action: 'none' | 'wire';
+  hooksPath?: string;
+}
+
+/**
+ * Whether `core.hooksPath` is unset or husky-managed (so safeword may wire it).
+ * A non-empty, non-husky value is a deliberate custom hooks path we must not
+ * clobber, even when it has no `pre-commit` — the user owns it.
+ */
+function isHuskyManagedHooksPath(hooksPath: string): boolean {
+  const normalized = hooksPath.replace(/\/+$/, '');
+  return normalized === '' || normalized === COMMITTED_HOOKS_DIR || normalized === '.husky/_';
+}
+
+/**
+ * Decide whether to wire git hooks. When a committed `.husky/pre-commit` exists but
+ * `core.hooksPath` is unset (or already husky-managed) and has no usable hook, wire
+ * it to `.husky` so the committed guard fires — the absence of enforcement becomes
+ * self-enforcing. Husky resets `core.hooksPath` to `.husky/_` on its next install,
+ * so this is a safe bridge for the fresh-clone window. A deliberate custom
+ * `core.hooksPath` is left untouched.
+ */
+export function decideGitHooksWiring(input: GitHooksWiringInput): GitHooksWiringDecision {
+  if (!input.committedHookExists) return { action: 'none' };
+  if (input.currentHooksPathActive) return { action: 'none' };
+  if (!isHuskyManagedHooksPath(input.currentHooksPath)) return { action: 'none' };
+  return { action: 'wire', hooksPath: COMMITTED_HOOKS_DIR };
 }

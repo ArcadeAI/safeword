@@ -168,6 +168,8 @@ describe('verify report structure (146)', () => {
     it.each(surfaces)('%s evals the test and build plans from test-plan', (_name, content) => {
       expect(content).toContain('test-plan --kind verify --format sh');
       expect(content).toContain('test-plan --kind build --format sh');
+      // Typecheck is part of the ready path — CI's lint job runs it (#436).
+      expect(content).toContain('test-plan --kind typecheck --format sh');
     });
 
     it.each(surfaces)('%s carries no inline per-language test/build branch', (_name, content) => {

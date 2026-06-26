@@ -5,11 +5,13 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  decideGitHooksWiring,
   dependencyInputFingerprint,
   detectDependencyPlan,
   formatDependencyRecovery,
   getDependencyReadiness,
   isDependencyBackedCommand,
+  isDependencyInstallCommand,
   readDependencyBootstrapConfig,
   shouldBootstrapDependencies,
   writeInstallMarker,
@@ -28,6 +30,10 @@ const SESSION_HOOK = path.resolve(
 const PRE_TOOL_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/pre-tool-dependency-readiness.ts',
+);
+const POST_TOOL_HOOK = path.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/post-tool-dependency-readiness.ts',
 );
 
 describe('dependency readiness hook support', () => {
@@ -712,5 +718,174 @@ describe('dependency readiness hook support', () => {
     expect(
       existsSync(path.join(projectDirectory, 'node_modules', '.safeword-deps-fingerprint')),
     ).toBe(false);
+  });
+
+  describe('git hooks wiring (#364)', () => {
+    it('wires committed hooks when core.hooksPath is unset', () => {
+      expect(
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '',
+          currentHooksPathActive: false,
+        }),
+      ).toEqual({ action: 'wire', hooksPath: '.husky' });
+    });
+
+    it('wires when core.hooksPath is husky-managed but not yet populated', () => {
+      // Fresh clone: .husky/_ is configured but husky never ran to fill it.
+      expect(
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '.husky/_',
+          currentHooksPathActive: false,
+        }),
+      ).toEqual({ action: 'wire', hooksPath: '.husky' });
+    });
+
+    it('leaves an already-active hooks path alone', () => {
+      expect(
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '.husky/_',
+          currentHooksPathActive: true,
+        }),
+      ).toEqual({ action: 'none' });
+    });
+
+    it('never clobbers a deliberate custom core.hooksPath without a pre-commit', () => {
+      expect(
+        decideGitHooksWiring({
+          committedHookExists: true,
+          currentHooksPath: '.myhooks',
+          currentHooksPathActive: false,
+        }),
+      ).toEqual({ action: 'none' });
+    });
+
+    it('does nothing when no committed hook exists', () => {
+      expect(
+        decideGitHooksWiring({
+          committedHookExists: false,
+          currentHooksPath: '',
+          currentHooksPathActive: false,
+        }),
+      ).toEqual({ action: 'none' });
+    });
+
+    it('the SessionStart hook activates the committed guard on a fresh worktree', () => {
+      // Fresh clone: committed .husky/pre-commit present, but git never ran husky's
+      // prepare, so core.hooksPath is unset and the guard chain is silently inactive.
+      expect(spawnSync('git', ['init'], { cwd: projectDirectory }).status).toBe(0);
+      mkdirSync(path.join(projectDirectory, '.safeword'), { recursive: true });
+      mkdirSync(path.join(projectDirectory, '.husky'), { recursive: true });
+      writeTestFile(projectDirectory, '.husky/pre-commit', '#!/bin/sh\nexit 1\n');
+      expect(
+        spawnSync('git', ['config', '--get', 'core.hooksPath'], {
+          cwd: projectDirectory,
+          encoding: 'utf8',
+        }).stdout.trim(),
+      ).toBe('');
+
+      const result = runHook(SESSION_HOOK);
+      expect(result.status).toBe(0);
+
+      expect(
+        spawnSync('git', ['config', '--get', 'core.hooksPath'], {
+          cwd: projectDirectory,
+          encoding: 'utf8',
+        }).stdout.trim(),
+      ).toBe('.husky');
+    });
+  });
+
+  describe('post-install fingerprint stamping (#380)', () => {
+    const MARKER = 'node_modules/.safeword-deps-fingerprint';
+
+    function postInput(command: string, result: Record<string, unknown>): string {
+      return JSON.stringify({ tool_name: 'Bash', tool_input: { command }, tool_response: result });
+    }
+
+    /** Recreate the #380 bug state: deps changed, install was a no-op that left
+     *  node_modules mtime stale, and the marker still holds an old fingerprint. */
+    function makeStaleAfterNoopInstall(): string {
+      writeBunProject();
+      mkdirSync(path.join(projectDirectory, '.safeword'), { recursive: true });
+      mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+      writeTestFile(projectDirectory, MARKER, 'old-fingerprint');
+      const past = new Date(Date.now() - 60_000);
+      utimesSync(path.join(projectDirectory, 'node_modules'), past, past);
+
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+      const plan = detectDependencyPlan(projectDirectory);
+      if (plan === undefined) throw new Error('expected a dependency plan for the bun fixture');
+      return dependencyInputFingerprint(projectDirectory, plan);
+    }
+
+    it('detects install commands', () => {
+      for (const command of [
+        'bun ci',
+        'bun install',
+        'pnpm install --frozen-lockfile',
+        'npm ci',
+        'yarn',
+        'corepack pnpm install',
+      ]) {
+        expect(isDependencyInstallCommand(command), command).toBe(true);
+      }
+    });
+
+    it('ignores non-install commands', () => {
+      for (const command of ['bun run test', 'eslint .', 'git commit -m x', 'pnpm add zod']) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
+    it('ignores lockfile-only / dry-run installs (they do not materialize node_modules)', () => {
+      for (const command of [
+        'bun install --dry-run',
+        'npm ci --dry-run',
+        'pnpm install --lockfile-only',
+        'npm install --package-lock-only',
+      ]) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
+    it('does NOT stamp after a dry-run install (no sticky false-ready)', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun install --dry-run', { exit_code: 0, success: true }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
+
+    it('stamps the current fingerprint after a successful no-op install (clears the block)', () => {
+      const fingerprint = makeStaleAfterNoopInstall();
+
+      const result = runHook(POST_TOOL_HOOK, postInput('bun ci', { exit_code: 0, success: true }));
+      expect(result.status).toBe(0);
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe(fingerprint);
+      expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+    });
+
+    it('does NOT stamp when the install command failed (no false ready)', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun ci', { exit_code: 1, success: false }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
+
+    it('does nothing for a non-install command', () => {
+      makeStaleAfterNoopInstall();
+
+      runHook(POST_TOOL_HOOK, postInput('bun run test', { exit_code: 0, success: true }));
+
+      expect(readTestFile(projectDirectory, MARKER)).toBe('old-fingerprint');
+      expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    });
   });
 });

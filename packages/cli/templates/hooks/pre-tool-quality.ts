@@ -110,6 +110,20 @@ function readConfiguredPersonasPath(rawConfig: string): string | undefined {
   }
 }
 
+/**
+ * These gates read the PRE-edit filesystem, so a single `apply_patch` that adds a
+ * prerequisite (ticket frontmatter, a phase change) AND the dependent artifact in
+ * one shot is rejected even when its net result is valid — the prerequisite isn't
+ * on disk yet when the gate runs (#385). Surface the ordered-patch workaround so
+ * the block doesn't read as "you forgot these fields".
+ */
+const APPLY_PATCH_ORDERING_NOTE =
+  'If editing via apply_patch: this gate evaluates the pre-edit filesystem, so a single patch adding the prerequisite and the dependent file together is rejected even if its net result is valid. Split into ordered patches — frontmatter first, phase second, scenario/test-definition files last.';
+
+function withOrderingNote(context: string): string {
+  return `${context} ${APPLY_PATCH_ORDERING_NOTE}`;
+}
+
 function deny(reason: string, additionalContext?: string): never {
   const output: Record<string, unknown> = {
     // systemMessage is the top-level field Claude Code surfaces to the USER
@@ -260,7 +274,7 @@ if (
   if (!existsSync(ticketFile)) {
     deny(
       'Cannot create test definitions without a ticket spec. Create ticket.md with Scope, Out of Scope, and Done When sections first.',
-      'Complete understanding (propose-and-converge) before writing scenarios.',
+      withOrderingNote('Complete understanding (propose-and-converge) before writing scenarios.'),
     );
   }
 
@@ -270,7 +284,7 @@ if (
   if (!frontmatterMatch) {
     deny(
       'Ticket spec has no YAML frontmatter. Add scope, out_of_scope, and done_when fields.',
-      'Complete understanding (propose-and-converge) before writing scenarios.',
+      withOrderingNote('Complete understanding (propose-and-converge) before writing scenarios.'),
     );
   }
 
@@ -281,7 +295,9 @@ if (
   if (missing.length > 0) {
     deny(
       `Ticket frontmatter is missing: ${missing.join(', ')}. Complete understanding before writing scenarios.`,
-      'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
+      withOrderingNote(
+        'Add the missing fields to ticket.md frontmatter, then create test-definitions.md.',
+      ),
     );
   }
 
@@ -289,7 +305,9 @@ if (
   if (meta.phase === 'intake') {
     deny(
       'Ticket is still in intake phase. Update phase to define-behavior before writing scenarios.',
-      'Complete understanding, then set phase: define-behavior in ticket frontmatter.',
+      withOrderingNote(
+        'Complete understanding, then set phase: define-behavior in ticket frontmatter.',
+      ),
     );
   }
 

@@ -432,12 +432,21 @@ export const SETTINGS_HOOKS = {
       'Bash(git commit*)',
       `bun ${HOOKS_DIR}/pre-tool-architecture-stage.ts`,
     ),
+    // Warn (never block) before a checkout/switch to a branch behind its upstream,
+    // so "catch up to main" doesn't silently serve stale content (#366). `if`
+    // scopes the spawn to checkout/switch; the hook re-parses the target.
+    matchedHookWithIf('Bash', 'Bash(git checkout*)', `bun ${HOOKS_DIR}/pre-tool-stale-main.ts`),
+    matchedHookWithIf('Bash', 'Bash(git switch*)', `bun ${HOOKS_DIR}/pre-tool-stale-main.ts`),
   ],
   PostToolUse: [
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-lint.ts`),
     matchedHook(`${EDIT_TOOLS}|Bash`, `bun ${HOOKS_DIR}/post-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-sync-learnings.ts`),
+    // Stamp the dependency fingerprint after a successful install so the
+    // recommended recovery command clears the readiness block (#380). Fast-exits
+    // on non-install Bash commands.
+    matchedHook('Bash', `bun ${HOOKS_DIR}/post-tool-dependency-readiness.ts`),
   ],
   SessionEnd: [hook(`bun ${HOOKS_DIR}/session-cleanup-quality.ts`)],
 };

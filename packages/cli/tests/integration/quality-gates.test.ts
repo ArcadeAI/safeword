@@ -1252,6 +1252,10 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain(
         'Cannot create test definitions',
       );
+      // The block explains that an atomic apply_patch is rejected on pre-edit
+      // state and must be split into ordered patches (#385).
+      expect(output.hookSpecificOutput.additionalContext).toContain('apply_patch');
+      expect(output.hookSpecificOutput.additionalContext).toContain('ordered patches');
     });
 
     it('9.2: denies test-definitions.md when ticket has no scope fields', () => {
@@ -1427,6 +1431,9 @@ describe('Quality Gates', () => {
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.permissionDecision).toBe('deny');
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('intake phase');
+      // A same-patch phase change isn't visible to this pre-edit gate; the note
+      // tells the agent to order the patches rather than batch them (#385).
+      expect(output.hookSpecificOutput.additionalContext).toContain('apply_patch');
     });
 
     it('9.7: denies test-definitions.md for features without dimensions.md', () => {

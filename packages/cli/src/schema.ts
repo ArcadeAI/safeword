@@ -549,6 +549,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
+    '.safeword/hooks/lib/architecture-staged-scope.ts': {
+      template: 'hooks/lib/architecture-staged-scope.ts',
+    },
+    '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
@@ -646,6 +650,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-architecture-stage.ts': {
       template: 'hooks/pre-tool-architecture-stage.ts',
     },
+    '.safeword/hooks/pre-tool-stale-main.ts': {
+      template: 'hooks/pre-tool-stale-main.ts',
+    },
     '.safeword/hooks/codex/pre-tool-quality.ts': {
       template: 'hooks/codex/pre-tool-quality.ts',
     },
@@ -660,6 +667,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-dependency-readiness.ts': {
       template: 'hooks/pre-tool-dependency-readiness.ts',
+    },
+    '.safeword/hooks/post-tool-dependency-readiness.ts': {
+      template: 'hooks/post-tool-dependency-readiness.ts',
     },
     '.safeword/hooks/pre-tool-git-bare-fix.sh': {
       template: 'hooks/pre-tool-git-bare-fix.sh',

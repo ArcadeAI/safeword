@@ -192,6 +192,29 @@ describe('package test runner lock (379)', () => {
     ]);
   });
 
+  it('every vitest test script builds before running (no stale dist — #352)', () => {
+    const pkg = JSON.parse(readFileSync(nodePath.join(cliRoot, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    const { scripts } = pkg;
+
+    const vitestScripts = Object.entries(scripts).filter(
+      ([name, command]) =>
+        name.startsWith('test') && !name.startsWith('pretest') && /\bvitest\b/.test(command),
+    );
+    // Guard against a vacuous pass: there must be vitest-running scripts to check.
+    expect(vitestScripts.length).toBeGreaterThan(3);
+
+    for (const [name, command] of vitestScripts) {
+      const usesRunner = command.includes('run-vitest-with-build-lock.mjs');
+      const buildsFirst = scripts[`pre${name}`] === 'tsup' || command.includes('tsup &&');
+      expect(
+        usesRunner || buildsFirst,
+        `${name} runs vitest without a preceding build — a stale dist/cli.js would produce spurious failures or false greens (#352). Route it through scripts/run-vitest-with-build-lock.mjs or add a pre-build.`,
+      ).toBe(true);
+    }
+  });
+
   it('proceeds with a warning after the configured wait cap', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);

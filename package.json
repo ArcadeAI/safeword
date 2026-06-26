@@ -12,6 +12,7 @@
     "test:smoke:fast": "bun run --cwd packages/cli test:smoke:fast",
     "test:smoke": "bun run --cwd packages/cli test:smoke",
     "test:smoke:live": "bun run --cwd packages/cli test:smoke:live",
+    "typecheck": "bun run --cwd packages/cli typecheck",
     "lint": "eslint . && bun run lint:gherkin && bun run --cwd packages/cli typecheck",
     "format": "prettier --write .",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",
@@ -29,20 +30,19 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "^13.0.0",
-    "@types/node": "^26.0.0",
-    "dependency-cruiser": "^17.4.3",
+    "@types/node": "^26.0.1",
+    "dependency-cruiser": "^18.0.0",
     "eslint": "^10.5.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
-    "knip": "6.17.1",
+    "knip": "6.20.0",
     "lint-staged": "^17.0.8",
     "markdownlint-cli2": "^0.22.1",
     "prettier": "^3.8.4",
     "prettier-plugin-sh": "^0.18.1",
     "shellcheck": "^4.1.0",
-    "tsx": "^4.22.4",
-    "turbo": "2.9.18"
+    "tsx": "^4.22.4"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}": [

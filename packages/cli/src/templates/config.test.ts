@@ -199,9 +199,9 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Grep')).toBe(false);
   });
 
-  it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, git-bare-race fix, and architecture staging', () => {
+  it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, git-bare-race fix, architecture staging, and stale-branch checkout', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks).toHaveLength(5);
+    expect(preToolHooks).toHaveLength(7);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks
@@ -214,6 +214,24 @@ describe('SETTINGS_HOOKS', () => {
     expect(commands.some((c: string) => c.includes('pre-tool-config-guard'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-git-bare-fix'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-architecture-stage'))).toBe(true);
+    expect(commands.some((c: string) => c.includes('pre-tool-stale-main'))).toBe(true);
+  });
+
+  it('stale-main hook is wired to git checkout and git switch with if-filters (#366)', () => {
+    const staleHooks = SETTINGS_HOOKS.PreToolUse.filter((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) =>
+          hook.type === 'command' && hook.command.includes('pre-tool-stale-main'),
+      ),
+    );
+    const ifFilters = staleHooks
+      .flatMap((h: HookEntry) => h.hooks)
+      .filter((hook: HookCommand) => hook.type === 'command')
+      .map((hook: HookCommand) => (hook as { if?: string }).if);
+    expect(ifFilters).toEqual(expect.arrayContaining(['Bash(git checkout*)', 'Bash(git switch*)']));
+    expect(staleHooks.every((h: HookEntry) => (h as { matcher?: string }).matcher === 'Bash')).toBe(
+      true,
+    );
   });
 
   it('architecture-stage hook uses Bash matcher with a git-commit if-filter to scope the spawn', () => {

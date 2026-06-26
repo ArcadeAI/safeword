@@ -13,6 +13,8 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
+
 /**
  * Matches `git commit` (any flags / message after) but rejects `git commit-tree`,
  * `git commit-graph`, etc. The trailing (?!-) lookahead is what distinguishes them.
@@ -39,6 +41,13 @@ const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
 // Not a safeword project — nothing to do.
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) process.exit(0);
+
+// Scope the auto-fix to commits that actually move the architecture shape (#425).
+// A routine commit (version bump, docs/config edit) stages nothing that feeds the
+// fingerprint, so regenerating and staging the generated doc into it would leak
+// unrelated churn. CI `architecture --check` remains the backstop for any drift
+// this skips.
+if (!stagedChangeAffectsArchitecture(projectDir)) process.exit(0);
 
 // Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
 // owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
