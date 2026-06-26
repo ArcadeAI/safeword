@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { parseRustModelFamily, resolveCliPath } from './cli-utils';
 import type { RustModelFamily, RustTaskEvaluation } from './evaluator';
 import type { RustRunArtifact } from './runner';
+import { rustScoreGroupKey } from './score-key';
 import {
   aggregateRustScores,
   evaluateHeldoutGate,
@@ -200,7 +201,7 @@ function groupScoresByKey(
     { repositoryId: string; modelFamily: RustModelFamily; averageScore: number }
   >();
   for (const group of aggregate.groups) {
-    groups.set(`${group.repositoryId}\0${group.modelFamily}`, {
+    groups.set(rustScoreGroupKey(group.repositoryId, group.modelFamily), {
       repositoryId: group.repositoryId,
       modelFamily: group.modelFamily,
       averageScore: group.averageScore,

@@ -1,4 +1,5 @@
 import type { RustModelFamily, RustTaskEvaluation } from './evaluator';
+import { rustScoreGroupKey } from './score-key';
 
 export interface RustAggregateGroup {
   repositoryId: string;
@@ -92,7 +93,7 @@ export function aggregateRustScores(evaluations: RustTaskEvaluation[]): RustAggr
   for (const evaluation of evaluations) {
     const repositoryId = evaluation.sideInfo.task.repository.id;
     const modelFamily = evaluation.sideInfo.modelFamily;
-    const key = `${repositoryId}\0${modelFamily}`;
+    const key = rustScoreGroupKey(repositoryId, modelFamily);
     const existing =
       grouped.get(key) ??
       ({
@@ -246,7 +247,7 @@ function heldoutCoverageByKey(
     if (task.split !== 'heldout' || !models.has(modelFamily)) continue;
 
     const repositoryId = task.repository.id;
-    coverage.set(`${repositoryId}\0${modelFamily}`, { repositoryId, modelFamily });
+    coverage.set(rustScoreGroupKey(repositoryId, modelFamily), { repositoryId, modelFamily });
   }
   return coverage;
 }
