@@ -6,7 +6,7 @@ parent: ARPCQA
 phase: implement
 status: in_progress
 created: 2026-06-25T05:35:12.388Z
-last_modified: 2026-06-26T00:51:58Z
+last_modified: 2026-06-26T01:25:14Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/430
 scope:
   - Rust-first slice of ARPCQA. Prove the optimization and evaluation loop for a
@@ -280,3 +280,17 @@ must preserve the whole-repository split.
   experiment typecheck passed, targeted Prettier and markdownlint passed,
   `git diff --check` passed, and package-level
   `optimize:skill -- --fake-adapter` still produced an accepted candidate.
+- 2026-06-26T01:25:14Z Implement: Added provider-backed Rust optimizer
+  adapters. `src/model-adapters.ts` now supports OpenAI Responses and
+  Anthropic Messages via direct `fetch`, injectable env/fetch for tests, JSON
+  response parsing, provider API-key checks, sanitized prompt construction, and
+  provider HTTP error reporting. `optimize:skill` now accepts `--provider
+  openai|anthropic`, optional `--model`, and optional `--max-tokens`.
+- 2026-06-26T01:25:14Z Quality-review/refactor: Checked current OpenAI and
+  Anthropic API docs. The review found Anthropic Opus 4.8 should not receive
+  non-default sampling parameters, so the adapter now omits `temperature`.
+  Refactor extracted shared provider JSON/error handling across both adapters.
+- 2026-06-26T01:25:14Z Verify: Provider tests were RED first, then targeted
+  adapter/optimizer tests passed, the Rust experiment suite passed 62 tests,
+  experiment typecheck passed, and targeted Prettier passed. Root ESLint still
+  ignores `experiments/` by project configuration.

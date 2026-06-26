@@ -16,6 +16,11 @@ import {
   type RustModelFamily,
   type RustTaskEvaluation,
 } from './evaluator';
+import {
+  createRustModelMutationAdapter,
+  type RustOptimizerProvider,
+  type RustProviderFetch,
+} from './model-adapters';
 import type { RustRunArtifact } from './runner';
 
 export interface RustFailedRunFeedback {
@@ -73,6 +78,8 @@ export interface RustOptimizerResult {
 
 export interface RustOptimizerCliDeps {
   cwd?: string;
+  env?: Record<string, string | undefined>;
+  fetch?: RustProviderFetch;
   stdout?: (line: string) => void;
   stderr?: (line: string) => void;
   adapter?: RustSkillMutationAdapter;
@@ -84,6 +91,9 @@ interface RustOptimizerCliOptions {
   outputRoot: string;
   candidateId: string;
   fakeAdapter: boolean;
+  maxTokens?: number;
+  model?: string;
+  provider?: RustOptimizerProvider;
 }
 
 export function createFakeRustSkillMutationAdapter(
@@ -170,9 +180,19 @@ export async function runRustOptimizerCli(
   try {
     const options = parseArgs(argv, cwd);
     const adapter =
-      deps.adapter ?? (options.fakeAdapter ? fakeCliAdapter(options.candidateId) : undefined);
+      deps.adapter ??
+      (options.fakeAdapter
+        ? fakeCliAdapter(options.candidateId)
+        : options.provider
+          ? createRustModelMutationAdapter(options.provider, {
+              env: deps.env,
+              fetch: deps.fetch,
+              maxTokens: options.maxTokens,
+              model: options.model,
+            })
+          : undefined);
     if (!adapter) {
-      throw new Error('--fake-adapter is required until a real model adapter is configured');
+      throw new Error('--fake-adapter or --provider openai|anthropic is required');
     }
 
     const result = await optimizeRustSkillCandidate({
@@ -386,6 +406,15 @@ function parseArgs(argv: string[], cwd: string): RustOptimizerCliOptions {
       case '--candidate-id':
         options.candidateId = value;
         break;
+      case '--max-tokens':
+        options.maxTokens = parsePositiveIntegerFlag(arg, value);
+        break;
+      case '--model':
+        options.model = value;
+        break;
+      case '--provider':
+        options.provider = parseProvider(value);
+        break;
       default:
         throw new Error(`unknown argument: ${arg}`);
     }
@@ -396,6 +425,19 @@ function parseArgs(argv: string[], cwd: string): RustOptimizerCliOptions {
   if (!options.outputRoot) throw new Error('--output-root is required');
   if (!options.candidateId) throw new Error('--candidate-id is required');
   return options as RustOptimizerCliOptions;
+}
+
+function parseProvider(value: string): RustOptimizerProvider {
+  if (value === 'anthropic' || value === 'openai') return value;
+  throw new Error('--provider must be openai or anthropic');
+}
+
+function parsePositiveIntegerFlag(flag: string, value: string): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${flag} must be a positive integer`);
+  }
+  return parsed;
 }
 
 function fakeCliAdapter(candidateId: string): RustSkillMutationAdapter {
@@ -417,9 +459,10 @@ function fakeCliAdapter(candidateId: string): RustSkillMutationAdapter {
 
 function helpText(): string {
   return [
-    'Usage: bun src/optimize.ts --base-skill-file SKILL.md --artifact RUNS.jsonl --output-root DIR --candidate-id ID [--fake-adapter]',
+    'Usage: bun src/optimize.ts --base-skill-file SKILL.md --artifact RUNS.jsonl --output-root DIR --candidate-id ID [--fake-adapter | --provider openai|anthropic]',
     '',
-    'Builds a new Rust skill candidate from failed run artifacts. Real model adapters are not wired yet.',
+    'Builds a new Rust skill candidate from failed run artifacts.',
+    'Provider mode accepts optional --model MODEL and --max-tokens N flags.',
   ].join('\n');
 }
 

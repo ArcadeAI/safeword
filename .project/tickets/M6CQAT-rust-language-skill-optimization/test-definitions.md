@@ -549,6 +549,33 @@ When the Rust optimizer loop loads the file
 Then the malformed record is rejected with file and line context
 And sanitized feedback generation is not invoked for that record
 
+### Scenario: Provider adapters build sanitized model requests
+
+- [x] RED 2026-06-26T01:18:48Z — provider tests failed because
+      `../src/model-adapters` did not exist and the optimizer CLI rejected
+      `--provider`.
+- [x] GREEN 2026-06-26T01:21:01Z — OpenAI and Anthropic provider adapters now
+      build sanitized requests, parse provider JSON responses, require explicit
+      API keys, and the CLI can run `--provider openai` without SDK
+      dependencies.
+- [x] RED 2026-06-26T01:22:05Z — quality-review against current Anthropic docs
+      found the Opus 4.8 request still set `temperature: 0`, even though Opus
+      4.7+ rejects non-default sampling parameters.
+- [x] GREEN 2026-06-26T01:22:52Z — the Anthropic adapter now omits sampling
+      parameters for Opus 4.8 requests while keeping `model`, `max_tokens`,
+      top-level `system`, and user messages intact.
+- [x] REFACTOR 2026-06-26T01:24:31Z — provider HTTP error handling now shares
+      one response reader across OpenAI and Anthropic without changing the
+      adapter contracts.
+
+Given failed Rust run artifacts and a provider-backed mutation adapter
+When the Rust optimizer loop runs for OpenAI or Anthropic
+Then the adapter calls the configured provider API with the base skill text and
+sanitized failure feedback
+And the provider request omits repository ids, task ids, split names, source
+artifact paths, and optimizer-only vocabulary
+And the CLI can select the provider without adding provider SDK dependencies
+
 ## Rule: Product wiring happens only after the Rust skill passes eval gates
 
 ### Scenario: Rust projects install the rust skill conditionally

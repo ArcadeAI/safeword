@@ -225,6 +225,64 @@ describe('runRustOptimizerCli', () => {
     expect(stdout.join('\n')).toContain('accepted: true');
     expect(existsSync(join(tempDir, 'candidates', 'optimized-rust-v4', 'SKILL.md'))).toBe(true);
   });
+
+  it('runs an OpenAI provider adapter through the CLI entrypoint', async () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'safeword-rust-optimizer-cli-openai-'));
+    const artifactPath = join(tempDir, 'artifacts', 'failed.jsonl');
+    writeJsonl(artifactPath, [failedArtifact()]);
+    const stdout: string[] = [];
+    const requests: RequestInit[] = [];
+
+    const exitCode = await runRustOptimizerCli(
+      [
+        '--base-skill-file',
+        humanSeedSkillPath,
+        '--artifact',
+        artifactPath,
+        '--output-root',
+        join(tempDir, 'candidates'),
+        '--candidate-id',
+        'optimized-rust-v5',
+        '--provider',
+        'openai',
+        '--model',
+        'gpt-test',
+        '--max-tokens',
+        '1234',
+      ],
+      {
+        env: { OPENAI_API_KEY: 'sk-test' },
+        fetch: async (_url, init) => {
+          requests.push(init);
+          return new Response(
+            JSON.stringify({
+              output_text: JSON.stringify({
+                skillMarkdown: candidateSkillText('optimized-rust-v5'),
+                rationale: 'CLI provider generated a candidate.',
+              }),
+            }),
+            { status: 200 },
+          );
+        },
+        stdout: line => stdout.push(line),
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stdout.join('\n')).toContain('candidate: optimized-rust-v5');
+    expect(existsSync(join(tempDir, 'candidates', 'optimized-rust-v5', 'SKILL.md'))).toBe(true);
+    expect(requests).toHaveLength(1);
+    const body = JSON.parse(String(requests[0].body)) as {
+      input: string;
+      max_output_tokens: number;
+      model: string;
+    };
+    expect(body).toMatchObject({
+      max_output_tokens: 1234,
+      model: 'gpt-test',
+    });
+    expect(body.input).not.toMatch(/sharkdp\/fd|fd-cli-filesystem-bugfix|sourceArtifact/i);
+  });
 });
 
 function writeJsonl(path: string, records: unknown[]): void {
