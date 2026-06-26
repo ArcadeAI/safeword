@@ -137,11 +137,13 @@ Key directories created in your project:
 
 **Purpose**: Reusable methodology applicable to all projects
 
-| Guide                      | Purpose                                                            | When to Read            |
-| -------------------------- | ------------------------------------------------------------------ | ----------------------- |
-| **planning-guide.md**      | Feature planning workflow, spec creation, BDD/TDD integration      | Starting any feature    |
-| **testing-guide.md**       | Test-first workflow (RED/GREEN/REFACTOR), test pyramid, test types | Writing tests           |
-| **learning-extraction.md** | Extract learnings from debugging, recognition triggers             | After complex debugging |
+| Guide                           | Purpose                                                            | When to Read            |
+| ------------------------------- | ------------------------------------------------------------------ | ----------------------- |
+| **planning-guide.md**           | Feature planning workflow, spec creation, BDD/TDD integration      | Starting any feature    |
+| **testing-guide.md**            | Test-first workflow (RED/GREEN/REFACTOR), test pyramid, test types | Writing tests           |
+| **llm-evals-guide.md**          | AI output evaluation design, scorers, datasets, and cost controls  | Testing AI behavior     |
+| **verification-lanes-guide.md** | Smoke, live-fire, release, migration, static, and slow/perf lanes  | Choosing test cadence   |
+| **learning-extraction.md**      | Extract learnings from debugging, recognition triggers             | After complex debugging |
 
 ---
 
