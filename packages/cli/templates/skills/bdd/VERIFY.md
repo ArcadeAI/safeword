@@ -23,3 +23,5 @@ Before proceeding to done:
    ```
 
 The stop hook hard-blocks `phase: done` if verify.md is missing or empty.
+
+**Avoid bloat.**

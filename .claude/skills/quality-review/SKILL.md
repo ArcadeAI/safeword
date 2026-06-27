@@ -150,3 +150,5 @@ stop condition; tests are the ground truth.
 4. **Be concise** - Hook already prompts for general quality, focus on what it can't do
 
 **Voice:** plainspoken and concise — write to be scanned.
+
+**Avoid bloat.**
