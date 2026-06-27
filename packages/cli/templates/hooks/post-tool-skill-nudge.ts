@@ -40,7 +40,8 @@ if (!filePath) process.exit(0);
 const language = languageForFile(filePath);
 if (!language) process.exit(0);
 
-if (!installedPrefixes(projectDirectory).has(language.prefix)) process.exit(0);
+const installed = installedPrefixes(projectDirectory);
+if (!installed.has(language.prefix)) process.exit(0);
 
 // Active ticket comes from the shared quality-state file — READ ONLY. We never
 // write that file: post-tool-quality.ts owns it and runs in parallel on the same
@@ -48,7 +49,7 @@ if (!installedPrefixes(projectDirectory).has(language.prefix)) process.exit(0);
 const sharedStateFile = getStateFilePath(projectDirectory, input.session_id);
 const scenario = activeScenario(projectDirectory, readState(sharedStateFile).activeTicket);
 
-const nudge = decideSkillNudge(filePath, installedPrefixes(projectDirectory), scenario);
+const nudge = decideSkillNudge(filePath, installed, scenario);
 if (!nudge) process.exit(0);
 
 // Flag-and-clear: fire once per (language, scenario). Dedup state lives in its
