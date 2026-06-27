@@ -19,6 +19,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   setupOrThrow,
+  SKIP_SKILLS_ENV,
   TIMEOUT_BUN_INSTALL,
   TIMEOUT_QUICK,
   writeTestFile,
@@ -110,7 +111,7 @@ describe('setup hosts the lane in a pure Go repo (AC2)', () => {
   beforeAll(async () => {
     directory = createTemporaryDirectory();
     createGoProject(directory);
-    await setupOrThrow(directory);
+    await setupOrThrow(directory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
   }, TIMEOUT_BUN_INSTALL);
 
   afterAll(() => {
@@ -138,7 +139,7 @@ describe('setup merges into a polyglot repo (AC2)', () => {
     // Name deliberately differs from the directory basename so wrongful
     // re-creation (which derives name from the basename) is observable.
     createTypeScriptPackageJson(directory, { name: 'my-custom-name' });
-    await setupOrThrow(directory);
+    await setupOrThrow(directory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
   }, TIMEOUT_BUN_INSTALL);
 
   afterAll(() => {

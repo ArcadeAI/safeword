@@ -10,7 +10,6 @@ import nodePath from 'node:path';
 
 import { checkHealth, reportHealthSummary } from '../health.js';
 import { setupGoTooling } from '../packs/golang/setup.js';
-import { GOLANG_SKILL_SELECTION, GOLANG_SKILL_SOURCE } from '../packs/golang/skills.js';
 import { installPack } from '../packs/install.js';
 import {
   detectPythonLayers,
@@ -22,7 +21,7 @@ import {
 import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
-import { installSkills } from '../skills/install.js';
+import { installGoSkills } from '../skills/golang.js';
 import {
   CODEX_TRUST_NEXT_STEP,
   reconciledCodexConfig,
@@ -425,30 +424,7 @@ function setupPythonProject(languages: Languages, cwd: string): PythonSetupStatu
 function setupGoProject(languages: Languages, cwd: string): void {
   if (!languages.golang) return;
   setupGoTooling();
-
-  const skills = installSkills({
-    source: GOLANG_SKILL_SOURCE,
-    selection: GOLANG_SKILL_SELECTION,
-    cwd,
-  });
-  switch (skills.status) {
-    case 'installed': {
-      success(`Installed Go coding skills (${skills.detail})`);
-      break;
-    }
-    case 'skipped': {
-      info(`Skipped Go coding skills (${skills.detail})`);
-      break;
-    }
-    case 'failed': {
-      warn(`Could not install Go coding skills — continuing without them (${skills.detail}).`);
-      info(
-        '  Install later: npx skills add github.com/samber/cc-skills-golang ' +
-          "--skill '*' -a claude-code -a codex -a cursor --copy -y",
-      );
-      break;
-    }
-  }
+  installGoSkills(cwd);
 }
 
 /** Warn if Bun is not available (hooks require it) */

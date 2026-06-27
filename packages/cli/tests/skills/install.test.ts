@@ -1,7 +1,20 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { GOLANG_SKILL_SELECTION, GOLANG_SKILL_SOURCE } from '../../src/packs/golang/skills.js';
-import { buildSkillsArgv, installSkills, SAFEWORD_SKILL_AGENTS } from '../../src/skills/install.js';
+import {
+  GOLANG_SKILL_DIR_PATTERN,
+  GOLANG_SKILL_SELECTION,
+  GOLANG_SKILL_SOURCE,
+} from '../../src/packs/golang/skills.js';
+import {
+  buildSkillsArgv,
+  installSkills,
+  SAFEWORD_SKILL_AGENTS,
+  skillsInstalled,
+} from '../../src/skills/install.js';
 
 describe('buildSkillsArgv', () => {
   it('selects all skills via --skill * and targets only safeword agents (never --all)', () => {
@@ -71,5 +84,37 @@ describe('installSkills degrade-not-fail', () => {
     delete process.env.SAFEWORD_SKIP_INSTALL;
     process.env.SAFEWORD_SKIP_SKILLS = '1';
     expect(runSkip().status).toBe('skipped');
+  });
+});
+
+describe('skillsInstalled (derive presence from disk)', () => {
+  let dir: string;
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('is false when no agent skill dir exists', () => {
+    dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
+    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(false);
+  });
+
+  it('is true when a golang- skill dir is present under .claude/skills', () => {
+    dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
+    mkdirSync(nodePath.join(dir, '.claude', 'skills', 'golang-context'), { recursive: true });
+    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(true);
+  });
+
+  it('is true when present under .agents/skills (codex/cursor target)', () => {
+    dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
+    mkdirSync(nodePath.join(dir, '.agents', 'skills', 'golang-error-handling'), {
+      recursive: true,
+    });
+    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(true);
+  });
+
+  it('ignores non-matching dirs (e.g. unrelated skills)', () => {
+    dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
+    mkdirSync(nodePath.join(dir, '.claude', 'skills', 'python-typing'), { recursive: true });
+    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(false);
   });
 });

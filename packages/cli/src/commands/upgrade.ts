@@ -18,6 +18,7 @@ import {
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
+import { ensureGoSkills } from '../skills/golang.js';
 import {
   CODEX_TRUST_NEXT_STEP,
   reconciledCodexConfig,
@@ -203,6 +204,22 @@ function installSqlTools(cwd: string): void {
   const sqlDirectory = findInTree(cwd, 'dbt_project.yml') ?? cwd;
   const pythonDirectory = findInTree(sqlDirectory, 'pyproject.toml') ?? sqlDirectory;
   installPythonBasedTools(pythonDirectory, ['sqlfluff'], 'SQL tools');
+}
+
+/**
+ * Install language-specific tooling after pack reconciliation: dependency tools
+ * for newly added Python/SQL packs, and Go judgment skills for any Go project
+ * that doesn't already have them (reaches projects set up before skills existed;
+ * the on-disk presence check keeps repeat upgrades network-free).
+ */
+function installLanguageTools(cwd: string, missingPacks: string[], isGoProject: boolean): void {
+  if (missingPacks.includes('python')) {
+    installPythonTools(cwd);
+  }
+  if (missingPacks.includes('sql')) {
+    installSqlTools(cwd);
+  }
+  ensureGoSkills(cwd, isGoProject);
 }
 
 export interface UpgradeOptions {
@@ -417,14 +434,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
       installPack(packId, cwd);
       info(`Installed ${packId} pack`);
     }
-
-    // Install language-specific tools for newly added packs
-    if (missingPacks.includes('python')) {
-      installPythonTools(cwd);
-    }
-    if (missingPacks.includes('sql')) {
-      installSqlTools(cwd);
-    }
+    installLanguageTools(cwd, missingPacks, Boolean(ctx.languages?.golang));
 
     maybeRefreshDepcruiseConfig(cwd, safewordDirectory, result);
 

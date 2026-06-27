@@ -26,6 +26,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   setupOrThrow,
+  SKIP_SKILLS_ENV,
   writeTestFile,
 } from '../helpers';
 
@@ -89,7 +90,7 @@ func main() {
       );
 
       // Run upgrade to detect and install Go pack
-      await runCli(['upgrade'], { cwd: projectDirectory });
+      await runCli(['upgrade'], { cwd: projectDirectory, env: SKIP_SKILLS_ENV });
     }, 60_000);
 
     it('installs Go pack', () => {

@@ -13,6 +13,36 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { existsSync, readdirSync } from 'node:fs';
+import nodePath from 'node:path';
+
+/**
+ * Agent skill directories the installer writes into (project-level). Used to
+ * detect an existing install by reading reality off disk — the same
+ * derive-from-disk principle as the pack manifest (no stored install state).
+ */
+const AGENT_SKILL_DIRS = ['.claude/skills', '.agents/skills'];
+
+/**
+ * Whether skills matching `dirPattern` (e.g. the pack's `golang-*` shape) are
+ * already installed under any agent skill dir. Lets the harness install once for
+ * existing projects (on upgrade) without re-pulling over the network every run.
+ */
+export function skillsInstalled(cwd: string, dirPattern: RegExp): boolean {
+  for (const relativeDirectory of AGENT_SKILL_DIRS) {
+    const dir = nodePath.join(cwd, relativeDirectory);
+    if (!existsSync(dir)) continue;
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      if (entries.some(entry => entry.isDirectory() && dirPattern.test(entry.name))) {
+        return true;
+      }
+    } catch {
+      // Unreadable dir — treat as "not present" and let the install attempt run.
+    }
+  }
+  return false;
+}
 
 /** How a pack tells the harness which skills to pull. Mirrors the pack manifest. */
 export type SkillSelection = 'all';
