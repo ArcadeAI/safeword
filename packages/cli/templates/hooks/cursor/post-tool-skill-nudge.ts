@@ -65,7 +65,9 @@ if (!claudeTool || !existsSync('.safeword')) emitAndExit({});
 const filePath = extractFilePath(input.tool_input);
 const translated: ClaudeGateInput = {
   session_id: input.conversation_id,
-  hook_event_name: 'PostToolUse',
+  // ClaudeGateInput types this as the literal 'PreToolUse' (the skill-nudge hook
+  // ignores the field); match the type rather than introduce a mismatch.
+  hook_event_name: 'PreToolUse',
   tool_name: claudeTool,
   tool_input: filePath ? { ...input.tool_input, file_path: filePath } : { ...input.tool_input },
 };
