@@ -41,6 +41,18 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       expect(content).toContain('alwaysApply: true');
       expect(content).toContain('@.safeword/SAFEWORD.md');
     });
+
+    it('installs Cursor root-move branch verification guidance', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup', '--yes'], { cwd: temporaryDirectory });
+
+      const content = readTestFile(temporaryDirectory, '.safeword/SAFEWORD.md');
+      expect(content).toContain('move_agent_to_root');
+      expect(content).toContain('git branch --show-current');
+      expect(content).toContain('before evidence gathering or edits');
+    });
   });
 
   describe('Cursor Commands', () => {
