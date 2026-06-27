@@ -8,6 +8,14 @@
             "command": "test -d \"${CLAUDE_PROJECT_DIR:-.}/.safeword\" || echo 'SAFEWORD: Not yet configured. Run `bunx safeword@latest setup` to install (auto-detects languages, no prompts). If bunx is unavailable, use `npx safeword@latest setup`. Report what was installed.'"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lib/run-bun.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/session-version.ts\""
+          }
+        ]
       }
     ]
   }

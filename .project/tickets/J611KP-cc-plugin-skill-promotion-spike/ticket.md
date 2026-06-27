@@ -20,9 +20,15 @@ last_modified: 2026-06-27T17:01:38.719Z
 - Hard constraint: a Claude Code plugin is copied to a read-only cache (`~/.claude/plugins/cache`) and cannot write project files. So **only the static layer moves**; hook runtime and the reconciler stay in the CLI. This spike does NOT move any hooks' runtime.
 - Version skew is the shared killer risk: an auto-updated plugin running ahead of a lagging CLI-managed `.safeword/` runtime. The `.safeword/version` file (written by the CLI, read by `session-version.ts`) is the natural handshake anchor.
 
+## Finding that reshaped the spike (2026-06-27)
+
+**`.claude/skills/<name>/SKILL.md` is shared infrastructure, not Claude-only.** Cursor's `.mdc` rules AND its `.cursor/commands/*.md` read straight into `.claude/skills/<name>/SKILL.md` (e.g. `@.claude/skills/debug/SKILL.md`; "Read and follow `.claude/skills/testing/SKILL.md`"). So stopping the CLI from writing `.claude/skills/X` — required to avoid Claude double-vision with the plugin — **breaks Cursor**, and the plugin's skill lives in the unstable `~/.claude/plugins/cache` path Cursor can't `@`-reference. This partly corrects the figure-it-out runs, which treated skills as "Claude-only, pure prose, safe to move."
+
+Consequence: only **Cursor-decoupled** skills can be promoted without Cursor work. The decoupled set is exactly the action skills whose Cursor surface is a self-contained command with no `.claude/skills` reference: `audit`, `cleanup-zombies`, `explain`, `lint`, `self-review`, `verify`. The ticket's original picks (`debug`/`figure-it-out`/`testing`) are the *worst* — each is `@`-referenced by a Cursor rule. **Spike skills swapped to `explain`, `lint`, `cleanup-zombies`** (decoupled + dependency-free), honoring the "Cursor `.mdc` out of scope" boundary while proving the identical mechanism.
+
 ## Scope
 
-- Promote **3 skills** — `figure-it-out`, `debug`, `testing` (no project-state dependency) — into `plugin/skills/<name>/SKILL.md`, copied from `packages/cli/templates/skills/`.
+- Promote **3 Cursor-decoupled skills** — `explain`, `lint`, `cleanup-zombies` — into `plugin/skills/<name>/SKILL.md`, copied from `packages/cli/templates/skills/`. (Swapped from the originally-named `figure-it-out`/`debug`/`testing` per the finding above — those are Cursor-coupled.)
 - Point the repo's own `.claude/settings.json` `enabledPlugins` at the local `./plugin` so the repo dogfoods its own plugin; confirm Claude Code discovers the 3 skills **from the plugin**, and that the CLI's reconciler no longer also writes those 3 into `.claude/skills/` (no double-vision). Use the schema's existing `deprecatedDirs`/`deprecatedFiles` mechanism to remove the CLI-installed copies of exactly those 3.
 - Add a read-only `plugin/hooks/session-version.ts` plus a `plugin/hooks/lib/run-bun.sh` bun-or-`npx tsx` shim, wired via `${CLAUDE_PLUGIN_ROOT}` in `plugin/hooks/hooks.json`. The hook reads the `compat` band from `${CLAUDE_PROJECT_DIR}/.safeword/version` and `exit 2`s with an actionable message on a band mismatch only (never on ordinary minor/patch drift).
 - Have the CLI write a `compat=1` line into `.safeword/version` on setup/upgrade; ship the matching `PLUGIN_COMPAT = 1` constant in the plugin hook.
@@ -44,7 +50,31 @@ last_modified: 2026-06-27T17:01:38.719Z
 - The two new parity contracts pass; the 3 moved skills are out of the byte-parity `ownedFiles` set; full suite + lint green.
 - A one-paragraph verdict recorded in the work log: **promote the remaining skills** / **adjust the approach** / **abandon** — with the concrete reason, so the follow-up rollout ticket (or its cancellation) is unambiguous.
 
+## Deviations from the written plan (recorded)
+
+1. **Skills swapped** `figure-it-out`/`debug`/`testing` → `explain`/`lint`/`cleanup-zombies` — the originals are Cursor-coupled (see Finding); the swap honors the "Cursor `.mdc` out of scope" boundary while proving the same mechanism.
+2. **Version handshake simplified** from "CLI writes a `compat=1` line into `.safeword/version`" to "plugin reads the existing semver `.safeword/version` and asserts CLI ≥ `PLUGIN_MIN_CLI`." Reason: `.safeword/version` is strict semver (`/^\d+\.\d+\.\d+$/`) read in 4+ places; appending a `compat=` line is high blast radius for a spike. A min-version check detects the same dangerous direction (plugin ahead of runtime) with zero format change. `PLUGIN_MIN_CLI=0.57.0` (the promoted skills add no new `.safeword/` contract; 0.57.0 is the current installed-runtime baseline — the repo's `.safeword/version` is 0.57.0 while `package.json` is 0.58.0).
+3. **Version-sync parity contract (marketplace==package) not added** — already enforced by the existing pre-commit hook (per CLAUDE.md); duplicating it inside `runParity` is redundant for a spike.
+4. **Dogfood `.claude/settings.json` enablement deferred, not committed.** The file is intentionally guarded by the `config-guard` hook, live plugin discovery can't be verified in this session (plugins load at startup/trust), and there's an unresolved path question (a `directory` marketplace source expects `./.claude-plugin/marketplace.json`, but safeword's manifest is at repo-root `marketplace.json`). The exact config a consumer/the repo commits is recorded below for the fresh-session follow-up.
+
+### Deferred dogfood enablement config (verify in a fresh session)
+
+```jsonc
+// .claude/settings.json — additive top-level keys
+"extraKnownMarketplaces": {
+  "safeword": { "source": { "source": "directory", "path": "." } }
+},
+"enabledPlugins": { "safeword@safeword": true }
+```
+
+Fresh-session verification checklist: (a) confirm Claude Code resolves the root `marketplace.json` from a `directory` source at `.` — if not, move/symlink to `./.claude-plugin/marketplace.json`; (b) confirm `explain`/`lint`/`cleanup-zombies` load from the plugin and the CLI no longer writes `.claude/skills/` copies (no double-vision); (c) confirm the `session-version.ts` banner fires.
+
+## Spike verdict
+
+**Promote the remaining decoupled skills — with a caveat.** The mechanism works: the CLI cleanly stops shipping the 3 skills (schema/reconcile/parity tests green), the plugin carries byte-identical copies (new parity check), and the version handshake fires correctly (compatible → exit 0; forced skew → exit 2; bun-absent → `npx tsx` fallback). The promotable set is **only the 6 Cursor-decoupled action skills**, though — the 11 Cursor-coupled skills (the high-value reasoning ones: `figure-it-out`, `debug`, `quality-review`, `refactor`, `bdd`, …) **cannot** move to a Claude plugin without first solving how Cursor consumes skills (its rules/commands `@`-reference `.claude/skills/` in place). That's the real architecture question the rollout must answer, and it's bigger than this spike. Net: the plugin direction is viable for a minority of skills today; the majority is blocked on a cross-tool skill-sourcing decision.
+
 ## Work Log
 
 - 2026-06-27T17:01:38.719Z Started: Created ticket J611KP
 - 2026-06-27T17:02:00.000Z Scoped from three `/figure-it-out` runs (Claude Code, Codex, Cursor) on private-plugin shape. All three converged: plugin ships static agent layer, CLI keeps runtime + reconciler, one source tree, version-skew is the shared risk. This spike derisks the cheapest path (CC, 3 skills + version handshake) before any cross-platform rollout.
+- 2026-06-27T17:40:00.000Z Implemented. Discovered `.claude/skills/` is shared with Cursor (rules/commands `@`-reference it) → swapped to 3 decoupled skills. Schema: removed `explain`/`lint`/`cleanup-zombies` from `.claude/skills` ownedFiles, added them to `deprecatedDirs`, added exported `PLUGIN_PROMOTED_SKILLS`. Created `plugin/skills/{explain,lint,cleanup-zombies}/SKILL.md` + `plugin/hooks/session-version.ts` (portable, min-CLI handshake) + `plugin/hooks/lib/run-bun.sh` (bun→bunx→npx-tsx shim) + wired `plugin/hooks/hooks.json`. Added `checkPluginSkills` byte-parity guard to `parity.ts` (+4 unit tests). Verified handshake (compatible/skew/bootstrap) and shim fallback by hand. Targeted suites green: schema, parity (22), owned-paths, reconcile, setup/reset/upgrade, hook-coverage (122). Dogfood settings.json enablement deferred (guarded file + needs fresh-session verification). Verdict recorded.

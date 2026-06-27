@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ContractDefinition, FileDefinition } from './schema.js';
+import { PLUGIN_PROMOTED_SKILLS } from './schema.js';
 
 interface ParitySchema {
   ownedFiles: Record<string, FileDefinition>;
@@ -136,6 +137,38 @@ function checkCursorRulesThin(templatesDirectory: string): ParityFailure[] {
   return failures;
 }
 
+/** Each plugin-promoted skill's `plugin/skills/<name>/SKILL.md` must be
+ * byte-identical to its canonical `templates/skills/<name>/SKILL.md`. The skill
+ * left the `.claude/skills/` ownedFiles byte-parity set when it moved to the
+ * plugin, so without this check the plugin copy could silently drift from the
+ * template Codex still installs (ticket J611KP). Runs in both modes so
+ * pre-commit hard-blocks drift, like the orphan-template and cursor-rule scans. */
+function checkPluginSkills(rootDirectory: string, templatesDirectory: string): ParityFailure[] {
+  const failures: ParityFailure[] = [];
+  for (const name of PLUGIN_PROMOTED_SKILLS) {
+    const templateFile = nodePath.join(templatesDirectory, 'skills', name, 'SKILL.md');
+    // The canonical template is the anchor: only enforce the plugin mirror where
+    // the template actually exists. This is a real-repo invariant — synthetic
+    // parity unit tests pass a templates dir without skills/, so they skip here.
+    if (!existsSync(templateFile)) continue;
+    const pluginFile = nodePath.join(rootDirectory, 'plugin', 'skills', name, 'SKILL.md');
+    if (!existsSync(pluginFile)) {
+      failures.push({
+        kind: 'pair',
+        message: `[PLUGIN-SKILL] Missing file: plugin/skills/${name}/SKILL.md (template exists)`,
+      });
+      continue;
+    }
+    if (readFileSync(templateFile, 'utf8') !== readFileSync(pluginFile, 'utf8')) {
+      failures.push({
+        kind: 'pair',
+        message: `[PLUGIN-SKILL] Drift: plugin/skills/${name}/SKILL.md ≠ templates/skills/${name}/SKILL.md`,
+      });
+    }
+  }
+  return failures;
+}
+
 export function runParity(input: ParityInput): ParityResult {
   const failures: ParityFailure[] = [];
   let passedCount = 0;
@@ -166,6 +199,7 @@ export function runParity(input: ParityInput): ParityResult {
   failures.push(
     ...checkOrphanTemplates(input.templatesDirectory, input.schema),
     ...checkCursorRulesThin(input.templatesDirectory),
+    ...checkPluginSkills(input.rootDirectory, input.templatesDirectory),
   );
 
   return { failures, passedCount };

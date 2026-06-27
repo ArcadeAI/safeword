@@ -34,6 +34,7 @@ const ignores = [
   '**/.dependency-cruiser.cjs', // CommonJS config file
   'packages/cli/scripts/*.js', // Node.js scripts with CommonJS globals
   'scripts/', // Monorepo dev scripts - standalone Bun scripts not in any tsconfig
+  'plugin/hooks/', // Claude Code plugin hooks - standalone Bun scripts bundled in the plugin, not in any tsconfig (J611KP)
   'experiments/', // Research spikes - self-contained, not in any tsconfig or workspace
   'features/', // Root cucumber lane scaffolded by safeword upgrade - customer-facing, no tsconfig
   'steps/', // Root cucumber step definitions (same lane)

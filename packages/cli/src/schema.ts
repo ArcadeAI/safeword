@@ -272,6 +272,22 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
   ]),
 );
 
+/**
+ * Skills whose Claude surface is served by the Claude Code plugin (plugin/skills/)
+ * instead of a CLI-installed `.claude/skills/<name>/SKILL.md` (ticket J611KP spike).
+ *
+ * These are Cursor-DECOUPLED action skills: their Cursor surface is a self-contained
+ * `.cursor/commands/<name>.md`, with no `.cursor/rules/*.mdc` `@`-reference into
+ * `.claude/skills/<name>` (verified). Because `.claude/skills/` is shared
+ * infrastructure that Cursor rules/commands read in place, only decoupled skills can
+ * leave it without breaking Cursor — so the promotable set is exactly these.
+ *
+ * The canonical content stays at `templates/skills/<name>/SKILL.md` (Codex's
+ * `.agents/skills/` still installs from it); `plugin/skills/<name>/SKILL.md` is kept
+ * byte-identical to the template by the plugin-skill parity check.
+ */
+export const PLUGIN_PROMOTED_SKILLS = ['explain', 'lint', 'cleanup-zombies'] as const;
+
 // ============================================================================
 // SAFEWORD_SCHEMA - The Single Source of Truth
 // ============================================================================
@@ -511,6 +527,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-quality-reviewing',
     '.claude/skills/safeword-refactoring',
     '.claude/skills/safeword-bdd-orchestrating',
+    // Promoted to the Claude Code plugin (plugin/skills/) — remove the stale
+    // CLI-installed Claude copy on upgrade so the plugin is the sole source on
+    // Claude (no double-vision). Cursor/Codex copies are unaffected. (J611KP)
+    ...PLUGIN_PROMOTED_SKILLS.map(name => `.claude/skills/${name}`),
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
@@ -831,16 +851,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     // Claude skills — action commands with disable-model-invocation
     // Skills auto-create /slash-commands, so separate commands are unnecessary
-    '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
+    //
+    // NOTE: lint, explain, cleanup-zombies are promoted to the Claude Code plugin
+    // (plugin/skills/) — see PLUGIN_PROMOTED_SKILLS and ticket J611KP. They are
+    // Cursor-decoupled action skills (self-contained Cursor commands, no `.mdc`
+    // @-reference into .claude/skills), so the CLI can stop installing the Claude
+    // copy without breaking Cursor. The templates stay (Codex .agents/skills still
+    // uses them) and are kept byte-identical to plugin/skills/ by parity.
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
     '.claude/skills/audit/SKILL.md': { template: 'skills/audit/SKILL.md' },
-    '.claude/skills/explain/SKILL.md': { template: 'skills/explain/SKILL.md' },
     '.claude/skills/self-review/SKILL.md': { template: 'skills/self-review/SKILL.md' },
     '.claude/skills/review-spec/SKILL.md': {
       template: 'skills/review-spec/SKILL.md',
-    },
-    '.claude/skills/cleanup-zombies/SKILL.md': {
-      template: 'skills/cleanup-zombies/SKILL.md',
     },
     // Claude skills — contextual (auto-triggered, no slash command)
     '.claude/skills/brainstorm/SKILL.md': {

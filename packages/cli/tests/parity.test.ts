@@ -377,4 +377,77 @@ describe('runParity', () => {
       expect(result.failures.filter(f => f.kind === 'cursor-rule')).toHaveLength(0);
     });
   });
+
+  // Plugin-promoted skills (explain, lint, cleanup-zombies — J611KP) leave the
+  // .claude/skills byte-parity set but must stay byte-identical to the canonical
+  // template that Codex's .agents/skills still installs.
+  describe('plugin skills (plugin/skills must mirror templates/skills)', () => {
+    function writePromotedSkill(directory: string, relative: string, body: string): void {
+      const filePath = nodePath.join(directory, relative);
+      mkdirSync(nodePath.dirname(filePath), { recursive: true });
+      writeFileSync(filePath, body);
+    }
+
+    it('passes when the plugin copy is byte-identical to the template', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      const body = '---\nname: explain\n---\n\nExplain things.\n';
+      writePromotedSkill(templatesDirectory, 'skills/explain/SKILL.md', body);
+      writePromotedSkill(rootDirectory, 'plugin/skills/explain/SKILL.md', body);
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures.filter(f => f.message.startsWith('[PLUGIN-SKILL]'))).toHaveLength(0);
+    });
+
+    it('fails with [PLUGIN-SKILL] Drift when the plugin copy differs by any byte', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writePromotedSkill(templatesDirectory, 'skills/lint/SKILL.md', 'canonical\n');
+      writePromotedSkill(rootDirectory, 'plugin/skills/lint/SKILL.md', 'drifted\n');
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      const failure = result.failures.find(f => f.message.startsWith('[PLUGIN-SKILL]'));
+      expect(failure?.message).toContain('Drift: plugin/skills/lint/SKILL.md');
+    });
+
+    it('fails when the template exists but the plugin copy is missing', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writePromotedSkill(templatesDirectory, 'skills/cleanup-zombies/SKILL.md', 'canonical\n');
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      const failure = result.failures.find(f => f.message.startsWith('[PLUGIN-SKILL]'));
+      expect(failure?.message).toContain('Missing file: plugin/skills/cleanup-zombies/SKILL.md');
+    });
+
+    it('runs in contracts-only mode too (pre-commit hard-blocks plugin-skill drift)', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      writePromotedSkill(templatesDirectory, 'skills/explain/SKILL.md', 'canonical\n');
+      writePromotedSkill(rootDirectory, 'plugin/skills/explain/SKILL.md', 'drifted\n');
+
+      const result = runParity({
+        schema: { ownedFiles: {}, contracts: {} },
+        mode: 'contracts-only',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures.some(f => f.message.startsWith('[PLUGIN-SKILL]'))).toBe(true);
+    });
+  });
 });
