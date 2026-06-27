@@ -63,6 +63,10 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Saved source** (`features/<slug>.feature`): Gherkin `Feature` / `Rule` / `Scenario` with lineage as `@<jtbd-id>.AC<#>` tags. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
 
+### Surface coverage tags
+
+If `spec.md` `## Surfaces` lists `Affected:` entries, each affected surface needs at least one saved scenario tagged `@surface.<slug>` or an explicit `skip: <reason>` on the affected-surface line. Slug = lowercase name with non-alphanumerics collapsed to hyphens (`OpenAI Codex` -> `@surface.openai-codex`). One scenario can carry multiple surface tags when the same behavior proves parity across contexts. `safeword check` reports missing or stale surface tags as advisories.
+
 **Progress ledger** (`test-definitions.md` on disk): scenario headings plus per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. test-definitions.md is the R/G/R ledger. The prompt hook parses those checkboxes to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Do not duplicate Given/When/Then here when a `.feature` source exists.
 
 ```gherkin

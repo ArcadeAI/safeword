@@ -128,7 +128,7 @@ export interface ManagedFileDefinition extends FileDefinition {
    *
    * See ticket K7N2QM for the data-loss-prevention rationale.
    */
-  configKey?: 'personas' | 'glossary' | 'architecture';
+  configKey?: 'personas' | 'glossary' | 'surfaces' | 'architecture';
 }
 
 export interface JsonMergeDefinition {

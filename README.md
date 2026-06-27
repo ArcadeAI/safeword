@@ -361,6 +361,7 @@ Safeword reads project-level information from the project namespace root: `paths
     "projectRoot": ".project",
     "personas": "docs/personas.md",
     "glossary": "docs/glossary.md",
+    "surfaces": "docs/surfaces.md",
     "architecture": "ARCHITECTURE.md"
   },
   "docs": {

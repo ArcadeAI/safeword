@@ -1,11 +1,10 @@
 /**
  * Reconcile tests for configurable-paths suppression (ticket K7N2QM).
  *
- * Covers Rule 3 scenarios: when `paths.personas` is set in
- * `.safeword/config.json`, reconcile must skip the
- * `.safeword-project/personas.md` managedFiles entry uniformly across
- * install and uninstall-full modes. The mechanism is an optional
- * `configKey` field on `ManagedFileDefinition`.
+ * Covers Rule 3 scenarios: when a project-knowledge `paths.*` override is set
+ * in `.safeword/config.json`, reconcile must skip that managedFiles default
+ * scaffold uniformly across install and uninstall-full modes. The mechanism is
+ * an optional `configKey` field on `ManagedFileDefinition`.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -49,6 +48,7 @@ const DEFAULT_LANGUAGES = {
 };
 
 const PERSONAS_DEFAULT_PATH = '.safeword-project/personas.md';
+const SURFACES_DEFAULT_PATH = '.project/surfaces.md';
 
 describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
   let cwd: string;
@@ -88,6 +88,14 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
       JSON.stringify({ installedPacks: [], paths: { personas: personasPath } }, undefined, 2),
+    );
+  }
+
+  function writeSurfacesOverrideConfig(surfacesPath: string): void {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ installedPacks: [], paths: { surfaces: surfacesPath } }, undefined, 2),
     );
   }
 
@@ -148,5 +156,45 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     expect(existsSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH))).toBe(true);
     const after = readFileSync(nodePath.join(cwd, PERSONAS_DEFAULT_PATH), 'utf8');
     expect(after).toBe(userContent);
+  });
+
+  it('R4.2: skips default surfaces scaffold when paths.surfaces is configured', async () => {
+    const { reconcile } = await import('../src/reconcile.js');
+    const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+    writeSurfacesOverrideConfig('docs/surfaces.md');
+
+    await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
+
+    expect(existsSync(nodePath.join(cwd, SURFACES_DEFAULT_PATH))).toBe(false);
+  });
+
+  it('R4.3: leaves pre-existing default surfaces file untouched when override is set', async () => {
+    const { reconcile } = await import('../src/reconcile.js');
+    const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+    const userContent = '# Surfaces\n\n## Setup CLI\n\n**Kind:** CLI\n';
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, SURFACES_DEFAULT_PATH), userContent);
+    writeSurfacesOverrideConfig('docs/surfaces.md');
+
+    await reconcile(SAFEWORD_SCHEMA, 'install', makeContext());
+
+    expect(readFileSync(nodePath.join(cwd, SURFACES_DEFAULT_PATH), 'utf8')).toBe(userContent);
+  });
+
+  it('R4.5: `reset --full` with surfaces override set does not remove default-location file', async () => {
+    const { reconcile } = await import('../src/reconcile.js');
+    const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+    const userContent =
+      '# Surfaces\n\n## Generated customer install\n\n**Kind:** Generated config\n';
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, SURFACES_DEFAULT_PATH), userContent);
+    writeSurfacesOverrideConfig('docs/surfaces.md');
+
+    await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', makeContext());
+
+    expect(readFileSync(nodePath.join(cwd, SURFACES_DEFAULT_PATH), 'utf8')).toBe(userContent);
   });
 });

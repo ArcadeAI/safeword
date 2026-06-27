@@ -60,6 +60,7 @@ Six lenses across the whole scenario set (not per scenario) — each asks "what'
 - **Failure** — external-dependency failures covered (timeout, 5xx, malformed, partition)? Distinct from the feature's own rejections (the negative-case lens above).
 - **Security** — authn/authz failures and abuse vectors covered?
 - **Persona consistency** — is each scenario's triggering persona clear, and would another persona experience it differently?
+- **Surface coverage** — if `spec.md` lists affected surfaces, does each affected surface have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a `provider: none`-style short circuit has no wiring coverage (see `testing/SKILL.md` → Wiring Tests).
 
 ## Findings format

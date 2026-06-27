@@ -283,7 +283,7 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
  * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
  * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
  * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
- * siblings (tickets/, learnings/, personas.md, glossary.md) stay tracked.
+ * siblings (tickets/, learnings/, personas.md, glossary.md, surfaces.md) stay tracked.
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
@@ -985,6 +985,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword-project/glossary.md': {
       template: 'glossary-template.md',
       configKey: 'glossary',
+    },
+
+    // Project feature surfaces — scaffolded once with format header + commented
+    // example; user authors real surface blocks thereafter. `configKey:
+    // 'surfaces'` lets the user redirect via `paths.surfaces` in
+    // .safeword/config.json, matching the personas/glossary contract.
+    '.safeword-project/surfaces.md': {
+      template: 'surfaces-template.md',
+      configKey: 'surfaces',
     },
 
     // Per-root `.gitignore` for hook-written transient state. The legacy-prefixed

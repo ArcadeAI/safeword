@@ -79,6 +79,9 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(readFileSync(nodePath.join(cwd, '.project', 'glossary.md'), 'utf8')).toContain(
       '# Glossary',
     );
+    expect(readFileSync(nodePath.join(cwd, '.project', 'surfaces.md'), 'utf8')).toContain(
+      '# Surfaces',
+    );
   });
 
   it('DEV1.AC1.fresh_setup_creates_no_legacy_dir', async () => {
@@ -96,9 +99,22 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
 
     expect(readFileSync(nodePath.join(cwd, '.project', 'personas.md'), 'utf8')).toBe(personas);
     expect(existsSync(nodePath.join(cwd, '.project', 'glossary.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.project', 'surfaces.md'))).toBe(true);
     for (const directory of NAMESPACE_DIRECTORIES) {
       expect(existsSync(nodePath.join(cwd, '.project', directory)), directory).toBe(true);
     }
+  });
+
+  it('DEV1.AC2.existing_surfaces_survive_setup_byte_identical', async () => {
+    const surfaces = '# Surfaces\n\n## Setup CLI\n\n**Kind:** CLI\n';
+    mkdirSync(nodePath.join(cwd, '.project'));
+    writeFileSync(nodePath.join(cwd, '.project', 'surfaces.md'), surfaces);
+
+    await runInstall();
+
+    expect(readFileSync(nodePath.join(cwd, '.project', 'surfaces.md'), 'utf8')).toBe(surfaces);
+    expect(existsSync(nodePath.join(cwd, '.project', 'personas.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.project', 'glossary.md'))).toBe(true);
   });
 
   it('DEV1.AC2.partial_project_dir_gets_missing_pieces', async () => {
@@ -107,7 +123,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
 
     await runInstall();
 
-    for (const piece of ['tickets/completed', 'learnings', 'tmp', 'glossary.md']) {
+    for (const piece of ['tickets/completed', 'learnings', 'tmp', 'glossary.md', 'surfaces.md']) {
       expect(existsSync(nodePath.join(cwd, '.project', piece)), piece).toBe(true);
     }
     expect(readFileSync(nodePath.join(cwd, '.project', 'personas.md'), 'utf8')).toBe(
@@ -137,6 +153,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
 
     expect(existsSync(nodePath.join(cwd, '.safeword-project', 'personas.md'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.safeword-project', 'glossary.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword-project', 'surfaces.md'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
   });
 
@@ -146,6 +163,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd));
 
     expect(existsSync(nodePath.join(cwd, '.safeword-project', 'personas.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword-project', 'surfaces.md'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
   });
 
@@ -162,6 +180,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
       expect(existsSync(nodePath.join(cwd, 'team-ns', directory)), directory).toBe(true);
     }
     expect(existsSync(nodePath.join(cwd, 'team-ns', 'personas.md'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, 'team-ns', 'surfaces.md'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
     expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
   });

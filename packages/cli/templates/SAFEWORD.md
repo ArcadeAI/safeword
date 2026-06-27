@@ -2,7 +2,7 @@
 
 The standing operating model for this project. Read at session start; re-scan by topic as situations arise. Project-specific rules live in `./CLAUDE.md`. Triggered playbooks live in `./.safeword/guides/`.
 
-Project knowledge (tickets, learnings, personas, glossary) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
+Project knowledge (tickets, learnings, personas, glossary, surfaces) lives under the **project namespace root**: configurable via `paths.projectRoot` in `.safeword/config.json`, `.project/` by default, with legacy `.safeword-project/` honored only when that directory already exists. Paths below use `<namespace-root>` for the resolved directory.
 
 ---
 
@@ -51,7 +51,7 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
+Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: load personas, glossary, and surfaces from the configured project-knowledge files; open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).

@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (336)
+## Tickets (339)
 
 ### agent-surface-refactor
 
@@ -46,7 +46,7 @@
 - **Epic: Cross-agent auto-upgrade (Cursor + Codex) (BJX7WR)** (in_progress, epic: auto-upgrade-cross-agent)
   Extend safeword's seamless auto-upgrade — today Claude-Code-only — to the other two supported agents, Cursor and Codex, so customers on any agent stay current without manual `safeword upgrade`.
   → `.project/tickets/BJX7WR-auto-upgrade-cross-agent`
-- **Auto-upgrade under Cursor (Y6HZR7)** (blocked, epic: auto-upgrade-cross-agent)
+- **Auto-upgrade under Cursor (Y6HZR7)** (in_progress, epic: auto-upgrade-cross-agent)
   Cursor users get safeword's seamless patch/minor auto-upgrade (today Claude-Code-only) without manual `safeword upgrade` and without breaking Cursor's session start.
   → `.project/tickets/Y6HZR7-auto-upgrade-cursor`
 
@@ -841,6 +841,10 @@
 - **Spike: hooks dispatched from the CLI (latency + wiring) (D6GTXY)** (in_progress, epic: —)
   Falsify (or confirm) the load-bearing assumption behind moving safeword's hook layer into the CLI — that a CLI-dispatched hook can run at ~the direct-script latency baseline — with the smallest possible prototype, and produce a go/no-go + migration strategy.
   → `.project/tickets/D6GTXY-hooks-into-cli-spike`
+- **Let projects track feature surfaces during BDD (DBF1FW)** (in_progress, epic: —)
+  Let projects keep a durable inventory of runtime/context feature surfaces that BDD intake, specs, and scenario coverage can use during discovery and implementation.
+  external issue: https://github.com/ArcadeAI/safeword/issues/509
+  → `.project/tickets/DBF1FW-feature-surfaces-bdd`
 - **Ship /explain to Cursor (DC6276)** (done, epic: —)
   Give Cursor users the `/explain` plain-English lifeline they currently don't have — so an NTB on Cursor can decode a block or "where am I" the same way Claude Code and Codex users can.
   → `.project/tickets/DC6276-ship-explain-to-cursor`
@@ -908,6 +912,10 @@
 - **Upgrade eslint-plugin-jsdoc v62 → v63 (HRN1Z6)** (done, epic: —)
   Bump `eslint-plugin-jsdoc` from v62 to v63 across the monorepo and fix the root `package.json` categorization (currently in `dependencies`, belongs in `devDependencies`).
   → `.project/tickets/HRN1Z6`
+- **Make implementation reviews quiet until exit (JENFZX)** (in_progress, epic: —)
+  Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
+  external issue: https://github.com/ArcadeAI/safeword/issues/464
+  → `.project/tickets/JENFZX-quiet-implement-review-surface`
 - **Auto-install deps in fresh worktrees via SessionStart hook (JNVP4W)** (done, epic: —)
   A freshly created git worktree auto-installs its dependencies on session start, so commits (and tests/lint) work immediately instead of failing at the pre-commit guard with "node_modules not installed."
   → `.project/tickets/JNVP4W-worktree-auto-deps`
@@ -1008,6 +1016,9 @@
 - **`/architecture` LLM-prose resync skill (deferred from JT852Q) (RYKVR5)** (backlog, epic: —)
   An on-demand `/architecture` skill that writes the slow-moving
   → `.project/tickets/RYKVR5-architecture-llm-prose-resync`
+- **Resolve current dependency advisory baseline (SFGCR1)** (in_progress, epic: —)
+  Resolve or explicitly triage the dependency security advisories currently reported by `bun audit`.
+  → `.project/tickets/SFGCR1-resolve-current-dependency-advisory-baseline`
 - **Optimize safeword for Fable 5 — capability-tier harness adaptation (SKQR0G)** (in_progress, epic: —)
   Re-weight safeword's harness for frontier models like Fable 5 — amplify fresh-context verification and the no-bloat guardrail, thin the per-turn control injections, and scale harness intensity by model tier/effort — guided by Fable's own prompting guidance.
   → `.project/tickets/SKQR0G-capability-tier-harness`

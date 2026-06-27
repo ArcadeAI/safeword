@@ -46,11 +46,11 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}": [
-      "eslint --fix",
+      "eslint --fix --config eslint.config.ts --no-warn-ignored",
       "prettier --write"
     ],
     "*.{vue,svelte,astro}": [
-      "eslint --fix",
+      "eslint --fix --config eslint.config.ts --no-warn-ignored",
       "prettier --write"
     ],
     "*.{json,css,scss,html,yaml,yml,graphql}": [

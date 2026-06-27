@@ -3,7 +3,8 @@
  *
  * Personas/glossary/architecture defaults derive from the resolved namespace
  * root (`resolveNamespaceRoot`), and per-file `paths.*` overrides keep winning
- * over the derived default. Precedence itself lives in namespace-root.test.ts.
+ * over the derived default. Surface inventory is part of that same project
+ * knowledge set. Precedence itself lives in namespace-root.test.ts.
  *
  * Scenario lineage: namespace-root-resolver.DEV1.AC1.*, DEV2.AC2.*
  * (test-definitions.md in the ticket folder).
@@ -53,10 +54,24 @@ describe('resolveConfiguredPath — defaults derive from the resolved root (TAGW
     );
   });
 
+  it('DEV1.AC1.surfaces_default_derives_from_root', () => {
+    expect(resolveConfiguredPath(cwd, 'surfaces')).toBe(
+      nodePath.join(cwd, '.project', 'surfaces.md'),
+    );
+  });
+
   it('DEV2.AC2.per_file_override_wins_for_its_file', () => {
     writeConfig(cwd, { installedPacks: [], paths: { personas: 'team/people.md' } });
 
     expect(resolveConfiguredPath(cwd, 'personas')).toBe(nodePath.join(cwd, 'team', 'people.md'));
+  });
+
+  it('DEV2.AC2.surfaces_override_wins_for_surfaces_file', () => {
+    writeConfig(cwd, { installedPacks: [], paths: { surfaces: 'docs/product-surfaces.md' } });
+
+    expect(resolveConfiguredPath(cwd, 'surfaces')).toBe(
+      nodePath.join(cwd, 'docs', 'product-surfaces.md'),
+    );
   });
 
   it('DEV2.AC2.unset_per_file_falls_back_to_root', () => {
@@ -75,6 +90,9 @@ describe('resolveConfiguredPath — defaults derive from the resolved root (TAGW
 
       expect(resolveConfiguredPath(legacyCwd, 'personas')).toBe(
         nodePath.join(legacyCwd, '.safeword-project', 'personas.md'),
+      );
+      expect(resolveConfiguredPath(legacyCwd, 'surfaces')).toBe(
+        nodePath.join(legacyCwd, '.safeword-project', 'surfaces.md'),
       );
     } finally {
       removeTemporaryDirectory(legacyCwd);
