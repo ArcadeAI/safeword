@@ -65,3 +65,12 @@ next layer); (2) n=4 per arm — the effect is clean but small-sample; (3) a
 round-1 trap (background-worker _lifecycle_ ctx) was abandoned as too gray —
 storing lifecycle ctx is a defensible exception, so 3/4 directive agents stored
 it with justification. The request-scoped trap removes that ambiguity.
+
+### 3-arm update: directive ≈ availability
+
+Adding arm B (skill _available_, agent chooses): **A=0/4, B=4/4, C=4/4.** The
+directive adds nothing over the agent merely knowing a relevant skill exists.
+Lever = awareness (native description-triggering provides it), not the directive.
+Caveat: arm B pointed at one clearly-relevant skill; real native triggering (skill
+among many) may silently miss — the only thing that could still justify a directive,
+testable only in a live multi-skill session.

@@ -68,3 +68,21 @@ Refined to an unambiguous trap (request-scoped `RequestScope` carrier; no lifecy
 **Caveats (honest):** strongest arm-C form ("read this skill + follow it") — proves the *content* moves behavior, not yet that the prompt-hook *directive* triggers it live (next layer). n=4. Round-1 lifecycle-ctx trap abandoned (too gray).
 
 **Committed harness:** `experiments/go-skill-directive/{trap-context/,checker/,grade-ctx.sh}`. Status: gating question answered YES; next = test the faithful injection mechanism (prompt-hook directive in a real session) per #482.
+
+## 3-arm result — the directive adds NOTHING over availability (reframes #482)
+
+Added arm B (skill AVAILABLE, agent chooses — the native-triggering analog):
+
+| Arm | Pass | |
+|-----|------|--|
+| A control (no skill) | **0/4** | model makes the error every time |
+| B skill available ("read if useful") | **4/4** | agent reads it + follows it |
+| C directive (read+follow mandated) | **4/4** | no better than B |
+
+**B == C.** Once the agent is *aware a relevant skill exists*, it uses it — whether merely told it's available (B) or explicitly directed (C). The deterministic directive's marginal value over awareness is **zero** here. The only thing that moves the needle is the agent KNOWING the skill exists (A had no skill at all → 0/4).
+
+**Reframe for #482:** the value is **awareness**, which **native description-triggering already provides** (the skill's description sits in the agent's available-skills list). The elaborate prompt-hook *directive* machinery (the #482 "integration layer") is likely **unnecessary** — this is the no-bloat answer: *just deliver the skill; let native triggering surface it.*
+
+**The one caveat that could still justify a directive — RELIABILITY:** arm B pointed at ONE clearly-relevant skill ("a Go context skill is available, read if useful"). Real native triggering puts the skill's description among ~40 others; the agent must self-notice it's relevant. So the directive's *only* possible remaining value is improving awareness **reliability** (closing silent-misses where native triggering doesn't fire) — NOT changing behavior once aware. That is exactly the "silent-miss" risk, and it needs the **live multi-skill session test** to measure (can't be done in a sub-agent harness).
+
+**Recommendation pivot (pending user):** make native-description-triggering the primary (just install the skill); treat the prompt-hook directive as a *deferred reliability backstop*, built only if live testing shows native triggering silently misses. Update #482 accordingly.
