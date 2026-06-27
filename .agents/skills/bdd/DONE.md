@@ -11,3 +11,5 @@ Done means the ticket is closed. All verification happened in the verify phase.
 3. Final commit: `feat(scope): [summary]`
 
 The stop hook hard-blocks if verify.md is missing or empty — you cannot reach done without completing the verify phase first.
+
+**Avoid bloat.**

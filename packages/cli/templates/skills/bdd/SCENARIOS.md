@@ -208,3 +208,5 @@ After the gate, `safeword codify <ticket>` derives implementation stubs from the
 - `--format gherkin`: prints the feature source when one exists; on legacy tickets, emits a migration `.feature` from markdown scenarios.
 
 Either way `.feature` is the scenario source of truth. test-definitions.md is the R/G/R ledger for checkboxes and hooks.
+
+**Avoid bloat.**

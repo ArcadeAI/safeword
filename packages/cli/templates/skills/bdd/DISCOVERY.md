@@ -216,3 +216,5 @@ Define-behavior scenarios draw from the self-test: behavior that changes seeds h
 Technical breakdown — component identification and any design-doc/ADR triggers — belongs here in intake (you design the architecture in "Understanding" above). The per-scenario proof plan + build order step now happens at the scenario-gate exit; the standalone `decomposition` phase is retired (see the ADR in `ARCHITECTURE.md`).
 
 **Voice:** plainspoken and concise — write to be scanned.
+
+**Avoid bloat.**

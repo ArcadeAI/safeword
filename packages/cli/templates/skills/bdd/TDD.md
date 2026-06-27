@@ -144,3 +144,5 @@ bun .safeword/hooks/write-review-stamp.ts --model < reviewer-model-id > impl-pla
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If you can't run a different model, log a deliberate `skip: <reason>` rather than stamping a same-model review. (This gate is stricter than quality-review's advisory loop, which accepts a fresh-context pass on your own model — here a genuinely different model, or an explicit `skip:`, is required.)
+
+**Avoid bloat.**

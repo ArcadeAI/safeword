@@ -189,6 +189,7 @@ try {
   // Counter file missing or corrupted — skip escalation
 }
 
+lines.push('- Avoid bloat.');
 console.log(lines.join('\n'));
 
 function tddNextStep(step: string): string {
