@@ -165,6 +165,18 @@ function safewordInternalTail(location: string): string | undefined {
  * Returns cleaned frame strings like `at fn (packages/cli/.../foo.ts:42:10)`,
  * capped at MAX_FRAMES.
  */
+// A real V8 stack-frame label looks like `foo`, `Foo.bar`, `Object.<anonymous>`,
+// `async foo`, `new Foo`, or `foo [as bar]`. `error.stack` is an arbitrary string,
+// though, so a crafted label on an otherwise-safeword-located frame could smuggle
+// text past the path filter. Keep the label ONLY when it matches this conservative
+// grammar (no `/`, spaces, quotes, or path shapes); otherwise drop it and emit the
+// already-sanitized location alone.
+const SAFE_FRAME_LABEL = /^(?:async |get |set |new )*[\w$.<>]+(?: \[as [\w$.<>]+\])?$/;
+
+function safeFrameLabel(label: string): string {
+  return label.length > 0 && label.length <= 120 && SAFE_FRAME_LABEL.test(label) ? label : '';
+}
+
 export function sanitizeStackFrames(stack: string | undefined): string[] {
   if (!stack) return [];
   const frames: string[] = [];
@@ -179,7 +191,7 @@ export function sanitizeStackFrames(stack: string | undefined): string[] {
     let location: string;
     const openParen = rest.indexOf('(');
     if (openParen !== -1 && rest.endsWith(')')) {
-      fn = rest.slice(0, openParen).trim();
+      fn = safeFrameLabel(rest.slice(0, openParen).trim());
       location = rest.slice(openParen + 1, -1);
     } else {
       location = rest.trim();

@@ -107,6 +107,22 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(frames).toEqual([]);
     });
 
+    it('drops a crafted function label that carries path/secret content, keeping the location', () => {
+      // error.stack is arbitrary text — a junk label on a safeword-located frame
+      // must not survive verbatim.
+      const stack =
+        'Error: x\n    at evilFn </Users/cust/secret> (/x/safeword/packages/cli/a.ts:1:1)';
+      const frames = sanitizeStackFrames(stack);
+      expect(frames).toEqual(['at packages/cli/a.ts:1:1']);
+      expect(frames.join('\n')).not.toContain('/Users/cust');
+      expect(frames.join('\n')).not.toContain('secret');
+    });
+
+    it('keeps a normal V8 function label', () => {
+      const stack = 'Error: x\n    at Object.<anonymous> (/x/safeword/packages/cli/a.ts:9:2)';
+      expect(sanitizeStackFrames(stack)).toEqual(['at Object.<anonymous> (packages/cli/a.ts:9:2)']);
+    });
+
     it('caps the number of retained frames', () => {
       const deep = [
         'Error: deep',
