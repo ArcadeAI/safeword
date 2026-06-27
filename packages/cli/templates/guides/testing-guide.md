@@ -18,7 +18,11 @@ Test methodology, TDD workflow, and test type selection.
 
 **Behavior-biased testing:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods). Tests coupled to implementation break on every refactor. Behavioral tests survive.
 
-**Prefer highest practical scope:** When multiple test types can verify a behavior, prefer the one that exercises more of the real system. Higher scope = more confidence. Drop to lower scope only when higher scope is impractical (combinatorial inputs, pure algorithms, isolated contracts).
+**Maximize confidence per cost:** When multiple test types can verify a
+behavior, prefer the highest-scope proof that is stable and cheap enough for
+the lane. Higher scope gives more real-world confidence. Lower scope wins when
+it proves the same behavior faster, diagnoses failures better, or covers dense
+edge cases.
 
 **Always test what you build** — Run tests yourself before completion. Don't ask the user to verify.
 
@@ -50,18 +54,117 @@ Tests are the specification. When a test fails, the implementation is wrong—no
 
 ---
 
-## Test Type Hierarchy
+## Test Value Model
 
-**Rule:** Prefer the highest-scope type that's practical. Higher scope = more confidence in real behavior. Drop to lower scope for combinatorial inputs or pure algorithms.
+**Rule:** Test value = customer-behavior confidence / run + maintenance cost.
+
+Use higher-scope tests for risks only the real system can expose. Use
+lower-scope tests when they give the same behavioral proof faster, make failures
+easier to diagnose, or cover many input combinations.
+
+| Test Type   | Highest Value When                                               |
+| ----------- | ---------------------------------------------------------------- |
+| E2E         | Critical user journeys, browser behavior, deployment confidence  |
+| Integration | Product behavior crosses modules, services, APIs, storage, state |
+| Unit        | Pure logic, validators, calculations, dense edge cases           |
+| LLM Eval    | AI output quality cannot be proven deterministically             |
+| Static gate | Types, lint, schema, formatting, dependency rules                |
+
+---
+
+## Good Test Or Busywork
+
+A good test protects behavior that matters and would fail for a plausible
+regression. A busywork test satisfies "add tests" without raising useful
+confidence.
+
+Before adding a test, answer in order. Stop at the first failure.
+
+1. **What behavior or contract does this protect?**
+   - Clear answer → Continue
+   - No clear answer → Do not write the test; define the behavior first
+
+2. **What plausible regression would make this test fail?**
+   - Clear answer → Continue
+   - No clear answer → Skip it or turn it into a clearer acceptance criterion
+
+3. **Is this the cheapest scope that proves the behavior?**
+   - YES → Continue
+   - NO → Move up or down the hierarchy until confidence and cost match
+
+4. **Will a failure point to a likely fix area?**
+   - YES → Continue
+   - NO → Narrow the test, improve assertions, or add better failure evidence
+
+5. **Is the test stable, isolated, and owned?**
+   - YES → Keep the test
+   - NO → Fix fixture isolation, flake risk, cleanup, or ownership first
+
+### Good Test Signals
+
+| Signal                    | What It Means                                         |
+| ------------------------- | ----------------------------------------------------- |
+| Behavior-linked           | Protects an output, side effect, workflow, or contract |
+| Plausible regression      | Would fail for a bug users or maintainers could hit   |
+| Cheapest sufficient scope | Uses no more system than needed to prove the behavior |
+| Diagnosable failure       | Failure narrows where to inspect next                 |
+| Stable and isolated       | Does not depend on order, shared state, timing, or luck |
+| Maintained evidence       | Fixtures, snapshots, and assertions stay intentional  |
+
+### Busywork Smells By Type
+
+| Test Type   | Busywork Smell                                      | Better Move                                      |
+| ----------- | --------------------------------------------------- | ------------------------------------------------ |
+| Unit        | Private methods, mock-call choreography, pass-throughs | Test public behavior or delete the test          |
+| Integration | So many mocks that the boundary is fake             | Use a unit test or fewer mocks                   |
+| Integration | So broad that failures only say "something broke"   | Split by contract or promote the main flow to E2E |
+| E2E         | Every edge case runs through a browser              | Keep E2E smoke; cover edge cases lower down      |
+| E2E         | Fragile shared accounts, third-party UI, or timing  | Isolate data, stub unsafe boundaries, add waits on signals |
+| Static gate | Noisy rule treated as behavior proof                | Keep static gates, but add runtime coverage      |
+| LLM Eval    | Deterministic assertion disguised as model judgment | Use the eval guide's token-waste gate            |
+
+Good test:
 
 ```text
-E2E (seconds-minutes)    ← Full browser, user flows         ↑ prefer
+Behavior: User cannot lose a draft after validation fails.
+Regression: Form reset clears unsaved input.
+Scope: Integration test with the form, validation, and state store.
+Failure action: inspect submit handler and draft persistence.
+```
+
+Busywork test:
+
+```text
+Behavior: unclear.
+Regression: "component should work."
+Scope: E2E test clicking through a happy path already covered by smoke.
+Failure action: unclear.
+```
+
+If a test fails this gate, convert it into one of:
+
+- A clearer acceptance criterion
+- A smaller unit or integration test
+- A critical-path E2E smoke test
+- An eval idea with a specific AI failure named
+- A verification lane with cadence, owner, and failure action
+
+---
+
+## Test Type Hierarchy
+
+**Rule:** Prefer the highest-scope type that is stable and cheap enough for the
+lane. Higher scope increases confidence in real behavior; lower scope is better
+for fast diagnosis, pure algorithms, and combinatorial input coverage.
+
+```text
+E2E (seconds-minutes)    ← Full browser, user flows         ↑ broader confidence
   ↑
 LLM Eval (seconds+)      ← AI judgment, model-dependent cost
   ↑
 Integration (seconds)    ← Multiple modules, database, API
   ↑
-Unit (milliseconds)      ← Pure functions, no I/O           ↑ fallback
+Unit (milliseconds)      ← Pure functions, no I/O           ↓ cheaper diagnosis
 ```
 
 ---
@@ -364,9 +467,9 @@ contract
 
 ## Coverage Goals
 
-- **Unit tests:** 80%+ coverage of pure functions
+- **Unit tests:** 80%+ coverage of pure functions and dense edge cases
 - **Integration tests:** All critical paths covered
-- **E2E tests:** All critical multi-page user flows
+- **E2E tests:** Critical multi-page user flows and browser-only risks
 - **LLM evals:** AI features with probabilistic output quality have evaluation scenarios; deterministic AI plumbing has normal tests
 
 **What are "critical paths"?**
@@ -399,7 +502,7 @@ prompts. Treat caching as provider-specific, not guaranteed.
 ## CI/CD Integration
 
 - Run unit + integration tests on every commit (fast feedback)
-- Run E2E tests on every PR
+- Run E2E smoke tests on every PR; run broader E2E suites on release or schedule
 - Run smoke evals on PR for high-risk AI behavior; run full evals on release or schedule
 
 ---
