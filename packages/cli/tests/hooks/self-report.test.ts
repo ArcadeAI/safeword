@@ -462,27 +462,27 @@ describe('self-report capture (QYYC5Y)', () => {
       );
     }
 
-    it('defaults to capture-on / surface-on / file-OFF when absent', () => {
+    it('defaults to all-on (capture + surface + file) when absent', () => {
       expect(readSelfReportConfig(projectDirectory)).toEqual({
         capture: true,
         surface: true,
-        file: false,
-      });
-    });
-
-    it('reads explicit booleans and ignores non-booleans', () => {
-      writeConfig({ selfReport: { file: true, surface: false, capture: 'yes' } });
-      expect(readSelfReportConfig(projectDirectory)).toEqual({
-        capture: true, // 'yes' is not a boolean → default
-        surface: false,
         file: true,
       });
     });
 
-    it('falls back to defaults on malformed config', () => {
+    it('reads explicit booleans and ignores non-booleans', () => {
+      writeConfig({ selfReport: { file: false, surface: false, capture: 'yes' } });
+      expect(readSelfReportConfig(projectDirectory)).toEqual({
+        capture: true, // 'yes' is not a boolean → default (on)
+        surface: false,
+        file: false, // explicit opt-out honored
+      });
+    });
+
+    it('falls back to defaults (file on) on malformed config', () => {
       mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
       writeFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), 'not json');
-      expect(readSelfReportConfig(projectDirectory).file).toBe(false);
+      expect(readSelfReportConfig(projectDirectory).file).toBe(true);
     });
   });
 

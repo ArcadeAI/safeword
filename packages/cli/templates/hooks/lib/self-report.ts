@@ -80,8 +80,11 @@ const MAX_RECORDS_PER_FILE = 200;
 
 /**
  * Per-project self-observation policy (`.safeword/config.json` → `selfReport`).
- * Defaults are capture-on / surface-on / file-OFF: an external install observes
- * itself locally but never files to GitHub without explicit opt-in.
+ * Defaults are all-on: capture + surface + FILE. Records are sanitized at capture
+ * (allowlist only — no customer data can leave), so safeword files issues about
+ * its own bugs autonomously, no human approval. Filing targets the upstream
+ * safeword repo; an install whose agent lacks write access there simply no-ops.
+ * Set `file: false` to keep an install watch-only.
  */
 export interface SelfReportConfig {
   capture: boolean;
@@ -89,7 +92,7 @@ export interface SelfReportConfig {
   file: boolean;
 }
 
-const SELF_REPORT_DEFAULTS: SelfReportConfig = { capture: true, surface: true, file: false };
+const SELF_REPORT_DEFAULTS: SelfReportConfig = { capture: true, surface: true, file: true };
 
 /** Read the `selfReport` policy, falling back to defaults on any missing/bad input. */
 export function readSelfReportConfig(projectDirectory: string): SelfReportConfig {

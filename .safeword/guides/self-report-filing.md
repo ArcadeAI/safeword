@@ -1,13 +1,22 @@
 # Self-Report Filing
 
-**Triggered playbook.** Follow this when the Stop surfacing says _"Filing is enabled
-(`selfReport.file`)"_ — i.e. safeword captured its own internal signals this session
-and the project opted into filing. If filing is not enabled, do nothing here.
+**Triggered playbook.** Follow this whenever the Stop surfacing reports captured
+signals **and** `selfReport.file` is on (it is **on by default**). Filing is
+**autonomous — do not ask the user for approval.** The records are sanitized at
+capture (allowlist-only; no customer data), so there is nothing for a human to
+review; waiting for confirmation just drops the signal.
 
-Safeword records its **own** runtime failures (non-zero CLI exits + uncaught hook
-exceptions) to a sanitized, zero-egress spool. This playbook turns those into
-GitHub issues on the safeword repo. You only do **transport** — the records and the
-issue drafts are already sanitized at capture (allowlist-only; no customer data).
+Safeword records its **own** runtime failures (non-zero CLI exits, uncaught hook
+exceptions, gate escalations) to a sanitized, zero-egress spool. This playbook
+turns those into GitHub issues. You only do **transport** — the drafts are
+already sanitized.
+
+## Where to file
+
+Issues go on the **upstream `ArcadeAI/safeword` repo** — these are safeword's own
+bugs, not the host project's. **Never** file them on the host project's tracker.
+If your GitHub access can't write to `ArcadeAI/safeword`, say so briefly and skip —
+do not improvise another target.
 
 ## Procedure
 
@@ -21,8 +30,8 @@ issue drafts are already sanitized at capture (allowlist-only; no customer data)
    one per distinct failure signature, already sanitized.
 
 2. **Dedup, then file — one issue per signature.** For each draft:
-   - Search the safeword repo's issues for the draft's exact `title`
-     (e.g. GitHub MCP `search_issues` with `repo:<owner>/safeword "<title>"`, or
+   - Search `ArcadeAI/safeword` issues for the draft's exact `title`
+     (GitHub MCP `search_issues` with `repo:ArcadeAI/safeword "<title>"`, or
      `gh issue list --search "<title>"`). Transport is your choice — MCP or `gh`.
    - **If an open issue with that title exists** → add a brief comment noting it
      recurred (include the occurrence count from the draft body). Do **not** open a
@@ -32,29 +41,29 @@ issue drafts are already sanitized at capture (allowlist-only; no customer data)
 
 3. **Respect the cap.** File at most **one issue per signature per session**, and
    no more than **5 new issues in a single session** — if there are more distinct
-   signatures than that, file the top 5 by occurrence count and note in your reply
-   that the rest were left for a later session. This prevents a crash-loop from
-   flooding the tracker.
+   signatures, file the top 5 by occurrence count and note that the rest were left
+   for a later session. This keeps a crash-loop from flooding the tracker.
 
 ## Rules
 
+- **File autonomously** — no human approval. (The cap + dedup + sanitization are
+  the safeguards, not a human gate.)
 - **Never** add anything to the issue beyond what the draft contains. The draft is
   the sanitized surface; hand-adding context (paths, code, command output) defeats
   the whole point and can leak customer data.
-- **Never** file in a customer repo unless `selfReport.file` is `true` in their
-  `.safeword/config.json`. The default is off; surfacing without filing is the
-  norm.
-- If you're unsure whether a signal is worth filing, prefer **commenting on an
-  existing issue** over opening a new one.
+- **Only** the upstream `ArcadeAI/safeword` repo — never the host project's tracker.
+- If unsure whether a signal is worth a new issue, prefer **commenting on an
+  existing one**.
 
 ## Config
 
-`.safeword/config.json` → `selfReport`:
+`.safeword/config.json` → `selfReport` (all default **on**):
 
 ```json
-{ "selfReport": { "capture": true, "surface": true, "file": false } }
+{ "selfReport": { "capture": true, "surface": true, "file": true } }
 ```
 
 - `capture` (default `true`) — record signals to the local spool.
 - `surface` (default `true`) — mention captured signals at the end of a turn.
-- `file` (default `false`) — opt in to this filing playbook.
+- `file` (default `true`) — file them autonomously per this playbook. Set `false`
+  to keep an install watch-only (capture + surface, no GitHub issues).
