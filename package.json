@@ -44,29 +44,6 @@
     "shellcheck": "^4.1.0",
     "tsx": "^4.22.4"
   },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{vue,svelte,astro}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,css,scss,html,yaml,yml,graphql}": [
-      "prettier --write"
-    ],
-    "*.md": [
-      "markdownlint-cli2 --fix",
-      "prettier --write"
-    ],
-    "*.sh": [
-      "shellcheck"
-    ],
-    "*.feature": [
-      "bun packages/cli/src/cli.ts lint-gherkin"
-    ]
-  },
   "overrides": {
     "@felipecrs/decompress-tarxz": "5.0.6",
     "@types/estree": "^1.0.9",

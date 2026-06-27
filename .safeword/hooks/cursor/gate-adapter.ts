@@ -218,12 +218,14 @@ export function toCursorDecision(reason: string | undefined): CursorDecision {
 export interface ClaudeGateResult {
   /** The gate's stdout (its allow/deny verdict as JSON), or '' on failure. */
   stdout: string;
+  /** True when Safeword killed the inner gate because it exceeded its local timeout. */
+  timedOut: boolean;
   /**
    * True when the gate could not be run to a clean verdict — it failed to spawn
-   * (e.g. `bun` missing) or crashed (non-zero exit). The gate always exits 0 for
-   * BOTH allow and deny (the verdict travels in stdout), so a non-zero exit can
-   * only mean an unhandled crash, never a normal denial. This lets the adapter
-   * tell "gate ran and allowed" apart from "gate never produced a verdict".
+   * (e.g. `bun` missing), crashed (non-zero exit), or timed out. The gate always
+   * exits 0 for BOTH allow and deny (the verdict travels in stdout), so a non-zero
+   * exit can only mean an unhandled crash, never a normal denial. This lets the
+   * adapter tell "gate ran and allowed" apart from "gate never produced a verdict".
    */
   failed: boolean;
 }
@@ -233,22 +235,45 @@ export const GATE_UNAVAILABLE_REASON =
   'Safeword gate could not run (it crashed or failed to start), so this action was blocked. ' +
   'Check the Hooks output channel, then retry once the gate runs cleanly.';
 
+/** Message shown when Safeword returns a controlled block before Cursor cancels the hook. */
+export const GATE_TIMEOUT_REASON =
+  'Safeword gate took too long to check this shell command, so this command was blocked. ' +
+  'Retry once; if it repeats, check the Hooks output channel and temporarily disable the ' +
+  'beforeShellExecution entry in .cursor/hooks.json to unblock diagnostics.';
+
+export interface RunClaudeHookOptions {
+  claudeHookPath: string;
+  input: ClaudeGateInput;
+  timeoutMs?: number;
+}
+
 /**
  * Spawn a Claude source-of-truth hook with the translated input. `CLAUDE_PROJECT_DIR`
- * is set so the gate resolves project state from the Cursor workspace root. Reports
- * both the stdout verdict and whether the gate actually ran — see `ClaudeGateResult`.
+ * and `SAFEWORD_AGENT_RUNTIME` are set so the gate resolves project state from
+ * the Cursor workspace root and uses the Cursor-scoped run key. Reports both the
+ * stdout verdict and whether the gate actually ran — see `ClaudeGateResult`.
  */
-export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): ClaudeGateResult {
+export function runClaudeHook(options: RunClaudeHookOptions): ClaudeGateResult {
+  const { claudeHookPath, input, timeoutMs } = options;
   const result = spawnSync('bun', [claudeHookPath], {
     cwd: process.cwd(),
     input: JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd() },
+    timeout: timeoutMs,
+    killSignal: 'SIGKILL',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      SAFEWORD_AGENT_RUNTIME: 'cursor',
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  // `error` => the process never started; non-zero/null `status` => it crashed.
+  // `spawnSync` reports timed-out children through `error`; detect it separately
+  // so users see a recovery path, not a generic crash.
+  const timedOut = (result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
+  // `error` => the process never started/timed out; non-zero/null `status` => it crashed.
   const failed = result.error != null || result.status !== 0;
-  return { stdout: result.stdout ?? '', failed };
+  return { stdout: result.stdout ?? '', failed, timedOut };
 }
 
 /**
@@ -262,12 +287,11 @@ export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): C
  * times out, or emits invalid JSON.
  */
 export function decideFromGate(result: ClaudeGateResult): CursorDecision {
+  if (result.timedOut) {
+    return toCursorDecision(GATE_TIMEOUT_REASON);
+  }
   if (result.failed) {
-    return {
-      permission: 'deny',
-      user_message: GATE_UNAVAILABLE_REASON,
-      agent_message: GATE_UNAVAILABLE_REASON,
-    };
+    return toCursorDecision(GATE_UNAVAILABLE_REASON);
   }
   return toCursorDecision(claudeDenialReason(result.stdout));
 }

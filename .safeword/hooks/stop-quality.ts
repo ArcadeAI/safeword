@@ -35,12 +35,15 @@ import {
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
-import { shouldReviewPhase, shouldReviewStep } from './lib/review-trigger.ts';
+import { shouldReviewPhase } from './lib/review-trigger.ts';
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { installCrashCapture } from './lib/self-report.ts';
+
+installCrashCapture('stop-quality');
 
 interface HookInput {
   session_id?: string;
@@ -116,13 +119,13 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
 }
 
 /**
- * Record which boundary the Stop backstop just reviewed, so a later Stop (or a
- * PostToolUse review) won't re-review it. Mirrors the markers PostToolUse sets
- * (ticket SXSCJQ).
+ * Record which phase boundary the Stop backstop just reviewed, so a later Stop
+ * or PostToolUse review won't re-review it. Mirrors the marker PostToolUse sets
+ * for phase changes (ticket SXSCJQ).
  */
 function recordReviewMarker(
   sessionId: string | undefined,
-  patch: { lastReviewedStep?: string; lastReviewedPhase?: string },
+  patch: { lastReviewedPhase?: string },
 ): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
@@ -657,11 +660,9 @@ if (typecheckAdvice.advice !== null) {
   );
 }
 
-// Boundary backstop (ticket SXSCJQ): the review is no longer LOC-throttled.
-// PostToolUse fires per-step/per-phase reviews at the edit (autonomous-safe);
-// this Stop path catches a boundary PostToolUse didn't see (e.g. a non-edit
-// phase bump) and the ordinary interactive stop. Dedup via lastReviewedStep /
-// lastReviewedPhase so each boundary is reviewed once across both triggers.
+// Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step
+// TDD reviews are quiet by default; the real work still happens internally and
+// hard/anomaly gates above still surface when action is needed.
 const sessionState = readSessionState(projectDir, input.session_id);
 
 // Derive TDD step from test-definitions.md (not cache)
@@ -672,14 +673,14 @@ const tddStep =
 
 // No ticket/phase context (no active ticket, or a done-status ticket): fire the
 // generic review on every edit-stop, as before — there's no boundary to dedup.
-// With a phase: review per TDD step (implement) or per phase, deduped against
-// PostToolUse so each boundary is reviewed once.
+// With a phase: review per phase, deduped against PostToolUse so each boundary
+// is reviewed once. Implement-step reviews stay quiet.
 const isImplementStep = currentPhase === 'implement' && tddStep !== null;
 let fireReview: boolean;
 if (currentPhase === undefined) {
   fireReview = true;
 } else if (isImplementStep) {
-  fireReview = shouldReviewStep(tddStep, sessionState?.lastReviewedStep);
+  fireReview = false;
 } else {
   fireReview = shouldReviewPhase(currentPhase, sessionState?.lastReviewedPhase);
 }
@@ -688,9 +689,7 @@ if (!fireReview) {
   process.exit(0);
 }
 
-if (isImplementStep && tddStep) {
-  recordReviewMarker(input.session_id, { lastReviewedStep: tddStep });
-} else if (currentPhase) {
+if (currentPhase) {
   recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
 }
 

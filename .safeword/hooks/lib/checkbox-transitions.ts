@@ -1,8 +1,8 @@
 /**
  * Detect `[ ] STEP` → `[x] STEP <annotation>` checkbox transitions in an edit.
  *
- * Extracted from pre-tool-quality.ts (ticket SXSCJQ) so both the PreToolUse
- * annotation gate and the PostToolUse per-step review can share one engine.
+ * Extracted from pre-tool-quality.ts (ticket SXSCJQ) so the PreToolUse
+ * annotation gate can share one transition parser across edit tools.
  * Aligned by line index — works for Edit (old_string / new_string are local
  * replacement regions), Write (old = disk contents, new = full new content),
  * and MultiEdit (each edit treated as Edit). If lines don't align (e.g. a Write

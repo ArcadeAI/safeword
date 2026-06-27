@@ -1,13 +1,12 @@
 #!/usr/bin/env bun
 // Safeword: Quality Gates - PostToolUse observer
-// Counts LOC via git diff --stat HEAD, detects phase changes and TDD step transitions,
-// updates per-session quality state. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
+// Counts LOC via git diff --stat HEAD, detects phase changes, and updates
+// per-session quality state. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
 
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { getQualityMessage } from './lib/quality.ts';
 import {
@@ -16,8 +15,11 @@ import {
   META_PATHS,
   type QualityState,
 } from './lib/quality-state.ts';
-import { selectMostAdvancedStep, shouldReviewPhase } from './lib/review-trigger.ts';
+import { shouldReviewPhase } from './lib/review-trigger.ts';
 import { isNamespacePath } from './lib/namespace-root.ts';
+import { installCrashCapture } from './lib/self-report.ts';
+
+installCrashCapture('post-tool-quality');
 
 interface HookInput {
   session_id?: string;
@@ -132,9 +134,9 @@ if (state.locSinceCommit >= LOC_THRESHOLD && !isGitOperationInProgress(projectDi
   state.gate = 'loc';
 }
 
-// Quality review surfaced as additionalContext when a boundary is crossed
-// (ticket SXSCJQ). At most one fires per edit — an edit touches either
-// test-definitions.md (a TDD-step flip) or ticket.md (a phase change).
+// Quality review surfaced as additionalContext when a phase boundary is crossed.
+// Implement-step TDD reviews still happen as internal self-checks, but quiet
+// implement mode keeps ordinary RED/GREEN/REFACTOR progress out of chat.
 let reviewMessage: string | null = null;
 
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
@@ -166,17 +168,6 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
       reviewMessage = getQualityMessage(phase);
       state.lastReviewedPhase = phase;
     }
-  }
-}
-
-// Per-TDD-step review. Each `[ ]→[x]` RED/GREEN/REFACTOR flip is one edit, so
-// this fires once per step boundary (structurally idempotent). Batched flips in
-// one edit surface the most-advanced step.
-if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('test-definitions.md')) {
-  const step = selectMostAdvancedStep(collectNewTransitions(input, editedFile));
-  if (step) {
-    reviewMessage = getQualityMessage('implement', step);
-    state.lastReviewedStep = step;
   }
 }
 

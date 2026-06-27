@@ -13,36 +13,10 @@ import { syncTickets } from '../ticket-sync/index.js';
 import { detectPackageManager } from '../utils/install.js';
 import { header, info, keyValue, success, warn } from '../utils/output.js';
 import { buildIndexConflictListMessage } from '../utils/ticket-index-warnings.js';
-import { isNewerVersion } from '../utils/version.js';
+import { fetchRegistryLatestVersion, isNewerVersion } from '../utils/version.js';
 
 interface CheckOptions {
   offline?: boolean;
-}
-
-/**
- * Check for latest version from npm (with timeout)
- * @param timeout
- */
-async function checkLatestVersion(timeout = 3000): Promise<string | undefined> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, timeout);
-
-    const response = await fetch('https://registry.npmjs.org/safeword/latest', {
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) return undefined;
-
-    const data = (await response.json()) as { version?: string };
-    return data.version ?? undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /**
@@ -51,7 +25,7 @@ async function checkLatestVersion(timeout = 3000): Promise<string | undefined> {
  */
 async function reportUpdateStatus(health: HealthStatus): Promise<void> {
   info('\nChecking for updates...');
-  const latestVersion = await checkLatestVersion();
+  const latestVersion = await fetchRegistryLatestVersion();
 
   if (!latestVersion) {
     warn("Couldn't check for updates (offline?)");

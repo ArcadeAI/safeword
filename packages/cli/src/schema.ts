@@ -325,6 +325,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.safeword/self-reports/',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -584,6 +585,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
     },
@@ -702,6 +704,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/stop-self-report.ts': { template: 'hooks/stop-self-report.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
       template: 'hooks/session-start-reentry.ts',
     },
@@ -715,6 +718,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Guides
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
+    },
+    '.safeword/guides/self-report-filing.md': {
+      template: 'guides/self-report-filing.md',
     },
     '.safeword/guides/cold-start-check.md': {
       template: 'guides/cold-start-check.md',
