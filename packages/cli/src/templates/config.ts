@@ -334,9 +334,15 @@ export const CURSOR_HOOKS = {
       timeout: 90,
     },
   ],
-  // Blocking commit gate (a REFACTOR commit may not touch test files).
+  // Blocking commit gate (a REFACTOR commit may not touch test files). Cursor's
+  // timeout is longer than the adapter's inner timeout, so Safeword can return a
+  // clear denial message before Cursor falls back to opaque cancellation.
   beforeShellExecution: [
-    { command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts', failClosed: true },
+    {
+      command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts',
+      failClosed: true,
+      timeout: 12,
+    },
   ],
   // Observational: triggers lint on edited files. Fail-open — a lint crash must
   // not block the edit.

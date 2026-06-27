@@ -104,4 +104,4 @@ const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
 // Fail-closed: a gate that crashed or never started denies the edit (ANAXG4).
-emitDecisionAndExit(decideFromGate(runClaudeHook(claudeHookPath, translated)));
+emitDecisionAndExit(decideFromGate(runClaudeHook({ claudeHookPath, input: translated })));
