@@ -15,7 +15,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -48,6 +48,24 @@ type ToolProbe = (tool: string) => boolean;
 type ManifestIndex = ReadonlyMap<string, string>;
 
 const PYTHON_MANIFESTS = ['pyproject.toml', 'requirements.txt', 'setup.py', 'setup.cfg', 'tox.ini'];
+const PYTHON_TEST_SCAN_EXCLUDES = new Set([
+  'node_modules',
+  '.git',
+  '.safeword',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  'coverage',
+  'dbt_packages',
+  'out',
+  '.next',
+  '.nuxt',
+  '.output',
+  '__pycache__',
+  '.venv',
+  'venv',
+]);
 
 /** Every manifest probed via the tree (root-only files like package.json/go.work are checked directly). */
 const TREE_MANIFESTS = new Set<string>([
@@ -214,6 +232,55 @@ function pytestConfigured(index: ManifestIndex): boolean {
   return configContains(index, 'setup.cfg', '[tool:pytest]');
 }
 
+function hasDiscoverablePythonTests(directory: string, maxDepth = 10): boolean {
+  return scanForPythonTests(directory, 0, maxDepth);
+}
+
+function scanForPythonTests(directory: string, depth: number, maxDepth: number): boolean {
+  if (depth > maxDepth) return false;
+
+  let directoryEntries;
+  try {
+    directoryEntries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+
+  if (
+    directoryEntries.some(
+      directoryEntry => directoryEntry.isFile() && isPythonTestFile(directoryEntry.name),
+    )
+  ) {
+    return true;
+  }
+
+  return directoryEntries
+    .filter(directoryEntry => shouldScanForPythonTests(directoryEntry))
+    .some(directoryEntry =>
+      scanForPythonTests(nodePath.join(directory, directoryEntry.name), depth + 1, maxDepth),
+    );
+}
+
+function shouldScanForPythonTests(directoryEntry: {
+  isDirectory(): boolean;
+  name: string;
+}): boolean {
+  return (
+    directoryEntry.isDirectory() &&
+    !directoryEntry.name.startsWith('.') &&
+    !PYTHON_TEST_SCAN_EXCLUDES.has(directoryEntry.name)
+  );
+}
+
+function isPythonTestFile(filename: string): boolean {
+  return (
+    filename.endsWith('.py') &&
+    (filename.startsWith('test_') ||
+      filename.endsWith('_test.py') ||
+      filename.endsWith('_tests.py'))
+  );
+}
+
 /** Package-manager-aware pytest invocation; returns the command and the tool whose presence gates availability. */
 function pytestInvocation(
   index: ManifestIndex,
@@ -235,10 +302,12 @@ function resolvePython(
   if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
   const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
-  if (pytestConfigured(index) || isAvailable('pytest')) {
+  const hasPythonTests = hasDiscoverablePythonTests(cwd);
+  if (pytestConfigured(index) || (hasPythonTests && isAvailable('pytest'))) {
     const { command, tool } = pytestInvocation(index, isAvailable);
     return entry('python', cwd, command, 'pytest', isAvailable(tool));
   }
+  if (!hasPythonTests) return undefined;
   // Prefer python3 (the only `python` on macOS/modern distros), fall back to python.
   const pythonBin = isAvailable('python3') ? 'python3' : 'python';
   return entry(
