@@ -10,6 +10,9 @@ import { getTicketInfo } from '../lib/active-ticket.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
 import { readSessionState } from '../lib/quality-state.ts';
 import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
+import { installCrashCapture } from '../lib/self-report.ts';
+
+installCrashCapture('cursor-stop', undefined, 'cursor');
 
 interface CursorInput {
   workspace_roots?: string[];

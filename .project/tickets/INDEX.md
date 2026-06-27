@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (336)
+## Tickets (339)
 
 ### agent-surface-refactor
 
@@ -43,10 +43,10 @@
   Codex users get safeword's seamless patch/minor auto-upgrade (today Claude-Code-only) without manual `safeword upgrade` and within Codex's synchronous hook contract.
   external issue: https://github.com/ArcadeAI/safeword/issues/393
   → `.project/tickets/7R1D3B-auto-upgrade-codex`
-- **Epic: Cross-agent auto-upgrade (Cursor + Codex) (BJX7WR)** (in_progress, epic: auto-upgrade-cross-agent)
+- **Epic: Cross-agent auto-upgrade (Cursor + Codex) (BJX7WR)** (done, epic: auto-upgrade-cross-agent)
   Extend safeword's seamless auto-upgrade — today Claude-Code-only — to the other two supported agents, Cursor and Codex, so customers on any agent stay current without manual `safeword upgrade`.
   → `.project/tickets/BJX7WR-auto-upgrade-cross-agent`
-- **Auto-upgrade under Cursor (Y6HZR7)** (blocked, epic: auto-upgrade-cross-agent)
+- **Auto-upgrade under Cursor (Y6HZR7)** (done, epic: auto-upgrade-cross-agent)
   Cursor users get safeword's seamless patch/minor auto-upgrade (today Claude-Code-only) without manual `safeword upgrade` and without breaking Cursor's session start.
   → `.project/tickets/Y6HZR7-auto-upgrade-cursor`
 
@@ -908,6 +908,10 @@
 - **Upgrade eslint-plugin-jsdoc v62 → v63 (HRN1Z6)** (done, epic: —)
   Bump `eslint-plugin-jsdoc` from v62 to v63 across the monorepo and fix the root `package.json` categorization (currently in `dependencies`, belongs in `devDependencies`).
   → `.project/tickets/HRN1Z6`
+- **Make implementation reviews quiet until exit (JENFZX)** (in_progress, epic: —)
+  Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
+  external issue: https://github.com/ArcadeAI/safeword/issues/464
+  → `.project/tickets/JENFZX-quiet-implement-review-surface`
 - **Auto-install deps in fresh worktrees via SessionStart hook (JNVP4W)** (done, epic: —)
   A freshly created git worktree auto-installs its dependencies on session start, so commits (and tests/lint) work immediately instead of failing at the pre-commit guard with "node_modules not installed."
   → `.project/tickets/JNVP4W-worktree-auto-deps`
@@ -990,6 +994,9 @@
 - **Always-fresh point-in-time architecture docs (monorepo-aware) (QD5DTT)** (done, epic: —)
   Guarantee every safeword project has an accurate, point-in-time `architecture.md` describing the system _as it is now_ — structural facts self-healing, any stale prose visibly flagged (never silently wrong), drift caught even from out-of-band human edits, and structured hierarchically so monorepos stay navigable.
   → `.project/tickets/QD5DTT-architecture-state-docs`
+- **Agent filing loop + selfReport.\* config gating (#353) (QHXE6W)** (done, epic: —)
+  Close the self-observation loop — gate behavior on `selfReport.*` (capture/
+  → `.project/tickets/QHXE6W-self-report-filing`
 - **Show non-JS examples in skills, guides, and doc templates (QK6NQW)** (in_progress, epic: —)
   Skills, guides, and doc-templates should teach with language-neutral or multi-language examples, not TypeScript as the only language.
   → `.project/tickets/QK6NQW-delanguage-teaching-surface`
@@ -1002,6 +1009,9 @@
 - **Stop-hook UNIVERSAL_HEADER: cut duplicated preamble (QSNKBB)** (done, epic: —)
   Cut ~7 lines of philosophical preamble from the Stop-hook UNIVERSAL*HEADER. Every cut line is already covered (verbatim or better) in SAFEWORD.md, which loads every conversation. Keep only rules that are about the \_terminal verdict* itself and the _spec-vs-implementation distinction_ that the rest of the project doesn't sharply articulate.
   → `.project/tickets/QSNKBB-prompt-brevity-cut`
+- **Capture safeword's own runtime signals to a sanitized local spool (#345) (QYYC5Y)** (done, epic: —)
+  {One sentence: what are we trying to achieve?}
+  → `.project/tickets/QYYC5Y-self-report-capture`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`

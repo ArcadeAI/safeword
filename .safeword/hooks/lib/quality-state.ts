@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
+import { captureGateEscalation } from './self-report.js';
 
 export const LOC_THRESHOLD = 400;
 /** Counter threshold for CLAUDE.md escalation suggestions. */
@@ -210,6 +211,19 @@ export function recordFailure(
         entry.lastSeen = new Date().toISOString().slice(0, 10);
         counters[pattern] = entry;
         writeCounters(projectDirectory, counters);
+
+        // Self-observation (#344): a gate that escalates is worth a maintainer's
+        // look — it may be a too-aggressive gate OR a correct gate firing on a
+        // recurring problem (e.g. tests-failed). The record is a candidate for
+        // review, not an asserted false-positive. Emit once at the crossing; the
+        // bound is one signal per counter-file lifetime (a counter reset re-arms
+        // it). Best-effort — never affects this function's callers.
+        if (entry.count === ESCALATION_THRESHOLD) {
+          const escalationKey = isRunIdentity(sessionId)
+            ? (getRunStorageKey(sessionId) ?? undefined)
+            : sessionId;
+          captureGateEscalation(projectDirectory, escalationKey, pattern);
+        }
       }
       state.incrementedPatterns = incremented;
 

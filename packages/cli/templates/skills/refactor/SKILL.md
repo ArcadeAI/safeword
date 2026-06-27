@@ -69,6 +69,8 @@ Merge into a **ledger**, not a loose list: each entry is a smell + location, ord
 
 **When writing characterization tests:** Characterization tests are still tests — apply behavioral testing principles (assert on what the system does, not how).
 
+**If the code can't be exercised under test** (hard-wired dependencies, no instantiation point): introduce a _seam_ first — the smallest dependency-break that lets a test run — then characterize. That seam is itself a Tier-3 refactoring; make it under whatever coverage exists, in its own step. (Feathers, _Working Effectively with Legacy Code_.)
+
 ### Characterization Tests
 
 Capture current behavior before refactoring:
@@ -94,7 +96,7 @@ it('processOrder returns current behavior', () => {
 
 ### Refactoring Catalog
 
-**Tier 1 - Always Safe** (no behavior change possible):
+**Tier 1 - Lowest Risk** (behavior-preserving _when references are complete_):
 
 | Smell                | Refactoring          | Example                                |
 | -------------------- | -------------------- | -------------------------------------- |
@@ -102,6 +104,16 @@ it('processOrder returns current behavior', () => {
 | Long function        | **Extract Function** | Pull 10 lines into `calculateTax()`    |
 | Unnecessary variable | **Inline Variable**  | Remove `temp = x; return temp;`        |
 | Misplaced code       | **Move Function**    | Move `validate()` to `Validator` class |
+
+> Not "behavior change impossible" — each has a failure mode when references or
+> context are incomplete: **Rename** breaks exported/public-API names, string or
+> reflection/serialized references, and tests that assert on the name; **Inline
+> Variable** changes behavior if the variable captured a once-computed value but
+> the expression is side-effecting or re-evaluated (e.g. inlining `const now =
+Date.now()` used twice); **Move Function** can shift `this`/closure binding or
+> introduce import-cycle / load-order effects (the `validate()` → class example
+> above changes `this`). Verify _all_ references before calling any of these done.
+> Only **Extract Function** is near-unconditionally safe.
 
 ```typescript
 // ❌ Before: unclear name
@@ -144,13 +156,13 @@ function getDiscount(user) {
 
 **Tier 3 - Requires Care** (higher risk, break into smaller steps):
 
-| Smell                      | Refactoring                    | Caution                                                                                                                    |
-| -------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| God class                  | **Extract Class**              | Do incrementally, move one method at a time                                                                                |
-| Type-checking conditionals | **Replace with Polymorphism**  | Requires class hierarchy                                                                                                   |
-| Too many parameters        | **Introduce Parameter Object** | Changes function signature                                                                                                 |
-| Complex loop               | **Replace Loop with Pipeline** | Ensure equivalent behavior                                                                                                 |
-| Wrong level of abstraction | **Generalize the Mechanism**   | Replace the special-case pile with one general path; pull the abstraction to the right altitude — don't add another branch |
+| Smell                      | Refactoring                                                                                                                                   | Caution                                                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| God class                  | **Extract Class**                                                                                                                             | Do incrementally, move one method at a time                                                                                |
+| Type-checking conditionals | **Replace with Polymorphism**                                                                                                                 | Requires class hierarchy                                                                                                   |
+| Too many parameters        | **Introduce Parameter Object**                                                                                                                | Changes function signature                                                                                                 |
+| Complex loop               | **Replace Loop with Pipeline**                                                                                                                | Ensure equivalent behavior                                                                                                 |
+| Wrong level of abstraction | **Generalize the Mechanism** _(a design move, not one catalog refactoring — sequence it as Extract / Move / Inline steps, each its own edit)_ | Replace the special-case pile with one general path; pull the abstraction to the right altitude — don't add another branch |
 
 **Tie-breaker:** If multiple refactorings apply, choose smallest scope first (Rename < Extract Variable < Extract Function < Extract Class).
 
@@ -161,7 +173,7 @@ function getDiscount(user) {
 After each refactoring:
 
 1. **Run tests** - Must pass
-2. **Regression checklist** (tests can miss these) - did the change silently drop a guard/anchor an extract or move was carrying, introduce setup/teardown asymmetry in a test, give a predicate method a side effect, or flip a config default? If any, fix or revert before continuing.
+2. **Regression checklist** (tests can miss these) - did the change silently drop a guard or anchor that an extract or move was carrying, introduce setup/teardown asymmetry in a test, give a predicate method a side effect, or flip a config default? If any, fix or revert before continuing.
 3. **If tests pass (and the checklist is clean):** Run the commit safety check below, then commit with `refactor: [what changed]` only when the commit can stay scoped.
 4. **If tests fail:** Revert immediately
 
