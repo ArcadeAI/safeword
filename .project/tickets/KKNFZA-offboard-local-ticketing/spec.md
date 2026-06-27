@@ -89,10 +89,28 @@ the normal committed tree, not the ticket folder.
 list replaces them), and the duplicate-ID CI guard is dropped for tracker-minted keys
 (collision-proof by construction).
 
-#### offboard-local-ticketing.TB1.AC5 — opt-in to persist planning artifacts
+#### offboard-local-ticketing.TB1.AC5 — durable prose persists to docs, never to the tracker
 
-Setting `persistArtifacts` commits `spec.md` / `design.md` to a configured docs path while still
-git-ignoring lifecycle bookkeeping (status rewrites, INDEX, logs).
+`spec.md` / `design.md` are the only artifacts with lasting value. By default they live in the
+ephemeral cache (churn-free); setting `persistArtifacts` commits them to a configured **docs
+path** — never to the tracker, which would be a lossy container and, for a private feature, a
+roadmap-egress leak. The tracker receives a summary + back-link only (raw bodies go only when a
+project sets `body: full`, with the existing public-repo egress warning).
+
+#### offboard-local-ticketing.TB1.AC6 — gate-fuel artifacts are ephemeral, never projected raw
+
+`test-definitions.md`, `verify.md`, `impl-plan.md`, and `dimensions.md` are transient gate state
+read per-turn and mutated mid-session (R/G/R checkboxes, the verify ledger). They live in the
+ephemeral cache and are never projected raw to the tracker. Their durable truth lives elsewhere —
+acceptance scenarios are committed `features/*.feature`; completion distills into the issue-close
+summary — so losing the markdown after `done` is by design.
+
+#### offboard-local-ticketing.TB1.AC7 — the work log stays local; only a summary leaves
+
+The raw work log (high-frequency scratch: timestamps, dead ends, RED/GREEN) lives in the
+ephemeral cache and is never projected per-entry — per-entry projection would put the network in
+the loop and spray unsanitized scratch into the tracker timeline. A distilled progress summary
+updates the issue at session boundaries (Stop) only.
 
 ### offboard-local-ticketing.SM1 — gates stay local, offline, and backward-compatible
 
@@ -144,6 +162,7 @@ by ID; no migration is forced. With `provider: none`, the local plane behaves ex
 
 - defer: exact transition mapping of safeword `phase`/`status` onto GitHub (open/closed + labels)
   vs Linear (workflow states) — resolve in the status-on-issue child ticket, not at intake.
-- defer: where re-hydration sources artifact bodies when the cache is absent on a clean checkout
-  (issue body vs `persistArtifacts` docs path vs regenerate) — resolve in the ephemeral-cache
-  child ticket.
+- defer: cross-machine resume when the cache is absent — durable prose re-hydrates from the
+  `persistArtifacts` docs path; gate-fuel regenerates (no legacy carve-out — legacy projects out
+  of scope per intake); the issue summary covers the work-log gist. Confirm the regenerate-vs-skip
+  behavior in the ephemeral-cache child ticket.

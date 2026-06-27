@@ -37,6 +37,10 @@ repo while gates keep reading local files.
 
 ## Work Log
 
+- 2026-06-27T22:52:00Z Intake: resolved artifact routing (TB1.AC5–AC7). Durable prose
+  (spec/design) → docs path via persistArtifacts, never tracker. Gate-fuel (test-definitions,
+  verify, impl-plan, dimensions) → ephemeral, never projected raw. Work log → local; summary to
+  issue at Stop only. Legacy projects out of scope (user) → dropped legacy test-def carve-out.
 - 2026-06-27T21:40:00Z Intake: wrote spec.md (intent, intake brief, 2 JTBDs / 8 ACs, outcomes)
   and set engineering scope. Decision via /figure-it-out: off-board coordination plane to tracker,
   demote execution plane to ephemeral cache. Decomposition (5 child tickets) in spec.md.
