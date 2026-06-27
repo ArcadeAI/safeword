@@ -7,7 +7,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -25,6 +25,10 @@ const CURSOR_POST_TOOL = nodePath.join(
   '.safeword/hooks/cursor/post-tool-quality.ts',
 );
 const CURSOR_STOP = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/cursor/stop.ts');
+const TEMPLATE_CURSOR_STOP = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/cursor/stop.ts',
+);
 const CONVERSATION_ID = 'conv-quiet-implement';
 const MARKER_FILE = `/tmp/safeword-cursor-edited-cursor-${CONVERSATION_ID}`;
 
@@ -117,5 +121,14 @@ describe('Cursor stop review surface', () => {
 
     expect(result.status).toBe(0);
     expect(parsed.followup_message).toContain('Phase: implement');
+  });
+
+  it('keeps crash capture wired in both Cursor stop hook copies', () => {
+    for (const hookPath of [CURSOR_STOP, TEMPLATE_CURSOR_STOP]) {
+      const content = readFileSync(hookPath, 'utf8');
+
+      expect(content).toContain("import { installCrashCapture } from '../lib/self-report.ts';");
+      expect(content).toContain("installCrashCapture('cursor-stop', undefined, 'cursor');");
+    }
   });
 });
