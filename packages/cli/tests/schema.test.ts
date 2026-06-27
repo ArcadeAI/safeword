@@ -13,9 +13,15 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import {
+  CURSOR_COMMAND_WRAPPERS,
+  CURSOR_RULE_WRAPPERS,
+  renderCursorCommandWrapper,
+  renderCursorRuleWrapper,
+  SKILL_CURSOR_PAIRS,
+} from '../src/cursor-wrappers.js';
 import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
 import { SETTINGS_HOOKS } from '../src/templates/config.js';
-import { SKILL_CURSOR_PAIRS } from './fixtures/skill-cursor-pairs.js';
 
 // Type guard for filtering out undefined values
 const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
@@ -495,6 +501,56 @@ describe('Schema - Single Source of Truth', () => {
       }
 
       expect(missing, `Local skills missing from templates/: ${missing.join(', ')}`).toEqual([]);
+    });
+
+    it('keeps thin Cursor command wrappers generated from metadata', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+
+      for (const wrapper of CURSOR_COMMAND_WRAPPERS) {
+        const installedPath = `.cursor/commands/${wrapper.name}.md`;
+        const templatePath = `commands/${wrapper.name}.md`;
+        const expected = renderCursorCommandWrapper({ wrapper });
+
+        expect(SAFEWORD_SCHEMA.ownedFiles[installedPath]?.template).toBe(templatePath);
+        expect(readFileSync(nodePath.join(repoRoot, installedPath), 'utf8')).toBe(expected);
+        expect(readFileSync(nodePath.join(templatesDirectory, templatePath), 'utf8')).toBe(
+          expected,
+        );
+      }
+    });
+
+    it('keeps Cursor rule wrappers generated from metadata', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+
+      for (const wrapper of CURSOR_RULE_WRAPPERS) {
+        const installedPath = `.cursor/rules/${wrapper.name}.mdc`;
+        const templatePath = `cursor/rules/${wrapper.name}.mdc`;
+        const expected = renderCursorRuleWrapper({ wrapper });
+
+        expect(SAFEWORD_SCHEMA.ownedFiles[installedPath]?.template).toBe(templatePath);
+        expect(readFileSync(nodePath.join(repoRoot, installedPath), 'utf8')).toBe(expected);
+        expect(readFileSync(nodePath.join(templatesDirectory, templatePath), 'utf8')).toBe(
+          expected,
+        );
+      }
+    });
+
+    it('keeps Cursor rule skill metadata aligned with Claude skill references', () => {
+      const mismatches = CURSOR_RULE_WRAPPERS.filter(
+        wrapper =>
+          wrapper.skill !== undefined &&
+          !wrapper.referencePath.startsWith(`.claude/skills/${wrapper.skill}/`),
+      ).map(
+        wrapper =>
+          `${wrapper.name}: skill=${wrapper.skill ?? '<none>'}, reference=${wrapper.referencePath}`,
+      );
+
+      expect(
+        mismatches,
+        `Cursor rule skill/reference drift:\n  ${mismatches.join('\n  ')}`,
+      ).toEqual([]);
     });
 
     it('should have all hook files wired in SETTINGS_HOOKS', async () => {
