@@ -63,14 +63,16 @@ Core children (own the `cursor-optimization` epic key). Status revalidated 2026-
 | ---------- | ------------------------------------------------------------------ | ------------------- | ---------------- |
 | **RBZR3F** | Add `sessionStart` context injection                               | restore enforcement | ✅ done          |
 | **151**    | Migrate four Cursor rules to `@reference` pattern                  | drift/parity        | ✅ done (folded) |
-| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement | ready to close (rejected; no hook ships) |
-| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | ready to close |
-| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | ready to close |
-| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | ready to close |
-| **P9K783** | Harden Cursor done-gate close-detection (verify payload fields)    | correctness         | PR #424 open |
-| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | open (Shell-only) |
+| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement | resolved         |
+| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | shipped          |
+| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | shipped          |
+| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | shipped          |
+| **P9K783** | Harden Cursor done-gate close-detection (verify payload fields)    | correctness         | shipped          |
+| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | verified         |
 | **JFBFEP** | Add an action-based MCP safety gate for Cursor                     | correctness         | open             |
 | **DXYKJX** | Package as Team-Marketplace plugin (Required mode)                 | distribution        | open             |
+
+Final close flips for F2TKR3, T3DV1K, ANAXG4, AKNWZK, P9K783, and TDX8NT are blocked by #469.
 
 ### Cross-epic Cursor work (soft-linked, not re-parented)
 
@@ -78,13 +80,15 @@ These are Cursor-specific deliverables whose natural home is a cross-agent epic.
 
 | ID         | Title                                           | Home epic                | Status      |
 | ---------- | ----------------------------------------------- | ------------------------ | ----------- |
-| **1833FW** | Keep Cursor verify evidence aligned             | agent-surface-refactor   | in_progress |
+| **1833FW** | Keep Cursor verify evidence aligned             | agent-surface-refactor   | resolved |
 | **F1HTQ4** | Generate Cursor command/rule wrappers from meta | agent-surface-refactor   | in_progress |
-| **Y6HZR7** | Auto-upgrade under Cursor                       | auto-upgrade-cross-agent | blocked     |
+| **Y6HZR7** | Auto-upgrade under Cursor                       | auto-upgrade-cross-agent | done        |
+
+1833FW also waits on #469 for its final ticket close flip; Y6HZR7 closed in PR #492.
 
 ## Sequencing
 
-Remaining sequencing: land P9K783 (#424), then empirically verify `TDX8NT` for Shell deny precedence under Auto-review. Design/build `JFBFEP` before letting `DXYKJX` bundle MCP defaults; plugin packaging can proceed in parallel for non-MCP surfaces.
+Remaining sequencing: fix #469 so shipped Cursor tickets can close cleanly, then design/build `JFBFEP` before letting `DXYKJX` bundle MCP defaults. `F1HTQ4` can proceed because 1833FW's verify content is now resolved.
 
 ## Related
 
@@ -98,3 +102,4 @@ Epic **8R54HV** (Claude Code) — reuse gate logic; note Cursor's `stop` can't b
 - 2026-06-16 Gap noted (from FJKM4X): guides loaded via `.safeword/guides/` tell agents to "call `/figure-it-out`" — a literal slash command in Claude Code. In Cursor, `safeword-figure-it-out.mdc` already uses the `@reference` pattern correctly, but it has `alwaysApply: false` and activates by description match, not by explicit invocation from guide text. There is no direct bridge from "guide says call figure-it-out" to "MDC rule loads the procedure." In practice the context conditions overlap so the rule likely activates correctly, but it is not mechanically guaranteed the way Claude Code's slash command invocation is. Consider: (a) `alwaysApply: true` for figure-it-out.mdc since it's always relevant when a design choice surfaces, or (b) a guide-aware rule activation mechanism if Cursor exposes one.
 - 2026-06-24 **Consolidated all Cursor work under this epic + revalidated; broadened title to "Cursor optimization."** Checked GitHub issues — no Cursor epic exists there (ticket-system-only); only tangential open issues are #292 (Claude Code plugin spike) and #19 (MCP-in-plugin), nothing to fold. Folded pure-Cursor **151** (rules → `@reference`) in as a core child. Soft-linked three cross-agent Cursor tickets via `relates_to` without re-parenting: **1833FW**, **F1HTQ4** (agent-surface-refactor), **Y6HZR7** (auto-upgrade-cross-agent). **Revalidation against live code closed two as done:** RBZR3F (`sessionStart` already wired in `.cursor/hooks.json` → `session-safeword-context.ts`, emits `additional_context` for cursor) and 151 (the four rules are already 6-line `@reference` pointers; structural `checkCursorRulesThin` guard live; status was just never flipped). Remaining open children re-verified as still needed: F2TKR3/T3DV1K (`beforeSubmitPrompt`/`preToolUse`/`beforeShellExecution` not wired in `.cursor/hooks.json`), ANAXG4 (no `failClosed` anywhere), AKNWZK (done-gate rearchitect still pending — note: the `followup_message` nudge mechanism already exists in `cursor/stop.ts` for quality-review, useful precedent), TDX8NT + DXYKJX (unstarted). No duplicate tickets found; 151↔G1A6BS cover disjoint rule sets.
 - 2026-06-24 `/quality-review` + `/figure-it-out` refresh after P9K783: current Cursor docs confirm the implemented hook shape (`preToolUse`, `beforeShellExecution`, `failClosed`, stop `loop_limit`) and current plugin shape (`.cursor-plugin/plugin.json`, hooks/MCP bundling, Team Marketplace Required/Optional). Marked F2TKR3/T3DV1K/ANAXG4/AKNWZK as ready to close in this index pending explicit close confirmation; P9K783 is PR #424. Split MCP out of TDX8NT into new ticket JFBFEP because safeword has no `beforeMCPExecution` gate today and Arcade should use an action-based MCP policy instead of blocking MCP wholesale.
+- 2026-06-27T14:20:00Z Fast-forward revalidation: PRs #400, #415, #424, #434, #447, #463, and #492 have landed. The implementation/verification work for F2TKR3, T3DV1K, ANAXG4, AKNWZK, P9K783, TDX8NT, and Y6HZR7 is complete; Y6HZR7 is closed, and remaining final close flips are blocked by #469. Remaining product work is F1HTQ4, JFBFEP, and DXYKJX.

@@ -21,6 +21,6 @@
     "noUncheckedIndexedAccess": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "tests/**/*", "features/**/*", "*.config.ts"],
+  "include": ["src/**/*", "tests/**/*", "features/**/*", "scripts/**/*.ts", "*.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

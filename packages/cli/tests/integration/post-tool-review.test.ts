@@ -132,6 +132,17 @@ describe('PostToolUse per-phase review — autonomous-safe (S2.1, S2.2)', () => 
     expect(context).toContain('scenario-gate');
   });
 
+  it('does not surface a pre-verification review when implementation advances to verify', () => {
+    const cwd = project();
+    writeTicket(cwd, 'verify');
+    const { context } = run(cwd, 'Edit', {
+      file_path: ticketPath(cwd),
+      old_string: 'phase: implement',
+      new_string: 'phase: verify',
+    });
+    expect(context).toBeUndefined();
+  });
+
   it('surfaces nothing when the current phase was already reviewed (S2.2)', () => {
     const cwd = project();
     writeTicket(cwd, 'implement');

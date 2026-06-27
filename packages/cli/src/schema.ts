@@ -24,6 +24,7 @@ export type {
   ManagedFileDefinition,
   ProjectContext,
 } from './packs/types.js';
+import { CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS } from './cursor-wrappers.js';
 import {
   dirGlobExcludeMerge,
   generateOwnedPathsModule,
@@ -272,6 +273,20 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
   ]),
 );
 
+const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
+  CURSOR_RULE_WRAPPERS.map(wrapper => [
+    `.cursor/rules/${wrapper.name}.mdc`,
+    { template: `cursor/rules/${wrapper.name}.mdc` },
+  ]),
+);
+
+const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
+  CURSOR_COMMAND_WRAPPERS.map(wrapper => [
+    `.cursor/commands/${wrapper.name}.md`,
+    { template: `commands/${wrapper.name}.md` },
+  ]),
+);
+
 // ============================================================================
 // SAFEWORD_SCHEMA - The Single Source of Truth
 // ============================================================================
@@ -310,6 +325,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.safeword/self-reports/',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -569,6 +585,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
     },
@@ -694,6 +711,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/stop-self-report.ts': { template: 'hooks/stop-self-report.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
       template: 'hooks/session-start-reentry.ts',
     },
@@ -707,6 +725,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Guides
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
+    },
+    '.safeword/guides/self-report-filing.md': {
+      template: 'guides/self-report-filing.md',
     },
     '.safeword/guides/cold-start-check.md': {
       template: 'guides/cold-start-check.md',
@@ -860,62 +881,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Codex skills (repo-scoped .agents/skills)
     ...CODEX_SKILL_OWNED_FILES,
 
-    // Cursor rules
-    '.cursor/rules/safeword-core.mdc': {
-      template: 'cursor/rules/safeword-core.mdc',
-    },
-    '.cursor/rules/safeword-brainstorming.mdc': {
-      template: 'cursor/rules/safeword-brainstorming.mdc',
-    },
-    '.cursor/rules/safeword-debugging.mdc': {
-      template: 'cursor/rules/safeword-debugging.mdc',
-    },
-    '.cursor/rules/safeword-elicitation.mdc': {
-      template: 'cursor/rules/safeword-elicitation.mdc',
-    },
-    '.cursor/rules/safeword-figure-it-out.mdc': {
-      template: 'cursor/rules/safeword-figure-it-out.mdc',
-    },
-    '.cursor/rules/safeword-quality-reviewing.mdc': {
-      template: 'cursor/rules/safeword-quality-reviewing.mdc',
-    },
-    '.cursor/rules/safeword-refactoring.mdc': {
-      template: 'cursor/rules/safeword-refactoring.mdc',
-    },
-    '.cursor/rules/safeword-tdd-review.mdc': {
-      template: 'cursor/rules/safeword-tdd-review.mdc',
-    },
-    '.cursor/rules/safeword-testing.mdc': {
-      template: 'cursor/rules/safeword-testing.mdc',
-    },
-    '.cursor/rules/safeword-ticket-system.mdc': {
-      template: 'cursor/rules/safeword-ticket-system.mdc',
-    },
-    '.cursor/rules/bdd-core.mdc': {
-      template: 'cursor/rules/bdd-core.mdc',
-    },
-    '.cursor/rules/bdd-discovery.mdc': {
-      template: 'cursor/rules/bdd-discovery.mdc',
-    },
-    '.cursor/rules/bdd-scenarios.mdc': {
-      template: 'cursor/rules/bdd-scenarios.mdc',
-    },
-    '.cursor/rules/bdd-tdd.mdc': {
-      template: 'cursor/rules/bdd-tdd.mdc',
-    },
-    '.cursor/rules/bdd-verify.mdc': {
-      template: 'cursor/rules/bdd-verify.mdc',
-    },
-    '.cursor/rules/bdd-done.mdc': {
-      template: 'cursor/rules/bdd-done.mdc',
-    },
-    '.cursor/rules/bdd-splitting.mdc': {
-      template: 'cursor/rules/bdd-splitting.mdc',
-    },
+    // Cursor rules — generated from wrapper metadata; physical files stay installed.
+    ...CURSOR_RULE_WRAPPER_OWNED_FILES,
 
-    // Cursor commands (Cursor needs explicit commands for all capabilities)
-    '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
-    '.cursor/commands/debug.md': { template: 'commands/debug.md' },
+    // Cursor commands (Cursor needs explicit commands for all action capabilities)
+    ...CURSOR_COMMAND_WRAPPER_OWNED_FILES,
     '.cursor/commands/explain.md': { template: 'commands/explain.md' },
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
@@ -925,11 +895,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'commands/cleanup-zombies.md',
     },
     '.cursor/commands/lint.md': { template: 'commands/lint.md' },
-    '.cursor/commands/quality-review.md': {
-      template: 'commands/quality-review.md',
-    },
-    '.cursor/commands/refactor.md': { template: 'commands/refactor.md' },
-    '.cursor/commands/testing.md': { template: 'commands/testing.md' },
 
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {

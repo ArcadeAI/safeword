@@ -334,9 +334,15 @@ export const CURSOR_HOOKS = {
       timeout: 90,
     },
   ],
-  // Blocking commit gate (a REFACTOR commit may not touch test files).
+  // Blocking commit gate (a REFACTOR commit may not touch test files). Cursor's
+  // timeout is longer than the adapter's inner timeout, so Safeword can return a
+  // clear denial message before Cursor falls back to opaque cancellation.
   beforeShellExecution: [
-    { command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts', failClosed: true },
+    {
+      command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts',
+      failClosed: true,
+      timeout: 12,
+    },
   ],
   // Observational: triggers lint on edited files. Fail-open — a lint crash must
   // not block the edit.
@@ -422,7 +428,11 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),
     hook(`bun ${HOOKS_DIR}/prompt-questions.ts`),
   ],
-  Stop: [hook(`bun ${HOOKS_DIR}/stop-quality.ts`), hook(`bun ${HOOKS_DIR}/stop-reentry.ts`)],
+  Stop: [
+    hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
+    hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
+    hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
+  ],
   PreToolUse: [
     matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-dependency-readiness.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),

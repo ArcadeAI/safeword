@@ -15,6 +15,9 @@ import {
   denialReasonFromHookOutput,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
+import { installCrashCapture } from '../lib/self-report.ts';
+
+installCrashCapture('codex-pre-tool-quality', undefined, 'codex');
 
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const CLAUDE_EXPLAIN_HINT = 'Run `/explain` for a plain-English version of this block.';
@@ -45,6 +48,9 @@ function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      // Authoritative agent attribution for the spawned hook: it runs under Codex,
+      // not Claude, even though we set CLAUDE_PROJECT_DIR for its path resolution.
+      // This same var is what self-report's detectAgent reads.
       SAFEWORD_AGENT_RUNTIME: 'codex',
     },
     stdio: ['pipe', 'pipe', 'pipe'],

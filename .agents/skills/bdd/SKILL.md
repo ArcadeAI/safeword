@@ -39,7 +39,7 @@ phase: implement # intake | define-behavior | scenario-gate | implement | verify
 **Update phase when:**
 
 - Completing a BDD phase → set next phase
-- Scenario-gate complete → set `implement` (test-layer + sequencing happens at the scenario-gate exit)
+- Scenario-gate complete → set `implement` (proof plan + sequencing happens at the scenario-gate exit)
 - Handing off to TDD → set `implement`
 - All scenarios pass → set `verify`
 - /verify + /audit complete (verify.md exists) → set `done`

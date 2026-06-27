@@ -444,6 +444,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       );
 
       expect(output).toContain('Contribute before asking');
+      expect(output.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
     });
 
     it('exits silently for non-safeword project', () => {

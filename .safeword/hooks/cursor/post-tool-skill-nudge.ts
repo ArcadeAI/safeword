@@ -73,4 +73,4 @@ const translated: ClaudeGateInput = {
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'post-tool-skill-nudge.ts');
 
-emitAndExit(translatePostOutput(runClaudeHook(claudeHookPath, translated).stdout));
+emitAndExit(translatePostOutput(runClaudeHook({ claudeHookPath, input: translated }).stdout));

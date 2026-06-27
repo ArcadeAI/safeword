@@ -178,7 +178,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
 3. **Write `impl-plan.md`** (sibling to `ticket.md`; scaffold from `.safeword/templates/impl-plan-template.md`) — the implementation design record, status `planned`. Five sections, each with content or `skip: <non-empty reason>`:
-   - **Approach** — open by naming the riskiest assumption this design rests on and the cheapest scenario that proves it — concrete and scenario-bound ("assumes the OAuth refresh survives token expiry → scenario 3"), never vacuous ("assumes it works"); if no single slice is load-bearing, say so in one line. Then assign test layers + sequence the work: for each scenario pick the highest test layer that covers it with acceptable feedback speed (unit < integration < E2E), and order tasks so each builds on what's already green — then, among dependency-free work, sequence that load-bearing slice first, so a wrong design fails on slice 1 while it's still cheap. Name the **process boundary** the suite mocks (network / fs / clock / subprocess) and assign **≥1 wiring test per new entry point or command** — built from real collaborators, faking only that boundary — so a broken config→module wiring can't pass behind internal-seam mocks (see `testing/SKILL.md` → Wiring Tests). For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
+   - **Approach** — open by naming the riskiest assumption this design rests on and the cheapest scenario that proves it — concrete and scenario-bound ("assumes the OAuth refresh survives token expiry → scenario 3"), never vacuous ("assumes it works"); if no single slice is load-bearing, say so in one line. Then record the proof plan + build order: for each scenario, name the primary proof using `testing/SKILL.md`'s highest practical scope rule (`unit`, `integration`, `E2E`, or `eval`) and explain why. Add supporting proof where the scenario needs it: focused unit coverage for combinatorial pure logic, evals for AI output quality, and at least one wiring test per new entry point or command built from real collaborators while mocking only the process boundary (network / fs / clock / subprocess). Order tasks so each builds on what's already green; among dependency-free work, sequence the load-bearing slice first, so a wrong design fails on slice 1 while it's still cheap. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
    - **Decisions** — one table row per significant technical choice: choice, alternatives considered, rejected because.
    - **Arch alignment** — consult the project's architecture record before filling this in. Resolve the location from `paths.architecture` in `.safeword/config.json` (default `.project/architecture.md`); a file is the record itself, a directory holds one ADR per `.md` file (README.md excluded, any naming).
      - **Records exist:** read them; populate this section with the titles of the decisions this implementation honors.
@@ -197,7 +197,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 5. **Add work log entry:**
 
    ```
-   - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass; impl-plan.md written (test layers + build order in Approach)
+   - {timestamp} Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass; impl-plan.md written (proof plan + build order in Approach)
    ```
 
 ### Optional: codify the scenarios
@@ -208,3 +208,5 @@ After the gate, `safeword codify <ticket>` derives implementation stubs from the
 - `--format gherkin`: prints the feature source when one exists; on legacy tickets, emits a migration `.feature` from markdown scenarios.
 
 Either way `.feature` is the scenario source of truth. test-definitions.md is the R/G/R ledger for checkboxes and hooks.
+
+**Avoid bloat.**

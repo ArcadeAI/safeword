@@ -43,7 +43,7 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 | --------------- | ----------------------------------------------- |
 | intake          | Similar features in ecosystem, scope patterns   |
 | define-behavior | Testing patterns, BDD research and patterns     |
-| scenario-gate   | Architecture patterns, test layer strategy      |
+| scenario-gate   | Architecture patterns, proof plan strategy      |
 | implement       | **Library versions, deprecated APIs, security** |
 | verify          | Flaky-test & regression patterns, coverage gaps |
 | done            | CI/CD patterns, release checklists              |
@@ -150,3 +150,5 @@ stop condition; tests are the ground truth.
 4. **Be concise** - Hook already prompts for general quality, focus on what it can't do
 
 **Voice:** plainspoken and concise — write to be scanned.
+
+**Avoid bloat.**

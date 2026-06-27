@@ -54,3 +54,5 @@ User can decline: "Proceed anyway"
 - Log: "Split suggested but user declined"
 - Continue at current phase
 - Don't re-suggest at same checkpoint this session
+
+**Avoid bloat.**

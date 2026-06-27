@@ -1,10 +1,9 @@
 /**
  * Integration test for the cucumber-js acceptance lane (ticket 102a — SM1.AC1).
  *
- * Proves safeword's own repo runs `.feature` specs through cucumber-js — the same
- * setup it scaffolds for customers — separate from the vitest unit suite. The
- * dogfood feature drives the built CLI from the outside; dist is already built by
- * the `pretest` step.
+ * Proves safeword's package-level Cucumber wiring loads feature specs and step
+ * definitions. Full scenario execution belongs to the root `test:bdd`
+ * acceptance lane, which also discovers package features.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -17,19 +16,20 @@ import vitestConfig from '../../vitest.config.js';
 import { TIMEOUT_SETUP } from '../helpers.js';
 
 const CLI_DIRECTORY = nodePath.resolve(import.meta.dirname, '../..');
+const CUCUMBER_WIRING_CHECK_ARGS = ['cucumber-js', '--dry-run', '--format', 'summary'];
 
 describe('cucumber-js acceptance lane (SM1.AC1)', () => {
   it(
-    'gherkin-typescript.SM1.AC1.dogfood_feature_runs_green',
+    'gherkin-typescript.SM1.AC1.dogfood_feature_wiring_loads_without_executing_steps',
     () => {
-      const result = spawnSync('bunx', ['cucumber-js'], {
+      const result = spawnSync('bunx', CUCUMBER_WIRING_CHECK_ARGS, {
         cwd: CLI_DIRECTORY,
         encoding: 'utf8',
       });
       const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
       expect(result.status, output).toBe(0);
-      expect(output).toMatch(/\b[1-9]\d* scenarios? \([1-9]\d* passed\)/);
-      expect(output).not.toMatch(/undefined|pending/);
+      expect(output).toMatch(/\b[1-9]\d* scenarios? \([1-9]\d* skipped\)/);
+      expect(output).not.toMatch(/undefined|ambiguous|pending|passed/);
     },
     TIMEOUT_SETUP,
   );

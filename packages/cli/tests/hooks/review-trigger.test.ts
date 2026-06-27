@@ -23,6 +23,11 @@ describe('shouldReviewPhase — enter-semantics dedup (S2.1–2.2, S3.3)', () =>
     expect(shouldReviewPhase('implement')).toBe(true);
   });
 
+  it('does not fire on verify entry because verification should run automatically', () => {
+    expect(shouldReviewPhase('verify', 'implement')).toBe(false);
+    expect(shouldReviewPhase('verify')).toBe(false);
+  });
+
   it('does not fire when there is no current phase', () => {
     expect(shouldReviewPhase(undefined, 'implement')).toBe(false);
   });
