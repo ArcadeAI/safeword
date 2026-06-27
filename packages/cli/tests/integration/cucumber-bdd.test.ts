@@ -16,12 +16,13 @@ import vitestConfig from '../../vitest.config.js';
 import { TIMEOUT_SETUP } from '../helpers.js';
 
 const CLI_DIRECTORY = nodePath.resolve(import.meta.dirname, '../..');
+const CUCUMBER_WIRING_CHECK_ARGS = ['cucumber-js', '--dry-run', '--format', 'summary'];
 
 describe('cucumber-js acceptance lane (SM1.AC1)', () => {
   it(
     'gherkin-typescript.SM1.AC1.dogfood_feature_wiring_loads_without_executing_steps',
     () => {
-      const result = spawnSync('bunx', ['cucumber-js', '--dry-run', '--format', 'summary'], {
+      const result = spawnSync('bunx', CUCUMBER_WIRING_CHECK_ARGS, {
         cwd: CLI_DIRECTORY,
         encoding: 'utf8',
       });
