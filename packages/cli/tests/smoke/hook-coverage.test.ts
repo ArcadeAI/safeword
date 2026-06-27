@@ -69,6 +69,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'PostToolUse lint hook; exercised end-to-end by tests/integration/golden-path.test.ts',
   'post-tool-quality.ts':
     'PostToolUse quality-annotation hook — no agent-blocking deny path to assert in a live run',
+  'post-tool-skill-nudge.ts':
+    'PostToolUse advisory nudge, no deny path; covered deterministically (all three agents) by tests/hooks/skill-nudge-agents.test.ts',
   'pre-tool-config-guard.ts':
     'PreToolUse config.json guard; deterministic, covered by tests/hooks/config-guard-patterns.test.ts',
   'pre-tool-dependency-readiness.ts':
