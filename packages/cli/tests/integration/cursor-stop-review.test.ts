@@ -2,8 +2,8 @@
  * Integration tests for Cursor's stop-hook quality review surface.
  *
  * Cursor Stop cannot block, so the observable behavior is whether the hook emits
- * a `followup_message`. Quiet implement mode suppresses that generic follow-up
- * for ordinary implement-phase edits while preserving non-implement nudges.
+ * a `followup_message`. Automated evidence phases suppress that generic
+ * follow-up while preserving review nudges elsewhere.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -100,8 +100,17 @@ describe('Cursor stop review surface', () => {
     expect(JSON.parse(result.stdout)).toEqual({});
   });
 
-  it('still emits the generic follow-up outside implement phase', () => {
+  it('does not emit a generic follow-up before verify has run', () => {
     cwd = buildProject('verify');
+
+    const result = runCursorStop(cwd);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({});
+  });
+
+  it('still emits the generic follow-up outside implement phase', () => {
+    cwd = buildProject('scenario-gate');
 
     const result = runCursorStop(cwd);
     const parsed = JSON.parse(result.stdout) as { followup_message?: string };

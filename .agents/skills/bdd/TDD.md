@@ -122,7 +122,10 @@ All scenarios complete → reconcile `impl-plan.md` against what actually shippe
 
 _Worked example:_ the plan said "Decisions: parse with the shared markdown utility"; during implementation a local scan proved smaller, so the choice changed mid-implementation — the row now reads choice "local content-or-skip scan", with the shared utility recorded under Alternatives considered and the reason it lost. That update (not a rewrite of history — the alternatives column preserves it) is what reconciliation produces.
 
-Reconciled → set `phase: verify`.
+Reconciled → set `phase: verify` and continue directly into the verify phase:
+run `/verify`, then `/audit`. Do not ask the user whether to proceed; verification
+is agent-owned work. Ask the user only if `/verify`, `/audit`, or a review
+surfaces a real spec, scope, value, or risk decision.
 
 ## Implement exit: independent design review (architecture review gate)
 

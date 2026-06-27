@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 // Safeword: Cursor adapter for stop hook
 // Checks for marker file from afterFileEdit to determine if files were modified
-// Uses followup_message to inject quality review prompt into conversation
+// Uses followup_message to inject quality review prompt into conversation.
+// Suppresses phases where the next step is agent-owned execution, not a human
+// review stop: ordinary implement work and verify entry.
 
 import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
@@ -25,14 +27,15 @@ interface StopOutput {
   followup_message?: string;
 }
 
-function isQuietImplementRun(
+function isAutomatedEvidenceRun(
   workspace: string,
   runIdentity: ReturnType<typeof resolveRunIdentity>,
 ): boolean {
   const state = readSessionState(workspace, runIdentity);
   const activeTicket = state?.activeTicket;
   if (!activeTicket) return false;
-  return getTicketInfo(workspace, activeTicket).phase === 'implement';
+  const phase = getTicketInfo(workspace, activeTicket).phase;
+  return phase === 'implement' || phase === 'verify';
 }
 
 // Read hook input from stdin
@@ -76,7 +79,7 @@ if (await Bun.file(markerFile).exists()) {
     if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);
   });
 
-  if (isQuietImplementRun(process.cwd(), runIdentity)) {
+  if (isAutomatedEvidenceRun(process.cwd(), runIdentity)) {
     console.log('{}');
     process.exit(0);
   }
