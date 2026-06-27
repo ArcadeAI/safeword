@@ -10,12 +10,14 @@ import {
 const unavailableGate: ClaudeGateResult = {
   failed: true,
   stdout: '',
+  timedOut: false,
 };
 
 function cleanGateWithOutput(stdout: string): ClaudeGateResult {
   return {
     failed: false,
     stdout,
+    timedOut: false,
   };
 }
 
@@ -29,21 +31,26 @@ describe('Cursor beforeShellExecution gate', () => {
     },
   );
 
-  it.each(['git commit -m "save"', 'git commit --amend'])(
-    'keeps %s fail-closed when the delegated gate is unavailable',
-    command => {
-      expect(requiresFailClosedShellGate(command)).toBe(true);
-      expect(decideFromShellGate({ command, result: unavailableGate })).toEqual({
-        permission: 'deny',
-        user_message: GATE_UNAVAILABLE_REASON,
-        agent_message: GATE_UNAVAILABLE_REASON,
-      });
-    },
-  );
+  it.each([
+    'git commit -m "save"',
+    'git commit --amend',
+    'git -c user.name=bot commit -m "save"',
+    'git --no-pager commit -m "save"',
+    'command git commit -m "save"',
+    'env GIT_AUTHOR_NAME=bot git commit -m "save"',
+  ])('keeps %s fail-closed when the delegated gate is unavailable', command => {
+    expect(requiresFailClosedShellGate({ command })).toBe(true);
+    expect(decideFromShellGate({ command, result: unavailableGate })).toEqual({
+      permission: 'deny',
+      user_message: GATE_UNAVAILABLE_REASON,
+      agent_message: GATE_UNAVAILABLE_REASON,
+    });
+  });
 
   it('does not mistake other git commit-prefixed commands for git commit', () => {
-    expect(requiresFailClosedShellGate('git commit-graph write')).toBe(false);
-    expect(requiresFailClosedShellGate('git commit-tree HEAD^{tree}')).toBe(false);
+    expect(requiresFailClosedShellGate({ command: 'git commit-graph write' })).toBe(false);
+    expect(requiresFailClosedShellGate({ command: 'git commit-tree HEAD^{tree}' })).toBe(false);
+    expect(requiresFailClosedShellGate({ command: 'echo "git commit -m save"' })).toBe(false);
   });
 
   it('preserves a real denial from the delegated gate', () => {

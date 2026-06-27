@@ -230,15 +230,126 @@ export interface ClaudeGateResult {
   failed: boolean;
 }
 
-/**
- * Matches the only Bash command that the shared pre-tool gate currently protects:
- * `git commit`. If that gate is unavailable, this command must stay fail-closed
- * because committing is the irreversible step the refactor gate exists to guard.
- */
-const FAIL_CLOSED_SHELL_COMMAND = /\bgit\s+commit\b(?!-)/;
+const GIT_GLOBAL_OPTIONS_WITH_VALUE = new Set([
+  '-C',
+  '-c',
+  '--config-env',
+  '--exec-path',
+  '--git-dir',
+  '--namespace',
+  '--work-tree',
+]);
 
-export function requiresFailClosedShellGate(command: string): boolean {
-  return FAIL_CLOSED_SHELL_COMMAND.test(command);
+export function requiresFailClosedShellGate(params: { command: string }): boolean {
+  const { command } = params;
+  return splitShellSegments(command).some(segment => isGitCommitSegment(parseShellWords(segment)));
+}
+
+function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let segmentStart = 0;
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if ((char === '"' || char === "'") && quote === undefined) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = undefined;
+      continue;
+    }
+    if (quote !== undefined) continue;
+
+    const next = command[index + 1];
+    if (char === ';' || char === '\n' || char === '|' || (char === '&' && next === '&')) {
+      segments.push(command.slice(segmentStart, index));
+      segmentStart = char === '&' && next === '&' ? index + 2 : index + 1;
+      if (char === '&' && next === '&') index += 1;
+    }
+  }
+
+  segments.push(command.slice(segmentStart));
+  return segments;
+}
+
+function parseShellWords(segment: string): string[] {
+  const words: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (const char of segment) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if ((char === '"' || char === "'") && quote === undefined) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = undefined;
+      continue;
+    }
+    if (quote === undefined && /\s/.test(char)) {
+      if (current !== '') {
+        words.push(current);
+        current = '';
+      }
+      continue;
+    }
+    current += char;
+  }
+
+  if (current !== '') words.push(current);
+  return words;
+}
+
+function isGitCommitSegment(words: string[]): boolean {
+  let index = skipCommandPrefix(words);
+  if (words[index] !== 'git') return false;
+
+  index += 1;
+  while (index < words.length && words[index]?.startsWith('-')) {
+    const option = words[index];
+    if (option !== undefined && optionTakesSeparateValue(option)) index += 1;
+    index += 1;
+  }
+
+  return words[index] === 'commit';
+}
+
+function skipCommandPrefix(words: string[]): number {
+  let index = 0;
+  if (words[index] === 'command') index += 1;
+  if (words[index] !== 'env') return index;
+
+  index += 1;
+  while (index < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index] ?? '')) {
+    index += 1;
+  }
+  return index;
+}
+
+function optionTakesSeparateValue(option: string): boolean {
+  if (option.includes('=')) return false;
+  return GIT_GLOBAL_OPTIONS_WITH_VALUE.has(option);
 }
 
 /** Message shown when the gate itself could not run, so the action is fail-closed. */
@@ -321,7 +432,7 @@ export function decideFromShellGate(params: {
   result: ClaudeGateResult;
 }): CursorDecision {
   const { command, result } = params;
-  if (result.failed && !requiresFailClosedShellGate(command)) {
+  if (result.failed && !requiresFailClosedShellGate({ command })) {
     return { permission: 'allow' };
   }
   return decideFromGate(result);

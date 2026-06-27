@@ -18,7 +18,8 @@ import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-
 import {
   type ClaudeGateInput,
   type CursorShellInput,
-  decideFromShellGate,
+  decideFromGate,
+  requiresFailClosedShellGate,
   runClaudeHook,
   toCursorDecision,
 } from './gate-adapter.ts';
@@ -52,6 +53,19 @@ if (isAutoUpgradeLockActive({ projectDir: process.cwd() })) {
   process.exit(0);
 }
 
+const proofCommand = parseRecordSkillInvocationCommand(command);
+const needsFailClosedGate = requiresFailClosedShellGate({ command });
+if (!needsFailClosedGate) {
+  if (proofCommand !== undefined) {
+    rememberCursorRunIdentity({
+      projectDirectory: process.cwd(),
+      conversationId: input.conversation_id,
+      skillName: proofCommand.skillName,
+    });
+  }
+  emitAllowAndExit();
+}
+
 const translated: ClaudeGateInput = {
   session_id: input.conversation_id,
   hook_event_name: 'PreToolUse',
@@ -64,17 +78,14 @@ const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts')
 
 // Fail-closed with a local timeout: return Cursor-readable JSON before Cursor's
 // own cancellation path can reduce the failure to "Canceled: Canceled".
-const decision = decideFromShellGate({
-  command,
-  result: runClaudeHook({
+const decision = decideFromGate(
+  runClaudeHook({
     claudeHookPath,
     input: translated,
     timeoutMs: SHELL_GATE_TIMEOUT_MS,
   }),
-});
-const proofCommand =
-  decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
-if (proofCommand !== undefined) {
+);
+if (decision.permission === 'allow' && proofCommand !== undefined) {
   rememberCursorRunIdentity({
     projectDirectory: process.cwd(),
     conversationId: input.conversation_id,
