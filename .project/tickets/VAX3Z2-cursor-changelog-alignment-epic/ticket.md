@@ -63,14 +63,16 @@ Core children (own the `cursor-optimization` epic key). Status revalidated 2026-
 | ---------- | ------------------------------------------------------------------ | ------------------- | ---------------- |
 | **RBZR3F** | Add `sessionStart` context injection                               | restore enforcement | ✅ done          |
 | **151**    | Migrate four Cursor rules to `@reference` pattern                  | drift/parity        | ✅ done (folded) |
-| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement | resolved; close blocked by #469 |
-| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | shipped; close blocked by #469 |
-| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | shipped; close blocked by #469 |
-| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | shipped; close blocked by #469 |
-| **P9K783** | Harden Cursor done-gate close-detection (verify payload fields)    | correctness         | shipped; close blocked by #469 |
-| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | verified; close blocked by #469 |
+| **F2TKR3** | Wire `beforeSubmitPrompt` turn-start blocking gate                 | restore enforcement | resolved         |
+| **T3DV1K** | Port phase/LOC gates to `preToolUse` + `beforeShellExecution` deny | restore enforcement | shipped          |
+| **ANAXG4** | `failClosed:true` on gating hooks (default fail-open)              | correctness         | shipped          |
+| **AKNWZK** | Re-architect done/stop gate (stop can't block)                     | correctness         | shipped          |
+| **P9K783** | Harden Cursor done-gate close-detection (verify payload fields)    | correctness         | shipped          |
+| **TDX8NT** | Verify deny wins over Auto-review Run Mode (3.6)                   | watch/verify        | verified         |
 | **JFBFEP** | Add an action-based MCP safety gate for Cursor                     | correctness         | open             |
 | **DXYKJX** | Package as Team-Marketplace plugin (Required mode)                 | distribution        | open             |
+
+Final close flips for F2TKR3, T3DV1K, ANAXG4, AKNWZK, P9K783, and TDX8NT are blocked by #469.
 
 ### Cross-epic Cursor work (soft-linked, not re-parented)
 
@@ -78,9 +80,11 @@ These are Cursor-specific deliverables whose natural home is a cross-agent epic.
 
 | ID         | Title                                           | Home epic                | Status      |
 | ---------- | ----------------------------------------------- | ------------------------ | ----------- |
-| **1833FW** | Keep Cursor verify evidence aligned             | agent-surface-refactor   | resolved; close blocked by #469 |
+| **1833FW** | Keep Cursor verify evidence aligned             | agent-surface-refactor   | resolved |
 | **F1HTQ4** | Generate Cursor command/rule wrappers from meta | agent-surface-refactor   | in_progress |
 | **Y6HZR7** | Auto-upgrade under Cursor                       | auto-upgrade-cross-agent | done        |
+
+1833FW also waits on #469 for its final ticket close flip; Y6HZR7 closed in PR #492.
 
 ## Sequencing
 
