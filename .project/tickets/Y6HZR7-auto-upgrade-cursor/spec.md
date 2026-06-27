@@ -1,74 +1,80 @@
 # Spec: Auto-upgrade under Cursor
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
-
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Cursor users should receive safeword patch and minor updates automatically at
+session start, matching the seamless upgrade path Claude Code users already
+have. The Cursor path must not break session startup or pretend Cursor supports
+Claude Code's `asyncRewake` notification contract.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Parent epic: `BJX7WR` — cross-agent auto-upgrade.
+- Related Cursor epic: `VAX3Z2` — Cursor changelog alignment.
+- Implementation PRs:
+  - #447 — Run silent Cursor auto-upgrade at session start.
+  - #463 — Guard silent Cursor auto-upgrade.
+- Current Cursor command-hook docs: `sessionStart` is fire-and-forget and does
+  not enforce blocking responses as a startup notification channel.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- Safeword Maintainer (SM): ships framework updates once and expects every
+  supported agent surface to pick them up.
+- Technical Builder (TB): wants safeword-managed project guidance to stay
+  current in Cursor without running manual upgrade commands.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- Silent apply path: Cursor runs the auto-upgrade check, applies eligible
+  patch/minor updates, and leaves the git commit as the durable record instead
+  of showing a startup message.
+- Auto-upgrade lock: a short-lived git-directory lock that blocks Cursor write
+  and shell gates while the silent upgrade is mutating safeword-managed files.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### auto-upgrade-cursor.SM1 — Keep Cursor projects current without manual upgrades
 
-Uncomment and customize:
+**Persona:** Safeword Maintainer (SM)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I ship a safe safeword patch or minor update, I want Cursor installs to
+> pick it up automatically, so users do not drift behind Claude Code users.
 
-**Persona:** Platform Operator (PO)
+#### auto-upgrade-cursor.SM1.AC1 — Cursor setup includes the auto-upgrade session hook
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### auto-upgrade-cursor.SM1.AC2 — Cursor reuses the shared auto-upgrade core
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### auto-upgrade-cursor.SM1.AC3 — Claude Code behavior stays unchanged
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+### auto-upgrade-cursor.CM1 — Start Cursor safely while upgrades happen
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+**Persona:** Technical Builder (TB)
+
+> When I open a Cursor session in a safeword-managed project, I want upgrade
+> checks to run without blocking startup or sweeping my own edits into an
+> auto-upgrade commit.
+
+#### auto-upgrade-cursor.CM1.AC1 — Cursor session start stays fail-open and silent
+
+#### auto-upgrade-cursor.CM1.AC2 — User-authored Cursor hooks are preserved
+
+#### auto-upgrade-cursor.CM1.AC3 — Cursor write and shell gates wait during a running silent upgrade
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- Fresh Cursor setup writes both `session-safeword-context.ts --agent=cursor`
+  and `session-cursor-auto-upgrade.ts` in `sessionStart`.
+- The Cursor wrapper exits successfully with no output when no upgrade should
+  apply.
+- Setup/reset preserve non-safeword Cursor hooks that share an event with
+  safeword hooks.
+- Cursor write and shell gates deny operations while the auto-upgrade lock is
+  active.
+- PR #447 and PR #463 CI passed, and focused closeout checks pass locally.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+defer: Richer user-visible notices for Cursor major-version availability and
+repeated failure caps need a separate notification strategy because Cursor
+`sessionStart` is not a reliable startup message channel.

@@ -80,6 +80,18 @@ describe('resolveTestPlan — every detected language appears (no first-match)',
     const root = makeRepo({ 'README.md': '# hi\n' });
     expect(resolveTestPlan(root, { isToolAvailable: allTools })).toEqual([]);
   });
+
+  it('honors installed packs when experiment manifests exist under the repo', () => {
+    const root = makeRepo({
+      '.safeword/config.json': JSON.stringify({ installedPacks: ['typescript'] }),
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'experiments/gepa/requirements.txt': 'gepa==0.1.1\n',
+    });
+
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+
+    expect(languages(plan)).toEqual(['javascript']);
+  });
 });
 
 describe('resolveTestPlan — the command reflects the detected runner', () => {
