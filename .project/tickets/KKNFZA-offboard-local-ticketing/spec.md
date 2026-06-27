@@ -76,9 +76,10 @@ from that key. With `provider: none` the no-tracker base case is unchanged.
 
 `status` lives on the issue (the read-authority); `phase` and derived gate state live in the
 git-ignored runtime cache. None of `status`/`phase`/`last_modified` is rewritten into tracked
-`ticket.md` per Stop. safeword writes to the tracker only identity (existence, title, back-link)
-and status — never assignee, priority, or body parity — through the existing single writer call
-site so GitHub and Linear are both served.
+`ticket.md` per Stop. The single writer call site emits **exactly** the allow-listed fields
+{existence, title, back-link, status} to the tracker — observable by asserting the writer payload
+equals that set (assignee/priority/body are absent, not merely "not written"). GitHub and Linear
+are both served through that one call site.
 
 #### offboard-local-ticketing.TB1.AC3 — content artifacts stay git-tracked and reviewable
 
@@ -97,7 +98,19 @@ by construction).
 
 With a tracker connected, a full create→work→close session produces **zero** bookkeeping diffs
 (no `status`/`phase`/`last_modified` rewrites, no INDEX diff). The diffs it does produce are the
-content the user actually authored. The tracker shows current status without running safeword.
+content the user actually authored — committed at session boundaries, so no mid-session action
+produces a commit on its own. The tracker shows current status without running safeword.
+
+#### offboard-local-ticketing.TB1.AC6 — `ticket new` degrades safely when the tracker is unreachable
+
+Issue-first creation is the one place the network is on a critical path. When the tracker is
+unreachable (or auth fails) at `ticket new`, the command fails loudly with guidance and creates
+**no** half-state — no orphan local folder pointing at a non-existent issue. If the issue is
+minted but recording its key locally fails (partial-create), the next `ticket new`/resume
+reconciles to the existing issue rather than minting a duplicate (reusing the `tracker-map.json`
+pending-entry pattern from `JS5K5G`). secrets resolve from the OS keychain / env only — never
+config, never logs — and the only egress is the AC2 allow-list (a public-repo target surfaces the
+existing egress warning).
 
 ### offboard-local-ticketing.SM1 — gates stay local, offline, and backward-compatible
 
@@ -125,6 +138,13 @@ stale value driving a gate mid-session.
 All existing local tickets (`{ID}-{slug}/`, ID-only, numeric) remain resolvable by ID; no
 migration is forced. With `provider: none`, the local plane behaves exactly as today (local
 identity and status).
+
+#### offboard-local-ticketing.SM1.AC4 — concurrent sessions don't corrupt the runtime cache
+
+The git-ignored runtime cache tolerates parallel sessions / branches: concurrent writers never
+leave it unparseable, and a per-ticket (not global) granularity keeps one session's status from
+clobbering another's. A torn or missing cache is treated as "unknown" and re-reconciled from the
+tracker at the next boundary, never as a false gate signal.
 
 ## Rave Moment
 
@@ -154,7 +174,9 @@ identity and status).
 
 - defer: exact mapping of safeword `status` onto GitHub (open/closed + labels) vs Linear
   (workflow states) — resolve in the status-on-issue child ticket.
-- open: impl-plan review by another person — now that the plan is a tracked file, a teammate can
-  review it in a normal PR. Decide whether that is sufficient (PR review only) or whether we also
-  want a tracker-side approval gate (issue label/state/comment reconciled at session boundary to
-  unblock the implement phase). This is the A/B scope question from intake, still unresolved.
+- resolved (default): impl-plan review by another person uses **normal PR review** — the plan is a
+  tracked file, so no new mechanism is needed and SM1.AC1's "no per-turn network" holds. A
+  tracker-side approval gate (issue label/state reconciled at session boundary to block the
+  implement phase) is a **deferred follow-up child ticket**, not in KKNFZA scope. Reversible: it
+  layers on the SM1.AC2 reconciliation we're already building, so it can be added later without
+  rework. (User can elevate it into scope; default stands otherwise.)

@@ -24,9 +24,11 @@ done_when:
   - content artifacts stay tracked and reviewable in a normal PR
   - identity + status are observable in the tracker without running safeword
   - gates pass/fail identically offline (no per-turn network)
+  - INDEX generation and the dup-ID guard are retired when the tracker is canonical
+  - ticket new fails loudly and leaves no orphan/duplicate when the tracker is unreachable
   - existing tickets and provider:none installs are unaffected
 created: 2026-06-27T21:35:47.369Z
-last_modified: 2026-06-27T23:00:00.000Z
+last_modified: 2026-06-27T23:10:00.000Z
 ---
 
 # Off-board local ticketing: external tracker as system of record, local artifacts stay tracked
@@ -39,6 +41,13 @@ and reviewable and gates keep reading local files.
 
 ## Work Log
 
+- 2026-06-27T23:10:00Z /quality-review (independent reviewer + web research): GitHub & Linear both
+  cap ~5k authenticated req/hr (GitHub Actions token only 1k/hr/repo) → verified support for
+  "no network in per-turn loop" + session-boundary reconciliation. Fixed REQUEST-CHANGES findings:
+  reframed AC2 to an observable allow-list; added TB1.AC6 (ticket-new tracker-unreachable /
+  partial-create / secrets / egress) and SM1.AC4 (parallel-session runtime-cache races); added
+  done_when rows for INDEX-retire and safe ticket-new; resolved A/B → PR-review default, approval
+  gate deferred to a follow-up child ticket. Marked the two entries below SUPERSEDED.
 - 2026-06-27T23:00:00Z Intake PIVOT (user: "avoid git-ignore on all this stuff"): dropped the
   git-ignored ephemeral-cache pillar. New model = content vs lifecycle state. Content artifacts
   (spec/design/impl-plan/test-defs/verify/work-log) stay git-TRACKED & reviewable; churn reduction
@@ -47,11 +56,13 @@ and reviewable and gates keep reading local files.
   Makes teammate review of the plan trivial (normal PR). Rewrote spec.md (TB1.AC1–AC5, SM1.AC1–AC3).
   Churn metric: "zero bookkeeping diffs" not "zero tracked files". Open: PR-review-only vs add a
   tracker-side approval gate (A/B).
-- 2026-06-27T22:52:00Z Intake: resolved artifact routing (TB1.AC5–AC7). Durable prose
+- [SUPERSEDED by 23:00 pivot — describes the dropped git-ignored ephemeral-cache model]
+  2026-06-27T22:52:00Z Intake: resolved artifact routing (TB1.AC5–AC7). Durable prose
   (spec/design) → docs path via persistArtifacts, never tracker. Gate-fuel (test-definitions,
   verify, impl-plan, dimensions) → ephemeral, never projected raw. Work log → local; summary to
   issue at Stop only. Legacy projects out of scope (user) → dropped legacy test-def carve-out.
-- 2026-06-27T21:40:00Z Intake: wrote spec.md (intent, intake brief, 2 JTBDs / 8 ACs, outcomes)
-  and set engineering scope. Decision via /figure-it-out: off-board coordination plane to tracker,
-  demote execution plane to ephemeral cache. Decomposition (5 child tickets) in spec.md.
+- [SUPERSEDED by 23:00 pivot — "ephemeral cache" no longer the model] 2026-06-27T21:40:00Z Intake:
+  wrote spec.md (intent, intake brief, 2 JTBDs / 8 ACs, outcomes) and set engineering scope.
+  Decision via /figure-it-out: off-board coordination plane to tracker, demote execution plane to
+  ephemeral cache. Decomposition (5 child tickets) in spec.md.
 - 2026-06-27T21:35:47.369Z Started: Created ticket KKNFZA
