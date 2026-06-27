@@ -70,7 +70,7 @@ export interface InstallSkillsOptions {
   cwd: string;
 }
 
-export type SkillInstallStatus = 'installed' | 'skipped' | 'failed';
+type SkillInstallStatus = 'installed' | 'skipped' | 'failed';
 
 export interface SkillInstallResult {
   status: SkillInstallStatus;
