@@ -86,3 +86,11 @@ Added arm B (skill AVAILABLE, agent chooses — the native-triggering analog):
 **The one caveat that could still justify a directive — RELIABILITY:** arm B pointed at ONE clearly-relevant skill ("a Go context skill is available, read if useful"). Real native triggering puts the skill's description among ~40 others; the agent must self-notice it's relevant. So the directive's *only* possible remaining value is improving awareness **reliability** (closing silent-misses where native triggering doesn't fire) — NOT changing behavior once aware. That is exactly the "silent-miss" risk, and it needs the **live multi-skill session test** to measure (can't be done in a sub-agent harness).
 
 **Recommendation pivot (pending user):** make native-description-triggering the primary (just install the skill); treat the prompt-hook directive as a *deferred reliability backstop*, built only if live testing shows native triggering silently misses. Update #482 accordingly.
+
+## CORRECTION — both arms pointed at the specific skill (self-selection untested)
+
+Review caught an overreach: arm B and arm C BOTH handed the agent `golang-context` by file path (B: "read if useful"; C: "read and follow"). So:
+
+- **Proven:** skill content fixes the error when surfaced (0→4/4); force vs offer makes no difference (B==C).
+- **NOT proven:** that the agent self-finds the right skill among ~40 unaided — both arms pre-solved that.
+- The full-list reminder (impl-plan + each scenario) exists to assist that untested self-selection step. The "reminders are redundant" pivot was wrong; the live picker-only-vs-reminder test is the genuine go/no-go.

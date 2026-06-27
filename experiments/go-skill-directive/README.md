@@ -74,3 +74,15 @@ Lever = awareness (native description-triggering provides it), not the directive
 Caveat: arm B pointed at one clearly-relevant skill; real native triggering (skill
 among many) may silently miss — the only thing that could still justify a directive,
 testable only in a live multi-skill session.
+
+### CORRECTION: both arms pointed at the specific skill
+
+The "3-arm update" above overstated the result. **Both arm B and arm C pointed the
+agent at the ONE relevant skill (`golang-context`) by file path** — they differed only
+in "read if useful" (B) vs "read and follow" (C). So the finding is narrower than written:
+_once handed the right skill, forcing it doesn't beat offering it (B==C)._ The experiment
+did **NOT** test whether the agent **self-selects the right skill among ~40** with nothing
+pointing at it — both arms pre-solved that step. That self-selection step is exactly what a
+full-list reminder assists, so "directive ≈ availability → reminders redundant" does NOT
+follow. The picker-only vs picker+reminder reliability test (live, multi-skill) remains the
+real open question.
