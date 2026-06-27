@@ -42,20 +42,26 @@ if (!language) process.exit(0);
 
 if (!installedPrefixes(projectDirectory).has(language.prefix)) process.exit(0);
 
-// Per-session state holds the active ticket and the fired-nudge keys.
-const stateFile = getStateFilePath(projectDirectory, input.session_id);
-const state = readState(stateFile);
+// Active ticket comes from the shared quality-state file — READ ONLY. We never
+// write that file: post-tool-quality.ts owns it and runs in parallel on the same
+// edit, so a shared read-modify-write here would lose one hook's update.
+const sharedStateFile = getStateFilePath(projectDirectory, input.session_id);
+const scenario = activeScenario(projectDirectory, readState(sharedStateFile).activeTicket);
 
-const scenario = activeScenario(projectDirectory, state.activeTicket);
 const nudge = decideSkillNudge(filePath, installedPrefixes(projectDirectory), scenario);
 if (!nudge) process.exit(0);
 
-// Flag-and-clear: fire once per (language, scenario).
-const fired = Array.isArray(state.firedSkillNudges) ? state.firedSkillNudges : [];
+// Flag-and-clear: fire once per (language, scenario). Dedup state lives in its
+// OWN file (derived from the shared path so it reuses the same session-key
+// resolution) so this hook never contends on the shared state file.
+const dedupFile = sharedStateFile.replace('quality-state-', 'skill-nudge-');
+const fired = readState(dedupFile).firedSkillNudges ?? [];
 if (fired.includes(nudge.dedupKey)) process.exit(0);
-state.firedSkillNudges = [...fired, nudge.dedupKey];
 try {
-  writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  writeFileSync(
+    dedupFile,
+    JSON.stringify({ firedSkillNudges: [...fired, nudge.dedupKey] }, null, 2),
+  );
 } catch {
   // State unwritable — surface the nudge anyway; worst case it repeats.
 }
@@ -76,6 +82,11 @@ function installedPrefixes(projectRoot: string): Set<string> {
     try {
       for (const entry of readdirSync(directory, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
+        // First path-segment is the language prefix (`golang-error-handling` →
+        // `golang`). Gated by `known`, so safeword's own skill dirs never match.
+        // (Latent: if a future SKILL_LANGUAGES prefix equalled a real dir's first
+        // segment, that dir would be misread as installed — revisit when adding
+        // languages.)
         const prefix = entry.name.split('-')[0];
         if (prefix && known.has(prefix)) found.add(prefix);
       }
