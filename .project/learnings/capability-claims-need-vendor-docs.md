@@ -26,9 +26,15 @@ Three compounding traps:
 - **Any external-capability *negative* that scopes the design is unverified until vendor-doc-confirmed this session** — including premises inherited from earlier turns. Negatives get the strictest check.
 - **Don't grandfather premises.** When a claim becomes load-bearing, re-check its tag; `our-code`/`memory`/stale → verify before building on it.
 
-## The general fix (not another doc)
+## The general fix (not another doc — but not a true gate either)
 
-A learning file is the ~20% "cross-file delegation" tier (see `instruction-attention-hierarchy.md`) — "skipped it every time." Fixing a verification gap with a passive doc is the same mistake recursively. The durable fix is to wire the provenance check into a **gate that fires** (~95% tier): extend `/quality-review`'s provenance gate to require listing the design's load-bearing premises with source+freshness (not just freshly-surfaced claims), and add a one-line premise-provenance step to `/figure-it-out`. Physics, not policy.
+A learning file is the ~20% "cross-file delegation" tier (see `instruction-attention-hierarchy.md`) — "skipped it every time." Fixing a verification gap with a passive doc is the same mistake recursively. But beware the symmetric trap: a *step inside a skill* is only the ~50% "mid-file" tier — **not** a gate. A genuine blocking gate is likely infeasible here (you can't mechanically detect an unsourced premise in free-form reasoning). So the realistic fix is layered, honest about each tier:
+
+1. **Legibility first** — surface the load-bearing premises tagged by source + freshness, so they're challengeable (by the model on re-read and by the user). Costs nothing; doesn't claim enforcement.
+2. **Prompt-hook nudge** — the most reliable *available* placement (~95% tier; the channel safeword already uses), a compressed "tag premises; verify external negatives against vendor docs."
+3. **Skill-step backup** in `/figure-it-out` + `/quality-review` — detailed but ~50–80%; the "compressed-in-hook + detailed-in-skill" pattern from `instruction-attention-hierarchy.md`.
+
+Prompting + legibility, not "physics." The tier percentages above are **directional** (internal n=2 tickets), not rigorous.
 
 ## Applied in
 
