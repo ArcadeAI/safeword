@@ -1,6 +1,6 @@
 # Implement: Outside-in TDD
 
-**Entry:** Agent enters `implement` phase. The ticket's `impl-plan.md` (written at scenario-gate exit, status `planned`) is the design record for this phase — follow its Approach section's test-layer assignments and build order. Begin TDD for the first unchecked scenario.
+**Entry:** Agent enters `implement` phase. The ticket's `impl-plan.md` (written at scenario-gate exit, status `planned`) is the design record for this phase — follow its Approach section's proof plan and build order. Begin TDD for the first unchecked scenario.
 
 ## Harness availability check (entry)
 
