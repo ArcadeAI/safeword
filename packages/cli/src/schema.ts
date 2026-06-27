@@ -668,6 +668,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/codex/pre-tool-quality-helpers.ts': {
       template: 'hooks/codex/pre-tool-quality-helpers.ts',
     },
+    '.safeword/hooks/codex/post-tool-skill-nudge.ts': {
+      template: 'hooks/codex/post-tool-skill-nudge.ts',
+    },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
     },
@@ -943,6 +946,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/cursor/post-tool-quality.ts': {
       template: 'hooks/cursor/post-tool-quality.ts',
+    },
+    '.safeword/hooks/cursor/post-tool-skill-nudge.ts': {
+      template: 'hooks/cursor/post-tool-skill-nudge.ts',
     },
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },

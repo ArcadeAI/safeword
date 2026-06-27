@@ -347,6 +347,10 @@ export const CURSOR_HOOKS = {
   // which must never block work.
   postToolUse: [
     { command: 'bun ./.safeword/hooks/cursor/post-tool-quality.ts', matcher: 'Write|Shell' },
+    // Observational: language-skill nudge on edits. Fail-open — emits {} on any
+    // miss, never blocks. Forwards the Claude hook's additionalContext as Cursor
+    // additional_context.
+    { command: 'bun ./.safeword/hooks/cursor/post-tool-skill-nudge.ts', matcher: 'Write' },
   ],
   // Observational: nudges a quality review. Cursor `stop` cannot block anyway —
   // the real done enforcement lives in preToolUse (above). loop_limit:1 is

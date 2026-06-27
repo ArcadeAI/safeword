@@ -32,6 +32,10 @@
       {
         "command": "bun ./.safeword/hooks/cursor/post-tool-quality.ts",
         "matcher": "Write|Shell"
+      },
+      {
+        "command": "bun ./.safeword/hooks/cursor/post-tool-skill-nudge.ts",
+        "matcher": "Write"
       }
     ],
     "stop": [
