@@ -67,4 +67,4 @@ const translated: ClaudeGateInput = {
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'post-tool-quality.ts');
 
-emitAndExit(translatePostOutput(runClaudeHook(claudeHookPath, translated).stdout));
+emitAndExit(translatePostOutput(runClaudeHook({ claudeHookPath, input: translated }).stdout));

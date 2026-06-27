@@ -23,6 +23,8 @@ import {
   toCursorDecision,
 } from './gate-adapter.ts';
 
+const SHELL_GATE_TIMEOUT_MS = 8_000;
+
 async function readInput(): Promise<CursorShellInput> {
   try {
     return (await Bun.stdin.json()) as CursorShellInput;
@@ -60,8 +62,15 @@ const translated: ClaudeGateInput = {
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
-// Fail-closed: a gate that crashed or never started denies the command (ANAXG4).
-const decision = decideFromGate(runClaudeHook(claudeHookPath, translated));
+// Fail-closed with a local timeout: return Cursor-readable JSON before Cursor's
+// own cancellation path can reduce the failure to "Canceled: Canceled".
+const decision = decideFromGate(
+  runClaudeHook({
+    claudeHookPath,
+    input: translated,
+    timeoutMs: SHELL_GATE_TIMEOUT_MS,
+  }),
+);
 const proofCommand =
   decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
 if (proofCommand !== undefined) {
