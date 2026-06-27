@@ -38,3 +38,18 @@ last_modified: 2026-06-27T12:42:28.031Z
 **Premortem / strategic:** base models keep improving past these idioms; if `context-in-struct` also shows ~0% headroom, that erosion **is the #482 answer** — Go skills add little for current strong models on common cases; lift survives only on the hardest design judgment. A valid go/no-go, not a harness failure.
 
 **Next:** probe `context-in-struct` headroom (4 control, static grader). Fail unaided → build A-vs-C on it. Pass → switch to judged design-trap eval + record the erosion finding.
+
+## A-vs-C round 1 (context-in-struct) — headroom real, but trap too gray
+
+**Grader:** AST checker for a `context.Context` struct field. Validated (ctx-field→FAIL, ctx-per-call→PASS) AND aligned with samber `golang-context` rule #3 ("NEVER store context in a struct — pass explicitly through function parameters").
+
+**Result (background-worker task, 4 control / 4 directive, isolation fixed):**
+
+- Control: **0/4 pass** (all stored ctx) → **headroom CONFIRMED** (unlike races: 0% headroom).
+- Directive (read golang-context skill first): **1/4 pass** (grader-confirmed).
+
+**The catch (read the outputs, not the count):** the 3 "failing" directive agents stored ctx **with explicit justification comments** — they engaged rule #3 and chose the *defensible* lifecycle-ctx exception. A background worker with no incoming per-call context is the contested gray-area case; storing ctx+cancel for it is genuinely debated. So the binary grader marks reasoned-exception == lazy-violation and **undercounts the directive's visible effect** (it changed reasoning + got 1 full compliance).
+
+**Meta:** even a "validated" grader had a validity gap (too strict for a gray task) — caught only by reading the actual source, not the pass/fail tally. (Same lesson as `capability-claims-need-vendor-docs`: look at the artifact.)
+
+**Next:** refine to an **unambiguous** context-in-struct trap — a request-scoped context stashed in a struct (e.g. an HTTP service that stores the incoming request's `ctx` in a field for later use). No defensible exception → the skill should produce a clean A-vs-C lift. Re-run, then commit the (refined) trap + AST grader into `experiments/go-skill-directive/`.
