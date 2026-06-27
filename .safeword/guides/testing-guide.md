@@ -102,26 +102,26 @@ Before adding a test, answer in order. Stop at the first failure.
 
 ### Good Test Signals
 
-| Signal                    | What It Means                                         |
-| ------------------------- | ----------------------------------------------------- |
-| Behavior-linked           | Protects an output, side effect, workflow, or contract |
-| Plausible regression      | Would fail for a bug users or maintainers could hit   |
-| Cheapest sufficient scope | Uses no more system than needed to prove the behavior |
-| Diagnosable failure       | Failure narrows where to inspect next                 |
+| Signal                    | What It Means                                           |
+| ------------------------- | ------------------------------------------------------- |
+| Behavior-linked           | Protects an output, side effect, workflow, or contract  |
+| Plausible regression      | Would fail for a bug users or maintainers could hit     |
+| Cheapest sufficient scope | Uses no more system than needed to prove the behavior   |
+| Diagnosable failure       | Failure narrows where to inspect next                   |
 | Stable and isolated       | Does not depend on order, shared state, timing, or luck |
-| Maintained evidence       | Fixtures, snapshots, and assertions stay intentional  |
+| Maintained evidence       | Fixtures, snapshots, and assertions stay intentional    |
 
 ### Busywork Smells By Type
 
-| Test Type   | Busywork Smell                                      | Better Move                                      |
-| ----------- | --------------------------------------------------- | ------------------------------------------------ |
-| Unit        | Private methods, mock-call choreography, pass-throughs | Test public behavior or delete the test          |
-| Integration | So many mocks that the boundary is fake             | Use a unit test or fewer mocks                   |
-| Integration | So broad that failures only say "something broke"   | Split by contract or promote the main flow to E2E |
-| E2E         | Every edge case runs through a browser              | Keep E2E smoke; cover edge cases lower down      |
-| E2E         | Fragile shared accounts, third-party UI, or timing  | Isolate data, stub unsafe boundaries, add waits on signals |
-| Static gate | Noisy rule treated as behavior proof                | Keep static gates, but add runtime coverage      |
-| LLM Eval    | Deterministic assertion disguised as model judgment | Use the eval guide's token-waste gate            |
+| Test Type   | Busywork Smell                                         | Better Move                                                |
+| ----------- | ------------------------------------------------------ | ---------------------------------------------------------- |
+| Unit        | Private methods, mock-call choreography, pass-throughs | Test public behavior or delete the test                    |
+| Integration | So many mocks that the boundary is fake                | Use a unit test or fewer mocks                             |
+| Integration | So broad that failures only say "something broke"      | Split by contract or promote the main flow to E2E          |
+| E2E         | Every edge case runs through a browser                 | Keep E2E smoke; cover edge cases lower down                |
+| E2E         | Fragile shared accounts, third-party UI, or timing     | Isolate data, stub unsafe boundaries, add waits on signals |
+| Static gate | Noisy rule treated as behavior proof                   | Keep static gates, but add runtime coverage                |
+| LLM Eval    | Deterministic assertion disguised as model judgment    | Use the eval guide's token-waste gate                      |
 
 Good test:
 
