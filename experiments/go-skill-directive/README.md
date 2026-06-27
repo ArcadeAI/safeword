@@ -42,3 +42,26 @@ collecting each `counter.go`, and grading. Results logged in the ticket work log
 - Proxy, not the faithful eval (see arm B note). Directional go/no-go only.
 - Small N — a first signal, not a production rate.
 - samber content is fetched at the pin, not committed (avoids redistribution/attribution here).
+
+## Result (context-in-struct trap) — clean signal
+
+The race/counter trap above has **zero headroom** on current strong models
+(12/12 controls wrote safe code). Pivoted to the **context-in-struct** trap
+(`trap-context/`, graded by `grade-ctx.sh`):
+
+| Arm                                                    | Pass    | Notes                                                       |
+| ------------------------------------------------------ | ------- | ----------------------------------------------------------- |
+| **A — control** (no skill)                             | **0/4** | all stored `context.Context` in `RequestScope` (1 embedded) |
+| **C — directive** (read+follow `golang-context` skill) | **4/4** | all refused; several cite rule #3 explicitly                |
+
+A clean **0 → 4/4** swing on a deterministically-graded, headroom-real,
+no-defensible-exception trap. The Go judgment skill, when surfaced, eliminates
+an idiom error the model otherwise makes every time.
+
+**Caveats:** (1) this is arm C in its strongest form ("read this skill and follow
+it") — it proves the _content_ changes behavior, not yet that the prompt-hook
+_directive_ triggers it in a live session (the #482 injection mechanism is the
+next layer); (2) n=4 per arm — the effect is clean but small-sample; (3) a
+round-1 trap (background-worker _lifecycle_ ctx) was abandoned as too gray —
+storing lifecycle ctx is a defensible exception, so 3/4 directive agents stored
+it with justification. The request-scoped trap removes that ambiguity.

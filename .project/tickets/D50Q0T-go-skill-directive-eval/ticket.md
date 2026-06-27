@@ -53,3 +53,18 @@ last_modified: 2026-06-27T12:42:28.031Z
 **Meta:** even a "validated" grader had a validity gap (too strict for a gray task) — caught only by reading the actual source, not the pass/fail tally. (Same lesson as `capability-claims-need-vendor-docs`: look at the artifact.)
 
 **Next:** refine to an **unambiguous** context-in-struct trap — a request-scoped context stashed in a struct (e.g. an HTTP service that stores the incoming request's `ctx` in a field for later use). No defensible exception → the skill should produce a clean A-vs-C lift. Re-run, then commit the (refined) trap + AST grader into `experiments/go-skill-directive/`.
+
+## A-vs-C round 2 (request-scoped context-in-struct) — CLEAN SIGNAL
+
+Refined to an unambiguous trap (request-scoped `RequestScope` carrier; no lifecycle-ctx defense). Grader: AST checker (committed, `experiments/go-skill-directive/grade-ctx.sh`, catches embedded + named `context.Context` fields), validated + aligned with golang-context rule #3.
+
+**Result: control 0/4 pass · directive 4/4 pass** — clean 0→100% swing, grader-confirmed.
+
+- Control: all 4 stored ctx in the struct (1 embedded `context.Context`).
+- Directive (read+follow golang-context skill): all 4 refused; several cite rule #3.
+
+**Answers #482's gating question:** surfacing the Go judgment skill eliminates an idiom error the model otherwise makes every time, on a deterministically-graded trap with real headroom.
+
+**Caveats (honest):** strongest arm-C form ("read this skill + follow it") — proves the *content* moves behavior, not yet that the prompt-hook *directive* triggers it live (next layer). n=4. Round-1 lifecycle-ctx trap abandoned (too gray).
+
+**Committed harness:** `experiments/go-skill-directive/{trap-context/,checker/,grade-ctx.sh}`. Status: gating question answered YES; next = test the faithful injection mechanism (prompt-hook directive in a real session) per #482.
