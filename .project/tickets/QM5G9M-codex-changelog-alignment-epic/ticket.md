@@ -2,11 +2,12 @@
 id: QM5G9M
 slug: codex-changelog-alignment-epic
 type: feature
-phase: intake
-status: open
+phase: done
+status: done
+external: https://github.com/ArcadeAI/safeword/issues/395
 epic: codex-changelog-alignment
 created: 2026-05-31T21:09:47.366Z
-last_modified: 2026-05-31T21:51:00.000Z
+last_modified: 2026-06-25T06:31:00.000Z
 ---
 
 # Epic: OpenAI Codex changelog + docs alignment
@@ -66,7 +67,7 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 | **N12G95** | Spike: port one gate to a Codex `PreToolUse` deny hook     | done; includes multi-file patch denial |
 | **HPP49X** | Map safeword lifecycle events → Codex hook events (design) | done; no `SessionEnd` assumption       |
 | **5DEJ8V** | Generate `AGENTS.md` + `config.toml` hook wiring           | done; setup/upgrade trust next step    |
-| **CXP9LM** | Prove Codex parity in a trusted customer repo              | live/manual smoke still open           |
+| **CXP9LM** | Prove Codex parity in a trusted customer repo              | done; live supported-path smoke passed |
 | **XK5N14** | Ensure feature files cover Codex parity tickets            | done; coverage audit complete          |
 | **QGHVXZ** | Commands surface: skills vs deprecated custom prompts      | done; decision = `.agents/skills`      |
 | **JV6D1W** | Enforcement strength: user-trusted vs managed hooks        | done; valid managed recipe recorded    |
@@ -75,7 +76,7 @@ Verdict stays **ENFORCEABLE** — `PreToolUse`/`PermissionRequest`/`UserPromptSu
 
 ## Sequencing
 
-N12G95, HPP49X, 5DEJ8V, XK5N14, QGHVXZ, JV6D1W, WR4HRA, and 6WJ1RS are complete with verify artifacts. The remaining epic work is CXP9LM: run the black-box/live parity smoke in a trusted Codex customer-like repo after the local install and hook paths are available to a trusted Codex session.
+N12G95, HPP49X, 5DEJ8V, XK5N14, QGHVXZ, JV6D1W, WR4HRA, 6WJ1RS, and CXP9LM are complete with verify artifacts. The remaining documented boundary is Codex CLI `file_change` execution output: current official Codex hook docs describe `PreToolUse` matching for `Bash`, `apply_patch`, and MCP tool names, so safeword claims enforcement only for those supported paths.
 
 ## Feature File Coverage
 
@@ -120,3 +121,4 @@ XK5N14 audit result:
 - 2026-06-13 Added CXP9LM as the final black-box/live parity smoke for a trusted customer-like Codex repo.
 - 2026-06-13 Added XK5N14 to backfill feature-file coverage for Codex child tickets started before the feature-files-as-source workflow landed.
 - 2026-06-14 Quality-review follow-ups complete: setup/upgrade now print the Codex `/hooks` trust next step, setup/upgrade warn below the `0.133.0` baseline, multi-file `apply_patch` targets are all evaluated, managed-config docs use valid `prefix_rules`, unsupported `SessionEnd` is recorded, and every non-live child ticket has verify evidence. CXP9LM remains the only open live/manual smoke.
+- 2026-06-25T06:31:00Z CXP9LM revalidated and closed: Codex sees safeword instructions and repo-scoped skills, the supported `apply_patch` PreToolUse path is denied in a trusted live smoke, direct deny/allow adapter tests pass, and `file_change` is documented as outside the claimed support boundary. Epic complete.

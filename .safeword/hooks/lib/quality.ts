@@ -29,7 +29,7 @@ export type BddPhase =
 
 const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, lead with the answer, named structure only when it carries weight, end with **Next:**.
 
-End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn. Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
+End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the CONFIDENT/BLOCKED line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
 Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
@@ -63,7 +63,7 @@ const PHASE_EVIDENCE: Record<BddPhase, string> = {
     'Phase: implement. CONFIDENT cites the passing artifact (X/X tests pass; scenario checked off).',
   verify:
     'Phase: verify. CONFIDENT cites /verify result (X/X tests; N/N scenarios complete) and that no scenarios are stale.',
-  done: "Phase: done. CONFIDENT cites /audit passed, /verify passed, verify.md present, scope drift checked, scenario coverage validated (no behaviors emerged that aren't in test-definitions), and any clear-win cross-scenario refactoring done.",
+  done: "Phase: done. CONFIDENT cites /audit passed, /verify passed, verify.md present, PR scope checked against the ticket (no piggybacked work), scenario coverage validated (no behaviors emerged that aren't in test-definitions), and any clear-win cross-scenario refactoring done.",
 };
 
 /** TDD-step-specific evidence for implement phase (RED/GREEN/REFACTOR). */

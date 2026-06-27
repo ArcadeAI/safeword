@@ -133,6 +133,13 @@ function renderTicketMarkdown(id: string, options: NewTicketOptions): string {
   const type = options.type ?? 'task';
   const now = (options.now ?? (() => new Date()))().toISOString();
   const title = options.title ?? options.slug;
+  const featureReadinessFrontmatter =
+    type === 'feature'
+      ? `scope:
+out_of_scope:
+done_when:
+`
+      : '';
 
   // Features keep motivation in spec.md's ## Intent (single source of truth)
   // and point there; tasks/patches have no spec.md, so they keep **Why:**.
@@ -147,7 +154,7 @@ slug: ${options.slug}
 type: ${type}
 phase: intake
 status: in_progress
-created: ${now}
+${featureReadinessFrontmatter}created: ${now}
 last_modified: ${now}
 ---
 

@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A repo already in safeword style stays in safeword style",
+      "defectType": "vacuous-trivially-true",
+      "severity": "must-fix",
+      "note": "ADVERSARIAL-VACUOUS (held-out, a type the baseline MISSES on train): the Given ('already formatted in safeword's Prettier style') makes the Then ('formatted in safeword's Prettier style') true regardless of the edit. Placed in held-out so Phase 5 can measure whether a GEPA winner's recall gain on trivially-true generalizes. Other two scenarios unchanged & clean."
+    }
+  ]
+}

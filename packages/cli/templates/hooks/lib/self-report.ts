@@ -24,13 +24,14 @@ export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
 const AGENT_IDS = new Set<AgentId>(['claude', 'cursor', 'codex', 'unknown']);
 
 /**
- * Detect the running agent. `SAFEWORD_AGENT` is authoritative when set to a known
- * id — the cross-process channel an adapter uses so a hook it spawns inherits the
- * right attribution. Otherwise: `claude` is reliable (CLAUDE_*); cursor/codex are
- * detected by their env prefixes; else `unknown`.
+ * Detect the running agent. `SAFEWORD_AGENT_RUNTIME` is authoritative when set to
+ * a known id — this is the same cross-process channel safeword's run-identity
+ * system uses (the cursor/codex adapters set it on the hook they spawn), so
+ * attribution stays consistent across the codebase. Otherwise: `claude` is
+ * reliable (CLAUDE_*); cursor/codex by their env prefixes; else `unknown`.
  */
 export function detectAgent(env: Record<string, string | undefined> = process.env): AgentId {
-  const declared = env.SAFEWORD_AGENT;
+  const declared = env.SAFEWORD_AGENT_RUNTIME;
   if (declared && AGENT_IDS.has(declared as AgentId)) return declared as AgentId;
   if (env.CLAUDE_PROJECT_DIR || env.CLAUDE_SESSION_ID || env.CLAUDE_CODE_SESSION_ID)
     return 'claude';

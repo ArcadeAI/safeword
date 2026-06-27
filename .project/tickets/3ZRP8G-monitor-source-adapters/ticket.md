@@ -2,10 +2,11 @@
 id: 3ZRP8G
 slug: monitor-source-adapters
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 epic: upstream-changelog-monitor
 relates_to: TT1MQW
+last_modified: 2026-06-25T20:06:00Z
 ---
 
 # Add Cursor + Codex source adapters (HTML hash + releases.atom)
@@ -31,4 +32,5 @@ github.com/openai/codex/releases.atom; cursor.com/changelog
 
 ## Work Log
 
+- 2026-06-25T20:06:00Z Implemented all three source adapters in `packages/cli/src/upstream-monitor/`, added the scheduled read-only workflow, seeded reviewed snapshots for Claude Code, Codex CLI, and Cursor, and added unit coverage for Codex Atom normalization, Cursor HTML normalization, snapshot-body comparison, bounded issue payloads, and idempotent issue updates.
 - 2026-05-31 Created from monitor epic.

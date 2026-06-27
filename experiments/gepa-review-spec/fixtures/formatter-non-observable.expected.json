@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "No Prettier nag at session start in a Biome repo",
+      "defectType": "non-observable",
+      "severity": "must-fix",
+      "note": "mutation operator: externalize->internalize. The observable outcome ('emits no warning that Prettier is missing') was replaced with an assertion on internal state ('the internal prettierMissing flag stays false'), not externally visible. Other two scenarios unchanged & clean."
+    }
+  ]
+}

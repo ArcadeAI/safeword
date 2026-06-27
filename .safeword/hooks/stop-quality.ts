@@ -3,7 +3,6 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import {
@@ -13,8 +12,10 @@ import {
   resolveStopPhase,
 } from './lib/active-ticket.ts';
 import { formatDependencyRecovery, getDependencyReadiness } from './lib/dependency-readiness.ts';
+import { checkVerifyArtifact } from './lib/done-gate.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
+import { createLedgerShaResolver } from './lib/ledger-git.ts';
 import { validateLedger, wholeTicketPassApplies } from './lib/ledger-validation.ts';
 import {
   AUTHOR_MODEL_ENV,
@@ -34,7 +35,7 @@ import {
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
-import { shouldReviewPhase, shouldReviewStep } from './lib/review-trigger.ts';
+import { shouldReviewPhase } from './lib/review-trigger.ts';
 import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
@@ -118,13 +119,13 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
 }
 
 /**
- * Record which boundary the Stop backstop just reviewed, so a later Stop (or a
- * PostToolUse review) won't re-review it. Mirrors the markers PostToolUse sets
- * (ticket SXSCJQ).
+ * Record which phase boundary the Stop backstop just reviewed, so a later Stop
+ * or PostToolUse review won't re-review it. Mirrors the marker PostToolUse sets
+ * for phase changes (ticket SXSCJQ).
  */
 function recordReviewMarker(
   sessionId: string | undefined,
-  patch: { lastReviewedStep?: string; lastReviewedPhase?: string },
+  patch: { lastReviewedPhase?: string },
 ): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
@@ -439,6 +440,7 @@ Run /audit, show output, then try again.`;
 Expected evidence formats:
 - "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)
 - "**Gherkin:** ✅ Acceptance lane passes" or "Skipped — no test:bdd script" (acceptance lane evidence)${auditLine}
+- "**PR Scope:** ✅ Diff matches ticket scope" or a skipped status with a reason
 
 Run /verify, show output, then try again.`;
 }
@@ -448,7 +450,15 @@ Run /verify, show output, then try again.`;
  * No bypass: stop_hook_active does not skip this check.
  */
 function hardBlockDone(reason: string): never {
-  console.log(JSON.stringify({ decision: 'block', reason: `${reason}\n\n${EXPLAIN_HINT}` }));
+  // systemMessage surfaces the hint to the USER (the `reason` field reaches the
+  // model, not reliably the human — issue #17356). Additive: reason unchanged.
+  console.log(
+    JSON.stringify({
+      decision: 'block',
+      reason: `${reason}\n\n${EXPLAIN_HINT}`,
+      systemMessage: EXPLAIN_HINT,
+    }),
+  );
   process.exit(0);
 }
 
@@ -521,17 +531,25 @@ if (currentPhase === 'done') {
   }
 
   // Verify.md artifact gate — replaces text-pattern matching for audit evidence.
-  // verify.md is written by /verify skill when all checks pass.
+  // verify.md is written by /verify skill when all checks pass, including the
+  // PR-scope evidence that keeps unrelated work out of the closing change.
   if (ticketInfo.folder) {
     const verifyPath = `${ticketsDir}/${ticketInfo.folder}/verify.md`;
     const verifyExists = existsSync(verifyPath);
-    const verifyValid = verifyExists && readFileSync(verifyPath, 'utf8').trim().length > 0;
+    const verifyContent = verifyExists ? readFileSync(verifyPath, 'utf8') : '';
+    const verifyValid = verifyContent.trim().length > 0;
 
     if (!verifyValid) {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
       hardBlockDone(
         `No valid verify.md found in ticket folder. Run /verify to generate evidence before marking done.`,
       );
+    }
+
+    const verifyArtifactStatus = checkVerifyArtifact(verifyContent);
+    if (!verifyArtifactStatus.ok) {
+      recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+      hardBlockDone(verifyArtifactStatus.reason ?? 'verify.md PR scope evidence is invalid.');
     }
   }
 
@@ -581,21 +599,7 @@ if (currentPhase === 'done') {
   // refactor row present and valid when the whole-ticket pass applies (≥2 annotated
   // loops). Pure-legacy and single-loop tickets are exempt inside validateLedger.
   if (ledgerContent !== undefined) {
-    const isReachable = (sha: string): boolean => {
-      try {
-        // execFileSync (no shell) — sha is a file-derived annotation value;
-        // passing it as an arg, not interpolated into a shell string, closes
-        // the command-injection sink (ledger-validation also rejects non-hex).
-        execFileSync('git', ['cat-file', '-e', `${sha}^{commit}`], {
-          cwd: projectDir,
-          stdio: 'pipe',
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    const validation = validateLedger(ledgerContent, isReachable);
+    const validation = validateLedger(ledgerContent, createLedgerShaResolver(projectDir));
     if (!validation.ok) {
       recordFailure(projectDir, input.session_id, 'done-gate-ledger-invalid');
       hardBlockDone(
@@ -656,11 +660,9 @@ if (typecheckAdvice.advice !== null) {
   );
 }
 
-// Boundary backstop (ticket SXSCJQ): the review is no longer LOC-throttled.
-// PostToolUse fires per-step/per-phase reviews at the edit (autonomous-safe);
-// this Stop path catches a boundary PostToolUse didn't see (e.g. a non-edit
-// phase bump) and the ordinary interactive stop. Dedup via lastReviewedStep /
-// lastReviewedPhase so each boundary is reviewed once across both triggers.
+// Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step
+// TDD reviews are quiet by default; the real work still happens internally and
+// hard/anomaly gates above still surface when action is needed.
 const sessionState = readSessionState(projectDir, input.session_id);
 
 // Derive TDD step from test-definitions.md (not cache)
@@ -671,14 +673,14 @@ const tddStep =
 
 // No ticket/phase context (no active ticket, or a done-status ticket): fire the
 // generic review on every edit-stop, as before — there's no boundary to dedup.
-// With a phase: review per TDD step (implement) or per phase, deduped against
-// PostToolUse so each boundary is reviewed once.
+// With a phase: review per phase, deduped against PostToolUse so each boundary
+// is reviewed once. Implement-step reviews stay quiet.
 const isImplementStep = currentPhase === 'implement' && tddStep !== null;
 let fireReview: boolean;
 if (currentPhase === undefined) {
   fireReview = true;
 } else if (isImplementStep) {
-  fireReview = shouldReviewStep(tddStep, sessionState?.lastReviewedStep);
+  fireReview = false;
 } else {
   fireReview = shouldReviewPhase(currentPhase, sessionState?.lastReviewedPhase);
 }
@@ -687,9 +689,7 @@ if (!fireReview) {
   process.exit(0);
 }
 
-if (isImplementStep && tddStep) {
-  recordReviewMarker(input.session_id, { lastReviewedStep: tddStep });
-} else if (currentPhase) {
+if (currentPhase) {
   recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
 }
 

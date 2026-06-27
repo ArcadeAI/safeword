@@ -1,11 +1,15 @@
 /**
  * Test Suite: Lazy ESLint Plugin Loading
  *
- * Ticket H150ZW: stack-specific ESLint plugins (Storybook, Turbo, Astro, Playwright,
+ * Ticket H150ZW: stack-specific ESLint plugins (Storybook, Turbo, Playwright,
  * TanStack Query, better-tailwindcss, Next.js) must NOT load into Node memory when
  * a consumer simply imports `eslintPlugin`. Customer's generated eslint.config.mjs
  * already gates plugin USE behind `detect.has*(deps)`; this asserts plugin LOAD is
  * gated to match.
+ *
+ * Exception: eslint-plugin-astro 2.x is ESM-only. Safeword's public
+ * `configs.astro` API is a synchronous array, so there is no synchronous lazy
+ * import path for the latest Astro plugin.
  *
  * Two layers of verification:
  *
@@ -16,7 +20,7 @@
  * 2. **Behavioral test (subprocess):** spawn a fresh Node process, import the
  *    built `eslintPlugin`, inspect `require.cache` for the CJS-detectable plugins.
  *    Only reliably catches CJS or CJS-entry-having plugins (turbo, playwright,
- *    @next/eslint-plugin-next); ESM-only plugins are covered by the structural test.
+ *    @next/eslint-plugin-next).
  */
 
 import { spawnSync } from 'node:child_process';
@@ -36,10 +40,6 @@ const STACK_CONFIG_SOURCES: readonly { source: string; pluginPackage: string }[]
   {
     source: 'src/presets/typescript/eslint-configs/turbo.ts',
     pluginPackage: 'eslint-plugin-turbo',
-  },
-  {
-    source: 'src/presets/typescript/eslint-configs/astro.ts',
-    pluginPackage: 'eslint-plugin-astro',
   },
   {
     source: 'src/presets/typescript/eslint-configs/playwright.ts',

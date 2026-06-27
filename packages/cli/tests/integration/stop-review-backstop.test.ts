@@ -1,8 +1,6 @@
 /**
- * Integration tests for the Stop-hook review backstop (ticket SXSCJQ). After
- * the LOC throttle was removed, the Stop review fires for any boundary not
- * already reviewed by PostToolUse — deduped via lastReviewedStep /
- * lastReviewedPhase — and is no longer gated by LOC delta.
+ * Integration tests for the Stop-hook review backstop. Phase reviews still use
+ * the backstop, but ordinary implement-step reviews are quiet (ticket JENFZX).
  *
  * Non-TS project (no tsconfig) so the SW1SE5 typecheck gate stays silent and
  * the boundary backstop is the only thing that can speak.
@@ -89,14 +87,6 @@ function runStop(cwd: string): { status: number | null; stdout: string } {
   return { status: result.status, stdout: (result.stdout ?? '').trim() };
 }
 
-const SCENARIO_GREEN = [
-  '### Scenario: demo',
-  '- [x] RED aaa1111',
-  '- [x] GREEN bbb2222',
-  '- [ ] REFACTOR',
-  '',
-].join('\n');
-
 const SCENARIO_RED = [
   '### Scenario: demo',
   '- [x] RED aaa1111',
@@ -112,20 +102,6 @@ describe('Stop review backstop (SXSCJQ)', () => {
     cwd = '';
   });
 
-  it('skips the step review when PostToolUse already reviewed it (S3.1)', () => {
-    // deriveTddStep → "green" (RED+GREEN checked); marker says green already reviewed.
-    cwd = buildProject({
-      phase: 'implement',
-      testDefinitions: SCENARIO_GREEN,
-      state: { lastReviewedStep: 'green' },
-    });
-
-    const run = runStop(cwd);
-
-    expect(run.status).toBe(0);
-    expect(run.stdout).toBe(''); // no decision:block — deduped
-  });
-
   it('fires the phase review for an un-reviewed boundary — backstop (S3.2)', () => {
     cwd = buildProject({ phase: 'define-behavior' }); // no lastReviewedPhase marker
 
@@ -137,9 +113,9 @@ describe('Stop review backstop (SXSCJQ)', () => {
     expect(parsed.reason).toContain('define-behavior');
   });
 
-  it('fires a step review on a tiny change — no LOC throttle (S4.1)', () => {
-    // deriveTddStep → "red"; only 3 LOC changed — the old throttle (>50) would
-    // have suppressed this. No lastReviewedStep marker, so it must fire.
+  it('skips implement-step review backstop during quiet implementation (JENFZX)', () => {
+    // deriveTddStep → "red"; ordinary implement progress should not surface a
+    // user-facing Stop review just because the TDD step changed.
     cwd = buildProject({
       phase: 'implement',
       testDefinitions: SCENARIO_RED,
@@ -149,8 +125,6 @@ describe('Stop review backstop (SXSCJQ)', () => {
     const run = runStop(cwd);
 
     expect(run.status).toBe(0);
-    const parsed = JSON.parse(run.stdout) as { decision?: string; reason?: string };
-    expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toContain('TDD: RED');
+    expect(run.stdout).toBe('');
   });
 });

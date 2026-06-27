@@ -5,7 +5,7 @@ type: task
 phase: intake
 status: in_progress
 created: 2026-06-15T13:52:10.892Z
-last_modified: 2026-06-15T13:52:44Z
+last_modified: 2026-06-24T05:18:26Z
 ---
 
 # Align verification commands with monorepo scripts
@@ -29,3 +29,4 @@ last_modified: 2026-06-15T13:52:44Z
 
 - 2026-06-15T13:52:10.892Z Started: Created ticket C25VKV
 - 2026-06-15T13:52:44Z Intake: Audit found root `bun run build` fails with `Script not found "build"`, root `bunx tsc --noEmit` reports 38 ES2023 lib diagnostics, while canonical `bun run lint` and package `typecheck` pass.
+- 2026-06-24T05:18:26Z Issue #375: Added capability probing so verify instructions skip stale Safeword binaries that lack `test-plan`, with focused tests covering templates and dogfood surfaces.

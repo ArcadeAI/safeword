@@ -4,6 +4,16 @@ Test methodology, TDD workflow, and test type selection.
 
 ---
 
+## Related Guides
+
+| Need                              | Guide                                          |
+| --------------------------------- | ---------------------------------------------- |
+| Choose unit/integration/E2E/eval  | This guide                                     |
+| Choose smoke/live/release cadence | `.safeword/guides/verification-lanes-guide.md` |
+| Design AI output evaluations      | `.safeword/guides/llm-evals-guide.md`          |
+
+---
+
 ## Test Philosophy
 
 **Behavior-biased testing:** At every test level, assert on what the system _does_ (outputs, side effects, user-visible outcomes) — never on _how_ it does it (internal state, mock call counts, private methods). Tests coupled to implementation break on every refactor. Behavioral tests survive.
@@ -47,7 +57,7 @@ Tests are the specification. When a test fails, the implementation is wrong—no
 ```text
 E2E (seconds-minutes)    ← Full browser, user flows         ↑ prefer
   ↑
-LLM Eval (seconds)       ← AI judgment, costs $0.01-0.30
+LLM Eval (seconds+)      ← AI judgment, model-dependent cost
   ↑
 Integration (seconds)    ← Multiple modules, database, API
   ↑
@@ -87,6 +97,8 @@ Answer these questions in order. Stop at first match.
 - Non-deterministic functions (Math.random, Date.now) → Unit test with mocked randomness
 - Functions with environment dependencies (process.env) → Integration test
 - Mixed pure + I/O logic → Extract pure logic, unit test it, integration test I/O
+- DOM tests with jsdom or Testing Library → Integration test unless the bug
+  depends on real browser layout, CSS, navigation, or browser APIs
 
 ---
 
@@ -340,7 +352,13 @@ await waitFor(() => expect(screen.getByText('Success')).toBeVisible());
 ❌ **Implementation details** - Private methods, CSS classes, internal state
 ❌ **Third-party libraries** - Assume React/Axios work, test YOUR code
 ❌ **Trivial code** - Getters/setters with no logic, pass-through functions
-❌ **UI copy** - Use regex `/submit/i`, not exact text matching
+❌ **Incidental UI copy** - Marketing/help text when exact wording is not the
+contract
+
+**Copy assertions:**
+
+- Prefer role/name or resilient regex for controls
+- Assert exact text for legal, safety, error, or required user-facing messages
 
 ---
 
@@ -349,7 +367,7 @@ await waitFor(() => expect(screen.getByText('Success')).toBeVisible());
 - **Unit tests:** 80%+ coverage of pure functions
 - **Integration tests:** All critical paths covered
 - **E2E tests:** All critical multi-page user flows
-- **LLM evals:** All AI features have evaluation scenarios
+- **LLM evals:** AI features with probabilistic output quality have evaluation scenarios; deterministic AI plumbing has normal tests
 
 **What are "critical paths"?**
 
@@ -362,15 +380,19 @@ await waitFor(() => expect(screen.getByText('Success')).toBeVisible());
 
 ## LLM Eval Cost Considerations
 
-**Cost:** $0.01-0.30 per run depending on prompt size.
+**Cost:** Model-, prompt-, provider-, and scenario-dependent. Estimate from
+current provider pricing before deciding cadence.
 
-**Prompt caching reduces costs by 90%** (30 scenarios: $0.30 → $0.03 after first run).
+**Prompt caching can reduce repeated input-token costs on supported providers.**
+OpenAI currently documents up to 90% input-token savings for qualifying cached
+prompts. Treat caching as provider-specific, not guaranteed.
 
 **Cost reduction strategies:**
 
 - Cache static content (system prompts, examples, rules)
 - Batch multiple scenarios in one run
-- Run full evals on PR/schedule, not every commit
+- Split cheap smoke evals from full eval suites
+- Run full evals on PR, release, or schedule only when the signal is worth the cost
 
 ---
 
@@ -378,18 +400,18 @@ await waitFor(() => expect(screen.getByText('Success')).toBeVisible());
 
 - Run unit + integration tests on every commit (fast feedback)
 - Run E2E tests on every PR
-- Run LLM evals on schedule (weekly catches regressions without per-commit cost)
+- Run smoke evals on PR for high-risk AI behavior; run full evals on release or schedule
 
 ---
 
 ## Quick Reference
 
-| Need to test...      | Test type   | Technology | Speed  | Cost       |
-| -------------------- | ----------- | ---------- | ------ | ---------- |
-| Pure function        | Unit        | Vitest     | Fast   | Free       |
-| Service integration  | Integration | Vitest     | Medium | Free       |
-| Full user flow       | E2E         | Playwright | Slow   | Free       |
-| AI reasoning quality | LLM eval    | Promptfoo  | Slow   | $0.01-0.30 |
+| Need to test...      | Test type   | Technology | Speed  | Cost   |
+| -------------------- | ----------- | ---------- | ------ | ------ |
+| Pure function        | Unit        | Vitest     | Fast   | Free   |
+| Service integration  | Integration | Vitest     | Medium | Free   |
+| Full user flow       | E2E         | Playwright | Slow   | Free   |
+| AI reasoning quality | LLM eval    | Promptfoo  | Slow   | Varies |
 
 ---
 

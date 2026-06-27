@@ -52,6 +52,8 @@ describe('NPM Package Structure', () => {
 
     // Session hooks
     expect(files).toContain('session-safeword-context.ts');
+    expect(files).toContain('session-codex-start.ts');
+    expect(files).toContain('session-cursor-auto-upgrade.ts');
     expect(files).toContain('session-version.ts');
     expect(files).toContain('session-lint-check.ts');
 
@@ -73,6 +75,7 @@ describe('NPM Package Structure', () => {
 
     // Shared lib
     expect(files).toContain('lib');
+    expect(readdirSync(nodePath.join(hooksPath, 'lib'))).toContain('auto-upgrade-lock.ts');
   });
 
   it('should have templates/guides with methodology files', () => {

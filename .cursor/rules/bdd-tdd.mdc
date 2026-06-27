@@ -1,5 +1,5 @@
 ---
-description: USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.
+description: USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN. Ordinary step reviews stay quiet until blockers or implement exit.
 alwaysApply: false
 ---
 

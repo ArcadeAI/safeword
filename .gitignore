@@ -10,6 +10,7 @@ examples/
 .safeword/.update-cache.json
 .safeword/self-reports/
 .safeword-project/quality-state*.json
+.safeword-project/cursor-run-identity.json
 .safeword-project/failure-counts.json
 .safeword-project/skill-invocations.log
 .safeword-project/re-entry.md
@@ -44,11 +45,13 @@ brand/
 # Safeword - Local cache and transient state
 .safeword/.update-cache.json
 .project/quality-state*.json
+.project/cursor-run-identity.json
 .project/failure-counts.json
 .project/skill-invocations.log
 .project/re-entry.md
 .project/dependency-readiness.json
 .safeword-project/quality-state*.json
+.safeword-project/cursor-run-identity.json
 .safeword-project/failure-counts.json
 .safeword-project/skill-invocations.log
 .safeword-project/re-entry.md

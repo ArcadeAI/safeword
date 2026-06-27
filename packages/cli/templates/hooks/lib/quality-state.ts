@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { resolveNamespaceRoot } from './namespace-root.js';
+import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
 
 export const LOC_THRESHOLD = 400;
@@ -50,12 +51,6 @@ export interface QualityState {
    */
   learningsNudgesAcknowledged?: string[];
   /**
-   * The TDD step (red/green/refactor) last surfaced for review. Dedups the
-   * PostToolUse per-step review against the Stop backstop — Stop skips a step
-   * PostToolUse already reviewed this session (ticket SXSCJQ).
-   */
-  lastReviewedStep?: string;
-  /**
    * The BDD phase last surfaced for review. Dedups the per-phase review across
    * the PostToolUse trigger (autonomous-safe) and the Stop backstop, so each
    * phase boundary is reviewed once (ticket SXSCJQ).
@@ -73,8 +68,60 @@ export interface QualityState {
 /**
  * Get the per-session state file path.
  */
-export function getStateFilePath(projectDirectory: string, sessionId: string): string {
+export function getStateFilePath(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+): string {
+  return nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    `quality-state-${stateStorageKey(sessionId)}.json`,
+  );
+}
+
+function isRunIdentity(value: string | RunIdentity | undefined): value is RunIdentity {
+  return typeof value === 'object' && value !== null && 'runtime' in value && 'sessionKey' in value;
+}
+
+function stateStorageKey(sessionId: string | RunIdentity | undefined): string {
+  if (isRunIdentity(sessionId)) {
+    return getRunStorageKey(sessionId) ?? 'undefined';
+  }
+
+  if (sessionId === undefined || sessionId.trim().length === 0) return 'undefined';
+
+  const runtime = process.env.SAFEWORD_AGENT_RUNTIME;
+  if (runtime === 'codex' || runtime === 'cursor') {
+    const identityInput =
+      runtime === 'cursor' ? { conversation_id: sessionId } : { session_id: sessionId };
+    const identity = resolveRunIdentity(identityInput, { runtime });
+    const scopedKey = getRunStorageKey(identity);
+    if (scopedKey !== null) return scopedKey;
+  }
+
+  // Raw string callers are legacy Claude-shaped hooks. Preserve their write
+  // path unless an adapter explicitly set SAFEWORD_AGENT_RUNTIME.
+  return sessionId;
+}
+
+function legacyStateFilePath(projectDirectory: string, sessionId: string): string {
   return nodePath.join(resolveNamespaceRoot(projectDirectory), `quality-state-${sessionId}.json`);
+}
+
+function readableStateFilePaths(
+  projectDirectory: string,
+  sessionId: string | RunIdentity,
+): string[] {
+  const primary = getStateFilePath(projectDirectory, sessionId);
+  if (isRunIdentity(sessionId)) {
+    if (sessionId.runtime === 'claude' && sessionId.sessionKey) {
+      return [primary, legacyStateFilePath(projectDirectory, sessionId.sessionKey)];
+    }
+    return [primary];
+  }
+  if (process.env.SAFEWORD_AGENT_RUNTIME && process.env.SAFEWORD_AGENT_RUNTIME !== 'claude') {
+    return [primary];
+  }
+  return [primary];
 }
 
 /**
@@ -86,16 +133,17 @@ export function getStateFilePath(projectDirectory: string, sessionId: string): s
  */
 export function readSessionState(
   projectDirectory: string,
-  sessionId: string | undefined,
+  sessionId: string | RunIdentity | undefined,
 ): QualityState | null {
-  if (!sessionId) return null;
-  try {
-    return JSON.parse(
-      readFileSync(getStateFilePath(projectDirectory, sessionId), 'utf8'),
-    ) as QualityState;
-  } catch {
-    return null;
+  if (!sessionId || (typeof sessionId === 'string' && sessionId.trim().length === 0)) return null;
+  for (const filePath of readableStateFilePaths(projectDirectory, sessionId)) {
+    try {
+      return JSON.parse(readFileSync(filePath, 'utf8')) as QualityState;
+    } catch {
+      // Try the next compatible path.
+    }
   }
+  return null;
 }
 
 /** Counter file for cross-session failure pattern tracking. */
@@ -133,11 +181,11 @@ export function writeCounters(
  */
 export function recordFailure(
   projectDirectory: string,
-  sessionId: string | undefined,
+  sessionId: string | RunIdentity | undefined,
   pattern: string,
 ): void {
   // Write to session state (recentFailures)
-  if (sessionId) {
+  if (sessionId && (typeof sessionId !== 'string' || sessionId.trim().length > 0)) {
     const stateFile = getStateFilePath(projectDirectory, sessionId);
     try {
       const state = JSON.parse(readFileSync(stateFile, 'utf8'));
@@ -171,7 +219,10 @@ export function recordFailure(
         // bound is one signal per counter-file lifetime (a counter reset re-arms
         // it). Best-effort — never affects this function's callers.
         if (entry.count === ESCALATION_THRESHOLD) {
-          captureGateEscalation(projectDirectory, sessionId, pattern);
+          const escalationKey = isRunIdentity(sessionId)
+            ? (getRunStorageKey(sessionId) ?? undefined)
+            : sessionId;
+          captureGateEscalation(projectDirectory, escalationKey, pattern);
         }
       }
       state.incrementedPatterns = incremented;

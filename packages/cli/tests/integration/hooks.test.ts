@@ -19,6 +19,11 @@ import process from 'node:process';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  acquireAutoUpgradeLock,
+  AUTO_UPGRADE_LOCK_MESSAGE,
+  releaseAutoUpgradeLock,
+} from '../../templates/hooks/lib/auto-upgrade-lock.js';
+import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   fileExists,
@@ -31,6 +36,8 @@ import {
 } from '../helpers';
 
 const IS_RUFF_AVAILABLE = isRuffInstalled();
+const VERIFIED_AT = '2026-04-15T18:00:00Z';
+const PR_SCOPE_OK_LINE = '**PR Scope:** ✅ Diff matches ticket scope';
 
 // Single setup for all hook tests - sharing avoids 3 separate bun installs
 // Tests must be idempotent or restore state after modification (see try/finally blocks)
@@ -67,6 +74,19 @@ function createTicketContent(options: {
   if (options.status) lines.push(`status: ${options.status}`);
   lines.push(`last_modified: ${options.lastModified}`, '---', '', `# Ticket ${options.id}`, '');
   return lines.join('\n');
+}
+
+/** Create valid verify.md content for done-gate tests */
+function createVerifyContent({
+  testSuite = '**Test Suite:** ✓ 42/42 tests pass',
+  extraLines = [],
+}: {
+  testSuite?: string;
+  extraLines?: string[];
+} = {}): string {
+  return [`Verified: ${VERIFIED_AT}`, '', testSuite, PR_SCOPE_OK_LINE, ...extraLines, ''].join(
+    '\n',
+  );
 }
 
 /** Clear tickets directory */
@@ -282,9 +302,11 @@ describe('E2E: SessionStart Hooks', () => {
       });
 
       expect(result.status).toBe(2);
-      expect(result.stderr).toContain('bun is required');
-      expect(result.stderr).toContain('quality hooks');
-      expect(result.stderr).toContain('Install');
+      // UJSZXB: plain-language, safety-framed wording for the NTB (no "PATH" /
+      // "quality hooks" jargon) — still names bun and the install step.
+      expect(result.stderr).toContain('bun');
+      expect(result.stderr).toContain('safety checks');
+      expect(result.stderr).toContain('Install bun');
     });
   });
 
@@ -546,7 +568,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         shared.projectDirectory,
         '.project/tickets/001/verify.md',
-        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 10/10 tests pass\n',
+        createVerifyContent({ testSuite: '**Test Suite:** ✓ 10/10 tests pass' }),
       );
 
       const result = runStopHookForPhase(shared.projectDirectory);
@@ -781,7 +803,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         shared.projectDirectory,
         '.project/tickets/001/verify.md',
-        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
+        createVerifyContent(),
       );
 
       const evidenceText = '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass';
@@ -789,6 +811,58 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.reason).toBe('');
+    });
+
+    it('Scenario 15b: Task done blocks when verify.md lacks PR scope evidence', () => {
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: '001',
+          type: 'task',
+          phase: 'done',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/tickets/001/verify.md',
+        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
+      );
+
+      const evidenceText = '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass';
+      const result = runStopHookForPhase(shared.projectDirectory, evidenceText);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.reason).toContain('PR scope evidence');
+    });
+
+    it('Scenario 15c: Task done blocks when verify.md reports piggybacked changes', () => {
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: '001',
+          type: 'task',
+          phase: 'done',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/tickets/001/verify.md',
+        [
+          'Verified: 2026-04-15T18:00:00Z',
+          '',
+          '**Test Suite:** ✓ 42/42 tests pass',
+          '**PR Scope:** ❌ Piggybacked changes: docs/drive-by.md',
+          '',
+        ].join('\n'),
+      );
+
+      const evidenceText = '## Done Checklist\n\n**Test Suite:** ✓ 42/42 tests pass';
+      const result = runStopHookForPhase(shared.projectDirectory, evidenceText);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.reason).toContain('PR scope failed');
     });
 
     it('Scenario 16: Feature done with verify.md and complete scenarios passes', () => {
@@ -809,7 +883,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         shared.projectDirectory,
         '.project/tickets/001/verify.md',
-        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
+        createVerifyContent({ extraLines: ['Audit passed'] }),
       );
 
       const result = runStopHookForPhase(shared.projectDirectory);
@@ -836,7 +910,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         shared.projectDirectory,
         '.project/tickets/001/verify.md',
-        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\n',
+        createVerifyContent(),
       );
 
       const result = runStopHookForPhase(shared.projectDirectory);
@@ -863,7 +937,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         shared.projectDirectory,
         '.project/tickets/001/verify.md',
-        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
+        createVerifyContent({ extraLines: ['Audit passed'] }),
       );
 
       const result = runStopHookForPhase(shared.projectDirectory);
@@ -900,7 +974,7 @@ describe('E2E: Phase-Aware Quality Review', () => {
       writeTestFile(
         shared.projectDirectory,
         '.project/tickets/001/verify.md',
-        'Verified: 2026-04-15T18:00:00Z\n\n**Test Suite:** ✓ 42/42 tests pass\nAudit passed\n',
+        createVerifyContent({ extraLines: ['Audit passed'] }),
       );
 
       const result = runStopHookForPhase(shared.projectDirectory);
@@ -1156,7 +1230,7 @@ describe('session-safeword-context.ts', () => {
       },
     );
 
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
     expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
@@ -1174,7 +1248,7 @@ describe('session-safeword-context.ts', () => {
       },
     );
 
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.additional_context).toContain('SAFEWORD Agent Instructions');
     expect(output.additional_context).toContain('## Workflow');
@@ -1228,4 +1302,95 @@ describe('session-safeword-context.ts', () => {
       rmSync(staleDirectory, { recursive: true, force: true });
     }
   });
+});
+
+describe('session-codex-start.ts', () => {
+  it('runs the Codex SessionStart dispatcher and emits SAFEWORD.md context', () => {
+    const result = spawnSync('bun', ['.safeword/hooks/session-codex-start.ts'], {
+      cwd: shared.projectDirectory,
+      env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: shared.projectDirectory }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
+    expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
+    expect(output.hookSpecificOutput.additionalContext).toContain('## Workflow');
+  });
+});
+
+describe('session-cursor-auto-upgrade.ts', () => {
+  it('runs silently and exits successfully when no upgrade should apply', () => {
+    const result = spawnSync('bun', ['.safeword/hooks/session-cursor-auto-upgrade.ts'], {
+      cwd: shared.projectDirectory,
+      env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+      input: JSON.stringify({ workspace_root: shared.projectDirectory }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
+  });
+});
+
+describe('Cursor auto-upgrade lock', () => {
+  it('blocks Cursor writes and shell commands while silent auto-upgrade is running', async () => {
+    const projectDirectory = createTemporaryDirectory();
+
+    try {
+      createTypeScriptPackageJson(projectDirectory);
+      initGitRepo(projectDirectory);
+      await setupOrThrow(projectDirectory);
+
+      const lockPath = acquireAutoUpgradeLock({ projectDir: projectDirectory });
+      expect(lockPath).toBeDefined();
+
+      try {
+        const result = spawnSync('bun', ['.safeword/hooks/cursor/pre-tool-quality.ts'], {
+          cwd: projectDirectory,
+          input: JSON.stringify({
+            workspace_roots: [projectDirectory],
+            conversation_id: 'conversation-1',
+            tool_name: 'Write',
+            tool_input: {
+              file_path: nodePath.join(projectDirectory, 'src/index.ts'),
+              content: 'export const value = 1;\n',
+            },
+          }),
+          encoding: 'utf8',
+        });
+
+        expect(result.status, result.stderr || result.stdout).toBe(0);
+        expect(JSON.parse(result.stdout)).toEqual({
+          permission: 'deny',
+          user_message: AUTO_UPGRADE_LOCK_MESSAGE,
+          agent_message: AUTO_UPGRADE_LOCK_MESSAGE,
+        });
+
+        const shellResult = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
+          cwd: projectDirectory,
+          input: JSON.stringify({
+            workspace_roots: [projectDirectory],
+            conversation_id: 'conversation-1',
+            command: 'printf "changed" > .project/tickets/example.md',
+          }),
+          encoding: 'utf8',
+        });
+
+        expect(shellResult.status, shellResult.stderr || shellResult.stdout).toBe(0);
+        expect(JSON.parse(shellResult.stdout)).toEqual({
+          permission: 'deny',
+          user_message: AUTO_UPGRADE_LOCK_MESSAGE,
+          agent_message: AUTO_UPGRADE_LOCK_MESSAGE,
+        });
+      } finally {
+        releaseAutoUpgradeLock({ lockPath });
+      }
+    } finally {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  }, 180_000);
 });

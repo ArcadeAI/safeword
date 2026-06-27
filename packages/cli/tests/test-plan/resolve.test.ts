@@ -80,6 +80,18 @@ describe('resolveTestPlan — every detected language appears (no first-match)',
     const root = makeRepo({ 'README.md': '# hi\n' });
     expect(resolveTestPlan(root, { isToolAvailable: allTools })).toEqual([]);
   });
+
+  it('honors installed packs when experiment manifests exist under the repo', () => {
+    const root = makeRepo({
+      '.safeword/config.json': JSON.stringify({ installedPacks: ['typescript'] }),
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'experiments/gepa/requirements.txt': 'gepa==0.1.1\n',
+    });
+
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+
+    expect(languages(plan)).toEqual(['javascript']);
+  });
 });
 
 describe('resolveTestPlan — the command reflects the detected runner', () => {
@@ -146,6 +158,21 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     });
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
     expect(entryFor(plan, 'javascript')?.command).toBe('pnpm run test');
+  });
+
+  it('an npm-locked JS repo uses npm for test and build plans', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest run', build: 'tsc' } }),
+      'package-lock.json': '{}',
+    });
+
+    expect(
+      entryFor(resolveTestPlan(root, { isToolAvailable: allTools }), 'javascript')?.command,
+    ).toBe('npm run test');
+    expect(
+      entryFor(resolveTestPlan(root, { kind: 'build', isToolAvailable: allTools }), 'javascript')
+        ?.command,
+    ).toBe('npm run build');
   });
 });
 
@@ -253,5 +280,34 @@ describe('resolveTestPlan — build plan', () => {
     const plan = resolveTestPlan(root, { kind: 'build', isToolAvailable: allTools });
     expect(entryFor(plan, 'go')).toBeDefined();
     expect(entryFor(plan, 'javascript')).toBeUndefined();
+  });
+});
+
+describe('resolveTestPlan — typecheck plan (kind: typecheck, #436)', () => {
+  it('emits the package-manager typecheck script when one exists', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest', typecheck: 'tsc --noEmit' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toBe('npm run typecheck');
+  });
+
+  it('omits a JS entry when there is no typecheck script', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')).toBeUndefined();
+  });
+
+  it('is a JS/TS-only concern — never emits Python/Go/Rust entries', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'go.mod': 'module x\n',
+      'Cargo.toml': '[package]\nname="x"\n',
+      'package.json': JSON.stringify({ scripts: { typecheck: 'tsc --noEmit' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(languages(plan)).toEqual(['javascript']);
   });
 });

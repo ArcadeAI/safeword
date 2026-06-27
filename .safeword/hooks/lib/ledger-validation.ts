@@ -1,7 +1,7 @@
 // Done-gate annotation ledger validator (ticket J7VBGJ, Rules 3 + 4).
-// Pure function over test-definitions.md content + an injected SHA-reachability
-// oracle. Returns { ok, errors[] }. The wiring layer in stop-quality.ts calls
-// the real `git cat-file -e <sha>^{commit}` to provide the oracle.
+// Pure function over test-definitions.md content + an injected SHA resolver.
+// Returns { ok, errors[] }. The wiring layer in stop-quality.ts provides a
+// Git-backed resolver that can canonicalize rebased commits.
 
 import {
   classifyAnnotation,
@@ -15,6 +15,9 @@ export interface LedgerValidationResult {
   ok: boolean;
   errors: string[];
 }
+
+export type ShaResolution = boolean | string;
+export type ShaResolver = (sha: string) => ShaResolution;
 
 interface ScenarioLedger {
   name: string;
@@ -64,24 +67,30 @@ function parseLedger(content: string): {
  */
 function checkSha(
   value: string,
-  isReachable: (sha: string) => boolean,
+  resolveSha: ShaResolver,
   label: string,
-): { error: string; format: boolean } | null {
+): { error?: string; format: boolean; canonicalSha?: string } {
   if (!isValidSha(value)) {
     return {
       error: `${label}: "${value}" is not a valid commit SHA (expected 7-40 hex chars).`,
       format: true,
     };
   }
-  if (!isReachable(value)) {
+
+  const resolution = resolveSha(value);
+  if (resolution === false) {
     return { error: `${label}: SHA ${value} is not reachable from HEAD.`, format: false };
   }
-  return null;
+
+  return {
+    format: false,
+    canonicalSha: resolution === true ? value : resolution,
+  };
 }
 
 function validateScenario(
   scenario: ScenarioLedger,
-  isReachable: (sha: string) => boolean,
+  resolveSha: ShaResolver,
   errors: string[],
 ): void {
   const steps: Array<{ name: string; box?: CheckboxAnnotation }> = [
@@ -115,18 +124,19 @@ function validateScenario(
 
     // SHA candidate
     realShaCount++;
-    const problem = checkSha(kind.value, isReachable, `Scenario "${scenario.name}" ${step.name}`);
-    if (problem) {
-      errors.push(problem.error);
-      if (problem.format) continue; // malformed — don't track it for collisions
+    const checkedSha = checkSha(kind.value, resolveSha, `Scenario "${scenario.name}" ${step.name}`);
+    if (checkedSha.error) {
+      errors.push(checkedSha.error);
+      if (checkedSha.format) continue; // malformed — don't track it for collisions
     }
-    const existingStep = shaToStep.get(kind.value);
+    if (!checkedSha.canonicalSha) continue;
+    const existingStep = shaToStep.get(checkedSha.canonicalSha);
     if (existingStep) {
       errors.push(
-        `Scenario "${scenario.name}" SHA collision: ${existingStep} and ${step.name} share SHA ${kind.value}. Each TDD step must correspond to a distinct commit.`,
+        `Scenario "${scenario.name}" SHA collision: ${existingStep} and ${step.name} share SHA ${checkedSha.canonicalSha}. Each TDD step must correspond to a distinct commit.`,
       );
     } else {
-      shaToStep.set(kind.value, step.name);
+      shaToStep.set(checkedSha.canonicalSha, step.name);
     }
   }
 
@@ -139,7 +149,7 @@ function validateScenario(
 
 function validateCrossScenario(
   cs: CheckboxAnnotation | undefined,
-  isReachable: (sha: string) => boolean,
+  resolveSha: ShaResolver,
   errors: string[],
 ): void {
   if (!cs) {
@@ -169,8 +179,8 @@ function validateCrossScenario(
   }
 
   if (kind.kind === 'sha') {
-    const problem = checkSha(kind.value, isReachable, 'Cross-scenario refactor row');
-    if (problem) errors.push(problem.error);
+    const checkedSha = checkSha(kind.value, resolveSha, 'Cross-scenario refactor row');
+    if (checkedSha.error) errors.push(checkedSha.error);
   }
 }
 
@@ -200,15 +210,12 @@ function wholeTicketPassFromScenarios(scenarios: ScenarioLedger[]): boolean {
   return scenarios.length >= 2 && hasAnyAnnotation;
 }
 
-export function validateLedger(
-  content: string,
-  isReachable: (sha: string) => boolean,
-): LedgerValidationResult {
+export function validateLedger(content: string, resolveSha: ShaResolver): LedgerValidationResult {
   const errors: string[] = [];
   const { scenarios, crossScenario } = parseLedger(content);
 
   for (const scenario of scenarios) {
-    validateScenario(scenario, isReachable, errors);
+    validateScenario(scenario, resolveSha, errors);
   }
 
   // Cross-scenario row enforcement: required iff the whole-ticket pass applies
@@ -216,7 +223,7 @@ export function validateLedger(
   // (back-compat: a present row is always validated). Pure-legacy and single-loop
   // tickets stay exempt.
   if (wholeTicketPassFromScenarios(scenarios) || crossScenario) {
-    validateCrossScenario(crossScenario, isReachable, errors);
+    validateCrossScenario(crossScenario, resolveSha, errors);
   }
 
   return { ok: errors.length === 0, errors };

@@ -6,6 +6,7 @@ phase: intake
 status: in_progress
 parent: S3T6JA
 epic: agent-surface-refactor
+relates_to: VAX3Z2
 scope:
   - Resolve the difference between `packages/cli/templates/commands/verify.md` and `.cursor/commands/verify.md`.
   - Decide whether dogfood Cursor verify should include Gherkin acceptance evidence.

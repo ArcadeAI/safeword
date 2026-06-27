@@ -296,10 +296,64 @@ ${prettier.configEntry}
 // Cursor hooks configuration (.cursor/hooks.json format)
 // See: https://cursor.com/docs/agent/hooks
 // Note: Cursor runs hooks from the workspace root, so use ./ prefix
+//
+// failClosed (ANAXG4): Cursor hooks default to fail-open — a hook that crashes,
+// times out, or emits invalid JSON lets the action through. The BLOCKING gates
+// carry `failClosed: true` so a broken gate denies instead of silently vanishing.
+// OBSERVATIONAL hooks are deliberately left fail-open (the default): a crashing
+// lint/state/nudge hook must never block legitimate work.
 export const CURSOR_HOOKS = {
-  sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
+  // Observational: injects standing context and checks for auto-upgrades.
+  // Fail-open — neither hook may block the session from starting.
+  sessionStart: [
+    { command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' },
+    { command: 'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts' },
+  ],
+  // NOTE (F2TKR3): there is deliberately NO beforeSubmitPrompt gate. That hook
+  // fires at prompt-send time, where Cursor exposes only the prompt text — no tool
+  // name or file path — so it cannot tell "create test-definitions.md" from "write
+  // application code". A block there is a catch-22: it would stop the very prompt
+  // that asks the agent to create the scenarios. The phase gate lives at the edit
+  // layer below (preToolUse), which is path-aware (META_PATHS lets scenario/meta
+  // files through) and session-bound — exact parity with the Claude side.
+  //
+  // Blocking edit gate. Matcher limits it to the `Write` tool (Cursor's only edit
+  // tool) so it never spawns on Read/Grep/Task. Denies edits when a feature at the
+  // implement phase has no test-definitions.md, and on LOC blast-radius overflow.
+  //
+  // Done gate (AKNWZK): this same hook also enforces the done gate. Cursor's `stop`
+  // cannot block, so closing a ticket is gated here — a Write that flips ticket.md to
+  // `status: done` is denied unless the evidence holds (tests green, verify.md in
+  // scope, scenarios complete). That makes done the only edit that runs the test
+  // suite, so the timeout is raised to cover a full run (the suite self-caps at 60s).
+  preToolUse: [
+    {
+      command: 'bun ./.safeword/hooks/cursor/pre-tool-quality.ts',
+      matcher: 'Write',
+      failClosed: true,
+      timeout: 90,
+    },
+  ],
+  // Blocking commit gate (a REFACTOR commit may not touch test files).
+  beforeShellExecution: [
+    { command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts', failClosed: true },
+  ],
+  // Observational: triggers lint on edited files. Fail-open — a lint crash must
+  // not block the edit.
   afterFileEdit: [{ command: 'bun ./.safeword/hooks/cursor/after-file-edit.ts' }],
-  stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts' }],
+  // Observational: maintains the per-session quality state (LOC, commit-clears-gate,
+  // ticket binding) the blocking edit gate reads. Matched to edits + shell only.
+  // Fail-open — if it crashes the gate simply lacks fuel and degrades to allow,
+  // which must never block work.
+  postToolUse: [
+    { command: 'bun ./.safeword/hooks/cursor/post-tool-quality.ts', matcher: 'Write|Shell' },
+  ],
+  // Observational: nudges a quality review. Cursor `stop` cannot block anyway —
+  // the real done enforcement lives in preToolUse (above). loop_limit:1 is
+  // intentional: this is a one-shot reminder (the hook clears its edit marker after
+  // firing), NOT a drive-to-done loop, so a single auto-continue is enough and a
+  // higher cap would just re-nudge noisily.
+  stop: [{ command: 'bun ./.safeword/hooks/cursor/stop.ts', loop_limit: 1 }],
 };
 
 // Claude Code hooks configuration (.claude/settings.json format)
@@ -377,12 +431,29 @@ export const SETTINGS_HOOKS = {
     // core.bare=true race (anthropics/claude-code#58345). `if` filters at the
     // config level so non-git Bash calls incur zero hook-process spawn.
     matchedHookWithIf('Bash', 'Bash(git *)', `bash ${HOOKS_DIR}/pre-tool-git-bare-fix.sh`),
+    // Commit-time auto-fix: regenerate + stage a stale architecture doc into the
+    // in-flight commit (ticket FPV0E4). `if` scopes the spawn to `git commit`, so
+    // other Bash calls incur zero overhead; the hook re-checks the command too.
+    matchedHookWithIf(
+      'Bash',
+      'Bash(git commit*)',
+      `bun ${HOOKS_DIR}/pre-tool-architecture-stage.ts`,
+    ),
+    // Warn (never block) before a checkout/switch to a branch behind its upstream,
+    // so "catch up to main" doesn't silently serve stale content (#366). `if`
+    // scopes the spawn to checkout/switch; the hook re-parses the target.
+    matchedHookWithIf('Bash', 'Bash(git checkout*)', `bun ${HOOKS_DIR}/pre-tool-stale-main.ts`),
+    matchedHookWithIf('Bash', 'Bash(git switch*)', `bun ${HOOKS_DIR}/pre-tool-stale-main.ts`),
   ],
   PostToolUse: [
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-lint.ts`),
     matchedHook(`${EDIT_TOOLS}|Bash`, `bun ${HOOKS_DIR}/post-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-sync-learnings.ts`),
+    // Stamp the dependency fingerprint after a successful install so the
+    // recommended recovery command clears the readiness block (#380). Fast-exits
+    // on non-install Bash commands.
+    matchedHook('Bash', `bun ${HOOKS_DIR}/post-tool-dependency-readiness.ts`),
   ],
   SessionEnd: [hook(`bun ${HOOKS_DIR}/session-cleanup-quality.ts`)],
 };

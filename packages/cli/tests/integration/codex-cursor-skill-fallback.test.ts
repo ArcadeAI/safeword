@@ -3,14 +3,14 @@
  *
  * `skill-gate-integration.test.ts` writes `skill-invocations.log` directly. This
  * test instead drives the *real* `record-skill-invocation.ts` fallback command
- * under a non-Claude runtime (no `CLAUDE_SESSION_ID` / `CLAUDE_CODE_SESSION_ID`
- * in the environment) — the path Codex/Cursor take when the inline `!` line is
- * rendered as Markdown rather than executed. It confirms:
+ * under a runtime that does not execute Claude's inline `!` line — the path
+ * Codex/Cursor take when that line is rendered as Markdown. It confirms:
  *
  *   1. The fallback records gate-readable, session-bound proof for every gated
- *      skill when a session id is supplied explicitly (the HMZSCD arg path),
+ *      skill when a session id is supplied explicitly (the HMZSCD arg path) or
+ *      exposed through a compatible runtime identity such as CODEX_THREAD_ID,
  *      and degrades gracefully (exit 0, nothing recorded) when none is — so a
- *      non-Claude runtime never silently mis-binds.
+ *      runtime never silently mis-binds.
  *   2. End-to-end, a feature done-gate PASSES when verify+audit proof was
  *      recorded via the fallback, and FAILS CLOSED with a clear,
  *      `CLAUDE_SESSION_ID`-free message when the runtime could not bind one.
@@ -39,14 +39,18 @@ import { runDoneGate, writeFeatureTicketAtDone } from './done-gate-harness.js';
 // agnostic, so the fallback mechanism is exercised across all three.
 const GATED_SKILLS = ['verify', 'audit', 'quality-review'] as const;
 
-// A non-Claude runtime exposes no Claude session id in the shell environment.
-// Scrub both vars so the only session id is whatever is passed explicitly —
-// otherwise a CLAUDE_SESSION_ID leaking in from the harness running this suite
-// would mask the very degradation we are asserting.
-function nonClaudeEnvironment(projectDirectory: string): NodeJS.ProcessEnv {
+// Scrub ambient session vars so each test controls the binding source. Without
+// this, a CLAUDE_SESSION_ID or CODEX_THREAD_ID leaking in from the harness would
+// mask the very path being asserted.
+function fallbackEnvironment(
+  projectDirectory: string,
+  sessionEnvironment: Partial<NodeJS.ProcessEnv> = {},
+): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory };
   delete environment.CLAUDE_SESSION_ID;
   delete environment.CLAUDE_CODE_SESSION_ID;
+  delete environment.CODEX_THREAD_ID;
+  Object.assign(environment, sessionEnvironment);
   return environment;
 }
 
@@ -56,11 +60,16 @@ function runFallback(
   projectDirectory: string,
   skill: string,
   sessionIdArgument: string,
+  sessionEnvironment: Partial<NodeJS.ProcessEnv> = {},
 ): { exitCode: number; output: string } {
   const result = spawnSync(
     'bun',
     ['.safeword/hooks/record-skill-invocation.ts', projectDirectory, skill, sessionIdArgument],
-    { cwd: projectDirectory, env: nonClaudeEnvironment(projectDirectory), encoding: 'utf8' },
+    {
+      cwd: projectDirectory,
+      env: fallbackEnvironment(projectDirectory, sessionEnvironment),
+      encoding: 'utf8',
+    },
   );
   return { exitCode: result.status ?? 0, output: `${result.stdout}${result.stderr}` };
 }
@@ -107,11 +116,25 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
       const { exitCode, output } = runFallback(projectDirectory, skill, '');
 
       expect(exitCode).toBe(0);
-      expect(output.toLowerCase()).toContain('no session id');
+      expect(output.toLowerCase()).toContain('no run identity');
       // Nothing recorded — no silent mis-binding to an empty/ambient session.
       expect(logContents(projectDirectory)).toBe(before);
     });
   }
+
+  it('feature done PASSES when verify+audit are recorded from CODEX_THREAD_ID', () => {
+    writeFeatureTicketAtDone(projectDirectory, '950');
+    const sessionId = 'codex-thread-950';
+    const codexEnvironment = { CODEX_THREAD_ID: sessionId };
+
+    runFallback(projectDirectory, 'verify', '', codexEnvironment);
+    runFallback(projectDirectory, 'audit', '', codexEnvironment);
+
+    const result = runDoneGate(projectDirectory, sessionId);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain('Required skill invocation');
+  });
 
   it('feature done PASSES the skill gate when verify+audit are recorded via the fallback (non-Claude runtime)', () => {
     writeFeatureTicketAtDone(projectDirectory, '951');

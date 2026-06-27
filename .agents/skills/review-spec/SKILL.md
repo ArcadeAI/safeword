@@ -53,13 +53,14 @@ One lens to always run — **negative-case coverage**: for each happy-path scena
 
 ## Cross-cutting checks
 
-Five lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
+Six lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
 
 - **Conflict** — do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
 - **Boundary** — zero / one / max / empty / null covered where they apply?
 - **Failure** — external-dependency failures covered (timeout, 5xx, malformed, partition)? Distinct from the feature's own rejections (the negative-case lens above).
 - **Security** — authn/authz failures and abuse vectors covered?
 - **Persona consistency** — is each scenario's triggering persona clear, and would another persona experience it differently?
+- **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a `provider: none`-style short circuit has no wiring coverage (see `testing/SKILL.md` → Wiring Tests).
 
 ## Findings format
 

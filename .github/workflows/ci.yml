@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     # Weekly on Sunday at midnight UTC - catches runner image and environmental drift
     - cron: '0 0 * * 0'
@@ -77,6 +78,14 @@ jobs:
         env:
           TEST_POETRY: '1'
 
+      - name: Acceptance lane (cucumber)
+        # Guards the Gherkin acceptance lane against features merged with no step
+        # definitions and no @wip tag — a persistently-red lane masks real
+        # regressions (issue #341). Runs after Build because some step defs spawn
+        # the built CLI (dist/cli.js). Features whose proof lives in vitest are
+        # @wip-excluded by convention, each with a one-line pointer in the .feature.
+        run: bun run test:bdd
+
       - name: Release-gate tests (supply-chain + dogfood parity)
         # Runs the *.release.test.ts files excluded from the main suite.
         # Includes the no-install-scripts.release.test.ts guard which would
@@ -88,6 +97,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout
@@ -95,6 +107,16 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Ticket closure rides ready PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+        run: |
+          gh pr diff "$PR_NUMBER" --name-only > /tmp/safeword-pr-changed-files.txt
+          unset GH_TOKEN
+          bun scripts/check-pr-ticket-done.ts --changed-files /tmp/safeword-pr-changed-files.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -127,6 +149,13 @@ jobs:
 
       - name: Architecture check
         run: bun run deps
+
+      - name: Architecture doc freshness (FPV0E4)
+        # Hard backstop: fails the build if the generated architecture state doc
+        # (.project/architecture.generated.md) is stale — i.e. the commit-time
+        # auto-fix hook was bypassed or a doc was hand-committed out of band.
+        # Honors the per-project opt-out (architectureDocEnforcement: false).
+        run: bun packages/cli/src/cli.ts architecture --check
 
       - name: Duplicate ticket-ID guard
         # ticket 158: two ticket folders with the same `id:` frontmatter is

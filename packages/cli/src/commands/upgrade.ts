@@ -157,7 +157,9 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
 
   if (result.packagesToRemove.length > 0) {
     const uninstallCommand = getUninstallCommand(result.packagesToRemove, cwd);
-    warn(`\n${result.packagesToRemove.length} package(s) are now bundled in safeword:`);
+    warn(
+      `\n${result.packagesToRemove.length} package(s) now come built into safeword, so your project no longer needs its own copy:`,
+    );
     for (const pkg of result.packagesToRemove) listItem(pkg);
     info("\nIf you don't use these elsewhere, you can remove them:");
     listItem(uninstallCommand);
@@ -213,17 +215,19 @@ export interface UpgradeOptions {
 }
 
 /**
- * Default confirm seam: one-line readline [y/N] prompt, Enter = no,
+ * Default confirm seam: one-line readline [Y/n] prompt, Enter = yes,
  * stdin EOF/close = decline. `rl.question()`'s promise never settles when
  * the input closes (nodejs/node#53497), so the close event is raced in
- * explicitly — otherwise a Ctrl+D mid-prompt would hang the upgrade.
- * Streams injectable for tests.
+ * explicitly with an `undefined` sentinel — otherwise a Ctrl+D mid-prompt would hang
+ * the upgrade. Streams injectable for tests.
  *
- * Defaults to NO — namespace migration is destructive (moves thousands of
- * tracked files). Agentic environments hit Enter automatically; the safe
- * default prevents silent namespace deletion (issue #227).
+ * Defaults to YES (ticket AV3PYY) — a non-technical user who hits Enter gets the
+ * recommended migration. This consciously accepts the issue-#227 tradeoff
+ * (agentic environments auto-Enter, so Yes-default lets an agent migrate without
+ * explicit consent); the EOF/close path still declines, so a *deliberate* Enter
+ * is required to accept — a dead/closed stream never migrates.
  */
-export async function promptNoDefault(
+export async function promptYesDefault(
   question: string,
   input: NodeJS.ReadableStream = process.stdin,
   output: NodeJS.WritableStream = process.stdout,
@@ -233,13 +237,14 @@ export async function promptNoDefault(
   try {
     const answer = await Promise.race([
       rl.question(question),
-      new Promise<string>(resolve =>
+      new Promise<undefined>(resolve =>
         rl.once('close', () => {
-          resolve('');
+          resolve(undefined);
         }),
       ),
     ]);
-    return /^y/i.test(answer.trim());
+    if (answer === undefined) return false; // EOF/close — decline, never hang or auto-migrate
+    return !/^n/i.test(answer.trim()); // Enter/empty = yes; only an explicit "n…" declines
   } catch {
     return false; // defensive — treat any prompt failure as decline
   } finally {
@@ -270,13 +275,13 @@ async function resolveMigrationConsent(options: UpgradeOptions): Promise<boolean
     options.confirmMigration !== undefined || (process.stdin.isTTY && process.stdout.isTTY);
   if (!isInteractive) {
     info(
-      'Namespace: this project uses the legacy .safeword-project/ — run `safeword upgrade --migrate-namespace` to converge on .project/ (recommended).',
+      'This project still uses the older internal folder name (.safeword-project). To update it to the current standard (.project), run: safeword upgrade --migrate-namespace',
     );
     return false;
   }
-  const confirm = options.confirmMigration ?? promptNoDefault;
+  const confirm = options.confirmMigration ?? promptYesDefault;
   return confirm(
-    'Move project namespace from .safeword-project/ to .project/ (recommended)? [y/N] ',
+    'Safeword can update an internal folder name to the current standard (.safeword-project becomes .project). It keeps your history and is safe. Do this now? [Y/n] ',
   );
 }
 
@@ -334,20 +339,19 @@ function warnStaleToolingConfigs(cwd: string): void {
  * update-check. The repair hint must not say "run `safeword upgrade`": this
  * IS upgrade, and an issue its reconcile couldn't fix won't be fixed by
  * running it again. When install was deliberately skipped, the self-verify
- * skips package-presence checks — the upgrade did what it was asked.
+ * skips package-presence checks — the upgrade did what it was asked. Post-apply
+ * diagnostics remain visible but do not change upgrade's exit status: callers
+ * use non-zero to mean the upgrade itself failed and should roll back.
  * @param cwd
  */
 async function selfVerify(cwd: string): Promise<void> {
   const health = await checkHealth(cwd, {
     skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
   });
-  const hasIssues = reportHealthSummary(health, {
+  reportHealthSummary(health, {
     repairHint:
       'Configuration issues remain after the upgrade — this may be a safeword bug. Please report it: https://github.com/ArcadeAI/safeword/issues',
   });
-  if (hasIssues) {
-    process.exit(1);
-  }
 }
 
 function maybeRefreshDepcruiseConfig(

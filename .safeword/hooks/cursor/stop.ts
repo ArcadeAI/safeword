@@ -6,7 +6,10 @@
 import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 
+import { getTicketInfo } from '../lib/active-ticket.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
+import { readSessionState } from '../lib/quality-state.ts';
+import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
 
 installCrashCapture('cursor-stop', undefined, 'cursor');
@@ -14,11 +17,22 @@ installCrashCapture('cursor-stop', undefined, 'cursor');
 interface CursorInput {
   workspace_roots?: string[];
   conversation_id?: string;
+  generation_id?: string;
   status?: string;
 }
 
 interface StopOutput {
   followup_message?: string;
+}
+
+function isQuietImplementRun(
+  workspace: string,
+  runIdentity: ReturnType<typeof resolveRunIdentity>,
+): boolean {
+  const state = readSessionState(workspace, runIdentity);
+  const activeTicket = state?.activeTicket;
+  if (!activeTicket) return false;
+  return getTicketInfo(workspace, activeTicket).phase === 'implement';
 }
 
 // Read hook input from stdin
@@ -52,14 +66,20 @@ if (input.status !== 'completed') {
 // Cursor enforces max 5 auto-submissions, no additional limit needed
 
 // Check if any file edits occurred in this session by looking for marker file
-const convId = input.conversation_id ?? 'default';
-const markerFile = `/tmp/safeword-cursor-edited-${convId}`;
+const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
+const markerKey = getRunStorageKey(runIdentity) ?? 'cursor-default';
+const markerFile = `/tmp/safeword-cursor-edited-${markerKey}`;
 
 if (await Bun.file(markerFile).exists()) {
   // Clean up marker (best-effort; missing file or perm issue is non-fatal)
   await unlink(markerFile).catch(error => {
     if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);
   });
+
+  if (isQuietImplementRun(process.cwd(), runIdentity)) {
+    console.log('{}');
+    process.exit(0);
+  }
 
   const output: StopOutput = {
     followup_message: QUALITY_REVIEW_MESSAGE,

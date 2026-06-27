@@ -14,6 +14,7 @@ import process from 'node:process';
 
 import { syncTickets } from '../ticket-sync/index.js';
 import { info, success, warn } from '../utils/output.js';
+import { buildIndexConflictSummary } from '../utils/ticket-index-warnings.js';
 
 interface SyncTicketsOptions {
   quiet?: boolean;
@@ -38,5 +39,9 @@ export function syncTicketsCommand(options: SyncTicketsOptions = {}): void {
 
   if (result.skipped.length > 0) {
     warn(`${result.skipped.length} ticket folder(s) skipped — see stderr for details`);
+  }
+
+  if (result.indexConflicts.length > 0) {
+    warn(buildIndexConflictSummary(result.indexConflicts.length));
   }
 }

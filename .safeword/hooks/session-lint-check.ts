@@ -60,7 +60,9 @@ if (await pkgJsonFile.exists()) {
 
 // Output warnings if any
 if (warnings.length > 0) {
-  console.log('SAFEWORD Lint Check:');
+  console.log(
+    "Heads-up: your code-style tools aren't fully set up, so safeword's automatic checks may not run:",
+  );
   for (const warning of warnings) {
     console.log(`  ⚠️  ${warning}`);
   }

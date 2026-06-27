@@ -10,37 +10,13 @@ import process from 'node:process';
 
 import { checkHealth, type HealthStatus, reportHealthSummary } from '../health.js';
 import { syncTickets } from '../ticket-sync/index.js';
+import { detectPackageManager } from '../utils/install.js';
 import { header, info, keyValue, success, warn } from '../utils/output.js';
-import { isNewerVersion } from '../utils/version.js';
+import { buildIndexConflictListMessage } from '../utils/ticket-index-warnings.js';
+import { fetchRegistryLatestVersion, isNewerVersion } from '../utils/version.js';
 
 interface CheckOptions {
   offline?: boolean;
-}
-
-/**
- * Check for latest version from npm (with timeout)
- * @param timeout
- */
-async function checkLatestVersion(timeout = 3000): Promise<string | undefined> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, timeout);
-
-    const response = await fetch('https://registry.npmjs.org/safeword/latest', {
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) return undefined;
-
-    const data = (await response.json()) as { version?: string };
-    return data.version ?? undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /**
@@ -49,7 +25,7 @@ async function checkLatestVersion(timeout = 3000): Promise<string | undefined> {
  */
 async function reportUpdateStatus(health: HealthStatus): Promise<void> {
   info('\nChecking for updates...');
-  const latestVersion = await checkLatestVersion();
+  const latestVersion = await fetchRegistryLatestVersion();
 
   if (!latestVersion) {
     warn("Couldn't check for updates (offline?)");
@@ -67,16 +43,51 @@ async function reportUpdateStatus(health: HealthStatus): Promise<void> {
   }
 }
 
+function isDigit(char: string): boolean {
+  return char >= '0' && char <= '9';
+}
+
+function isPackageVersionSpecChar(char: string): boolean {
+  return (
+    (char >= 'a' && char <= 'z') ||
+    (char >= 'A' && char <= 'Z') ||
+    isDigit(char) ||
+    char === '.' ||
+    char === '-' ||
+    char === '+'
+  );
+}
+
+function isSafePackageVersion(version: string): boolean {
+  if (version.length === 0 || !version.includes('.')) return false;
+  for (const char of version) {
+    if (!isPackageVersionSpecChar(char)) return false;
+  }
+  return true;
+}
+
 /**
  * Compare project version vs CLI version and report
  * @param health
  */
-function reportVersionMismatch(health: HealthStatus): void {
+function reportVersionMismatch(health: HealthStatus, cwd: string): void {
   if (!health.projectVersion) return;
 
   if (isNewerVersion(health.cliVersion, health.projectVersion)) {
     warn(`Project config (v${health.projectVersion}) is newer than CLI (v${health.cliVersion})`);
-    info('Consider upgrading the CLI');
+
+    if (!isSafePackageVersion(health.projectVersion)) {
+      warn(
+        'Project version is not safe to use in a package install command; inspect .safeword/version.',
+      );
+      return;
+    }
+
+    const pm = detectPackageManager(cwd);
+    const runSafewordUpgrade =
+      pm === 'bun' || pm === 'yarn' ? `${pm} run safeword upgrade` : `${pm} exec safeword upgrade`;
+    info('Update the project-local CLI first:');
+    info(`${pm} add -D safeword@${health.projectVersion} && ${runSafewordUpgrade}`);
   } else if (isNewerVersion(health.projectVersion, health.cliVersion)) {
     info(`\nUpgrade available for project config`);
     info(
@@ -96,6 +107,9 @@ function regenerateTicketIndex(cwd: string): void {
     const result = syncTickets(cwd);
     if (result.wrote) {
       info('Regenerated ticket index (INDEX.md / INDEX-completed.md)');
+    }
+    if (result.indexConflicts.length > 0) {
+      warn(buildIndexConflictListMessage(result.indexConflicts));
     }
   } catch (error: unknown) {
     // Best-effort: index freshness must never fail the health check. Surface
@@ -139,7 +153,7 @@ export async function check(options: CheckOptions): Promise<void> {
     await reportUpdateStatus(health);
   }
 
-  reportVersionMismatch(health);
+  reportVersionMismatch(health, cwd);
   const hasIssues = reportHealthSummary(health);
 
   if (hasIssues) {

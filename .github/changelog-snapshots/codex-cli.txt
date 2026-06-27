@@ -1,0 +1,36 @@
+---
+source: https://github.com/openai/codex/releases.atom
+source_key: codex-cli
+reviewed_at: 2026-06-25T20:07:27.312Z
+---
+
+0.143.0-alpha.22
+Updated: 2026-06-25T18:11:51Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.22
+0.143.0-alpha.21
+Updated: 2026-06-25T04:43:55Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.21
+rust-v0.143.0-alpha.20
+Updated: 2026-06-25T03:35:41Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.20
+rust-v0.143.0-alpha.19
+Updated: 2026-06-25T03:28:47Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.19
+rust-v0.143.0-alpha.18
+Updated: 2026-06-25T03:21:55Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.18
+rust-v0.143.0-alpha.17
+Updated: 2026-06-25T03:00:27Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.17
+0.143.0-alpha.16
+Updated: 2026-06-25T03:44:23Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.16
+0.142.2
+Updated: 2026-06-25T07:34:04Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.142.2
+0.143.0-alpha.15
+Updated: 2026-06-24T19:44:10Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.15
+0.143.0-alpha.14
+Updated: 2026-06-24T05:45:35Z
+Link: https://github.com/openai/codex/releases/tag/rust-v0.143.0-alpha.14

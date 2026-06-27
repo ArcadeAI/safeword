@@ -7,34 +7,42 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
 
-import { createRequire } from 'node:module';
+import eslintPluginAstro from 'eslint-plugin-astro';
 
 import { lazyConfigArray } from './lazy.js';
+import { hasOptionalDependency } from './optional-dependency.js';
 
-const requireFromHere = createRequire(import.meta.url);
+interface BuildAstroConfigOptions {
+  astroPlugin?: {
+    configs: Record<string, any[]>;
+  };
+  hasJsxA11y?: boolean;
+}
 
 /**
  * Astro config
  *
  * Includes:
- * - 8 recommended rules (all at error)
+ * - Astro's recommended rules (all at error)
  * - 33 accessibility rules from jsx-a11y-strict (adapted for Astro)
- * - 3 LLM-critical rules: no-set-html-directive (XSS), no-unsafe-inline-scripts (CSP), no-exports-from-components
+ * - LLM-critical rules: no-set-html-directive (XSS), no-unsafe-inline-scripts (CSP), no-exports-from-components
  *
  * Note: jsx-a11y rules work with Astro files because eslint-plugin-astro
  * provides wrapped versions that understand Astro's JSX-like syntax.
  * Using eslint-plugin-jsx-a11y directly on Astro files does NOT work.
  *
- * Plugin is loaded lazily — only when this config is actually accessed.
+ * Config objects are assembled lazily — only when this config is actually accessed.
  */
-export const astroConfig: any[] = lazyConfigArray(() => {
-  const astroPlugin = requireFromHere('eslint-plugin-astro');
+export function buildAstroConfig({
+  astroPlugin = eslintPluginAstro,
+  hasJsxA11y = hasOptionalDependency('eslint-plugin-jsx-a11y'),
+}: BuildAstroConfigOptions = {}): any[] {
   return [
     // Spread flat/recommended (5 config objects: plugin setup, file patterns, prettier overrides, rules)
-    ...astroPlugin.configs['flat/recommended'],
+    ...(astroPlugin.configs['flat/recommended'] ?? []),
 
-    // Accessibility rules adapted for Astro (requires eslint-plugin-jsx-a11y installed)
-    ...astroPlugin.configs['flat/jsx-a11y-strict'],
+    // Accessibility rules adapted for Astro when eslint-plugin-jsx-a11y is installed.
+    ...(hasJsxA11y ? (astroPlugin.configs['flat/jsx-a11y-strict'] ?? []) : []),
 
     // Add LLM-critical rules
     {
@@ -51,4 +59,6 @@ export const astroConfig: any[] = lazyConfigArray(() => {
       },
     },
   ];
-});
+}
+
+export const astroConfig: any[] = lazyConfigArray(() => buildAstroConfig());

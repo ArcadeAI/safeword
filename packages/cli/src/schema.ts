@@ -49,6 +49,12 @@ export interface TextPatchDefinition {
   // depend on the resolved namespace root (e.g. a custom paths.projectRoot, #293).
   content: string | ((ctx: ProjectContext) => string);
   marker: string; // Used to detect if already applied & for removal
+  // On apply, first remove this exact legacy block if present, then add `content`
+  // — a byte-exact, idempotent one-block swap for migrating a managed file (e.g.
+  // replacing a superseded SessionStart hook with its replacement) without a
+  // separate imperative path. A no-op when the block is absent; guarded by
+  // applyWhenContentIncludes so it only touches safeword-scaffolded files.
+  supersedes?: string;
   applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
   unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
   removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
@@ -170,7 +176,18 @@ timeout = 5
 statusMessage = "Adding current timestamp"
 `;
 
-const CODEX_SESSION_START_HOOK_PATCH = `
+export const CODEX_SESSION_START_HOOK_PATCH = `
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
+timeout = 120
+statusMessage = "Checking safeword updates and loading standing instructions"
+`;
+
+export const CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH = `
 [[hooks.SessionStart]]
 matcher = ""
 
@@ -270,6 +287,7 @@ const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntri
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
+  'cursor-run-identity.json',
   'failure-counts.json',
   'skill-invocations.log',
   're-entry.md',
@@ -532,15 +550,25 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Hooks shared library - TypeScript with Bun runtime
     '.safeword/hooks/lib/active-ticket.ts': { template: 'hooks/lib/active-ticket.ts' },
+    '.safeword/hooks/lib/architecture-staged-scope.ts': {
+      template: 'hooks/lib/architecture-staged-scope.ts',
+    },
+    '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
+    '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
+    '.safeword/hooks/lib/cursor-run-identity.ts': {
+      template: 'hooks/lib/cursor-run-identity.ts',
+    },
     '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/run-identity.ts': { template: 'hooks/lib/run-identity.ts' },
     '.safeword/hooks/lib/dependency-readiness.ts': {
       template: 'hooks/lib/dependency-readiness.ts',
     },
+    '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
@@ -559,9 +587,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
     '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
+    '.safeword/hooks/lib/ledger-git.ts': { template: 'hooks/lib/ledger-git.ts' },
     '.safeword/hooks/lib/ledger-validation.ts': { template: 'hooks/lib/ledger-validation.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
+    '.safeword/hooks/lib/auto-upgrade.ts': { template: 'hooks/lib/auto-upgrade.ts' },
+    '.safeword/hooks/lib/auto-upgrade-lock.ts': { template: 'hooks/lib/auto-upgrade-lock.ts' },
+    '.safeword/hooks/lib/safeword-context.ts': { template: 'hooks/lib/safeword-context.ts' },
     '.safeword/hooks/lib/update-cache.ts': { template: 'hooks/lib/update-cache.ts' },
     '.safeword/hooks/lib/version.ts': { template: 'hooks/lib/version.ts' },
     '.safeword/hooks/lib/learning-verification-stamps.ts': {
@@ -579,6 +611,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Hooks - TypeScript with Bun runtime
     '.safeword/hooks/session-safeword-context.ts': {
       template: 'hooks/session-safeword-context.ts',
+    },
+    '.safeword/hooks/session-codex-start.ts': {
+      template: 'hooks/session-codex-start.ts',
+    },
+    '.safeword/hooks/session-cursor-auto-upgrade.ts': {
+      template: 'hooks/session-cursor-auto-upgrade.ts',
     },
     '.safeword/hooks/session-dependency-readiness.ts': {
       template: 'hooks/session-dependency-readiness.ts',
@@ -616,8 +654,17 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/pre-tool-quality.ts': {
       template: 'hooks/pre-tool-quality.ts',
     },
+    '.safeword/hooks/pre-tool-architecture-stage.ts': {
+      template: 'hooks/pre-tool-architecture-stage.ts',
+    },
+    '.safeword/hooks/pre-tool-stale-main.ts': {
+      template: 'hooks/pre-tool-stale-main.ts',
+    },
     '.safeword/hooks/codex/pre-tool-quality.ts': {
       template: 'hooks/codex/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/codex/pre-tool-quality-helpers.ts': {
+      template: 'hooks/codex/pre-tool-quality-helpers.ts',
     },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
@@ -627,6 +674,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-dependency-readiness.ts': {
       template: 'hooks/pre-tool-dependency-readiness.ts',
+    },
+    '.safeword/hooks/post-tool-dependency-readiness.ts': {
+      template: 'hooks/post-tool-dependency-readiness.ts',
     },
     '.safeword/hooks/pre-tool-git-bare-fix.sh': {
       template: 'hooks/pre-tool-git-bare-fix.sh',
@@ -657,6 +707,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/self-report-filing.md': {
       template: 'guides/self-report-filing.md',
     },
+    '.safeword/guides/cold-start-check.md': {
+      template: 'guides/cold-start-check.md',
+    },
     '.safeword/guides/context-files-guide.md': {
       template: 'guides/context-files-guide.md',
     },
@@ -672,11 +725,17 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/llm-writing-guide.md': {
       template: 'guides/llm-writing-guide.md',
     },
+    '.safeword/guides/llm-evals-guide.md': {
+      template: 'guides/llm-evals-guide.md',
+    },
     '.safeword/guides/planning-guide.md': {
       template: 'guides/planning-guide.md',
     },
     '.safeword/guides/testing-guide.md': {
       template: 'guides/testing-guide.md',
+    },
+    '.safeword/guides/verification-lanes-guide.md': {
+      template: 'guides/verification-lanes-guide.md',
     },
     '.safeword/guides/zombie-process-cleanup.md': {
       template: 'guides/zombie-process-cleanup.md',
@@ -853,9 +912,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'cursor/rules/bdd-splitting.mdc',
     },
 
-    // Cursor commands (8 files - Cursor needs explicit commands for all capabilities)
+    // Cursor commands (Cursor needs explicit commands for all capabilities)
     '.cursor/commands/bdd.md': { template: 'commands/bdd.md' },
     '.cursor/commands/debug.md': { template: 'commands/debug.md' },
+    '.cursor/commands/explain.md': { template: 'commands/explain.md' },
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
     '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
@@ -873,6 +933,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {
       template: 'hooks/cursor/after-file-edit.ts',
+    },
+    '.safeword/hooks/cursor/gate-adapter.ts': {
+      template: 'hooks/cursor/gate-adapter.ts',
+    },
+    '.safeword/hooks/cursor/pre-tool-quality.ts': {
+      template: 'hooks/cursor/pre-tool-quality.ts',
+    },
+    '.safeword/hooks/cursor/before-shell-execution.ts': {
+      template: 'hooks/cursor/before-shell-execution.ts',
+    },
+    '.safeword/hooks/cursor/post-tool-quality.ts': {
+      template: 'hooks/cursor/post-tool-quality.ts',
     },
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },
@@ -979,26 +1051,42 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.markdownlint-cli2.jsonc': MARKDOWNLINT_CLI2_IGNORES_MERGE,
 
     '.cursor/hooks.json': {
-      keys: ['version', 'hooks.sessionStart', 'hooks.afterFileEdit', 'hooks.stop'],
+      keys: [
+        'version',
+        'hooks.sessionStart',
+        'hooks.preToolUse',
+        'hooks.beforeShellExecution',
+        'hooks.afterFileEdit',
+        'hooks.postToolUse',
+        'hooks.stop',
+      ],
       removeFileIfEmpty: true,
       merge: existing => {
-        const hooks = (existing.hooks as Record<string, unknown[]>) ?? {};
+        const existingHooks = (existing.hooks as Record<string, unknown[]>) ?? {};
+        const hooks: Record<string, unknown[]> = { ...existingHooks };
+        for (const [event, newHooks] of Object.entries(CURSOR_HOOKS)) {
+          const eventHooks = hooks[event] ?? [];
+          const nonSafewordHooks = filterOutSafewordHooks(eventHooks);
+          hooks[event] = [...nonSafewordHooks, ...newHooks];
+        }
         return {
           ...existing,
           version: 1, // Required by Cursor
-          hooks: {
-            ...hooks,
-            ...CURSOR_HOOKS,
-          },
+          hooks,
         };
       },
       unmerge: existing => {
         const result = { ...existing };
-        const hooks = { ...(existing.hooks as Record<string, unknown[]>) };
+        const existingHooks = (existing.hooks as Record<string, unknown[]>) ?? {};
 
-        delete hooks.sessionStart;
-        delete hooks.afterFileEdit;
-        delete hooks.stop;
+        // Keep only hooks safeword did NOT install. Filtering entries instead of
+        // whole events preserves user-authored Cursor hooks that share an event
+        // with safeword, such as `sessionStart`.
+        const hooks = Object.fromEntries(
+          Object.entries(existingHooks)
+            .map(([name, eventHooks]) => [name, filterOutSafewordHooks(eventHooks)] as const)
+            .filter(([, eventHooks]) => eventHooks.length > 0),
+        );
 
         // `version` is only meaningful while safeword's hooks remain; drop it
         // alongside an emptied hooks container.
@@ -1055,8 +1143,34 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
         ],
-        unpatchContent: [CODEX_SESSION_START_HOOK_PATCH, CODEX_PRE_TOOL_QUALITY_HOOK_PATCH],
+        unpatchContent: [
+          CODEX_SESSION_START_HOOK_PATCH,
+          CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+          CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+        ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+      },
+      // Migrate existing installs (auto-upgrade-codex follow-up to #433): swap the
+      // legacy context-only SessionStart hook for the auto-upgrade dispatcher.
+      // Codex runs same-event hooks concurrently with no ordering, so this must
+      // REPLACE the legacy hook (appending a second SessionStart hook would
+      // double-emit context) — hence `supersedes`. managedFiles is
+      // create-if-missing, so a fresh install gets the dispatcher from the
+      // template while every EXISTING config is skipped by managedFiles and
+      // migrated here. Idempotent: skips when the dispatcher marker is already
+      // present, and the strip no-ops when the legacy block is absent. Guarded to
+      // safeword scaffolds; a user-modified legacy block won't byte-match and is
+      // preserved. Uninstall cleanup is owned by the primary patch's
+      // unpatchContent above.
+      {
+        operation: 'append',
+        content: CODEX_SESSION_START_HOOK_PATCH,
+        marker: '.safeword/hooks/session-codex-start.ts',
+        supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
       },
       // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /
       // .cursor/mcp.json. Marker is the context7 table header, so an existing

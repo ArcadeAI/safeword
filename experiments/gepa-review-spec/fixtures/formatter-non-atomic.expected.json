@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "The hook respects both customer Prettier and greenfield defaults",
+      "defectType": "non-atomic",
+      "severity": "must-fix",
+      "note": "mutation operator: merge-scenarios. Two independent behaviours (defer to a customer Prettier config; apply safeword defaults in a greenfield repo) were combined into one scenario with two When/Then pairs. The Biome scenario is unchanged & clean."
+    }
+  ]
+}

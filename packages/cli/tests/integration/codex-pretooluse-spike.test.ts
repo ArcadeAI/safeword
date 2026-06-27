@@ -121,6 +121,15 @@ describe('Codex PreToolUse deny spike (N12G95)', () => {
     expectHookDeny(runCodexHook(projectRoot), 'scope');
   });
 
+  it('points Codex users at the skill invocation syntax for explain help', () => {
+    writeIncompleteTicket(ticketDirectory);
+
+    const result = runCodexHook(projectRoot);
+
+    expect(result.stdout).toContain('Run `$explain`');
+    expect(result.stdout).not.toContain('Run `/explain`');
+  });
+
   it('denies multi-file Codex patches when any target violates safeword gates', () => {
     writeIncompleteTicket(ticketDirectory);
 
@@ -148,6 +157,8 @@ describe('Codex PreToolUse deny spike (N12G95)', () => {
     const result = runCodexHook(projectRoot, { fallbackMode: true });
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('scope');
+    expect(result.stderr).toContain('Run `$explain`');
+    expect(result.stderr).not.toContain('Run `/explain`');
     expect(result.stdout.trim()).toBe('');
   });
 });

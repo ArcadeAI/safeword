@@ -43,7 +43,7 @@ Pick first unchecked scenario from test-definitions. Cycle through RED (failing 
 
 ### Checkbox Format Contract
 
-Mark **ONE checkbox per edit, commit after each step.** The prompt hook and quality gates parse these checkboxes — multi-checkbox edits skip quality reviews.
+Mark **ONE checkbox per edit, commit after each step.** The prompt hook and quality gates parse these checkboxes; batching hides which step should be internally reviewed and makes the ledger less auditable.
 
 **Correct format** (matches template exactly):
 
@@ -102,6 +102,8 @@ All scenarios green → before reconciling the plan, do one pass over the **whol
 1. **Quality-review the whole diff.** Run `/quality-review` across everything the ticket changed — the review's findings are the refactor ledger. The done-gate requires a logged `/quality-review` invocation for ≥2-loop tickets (see the skill's invocation-log block).
 2. **Refactor the findings.** Work the cross-scenario cleanups `/quality-review` surfaced — shared fixtures, duplicated logic, naming drift that only shows up across loops. One change → test → commit, per the `/refactor` skill. Only real wins; don't gold-plate.
 3. **Record the row.** Mark the `## Feature-level cross-scenario refactor` row with the refactor commit `<sha>`, or `skip: <reason>` when no cross-loop cleanup was warranted. The done-gate hard-blocks a ≥2-loop ticket whose row is missing or carries an empty `skip:`.
+
+Quiet implement mode means the RED/GREEN/REFACTOR reviews stayed internal. At implement exit, summarize scenarios completed, review/refactor work performed, `/quality-review` findings handled, test evidence, commits recorded, and any deferred risks.
 
 Then reconcile the plan.
 

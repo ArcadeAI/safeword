@@ -7,7 +7,6 @@
  * TDD RED phase - these tests verify reconcile integration.
  */
 
-import { execSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -15,7 +14,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { installFakeCodexCli, removeTemporaryDirectory, runCli } from '../helpers';
+import { installFakeCodexCli, removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
 
 const __dirname = import.meta.dirname;
 
@@ -359,6 +358,57 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(timestampHookCount).toBe(1);
     });
 
+    it('migrates a customized legacy Codex config: swaps the context-only SessionStart hook for the auto-upgrade dispatcher', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA, CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH } =
+        await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      // An existing safeword Codex config — managedFiles is create-if-missing, so
+      // it skips an existing file (never overwrites) and the text-patch migration
+      // runs — still wired to the LEGACY context-only SessionStart hook from
+      // before auto-upgrade-codex.
+      const legacyConfig = `# Safeword Codex project configuration.
+#
+# Project-local Codex config loads only after the project is reviewed and trusted.
+
+[features]
+hooks = true
+${CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH}
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+statusMessage = "Checking safeword PreToolUse gates"
+`;
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), legacyConfig);
+
+      const ctx = createProjectContext(temporaryDirectory);
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const upgraded = readFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        'utf8',
+      );
+      // Legacy context-only hook is gone; the auto-upgrade dispatcher is wired.
+      expect(upgraded).not.toContain('session-safeword-context.ts" --agent=codex');
+      expect(upgraded).toContain('.safeword/hooks/session-codex-start.ts');
+      // Exactly one SessionStart dispatcher — concurrent Codex hooks make a
+      // double-wire double-emit context, so the swap must not leave two.
+      expect(upgraded.split('.safeword/hooks/session-codex-start.ts').length - 1).toBe(1);
+
+      // Idempotent: re-running upgrade keeps exactly one dispatcher, no legacy.
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+      const again = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(again.split('.safeword/hooks/session-codex-start.ts').length - 1).toBe(1);
+      expect(again).not.toContain('session-safeword-context.ts" --agent=codex');
+    });
+
     it('should tell users to trust generated Codex hooks after upgrade creates Codex config', async () => {
       createConfiguredProject('0.5.0');
 
@@ -476,26 +526,17 @@ statusMessage = "Checking safeword PreToolUse gates"
       createConfiguredProject('0.5.0');
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        const result = execSync(`bunx tsx ${cliPath} upgrade`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
+      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
 
-        expect(result).toContain('Upgrade');
-      } catch (error) {
-        // Check if upgrade itself worked even if bun install timed out
-        const stdout = (error as { stdout?: string }).stdout || '';
-
-        // If we see upgrade output, the reconcile worked
-        const sawUpgradeOutput = stdout.includes('Upgrade') || stdout.includes('Upgrading');
-        if (sawUpgradeOutput) {
-          // Upgrade ran, might have failed on bun install
-          expect(sawUpgradeOutput).toBe(true);
-        } else {
-          throw error;
-        }
+      if (result.exitCode === 0) {
+        expect(result.stdout).toContain('Upgrade');
+      } else {
+        const sawUpgradeOutput =
+          result.stdout.includes('Upgrade') || result.stdout.includes('Upgrading');
+        expect(sawUpgradeOutput).toBe(true);
       }
     });
 
@@ -503,18 +544,12 @@ statusMessage = "Checking safeword PreToolUse gates"
       createConfiguredProject('99.99.99');
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        execSync(`bunx tsx ${cliPath} upgrade`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
-        // Should not reach here — upgrade must refuse a downgrade
-        expect.fail('upgrade should have refused to downgrade a newer project');
-      } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr || '';
-        expect(stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
-      }
+      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
     });
 
     it('should error on unconfigured project', () => {
@@ -525,18 +560,12 @@ statusMessage = "Checking safeword PreToolUse gates"
       );
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        execSync(`bunx tsx ${cliPath} upgrade`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
-        // Should not reach here — upgrade must error on an unconfigured project
-        expect.fail('upgrade should have errored on an unconfigured project');
-      } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr || '';
-        expect(stderr.toLowerCase()).toContain('not configured');
-      }
+      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr.toLowerCase()).toContain('not configured');
     });
   });
 });

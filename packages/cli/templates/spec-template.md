@@ -24,7 +24,7 @@ feature at all, or a leaner task. -->
 
 - **Requested by:** <who asked for this — distinct from the persona it serves>
 - **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door>
+- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
 
 ## References
 
@@ -69,6 +69,23 @@ to enumerate, write `skip: <reason>` under it instead of ACs.
 #### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
 
 #### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
+-->
+
+## Rave Moment
+
+<!-- Optional, and only for the highest persona-facing surface in the tree (the
+epic if there is one, else this feature). Child features under an epic that
+already named one inherit it — skip here; internal/plumbing work skips entirely.
+Advisory; never blocks intake exit. The one moment a persona would tell a peer
+about: name the moment, the expectation it beats, and the one sentence they'd
+repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
+`skip: table-stakes`.
+
+### <slug> — <the moment in a few words>
+
+- **Moment:** <the specific beat they'd screenshot or recount>
+- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
+- **They'd say:** "<the one repeatable, status-conferring sentence>"
 -->
 
 ## Outcomes

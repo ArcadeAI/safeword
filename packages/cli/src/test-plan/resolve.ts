@@ -22,7 +22,7 @@ import process from 'node:process';
 import { indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
 
-export type PlanKind = 'test' | 'build' | 'verify';
+export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck';
 export type Language = 'javascript' | 'python' | 'go' | 'rust';
 
 export interface PlanEntry {
@@ -103,6 +103,33 @@ function entry(
   return { language, cwd, command, runner, available };
 }
 
+function readInstalledPacks(root: string): Set<string> | undefined {
+  const configPath = nodePath.join(root, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return undefined;
+
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { installedPacks?: unknown };
+    if (!Array.isArray(parsed.installedPacks)) return undefined;
+    return new Set(
+      parsed.installedPacks.filter((pack): pack is string => typeof pack === 'string'),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+function isLanguageEnabled(language: Language, installedPacks: Set<string> | undefined): boolean {
+  if (installedPacks === undefined) return true;
+
+  if (language === 'javascript') {
+    return installedPacks.has('typescript') || installedPacks.has('javascript');
+  }
+  if (language === 'go') {
+    return installedPacks.has('golang') || installedPacks.has('go');
+  }
+  return installedPacks.has(language);
+}
+
 /** Directory of the first listed manifest present in the index, or root if none. */
 function firstDirectory(root: string, index: ManifestIndex, names: readonly string[]): string {
   for (const name of names) {
@@ -134,6 +161,14 @@ function resolveJs(
   const scripts = readRootScripts(root);
   if (!scripts) return undefined;
   const pm = detectPackageManager(root);
+  if (kind === 'typecheck') {
+    // The same signal CI's lint job runs (#436): a targeted-test-only pass must
+    // not read as ready when `tsc --noEmit` would fail. Honors an explicit
+    // `typecheck` script (the project's own, possibly package-scoped command).
+    return scripts.typecheck
+      ? entry('javascript', root, `${pm} run typecheck`, pm, isAvailable(pm))
+      : undefined;
+  }
   if (kind === 'build') {
     return scripts.build
       ? entry('javascript', root, `${pm} run build`, pm, isAvailable(pm))
@@ -196,7 +231,7 @@ function resolvePython(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'build') return undefined; // no standard Python build step
+  if (kind === 'build' || kind === 'typecheck') return undefined; // no standard Python build/typecheck step
   if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
   const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
@@ -221,6 +256,7 @@ function resolveGo(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  if (kind === 'typecheck') return undefined; // typecheck is a JS/TS concern; `go build` covers Go
   if (!index.has('go.mod')) return undefined;
   const verb = kind === 'build' ? 'build' : 'test';
   // A root go.work tests every workspace module — run the expansion from root.
@@ -239,6 +275,7 @@ function resolveRust(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  if (kind === 'typecheck') return undefined; // typecheck is a JS/TS concern; `cargo build` covers Rust
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
   if (kind === 'build')
@@ -263,8 +300,12 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
   const kind = options.kind ?? 'test';
   const isAvailable = options.isToolAvailable ?? defaultIsToolAvailable;
   const index = indexFilesInTree(root, TREE_MANIFESTS);
+  const installedPacks = readInstalledPacks(root);
   const resolvers = [resolveJs, resolvePython, resolveGo, resolveRust];
   return resolvers
     .map(resolve => resolve(root, index, kind, isAvailable))
-    .filter((planEntry): planEntry is PlanEntry => planEntry !== undefined);
+    .filter(
+      (planEntry): planEntry is PlanEntry =>
+        planEntry !== undefined && isLanguageEnabled(planEntry.language, installedPacks),
+    );
 }

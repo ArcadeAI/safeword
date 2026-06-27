@@ -10,11 +10,13 @@ allowed-tools: '*'
 
 Prove a ticket meets its criteria. Works with or without an active ticket.
 
+**Reviewer class:** verify is _class-2 — independent observation_ (PRINCIPLES.md §1). It checks observable facts (tests pass, build succeeds, scenarios complete) against ground truth, so the test suite and parsers are the independent party. No fresh-context or cross-model reviewer applies — a cheap/weaker judge is fine; cross-modeling a test run buys nothing.
+
 ## Invocation log
 
-This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a session-scoped entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Claude Code expands the `!` line automatically and substitutes `${CLAUDE_SESSION_ID}` for session binding. Codex and Cursor docs do not document Claude-style `!` expansion or `${CLAUDE_SESSION_ID}` substitution, so the fallback below is explicit. Hand-writing verify.md cannot produce this feature-gate proof.
+This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids and Codex thread ids from the runtime environment, so the fallback below can run without hand-picking an id. Hand-writing verify.md cannot produce this feature-gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID}" || echo "[skill-invocation-log] FAILED - no session-scoped proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] verify ✓` line appears above, run this fallback before continuing:
 
@@ -23,7 +25,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"
 ```
 
-**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no session id` (non-Claude runtime with no session binding), or still does not print `verify ✓`**: Feature tickets must fail closed if no real current-session proof can be logged. Do not mark a feature ticket done or hand-write verify.md as a substitute for the feature-gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the client lacks a compatible session id, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /verify.
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `verify ✓`**: Feature tickets must fail closed if no real current-session proof can be logged. Do not mark a feature ticket done or hand-write verify.md as a substitute for the feature-gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /verify.
 
 Task, patch, and no-ticket verify work may continue after recording that session-scoped proof was unavailable and not required by the gate.
 
@@ -53,7 +55,9 @@ If no ticket is found, skip scenario validation (step 3) and parent check (step 
 Run these in sequence, reporting each result:
 
 1. **Run `/lint`** to auto-fix style issues first
-2. Then run verification:
+2. Then run target-project verification checks from project evidence.
+
+**Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. `package.json may be safeword lane-host evidence` in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
 Per-language test/build commands come from `safeword test-plan` — one source of
 truth (the same plan the stop-hook gate runs). Eval its shell plan in a child
@@ -62,16 +66,41 @@ non-zero so the gate blocks. The Gherkin acceptance lane runs separately (it is
 not a `test-plan` suite).
 
 ```bash
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+cd "$PROJECT_DIR" || exit 1
+
 # Resolve a test-plan-capable safeword CLI — prefer the locally installed one
-# (a bare `bunx safeword` can resolve the published CLI, which may predate test-plan).
-if [ -x node_modules/.bin/safeword ]; then
+# only if it actually supports test-plan.
+supports_test_plan() {
+  case "$CANDIDATE" in
+    node_modules/.bin/safeword) node_modules/.bin/safeword test-plan --help > /dev/null 2>&1 ;;
+    "bun packages/cli/src/cli.ts") bun packages/cli/src/cli.ts test-plan --help > /dev/null 2>&1 ;;
+    "bunx safeword") bunx safeword test-plan --help > /dev/null 2>&1 ;;
+  esac
+}
+
+run_safeword() {
+  case "$SW" in
+    node_modules/.bin/safeword) node_modules/.bin/safeword "$@" ;;
+    "bun packages/cli/src/cli.ts") bun packages/cli/src/cli.ts "$@" ;;
+    "bunx safeword") bunx safeword "$@" ;;
+  esac
+}
+
+CANDIDATE="node_modules/.bin/safeword"
+if [ -x node_modules/.bin/safeword ] && supports_test_plan; then
   SW="node_modules/.bin/safeword"
-elif [ -f packages/cli/src/cli.ts ]; then
+elif CANDIDATE="bun packages/cli/src/cli.ts" && [ -f packages/cli/src/cli.ts ] && supports_test_plan; then
   SW="bun packages/cli/src/cli.ts"
-else SW="bunx safeword"; fi
+elif CANDIDATE="bunx safeword" && supports_test_plan; then
+  SW="bunx safeword"
+else
+  echo "No test-plan-capable safeword CLI found. Tried node_modules/.bin/safeword, packages/cli/src/cli.ts, and bunx safeword." >&2
+  exit 1
+fi
 
 # --- Test suite (resolved by safeword test-plan — one source of truth) ---
-bash -c "$($SW test-plan --kind verify --format sh)"
+bash -c "$(run_safeword test-plan --kind verify --format sh)"
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
@@ -81,10 +110,22 @@ else
 fi
 
 # --- Build check (resolved by safeword test-plan) ---
-bash -c "$($SW test-plan --kind build --format sh)"
+bash -c "$(run_safeword test-plan --kind build --format sh)"
+
+# --- Typecheck: the same `tsc --noEmit` signal CI's lint job runs (#436). A
+#     green targeted-test run is NOT readiness if types are broken. An empty
+#     plan (no `typecheck` script / non-TS project) is a silent no-op — when the
+#     ticket touched TypeScript, run `/lint` (which runs tsc) so it isn't a gap. ---
+bash -c "$(run_safeword test-plan --kind typecheck --format sh)"
 ```
 
-The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors.
+The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. **Typecheck is part of the gate, not optional:** when the ticket changed TypeScript, a passing targeted-test run is not "ready" until `test-plan --kind typecheck` (or `/lint`, which runs `tsc --noEmit`) is green — CI's lint job runs it and will go red otherwise. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.
+
+Regression fixtures covered by `safeword test-plan` and its tests:
+
+- **no-build JavaScript:** a `test` script with no `build` script runs tests and has no JavaScript build entry.
+- **non-Bun JavaScript:** lockfiles and `packageManager` select the matching package manager instead of assuming Bun.
+- **non-JavaScript installs:** Python, Rust, and Go manifests are resolved independently of any safeword lane-host `package.json`.
 
 ### 3. Validate Test Definitions (skip if no ticket)
 
@@ -125,7 +166,21 @@ Do NOT flag:
 - Type-only packages (`@types/*`) and standard-library imports
 - Tooling/dev dependencies (linters, formatters, test utils — across any language) — only flag deps that represent architectural choices
 
-### 6. Report Results
+### 6. Check PR Scope (skip if no ticket)
+
+Compare the final change set against the ticket's `scope`, `out_of_scope`, and `done_when`.
+
+Use the best available diff:
+
+- Active PR diff, when the user gave one.
+- Otherwise branch diff against the upstream/default branch, plus uncommitted changes.
+- If no base is knowable, inspect `git status --short` and the commits/files touched this session.
+
+Flag any changed file or behavior that only serves a different outcome than the ticket. Required supporting cleanup is fine. Nice-to-have refactors, opportunistic fixes, drive-by docs edits, and follow-up discoveries are separate tickets/PRs.
+
+If PR scope fails, do not collapse to "Ready to mark done." Put the concrete split/revert/follow-up action in **Agent's next actions**, or put the scope decision in **Decisions needed** when the user must decide whether to expand the ticket.
+
+### 7. Report Results
 
 Structure the report in three sections, in this order. **Empty sections are hidden entirely** — no "None" placeholders, no empty headers.
 
@@ -141,18 +196,32 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
-**Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md)
+**PR Scope:** ✅ Diff matches ticket scope (or ❌ Piggybacked changes: <paths/behaviors>, or ⏭️ Skipped — no ticket/diff)
+**Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md/package.json)
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
 **Reconcile:** ✅ No pattern deviation (or ⚠️ N deviations, M missing uplevel ticket — soft, never blocks)
+**Experience:** ✅ No new friction (or ⚠️ N friction points / dulled peak, or ⏭️ N/A — not persona-facing) — soft, never blocks
 ```
 
+**PR Scope** is the final "one purpose" guard. It blocks the all-green collapse: if it is ❌, the ticket is not ready to mark done until the unrelated work is reverted, split into another ticket/PR, or explicitly accepted as a scope change and reflected in the ticket artifacts.
+
 **Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings (see `.safeword/guides/architecture-guide.md` → Survey & Reconcile), confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
+
+**Experience** is soft — it never blocks the done gate (it has no done-gate evidence pattern; a ⚠️ here never hard-blocks `done`). Run it for persona-facing work; use `N/A` for internal/plumbing. It is the one _class-1 qualitative judgment_ in an otherwise _class-2_ skill (PRINCIPLES.md §1): no parser stands in as the independent party here, so this lens alone carries the self-preference risk the rest of verify doesn't — which is why the walk-artifact below is mandatory. Two lenses:
+
+- **Friction (every persona-facing feature):** did this add a step, a wait, a re-entry, or a dead-end the persona didn't have before? Walk the changed flow as the persona and inspect its _ending_ specifically — last impressions dominate the memory and are the most under-designed. Effort erodes advocacy faster than peaks build it, so a new friction point is the higher-priority finding. **Record the walk as evidence, not a verdict:** `Walked <persona> through <flow>; worst step = <the one most likely to make them bounce>; new steps vs before = <n>`. Name the _worst_ step, not a tidy summary — you are grading your own work, and a bare `✅` or a flattering "feels clean" is exactly the self-rating this artifact exists to defeat.
+- **Peak (only when the ticket or its parent declared a `## Rave Moment` in `spec.md`):** walk that moment as the persona — does it still land, and did this work advance or endanger it? A peak that quietly degraded is a finding even when every test is green.
+
+A ⚠️ Experience finding routes to **Agent's next actions** if you'll fix it now, or to **Decisions needed** if it's a scope/value call for the user. It is never a reason to hold `done` on its own.
+
+**Escalation.** Verify's class-2 checks need no fresh-context reviewer — a test run is its own independent party. This lens is the class-1 exception, so it does: the inline self-check is the cheap first guard, and if shipped work keeps clearing it while real friction reaches users, that is the signal to move _the Experience lens alone_ to an independent reviewer (a fresh-context fork, or a persona-walk of the running product), not to keep trusting the inline pass.
 
 **Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 
 - `✓ X/X tests pass` — proves test suite ran
 - `**Gherkin:**` — proves the acceptance lane ran or was explicitly skipped
 - `All N scenarios marked complete` — proves scenarios checked
+- `**PR Scope:**` — proves the final diff was checked against ticket scope
 - `Audit passed` — proves /audit ran (run /audit separately)
 
 Without the required patterns in Status, the done phase will hard block.
@@ -189,7 +258,7 @@ Only include this section when there are concrete forward actions the agent will
 
 #### All-green collapse
 
-When **all Status checks pass AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
+When **all Status checks pass, PR Scope is ✅/skipped for a valid reason, AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
 
 > Ready to mark done.
 

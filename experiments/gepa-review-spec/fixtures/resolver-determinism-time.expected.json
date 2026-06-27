@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A slow toolchain probe still resolves the command",
+      "defectType": "determinism-time",
+      "severity": "must-fix",
+      "note": "mutation operator: add-wall-clock. 'within 2 seconds' ties the assertion to elapsed wall-clock time instead of waiting on the resolved plan as an observable condition. Other two scenarios unchanged & clean."
+    }
+  ]
+}

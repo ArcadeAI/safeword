@@ -24,6 +24,7 @@ import {
   readSafewordConfig,
   readTestFile,
   removeTemporaryDirectory,
+  runCommandSync,
   runLintHook,
   SAFEWORD_VERSION,
   setupOrThrow,
@@ -118,12 +119,10 @@ func main() {
   it('ESLint detects TypeScript violations', () => {
     writeTestFile(projectDirectory, 'src/bad.ts', 'var unused = 1;\n');
 
-    expect(() => {
-      execSync('bunx eslint src/bad.ts', {
-        cwd: projectDirectory,
-        encoding: 'utf8',
-      });
-    }).toThrow();
+    const result = runCommandSync('bunx eslint src/bad.ts', {
+      cwd: projectDirectory,
+    });
+    expect(result.exitCode).not.toBe(0);
   });
 
   it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint runs on Go files', () => {

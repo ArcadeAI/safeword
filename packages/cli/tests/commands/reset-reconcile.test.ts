@@ -7,7 +7,6 @@
  * TDD RED phase - these tests verify reconcile integration.
  */
 
-import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -18,6 +17,7 @@ import {
   createTemporaryDirectory,
   getReconcileTestUtilities,
   removeTemporaryDirectory,
+  runCommandSync,
 } from '../helpers';
 
 const __dirname = import.meta.dirname;
@@ -316,26 +316,19 @@ describe('Reset Command - Reconcile Integration', () => {
       createConfiguredProject();
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      try {
-        const result = execSync(`bunx tsx ${cliPath} reset --yes`, {
-          cwd: temporaryDirectory,
-          encoding: 'utf8',
-          timeout: 30_000,
-        });
+      const result = runCommandSync(`bunx tsx ${cliPath} reset --yes`, {
+        cwd: temporaryDirectory,
+        timeout: 30_000,
+      });
 
-        expect(result).toContain('Reset');
-
-        // .safeword should be removed
-        expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(false);
-      } catch (error) {
-        const stdout = (error as { stdout?: string }).stdout || '';
-        // If reset ran, check the output
-        if (stdout.includes('Reset') || stdout.includes('Removed')) {
-          expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(false);
-        } else {
-          throw error;
-        }
+      const isRemoved = !existsSync(nodePath.join(temporaryDirectory, '.safeword'));
+      if (result.exitCode === 0) {
+        expect(result.stdout).toContain('Reset');
+      } else {
+        const sawResetOutput = result.stdout.includes('Reset') || result.stdout.includes('Removed');
+        expect(sawResetOutput).toBe(true);
       }
+      expect(isRemoved).toBe(true);
     });
 
     it('should do nothing on unconfigured project', () => {
@@ -346,13 +339,11 @@ describe('Reset Command - Reconcile Integration', () => {
       );
 
       const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = execSync(`bunx tsx ${cliPath} reset --yes`, {
+      const result = runCommandSync(`bunx tsx ${cliPath} reset --yes`, {
         cwd: temporaryDirectory,
-        encoding: 'utf8',
         timeout: 30_000,
       });
-
-      expect(result.toLowerCase()).toContain('nothing to remove');
+      expect(result.stdout.toLowerCase()).toContain('nothing to remove');
     });
   });
 });

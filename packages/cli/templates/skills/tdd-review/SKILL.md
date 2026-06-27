@@ -6,9 +6,11 @@ allowed-tools: '*'
 
 # TDD Review
 
-Step-aware quality review at TDD phase boundaries. Fires when a sub-checkbox is marked in test-definitions.md during implement phase.
+Step-aware quality review at TDD phase boundaries. Run it as an internal self-check after RED, GREEN, and REFACTOR during implement phase.
 
 These per-step reviews are **advisory self-checks** — the only hard gates in the implement phase are the commit ledger (`test-definitions.md` annotations) and the done-gate. Use these reviews to catch problems early; don't treat them as blocking walls.
+
+**Visibility:** ordinary RED/GREEN/REFACTOR reviews stay quiet. Do not surface a chat-facing review after each checkbox flip unless you found a real blocker, a user/scope decision, or a risky external dependency/API finding. Report the review/refactor work in the implementation-exit summary.
 
 ## Detect Step
 
@@ -90,7 +92,7 @@ A review without a Next: line is incomplete.
 1. **Depth matches step** — lightweight after RED, moderate after GREEN, full after REFACTOR
 2. **Local by default** — per-step reviews need no web research; reserve **/quality-review** for a scenario that introduces a new external dependency/API and for the whole-ticket pass at implement-exit
 3. **Single source of truth** — this skill owns all TDD review content
-4. **Advisory, not a wall** — these reviews guide; the commit ledger and done-gate are the hard gates. Review, then commit to proceed
+4. **Advisory, not a wall** — these reviews guide; the commit ledger and done-gate are the hard gates. Review internally, then commit to proceed
 5. **Mark sub-checkbox** — ensure the current step's `[x]` is marked in test-definitions.md
 
 **Voice:** plainspoken and concise — write to be scanned.

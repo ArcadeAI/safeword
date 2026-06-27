@@ -10,7 +10,12 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { readDocumentFingerprint, selfHeal } from '../../src/utils/architecture-document.js';
+import {
+  isWouldChangeAction,
+  planSelfHeal,
+  readDocumentFingerprint,
+  selfHeal,
+} from '../../src/utils/architecture-document.js';
 import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
 import { resolveGeneratedArchitecturePath } from '../../src/utils/configured-paths.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -170,5 +175,179 @@ describe('selfHeal — structural facts self-heal at session start', () => {
 
     expect(result.action).toBe('healed');
     expect(existsSync(documentPath(context.directory))).toBe(true);
+  });
+});
+
+describe('planSelfHeal — dry-run action, writes nothing (FPV0E4 Slice 2)', () => {
+  it('reports the action selfHeal would take without writing the doc', () => {
+    const action = planSelfHeal(context.directory);
+
+    expect(action).toBe('created');
+    expect(existsSync(documentPath(context.directory))).toBe(false);
+  });
+
+  it('agrees with selfHeal on the action for an unchanged doc', () => {
+    selfHeal(context.directory);
+
+    expect(planSelfHeal(context.directory)).toBe('unchanged');
+    // A second plan call still mutates nothing.
+    const before = readFileSync(documentPath(context.directory), 'utf8');
+    planSelfHeal(context.directory);
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(before);
+  });
+
+  it('reports healed for a moved fingerprint without touching the doc', () => {
+    selfHeal(context.directory);
+    const before = readFileSync(documentPath(context.directory), 'utf8');
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+
+    expect(planSelfHeal(context.directory)).toBe('healed');
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(before);
+  });
+
+  it('reports noop for a project with no modules and no doc', () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true, force: true });
+
+    expect(planSelfHeal(context.directory)).toBe('noop');
+    expect(existsSync(documentPath(context.directory))).toBe(false);
+  });
+
+  it('reports skipped for a foreign doc and leaves it untouched', () => {
+    const foreign = '# Our Architecture\n\nHand-written, no marker.\n';
+    mkdirSync(nodePath.dirname(documentPath(context.directory)), { recursive: true });
+    writeFileSync(documentPath(context.directory), foreign);
+
+    expect(planSelfHeal(context.directory)).toBe('skipped');
+    expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(foreign);
+  });
+});
+
+const PLACEHOLDER = 'No description yet — awaiting prose.';
+
+/** Extract a single `### name` section's text (to its next heading or EOF). */
+function sectionText(content: string, name: string): string {
+  const chunk = content.split('\n### ').find(part => part.startsWith(`${name}\n`));
+  return chunk === undefined ? '' : `### ${chunk.split('\n## ', 1)[0]}`;
+}
+
+describe('selfHeal — per-section prose persistence (JT852Q layer A)', () => {
+  /** Create the doc, then replace auth's placeholder with real prose on disk. */
+  function seedWithProse(prose: string): void {
+    selfHeal(context.directory);
+    const path = documentPath(context.directory);
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(PLACEHOLDER, () => prose),
+    );
+  }
+
+  function addModule(name: string): void {
+    mkdirSync(nodePath.join(context.directory, 'src', name), { recursive: true });
+  }
+
+  function read(): string {
+    return readFileSync(documentPath(context.directory), 'utf8');
+  }
+
+  it('preserves an unaffected section prose byte-identical across a writing heal', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+
+    const result = selfHeal(context.directory);
+
+    expect(result.action).toBe('healed');
+    expect(sectionText(read(), 'auth')).toContain('Handles login and tokens.');
+    expect(sectionText(read(), 'auth')).not.toContain(PLACEHOLDER);
+  });
+
+  it('births a new module with the placeholder, not the neighbour prose', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    expect(sectionText(read(), 'billing')).toContain(PLACEHOLDER);
+    expect(sectionText(read(), 'auth')).toContain('Handles login and tokens.');
+    expect(sectionText(read(), 'auth')).not.toContain(PLACEHOLDER);
+  });
+
+  it('restores the placeholder when a section prose was emptied (writing heal)', () => {
+    seedWithProse('Handles login and tokens.');
+    const path = documentPath(context.directory);
+    writeFileSync(path, readFileSync(path, 'utf8').replace('Handles login and tokens.', ''));
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    expect(sectionText(read(), 'auth')).toContain(PLACEHOLDER);
+  });
+
+  it('preserves prose and flags the section stale on a structural change', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('Handles login and tokens.');
+    expect(auth).toMatch(/stale/i);
+  });
+
+  it('keeps exactly one stale marker when re-healing an already-stale section', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+    selfHeal(context.directory); // auth now stale
+    addModule('reports');
+    selfHeal(context.directory); // heal again
+
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('Handles login and tokens.');
+    expect(auth.match(/⚠ stale/g) ?? []).toHaveLength(1);
+  });
+
+  it('preserves a multi-paragraph description across a writing heal', () => {
+    seedWithProse('First paragraph.\n\nSecond paragraph.');
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('First paragraph.');
+    expect(auth).toContain('Second paragraph.');
+  });
+
+  it('preserves prose when the doc uses CRLF line endings', () => {
+    seedWithProse('Handles login and tokens.');
+    const path = documentPath(context.directory);
+    writeFileSync(path, readFileSync(path, 'utf8').replaceAll('\n', '\r\n'));
+    addModule('billing');
+
+    selfHeal(context.directory);
+
+    expect(read()).toContain('Handles login and tokens.');
+  });
+
+  it('reaches a byte-identical fixed point after a writing heal', () => {
+    seedWithProse('Handles login and tokens.');
+    addModule('billing');
+    expect(selfHeal(context.directory).action).toBe('healed');
+    const after = read();
+
+    expect(selfHeal(context.directory).action).toBe('unchanged');
+    expect(read()).toBe(after);
+  });
+});
+
+describe('isWouldChangeAction — the enforcement threshold (FPV0E4 Slice 2)', () => {
+  it('is true exactly for created, healed, and regenerated', () => {
+    expect(isWouldChangeAction('created')).toBe(true);
+    expect(isWouldChangeAction('healed')).toBe(true);
+    expect(isWouldChangeAction('regenerated')).toBe(true);
+  });
+
+  it('is false for unchanged, noop, and skipped', () => {
+    expect(isWouldChangeAction('unchanged')).toBe(false);
+    expect(isWouldChangeAction('noop')).toBe(false);
+    expect(isWouldChangeAction('skipped')).toBe(false);
   });
 });
