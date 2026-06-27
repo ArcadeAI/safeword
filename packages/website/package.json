@@ -10,10 +10,10 @@
     "typecheck": "astro check"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.40.0",
+    "@astrojs/starlight": "^0.41.1",
     "astro": "^6.4.8",
-    "astro-mermaid": "^2.0.4",
-    "mermaid": "^11.15.0"
+    "astro-mermaid": "^2.1.0",
+    "mermaid": "^11.16.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
