@@ -43,10 +43,10 @@
   Codex users get safeword's seamless patch/minor auto-upgrade (today Claude-Code-only) without manual `safeword upgrade` and within Codex's synchronous hook contract.
   external issue: https://github.com/ArcadeAI/safeword/issues/393
   → `.project/tickets/7R1D3B-auto-upgrade-codex`
-- **Epic: Cross-agent auto-upgrade (Cursor + Codex) (BJX7WR)** (in_progress, epic: auto-upgrade-cross-agent)
+- **Epic: Cross-agent auto-upgrade (Cursor + Codex) (BJX7WR)** (done, epic: auto-upgrade-cross-agent)
   Extend safeword's seamless auto-upgrade — today Claude-Code-only — to the other two supported agents, Cursor and Codex, so customers on any agent stay current without manual `safeword upgrade`.
   → `.project/tickets/BJX7WR-auto-upgrade-cross-agent`
-- **Auto-upgrade under Cursor (Y6HZR7)** (blocked, epic: auto-upgrade-cross-agent)
+- **Auto-upgrade under Cursor (Y6HZR7)** (done, epic: auto-upgrade-cross-agent)
   Cursor users get safeword's seamless patch/minor auto-upgrade (today Claude-Code-only) without manual `safeword upgrade` and without breaking Cursor's session start.
   → `.project/tickets/Y6HZR7-auto-upgrade-cursor`
 
