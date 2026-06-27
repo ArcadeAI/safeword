@@ -210,6 +210,20 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
 
+// Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex
+// PostToolUse supports hookSpecificOutput.additionalContext (GA), so the adapter
+// forwards the Claude hook's nudge verbatim.
+const CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH = `
+[[hooks.PostToolUse]]
+matcher = "^(apply_patch|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-skill-nudge.ts"'
+timeout = 30
+statusMessage = "Surfacing language-skill guidance"
+`;
+
 // MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
 // context7 uses the hosted streamable-HTTP transport (url); playwright uses
 // stdio (command/args) — matching MCP_SERVERS. Shipped via the codex/config.toml
@@ -1136,6 +1150,19 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         content: CODEX_SESSION_START_HOOK_PATCH,
         marker: '.safeword/hooks/session-codex-start.ts',
         supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      // PostToolUse skill-nudge retrofit (#482): add-if-missing onto existing
+      // configs, marker = the hook path so a present block suppresses the append.
+      // Own unpatch removes this block; the primary patch (last on reversed
+      // unpatch) owns file removal. Mirrors the MCP-server retrofit below.
+      {
+        operation: 'append',
+        content: CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
+        marker: '.safeword/hooks/codex/post-tool-skill-nudge.ts',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
