@@ -19,6 +19,7 @@ import {
   extractFilePath,
   mapCursorToolName,
   runClaudeHook,
+  translatePostOutput,
 } from './gate-adapter.ts';
 
 async function readInput(): Promise<CursorPreToolInput> {
@@ -32,20 +33,6 @@ async function readInput(): Promise<CursorPreToolInput> {
 function emitAndExit(payload: Record<string, unknown>): never {
   process.stdout.write(JSON.stringify(payload) + '\n');
   process.exit(0);
-}
-
-// Claude PostToolUse additionalContext → Cursor additional_context.
-function translatePostOutput(stdout: string): Record<string, unknown> {
-  if (stdout.trim() === '') return {};
-  try {
-    const parsed = JSON.parse(stdout) as {
-      hookSpecificOutput?: { additionalContext?: unknown };
-    };
-    const context = parsed.hookSpecificOutput?.additionalContext;
-    return typeof context === 'string' && context !== '' ? { additional_context: context } : {};
-  } catch {
-    return {};
-  }
 }
 
 const input = await readInput();
