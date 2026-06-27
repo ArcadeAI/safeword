@@ -7,6 +7,19 @@ status: in_progress
 epic: auto-upgrade-cross-agent
 parent: BJX7WR
 relates_to: VAX3Z2
+scope:
+  - Wire Cursor sessionStart to run silent auto-upgrade after SAFEWORD context injection.
+  - Reuse the shared auto-upgrade apply core from PR #433 instead of copying upgrade logic.
+  - Keep Cursor startup fail-open and silent; rely on the git auto-upgrade commit as the durable record.
+  - Protect Cursor write and shell gates while silent auto-upgrade is running.
+out_of_scope:
+  - Rich Cursor notifications for major-version or repeated-failure outcomes.
+  - Replacing agent hook scripts with `safeword hook <name>` CLI dispatch.
+done_when:
+  - Cursor setup installs the context hook first and the silent auto-upgrade hook second.
+  - The Cursor auto-upgrade wrapper exits 0 without stdout or stderr when no upgrade applies.
+  - Cursor wrapper, Claude wrapper, and Codex dispatcher all use the shared auto-upgrade core.
+  - Cursor write and shell gates wait for the auto-upgrade lock.
 created: 2026-06-20T12:54:31.933Z
 last_modified: 2026-06-26T02:20:00Z
 ---
@@ -81,3 +94,4 @@ Confirmed by inspecting current Cursor docs and the merged code paths in
 - 2026-06-25T06:00:00Z Checked PR #433. It does not conflict with this ticket file, and it likely supplies the shared core this ticket needs. If #433 lands first, Y6HZR7 should proceed directly to a Cursor wrapper around `hooks/lib/auto-upgrade.ts`.
 - 2026-06-25T23:45:00Z Implemented Cursor wrapper on `cursor/y6hzr7-cursor-auto-upgrade-wrapper`: added `session-cursor-auto-upgrade.ts`, wired it as a second Cursor `sessionStart` command, registered it in schema/package/hook coverage, and added setup + integration tests. Focused tests green: 127/127.
 - 2026-06-26T02:20:00Z Followed up on post-merge quality review: added the missing `impl-plan.md`, preserved user-authored Cursor hook entries during merge/unmerge, dogfooded the new Cursor sessionStart hook, and added a git-dir auto-upgrade lock that makes Cursor write gates wait while silent auto-upgrade runs.
+- 2026-06-26T06:50:00Z Close evidence added on fast-forwarded `main`: focused Cursor auto-upgrade suite passed (131/131), Gherkin lane passed locally (159 scenarios, 2837 steps), lint passed, `verify.md` created, and all three feature scenarios are checked. Final `status: done` flip is blocked by the current Cursor done gate because its internal `test:bdd` run times out and sends SIGTERM even though the same lane passed outside the gate; tracked by GitHub issue #469.

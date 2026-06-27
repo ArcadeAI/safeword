@@ -46,8 +46,15 @@ last_modified: 2026-06-14T02:05:00Z
 - If intentional, record why safeword's own dogfood should skip the Gherkin evidence line.
 - Quality-review guardrail: treat this as a blocker for wrapper generation, not as generic cleanup.
 
+## Resolution
+
+The dogfood Cursor verify command now matches the shipped verify template for the Gherkin acceptance lane and `**Gherkin:**` evidence pattern. `F1HTQ4` can treat the current verify content as the intended generator input.
+
+Final `status: done` is blocked by the Cursor done gate timeout tracked in GitHub issue #469: the gate's internal `test:bdd` run is capped at 60s, while the same lane passes locally in about 91s.
+
 ## Work Log
 
+- 2026-06-26T06:55:00Z Revalidated on fast-forwarded `main`: `.cursor/commands/verify.md` and `packages/cli/templates/commands/verify.md` both include the Gherkin acceptance lane and `**Gherkin:**` evidence. This resolves the ticket criteria except for the mechanical done flip, which is blocked by #469.
 - 2026-06-14T02:05:00Z Reviewed: Marked the chosen verify content as generator input for F1HTQ4.
 - 2026-06-14T01:46:00Z Scoped: Figure-it-out marked the drift as a high-priority concrete follow-up.
 - 2026-06-14T01:39:31.130Z Started: Created ticket 1833FW.

@@ -1,74 +1,46 @@
 # Spec: Auto-upgrade under Cursor
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
-
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Cursor users should receive safeword patch/minor upgrades at session start without running `safeword upgrade` manually and without weakening Cursor startup.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Parent epic: `BJX7WR-auto-upgrade-cross-agent`
+- Shared apply core: PR #433
+- Cursor wrapper: PR #447
+- Cursor safety hardening: PR #463
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- Technical Builder (TB)
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Silent auto-upgrade:** A Cursor `sessionStart` hook that applies safe safeword upgrades without surfacing hook output.
+- **Durable record:** The git commit created by the shared auto-upgrade core when an upgrade applies.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### auto-upgrade-cursor.TB1 — Stay current in Cursor without manual upgrade work
 
-Uncomment and customize:
+**Persona:** Technical Builder (TB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I start a Cursor agent session in a safeword-managed project, I want safe safeword upgrades to apply automatically, so I can keep the guardrails current without remembering a manual command.
 
-**Persona:** Platform Operator (PO)
+#### auto-upgrade-cursor.TB1.AC1 — Cursor startup runs context injection and silent auto-upgrade
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### auto-upgrade-cursor.TB1.AC2 — Cursor uses the same auto-upgrade implementation as the other agents
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
-
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
-
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### auto-upgrade-cursor.TB1.AC3 — Cursor edits do not race an in-flight silent upgrade
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- Cursor setup installs the SAFEWORD context hook first and silent auto-upgrade hook second.
+- Cursor auto-upgrade exits `0` and stays silent when no upgrade applies.
+- Cursor, Claude Code, and Codex wrappers share the same apply core.
+- Cursor write and shell gates wait while silent auto-upgrade is running.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- defer: Rich user-visible Cursor notifications for major-version or repeated-failure outcomes are a follow-up, not part of this slice.
