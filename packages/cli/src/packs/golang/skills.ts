@@ -1,63 +1,49 @@
 /**
  * Go Language Pack — Skill Manifest (pure declaration)
  *
- * The pack DECLARES which judgment skills belong to Go; it has no knowledge of
- * prompts, hooks, injection, or timing. The safeword harness CONSUMES this
- * manifest to: (1) install the skills, (2) drift-check installed names against
- * this list, (3) optionally build an availability reminder. Dependency is
- * harness → pack (pull), never pack → harness.
+ * The pack DECLARES where Go judgment skills come from and how to select them.
+ * It has no knowledge of prompts, hooks, injection, or timing — the safeword
+ * harness CONSUMES this manifest to install the skills and, separately, to build
+ * any availability reminder. Dependency is harness → pack (pull), never the
+ * reverse.
  *
- * Source: samber/cc-skills-golang (MIT), tracked @latest. We install the
- * general-purpose set only — samber's atomicity rule says install all of them
- * together (they cross-reference); a subset gives partial/inconsistent guidance.
- * Library-specific skills (grpc, graphql, spf13-*, uber-*, samber-libs, testify,
- * swagger, temporal) are intentionally excluded.
+ * No skill NAMES are stored here, on purpose. Writing them down manufactures
+ * drift: upstream adds/renames/removes skills on its own cadence, and a hardcoded
+ * list silently rots against the installed reality. The names that matter are the
+ * `golang-*` directories that actually land on disk after install — the harness
+ * derives them from there at runtime. The manifest stays at the level that does
+ * not drift: the source and the selection policy.
+ *
+ * Source: samber/cc-skills-golang (MIT), tracked @latest (no pin).
+ *
+ * Selection: 'all'. The upstream installer (`npx skills`) exposes only `--all`
+ * or an explicit `--skill <names...>` list — there is NO general-purpose-group
+ * flag. Selecting "general-purpose only" would therefore require enumerating
+ * names here, which is exactly the drift we refuse. samber's own atomicity rule
+ * also says the general-purpose skills install together (they cross-reference),
+ * so a curated subset risks partial/inconsistent guidance. We install the full
+ * set; library-specific skills that never match the project simply never fire.
  */
 
 /** Where the skills come from. The harness owns the install command + ref policy. */
 export const GOLANG_SKILL_SOURCE = 'github.com/samber/cc-skills-golang';
 
 /**
- * samber's general-purpose skills, grouped by samber's own taxonomy. Grouping is
- * carried as data so the harness can present a grouped reminder without
- * re-deriving categories. Names must match the upstream skill directory names
- * exactly (the drift check compares against these).
+ * How the harness should select skills from the source.
+ *
+ * - `'all'`: install every skill the source publishes (no name list to maintain).
+ *
+ * Kept as a union so a future curated mode is a type change, not a refactor — but
+ * any named mode reintroduces drift and must justify carrying a list.
  */
-export const GOLANG_SKILLS = {
-  quality: [
-    'golang-error-handling',
-    'golang-naming',
-    'golang-code-style',
-    'golang-safety',
-    'golang-security',
-    'golang-documentation',
-    'golang-lint',
-  ],
-  architecture: [
-    'golang-concurrency',
-    'golang-context',
-    'golang-structs-interfaces',
-    'golang-design-patterns',
-    'golang-dependency-injection',
-    'golang-data-structures',
-    'golang-database',
-    'golang-modernize',
-  ],
-  qaPerf: [
-    'golang-testing',
-    'golang-benchmark',
-    'golang-performance',
-    'golang-observability',
-    'golang-troubleshooting',
-  ],
-  setup: [
-    'golang-project-layout',
-    'golang-dependency-management',
-    'golang-continuous-integration',
-    'golang-cli',
-  ],
-  meta: ['golang-how-to', 'golang-stay-updated', 'golang-pkg-go-dev', 'golang-popular-libraries'],
-} as const;
+export type GolangSkillSelection = 'all';
 
-/** Flat list of all declared general-purpose skill names — for install + drift check. */
-export const GOLANG_SKILL_NAMES: readonly string[] = Object.values(GOLANG_SKILLS).flat();
+/** Install selection policy. See the module doc for why this is `'all'`. */
+export const GOLANG_SKILL_SELECTION: GolangSkillSelection = 'all';
+
+/**
+ * Directory-name shape every installed skill follows (`golang-*`). The harness
+ * uses this to discover installed skills on disk — the single source of truth for
+ * "which skills exist" — instead of any list stored here.
+ */
+export const GOLANG_SKILL_DIR_PATTERN = /^golang-[a-z0-9-]+$/;
