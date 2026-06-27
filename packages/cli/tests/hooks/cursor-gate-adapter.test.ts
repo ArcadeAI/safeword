@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,9 +11,11 @@ import {
   detectDoneTransition,
   extractFilePath,
   extractWriteContent,
+  GATE_TIMEOUT_REASON,
   GATE_UNAVAILABLE_REASON,
   mapCursorToolName,
   parseTicketType,
+  runClaudeHook,
   toCursorDecision,
 } from '../../templates/hooks/cursor/gate-adapter.js';
 
@@ -166,7 +172,7 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
     it('denies when the gate failed to run (crash / never started)', () => {
       // The whole point of ANAXG4: a broken gate must block, not silently allow.
       // stdout is empty here precisely because the gate crashed before emitting.
-      expect(decideFromGate({ stdout: '', failed: true })).toEqual({
+      expect(decideFromGate({ stdout: '', failed: true, timedOut: false })).toEqual({
         permission: 'deny',
         user_message: GATE_UNAVAILABLE_REASON,
         agent_message: GATE_UNAVAILABLE_REASON,
@@ -174,18 +180,54 @@ describe('Cursor gate adapter helpers (T3DV1K)', () => {
     });
 
     it('denies on failure even if partial stdout leaked before the crash', () => {
-      expect(decideFromGate({ stdout: 'half-written', failed: true }).permission).toBe('deny');
+      expect(
+        decideFromGate({ stdout: 'half-written', failed: true, timedOut: false }).permission,
+      ).toBe('deny');
+    });
+
+    it('denies with a timeout-specific recovery path when the gate exceeds its budget', () => {
+      const temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'cursor-gate-timeout-'));
+      const hookPath = nodePath.join(temporaryDirectory, 'hang.ts');
+      writeFileSync(
+        hookPath,
+        'await new Promise(resolve => setTimeout(resolve, 1_000));\n',
+        'utf8',
+      );
+
+      try {
+        const result = runClaudeHook({
+          claudeHookPath: hookPath,
+          input: {
+            hook_event_name: 'PreToolUse',
+            tool_name: 'Bash',
+            tool_input: { command: 'git status' },
+          },
+          timeoutMs: 20,
+        });
+
+        expect(result.failed).toBe(true);
+        expect(result.timedOut).toBe(true);
+        expect(decideFromGate(result)).toEqual({
+          permission: 'deny',
+          user_message: GATE_TIMEOUT_REASON,
+          agent_message: GATE_TIMEOUT_REASON,
+        });
+      } finally {
+        rmSync(temporaryDirectory, { recursive: true, force: true });
+      }
     });
 
     it('allows when the gate ran cleanly and stayed silent', () => {
-      expect(decideFromGate({ stdout: '', failed: false })).toEqual({ permission: 'allow' });
+      expect(decideFromGate({ stdout: '', failed: false, timedOut: false })).toEqual({
+        permission: 'allow',
+      });
     });
 
     it('passes through a clean denial verdict from the gate', () => {
       const stdout = JSON.stringify({
         hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'no tests' },
       });
-      expect(decideFromGate({ stdout, failed: false })).toEqual({
+      expect(decideFromGate({ stdout, failed: false, timedOut: false })).toEqual({
         permission: 'deny',
         user_message: 'no tests',
         agent_message: 'no tests',

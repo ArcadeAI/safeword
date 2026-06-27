@@ -153,6 +153,7 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
       expect(hooksConfig.hooks.beforeShellExecution[0].command).toBe(
         'bun ./.safeword/hooks/cursor/before-shell-execution.ts',
       );
+      expect(hooksConfig.hooks.beforeShellExecution[0].timeout).toBe(12);
       expect(hooksConfig.hooks.postToolUse[0].command).toBe(
         'bun ./.safeword/hooks/cursor/post-tool-quality.ts',
       );
@@ -195,6 +196,43 @@ describe('Test Suite: Setup - Cursor IDE Support', () => {
           matcher: 'Write',
           failClosed: true,
           timeout: 90,
+        },
+      ]);
+    });
+
+    it('should replace older safeword Cursor shell hooks on setup', async () => {
+      createTypeScriptPackageJson(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.cursor/hooks.json',
+        `${JSON.stringify(
+          {
+            version: 1,
+            hooks: {
+              beforeShellExecution: [
+                { command: 'node ./scripts/custom-shell-gate.js' },
+                {
+                  command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts',
+                  failClosed: true,
+                },
+              ],
+            },
+          },
+          undefined,
+          2,
+        )}\n`,
+      );
+
+      await runCli(['setup', '--yes'], { cwd: temporaryDirectory });
+
+      const hooksConfig = JSON.parse(readTestFile(temporaryDirectory, '.cursor/hooks.json'));
+      expect(hooksConfig.hooks.beforeShellExecution).toEqual([
+        { command: 'node ./scripts/custom-shell-gate.js' },
+        {
+          command: 'bun ./.safeword/hooks/cursor/before-shell-execution.ts',
+          failClosed: true,
+          timeout: 12,
         },
       ]);
     });
