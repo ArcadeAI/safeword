@@ -20,12 +20,12 @@ const codexHook = nodePath.join(repoRoot, '.safeword/hooks/codex/post-tool-skill
 const fixture = { dir: '' };
 const goFile = (name: string): string => nodePath.join(fixture.dir, name);
 
-function run(hookPath: string, input: unknown): string {
+function run(hookPath: string, input: unknown, projectDirectory: string = fixture.dir): string {
   const result = spawnSync('bun', [hookPath], {
     input: JSON.stringify(input),
     encoding: 'utf8',
     cwd: fixture.dir,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: fixture.dir },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
     timeout: 30_000,
   });
   return result.stdout ?? '';
@@ -52,13 +52,19 @@ describe('skill nudge fires across all three agents on a .go edit', () => {
     expect(JSON.parse(out).hookSpecificOutput.additionalContext).toContain('golang-*');
   });
 
-  it('Cursor — forwards it as additional_context', () => {
-    const out = run(cursorHook, {
-      tool_name: 'Write',
-      tool_input: { file_path: goFile('b.go') },
-      workspace_roots: [fixture.dir],
-      conversation_id: 'cursor-1',
-    });
+  it('Cursor — forwards it as additional_context (resolving project from workspace_roots, not a stale CLAUDE_PROJECT_DIR)', () => {
+    // Pass a deliberately wrong CLAUDE_PROJECT_DIR: the adapter must pin the
+    // project to workspace_roots[0], or the nudge would silently no-op.
+    const out = run(
+      cursorHook,
+      {
+        tool_name: 'Write',
+        tool_input: { file_path: goFile('b.go') },
+        workspace_roots: [fixture.dir],
+        conversation_id: 'cursor-1',
+      },
+      nodePath.join(fixture.dir, 'WRONG-stale-dir'),
+    );
     expect(JSON.parse(out).additional_context).toContain('golang-*');
   });
 

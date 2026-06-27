@@ -50,7 +50,14 @@ function translatePostOutput(stdout: string): Record<string, unknown> {
 
 const input = await readInput();
 const workspace = input.workspace_roots?.[0];
-if (workspace) process.chdir(workspace);
+if (workspace) {
+  process.chdir(workspace);
+  // Pin the spawned Claude hook's project root to the Cursor workspace. Without
+  // this, runClaudeHook falls back to `CLAUDE_PROJECT_DIR ?? cwd`, so a stale
+  // CLAUDE_PROJECT_DIR exported in the environment would silently point the hook
+  // at the wrong project and the nudge would never fire.
+  process.env.CLAUDE_PROJECT_DIR = workspace;
+}
 
 const claudeTool = mapCursorToolName(input.tool_name);
 if (!claudeTool || !existsSync('.safeword')) emitAndExit({});
