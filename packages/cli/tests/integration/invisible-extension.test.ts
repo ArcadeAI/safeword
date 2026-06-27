@@ -20,6 +20,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  SKIP_SKILLS_ENV,
   writeTestFile,
 } from '../helpers';
 
@@ -255,6 +256,7 @@ formatters:
         await runCli(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
+          env: SKIP_SKILLS_ENV,
         });
 
         // Original config should be preserved
@@ -297,6 +299,7 @@ formatters:
         await runCli(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
+          env: SKIP_SKILLS_ENV,
         });
 
         // Project-level config should be created (since no existing)

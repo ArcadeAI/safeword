@@ -16,13 +16,15 @@
  *
  * Source: samber/cc-skills-golang (MIT), tracked @latest (no pin).
  *
- * Selection: 'all'. The upstream installer (`npx skills`) exposes only `--all`
- * or an explicit `--skill <names...>` list — there is NO general-purpose-group
- * flag. Selecting "general-purpose only" would therefore require enumerating
- * names here, which is exactly the drift we refuse. samber's own atomicity rule
- * also says the general-purpose skills install together (they cross-reference),
- * so a curated subset risks partial/inconsistent guidance. We install the full
- * set; library-specific skills that never match the project simply never fire.
+ * Selection: 'all'. The upstream installer (`npx skills`) takes either `--skill
+ * '*'` (every skill) or an explicit `--skill <names...>` list — there is NO
+ * general-purpose-group flag. Selecting "general-purpose only" would therefore
+ * require enumerating names here, which is exactly the drift we refuse. samber's
+ * own atomicity rule also says the general-purpose skills install together (they
+ * cross-reference), so a curated subset risks partial/inconsistent guidance. We
+ * install the full set; library-specific skills that never match the project
+ * simply never fire. (The harness maps 'all' to `--skill '*'` and targets only
+ * the agents safeword supports — never `--all`, which fans out to every agent.)
  */
 
 /** Where the skills come from. The harness owns the install command + ref policy. */

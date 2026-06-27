@@ -10,6 +10,7 @@ import nodePath from 'node:path';
 
 import { checkHealth, reportHealthSummary } from '../health.js';
 import { setupGoTooling } from '../packs/golang/setup.js';
+import { GOLANG_SKILL_SELECTION, GOLANG_SKILL_SOURCE } from '../packs/golang/skills.js';
 import { installPack } from '../packs/install.js';
 import {
   detectPythonLayers,
@@ -21,6 +22,7 @@ import {
 import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
+import { installSkills } from '../skills/install.js';
 import {
   CODEX_TRUST_NEXT_STEP,
   reconciledCodexConfig,
@@ -416,11 +418,36 @@ function setupPythonProject(languages: Languages, cwd: string): PythonSetupStatu
 
 /**
  * Setup Go project tooling.
- * Config files (.golangci.yml) are created by reconciliation.
+ * Config files (.golangci.yml) are created by reconciliation. Go judgment skills
+ * (samber/cc-skills-golang) are pulled best-effort — a failure degrades to a
+ * warning, never blocks setup.
  */
-function setupGoProject(languages: Languages): void {
-  if (languages.golang) {
-    setupGoTooling();
+function setupGoProject(languages: Languages, cwd: string): void {
+  if (!languages.golang) return;
+  setupGoTooling();
+
+  const skills = installSkills({
+    source: GOLANG_SKILL_SOURCE,
+    selection: GOLANG_SKILL_SELECTION,
+    cwd,
+  });
+  switch (skills.status) {
+    case 'installed': {
+      success(`Installed Go coding skills (${skills.detail})`);
+      break;
+    }
+    case 'skipped': {
+      info(`Skipped Go coding skills (${skills.detail})`);
+      break;
+    }
+    case 'failed': {
+      warn(`Could not install Go coding skills — continuing without them (${skills.detail}).`);
+      info(
+        '  Install later: npx skills add github.com/samber/cc-skills-golang ' +
+          "--skill '*' -a claude-code -a codex -a cursor --copy -y",
+      );
+      break;
+    }
   }
 }
 
@@ -481,7 +508,7 @@ export async function setup(options: SetupOptions): Promise<void> {
       result.packagesToInstall,
     );
     const pythonStatus = setupPythonProject(languages, cwd);
-    setupGoProject(languages);
+    setupGoProject(languages, cwd);
     registerLanguagePacks(cwd);
 
     printSetupSummary({
