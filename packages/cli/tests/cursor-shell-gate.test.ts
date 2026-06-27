@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type ClaudeGateResult,
-  decideFromShellGate,
+  decideFromGate,
   GATE_UNAVAILABLE_REASON,
   requiresFailClosedShellGate,
 } from '../templates/hooks/cursor/gate-adapter';
@@ -21,13 +21,15 @@ function cleanGateWithOutput(stdout: string): ClaudeGateResult {
   };
 }
 
+// The shipped decision path lives in before-shell-execution.ts: it first asks
+// `requiresFailClosedShellGate` whether the command must be gated, and only spawns
+// the delegated gate (then maps its result via `decideFromGate`) when it must.
+// These tests pin both halves of that contract.
 describe('Cursor beforeShellExecution gate', () => {
   it.each(['git status --short', 'git diff --stat', 'git log -1 --oneline', 'bun run lint'])(
-    'allows %s when the delegated gate is unavailable',
+    'does not fail-close %s (allowed without spawning the delegated gate)',
     command => {
-      expect(decideFromShellGate({ command, result: unavailableGate })).toEqual({
-        permission: 'allow',
-      });
+      expect(requiresFailClosedShellGate({ command })).toBe(false);
     },
   );
 
@@ -38,9 +40,15 @@ describe('Cursor beforeShellExecution gate', () => {
     'git --no-pager commit -m "save"',
     'command git commit -m "save"',
     'env GIT_AUTHOR_NAME=bot git commit -m "save"',
-  ])('keeps %s fail-closed when the delegated gate is unavailable', command => {
+    // Bare leading env-assignments must not slip the gate (the env(1) wrapper is
+    // optional in real shells): `VAR=val git commit …` is still a commit.
+    'GIT_AUTHOR_NAME=bot git commit -m "save"',
+    'GIT_EDITOR=true git commit',
+    'GIT_AUTHOR_NAME=bot GIT_AUTHOR_EMAIL=bot@x command git commit -m "save"',
+  ])('keeps %s fail-closed, so the delegated gate runs', command => {
     expect(requiresFailClosedShellGate({ command })).toBe(true);
-    expect(decideFromShellGate({ command, result: unavailableGate })).toEqual({
+    // When that gate is then unavailable, the action is denied (fail-closed).
+    expect(decideFromGate(unavailableGate)).toEqual({
       permission: 'deny',
       user_message: GATE_UNAVAILABLE_REASON,
       agent_message: GATE_UNAVAILABLE_REASON,
@@ -51,6 +59,8 @@ describe('Cursor beforeShellExecution gate', () => {
     expect(requiresFailClosedShellGate({ command: 'git commit-graph write' })).toBe(false);
     expect(requiresFailClosedShellGate({ command: 'git commit-tree HEAD^{tree}' })).toBe(false);
     expect(requiresFailClosedShellGate({ command: 'echo "git commit -m save"' })).toBe(false);
+    // The env-assignment skip must not over-trigger on non-commit git subcommands.
+    expect(requiresFailClosedShellGate({ command: 'GIT_PAGER=cat git status' })).toBe(false);
   });
 
   it('preserves a real denial from the delegated gate', () => {
@@ -64,7 +74,7 @@ describe('Cursor beforeShellExecution gate', () => {
       }),
     );
 
-    expect(decideFromShellGate({ command: 'git status --short', result: deniedGate })).toEqual({
+    expect(decideFromGate(deniedGate)).toEqual({
       permission: 'deny',
       user_message: denialReason,
       agent_message: denialReason,

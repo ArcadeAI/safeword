@@ -336,15 +336,29 @@ function isGitCommitSegment(words: string[]): boolean {
 }
 
 function skipCommandPrefix(words: string[]): number {
-  let index = 0;
+  // A leading run of `VAR=val` assignments is a per-command environment, not the
+  // executable (`GIT_AUTHOR_NAME=bot git commit`). Skip it before resolving the
+  // command word — otherwise the assignment is read as the command name and a
+  // `git commit` slips the fail-closed gate.
+  let index = skipEnvironmentAssignments(words, 0);
   if (words[index] === 'command') index += 1;
   if (words[index] !== 'env') return index;
 
+  // `env [NAME=value ...] command` — skip past `env` and its own assignments.
   index += 1;
-  while (index < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index] ?? '')) {
+  return skipEnvironmentAssignments(words, index);
+}
+
+function skipEnvironmentAssignments(words: string[], start: number): number {
+  let index = start;
+  while (index < words.length && isEnvironmentAssignment(words[index] ?? '')) {
     index += 1;
   }
   return index;
+}
+
+function isEnvironmentAssignment(token: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
 }
 
 function optionTakesSeparateValue(option: string): boolean {
@@ -418,22 +432,8 @@ export function decideFromGate(result: ClaudeGateResult): CursorDecision {
   return toCursorDecision(claudeDenialReason(result.stdout));
 }
 
-/**
- * Shell-specific gate decision.
- *
- * The delegated Bash gate only inspects `git commit`. When that gate is
- * unavailable, blocking every shell command creates a deadlock without adding
- * safety: the unavailable gate would not have denied `git status`, tests, or
- * audit commands anyway. Keep fail-closed behavior for `git commit`; fail open
- * for commands outside the delegated gate's scope.
- */
-export function decideFromShellGate(params: {
-  command: string;
-  result: ClaudeGateResult;
-}): CursorDecision {
-  const { command, result } = params;
-  if (result.failed && !requiresFailClosedShellGate({ command })) {
-    return { permission: 'allow' };
-  }
-  return decideFromGate(result);
-}
+// The shell-specific decision lives in before-shell-execution.ts: it calls
+// `requiresFailClosedShellGate` BEFORE spawning the delegated gate (so non-commit
+// commands are allowed without a spawn, avoiding the deadlock) and `decideFromGate`
+// AFTER. There is intentionally no combined helper here — keeping the two steps in
+// the hook is what lets it skip the spawn entirely for out-of-scope commands.
