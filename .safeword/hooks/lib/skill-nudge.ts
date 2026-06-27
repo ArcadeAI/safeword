@@ -54,6 +54,37 @@ export function skillNudgeLine(language: SkillLanguage): string {
   );
 }
 
+/**
+ * Identify the scenario the agent is currently working, from test-definitions.md
+ * content, for per-scenario dedup. Returns the heading of the first scenario that
+ * still has an unchecked RED/GREEN/REFACTOR box (the current frontier), or
+ * undefined when there's no recognizable in-progress scenario (then the caller
+ * falls back to a session-scoped key). Pure; mirrors parseTddStep's scan but
+ * returns scenario identity rather than the TDD step.
+ */
+export function activeScenarioKey(content: string): string | undefined {
+  const lines = content.split('\n');
+  let heading: string | undefined;
+  let firstUnfinished: string | undefined;
+  let sawUnchecked = false;
+
+  const flush = (): void => {
+    if (heading && sawUnchecked && !firstUnfinished) firstUnfinished = heading;
+  };
+
+  for (const line of lines) {
+    if (/^#{2,3}\s/.test(line)) {
+      flush();
+      heading = line.replace(/^#{2,3}\s+/, '').trim();
+      sawUnchecked = false;
+      continue;
+    }
+    if (/^- \[ \] (RED|GREEN|REFACTOR)\b/i.test(line)) sawUnchecked = true;
+  }
+  flush();
+  return firstUnfinished;
+}
+
 export interface SkillNudge {
   /** The advisory line to inject. */
   line: string;

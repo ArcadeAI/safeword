@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  activeScenarioKey,
   decideSkillNudge,
   languageForFile,
   skillNudgeLine,
@@ -37,6 +38,30 @@ describe('skillNudgeLine', () => {
     expect(line).toContain('Revise the current file if it applies.');
     // Drift guard: the line must not enumerate actual skill names.
     expect(line).not.toContain('golang-context');
+  });
+});
+
+describe('activeScenarioKey', () => {
+  const complete = ['- [x] RED a', '- [x] GREEN a', '- [x] REFACTOR a'].join('\n');
+  const inProgress = ['- [x] RED a', '- [ ] GREEN a', '- [ ] REFACTOR a'].join('\n');
+
+  it('returns the heading of the in-progress scenario', () => {
+    const content = `### Scenario: alpha\n${inProgress}`;
+    expect(activeScenarioKey(content)).toBe('Scenario: alpha');
+  });
+
+  it('advances to the first unfinished scenario (skips completed ones)', () => {
+    const content = `### Scenario: alpha\n${complete}\n### Scenario: beta\n${inProgress}`;
+    expect(activeScenarioKey(content)).toBe('Scenario: beta');
+  });
+
+  it('returns undefined when every scenario is complete', () => {
+    const content = `### Scenario: alpha\n${complete}`;
+    expect(activeScenarioKey(content)).toBeUndefined();
+  });
+
+  it('returns undefined when there are no scenarios', () => {
+    expect(activeScenarioKey('# Notes\n\njust prose')).toBeUndefined();
   });
 });
 

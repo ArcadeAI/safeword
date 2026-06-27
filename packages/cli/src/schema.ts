@@ -647,6 +647,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/post-tool-quality.ts': {
       template: 'hooks/post-tool-quality.ts',
     },
+    '.safeword/hooks/post-tool-skill-nudge.ts': {
+      template: 'hooks/post-tool-skill-nudge.ts',
+    },
     '.safeword/hooks/post-tool-bypass-warn.ts': {
       template: 'hooks/post-tool-bypass-warn.ts',
     },

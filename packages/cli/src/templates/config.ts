@@ -444,6 +444,7 @@ export const SETTINGS_HOOKS = {
   PostToolUse: [
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-lint.ts`),
     matchedHook(`${EDIT_TOOLS}|Bash`, `bun ${HOOKS_DIR}/post-tool-quality.ts`),
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-skill-nudge.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-sync-learnings.ts`),
     // Stamp the dependency fingerprint after a successful install so the
