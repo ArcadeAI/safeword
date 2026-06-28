@@ -682,7 +682,7 @@
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
   Shipped guidance examples should cite generic `src/...` paths, not safeword's own `packages/cli/src/...` monorepo paths.
   → `.project/tickets/4YJV1N-generic-paths-in-shipped-guidance`
-- **Fire retro from Codex Stop hook (transcript substrate) (53DQJZ)** (blocked, epic: —)
+- **Fire retro from Codex Stop hook (transcript substrate) (53DQJZ)** (done, epic: —)
   Make retro fire autonomously at the end of real Codex sessions, the
   blocked by: Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)
   → `.project/tickets/53DQJZ-retro-codex-trigger`
