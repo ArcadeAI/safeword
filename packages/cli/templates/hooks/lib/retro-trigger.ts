@@ -146,15 +146,15 @@ export function resolveSessionId(
   input: { session_id?: string },
   env: SessionIdEnv,
 ): string | undefined {
-  return (
-    nonEmpty(input.session_id) ??
-    nonEmpty(env.CLAUDE_CODE_REMOTE_SESSION_ID) ??
-    nonEmpty(env.CLAUDE_SESSION_ID)
-  );
+  return firstNonEmpty(input.session_id, env.CLAUDE_CODE_REMOTE_SESSION_ID, env.CLAUDE_SESSION_ID);
 }
 
-function nonEmpty(value: string | undefined): string | undefined {
-  return value !== undefined && value.length > 0 ? value : undefined;
+/** The first argument that is a non-empty string, else undefined. */
+function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
+  for (const value of values) {
+    if (value !== undefined && value.length > 0) return value;
+  }
+  return undefined;
 }
 
 /**
@@ -169,7 +169,7 @@ export function resolveCodexSessionId(
 ): string | undefined {
   // turn_id is accepted but deliberately ignored — it changes every turn, so it
   // must never key the once-per-session sentinel.
-  return nonEmpty(input.session_id) ?? nonEmpty(env.CODEX_THREAD_ID);
+  return firstNonEmpty(input.session_id, env.CODEX_THREAD_ID);
 }
 
 /**
@@ -184,7 +184,7 @@ export function resolveCursorSessionId(
   input: { conversation_id?: string },
   _env: Record<string, string | undefined>,
 ): string | undefined {
-  return nonEmpty(input.conversation_id);
+  return firstNonEmpty(input.conversation_id);
 }
 
 /**
