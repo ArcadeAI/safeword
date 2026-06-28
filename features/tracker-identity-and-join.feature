@@ -1,4 +1,12 @@
-@tracker-identity-and-join
+# Tagged @wip to exclude this feature from the cucumber acceptance lane: issue-first
+# creation shells out to a real tracker (gh/Arcade) and the join reader has no CLI
+# surface, so there is no live-tracker-free way to drive these end-to-end ("no live
+# tracker in tests", per the testing lesson in #363 — same stance as
+# sync-tracker.feature and tracker-connect-flow.feature). Behavior is proven in
+# packages/cli/tests (resolve-by-key, ticket-writer-issue-first, ticket-creation-mode,
+# ticket-identity, create-ticket-routed, ticket-new-wiring); this .feature is the
+# canonical scenario source (feature-files-as-source).
+@tracker-identity-and-join @wip
 Feature: Issue-first ticket identity + tracker-key→local-folder join reader
 
   When a tracker is connected, a ticket's identity comes from the tracker (the issue key) and the
