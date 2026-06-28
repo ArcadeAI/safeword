@@ -2,7 +2,7 @@
 id: KHYXY4
 slug: retro-cursor-trigger
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 depends_on: [FTCQGD]
@@ -59,3 +59,13 @@ quality-review followup under the 5-submission cap.
   Claude-shaped JSONL transcript. Dropped the SQLite-mining scope. Resolved:
   reuse Claude `countToolUses`, resolve session id from conversation_id, emit
   `followup_message`. Entering define-behavior.
+- 2026-06-28T19:11Z Complete: scenario-gate - independent fork review caught 3
+  blockers (vacuous coexistence, unexercised counter, unproven id resolution); all
+  fixed. Re-review PASS. 13 scenarios/5 rules. impl-plan written. Stamped.
+- 2026-06-28T19:20Z Implement: resolveCursorSessionId (conversation_id) +
+  conversation_id on RetroTriggerInput; reused Claude countToolUses (Cursor
+  transcript is Claude-shaped, characterization-pinned). Added the retro path to
+  cursor/stop.ts on the non-quality-review branch (yields to quality-review,
+  sentinel untouched). 4 unit + 6 integration tests; fixed a brittle exact-import
+  assertion in cursor-stop-review.test.ts. 51 cursor/retro tests green, typecheck
+  + lint clean.

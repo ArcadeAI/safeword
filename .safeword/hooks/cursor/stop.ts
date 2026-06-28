@@ -12,7 +12,8 @@ import { getTicketInfo } from '../lib/active-ticket.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
 import { readSessionState } from '../lib/quality-state.ts';
 import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
-import { installCrashCapture } from '../lib/self-report.ts';
+import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
+import { countToolUses, decideRetroNudge, resolveCursorSessionId } from '../lib/retro-trigger.ts';
 
 installCrashCapture('cursor-stop', undefined, 'cursor');
 
@@ -21,10 +22,32 @@ interface CursorInput {
   conversation_id?: string;
   generation_id?: string;
   status?: string;
+  // Every Cursor hook (incl. stop) carries transcript_path to the conversation
+  // transcript (official docs) — the earlier interface omitted it.
+  transcript_path?: string;
 }
 
 interface StopOutput {
   followup_message?: string;
+}
+
+/**
+ * Emit the retro nudge as a followup_message when this session is substantial and
+ * not yet nudged, else `{}`. Only called on stops where the quality-review
+ * followup is NOT firing, so retro never clobbers it and the once-per-session
+ * sentinel is left untouched when quality-review wins the stop.
+ */
+function emitRetroOrEmpty(input: CursorInput): void {
+  if (!readSelfReportConfig(process.cwd()).surface) {
+    console.log('{}');
+    return;
+  }
+  const reason = decideRetroNudge(
+    { conversation_id: input.conversation_id, transcript_path: input.transcript_path },
+    { env: process.env, countToolUses, resolveSessionId: resolveCursorSessionId },
+  );
+  const output: StopOutput = reason ? { followup_message: reason } : {};
+  console.log(JSON.stringify(output));
 }
 
 function isAutomatedEvidenceRun(
@@ -84,10 +107,13 @@ if (await Bun.file(markerFile).exists()) {
     process.exit(0);
   }
 
+  // Quality review takes this stop; retro yields and its sentinel is untouched,
+  // so retro can still fire on a later non-review stop.
   const output: StopOutput = {
     followup_message: QUALITY_REVIEW_MESSAGE,
   };
   console.log(JSON.stringify(output));
 } else {
-  console.log('{}');
+  // No edits this stop → quality review does not fire → retro may.
+  emitRetroOrEmpty(input);
 }

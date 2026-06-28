@@ -173,6 +173,19 @@ export function resolveCodexSessionId(
 }
 
 /**
+ * Resolve a Cursor session id from the stop payload's `conversation_id`, which is
+ * session-stable (NOT `generation_id`, which is per-generation and would let retro
+ * fire more than once per session). Returns undefined when absent, so the caller
+ * fails open.
+ */
+export function resolveCursorSessionId(
+  input: { conversation_id?: string },
+  _env: Record<string, string | undefined>,
+): string | undefined {
+  return nonEmpty(input.conversation_id);
+}
+
+/**
  * The fact-phrased nudge surfaced via Stop additionalContext. A STATEMENT, never
  * an imperative — out-of-band/command phrasing trips Claude's prompt-injection
  * defenses and gets surfaced verbatim instead of acted on (the stop-self-report
@@ -191,6 +204,8 @@ export interface RetroTriggerInput {
   session_id?: string;
   /** Codex turn-scoped events carry turn_id; read by the Codex session resolver. */
   turn_id?: string;
+  /** Cursor stop payloads carry conversation_id; read by the Cursor session resolver. */
+  conversation_id?: string;
   transcript_path?: string;
 }
 
