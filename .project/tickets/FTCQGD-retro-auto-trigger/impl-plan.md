@@ -1,6 +1,32 @@
 # Impl Plan: retro auto-trigger (Claude-first)
 
-**Status:** planned
+**Status:** implemented
+
+## Reconciliation (implement-phase exit)
+
+The build matched the plan; no design drift. Notes:
+
+- **Decisions held as written.** Substance signal = tool-use count in the
+  transcript (`countToolUses`); threshold is the named constant
+  `SUBSTANCE_THRESHOLD = 3` (the plan's "named constant, scenarios pin the boundary
+  symbolically" — the scenarios reference `SUBSTANCE_THRESHOLD ± n`, not a magic
+  number). Sentinel = `/tmp/safeword-retro-<sanitized-id>`. Nudge fact-phrased.
+  Config gate = `selfReport.surface` (reused, as planned). Shared core lives in
+  `lib/retro-trigger.ts` for 53DQJZ/KHYXY4 reuse.
+- **Arch alignment held** — modular hook + fact-phrased self-report surfacing +
+  byte-parity template mirrors + "three surfaces, one egress core" (this is the
+  trigger only; no new egress).
+- **Known deviations:** none (the skip held).
+- **One addition not in the plan:** an `EXEMPT_HOOKS` entry in
+  `tests/smoke/hook-coverage.test.ts` — the smoke drift-guard requires every
+  shipped hook to have live-smoke coverage or a justified exemption; stop-retro is
+  a Stop hook (not live-assertable), covered by the integration test, so it is
+  exempted exactly like its sibling stop-self-report. Surfaced by CI, not foreseen
+  at plan time; no design impact.
+- **Live dogfood confirmation:** the hook fired its nudge on this very session's
+  Stop (substantial transcript, fact-phrased additionalContext with the live
+  transcript path + guide pointer) — end-to-end wiring confirmed in the real
+  harness, beyond the deterministic tests.
 
 ## Approach
 
