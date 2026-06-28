@@ -65,3 +65,32 @@ Python unaffected. Independent re-review **APPROVE** (verified by re-running the
 fixtures). Three quality-review passes, three real silent-wrong bugs found and fixed
 (buried-AC misframe in scenario-gate; the PEP 508 `#`-in-url drop; this maturin
 mis-dispatch) — the parser and dispatch are now hardened against the common Python shapes.
+
+## Quality-review pass 4 (post-rebase onto v0.58.0; two parallel fresh reviewers)
+
+After rebasing the branch onto the latest main and opening PR #544, a fresh full-diff
+quality-review ran two independent reviewers in parallel (diversity lens: parser
+spec-correctness vs dispatch/regression).
+
+- **Parser reviewer — APPROVE.** Verified `readPyprojectDependencies` (`/^[\w.-]+/`),
+  `[project]` table-scoping (optional-dependencies subtable correctly NOT misread), and the
+  TOML subset against primary sources fetched this session (PEP 508, PEP 503/name-norm,
+  PEP 621, uv workspace docs). Every out-of-subset input fails honestly (undefined/[]),
+  never silently wrong. One NOTE: the scope/impl-plan text claimed `optional-dependencies`
+  join the fingerprint, but the code reads only `[project] dependencies` and the closing
+  log defers it — a self-contradiction in the ticket. **Reconciled** the ticket.md scope
+  line and impl-plan step 1 to state optional-dependencies is deferred (it is a table of
+  extra→array, a different shape); the omission is honest, not silently wrong.
+
+- **Dispatch reviewer — NEEDS DISCUSSION → fixed.** Found a real silent **regression**
+  the prior three passes missed (verified by checking out the pre-HWSEPV baseline and
+  executing it): the maturin fix made the pyproject branch win **unconditionally**, so a
+  Go service (`go.mod` + `cmd/`/`internal/`) or a Rust crate (`src/*.rs`) that merely
+  carries a stray `pyproject.toml` (helper scripts / ruff config) returned an empty
+  skeleton instead of its real layout — breaching the ticket's "Go/Rust unchanged"
+  guarantee, and untested (the only mixed test had a `.py` module). **Fix:** the pyproject
+  branch now returns `pythonModuleNodes` only when non-empty, else falls through to the
+  Cargo → src/ → go.mod chain — genuine maturin (has `src/*.py`) still wins; stray-pyproject
+  Go/Rust projects keep their byte-for-byte layout. Two regression tests added (RED before
+  the fix, GREEN after): `{go.mod + cmd/internal + pyproject}` → `['cmd','internal']`;
+  `{Cargo + src/parser.rs + pyproject}` → `['parser']`. The maturin test stays green.

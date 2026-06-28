@@ -275,3 +275,45 @@ describe('extractSkeleton — maturin (pyproject + Cargo) dispatch (HWSEPV revie
     expect(skeleton.nodes.map(node => node.name)).toEqual(['db', 'mypkg']);
   });
 });
+
+describe('extractSkeleton — pyproject alongside Go/Rust must not regress them (HWSEPV review)', () => {
+  // The pyproject branch is checked first (for maturin), but it must only WIN when it
+  // actually yields Python modules. A Go service or a Rust crate that merely carries a
+  // stray pyproject.toml (Python helper scripts, ruff/pre-commit config) has NO Python
+  // modules, and the ticket promises Go/Rust output is byte-for-byte unchanged — so the
+  // dispatch must fall through to the Go/Rust extractor instead of emptying the skeleton.
+
+  it('keeps the Go layout when a non-Python pyproject.toml is also present', () => {
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      'module example.com/app\n\ngo 1.22\n',
+    );
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[project]\nname = "tools"\n',
+    );
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+    mkdirSync(nodePath.join(context.directory, 'internal', 'store'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    // No __init__.py dirs and no root *.py → Python yields nothing → Go layout stands.
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['cmd', 'internal']);
+  });
+
+  it('keeps Rust file modules when a non-Python pyproject.toml is also present', () => {
+    writeFileSync(nodePath.join(context.directory, 'Cargo.toml'), '[package]\nname = "app"\n');
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[project]\nname = "tools"\n',
+    );
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'lib.rs'), '');
+    writeFileSync(nodePath.join(context.directory, 'src', 'parser.rs'), '');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    // src/ holds only .rs files → Python src-layout yields nothing → Rust modules stand.
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['parser']);
+  });
+});

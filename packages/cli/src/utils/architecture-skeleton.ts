@@ -64,8 +64,14 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // ships both a `pyproject.toml` AND a `Cargo.toml`; it is Python-primary (the crate
   // is a build backend), so it must not dispatch to the Rust extractor and drop its
   // `*.py` modules. Also before the plain src-dir path so `src/*.py` files aren't lost.
+  //
+  // But Python only WINS when it actually yields modules: a Go service or a Rust crate
+  // that merely carries a stray `pyproject.toml` (helper scripts, ruff/pre-commit config)
+  // has no Python modules, and the ticket promises Go/Rust output is byte-for-byte
+  // unchanged. So an empty Python result falls through to the Cargo/Go extractors below.
   if (exists(nodePath.join(projectDirectory, 'pyproject.toml'))) {
-    return { nodes: pythonModuleNodes(projectDirectory) };
+    const pythonNodes = pythonModuleNodes(projectDirectory);
+    if (pythonNodes.length > 0) return { nodes: pythonNodes };
   }
 
   // A Rust crate (a `Cargo.toml` is present, and no `pyproject.toml`) is described by

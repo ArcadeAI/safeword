@@ -23,8 +23,10 @@ fingerprint:
    uv's actual `[tool.uv.workspace] members` TOML form against current uv docs; correct
    scenario 3's fixture before GREEN if it diverges (scenario-gate implementer NOTE).
 1. **pyproject reader** — `pyproject-manifest.ts` (new): `readPyprojectName` (`[project] name`),
-   `readPyprojectDependencies` (`[project] dependencies` + `optional-dependencies` arrays →
-   PEP 508 names), `readUvWorkspaceMembers` (`[tool.uv.workspace] members`). Reuses the
+   `readPyprojectDependencies` (`[project] dependencies` array → PEP 508 names; as-built,
+   `[project.optional-dependencies]` deferred to the follow-up — it is a table of extra→array,
+   a different shape than the single `dependencies` array), `readUvWorkspaceMembers`
+   (`[tool.uv.workspace] members`). Reuses the
    TOML primitives from `cargo-manifest.ts` where cleanly shareable (the array-body scan,
    `stripComment`, `unquote`) — extract those to a shared `toml.ts` IF the reuse is clean,
    else duplicate minimally and let the registry refactor consolidate later. PEP 508 name =
