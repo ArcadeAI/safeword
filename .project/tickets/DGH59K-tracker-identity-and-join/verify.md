@@ -22,4 +22,15 @@ tests", #363) and prove behavior in vitest, not to author fake-binary black-box 
 files import internals; both sibling tracker features do exactly this). Tagged the feature `@wip`
 with the rationale comment; `bun run test:bdd` is green (159/159, this feature excluded).
 
-Outstanding before `done`: run `/audit` (separate gate) and obtain user confirmation to close.
+## Audit
+
+Audit passed. `/audit` found one real issue and it was fixed: a layer violation
+(`cli-no-cross-command-imports`) from placing orchestration helpers under `commands/` — moved them
+to `src/ticket-create/` (matches the `tracker-sync`/`ticket-sync` convention); depcruise now 0
+violations. Dead-code (knip) clean for the new files; duplication (jscpd) 0 clones; depcruise
+config in sync; test quality clean (specific assertions, fresh temp-cwd per test, no arbitrary
+timeouts, strong edge coverage). The join reader's unused-by-production export is intentional
+(SM2.AC6, ahead of its consumer) and documented in code.
+
+Outstanding before `done`: user confirmation to close (the done-gate's "never done without user
+confirmation" invariant).
