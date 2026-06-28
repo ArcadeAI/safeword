@@ -10,6 +10,8 @@ Step-aware quality review at TDD phase boundaries. Run it as an internal self-ch
 
 These per-step reviews are **advisory self-checks** — the only hard gates in the implement phase are the commit ledger (`test-definitions.md` annotations) and the done-gate. Use these reviews to catch problems early; don't treat them as blocking walls.
 
+**Stakes set depth.** Advisory means it won't block you — not that it can be shallow. The done-gate only runs tests, so a bug your eyes miss here ships. Review each step as if no later gate re-reads this code.
+
 **Visibility:** ordinary RED/GREEN/REFACTOR reviews stay quiet. Do not surface a chat-facing review after each checkbox flip unless you found a real blocker, a user/scope decision, or a risky external dependency/API finding. Report the review/refactor work in the implementation-exit summary.
 
 ## Detect Step

@@ -14,6 +14,10 @@ step is unblocked. This is **Tier 1** — a cheap, inline floor. You review your
 own work; no sub-agent is spawned. The independent check is Tier 2 (the fork
 review at each phase exit), not this.
 
+**Stakes set depth.** Tier 2 may never run — review as if your stamp is the last
+word before code gets built on this spec, because often it is. Cheap floor means
+fast, not shallow.
+
 ## Earn the stamp
 
 The line below runs the stamp-earning step at render time. It binds a
