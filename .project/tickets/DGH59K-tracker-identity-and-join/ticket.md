@@ -35,6 +35,13 @@ scenarios in [./test-definitions.md](./test-definitions.md); feature source
 
 ## Work Log
 
+- 2026-06-28T15:02:00Z implement: issue-first core GREEN (b38565c). createIssueFirstTicket mints
+  identity (injected source = network boundary) before any folder; failed mint → no orphan.
+  Extracted writeTicketContents (shared local + issue-first). Covers TB1.AC1.connected_mints +
+  TB1.AC2.unreachable_fails_no_orphan. Remaining figureable (command wiring): provider routing
+  (no_tracker vs issue-first), adopt (--issue), credential degrade + secret redaction.
+  BLOCKER reached → TB1.AC2.partial_create_reconciles: see decision note below; need product call
+  on the idempotency mechanism before building it (and it shapes the create flow).
 - 2026-06-28T05:40:00Z implement: SM1.AC1 join reader GREEN (58d70c8). resolveFolderByTrackerKey
   (tracker-sync/resolve-by-key.ts) + TrackerMap.findTicketIdByRefId; 5 unit tests (known, both key
   shapes, id≠key legacy, unknown, stale) pass. Not-found sentinel = undefined (package lint

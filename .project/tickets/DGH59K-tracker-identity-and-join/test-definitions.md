@@ -23,9 +23,9 @@ And no local ticket folder exists at the moment issue-create is invoked
 And after the command exactly one new ticket folder exists, keyed to the issue key
 And the ticket's identity is the issue key
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b38565c
+- [x] GREEN b38565c
+- [x] REFACTOR b38565c: extracted shared writeTicketContents (local + issue-first paths)
 
 ### Scenario: tracker-identity-and-join.TB1.AC1.existing_issue_is_adopted
 
@@ -60,9 +60,13 @@ Then the command fails with a clear, non-zero error
 And tracker issue-create was attempted (failure came from the tracker, not a pre-flight skip)
 And the tickets directory contains the same folders as before the command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b38565c
+- [x] GREEN b38565c
+- [x] REFACTOR skip: covered by the happy-path extraction; no further cleanup
+<!-- Note: this slice proves the createIssueFirstTicket core (mint-before-folder).
+     The "clear non-zero error" surfacing is the command-level wiring slice (pending). -->
+
+
 
 ### Scenario: tracker-identity-and-join.TB1.AC2.rejected_credential_fails_no_orphan
 
