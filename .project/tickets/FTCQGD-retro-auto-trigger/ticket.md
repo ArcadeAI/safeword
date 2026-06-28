@@ -2,8 +2,8 @@
 id: FTCQGD
 slug: retro-auto-trigger
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 scope: |
   CLAUDE-FIRST. A `stop-retro.ts` Claude Code Stop hook that, at most once per

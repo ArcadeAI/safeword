@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (345)
+## Tickets (349)
 
 ### agent-surface-refactor
 
@@ -682,6 +682,10 @@
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
   Shipped guidance examples should cite generic `src/...` paths, not safeword's own `packages/cli/src/...` monorepo paths.
   → `.project/tickets/4YJV1N-generic-paths-in-shipped-guidance`
+- **Fire retro from Codex Stop hook (transcript substrate) (53DQJZ)** (blocked, epic: —)
+  Make retro fire autonomously at the end of real Codex sessions, the
+  blocked by: Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)
+  → `.project/tickets/53DQJZ-retro-codex-trigger`
 - **lint-config-unify (54XH90)** (open, epic: —)
   Eliminate the local-vs-CI eslint config drift so devs don't ship code that passes locally then fails CI (or vice versa).
   → `.project/tickets/54XH90-lint-config-unify`
@@ -891,6 +895,10 @@
 - **Architecture doc staleness enforcement (Slice 2 — auto-fix on commit, fail CI, opt-out) (FPV0E4)** (done, epic: —)
   Make the generated architecture doc's freshness _enforced_, not just
   → `.project/tickets/FPV0E4-architecture-staleness-enforcement`
+- **Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)** (done, epic: —)
+  Make `safeword retro` fire on its own at the end of real sessions —
+  blocks: Fire retro from Codex Stop hook (transcript substrate) (53DQJZ), Fire retro from Cursor stop hook (transcript substrate) (KHYXY4)
+  → `.project/tickets/FTCQGD-retro-auto-trigger`
 - **Convert bdd cursor rules to @reference + reconcile to 7-phase set (G1A6BS)** (done, epic: —)
   Make the bdd Cursor rules thin `@reference` pointers at the canonical bdd skill files, and bring the rule set up to the live 7-phase model (add verify, de-merge done).
   → `.project/tickets/G1A6BS-bdd-cursor-rules-reference`
@@ -951,6 +959,10 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
+- **Fire retro from Cursor stop hook (transcript substrate) (KHYXY4)** (blocked, epic: —)
+  Make retro fire autonomously at the end of real Cursor sessions, the
+  blocked by: Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)
+  → `.project/tickets/KHYXY4-retro-cursor-trigger`
 - **De-jargon the interactive CLI; auto-default the namespace-move prompt (KRUEWC)** (done, epic: —)
   Make the unmediated terminal surface (`setup`/`upgrade`/`check`) answerable by a non-coder, and never halt on a jargon-only decision.
   → `.project/tickets/KRUEWC-dejargon-interactive-cli`
@@ -971,6 +983,10 @@
 - **De-number bdd lifecycle refs in scaffolding templates (MT05DF)** (done, epic: —)
   Finish the named-phase rename in the three scaffolding templates DKETNZ flagged but deliberately deferred.
   → `.project/tickets/MT05DF-denumber-scaffold-templates`
+- **Run verification automatically after implementation (MZAHAW)** (in_progress, epic: —)
+  Prevent SafeWord from pausing for human approval between implementation and verification.
+  external issue: https://github.com/ArcadeAI/safeword/issues/483
+  → `.project/tickets/MZAHAW-run-verification-automatically-after-implementation`
 - **Reduce outdated dependency noise in audit (NAATTE)** (in_progress, epic: —)
   Make `/audit` report only dependency updates old enough to be worth action, across supported language ecosystems, without changing the target repo's package-management policy.
   → `.project/tickets/NAATTE-age-filter-outdated-audit`
