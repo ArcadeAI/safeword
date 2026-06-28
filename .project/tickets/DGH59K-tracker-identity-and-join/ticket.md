@@ -35,6 +35,11 @@ scenarios in [./test-definitions.md](./test-definitions.md); feature source
 
 ## Work Log
 
+- 2026-06-28T05:40:00Z implement: SM1.AC1 join reader GREEN (58d70c8). resolveFolderByTrackerKey
+  (tracker-sync/resolve-by-key.ts) + TrackerMap.findTicketIdByRefId; 5 unit tests (known, both key
+  shapes, id≠key legacy, unknown, stale) pass. Not-found sentinel = undefined (package lint
+  unicorn/no-null; feature/ledger wording aligned). 4 SM1.AC1 ledger scenarios checked off.
+  Next: TB1.AC1 issue-first `ticket new` (command-level @wiring, inject tracker client).
 - 2026-06-28T05:25:00Z scenario-gate PASS (independent review, 2 rounds — round 1 CHANGES-REQUIRED
   4 must-fix/4 should-strengthen, all applied; round 2 PASS, 0 blockers). Stamp recorded for
   scenario-gate. Advanced to implement.

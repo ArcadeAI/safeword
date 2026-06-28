@@ -108,9 +108,9 @@ Given a ticket whose folder records the tracker key `ENG-45`
 When a hook resolves the folder for tracker key `ENG-45`
 Then it returns that ticket's folder path
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 58d70c8
+- [x] GREEN 58d70c8
+- [x] REFACTOR skip: clean; folded into GREEN (cross-package folder-resolve dup with hooks noted in impl-plan)
 
 ### Scenario: tracker-identity-and-join.SM1.AC1.both_key_shapes_resolve
 
@@ -118,9 +118,9 @@ Given a ticket recorded under GitHub key `#123` and a ticket recorded under Line
 When a hook resolves the folder for each key
 Then each returns its own ticket's folder path
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 58d70c8
+- [x] GREEN 58d70c8
+- [x] REFACTOR skip: clean; folded into GREEN
 
 ### Scenario: tracker-identity-and-join.SM1.AC1.unknown_key_clean_not_found
 
@@ -129,9 +129,9 @@ When a hook resolves the folder for tracker key `ENG-999`
 Then it returns the not-found sentinel (undefined), not a path
 And it does not raise an error
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 58d70c8
+- [x] GREEN 58d70c8
+- [x] REFACTOR skip: clean; folded into GREEN
 
 ### Scenario: tracker-identity-and-join.SM1.AC1.stale_map_entry_not_found
 
@@ -140,6 +140,6 @@ When a hook resolves the folder for tracker key `ENG-45`
 Then it returns the not-found sentinel (undefined)
 And it does not return a path that does not exist
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 58d70c8
+- [x] GREEN 58d70c8
+- [x] REFACTOR skip: clean; folded into GREEN
