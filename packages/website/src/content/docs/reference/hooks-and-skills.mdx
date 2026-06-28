@@ -33,6 +33,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | Session starts          | Verifies AGENTS.md link, shows version, checks lint |
     | You submit a prompt     | Adds timestamp, reminds agent to ask questions      |
     | Agent edits a file      | Runs the appropriate linter, enforces quality gates  |
+    | Agent edits Go/Python/TS/Rust | Points it at that language's coding-skill (first edit per scenario) |
     | You stop the session    | Prompts for quality review                          |
 
     ### Customizing hooks
@@ -53,6 +54,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | When                    | What happens                    |
     | ----------------------- | ------------------------------- |
     | Agent edits a file      | Runs the appropriate linter     |
+    | Agent edits Go/Python/TS/Rust | Coding-skill nudge (dormant — Cursor bug #534) |
     | You stop the session    | Prompts for quality review      |
 
     ### Rules
@@ -87,6 +89,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
     | When                   | What happens                                      |
     | ---------------------- | ------------------------------------------------- |
     | Before supported tools | Runs safeword's PreToolUse quality gate adapter |
+    | Agent edits Go/Python/TS/Rust | Points it at that language's coding-skill |
 
     Safeword's Codex adapter covers the documented PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and MCP tools. Live Codex runs can also report `file_change` execution items; Safeword records that as a Codex runtime boundary, not as a PreToolUse path it claims to guard.
 
@@ -120,6 +123,27 @@ After your agent writes or modifies a file, the right linter runs:
 If a linter isn't installed, it's silently skipped.
 
 **What you see:** Usually nothing — the linter auto-fixes quietly. If problems remain, your agent sees them and fixes them immediately.
+
+---
+
+## Language coding-skills
+
+When safeword sets up (or upgrades) a project, it installs a small third-party **coding-skill** for each language it detects, and nudges your agent toward that skill the first time you edit the language in a scenario.
+
+| Language   | Skill source (MIT)         |
+| ---------- | -------------------------- |
+| Go         | `jeffallan/golang-pro`     |
+| Python     | `jeffallan/python-pro`     |
+| TypeScript | `jeffallan/typescript-pro` |
+| Rust       | `leonardomso/rust-skills`  |
+
+Skills install into `.claude/skills/` and `.agents/skills/` via the `npx skills` CLI. The install is **best-effort** — a missing network or installer error degrades to a warning and never blocks setup. It runs once; later upgrades skip it when the skill is already present.
+
+**What you see:** edit a `.go` / `.py` / `.ts` / `.tsx` / `.rs` file and a one-line reminder points your agent at the matching skill and surfaces the skill's own description. It fires once per scenario and stays silent for other file types. Works across Claude Code and Codex; the Cursor adapter is built but dormant until Cursor fixes an upstream injection bug ([#534](https://github.com/TheMostlyGreat/safeword/issues/534)).
+
+To skip the skill install, set `SAFEWORD_SKIP_SKILLS=1` (or `SAFEWORD_SKIP_INSTALL=1` to skip all network installs during setup).
+
+Frontier models already write most core-language idioms unaided, so treat this as a light nudge, not a transformation.
 
 ---
 
