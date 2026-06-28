@@ -1,103 +1,116 @@
-# Spec: Fire retro from Cursor stop hook (transcript substrate)
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: retro auto-trigger — Cursor
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Extend the retro auto-trigger (Claude in FTCQGD, Codex in 53DQJZ) to **Cursor**, so
+a real Cursor session fires `safeword retro` on its own — once per substantial
+session, while alive. The official Cursor hooks docs confirm every hook (incl.
+`stop`) carries a base `transcript_path` to a Claude-shaped JSONL transcript, so
+the Claude tool-use counter applies unchanged; only the session-id source and the
+output channel are Cursor-specific. Cursor's output is a `followup_message` (it
+auto-submits a new turn — the strongest nudge of the three), and the retro path
+must coexist with `cursor/stop.ts`'s existing quality-review followup.
 
 ## Intake Brief
 
-<!-- The decide-to-build framing for substantial features (advisory — write
-`skip: <reason>` on any line that doesn't apply). Intent above is the positive
-"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
-If cost-of-inaction is low and reversibility is high, ask whether this is a
-feature at all, or a leaner task. -->
-
-- **Requested by:** <who asked for this — distinct from the persona it serves>
-- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
+- **Requested by:** alex@arcade.dev (Safeword Maintainer). Completes the
+  cross-agent set (Claude + Codex + Cursor) so the friction stream fills itself
+  whatever tool a builder uses.
+- **Cost of inaction:** Cursor sessions never auto-retro — that segment's
+  qualitative-friction signal is lost.
+- **Reversibility:** two-way door. A retro path added to the existing
+  `cursor/stop.ts` + reused core; surfaces a followup only, no egress here.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- figure-it-out (2026-06-28): official docs ([cursor.com/docs/agent/hooks](https://cursor.com/docs/agent/hooks),
+  [cursor.com/docs/hooks](https://cursor.com/docs/hooks)) — every hook carries
+  `transcript_path`; the repo's stale `cursor/stop.ts` interface omitted it.
+- Parent: RV9JT4. Siblings: FTCQGD (Claude, done), 53DQJZ (Codex, done).
+- Reuses: `lib/retro-trigger.ts` (countToolUses, sentinel, decideRetroNudge).
+- Existing `cursor/stop.ts` already emits a quality-review `followup_message`.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- **Safeword Maintainer (SM)** — wants the stream to fill itself from Cursor
+  sessions too, same no-duplicate / no-noise guarantees.
+- **Technical Builder (TB)** — runs safeword under Cursor; wants zero-effort
+  reporting and a hook that never breaks their turn or fights the existing
+  quality-review prompt.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Cursor transcript** — the JSONL conversation transcript at the stop payload's
+  `transcript_path` (Claude-shaped: `message.content[].type === 'tool_use'`).
+- **followup_message** — Cursor's stop-hook output that auto-submits a new turn;
+  the channel the retro nudge rides.
+- **Quality-review followup** — the existing `cursor/stop.ts` behavior that
+  injects a review prompt after edits. Retro must compose with it, not clobber it.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### retro-cursor-trigger.SM1 — The retro stream fills itself from Cursor sessions too
 
-Uncomment and customize:
+**Persona:** Safeword Maintainer (SM)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When a real Cursor session ends, I want retro to have fired on its own — once,
+> while alive — reading Cursor's transcript, with no duplicates and no noise, and
+> without disrupting the review prompt Cursor users already rely on.
 
-**Persona:** Platform Operator (PO)
+#### retro-cursor-trigger.SM1.AC1 — Fires once on a substantial Cursor session via followup_message
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+A substantial, not-yet-nudged Cursor session (status `completed`) emits a
+`followup_message` whose text carries the live `transcript_path` and points at the
+retro guide, counting `tool_use` from the transcript. A trivial session emits no
+retro followup.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### retro-cursor-trigger.SM1.AC2 — Idempotent and cloud-safe, reusing the shared core
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+The once-per-session sentinel (shared) suppresses a second retro followup in the
+same session; a different session id still fires. The session id resolves from the
+Cursor `conversation_id` (session-stable). Reads the supplied `transcript_path`;
+never guesses one.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### retro-cursor-trigger.SM1.AC3 — Coexists with the existing quality-review followup
+
+On a stop where the quality-review followup fires, retro yields (one
+`followup_message` per stop), and the retro sentinel is NOT consumed — so retro
+still fires on a later stop. The existing quality-review behavior is unchanged.
+
+### retro-cursor-trigger.TB1 — Reported with zero effort; never breaks my Cursor turn
+
+**Persona:** Technical Builder (TB)
+
+> When safeword is rough in a Cursor session, I want it reported for me — and the
+> hook must never break or wrongly continue my turn.
+
+#### retro-cursor-trigger.TB1.AC1 — Fails open and respects non-completion
+
+Malformed stdin, an absent `transcript_path`, an unreadable transcript, or a
+non-`completed` status all resolve to: no retro followup, valid output, the turn
+is never wrongly continued. The sentinel is left unset on these paths.
 
 ## Rave Moment
 
-<!-- Optional, and only for the highest persona-facing surface in the tree (the
-epic if there is one, else this feature). Child features under an epic that
-already named one inherit it — skip here; internal/plumbing work skips entirely.
-Advisory; never blocks intake exit. The one moment a persona would tell a peer
-about: name the moment, the expectation it beats, and the one sentence they'd
-repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
-`skip: table-stakes`.
-
-### <slug> — <the moment in a few words>
-
-- **Moment:** <the specific beat they'd screenshot or recount>
-- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
-- **They'd say:** "<the one repeatable, status-conferring sentence>"
--->
+skip: inherits the epic (`#344`) — child slice.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- A substantial Cursor session auto-submits one retro followup pointing at the
+  guide, counting tool_use from the hook-provided transcript; a trivial one does
+  not.
+- Re-fires within a session are suppressed by the shared sentinel; the existing
+  quality-review followup is never clobbered.
+- The hook never wrongly continues the turn: bad input / non-completion → no retro
+  followup.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- **Empirical: is `transcript_path` non-empty and Claude-shaped at `stop` time?**
+  defer: built against Claude-shaped fixtures (reusing countToolUses); validated by
+  a dump-payload spike in a live Cursor session. If the shape differs, add a
+  `countToolUsesCursor` variant (the seam already supports it).
+- **Compose vs precedence with the quality-review followup.** Leaning: quality
+  review takes the stop (it's a human-review gate); retro fires on a non-review
+  stop, sentinel only consumed when retro actually emits. defer: confirm at
+  scenario-gate.

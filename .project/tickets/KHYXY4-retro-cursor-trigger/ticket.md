@@ -2,45 +2,60 @@
 id: KHYXY4
 slug: retro-cursor-trigger
 type: feature
-phase: intake
-status: blocked
+phase: scenario-gate
+status: in_progress
 parent: RV9JT4-retro-transcript-mining
 depends_on: [FTCQGD]
-blocked_on: [FTCQGD]
 scope: |
-  Wire the existing `cursor/stop.ts` adapter to the shared retro auto-trigger
-  core (sentinel + substance gate) that FTCQGD factors into lib/. Use Cursor's
-  `followup_message` (which auto-submits a new turn — the strongest nudge of the
-  three) to run the retro pipeline, and LOCATE + PARSE Cursor's chat store, since
-  the stop hook gives `conversation_id`/`generation_id`, NOT a transcript path.
+  Add a retro path to the existing `cursor/stop.ts` adapter, reusing the shared
+  retro core FTCQGD/53DQJZ shipped. Per the figure-it-out (2026-06-28, OFFICIAL
+  current Cursor docs): EVERY Cursor hook — including `stop` — carries a base
+  `transcript_path` field pointing at the main conversation transcript (JSONL with
+  `message.content[].tool_use` blocks — the SAME shape as Claude). The repo's
+  current `cursor/stop.ts` interface is STALE (omits transcript_path). So: (1)
+  reuse the Claude `countToolUses` (Cursor's transcript is Claude-shaped — confirm
+  by a live spike); (2) resolve the Cursor session id from `conversation_id`
+  (session-stable); (3) read transcript_path → decideRetroNudge → emit the retro
+  nudge as Cursor's `followup_message` (auto-submits — the strongest channel).
   Must coexist with cursor/stop.ts's existing quality-review followup + the
-  5-auto-submission cap.
+  5-auto-submission cap (retro yields to quality-review on a given stop; the
+  once-per-session sentinel ensures retro still fires once).
 out_of_scope: |
-  - The shared sentinel/substance-gate core (FTCQGD owns it).
+  - The shared sentinel/substance-gate/orchestration core (FTCQGD owns it).
   - Claude + Codex adapters (FTCQGD, 53DQJZ).
+  - SQLite chat-store mining — MOOT: transcript_path is hook-provided (docs).
+  - A new Cursor-specific tool-use counter — likely unneeded (Claude-shaped);
+    add one only if the live spike shows the shape differs.
 done_when: |
-  A substantial Cursor session fires retro once via followup_message, mining the
-  Cursor chat store, with the same idempotency guarantees as the Claude path,
-  without breaking the existing quality-review followup or the submission cap.
+  A substantial Cursor session fires retro once via `followup_message` pointing at
+  the retro guide, counting tool_use from the hook-provided transcript_path, with
+  the same idempotency + fail-open guarantees as Claude — without breaking the
+  existing quality-review followup or the 5-submission cap.
 created: 2026-06-28T05:34:06.358Z
-last_modified: 2026-06-28T05:34:06.358Z
+last_modified: 2026-06-28T19:10:00.000Z
 ---
 
-# Fire retro from Cursor stop hook (transcript substrate)
+# Fire retro from Cursor stop hook
 
 **Goal:** Make retro fire autonomously at the end of real Cursor sessions, the
-same way it does under Claude Code (FTCQGD).
+same way it does under Claude Code (FTCQGD) and Codex (53DQJZ).
 
-**Riskiest unknown:** Cursor's stop hook exposes `conversation_id`/`generation_id`,
-not a transcript file — locating and parsing Cursor's chat store is UNVERIFIED.
-Cheapest test: dump the stop-hook stdin payload + probe Cursor's on-disk chat
-storage in a real session before designing the parser. Second risk: composing a
-retro followup with the existing quality-review followup under the 5-submission cap.
+**Riskiest unknown (narrowed by figure-it-out):** the official docs confirm the
+stop hook carries `transcript_path`, and the transcript is documented as JSONL
+with `message.content[].tool_use` blocks (Claude-shaped), so the Claude counter
+should apply unchanged. Residual: confirm the exact shape + that transcript_path
+is non-empty at `stop` time, via a dump-payload spike in a real Cursor session.
+Second risk: composing the retro `followup_message` with the existing
+quality-review followup under the 5-submission cap.
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
 
 - 2026-06-28T05:34:06.358Z Started: Created ticket KHYXY4
-- 2026-06-28T05:34Z Stubbed: blocked on FTCQGD (shared core). Trigger channel
-  (followup_message) is known; the Cursor chat-store transcript is the unknown.
+- 2026-06-28T05:34Z Stubbed: blocked on FTCQGD (shared core).
+- 2026-06-28T19:10Z Unblocked + CORRECTED. Official Cursor hooks docs disprove the
+  "no transcript" premise: every hook (incl. stop) carries `transcript_path` to a
+  Claude-shaped JSONL transcript. Dropped the SQLite-mining scope. Resolved:
+  reuse Claude `countToolUses`, resolve session id from conversation_id, emit
+  `followup_message`. Entering define-behavior.
