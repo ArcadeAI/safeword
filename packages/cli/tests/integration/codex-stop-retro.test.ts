@@ -137,4 +137,19 @@ describe('codex/stop.ts retro adapter (53DQJZ)', () => {
     expect(() => JSON.parse(result.stdout)).not.toThrow();
     expect(JSON.parse(result.stdout).decision).toBeUndefined();
   });
+
+  it('fails open with valid JSON when the transcript_path is unreadable', () => {
+    writeConfig(dir, { surface: true });
+    const id = freshSession('unreadable');
+
+    const result = runHook(dir, {
+      session_id: id,
+      transcript_path: nodePath.join(dir, 'does-not-exist.jsonl'),
+      cwd: dir,
+    });
+
+    expect(result.status).toBe(0);
+    expect(() => JSON.parse(result.stdout)).not.toThrow();
+    expect(JSON.parse(result.stdout).decision).toBeUndefined();
+  });
 });

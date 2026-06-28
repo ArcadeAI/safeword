@@ -68,8 +68,9 @@ const CODEX_TOOL_EVENTS = new Set(['function_call', 'exec_command_begin', 'mcp_t
  * tool signal is `function_call` / `exec_command_begin` / `mcp_tool_call_begin` —
  * NOT Claude's `message.content[].tool_use`, so Claude's countToolUses would
  * return 0 here. Nesting-tolerant: matches the tool type on either the top-level
- * `type` or `payload.type` (the exact rollout nesting is confirmed by a live
- * Codex spike; this hedges both shapes). Malformed lines are skipped.
+ * `type` or `payload.type`, because the exact rollout nesting is NOT yet confirmed
+ * by a live Codex spike (deferred — see the 53DQJZ ticket); matching both shapes
+ * hedges that uncertainty. Malformed lines are skipped.
  */
 export function countToolUsesCodex(rolloutText: string): number {
   const text = rolloutText.trim();
