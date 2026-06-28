@@ -7,10 +7,16 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import type { TrackerReference } from './types.js';
 
 const SIDECAR_VERSION = 1;
+
+/** Canonical path to the idempotency sidecar for a project. */
+export function trackerMapPath(cwd: string): string {
+  return nodePath.join(cwd, '.safeword', 'tracker-map.json');
+}
 
 /** Per-ticket record. `pending` = created but not yet confirmed recorded. */
 export interface TrackerMapEntry {
