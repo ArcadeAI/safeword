@@ -10,29 +10,33 @@ Feature: Issue-first ticket identity + tracker-key→local-folder join reader
 
   Rule: ticket new takes identity from the tracker and keys the folder to it
 
-    @tracker-identity-and-join.TB1.AC1
-    Scenario: A connected tracker mints the issue before the local folder
+    # Wiring scenario: exercises the real `ticket new` command end-to-end (real ticket-writer + fs),
+    # mocking only the tracker network boundary. Count + emptiness observables close the
+    # create-then-rename escape hatch (no temp folder before the issue mints).
+    @tracker-identity-and-join.TB1.AC1 @wiring
+    Scenario: A connected tracker mints the issue before any folder exists
       Given a connected tracker
       When I run "ticket new login-bug"
-      Then the tracker issue is created before any local folder
+      Then tracker issue-create is called exactly once
+      And no local ticket folder exists at the moment issue-create is invoked
+      And after the command exactly one new ticket folder exists, keyed to the issue key
       And the ticket's identity is the issue key
-      And the local folder is keyed to the issue key
 
     @tracker-identity-and-join.TB1.AC1
     Scenario: An existing issue is adopted rather than re-created
       Given a connected tracker
-      And an existing issue for the work
-      When I run "ticket new login-bug" pointed at that issue
-      Then no new issue is created
-      And the local folder is keyed to the existing issue key
+      And an existing issue "ENG-45" for the work
+      When I run "ticket new login-bug --issue ENG-45"
+      Then tracker issue-create is called zero times
+      And the existing issue "ENG-45" is adopted
+      And the local folder is keyed to "ENG-45"
 
     @tracker-identity-and-join.TB1.AC1
     Scenario: With no tracker connected, identity is minted locally exactly as today
       Given no tracker is connected
       When I run "ticket new login-bug"
-      Then a local Crockford id is minted as before
-      And no tracker call is made
-      And the folder name matches today's "{ID}-{slug}" format
+      Then no tracker client is constructed and no tracker call is made
+      And the folder name matches today's "{ID}-{slug}" format with ID a Crockford-base32 id of the current length
 
   Rule: ticket new degrades safely when the network is the critical path
 
@@ -41,22 +45,32 @@ Feature: Issue-first ticket identity + tracker-key→local-folder join reader
       Given a connected tracker that is unreachable
       When I run "ticket new login-bug"
       Then the command fails with a clear, non-zero error
-      And no local folder is created
+      And tracker issue-create was attempted (the failure came from the tracker, not a pre-flight skip)
+      And the tickets directory contains the same folders as before the command
+
+    @tracker-identity-and-join.TB1.AC2
+    Scenario: A rejected credential fails loudly and leaves no orphan
+      Given a connected tracker that rejects the configured credential
+      When I run "ticket new login-bug"
+      Then the command fails with a clear, non-zero error that names authorization
+      And the tickets directory contains the same folders as before the command
+      And the configured secret value appears in neither the error, the config, nor the logs
 
     @tracker-identity-and-join.TB1.AC2
     Scenario: A missing credential fails loudly, never silently
       Given a configured tracker provider with no resolvable credential
       When I run "ticket new login-bug"
       Then the command fails with a clear, non-zero error
-      And no local folder is created
-      And no secret value is written to config or logs
+      And the tickets directory contains the same folders as before the command
+      And the configured secret value appears in neither the error, the config, nor the logs
 
     @tracker-identity-and-join.TB1.AC2
     Scenario: A partial create reconciles to the same issue instead of duplicating
-      Given the tracker minted an issue on a prior run but its key was never recorded locally
+      Given a prior run left a pending tracker-map entry for this work (issue minted, key not yet confirmed)
       When I run "ticket new login-bug" again for that work
-      Then the prior issue is reused
-      And no second issue is created
+      Then tracker issue-create is called zero times
+      And the local folder is keyed to the pending entry's existing issue key
+      And the tracker-map entry for this work is promoted to recorded
 
   Rule: a tracker key resolves to its local folder
 
@@ -64,18 +78,25 @@ Feature: Issue-first ticket identity + tracker-key→local-folder join reader
     Scenario: A known tracker key resolves to its local folder
       Given a ticket whose folder records the tracker key "ENG-45"
       When a hook resolves the folder for tracker key "ENG-45"
-      Then it returns that ticket's folder
+      Then it returns that ticket's folder path
 
     @tracker-identity-and-join.SM1.AC1
-    Scenario: Both GitHub and Linear key shapes resolve
+    Scenario: Both GitHub and Linear key shapes resolve to their own folders
       Given a ticket recorded under GitHub key "#123"
       And a ticket recorded under Linear key "ENG-45"
       When a hook resolves the folder for each key
-      Then each returns its own ticket's folder
+      Then each returns its own ticket's folder path
 
     @tracker-identity-and-join.SM1.AC1
-    Scenario: An unknown tracker key returns a clean not-found, never a crash
+    Scenario: An unknown tracker key returns the not-found sentinel, never an error
       Given no ticket records the tracker key "ENG-999"
       When a hook resolves the folder for tracker key "ENG-999"
-      Then it reports not found
+      Then it returns the not-found sentinel (null), not a path
       And it does not raise an error
+
+    @tracker-identity-and-join.SM1.AC1
+    Scenario: A map entry pointing at a missing folder reports not found, not a dangling path
+      Given the tracker-map records "ENG-45" but its folder no longer exists
+      When a hook resolves the folder for tracker key "ENG-45"
+      Then it returns the not-found sentinel (null)
+      And it does not return a path that does not exist
