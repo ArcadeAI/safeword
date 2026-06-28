@@ -1,6 +1,32 @@
 # Impl Plan: retro auto-trigger — Codex
 
-**Status:** planned
+**Status:** implemented
+
+## Reconciliation (implement-phase exit)
+
+The build matched the plan's shape; three notes vs what shipped:
+
+- **Decisions held**, with one substitution: the **session-id resolver** is a small
+  direct `resolveCodexSessionId` (session_id > CODEX_THREAD_ID) in
+  `lib/retro-trigger.ts`, NOT a wrapper over `run-identity.ts`'s
+  `resolveRunIdentity` as the plan sketched. Why: run-identity's Codex sessionKey
+  is equivalent, but a 2-line direct resolver is simpler, unit-testable in
+  isolation, and keeps the lib free of a run-identity dependency. Same precedence,
+  same result.
+- **Mid-implementation correction (caught test-first):** dropped `turn_id` as a
+  session-id source. `turn_id` is per-turn (changes every Stop), so keying the
+  once-per-session sentinel on it would make retro fire every turn. The session
+  key is session-stable only (session_id / CODEX_THREAD_ID); the scenario was
+  corrected to match.
+- **One addition not in the plan:** excluded `/codex/` paths from the
+  `SETTINGS_HOOKS` drift test (`tests/schema.test.ts`) — Codex hooks wire through
+  `.codex/config.toml`, not Claude SETTINGS_HOOKS, same rationale as the existing
+  `/cursor/` exclusion. Surfaced by the schema-drift test, not foreseen at plan
+  time; no design impact.
+- **Arch alignment held** — modular per-agent adapter + shared-core reuse via
+  injection seams + byte-parity mirrors + config.toml patch system.
+- **Known deviations:** none beyond the resolver substitution above (which is an
+  equivalent simplification, not a divergence).
 
 ## Approach
 
