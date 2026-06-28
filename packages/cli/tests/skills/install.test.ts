@@ -122,22 +122,23 @@ describe('skillsInstalled (derive presence from disk)', () => {
     expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(false);
   });
 
-  it('is true when a golang- skill dir is present under .claude/skills', () => {
+  it('is true when the golang-pro skill dir is present under .claude/skills', () => {
     dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
-    mkdirSync(nodePath.join(dir, '.claude', 'skills', 'golang-context'), { recursive: true });
+    mkdirSync(nodePath.join(dir, '.claude', 'skills', 'golang-pro'), { recursive: true });
     expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(true);
   });
 
   it('is true when present under .agents/skills (codex/cursor target)', () => {
     dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
-    mkdirSync(nodePath.join(dir, '.agents', 'skills', 'golang-error-handling'), {
+    mkdirSync(nodePath.join(dir, '.agents', 'skills', 'golang-pro'), {
       recursive: true,
     });
     expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(true);
   });
 
-  it('ignores non-matching dirs (e.g. unrelated skills)', () => {
+  it('ignores non-matching dirs (e.g. the old samber atomic skills, unrelated skills)', () => {
     dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
+    mkdirSync(nodePath.join(dir, '.claude', 'skills', 'golang-context'), { recursive: true });
     mkdirSync(nodePath.join(dir, '.claude', 'skills', 'python-typing'), { recursive: true });
     expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(false);
   });

@@ -20,17 +20,17 @@ describe('language skill registry', () => {
   });
 
   it('wires each language to its pack manifest source', () => {
-    expect(LANGUAGE_SKILL_MANIFESTS.golang?.source).toContain('samber/cc-skills-golang');
+    expect(LANGUAGE_SKILL_MANIFESTS.golang?.source).toContain('jeffallan/claude-skills');
     expect(LANGUAGE_SKILL_MANIFESTS.python?.source).toBe(PYTHON_SKILL_SOURCE);
     expect(LANGUAGE_SKILL_MANIFESTS.typescript?.source).toBe(TYPESCRIPT_SKILL_SOURCE);
     expect(LANGUAGE_SKILL_MANIFESTS.rust?.source).toBe(RUST_SKILL_SOURCE);
   });
 
-  it('uses a named selection for the multi-domain jeffallan source, all for dedicated repos', () => {
+  it('uses a named one-skill selection for the multi-domain jeffallan source, all for the dedicated Rust repo', () => {
+    expect(LANGUAGE_SKILL_MANIFESTS.golang?.selection).toEqual(['golang-pro']);
     expect(LANGUAGE_SKILL_MANIFESTS.python?.selection).toEqual(['python-pro']);
     expect(LANGUAGE_SKILL_MANIFESTS.typescript?.selection).toEqual(['typescript-pro']);
     expect(LANGUAGE_SKILL_MANIFESTS.rust?.selection).toBe(RUST_SKILL_SELECTION);
-    expect(LANGUAGE_SKILL_MANIFESTS.golang?.selection).toBe('all');
   });
 });
 

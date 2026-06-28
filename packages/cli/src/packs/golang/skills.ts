@@ -1,51 +1,36 @@
 /**
  * Go Language Pack — Skill Manifest (pure declaration)
  *
- * The pack DECLARES where Go judgment skills come from and how to select them.
- * It has no knowledge of prompts, hooks, injection, or timing — the safeword
- * harness CONSUMES this manifest to install the skills and, separately, to build
- * any availability reminder. Dependency is harness → pack (pull), never the
- * reverse.
+ * DECLARES where Go judgment skills come from and how to select them; the harness
+ * CONSUMES it (harness → pack pull).
  *
- * No skill NAMES are stored here, on purpose. Writing them down manufactures
- * drift: upstream adds/renames/removes skills on its own cadence, and a hardcoded
- * list silently rots against the installed reality. The names that matter are the
- * `golang-*` directories that actually land on disk after install — the harness
- * derives them from there at runtime. The manifest stays at the level that does
- * not drift: the source and the selection policy.
+ * Source: jeffallan/claude-skills (MIT) — the same multi-language author as the
+ * Python and TypeScript packs, so all three share one source/structure. Selection
+ * is the NAMED language-tier skill `golang-pro` (not `'*'`): the source is a
+ * multi-domain grab-bag, and we want one lean language-core skill, not its ~66
+ * unrelated skills. Verified to install as `.claude/skills/golang-pro/`.
  *
- * Source: samber/cc-skills-golang (MIT), tracked @latest (no pin).
+ * Why not samber/cc-skills-golang (the previous source): samber ships 44 atomic
+ * skills (half library-specific) plus a dispatcher. Every installed skill's
+ * description is always-on context that competes with safeword's own skills in a
+ * shared 1%-of-context budget, and our own efficacy probes (Go race trap, Python
+ * concurrency trap) showed the *core* idioms these packs teach are already
+ * internalized by frontier models — so the 44-skill footprint bought little. A
+ * single lean skill makes Go uniform with Python/TS/Rust (single-skill, no
+ * dispatcher) at the lowest always-on cost. samber remains a one-line registry
+ * swap if depth or library-specific coverage is ever wanted.
  *
- * Selection: 'all'. The upstream installer (`npx skills`) takes either `--skill
- * '*'` (every skill) or an explicit `--skill <names...>` list — there is NO
- * general-purpose-group flag. Selecting "general-purpose only" would therefore
- * require enumerating names here, which is exactly the drift we refuse. samber's
- * own atomicity rule also says the general-purpose skills install together (they
- * cross-reference), so a curated subset risks partial/inconsistent guidance. We
- * install the full set; library-specific skills that never match the project
- * simply never fire. (The harness maps 'all' to `--skill '*'` and targets only
- * the agents safeword supports — never `--all`, which fans out to every agent.)
+ * NOTE: efficacy is not separately probed for this skill; delivery is wired, and
+ * the core-idiom headroom finding (see `.project/learnings/skill-pack-efficacy-gate.md`)
+ * applies. Minor framework bleed (gRPC/microservices in the description) to keep
+ * in mind — it surfaces verbatim in the nudge, same accepted tradeoff as TS.
  */
 
 /** Where the skills come from. The harness owns the install command + ref policy. */
-export const GOLANG_SKILL_SOURCE = 'github.com/samber/cc-skills-golang';
+export const GOLANG_SKILL_SOURCE = 'github.com/jeffallan/claude-skills';
 
-/**
- * How the harness should select skills from the source.
- *
- * - `'all'`: install every skill the source publishes (no name list to maintain).
- *
- * Kept as a union so a future curated mode is a type change, not a refactor — but
- * any named mode reintroduces drift and must justify carrying a list.
- */
-export type GolangSkillSelection = 'all';
+/** Named selection: the single language-tier skill (see module doc for why named). */
+export const GOLANG_SKILL_SELECTION: readonly string[] = ['golang-pro'];
 
-/** Install selection policy. See the module doc for why this is `'all'`. */
-export const GOLANG_SKILL_SELECTION: GolangSkillSelection = 'all';
-
-/**
- * Directory-name shape every installed skill follows (`golang-*`). The harness
- * uses this to discover installed skills on disk — the single source of truth for
- * "which skills exist" — instead of any list stored here.
- */
-export const GOLANG_SKILL_DIR_PATTERN = /^golang-[a-z0-9-]+$/;
+/** Directory-name shape the installed skill follows (`golang-pro`). */
+export const GOLANG_SKILL_DIR_PATTERN = /^golang-pro$/;

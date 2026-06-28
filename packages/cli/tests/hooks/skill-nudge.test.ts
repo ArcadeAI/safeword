@@ -62,11 +62,11 @@ describe('skillNudgeLine', () => {
     const go = languageForFile('main.go');
     if (!go) throw new Error('Go must be a registered skill language');
     const line = skillNudgeLine(go, {
-      name: 'golang-how-to',
-      description: 'Golang skills orchestrator — routes to the right skill.',
+      name: 'golang-pro',
+      description: 'Idiomatic Go: concurrency, generics, error handling.',
     });
-    expect(line).toContain('`golang-how-to`');
-    expect(line).toContain('Golang skills orchestrator — routes to the right skill.');
+    expect(line).toContain('`golang-pro`');
+    expect(line).toContain('Idiomatic Go: concurrency, generics, error handling.');
     expect(line).toContain('Revise the current file if it applies.');
     // With a real entry, the generic "skill that fits this work" prompt is gone.
     expect(line).not.toContain('that fits this work');
@@ -75,29 +75,18 @@ describe('skillNudgeLine', () => {
   it('falls back when the entry has an empty description (degrade-not-fail)', () => {
     const go = languageForFile('main.go');
     if (!go) throw new Error('Go must be a registered skill language');
-    const line = skillNudgeLine(go, { name: 'golang-how-to', description: ' '.repeat(3) });
+    const line = skillNudgeLine(go, { name: 'golang-pro', description: ' '.repeat(3) });
     expect(line).toContain('golang-*');
     expect(line).toContain('concurrency?');
   });
 });
 
 describe('entrySkillFor', () => {
-  const go = SKILL_LANGUAGES['.go'];
-  if (!go) throw new Error('Go must be a registered skill language');
-
-  it('picks the declared dispatcher when it is installed (multi-skill pack)', () => {
-    expect(entrySkillFor(go, ['golang-how-to', 'golang-context', 'golang-testing'])).toBe(
-      'golang-how-to',
-    );
-  });
-
-  it('returns null when the declared dispatcher is absent — never guesses one of many', () => {
-    expect(entrySkillFor(go, ['golang-context', 'golang-testing'])).toBeNull();
-  });
-
+  // All four shipped languages are single-skill (no dispatcher) — incl. Go now.
   it('picks the sole installed dir for a single-skill pack (no dispatcher)', () => {
-    const ts = { prefix: 'typescript', display: 'TypeScript', concerns: [] };
-    expect(entrySkillFor(ts, ['typescript-pro'])).toBe('typescript-pro');
+    const go = SKILL_LANGUAGES['.go'];
+    if (!go) throw new Error('Go must be a registered skill language');
+    expect(entrySkillFor(go, ['golang-pro'])).toBe('golang-pro');
   });
 
   it('returns null when a no-dispatcher pack has more than one dir (ambiguous)', () => {
@@ -107,7 +96,20 @@ describe('entrySkillFor', () => {
 
   it('ignores dirs of other languages when counting', () => {
     const ts = { prefix: 'typescript', display: 'TypeScript', concerns: [] };
-    expect(entrySkillFor(ts, ['typescript-pro', 'golang-context'])).toBe('typescript-pro');
+    expect(entrySkillFor(ts, ['typescript-pro', 'python-pro'])).toBe('typescript-pro');
+  });
+
+  // The dispatcher capability is retained (dormant — no shipped language declares
+  // one after the Go→jeffallan switch) so re-adopting a multi-skill pack like
+  // samber stays a small change. Exercise it with a synthetic language.
+  const multi = { prefix: 'multi', display: 'Multi', dispatcher: 'multi-router', concerns: [] };
+
+  it('picks the declared dispatcher when it is installed (multi-skill pack)', () => {
+    expect(entrySkillFor(multi, ['multi-router', 'multi-a', 'multi-b'])).toBe('multi-router');
+  });
+
+  it('returns null when the declared dispatcher is absent — never guesses one of many', () => {
+    expect(entrySkillFor(multi, ['multi-a', 'multi-b'])).toBeNull();
   });
 });
 

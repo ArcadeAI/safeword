@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { golangPack } from '../../src/packs/golang/index.js';
+import { GOLANG_SKILL_DIR_PATTERN } from '../../src/packs/golang/skills.js';
 import { pythonPack } from '../../src/packs/python/index.js';
 import { PYTHON_SKILL_DIR_PATTERN } from '../../src/packs/python/skills.js';
 import { rustPack } from '../../src/packs/rust/index.js';
@@ -7,11 +9,11 @@ import { RUST_SKILL_DIR_PATTERN } from '../../src/packs/rust/skills.js';
 import type { LanguagePack } from '../../src/packs/types.js';
 import { typescriptPack } from '../../src/packs/typescript/index.js';
 import { TYPESCRIPT_SKILL_DIR_PATTERN } from '../../src/packs/typescript/skills.js';
-// Differential parity (drift vector V1) for the single-skill language packs — the
-// same guard golang-skill-nudge-parity provides for Go. The standalone hook lib
-// re-encodes each pack's extension + skill-dir prefix; this pins those copies to
-// the langpack source of truth so a one-sided rename fails loudly instead of the
-// nudge silently never firing (or, worse, the entry skill never resolving).
+// Differential parity (drift vector V1) for the single-skill language packs — all
+// four now follow the same shape (one named skill, no dispatcher). The standalone
+// hook lib re-encodes each pack's extension + skill-dir prefix; this pins those
+// copies to the langpack source of truth so a one-sided rename fails loudly
+// instead of the nudge silently never firing (or the entry skill never resolving).
 import { SKILL_LANGUAGES } from '../../templates/hooks/lib/skill-nudge.js';
 
 interface Case {
@@ -25,6 +27,14 @@ interface Case {
 }
 
 const CASES: Case[] = [
+  {
+    label: 'Go',
+    extensions: ['.go'],
+    prefix: 'golang',
+    pack: golangPack,
+    dirPattern: GOLANG_SKILL_DIR_PATTERN,
+    installedDir: 'golang-pro',
+  },
   {
     label: 'Python',
     extensions: ['.py'],

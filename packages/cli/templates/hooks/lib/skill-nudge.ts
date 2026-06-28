@@ -57,18 +57,14 @@ const TYPESCRIPT_LANG: SkillLanguage = {
  * directory names.
  */
 export const SKILL_LANGUAGES: Readonly<Record<string, SkillLanguage>> = {
+  // All four languages are single-skill packs (no dispatcher): the sole installed
+  // `<prefix>-*` dir is discovered from disk as the entry, and its own SKILL.md
+  // description is surfaced. `concerns` are the drift-free fallback only.
   '.go': {
     prefix: 'golang',
     display: 'Go',
-    // samber/cc-skills-golang ships ~50 atomic skills plus this always-active
-    // orchestrator that reads the task and loads the right ones — so the nudge
-    // points here, not at a guess among the 50.
-    dispatcher: 'golang-how-to',
     concerns: ['concurrency', 'context', 'error handling', 'testing', 'API design'],
   },
-  // Python/TS/Rust are single-skill packs (no dispatcher): the sole installed
-  // `<prefix>-*` dir is discovered from disk as the entry, and its own SKILL.md
-  // description is surfaced. `concerns` are the drift-free fallback only.
   '.py': {
     prefix: 'python',
     display: 'Python',

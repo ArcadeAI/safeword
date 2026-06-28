@@ -48,12 +48,13 @@ export function skillsInstalled(cwd: string, dirPattern: RegExp): boolean {
  * How a pack tells the harness which skills to pull. Mirrors the pack manifest.
  *
  * - `'all'` → `--skill '*'`: every skill the source publishes. Right for a
- *   single-language source (samber's Go pack, leonardomso's Rust pack) where
+ *   single-language, single-purpose source (e.g. leonardomso's Rust pack) where
  *   everything is on-topic — and drift-free, no name list to maintain.
  * - a name list → `--skill <name...>`: a curated subset, for a multi-domain
- *   source (e.g. jeffallan's 66-skill grab-bag) where `'*'` would drag in ~65
- *   unrelated skills. The names ARE a drift surface, justified only because the
- *   source forces it; keep the list minimal (usually one language-tier skill).
+ *   source (e.g. jeffallan's ~66-skill grab-bag, where Go/Python/TS each take one
+ *   language-tier skill) where `'*'` would drag in dozens of unrelated skills. The
+ *   names ARE a drift surface, justified only because the source forces it; keep
+ *   the list minimal (usually one language-tier skill).
  */
 export type SkillSelection = 'all' | readonly string[];
 
@@ -72,7 +73,7 @@ export type SkillSelection = 'all' | readonly string[];
 export const SAFEWORD_SKILL_AGENTS = ['claude-code', 'codex', 'cursor'] as const;
 
 export interface InstallSkillsOptions {
-  /** Skill source, e.g. `github.com/samber/cc-skills-golang`. */
+  /** Skill source, e.g. `github.com/jeffallan/claude-skills`. */
   source: string;
   /** Selection policy from the pack manifest. */
   selection: SkillSelection;

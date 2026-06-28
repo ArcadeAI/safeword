@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 // Safeword: language-skill nudge (PostToolUse). When the agent edits a source
-// file in a language that has installed coding skills (e.g. a .go file with
-// samber golang-* skills present), inject a one-line advisory pointing at the
-// matching skill — fired once per scenario (flag-and-clear), never blocking.
+// file in a language that has installed coding skills (e.g. a .go file with the
+// golang-pro skill present), inject a one-line advisory pointing at the matching
+// skill — fired once per scenario (flag-and-clear), never blocking.
 //
 // PostToolUse + additionalContext is the proven advisory channel (PreToolUse
 // additionalContext-on-allow is not delivered to the model). Firing on the first
