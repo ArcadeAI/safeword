@@ -175,8 +175,10 @@ export function resolveCodexSessionId(
 /**
  * Resolve a Cursor session id from the stop payload's `conversation_id`, which is
  * session-stable (NOT `generation_id`, which is per-generation and would let retro
- * fire more than once per session). Returns undefined when absent, so the caller
- * fails open.
+ * fire more than once per session). Per the official Cursor hooks docs
+ * (cursor.com/docs/agent/hooks, verified 2026-06-28), every hook carries
+ * `conversation_id` + `generation_id` + a base `transcript_path`. Returns undefined
+ * when absent, so the caller fails open.
  */
 export function resolveCursorSessionId(
   input: { conversation_id?: string },
