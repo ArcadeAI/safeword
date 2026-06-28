@@ -2,10 +2,10 @@
 id: HWSEPV
 slug: architecture-python-language-pack
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-06-24T05:31:11.433Z
-last_modified: 2026-06-24T05:35:00.000Z
+last_modified: 2026-06-28T00:00:00.000Z
 scope:
   - Python package extraction — extractSkeleton, when a directory has a `pyproject.toml`, lists the top-level modules of the importable package: src-layout (`src/` present) lists `src/` subpackages AND top-level `src/*.py` files; flat-layout (no `src/`) lists root directories that contain an `__init__.py` AND top-level `*.py` modules — excluding tooling files (setup.py, conftest.py, noxfile.py) and dunder files (__init__.py, __main__.py)
   - uv-workspace discovery — detectUvWorkspace parses `[tool.uv.workspace] members = [globs]` from the root pyproject.toml (TOML, reusing the Cargo TOML-subset machinery), appended to the `??` discovery chain after JS / Go / Cargo
@@ -88,3 +88,15 @@ LanguagePack registry refactor inside this slice (rule-of-N — abstract after a
   so both flat-layout branches are exercised); accepted nit 2 as-is (drift scenario keeps
   the Go/Rust shape, unit-backstopped). Stamp recorded; impl-plan written. Advancing to
   implement (gate: verify uv members syntax before GREEN).
+- 2026-06-28T00:00:00Z Closed (done). Implement + verify complete: shared `toml.ts`
+  reader (cargo delegates, 0 clone), `pyproject-manifest.ts` (PEP 621 name/deps + uv
+  workspace), `extractSkeleton` Python branch (pyproject checked before Cargo for
+  maturin/pyo3), `detectUvWorkspace` discovery, PEP 508 deps in the fingerprint. Three
+  independent /quality-review passes each found one real silent-wrong bug (scenario
+  misframe; PEP 508 `#`-in-url comment drop; maturin mis-dispatch) — all fixed,
+  re-reviewed APPROVE. /refactor unified the two TOML quote-aware scanners
+  (`indexOfOutsideQuotes`). Rebased onto main (v0.58.0); re-verified green: 106
+  architecture unit tests, 7 Python BDD scenarios, dogfood `architecture --check` exits 0.
+  Closes WBM8JE (Go ZD70P1 + Rust YKFA5X + Python HWSEPV all shipped). Follow-ups:
+  LanguagePack registry refactor (rule-of-N now satisfied), Poetry/requirements.txt,
+  optional-dependencies, the flaky `dogfood_feature_runs_green` concurrency test.
