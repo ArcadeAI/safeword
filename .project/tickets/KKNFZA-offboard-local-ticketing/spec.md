@@ -267,8 +267,11 @@ churn premise they targeted is modest (see Discovery correction):
   test that an issue-first ticket mirrors via `sync-tracker`, plus a CI recipe so it runs without
   manual sync. The only un-shipped behavior is **SM1.AC2** (the optional non-authoritative
   upstream "issue closed upstream — reconcile?" read-back) → split to its own small ticket.
-- ⑤ instructions + docs — the real next user value (make the working mirror discoverable: docs +
-  CI recipe). SM1.AC3 / SM2.AC5 / SM2.AC7 back-compat are largely preserved-by-construction.
+- ⑤ instructions + docs — **discoverability slice DONE (2026-06-28):** added a Tracker Integration
+  docs page (connect → one-way sync → CI recipe + egress/secrets), a `ticketBridge` Configuration
+  reference, and the sidebar entry (the feature was previously undocumented in the website). Website
+  builds clean. Remaining ⑤ work (SAFEWORD.md/SKILL.md/guides rewrite) is optional. SM1.AC3 /
+  SM2.AC5 / SM2.AC7 back-compat are largely preserved-by-construction.
 
 **Recommendation:** treat ②③④ as an optional polish backlog; if continuing, ⑤ (docs + CI recipe)
 delivers the most user value, and SM1.AC2 is the only genuinely-new feature worth a ticket.
