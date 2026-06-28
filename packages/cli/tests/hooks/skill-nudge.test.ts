@@ -35,6 +35,15 @@ describe('languageForFile', () => {
     expect(languageForFile('Makefile')).toBeNull();
     expect(languageForFile('styles.css')).toBeNull();
   });
+
+  it('does NOT fire on plain JS — the TS skill is TypeScript-scoped, not JS', () => {
+    // The typescript pack detects .js/.jsx/.mjs/.cjs for tooling, but the nudge
+    // deliberately registers only .ts/.tsx. Pin that so adding a .js row later
+    // can't silently route JS edits to a TS skill.
+    expect(languageForFile('src/app.js')).toBeNull();
+    expect(languageForFile('src/app.mjs')).toBeNull();
+    expect(languageForFile('src/app.jsx')).toBeNull();
+  });
 });
 
 describe('skillNudgeLine', () => {

@@ -65,10 +65,12 @@ describe('buildSkillsArgv', () => {
     expect(argv).not.toContain('*');
   });
 
-  it('carries every name under one --skill flag', () => {
+  it('repeats --skill per name (the installer does not split a space-separated list)', () => {
     const argv = buildSkillsArgv('github.com/x/y', ['a-skill', 'b-skill']);
-    const skillIndex = argv.indexOf('--skill');
-    expect(argv.slice(skillIndex + 1, skillIndex + 3)).toEqual(['a-skill', 'b-skill']);
+    // Each name gets its own flag: --skill a-skill --skill b-skill.
+    expect(argv.filter(token => token === '--skill')).toHaveLength(2);
+    const joined = argv.join(' ');
+    expect(joined).toContain('--skill a-skill --skill b-skill');
   });
 
   it('skillInstallCommand renders the full npx command for the failure hint', () => {

@@ -94,12 +94,13 @@ export interface SkillInstallResult {
  * - `'all'` → `--skill '*'`: every skill the source publishes. Note this is
  *   `--skill '*'`, NOT `--all` — `--all` also forces `--agent '*'` (every agent
  *   on earth).
- * - a name list → `--skill <name...>`: one `--skill` flag carrying every name
- *   (the installer accepts multiple values). An empty list selects nothing.
+ * - a name list → `--skill <name>` REPEATED per name. The installer does not
+ *   accept space-separated values after one flag (same as `-a`), so each name
+ *   gets its own `--skill`. An empty list selects nothing.
  */
 function selectionFlags(selection: SkillSelection): string[] {
   if (selection === 'all') return ['--skill', '*'];
-  return selection.length > 0 ? ['--skill', ...selection] : [];
+  return selection.flatMap(name => ['--skill', name]);
 }
 
 /**
