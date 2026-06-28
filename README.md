@@ -243,12 +243,15 @@ Key directories created in your project:
 - `post-tool-lint.ts` - Auto-lints after file edits
 - `post-tool-quality.ts` - Tracks LOC, detects phase changes and TDD steps
 - `post-tool-bypass-warn.ts` - Warns when agent bypasses quality gates
+- `post-tool-skill-nudge.ts` - On the first edit of a language with an installed coding-skill, points the agent at that skill (see Language coding-skills below)
 - `pre-tool-quality.ts` - Blocks edits when quality gate is active (LOC, phase, or TDD)
 - `pre-tool-config-guard.ts` - Guards against settings.json modifications
 - `stop-quality.ts` - Quality review prompt on stop
 - `cursor/after-file-edit.ts` - Auto-lints after Cursor file edits
 - `cursor/stop.ts` - Quality review prompt on Cursor stop
+- `cursor/post-tool-skill-nudge.ts` - Cursor adapter for the language coding-skill nudge (dormant pending Cursor bug #534)
 - `codex/pre-tool-quality.ts` - Adapts Codex PreToolUse events to safeword's quality gate
+- `codex/post-tool-skill-nudge.ts` - Codex adapter for the language coding-skill nudge
 
 Codex hook coverage is limited to the documented PreToolUse tool calls that
 Safeword configures (`Bash`, `apply_patch` edit payloads, and MCP tools). Live
@@ -263,6 +266,8 @@ a runtime boundary, not as edits Safeword claims to guard through PreToolUse.
 - `refactor/` - Small-step refactoring with test verification
 - `testing/` - Test writing methodology (iron laws, anti-patterns)
 - `ticket-system/` - Ticket system and work logs for context anchoring
+
+**Language coding-skills** (auto-installed per language): when safeword detects a Go, Python, TypeScript, or Rust project, `setup`/`upgrade` install a small third-party coding-skill for that language (via `npx skills`, into `.claude/skills/` and `.agents/skills/`), and `post-tool-skill-nudge.ts` points the agent at it the first time you edit that language in a scenario. Best-effort — a missing network or installer error degrades to a warning, never blocks setup. Works across Claude, Codex, and Cursor (Cursor's injection is dormant pending platform bug #534). Note: frontier models already write most core idioms unaided, so this is a light nudge, not a transformation.
 
 **Commands**: Cursor gets explicit command files in `.cursor/commands/`; Claude Code exposes slash-command behavior through skills. Codex uses repo-scoped skills in `.agents/skills/` rather than command files.
 
