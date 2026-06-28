@@ -58,12 +58,50 @@ export function countToolUses(transcriptText: string): number {
   return count;
 }
 
-/** Whether the transcript crosses the substance threshold (inclusive `>=`). */
+/** A per-agent tool-use counter over a transcript's raw text. */
+export type ToolUseCounter = (transcriptText: string) => number;
+
+const CODEX_TOOL_EVENTS = new Set(['function_call', 'exec_command_begin', 'mcp_tool_call_begin']);
+
+/**
+ * Count tool events in a Codex rollout JSONL (`{type, payload}` per line). Codex's
+ * tool signal is `function_call` / `exec_command_begin` / `mcp_tool_call_begin` —
+ * NOT Claude's `message.content[].tool_use`, so Claude's countToolUses would
+ * return 0 here. Nesting-tolerant: matches the tool type on either the top-level
+ * `type` or `payload.type` (the exact rollout nesting is confirmed by a live
+ * Codex spike; this hedges both shapes). Malformed lines are skipped.
+ */
+export function countToolUsesCodex(rolloutText: string): number {
+  const text = rolloutText.trim();
+  if (text.length === 0) return 0;
+  let count = 0;
+  for (const line of text.split('\n')) {
+    try {
+      const entry = JSON.parse(line) as { type?: string; payload?: { type?: string } };
+      if (
+        CODEX_TOOL_EVENTS.has(entry.type ?? '') ||
+        CODEX_TOOL_EVENTS.has(entry.payload?.type ?? '')
+      ) {
+        count++;
+      }
+    } catch {
+      // Skip malformed JSONL lines silently.
+    }
+  }
+  return count;
+}
+
+/**
+ * Whether the transcript crosses the substance threshold (inclusive `>=`), using
+ * the supplied per-agent tool-use counter (defaults to the Claude counter so the
+ * Claude path is unchanged).
+ */
 export function isSubstantial(
   transcriptText: string,
   threshold: number = SUBSTANCE_THRESHOLD,
+  counter: ToolUseCounter = countToolUses,
 ): boolean {
-  return countToolUses(transcriptText) >= threshold;
+  return counter(transcriptText) >= threshold;
 }
 
 /**
@@ -122,6 +160,21 @@ function nonEmpty(value: string | undefined): string | undefined {
 }
 
 /**
+ * Resolve a Codex session id from a SESSION-STABLE source: the Stop payload's
+ * `session_id`, then the `CODEX_THREAD_ID` env. Deliberately NOT `turn_id` — that
+ * changes every turn, so keying the once-per-session sentinel on it would make
+ * retro fire on every Stop. Mirrors run-identity.ts's Codex sessionKey.
+ */
+export function resolveCodexSessionId(
+  input: { session_id?: string; turn_id?: string },
+  env: Record<string, string | undefined>,
+): string | undefined {
+  // turn_id is accepted but deliberately ignored — it changes every turn, so it
+  // must never key the once-per-session sentinel.
+  return nonEmpty(input.session_id) ?? nonEmpty(env.CODEX_THREAD_ID);
+}
+
+/**
  * The fact-phrased nudge surfaced via Stop additionalContext. A STATEMENT, never
  * an imperative — out-of-band/command phrasing trips Claude's prompt-injection
  * defenses and gets surfaced verbatim instead of acted on (the stop-self-report
@@ -138,18 +191,27 @@ export function buildRetroNudge(transcriptPath: string): string {
 
 export interface RetroTriggerInput {
   session_id?: string;
+  /** Codex turn-scoped events carry turn_id; read by the Codex session resolver. */
+  turn_id?: string;
   transcript_path?: string;
 }
 
 export interface RetroTriggerDeps {
   /** Environment for session-id resolution (defaults to process.env). */
-  env?: SessionIdEnv;
+  env?: Record<string, string | undefined>;
   /** Transcript reader (injected for tests; defaults to fs readFileSync utf8). */
   readFile?: (path: string) => string;
   /** Sentinel base directory (defaults to the OS temp dir). */
   baseDirectory?: string;
   /** Substance threshold override (defaults to SUBSTANCE_THRESHOLD). */
   threshold?: number;
+  /** Per-agent tool-use counter (defaults to the Claude counter). */
+  countToolUses?: ToolUseCounter;
+  /** Per-agent session-id resolver (defaults to the Claude/shared resolver). */
+  resolveSessionId?: (
+    input: RetroTriggerInput,
+    env: Record<string, string | undefined>,
+  ) => string | undefined;
 }
 
 /**
@@ -170,8 +232,9 @@ export function decideRetroNudge(
   input: RetroTriggerInput,
   dependencies: RetroTriggerDeps = {},
 ): string | undefined {
-  const env = dependencies.env ?? (process.env as SessionIdEnv);
-  const sessionId = resolveSessionId(input, env);
+  const env = dependencies.env ?? (process.env as Record<string, string | undefined>);
+  const resolve = dependencies.resolveSessionId ?? resolveSessionId;
+  const sessionId = resolve(input, env);
   if (!sessionId) return undefined;
 
   const transcriptPath = input.transcript_path;
@@ -187,7 +250,8 @@ export function decideRetroNudge(
     return undefined; // unreadable transcript → fail open
   }
 
-  if (!isSubstantial(transcript, dependencies.threshold ?? SUBSTANCE_THRESHOLD)) {
+  const counter = dependencies.countToolUses ?? countToolUses;
+  if (!isSubstantial(transcript, dependencies.threshold ?? SUBSTANCE_THRESHOLD, counter)) {
     return undefined; // trivial session → silent, sentinel left unset
   }
 

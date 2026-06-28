@@ -32,6 +32,14 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+timeout = 30
+statusMessage = "Checking whether to run a safeword retro"
+
 [mcp_servers.context7]
 url = "https://mcp.context7.com/mcp"
 

@@ -83,17 +83,19 @@ Feature: retro auto-trigger — Codex
       Then the output decision is block
       And the first session's sentinel is left set
 
+    # turn_id is per-turn (changes every Stop) so it must NOT key a per-session
+    # sentinel; the session-stable sources are the payload session_id and the
+    # CODEX_THREAD_ID env, matching run-identity.ts.
     @retro-codex-trigger.SM1.AC3
-    Scenario Outline: The Codex session id resolves from the payload or environment
+    Scenario Outline: The Codex session id resolves from a session-stable source
       Given a Codex Stop payload and environment supplying the session id via <source>
       When the adapter resolves the session id
       Then the once-per-session sentinel is keyed to that id
 
       Examples:
-        | source           |
-        | turn_id          |
-        | CODEX_THREAD_ID  |
-        | session_id       |
+        | source          |
+        | session_id      |
+        | CODEX_THREAD_ID |
 
   Rule: Fails open with valid JSON, never breaking the Codex turn (TB1.AC1)
 

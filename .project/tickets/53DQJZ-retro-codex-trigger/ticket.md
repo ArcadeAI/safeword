@@ -66,3 +66,13 @@ before trusting the parser in production.
   below-threshold-count trivial scenario + a Claude-shaped-zero-events adversarial
   twin. Re-review PASS. impl-plan.md written (counter-seam refactor + adapter).
   Stamped. Entering implement.
+- 2026-06-28T17:00Z Implement: outside-in TDD. countToolUsesCodex (Codex rollout
+  shape, nesting-tolerant); factored isSubstantial + decideRetroNudge to inject a
+  per-agent counter + resolver (Claude defaults — regression-proven by FTCQGD
+  suite staying green); resolveCodexSessionId (session_id > CODEX_THREAD_ID, NOT
+  turn_id). codex/stop.ts adapter emits {decision:block} or {} (valid JSON). Wired
+  config.toml [[hooks.Stop]] (+ schema patch + unpatch) + schema.ts + mirrors.
+  CORRECTION mid-impl: dropped turn_id as a session-id source (per-turn → would
+  break idempotency); fixed the scenario. Excluded /codex/ from the SETTINGS_HOOKS
+  drift test (Codex hooks wire via config.toml). 13 codex unit + 5 integration; 73
+  targeted green; typecheck + lint + prettier clean.

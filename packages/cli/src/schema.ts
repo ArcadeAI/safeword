@@ -210,6 +210,19 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
 
+// Codex Stop hook for the retro auto-trigger (53DQJZ). Retrofits onto pre-existing
+// configs and is stripped on uninstall via the primary patch's unpatchContent.
+// Must byte-match the Stop block appended to the codex/config.toml template.
+const CODEX_STOP_HOOK_PATCH = `
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+timeout = 30
+statusMessage = "Checking whether to run a safeword retro"
+`;
+
 // MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
 // context7 uses the hosted streamable-HTTP transport (url); playwright uses
 // stdio (command/args) — matching MCP_SERVERS. Shipped via the codex/config.toml
@@ -682,6 +695,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/codex/pre-tool-quality-helpers.ts': {
       template: 'hooks/codex/pre-tool-quality-helpers.ts',
     },
+    '.safeword/hooks/codex/stop.ts': {
+      template: 'hooks/codex/stop.ts',
+    },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
     },
@@ -1111,8 +1127,21 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           CODEX_SESSION_START_HOOK_PATCH,
           CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+          CODEX_STOP_HOOK_PATCH,
         ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+      },
+      // Codex Stop hook retrofit (53DQJZ): add-if-missing, guarded to safeword
+      // scaffolds. Marker is the adapter path so an existing entry suppresses the
+      // append. Uninstall cleanup is owned by the primary patch's unpatchContent.
+      {
+        operation: 'append',
+        content: CODEX_STOP_HOOK_PATCH,
+        marker: '.safeword/hooks/codex/stop.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
       },
       // Migrate existing installs (auto-upgrade-codex follow-up to #433): swap the
       // legacy context-only SessionStart hook for the auto-upgrade dispatcher.
