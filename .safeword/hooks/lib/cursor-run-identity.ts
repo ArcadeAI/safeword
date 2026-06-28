@@ -3,8 +3,8 @@ import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.ts';
 
-export const CURSOR_RUN_IDENTITY_CACHE = 'cursor-run-identity.json';
-export const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
+const CURSOR_RUN_IDENTITY_CACHE = 'cursor-run-identity.json';
+const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
 
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 
