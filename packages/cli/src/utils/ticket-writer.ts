@@ -21,6 +21,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import type { TrackerReference } from '../tracker-sync/types.js';
 import { resolveTicketsDirectory } from './configured-paths.js';
 import { getTemplatesDirectory } from './fs.js';
 import type { IdMinter } from './id-minter.js';
@@ -56,17 +57,66 @@ export class TicketIdCollisionError extends Error {
   }
 }
 
+/** A tracker-minted identity for issue-first creation. */
+export interface MintedIdentity {
+  /** The canonical ticket id — the tracker's own issue key. */
+  id: string;
+  /** The recorded reference, for the caller to persist in the tracker-map. */
+  ref?: TrackerReference;
+}
+
+/** Mints identity from the tracker (the network boundary). Injected for tests. */
+export type IdentitySource = () => Promise<MintedIdentity>;
+
 export function createTicket(
   cwd: string,
   minter: IdMinter,
   options: NewTicketOptions,
 ): NewTicketResult {
+  const ticketsDirectory = ensureTicketsDirectory(cwd);
+  const { id, folderPath } = mintAndClaim(ticketsDirectory, minter, options.slug);
+  const { ticketPath } = writeTicketContents(folderPath, id, options);
+  return { id, folderPath, ticketPath };
+}
+
+/**
+ * Issue-first creation (KKNFZA TB1.AC1): identity is minted from the tracker
+ * BEFORE any folder exists, so a failed mint leaves no orphan. The folder is
+ * keyed to the tracker's issue key. The returned `ref` is the caller's to
+ * persist in the tracker-map. No retry loop: a tracker key is unique by
+ * construction (an existing folder for it surfaces as a normal EEXIST).
+ */
+export async function createIssueFirstTicket(
+  cwd: string,
+  options: NewTicketOptions,
+  identity: IdentitySource,
+): Promise<NewTicketResult & { ref?: TrackerReference }> {
+  const minted = await identity();
+  const ticketsDirectory = ensureTicketsDirectory(cwd);
+  const folderPath = nodePath.join(ticketsDirectory, `${minted.id}-${options.slug}`);
+  mkdirSync(folderPath);
+  const { ticketPath } = writeTicketContents(folderPath, minted.id, options);
+  return { id: minted.id, folderPath, ticketPath, ref: minted.ref };
+}
+
+function ensureTicketsDirectory(cwd: string): string {
   const ticketsDirectory = resolveTicketsDirectory(cwd);
   if (!existsSync(ticketsDirectory)) {
     mkdirSync(ticketsDirectory, { recursive: true });
   }
+  return ticketsDirectory;
+}
 
-  const { id, folderPath } = mintAndClaim(ticketsDirectory, minter, options.slug);
+/**
+ * Write ticket.md (+ spec.md for features) into an already-claimed folder.
+ * Shared by the local (minter) and issue-first (tracker) creation paths so the
+ * file shape stays identical regardless of where identity came from.
+ */
+function writeTicketContents(
+  folderPath: string,
+  id: string,
+  options: NewTicketOptions,
+): { ticketPath: string } {
   const ticketPath = nodePath.join(folderPath, 'ticket.md');
   writeFileSync(ticketPath, renderTicketMarkdown(id, options));
 
@@ -77,7 +127,7 @@ export function createTicket(
     writeFileSync(nodePath.join(folderPath, 'spec.md'), renderSpecMarkdown(title));
   }
 
-  return { id, folderPath, ticketPath };
+  return { ticketPath };
 }
 
 function renderSpecMarkdown(title: string): string {
