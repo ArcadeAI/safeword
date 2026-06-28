@@ -15,6 +15,10 @@ const beforeShellAdapterPath = nodePath.join(
   repoRoot,
   'packages/cli/templates/hooks/cursor/before-shell-execution.ts',
 );
+const codexPreToolPath = nodePath.join(
+  repoRoot,
+  'packages/cli/templates/hooks/codex/pre-tool-quality.ts',
+);
 const resolverPath = nodePath.join(
   repoRoot,
   'packages/cli/templates/hooks/resolve-namespace-root.ts',
@@ -58,6 +62,29 @@ function runCursorBeforeShell(input: {
 
   expect(result.status).toBe(0);
   expect(JSON.parse(result.stdout) as { permission?: string }).toEqual({ permission: 'allow' });
+}
+
+function runCodexPreTool(input: {
+  projectDirectory: string;
+  command: string;
+  sessionId: string;
+}): void {
+  const result = spawnSync('bun', [codexPreToolPath], {
+    cwd: input.projectDirectory,
+    input: JSON.stringify({
+      session_id: input.sessionId,
+      tool_name: 'Bash',
+      tool_input: { command: input.command },
+    }),
+    encoding: 'utf8',
+    env: {
+      ...envWithoutRunIdentity(),
+      CLAUDE_PROJECT_DIR: input.projectDirectory,
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  expect(result.status).toBe(0);
 }
 
 function installedProofCommand(projectDirectory: string, skillName: string): string {
@@ -170,18 +197,19 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     expect(logContent).toMatch(/ remote-session-uuid verify$/m);
   });
 
-  it('falls back to CODEX_THREAD_ID when Claude session ids are unavailable (Codex)', () => {
+  it('records Codex proof after the PreToolUse hook binds the current session id', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
-    mkdirSync(nodePath.join(projectDirectory, '.project'), { recursive: true });
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+
+    runCodexPreTool({
+      projectDirectory,
+      command: installedProofCommand(projectDirectory, 'quality-review'),
+      sessionId: 'codex-session-uuid',
+    });
 
     const output = execFileSync('bun', [helperPath, projectDirectory, 'quality-review'], {
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        CLAUDE_SESSION_ID: '',
-        CLAUDE_CODE_SESSION_ID: '',
-        CODEX_THREAD_ID: 'codex-thread-uuid',
-      },
+      env: envWithoutRunIdentity(),
     });
 
     expect(output.trim()).toBe('[skill-invocation-log] quality-review ✓');
@@ -189,7 +217,51 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
       nodePath.join(projectDirectory, '.project', 'skill-invocations.log'),
       'utf8',
     );
-    expect(logContent).toMatch(/ codex-thread-uuid quality-review$/m);
+    expect(logContent).toMatch(/ codex-session-uuid quality-review$/m);
+  });
+
+  it('does not bind Codex proof when a shell command only mentions the helper', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+
+    runCodexPreTool({
+      projectDirectory,
+      command: `echo "${installedProofCommand(projectDirectory, 'quality-review')}"`,
+      sessionId: 'codex-session-uuid',
+    });
+
+    const result = spawnSync('bun', [helperPath, projectDirectory, 'quality-review'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('no proof logged');
+    expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
+      false,
+    );
+  });
+
+  it('does not let a Codex proof cache satisfy a different skill', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+
+    runCodexPreTool({
+      projectDirectory,
+      command: installedProofCommand(projectDirectory, 'quality-review'),
+      sessionId: 'codex-session-uuid',
+    });
+
+    const result = spawnSync('bun', [helperPath, projectDirectory, 'audit'], {
+      encoding: 'utf8',
+      env: envWithoutRunIdentity(),
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('no proof logged');
+    expect(existsSync(nodePath.join(projectDirectory, '.project', 'skill-invocations.log'))).toBe(
+      false,
+    );
   });
 
   it('records Cursor proof after beforeShellExecution binds the current conversation id', () => {
@@ -323,7 +395,7 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     writeFileSync(
       nodePath.join(projectMetadataDirectory, 'cursor-run-identity.json'),
       JSON.stringify({
-        conversationId: 'old-cursor-conversation',
+        id: 'old-cursor-conversation',
         skillName: 'verify',
         recordedAt: '2000-01-01T00:00:00.000Z',
       }),

@@ -15,6 +15,10 @@ import {
   denialReasonFromHookOutput,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
+import {
+  parseRecordSkillInvocationCommand,
+  rememberCodexRunIdentity,
+} from '../lib/cursor-run-identity.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
 
 installCrashCapture('codex-pre-tool-quality', undefined, 'codex');
@@ -59,6 +63,19 @@ function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
 
 const input = await readInput();
 if (!input) process.exit(0);
+
+// Gate-proof bridge: Codex exposes session_id only to this hook, not to the
+// record-skill-invocation.ts command it precedes. Stash it in a short-lived,
+// per-skill cache so the helper can bind the gate proof to the current session
+// (mirrors the Cursor beforeShellExecution bridge).
+const proofCommand = parseRecordSkillInvocationCommand(input.tool_input?.command ?? '');
+if (proofCommand !== undefined) {
+  rememberCodexRunIdentity({
+    projectDirectory: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    sessionId: input.session_id,
+    skillName: proofCommand.skillName,
+  });
+}
 
 const translatedInputs = translateCodexInputToClaudeInputs(input);
 if (translatedInputs.length === 0) process.exit(0);

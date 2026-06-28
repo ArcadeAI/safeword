@@ -112,10 +112,7 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
           'The helper also resolves Claude remote-container ids from the runtime environment',
         );
         expect(content).toContain(
-          'on Cursor the beforeShellExecution hook bridges the session id to the helper',
-        );
-        expect(content).toContain(
-          'Codex exposes its session id only to hooks and has no such bridge yet',
+          'on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper',
         );
         expect(content).toContain(
           'Feature tickets must fail closed if no real current-session proof can be logged.',

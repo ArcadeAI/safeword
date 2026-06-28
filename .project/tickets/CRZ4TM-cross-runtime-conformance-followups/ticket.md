@@ -5,10 +5,10 @@ type: task
 phase: intake
 status: todo
 created: 2026-06-28T21:20:00.000Z
-last_modified: 2026-06-28T21:20:00.000Z
+last_modified: 2026-06-28T21:56:00.000Z
 scope:
-  - Cursor Skills migration — expose safeword's existing SKILL.md workflows as Cursor Skills (`.cursor/skills/<name>/SKILL.md`, or confirm Cursor already discovers `.claude/skills/`) ahead of Cursor deprecating `.cursor/commands/`. Track Cursor's deprecation timeline; migrate when it lands.
-  - Codex run-identity bridge — give Codex the auto-resolving gate-proof that Cursor already has. Cursor's `before-shell-execution.ts` captures `conversation_id` from the hook payload right before the `record-skill-invocation.ts` shell command and caches it (`cursor-run-identity.ts`) for the helper to read back. Codex has no equivalent and instead reads the nonexistent `CODEX_THREAD_ID` env var (FR openai/codex#8923 open), so its skill-body gate proof fails closed. Build a `codex-run-identity` bridge mirroring Cursor's (a Codex PreToolUse/shell hook captures stdin `session_id` → cache → helper reads), then remove the dead `CODEX_THREAD_ID` branch. Update run-identity tests + template/installed mirror + parity together.
+  - Cursor Skills migration — expose safeword's existing SKILL.md workflows as Cursor Skills (`.cursor/skills/<name>/SKILL.md`, or confirm Cursor already discovers `.claude/skills/`) ahead of Cursor deprecating `.cursor/commands/`. Track Cursor's deprecation timeline; migrate when it lands. (REMAINING)
+  - ✅ DONE — Codex run-identity bridge. Shipped on branch claude/cross-runtime-conformance: the Codex PreToolUse hook (`codex/pre-tool-quality.ts`) now captures stdin `session_id` before the `record-skill-invocation.ts` command and caches it via the shared `rememberCodexRunIdentity`/`readFreshCodexRunIdentity` (generalized from the Cursor bridge in `cursor-run-identity.ts`); the helper reads it back. The dead `CODEX_THREAD_ID` branch was removed from `run-identity.ts` + `record-skill-invocation.ts`. Codex now auto-resolves the gate proof exactly like Cursor (no hand-passed id). Unit + E2E tests (record-skill-invocation, codex-cursor-skill-fallback) and parity green.
 out_of_scope:
   - The marketplace-catalog path move (.claude-plugin/marketplace.json) — already fixed on branch claude/cross-runtime-conformance.
   - The Codex/Cursor gate-proof docs-accuracy correction — already fixed on the same branch.
