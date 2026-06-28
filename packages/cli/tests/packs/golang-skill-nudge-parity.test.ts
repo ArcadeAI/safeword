@@ -32,4 +32,13 @@ describe('golang skill-nudge ↔ langpack parity', () => {
     // Guards against a vacuous pass — proves the assertion above can fail.
     expect(GOLANG_SKILL_DIR_PATTERN.test('go-context')).toBe(false);
   });
+
+  it('the declared dispatcher is a well-formed golang skill dir name', () => {
+    if (!goEntry) throw new Error('Go entry must exist');
+    // Go points the nudge at samber's orchestrator. Pin its name to the langpack
+    // dir shape so a typo/rename here fails loudly instead of silently never
+    // resolving the entry (which would degrade to the generic concerns line).
+    expect(goEntry.dispatcher).toBe('golang-how-to');
+    expect(GOLANG_SKILL_DIR_PATTERN.test(goEntry.dispatcher ?? '')).toBe(true);
+  });
 });

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -83,5 +83,52 @@ describe('skill nudge fires across all three agents on a .go edit', () => {
       session_id: 'claude-2',
     });
     expect(out.trim()).toBe('');
+  });
+});
+
+describe('dispatcher path — points at the entry skill and surfaces its description', () => {
+  // The full pack installs the `golang-how-to` orchestrator alongside the atomic
+  // skills. With it present, the nudge names it directly and inlines its own
+  // SKILL.md description, instead of the generic concerns fallback. One agent
+  // (Claude) is enough: the adapters forward the Claude output verbatim, already
+  // proven by the cross-agent tests above; the dispatcher-vs-fallback branch lives
+  // in the shared pure lib and is agent-independent.
+  const disp = { dir: '' };
+  const description =
+    'Golang skills orchestrator — always active; routes to the most relevant skills.';
+
+  beforeAll(() => {
+    disp.dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-nudge-dispatch-'));
+    mkdirSync(nodePath.join(disp.dir, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(disp.dir, '.project'), { recursive: true });
+    mkdirSync(nodePath.join(disp.dir, '.claude/skills/golang-context'), { recursive: true });
+    const howTo = nodePath.join(disp.dir, '.claude/skills/golang-how-to');
+    mkdirSync(howTo, { recursive: true });
+    writeFileSync(
+      nodePath.join(howTo, 'SKILL.md'),
+      `---\nname: golang-how-to\ndescription: "${description}"\n---\n# How to\n`,
+    );
+  });
+
+  afterAll(() => {
+    if (disp.dir) rmSync(disp.dir, { recursive: true, force: true });
+  });
+
+  it('Claude — names golang-how-to and inlines its description verbatim', () => {
+    const result = spawnSync('bun', [claudeHook], {
+      input: JSON.stringify({
+        tool_input: { file_path: nodePath.join(disp.dir, 'x.go') },
+        session_id: 'disp-1',
+      }),
+      encoding: 'utf8',
+      cwd: disp.dir,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: disp.dir },
+      timeout: 30_000,
+    });
+    const context = JSON.parse(result.stdout ?? '').hookSpecificOutput.additionalContext;
+    expect(context).toContain('golang-how-to');
+    expect(context).toContain(description);
+    // The direct pointer replaces the generic "golang-* skill that fits" fallback.
+    expect(context).not.toContain('golang-*');
   });
 });

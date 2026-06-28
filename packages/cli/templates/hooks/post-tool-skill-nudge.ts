@@ -15,7 +15,15 @@ import nodePath from 'node:path';
 
 import { deriveActiveScenario, getTicketInfo } from './lib/active-ticket.ts';
 import { getStateFilePath } from './lib/quality-state.ts';
-import { decideSkillNudge, languageForFile, SKILL_LANGUAGES } from './lib/skill-nudge.ts';
+import {
+  decideSkillNudge,
+  type EntrySkill,
+  entrySkillFor,
+  languageForFile,
+  parseSkillDescription,
+  type SkillLanguage,
+  SKILL_LANGUAGES,
+} from './lib/skill-nudge.ts';
 
 interface HookInput {
   session_id?: string;
@@ -40,8 +48,15 @@ if (!filePath) process.exit(0);
 const language = languageForFile(filePath);
 if (!language) process.exit(0);
 
-const installed = installedPrefixes(projectDirectory);
+const skillDirs = installedSkillDirs(projectDirectory);
+const installed = new Set(skillDirs.map(dir => dir.name.split('-')[0]));
 if (!installed.has(language.prefix)) process.exit(0);
+
+// Resolve the single entry skill (the sole installed skill for a single-skill
+// pack, or the installed dispatcher for a multi-skill pack) and read its own
+// SKILL.md `description` off disk. Degrade-not-fail: any miss leaves `entry`
+// null and decideSkillNudge uses the illustrative-concerns fallback line.
+const entry = resolveEntrySkill(skillDirs, language);
 
 // Active ticket comes from the shared quality-state file — READ ONLY. We never
 // write that file: post-tool-quality.ts owns it and runs in parallel on the same
@@ -49,7 +64,7 @@ if (!installed.has(language.prefix)) process.exit(0);
 const sharedStateFile = getStateFilePath(projectDirectory, input.session_id);
 const scenario = activeScenario(projectDirectory, readState(sharedStateFile).activeTicket);
 
-const nudge = decideSkillNudge(filePath, installed, scenario);
+const nudge = decideSkillNudge(filePath, installed, scenario, entry);
 if (!nudge) process.exit(0);
 
 // Flag-and-clear: fire once per (language, scenario). Dedup state lives in its
@@ -73,29 +88,67 @@ console.log(
   }),
 );
 
-/** Language prefixes (from SKILL_LANGUAGES) that have at least one skill on disk. */
-function installedPrefixes(projectRoot: string): Set<string> {
+interface InstalledSkillDir {
+  /** Skill directory name, e.g. `golang-how-to`. */
+  name: string;
+  /** Absolute path to the skill directory (for reading its SKILL.md). */
+  path: string;
+}
+
+/**
+ * Installed skill dirs (name + path) whose first path-segment is a known
+ * SKILL_LANGUAGES prefix. Gating by `known` means safeword's own skill dirs never
+ * match. The caller derives installed prefixes from `.name` and reads the entry
+ * skill's SKILL.md from `.path`.
+ *
+ * (Latent: if a future SKILL_LANGUAGES prefix equalled a real dir's first segment,
+ * that dir would be misread as installed — revisit when adding languages.)
+ */
+function installedSkillDirs(projectRoot: string): InstalledSkillDir[] {
   const known = new Set(Object.values(SKILL_LANGUAGES).map(language => language.prefix));
-  const found = new Set<string>();
+  const found: InstalledSkillDir[] = [];
   for (const relative of ['.claude/skills', '.agents/skills']) {
     const directory = nodePath.join(projectRoot, relative);
     if (!existsSync(directory)) continue;
     try {
       for (const entry of readdirSync(directory, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
-        // First path-segment is the language prefix (`golang-error-handling` →
-        // `golang`). Gated by `known`, so safeword's own skill dirs never match.
-        // (Latent: if a future SKILL_LANGUAGES prefix equalled a real dir's first
-        // segment, that dir would be misread as installed — revisit when adding
-        // languages.)
         const prefix = entry.name.split('-')[0];
-        if (prefix && known.has(prefix)) found.add(prefix);
+        if (prefix && known.has(prefix)) {
+          found.push({ name: entry.name, path: nodePath.join(directory, entry.name) });
+        }
       }
     } catch {
       // Unreadable dir — treat as no skills there.
     }
   }
   return found;
+}
+
+/**
+ * Resolve the entry skill to point at — its dir name plus its own SKILL.md
+ * `description` — or null when none resolves (caller falls back to the concerns
+ * line). Best-effort: an unreadable / description-less SKILL.md yields null.
+ */
+function resolveEntrySkill(
+  skillDirs: readonly InstalledSkillDir[],
+  language: SkillLanguage,
+): EntrySkill | null {
+  const entryName = entrySkillFor(
+    language,
+    skillDirs.map(dir => dir.name),
+  );
+  if (!entryName) return null;
+  const match = skillDirs.find(dir => dir.name === entryName);
+  if (!match) return null;
+  try {
+    const description = parseSkillDescription(
+      readFileSync(nodePath.join(match.path, 'SKILL.md'), 'utf8'),
+    );
+    return description ? { name: entryName, description } : null;
+  } catch {
+    return null;
+  }
 }
 
 interface SessionState {
