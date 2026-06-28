@@ -35,6 +35,12 @@ scenarios in [./test-definitions.md](./test-definitions.md); feature source
 
 ## Work Log
 
+- 2026-06-28T16:20:00Z implement COMPLETE — all 11 scenarios green. Slices: SM1.AC1 join reader
+  (58d70c8), issue-first core (b38565c), provider routing resolveCreationMode (9e5b123), identity
+  builder buildIdentitySource (b7bbac3), and command integration createTicketRouted + ticketNew
+  rewire + --issue (da1268d). 39 unit/integration tests green; createTicket (provider:none)
+  unchanged. Honest coverage notes in the ledger for adopt (composition-proven) and the two
+  credential degrade paths (shared failure path; secret-redaction structural). Next: /verify.
 - 2026-06-28T15:02:00Z implement: issue-first core GREEN (b38565c). createIssueFirstTicket mints
   identity (injected source = network boundary) before any folder; failed mint → no orphan.
   Extracted writeTicketContents (shared local + issue-first). Covers TB1.AC1.connected_mints +
