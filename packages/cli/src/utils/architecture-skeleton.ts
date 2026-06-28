@@ -56,6 +56,13 @@ export interface Skeleton {
   nodes: SkeletonNode[];
 }
 
+/**
+ * Stable node ordering: every skeleton is sorted by name so the rendered doc and the
+ * fingerprint are deterministic (readdirSync order is not guaranteed). Mirrors the
+ * `byString` comparator the sibling monorepo/fingerprint modules use.
+ */
+const byNodeName = (a: SkeletonNode, b: SkeletonNode): number => a.name.localeCompare(b.name);
+
 export function extractSkeleton(projectDirectory: string): Skeleton {
   // A Python project (a `pyproject.toml` is present) is described by its top-level
   // modules — src-layout uses `src/` packages + `src/*.py`, flat-layout uses root
@@ -121,14 +128,14 @@ function enumerateModuleDirectories(
   return entries
     .filter(entry => entry.isDirectory())
     .map(entry => ({ name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER }))
-    .toSorted((a, b) => a.name.localeCompare(b.name));
+    .toSorted(byNodeName);
 }
 
 /** The recognized Go layout directories that actually exist, as sorted nodes. */
 function goLayoutNodes(projectDirectory: string): SkeletonNode[] {
   return GO_LAYOUT_DIRECTORIES.filter(name => isDirectory(nodePath.join(projectDirectory, name)))
     .map(name => ({ name, path: name, purpose: PURPOSE_PLACEHOLDER }))
-    .toSorted((a, b) => a.name.localeCompare(b.name));
+    .toSorted(byNodeName);
 }
 
 /**
@@ -165,10 +172,7 @@ function rustModuleNodes(projectDirectory: string): SkeletonNode[] {
       byName.set(name, { name, path: `src/${entry.name}`, purpose: PURPOSE_PLACEHOLDER });
     }
   }
-  return byName
-    .values()
-    .toArray()
-    .toSorted((a, b) => a.name.localeCompare(b.name));
+  return byName.values().toArray().toSorted(byNodeName);
 }
 
 /**
@@ -234,10 +238,7 @@ function pythonModulesFrom(
       byName.set(name, { name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER });
     }
   }
-  return byName
-    .values()
-    .toArray()
-    .toSorted((a, b) => a.name.localeCompare(b.name));
+  return byName.values().toArray().toSorted(byNodeName);
 }
 
 /**
