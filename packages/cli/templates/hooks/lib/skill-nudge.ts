@@ -43,6 +43,14 @@ export interface EntrySkill {
   description: string;
 }
 
+// TypeScript's skill applies to both `.ts` and `.tsx`; one definition, shared by
+// both extension keys below (the nudge returns this value by reference).
+const TYPESCRIPT_LANG: SkillLanguage = {
+  prefix: 'typescript',
+  display: 'TypeScript',
+  concerns: ['types/generics', 'async', 'null-safety', 'error handling', 'testing'],
+};
+
 /**
  * Source-file extension → language. Drives both which edits trigger a nudge and
  * the concern hints. The `prefix` must match the installed `<prefix>-*` skill
@@ -66,16 +74,8 @@ export const SKILL_LANGUAGES: Readonly<Record<string, SkillLanguage>> = {
     display: 'Python',
     concerns: ['typing', 'async', 'error handling', 'testing', 'packaging'],
   },
-  '.ts': {
-    prefix: 'typescript',
-    display: 'TypeScript',
-    concerns: ['types/generics', 'async', 'null-safety', 'error handling', 'testing'],
-  },
-  '.tsx': {
-    prefix: 'typescript',
-    display: 'TypeScript',
-    concerns: ['types/generics', 'async', 'null-safety', 'error handling', 'testing'],
-  },
+  '.ts': TYPESCRIPT_LANG,
+  '.tsx': TYPESCRIPT_LANG,
   '.rs': {
     prefix: 'rust',
     display: 'Rust',
