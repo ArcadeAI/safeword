@@ -148,6 +148,61 @@ leave it unparseable, and a per-ticket (not global) granularity keeps one sessio
 clobbering another's. A torn or missing cache is treated as "unknown" and re-reconciled from the
 tracker at the next boundary, never as a false gate signal.
 
+### offboard-local-ticketing.SM2 — the migration preserves the local execution workflow
+
+**Persona:** Safeword Maintainer (SM)
+
+> When identity and status move to the tracker, I want the local execution jobs the ticket system
+> exists for — loop-prevention, gated quality, epic self-advance, resume — to keep working exactly
+> as today, so off-boarding the *coordination* plane never silently degrades the *execution* plane.
+>
+> (Derived from the existing-system JTBD audit, this session. Each AC names a job ranked as a
+> high-risk silent loss if status/identity leave the local plane.)
+
+#### offboard-local-ticketing.SM2.AC1 — per-turn context anchor is unchanged
+
+The per-turn re-injection of the active ticket's goal / phase / TDD-step (the loop-prevention
+anchor) keeps deriving from local state only — `ticket.md`, the runtime cache, and
+`test-definitions.md` — with no network read. Loop-prevention behaves identically to today,
+online or offline.
+
+#### offboard-local-ticketing.SM2.AC2 — the done invariant survives an external close
+
+The tracker's status is the read-authority for *coordination* (what the team sees), but safeword
+still requires its own local done-gate evidence (`verify.md` + all scenario checkboxes + the
+PR-scope line) **and** explicit user confirmation before it treats work as quality-gated `done`.
+An externally-closed issue is surfaced to the user at the session boundary — never silently
+accepted as a passed done-gate, and never auto-closing a ticket whose evidence is absent.
+
+#### offboard-local-ticketing.SM2.AC3 — local hierarchy execution keeps working
+
+The `blocked_on` phase gate, parent-status cascade, and next-ticket navigation continue to
+operate: blocker/sibling status is read from the runtime cache (no per-turn network), and status
+writes route through the AC2 status-on-issue path. This *local execution* of the graph is
+preserved and is distinct from projecting the dependency graph to the tracker (still out of scope
+— `M1FGRJ`). A blocker whose status can't be resolved fails closed (blocks), never open.
+
+#### offboard-local-ticketing.SM2.AC4 — cross-session resume is preserved
+
+A ticket resumes by its canonical (tracker) key or slug at its current phase across sessions. The
+re-entry brief and replan-on-resume — which read prior sessions' transcripts and `git`
+working-tree/commit state — keep working unchanged; they are intrinsically local and neither needs
+nor consults the tracker.
+
+#### offboard-local-ticketing.SM2.AC5 — review ledger rekeys without losing its floor
+
+Review stamps and the session-scoped skill-invocation proof rekey to the canonical (tracker) id,
+while their local content-hash binding and per-session proof stay local. Where review gates are
+enabled, they fire exactly as today after rekeying — the integrity floor is not lowered by the
+migration.
+
+#### offboard-local-ticketing.SM2.AC6 — a stable tracker-key → local-folder mapping
+
+Every hook resolves "the local folder for this ticket" from the canonical (tracker) key via a
+stable mapping, so all colocated evidence stays reachable even though identity now originates in
+the tracker. (Linchpin called out by the audit: without this, the evidence is still on disk but
+the gates can't find it.)
+
 ## Rave Moment
 
 ### offboard-local-ticketing — the repo that stopped churning but kept the receipts
@@ -190,12 +245,21 @@ Matches the current content-vs-lifecycle model (not the dropped ephemeral-cache 
 5. **instructions + back-compat + docs** — rewrite `SAFEWORD.md` / `ticket-system/SKILL.md` /
    guides / website to the tracker-canonical flow; existing tickets stay readable; `provider:none`
    unchanged (SM1.AC1, SM1.AC3).
+6. **preserve the execution workflow** — the cross-cutting must-preserve set from the JTBD audit:
+   the tracker-key → local-folder join key (SM2.AC6, a hard dependency of every other child), the
+   per-turn context anchor (SM2.AC1), the done-invariant vs external-close (SM2.AC2), local
+   hierarchy execution (SM2.AC3), resume / re-entry / replan (SM2.AC4), and review-ledger rekey
+   (SM2.AC5). SM2.AC6 likely sequences first; the rest ride on children 2 and 5.
 
 Deferred follow-up (not a KKNFZA child): tracker-side approval gate for impl-plan review (see
 Open Questions).
 
 ## Open Questions
 
+- resolved (audit): the two linchpins the JTBD audit flagged are both decided. (1) Where canonical
+  status/phase live for the per-turn hooks → status on the tracker, mirrored in the git-ignored
+  runtime cache; phase in the runtime cache (TB1.AC2, SM1.AC2). (2) tracker-identity → local-folder
+  join key → a stable mapping, sequenced first (SM2.AC6).
 - defer: exact mapping of safeword `status` onto GitHub (open/closed + labels) vs Linear
   (workflow states) — resolve in the status-on-issue child ticket.
 - resolved (default): impl-plan review by another person uses **normal PR review** — the plan is a

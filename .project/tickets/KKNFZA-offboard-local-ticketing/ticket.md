@@ -12,6 +12,7 @@ scope:
   - retire INDEX generation and dup-ID guard when tracker is canonical
   - session-boundary status reconciliation (issue = read-authority)
   - back-compat read of existing tickets; provider:none unchanged
+  - PRESERVE local execution jobs (audit): context anchor, done-invariant vs external close, blocked_on/cascade/next-nav, resume/re-entry/replan, review-ledger rekey, tracker-key→folder join key
 out_of_scope:
   - full field parity (assignee/priority/body two-way) — M1FGRJ
   - dependency-graph projection (sub-issues/relations/topo-sort) — M1FGRJ
@@ -27,6 +28,9 @@ done_when:
   - INDEX generation and the dup-ID guard are retired when the tracker is canonical
   - ticket new fails loudly and leaves no orphan/duplicate when the tracker is unreachable
   - existing tickets and provider:none installs are unaffected
+  - loop-prevention context anchor still derives from local state with no per-turn network
+  - "never done without user confirmation" survives an external issue close
+  - blocked_on gate, parent cascade, next-ticket nav, and cross-session resume still work locally
 created: 2026-06-27T21:35:47.369Z
 last_modified: 2026-06-27T23:10:00.000Z
 ---
@@ -41,6 +45,13 @@ and reviewable and gates keep reading local files.
 
 ## Work Log
 
+- 2026-06-28T04:34:00Z Existing-system JTBD audit → added SM2 JTBD (6 ACs) for the must-preserve
+  set: context anchor (AC1), done-invariant vs external close (AC2), local hierarchy execution
+  (AC3), resume/re-entry/replan (AC4), review-ledger rekey (AC5), tracker-key→folder join key
+  (AC6). Audit's two linchpins (status/phase home; join key) marked resolved in Open Questions.
+  Added child ⑥ "preserve the execution workflow" to decomposition; scope + done_when updated.
+  Jobs that the tracker serves better (ID minting, human index) or that survive unchanged (work
+  logs, decide-to-build triage, PR-scope, backlog) need no new AC.
 - 2026-06-28T04:30:00Z Applied remaining minor fixes (user asked for all): added Outcomes rows for
   INDEX-no-churn and safe-ticket-new (done_when↔Outcomes symmetry); disambiguated "legacy" in
   SM1.AC3 (reads old on-disk ID formats vs legacy-project workflows out of scope). Kicked off an
