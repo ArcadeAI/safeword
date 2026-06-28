@@ -2,7 +2,7 @@
 id: FTCQGD
 slug: retro-auto-trigger
 type: feature
-phase: intake
+phase: implement
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 scope: |
@@ -84,3 +84,9 @@ all three adapters wrap one core.
 - 2026-06-28T05:33Z Converged: locked scope CLAUDE-FIRST. Resolved Q1=nudge
   (cross-agent portability), Q2=substance-gate, Q3=one-mechanism. Recorded
   cross-agent design. Stubbed follow-ons 53DQJZ (Codex) + KHYXY4 (Cursor).
+- 2026-06-28T05:37Z Complete: define-behavior - 11 scenarios across 6 rules
+  (spec.md personas/JTBD/ACs + dimensions.md + retro-auto-trigger.feature).
+- 2026-06-28T05:43Z Complete: scenario-gate - independent fork review caught 3
+  vacuous silent-Then blockers (trivial-path, precedence ladder, fail-open);
+  rewrote as contrast/precedence/fail-open outlines + added session-id-keying
+  scenario. Re-review PASS. 9 scenarios/7 rules. impl-plan.md written. Stamped.
