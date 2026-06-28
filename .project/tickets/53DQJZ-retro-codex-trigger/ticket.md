@@ -2,7 +2,7 @@
 id: 53DQJZ
 slug: retro-codex-trigger
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 depends_on: [FTCQGD]
