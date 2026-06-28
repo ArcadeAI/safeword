@@ -108,7 +108,11 @@ if (await Bun.file(markerFile).exists()) {
   }
 
   // Quality review takes this stop; retro yields and its sentinel is untouched,
-  // so retro can still fire on a later non-review stop.
+  // so retro can still fire on a later non-review stop. Accepted trade-off: a
+  // session that edits on EVERY stop never reaches the retro branch and is
+  // starved that session — the occurrence ledger still dedupes across sessions
+  // and the next session's first no-edit stop fires it. One followup_message per
+  // stop is a hard Cursor constraint, so retro can't ride alongside this one.
   const output: StopOutput = {
     followup_message: QUALITY_REVIEW_MESSAGE,
   };
