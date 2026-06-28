@@ -2,11 +2,11 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 3804/3804 Vitest tests pass; targeted surfaces suite ✓ 173/173 tests pass. Warning: `safeword test-plan --kind verify` exits 5 after the Python unittest lane discovers 0 tests in `experiments/gepa-review-spec/gepa`.
+**Test Suite:** ✓ 3808/3811 Vitest tests pass, 3 skipped; targeted setup surfaces language matrix ✓ 11/11 tests pass. Warning: `safeword test-plan --kind verify` exits 5 after the Python unittest lane discovers 0 tests in `experiments/gepa-review-spec/gepa`.
 **Gherkin:** ✅ Acceptance lane passes
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 22 scenarios marked complete
+**Scenarios:** All 25 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope; includes accepted review follow-up ticket `SFGCR1` for dependency advisory tracking only.
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A

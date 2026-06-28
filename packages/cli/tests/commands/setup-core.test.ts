@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createConfiguredProject,
+  createGoProject,
+  createPythonProject,
+  createRustProject,
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   fileExists,
@@ -16,8 +19,16 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  SKIP_INSTALL_ENV,
   writeTestFile,
 } from '../helpers';
+
+const languageFixtures: [string, (directory: string) => void][] = [
+  ['TypeScript', createTypeScriptPackageJson],
+  ['Python', createPythonProject],
+  ['Go', createGoProject],
+  ['Rust', createRustProject],
+];
 
 describe('Test Suite 2: Setup - Core Files', () => {
   let temporaryDirectory: string;
@@ -118,6 +129,25 @@ describe('Test Suite 2: Setup - Core Files', () => {
       expect(result.stdout).toMatch(/created/i);
       expect(result.stdout).toMatch(/\.safeword|safeword/i);
     });
+  });
+
+  describe('Setup scaffolds feature surfaces for supported language packs', () => {
+    it.each(languageFixtures)(
+      'creates .project/surfaces.md for %s projects',
+      async (_label, createProject) => {
+        createProject(temporaryDirectory);
+        initGitRepo(temporaryDirectory);
+
+        const result = await runCli(['setup'], {
+          cwd: temporaryDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(fileExists(temporaryDirectory, '.project/surfaces.md')).toBe(true);
+        expect(readTestFile(temporaryDirectory, '.project/surfaces.md')).toContain('# Surfaces');
+      },
+    );
   });
 
   // ==========================================================================

@@ -20,6 +20,12 @@ derive the active RED/GREEN/REFACTOR step.
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Supported language-pack customer projects receive starter surfaces
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Rule: Surface files follow the persona managed-file contract
 
 ### Scenario: Existing surface inventory survives setup byte-identical
