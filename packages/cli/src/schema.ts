@@ -303,6 +303,7 @@ const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Objec
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
   'cursor-run-identity.json',
+  'codex-run-identity.json',
   'failure-counts.json',
   'skill-invocations.log',
   're-entry.md',

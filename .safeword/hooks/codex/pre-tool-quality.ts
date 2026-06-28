@@ -61,17 +61,31 @@ function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
   });
 }
 
+// Resolve the project root the same way the record-skill-invocation.ts fallback
+// command does (`${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel || pwd)}`),
+// so the cache the helper reads back lands at the matching namespace root even
+// when Codex runs this hook from a subdirectory of the repo.
+function resolveProjectRoot(): string {
+  if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR;
+  const toplevel = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  const root = toplevel.status === 0 ? (toplevel.stdout ?? '').trim() : '';
+  return root.length > 0 ? root : process.cwd();
+}
+
 const input = await readInput();
 if (!input) process.exit(0);
 
 // Gate-proof bridge: Codex exposes session_id only to this hook, not to the
 // record-skill-invocation.ts command it precedes. Stash it in a short-lived,
 // per-skill cache so the helper can bind the gate proof to the current session
-// (mirrors the Cursor beforeShellExecution bridge).
+// (mirrors the Cursor beforeShellExecution bridge). The cache must land at the
+// SAME namespace root the helper resolves from, so derive the project root the
+// way the helper command does — CLAUDE_PROJECT_DIR, else the git toplevel, else
+// cwd — never the raw hook cwd, which can be a subdirectory of the repo.
 const proofCommand = parseRecordSkillInvocationCommand(input.tool_input?.command ?? '');
 if (proofCommand !== undefined) {
   rememberCodexRunIdentity({
-    projectDirectory: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    projectDirectory: resolveProjectRoot(),
     sessionId: input.session_id,
     skillName: proofCommand.skillName,
   });

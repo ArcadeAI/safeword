@@ -220,6 +220,48 @@ describe('record-skill-invocation helper (88QCHJ)', () => {
     expect(logContent).toMatch(/ codex-session-uuid quality-review$/m);
   });
 
+  it('binds Codex proof from the git root even when the hook runs in a subdirectory', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
+    spawnSync('git', ['init'], { cwd: projectDirectory });
+    // git toplevel is what BOTH the hook's resolveProjectRoot and the helper's
+    // PROJECT_DIR resolve to (mkdtemp can sit behind a symlinked tmp).
+    const gitRoot = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+    }).stdout.trim();
+    mkdirSync(nodePath.join(gitRoot, '.safeword'), { recursive: true });
+    const subdir = nodePath.join(gitRoot, 'packages', 'app');
+    mkdirSync(subdir, { recursive: true });
+
+    // No CLAUDE_PROJECT_DIR (a Claude-only var, unset under real Codex) and the
+    // hook fires from a SUBDIR — the production case the other tests masked by
+    // pinning both cwd and CLAUDE_PROJECT_DIR to the project root.
+    const environment = envWithoutRunIdentity();
+    delete environment.CLAUDE_PROJECT_DIR;
+    const hookResult = spawnSync('bun', [codexPreToolPath], {
+      cwd: subdir,
+      input: JSON.stringify({
+        session_id: 'codex-subdir-uuid',
+        tool_name: 'Bash',
+        tool_input: { command: installedProofCommand(gitRoot, 'quality-review') },
+      }),
+      encoding: 'utf8',
+      env: environment,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    expect(hookResult.status).toBe(0);
+
+    const output = execFileSync('bun', [helperPath, gitRoot, 'quality-review'], {
+      encoding: 'utf8',
+      env: environment,
+    });
+
+    expect(output.trim()).toBe('[skill-invocation-log] quality-review ✓');
+    expect(
+      readFileSync(nodePath.join(gitRoot, '.project', 'skill-invocations.log'), 'utf8'),
+    ).toMatch(/ codex-subdir-uuid quality-review$/m);
+  });
+
   it('does not bind Codex proof when a shell command only mentions the helper', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'record-skill-'));
     mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
