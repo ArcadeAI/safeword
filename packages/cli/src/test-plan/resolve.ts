@@ -68,19 +68,19 @@ const TREE_MANIFESTS = new Set<string>([
  */
 function fakeToolProbe(spec: string): (tool: string) => boolean {
   if (spec.startsWith('only:')) {
-    const set = parseToolList(spec);
+    const set = parseToolList(spec, 'only:');
     return tool => set.has(tool);
   }
   if (spec.startsWith('none:')) {
-    const set = parseToolList(spec);
+    const set = parseToolList(spec, 'none:');
     return tool => !set.has(tool);
   }
   return allToolsAvailable; // 'all' or empty
 }
 
 /** Parse the comma-separated tool list after a `only:` / `none:` prefix. */
-function parseToolList(spec: string): Set<string> {
-  return new Set(spec.slice('only:'.length).split(',').filter(Boolean));
+function parseToolList(spec: string, prefix: string): Set<string> {
+  return new Set(spec.slice(prefix.length).split(',').filter(Boolean));
 }
 
 function allToolsAvailable(): boolean {
