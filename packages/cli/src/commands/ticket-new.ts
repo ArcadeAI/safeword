@@ -9,25 +9,25 @@
 
 import process from 'node:process';
 
+import { buildWriterRegistry } from '../tracker-sync/clients.js';
+import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
 import { header, info, success } from '../utils/output.js';
 import { normalizeSlug, SlugError } from '../utils/slug.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
-import { createTicket, TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
+import { TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
+import { createTicketRouted } from './create-ticket-routed.js';
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature']);
 
 export interface TicketNewOptions {
   type?: string;
   title?: string;
+  /** Adopt an existing tracker issue key as identity (issue-first providers only). */
+  issue?: string;
 }
 
-export function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
-  ticketNewSync(slug, options);
-  return Promise.resolve();
-}
-
-function ticketNewSync(slug: string, options: TicketNewOptions): void {
+export async function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
   const type = resolveType(options.type);
   if (type === 'invalid') {
     process.stderr.write(
@@ -49,12 +49,17 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
 
   header('Create ticket');
 
+  const cwd = process.cwd();
   try {
-    const result = createTicket(process.cwd(), resolveMinter(), {
-      slug: normalizedSlug,
-      type,
-      title: options.title,
-    });
+    const result = await createTicketRouted(
+      cwd,
+      { slug: normalizedSlug, type, title: options.title, issue: options.issue },
+      {
+        config: readTicketBridgeConfig(cwd),
+        buildWriter: (provider, target) => buildWriterRegistry(provider, target)[provider],
+        minter: resolveMinter(),
+      },
+    );
     success(`Created ticket ${formatTicketReference(result.id, normalizedSlug)}`);
     info(`Folder: ${result.folderPath}`);
     info(`File:   ${result.ticketPath}`);
@@ -67,8 +72,15 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
       process.stderr.write(`${error.message}\n`);
       process.exit(1);
     }
-    throw error;
+    // Issue-first creation mints identity before any folder, so a tracker failure
+    // here leaves no orphan. Surface the message (gh/Arcade never echo the token).
+    process.stderr.write(`Failed to create ticket: ${errorMessage(error)}\n`);
+    process.exit(1);
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function resolveType(value: string | undefined): TicketType | undefined | 'invalid' {
