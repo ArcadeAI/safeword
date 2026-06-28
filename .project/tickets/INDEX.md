@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (339)
+## Tickets (345)
 
 ### agent-surface-refactor
 
@@ -623,6 +623,9 @@
 - **Make the /explain block-hint reliably reach the user (Claude systemMessage) (19E2XQ)** (done, epic: —)
   Ensure the always-on `/explain` pointer on a gate block actually reaches the human's eyes on Claude Code — the passive safety net for when the agent misses the confusion-signal that 5XOUDJ's offer rule depends on.
   → `.project/tickets/19E2XQ-explain-hint-reliably-visible`
+- **Robust dedup: signature marker + label-scoped list lookup (not fuzzy title search) (1FGE1C)** (todo, epic: —)
+  Make retro's "never a duplicate issue" guarantee actually hold, by
+  → `.project/tickets/1FGE1C-robust-tracker-dedup`
 - **Harden hook git calls against shell injection (1JMSH6)** (done, epic: —)
   Close the shell-injection class in safeword hooks — git invoked via `execSync` string interpolation runs through `/bin/sh -c`, so file-derived free-text values can inject commands. The hooks auto-fire on UserPromptSubmit/Stop; in a shared repo the file content can come from an untrusted PR.
   → `.project/tickets/1JMSH6-harden-hook-git-injection`
@@ -727,6 +730,9 @@
 - **Eliminate ambiguous smoke ticket ID warning (7VEYAY)** (in_progress, epic: —)
   Remove or intentionally isolate the duplicate `7K9M3P` fixture warning from smoke-fast output.
   → `.project/tickets/7VEYAY-eliminate-ambiguous-smoke-ticket-id-warning`
+- **Eval: retro extraction quality on real transcripts (7ZCKS6)** (todo, epic: —)
+  Verify the core value of `safeword retro` — that a fresh-context reader
+  → `.project/tickets/7ZCKS6-retro-extraction-eval`
 - **Install-time prettier config detection — stop .prettierrc shadowing prettier.config.\* (8BNSTE)** (done, epic: —)
   Make safeword install detect an existing prettier config in any form and skip writing its own `.prettierrc`, so it never silently shadows and reformats a customer's project.
   → `.project/tickets/8BNSTE-prettier-config-shadow`
@@ -829,6 +835,10 @@
 - **Tune agent config audit signal (C4N0P8)** (in_progress, epic: —)
   Make agent-config audit warnings reflect actionable config risks instead of broad structural/staleness noise.
   → `.project/tickets/C4N0P8-tune-agent-config-audit-signal`
+- **Let maintainers commit dogfood hook changes without package-link setup (CQ4CD3)** (in_progress, epic: —)
+  Make the normal protected commit path work in Safeword source worktrees when staged files trigger `.safeword` ESLint.
+  external issue: https://github.com/ArcadeAI/safeword/issues/470
+  → `.project/tickets/CQ4CD3-commit-dogfood-hooks-without-package-link`
 - **Speed up the vitest suite — lift blanket maxWorkers:1, isolate the offenders (CQJBSN)** (in_progress, epic: —)
   Cut full-suite wall-time by removing the blanket `maxWorkers: 1` and running well-isolated test files in parallel.
   → `.project/tickets/CQJBSN-test-suite-parallelism`
@@ -961,6 +971,9 @@
 - **De-number bdd lifecycle refs in scaffolding templates (MT05DF)** (done, epic: —)
   Finish the named-phase rename in the three scaffolding templates DKETNZ flagged but deliberately deferred.
   → `.project/tickets/MT05DF-denumber-scaffold-templates`
+- **Reduce outdated dependency noise in audit (NAATTE)** (in_progress, epic: —)
+  Make `/audit` report only dependency updates old enough to be worth action, across supported language ecosystems, without changing the target repo's package-management policy.
+  → `.project/tickets/NAATTE-age-filter-outdated-audit`
 - **Two-tier review enforcement: per-asset inline stamp + phase-exit independent review (NMSD94)** (done, epic: —)
   Make "work is reviewed before it's built on" enforceable, at two tiers: a **cheap per-asset inline review stamp** (early catch, before the next asset is poured on a flawed one) and an **independent fresh-agent review at each phase exit** (catches what self-review misses). Close the demonstrated gap — review is under-triggered unless the user manually prompts it — without a fresh sub-agent firing on every artifact.
   → `.project/tickets/NMSD94-per-asset-review-gate`
@@ -1015,6 +1028,9 @@
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`
+- **safeword retro — transcript-mining session retrospective (RV9JT4)** (done, epic: —)
+  {One sentence: what are we trying to achieve?}
+  → `.project/tickets/RV9JT4-retro-transcript-mining`
 - **`/architecture` LLM-prose resync skill (deferred from JT852Q) (RYKVR5)** (backlog, epic: —)
   An on-demand `/architecture` skill that writes the slow-moving
   → `.project/tickets/RYKVR5-architecture-llm-prose-resync`
@@ -1039,6 +1055,10 @@
 - **Formatter-aware lint hook: stop colliding with the customer's formatter (V7GGJZ)** (done, epic: —)
   The runtime auto-lint hook honors the formatter the customer already chose — it never
   → `.project/tickets/V7GGJZ-formatter-aware-lint-hook`
+- **Align phase review prompts with phase exits (V9MP7T)** (in_progress, epic: —)
+  Stop generic phase review prompts from firing at phase entry when their evidence only exists at phase exit.
+  external issue: https://github.com/ArcadeAI/safeword/issues/465
+  → `.project/tickets/V9MP7T-align-phase-review-surface`
 - **General managed-block replacement in executeTextPatch (clean textPatch upgrades) (VZCADV)** (backlog, epic: —)
   Give `executeTextPatch` an opt-in way to replace a superseded managed block on upgrade — locate the old block by its stable header substring, cut it (header → next blank line), then append the current block — so a structural change to a managed block doesn't leave a stale second block in the customer's file.
   → `.project/tickets/VZCADV-managed-block-replacement`

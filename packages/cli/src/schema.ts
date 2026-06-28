@@ -722,6 +722,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/self-report-filing.md': {
       template: 'guides/self-report-filing.md',
     },
+    '.safeword/guides/retro.md': {
+      template: 'guides/retro.md',
+    },
     '.safeword/guides/cold-start-check.md': {
       template: 'guides/cold-start-check.md',
     },

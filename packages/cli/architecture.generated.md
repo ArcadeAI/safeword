@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: a269dbaedd84d54c4fa979fcca89547589746c19adc8d03f3b933c0234441ef7
+fingerprint: 5e471f85848aae71e46164d34d110198eb102bb0edd9c4f0f9ac85c35f62d0f5
 ---
 
 # Architecture
@@ -46,6 +46,14 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### retro
+
+<!-- reconciled: 5e471f85848aae71e46164d34d110198eb102bb0edd9c4f0f9ac85c35f62d0f5 -->
+
+`src/retro`
+
+No description yet — awaiting prose.
 
 ### templates
 
@@ -104,6 +112,8 @@ No description yet — awaiting prose.
 `src/upstream-monitor`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### utils
 

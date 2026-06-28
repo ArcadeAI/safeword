@@ -150,7 +150,7 @@ function sanitizeErrorClass(value: string): string {
  * segments from last to first so the most specific (e.g. materialized
  * `.safeword/hooks/…`) wins.
  */
-function safewordInternalTail(location: string): string | undefined {
+export function safewordInternalTail(location: string): string | undefined {
   const segments = location.split(/[/\\]/);
   for (let index = segments.length - 1; index >= 0; index--) {
     const segment = segments[index];
