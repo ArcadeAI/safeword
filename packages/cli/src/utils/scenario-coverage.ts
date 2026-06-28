@@ -41,7 +41,7 @@ export interface SurfaceReference {
   skipped: boolean;
 }
 
-export interface MissingSurfaceCoverage {
+interface MissingSurfaceCoverage {
   name: string;
   slug: string;
 }
