@@ -35,27 +35,34 @@ interface TranscriptEntry {
 }
 
 /**
- * Count tool-use content items across all assistant entries in a Claude Code
- * JSONL transcript (the shape stop-reentry.ts parses). Malformed lines are
- * skipped, never thrown — a hook must not crash on a partial transcript.
+ * Sum a per-entry count over each parseable line of a JSONL transcript. Malformed
+ * lines are skipped, never thrown — a hook must not crash on a partial transcript.
+ * The single home for the trim / split / parse-or-skip skeleton both per-agent
+ * counters share; each counter supplies only its per-entry rule.
  */
-export function countToolUses(transcriptText: string): number {
-  const text = transcriptText.trim();
-  if (text.length === 0) return 0;
-  let count = 0;
-  for (const line of text.split('\n')) {
+function sumOverJsonlEntries(text: string, perEntry: (entry: unknown) => number): number {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return 0;
+  let total = 0;
+  for (const line of trimmed.split('\n')) {
     try {
-      const entry = JSON.parse(line) as TranscriptEntry;
-      const content = entry.message?.content;
-      if (!Array.isArray(content)) continue;
-      for (const item of content) {
-        if (item?.type === 'tool_use') count++;
-      }
+      total += perEntry(JSON.parse(line));
     } catch {
       // Skip malformed JSONL lines silently.
     }
   }
-  return count;
+  return total;
+}
+
+/**
+ * Count tool-use content items across all assistant entries in a Claude Code
+ * JSONL transcript (the shape stop-reentry.ts parses).
+ */
+export function countToolUses(transcriptText: string): number {
+  return sumOverJsonlEntries(transcriptText, raw => {
+    const content = (raw as TranscriptEntry).message?.content;
+    return Array.isArray(content) ? content.filter(item => item?.type === 'tool_use').length : 0;
+  });
 }
 
 /** A per-agent tool-use counter over a transcript's raw text. */
@@ -70,26 +77,16 @@ const CODEX_TOOL_EVENTS = new Set(['function_call', 'exec_command_begin', 'mcp_t
  * return 0 here. Nesting-tolerant: matches the tool type on either the top-level
  * `type` or `payload.type`, because the exact rollout nesting is NOT yet confirmed
  * by a live Codex spike (deferred — see the 53DQJZ ticket); matching both shapes
- * hedges that uncertainty. Malformed lines are skipped.
+ * hedges that uncertainty.
  */
 export function countToolUsesCodex(rolloutText: string): number {
-  const text = rolloutText.trim();
-  if (text.length === 0) return 0;
-  let count = 0;
-  for (const line of text.split('\n')) {
-    try {
-      const entry = JSON.parse(line) as { type?: string; payload?: { type?: string } };
-      if (
-        CODEX_TOOL_EVENTS.has(entry.type ?? '') ||
-        CODEX_TOOL_EVENTS.has(entry.payload?.type ?? '')
-      ) {
-        count++;
-      }
-    } catch {
-      // Skip malformed JSONL lines silently.
-    }
-  }
-  return count;
+  return sumOverJsonlEntries(rolloutText, raw => {
+    const entry = raw as { type?: string; payload?: { type?: string } };
+    return CODEX_TOOL_EVENTS.has(entry.type ?? '') ||
+      CODEX_TOOL_EVENTS.has(entry.payload?.type ?? '')
+      ? 1
+      : 0;
+  });
 }
 
 /**
