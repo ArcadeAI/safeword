@@ -6,7 +6,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildIdentitySource } from '../../src/commands/ticket-identity.js';
+import { buildIdentitySource } from '../../src/ticket-create/identity.js';
 import type { IssuePayload } from '../../src/tracker-sync/types.js';
 import type { TrackerWriter } from '../../src/tracker-sync/writers.js';
 

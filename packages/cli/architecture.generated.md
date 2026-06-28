@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: a269dbaedd84d54c4fa979fcca89547589746c19adc8d03f3b933c0234441ef7
+fingerprint: a48bcc3820c9cca4a78184f53ae752117d461b6ed53541d3b3cddaad10d4a349
 ---
 
 # Architecture
@@ -67,6 +67,14 @@ No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
+### ticket-create
+
+<!-- reconciled: a48bcc3820c9cca4a78184f53ae752117d461b6ed53541d3b3cddaad10d4a349 -->
+
+`src/ticket-create`
+
+No description yet — awaiting prose.
+
 ### ticket-sync
 
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
@@ -104,6 +112,8 @@ No description yet — awaiting prose.
 `src/upstream-monitor`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### utils
 

@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveCreationMode } from '../../src/commands/ticket-creation-mode.js';
+import { resolveCreationMode } from '../../src/ticket-create/creation-mode.js';
 
 describe('resolveCreationMode (tracker-identity-and-join.TB1.AC1)', () => {
   // no_tracker_is_local_as_today — provider:none routes to the local path

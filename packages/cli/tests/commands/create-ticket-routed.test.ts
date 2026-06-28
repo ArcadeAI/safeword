@@ -11,7 +11,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createTicketRouted } from '../../src/commands/create-ticket-routed.js';
+import { createTicketRouted } from '../../src/ticket-create/index.js';
 import type { TrackerWriter } from '../../src/tracker-sync/writers.js';
 import { resolveTicketsDirectory } from '../../src/utils/configured-paths.js';
 import type { IdMinter } from '../../src/utils/id-minter.js';

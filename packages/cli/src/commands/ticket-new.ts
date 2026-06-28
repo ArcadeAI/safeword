@@ -9,6 +9,7 @@
 
 import process from 'node:process';
 
+import { createTicketRouted } from '../ticket-create/index.js';
 import { buildWriterRegistry } from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
@@ -16,7 +17,6 @@ import { header, info, success } from '../utils/output.js';
 import { normalizeSlug, SlugError } from '../utils/slug.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
 import { TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
-import { createTicketRouted } from './create-ticket-routed.js';
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature']);
 

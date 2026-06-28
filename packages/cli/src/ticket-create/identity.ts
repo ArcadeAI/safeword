@@ -10,7 +10,7 @@
 import type { IssuePayload } from '../tracker-sync/types.js';
 import type { TrackerWriter } from '../tracker-sync/writers.js';
 import type { IdentitySource } from '../utils/ticket-writer.js';
-import type { CreationMode } from './ticket-creation-mode.js';
+import type { CreationMode } from './creation-mode.js';
 
 export function buildIdentitySource(
   mode: Exclude<CreationMode, { mode: 'local' }>,

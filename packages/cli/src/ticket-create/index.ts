@@ -21,8 +21,8 @@ import {
   createTicket,
   type NewTicketResult,
 } from '../utils/ticket-writer.js';
-import { resolveCreationMode } from './ticket-creation-mode.js';
-import { buildIdentitySource } from './ticket-identity.js';
+import { resolveCreationMode } from './creation-mode.js';
+import { buildIdentitySource } from './identity.js';
 
 export interface RoutedTicketOptions {
   slug: string;
