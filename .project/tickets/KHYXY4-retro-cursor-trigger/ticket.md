@@ -2,8 +2,8 @@
 id: KHYXY4
 slug: retro-cursor-trigger
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 depends_on: [FTCQGD]
 scope: |

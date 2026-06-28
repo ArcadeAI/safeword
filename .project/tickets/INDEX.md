@@ -897,7 +897,7 @@
   → `.project/tickets/FPV0E4-architecture-staleness-enforcement`
 - **Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)** (done, epic: —)
   Make `safeword retro` fire on its own at the end of real sessions —
-  blocks: Fire retro from Codex Stop hook (transcript substrate) (53DQJZ), Fire retro from Cursor stop hook (transcript substrate) (KHYXY4)
+  blocks: Fire retro from Codex Stop hook (transcript substrate) (53DQJZ), Fire retro from Cursor stop hook (KHYXY4)
   → `.project/tickets/FTCQGD-retro-auto-trigger`
 - **Convert bdd cursor rules to @reference + reconcile to 7-phase set (G1A6BS)** (done, epic: —)
   Make the bdd Cursor rules thin `@reference` pointers at the canonical bdd skill files, and bring the rule set up to the live 7-phase model (add verify, de-merge done).
@@ -959,7 +959,7 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
-- **Fire retro from Cursor stop hook (transcript substrate) (KHYXY4)** (blocked, epic: —)
+- **Fire retro from Cursor stop hook (KHYXY4)** (done, epic: —)
   Make retro fire autonomously at the end of real Cursor sessions, the
   blocked by: Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)
   → `.project/tickets/KHYXY4-retro-cursor-trigger`
