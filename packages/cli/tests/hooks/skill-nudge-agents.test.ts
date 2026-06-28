@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 // Real-collaborator wiring test: spawn each agent's deployed PostToolUse hook
 // against a fixture project that has Go skills installed, and assert the nudge is
@@ -130,5 +130,67 @@ describe('dispatcher path — points at the entry skill and surfaces its descrip
     expect(context).toContain(description);
     // The direct pointer replaces the generic "golang-* skill that fits" fallback.
     expect(context).not.toContain('golang-*');
+  });
+});
+
+describe('single-skill path (no dispatcher) — the sole installed dir is the entry', () => {
+  // Python/TS/Rust install ONE skill with no dispatcher: the nudge discovers the
+  // sole `<prefix>-*` dir from disk as the entry and inlines its SKILL.md
+  // description. This spawns the real Claude hook end-to-end for that path (the
+  // dispatcher path above does the same for Go), and covers BOTH description
+  // shapes a real source uses — Python's inline scalar and Rust's folded block
+  // scalar (the only shape exercised in production, previously unit-tested only).
+  const CASES = [
+    {
+      lang: 'Python',
+      ext: 'py',
+      skillDir: 'python-pro',
+      frontmatter: 'description: "Use when writing idiomatic Python: typing, async, packaging."',
+      expected: 'Use when writing idiomatic Python: typing, async, packaging.',
+    },
+    {
+      lang: 'Rust',
+      ext: 'rs',
+      skillDir: 'rust-skills',
+      // Folded block scalar (`>`): the parser joins the wrapped lines with spaces.
+      frontmatter:
+        'description: >\n  Rust idioms: ownership and borrowing, Result and the ?\n  operator, traits, lifetimes, async.',
+      expected:
+        'Rust idioms: ownership and borrowing, Result and the ? operator, traits, lifetimes, async.',
+    },
+  ];
+
+  let dir = '';
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    dir = '';
+  });
+
+  it.each(CASES)('Claude — $lang names $skillDir and inlines its description', testCase => {
+    dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-nudge-single-'));
+    mkdirSync(nodePath.join(dir, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(dir, '.project'), { recursive: true });
+    const skill = nodePath.join(dir, '.claude/skills', testCase.skillDir);
+    mkdirSync(skill, { recursive: true });
+    writeFileSync(
+      nodePath.join(skill, 'SKILL.md'),
+      `---\nname: ${testCase.skillDir}\n${testCase.frontmatter}\n---\n# skill\n`,
+    );
+
+    const result = spawnSync('bun', [claudeHook], {
+      input: JSON.stringify({
+        tool_input: { file_path: nodePath.join(dir, `x.${testCase.ext}`) },
+        session_id: `single-${testCase.ext}`,
+      }),
+      encoding: 'utf8',
+      cwd: dir,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
+      timeout: 30_000,
+    });
+    const context = JSON.parse(result.stdout ?? '').hookSpecificOutput.additionalContext;
+    expect(context).toContain(testCase.skillDir);
+    expect(context).toContain(testCase.expected);
+    // Single-skill packs have no dispatcher, so the Go orchestrator never appears.
+    expect(context).not.toContain('golang-how-to');
   });
 });
