@@ -8,6 +8,8 @@ allowed-tools: '*'
 
 **Iron Law:** No recommendation without current evidence. Training data is stale; verify before staking a position.
 
+**Stakes set depth.** Investigate as if your recommendation ships unreviewed — a decision gets built on it with no second analysis pass. That standard, not "it's just advice," sets how hard you research. Before researching, write the investigation plan: the sub-questions each domain (Phase 3a) must answer, then work the list. Plan the _investigation_, not the answer — committing to a conclusion before the evidence is the failure this skill exists to prevent.
+
 ## When to Use
 
 A real decision with two or more plausible directions: library or framework choice, architecture, API or schema design, algorithm selection, communication strategy, policy call. User invokes `/figure-it-out`.
