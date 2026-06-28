@@ -45,6 +45,17 @@ and reviewable and gates keep reading local files.
 
 ## Work Log
 
+- 2026-06-28T04:44:00Z /quality-review (adversarial verification of the audit) — found the audit
+  was INCOMPLETE + partly WRONG. Confirmed: (1) `last_modified` is functional, not just churn
+  (active-ticket selection + replan baseline) → relocate, don't delete; (2) `phase` is NOT derivable
+  and a git-ignored cache loses it cross-machine, inverting phase-keyed gates to FAIL-OPEN. Missed
+  consumers added: pre-tool phase-diff gates, Cursor done-gate edit-trigger (gate-adapter.ts, no
+  Stop fallback — parity-critical), CI check-pr-ticket-done.ts, session-compact/cursor-stop.
+  Corrected my own wrong claim: statusline/reentry.ts reads re-entry.md, NOT status/phase. Added
+  SM2.AC7 (cross-harness/CI consumers) + fail-closed invariant to AC3 + trigger note to AC5 + "no
+  reader today" to AC6. ELEVATED a BLOCKING open question: status/phase durability trilemma
+  (tracked=churn / git-ignored=not durable+fail-open / tracker-only=per-turn network). Recommend a
+  focused /figure-it-out before define-behavior. Intake is NOT done until that lands.
 - 2026-06-28T04:34:00Z Existing-system JTBD audit → added SM2 JTBD (6 ACs) for the must-preserve
   set: context anchor (AC1), done-invariant vs external close (AC2), local hierarchy execution
   (AC3), resume/re-entry/replan (AC4), review-ledger rekey (AC5), tracker-key→folder join key
