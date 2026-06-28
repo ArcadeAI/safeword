@@ -2,7 +2,7 @@
 id: DGH59K
 slug: tracker-identity-and-join
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 epic: offboard-local-ticketing
 parent: KKNFZA
@@ -35,6 +35,18 @@ scenarios in [./test-definitions.md](./test-definitions.md); feature source
 
 ## Work Log
 
+- 2026-06-28T05:25:00Z scenario-gate PASS (independent review, 2 rounds — round 1 CHANGES-REQUIRED
+  4 must-fix/4 should-strengthen, all applied; round 2 PASS, 0 blockers). Stamp recorded for
+  scenario-gate. Advanced to implement.
+  Proof plan / sequencing (outside-in TDD):
+    1. SM1.AC1 join reader (unit) FIRST — pure resolver tracker-key→folder over external_issue /
+       tracker-map; other epic children depend on it. Scenarios: known_key, both_key_shapes,
+       unknown_key (null sentinel), stale_map_entry.
+    2. TB1.AC1 issue-first `ticket new` (command-level @wiring: real command + real ticket-writer/fs,
+       inject tracker client mocking only the network) — connected_mints (count+emptiness),
+       existing_issue adopt (--issue), no_tracker characterization.
+    3. TB1.AC2 degrade paths — unreachable, rejected/missing credential (secret redaction),
+       partial-create reconcile via pending tracker-map entry.
 - 2026-06-28T05:19:00Z define-behavior: wrote child spec.md (JTBD TB1 + SM1) and dimensions.md;
   set scope/done_when; linked to epic KKNFZA. Drafting scenarios next.
 - 2026-06-28T05:18:39.762Z Started: Created ticket DGH59K
