@@ -428,6 +428,7 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
     hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
     hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
+    hook(`bun ${HOOKS_DIR}/stop-retro.ts`),
   ],
   PreToolUse: [
     matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-dependency-readiness.ts`),

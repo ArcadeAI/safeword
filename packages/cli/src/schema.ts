@@ -585,6 +585,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/retro-trigger.ts': { template: 'hooks/lib/retro-trigger.ts' },
     '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
@@ -704,6 +705,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/stop-retro.ts': { template: 'hooks/stop-retro.ts' },
     '.safeword/hooks/stop-self-report.ts': { template: 'hooks/stop-self-report.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
       template: 'hooks/session-start-reentry.ts',

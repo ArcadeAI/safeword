@@ -90,3 +90,9 @@ all three adapters wrap one core.
   vacuous silent-Then blockers (trivial-path, precedence ladder, fail-open);
   rewrote as contrast/precedence/fail-open outlines + added session-id-keying
   scenario. Re-review PASS. 9 scenarios/7 rules. impl-plan.md written. Stamped.
+- 2026-06-28T15:00Z Implement: outside-in TDD per impl-plan build order. Shared
+  core lib/retro-trigger.ts (countToolUses/isSubstantial, resolveSessionId
+  precedence, sentinel, buildRetroNudge, decideRetroNudge) — 24 unit tests.
+  stop-retro.ts Claude adapter + integration test (5) spawning the real hook.
+  Registered: schema.ts (lib + hook), config.ts Stop entry, .claude/settings.json,
+  .safeword byte mirrors. Typecheck + eslint + prettier clean; 60 targeted green.

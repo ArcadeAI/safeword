@@ -135,6 +135,14 @@
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/stop-self-report.ts"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/stop-retro.ts"
+          }
+        ]
       }
     ],
     "PreToolUse": [
