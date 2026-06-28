@@ -136,9 +136,10 @@ stale value driving a gate mid-session.
 
 #### offboard-local-ticketing.SM1.AC3 — existing tickets stay readable, no-tracker installs unchanged
 
-All existing local tickets (`{ID}-{slug}/`, ID-only, numeric) remain resolvable by ID; no
-migration is forced. With `provider: none`, the local plane behaves exactly as today (local
-identity and status).
+All existing local tickets (current `{ID}-{slug}/`, ID-only, and older numeric-id folders) remain
+resolvable by ID — i.e. reading old on-disk ID formats, which is distinct from legacy-project
+*workflows* (out of scope). No migration is forced. With `provider: none`, the local plane behaves
+exactly as today (local identity and status).
 
 #### offboard-local-ticketing.SM1.AC4 — concurrent sessions don't corrupt the runtime cache
 
@@ -168,6 +169,9 @@ tracker at the next boundary, never as a false gate signal.
 - Identity and status are observable in the tracker without running safeword.
 - Gates pass/fail identically offline (no per-turn network).
 - Existing tickets and `provider: none` installs are unaffected.
+- INDEX no longer churns and ticket keys never collide (tracker-minted), with no local dup-ID
+  guard needed.
+- `ticket new` fails safely when the tracker is unreachable — no orphaned or duplicated tickets.
 - Dogfood (`ArcadeAI/safeword`, GitHub) shows a measurable drop in bookkeeping diffs per session
   vs. baseline.
 

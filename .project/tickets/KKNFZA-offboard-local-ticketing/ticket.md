@@ -41,6 +41,10 @@ and reviewable and gates keep reading local files.
 
 ## Work Log
 
+- 2026-06-28T04:30:00Z Applied remaining minor fixes (user asked for all): added Outcomes rows for
+  INDEX-no-churn and safe-ticket-new (done_when↔Outcomes symmetry); disambiguated "legacy" in
+  SM1.AC3 (reads old on-disk ID formats vs legacy-project workflows out of scope). Kicked off an
+  audit of the existing ticket system's JTBDs to build a must-preserve list for the new design.
 - 2026-06-28T04:27:00Z Dupe/conflict audit: fixed two real issues — (1) restored the
   Implementation-decomposition section in spec.md (the work-log pointer referenced "5 child
   tickets" but the rewrite had dropped it; now matches the content-vs-lifecycle model), (2) TB1
