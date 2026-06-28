@@ -91,12 +91,12 @@ Feature: Issue-first ticket identity + tracker-key→local-folder join reader
     Scenario: An unknown tracker key returns the not-found sentinel, never an error
       Given no ticket records the tracker key "ENG-999"
       When a hook resolves the folder for tracker key "ENG-999"
-      Then it returns the not-found sentinel (null), not a path
+      Then it returns the not-found sentinel (undefined), not a path
       And it does not raise an error
 
     @tracker-identity-and-join.SM1.AC1
     Scenario: A map entry pointing at a missing folder reports not found, not a dangling path
       Given the tracker-map records "ENG-45" but its folder no longer exists
       When a hook resolves the folder for tracker key "ENG-45"
-      Then it returns the not-found sentinel (null)
+      Then it returns the not-found sentinel (undefined)
       And it does not return a path that does not exist

@@ -6,7 +6,7 @@
      Strengthened at the scenario-gate (independent review, 2026-06-28): replaced order-only
      observables with count+emptiness (issue-create exactly once / zero; folder count unchanged on
      failure), fixed the partial-create Given to a pending tracker-map entry, named the adopt
-     mechanism (--issue), pinned the not-found sentinel (null), added auth-rejected and
+     mechanism (--issue), pinned the not-found sentinel (undefined), added auth-rejected and
      stale-map-entry scenarios, and anchored the AC1 happy path as the @wiring end-to-end test.
      Test levels: TB1.AC1/AC2 are command-level (real `ticket new` + real ticket-writer/fs;
      injected tracker client mocks ONLY the network boundary). SM1.AC1 is unit-level on the
@@ -126,7 +126,7 @@ Then each returns its own ticket's folder path
 
 Given no ticket records the tracker key `ENG-999`
 When a hook resolves the folder for tracker key `ENG-999`
-Then it returns the not-found sentinel (null), not a path
+Then it returns the not-found sentinel (undefined), not a path
 And it does not raise an error
 
 - [ ] RED
@@ -137,7 +137,7 @@ And it does not raise an error
 
 Given the tracker-map records `ENG-45` but its folder no longer exists
 When a hook resolves the folder for tracker key `ENG-45`
-Then it returns the not-found sentinel (null)
+Then it returns the not-found sentinel (undefined)
 And it does not return a path that does not exist
 
 - [ ] RED
