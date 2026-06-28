@@ -10,14 +10,23 @@ interface FeatureSurfacesWorld {
   temporaryDirectory: string;
   result: { stdout: string; stderr: string; exitCode: number };
   authoredSurfaces?: string;
-  loadedGuidance?: string[];
-  loadedTemplates?: string[];
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI_PATH = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
 const DEFAULT_SURFACES_PATH = nodePath.join('.project', 'surfaces.md');
 const CONFIGURED_NAMESPACE_ROOT = 'team-ns';
+const BDD_GUIDANCE_PATHS = [
+  'packages/cli/templates/skills/bdd/DISCOVERY.md',
+  '.claude/skills/bdd/DISCOVERY.md',
+  '.agents/skills/bdd/DISCOVERY.md',
+];
+const FEATURE_SPEC_TEMPLATE_PATHS = [
+  'packages/cli/templates/spec-template.md',
+  'packages/cli/templates/doc-templates/feature-spec-template.md',
+  '.safeword/templates/spec-template.md',
+  '.safeword/templates/feature-spec-template.md',
+];
 
 function createCustomerProject(prefix: string): string {
   const project = mkdtempSync(nodePath.join(tmpdir(), prefix));
@@ -89,6 +98,12 @@ function assertCommandSucceeded(result: FeatureSurfacesWorld['result']): void {
 function readProjectFile(world: FeatureSurfacesWorld, relativePath: string): string {
   assert.ok(world.temporaryDirectory, 'customer project was not created');
   return readFileSync(nodePath.join(world.temporaryDirectory, relativePath), 'utf8');
+}
+
+function readRepoFiles(relativePaths: readonly string[]): string[] {
+  return relativePaths.map(relativePath =>
+    readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8'),
+  );
 }
 
 function expectSurfacesStarter(content: string): void {
@@ -253,22 +268,17 @@ Then(
 );
 
 Given('the installed BDD intake guidance', function (this: FeatureSurfacesWorld) {
-  this.loadedGuidance = [
-    'packages/cli/templates/skills/bdd/DISCOVERY.md',
-    '.claude/skills/bdd/DISCOVERY.md',
-    '.agents/skills/bdd/DISCOVERY.md',
-  ].map(relativePath => readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8'));
+  assert.equal(readRepoFiles(BDD_GUIDANCE_PATHS).length, BDD_GUIDANCE_PATHS.length);
 });
 
-When('an agent starts feature intake', function (this: FeatureSurfacesWorld) {
-  assert.ok(this.loadedGuidance, 'BDD intake guidance was not loaded');
+When('an agent starts feature intake', function () {
+  assert.equal(readRepoFiles(BDD_GUIDANCE_PATHS).length, BDD_GUIDANCE_PATHS.length);
 });
 
 Then(
   'the guidance tells the agent to load surfaces.md after personas.md and glossary.md',
-  function (this: FeatureSurfacesWorld) {
-    assert.ok(this.loadedGuidance, 'BDD intake guidance was not loaded');
-    for (const content of this.loadedGuidance) {
+  function () {
+    for (const content of readRepoFiles(BDD_GUIDANCE_PATHS)) {
       expectOrderedNeedles(content, [
         '## Load project personas',
         '## Load project glossary',
@@ -282,27 +292,24 @@ Then(
 );
 
 Given('the installed feature spec template', function (this: FeatureSurfacesWorld) {
-  this.loadedTemplates = [
-    'packages/cli/templates/spec-template.md',
-    'packages/cli/templates/doc-templates/feature-spec-template.md',
-    '.safeword/templates/spec-template.md',
-    '.safeword/templates/feature-spec-template.md',
-  ].map(relativePath => readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8'));
+  assert.equal(
+    readRepoFiles(FEATURE_SPEC_TEMPLATE_PATHS).length,
+    FEATURE_SPEC_TEMPLATE_PATHS.length,
+  );
 });
 
-When('a feature spec is scaffolded', function (this: FeatureSurfacesWorld) {
-  assert.ok(this.loadedTemplates, 'feature spec templates were not loaded');
+When('a feature spec is scaffolded', function () {
+  assert.equal(
+    readRepoFiles(FEATURE_SPEC_TEMPLATE_PATHS).length,
+    FEATURE_SPEC_TEMPLATE_PATHS.length,
+  );
 });
 
-Then(
-  'it includes a Surfaces section for affected runtime contexts',
-  function (this: FeatureSurfacesWorld) {
-    assert.ok(this.loadedTemplates, 'feature spec templates were not loaded');
-    for (const content of this.loadedTemplates) {
-      assert.ok(content.includes('## Surfaces'), content);
-      assert.match(content, /configured\s+surfaces file/, content);
-      assert.ok(content.includes('Affected:'), content);
-      assert.ok(content.includes('@surface.<slug>'), content);
-    }
-  },
-);
+Then('it includes a Surfaces section for affected runtime contexts', function () {
+  for (const content of readRepoFiles(FEATURE_SPEC_TEMPLATE_PATHS)) {
+    assert.ok(content.includes('## Surfaces'), content);
+    assert.match(content, /configured\s+surfaces file/, content);
+    assert.ok(content.includes('Affected:'), content);
+    assert.ok(content.includes('@surface.<slug>'), content);
+  }
+});
