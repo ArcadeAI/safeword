@@ -6,22 +6,14 @@
  * network boundary) is injected.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveTicketsDirectory } from '../../src/utils/configured-paths.js';
 import { createIssueFirstTicket } from '../../src/utils/ticket-writer.js';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
-
-function ticketFolders(ticketsDirectory: string): string[] {
-  try {
-    return readdirSync(ticketsDirectory).filter(name => name !== 'completed' && name !== 'tmp');
-  } catch {
-    return [];
-  }
-}
+import { createTemporaryDirectory, removeTemporaryDirectory, ticketFolders } from '../helpers.js';
 
 describe('createIssueFirstTicket (tracker-identity-and-join.TB1.AC1)', () => {
   let cwd: string;

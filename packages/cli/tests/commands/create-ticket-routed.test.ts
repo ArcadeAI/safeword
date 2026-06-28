@@ -6,7 +6,7 @@
  * failure surfaces and leaves no orphan.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,7 +15,7 @@ import { createTicketRouted } from '../../src/commands/create-ticket-routed.js';
 import type { TrackerWriter } from '../../src/tracker-sync/writers.js';
 import { resolveTicketsDirectory } from '../../src/utils/configured-paths.js';
 import type { IdMinter } from '../../src/utils/id-minter.js';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+import { createTemporaryDirectory, removeTemporaryDirectory, ticketFolders } from '../helpers.js';
 
 function fixedMinter(id: string): IdMinter {
   return { mint: () => id };
@@ -28,14 +28,6 @@ function writerCreating(id: string): TrackerWriter {
     update: vi.fn(() => Promise.resolve()),
     projectGraph: vi.fn(() => Promise.resolve()),
   };
-}
-
-function ticketFolders(directory: string): string[] {
-  try {
-    return readdirSync(directory).filter(name => name !== 'completed' && name !== 'tmp');
-  } catch {
-    return [];
-  }
 }
 
 describe('createTicketRouted (tracker-identity-and-join.TB1)', () => {

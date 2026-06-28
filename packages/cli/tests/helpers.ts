@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -865,4 +866,13 @@ export function expectHookDeny(result: HookResult, reasonShouldContain: string):
   };
   expect(parsed.hookSpecificOutput.permissionDecision).toBe('deny');
   expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(reasonShouldContain);
+}
+
+/** Ticket folders under a tickets dir (excludes the `completed`/`tmp` reserved entries). */
+export function ticketFolders(ticketsDirectory: string): string[] {
+  try {
+    return readdirSync(ticketsDirectory).filter(name => name !== 'completed' && name !== 'tmp');
+  } catch {
+    return [];
+  }
 }
