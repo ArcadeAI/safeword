@@ -51,18 +51,37 @@ export async function createTicketRouted(
     return createTicket(cwd, dependencies.minter, ticketOptions);
   }
 
+  // Refuse to proceed against a corrupt sidecar BEFORE minting an issue — silently
+  // resetting it would wipe other tickets' recorded refs (matches the orchestrator's
+  // refusal). A missing sidecar is the legitimate first run.
+  assertSidecarUsable(cwd);
+
   const provider = dependencies.config.provider as Provider;
   const writer = dependencies.buildWriter(provider, dependencies.config.target);
   const identity = buildIdentitySource(mode, writer, buildMinimalPayload(options));
-  // Persist a `pending` ref before the folder is written, then promote to
-  // `recorded` after. A folder on disk therefore always has a map entry, so a
-  // later sync reconciles instead of double-creating (review hardening of the
-  // Decision-C partial-create window).
+  // For `create`, persist a `pending` ref before the folder is written, then promote
+  // to `recorded` after — a folder on disk always has a map entry, so a later sync
+  // reconciles instead of double-creating. `adopt` writes nothing before the folder:
+  // the issue pre-exists (no create to be crash-unsafe about), and an early pending
+  // write would downgrade an existing `recorded` entry on an adopt-collision.
   const result = await createIssueFirstTicket(cwd, ticketOptions, identity, minted => {
-    if (minted.ref !== undefined) writeReference(cwd, minted.id, minted.ref, 'pending');
+    if (mode.mode === 'create' && minted.ref !== undefined) {
+      writeReference(cwd, minted.id, minted.ref, 'pending');
+    }
   });
   if (result.ref !== undefined) writeReference(cwd, result.id, result.ref, 'recorded');
   return result;
+}
+
+/** Refuse on a corrupt sidecar (a missing one is fine — the first tracker-backed ticket). */
+function assertSidecarUsable(cwd: string): void {
+  const sidecarPath = nodePath.join(cwd, '.safeword', 'tracker-map.json');
+  const loaded = loadTrackerMap(sidecarPath);
+  if (!loaded.ok && loaded.reason === 'corrupt') {
+    throw new Error(
+      `${sidecarPath} is corrupt; refusing to overwrite it. Resolve or remove it before creating a tracker-backed ticket.`,
+    );
+  }
 }
 
 /** Minimal issue payload for a brand-new ticket — title + a back-pointer + the type label. */

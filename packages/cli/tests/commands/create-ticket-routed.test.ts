@@ -6,7 +6,7 @@
  * failure surfaces and leaves no orphan.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -138,5 +138,60 @@ describe('createTicketRouted (tracker-identity-and-join.TB1)', () => {
       ref: { provider: 'github', id: 'ENG-45' },
       status: 'recorded',
     });
+  });
+
+  // Re-adopting the same key+slug hits an existing folder (EEXIST) — the prior
+  // `recorded` entry must NOT be downgraded to `pending` (adopt writes no pending).
+  it('an adopt-collision leaves the existing recorded entry intact', async () => {
+    const githubAdopt = {
+      config: { provider: 'github', body: 'minimal' as const, target: { repo: 'o/r' } },
+      buildWriter: () => writerCreating('NOPE'),
+      minter: fixedMinter('UNUSED'),
+    };
+    await createTicketRouted(
+      cwd,
+      { slug: 'login-bug', type: 'task', issue: 'ENG-45' },
+      githubAdopt,
+    );
+
+    await expect(
+      createTicketRouted(cwd, { slug: 'login-bug', type: 'task', issue: 'ENG-45' }, githubAdopt),
+    ).rejects.toThrow(/already exists/);
+
+    const sidecar = JSON.parse(
+      readFileSync(nodePath.join(cwd, '.safeword', 'tracker-map.json'), 'utf8'),
+    );
+    expect(sidecar.issues['ENG-45'].status).toBe('recorded');
+  });
+
+  // A corrupt sidecar holds other tickets' refs — `ticket new` must refuse BEFORE
+  // minting an issue and must not overwrite the file.
+  it('refuses to create against a corrupt tracker-map and leaves it untouched', async () => {
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    const sidecarPath = nodePath.join(cwd, '.safeword', 'tracker-map.json');
+    writeFileSync(sidecarPath, '{ corrupt not json');
+    const create = vi.fn(() => Promise.resolve({ provider: 'github' as const, id: '123' }));
+    const writer: TrackerWriter = {
+      provider: 'github',
+      create,
+      update: vi.fn(() => Promise.resolve()),
+      projectGraph: vi.fn(() => Promise.resolve()),
+    };
+
+    await expect(
+      createTicketRouted(
+        cwd,
+        { slug: 'login-bug', type: 'task' },
+        {
+          config: { provider: 'github', body: 'minimal', target: { repo: 'o/r' } },
+          buildWriter: () => writer,
+          minter: fixedMinter('UNUSED'),
+        },
+      ),
+    ).rejects.toThrow(/corrupt/);
+
+    expect(create).not.toHaveBeenCalled();
+    expect(readFileSync(sidecarPath, 'utf8')).toBe('{ corrupt not json');
+    expect(ticketFolders(resolveTicketsDirectory(cwd))).toEqual([]);
   });
 });
