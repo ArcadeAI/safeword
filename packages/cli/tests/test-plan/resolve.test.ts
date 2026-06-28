@@ -43,6 +43,7 @@ describe('resolveTestPlan — every detected language appears (no first-match)',
     const root = makeRepo({
       'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
       'pyproject.toml': '[project]\nname = "x"\n',
+      'tests/test_example.py': 'def test_example():\n    assert True\n',
     });
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
     expect(languages(plan).toSorted((a, b) => a.localeCompare(b))).toEqual([
@@ -102,15 +103,30 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
   });
 
   it('python with no pytest falls back to unittest', () => {
-    const root = makeRepo({ 'pyproject.toml': '[project]\nname="x"\n' });
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'tests/test_example.py': 'import unittest\n',
+    });
     const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('python') });
     expect(entryFor(plan, 'python')?.command).toBe('python -m unittest discover');
   });
 
   it('prefers python3 for the unittest fallback when available', () => {
-    const root = makeRepo({ 'pyproject.toml': '[project]\nname="x"\n' });
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'example_test.py': 'import unittest\n',
+    });
     const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('python3') });
     expect(entryFor(plan, 'python')?.command).toBe('python3 -m unittest discover');
+  });
+
+  it('does not emit a python lane for manifests without python tests', () => {
+    const root = makeRepo({
+      'requirements.txt': 'gepa==0.1.1\n',
+      'run.py': 'print("experiment")\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')).toBeUndefined();
   });
 
   it('detects pytest configured via setup.cfg [tool:pytest]', () => {
@@ -188,7 +204,10 @@ describe('resolveTestPlan — missing toolchains stay visible', () => {
 
 describe('resolveTestPlan — nested and vendored manifests', () => {
   it('a manifest in a sub-directory is discovered', () => {
-    const root = makeRepo({ 'services/api/pyproject.toml': '[project]\n' });
+    const root = makeRepo({
+      'services/api/pyproject.toml': '[project]\n',
+      'services/api/tests/test_example.py': 'def test_example():\n    assert True\n',
+    });
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
     expect(entryFor(plan, 'python')).toBeDefined();
   });
