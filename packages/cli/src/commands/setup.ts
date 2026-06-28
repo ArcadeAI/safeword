@@ -21,7 +21,7 @@ import {
 import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
-import { installGoSkills } from '../skills/golang.js';
+import { installDetectedLanguageSkills } from '../skills/languages.js';
 import {
   CODEX_TRUST_NEXT_STEP,
   reconciledCodexConfig,
@@ -416,15 +416,13 @@ function setupPythonProject(languages: Languages, cwd: string): PythonSetupStatu
 }
 
 /**
- * Setup Go project tooling.
- * Config files (.golangci.yml) are created by reconciliation. Go judgment skills
- * (samber/cc-skills-golang) are pulled best-effort — a failure degrades to a
- * warning, never blocks setup.
+ * Setup Go project tooling. Config files (.golangci.yml) are created by
+ * reconciliation. Coding skills are installed separately and generically for ALL
+ * detected languages (see installDetectedLanguageSkills), not here.
  */
-function setupGoProject(languages: Languages, cwd: string): void {
+function setupGoProject(languages: Languages): void {
   if (!languages.golang) return;
   setupGoTooling();
-  installGoSkills(cwd);
 }
 
 /** Warn if Bun is not available (hooks require it) */
@@ -484,8 +482,11 @@ export async function setup(options: SetupOptions): Promise<void> {
       result.packagesToInstall,
     );
     const pythonStatus = setupPythonProject(languages, cwd);
-    setupGoProject(languages, cwd);
+    setupGoProject(languages);
     registerLanguagePacks(cwd);
+    // Coding skills for every detected language that ships them (Go/Python/TS/Rust).
+    // Best-effort and language-general — degrades to a warning, never blocks setup.
+    installDetectedLanguageSkills(cwd);
 
     printSetupSummary({
       cwd,

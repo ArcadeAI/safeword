@@ -44,8 +44,18 @@ export function skillsInstalled(cwd: string, dirPattern: RegExp): boolean {
   return false;
 }
 
-/** How a pack tells the harness which skills to pull. Mirrors the pack manifest. */
-export type SkillSelection = 'all';
+/**
+ * How a pack tells the harness which skills to pull. Mirrors the pack manifest.
+ *
+ * - `'all'` → `--skill '*'`: every skill the source publishes. Right for a
+ *   single-language source (samber's Go pack, leonardomso's Rust pack) where
+ *   everything is on-topic — and drift-free, no name list to maintain.
+ * - a name list → `--skill <name...>`: a curated subset, for a multi-domain
+ *   source (e.g. jeffallan's 66-skill grab-bag) where `'*'` would drag in ~65
+ *   unrelated skills. The names ARE a drift surface, justified only because the
+ *   source forces it; keep the list minimal (usually one language-tier skill).
+ */
+export type SkillSelection = 'all' | readonly string[];
 
 /**
  * Agent platforms safeword installs skills for, by the upstream installer's IDs.
@@ -81,14 +91,15 @@ export interface SkillInstallResult {
 /**
  * Map the pack's selection policy to the installer's skill-selection flags.
  *
- * - `all` → `--skill '*'`: every skill the source publishes, with no skill-name
- *   list to enumerate or maintain (the drift we refuse). Note this is `--skill
- *   '*'`, NOT `--all` — `--all` also forces `--agent '*'` (every agent on earth).
+ * - `'all'` → `--skill '*'`: every skill the source publishes. Note this is
+ *   `--skill '*'`, NOT `--all` — `--all` also forces `--agent '*'` (every agent
+ *   on earth).
+ * - a name list → `--skill <name...>`: one `--skill` flag carrying every name
+ *   (the installer accepts multiple values). An empty list selects nothing.
  */
 function selectionFlags(selection: SkillSelection): string[] {
-  // Only 'all' exists today; a future curated mode would branch here (and would
-  // reintroduce a skill-name list — the drift we deliberately avoid).
-  return selection === 'all' ? ['--skill', '*'] : [];
+  if (selection === 'all') return ['--skill', '*'];
+  return selection.length > 0 ? ['--skill', ...selection] : [];
 }
 
 /**
@@ -118,6 +129,15 @@ export function buildSkillsArgv(
     '--copy',
     '-y',
   ];
+}
+
+/**
+ * The full `npx skills add …` command as a string, for the "install later" hint
+ * shown when an install fails. Derived from buildSkillsArgv so the hint can never
+ * drift from the command actually run.
+ */
+export function skillInstallCommand(source: string, selection: SkillSelection): string {
+  return buildSkillsArgv(source, selection).join(' ');
 }
 
 /**

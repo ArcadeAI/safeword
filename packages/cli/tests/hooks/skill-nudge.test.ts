@@ -23,11 +23,17 @@ describe('languageForFile', () => {
     expect(languageForFile('MAIN.GO')?.prefix).toBe('golang');
   });
 
-  it('returns null for non-skill-backed languages', () => {
-    expect(languageForFile('src/app.py')).toBeNull();
-    expect(languageForFile('src/app.ts')).toBeNull();
+  it('maps the other skill-backed languages by extension', () => {
+    expect(languageForFile('src/app.py')?.prefix).toBe('python');
+    expect(languageForFile('src/app.ts')?.prefix).toBe('typescript');
+    expect(languageForFile('src/App.tsx')?.prefix).toBe('typescript');
+    expect(languageForFile('src/main.rs')?.prefix).toBe('rust');
+  });
+
+  it('returns null for files with no skill-backed language', () => {
     expect(languageForFile('README.md')).toBeNull();
     expect(languageForFile('Makefile')).toBeNull();
+    expect(languageForFile('styles.css')).toBeNull();
   });
 });
 

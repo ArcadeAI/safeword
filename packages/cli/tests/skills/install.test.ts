@@ -13,6 +13,7 @@ import {
   buildSkillsArgv,
   installSkills,
   SAFEWORD_SKILL_AGENTS,
+  skillInstallCommand,
   skillsInstalled,
 } from '../../src/skills/install.js';
 
@@ -53,6 +54,27 @@ describe('buildSkillsArgv', () => {
     const argv = buildSkillsArgv(GOLANG_SKILL_SOURCE, GOLANG_SKILL_SELECTION);
     expect(argv).toContain(GOLANG_SKILL_SOURCE);
     expect(argv).toContain('--skill');
+  });
+
+  it('selects a named subset via --skill <name...> (multi-domain source, no *)', () => {
+    const argv = buildSkillsArgv('github.com/jeffallan/claude-skills', ['python-pro']);
+    const skillIndex = argv.indexOf('--skill');
+    expect(skillIndex).toBeGreaterThanOrEqual(0);
+    expect(argv[skillIndex + 1]).toBe('python-pro');
+    // A named selection must NOT widen to every skill.
+    expect(argv).not.toContain('*');
+  });
+
+  it('carries every name under one --skill flag', () => {
+    const argv = buildSkillsArgv('github.com/x/y', ['a-skill', 'b-skill']);
+    const skillIndex = argv.indexOf('--skill');
+    expect(argv.slice(skillIndex + 1, skillIndex + 3)).toEqual(['a-skill', 'b-skill']);
+  });
+
+  it('skillInstallCommand renders the full npx command for the failure hint', () => {
+    const command = skillInstallCommand(GOLANG_SKILL_SOURCE, 'all');
+    expect(command).toBe(buildSkillsArgv(GOLANG_SKILL_SOURCE, 'all').join(' '));
+    expect(command.startsWith('npx -y skills@latest add ')).toBe(true);
   });
 });
 

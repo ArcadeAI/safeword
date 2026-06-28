@@ -58,6 +58,29 @@ export const SKILL_LANGUAGES: Readonly<Record<string, SkillLanguage>> = {
     dispatcher: 'golang-how-to',
     concerns: ['concurrency', 'context', 'error handling', 'testing', 'API design'],
   },
+  // Python/TS/Rust are single-skill packs (no dispatcher): the sole installed
+  // `<prefix>-*` dir is discovered from disk as the entry, and its own SKILL.md
+  // description is surfaced. `concerns` are the drift-free fallback only.
+  '.py': {
+    prefix: 'python',
+    display: 'Python',
+    concerns: ['typing', 'async', 'error handling', 'testing', 'packaging'],
+  },
+  '.ts': {
+    prefix: 'typescript',
+    display: 'TypeScript',
+    concerns: ['types/generics', 'async', 'null-safety', 'error handling', 'testing'],
+  },
+  '.tsx': {
+    prefix: 'typescript',
+    display: 'TypeScript',
+    concerns: ['types/generics', 'async', 'null-safety', 'error handling', 'testing'],
+  },
+  '.rs': {
+    prefix: 'rust',
+    display: 'Rust',
+    concerns: ['ownership/borrowing', 'error handling', 'traits', 'lifetimes', 'async', 'testing'],
+  },
 };
 
 /** The language a file path maps to by extension, or null if none. */

@@ -18,7 +18,7 @@ import {
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
-import { ensureGoSkills } from '../skills/golang.js';
+import { ensureLanguageSkills } from '../skills/languages.js';
 import {
   CODEX_TRUST_NEXT_STEP,
   reconciledCodexConfig,
@@ -208,18 +208,19 @@ function installSqlTools(cwd: string): void {
 
 /**
  * Install language-specific tooling after pack reconciliation: dependency tools
- * for newly added Python/SQL packs, and Go judgment skills for any Go project
- * that doesn't already have them (reaches projects set up before skills existed;
- * the on-disk presence check keeps repeat upgrades network-free).
+ * for newly added Python/SQL packs, and coding skills for any detected language
+ * (Go/Python/TS/Rust) that doesn't already have them (reaches projects set up
+ * before a language's skills existed; the on-disk presence check keeps repeat
+ * upgrades network-free).
  */
-function installLanguageTools(cwd: string, missingPacks: string[], isGoProject: boolean): void {
+function installLanguageTools(cwd: string, missingPacks: string[]): void {
   if (missingPacks.includes('python')) {
     installPythonTools(cwd);
   }
   if (missingPacks.includes('sql')) {
     installSqlTools(cwd);
   }
-  ensureGoSkills(cwd, isGoProject);
+  ensureLanguageSkills(cwd);
 }
 
 export interface UpgradeOptions {
@@ -434,7 +435,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
       installPack(packId, cwd);
       info(`Installed ${packId} pack`);
     }
-    installLanguageTools(cwd, missingPacks, Boolean(ctx.languages?.golang));
+    installLanguageTools(cwd, missingPacks);
 
     maybeRefreshDepcruiseConfig(cwd, safewordDirectory, result);
 
