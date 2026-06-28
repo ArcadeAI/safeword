@@ -58,7 +58,7 @@ jobs:
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
           PKG_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
-          MKT_VERSION=$(node -e "console.log(require('./marketplace.json').plugins[0].version)")
+          MKT_VERSION=$(node -e "console.log(require('./.claude-plugin/marketplace.json').plugins[0].version)")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION does not match packages/cli/package.json version $PKG_VERSION"
             exit 1
