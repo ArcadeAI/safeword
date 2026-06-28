@@ -36,11 +36,11 @@ And the existing issue `ENG-45` is adopted
 And the local folder is keyed to `ENG-45`
 
 - [x] RED da1268d
-- [x] GREEN da1268d
+- [x] GREEN 7d7d657
 - [x] REFACTOR skip
-<!-- Covered by composition: resolveCreationMode(adopt) + buildIdentitySource(adopt → zero
-     create call) + createIssueFirstTicket (folder keyed to the id). Unit-proven, not a
-     separate end-to-end integration assertion. -->
+<!-- Now integration-tested at the routed level (create-ticket-routed.test.ts: --issue makes
+     zero create calls, keys the folder + recorded ref to the adopted key), added in the
+     /quality-review pass; plus the unit seams (buildIdentitySource adopt, resolveCreationMode). -->
 
 
 ### Scenario: tracker-identity-and-join.TB1.AC1.no_tracker_is_local_as_today
