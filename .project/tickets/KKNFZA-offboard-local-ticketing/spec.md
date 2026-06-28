@@ -64,7 +64,8 @@ bookkeeping noise," not "hide the work."
 > When my team coordinates work in GitHub or Linear, I want safeword to treat that tracker as the
 > system of record for identity and status and stop rewriting bookkeeping into my repo, while my
 > plan and work stay visible in git for a teammate to review — so my history reflects real work,
-> not safeword's churn, and there is one place work is tracked.
+> not safeword's churn, and the team tracks status in one place (the tracker) while the work stays
+> reviewable in the repo.
 
 #### offboard-local-ticketing.TB1.AC1 — `ticket new` mints the issue first
 
@@ -72,7 +73,7 @@ With a tracker connected, creating a ticket creates (or adopts) the external iss
 takes the tracker-issued key as the ticket's canonical identity; the local folder is materialized
 from that key. With `provider: none` the no-tracker base case is unchanged.
 
-#### offboard-local-ticketing.TB1.AC2 — lifecycle state leaves the tracked files
+#### offboard-local-ticketing.TB1.AC2 — lifecycle state leaves tracked files; tracker gets an allow-listed payload
 
 `status` lives on the issue (the read-authority); `phase` and derived gate state live in the
 git-ignored runtime cache. None of `status`/`phase`/`last_modified` is rewritten into tracked
@@ -169,6 +170,25 @@ tracker at the next boundary, never as a false gate signal.
 - Existing tickets and `provider: none` installs are unaffected.
 - Dogfood (`ArcadeAI/safeword`, GitHub) shows a measurable drop in bookkeeping diffs per session
   vs. baseline.
+
+## Implementation decomposition (proposed child tickets)
+
+Matches the current content-vs-lifecycle model (not the dropped ephemeral-cache one):
+
+1. **issue-first creation** — `ticket new` creates/adopts the issue, takes its key as identity,
+   and degrades safely when the tracker is unreachable (TB1.AC1, TB1.AC6).
+2. **status-on-issue + runtime cache** — status writes go to the issue via the allow-listed
+   writer; phase/derived state moves to the git-ignored runtime cache; session-boundary
+   reconciliation and concurrent-session safety (TB1.AC2, SM1.AC2, SM1.AC4).
+3. **stop the bookkeeping writes** — lifecycle fields stop being rewritten into `ticket.md`;
+   content artifacts stay tracked; a session yields zero bookkeeping diffs (TB1.AC3, TB1.AC5).
+4. **retire INDEX + dup-ID guard** when the tracker is canonical (TB1.AC4).
+5. **instructions + back-compat + docs** — rewrite `SAFEWORD.md` / `ticket-system/SKILL.md` /
+   guides / website to the tracker-canonical flow; existing tickets stay readable; `provider:none`
+   unchanged (SM1.AC1, SM1.AC3).
+
+Deferred follow-up (not a KKNFZA child): tracker-side approval gate for impl-plan review (see
+Open Questions).
 
 ## Open Questions
 

@@ -41,6 +41,15 @@ and reviewable and gates keep reading local files.
 
 ## Work Log
 
+- 2026-06-28T04:27:00Z Dupe/conflict audit: fixed two real issues — (1) restored the
+  Implementation-decomposition section in spec.md (the work-log pointer referenced "5 child
+  tickets" but the rewrite had dropped it; now matches the content-vs-lifecycle model), (2) TB1
+  JTBD "one place work is tracked" contradicted the two-plane model → reworded to "team tracks
+  status in one place, work stays reviewable in the repo". Also retitled TB1.AC2 to cover both its
+  claims. Accepted (not fixing): Outcomes/done_when minor asymmetry (INDEX-retire, safe-ticket-new
+  are mechanisms); "legacy" appears in two senses (read legacy ID formats vs legacy-project
+  workflows out of scope) — defensible. Heavy scope≈ACs≈done_when≈Outcomes overlap is the template
+  by design.
 - 2026-06-27T23:10:00Z /quality-review (independent reviewer + web research): GitHub & Linear both
   cap ~5k authenticated req/hr (GitHub Actions token only 1k/hr/repo) → verified support for
   "no network in per-turn loop" + session-boundary reconciliation. Fixed REQUEST-CHANGES findings:
