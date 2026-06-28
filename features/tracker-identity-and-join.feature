@@ -64,13 +64,20 @@ Feature: Issue-first ticket identity + tracker-key→local-folder join reader
       And the tickets directory contains the same folders as before the command
       And the configured secret value appears in neither the error, the config, nor the logs
 
-    @tracker-identity-and-join.TB1.AC2
-    Scenario: A partial create reconciles to the same issue instead of duplicating
-      Given a prior run left a pending tracker-map entry for this work (issue minted, key not yet confirmed)
-      When I run "ticket new login-bug" again for that work
-      Then tracker issue-create is called zero times
-      And the local folder is keyed to the pending entry's existing issue key
-      And the tracker-map entry for this work is promoted to recorded
+    # Decision C (idempotency): issue-first creation does NOT auto-reconcile a
+    # partial-create crash (no local id exists before the issue, so the JS5K5G
+    # pending pattern can't key it; title-search/slug-marker add scope + ambiguity).
+    # A successful create records its ref so sync-tracker never double-creates; the
+    # rare post-crash orphan (issue minted, recording crashed) is ACCEPTED and left
+    # for a follow-up to surface. See child spec Open Questions + the orphan-surface
+    # follow-up ticket. No scenario here asserts auto-reconcile.
+
+    @tracker-identity-and-join.TB1.AC1
+    Scenario: A successful issue-first create records its ref for later sync
+      Given a connected tracker
+      When I run "ticket new login-bug"
+      Then the created issue's ref is recorded in the tracker-map
+      And a later sync of that ticket updates the issue rather than creating a second one
 
   Rule: a tracker key resolves to its local folder
 

@@ -7,7 +7,7 @@ The variables the scenarios must cover. Each row is a dimension; scenarios pick 
 | ---------------------- | --------------------------------------------------- | -------------------------------- |
 | Provider               | `none` · `github` · `linear`                        | `none` = today's local-id path (must be unchanged); github/linear = issue-first |
 | Tracker reachability   | reachable · unreachable · auth-fail                 | unreachable/auth-fail must fail loud with no orphan folder |
-| Create state           | fresh · partial-create (pending) · already-exists   | fresh mints; partial-create reconciles (no dup); already-exists adopts |
+| Create state           | fresh · already-exists (adopt)                      | fresh mints; already-exists adopts. (partial-create crash → Decision C: accepted orphan, surfaced by a follow-up, NOT auto-reconciled here) |
 | Key shape              | GitHub `#123` / `owner/repo#123` · Linear `ENG-45`  | id adoption + folder keying must handle both shapes |
 | Join lookup            | key→folder hit · miss (no folder) · stale map entry | hit resolves; miss = clean "not found", never crash |
 | Secret source          | keychain · env · absent                             | absent → loud fail (no silent exit); never written to config/logs |

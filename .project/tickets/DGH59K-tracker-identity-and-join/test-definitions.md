@@ -92,13 +92,17 @@ And the configured secret value appears in neither the error, the config, nor th
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: tracker-identity-and-join.TB1.AC2.partial_create_reconciles_no_duplicate
+<!-- Decision C (2026-06-28): issue-first creation does NOT auto-reconcile a
+     partial-create crash — replaced the former partial_create_reconciles
+     scenario. A successful create records its ref (idempotent vs sync-tracker);
+     the rare post-crash orphan is accepted and surfaced by a follow-up ticket. -->
 
-Given a prior run left a pending tracker-map entry for this work (issue minted, key not yet confirmed)
-When I run `ticket new login-bug` again for that work
-Then tracker issue-create is called zero times
-And the local folder is keyed to the pending entry's existing issue key
-And the tracker-map entry for this work is promoted to recorded
+### Scenario: tracker-identity-and-join.TB1.AC1.successful_create_records_ref
+
+Given a connected tracker
+When I run `ticket new login-bug`
+Then the created issue's ref is recorded in the tracker-map
+And a later sync of that ticket updates the issue rather than creating a second one
 
 - [ ] RED
 - [ ] GREEN

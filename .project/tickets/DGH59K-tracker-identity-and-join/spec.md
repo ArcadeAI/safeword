@@ -77,5 +77,12 @@ reads `external_issue` back; `resolveTicketDirectory` resolves by local `{ID}-{s
 
 ## Open Questions
 
-- defer: exact folder naming under a tracker key (e.g. `ENG-45-slug` vs a map entry) — decide at
-  scenario-gate; both satisfy the join reader as long as the reader is the single resolution point.
+- resolved (Decision C, 2026-06-28): **partial-create idempotency.** Issue-first creation does NOT
+  auto-reconcile a crash between issue-create and recording — there is no local id before the issue,
+  so the JS5K5G pending pattern can't key it, and title-search/slug-marker add scope + ambiguity.
+  Instead: a successful create records its ref (so `sync-tracker` updates, never double-creates),
+  and the rare post-crash orphan (issue minted, recording crashed) is accepted and **surfaced by a
+  follow-up ticket** (orphan-tracker-issue detection), not auto-reconciled. The former
+  `partial_create_reconciles` scenario was replaced by `successful_create_records_ref`.
+- resolved: folder naming under a tracker key is `{key}-{slug}` (e.g. `ENG-45-login-bug`),
+  consistent with today's `{ID}-{slug}`; the join reader resolves by that prefix.
