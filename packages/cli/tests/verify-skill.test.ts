@@ -27,8 +27,8 @@ const dogfoodCursorCommandContent = readFileSync(
   'utf8',
 );
 
-// Both surfaces share the same instructions; tests run against both.
-const surfaces: [string, string][] = [
+// These template surfaces are the source files shipped to installed projects.
+const templateFiles: [string, string][] = [
   ['skill', skillContent],
   ['command', commandContent],
 ];
@@ -43,7 +43,7 @@ const allVerifySurfaces: [string, string][] = [
 
 describe('verify report structure (146)', () => {
   describe('Rule: Status section preserves existing checklist + done-gate evidence patterns', () => {
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s specifies Status section uses existing Verify Checklist',
       (_name, content) => {
         expect(content).toMatch(
@@ -52,7 +52,7 @@ describe('verify report structure (146)', () => {
       },
     );
 
-    it.each(surfaces)('%s lists the required evidence patterns', (_name, content) => {
+    it.each(templateFiles)('%s lists the required evidence patterns', (_name, content) => {
       expect(content).toContain('✓ X/X tests pass');
       expect(content).toContain('**Gherkin:**');
       expect(content).toContain('All N scenarios marked complete');
@@ -63,28 +63,28 @@ describe('verify report structure (146)', () => {
   });
 
   describe('Rule: Decisions section contains only spec/scope/value questions', () => {
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s names Decisions section "Decisions needed (spec / scope / value)"',
       (_name, content) => {
         expect(content).toMatch(/Decisions needed \(spec \/ scope \/ value\)/);
       },
     );
 
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s explicitly states implementation-path questions go in Actions, not Decisions',
       (_name, content) => {
         expect(content.toLowerCase()).toMatch(/implementation.*(go|belong).*actions/);
       },
     );
 
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s specifies Decisions section is hidden when empty (no None placeholder)',
       (_name, content) => {
         expect(content.toLowerCase()).toMatch(/decisions section is hidden when empty/);
       },
     );
 
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s includes at least one concrete spec-vs-impl borderline example',
       (_name, content) => {
         expect(content.toLowerCase()).toContain('borderline classification example');
@@ -95,28 +95,31 @@ describe('verify report structure (146)', () => {
   });
 
   describe('Rule: Actions section commits to concrete forward motion', () => {
-    it.each(surfaces)('%s names Actions section "Agent\'s next actions"', (_name, content) => {
+    it.each(templateFiles)('%s names Actions section "Agent\'s next actions"', (_name, content) => {
       expect(content).toMatch(/Agent's next actions/);
     });
 
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s specifies each action must be concrete and falsifiable',
       (_name, content) => {
         expect(content.toLowerCase()).toMatch(/concrete.*falsifiable|falsifiable.*concrete/);
       },
     );
 
-    it.each(surfaces)('%s specifies Actions section is hidden when empty', (_name, content) => {
-      expect(content.toLowerCase()).toMatch(/actions.*hidden when empty|hidden.*actions.*empty/);
-    });
+    it.each(templateFiles)(
+      '%s specifies Actions section is hidden when empty',
+      (_name, content) => {
+        expect(content.toLowerCase()).toMatch(/actions.*hidden when empty|hidden.*actions.*empty/);
+      },
+    );
   });
 
   describe('Rule: Hard cap N=5 per section; aggregate rest', () => {
-    it.each(surfaces)('%s specifies a hard cap of N=5 items per section', (_name, content) => {
+    it.each(templateFiles)('%s specifies a hard cap of N=5 items per section', (_name, content) => {
       expect(content).toMatch(/cap of \d+|N=5|max(?:imum)? of 5|hard cap.*5/i);
     });
 
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s specifies the aggregation format when items exceed cap',
       (_name, content) => {
         expect(content).toMatch(/N others, see test-definitions\.md/);
@@ -125,7 +128,7 @@ describe('verify report structure (146)', () => {
   });
 
   describe('Rule: All-green collapse to single-line verdict', () => {
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s specifies single-line "Ready to mark done" when all green and no decisions/actions',
       (_name, content) => {
         // The skill must specify that under all-pass + zero-items, the report
@@ -135,25 +138,25 @@ describe('verify report structure (146)', () => {
       },
     );
 
-    it.each(surfaces)('%s explicitly states empty sections are hidden', (_name, content) => {
+    it.each(templateFiles)('%s explicitly states empty sections are hidden', (_name, content) => {
       expect(content.toLowerCase()).toContain('empty sections are hidden');
     });
   });
 
   describe('Rule: PR scope prevents piggybacked changes', () => {
-    it.each(surfaces)('%s includes PR Scope in the Verify Checklist', (_name, content) => {
+    it.each(templateFiles)('%s includes PR Scope in the Verify Checklist', (_name, content) => {
       expect(content).toContain('**PR Scope:**');
       expect(content).toContain('Diff matches ticket scope');
       expect(content).toContain('Piggybacked changes');
     });
 
-    it.each(surfaces)('%s blocks all-green collapse when PR scope fails', (_name, content) => {
+    it.each(templateFiles)('%s blocks all-green collapse when PR scope fails', (_name, content) => {
       expect(content).toMatch(/PR Scope[\s\S]*one purpose/);
       expect(content).toMatch(/PR scope fails[\s\S]*do not collapse/);
       expect(content).toContain('Ready to mark done');
     });
 
-    it.each(surfaces)(
+    it.each(templateFiles)(
       '%s routes unrelated work to split, revert, or scope decision',
       (_name, content) => {
         expect(content).toContain('Nice-to-have refactors');
@@ -165,16 +168,49 @@ describe('verify report structure (146)', () => {
   });
 
   describe('Rule: section 2 consumes safeword test-plan (5FF0ZD)', () => {
-    it.each(surfaces)('%s evals the test and build plans from test-plan', (_name, content) => {
+    it.each(templateFiles)('%s evals the test and build plans from test-plan', (_name, content) => {
       expect(content).toContain('test-plan --kind verify --format sh');
       expect(content).toContain('test-plan --kind build --format sh');
       // Typecheck is part of the ready path — CI's lint job runs it (#436).
       expect(content).toContain('test-plan --kind typecheck --format sh');
     });
 
-    it.each(surfaces)('%s carries no inline per-language test/build branch', (_name, content) => {
-      expect(content).not.toMatch(/uv run pytest|go test|cargo test|go build|cargo build/);
+    it.each(templateFiles)(
+      '%s carries no inline per-language test/build branch',
+      (_name, content) => {
+        expect(content).not.toMatch(/uv run pytest|go test|cargo test|go build|cargo build/);
+      },
+    );
+  });
+
+  describe('Rule: local verify classifies environment limits (469)', () => {
+    it.each(allVerifySurfaces)('%s preflights temporary git repo creation', (_name, content) => {
+      expect(content).toContain('LOCAL_EVIDENCE_LIMITS');
+      expect(content).toContain('git init "$GIT_PROBE_DIR"');
+      expect(content).toContain('Local evidence limits detected:');
+      expect(content).toContain('Temporary git repos');
+      expect(content).toContain('.git/hooks/: Operation not permitted');
     });
+
+    it.each(allVerifySurfaces)(
+      '%s reports environment limits separately from product failures',
+      (_name, content) => {
+        expect(content).toContain('Local environment limitation');
+        expect(content).toContain('Evidence limits');
+        expect(content).toContain('not proof of product failure');
+        expect(content).toContain('affected failures are not product evidence');
+      },
+    );
+
+    it.each(allVerifySurfaces)(
+      '%s routes local Cucumber wrapper timeouts to isolated evidence',
+      (_name, content) => {
+        expect(content).toContain('packages/cli/tests/integration/cucumber-bdd.test.ts');
+        expect(content).toContain('bun run --cwd packages/cli test:bdd');
+        expect(content).toContain('Cucumber wrapper timed out under full-suite load');
+        expect(content).toContain('CI reproduces it');
+      },
+    );
   });
 
   describe('Rule: verify resolver selects only a test-plan-capable Safeword CLI (375)', () => {
