@@ -52,6 +52,15 @@ export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
 };
 
+/**
+ * Skip ONLY the skills pull (`npx skills add`) while still installing JS/Python
+ * dependencies. Use for Go setup tests that need real deps (e.g. eslint) but must
+ * not make the slow/flaky skills network call.
+ */
+export const SKIP_SKILLS_ENV = {
+  SAFEWORD_SKIP_SKILLS: '1',
+};
+
 const SAFEWORD_BASE_DEV_DEPENDENCIES = {
   eslint: '^9.22.0',
   safeword: SAFEWORD_VERSION,

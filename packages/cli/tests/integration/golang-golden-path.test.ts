@@ -29,6 +29,7 @@ import {
   runCli,
   runLintHook,
   setupOrThrow,
+  SKIP_SKILLS_ENV,
   writeTestFile,
 } from '../helpers';
 
@@ -50,7 +51,7 @@ describe('E2E: Go Golden Path', () => {
     projectDirectory = createTemporaryDirectory();
     createGoProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
   }, 180_000); // 3 min timeout for setup
 
   afterAll(() => {
@@ -173,10 +174,10 @@ describe('E2E: Go Setup Idempotency', () => {
     createGoProject(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await runCli(['setup', '--yes'], { cwd: projectDirectory, env: SKIP_SKILLS_ENV });
   }, 180_000);
 
   afterAll(() => {
@@ -220,7 +221,7 @@ describe('E2E: Go Lint Hook Fallback', () => {
     projectDirectory = createTemporaryDirectory();
     createGoProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
 
     // Delete .safeword/.golangci.yml AFTER setup to test fallback path
     const golangciConfig = nodePath.join(projectDirectory, '.safeword/.golangci.yml');

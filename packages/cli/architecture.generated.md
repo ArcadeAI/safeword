@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: a269dbaedd84d54c4fa979fcca89547589746c19adc8d03f3b933c0234441ef7
+fingerprint: b3f28d8c3e9bdad22efef89e1925cd740e93bd7b5341a4d45a228b0212a63a12
 ---
 
 # Architecture
@@ -46,6 +46,14 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### skills
+
+<!-- reconciled: b3f28d8c3e9bdad22efef89e1925cd740e93bd7b5341a4d45a228b0212a63a12 -->
+
+`src/skills`
+
+No description yet — awaiting prose.
 
 ### templates
 
@@ -104,6 +112,8 @@ No description yet — awaiting prose.
 `src/upstream-monitor`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### utils
 

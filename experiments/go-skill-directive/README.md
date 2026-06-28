@@ -1,0 +1,88 @@
+# Spike: does an injected Go-skill directive beat the unguided floor?
+
+Ticket D50Q0T · Issue #482 smallest slice.
+
+## Question
+
+Issue #482 proposes injecting a directive that names a samber Go skill at the right moment.
+Before building that, answer the necessary condition: **does providing + directing the
+skill change what the agent writes on a trap it otherwise fails?** If not, the multi-agent
+injection machinery is moot.
+
+## Method (proxy, content pinned)
+
+- **Trap:** `trap/prompt.md` — implement an HTTP hit-counter (`Counter` with `Inc()`/`Count()`).
+  The natural lazy implementation (`count++` on a shared int) is a data race. samber's
+  canonical high-delta trap (their eval: golang-concurrency 100% with / **61% without**, +39pp).
+- **Arms (Go skill content held constant — samber `golang-concurrency` @ **v1.5.1**, fetched
+  from the pinned raw URL, NOT vendored):**
+  - **A (control):** trap only, no guidance.
+  - **C (directive):** trap + "consult & follow this guidance before writing" + the skill body.
+  - (**B, faithful native description-triggering**, is deliberately omitted — a container
+    sub-agent cannot reproduce Claude Code's skill-selection runtime. That arm needs real CC
+    sessions and is a #482 follow-up. This spike measures the _ceiling_ A-vs-C: if C does not
+    beat A here, B won't either.)
+- **Grader (`grade.sh`): deterministic, no LLM judge** — drops the agent's `counter.go` into a
+  temp module with the fixed `trap/counter_test.go`, runs `go test -race`. FAIL iff a race is
+  detected OR the final count is wrong. Mirrors the `experiments/gepa-review-spec` discipline
+  (seeded ground truth, deterministic metric).
+
+## Run
+
+```
+# per candidate counter.go:
+./grade.sh path/to/counter.go   # prints PASS/FAIL, exit 0/1
+```
+
+Arms are run by spawning N coding sub-agents per arm with the trap prompt (+ guidance for C),
+collecting each `counter.go`, and grading. Results logged in the ticket work log.
+
+## Caveats
+
+- Proxy, not the faithful eval (see arm B note). Directional go/no-go only.
+- Small N — a first signal, not a production rate.
+- samber content is fetched at the pin, not committed (avoids redistribution/attribution here).
+
+## Result (context-in-struct trap) — clean signal
+
+The race/counter trap above has **zero headroom** on current strong models
+(12/12 controls wrote safe code). Pivoted to the **context-in-struct** trap
+(`trap-context/`, graded by `grade-ctx.sh`):
+
+| Arm                                                    | Pass    | Notes                                                       |
+| ------------------------------------------------------ | ------- | ----------------------------------------------------------- |
+| **A — control** (no skill)                             | **0/4** | all stored `context.Context` in `RequestScope` (1 embedded) |
+| **C — directive** (read+follow `golang-context` skill) | **4/4** | all refused; several cite rule #3 explicitly                |
+
+A clean **0 → 4/4** swing on a deterministically-graded, headroom-real,
+no-defensible-exception trap. The Go judgment skill, when surfaced, eliminates
+an idiom error the model otherwise makes every time.
+
+**Caveats:** (1) this is arm C in its strongest form ("read this skill and follow
+it") — it proves the _content_ changes behavior, not yet that the prompt-hook
+_directive_ triggers it in a live session (the #482 injection mechanism is the
+next layer); (2) n=4 per arm — the effect is clean but small-sample; (3) a
+round-1 trap (background-worker _lifecycle_ ctx) was abandoned as too gray —
+storing lifecycle ctx is a defensible exception, so 3/4 directive agents stored
+it with justification. The request-scoped trap removes that ambiguity.
+
+### 3-arm update: directive ≈ availability
+
+Adding arm B (skill _available_, agent chooses): **A=0/4, B=4/4, C=4/4.** The
+directive adds nothing over the agent merely knowing a relevant skill exists.
+Lever = awareness (native description-triggering provides it), not the directive.
+Caveat: arm B pointed at one clearly-relevant skill; real native triggering (skill
+among many) may silently miss — the only thing that could still justify a directive,
+testable only in a live multi-skill session.
+
+### CORRECTION: both arms pointed at the specific skill
+
+The "3-arm update" above overstated the result. **Both arm B and arm C pointed the
+agent at the ONE relevant skill (`golang-context`) by file path** — they differed only
+in "read if useful" (B) vs "read and follow" (C). So the finding is narrower than written:
+_once handed the right skill, forcing it doesn't beat offering it (B==C)._ The experiment
+did **NOT** test whether the agent **self-selects the right skill among ~40** with nothing
+pointing at it — both arms pre-solved that step. That self-selection step is exactly what a
+full-list reminder assists, so "directive ≈ availability → reminders redundant" does NOT
+follow. The picker-only vs picker+reminder reliability test (live, multi-skill) remains the
+real open question.

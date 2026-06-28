@@ -295,3 +295,22 @@ export function decideFromGate(result: ClaudeGateResult): CursorDecision {
   }
   return toCursorDecision(claudeDenialReason(result.stdout));
 }
+
+/**
+ * Translate a Claude PostToolUse `hookSpecificOutput.additionalContext` payload
+ * into Cursor's `additional_context` field. Returns `{}` (inject nothing) for
+ * empty/non-JSON output or a missing/empty context — the shared output side of
+ * the Cursor postToolUse adapters (mirrors the input helpers above).
+ */
+export function translatePostOutput(stdout: string): Record<string, unknown> {
+  if (stdout.trim() === '') return {};
+  try {
+    const parsed = JSON.parse(stdout) as {
+      hookSpecificOutput?: { additionalContext?: unknown };
+    };
+    const context = parsed.hookSpecificOutput?.additionalContext;
+    return typeof context === 'string' && context !== '' ? { additional_context: context } : {};
+  } catch {
+    return {};
+  }
+}
