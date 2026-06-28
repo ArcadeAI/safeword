@@ -2,8 +2,8 @@
 id: DGH59K
 slug: tracker-identity-and-join
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 epic: offboard-local-ticketing
 parent: KKNFZA
 scope:
@@ -35,6 +35,11 @@ scenarios in [./test-definitions.md](./test-definitions.md); feature source
 
 ## Work Log
 
+- 2026-06-28T22:03:00Z DONE (user confirmed). Full done-gate green: /verify (tests 3856 pass, build,
+  typecheck, lint, Gherkin lane @wip-excluded per #363, 33/33 scenarios, PR scope, dep drift) +
+  /audit passed (fixed one layer violation → src/ticket-create/). Two /quality-review passes + one
+  /refactor pass landed earlier. Child ① of epic KKNFZA complete. Follow-up 01EAKC (orphan surface)
+  remains blocked-on this. Next epic child: ② status-on-issue.
 - 2026-06-28T16:20:00Z implement COMPLETE — all 11 scenarios green. Slices: SM1.AC1 join reader
   (58d70c8), issue-first core (b38565c), provider routing resolveCreationMode (9e5b123), identity
   builder buildIdentitySource (b7bbac3), and command integration createTicketRouted + ticketNew
