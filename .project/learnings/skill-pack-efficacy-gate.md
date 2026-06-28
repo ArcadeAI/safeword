@@ -22,6 +22,18 @@ Covers: skill-pack adoption gate, efficacy eval, headroom probe, deterministic g
 - **Context-in-struct, graded by a hand-built Go AST checker** (`checker/main.go` — no Go linter flags it): control **0/4 → treatment 4/4.** Real lift on a subtle, no-exception idiom. This is the shape to copy.
 - **Sample caveat:** N=4, one trap, one language, one model generation — a clean *directional* signal, not a production rate. The swing is what gates go/no-go; don't read the 4/4 as a reliability number.
 
+## The Python evidence (ticket #538, `experiments/python-skill-eval/`)
+
+- **Structured-concurrency trap (fail-fast: cancel siblings when one fetch fails), graded by behavior not API (TaskGroup vs bare-gather sibling leak):** control **4/4 already correct** (3× `asyncio.TaskGroup`, 1× manual `gather`+cancel) → **0 headroom, abandoned, arms not built.** `jeffallan/python-pro` can't lift what the model already does.
+
+## The load-bearing finding (two languages now): core idioms are mostly 0-headroom on frontier models
+
+Across Go and Python, the **obvious** idioms these packs teach — data races, structured concurrency — are **already internalized by Opus-class models (2026)**. Headroom lives only in a narrow band of genuinely-subtle, **no-defensible-exception** idioms; Go found exactly one (context-in-struct), Python found none in the first probe. Python's flexibility makes that band *thinner* — most candidates (Protocol-vs-ABC, blocking-in-async for a tiny read, `typing.IO`-vs-Protocol) have a defensible alternative, which disqualifies them as clean traps.
+
+**Implication for adoption.** "Make a frontier agent write better *core* idioms" is the **weakest** value thesis — it's where headroom is scarcest. If a pack is to earn its always-on cost, the likelier sources of real lift are the **untested axes**: (1) **library/framework-specific** skills (samber's grpc/viper/temporal — knowledge the model hasn't memorized), and (2) **weaker agents** (Codex/Cursor on non-frontier models, where the floor is lower; samber's own 56%→98% was surely measured against a weaker baseline than Opus). Probe *those* before believing a pack's core-idiom value — don't re-probe core idioms.
+
+**Process lesson:** we shipped delivery for four languages before proving one moved the needle. Backwards. Prove headroom (cheap control-only probe) *before* building delivery, not after.
+
 ## What the harness should be (decided via /figure-it-out)
 
 - **The method is the durable artifact (this doc).** Per-language trap+grader are **disposable spikes** under `experiments/<lang>-skill-eval/` — matching the existing `experiments/` convention (`gepa-review-spec`, `go-skill-directive`): self-contained, deterministic grader, manual orchestration, results logged in the ticket, directional go/no-go.
