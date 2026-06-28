@@ -5,46 +5,53 @@ type: feature
 phase: intake
 status: in_progress
 scope:
-  - Tracker becomes system of record for identity + status (provider-neutral, GitHub/Linear)
-  - issue-first ticket creation; status transitions written to the issue
-  - lifecycle state (status/phase/last_modified, INDEX) leaves tracked files → tracker + git-ignored runtime cache
-  - content artifacts (spec/design/impl-plan/test-definitions/verify/work-log) stay git-tracked & reviewable
-  - retire INDEX generation and dup-ID guard when tracker is canonical
-  - session-boundary status reconciliation (issue = read-authority)
+  - Tracker is system of record for IDENTITY (issue-first; key = ticket id), provider-neutral GitHub/Linear
+  - status/phase stay locally canonical in tracked ticket.md; gates read them as today (offline)
+  - kill the real churn: stop last_modified-per-Stop and INDEX generation; relocate last_modified's 2 readers
+  - one-way status mirror to the tracker (reuse sync-tracker, allow-listed payload)
+  - tracker-key → local-folder join reader (build-new); retire dup-ID guard
+  - content artifacts stay git-tracked & reviewable
+  - optional non-authoritative upstream status heads-up at session boundary
   - back-compat read of existing tickets; provider:none unchanged
-  - PRESERVE local execution jobs (audit): context anchor, done-invariant vs external close, blocked_on/cascade/next-nav, resume/re-entry/replan, review-ledger rekey, tracker-key→folder join key
 out_of_scope:
+  - making the tracker AUTHORITATIVE for status (two-way / driving safeword) — re-introduces the trilemma
   - full field parity (assignee/priority/body two-way) — M1FGRJ
   - dependency-graph projection (sub-issues/relations/topo-sort) — M1FGRJ
   - new providers beyond GitHub/Linear (Jira/Slack)
-  - live per-turn two-way sync
   - rewriting BDD/TDD gate mechanics themselves
   - legacy-project workflows (per user)
 done_when:
-  - with a tracker connected, a full create→work→close session adds zero bookkeeping diffs (no status/phase/last_modified rewrites, no INDEX)
-  - content artifacts stay tracked and reviewable in a normal PR
-  - identity + status are observable in the tracker without running safeword
-  - gates pass/fail identically offline (no per-turn network)
-  - INDEX generation and the dup-ID guard are retired when the tracker is canonical
-  - ticket new fails loudly and leaves no orphan/duplicate when the tracker is unreachable
+  - a session adds no per-Stop (last_modified) churn and no INDEX churn; remaining diffs are real transitions + content
+  - status/phase stay locally canonical; gates pass/fail identically offline (no per-turn network)
+  - identity is tracker-minted; ticket new fails safely (no orphan/dupe) when the tracker is unreachable
+  - status is visible in the tracker via the one-way mirror without running safeword
+  - last_modified's readers (active-ticket recency, replan) are relocated and still work
+  - Cursor done-gate and CI check-pr-ticket-done still fire (status/phase remain in ticket.md)
   - existing tickets and provider:none installs are unaffected
-  - loop-prevention context anchor still derives from local state with no per-turn network
-  - "never done without user confirmation" survives an external issue close
-  - blocked_on gate, parent cascade, next-ticket nav, and cross-session resume still work locally
 created: 2026-06-27T21:35:47.369Z
-last_modified: 2026-06-27T23:10:00.000Z
+last_modified: 2026-06-28T05:04:00.000Z
 ---
 
-# Off-board local ticketing: external tracker as system of record, local artifacts stay tracked
+# Off-board local ticketing: tracker canonical for identity + status mirror; status/phase stay tracked
 
-**Goal:** Make the customer's tracker canonical for ticket identity + status and move lifecycle
-bookkeeping (status/phase rewrites, INDEX) off the repo, while content artifacts stay git-tracked
-and reviewable and gates keep reading local files.
+**Goal:** Make the tracker canonical for ticket identity and a one-way status mirror, kill the real
+churn (last_modified-per-Stop + INDEX), and keep status/phase in tracked files so gates work
+offline and every consumer keeps firing.
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
 
+- 2026-06-28T05:04:00Z /figure-it-out on the durability trilemma → chose **Model B** and rewrote the
+  spec. Tracker is canonical for IDENTITY + a one-way status mirror; status/phase STAY locally
+  canonical in tracked ticket.md. This dissolves the trilemma (no per-turn network, no git-ignored
+  durability hole, no fail-open) and preserves the Cursor done-gate / CI guard / context-anchor /
+  resume / review-trigger BY CONSTRUCTION, since status/phase never leave the file. Churn target
+  narrowed to last_modified-per-Stop + INDEX (the real noise); status/phase transition diffs (a few
+  per ticket) are accepted as legitimate history. Evidence: GitHub/Linear ~5k req/hr; GitHub can't
+  cleanly hold phase; git-bug validates local-state+bridge. Revises the earlier "tracker = system of
+  record for status" decision (status: canonical→mirror). AskUserQuestion to confirm authority
+  couldn't be delivered (tool stream closed) → proceeding with recommended just-show; reversible.
 - 2026-06-28T04:44:00Z /quality-review (adversarial verification of the audit) — found the audit
   was INCOMPLETE + partly WRONG. Confirmed: (1) `last_modified` is functional, not just churn
   (active-ticket selection + replan baseline) → relocate, don't delete; (2) `phase` is NOT derivable

@@ -1,306 +1,261 @@
-# Spec: Off-board local ticketing: external tracker as system of record, local artifacts stay tracked
+# Spec: Off-board local ticketing — tracker canonical for identity + one-way status mirror; status/phase stay tracked, churn removed
 
 ## Intent
 
 Make the customer's external tracker (GitHub Issues or Linear) the system of record for ticket
-identity and status, and move the **lifecycle bookkeeping** (status/phase rewrites, INDEX
-regeneration) out of the repo onto the tracker — while ticket **content** artifacts (spec,
-design, impl-plan, test-definitions, verify, work-log) stay **git-tracked and reviewable**. Gates
-keep reading local files, so the network never enters the per-turn loop. The win is "stop the
-bookkeeping noise," not "hide the work."
+**identity**, and a **one-way mirror** of status for team visibility. Ticket `status` and `phase`
+stay in tracked `ticket.md` (**locally canonical** — gates read them exactly as today, offline).
+The win is killing the *real* churn — `last_modified` rewritten every Stop and INDEX regenerated on
+every change — and off-boarding identity (collision-proof, team-visible) **without** putting the
+network in the per-turn loop or losing durability.
 
 ## Intake Brief
 
 - **Requested by:** alex (product owner) — "minimize ticket churn in customer projects and
-  dogfood," and "avoid git-ignore on all this stuff" (artifacts must stay reviewable).
-- **Cost of inaction:** the painful churn is **mechanical bookkeeping** — `updateTicketStatus()`
-  rewriting `status`/`phase`/`last_modified` into `ticket.md` on every Stop, and
-  `INDEX.md`/`INDEX-completed.md` regenerating on every change. This noise dominates git history
-  and creates a second system of record alongside the team's real tracker. (Note: it is the
-  *bookkeeping* that hurts — the content artifacts are legitimate, reviewable history and stay.)
-- **Reversibility:** two-way door. We invert an existing one-way bridge (`tracker-sync`,
-  `tracker-connect`) — `external_issue` frontmatter, `.safeword/tracker-map.json`, and
-  close-on-terminal already exist. Existing tickets stay readable; `provider: none` installs are
-  untouched. The one cross-cutting edge is flipping which plane owns status — contained by keeping
-  it opt-in (only when a tracker is connected).
+  dogfood," "avoid git-ignore on all this stuff," and (this session) "do it" on resolving where
+  status/phase live.
+- **Cost of inaction:** the painful churn is mechanical bookkeeping — `updateTicketStatus()`
+  rewriting `last_modified` (and status/phase) into `ticket.md` on every Stop, and
+  `INDEX.md`/`INDEX-completed.md` regenerating on every change. Noise dominates git history and
+  forces a second place to track work.
+- **Reversibility:** two-way door. Reuses the existing one-way bridge (`tracker-sync`,
+  `tracker-connect`, `external_issue`, `.safeword/tracker-map.json`). Status/phase never leave
+  tracked files, so every gate/consumer keeps working by construction. The one revisable call is
+  status authority (see Open Questions): one-way mirror now; making the tracker *drive* safeword
+  would re-introduce the trilemma and is deferred.
+
+## Why not tracker-canonical for status (the rejected option)
+
+A `/figure-it-out` this session weighed making the tracker the system of record for **status** too.
+It hits a trilemma: per-turn gates branch on `status`/`phase`, so a remote-canonical status forces
+either a **network read per turn** (rejected — GitHub/Linear cap ~5k req/hr, Actions token
+1k/hr/repo) or a **git-ignored cache** that is stale/absent on a clean checkout (breaks
+cross-machine resume and inverts phase-keyed gates to **fail-open**). It also can't cleanly store
+`phase`: GitHub has no native custom states (label hacks or org-admin preview "issue fields"
+only). And it contradicts our own done-invariant (SM2.AC2: an external close does not drive
+safeword's done). Keeping status/phase locally canonical dissolves all of that; the tracker still
+*shows* status via the existing one-way projection. Cite:
+[git-bug — offline-first state in git, bridges out](https://github.com/git-bug/git-bug),
+[GitHub issue fields preview](https://github.com/orgs/community/discussions/189141).
 
 ## References
 
-- `/figure-it-out` decision (this session) — off-board the *coordination plane* (identity +
-  status) to the tracker; keep the *content* tracked in the repo (reviewable), and stop the
-  bookkeeping churn rather than git-ignoring artifacts.
-- `.project/tickets/JS5K5G-sync-tracker/spec.md` — the one-way projection this epic inverts;
-  source of the "no network in the execution loop" constraint.
-- `M1FGRJ` — deferred v2 (dependency-graph projection, full field parity) — out of scope here.
-- Coupling surface: ~20 hook read sites + phase/done gates (`active-ticket.ts`,
-  `pre-tool-quality.ts`, `stop-quality.ts`, `hierarchy.ts`, `done-gate.ts`), `ticket-new.ts`,
-  `ticket-sync/index.ts` (INDEX), `duplicate-ids.ts` + `scripts/check-ticket-ids.ts`.
+- `/figure-it-out` durability decision (this session) — Model B: tracker canonical for identity +
+  one-way status mirror; status/phase stay locally canonical.
+- `.project/tickets/JS5K5G-sync-tracker/spec.md` — the one-way projection this epic reuses;
+  "no network in the execution loop" constraint.
+- `M1FGRJ` — deferred v2 (dependency-graph projection, full field parity) — out of scope.
+- Coupling surface (verified this session): `active-ticket.ts` (getActiveTicket uses
+  `last_modified` as recency mtime; phase read from frontmatter, not derivable), `replan.ts`
+  (`last_modified` = staleness baseline), `hierarchy.ts` (`updateTicketStatus`),
+  `pre-tool-quality.ts` / `stop-quality.ts` (phase-keyed gates), `cursor/gate-adapter.ts`
+  (`status: done` edit = Cursor's only done-gate trigger), `scripts/check-pr-ticket-done.ts` (CI
+  reads status+phase), `ticket-sync/index.ts` (INDEX), `duplicate-ids.ts`.
 
 ## Personas
 
-- **Technical Builder (TB)** — runs safeword on a real project; feels the bookkeeping churn and
-  the two-systems problem; needs the plan/work reviewable by a teammate.
+- **Technical Builder (TB)** — runs safeword on a real project; feels the churn and the
+  two-systems problem; wants the plan/work reviewable.
 - **Safeword Maintainer (SM)** — owns the gates; must keep them working offline and
-  backward-compatible.
+  backward-compatible across Claude, Cursor, and CI.
 
 ## Vocabulary
 
-- **Coordination plane** — identity, status, lifecycle: what humans/teams coordinate on.
-  Off-boards to the tracker.
-- **Content artifacts** — `spec.md` / `design.md` / `impl-plan.md` / `test-definitions.md` /
-  `verify.md` / work-log. Meaningful, reviewable; **stay git-tracked**.
-- **Lifecycle state** — `status` / `phase` / `last_modified` and the INDEX. The churny
-  bookkeeping. Moves to the tracker (status) plus a git-ignored runtime cache (derived/phase
-  state the gates read) — never rewritten into tracked files.
-- **Runtime cache** — git-ignored session-scoped state (today's `.project/quality-state-*.json`
-  family) the gates read each turn so no per-turn network call is needed. Not content.
+- **Identity** — the ticket's canonical key. Off-boards to the tracker (issue key = ticket id).
+- **Status / phase** — lifecycle state. Stay in tracked `ticket.md`, **locally canonical**; gates
+  read them per-turn from disk (offline, no network). `status` is mirrored one-way to the tracker.
+- **Bookkeeping churn** — `last_modified` rewritten every Stop + INDEX regenerated every change.
+  The removal targets. (Status/phase change only on real transitions — a few diffs per ticket,
+  legitimate history, not churn.)
+- **One-way status mirror** — the existing `sync-tracker` projection: local → tracker, never the
+  reverse as an authority.
 
 ## Jobs To Be Done
 
-### offboard-local-ticketing.TB1 — stop the bookkeeping churn, keep the work reviewable
+### offboard-local-ticketing.TB1 — off-board identity, kill the churn, keep the work reviewable
 
 **Persona:** Technical Builder (TB)
 
-> When my team coordinates work in GitHub or Linear, I want safeword to treat that tracker as the
-> system of record for identity and status and stop rewriting bookkeeping into my repo, while my
-> plan and work stay visible in git for a teammate to review — so my history reflects real work,
-> not safeword's churn, and the team tracks status in one place (the tracker) while the work stays
-> reviewable in the repo.
+> When my team coordinates in GitHub or Linear, I want the tracker to own ticket identity and show
+> current status, and safeword to stop spraying bookkeeping into my repo — while my status, plan,
+> and work stay in tracked files I (and gates) can rely on offline — so my history is real work,
+> not churn, and the team sees status where they already look.
 
-#### offboard-local-ticketing.TB1.AC1 — `ticket new` mints the issue first
+#### offboard-local-ticketing.TB1.AC1 — `ticket new` mints the issue first and degrades safely
 
-With a tracker connected, creating a ticket creates (or adopts) the external issue first and
-takes the tracker-issued key as the ticket's canonical identity; the local folder is materialized
-from that key. With `provider: none` the no-tracker base case is unchanged.
+With a tracker connected, `ticket new` creates (or adopts) the issue first and takes the
+tracker-issued key as canonical identity; the local folder is keyed to it. When the tracker is
+unreachable/auth-fails it fails loudly with **no** half-state (no orphan folder); a minted issue
+whose key failed to record reconciles on the next run rather than duplicating (the `tracker-map`
+pending pattern). Secrets resolve from keychain/env only; the only egress is the AC5 allow-list
+(public-repo target warns). With `provider: none`, identity is local exactly as today.
 
-#### offboard-local-ticketing.TB1.AC2 — lifecycle state leaves tracked files; tracker gets an allow-listed payload
+#### offboard-local-ticketing.TB1.AC2 — status/phase stay locally canonical in tracked files
 
-`status` lives on the issue (the read-authority); `phase` and derived gate state live in the
-git-ignored runtime cache. None of `status`/`phase`/`last_modified` is rewritten into tracked
-`ticket.md` per Stop. The single writer call site emits **exactly** the allow-listed fields
-{existence, title, back-link, status} to the tracker — observable by asserting the writer payload
-equals that set (assignee/priority/body are absent, not merely "not written"). GitHub and Linear
-are both served through that one call site.
+`status` and `phase` remain in tracked `ticket.md`. Every gate, hook, and the per-turn context
+anchor read them from disk exactly as today — offline, no network. The migration changes their
+*identity key*, not their *home*.
 
-#### offboard-local-ticketing.TB1.AC3 — content artifacts stay git-tracked and reviewable
+#### offboard-local-ticketing.TB1.AC3 — only the bookkeeping churn is removed
 
-`spec.md`, `design.md`, `impl-plan.md`, `test-definitions.md`, `verify.md`, and the work-log
-remain tracked files in the repo — committed (at session boundaries, not per action) so a
-teammate can review them in a normal PR/diff. Nothing in this set is git-ignored. Tracked
-`ticket.md` keeps only stable identity + scope, which changes rarely.
+`last_modified` is no longer rewritten on every Stop and INDEX is no longer generated. A session's
+remaining ticket diffs are real status/phase transitions (a few per lifecycle) and authored
+content — never a per-Stop timestamp bump or an INDEX rewrite.
 
-#### offboard-local-ticketing.TB1.AC4 — INDEX and the dup-ID guard are retired when canonical
+#### offboard-local-ticketing.TB1.AC4 — content artifacts stay git-tracked and reviewable
 
-`INDEX.md` / `INDEX-completed.md` are not generated when the tracker is canonical (its issue list
-replaces them), and the duplicate-ID CI guard is dropped for tracker-minted keys (collision-proof
-by construction).
+`spec.md`, `design.md`, `impl-plan.md`, `test-definitions.md`, `verify.md`, and the work-log remain
+tracked, committed at session boundaries, reviewable in a normal PR. Nothing here is git-ignored.
 
-#### offboard-local-ticketing.TB1.AC5 — a session adds no bookkeeping diffs
+#### offboard-local-ticketing.TB1.AC5 — status is mirrored one-way to the tracker
 
-With a tracker connected, a full create→work→close session produces **zero** bookkeeping diffs
-(no `status`/`phase`/`last_modified` rewrites, no INDEX diff). The diffs it does produce are the
-content the user actually authored — committed at session boundaries, so no mid-session action
-produces a commit on its own. The tracker shows current status without running safeword.
+safeword projects status to the issue via the existing single writer call site, emitting **exactly**
+the allow-listed payload {existence, title, back-link, status} — observable by asserting the payload
+equals that set (assignee/priority/body absent). It is one-way: safeword never treats the tracker
+as the status authority. GitHub and Linear are both served through that one call site.
 
-#### offboard-local-ticketing.TB1.AC6 — `ticket new` degrades safely when the tracker is unreachable
+#### offboard-local-ticketing.TB1.AC6 — INDEX and the dup-ID guard are retired
 
-Issue-first creation is the one place the network is on a critical path. When the tracker is
-unreachable (or auth fails) at `ticket new`, the command fails loudly with guidance and creates
-**no** half-state — no orphan local folder pointing at a non-existent issue. If the issue is
-minted but recording its key locally fails (partial-create), the next `ticket new`/resume
-reconciles to the existing issue rather than minting a duplicate (reusing the `tracker-map.json`
-pending-entry pattern from `JS5K5G`). secrets resolve from the OS keychain / env only — never
-config, never logs — and the only egress is the AC2 allow-list (a public-repo target surfaces the
-existing egress warning).
+`INDEX.md` / `INDEX-completed.md` are no longer generated (the tracker's issue list replaces them)
+and the duplicate-ID CI guard is dropped — tracker-minted keys are collision-proof. All call sites
+(`safeword check` / `sync-tickets` / `ticket new`) are updated, not just the generator.
+
+#### offboard-local-ticketing.TB1.AC7 — `last_modified`'s two readers are relocated, not orphaned
+
+Removing `last_modified` does not break its consumers: active-ticket recency (today
+`active-ticket.ts` picks the most-recent in-progress ticket by `last_modified` mtime) and the
+replan staleness baseline (today `replan.ts` uses `last_modified` for `git log --since`) are
+re-sourced from git (folder commit/mtime) so both keep working.
 
 ### offboard-local-ticketing.SM1 — gates stay local, offline, and backward-compatible
 
 **Persona:** Safeword Maintainer (SM)
 
-> When a gate fires mid-session, I want it to read local files with no network call, and every
-> existing ticket and no-tracker install to keep working, so the change is fast, offline-safe,
-> additive, and reversible.
+> When a gate fires, I want it reading local tracked files with no network call, and every existing
+> ticket, harness, and CI check to keep working, so the change is fast, offline-safe, and additive.
 
-#### offboard-local-ticketing.SM1.AC1 — gates read local files, never the API
+#### offboard-local-ticketing.SM1.AC1 — gates read local tracked files, never the API
 
-The phase gate (`test-definitions.md`) and done gate (`verify.md`) read the tracked artifacts and
-the runtime cache. No gate, prompt hook, or per-turn read makes a network call; a session with
-the network down still evaluates gates correctly.
+Phase/done gates read `status`/`phase`/evidence from tracked `ticket.md` and colocated artifacts.
+No gate, prompt hook, or per-turn read makes a network call; a session with the network down
+evaluates gates correctly.
 
-#### offboard-local-ticketing.SM1.AC2 — status reconciles at session boundaries
+#### offboard-local-ticketing.SM1.AC2 — optional, non-authoritative upstream heads-up
 
-Issue state is the read-authority for status; the runtime cache holds the last-known value.
-Reconciliation runs at session start/resume, not per turn — a status changed in the tracker
-(e.g. a teammate closes the issue) is picked up without live two-way field sync and without a
-stale value driving a gate mid-session.
+At a session boundary safeword *may* read the issue's status and surface a heads-up ("issue #N is
+closed upstream — reconcile?"). It is advisory only: it never gates, never auto-changes local
+status, and its absence (offline) changes nothing. This is the mitigation for "a teammate changed
+the tracker," without making the tracker authoritative.
 
 #### offboard-local-ticketing.SM1.AC3 — existing tickets stay readable, no-tracker installs unchanged
 
-All existing local tickets (current `{ID}-{slug}/`, ID-only, and older numeric-id folders) remain
-resolvable by ID — i.e. reading old on-disk ID formats, which is distinct from legacy-project
-*workflows* (out of scope). No migration is forced. With `provider: none`, the local plane behaves
-exactly as today (local identity and status).
+All existing local tickets (current `{ID}-{slug}/`, ID-only, older numeric-id folders) remain
+resolvable by ID — reading old on-disk ID formats, distinct from legacy-project *workflows* (out of
+scope). No migration is forced. With `provider: none`, the local plane behaves exactly as today.
 
-#### offboard-local-ticketing.SM1.AC4 — concurrent sessions don't corrupt the runtime cache
-
-The git-ignored runtime cache tolerates parallel sessions / branches: concurrent writers never
-leave it unparseable, and a per-ticket (not global) granularity keeps one session's status from
-clobbering another's. A torn or missing cache is treated as "unknown" and re-reconciled from the
-tracker at the next boundary, never as a false gate signal.
-
-### offboard-local-ticketing.SM2 — the migration preserves the local execution workflow
+### offboard-local-ticketing.SM2 — the migration preserves the execution workflow
 
 **Persona:** Safeword Maintainer (SM)
 
-> When identity and status move to the tracker, I want the local execution jobs the ticket system
-> exists for — loop-prevention, gated quality, epic self-advance, resume — to keep working exactly
-> as today, so off-boarding the *coordination* plane never silently degrades the *execution* plane.
->
-> (Derived from the existing-system JTBD audit, this session. Each AC names a job ranked as a
-> high-risk silent loss if status/identity leave the local plane.)
+> When identity off-boards to the tracker, I want the local execution jobs the ticket system exists
+> for to keep working, so off-boarding *coordination* never degrades the *execution* plane. (Under
+> Model B most of these are preserved by construction, because status/phase never leave tracked
+> files; each AC names how.)
 
-#### offboard-local-ticketing.SM2.AC1 — per-turn context anchor is unchanged
+#### offboard-local-ticketing.SM2.AC1 — per-turn context anchor unchanged
 
-The per-turn re-injection of the active ticket's goal / phase / TDD-step (the loop-prevention
-anchor) keeps deriving from local state only — `ticket.md`, phase's durable local-readable home
-(see the BLOCKING open question on phase/status durability), and `test-definitions.md` — with no
-network read. Loop-prevention behaves identically to today, online or offline. NB: phase is **not**
-derivable from tracked artifacts (verified: `active-ticket.ts` derives only the implement
-sub-step from `test-definitions.md` checkboxes, never the phase itself), so phase needs a durable
-home — it cannot simply be recomputed on a clean checkout.
+The per-turn re-injection of goal/phase/TDD-step derives from `ticket.md` + `test-definitions.md`
+as today (status/phase still local). Loop-prevention behaves identically, online or offline.
 
-#### offboard-local-ticketing.SM2.AC2 — the done invariant survives an external close
+#### offboard-local-ticketing.SM2.AC2 — the done invariant holds
 
-The tracker's status is the read-authority for *coordination* (what the team sees), but safeword
-still requires its own local done-gate evidence (`verify.md` + all scenario checkboxes + the
-PR-scope line) **and** explicit user confirmation before it treats work as quality-gated `done`.
-An externally-closed issue is surfaced to the user at the session boundary — never silently
-accepted as a passed done-gate, and never auto-closing a ticket whose evidence is absent.
+safeword requires its own local done-gate evidence (`verify.md` + all scenario checkboxes +
+PR-scope line) **and** explicit user confirmation before marking `done`. The one-way mirror is
+advisory; an externally-closed issue is surfaced (SM1.AC2), never accepted as a passed done-gate.
 
-#### offboard-local-ticketing.SM2.AC3 — local hierarchy execution keeps working
+#### offboard-local-ticketing.SM2.AC3 — local hierarchy execution unchanged
 
-The `blocked_on` phase gate, parent-status cascade, and next-ticket navigation continue to
-operate: blocker/sibling status is read from the runtime cache (no per-turn network), and status
-writes route through the AC2 status-on-issue path. This *local execution* of the graph is
-preserved and is distinct from projecting the dependency graph to the tracker (still out of scope
-— `M1FGRJ`). A blocker whose status can't be resolved fails closed (blocks), never open.
-**Fail-closed invariant (correctness fix):** today several phase-keyed gates *exempt* when
-`phase` is undefined (e.g. `stop-quality.ts` cumulative/impl-plan checks, the scenario/implement
-gates) — so if phase is ever absent they fail **open**, bypassing enforcement. The migration must
-flip this: an unknown phase/status blocks (or forces reconciliation), never silently passes.
+The `blocked_on` phase gate, parent-status cascade, and next-ticket navigation keep operating;
+blocker/sibling status reads from tracked `ticket.md` (no network). An unresolved blocker fails
+**closed** (blocks), never open.
 
-#### offboard-local-ticketing.SM2.AC4 — cross-session resume is preserved
+#### offboard-local-ticketing.SM2.AC4 — cross-session and cross-machine resume preserved
 
-A ticket resumes by its canonical (tracker) key or slug at its current phase across sessions. The
-re-entry brief and replan-on-resume — which read prior sessions' transcripts and `git`
-working-tree/commit state — keep working unchanged; they are intrinsically local and neither needs
-nor consults the tracker.
+A ticket resumes by its canonical key or slug at its current phase. Because `phase` lives in
+tracked `ticket.md`, a clean checkout on another machine still has it — resume, re-entry brief, and
+replan-on-resume (local transcript + git reads) work unchanged.
 
-#### offboard-local-ticketing.SM2.AC5 — review ledger rekeys without losing its floor
+#### offboard-local-ticketing.SM2.AC5 — review-ledger trigger intact, keys rekeyed
 
-Review stamps and the session-scoped skill-invocation proof rekey to the canonical (tracker) id,
-while their local content-hash binding and per-session proof stay local. **And the trigger
-survives:** the phase-exit review gate (`pre-tool-quality.ts` via `detectPhaseAdvance`) fires on a
-`phase:` change in tracked `ticket.md` today; if phase leaves `ticket.md` that trigger must be
-re-sourced or it never fires. Where review gates are enabled, they fire exactly as today after
-rekeying — the integrity floor is not lowered by the migration.
+The phase-exit review trigger (`pre-tool-quality.ts` via `detectPhaseAdvance` on a `phase:` change
+in tracked `ticket.md`) fires exactly as today — phase stays in the file. Only the stamp/proof
+**id** rekeys to the canonical (tracker) key; the local content-hash binding and session-scoped
+proof stay local. The integrity floor is unchanged.
 
-#### offboard-local-ticketing.SM2.AC6 — a stable tracker-key → local-folder mapping
+#### offboard-local-ticketing.SM2.AC6 — tracker-key → local-folder join reader (build-new)
 
-Every hook resolves "the local folder for this ticket" from the canonical (tracker) key via a
-stable mapping, so all colocated evidence stays reachable even though identity now originates in
-the tracker. **This is build-new, not preserve:** `external_issue` is in tracked frontmatter today
-but **nothing reads it back** — `resolveTicketDirectory`/`getTicketInfo` resolve by local
-`{ID}-{slug}` prefix only. The tracker-key→folder reader must be written.
+Hooks resolve "the local folder for this ticket" from the canonical (tracker) key via a stable
+mapping. This is build-new: `external_issue` is tracked today but **nothing reads it back**
+(`resolveTicketDirectory`/`getTicketInfo` resolve by local `{ID}-{slug}` prefix). The reader must
+be written; it sequences first since other children depend on it.
 
 #### offboard-local-ticketing.SM2.AC7 — cross-harness and CI consumers keep firing
 
-The status/phase fields are read outside the Claude Stop loop, and those readers must not silently
-break: (a) **Cursor's only done-gate** triggers on a `status: done` edit to `ticket.md`
-(`cursor/gate-adapter.ts` `STATUS_LINE_PATTERN`) — it has no Stop fallback, so if status leaves
-`ticket.md` Cursor loses done enforcement entirely (parity-critical); (b) the **CI guard**
-`scripts/check-pr-ticket-done.ts` reads `status`/`phase` from tracked `ticket.md` to block PRs
-with closure evidence but no done-flip; (c) `session-compact-context.ts` and `cursor/stop.ts` read
-phase/status for post-compaction re-injection and evidence-run suppression. Each needs a
-migration-aware source or an explicit replacement.
+Because status/phase stay in `ticket.md`, the consumers the audit flagged keep working by
+construction and are protected by tests: Cursor's done-gate (`cursor/gate-adapter.ts`, triggered by
+a `status: done` edit — its only chokepoint), the CI guard `scripts/check-pr-ticket-done.ts`
+(reads status+phase), and `session-compact-context.ts` / `cursor/stop.ts`.
 
 ## Rave Moment
 
 ### offboard-local-ticketing — the repo that stopped churning but kept the receipts
 
 - **Moment:** a TB opens `git log` after a week of agent sessions — no `last_modified` bumps, no
-  INDEX rewrites, no status flip-flops; just the spec, the plan, and the work, each reviewable in
-  its PR, while status lives in GitHub/Linear where the team already looks.
-- **Beats:** the status quo where safeword sprays status rewrites and INDEX churn across the repo,
-  forcing a second place to track work.
-- **They'd say:** "the noise is gone but I can still review the plan — tickets just live in Linear
+  INDEX rewrites; just the spec, the plan, the work, and a handful of real status transitions, each
+  reviewable, while status shows live in GitHub/Linear where the team already looks.
+- **Beats:** the status quo where safeword sprays per-Stop timestamp bumps and INDEX churn across
+  the repo, forcing a second place to track work.
+- **They'd say:** "the noise is gone, the work is still reviewable, and tickets show up in Linear
   like everything else."
 
 ## Outcomes
 
-- A full create→work→close session adds zero bookkeeping diffs (no status/phase/last_modified
-  rewrites, no INDEX).
-- Content artifacts (plan, spec, test-defs, work-log) stay in the repo and are reviewable by a
-  teammate in a normal PR.
-- Identity and status are observable in the tracker without running safeword.
-- Gates pass/fail identically offline (no per-turn network).
+- A session adds no per-Stop (`last_modified`) churn and no INDEX churn; remaining ticket diffs are
+  real transitions + authored content.
+- Identity is tracker-minted and collision-proof; `ticket new` fails safely when the tracker is
+  unreachable.
+- Status is visible in the tracker (one-way mirror) without running safeword.
+- Status/phase stay locally canonical; gates pass/fail identically offline (no per-turn network).
+- Cross-machine resume, the Cursor done-gate, and the CI guard all keep working (status/phase in
+  tracked files).
 - Existing tickets and `provider: none` installs are unaffected.
-- INDEX no longer churns and ticket keys never collide (tracker-minted), with no local dup-ID
-  guard needed.
-- `ticket new` fails safely when the tracker is unreachable — no orphaned or duplicated tickets.
-- Dogfood (`ArcadeAI/safeword`, GitHub) shows a measurable drop in bookkeeping diffs per session
-  vs. baseline.
+- Dogfood (`ArcadeAI/safeword`, GitHub) shows a measurable drop in per-Stop + INDEX diffs vs.
+  baseline.
 
 ## Implementation decomposition (proposed child tickets)
 
-Matches the current content-vs-lifecycle model (not the dropped ephemeral-cache one):
-
-1. **issue-first creation** — `ticket new` creates/adopts the issue, takes its key as identity,
-   and degrades safely when the tracker is unreachable (TB1.AC1, TB1.AC6).
-2. **status-on-issue + runtime cache** — status writes go to the issue via the allow-listed
-   writer; status+phase hydrate into the runtime cache at session boundaries (durable home per the
-   BLOCKING open question — not settled as git-ignored-only); session-boundary reconciliation and
-   concurrent-session safety; relocate the two `last_modified` readers (TB1.AC2, SM1.AC2, SM1.AC4).
-3. **stop the bookkeeping writes** — lifecycle fields stop being rewritten into `ticket.md`;
-   content artifacts stay tracked; a session yields zero bookkeeping diffs (TB1.AC3, TB1.AC5).
-4. **retire INDEX + dup-ID guard** when the tracker is canonical (TB1.AC4).
+1. **identity + join-key reader** — `ticket new` issue-first; tracker-key→local-folder reader;
+   safe-when-unreachable (TB1.AC1, SM2.AC6). Sequences first.
+2. **kill the churn** — stop `last_modified`-per-Stop and relocate its two readers (active-ticket
+   recency, replan baseline) to git (TB1.AC3, TB1.AC7).
+3. **retire INDEX + dup-ID guard** and update all call sites (TB1.AC6).
+4. **one-way status mirror** — project status to the issue via the allow-listed writer; optional
+   non-authoritative upstream heads-up (TB1.AC5, SM1.AC2). Reuses `sync-tracker`.
 5. **instructions + back-compat + docs** — rewrite `SAFEWORD.md` / `ticket-system/SKILL.md` /
-   guides / website to the tracker-canonical flow; existing tickets stay readable; `provider:none`
-   unchanged (SM1.AC1, SM1.AC3).
-6. **preserve the execution workflow** — the cross-cutting must-preserve set from the JTBD audit:
-   the tracker-key → local-folder join key (SM2.AC6, a hard dependency of every other child), the
-   per-turn context anchor (SM2.AC1), the done-invariant vs external-close (SM2.AC2), local
-   hierarchy execution (SM2.AC3), resume / re-entry / replan (SM2.AC4), and review-ledger rekey
-   (SM2.AC5). SM2.AC6 likely sequences first; the rest ride on children 2 and 5.
+   guides / website to the identity-off-board model; existing tickets readable; `provider:none`
+   unchanged; confirm cross-harness/CI consumers via tests (SM1.AC3, SM2.AC5, SM2.AC7).
 
-Deferred follow-up (not a KKNFZA child): tracker-side approval gate for impl-plan review (see
-Open Questions).
+Deferred follow-up (not a KKNFZA child): tracker-side approval gate for impl-plan review; making
+the tracker authoritative for status (would re-introduce the trilemma — see Open Questions).
 
 ## Open Questions
 
-- **BLOCKING (must resolve before define-behavior — found by adversarial verification): where do
-  `status`/`phase` durably live?** A trilemma the current model does not solve:
-  - tracked `ticket.md` → the churn we're removing (rejected);
-  - git-ignored runtime cache → not durable on a clean checkout/other machine, so resume loses
-    phase (SM2.AC4) and phase-keyed gates fail **open** (SM2.AC3);
-  - tracker only → per-turn gates branch on `status === 'in_progress'`, so staying correct needs a
-    fresh read = network in the per-turn loop (violates SM1.AC1).
-  Candidate resolution: tracker is the durable home; **hydrate** status+phase into the runtime
-  cache **once per session boundary** (the one allowed network point); per-turn reads hit the
-  cache; an **absent cache fails closed**. Complication: phase is finer-grained than any tracker
-  status, so the tracker must store phase (label / field / body block) — enlarging the mapping
-  question below into status **+ phase**. **Recommend a focused `/figure-it-out` before leaving
-  intake** — every SM2 AC hangs on this. (This supersedes the earlier "linchpin resolved" note;
-  only the join-key half, SM2.AC6, was truly settled.)
-- depends-on-above: exact mapping of safeword `status` **and `phase`** onto GitHub (open/closed +
-  labels) vs Linear (states + fields) — resolve in the status-on-issue child once durability lands.
-- **correction (`last_modified`):** TB1.AC2/AC5 eliminate `last_modified` rewrites as churn, but it
-  has two functional readers — `active-ticket.ts` (mtime to pick the most-recent active ticket) and
-  `replan.ts` (replan staleness baseline). Eliminating it breaks both; relocate those signals (git
-  folder-commit time / runtime cache), don't just stop writing the field.
-- resolved (default): impl-plan review by another person uses **normal PR review** — the plan is a
-  tracked file, so no new mechanism is needed and SM1.AC1's "no per-turn network" holds. A
-  tracker-side approval gate (issue label/state reconciled at session boundary to block the
-  implement phase) is a **deferred follow-up child ticket**, not in KKNFZA scope. Reversible: it
-  layers on the SM1.AC2 reconciliation we're already building, so it can be added later without
-  rework. (User can elevate it into scope; default stands otherwise.)
+- resolved (`/figure-it-out`, this session): **status/phase durability** → Model B. Status/phase
+  stay locally canonical in tracked `ticket.md`; the tracker is canonical for identity and a
+  one-way status mirror. This dissolves the trilemma and preserves the gate/consumer surface by
+  construction.
+- assumption (reversible): the tracker is **not** authoritative for status (just-show). Flipping to
+  "tracker drives safeword" re-introduces the trilemma (per-turn network vs stale cache vs
+  fail-open) and the phase-on-tracker problem; revisit only if a real product need appears.
+- defer: exact mapping of safeword `status` onto the mirror — GitHub (open/closed + optional label)
+  vs Linear (workflow state) — resolve in the status-mirror child ticket.
