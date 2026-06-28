@@ -251,15 +251,37 @@ a `status: done` edit — its only chokepoint), the CI guard `scripts/check-pr-t
 - Dogfood (`ArcadeAI/safeword`, GitHub) shows a measurable drop in per-Stop + INDEX diffs vs.
   baseline.
 
-## Implementation decomposition (proposed child tickets)
+## Status after DGH59K (re-validation, 2026-06-28)
+
+**The epic's headline user value is delivered.** Child ① (DGH59K, done) shipped issue-first
+identity + the join reader, and combined with the **already-shipped** `sync-tracker` (JS5K5G —
+one-way create/update/reconcile + close-on-terminal, CI-aware, never per-turn), an issue-first
+ticket's status now mirrors to the tracker the next time `sync-tracker` runs. So **TB1.AC5 (the
+one-way status mirror) is effectively done** — verified against `sync-tracker.ts` /
+`tracker-sync/index.ts`. The remaining children are **incremental polish, not core**, and the
+churn premise they targeted is modest (see Discovery correction):
+
+- ② kill `last_modified` churn — modest (transition-only writes); low priority.
+- ③ retire INDEX — modest (sync-only regeneration); low priority.
+- ④ one-way status mirror — **TB1.AC5 already delivered**; the honest remainder is a verification
+  test that an issue-first ticket mirrors via `sync-tracker`, plus a CI recipe so it runs without
+  manual sync. The only un-shipped behavior is **SM1.AC2** (the optional non-authoritative
+  upstream "issue closed upstream — reconcile?" read-back) → split to its own small ticket.
+- ⑤ instructions + docs — the real next user value (make the working mirror discoverable: docs +
+  CI recipe). SM1.AC3 / SM2.AC5 / SM2.AC7 back-compat are largely preserved-by-construction.
+
+**Recommendation:** treat ②③④ as an optional polish backlog; if continuing, ⑤ (docs + CI recipe)
+delivers the most user value, and SM1.AC2 is the only genuinely-new feature worth a ticket.
+
+## Implementation decomposition (original plan — see Status above for current reality)
 
 1. **identity + join-key reader** — `ticket new` issue-first; tracker-key→local-folder reader;
-   safe-when-unreachable (TB1.AC1, SM2.AC6). Sequences first.
-2. **kill the churn** — stop `last_modified`-per-Stop and relocate its two readers (active-ticket
-   recency, replan baseline) to git (TB1.AC3, TB1.AC7).
-3. **retire INDEX + dup-ID guard** and update all call sites (TB1.AC6).
-4. **one-way status mirror** — project status to the issue via the allow-listed writer; optional
-   non-authoritative upstream heads-up (TB1.AC5, SM1.AC2). Reuses `sync-tracker`.
+   safe-when-unreachable (TB1.AC1, SM2.AC6). **DONE (DGH59K).**
+2. **kill the churn** — stop `last_modified` transition-writes and relocate its two readers
+   (active-ticket recency, replan baseline) to git (TB1.AC3, TB1.AC7). *Modest; optional.*
+3. **retire INDEX + dup-ID guard** and update all call sites (TB1.AC6). *Modest; optional.*
+4. **one-way status mirror** — TB1.AC5 **already delivered** via `sync-tracker` + DGH59K; remainder
+   = verify + CI recipe; SM1.AC2 split out.
 5. **instructions + back-compat + docs** — rewrite `SAFEWORD.md` / `ticket-system/SKILL.md` /
    guides / website to the identity-off-board model; existing tickets readable; `provider:none`
    unchanged; confirm cross-harness/CI consumers via tests (SM1.AC3, SM2.AC5, SM2.AC7).
