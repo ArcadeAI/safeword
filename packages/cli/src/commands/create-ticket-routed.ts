@@ -54,8 +54,14 @@ export async function createTicketRouted(
   const provider = dependencies.config.provider as Provider;
   const writer = dependencies.buildWriter(provider, dependencies.config.target);
   const identity = buildIdentitySource(mode, writer, buildMinimalPayload(options));
-  const result = await createIssueFirstTicket(cwd, ticketOptions, identity);
-  if (result.ref !== undefined) recordReference(cwd, result.id, result.ref);
+  // Persist a `pending` ref before the folder is written, then promote to
+  // `recorded` after. A folder on disk therefore always has a map entry, so a
+  // later sync reconciles instead of double-creating (review hardening of the
+  // Decision-C partial-create window).
+  const result = await createIssueFirstTicket(cwd, ticketOptions, identity, minted => {
+    if (minted.ref !== undefined) writeReference(cwd, minted.id, minted.ref, 'pending');
+  });
+  if (result.ref !== undefined) writeReference(cwd, result.id, result.ref, 'recorded');
   return result;
 }
 
@@ -71,13 +77,23 @@ function buildMinimalPayload(options: RoutedTicketOptions): IssuePayload {
   };
 }
 
-/** Persist the created ref so a later `sync-tracker` reconciles instead of double-creating. */
-function recordReference(cwd: string, id: string, ref: TrackerReference): void {
+/**
+ * Persist the ref in the tracker-map so a later `sync-tracker` reconciles instead
+ * of double-creating. `pending` is written before the folder (crash-safety),
+ * `recorded` promotes it after the ticket lands.
+ */
+function writeReference(
+  cwd: string,
+  id: string,
+  ref: TrackerReference,
+  status: 'pending' | 'recorded',
+): void {
   const safewordDirectory = nodePath.join(cwd, '.safeword');
   if (!existsSync(safewordDirectory)) mkdirSync(safewordDirectory, { recursive: true });
   const sidecarPath = nodePath.join(safewordDirectory, 'tracker-map.json');
   const loaded = loadTrackerMap(sidecarPath);
   const map = loaded.ok ? loaded.map : new TrackerMap();
-  map.record(id, ref);
+  if (status === 'pending') map.markPending(id, ref);
+  else map.record(id, ref);
   map.save(sidecarPath);
 }

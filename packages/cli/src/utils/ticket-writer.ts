@@ -90,11 +90,26 @@ export async function createIssueFirstTicket(
   cwd: string,
   options: NewTicketOptions,
   identity: IdentitySource,
+  onMinted?: (minted: MintedIdentity) => void,
 ): Promise<NewTicketResult & { ref?: TrackerReference }> {
   const minted = await identity();
+  // Hook fires after the issue is minted but BEFORE any folder is written, so a
+  // caller can persist a `pending` ref first: then a folder on disk always implies
+  // a map entry, and a later sync reconciles instead of double-creating (narrows
+  // the Decision-C partial-create window to "minted, nothing local written").
+  onMinted?.(minted);
   const ticketsDirectory = ensureTicketsDirectory(cwd);
   const folderPath = nodePath.join(ticketsDirectory, `${minted.id}-${options.slug}`);
-  mkdirSync(folderPath);
+  try {
+    mkdirSync(folderPath);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new Error(`A ticket folder already exists for ${minted.id} (${folderPath}).`, {
+        cause: error,
+      });
+    }
+    throw error;
+  }
   const { ticketPath } = writeTicketContents(folderPath, minted.id, options);
   return { id: minted.id, folderPath, ticketPath, ref: minted.ref };
 }

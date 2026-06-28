@@ -27,7 +27,11 @@ export interface TicketNewOptions {
   issue?: string;
 }
 
-export async function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
+export async function ticketNew(
+  slug: string,
+  options: TicketNewOptions,
+  cwd: string = process.cwd(),
+): Promise<void> {
   const type = resolveType(options.type);
   if (type === 'invalid') {
     process.stderr.write(
@@ -49,7 +53,6 @@ export async function ticketNew(slug: string, options: TicketNewOptions): Promis
 
   header('Create ticket');
 
-  const cwd = process.cwd();
   try {
     const result = await createTicketRouted(
       cwd,

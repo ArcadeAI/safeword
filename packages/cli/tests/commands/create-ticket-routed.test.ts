@@ -107,4 +107,36 @@ describe('createTicketRouted (tracker-identity-and-join.TB1)', () => {
     expect(ticketFolders(resolveTicketsDirectory(cwd))).toEqual([]);
     expect(existsSync(nodePath.join(cwd, '.safeword', 'tracker-map.json'))).toBe(false);
   });
+
+  // TB1.AC1.existing_issue_is_adopted — --issue keys the folder to the given key,
+  // makes no create call, and records the adopted ref (routed end-to-end).
+  it('adopts an existing issue: no create call, folder + ref keyed to the given key', async () => {
+    const create = vi.fn(() => Promise.resolve({ provider: 'github' as const, id: 'NOPE' }));
+    const writer: TrackerWriter = {
+      provider: 'github',
+      create,
+      update: vi.fn(() => Promise.resolve()),
+      projectGraph: vi.fn(() => Promise.resolve()),
+    };
+
+    const result = await createTicketRouted(
+      cwd,
+      { slug: 'login-bug', type: 'task', issue: 'ENG-45' },
+      {
+        config: { provider: 'github', body: 'minimal', target: { repo: 'o/r' } },
+        buildWriter: () => writer,
+        minter: fixedMinter('UNUSED'),
+      },
+    );
+
+    expect(create).not.toHaveBeenCalled();
+    expect(nodePath.basename(result.folderPath)).toBe('ENG-45-login-bug');
+    const sidecar = JSON.parse(
+      readFileSync(nodePath.join(cwd, '.safeword', 'tracker-map.json'), 'utf8'),
+    );
+    expect(sidecar.issues['ENG-45']).toEqual({
+      ref: { provider: 'github', id: 'ENG-45' },
+      status: 'recorded',
+    });
+  });
 });
