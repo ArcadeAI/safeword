@@ -303,16 +303,18 @@ describe('discoverLeafDirectories — go.work discovery (ticket ZD70P1)', () => 
     expect(leaves).toContain(nodePath.join(context.directory, 'svc'));
   });
 
-  it('lets package.json workspaces win over go.work when both are present', () => {
+  it('unions package.json workspaces with go.work when both are present (MGWZ4P)', () => {
     // Root manifest (from beforeEach) declares workspaces: ['packages/*'].
+    // JS and Go are different ecosystems, so both packages are discovered —
+    // not just the first manager's (the coverage-honesty fix, MGWZ4P).
     writeGoWork(context.directory, 'go 1.22\n\nuse ./svc\n');
     makeGoPackage(context.directory, 'svc', { layout: true });
     makePackage(context.directory, 'web', { modules: ['ui'] });
 
-    const leaves = discoverLeafDirectories(context.directory);
-
-    expect(leaves).toEqual([nodePath.join(context.directory, 'packages', 'web')]);
-    expect(leaves).not.toContain(nodePath.join(context.directory, 'svc'));
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'packages', 'web'),
+      nodePath.join(context.directory, 'svc'),
+    ]);
   });
 });
 
@@ -369,8 +371,9 @@ describe('discoverLeafDirectories — Cargo workspace discovery (ticket YKFA5X)'
     );
   });
 
-  it('lets package.json workspaces win over a Cargo workspace when both are present', () => {
+  it('unions package.json workspaces with a Cargo workspace when both are present (MGWZ4P)', () => {
     // Root manifest (from beforeEach) declares workspaces: ['packages/*'].
+    // JS and Rust are different ecosystems → both discovered (MGWZ4P).
     writeFileSync(
       nodePath.join(context.directory, 'Cargo.toml'),
       '[workspace]\nmembers = ["crates/*"]\n',
@@ -378,10 +381,10 @@ describe('discoverLeafDirectories — Cargo workspace discovery (ticket YKFA5X)'
     makeCargoCrate(context.directory, 'svc', { module: 'config' });
     makePackage(context.directory, 'web', { modules: ['ui'] });
 
-    const leaves = discoverLeafDirectories(context.directory);
-
-    expect(leaves).toEqual([nodePath.join(context.directory, 'packages', 'web')]);
-    expect(leaves).not.toContain(nodePath.join(context.directory, 'crates', 'svc'));
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'crates', 'svc'),
+      nodePath.join(context.directory, 'packages', 'web'),
+    ]);
   });
 
   it('returns no leaves when Cargo.toml has no [workspace] table', () => {
@@ -447,9 +450,10 @@ describe('discoverLeafDirectories — uv workspace discovery (ticket HWSEPV)', (
     );
   });
 
-  it('lets package.json workspaces win over a uv workspace when both are present', () => {
-    // Root manifest (from beforeEach) declares workspaces: ['packages/*']. The uv
-    // members point elsewhere (libs/*), so they are only reached if uv wins.
+  it('unions package.json workspaces with a uv workspace when both are present (MGWZ4P)', () => {
+    // Root manifest (from beforeEach) declares workspaces: ['packages/*']; the uv
+    // members point elsewhere (libs/*). JS and Python are different ecosystems →
+    // both discovered (MGWZ4P).
     writeFileSync(
       nodePath.join(context.directory, 'pyproject.toml'),
       '[tool.uv.workspace]\nmembers = ["libs/*"]\n',
@@ -460,10 +464,10 @@ describe('discoverLeafDirectories — uv workspace discovery (ticket HWSEPV)', (
     writeFileSync(nodePath.join(svcDirectory, 'src', 'api.py'), '');
     makePackage(context.directory, 'web', { modules: ['ui'] });
 
-    const leaves = discoverLeafDirectories(context.directory);
-
-    expect(leaves).toEqual([nodePath.join(context.directory, 'packages', 'web')]);
-    expect(leaves).not.toContain(svcDirectory);
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      svcDirectory,
+      nodePath.join(context.directory, 'packages', 'web'),
+    ]);
   });
 
   it('returns no leaves when pyproject has no [tool.uv.workspace] table', () => {
@@ -471,6 +475,104 @@ describe('discoverLeafDirectories — uv workspace discovery (ticket HWSEPV)', (
     writeFileSync(nodePath.join(context.directory, 'pyproject.toml'), '[project]\nname = "solo"\n');
 
     expect(discoverLeafDirectories(context.directory)).toEqual([]);
+  });
+});
+
+describe('discoverLeafDirectories — polyglot union (ticket MGWZ4P)', () => {
+  function writeGoModule(root: string, relativeDirectory: string, name: string): void {
+    const dir = nodePath.join(root, relativeDirectory);
+    mkdirSync(nodePath.join(dir, 'cmd', 'server'), { recursive: true });
+    writeFileSync(nodePath.join(dir, 'go.mod'), `module ${name}\n\ngo 1.22\n`);
+  }
+  function writeRustCrate(root: string, relativeDirectory: string, name: string): void {
+    const dir = nodePath.join(root, relativeDirectory);
+    mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir, 'Cargo.toml'), `[package]\nname = "${name}"\n`);
+  }
+  function writePythonPackage(root: string, relativeDirectory: string, name: string): void {
+    const dir = nodePath.join(root, relativeDirectory);
+    mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir, 'pyproject.toml'), `[project]\nname = "${name}"\n`);
+  }
+
+  it('U2 — unions Go + Cargo + uv when no JS workspace is present', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(nodePath.join(context.directory, 'go.work'), 'go 1.22\n\nuse ./gosvc\n');
+    writeGoModule(context.directory, 'gosvc', 'gosvc');
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["crates/rscore"]\n',
+    );
+    writeRustCrate(context.directory, nodePath.join('crates', 'rscore'), 'rscore');
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = ["pypkgs/pytool"]\n',
+    );
+    writePythonPackage(context.directory, nodePath.join('pypkgs', 'pytool'), 'pytool');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'crates', 'rscore'),
+      nodePath.join(context.directory, 'gosvc'),
+      nodePath.join(context.directory, 'pypkgs', 'pytool'),
+    ]);
+  });
+
+  it('U6 — unions a JS workspace with go.work + Cargo + uv all at the root', () => {
+    // Root package.json workspaces: ['packages/*'] comes from beforeEach.
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    writeFileSync(nodePath.join(context.directory, 'go.work'), 'go 1.22\n\nuse ./gosvc\n');
+    writeGoModule(context.directory, 'gosvc', 'gosvc');
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["crates/rscore"]\n',
+    );
+    writeRustCrate(context.directory, nodePath.join('crates', 'rscore'), 'rscore');
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = ["pypkgs/pytool"]\n',
+    );
+    writePythonPackage(context.directory, nodePath.join('pypkgs', 'pytool'), 'pytool');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'crates', 'rscore'),
+      nodePath.join(context.directory, 'gosvc'),
+      nodePath.join(context.directory, 'packages', 'web'),
+      nodePath.join(context.directory, 'pypkgs', 'pytool'),
+    ]);
+  });
+
+  it('U4 — lists a dir matched by two managers (maturin: Cargo + uv) exactly once', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["ext"]\n',
+    );
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = ["ext"]\n',
+    );
+    // The single member dir carries BOTH manifests (a maturin/pyo3 package).
+    const extensionDirectory = nodePath.join(context.directory, 'ext');
+    mkdirSync(nodePath.join(extensionDirectory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(extensionDirectory, 'Cargo.toml'), '[package]\nname = "ext"\n');
+    writeFileSync(nodePath.join(extensionDirectory, 'pyproject.toml'), '[project]\nname = "ext"\n');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([extensionDirectory]);
+  });
+
+  it('U7 — an over-broad Cargo glob sweeping a JS dir lists that dir once', () => {
+    // Root JS workspaces: ['packages/*'] (beforeEach). The Cargo workspace uses an
+    // over-broad members glob that also matches the JS package dir; the leaf Set +
+    // per-dir manifest guard keep it listed exactly once.
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = ["packages/*"]\n',
+    );
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'packages', 'web'),
+    ]);
   });
 });
 
