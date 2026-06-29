@@ -98,6 +98,49 @@ describe('sanitizeText — relative customer paths (review #543)', () => {
       'weigh the and/or case for TCP/IP',
     );
   });
+
+  // Review #543 round 2 — verified-by-construction leaks the first pass missed.
+  it('redacts a Windows backslash relative path (C6)', () => {
+    expect(sanitizeText(String.raw`edited src\customers\acme\secret.ts`)).not.toContain(
+      'customers',
+    );
+  });
+
+  it('redacts a relative path glued to surrounding text (C7)', () => {
+    expect(sanitizeText('see(src/customers/acme/secret.ts)here')).not.toContain(
+      'src/customers/acme/secret.ts',
+    );
+  });
+
+  it('redacts a path carrying a query string (C8)', () => {
+    expect(sanitizeText('fetched config/customers/acme.json?token=value')).not.toContain(
+      'config/customers/acme.json',
+    );
+  });
+});
+
+describe('scrubSecrets — formats from review #543 round 2', () => {
+  it('redacts a GitHub fine-grained PAT (C1)', () => {
+    const pat = 'github_pat_11ABCDEFG0aBcDeFgHiJkL_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcdef';
+    expect(scrubSecrets(pat)).not.toContain('github_pat_11');
+  });
+
+  it('redacts a Slack app-level token (C2)', () => {
+    expect(scrubSecrets('xapp-1-A01234567-1234567890123-abcdef0123456789abcdef')).toContain(
+      '[redacted]',
+    );
+  });
+
+  it('redacts an Authorization: Basic header (C3)', () => {
+    expect(scrubSecrets('Authorization: Basic dXNlcjpwYXNzd29yZA==')).not.toContain(
+      'dXNlcjpwYXNzd29yZA',
+    );
+  });
+
+  it('redacts underscore-prefixed secret names like aws_secret / client_secret (C4)', () => {
+    expect(scrubSecrets('aws_secret = wJalrXUtnFEMIK7MDENGbPxRfi')).not.toContain('wJalrXUtnFEMIK');
+    expect(scrubSecrets('client_secret: abc123def456ghi')).not.toContain('abc123def456ghi');
+  });
 });
 
 describe('resolveSurface (fail-closed)', () => {

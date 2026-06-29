@@ -15,20 +15,23 @@ import { safewordInternalTail } from '../../templates/hooks/lib/self-report.js';
 const SECRET_PATTERNS: readonly RegExp[] = [
   /\bsk_(?:live|test)_\w{8,}\b/g, // Stripe secret keys
   /\bsk-[\w-]{20,}\b/g, // Anthropic (sk-ant-…) / OpenAI (sk-proj-…, sk-…) keys
-  /\bgh[pousr]_\w{20,}\b/g, // GitHub tokens
+  /\bgh[pousr]_\w{20,}\b/g, // GitHub classic/oauth tokens
+  /\bgithub_pat_\w{20,}\b/g, // GitHub fine-grained PAT (the current default format)
   /\bglpat-[\w-]{20,}\b/g, // GitLab personal access tokens
   /\bnpm_\w{30,}\b/g, // npm tokens
   /\bAKIA[0-9A-Z]{16}\b/g, // AWS access key id
   /\bAIza[\w-]{20,}\b/g, // Google API key
-  /\bxox[baprs]-[\w-]{10,}\b/g, // Slack tokens
-  /\bBearer\s+[\w.=+/-]{16,}/gi, // Authorization: Bearer <token>
+  /\b(?:xox[baprs]|xapp)-[\w-]{10,}\b/g, // Slack bot/user/app-level tokens
+  /\b(?:Bearer|Basic)\s+[\w.=+/-]{16,}/gi, // Authorization: Bearer/Basic <token> (Basic carries base64 user:pass)
   /\beyJ[\w-]{10,}\.[\w-]{10,}\.[\w-]{10,}\b/g, // JWT
   /-----BEGIN[ A-Z]*PRIVATE KEY-----[\s\S]*?-----END[ A-Z]*PRIVATE KEY-----/g, // PEM blocks
   /(?<=:\/\/)[^\s/@:]*:[^\s/@]+(?=@)/g, // [user]:pass in a connection string (redact the credentials, incl. empty-username form)
-  // secret-named assignment literals: `password = "…"`, `token=…`, `api_key: …`.
-  // Split in two to keep each alternation under the regex-complexity budget.
-  /\b(?:password|passwd|secret|token)\s*[:=]\s*['"]?[^\s'"]{6,}/gi,
-  /\b(?:api|auth|access)[_-]?(?:key|token)\s*[:=]\s*['"]?[^\s'"]{6,}/gi,
+  // secret-named assignment literals: `password = "…"`, `token=…`, `aws_secret: …`.
+  // `(?<![a-z0-9])` (not `\b`) so an underscored prefix — `aws_secret`,
+  // `client_secret` — still matches (the keyword is preceded by `_`, a word char,
+  // which `\b` would miss). Split in two to stay under the regex-complexity budget.
+  /(?<![a-z0-9])(?:password|passwd|secret|token)\s*[:=]\s*['"]?[^\s'"]{6,}/gi,
+  /(?<![a-z0-9])(?:api|auth|access)[_-]?(?:key|token)\s*[:=]\s*['"]?[^\s'"]{6,}/gi,
 ];
 
 /** Redact high-signal secret tokens. Seam: replace with secretlint detection later. */
@@ -38,53 +41,52 @@ export function scrubSecrets(text: string): string {
   return out;
 }
 
-// Absolute / home / Windows path tokens. The `(?<!\w)` lookbehind is the key:
-// a root token (`/`, `~`, `X:\`) NOT preceded by a word char. So a customer path
-// glued to a quote/paren/colon — `(/Users/…)`, `'/Users/…'`, `file:///Users/…`
-// — is caught (C1), while a relative safeword tail like `hooks/stop-quality.ts`
-// (whose internal `/` follows the word char `s`) is not matched and survives.
-const ABSOLUTE_PATH = /(?<!\w)(?:~|\/|[a-z]:[/\\])[\w./\\-]+/gi;
+// A run of path characters. Surrounding punctuation (quotes, parens, `?`, `:`,
+// `,`) is NOT in the class, so it delimits runs — which is what catches a path
+// glued to text or wrapped in punctuation (`(…secret.ts)here`,
+// `acme.json?token=…`) and isolates the path from a query string (review #543
+// C7/C8). Single class, no nested quantifier → no ReDoS surface.
+const PATH_CANDIDATE = /[\w~./\\-]+/g;
 
-/** Keep a path token only if it resolves to a safeword-internal tail, else redact. */
-function keepInternalElseRedact(match: string): string {
-  return safewordInternalTail(match) ?? safewordInternalTail(`.safeword/${match}`) ?? '[path]';
+/** A run that begins at a filesystem root: POSIX `/`, home `~`, or a drive `X:/`. */
+function isAbsolutePath(run: string): boolean {
+  return run.startsWith('/') || run.startsWith('~') || /^[a-z]:\//i.test(run);
 }
 
-// Whether a token's core is a relative, multi-segment file path (review #543:
-// only absolute paths were scrubbed before, so `src/customers/acme/secret.ts`
-// leaked). Plain string ops — no backtracking regex on the path body — so prose
+// A relative, multi-segment file path: `src/customers/acme/secret.ts` (review
+// #543 — only absolute paths were scrubbed before). Plain string ops, so prose
 // with a slash (`and/or`, `TCP/IP`) is rejected (no extension) and there is no
-// ReDoS surface.
-function isRelativeFilePath(core: string): boolean {
-  const firstSlash = core.indexOf('/');
+// ReDoS surface. Operates on a `/`-normalized run so Windows `src\…\x.ts` (C6)
+// is covered too.
+function isRelativeFilePath(run: string): boolean {
+  const firstSlash = run.indexOf('/');
   if (firstSlash <= 0) return false; // need a dir segment before the first slash
-  if (core.startsWith('/') || core.includes('//')) return false; // absolute / URL — handled elsewhere
-  const dot = core.lastIndexOf('.');
-  if (dot <= core.lastIndexOf('/')) return false; // the extension must be in the basename
-  const extension = core.slice(dot + 1);
+  if (run.startsWith('/') || run.includes('//')) return false; // absolute / URL handled by isAbsolutePath
+  const dot = run.lastIndexOf('.');
+  if (dot <= run.lastIndexOf('/')) return false; // the extension must be in the basename
+  const extension = run.slice(dot + 1);
   return extension.length > 0 && extension.length <= 6 && /^[a-z0-9]+$/i.test(extension);
 }
 
-// Anchored, bounded single-class peels — no backtracking. Strip wrapping
-// punctuation (quotes/parens/commas) that isn't part of a path so a glued path
-// still scrubs.
-const LEADING_PUNCT = /^[^\w~./-]{1,64}/;
-const TRAILING_PUNCT = /[^\w/-]{1,64}$/;
-
-/** Redact one whitespace-delimited token if its core is a relative file path. */
-function scrubRelativePathToken(token: string): string {
-  const lead = LEADING_PUNCT.exec(token)?.[0] ?? '';
-  const trail = TRAILING_PUNCT.exec(token)?.[0] ?? '';
-  const core = token.slice(lead.length, token.length - trail.length);
-  if (!isRelativeFilePath(core)) return token;
-  return `${lead}${keepInternalElseRedact(core)}${trail}`;
-}
-
-/** Redact absolute and relative customer paths; safeword-internal tails survive. */
+/**
+ * Redact absolute and relative customer paths; safeword-internal tails survive
+ * the allowlist. Backslashes are normalized to `/` for analysis so Windows
+ * relative paths are covered. Over-redaction note (accepted, safe direction for a
+ * PUBLIC body): non-safeword relative paths like `tests/foo.test.ts` also become
+ * `[path]`. Residual: an arbitrary `KEY=secret` whose name isn't allowlisted, and
+ * 40-char entropy-shaped keys with no prefix, are NOT caught here — secretlint
+ * (ticket SPNZKM) is the durable fix.
+ */
 function scrubPaths(text: string): string {
-  return text
-    .replaceAll(ABSOLUTE_PATH, match => keepInternalElseRedact(match))
-    .replaceAll(/\S+/g, token => scrubRelativePathToken(token));
+  return text.replaceAll(PATH_CANDIDATE, run => {
+    const normalized = run.replaceAll('\\', '/');
+    if (!isAbsolutePath(normalized) && !isRelativeFilePath(normalized)) return run;
+    return (
+      safewordInternalTail(normalized) ??
+      safewordInternalTail(`.safeword/${normalized}`) ??
+      '[path]'
+    );
+  });
 }
 
 const EMAIL = /\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g;
