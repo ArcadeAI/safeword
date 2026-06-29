@@ -17,11 +17,14 @@
  * No I/O — callers pass file content; check.ts owns ticket discovery.
  */
 
-import { parseFeatureAcReferences } from './gherkin-feature.js';
+import { parseFeatureAcReferences, parseFeatureScenarios } from './gherkin-feature.js';
 import { computeSkipMask, parseHeading } from './markdown-sections.js';
 
 const JTBD_HEADING = 'jobs to be done';
+const SURFACES_HEADING = 'surfaces';
 const SCENARIO_PREFIX = '### Scenario:';
+const AFFECTED_SURFACES_LABEL = /^Affected\s*:\s*$/i;
+const SURFACE_TAG_PREFIX = '@surface.';
 
 export interface CoverageReport {
   /** AC ids declared in spec.md that no scenario references. */
@@ -30,6 +33,24 @@ export interface CoverageReport {
   stale: string[];
   /** Scenario refs whose JTBD is absent from spec.md entirely. */
   orphan: string[];
+}
+
+export interface SurfaceReference {
+  name: string;
+  slug: string;
+  skipped: boolean;
+}
+
+interface MissingSurfaceCoverage {
+  name: string;
+  slug: string;
+}
+
+export interface SurfaceCoverageReport {
+  /** Affected surfaces from spec.md that no feature scenario tag covers. */
+  missing: MissingSurfaceCoverage[];
+  /** Feature scenario surface tags that are not listed as affected. */
+  stale: string[];
 }
 
 /**
@@ -127,6 +148,162 @@ export function buildCoverageReportFromFeature(
     specContent,
     featureContent === undefined ? undefined : parseFeatureAcReferences(featureContent),
   );
+}
+
+export function buildSurfaceCoverageReportFromFeature(
+  specContent: string,
+  featureContent?: string,
+): SurfaceCoverageReport {
+  const affected = parseAffectedSurfaceReferences(specContent);
+  if (affected.length === 0 || featureContent === undefined) return { missing: [], stale: [] };
+
+  const coveredSurfaceSlugs = parseFeatureSurfaceTagSlugs(featureContent);
+  const affectedSurfaceSlugs = new Set(affected.map(surface => surface.slug));
+
+  return {
+    missing: affected
+      .filter(surface => !surface.skipped && !coveredSurfaceSlugs.has(surface.slug))
+      .map(surface => ({ name: surface.name, slug: surface.slug })),
+    stale: [...coveredSurfaceSlugs].filter(slug => !affectedSurfaceSlugs.has(slug)),
+  };
+}
+
+export function parseAffectedSurfaceReferences(specContent: string): SurfaceReference[] {
+  const lines = specContent.split('\n');
+  const skip = computeSkipMask(lines);
+  const surfaces: SurfaceReference[] = [];
+  let state: SurfaceWalkState = { inSurfacesSection: false, inAffectedList: false };
+
+  for (const [index, rawLine] of lines.entries()) {
+    if (skip[index] === true) continue;
+    const result = readSurfaceLine(state, rawLine);
+    state = result.state;
+    if (result.surface !== undefined) surfaces.push(result.surface);
+  }
+
+  return surfaces;
+}
+
+interface SurfaceWalkState {
+  inSurfacesSection: boolean;
+  inAffectedList: boolean;
+}
+
+interface SurfaceWalkResult {
+  state: SurfaceWalkState;
+  surface?: SurfaceReference;
+}
+
+function readSurfaceLine(state: SurfaceWalkState, rawLine: string): SurfaceWalkResult {
+  const heading = parseHeading(rawLine);
+  if (heading !== undefined && heading.level <= 2) {
+    return {
+      state: {
+        inSurfacesSection: heading.text.toLowerCase() === SURFACES_HEADING,
+        inAffectedList: false,
+      },
+    };
+  }
+  if (!state.inSurfacesSection) return { state };
+
+  const line = rawLine.trim();
+  if (line.length === 0) return { state };
+  if (AFFECTED_SURFACES_LABEL.test(line)) return { state: { ...state, inAffectedList: true } };
+  if (isSurfaceSubsectionLabel(line)) return { state: { ...state, inAffectedList: false } };
+  if (!state.inAffectedList || !line.startsWith('- ')) return { state };
+
+  const surface = parseSurfaceListItem(line.slice(2));
+  return surface === undefined ? { state } : { state, surface };
+}
+
+function parseFeatureSurfaceTagSlugs(featureContent: string): Set<string> {
+  const slugs = new Set<string>();
+  for (const scenario of parseFeatureScenarios(featureContent)) {
+    for (const tag of scenario.tags) {
+      const slug = parseSurfaceTagSlug(tag);
+      if (slug !== undefined) slugs.add(slug);
+    }
+  }
+  return slugs;
+}
+
+function parseSurfaceTagSlug(tag: string): string | undefined {
+  if (!tag.startsWith(SURFACE_TAG_PREFIX)) return undefined;
+  const slug = tag.slice(SURFACE_TAG_PREFIX.length).trim();
+  return slug.length === 0 ? undefined : slug;
+}
+
+function parseSurfaceListItem(value: string): SurfaceReference | undefined {
+  const skipped = value.toLowerCase().includes('skip:');
+  const name = stripFormatting(surfaceNamePart(value)).trim();
+  if (name.length === 0) return undefined;
+  return { name, slug: surfaceSlug(name), skipped };
+}
+
+function isSurfaceSubsectionLabel(line: string): boolean {
+  if (!line.endsWith(':')) return false;
+  const label = line.slice(0, -1).trim();
+  const first = label.at(0);
+  if (first === undefined || !isLabelStart(first)) return false;
+  for (const character of label) {
+    if (!isLabelCharacter(character)) return false;
+  }
+  return true;
+}
+
+function isLabelStart(character: string): boolean {
+  return (
+    (character >= 'a' && character <= 'z') ||
+    (character >= 'A' && character <= 'Z') ||
+    (character >= '0' && character <= '9') ||
+    character === '_'
+  );
+}
+
+function isLabelCharacter(character: string): boolean {
+  return isLabelStart(character) || character === ' ' || character === '-';
+}
+
+function surfaceNamePart(value: string): string {
+  for (const separator of [' — ', ' – ', ' - ']) {
+    const index = value.indexOf(separator);
+    if (index !== -1) return value.slice(0, index);
+  }
+  return value;
+}
+
+function stripFormatting(value: string): string {
+  let stripped = value.replaceAll('`', '');
+  if (stripped.startsWith('**')) stripped = stripped.slice(2);
+  if (stripped.endsWith('**')) stripped = stripped.slice(0, -2);
+  return stripped;
+}
+
+function surfaceSlug(name: string): string {
+  let slug = '';
+  let previousWasDash = false;
+  for (const character of name.trim().toLowerCase()) {
+    if (isSlugCharacter(character)) {
+      slug += character;
+      previousWasDash = false;
+    } else if (!previousWasDash) {
+      slug += '-';
+      previousWasDash = true;
+    }
+  }
+  return trimDashes(slug);
+}
+
+function isSlugCharacter(character: string): boolean {
+  return (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9');
+}
+
+function trimDashes(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < value.length && value.at(start) === '-') start += 1;
+  while (end > start && value.at(end - 1) === '-') end -= 1;
+  return value.slice(start, end);
 }
 
 function buildCoverageReportFromReferences(
