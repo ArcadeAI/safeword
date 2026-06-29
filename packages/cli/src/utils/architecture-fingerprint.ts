@@ -15,6 +15,7 @@ import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
 import { readCargoDependencyNames } from './cargo-manifest.js';
+import { readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectDependencies } from './pyproject-manifest.js';
@@ -88,7 +89,9 @@ function readDependencyNames(projectDirectory: string): string[] {
 }
 
 function readPackageJsonDependencyNames(projectDirectory: string): string[] {
-  const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
+  const manifest = readJson(nodePath.join(projectDirectory, 'package.json')) as
+    | Record<string, unknown>
+    | undefined;
   return manifest === undefined ? [] : dependencySectionNames(manifest);
 }
 
@@ -198,13 +201,5 @@ function scanDirectoryForSchema(
       const absolutePath = nodePath.join(directory, entry.name);
       schemaFiles.push(nodePath.relative(projectDirectory, absolutePath).replaceAll('\\', '/'));
     }
-  }
-}
-
-function readJson(filePath: string): Record<string, unknown> | undefined {
-  try {
-    return JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, unknown>;
-  } catch {
-    return undefined;
   }
 }
