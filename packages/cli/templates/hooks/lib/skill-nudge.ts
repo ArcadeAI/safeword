@@ -17,12 +17,16 @@ export interface SkillLanguage {
   display: string;
   /**
    * Named entry-point skill for a MULTI-skill pack — the dispatcher/orchestrator
-   * the agent should open first (e.g. samber's `golang-how-to`, which routes to
-   * the right specialized skill among ~50). Omit for single-skill packs: there
+   * the agent should open first (an orchestrator that routes among many
+   * specialized skills, e.g. a `*-how-to`). Omit for single-skill packs: there
    * the sole installed dir IS the entry, discovered from disk. When set, the nudge
    * names this skill ONLY if its dir is actually installed; otherwise it falls
    * back to the illustrative-concerns line (degrade-not-fail) rather than picking
    * an arbitrary one of many.
+   *
+   * Retained but unused today: all four shipped languages are single-skill packs,
+   * so no SKILL_LANGUAGES row sets this. Kept so re-adopting a multi-skill pack
+   * (e.g. samber/cc-skills-golang) stays a one-row change.
    */
   dispatcher?: string;
   /**
