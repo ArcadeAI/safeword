@@ -30,6 +30,15 @@ folder and **no** map entry (process killed between the tracker create and the f
 Detection must scan the tracker side (issues bearing safeword's create-signature) against local
 tickets, since there is nothing local to key off.
 
+**Related edge (from PR #548 audit, deferred here):** re-adopting an already-adopted key with a
+**different slug** (`ticket new newslug --issue ENG-45` after `ticket new oldslug --issue ENG-45`)
+is not guarded — the differing folder name dodges the EEXIST collision check, so a second local
+folder is created for the same tracker key and the map entry is repointed to it. Same coherence
+family as the orphan (tracker-map ↔ local folders drift); a reconcile/`check` pass that detects
+"two local folders claim one issue" belongs with this work. Low severity (user-error, no data
+loss), so it rides along here rather than gating the PR.
+
 ## Work Log
 
 - 2026-06-28T15:11:43.896Z Started: Created ticket 01EAKC (follow-up from DGH59K Decision C)
+- 2026-06-29T00:00:00.000Z Noted the re-adopt-different-slug duplicate edge (PR #548 audit, deferred)

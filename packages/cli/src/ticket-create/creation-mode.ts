@@ -7,6 +7,8 @@
  * the identity source from this decision.
  */
 
+import { normalizeTrackerKey } from '../tracker-sync/resolve-by-key.js';
+
 const ISSUE_FIRST_PROVIDERS = new Set(['github', 'linear']);
 
 export type CreationMode = { mode: 'local' } | { mode: 'create' } | { mode: 'adopt'; key: string };
@@ -16,8 +18,13 @@ export function resolveCreationMode(
   options: { issue?: string },
 ): CreationMode {
   if (!ISSUE_FIRST_PROVIDERS.has(config.provider)) return { mode: 'local' };
-  if (options.issue !== undefined && options.issue !== '') {
-    return { mode: 'adopt', key: options.issue };
+  // Normalize the adopted key to the SAME canonical form the create path stores
+  // and the join reader looks up by ("#123" → "123") — so adopt-via-# round-trips.
+  // A key that is empty after normalization (a lone "#") has nothing to adopt, so
+  // fall through to create rather than key a ticket to an empty ref.
+  if (options.issue !== undefined) {
+    const key = normalizeTrackerKey(options.issue);
+    if (key !== '') return { mode: 'adopt', key };
   }
   return { mode: 'create' };
 }

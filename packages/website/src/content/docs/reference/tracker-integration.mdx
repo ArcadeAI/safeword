@@ -34,6 +34,13 @@ safeword connect linear --team ENG
 empty sidecar. Credentials are read from your OS keychain or an environment variable — **never**
 from config and never written to logs.
 
+:::note[GitHub today; Linear projection is pending]
+**GitHub** is fully wired end-to-end. **Linear** identity works — `connect linear` and adopting an
+existing issue with `--issue` need no network — but `sync-tracker` to Linear is **not yet wired**
+(it errors with an actionable message, tracked by ticket 2TK5AD). Use GitHub for the live
+status mirror today.
+:::
+
 Once connected, `safeword ticket new <slug>` mints the tracker issue first and keys the local
 ticket to it; `--issue <key>` adopts an existing issue instead of creating one.
 
@@ -68,9 +75,8 @@ jobs:
       - run: npx safeword sync-tracker
         env:
           # GitHub: the built-in token can create/update issues in this repo.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Linear: provide your Arcade credential instead.
-          # ARCADE_USER_ID: ${{ secrets.ARCADE_USER_ID }}
+          # safeword reads the credential from GITHUB_TOKEN (not GH_TOKEN).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 `sync-tracker` **fails loudly (non-zero exit)** when a provider is configured but no credential

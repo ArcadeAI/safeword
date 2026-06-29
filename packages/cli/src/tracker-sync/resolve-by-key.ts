@@ -13,8 +13,12 @@ import nodePath from 'node:path';
 
 import type { TrackerMap } from './tracker-map.js';
 
-/** Strip a GitHub-style leading '#': "#123" matches a recorded ref id "123". */
-function normalizeKey(key: string): string {
+/**
+ * Strip a GitHub-style leading '#': "#123" matches a recorded ref id "123".
+ * Exported so the adopt boundary (`resolveCreationMode`) keys a ticket with the
+ * SAME normalized form the reader looks up by — the two sides cannot drift.
+ */
+export function normalizeTrackerKey(key: string): string {
   return key.startsWith('#') ? key.slice(1) : key;
 }
 
@@ -40,7 +44,7 @@ export function resolveFolderByTrackerKey(
   map: TrackerMap,
   key: string,
 ): string | undefined {
-  const ticketId = map.findTicketIdByRefId(normalizeKey(key));
+  const ticketId = map.findTicketIdByRefId(normalizeTrackerKey(key));
   if (ticketId === undefined) return undefined;
   const folder = resolveTicketFolder(ticketsDirectory, ticketId);
   return folder !== undefined && existsSync(folder) ? folder : undefined;

@@ -28,8 +28,8 @@ it] → (2) TB1.AC1 happy/adopt/no-tracker → (3) TB1.AC2 degrade paths (reuse 
 | Decision | Choice | Alternatives considered | Rejected because |
 | -------- | ------ | ----------------------- | ---------------- |
 | Join-key index source | `tracker-map.json` sidecar (authoritative local↔issue map already maintained) | scan every `ticket.md` `external_issue` frontmatter (O(n)); a new dedicated index | scan is slower + duplicates the sidecar; new index is redundant with tracker-map |
-| Stale vs hit | reader `existsSync`-checks the mapped folder; missing → null sentinel | trust the map blindly | a dangling path silently breaks every downstream hook (gate found this) |
-| Not-found contract | return `null` (match `resolveTicketDirectory`'s `string \| null`) | throw; return `undefined`/`""` | callers branch on a defined sentinel; throwing forces try/catch in per-turn hooks |
+| Stale vs hit | reader `existsSync`-checks the mapped folder; missing → `undefined` sentinel | trust the map blindly | a dangling path silently breaks every downstream hook (gate found this) |
+| Not-found contract | return `undefined` (reversed from the planned `null` during impl — package `unicorn/no-null`) | throw; return `null`/`""` | callers branch on a defined sentinel; throwing forces try/catch in per-turn hooks |
 | Create ordering | mint issue → `markPending` in map → create folder → promote to recorded | folder-first then mint; folder-first then rename | both leave an orphan/half-state the no-orphan AC forbids (the create-then-rename hatch the gate caught) |
 | Folder naming vs resolution | folder keyed to the tracker key, but resolution always goes through the reader (single point) | encode identity only in the folder name | decoupling naming from resolution lets the reader stay the one authority (epic SM2.AC6) |
 | Tracker client in tests | inject the existing `tracker-sync` client; mock only the network | real network in tests | non-deterministic, rate-limited, offline-breaking |

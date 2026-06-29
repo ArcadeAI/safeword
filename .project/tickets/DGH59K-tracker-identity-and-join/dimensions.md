@@ -17,7 +17,8 @@ The variables the scenarios must cover. Each row is a dimension; scenarios pick 
 
 - **Happy path:** provider=github, reachable, fresh, key `#123`, keychain → issue minted, folder
   keyed, join hit.
-- **Must-cover boundaries:** unreachable→no orphan; partial-create→reconcile (no dup);
-  provider=none→unchanged-path characterization test; join miss→clean not-found.
+- **Must-cover boundaries:** unreachable→no orphan; partial-create→accepted orphan (Decision C),
+  surfaced by follow-up 01EAKC, NOT auto-reconciled here; provider=none→unchanged-path
+  characterization test; join miss→clean not-found.
 - **Inherited / not re-tested here:** the tracker write payload allow-list (epic TB1.AC5 child) and
   secret-store mechanics (existing `tracker-connect`/`secrets.ts`) — referenced, not duplicated.

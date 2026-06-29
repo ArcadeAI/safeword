@@ -240,7 +240,8 @@ a `status: done` edit — its only chokepoint), the CI guard `scripts/check-pr-t
 ## Outcomes
 
 - A session adds no per-Stop (`last_modified`) churn and no INDEX churn; remaining ticket diffs are
-  real transitions + authored content.
+  real transitions + authored content. _(Target; gated on the optional churn-cleanup children ②/③,
+  which are not yet shipped — see Status below.)_
 - Identity is tracker-minted and collision-proof; `ticket new` fails safely when the tracker is
   unreachable.
 - Status is visible in the tracker (one-way mirror) without running safeword.
@@ -248,8 +249,9 @@ a `status: done` edit — its only chokepoint), the CI guard `scripts/check-pr-t
 - Cross-machine resume, the Cursor done-gate, and the CI guard all keep working (status/phase in
   tracked files).
 - Existing tickets and `provider: none` installs are unaffected.
-- Dogfood (`ArcadeAI/safeword`, GitHub) shows a measurable drop in per-Stop + INDEX diffs vs.
-  baseline.
+- Dogfood (`ArcadeAI/safeword`, GitHub) is where we measure the per-Stop + INDEX churn drop vs.
+  baseline _once ②/③ land_ — not yet measured (the churn was also found to be more modest than the
+  original premise; see the Discovery correction).
 
 ## Status after DGH59K (re-validation, 2026-06-28)
 
