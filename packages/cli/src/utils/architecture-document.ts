@@ -16,10 +16,12 @@ import nodePath from 'node:path';
 import { shapeFingerprint } from './architecture-fingerprint.js';
 import {
   discoverLeafDirectories,
+  discoverUnreadableWorkspaces,
   extractMonorepoModel,
   monorepoFingerprint,
   type MonorepoModel,
   type PackageNode,
+  type UnreadableWorkspace,
 } from './architecture-monorepo.js';
 import { reconcileSections, type SectionStatus } from './architecture-reconcile.js';
 import { extractSkeleton, type SkeletonNode } from './architecture-skeleton.js';
@@ -158,7 +160,10 @@ function rootIndexTarget(projectDirectory: string): HealTarget {
   return {
     path: resolveGeneratedArchitecturePath(projectDirectory),
     fingerprint,
-    hasContent: model.packages.length > 0,
+    // An unreadable workspace is content too: a root index that exists only to carry the
+    // "config unreadable" advisory is still worth writing — silence would read as "no
+    // monorepo here" when in fact one is present but unreadable (UWP4XK).
+    hasContent: model.packages.length > 0 || model.unreadableWorkspaces.length > 0,
     render: () => renderRootIndex(model, fingerprint),
   };
 }
@@ -166,7 +171,13 @@ function rootIndexTarget(projectDirectory: string): HealTarget {
 /** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
 function projectTargets(projectDirectory: string): HealTarget[] {
   const leaves = discoverLeafDirectories(projectDirectory);
-  if (leaves.length === 0) return [singleRepoTarget(projectDirectory)];
+  // A repo whose ONLY workspace signal is an unparseable manager (zero discovered leaves)
+  // is still a monorepo we must not mistake for a single-repo: render the root index so the
+  // "config unreadable" advisory has a home, rather than silently emitting a single-repo doc
+  // that omits the whole declared-but-unreadable workspace (UWP4XK).
+  if (leaves.length === 0 && discoverUnreadableWorkspaces(projectDirectory).length === 0) {
+    return [singleRepoTarget(projectDirectory)];
+  }
   return [rootIndexTarget(projectDirectory), ...leaves.map(leaf => leafTarget(leaf))];
 }
 
@@ -367,7 +378,21 @@ function renderRootIndex(model: MonorepoModel, fingerprint: string): string {
   const dependencies =
     model.edges.length === 0 ? '_No inter-package dependencies._\n' : `${edgeLines}\n`;
 
-  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n## Dependencies\n\n${dependencies}`;
+  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n## Dependencies\n\n${dependencies}${renderCoverageGaps(model.unreadableWorkspaces)}`;
+}
+
+/**
+ * A `## Coverage gaps` advisory naming each workspace manager that is present at the root
+ * but unparseable (ticket UWP4XK, GitHub #558). Empty string when there are none, so the
+ * section appears only when it carries weight. This is the discovery-layer analogue of the
+ * per-package "not introspected" marker (ZRW21K): a manager that discovered nothing has no
+ * package line to mark, so the honesty signal lives here instead — the packages it would
+ * have contributed may be missing from the index above, and the index says so out loud.
+ */
+function renderCoverageGaps(unreadable: UnreadableWorkspace[]): string {
+  if (unreadable.length === 0) return '';
+  const items = unreadable.map(entry => `> - \`${entry.config}\` (${entry.manager})`).join('\n');
+  return `## Coverage gaps\n\n> ⚠ not introspected — workspace config unreadable. A present workspace manager's member list could not be parsed, so its packages may be missing above. Fix the config and re-run \`safeword architecture\`:\n${items}\n`;
 }
 
 function renderPackageSection(node: PackageNode, stamp: string): string {

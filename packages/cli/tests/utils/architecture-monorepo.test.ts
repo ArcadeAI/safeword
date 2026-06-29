@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   discoverLeafDirectories,
+  discoverUnreadableWorkspaces,
+  discoverWorkspaces,
   extractMonorepoModel,
   monorepoFingerprint,
 } from '../../src/utils/architecture-monorepo.js';
@@ -565,6 +567,133 @@ describe('discoverLeafDirectories — polyglot union (ticket MGWZ4P)', () => {
     expect(discoverLeafDirectories(context.directory)).toEqual([
       nodePath.join(context.directory, 'packages', 'web'),
     ]);
+  });
+});
+
+describe('discoverWorkspaces — present-but-unparseable managers are surfaced (ticket UWP4XK)', () => {
+  function clearRootManifest(root: string): void {
+    rmSync(nodePath.join(root, 'package.json'), { force: true });
+  }
+  function configsOf(root: string): string[] {
+    return discoverUnreadableWorkspaces(root).map(entry => entry.config);
+  }
+
+  it('U1 — a malformed go.work (no parseable use target) is unreadable, not absent', () => {
+    clearRootManifest(context.directory);
+    writeFileSync(
+      nodePath.join(context.directory, 'go.work'),
+      'go 1.22\n\nuse (\n\t@@@ not a path @@@\n)\n',
+    );
+
+    const discovery = discoverWorkspaces(context.directory);
+
+    expect(discovery.patterns).toEqual([]);
+    expect(discovery.unreadable).toEqual([{ manager: 'go.work', config: 'go.work' }]);
+  });
+
+  it('U2 — a [workspace] table with an unparseable members value is unreadable', () => {
+    clearRootManifest(context.directory);
+    // `members` is a string, not an array — present table, unparseable member list.
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[workspace]\nmembers = "crates/*"\n',
+    );
+
+    expect(configsOf(context.directory)).toEqual(['Cargo.toml']);
+  });
+
+  it('U3 — a [tool.uv.workspace] table with an unparseable members value is unreadable', () => {
+    clearRootManifest(context.directory);
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = "packages/*"\n',
+    );
+
+    expect(configsOf(context.directory)).toEqual(['pyproject.toml']);
+  });
+
+  it('U4 — a flow-style pnpm-workspace.yaml is unreadable', () => {
+    writeManifest(context.directory, { name: 'root' }); // no package.json `workspaces`
+    writeFileSync(
+      nodePath.join(context.directory, 'pnpm-workspace.yaml'),
+      'packages: ["packages/*"]\n', // flow style — unparseable by the block-list reader
+    );
+
+    expect(configsOf(context.directory)).toEqual(['pnpm-workspace.yaml']);
+  });
+
+  it('U5 — a package.json workspaces field of the wrong shape is unreadable', () => {
+    writeManifest(context.directory, { name: 'root', workspaces: 'packages/*' }); // string, not array
+
+    expect(configsOf(context.directory)).toEqual(['package.json']);
+  });
+
+  it('U6 — a malformed manager never blinds the readable ones (readable side intact)', () => {
+    // package.json workspaces (packages/*) from beforeEach stays readable; go.work malformed.
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    writeFileSync(
+      nodePath.join(context.directory, 'go.work'),
+      'go 1.22\n\nuse @@@ not a path @@@\n',
+    );
+
+    const discovery = discoverWorkspaces(context.directory);
+
+    expect(discovery.patterns).toContain('packages/*');
+    expect(discovery.unreadable).toEqual([{ manager: 'go.work', config: 'go.work' }]);
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'packages', 'web'),
+    ]);
+  });
+
+  it('U7 — a single-crate Cargo.toml with no [workspace] table raises no signal (absent)', () => {
+    clearRootManifest(context.directory);
+    writeFileSync(nodePath.join(context.directory, 'Cargo.toml'), '[package]\nname = "solo"\n');
+
+    expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
+  });
+
+  it('U8 — an explicitly-empty package.json workspaces array is absent, not unreadable', () => {
+    writeManifest(context.directory, { name: 'root', workspaces: [] });
+
+    expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
+  });
+
+  it('exposes the unreadable set on the monorepo model', () => {
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    writeFileSync(
+      nodePath.join(context.directory, 'go.work'),
+      'go 1.22\n\nuse @@@ not a path @@@\n',
+    );
+
+    const model = extractMonorepoModel(context.directory);
+
+    expect(model.packages.map(node => node.name)).toEqual(['web']);
+    expect(model.unreadableWorkspaces).toEqual([{ manager: 'go.work', config: 'go.work' }]);
+  });
+});
+
+describe('monorepoFingerprint — the unreadable-workspace set is part of the root shape (UWP4XK)', () => {
+  it('moves when a present-but-unparseable manager appears, so the advisory re-renders', () => {
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    const before = monorepoFingerprint(context.directory);
+
+    writeFileSync(
+      nodePath.join(context.directory, 'go.work'),
+      'go 1.22\n\nuse @@@ not a path @@@\n',
+    );
+    const after = monorepoFingerprint(context.directory);
+
+    expect(after).not.toBe(before);
+  });
+
+  it('does NOT move for a repo with no unreadable config (no churn vs the prior hash inputs)', () => {
+    // Two readable-only repos with identical shape hash identically — the unreadable key is
+    // contributed only when non-empty, so a clean repo is never re-fingerprinted by UWP4XK.
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    const first = monorepoFingerprint(context.directory);
+    const second = monorepoFingerprint(context.directory);
+
+    expect(second).toBe(first);
   });
 });
 

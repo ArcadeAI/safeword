@@ -16,11 +16,11 @@ import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
 import { readCargoPackageName, readCargoWorkspaceMembers } from './cargo-manifest.js';
-import { detectWorkspaces } from './depcruise-config.js';
 import { isDirectory, readFileSafe, readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectName, readUvWorkspaceMembers } from './pyproject-manifest.js';
+import { hasTomlTable } from './toml.js';
 
 /** Placeholder purpose for a freshly modelled package awaiting prose. */
 const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
@@ -56,34 +56,95 @@ interface PackageEdge {
   to: string;
 }
 
+/**
+ * A workspace manager that is PRESENT at the repo root but whose member list could
+ * not be parsed (a malformed `go.work`, an unreadable Cargo `[workspace] members`, a
+ * flow-style `pnpm-workspace.yaml`). Surfaced — never silently dropped (ticket UWP4XK,
+ * GitHub #558): a manager that discovered nothing has no per-package "not introspected"
+ * marker to carry (ZRW21K), so the honesty signal must live one layer up, at discovery.
+ */
+export interface UnreadableWorkspace {
+  /** Human-facing manager label, e.g. `go.work`, `Cargo [workspace]`, `pnpm workspaces`. */
+  manager: string;
+  /** The config file the unreadable declaration lives in, e.g. `go.work`, `Cargo.toml`. */
+  config: string;
+}
+
+/**
+ * One manager's detection outcome. The discriminator is what #558 adds: `undefined`
+ * used to mean BOTH "absent" and "present-but-unparseable", collapsing the honesty
+ * signal. Now `absent` carries no signal, `parsed` carries globs/dirs to expand, and
+ * `unreadable` carries the config to surface.
+ */
+type WorkspaceDetection =
+  | { status: 'absent' }
+  | { status: 'parsed'; patterns: string[] }
+  | { status: 'unreadable'; manager: string; config: string };
+
+const ABSENT: WorkspaceDetection = { status: 'absent' };
+
+/** Globs to expand plus the present-but-unparseable managers to surface. */
+export interface WorkspaceDiscovery {
+  patterns: string[];
+  unreadable: UnreadableWorkspace[];
+}
+
 export interface MonorepoModel {
   packages: PackageNode[];
   edges: PackageEdge[];
+  /** Managers present at the root but unparseable; surfaced in the root index + `--check`. */
+  unreadableWorkspaces: UnreadableWorkspace[];
+}
+
+/**
+ * Probe every workspace manager at the root, returning the globs to expand plus the
+ * managers that are PRESENT but unparseable (ticket UWP4XK, GitHub #558).
+ *
+ * Within JS, package.json `workspaces` wins over pnpm-workspace.yaml (pnpm ignores the
+ * package.json field, so a repo with both is npm-authoritative) — they are alternative
+ * managers for the same ecosystem, not additive. A package.json that is PRESENT (parsed
+ * or unparseable) still wins; only an absent one falls through to pnpm. Across ecosystems,
+ * managers are UNIONED: go.work, Cargo `[workspace]`, and uv `[tool.uv.workspace]` describe
+ * disjoint package sets (Go/Rust/Python dirs), so a polyglot monorepo declaring packages
+ * with more than one manager at once is fully discovered (ticket MGWZ4P). Crucially, one
+ * unparseable manager never blinds the readable ones: its globs simply don't contribute,
+ * and it is recorded in `unreadable` instead of vanishing.
+ */
+export function discoverWorkspaces(projectDirectory: string): WorkspaceDiscovery {
+  const detections = [
+    detectJsWorkspaces(projectDirectory),
+    detectGoWork(projectDirectory),
+    detectCargoWorkspace(projectDirectory),
+    detectUvWorkspace(projectDirectory),
+  ];
+  return {
+    patterns: detections.flatMap(detection =>
+      detection.status === 'parsed' ? detection.patterns : [],
+    ),
+    unreadable: detections.flatMap(detection =>
+      detection.status === 'unreadable'
+        ? [{ manager: detection.manager, config: detection.config }]
+        : [],
+    ),
+  };
 }
 
 /**
  * Absolute directories of the workspace leaf packages, sorted. Expands the
  * workspace globs from the manifest and keeps only directories that carry a
- * `package.json`. Returns `[]` for a non-workspace project.
+ * recognized manifest. Returns `[]` for a non-workspace project.
  */
 export function discoverLeafDirectories(projectDirectory: string): string[] {
-  // Within JS, package.json `workspaces` wins over pnpm-workspace.yaml (pnpm
-  // ignores the package.json field, so a repo with both is npm-authoritative) —
-  // they are alternative managers for the same ecosystem, not additive. Across
-  // ecosystems, managers are UNIONED: go.work, Cargo `[workspace]`, and uv
-  // `[tool.uv.workspace]` describe disjoint package sets (Go/Rust/Python dirs),
-  // so a polyglot monorepo declaring packages with more than one manager at once
-  // is fully discovered, never silently reduced to the first manager's packages
-  // (ticket MGWZ4P). Same-dir overlaps collapse in the leaf `Set` below.
-  const jsPatterns = detectWorkspaces(projectDirectory) ?? detectPnpmWorkspaces(projectDirectory);
-  const patterns = [
-    jsPatterns,
-    detectGoWork(projectDirectory),
-    detectCargoWorkspace(projectDirectory),
-    detectUvWorkspace(projectDirectory),
-  ]
-    .filter((group): group is string[] => group !== undefined)
-    .flat();
+  return resolveLeafDirectories(projectDirectory, discoverWorkspaces(projectDirectory).patterns);
+}
+
+/** The present-but-unparseable workspace managers at the root, if any (UWP4XK). */
+export function discoverUnreadableWorkspaces(projectDirectory: string): UnreadableWorkspace[] {
+  return discoverWorkspaces(projectDirectory).unreadable;
+}
+
+/** Expand the discovered patterns to leaf dirs (glob → keep recognized-manifest dirs, deduped). */
+function resolveLeafDirectories(projectDirectory: string, patterns: string[]): string[] {
   if (patterns.length === 0) return [];
 
   const matches = new Set<string>();
@@ -100,6 +161,45 @@ export function discoverLeafDirectories(projectDirectory: string): string[] {
   return [...matches].toSorted(byString);
 }
 
+/**
+ * JS workspace detection with precedence: package.json `workspaces` wins over
+ * pnpm-workspace.yaml when present (parsed OR unparseable), preserving ZRW21K's
+ * "package.json is authoritative" rule; only an absent package.json consults pnpm.
+ */
+function detectJsWorkspaces(projectDirectory: string): WorkspaceDetection {
+  const packageJson = detectPackageJsonWorkspaces(projectDirectory);
+  return packageJson.status === 'absent' ? detectPnpmWorkspaces(projectDirectory) : packageJson;
+}
+
+/**
+ * package.json `workspaces`: absent when the field is missing or an explicitly-empty list
+ * (a deliberate "no workspaces"); parsed when it is a non-empty `string[]` or
+ * `{ packages: string[] }`; unreadable when present in some other (malformed) shape.
+ */
+function detectPackageJsonWorkspaces(projectDirectory: string): WorkspaceDetection {
+  const workspaces = readManifest(projectDirectory)?.workspaces;
+  if (workspaces === undefined) return ABSENT;
+
+  const list = workspaceList(workspaces);
+  if (list === undefined) {
+    return { status: 'unreadable', manager: 'package.json workspaces', config: 'package.json' };
+  }
+  const patterns = list.filter((entry): entry is string => typeof entry === 'string');
+  // An explicitly-empty list is a deliberate "no workspaces", not an unparse — stay absent.
+  return patterns.length > 0 ? { status: 'parsed', patterns } : ABSENT;
+}
+
+/** The glob list of a package.json `workspaces` field — a bare array or `{ packages: [] }`. */
+function workspaceList(workspaces: unknown): unknown[] | undefined {
+  if (Array.isArray(workspaces)) return workspaces;
+  if (isObjectRecord(workspaces) && Array.isArray(workspaces.packages)) return workspaces.packages;
+  return undefined;
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /** A discovered directory is a leaf package if it carries a recognized manifest. */
 function hasRecognizedManifest(directory: string): boolean {
   return (
@@ -112,7 +212,8 @@ function hasRecognizedManifest(directory: string): boolean {
 
 /** The package/edge model the root index renders over. */
 export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
-  const packages: PackageNode[] = discoverLeafDirectories(projectDirectory)
+  const { patterns, unreadable } = discoverWorkspaces(projectDirectory);
+  const packages: PackageNode[] = resolveLeafDirectories(projectDirectory, patterns)
     .map(dir => ({
       name: packageName(dir),
       dir,
@@ -132,7 +233,7 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
   }
   edges.sort((a, b) => byString(a.from, b.from) || byString(a.to, b.to));
 
-  return { packages, edges };
+  return { packages, edges, unreadableWorkspaces: unreadable };
 }
 
 /**
@@ -148,6 +249,12 @@ export function monorepoFingerprint(projectDirectory: string): string {
     packages: model.packages.map(node => `${node.name}:${node.introspected}`),
     edges: model.edges.map(edge => `${edge.from}->${edge.to}`),
     boundaryConfig: readBoundaryConfig(projectDirectory),
+    // The unreadable-workspace advisory is root shape too: it must re-render when an
+    // unparseable config appears or is fixed. Contributed ONLY when non-empty, so a
+    // repo with no unreadable config keeps its existing fingerprint — no churn (UWP4XK).
+    ...(model.unreadableWorkspaces.length > 0 && {
+      unreadable: model.unreadableWorkspaces.map(entry => `${entry.manager}:${entry.config}`),
+    }),
   };
   return createHash('sha256').update(JSON.stringify(inputs)).digest('hex');
 }
@@ -194,13 +301,19 @@ function readPyprojectCrateName(packageDirectory: string): string | undefined {
 
 /**
  * Read workspace member globs from a `pyproject.toml` `[tool.uv.workspace] members`
- * array (ticket HWSEPV) — uv stores its workspace list here. Returns the path globs, or
- * `undefined` when the file is absent or has no uv-workspace table (so a single Python
- * package, or a non-uv pyproject, degrades to no-workspaces).
+ * array (ticket HWSEPV) — uv stores its workspace list here. `absent` when the file or the
+ * uv-workspace table is missing (a single Python package, or a non-uv pyproject); `parsed`
+ * with the globs when readable; `unreadable` when the table is PRESENT but `members` can't
+ * be parsed (UWP4XK) — surfaced, not silently empty.
  */
-function detectUvWorkspace(projectDirectory: string): string[] | undefined {
+function detectUvWorkspace(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'pyproject.toml'));
-  return content === undefined ? undefined : readUvWorkspaceMembers(content);
+  if (content === undefined) return ABSENT; // no pyproject.toml
+  if (!hasTomlTable(content, 'tool.uv.workspace')) return ABSENT; // a non-uv pyproject
+  const members = readUvWorkspaceMembers(content);
+  return members === undefined
+    ? { status: 'unreadable', manager: 'uv workspace', config: 'pyproject.toml' }
+    : { status: 'parsed', patterns: members };
 }
 
 function manifestDependencyNames(packageDirectory: string): string[] {
@@ -226,21 +339,22 @@ function readBoundaryConfig(projectDirectory: string): string {
  *     - "packages/*"
  *     - "apps/*"
  *
- * Returns the include globs (quotes stripped, `!`-exclusions skipped), or
- * `undefined` when the file is absent or not in the block-list form (flow-style
- * `packages: [..]` and other shapes are out of scope and degrade to no-workspaces
- * — incomplete, never silently wrong).
+ * `absent` when the file is missing; `parsed` with the include globs (quotes stripped,
+ * `!`-exclusions skipped) for the block-list form; `unreadable` when the file is PRESENT
+ * but no package glob parses (flow-style `packages: [..]`, an empty list, or other shapes
+ * out of scope) — the file's existence IS a workspace declaration, so an unparseable one
+ * is surfaced, never silently empty (UWP4XK).
  */
-function detectPnpmWorkspaces(projectDirectory: string): string[] | undefined {
+function detectPnpmWorkspaces(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'));
-  if (content === undefined) return undefined;
+  if (content === undefined) return ABSENT;
 
   const lines = content.split(/\r?\n/);
   const start = lines.findIndex(line => /^packages:\s*$/.test(line));
-  if (start === -1) return undefined;
-
-  const globs = collectPnpmGlobs(lines.slice(start + 1));
-  return globs.length > 0 ? globs : undefined;
+  const globs = start === -1 ? [] : collectPnpmGlobs(lines.slice(start + 1));
+  return globs.length > 0
+    ? { status: 'parsed', patterns: globs }
+    : { status: 'unreadable', manager: 'pnpm workspaces', config: 'pnpm-workspace.yaml' };
 }
 
 /** Collect the include globs from a pnpm `packages:` block, stopping at the dedent. */
@@ -268,21 +382,24 @@ function collectPnpmGlobs(blockLines: string[]): string[] {
  *       ./gateway
  *   )
  *
- * Returns the member directories (leading `./` stripped, quotes removed), or
- * `undefined` when the file is absent or no `use` target parses. An entry that is
- * not a clean relative path (e.g. junk, or a multi-token line) is skipped, not
- * fatal — a single unreadable entry never blinds the rest (incomplete, never
- * silently wrong).
+ * Returns the member directories (leading `./` stripped, quotes removed) as `parsed`. An
+ * entry that is not a clean relative path (e.g. junk, or a multi-token line) is skipped,
+ * not fatal — a single unreadable entry never blinds the rest. `absent` when the file is
+ * missing; `unreadable` when the go.work is PRESENT but NO `use` target parses (a malformed
+ * file) — surfaced, not silently empty (UWP4XK). A go.work exists to declare a workspace,
+ * so one that yields zero members is worth naming.
  */
-function detectGoWork(projectDirectory: string): string[] | undefined {
+function detectGoWork(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'go.work'));
-  if (content === undefined) return undefined;
+  if (content === undefined) return ABSENT;
 
   const lines = content.split(/\r?\n/);
   const directories: string[] = [];
   collectGoWorkBlock(lines, directories);
   collectGoWorkSingleLines(lines, directories);
-  return directories.length > 0 ? directories : undefined;
+  return directories.length > 0
+    ? { status: 'parsed', patterns: directories }
+    : { status: 'unreadable', manager: 'go.work', config: 'go.work' };
 }
 
 /** Member directories from a `use (\n  ./x\n)` block, stopping at the closing paren. */
@@ -316,11 +433,17 @@ function normalizeUseTarget(raw: string): string | undefined {
 
 /**
  * Read workspace member globs from a `Cargo.toml` `[workspace] members` array (ticket
- * YKFA5X) — Cargo stores its workspace list here, not in package.json. Returns the
- * path globs, or `undefined` when the file is absent or has no parseable members
- * array (so a single crate, or an unparseable manifest, degrades to no-workspaces).
+ * YKFA5X) — Cargo stores its workspace list here, not in package.json. `absent` when the
+ * file or the `[workspace]` table is missing (a single crate); `parsed` with the globs when
+ * readable; `unreadable` when the `[workspace]` table is PRESENT but `members` can't be
+ * parsed (UWP4XK) — surfaced, not silently empty.
  */
-function detectCargoWorkspace(projectDirectory: string): string[] | undefined {
+function detectCargoWorkspace(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'Cargo.toml'));
-  return content === undefined ? undefined : readCargoWorkspaceMembers(content);
+  if (content === undefined) return ABSENT; // no Cargo.toml
+  if (!hasTomlTable(content, 'workspace')) return ABSENT; // a single crate, not a workspace
+  const members = readCargoWorkspaceMembers(content);
+  return members === undefined
+    ? { status: 'unreadable', manager: 'Cargo [workspace]', config: 'Cargo.toml' }
+    : { status: 'parsed', patterns: members };
 }

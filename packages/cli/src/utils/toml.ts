@@ -28,6 +28,17 @@ export function readTomlTableArray(
   return values.length > 0 ? values : undefined;
 }
 
+/**
+ * Whether `content` declares a `[<table>]` (or `[[<table>]]`) header. Comment-aware
+ * (a header inside a `#` comment does not count) and table-scoped (exact name). Lets a
+ * caller tell "the table is absent" from "the table is present but its key is
+ * unparseable" — `readTomlTableArray` returns `undefined` for both, so this distinguishes
+ * a single crate (no `[workspace]`) from a workspace whose `members` could not be read.
+ */
+export function hasTomlTable(content: string, table: string): boolean {
+  return content.split(/\r?\n/).some(line => tableHeader(stripTomlComment(line).trim()) === table);
+}
+
 /** The string value of `[<table>] <key> = "…"`, or `undefined`. Table-scoped. */
 export function readTomlTableString(
   content: string,
