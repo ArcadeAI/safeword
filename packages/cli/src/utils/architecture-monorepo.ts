@@ -15,20 +15,13 @@ import { globSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractSkeleton, PURPOSE_PLACEHOLDER } from './architecture-skeleton.js';
+import { readBoundaryConfig } from './boundary-config.js';
 import { readCargoPackageName, readCargoWorkspaceMembers } from './cargo-manifest.js';
 import { detectWorkspaces } from './depcruise-config.js';
 import { isDirectory, readFileSafe, readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectName, readUvWorkspaceMembers } from './pyproject-manifest.js';
-
-/** Candidate dependency-cruiser config filenames (the shared, root-owned boundary). */
-const DEPENDENCY_CRUISER_CONFIG_NAMES = [
-  '.dependency-cruiser.cjs',
-  '.dependency-cruiser.js',
-  '.dependency-cruiser.mjs',
-  '.dependency-cruiser.json',
-];
 
 const byString = (a: string, b: string): number => a.localeCompare(b);
 
@@ -203,14 +196,6 @@ function detectUvWorkspace(projectDirectory: string): string[] | undefined {
 function manifestDependencyNames(packageDirectory: string): string[] {
   const manifest = readManifest(packageDirectory);
   return manifest === undefined ? [] : dependencySectionNames(manifest);
-}
-
-function readBoundaryConfig(projectDirectory: string): string {
-  for (const name of DEPENDENCY_CRUISER_CONFIG_NAMES) {
-    const content = readFileSafe(nodePath.join(projectDirectory, name));
-    if (content !== undefined) return content;
-  }
-  return '';
 }
 
 /**

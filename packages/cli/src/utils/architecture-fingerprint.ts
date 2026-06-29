@@ -14,19 +14,12 @@ import { type Dirent, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
+import { readBoundaryConfig } from './boundary-config.js';
 import { readCargoDependencyNames } from './cargo-manifest.js';
 import { readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectDependencies } from './pyproject-manifest.js';
-
-/** Candidate dependency-cruiser config filenames, in resolution order. */
-const DEPENDENCY_CRUISER_CONFIG_NAMES = [
-  '.dependency-cruiser.cjs',
-  '.dependency-cruiser.js',
-  '.dependency-cruiser.mjs',
-  '.dependency-cruiser.json',
-];
 
 /** File extensions treated as schema definitions. */
 const SCHEMA_EXTENSIONS = new Set(['.sql', '.prisma']);
@@ -152,17 +145,6 @@ function collectGoRequireLines(lines: string[], modules: Set<string>): void {
     const match = /^require\s+(\S+)\s+\S/.exec(line.trim());
     if (match?.[1] !== undefined) modules.add(match[1]);
   }
-}
-
-function readBoundaryConfig(projectDirectory: string): string {
-  for (const name of DEPENDENCY_CRUISER_CONFIG_NAMES) {
-    try {
-      return readFileSync(nodePath.join(projectDirectory, name), 'utf8');
-    } catch {
-      // Try the next candidate name.
-    }
-  }
-  return '';
 }
 
 function collectSchemaFiles(projectDirectory: string): string[] {
