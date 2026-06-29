@@ -26,6 +26,10 @@ actual `git show <merge-base>:…` base-resolution path.
 - [x] **pure — no generated shape doc → no nudge** [D5(b)]
 - [x] **pure — `parseGeneratedFingerprint`** valid / CRLF / no-frontmatter / empty-value / empty
   [feeds the trigger; the fingerprint is read, never recomputed]
+- [x] **parity — `parseGeneratedFingerprint` ⇄ `readDocumentFingerprint`** differential
+  (`architecture-document-nudge-parity.test.ts`, P58R22) [quality-review follow-up]: both
+  readers agree on 9 fixtures, so the hook's re-implemented parser can't silently drift
+  from the CLI writer's frontmatter format.
 
 All RED-for-the-right-reason: before the helper existed, none of these signals
 were produced; the done-gate marked tickets done with no architecture-doc advisory.

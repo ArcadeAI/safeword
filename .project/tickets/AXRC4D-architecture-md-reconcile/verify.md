@@ -44,6 +44,31 @@ and the `/audit` change READS the generated doc; both report-only / non-blocking
   failure direction. On a repo's default branch (no upstream) the nudge is inert
   (fail-closed beats false alarm).
 
+## Quality review (post-merge-prep, /quality-review)
+
+Fresh-context independent review returned **APPROVE** (no critical/blocking items;
+scope fidelity, non-blocking wiring, and the report-only audit sharpening all sound).
+Two non-blocking follow-ups raised — one addressed, one justified:
+
+- **Addressed — parser drift guard.** `parseGeneratedFingerprint` re-implements the
+  CLI's `readDocumentFingerprint` (the hook-standalone duplication pattern, like
+  `namespace-root.ts`) but had no differential test. Added
+  `architecture-document-nudge-parity.test.ts` (P58R22 pattern): both readers must
+  agree on 9 fixtures incl. CRLF, empty value, no-frontmatter, a fingerprint-looking
+  body line outside the fences, and unterminated frontmatter. Pins the format contract.
+- **Justified — done-gate end-to-end nudge wiring.** The reviewer noted the 3-line
+  glue in `stop-quality.ts` (prepend-on-navigate / emit-on-all-done) has no E2E test.
+  The nudge *decision* is covered end-to-end by the git-backed integration tests (real
+  `git show <merge-base>:…`), and the deployment manifest entry by `schema.test.ts`; the
+  remaining glue is a 3-line prepend over that tested helper. A full done-gate E2E that
+  fires the nudge would need a passing-done fixture WITH an upstream-tracking branch and a
+  moved generated-doc fingerprint — high fixture cost for marginal coverage over the
+  real-git helper test. Justified-absent per the wiring gate.
+
+Provenance: the generated-doc frontmatter format claim is `verified` against the
+writer (`renderDocument` in `architecture-document.ts`) this session; the parser-parity
+is now machine-enforced. No external dependencies.
+
 ## Reconcile
 
 The implementation matches the spec: two surfaces, no new deterministic drift module
