@@ -67,17 +67,24 @@ export interface MonorepoModel {
  * `package.json`. Returns `[]` for a non-workspace project.
  */
 export function discoverLeafDirectories(projectDirectory: string): string[] {
-  // package.json `workspaces` wins; pnpm-workspace.yaml is the next fallback (pnpm
-  // ignores the package.json field, so a repo with both is npm-authoritative); a
-  // go.work `use` list is the last fallback (ticket ZD70P1), so a Go-rooted
-  // monorepo is discovered when no JS workspace config is present.
-  const patterns =
-    detectWorkspaces(projectDirectory) ??
-    detectPnpmWorkspaces(projectDirectory) ??
-    detectGoWork(projectDirectory) ??
-    detectCargoWorkspace(projectDirectory) ??
-    detectUvWorkspace(projectDirectory);
-  if (patterns === undefined) return [];
+  // Within JS, package.json `workspaces` wins over pnpm-workspace.yaml (pnpm
+  // ignores the package.json field, so a repo with both is npm-authoritative) —
+  // they are alternative managers for the same ecosystem, not additive. Across
+  // ecosystems, managers are UNIONED: go.work, Cargo `[workspace]`, and uv
+  // `[tool.uv.workspace]` describe disjoint package sets (Go/Rust/Python dirs),
+  // so a polyglot monorepo declaring packages with more than one manager at once
+  // is fully discovered, never silently reduced to the first manager's packages
+  // (ticket MGWZ4P). Same-dir overlaps collapse in the leaf `Set` below.
+  const jsPatterns = detectWorkspaces(projectDirectory) ?? detectPnpmWorkspaces(projectDirectory);
+  const patterns = [
+    jsPatterns,
+    detectGoWork(projectDirectory),
+    detectCargoWorkspace(projectDirectory),
+    detectUvWorkspace(projectDirectory),
+  ]
+    .filter((group): group is string[] => group !== undefined)
+    .flat();
+  if (patterns.length === 0) return [];
 
   const matches = new Set<string>();
   for (const pattern of patterns) {
