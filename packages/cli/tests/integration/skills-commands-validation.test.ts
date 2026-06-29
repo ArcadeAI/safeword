@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { SKILL_CURSOR_PAIRS } from '../fixtures/skill-cursor-pairs.js';
+import { SKILL_CURSOR_PAIRS } from '../../src/cursor-wrappers.js';
 
 const __dirname = import.meta.dirname;
 const TEMPLATES_DIR = nodePath.join(__dirname, '../../templates');

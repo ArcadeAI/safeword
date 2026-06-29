@@ -64,7 +64,7 @@ function detectRuntime(
   ) {
     return 'cursor';
   }
-  if (nonEmptyString(input.turn_id) !== null || nonEmptyString(env.CODEX_THREAD_ID) !== null) {
+  if (nonEmptyString(input.turn_id) !== null) {
     return 'codex';
   }
   if (
@@ -96,12 +96,7 @@ export function resolveRunIdentity(
   }
 
   if (runtime === 'codex') {
-    const session = firstString(
-      'input.session_id',
-      input.session_id,
-      'CODEX_THREAD_ID',
-      env.CODEX_THREAD_ID,
-    );
+    const session = firstString('input.session_id', input.session_id);
     return {
       runtime,
       sessionKey: session?.value ?? null,

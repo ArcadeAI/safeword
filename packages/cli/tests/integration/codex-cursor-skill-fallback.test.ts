@@ -8,9 +8,9 @@
  *
  *   1. The fallback records gate-readable, session-bound proof for every gated
  *      skill when a session id is supplied explicitly (the HMZSCD arg path) or
- *      exposed through a compatible runtime identity such as CODEX_THREAD_ID,
- *      and degrades gracefully (exit 0, nothing recorded) when none is — so a
- *      runtime never silently mis-binds.
+ *      bound by a runtime's pre-shell hook (the Codex PreToolUse / Cursor
+ *      beforeShellExecution cache bridge), and degrades gracefully (exit 0,
+ *      nothing recorded) when none is — so a runtime never silently mis-binds.
  *   2. End-to-end, a feature done-gate PASSES when verify+audit proof was
  *      recorded via the fallback, and FAILS CLOSED with a clear,
  *      `CLAUDE_SESSION_ID`-free message when the runtime could not bind one.
@@ -79,6 +79,24 @@ function logContents(projectDirectory: string): string {
   return existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
 }
 
+// Drive the real Codex PreToolUse hook with the upcoming record-skill command,
+// exactly as Codex would right before running it. The hook binds session_id into
+// the short-lived cache the fallback then reads — no env var, no explicit arg.
+function bindCodexSession(projectDirectory: string, skill: string, sessionId: string): void {
+  const command = `bun "${projectDirectory}/.safeword/hooks/record-skill-invocation.ts" "${projectDirectory}" ${skill}`;
+  const result = spawnSync('bun', ['.safeword/hooks/codex/pre-tool-quality.ts'], {
+    cwd: projectDirectory,
+    input: JSON.stringify({
+      session_id: sessionId,
+      tool_name: 'Bash',
+      tool_input: { command },
+    }),
+    env: fallbackEnvironment(projectDirectory),
+    encoding: 'utf8',
+  });
+  expect(result.status ?? 0).toBe(0);
+}
+
 describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () => {
   let projectDirectory: string;
 
@@ -122,13 +140,16 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     });
   }
 
-  it('feature done PASSES when verify+audit are recorded from CODEX_THREAD_ID', () => {
+  it('feature done PASSES when verify+audit are recorded via the Codex PreToolUse bridge', () => {
     writeFeatureTicketAtDone(projectDirectory, '950');
-    const sessionId = 'codex-thread-950';
-    const codexEnvironment = { CODEX_THREAD_ID: sessionId };
+    const sessionId = 'codex-session-950';
 
-    runFallback(projectDirectory, 'verify', '', codexEnvironment);
-    runFallback(projectDirectory, 'audit', '', codexEnvironment);
+    // Each skill: the PreToolUse hook binds session_id, then the fallback runs
+    // with no explicit id and no env var — reading the bound id from the cache.
+    for (const skill of ['verify', 'audit'] as const) {
+      bindCodexSession(projectDirectory, skill, sessionId);
+      runFallback(projectDirectory, skill, '');
+    }
 
     const result = runDoneGate(projectDirectory, sessionId);
 

@@ -6,6 +6,9 @@ import { existsSync } from 'node:fs';
 
 import { lintFile } from '../lib/lint.ts';
 import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
+import { installCrashCapture } from '../lib/self-report.ts';
+
+installCrashCapture('cursor-after-file-edit', undefined, 'cursor');
 
 interface CursorInput {
   workspace_roots?: string[];

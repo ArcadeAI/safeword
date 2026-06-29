@@ -20,6 +20,7 @@ import { detectWorkspaces } from './depcruise-config.js';
 import { isDirectory, readFileSafe, readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
+import { readPyprojectName, readUvWorkspaceMembers } from './pyproject-manifest.js';
 
 /** Placeholder purpose for a freshly modelled package awaiting prose. */
 const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
@@ -74,7 +75,8 @@ export function discoverLeafDirectories(projectDirectory: string): string[] {
     detectWorkspaces(projectDirectory) ??
     detectPnpmWorkspaces(projectDirectory) ??
     detectGoWork(projectDirectory) ??
-    detectCargoWorkspace(projectDirectory);
+    detectCargoWorkspace(projectDirectory) ??
+    detectUvWorkspace(projectDirectory);
   if (patterns === undefined) return [];
 
   const matches = new Set<string>();
@@ -96,7 +98,8 @@ function hasRecognizedManifest(directory: string): boolean {
   return (
     readJson(nodePath.join(directory, 'package.json')) !== undefined ||
     readFileSafe(nodePath.join(directory, 'go.mod')) !== undefined ||
-    readFileSafe(nodePath.join(directory, 'Cargo.toml')) !== undefined
+    readFileSafe(nodePath.join(directory, 'Cargo.toml')) !== undefined ||
+    readFileSafe(nodePath.join(directory, 'pyproject.toml')) !== undefined
   );
 }
 
@@ -158,6 +161,7 @@ function packageName(packageDirectory: string): string {
   return (
     readGoModuleName(packageDirectory) ??
     readCargoCrateName(packageDirectory) ??
+    readPyprojectCrateName(packageDirectory) ??
     nodePath.basename(packageDirectory)
   );
 }
@@ -173,6 +177,23 @@ function readGoModuleName(packageDirectory: string): string | undefined {
 function readCargoCrateName(packageDirectory: string): string | undefined {
   const content = readFileSafe(nodePath.join(packageDirectory, 'Cargo.toml'));
   return content === undefined ? undefined : readCargoPackageName(content);
+}
+
+/** The PEP 621 `[project] name` declared in a directory's `pyproject.toml`, if any. */
+function readPyprojectCrateName(packageDirectory: string): string | undefined {
+  const content = readFileSafe(nodePath.join(packageDirectory, 'pyproject.toml'));
+  return content === undefined ? undefined : readPyprojectName(content);
+}
+
+/**
+ * Read workspace member globs from a `pyproject.toml` `[tool.uv.workspace] members`
+ * array (ticket HWSEPV) — uv stores its workspace list here. Returns the path globs, or
+ * `undefined` when the file is absent or has no uv-workspace table (so a single Python
+ * package, or a non-uv pyproject, degrades to no-workspaces).
+ */
+function detectUvWorkspace(projectDirectory: string): string[] | undefined {
+  const content = readFileSafe(nodePath.join(projectDirectory, 'pyproject.toml'));
+  return content === undefined ? undefined : readUvWorkspaceMembers(content);
 }
 
 function manifestDependencyNames(packageDirectory: string): string[] {

@@ -41,6 +41,9 @@ import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invoca
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { installCrashCapture } from './lib/self-report.ts';
+
+installCrashCapture('stop-quality');
 
 interface HookInput {
   session_id?: string;

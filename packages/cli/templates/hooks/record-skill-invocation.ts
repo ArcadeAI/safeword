@@ -4,7 +4,10 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { readFreshCursorRunIdentity } from './lib/cursor-run-identity.ts';
+import {
+  readFreshCodexRunIdentity,
+  readFreshCursorRunIdentity,
+} from './lib/cursor-run-identity.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
@@ -23,8 +26,12 @@ function resolveProofSessionKey(input: {
   if (process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID) {
     return resolveRunIdentity({}, { runtime: 'claude', env: process.env }).sessionKey ?? undefined;
   }
-  if (process.env.CODEX_THREAD_ID) {
-    return resolveRunIdentity({}, { runtime: 'codex', env: process.env }).sessionKey ?? undefined;
+  // Codex and Cursor expose the session id only to their pre-shell hooks, not to
+  // the helper process. Each runtime's hook stashes the id in a short-lived,
+  // per-skill cache right before this command runs; read it back here.
+  const codexSessionKey = readFreshCodexRunIdentity({ projectDirectory, skillName });
+  if (codexSessionKey !== undefined) {
+    return codexSessionKey;
   }
   const cursorSessionKey = readFreshCursorRunIdentity({ projectDirectory, skillName });
   if (cursorSessionKey !== undefined) {

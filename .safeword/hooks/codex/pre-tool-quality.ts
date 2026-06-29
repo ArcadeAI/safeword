@@ -15,6 +15,13 @@ import {
   denialReasonFromHookOutput,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
+import {
+  parseRecordSkillInvocationCommand,
+  rememberCodexRunIdentity,
+} from '../lib/cursor-run-identity.ts';
+import { installCrashCapture } from '../lib/self-report.ts';
+
+installCrashCapture('codex-pre-tool-quality', undefined, 'codex');
 
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const CLAUDE_EXPLAIN_HINT = 'Run `/explain` for a plain-English version of this block.';
@@ -45,14 +52,44 @@ function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      // Authoritative agent attribution for the spawned hook: it runs under Codex,
+      // not Claude, even though we set CLAUDE_PROJECT_DIR for its path resolution.
+      // This same var is what self-report's detectAgent reads.
       SAFEWORD_AGENT_RUNTIME: 'codex',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 }
 
+// Resolve the project root the same way the record-skill-invocation.ts fallback
+// command does (`${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel || pwd)}`),
+// so the cache the helper reads back lands at the matching namespace root even
+// when Codex runs this hook from a subdirectory of the repo.
+function resolveProjectRoot(): string {
+  if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR;
+  const toplevel = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  const root = toplevel.status === 0 ? (toplevel.stdout ?? '').trim() : '';
+  return root.length > 0 ? root : process.cwd();
+}
+
 const input = await readInput();
 if (!input) process.exit(0);
+
+// Gate-proof bridge: Codex exposes session_id only to this hook, not to the
+// record-skill-invocation.ts command it precedes. Stash it in a short-lived,
+// per-skill cache so the helper can bind the gate proof to the current session
+// (mirrors the Cursor beforeShellExecution bridge). The cache must land at the
+// SAME namespace root the helper resolves from, so derive the project root the
+// way the helper command does — CLAUDE_PROJECT_DIR, else the git toplevel, else
+// cwd — never the raw hook cwd, which can be a subdirectory of the repo.
+const proofCommand = parseRecordSkillInvocationCommand(input.tool_input?.command ?? '');
+if (proofCommand !== undefined) {
+  rememberCodexRunIdentity({
+    projectDirectory: resolveProjectRoot(),
+    sessionId: input.session_id,
+    skillName: proofCommand.skillName,
+  });
+}
 
 const translatedInputs = translateCodexInputToClaudeInputs(input);
 if (translatedInputs.length === 0) process.exit(0);

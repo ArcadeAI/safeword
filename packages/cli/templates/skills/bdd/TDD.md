@@ -1,6 +1,6 @@
 # Implement: Outside-in TDD
 
-**Entry:** Agent enters `implement` phase. The ticket's `impl-plan.md` (written at scenario-gate exit, status `planned`) is the design record for this phase — follow its Approach section's test-layer assignments and build order. Begin TDD for the first unchecked scenario.
+**Entry:** Agent enters `implement` phase. The ticket's `impl-plan.md` (written at scenario-gate exit, status `planned`) is the design record for this phase — follow its Approach section's proof plan and build order. Begin TDD for the first unchecked scenario.
 
 ## Harness availability check (entry)
 
@@ -122,7 +122,10 @@ All scenarios complete → reconcile `impl-plan.md` against what actually shippe
 
 _Worked example:_ the plan said "Decisions: parse with the shared markdown utility"; during implementation a local scan proved smaller, so the choice changed mid-implementation — the row now reads choice "local content-or-skip scan", with the shared utility recorded under Alternatives considered and the reason it lost. That update (not a rewrite of history — the alternatives column preserves it) is what reconciliation produces.
 
-Reconciled → set `phase: verify`.
+Reconciled → set `phase: verify` and continue directly into the verify phase:
+run `/verify`, then `/audit`. Do not ask the user whether to proceed; verification
+is agent-owned work. Ask the user only if `/verify`, `/audit`, or a review
+surfaces a real spec, scope, value, or risk decision.
 
 ## Implement exit: independent design review (architecture review gate)
 
@@ -144,3 +147,5 @@ bun .safeword/hooks/write-review-stamp.ts --model < reviewer-model-id > impl-pla
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If you can't run a different model, log a deliberate `skip: <reason>` rather than stamping a same-model review. (This gate is stricter than quality-review's advisory loop, which accepts a fresh-context pass on your own model — here a genuinely different model, or an explicit `skip:`, is required.)
+
+**Avoid bloat.**

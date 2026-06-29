@@ -68,19 +68,19 @@ const TREE_MANIFESTS = new Set<string>([
  */
 function fakeToolProbe(spec: string): (tool: string) => boolean {
   if (spec.startsWith('only:')) {
-    const set = parseToolList(spec);
+    const set = parseToolList(spec, 'only:');
     return tool => set.has(tool);
   }
   if (spec.startsWith('none:')) {
-    const set = parseToolList(spec);
+    const set = parseToolList(spec, 'none:');
     return tool => !set.has(tool);
   }
   return allToolsAvailable; // 'all' or empty
 }
 
 /** Parse the comma-separated tool list after a `only:` / `none:` prefix. */
-function parseToolList(spec: string): Set<string> {
-  return new Set(spec.slice('only:'.length).split(',').filter(Boolean));
+function parseToolList(spec: string, prefix: string): Set<string> {
+  return new Set(spec.slice(prefix.length).split(',').filter(Boolean));
 }
 
 function allToolsAvailable(): boolean {
@@ -101,6 +101,33 @@ function entry(
   available: boolean,
 ): PlanEntry {
   return { language, cwd, command, runner, available };
+}
+
+function readInstalledPacks(root: string): Set<string> | undefined {
+  const configPath = nodePath.join(root, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return undefined;
+
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { installedPacks?: unknown };
+    if (!Array.isArray(parsed.installedPacks)) return undefined;
+    return new Set(
+      parsed.installedPacks.filter((pack): pack is string => typeof pack === 'string'),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+function isLanguageEnabled(language: Language, installedPacks: Set<string> | undefined): boolean {
+  if (installedPacks === undefined) return true;
+
+  if (language === 'javascript') {
+    return installedPacks.has('typescript') || installedPacks.has('javascript');
+  }
+  if (language === 'go') {
+    return installedPacks.has('golang') || installedPacks.has('go');
+  }
+  return installedPacks.has(language);
 }
 
 /** Directory of the first listed manifest present in the index, or root if none. */
@@ -273,8 +300,12 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
   const kind = options.kind ?? 'test';
   const isAvailable = options.isToolAvailable ?? defaultIsToolAvailable;
   const index = indexFilesInTree(root, TREE_MANIFESTS);
+  const installedPacks = readInstalledPacks(root);
   const resolvers = [resolveJs, resolvePython, resolveGo, resolveRust];
   return resolvers
     .map(resolve => resolve(root, index, kind, isAvailable))
-    .filter((planEntry): planEntry is PlanEntry => planEntry !== undefined);
+    .filter(
+      (planEntry): planEntry is PlanEntry =>
+        planEntry !== undefined && isLanguageEnabled(planEntry.language, installedPacks),
+    );
 }

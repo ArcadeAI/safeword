@@ -19,9 +19,12 @@ import {
   type ClaudeGateInput,
   type CursorShellInput,
   decideFromGate,
+  requiresFailClosedShellGate,
   runClaudeHook,
   toCursorDecision,
 } from './gate-adapter.ts';
+
+const SHELL_GATE_TIMEOUT_MS = 8_000;
 
 async function readInput(): Promise<CursorShellInput> {
   try {
@@ -50,6 +53,19 @@ if (isAutoUpgradeLockActive({ projectDir: process.cwd() })) {
   process.exit(0);
 }
 
+const proofCommand = parseRecordSkillInvocationCommand(command);
+const needsFailClosedGate = requiresFailClosedShellGate({ command });
+if (!needsFailClosedGate) {
+  if (proofCommand !== undefined) {
+    rememberCursorRunIdentity({
+      projectDirectory: process.cwd(),
+      conversationId: input.conversation_id,
+      skillName: proofCommand.skillName,
+    });
+  }
+  emitAllowAndExit();
+}
+
 const translated: ClaudeGateInput = {
   session_id: input.conversation_id,
   hook_event_name: 'PreToolUse',
@@ -60,11 +76,16 @@ const translated: ClaudeGateInput = {
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
-// Fail-closed: a gate that crashed or never started denies the command (ANAXG4).
-const decision = decideFromGate(runClaudeHook(claudeHookPath, translated));
-const proofCommand =
-  decision.permission === 'allow' ? parseRecordSkillInvocationCommand(command) : undefined;
-if (proofCommand !== undefined) {
+// Fail-closed with a local timeout: return Cursor-readable JSON before Cursor's
+// own cancellation path can reduce the failure to "Canceled: Canceled".
+const decision = decideFromGate(
+  runClaudeHook({
+    claudeHookPath,
+    input: translated,
+    timeoutMs: SHELL_GATE_TIMEOUT_MS,
+  }),
+);
+if (decision.permission === 'allow' && proofCommand !== undefined) {
   rememberCursorRunIdentity({
     projectDirectory: process.cwd(),
     conversationId: input.conversation_id,

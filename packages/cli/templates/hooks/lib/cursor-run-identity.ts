@@ -3,14 +3,31 @@ import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.ts';
 
-export const CURSOR_RUN_IDENTITY_CACHE = 'cursor-run-identity.json';
+const CURSOR_RUN_IDENTITY_CACHE = 'cursor-run-identity.json';
+const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
 
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 
-interface CursorRunIdentityCache {
-  conversationId: string;
+interface ShellRunIdentityCache {
+  id: string;
   skillName: string;
   recordedAt: string;
+}
+
+interface RememberShellRunIdentityInput {
+  projectDirectory: string;
+  cacheFile: string;
+  id: string | undefined;
+  skillName: string | undefined;
+  now?: Date;
+}
+
+interface ReadFreshShellRunIdentityInput {
+  projectDirectory: string;
+  cacheFile: string;
+  skillName: string;
+  now?: Date;
+  maxAgeMs?: number;
 }
 
 interface RememberCursorRunIdentityInput {
@@ -20,7 +37,14 @@ interface RememberCursorRunIdentityInput {
   now?: Date;
 }
 
-interface ReadFreshCursorRunIdentityInput {
+interface RememberCodexRunIdentityInput {
+  projectDirectory: string;
+  sessionId: string | undefined;
+  skillName: string | undefined;
+  now?: Date;
+}
+
+interface ReadFreshRunIdentityInput {
   projectDirectory: string;
   skillName: string;
   now?: Date;
@@ -35,8 +59,8 @@ function nonEmptyString(value: string | undefined): string | undefined {
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
-function cachePathForProject(projectDirectory: string): string {
-  return nodePath.join(resolveNamespaceRoot(projectDirectory), CURSOR_RUN_IDENTITY_CACHE);
+function cachePathForProject(projectDirectory: string, cacheFile: string): string {
+  return nodePath.join(resolveNamespaceRoot(projectDirectory), cacheFile);
 }
 
 function isEnvironmentAssignment(token: string): boolean {
@@ -159,23 +183,26 @@ export function parseRecordSkillInvocationCommand(
 }
 
 /**
- * Cursor slash-command fallback commands run as Shell tool calls. The
- * beforeShellExecution hook sees the active `conversation_id` immediately before
- * that command runs, while the command process itself does not receive the hook
- * payload. This small cache bridges that one-step gap.
+ * Codex and Cursor slash-command fallback commands run as shell tool calls. The
+ * runtime's pre-shell hook (Cursor `beforeShellExecution`, Codex `PreToolUse`)
+ * sees the active session id immediately before that command runs, while the
+ * command process itself does not receive the hook payload. This small,
+ * short-lived, per-skill cache bridges that one-step gap. The two runtimes use
+ * separate cache files so a Codex run can never satisfy a Cursor proof, or vice
+ * versa.
  */
-export function rememberCursorRunIdentity(input: RememberCursorRunIdentityInput): boolean {
-  const conversationId = nonEmptyString(input.conversationId);
+function rememberShellRunIdentity(input: RememberShellRunIdentityInput): boolean {
+  const id = nonEmptyString(input.id);
   const skillName = nonEmptyString(input.skillName);
-  if (conversationId === undefined || skillName === undefined) return false;
+  if (id === undefined || skillName === undefined) return false;
 
   try {
-    const cachePath = cachePathForProject(input.projectDirectory);
+    const cachePath = cachePathForProject(input.projectDirectory, input.cacheFile);
     mkdirSync(nodePath.dirname(cachePath), { recursive: true });
     writeFileSync(
       cachePath,
       JSON.stringify({
-        conversationId,
+        id,
         skillName,
         recordedAt: (input.now ?? new Date()).toISOString(),
       }),
@@ -188,16 +215,14 @@ export function rememberCursorRunIdentity(input: RememberCursorRunIdentityInput)
   }
 }
 
-export function readFreshCursorRunIdentity(
-  input: ReadFreshCursorRunIdentityInput,
-): string | undefined {
-  const cachePath = cachePathForProject(input.projectDirectory);
+function readFreshShellRunIdentity(input: ReadFreshShellRunIdentityInput): string | undefined {
+  const cachePath = cachePathForProject(input.projectDirectory, input.cacheFile);
   if (!existsSync(cachePath)) return undefined;
 
   try {
-    const parsed = JSON.parse(readFileSync(cachePath, 'utf8')) as Partial<CursorRunIdentityCache>;
-    const conversationId = nonEmptyString(parsed.conversationId);
-    if (conversationId === undefined) return undefined;
+    const parsed = JSON.parse(readFileSync(cachePath, 'utf8')) as Partial<ShellRunIdentityCache>;
+    const id = nonEmptyString(parsed.id);
+    if (id === undefined) return undefined;
     if (parsed.skillName !== input.skillName) return undefined;
 
     const recordedAtMs = Date.parse(parsed.recordedAt ?? '');
@@ -207,10 +232,50 @@ export function readFreshCursorRunIdentity(
     const maxAgeMs = input.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
     if (nowMs - recordedAtMs > maxAgeMs) return undefined;
 
-    return conversationId;
+    return id;
   } catch {
     return undefined;
   } finally {
     rmSync(cachePath, { force: true });
   }
+}
+
+export function rememberCursorRunIdentity(input: RememberCursorRunIdentityInput): boolean {
+  return rememberShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CURSOR_RUN_IDENTITY_CACHE,
+    id: input.conversationId,
+    skillName: input.skillName,
+    now: input.now,
+  });
+}
+
+export function readFreshCursorRunIdentity(input: ReadFreshRunIdentityInput): string | undefined {
+  return readFreshShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CURSOR_RUN_IDENTITY_CACHE,
+    skillName: input.skillName,
+    now: input.now,
+    maxAgeMs: input.maxAgeMs,
+  });
+}
+
+export function rememberCodexRunIdentity(input: RememberCodexRunIdentityInput): boolean {
+  return rememberShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CODEX_RUN_IDENTITY_CACHE,
+    id: input.sessionId,
+    skillName: input.skillName,
+    now: input.now,
+  });
+}
+
+export function readFreshCodexRunIdentity(input: ReadFreshRunIdentityInput): string | undefined {
+  return readFreshShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CODEX_RUN_IDENTITY_CACHE,
+    skillName: input.skillName,
+    now: input.now,
+    maxAgeMs: input.maxAgeMs,
+  });
 }

@@ -42,6 +42,7 @@
     "test:smoke:live": "node scripts/run-vitest-with-build-lock.mjs --config vitest.live.config.ts",
     "test:release": "node scripts/run-vitest-with-build-lock.mjs --config vitest.release.config.ts",
     "test:slow": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts",
+    "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
     "pretest:watch": "tsup",
     "test:watch": "vitest",
     "test:coverage": "node scripts/run-vitest-with-build-lock.mjs --coverage",

@@ -210,3 +210,110 @@ describe('extractSkeleton — Rust layout (ticket YKFA5X)', () => {
     expect(skeleton.nodes).toEqual([]);
   });
 });
+
+describe('extractSkeleton — Python layout (ticket HWSEPV)', () => {
+  function writePyproject(directory: string, name = 'app'): void {
+    writeFileSync(nodePath.join(directory, 'pyproject.toml'), `[project]\nname = "${name}"\n`);
+  }
+
+  it('lists src-layout modules: src packages and src .py files, excluding dunder', () => {
+    writePyproject(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'api'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'db.py'), '');
+    writeFileSync(nodePath.join(context.directory, 'src', '__init__.py'), '');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['api', 'db']);
+    const pathByName = Object.fromEntries(skeleton.nodes.map(node => [node.name, node.path]));
+    expect(pathByName.api).toBe('src/api');
+    expect(pathByName.db).toBe('src/db.py');
+  });
+
+  it('lists flat-layout root packages and modules, excluding tooling and dunder', () => {
+    writePyproject(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'core'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'core', '__init__.py'), '');
+    writeFileSync(nodePath.join(context.directory, 'utils.py'), '');
+    writeFileSync(nodePath.join(context.directory, 'conftest.py'), '');
+    writeFileSync(nodePath.join(context.directory, '__init__.py'), '');
+    mkdirSync(nodePath.join(context.directory, 'tests'), { recursive: true }); // no __init__.py → not a package
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['core', 'utils']);
+  });
+
+  it('produces an empty skeleton for a project with no recognized modules', () => {
+    writePyproject(context.directory);
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+
+  it('does not extract Python modules without a pyproject.toml', () => {
+    writeFileSync(nodePath.join(context.directory, 'thing.py'), '');
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+});
+
+describe('extractSkeleton — maturin (pyproject + Cargo) dispatch (HWSEPV review)', () => {
+  it('dispatches a native-extension project to the Python extractor, keeping .py modules', () => {
+    // A maturin/pyo3 project ships BOTH a pyproject.toml and a Cargo.toml at root.
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[project]\nname = "mypkg"\n',
+    );
+    writeFileSync(nodePath.join(context.directory, 'Cargo.toml'), '[package]\nname = "mypkg-rs"\n');
+    mkdirSync(nodePath.join(context.directory, 'src', 'mypkg'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'lib.rs'), '');
+    writeFileSync(nodePath.join(context.directory, 'src', 'db.py'), '');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    // Python-primary: lists the Python package + module, not the Rust crate; src/db.py is NOT dropped.
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['db', 'mypkg']);
+  });
+});
+
+describe('extractSkeleton — pyproject alongside Go/Rust must not regress them (HWSEPV review)', () => {
+  // The pyproject branch is checked first (for maturin), but it must only WIN when it
+  // actually yields Python modules. A Go service or a Rust crate that merely carries a
+  // stray pyproject.toml (Python helper scripts, ruff/pre-commit config) has NO Python
+  // modules, and the ticket promises Go/Rust output is byte-for-byte unchanged — so the
+  // dispatch must fall through to the Go/Rust extractor instead of emptying the skeleton.
+
+  it('keeps the Go layout when a non-Python pyproject.toml is also present', () => {
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      'module example.com/app\n\ngo 1.22\n',
+    );
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[project]\nname = "tools"\n',
+    );
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+    mkdirSync(nodePath.join(context.directory, 'internal', 'store'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    // No __init__.py dirs and no root *.py → Python yields nothing → Go layout stands.
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['cmd', 'internal']);
+  });
+
+  it('keeps Rust file modules when a non-Python pyproject.toml is also present', () => {
+    writeFileSync(nodePath.join(context.directory, 'Cargo.toml'), '[package]\nname = "app"\n');
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[project]\nname = "tools"\n',
+    );
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'lib.rs'), '');
+    writeFileSync(nodePath.join(context.directory, 'src', 'parser.rs'), '');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    // src/ holds only .rs files → Python src-layout yields nothing → Rust modules stand.
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['parser']);
+  });
+});

@@ -1,6 +1,9 @@
 # Verify: Evidence Gate
 
-**Entry:** All scenarios marked `[x]` in test-definitions.md.
+**Entry:** All scenarios marked `[x]` in test-definitions.md, implement-exit
+review/refactor is complete, and `impl-plan.md` is reconciled. Entry is
+automatic after implementation: run `/verify`, then `/audit`, without asking the
+user whether to proceed.
 
 ## Steps
 
@@ -23,3 +26,5 @@ Before proceeding to done:
    ```
 
 The stop hook hard-blocks `phase: done` if verify.md is missing or empty.
+
+**Avoid bloat.**

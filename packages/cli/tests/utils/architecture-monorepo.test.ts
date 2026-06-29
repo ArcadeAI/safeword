@@ -410,3 +410,85 @@ describe('extractMonorepoModel — Rust crate identity (ticket YKFA5X)', () => {
     expect(model.packages[0]?.introspected).toBe(true);
   });
 });
+
+describe('discoverLeafDirectories — uv workspace discovery (ticket HWSEPV)', () => {
+  function makeUvPackage(root: string, name: string, options: { module?: boolean } = {}): void {
+    const dir = nodePath.join(root, 'packages', name);
+    mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir, 'pyproject.toml'), `[project]\nname = "${name}"\n`);
+    if (options.module) writeFileSync(nodePath.join(dir, 'src', 'api.py'), '');
+  }
+
+  it('discovers packages from a uv workspace members array', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+    );
+    makeUvPackage(context.directory, 'svc', { module: true });
+    makeUvPackage(context.directory, 'api', { module: true });
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'packages', 'api'),
+      nodePath.join(context.directory, 'packages', 'svc'),
+    ]);
+  });
+
+  it('keeps a package directory that has a pyproject.toml but no package.json', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+    );
+    makeUvPackage(context.directory, 'svc', { module: true });
+
+    expect(discoverLeafDirectories(context.directory)).toContain(
+      nodePath.join(context.directory, 'packages', 'svc'),
+    );
+  });
+
+  it('lets package.json workspaces win over a uv workspace when both are present', () => {
+    // Root manifest (from beforeEach) declares workspaces: ['packages/*']. The uv
+    // members point elsewhere (libs/*), so they are only reached if uv wins.
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = ["libs/*"]\n',
+    );
+    const svcDirectory = nodePath.join(context.directory, 'libs', 'svc');
+    mkdirSync(nodePath.join(svcDirectory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(svcDirectory, 'pyproject.toml'), '[project]\nname = "svc"\n');
+    writeFileSync(nodePath.join(svcDirectory, 'src', 'api.py'), '');
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+
+    const leaves = discoverLeafDirectories(context.directory);
+
+    expect(leaves).toEqual([nodePath.join(context.directory, 'packages', 'web')]);
+    expect(leaves).not.toContain(svcDirectory);
+  });
+
+  it('returns no leaves when pyproject has no [tool.uv.workspace] table', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(nodePath.join(context.directory, 'pyproject.toml'), '[project]\nname = "solo"\n');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([]);
+  });
+});
+
+describe('extractMonorepoModel — Python package identity (ticket HWSEPV)', () => {
+  it('names a Python package from its [project] name', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = ["packages/svc"]\n',
+    );
+    const dir = nodePath.join(context.directory, 'packages', 'svc');
+    mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir, 'pyproject.toml'), '[project]\nname = "acme-svc"\n');
+    writeFileSync(nodePath.join(dir, 'src', 'api.py'), '');
+
+    const model = extractMonorepoModel(context.directory);
+
+    expect(model.packages.map(node => node.name)).toEqual(['acme-svc']);
+    expect(model.packages[0]?.introspected).toBe(true);
+  });
+});

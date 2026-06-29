@@ -218,14 +218,152 @@ export function toCursorDecision(reason: string | undefined): CursorDecision {
 export interface ClaudeGateResult {
   /** The gate's stdout (its allow/deny verdict as JSON), or '' on failure. */
   stdout: string;
+  /** True when Safeword killed the inner gate because it exceeded its local timeout. */
+  timedOut: boolean;
   /**
    * True when the gate could not be run to a clean verdict — it failed to spawn
-   * (e.g. `bun` missing) or crashed (non-zero exit). The gate always exits 0 for
-   * BOTH allow and deny (the verdict travels in stdout), so a non-zero exit can
-   * only mean an unhandled crash, never a normal denial. This lets the adapter
-   * tell "gate ran and allowed" apart from "gate never produced a verdict".
+   * (e.g. `bun` missing), crashed (non-zero exit), or timed out. The gate always
+   * exits 0 for BOTH allow and deny (the verdict travels in stdout), so a non-zero
+   * exit can only mean an unhandled crash, never a normal denial. This lets the
+   * adapter tell "gate ran and allowed" apart from "gate never produced a verdict".
    */
   failed: boolean;
+}
+
+const GIT_GLOBAL_OPTIONS_WITH_VALUE = new Set([
+  '-C',
+  '-c',
+  '--config-env',
+  '--exec-path',
+  '--git-dir',
+  '--namespace',
+  '--work-tree',
+]);
+
+export function requiresFailClosedShellGate(params: { command: string }): boolean {
+  const { command } = params;
+  return splitShellSegments(command).some(segment => isGitCommitSegment(parseShellWords(segment)));
+}
+
+function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let segmentStart = 0;
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if ((char === '"' || char === "'") && quote === undefined) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = undefined;
+      continue;
+    }
+    if (quote !== undefined) continue;
+
+    const next = command[index + 1];
+    if (char === ';' || char === '\n' || char === '|' || (char === '&' && next === '&')) {
+      segments.push(command.slice(segmentStart, index));
+      segmentStart = char === '&' && next === '&' ? index + 2 : index + 1;
+      if (char === '&' && next === '&') index += 1;
+    }
+  }
+
+  segments.push(command.slice(segmentStart));
+  return segments;
+}
+
+function parseShellWords(segment: string): string[] {
+  const words: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (const char of segment) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if ((char === '"' || char === "'") && quote === undefined) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = undefined;
+      continue;
+    }
+    if (quote === undefined && /\s/.test(char)) {
+      if (current !== '') {
+        words.push(current);
+        current = '';
+      }
+      continue;
+    }
+    current += char;
+  }
+
+  if (current !== '') words.push(current);
+  return words;
+}
+
+function isGitCommitSegment(words: string[]): boolean {
+  let index = skipCommandPrefix(words);
+  if (words[index] !== 'git') return false;
+
+  index += 1;
+  while (index < words.length && words[index]?.startsWith('-')) {
+    const option = words[index];
+    if (option !== undefined && optionTakesSeparateValue(option)) index += 1;
+    index += 1;
+  }
+
+  return words[index] === 'commit';
+}
+
+function skipCommandPrefix(words: string[]): number {
+  // A leading run of `VAR=val` assignments is a per-command environment, not the
+  // executable (`GIT_AUTHOR_NAME=bot git commit`). Skip it before resolving the
+  // command word — otherwise the assignment is read as the command name and a
+  // `git commit` slips the fail-closed gate.
+  let index = skipEnvironmentAssignments(words, 0);
+  if (words[index] === 'command') index += 1;
+  if (words[index] !== 'env') return index;
+
+  // `env [NAME=value ...] command` — skip past `env` and its own assignments.
+  index += 1;
+  return skipEnvironmentAssignments(words, index);
+}
+
+function skipEnvironmentAssignments(words: string[], start: number): number {
+  let index = start;
+  while (index < words.length && isEnvironmentAssignment(words[index] ?? '')) {
+    index += 1;
+  }
+  return index;
+}
+
+function isEnvironmentAssignment(token: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
+}
+
+function optionTakesSeparateValue(option: string): boolean {
+  if (option.includes('=')) return false;
+  return GIT_GLOBAL_OPTIONS_WITH_VALUE.has(option);
 }
 
 /** Message shown when the gate itself could not run, so the action is fail-closed. */
@@ -233,17 +371,32 @@ export const GATE_UNAVAILABLE_REASON =
   'Safeword gate could not run (it crashed or failed to start), so this action was blocked. ' +
   'Check the Hooks output channel, then retry once the gate runs cleanly.';
 
+/** Message shown when Safeword returns a controlled block before Cursor cancels the hook. */
+export const GATE_TIMEOUT_REASON =
+  'Safeword gate took too long to check this shell command, so this command was blocked. ' +
+  'Retry once; if it repeats, check the Hooks output channel and temporarily disable the ' +
+  'beforeShellExecution entry in .cursor/hooks.json to unblock diagnostics.';
+
+export interface RunClaudeHookOptions {
+  claudeHookPath: string;
+  input: ClaudeGateInput;
+  timeoutMs?: number;
+}
+
 /**
  * Spawn a Claude source-of-truth hook with the translated input. `CLAUDE_PROJECT_DIR`
  * and `SAFEWORD_AGENT_RUNTIME` are set so the gate resolves project state from
  * the Cursor workspace root and uses the Cursor-scoped run key. Reports both the
  * stdout verdict and whether the gate actually ran — see `ClaudeGateResult`.
  */
-export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): ClaudeGateResult {
+export function runClaudeHook(options: RunClaudeHookOptions): ClaudeGateResult {
+  const { claudeHookPath, input, timeoutMs } = options;
   const result = spawnSync('bun', [claudeHookPath], {
     cwd: process.cwd(),
     input: JSON.stringify(input),
     encoding: 'utf8',
+    timeout: timeoutMs,
+    killSignal: 'SIGKILL',
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
@@ -251,9 +404,12 @@ export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): C
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  // `error` => the process never started; non-zero/null `status` => it crashed.
+  // `spawnSync` reports timed-out children through `error`; detect it separately
+  // so users see a recovery path, not a generic crash.
+  const timedOut = (result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
+  // `error` => the process never started/timed out; non-zero/null `status` => it crashed.
   const failed = result.error != null || result.status !== 0;
-  return { stdout: result.stdout ?? '', failed };
+  return { stdout: result.stdout ?? '', failed, timedOut };
 }
 
 /**
@@ -267,12 +423,17 @@ export function runClaudeHook(claudeHookPath: string, input: ClaudeGateInput): C
  * times out, or emits invalid JSON.
  */
 export function decideFromGate(result: ClaudeGateResult): CursorDecision {
+  if (result.timedOut) {
+    return toCursorDecision(GATE_TIMEOUT_REASON);
+  }
   if (result.failed) {
-    return {
-      permission: 'deny',
-      user_message: GATE_UNAVAILABLE_REASON,
-      agent_message: GATE_UNAVAILABLE_REASON,
-    };
+    return toCursorDecision(GATE_UNAVAILABLE_REASON);
   }
   return toCursorDecision(claudeDenialReason(result.stdout));
 }
+
+// The shell-specific decision lives in before-shell-execution.ts: it calls
+// `requiresFailClosedShellGate` BEFORE spawning the delegated gate (so non-commit
+// commands are allowed without a spawn, avoiding the deadlock) and `decideFromGate`
+// AFTER. There is intentionally no combined helper here — keeping the two steps in
+// the hook is what lets it skip the spawn entirely for out-of-scope commands.
