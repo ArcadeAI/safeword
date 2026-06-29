@@ -1,103 +1,175 @@
-# Spec: Invisible retro: synchronous headless claude -p extraction (no conversation hijack)
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Invisible retro — synchronous headless `claude -p` extraction
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Make the retro session-retrospective **invisible to the user's running agent**.
+Today the Stop hook injects `hookSpecificOutput.additionalContext`, which makes
+the user's *own* agent break off its work to mine the transcript and file — a
+visible **hijack** of their conversation. Instead, the Stop hook runs extraction
+in a **separate, isolated headless agent session** (`claude -p`), feeds the
+findings through the existing egress pipeline, and files — with **nothing** in the
+user's conversation or transcript. It must work in a **Claude cloud session** (the
+dominant dogfood environment) and preserves the existing egress guard unchanged.
+Claude/cloud path only; Codex (#551) and Cursor (#552) are separate.
 
 ## Intake Brief
 
-<!-- The decide-to-build framing for substantial features (advisory — write
-`skip: <reason>` on any line that doesn't apply). Intent above is the positive
-"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
-If cost-of-inaction is low and reversibility is high, ask whether this is a
-feature at all, or a leaner task. -->
-
-- **Requested by:** <who asked for this — distinct from the persona it serves>
-- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
+- **Requested by:** alex@arcade.dev (Safeword Maintainer): "make the whole
+  self-reporting experience invisible to the user in their agent — I don't want
+  their running conversation hijacked by this feature."
+- **Cost of inaction:** the current trigger hijacks the conversation — the agent
+  abandons the user's task mid-flow to run retro, surfacing nudge text, extraction
+  reasoning, and filing tool-calls. Intrusive enough that users disable the
+  feature, killing the friction stream the epic (#344) depends on.
+- **Reversibility:** two-way door. Changes the trigger's *mechanism* (run headless
+  vs. emit `additionalContext`); the egress guard, schema, dedup, ledger, and
+  filing pipeline are untouched. Revert = restore the `additionalContext` return.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Design + cloud constraints + live-fire proof: GitHub **#550** (and filed
+  example **#553** from the live fire).
+- Parent epic **#344** (self-observation); parent ticket **RV9JT4** (retro pipeline).
+- Supersedes the conversation-injection trigger FTCQGD (Claude `additionalContext`).
+- Reuses unchanged: `src/retro/` egress pipeline (`prepareEncounters`,
+  `sanitizeTextDeep`, `resolveSurface`, `buildDraft`) and `retro-trigger.ts` core
+  (substance gate, once-per-session sentinel, occurrence ledger).
+- Sibling adapters: Codex **#551**, Cursor **#552**.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- **Technical Builder (TB)** — runs safeword on a real project in their agent.
+  Wants safeword's friction reported upstream *for* them, but **never at the cost
+  of their in-flight conversation** — no tangent, no stolen turn, no clutter.
+- **Non-Technical Builder (NTB)** — drives an agent, can't read the diff. Two
+  needs compound: the no-leak guarantee (egress guard, unchanged) **and**
+  invisibility — an agent visibly going off to "file safeword bugs" mid-task is
+  confusing and erodes trust they can't audit.
+- **Safeword Maintainer (SM)** — receives the reports. Wants the friction stream
+  to keep flowing from real sessions **including cloud**, out-of-band, using
+  whatever GitHub access the environment already has (no extra token to provision).
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Invisible / out-of-band** — runs in a separate process/session; zero entries
+  in the user's conversation or transcript (no `additionalContext`, no visible
+  tool calls, no stolen turn).
+- **Headless extraction** — `claude -p` (print mode) launched by the hook: a fresh
+  isolated session that reads the transcript digest and emits findings JSON.
+- **Transcript digest** — a pre-filtered, size-capped reduction of the (multi-MB)
+  raw transcript — user/assistant text, tool-use names, short/error-ish tool
+  results — small enough to feed the extractor.
+- **Recursion sentinel** — `SAFEWORD_RETRO_CHILD=1`, set on the headless child;
+  every safeword hook early-returns when it sees it, so the child can't re-trigger
+  retro (needed because the auth-working invocation does *not* use `--bare`).
+- **Agent-owned transport** — the GitHub write goes through whatever access the
+  environment/agent has (MCP / `gh` / token); code owns the sanitized artifact,
+  the agent owns the wire. No hard `GITHUB_TOKEN` requirement.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### invisible-retro-claude.TB1 — Run retro without ever touching my conversation
 
-Uncomment and customize:
+**Persona:** Technical Builder (TB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When a session ends, I want any safeword friction reported automatically without
+> my agent breaking off its work — no nudge text, no tangent, nothing in my chat.
 
-**Persona:** Platform Operator (PO)
+#### invisible-retro-claude.TB1.AC1 — The Stop hook emits no conversation context
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+At Stop, the retro hook produces **no** `additionalContext` and no other
+conversation-visible output; extraction + filing run in a separate process.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### invisible-retro-claude.TB1.AC2 — Extraction runs in an isolated session
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+The hook invokes `claude -p` as a fresh session that does not share or append to
+the user's transcript; its reasoning and tool calls never enter the user's chat.
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+### invisible-retro-claude.TB2 — It works in a Claude cloud session
+
+**Persona:** Technical Builder (TB)
+
+> Most of my real sessions are cloud sessions, so the invisible retro has to work
+> there, not just on a local install.
+
+#### invisible-retro-claude.TB2.AC1 — Headless invocation authenticates in cloud (no `--bare`)
+
+The Claude headless invocation omits `--bare` (which breaks the cloud
+managed-proxy auth) so it authenticates via the container's managed provider.
+
+#### invisible-retro-claude.TB2.AC2 — Synchronous, completes before container reclaim
+
+Extraction runs synchronously within the Stop hook's lifetime — not a detached
+background process whose survival past session end is unguaranteed — so the work
+finishes before a cloud container is reclaimed.
+
+#### invisible-retro-claude.TB2.AC3 — A multi-MB transcript is digested, not fed raw
+
+The extractor runs over a size-capped digest of the transcript (transcripts can
+be tens of MB); the raw JSONL is never fed wholesale to the model.
+
+### invisible-retro-claude.NTB1 — No leak, and nothing confusing surfaces
+
+**Persona:** Non-Technical Builder (NTB)
+
+> I can't read the diff, so I need the no-leak guarantee intact AND I don't want
+> my agent visibly doing something I didn't ask for.
+
+#### invisible-retro-claude.NTB1.AC1 — The egress guard is unchanged and still fails closed
+
+Findings still pass the constrained schema → fail-closed `resolveSurface` →
+deny-by-default `sanitizeTextDeep` → code-assembled body before anything is filed.
+The invisibility change does not weaken or bypass any egress layer.
+
+#### invisible-retro-claude.NTB1.AC2 — The headless child can't re-trigger retro
+
+The headless child runs with `SAFEWORD_RETRO_CHILD=1`; the retro hook early-returns
+under that sentinel, so the child never spawns another retro (no recursion).
+
+### invisible-retro-claude.SM1 — The stream keeps flowing, using available GitHub access
+
+**Persona:** Safeword Maintainer (SM)
+
+> I want the friction stream to keep arriving from real (incl. cloud) sessions,
+> without making every user provision a GitHub token.
+
+#### invisible-retro-claude.SM1.AC1 — Filing uses the environment's GitHub access
+
+The CLI assembles and sanitizes the artifact; the GitHub write uses the
+agent/environment's existing access (MCP / `gh` / token). A missing `GITHUB_TOKEN`
+is not a hard failure when another transport is available (the REST transport
+still works when a token is present).
+
+#### invisible-retro-claude.SM1.AC2 — Gated to once per substantial session
+
+Extraction fires at most once per substantial session (the existing substance gate
+
++ once-per-session sentinel carry over), so the out-of-band work is bounded.
 
 ## Rave Moment
 
-<!-- Optional, and only for the highest persona-facing surface in the tree (the
-epic if there is one, else this feature). Child features under an epic that
-already named one inherit it — skip here; internal/plumbing work skips entirely.
-Advisory; never blocks intake exit. The one moment a persona would tell a peer
-about: name the moment, the expectation it beats, and the one sentence they'd
-repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
-`skip: table-stakes`.
+### invisible-retro-claude — the feature with no felt presence
 
-### <slug> — <the moment in a few words>
-
-- **Moment:** <the specific beat they'd screenshot or recount>
-- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
-- **They'd say:** "<the one repeatable, status-conferring sentence>"
--->
+- **Moment:** the builder finishes a rough safeword session and closes their
+  laptop — never noticing a thing — while the friction they hit is already a clean,
+  deduplicated, leak-free issue in the maintainer's tracker.
+- **Beats:** the current hijack, where the agent visibly abandons your task to go
+  "file safeword bugs," cluttering the chat and stealing a turn.
+- **They'd say:** "I didn't even know it was doing that — and the bug was already
+  filed."
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- A substantial Claude session (local or cloud) produces retro findings filed
+  upstream with **zero** entries in the user's conversation/transcript.
+- The extraction authenticates and completes in a cloud container, synchronously,
+  over a digested transcript — proven live (#550, #553).
+- The egress guard's leak-free + fail-closed guarantees are demonstrably unchanged.
+- Filing succeeds with no `GITHUB_TOKEN` when the agent has another GitHub path.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- defer (#552): exact Cursor `stop`/`sessionEnd` payload (`transcript_path`
+  availability) — out of scope for the Claude path.
+- defer: whether to neutralize *non-safeword* hooks in the headless child, or only
+  safeword's own via the sentinel — revisit if the child proves noisy in practice.
