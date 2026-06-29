@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import vitestConfig from '../../vitest.config.js';
-import { TIMEOUT_SETUP } from '../helpers.js';
+import { TIMEOUT_ACCEPTANCE_LANE } from '../helpers.js';
 
 const CLI_DIRECTORY = nodePath.resolve(import.meta.dirname, '../..');
 const CUCUMBER_WIRING_CHECK_ARGS = ['cucumber-js', '--dry-run', '--format', 'summary'];
@@ -31,7 +31,7 @@ describe('cucumber-js acceptance lane (SM1.AC1)', () => {
       expect(output).toMatch(/\b[1-9]\d* scenarios? \([1-9]\d* skipped\)/);
       expect(output).not.toMatch(/undefined|ambiguous|pending|passed/);
     },
-    TIMEOUT_SETUP,
+    TIMEOUT_ACCEPTANCE_LANE,
   );
 
   it('gherkin-typescript.SM1.AC1.vitest_excludes_the_dogfood_feature', () => {

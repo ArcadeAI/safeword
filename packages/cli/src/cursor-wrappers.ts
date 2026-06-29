@@ -34,6 +34,13 @@ const CURSOR_ACTION_SKILLS = [
   'review-spec',
 ] as const;
 
+// Shared verbatim by a skill's command wrapper and its rule wrapper.
+const DEBUG_DESCRIPTION =
+  "Four-phase debugging framework that ensures root cause identification before fixes. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').";
+
+const REFACTOR_DESCRIPTION =
+  "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.";
+
 export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
   {
     name: 'bdd',
@@ -43,8 +50,7 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
   },
   {
     name: 'debug',
-    description:
-      "Four-phase debugging framework that ensures root cause identification before fixes. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').",
+    description: DEBUG_DESCRIPTION,
     skillPath: 'debug/SKILL.md',
   },
   {
@@ -55,8 +61,7 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
   },
   {
     name: 'refactor',
-    description:
-      "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.",
+    description: REFACTOR_DESCRIPTION,
     skillPath: 'refactor/SKILL.md',
   },
   {
@@ -83,8 +88,7 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
   {
     name: 'safeword-debugging',
     alwaysApply: false,
-    description:
-      "Four-phase debugging framework that ensures root cause identification before fixes. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').",
+    description: DEBUG_DESCRIPTION,
     referencePath: '.claude/skills/debug/SKILL.md',
     skill: 'debug',
   },
@@ -115,8 +119,7 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
   {
     name: 'safeword-refactoring',
     alwaysApply: false,
-    description:
-      "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.",
+    description: REFACTOR_DESCRIPTION,
     referencePath: '.claude/skills/refactor/SKILL.md',
     skill: 'refactor',
   },
