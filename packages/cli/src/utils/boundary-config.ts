@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 import { readFileSafe } from './fs.js';
 
 /** Candidate dependency-cruiser config filenames, in resolution order. */
-export const DEPENDENCY_CRUISER_CONFIG_NAMES = [
+const DEPENDENCY_CRUISER_CONFIG_NAMES = [
   '.dependency-cruiser.cjs',
   '.dependency-cruiser.js',
   '.dependency-cruiser.mjs',
