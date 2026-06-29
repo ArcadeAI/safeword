@@ -64,12 +64,35 @@ const SECRETLINT_CONFIG = {
 };
 
 /**
+ * Coalesce `[start, end)` spans into a minimal disjoint set: sort by start, then
+ * fuse any span that overlaps OR abuts the previous one. This is what makes the
+ * splice below correct for ANY topology secretlint reports — its pipeline only
+ * de-dupes exactly-equal ranges, so two rules can report overlapping spans for
+ * the same credential (e.g. basicauth ⊃ github over a credentialed URL). Without
+ * coalescing, splicing overlapping spans with stale offsets can under-delete and
+ * leak a secret's tail; merged disjoint spans spliced back-to-front cannot.
+ */
+function coalesceRanges(ranges: readonly [number, number][]): [number, number][] {
+  const ascending = ranges.toSorted((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const [start, end] of ascending) {
+    const last = merged.at(-1);
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return merged;
+}
+
+/**
  * Redact secrets that the maintained `@secretlint` rule-packs detect (well-formed
  * provider keys: sendgrid, linear, notion, grafana, vercel, databricks, figma,
- * cloudflare, openai, anthropic, …). Fail-OPEN to the input: any error (the dep
- * missing in a stripped runtime, a malformed source) returns the text unchanged,
- * because the caller still runs the sync `scrubSecrets` floor over the result —
- * so a secretlint failure is never *less* safe than the regex-only path.
+ * cloudflare, openai, anthropic, …). Fail-OPEN at runtime: a `lintSource` error
+ * (malformed source, internal rule fault) returns the text unchanged, because
+ * the caller still runs the sync `scrubSecrets` floor over the result — so a
+ * secretlint *runtime* failure is never less safe than the regex-only path. (A
+ * missing dep is different: both packages are declared runtime `dependencies`,
+ * so a failed static import would throw at module load — fail-CLOSED, the retro
+ * command files nothing, which is also safe for a leak-prevention boundary.)
  */
 export async function redactKnownSecrets(text: string): Promise<string> {
   if (!text) return text;
@@ -86,10 +109,10 @@ export async function redactKnownSecrets(text: string): Promise<string> {
     return text; // floor (scrubSecrets) runs next regardless — never less safe
   }
   if (ranges.length === 0) return text;
-  // Redact back-to-front so each splice leaves earlier offsets valid.
-  const descending = ranges.toSorted((a, b) => b[0] - a[0]);
+  // Coalesce first, then redact back-to-front so each splice leaves the earlier
+  // (already-disjoint) offsets valid.
   let out = text;
-  for (const [start, end] of descending) {
+  for (const [start, end] of coalesceRanges(ranges).toReversed()) {
     out = `${out.slice(0, start)}[redacted]${out.slice(end)}`;
   }
   return out;

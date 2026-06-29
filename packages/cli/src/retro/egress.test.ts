@@ -177,6 +177,28 @@ describe('sanitizeTextDeep — secretlint provider-format coverage (SPNZKM)', ()
     const clean = 'the coverage gate blocked with no file and no number';
     expect(await redactKnownSecrets(clean)).toBe(clean);
   });
+
+  it('redactKnownSecrets isolates the secretlint layer for a secretlint-only key', async () => {
+    // sendgrid has NO regex-floor pattern — proves redactKnownSecrets itself fired.
+    const key = `SG.${'a'.repeat(22)}.${'b'.repeat(43)}`;
+    const out = await redactKnownSecrets(`key ${key} here`);
+    expect(out).not.toContain(key);
+    expect(out).toContain('[redacted]');
+  });
+
+  // Review (independent pass): @secretlint can report OVERLAPPING ranges for one
+  // credential (basicauth ⊃ github over a credentialed URL). The splice must
+  // coalesce them — a naive descending-by-start splice with stale offsets can
+  // leak the secret's tail. Verify the whole credential is gone, no remnant.
+  it('fully redacts a credential covered by overlapping secretlint ranges', async () => {
+    // Assembled (not a single literal) so the lint-kit secret scanner doesn't
+    // flag the fixture; shape is a GitHub PAT inside a credentialed clone URL.
+    const ghToken = ['ghp', 'abcdefghijklmnopqrstuvwxyz0123456789'].join('_');
+    const out = await redactKnownSecrets(`clone https://git:${ghToken}@github.com/x/y.git`);
+    expect(out).not.toContain(ghToken);
+    expect(out).not.toContain('ghp_');
+    expect(out).toContain('[redacted]');
+  });
 });
 
 describe('resolveSurface (fail-closed)', () => {
