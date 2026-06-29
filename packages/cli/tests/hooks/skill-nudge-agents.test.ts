@@ -38,12 +38,20 @@ beforeAll(() => {
   mkdirSync(nodePath.join(fixture.dir, '.project'), { recursive: true });
   // Go is a single-skill pack (golang-pro, no dispatcher) — the sole installed dir
   // is the entry, and its SKILL.md description is surfaced. Same shape as Py/TS/Rust.
-  const skill = nodePath.join(fixture.dir, '.claude/skills/golang-pro');
-  mkdirSync(skill, { recursive: true });
-  writeFileSync(
-    nodePath.join(skill, 'SKILL.md'),
-    `---\nname: golang-pro\ndescription: "${GO_SKILL_DESC}"\n---\n# Go\n`,
-  );
+  //
+  // Model the REAL `--copy` layout: the skill is copied into BOTH agent roots
+  // (.claude/skills for claude-code, .agents/skills shared by codex+cursor). The
+  // hook must treat that as one skill, not two — a regression guard for the bug
+  // where duplicate dirs made entrySkillFor return null and the description nudge
+  // silently degraded to the generic fallback in every real install.
+  for (const root of ['.claude/skills/golang-pro', '.agents/skills/golang-pro']) {
+    const skill = nodePath.join(fixture.dir, root);
+    mkdirSync(skill, { recursive: true });
+    writeFileSync(
+      nodePath.join(skill, 'SKILL.md'),
+      `---\nname: golang-pro\ndescription: "${GO_SKILL_DESC}"\n---\n# Go\n`,
+    );
+  }
 });
 
 afterAll(() => {

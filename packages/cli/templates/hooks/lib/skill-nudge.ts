@@ -101,7 +101,11 @@ export function entrySkillFor(
   language: SkillLanguage,
   installedDirs: readonly string[],
 ): string | null {
-  const own = installedDirs.filter(dir => dir.split('-')[0] === language.prefix);
+  // Dedup by name: `--copy` writes the SAME skill into every targeted agent's dir
+  // (claude-code → .claude/skills/, codex+cursor → .agents/skills/), so a single
+  // installed skill shows up once per root. Count distinct skills, not dirs —
+  // otherwise the sole-skill case looks "ambiguous" and never resolves an entry.
+  const own = [...new Set(installedDirs.filter(dir => dir.split('-')[0] === language.prefix))];
   if (language.dispatcher) {
     return own.includes(language.dispatcher) ? language.dispatcher : null;
   }
@@ -125,6 +129,9 @@ export function parseSkillDescription(skillMd: string): string | null {
     const match = (lines[i] ?? '').match(/^(\s*)description:\s*(.*)$/);
     if (!match) continue;
     const indent = (match[1] ?? '').length;
+    // Only the top-level frontmatter key — not a `description:` nested under
+    // another mapping (e.g. `metadata:\n  description: …`), which is indented.
+    if (indent !== 0) continue;
     const rest = (match[2] ?? '').trim();
 
     // Block scalar: `|`/`>` with optional chomping (`+`/`-`) / indent digits.

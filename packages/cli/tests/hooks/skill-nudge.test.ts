@@ -89,6 +89,15 @@ describe('entrySkillFor', () => {
     expect(entrySkillFor(go, ['golang-pro'])).toBe('golang-pro');
   });
 
+  it('treats the same skill copied into multiple agent dirs as ONE entry (the real --copy layout)', () => {
+    // `--copy` writes the skill into .claude/skills/ AND .agents/skills/, so the
+    // hook sees `golang-pro` once per root. Without dedup this looked "ambiguous"
+    // (length 2 → null) and the description nudge silently died in every install.
+    const go = SKILL_LANGUAGES['.go'];
+    if (!go) throw new Error('Go must be a registered skill language');
+    expect(entrySkillFor(go, ['golang-pro', 'golang-pro'])).toBe('golang-pro');
+  });
+
   it('returns null when a no-dispatcher pack has more than one dir (ambiguous)', () => {
     const ts = { prefix: 'typescript', display: 'TypeScript', concerns: [] };
     expect(entrySkillFor(ts, ['typescript-pro', 'typescript-extra'])).toBeNull();
@@ -140,6 +149,15 @@ describe('parseSkillDescription', () => {
 
   it('returns null when frontmatter has no description', () => {
     expect(parseSkillDescription('---\nname: x\n---\nbody')).toBeNull();
+  });
+
+  it('ignores a description nested under another mapping (only the top-level key)', () => {
+    // jeffallan's skills carry a `metadata:` block; a `description:` indented
+    // under it must not be mistaken for the real top-level one.
+    const nestedOnly = '---\nname: x\nmetadata:\n  description: nested\n---';
+    expect(parseSkillDescription(nestedOnly)).toBeNull();
+    const both = '---\nmetadata:\n  description: nested\ndescription: "top level"\n---';
+    expect(parseSkillDescription(both)).toBe('top level');
   });
 });
 
