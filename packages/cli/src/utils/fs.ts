@@ -162,6 +162,62 @@ function scanTreeForFile(
 }
 
 /**
+ * Find the first directory (root first, then descending) that contains a file
+ * whose name matches `predicate`. Skips hidden dirs + SUBDIRECTORY_EXCLUDE. The
+ * predicate analogue of {@link findInTree} — share this instead of re-walking
+ * the tree (and re-declaring the exclude set) in callers.
+ * @param cwd - Project root directory
+ * @param predicate - Matches a filename (e.g. a Python test-file name)
+ * @param maxDepth - Maximum directory depth to scan (default: 10)
+ * @returns Directory containing a match, or undefined
+ */
+export function findFileMatchingInTree(
+  cwd: string,
+  predicate: (filename: string) => boolean,
+  maxDepth = 10,
+): string | undefined {
+  return scanTreeForMatch(cwd, predicate, 0, maxDepth);
+}
+
+function scanTreeForMatch(
+  directory: string,
+  predicate: (filename: string) => boolean,
+  depth: number,
+  maxDepth: number,
+): string | undefined {
+  if (depth > maxDepth) return undefined;
+
+  let entries;
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+
+  if (entries.some(entry => entry.isFile() && predicate(entry.name))) {
+    return directory;
+  }
+
+  for (const entry of entries) {
+    if (
+      !(entry.isDirectory() && !entry.name.startsWith('.') && !SUBDIRECTORY_EXCLUDE.has(entry.name))
+    ) {
+      continue;
+    }
+
+    const result = scanTreeForMatch(
+      nodePath.join(directory, entry.name),
+      predicate,
+      depth + 1,
+      maxDepth,
+    );
+    if (result !== undefined) return result;
+  }
+
+  return undefined;
+}
+
+/**
  * Index multiple files in a single tree walk — the multi-file analogue of
  * `findInTree`. Returns a Map from each requested filename to the directory of
  * its **shallowest** occurrence (root-first, level-order — same ordering as
