@@ -495,20 +495,23 @@ describe('discoverLeafDirectories — polyglot union (ticket MGWZ4P)', () => {
     writeFileSync(nodePath.join(dir, 'pyproject.toml'), `[project]\nname = "${name}"\n`);
   }
 
-  it('U2 — unions Go + Cargo + uv when no JS workspace is present', () => {
-    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
-    writeFileSync(nodePath.join(context.directory, 'go.work'), 'go 1.22\n\nuse ./gosvc\n');
-    writeGoModule(context.directory, 'gosvc', 'gosvc');
+  /** Declares a go.work (gosvc), a Cargo [workspace] (crates/rscore), and a uv
+   * workspace (pypkgs/pytool) at the root, each with its member's manifest. */
+  function writeGoCargoUvManagers(root: string): void {
+    writeFileSync(nodePath.join(root, 'go.work'), 'go 1.22\n\nuse ./gosvc\n');
+    writeGoModule(root, 'gosvc', 'gosvc');
+    writeFileSync(nodePath.join(root, 'Cargo.toml'), '[workspace]\nmembers = ["crates/rscore"]\n');
+    writeRustCrate(root, nodePath.join('crates', 'rscore'), 'rscore');
     writeFileSync(
-      nodePath.join(context.directory, 'Cargo.toml'),
-      '[workspace]\nmembers = ["crates/rscore"]\n',
-    );
-    writeRustCrate(context.directory, nodePath.join('crates', 'rscore'), 'rscore');
-    writeFileSync(
-      nodePath.join(context.directory, 'pyproject.toml'),
+      nodePath.join(root, 'pyproject.toml'),
       '[tool.uv.workspace]\nmembers = ["pypkgs/pytool"]\n',
     );
-    writePythonPackage(context.directory, nodePath.join('pypkgs', 'pytool'), 'pytool');
+    writePythonPackage(root, nodePath.join('pypkgs', 'pytool'), 'pytool');
+  }
+
+  it('U2 — unions Go + Cargo + uv when no JS workspace is present', () => {
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeGoCargoUvManagers(context.directory);
 
     expect(discoverLeafDirectories(context.directory)).toEqual([
       nodePath.join(context.directory, 'crates', 'rscore'),
@@ -520,18 +523,7 @@ describe('discoverLeafDirectories — polyglot union (ticket MGWZ4P)', () => {
   it('U6 — unions a JS workspace with go.work + Cargo + uv all at the root', () => {
     // Root package.json workspaces: ['packages/*'] comes from beforeEach.
     makePackage(context.directory, 'web', { modules: ['ui'] });
-    writeFileSync(nodePath.join(context.directory, 'go.work'), 'go 1.22\n\nuse ./gosvc\n');
-    writeGoModule(context.directory, 'gosvc', 'gosvc');
-    writeFileSync(
-      nodePath.join(context.directory, 'Cargo.toml'),
-      '[workspace]\nmembers = ["crates/rscore"]\n',
-    );
-    writeRustCrate(context.directory, nodePath.join('crates', 'rscore'), 'rscore');
-    writeFileSync(
-      nodePath.join(context.directory, 'pyproject.toml'),
-      '[tool.uv.workspace]\nmembers = ["pypkgs/pytool"]\n',
-    );
-    writePythonPackage(context.directory, nodePath.join('pypkgs', 'pytool'), 'pytool');
+    writeGoCargoUvManagers(context.directory);
 
     expect(discoverLeafDirectories(context.directory)).toEqual([
       nodePath.join(context.directory, 'crates', 'rscore'),
