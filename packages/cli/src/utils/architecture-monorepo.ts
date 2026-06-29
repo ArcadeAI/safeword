@@ -14,16 +14,13 @@ import { createHash } from 'node:crypto';
 import { globSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { extractSkeleton } from './architecture-skeleton.js';
+import { extractSkeleton, PURPOSE_PLACEHOLDER } from './architecture-skeleton.js';
 import { readCargoPackageName, readCargoWorkspaceMembers } from './cargo-manifest.js';
 import { detectWorkspaces } from './depcruise-config.js';
 import { isDirectory, readFileSafe, readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectName, readUvWorkspaceMembers } from './pyproject-manifest.js';
-
-/** Placeholder purpose for a freshly modelled package awaiting prose. */
-const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
 
 /** Candidate dependency-cruiser config filenames (the shared, root-owned boundary). */
 const DEPENDENCY_CRUISER_CONFIG_NAMES = [

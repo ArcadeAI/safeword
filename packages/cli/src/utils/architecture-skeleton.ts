@@ -14,7 +14,7 @@ import nodePath from 'node:path';
 import { exists, isDirectory } from './fs.js';
 
 /** Placeholder purpose for a freshly extracted node awaiting human prose. */
-const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
+export const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
 
 /**
  * Conventional top-level directories of a Go module (ticket ZD70P1). Used as the
