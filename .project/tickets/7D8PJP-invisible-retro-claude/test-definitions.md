@@ -49,9 +49,9 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.TB2.AC3.large_transcript_is_digested_before_extraction
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 22a7e34
+- [x] GREEN 22a7e34
+- [x] REFACTOR skip: pure unit (buildDigest); clean on first write, cleanup folded into GREEN
 
 ## Rule: The egress guard is unchanged and still fails closed
 
