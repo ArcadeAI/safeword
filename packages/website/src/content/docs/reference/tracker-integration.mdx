@@ -1,0 +1,99 @@
+---
+title: Tracker Integration
+description: Mirror your local tickets one-way into GitHub Issues or Linear
+---
+
+Safeword keeps tickets as local files so your agent's gates work offline, with no network in the
+per-turn loop. The **tracker integration** projects those tickets **one-way** into your team's
+real tracker — GitHub Issues or Linear — so people see status where they already coordinate, while
+your repo stays the source of truth for the work itself.
+
+It is **off by default** (`provider: none`): an unconfigured project does nothing.
+
+## How it works
+
+- **Local files stay canonical.** The tracker is a mirror, never a second master. Safeword writes
+  outward only — it never lets the tracker drive your local tickets.
+- **Network runs only when you sync** (`safeword sync-tracker`) or in CI — never on every agent
+  turn. Gates always read local files.
+- **Idempotent.** A sidecar (`.safeword/tracker-map.json`) records which ticket maps to which
+  issue, so re-running updates the existing issue instead of creating a duplicate. A terminal
+  ticket closes its issue.
+
+## Connect a tracker
+
+```bash
+# GitHub Issues
+safeword connect github --repo owner/name
+
+# Linear
+safeword connect linear --team ENG
+```
+
+`connect` writes the `ticketBridge` block to `.safeword/config.json`, verifies auth, and seeds an
+empty sidecar. Credentials are read from your OS keychain or an environment variable — **never**
+from config and never written to logs.
+
+:::note[GitHub today; Linear projection is pending]
+**GitHub** is fully wired end-to-end. **Linear** identity works — `connect linear` and adopting an
+existing issue with `--issue` need no network — but `sync-tracker` to Linear is **not yet wired**
+(it errors with an actionable message, tracked by ticket 2TK5AD). Use GitHub for the live
+status mirror today.
+:::
+
+Once connected, `safeword ticket new <slug>` mints the tracker issue first and keys the local
+ticket to it; `--issue <key>` adopts an existing issue instead of creating one.
+
+## Sync status to the tracker
+
+```bash
+safeword sync-tracker
+```
+
+This walks your active tickets and creates/updates their issues (and closes the issue when a
+ticket is terminal). It is safe to run repeatedly. Run it whenever you want the tracker refreshed —
+or automate it in CI so nobody has to remember.
+
+### Automate in CI (GitHub Actions)
+
+Safeword does not install a workflow for you — copy this into
+`.github/workflows/sync-tracker.yml`:
+
+```yaml
+name: Sync tickets to tracker
+on:
+  push:
+    branches: [main]
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx safeword sync-tracker
+        env:
+          # GitHub: the built-in token can create/update issues in this repo.
+          # safeword reads the credential from GITHUB_TOKEN (not GH_TOKEN).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+`sync-tracker` **fails loudly (non-zero exit)** when a provider is configured but no credential
+resolves — it never silently exits 0 and does nothing, so a misconfigured CI job turns red instead
+of quietly drifting. In a non-interactive run authenticated by an `ARCADE_USER_ID` (a user
+identity, not a service account), it also warns that a lapsed grant would otherwise fail silently.
+
+## Egress
+
+The projected issue body defaults to **minimal** (title, status, labels, back-link to the
+canonical ticket) — never your spec or work-log. `body: full` is opt-in per project, and projecting
+`full` to a **public** GitHub repo emits a loud egress warning.
+
+## Configuration
+
+See the `ticketBridge` block in [Configuration](/reference/configuration/). The default is inert:
+
+```json
+{ "ticketBridge": { "provider": "none", "body": "minimal" } }
+```

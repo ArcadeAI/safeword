@@ -138,7 +138,8 @@ ticket
   .description('Create a new ticket with a Crockford Base32 ID')
   .option('--type <type>', 'Ticket type: patch, task, or feature', 'task')
   .option('--title <title>', 'Ticket title (defaults to slug)')
-  .action(async (slug: string, options: { type?: string; title?: string }) => {
+  .option('--issue <key>', 'Adopt an existing tracker issue key as the ticket identity')
+  .action(async (slug: string, options: { type?: string; title?: string; issue?: string }) => {
     const { ticketNew } = await import('./commands/ticket-new.js');
     await ticketNew(slug, options);
   });
