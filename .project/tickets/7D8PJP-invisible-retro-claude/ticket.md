@@ -2,7 +2,7 @@
 id: 7D8PJP
 slug: invisible-retro-claude
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 github: https://github.com/ArcadeAI/safeword/issues/550
@@ -86,3 +86,24 @@ on #550):
 - 2026-06-29T03:5Z Intake from /figure-it-out (#550). Parent RV9JT4. Claude/cloud
   path; Codex #551 + Cursor #552 split out. Design + cloud constraints + live-fire
   proof captured on #550. Next: spec.md (personas/JTBD), then scenario gate.
+- 2026-06-29T04:10Z Scenario gate PASSED (independent fork re-review, GATE PASS
+  after one BLOCK→fix loop; stamp recorded). 12 scenarios, full AC + dimension
+  coverage. Advancing to implement.
+
+  **Proof plan & build order (leaf-first, outside-in TDD):**
+  1. `buildDigest(rawTranscript, cap)` — unit. Proves TB2.AC3 (markers survive,
+     oversized tool-result body omitted, ≤ cap).
+  2. `buildExtractArgv(opts)` — unit. Proves TB2.AC1 (`-p`, `--output-format json`,
+     no `--bare`, `--allowed-tools` Read-only).
+  3. `isRetroChild(env)` predicate — unit. Proves NTB1.AC2 (read half).
+  4. `runHeadlessExtraction` runner (subprocess boundary injected) — units for
+     TB1.AC2 (spawn contract: digest in, neutral cwd, child env has the sentinel)
+     and TB2.AC2 (awaited, not detached) and TB1.AC1 fail-open (error → silent).
+  5. `stop-retro.ts` rewrite — hook wiring. Proves TB1.AC1 (no additionalContext),
+     NTB1.AC2 (early-return on sentinel), SM1.AC2 (both arms via the existing
+     sentinel + substance gate).
+  6. `safeword retro --auto-extract` — command wiring. Runs extractor → existing
+     egress pipeline. Proves NTB1.AC1 (egress unchanged, end-to-end).
+  7. Transport selection (agent vs REST) — proves SM1.AC1 (no token → agent;
+     token → REST).
+  Boundaries mocked: the `claude -p` subprocess and the GitHub transport only.
