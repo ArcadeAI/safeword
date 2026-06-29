@@ -10,6 +10,8 @@ Step-aware quality review at TDD phase boundaries. Run it as an internal self-ch
 
 These per-step reviews are **advisory self-checks** — the only hard gates in the implement phase are the commit ledger (`test-definitions.md` annotations) and the done-gate. Use these reviews to catch problems early; don't treat them as blocking walls.
 
+**Stakes set depth.** Advisory means it won't block you — not that it can be shallow. The done-gate only runs tests, so a bug your eyes miss here ships. Review each step as if no later gate re-reads this code.
+
 **Visibility:** ordinary RED/GREEN/REFACTOR reviews stay quiet. Do not surface a chat-facing review after each checkbox flip unless you found a real blocker, a user/scope decision, or a risky external dependency/API finding. Report the review/refactor work in the implementation-exit summary.
 
 ## Detect Step
@@ -31,9 +33,11 @@ Focused review (~1 minute). Check the test that was just written:
 - **Atomic?** Tests ONE behavior. Red flag: multiple When/Then pairs.
 - **Right assertions?** Meaningful expectations, not `.toBeTruthy()` or `.not.toThrow()`.
 - **Behavior, not implementation?** Tests observable outcomes. Red flag: mocking internals, checking call counts.
-- **Fails for the right reason?** Missing behavior, not syntax errors.
+- **Fails for the right reason — confirmed by the run, not the eye?** Execute the test now and read the actual failure: it must report the _missing behavior_, not a syntax, import, or setup error. This is the one bullet you don't judge by reading — the run is the evidence.
 - **Right test type?** Load the testing skill and consult its scope hierarchy (E2E > Integration > Unit). Was a higher-scope test practical here? Did we drop to unit when integration would catch more?
 - **Coverage adequacy?** Consult testing guide's bug detection matrix. Ask: "What could still break that this test wouldn't catch?" Flag gaps — missing edge cases, error paths, or boundary values. **Where a gap goes:** a missing scenario is a scope change, not a mid-implement edit — defer it to a follow-up ticket, or loop back to define-behavior and re-run the scenario-gate. Don't silently append scenarios to a signed-off `test-definitions.md`.
+
+**Vacuity guard (the external check).** A test that would pass without the feature proves nothing. The RED→GREEN transition is the proof it's wired to the behavior: it must be failing _now_, and the minimal implementation is what turns it green. If a test ever passes _before_ its implementation exists, it's vacuous — fix the test, not the code.
 
 If issues found: fix before implementing. If clean: commit and proceed to implementation.
 

@@ -3,7 +3,7 @@
 When bumping the CLI version, update **both** files:
 
 1. `packages/cli/package.json` — source of truth for npm
-2. `marketplace.json` → `plugins[0].version` — source of truth for Claude Code plugin
+2. `.claude-plugin/marketplace.json` → `plugins[0].version` — source of truth for Claude Code plugin
 
 Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. A pre-commit hook blocks commits where the two versions differ.
 

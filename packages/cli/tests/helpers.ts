@@ -26,6 +26,8 @@ export const TIMEOUT_QUICK = 10_000;
 export const TIMEOUT_SYNC = 30_000;
 /** Setup commands that may run bun install with warm cache (60s) */
 export const TIMEOUT_SETUP = 60_000;
+/** Acceptance lanes can spawn their own runners and need headroom under full-suite load (120s) */
+export const TIMEOUT_ACCEPTANCE_LANE = 120_000;
 /** bun install operations under load or cold cache (120s) */
 export const TIMEOUT_BUN_INSTALL = 120_000;
 
@@ -50,6 +52,15 @@ export const SAFEWORD_VERSION = `file:${SAFEWORD_PATH}`;
 
 export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
+};
+
+/**
+ * Skip ONLY the skills pull (`npx skills add`) while still installing JS/Python
+ * dependencies. Use for Go setup tests that need real deps (e.g. eslint) but must
+ * not make the slow/flaky skills network call.
+ */
+export const SKIP_SKILLS_ENV = {
+  SAFEWORD_SKIP_SKILLS: '1',
 };
 
 const SAFEWORD_BASE_DEV_DEPENDENCIES = {

@@ -13,6 +13,7 @@ import { parseFrontmatter } from './hierarchy.js';
 import { evaluateAcGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
+import { activeScenarioKey } from './skill-nudge.js';
 
 export interface ActiveTicketInfo {
   phase: string | undefined;
@@ -329,6 +330,30 @@ export function deriveTddStep(projectDirectory: string, ticketFolder: string): s
     return parseTddStep(content);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Identify the scenario currently being worked, for per-scenario skill-nudge
+ * dedup. Reads the active ticket's test-definitions.md and returns the
+ * in-progress scenario heading, or undefined (then the caller falls back to a
+ * session-scoped dedup key). Mirrors deriveTddStep's file access.
+ */
+export function deriveActiveScenario(
+  projectDirectory: string,
+  ticketFolder: string,
+): string | undefined {
+  const testDefinitionsPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticketFolder,
+    'test-definitions.md',
+  );
+  if (!existsSync(testDefinitionsPath)) return undefined;
+  try {
+    return activeScenarioKey(readFileSync(testDefinitionsPath, 'utf8'));
+  } catch {
+    return undefined;
   }
 }
 

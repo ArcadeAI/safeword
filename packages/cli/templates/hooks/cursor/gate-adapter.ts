@@ -230,6 +230,142 @@ export interface ClaudeGateResult {
   failed: boolean;
 }
 
+const GIT_GLOBAL_OPTIONS_WITH_VALUE = new Set([
+  '-C',
+  '-c',
+  '--config-env',
+  '--exec-path',
+  '--git-dir',
+  '--namespace',
+  '--work-tree',
+]);
+
+export function requiresFailClosedShellGate(params: { command: string }): boolean {
+  const { command } = params;
+  return splitShellSegments(command).some(segment => isGitCommitSegment(parseShellWords(segment)));
+}
+
+function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let segmentStart = 0;
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if ((char === '"' || char === "'") && quote === undefined) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = undefined;
+      continue;
+    }
+    if (quote !== undefined) continue;
+
+    const next = command[index + 1];
+    if (char === ';' || char === '\n' || char === '|' || (char === '&' && next === '&')) {
+      segments.push(command.slice(segmentStart, index));
+      segmentStart = char === '&' && next === '&' ? index + 2 : index + 1;
+      if (char === '&' && next === '&') index += 1;
+    }
+  }
+
+  segments.push(command.slice(segmentStart));
+  return segments;
+}
+
+function parseShellWords(segment: string): string[] {
+  const words: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  for (const char of segment) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if ((char === '"' || char === "'") && quote === undefined) {
+      quote = char;
+      continue;
+    }
+    if (char === quote) {
+      quote = undefined;
+      continue;
+    }
+    if (quote === undefined && /\s/.test(char)) {
+      if (current !== '') {
+        words.push(current);
+        current = '';
+      }
+      continue;
+    }
+    current += char;
+  }
+
+  if (current !== '') words.push(current);
+  return words;
+}
+
+function isGitCommitSegment(words: string[]): boolean {
+  let index = skipCommandPrefix(words);
+  if (words[index] !== 'git') return false;
+
+  index += 1;
+  while (index < words.length && words[index]?.startsWith('-')) {
+    const option = words[index];
+    if (option !== undefined && optionTakesSeparateValue(option)) index += 1;
+    index += 1;
+  }
+
+  return words[index] === 'commit';
+}
+
+function skipCommandPrefix(words: string[]): number {
+  // A leading run of `VAR=val` assignments is a per-command environment, not the
+  // executable (`GIT_AUTHOR_NAME=bot git commit`). Skip it before resolving the
+  // command word — otherwise the assignment is read as the command name and a
+  // `git commit` slips the fail-closed gate.
+  let index = skipEnvironmentAssignments(words, 0);
+  if (words[index] === 'command') index += 1;
+  if (words[index] !== 'env') return index;
+
+  // `env [NAME=value ...] command` — skip past `env` and its own assignments.
+  index += 1;
+  return skipEnvironmentAssignments(words, index);
+}
+
+function skipEnvironmentAssignments(words: string[], start: number): number {
+  let index = start;
+  while (index < words.length && isEnvironmentAssignment(words[index] ?? '')) {
+    index += 1;
+  }
+  return index;
+}
+
+function isEnvironmentAssignment(token: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
+}
+
+function optionTakesSeparateValue(option: string): boolean {
+  if (option.includes('=')) return false;
+  return GIT_GLOBAL_OPTIONS_WITH_VALUE.has(option);
+}
+
 /** Message shown when the gate itself could not run, so the action is fail-closed. */
 export const GATE_UNAVAILABLE_REASON =
   'Safeword gate could not run (it crashed or failed to start), so this action was blocked. ' +
@@ -294,4 +430,29 @@ export function decideFromGate(result: ClaudeGateResult): CursorDecision {
     return toCursorDecision(GATE_UNAVAILABLE_REASON);
   }
   return toCursorDecision(claudeDenialReason(result.stdout));
+}
+
+// The shell-specific decision lives in before-shell-execution.ts: it calls
+// `requiresFailClosedShellGate` BEFORE spawning the delegated gate (so non-commit
+// commands are allowed without a spawn, avoiding the deadlock) and `decideFromGate`
+// AFTER. There is intentionally no combined helper here — keeping the two steps in
+// the hook is what lets it skip the spawn entirely for out-of-scope commands.
+
+/**
+ * Translate a Claude PostToolUse `hookSpecificOutput.additionalContext` payload
+ * into Cursor's `additional_context` field. Returns `{}` (inject nothing) for
+ * empty/non-JSON output or a missing/empty context — the shared output side of
+ * the Cursor postToolUse adapters (mirrors the input helpers above).
+ */
+export function translatePostOutput(stdout: string): Record<string, unknown> {
+  if (stdout.trim() === '') return {};
+  try {
+    const parsed = JSON.parse(stdout) as {
+      hookSpecificOutput?: { additionalContext?: unknown };
+    };
+    const context = parsed.hookSpecificOutput?.additionalContext;
+    return typeof context === 'string' && context !== '' ? { additional_context: context } : {};
+  } catch {
+    return {};
+  }
 }

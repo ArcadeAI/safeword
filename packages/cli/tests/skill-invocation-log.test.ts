@@ -109,7 +109,10 @@ describe('skill-invocation log: helper invocation in /verify and /audit (147)', 
           'Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available.',
         );
         expect(content).toContain(
-          'The helper also resolves Claude remote-container ids and Codex thread ids from the runtime environment',
+          'The helper also resolves Claude remote-container ids from the runtime environment',
+        );
+        expect(content).toContain(
+          'on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper',
         );
         expect(content).toContain(
           'Feature tickets must fail closed if no real current-session proof can be logged.',

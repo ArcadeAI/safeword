@@ -165,7 +165,7 @@ jobs:
       - name: Version consistency check
         run: |
           CLI_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
-          MARKETPLACE_VERSION=$(node -e "console.log(require('./marketplace.json').plugins[0].version)")
+          MARKETPLACE_VERSION=$(node -e "console.log(require('./.claude-plugin/marketplace.json').plugins[0].version)")
           if [ "$CLI_VERSION" != "$MARKETPLACE_VERSION" ]; then
             echo "::error::Version mismatch: CLI=$CLI_VERSION Marketplace=$MARKETPLACE_VERSION"
             exit 1

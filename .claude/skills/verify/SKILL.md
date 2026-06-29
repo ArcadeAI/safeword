@@ -14,7 +14,7 @@ Prove a ticket meets its criteria. Works with or without an active ticket.
 
 ## Invocation log
 
-This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids and Codex thread ids from the runtime environment, so the fallback below can run without hand-picking an id. Hand-writing verify.md cannot produce this feature-gate proof.
+This skill is required at the feature-ticket done-gate (ticket 147). The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /verify was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing verify.md cannot produce this feature-gate proof.
 
 !`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
@@ -69,6 +69,21 @@ not a `test-plan` suite).
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 cd "$PROJECT_DIR" || exit 1
 
+# Local evidence preflight: many repo tests create throwaway git repos. Some
+# agent sandboxes cannot initialize repos in temp dirs, which makes those tests
+# fail for environment reasons instead of product reasons.
+LOCAL_EVIDENCE_LIMITS=""
+if GIT_PROBE_DIR="$(mktemp -d 2> /dev/null)" && git init "$GIT_PROBE_DIR" > /dev/null 2>&1; then
+  rm -rf "$GIT_PROBE_DIR"
+else
+  LOCAL_EVIDENCE_LIMITS="${LOCAL_EVIDENCE_LIMITS}
+- Temporary git repos: local environment cannot run git init in temp dirs. Treat git-backed test failures as local environment limitations until reproduced outside the sandbox or in CI."
+  [ -n "${GIT_PROBE_DIR:-}" ] && rm -rf "$GIT_PROBE_DIR"
+fi
+if [ -n "$LOCAL_EVIDENCE_LIMITS" ]; then
+  printf '%s\n' "Local evidence limits detected:${LOCAL_EVIDENCE_LIMITS}"
+fi
+
 # Resolve a test-plan-capable safeword CLI — prefer the locally installed one
 # only if it actually supports test-plan.
 supports_test_plan() {
@@ -120,6 +135,10 @@ bash -c "$(run_safeword test-plan --kind typecheck --format sh)"
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. **Typecheck is part of the gate, not optional:** when the ticket changed TypeScript, a passing targeted-test run is not "ready" until `test-plan --kind typecheck` (or `/lint`, which runs `tsc --noEmit`) is green — CI's lint job runs it and will go red otherwise. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.
+
+If `LOCAL_EVIDENCE_LIMITS` is non-empty, keep running checks that can run, but classify affected failures as `⚠️ Local environment limitation: <reason>`. The common Cursor sandbox symptom is `.git/hooks/: Operation not permitted` during `git init`. A failure caused only by that preflight is not proof of product failure; confirm outside the sandbox or in CI before calling it real.
+
+If a full Vitest suite fails only because `packages/cli/tests/integration/cucumber-bdd.test.ts` times out while `bun run --cwd packages/cli test:bdd` passes directly, classify it as `⚠️ Local environment limitation: Cucumber wrapper timed out under full-suite load`. Report the isolated Cucumber lane as the Gherkin evidence and rerun that direct lane once. Treat it as a real product failure only when the direct Cucumber lane fails or CI reproduces it.
 
 Regression fixtures covered by `safeword test-plan` and its tests:
 
@@ -191,8 +210,8 @@ The Status section uses the existing Verify Checklist format. Format with these 
 ```
 ## Verify Checklist
 
-**Test Suite:** ✓ X/X tests pass (or ❌ N failures, or ⏭️ Skipped — no test suite)
-**Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⏭️ Skipped — no test:bdd script)
+**Test Suite:** ✓ X/X tests pass (or ❌ N failures, or ⚠️ Local environment limitation: <reason>, or ⏭️ Skipped — no test suite)
+**Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⚠️ Local environment limitation: <reason>, or ⏭️ Skipped — no test:bdd script)
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
@@ -201,6 +220,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
 **Reconcile:** ✅ No pattern deviation (or ⚠️ N deviations, M missing uplevel ticket — soft, never blocks)
 **Experience:** ✅ No new friction (or ⚠️ N friction points / dulled peak, or ⏭️ N/A — not persona-facing) — soft, never blocks
+**Evidence limits:** ✅ None (or ⚠️ <local limitation>; affected failures are not product evidence until reproduced outside the limit)
 ```
 
 **PR Scope** is the final "one purpose" guard. It blocks the all-green collapse: if it is ❌, the ticket is not ready to mark done until the unrelated work is reverted, split into another ticket/PR, or explicitly accepted as a scope change and reflected in the ticket artifacts.
@@ -258,7 +278,7 @@ Only include this section when there are concrete forward actions the agent will
 
 #### All-green collapse
 
-When **all Status checks pass, PR Scope is ✅/skipped for a valid reason, AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
+When **all Status checks pass, PR Scope is ✅/skipped for a valid reason, Evidence limits is ✅ None, AND zero decisions AND zero actions**, collapse the entire report to a single-line verdict:
 
 > Ready to mark done.
 

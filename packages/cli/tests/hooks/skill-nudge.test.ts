@@ -1,0 +1,214 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  activeScenarioKey,
+  decideSkillNudge,
+  entrySkillFor,
+  languageForFile,
+  parseSkillDescription,
+  SKILL_LANGUAGES,
+  skillNudgeLine,
+} from '../../templates/hooks/lib/skill-nudge.js';
+
+describe('languageForFile', () => {
+  it('maps a .go file to Go', () => {
+    expect(languageForFile('pkg/server/handler.go')?.prefix).toBe('golang');
+  });
+
+  it('matches Go test files too (first .go edit is often the test)', () => {
+    expect(languageForFile('pkg/server/handler_test.go')?.prefix).toBe('golang');
+  });
+
+  it('is case-insensitive on the extension', () => {
+    expect(languageForFile('MAIN.GO')?.prefix).toBe('golang');
+  });
+
+  it('maps the other skill-backed languages by extension', () => {
+    expect(languageForFile('src/app.py')?.prefix).toBe('python');
+    expect(languageForFile('src/app.ts')?.prefix).toBe('typescript');
+    expect(languageForFile('src/App.tsx')?.prefix).toBe('typescript');
+    expect(languageForFile('src/main.rs')?.prefix).toBe('rust');
+  });
+
+  it('returns null for files with no skill-backed language', () => {
+    expect(languageForFile('README.md')).toBeNull();
+    expect(languageForFile('Makefile')).toBeNull();
+    expect(languageForFile('styles.css')).toBeNull();
+  });
+
+  it('does NOT fire on plain JS — the TS skill is TypeScript-scoped, not JS', () => {
+    // The typescript pack detects .js/.jsx/.mjs/.cjs for tooling, but the nudge
+    // deliberately registers only .ts/.tsx. Pin that so adding a .js row later
+    // can't silently route JS edits to a TS skill.
+    expect(languageForFile('src/app.js')).toBeNull();
+    expect(languageForFile('src/app.mjs')).toBeNull();
+    expect(languageForFile('src/app.jsx')).toBeNull();
+  });
+});
+
+describe('skillNudgeLine', () => {
+  it('falls back to the prefixed skill set with illustrative concerns when no entry resolves', () => {
+    const go = languageForFile('main.go');
+    if (!go) throw new Error('Go must be a registered skill language');
+    const line = skillNudgeLine(go);
+    expect(line).toContain('golang-*');
+    expect(line).toContain('concurrency?');
+    expect(line).toContain('Revise the current file if it applies.');
+    // Drift guard: the fallback must not enumerate actual skill names.
+    expect(line).not.toContain('golang-context');
+  });
+
+  it('points directly at the entry skill and surfaces its description verbatim', () => {
+    const go = languageForFile('main.go');
+    if (!go) throw new Error('Go must be a registered skill language');
+    const line = skillNudgeLine(go, {
+      name: 'golang-pro',
+      description: 'Idiomatic Go: concurrency, generics, error handling.',
+    });
+    expect(line).toContain('`golang-pro`');
+    expect(line).toContain('Idiomatic Go: concurrency, generics, error handling.');
+    expect(line).toContain('Revise the current file if it applies.');
+    // With a real entry, the generic "skill that fits this work" prompt is gone.
+    expect(line).not.toContain('that fits this work');
+  });
+
+  it('falls back when the entry has an empty description (degrade-not-fail)', () => {
+    const go = languageForFile('main.go');
+    if (!go) throw new Error('Go must be a registered skill language');
+    const line = skillNudgeLine(go, { name: 'golang-pro', description: ' '.repeat(3) });
+    expect(line).toContain('golang-*');
+    expect(line).toContain('concurrency?');
+  });
+});
+
+describe('entrySkillFor', () => {
+  // All four shipped languages are single-skill (no dispatcher) — incl. Go now.
+  it('picks the sole installed dir for a single-skill pack (no dispatcher)', () => {
+    const go = SKILL_LANGUAGES['.go'];
+    if (!go) throw new Error('Go must be a registered skill language');
+    expect(entrySkillFor(go, ['golang-pro'])).toBe('golang-pro');
+  });
+
+  it('treats the same skill copied into multiple agent dirs as ONE entry (the real --copy layout)', () => {
+    // `--copy` writes the skill into .claude/skills/ AND .agents/skills/, so the
+    // hook sees `golang-pro` once per root. Without dedup this looked "ambiguous"
+    // (length 2 → null) and the description nudge silently died in every install.
+    const go = SKILL_LANGUAGES['.go'];
+    if (!go) throw new Error('Go must be a registered skill language');
+    expect(entrySkillFor(go, ['golang-pro', 'golang-pro'])).toBe('golang-pro');
+  });
+
+  it('returns null when a no-dispatcher pack has more than one dir (ambiguous)', () => {
+    const ts = { prefix: 'typescript', display: 'TypeScript', concerns: [] };
+    expect(entrySkillFor(ts, ['typescript-pro', 'typescript-extra'])).toBeNull();
+  });
+
+  it('ignores dirs of other languages when counting', () => {
+    const ts = { prefix: 'typescript', display: 'TypeScript', concerns: [] };
+    expect(entrySkillFor(ts, ['typescript-pro', 'python-pro'])).toBe('typescript-pro');
+  });
+
+  // The dispatcher capability is retained (dormant — no shipped language declares
+  // one after the Go→jeffallan switch) so re-adopting a multi-skill pack like
+  // samber stays a small change. Exercise it with a synthetic language.
+  const multi = { prefix: 'multi', display: 'Multi', dispatcher: 'multi-router', concerns: [] };
+
+  it('picks the declared dispatcher when it is installed (multi-skill pack)', () => {
+    expect(entrySkillFor(multi, ['multi-router', 'multi-a', 'multi-b'])).toBe('multi-router');
+  });
+
+  it('returns null when the declared dispatcher is absent — never guesses one of many', () => {
+    expect(entrySkillFor(multi, ['multi-a', 'multi-b'])).toBeNull();
+  });
+});
+
+describe('parseSkillDescription', () => {
+  it('reads an inline double-quoted description', () => {
+    const md = '---\nname: golang-how-to\ndescription: "Orchestrator, routes skills."\n---\n# Body';
+    expect(parseSkillDescription(md)).toBe('Orchestrator, routes skills.');
+  });
+
+  it('reads an inline plain (unquoted) description', () => {
+    const md = '---\nname: typescript-pro\ndescription: Use when writing advanced types.\n---\n';
+    expect(parseSkillDescription(md)).toBe('Use when writing advanced types.');
+  });
+
+  it('reads a folded block scalar (joins lines with spaces)', () => {
+    const md = ['---', 'description: >', '  Line one', '  line two.', '---'].join('\n');
+    expect(parseSkillDescription(md)).toBe('Line one line two.');
+  });
+
+  it('reads a literal block scalar (preserves newlines)', () => {
+    const md = ['---', 'description: |', '  Line one', '  line two', '---'].join('\n');
+    expect(parseSkillDescription(md)).toBe('Line one\nline two');
+  });
+
+  it('returns null when there is no frontmatter', () => {
+    expect(parseSkillDescription('# Just a heading\n\nprose')).toBeNull();
+  });
+
+  it('returns null when frontmatter has no description', () => {
+    expect(parseSkillDescription('---\nname: x\n---\nbody')).toBeNull();
+  });
+
+  it('ignores a description nested under another mapping (only the top-level key)', () => {
+    // jeffallan's skills carry a `metadata:` block; a `description:` indented
+    // under it must not be mistaken for the real top-level one.
+    const nestedOnly = '---\nname: x\nmetadata:\n  description: nested\n---';
+    expect(parseSkillDescription(nestedOnly)).toBeNull();
+    const both = '---\nmetadata:\n  description: nested\ndescription: "top level"\n---';
+    expect(parseSkillDescription(both)).toBe('top level');
+  });
+});
+
+describe('activeScenarioKey', () => {
+  const complete = ['- [x] RED a', '- [x] GREEN a', '- [x] REFACTOR a'].join('\n');
+  const inProgress = ['- [x] RED a', '- [ ] GREEN a', '- [ ] REFACTOR a'].join('\n');
+
+  it('returns the heading of the in-progress scenario', () => {
+    const content = `### Scenario: alpha\n${inProgress}`;
+    expect(activeScenarioKey(content)).toBe('Scenario: alpha');
+  });
+
+  it('advances to the first unfinished scenario (skips completed ones)', () => {
+    const content = `### Scenario: alpha\n${complete}\n### Scenario: beta\n${inProgress}`;
+    expect(activeScenarioKey(content)).toBe('Scenario: beta');
+  });
+
+  it('returns undefined when every scenario is complete', () => {
+    const content = `### Scenario: alpha\n${complete}`;
+    expect(activeScenarioKey(content)).toBeUndefined();
+  });
+
+  it('returns undefined when there are no scenarios', () => {
+    expect(activeScenarioKey('# Notes\n\njust prose')).toBeUndefined();
+  });
+});
+
+describe('decideSkillNudge', () => {
+  const installed = new Set(['golang']);
+
+  it('fires for a Go edit when golang skills are installed', () => {
+    const nudge = decideSkillNudge('a/b/main.go', installed, 'pkg.DEV1.AC1.x');
+    expect(nudge?.line).toContain('golang-*');
+    expect(nudge?.dedupKey).toBe('golang:pkg.DEV1.AC1.x');
+  });
+
+  it('does not fire when golang skills are not installed', () => {
+    expect(decideSkillNudge('a/b/main.go', new Set(), 'scn')).toBeNull();
+  });
+
+  it('does not fire for a non-Go file', () => {
+    expect(decideSkillNudge('a/b/app.py', installed, 'scn')).toBeNull();
+  });
+
+  it('falls back to a session-scoped dedup key when no active scenario', () => {
+    expect(decideSkillNudge('main.go', installed, undefined)?.dedupKey).toBe('golang:session');
+  });
+
+  it('keys dedup per scenario so a new scenario re-fires', () => {
+    const a = decideSkillNudge('main.go', installed, 'scn-a')?.dedupKey;
+    const b = decideSkillNudge('main.go', installed, 'scn-b')?.dedupKey;
+    expect(a).not.toBe(b);
+  });
+});

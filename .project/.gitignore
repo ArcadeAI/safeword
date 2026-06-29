@@ -1,6 +1,7 @@
 # Safeword - transient session state (auto-managed)
 /quality-state*.json
 /cursor-run-identity.json
+/codex-run-identity.json
 /failure-counts.json
 /skill-invocations.log
 /re-entry.md

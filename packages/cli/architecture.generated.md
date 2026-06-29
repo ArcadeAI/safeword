@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 0cda9f7dcc2445efaf5133be35b8f94b8cf836fdf485b67250f696d0c87e2768
+fingerprint: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62
 ---
 
 # Architecture
@@ -49,9 +49,17 @@ No description yet — awaiting prose.
 
 ### retro
 
-<!-- reconciled: 5e471f85848aae71e46164d34d110198eb102bb0edd9c4f0f9ac85c35f62d0f5 -->
+<!-- reconciled: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62 -->
 
 `src/retro`
+
+No description yet — awaiting prose.
+
+### skills
+
+<!-- reconciled: b3f28d8c3e9bdad22efef89e1925cd740e93bd7b5341a4d45a228b0212a63a12 -->
+
+`src/skills`
 
 No description yet — awaiting prose.
 

@@ -223,6 +223,20 @@ timeout = 30
 statusMessage = "Checking whether to run a safeword retro"
 `;
 
+// Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex
+// PostToolUse supports hookSpecificOutput.additionalContext (GA), so the adapter
+// forwards the Claude hook's nudge verbatim.
+const CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH = `
+[[hooks.PostToolUse]]
+matcher = "^(apply_patch|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-skill-nudge.ts"'
+timeout = 30
+statusMessage = "Surfacing language-skill guidance"
+`;
+
 // MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
 // context7 uses the hosted streamable-HTTP transport (url); playwright uses
 // stdio (command/args) — matching MCP_SERVERS. Shipped via the codex/config.toml
@@ -316,6 +330,7 @@ const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Objec
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
   'cursor-run-identity.json',
+  'codex-run-identity.json',
   'failure-counts.json',
   'skill-invocations.log',
   're-entry.md',
@@ -620,6 +635,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/ledger-git.ts': { template: 'hooks/lib/ledger-git.ts' },
     '.safeword/hooks/lib/ledger-validation.ts': { template: 'hooks/lib/ledger-validation.ts' },
     '.safeword/hooks/lib/scenario-format.ts': { template: 'hooks/lib/scenario-format.ts' },
+    '.safeword/hooks/lib/skill-nudge.ts': { template: 'hooks/lib/skill-nudge.ts' },
     '.safeword/hooks/lib/test-runner.ts': { template: 'hooks/lib/test-runner.ts' },
     '.safeword/hooks/lib/auto-upgrade.ts': { template: 'hooks/lib/auto-upgrade.ts' },
     '.safeword/hooks/lib/auto-upgrade-lock.ts': { template: 'hooks/lib/auto-upgrade-lock.ts' },
@@ -678,6 +694,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/post-tool-quality.ts': {
       template: 'hooks/post-tool-quality.ts',
     },
+    '.safeword/hooks/post-tool-skill-nudge.ts': {
+      template: 'hooks/post-tool-skill-nudge.ts',
+    },
     '.safeword/hooks/post-tool-bypass-warn.ts': {
       template: 'hooks/post-tool-bypass-warn.ts',
     },
@@ -698,6 +717,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/codex/stop.ts': {
       template: 'hooks/codex/stop.ts',
+    },
+    '.safeword/hooks/codex/post-tool-skill-nudge.ts': {
+      template: 'hooks/codex/post-tool-skill-nudge.ts',
     },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
@@ -926,6 +948,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/cursor/post-tool-quality.ts': {
       template: 'hooks/cursor/post-tool-quality.ts',
+    },
+    '.safeword/hooks/cursor/post-tool-skill-nudge.ts': {
+      template: 'hooks/cursor/post-tool-skill-nudge.ts',
     },
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },
@@ -1161,6 +1186,19 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         content: CODEX_SESSION_START_HOOK_PATCH,
         marker: '.safeword/hooks/session-codex-start.ts',
         supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      // PostToolUse skill-nudge retrofit (#482): add-if-missing onto existing
+      // configs, marker = the hook path so a present block suppresses the append.
+      // Own unpatch removes this block; the primary patch (last on reversed
+      // unpatch) owns file removal. Mirrors the MCP-server retrofit below.
+      {
+        operation: 'append',
+        content: CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
+        marker: '.safeword/hooks/codex/post-tool-skill-nudge.ts',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',

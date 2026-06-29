@@ -1,0 +1,43 @@
+# Skill-Pack Efficacy Gate: Prove Behavior Change, Not Provenance
+
+Covers: skill-pack adoption gate, efficacy eval, headroom probe, deterministic grader, control-vs-treatment, picker-cost, experiments/ harness role.
+
+**Finding:** A third-party coding-skill pack (samber/cc-skills-golang and the Python/TS/Rust equivalents, #482/#538/#539/#540) earns its **always-on picker cost** only if it measurably changes what the agent writes. (Cost mechanism, verified against `code.claude.com/docs/en/skills`: at session start Claude Code loads every installed skill's **name+description** — not the body, which is lazy — and all descriptions share **one budget = 1% of the context window** (`skillListingBudgetFraction`, ~2k tokens on a 200k model). Names are always kept; when many skills overflow the 1%, descriptions are **shortened then the least-used are dropped**. So a 50-skill pack doesn't cost 50× a description — it's bounded by that 1% pool. The non-obvious catch: that pool is **shared with safeword's own skills**, so installing ~50 Go skills can shorten/crowd-out safeword's own skill descriptions and strip the keywords Claude matches on — `/doctor` shows the damage. A **dispatcher cannot gate this**; all installed descriptions load independently. The only levers are installing fewer skills, `skillOverrides` name-only, or `disable-model-invocation: true` (which removes a description from context but also stops the model auto-loading that skill).) Provenance — permissive license, stars, active maintenance, language-core focus — gets a pack *onto the shortlist* but is **not** evidence it works. The only proof is a behavior-delta eval. Adopt nothing on stars alone.
+
+**Scope — what this gate proves and what it does NOT.** The gate measures **content efficacy: does the skill change behavior _given it is in the agent's context_** (force-fed / pre-pointed by path). That is a **necessary** condition — if force-feeding the skill doesn't move a trap, the picker surfacing it is moot, so kill it. It is **not sufficient** to justify the picker cost: passing the content gate does NOT prove the live picker/native description-triggering actually surfaces this skill among ~40 others at the right moment. That self-selection step is a **separate, still-open question** (the Go spike pre-pointed both arms at the one relevant skill, so it never tested it — see the README CORRECTION). Treat picker reliability as a distinct, live multi-skill check, not something this gate certifies.
+
+## The protocol (the durable asset — the per-language trap is disposable)
+
+1. **Headroom-probe FIRST — control-only, N≈4.** Give N agents the trap prompt with **no** skill. If they already write the idiomatic answer, the trap has **zero headroom** and is dead — pick a subtler idiom. Do this *before* building the full eval.
+2. **High-headroom idioms are usually the ones standard linters DON'T catch.** Heuristic, not law: if a default linter flags it, the model has usually already internalized the rule and complies — that's *why* it tends to be low-headroom. So don't reach for `ruff B006` / `no-explicit-any` / a stock `clippy` lint and assume headroom — probe it; most are already-avoided.
+3. **Deterministic grader, no LLM judge.** Often a **custom AST/grep check**, not the off-the-shelf linter. Use a linter rule only when the model genuinely violates a non-default rule.
+4. **Control vs treatment, N≈4.** Treatment = the skill **force-fed into context** (pre-pointed by path / pasted body), NOT relying on the live picker — this isolates content efficacy. Pass = a clean **0/N → N/N swing** on a trap with *no defensible exception*. Bump N only if the swing is murky (it's a go/no-go gate, not a production rate). A clean swing here certifies the *content*, not that the picker will surface it — that's the separate check in the Scope note above.
+5. **No swing → the pack is decorative.** Don't ship it — it's pure picker-cost for zero benefit. Try the alternative pack, or author/sponsor one.
+
+**Shortcut — mine the pack's own evals before probing.** If the pack publishes control-vs-treatment numbers (samber's `cc-skills-golang/EVALUATIONS.md` does — 98% with-skill vs 56% without across 3,395 assertions, with per-skill deltas), use them as a **headroom prior**: skills already at ceiling there (e.g. `golang-spf13-viper` 100%→98%, −2pp) are decorative and don't earn picker cost, while high-delta skills (e.g. `golang-samber-do` 19%→100%, +81pp) are where the lift lives. Spend your own probe budget on the high-delta skills and on confirming the picker actually surfaces them. Caveat: their treatment feeds the skill into context (content efficacy, same scoping as ours) and some graders are human-judged with no inter-rater reliability reported — so it's a prior to *prioritize* probing, not a substitute for it. A pack shipping its own honest evals is itself a sourcing signal.
+
+## The Go evidence (ticket D50Q0T, `experiments/go-skill-directive/`)
+
+- **Race trap, graded by `go test -race`:** 12/12 controls already wrote safe code → **0% headroom, abandoned.** The built-in-tool grader was the trap's downfall, not its strength.
+- **Context-in-struct, graded by a hand-built Go AST checker** (`checker/main.go` — no Go linter flags it): control **0/4 → treatment 4/4.** Real lift on a subtle, no-exception idiom. This is the shape to copy.
+- **Sample caveat:** N=4, one trap, one language, one model generation — a clean *directional* signal, not a production rate. The swing is what gates go/no-go; don't read the 4/4 as a reliability number.
+
+## The Python evidence (ticket #538, `experiments/python-skill-eval/`)
+
+- **Structured-concurrency trap (fail-fast: cancel siblings when one fetch fails), graded by behavior not API (TaskGroup vs bare-gather sibling leak):** control **4/4 already correct** (3× `asyncio.TaskGroup`, 1× manual `gather`+cancel) → **0 headroom, abandoned, arms not built.** `jeffallan/python-pro` can't lift what the model already does.
+
+## The load-bearing finding (two languages now): core idioms are mostly 0-headroom on frontier models
+
+Across Go and Python, the **obvious** idioms these packs teach — data races, structured concurrency — are **already internalized by Opus-class models (2026)**. Headroom lives only in a narrow band of genuinely-subtle, **no-defensible-exception** idioms; Go found exactly one (context-in-struct), Python found none in the first probe. Python's flexibility makes that band *thinner* — most candidates (Protocol-vs-ABC, blocking-in-async for a tiny read, `typing.IO`-vs-Protocol) have a defensible alternative, which disqualifies them as clean traps.
+
+**Implication for adoption.** "Make a frontier agent write better *core* idioms" is the **weakest** value thesis — it's where headroom is scarcest. If a pack is to earn its always-on cost, the likelier sources of real lift are the **untested axes**: (1) **library/framework-specific** skills (samber's grpc/viper/temporal — knowledge the model hasn't memorized), and (2) **weaker agents** (Codex/Cursor on non-frontier models, where the floor is lower; samber's own 56%→98% was surely measured against a weaker baseline than Opus). Probe *those* before believing a pack's core-idiom value — don't re-probe core idioms.
+
+**Process lesson:** we shipped delivery for four languages before proving one moved the needle. Backwards. Prove headroom (cheap control-only probe) *before* building delivery, not after.
+
+## What the harness should be (decided via /figure-it-out)
+
+- **The method is the durable artifact (this doc).** Per-language trap+grader are **disposable spikes** under `experiments/<lang>-skill-eval/` — matching the existing `experiments/` convention (`gepa-review-spec`, `go-skill-directive`): self-contained, deterministic grader, manual orchestration, results logged in the ticket, directional go/no-go.
+- **Do NOT productize it or put it in CI** — it runs ~5–10× lifetime (per language, per pack-version bump), not a regression invariant; the `Workflow` primitive already covers orchestration if manual fan-out ever hurts. Generalize a shared runner only on the *third* eval (rule of three), not speculatively.
+- The current manual / N=4 / "directional" form is **correct for a go/no-go gate** — don't gold-plate it.
+
+**When:** run this gate before adopting any language skill pack, and re-run on a pack-version bump. It is a **Done-when** item in the language tickets, not optional prose.

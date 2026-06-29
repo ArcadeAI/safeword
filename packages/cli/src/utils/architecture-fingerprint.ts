@@ -17,6 +17,7 @@ import { extractSkeleton } from './architecture-skeleton.js';
 import { readCargoDependencyNames } from './cargo-manifest.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
+import { readPyprojectDependencies } from './pyproject-manifest.js';
 
 /** Candidate dependency-cruiser config filenames, in resolution order. */
 const DEPENDENCY_CRUISER_CONFIG_NAMES = [
@@ -79,6 +80,10 @@ function readDependencyNames(projectDirectory: string): string[] {
   // Cargo dependencies (ticket YKFA5X): a crate's Cargo.toml dependency keys are part
   // of the shape too. A non-Rust project has no Cargo.toml, so this is a no-op there.
   for (const crate of readCargoDependencies(projectDirectory)) names.add(crate);
+  // Python dependencies (ticket HWSEPV): the `[project] dependencies` distribution names.
+  // A non-Python project has no pyproject.toml, so this is a no-op there.
+  for (const distribution of readPyprojectDependencyNames(projectDirectory))
+    names.add(distribution);
   return [...names].toSorted(byString);
 }
 
@@ -92,6 +97,17 @@ function readCargoDependencies(projectDirectory: string): string[] {
   try {
     return readCargoDependencyNames(
       readFileSync(nodePath.join(projectDirectory, 'Cargo.toml'), 'utf8'),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** PEP 621 dependency distribution names from a directory's `pyproject.toml`, or `[]`. */
+function readPyprojectDependencyNames(projectDirectory: string): string[] {
+  try {
+    return readPyprojectDependencies(
+      readFileSync(nodePath.join(projectDirectory, 'pyproject.toml'), 'utf8'),
     );
   } catch {
     return [];
