@@ -395,6 +395,36 @@ function formatCoverageTicketLabel(ticketId: string): string {
     : formatTicketReference(ticketId.slice(0, dashIndex), ticketId.slice(dashIndex + 1));
 }
 
+function ticketReferenceOf(id: string, labelById: ReadonlyMap<string, string>): string {
+  const title = labelById.get(id);
+  return title === undefined ? id : formatTicketReference(id, title);
+}
+
+/**
+ * Warn-only checks (dangling + cycle) over one directed relation field —
+ * depends_on (soft, AKZJXC) and blocked_on (hard, MBGQ89). Generic over the edge
+ * set; only the field name and cycle wording differ.
+ */
+function relationAdvisoriesFor(
+  nodes: { id: string; dependsOn: string[] }[],
+  danglingField: string,
+  cycleLabel: string,
+  labelById: ReadonlyMap<string, string>,
+): string[] {
+  const dangling = findDanglingDependencies(nodes).map(
+    ({ from, missing }) =>
+      `${ticketReferenceOf(from, labelById)}: ${danglingField} ${missing} — no such ticket (dangling ref)`,
+  );
+  const cyclic = findTicketsInCycles(nodes);
+  const cycle =
+    cyclic.length > 0
+      ? [
+          `${cycleLabel} cycle among: ${cyclic.map(id => ticketReferenceOf(id, labelById)).join(', ')} (break the loop)`,
+        ]
+      : [];
+  return [...dangling, ...cycle];
+}
+
 /**
  * Surface structured-relation problems as non-blocking advisories (ticket
  * AKZJXC): a `depends_on` pointing at a ticket absent from the corpus (dangling
@@ -414,34 +444,10 @@ function findRelationAdvisories(cwd: string): string[] {
   }
 
   const labelById = new Map(entries.map(entry => [entry.id, entry.title]));
-  const refOf = (id: string): string => {
-    const title = labelById.get(id);
-    return title === undefined ? id : formatTicketReference(id, title);
-  };
-
-  // Same warn-only checks (dangling + cycle) over each directed relation field:
-  // depends_on (soft, AKZJXC) and blocked_on (hard, MBGQ89). The finders are
-  // generic over the edge set; only the field name and cycle wording differ.
-  const advisoriesFor = (
-    nodes: { id: string; dependsOn: string[] }[],
-    danglingField: string,
-    cycleLabel: string,
-  ): string[] => {
-    const dangling = findDanglingDependencies(nodes).map(
-      ({ from, missing }) =>
-        `${refOf(from)}: ${danglingField} ${missing} — no such ticket (dangling ref)`,
-    );
-    const cyclic = findTicketsInCycles(nodes);
-    const cycle =
-      cyclic.length > 0
-        ? [`${cycleLabel} cycle among: ${cyclic.map(id => refOf(id)).join(', ')} (break the loop)`]
-        : [];
-    return [...dangling, ...cycle];
-  };
+  const statusById = new Map(entries.map(entry => [entry.id, entry.status]));
 
   // MBGQ89: a blocked_on_override is stale once every listed blocker is `done`
   // (done auto-unblocks, so the override no longer does anything — clean it up).
-  const statusById = new Map(entries.map(entry => [entry.id, entry.status]));
   const staleOverrides = entries
     .filter(
       entry =>
@@ -451,19 +457,21 @@ function findRelationAdvisories(cwd: string): string[] {
     )
     .map(
       entry =>
-        `${refOf(entry.id)}: blocked_on_override is stale — every blocker is done; remove it`,
+        `${ticketReferenceOf(entry.id, labelById)}: blocked_on_override is stale — every blocker is done; remove it`,
     );
 
   return [
-    ...advisoriesFor(
+    ...relationAdvisoriesFor(
       entries.map(entry => ({ id: entry.id, dependsOn: entry.dependsOn })),
       'depends_on',
       'dependency',
+      labelById,
     ),
-    ...advisoriesFor(
+    ...relationAdvisoriesFor(
       entries.map(entry => ({ id: entry.id, dependsOn: entry.blockedOn })),
       'blocked_on',
       'blocked_on',
+      labelById,
     ),
     ...staleOverrides,
   ];
