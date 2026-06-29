@@ -847,7 +847,7 @@
 - **Spike: hooks dispatched from the CLI (latency + wiring) (D6GTXY)** (in_progress, epic: —)
   Falsify (or confirm) the load-bearing assumption behind moving safeword's hook layer into the CLI — that a CLI-dispatched hook can run at ~the direct-script latency baseline — with the smallest possible prototype, and produce a go/no-go + migration strategy.
   → `.project/tickets/D6GTXY-hooks-into-cli-spike`
-- **Let projects track feature surfaces during BDD (DBF1FW)** (in_progress, epic: —)
+- **Let projects track feature surfaces during BDD (DBF1FW)** (done, epic: —)
   Let projects keep a durable inventory of runtime/context feature surfaces that BDD intake, specs, and scenario coverage can use during discovery and implementation.
   external issue: https://github.com/ArcadeAI/safeword/issues/509
   → `.project/tickets/DBF1FW-feature-surfaces-bdd`

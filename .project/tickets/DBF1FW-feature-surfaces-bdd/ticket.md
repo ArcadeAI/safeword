@@ -2,8 +2,8 @@
 id: DBF1FW
 slug: feature-surfaces-bdd
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - scaffold starter feature-surface inventory at <namespace-root>/surfaces.md
   - wire surfaces into the existing project-knowledge path/config contract, including paths.surfaces
@@ -25,7 +25,7 @@ done_when:
   - safeword check reports affected surfaces missing @surface.<slug> coverage without failing the check
   - targeted tests cover customer-style fixtures outside the safeword dogfood layout
 created: 2026-06-27T13:05:01.120Z
-last_modified: 2026-06-27T21:11:25Z
+last_modified: 2026-06-29T03:34:31Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/509
 ---
 
@@ -37,6 +37,7 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/509
 
 ## Work Log
 
+- 2026-06-29T03:34:31Z Complete: done - Merged current main, resolved ticket/package conflicts, confirmed generated verify plan now runs `bun run test` only, and recorded passing CI evidence: 3933/3937 Vitest tests with 4 skipped, 173/173 BDD scenarios, and release-gate tests. Marked DBF1FW done so the ready-PR ticket closure guard can pass.
 - 2026-06-28T19:46:12Z Complete: verify/audit follow-up - Added explicit TypeScript, Python, Go, and Rust setup coverage proving each supported language-pack customer project receives `.project/surfaces.md`; reran lint/typecheck, targeted setup tests, full Vitest, feature BDD, generated typecheck/build plans, and audit checks. Full generated verify plan remains blocked only by the existing Python zero-test lane in `experiments/gepa-review-spec/gepa`.
 - 2026-06-27T21:11:25Z Complete: verify - Lint/typecheck/format/diff checks pass; focused surfaces tests, feature BDD, and full Vitest pass. Full `safeword test-plan --kind verify` still exits on the existing Python zero-test lane in `experiments/gepa-review-spec/gepa`, so the ticket remains in verify rather than done.
 - 2026-06-27T15:03:32Z Complete: implement - Reframed surfaces as runtime/context coverage, added `@surface.<slug>` advisory coverage checks, updated BDD/review guidance and dogfood surfaces, and revalidated focused BDD, targeted Vitest, lint/typecheck, and diff checks.

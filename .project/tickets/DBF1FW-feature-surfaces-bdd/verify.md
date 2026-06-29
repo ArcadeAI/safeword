@@ -2,9 +2,9 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 3808/3811 Vitest tests pass, 3 skipped; targeted setup surfaces language matrix ✓ 11/11 tests pass. Warning: `safeword test-plan --kind verify` exits 5 after the Python unittest lane discovers 0 tests in `experiments/gepa-review-spec/gepa`.
-**Gherkin:** ✅ Acceptance lane passes
-**Build:** ✅ Success
+**Test Suite:** ✓ Current generated verify plan is `bun run test`; CI passes with 3933/3937 Vitest tests passing and 4 skipped. Targeted setup surfaces language matrix ✓ 11/11 tests pass.
+**Gherkin:** ✅ Acceptance lane passes with 173/173 scenarios and 3258/3258 steps.
+**Build:** ✅ Success, including release-gate build and dogfood parity tests.
 **Lint:** ✅ Clean
 **Scenarios:** All 25 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope; includes accepted review follow-up ticket `SFGCR1` for dependency advisory tracking only.
@@ -13,6 +13,6 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction; Walked Technical Builder through BDD intake -> spec -> check advisory flow; worst step = naming the matching `@surface.<slug>` tag for punctuation-heavy surface names; new steps vs before = 1 optional `surfaces.md` lookup.
 
-## Agent's next actions
+## Done Decision
 
-- Resolve or ticket the existing Python zero-test lane so full `safeword test-plan --kind verify` exits cleanly before marking DBF1FW done.
+Ready to close: the previous Python zero-test blocker is no longer part of the generated verify plan after merging current `main`, and the latest CI run for PR #545 passed the full test job.
