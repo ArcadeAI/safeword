@@ -83,6 +83,16 @@ type WorkspaceDetection =
 
 const ABSENT: WorkspaceDetection = { status: 'absent' };
 
+/** A workspace whose member globs/dirs were read. */
+const parsed = (patterns: string[]): WorkspaceDetection => ({ status: 'parsed', patterns });
+
+/** A workspace declared at `config` (by `manager`) whose member list could not be parsed. */
+const unreadable = (manager: string, config: string): WorkspaceDetection => ({
+  status: 'unreadable',
+  manager,
+  config,
+});
+
 /** Globs to expand plus the present-but-unparseable managers to surface. */
 export interface WorkspaceDiscovery {
   patterns: string[];
@@ -181,12 +191,10 @@ function detectPackageJsonWorkspaces(projectDirectory: string): WorkspaceDetecti
   if (workspaces === undefined) return ABSENT;
 
   const list = workspaceList(workspaces);
-  if (list === undefined) {
-    return { status: 'unreadable', manager: 'package.json workspaces', config: 'package.json' };
-  }
+  if (list === undefined) return unreadable('package.json workspaces', 'package.json');
   const patterns = list.filter((entry): entry is string => typeof entry === 'string');
   // An explicitly-empty list is a deliberate "no workspaces", not an unparse — stay absent.
-  return patterns.length > 0 ? { status: 'parsed', patterns } : ABSENT;
+  return patterns.length > 0 ? parsed(patterns) : ABSENT;
 }
 
 /** The glob list of a package.json `workspaces` field — a bare array or `{ packages: [] }`. */
@@ -212,7 +220,7 @@ function hasRecognizedManifest(directory: string): boolean {
 
 /** The package/edge model the root index renders over. */
 export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
-  const { patterns, unreadable } = discoverWorkspaces(projectDirectory);
+  const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
   const packages: PackageNode[] = resolveLeafDirectories(projectDirectory, patterns)
     .map(dir => ({
       name: packageName(dir),
@@ -233,7 +241,7 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
   }
   edges.sort((a, b) => byString(a.from, b.from) || byString(a.to, b.to));
 
-  return { packages, edges, unreadableWorkspaces: unreadable };
+  return { packages, edges, unreadableWorkspaces };
 }
 
 /**
@@ -311,9 +319,7 @@ function detectUvWorkspace(projectDirectory: string): WorkspaceDetection {
   if (content === undefined) return ABSENT; // no pyproject.toml
   if (!hasTomlTable(content, 'tool.uv.workspace')) return ABSENT; // a non-uv pyproject
   const members = readUvWorkspaceMembers(content);
-  return members === undefined
-    ? { status: 'unreadable', manager: 'uv workspace', config: 'pyproject.toml' }
-    : { status: 'parsed', patterns: members };
+  return members === undefined ? unreadable('uv workspace', 'pyproject.toml') : parsed(members);
 }
 
 function manifestDependencyNames(packageDirectory: string): string[] {
@@ -358,9 +364,7 @@ function detectPnpmWorkspaces(projectDirectory: string): WorkspaceDetection {
 
   const start = lines.findIndex(line => /^packages:\s*$/.test(line));
   const globs = start === -1 ? [] : collectPnpmGlobs(lines.slice(start + 1));
-  return globs.length > 0
-    ? { status: 'parsed', patterns: globs }
-    : { status: 'unreadable', manager: 'pnpm workspaces', config: 'pnpm-workspace.yaml' };
+  return globs.length > 0 ? parsed(globs) : unreadable('pnpm workspaces', 'pnpm-workspace.yaml');
 }
 
 /** Collect the include globs from a pnpm `packages:` block, stopping at the dedent. */
@@ -404,12 +408,10 @@ function detectGoWork(projectDirectory: string): WorkspaceDetection {
   const directories: string[] = [];
   collectGoWorkBlock(lines, directories);
   collectGoWorkSingleLines(lines, directories);
-  if (directories.length > 0) return { status: 'parsed', patterns: directories };
+  if (directories.length > 0) return parsed(directories);
   // No member dir parsed: a malformed `use` (present but junk) is unreadable; a go.work
   // with no `use` directive at all declares no members and stays absent.
-  return lines.some(line => /^\s*use\b/.test(line))
-    ? { status: 'unreadable', manager: 'go.work', config: 'go.work' }
-    : ABSENT;
+  return lines.some(line => /^\s*use\b/.test(line)) ? unreadable('go.work', 'go.work') : ABSENT;
 }
 
 /** Member directories from a `use (\n  ./x\n)` block, stopping at the closing paren. */
@@ -456,7 +458,5 @@ function detectCargoWorkspace(projectDirectory: string): WorkspaceDetection {
   if (!hasTomlTable(content, 'workspace')) return ABSENT; // a single crate, not a workspace
   if (!hasTomlTableKey(content, 'workspace', 'members')) return ABSENT; // auto-discovery, out of scope
   const members = readCargoWorkspaceMembers(content);
-  return members === undefined
-    ? { status: 'unreadable', manager: 'Cargo [workspace]', config: 'Cargo.toml' }
-    : { status: 'parsed', patterns: members };
+  return members === undefined ? unreadable('Cargo [workspace]', 'Cargo.toml') : parsed(members);
 }
