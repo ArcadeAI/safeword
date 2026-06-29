@@ -21,6 +21,12 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess
 
 - [ ] RED
@@ -64,6 +70,18 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 ## Rule: Filing uses the environment's GitHub access, gated once per session
 
 ### Scenario: invisible-retro-claude.SM1.AC1.filing_succeeds_without_a_github_token
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: invisible-retro-claude.SM1.AC1.token_present_uses_the_rest_transport
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_once_when_sentinel_unset
 
 - [ ] RED
 - [ ] GREEN

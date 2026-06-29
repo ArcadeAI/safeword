@@ -22,12 +22,21 @@ Feature: Invisible retro — synchronous headless claude -p extraction
       Then it writes no `hookSpecificOutput.additionalContext`
       And it writes no other conversation-visible output on stdout
 
+    @invisible-retro-claude.TB1.AC1
+    Scenario: invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors
+      Given a substantial Claude session at Stop
+      And the headless extractor exits non-zero or returns invalid JSON
+      When the retro stop hook runs
+      Then it writes no `hookSpecificOutput.additionalContext`
+      And it does not throw or block Stop (exits zero)
+      And it files nothing
+
     @invisible-retro-claude.TB1.AC2
     Scenario: invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess
       Given a substantial Claude session at Stop
       When the retro stop hook decides to run
-      Then it invokes the extraction as a separate `claude -p` subprocess
-      And the user's transcript is not appended to by the extraction
+      Then it spawns a separate `claude -p` subprocess given the transcript digest as input
+      And the subprocess runs from a neutral cwd, not appending to the user's transcript
 
   Rule: It authenticates and completes in a Claude cloud session
 
@@ -36,7 +45,7 @@ Feature: Invisible retro — synchronous headless claude -p extraction
       Given the Claude headless extractor argv is constructed
       Then it contains `-p` and `--output-format json`
       And it does not contain `--bare`
-      And it sets `--allowed-tools` to a read-only set
+      And `--allowed-tools` permits `Read` and excludes write and Bash tools
 
     @invisible-retro-claude.TB2.AC2
     Scenario: invisible-retro-claude.TB2.AC2.extraction_runs_synchronously
@@ -47,11 +56,11 @@ Feature: Invisible retro — synchronous headless claude -p extraction
 
     @invisible-retro-claude.TB2.AC3
     Scenario: invisible-retro-claude.TB2.AC3.large_transcript_is_digested_before_extraction
-      Given a transcript larger than the digest cap
+      Given a transcript larger than the digest cap containing the assistant marker "MARKER_X" and a tool-use named "TOOL_Y"
       When the digest is built
       Then the digest is at or below the cap
-      And it retains user/assistant text and tool-use names
-      And the raw transcript is never passed whole to the extractor
+      And the digest contains "MARKER_X" and "TOOL_Y"
+      And the digest omits an oversized raw tool-result body present in the transcript
 
   Rule: The egress guard is unchanged and still fails closed
 
@@ -78,6 +87,19 @@ Feature: Invisible retro — synchronous headless claude -p extraction
       When `safeword retro --auto-extract` files a finding
       Then the assembled, sanitized artifact is written via the agent transport
       And the command does not fail for lack of a token
+
+    @invisible-retro-claude.SM1.AC1
+    Scenario: invisible-retro-claude.SM1.AC1.token_present_uses_the_rest_transport
+      Given a `GITHUB_TOKEN` is present
+      When `safeword retro --auto-extract` files a finding
+      Then the write is performed by the existing REST transport
+
+    @invisible-retro-claude.SM1.AC2
+    Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_once_when_sentinel_unset
+      Given a substantial session whose once-per-session sentinel is not set
+      When the retro stop hook runs
+      Then it invokes extraction exactly once
+      And it sets the once-per-session sentinel
 
     @invisible-retro-claude.SM1.AC2
     Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_at_most_once_per_session
