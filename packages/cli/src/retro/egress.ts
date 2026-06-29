@@ -20,6 +20,11 @@ import { creator } from '@secretlint/secretlint-rule-preset-recommend';
 
 import { safewordInternalTail } from '../../templates/hooks/lib/self-report.js';
 
+// The inert sentinel BOTH secret layers emit. Load-bearing invariant: it must
+// carry no secret/path/email shape, so when `sanitizeTextDeep` runs the sync
+// floor over secretlint's output the downstream passes never re-match it.
+const REDACTED = '[redacted]';
+
 // High-signal secret token shapes. Covers structured (`_`) AND hyphenated
 // provider keys — the latter (sk-ant-…, sk-proj-…) are exactly what shows up in
 // AI-coding transcripts, the dominant input here (review #543).
@@ -53,7 +58,7 @@ const SECRET_PATTERNS: readonly RegExp[] = [
  */
 export function scrubSecrets(text: string): string {
   let out = text;
-  for (const pattern of SECRET_PATTERNS) out = out.replaceAll(pattern, '[redacted]');
+  for (const pattern of SECRET_PATTERNS) out = out.replaceAll(pattern, () => REDACTED);
   return out;
 }
 
@@ -113,7 +118,7 @@ export async function redactKnownSecrets(text: string): Promise<string> {
   // (already-disjoint) offsets valid.
   let out = text;
   for (const [start, end] of coalesceRanges(ranges).toReversed()) {
-    out = `${out.slice(0, start)}[redacted]${out.slice(end)}`;
+    out = `${out.slice(0, start)}${REDACTED}${out.slice(end)}`;
   }
   return out;
 }
