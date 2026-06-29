@@ -21,6 +21,9 @@ const GENERATED_DOC = 'architecture.generated.md';
 /** The human-authored architecture narrative at the project root. */
 const ARCHITECTURE_MD = 'ARCHITECTURE.md';
 
+/** The frontmatter key holding the recorded shape fingerprint (mirrors the CLI writer). */
+const FINGERPRINT_KEY = 'fingerprint';
+
 /** The one-line, non-blocking advisory surfaced at the done-gate when the shape moved. */
 export const ARCHITECTURE_DOCUMENT_NUDGE =
   'ARCHITECTURE.md may be stale: this ticket moved the top-level architecture shape ' +
@@ -49,8 +52,8 @@ export function parseGeneratedFingerprint(content: string): string | undefined {
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(content)?.[1];
   if (frontmatter === undefined) return undefined;
   for (const line of frontmatter.split(/\r?\n/)) {
-    if (line.startsWith('fingerprint:')) {
-      const value = line.slice('fingerprint:'.length).trim();
+    if (line.startsWith(`${FINGERPRINT_KEY}:`)) {
+      const value = line.slice(FINGERPRINT_KEY.length + 1).trim();
       return value.length > 0 ? value : undefined;
     }
   }
