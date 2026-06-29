@@ -73,6 +73,8 @@
     "@xhmikosr/decompress-unzip": "8.2.1",
     "esbuild": "^0.28.1",
     "file-type": "^21.3.2",
+    "js-yaml": "^4.3.0",
+    "markdown-it": "^14.2.0",
     "turbo": "2.9.18",
     "yaml": "^2.9.0",
     "zod-validation-error": "^4.0.0"
