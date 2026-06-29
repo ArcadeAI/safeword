@@ -15,6 +15,7 @@ import {
   createTypeScriptPackageJson,
   removeTemporaryDirectory,
   setupOrThrow,
+  SKIP_SKILLS_ENV,
   TIMEOUT_BUN_INSTALL,
   TIMEOUT_SETUP,
   writeTestFile,
@@ -84,7 +85,7 @@ describe('scaffolded lane runs green (AC3)', () => {
 
     goDirectory = createTemporaryDirectory();
     createGoProject(goDirectory);
-    await setupOrThrow(goDirectory);
+    await setupOrThrow(goDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
   }, TIMEOUT_BUN_INSTALL * 2);
 
   afterAll(() => {

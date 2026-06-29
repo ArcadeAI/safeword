@@ -1,0 +1,26 @@
+package counter
+
+import (
+	"sync"
+	"testing"
+)
+
+// TestCounterConcurrent exercises the trap: many goroutines (HTTP requests) call
+// Inc() at once. Run with -race. Fails if the implementation has a data race
+// (detector) OR loses increments (final count != N — what a bare count++ does).
+func TestCounterConcurrent(t *testing.T) {
+	c := New()
+	const n = 500
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c.Inc()
+		}()
+	}
+	wg.Wait()
+	if got := c.Count(); got != n {
+		t.Fatalf("Count() = %d, want %d (lost increments — unsynchronized)", got, n)
+	}
+}

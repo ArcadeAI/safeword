@@ -6,8 +6,14 @@
   },
   "docs": {
     "sources": [
-      { "type": "local", "path": "README.md" },
-      { "type": "local", "path": "packages/website/src/content/docs" }
+      {
+        "type": "local",
+        "path": "README.md"
+      },
+      {
+        "type": "local",
+        "path": "packages/website/src/content/docs"
+      }
     ]
   }
 }

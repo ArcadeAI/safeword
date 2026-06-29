@@ -437,3 +437,22 @@ export function decideFromGate(result: ClaudeGateResult): CursorDecision {
 // commands are allowed without a spawn, avoiding the deadlock) and `decideFromGate`
 // AFTER. There is intentionally no combined helper here — keeping the two steps in
 // the hook is what lets it skip the spawn entirely for out-of-scope commands.
+
+/**
+ * Translate a Claude PostToolUse `hookSpecificOutput.additionalContext` payload
+ * into Cursor's `additional_context` field. Returns `{}` (inject nothing) for
+ * empty/non-JSON output or a missing/empty context — the shared output side of
+ * the Cursor postToolUse adapters (mirrors the input helpers above).
+ */
+export function translatePostOutput(stdout: string): Record<string, unknown> {
+  if (stdout.trim() === '') return {};
+  try {
+    const parsed = JSON.parse(stdout) as {
+      hookSpecificOutput?: { additionalContext?: unknown };
+    };
+    const context = parsed.hookSpecificOutput?.additionalContext;
+    return typeof context === 'string' && context !== '' ? { additional_context: context } : {};
+  } catch {
+    return {};
+  }
+}
