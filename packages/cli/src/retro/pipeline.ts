@@ -8,7 +8,7 @@
 // front-ends (transcript miner now; a future `safeword report` later).
 
 import { buildDraft } from './draft.js';
-import { resolveSurface, sanitizeText } from './egress.js';
+import { resolveSurface, sanitizeTextDeep } from './egress.js';
 import { type Finding, normalizeFinding } from './finding.js';
 import { shortHash } from './hash.js';
 import type { Encounter } from './triage.js';
@@ -22,8 +22,11 @@ export function manifestationKey(finding: Finding): string {
   return shortHash([finding.whatHappened, finding.whyFriction, finding.repro].join('\n'));
 }
 
-/** Turn raw agent findings into sanitized, fail-closed encounters ready to file. */
-export function prepareEncounters(rawFindings: readonly unknown[]): Encounter[] {
+/**
+ * Turn raw agent findings into sanitized, fail-closed encounters ready to file.
+ * Async because the egress scrub (`sanitizeTextDeep`) runs the secretlint pass.
+ */
+export async function prepareEncounters(rawFindings: readonly unknown[]): Promise<Encounter[]> {
   const encounters: Encounter[] = [];
 
   for (const raw of rawFindings) {
@@ -33,13 +36,19 @@ export function prepareEncounters(rawFindings: readonly unknown[]): Encounter[] 
     const surface = resolveSurface(finding.safewordSurface);
     if (surface === undefined) continue;
 
+    const [title, whatHappened, whyFriction, repro] = await Promise.all([
+      sanitizeTextDeep(finding.title),
+      sanitizeTextDeep(finding.whatHappened),
+      sanitizeTextDeep(finding.whyFriction),
+      sanitizeTextDeep(finding.repro),
+    ]);
     const sanitized: Finding = {
       category: finding.category,
-      title: sanitizeText(finding.title),
+      title,
       safewordSurface: surface,
-      whatHappened: sanitizeText(finding.whatHappened),
-      whyFriction: sanitizeText(finding.whyFriction),
-      repro: sanitizeText(finding.repro),
+      whatHappened,
+      whyFriction,
+      repro,
     };
 
     encounters.push({ draft: buildDraft(sanitized), manifestation: manifestationKey(sanitized) });

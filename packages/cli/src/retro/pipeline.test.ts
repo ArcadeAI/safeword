@@ -14,21 +14,23 @@ const rawFinding = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('prepareEncounters', () => {
-  it('turns a valid raw finding into an encounter with the resolved surface', () => {
-    const [encounter] = prepareEncounters([rawFinding()]);
+  it('turns a valid raw finding into an encounter with the resolved surface', async () => {
+    const [encounter] = await prepareEncounters([rawFinding()]);
     expect(encounter).toBeDefined();
     expect(encounter?.draft.signature.startsWith('retro:')).toBe(true);
     expect(encounter?.draft.body).toContain('hooks/stop-quality.ts');
     expect(encounter?.manifestation).toBeTruthy();
   });
 
-  it('drops a finding whose safeword_surface does not resolve (fail closed)', () => {
-    const encounters = prepareEncounters([rawFinding({ safeword_surface: 'src/billing.ts' })]);
+  it('drops a finding whose safeword_surface does not resolve (fail closed)', async () => {
+    const encounters = await prepareEncounters([
+      rawFinding({ safeword_surface: 'src/billing.ts' }),
+    ]);
     expect(encounters).toEqual([]);
   });
 
-  it('drops a finding that fails the schema (bad category)', () => {
-    const encounters = prepareEncounters([rawFinding({ category: 'whatever' })]);
+  it('drops a finding that fails the schema (bad category)', async () => {
+    const encounters = await prepareEncounters([rawFinding({ category: 'whatever' })]);
     expect(encounters).toEqual([]);
   });
 
@@ -45,8 +47,8 @@ describe('prepareEncounters', () => {
     expect(manifestationKey(base)).not.toBe(manifestationKey({ ...base, repro: 'repro two' }));
   });
 
-  it('sanitizes free-text fields so no secret or customer path reaches the draft', () => {
-    const [encounter] = prepareEncounters([
+  it('sanitizes free-text fields so no secret or customer path reaches the draft', async () => {
+    const [encounter] = await prepareEncounters([
       rawFinding({
         what_happened: 'blocked editing /Users/jdoe/app/billing.ts with key sk_live_TESTONLY1',
       }),
@@ -60,8 +62,8 @@ describe('prepareEncounters', () => {
 
   // Review (#543): the modern leak formats must not reach the assembled body
   // end-to-end (LLM-provider keys + Bearer + relative customer paths).
-  it('scrubs hyphenated provider keys, Bearer tokens, and relative customer paths from the draft', () => {
-    const [encounter] = prepareEncounters([
+  it('scrubs hyphenated provider keys, Bearer tokens, and relative customer paths from the draft', async () => {
+    const [encounter] = await prepareEncounters([
       rawFinding({
         what_happened:
           'used sk-ant-api03-AbCdEf012345_-ghIJklMnOpQrStuv editing src/customers/acme/secret.ts',
@@ -73,5 +75,20 @@ describe('prepareEncounters', () => {
     expect(body).not.toContain('sk-ant');
     expect(body).not.toContain('src/customers/acme/secret.ts');
     expect(body).not.toContain('abcdef0123456789');
+  });
+
+  // SPNZKM: a well-formed modern provider key the broad regex would NOT catch
+  // (secretlint's maintained anthropic rule fires on the exact 108-char shape)
+  // must not reach the assembled body — proves the secretlint layer is wired in
+  // end-to-end, not just unit-tested.
+  it('scrubs a well-formed secretlint-only provider key from the draft', async () => {
+    const wellFormed = `sk-ant-api03-${'A'.repeat(93)}AA`;
+    const [encounter] = await prepareEncounters([
+      rawFinding({ what_happened: `key ${wellFormed} hit the gate` }),
+    ]);
+    expect(encounter).toBeDefined();
+    const body = encounter?.draft.body ?? '';
+    expect(body).not.toContain(wellFormed);
+    expect(body).toContain('[redacted]');
   });
 });

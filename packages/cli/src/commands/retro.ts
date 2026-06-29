@@ -63,7 +63,7 @@ export async function runRetro(
   }
 
   const rawFindings = await dependencies.extract(transcript);
-  const encounters = prepareEncounters(rawFindings);
+  const encounters = await prepareEncounters(rawFindings);
   const result = await triage(dependencies.transport, encounters, {
     sessionId: dependencies.sessionId,
     harness: dependencies.harness,

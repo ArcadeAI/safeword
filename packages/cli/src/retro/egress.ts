@@ -1,11 +1,22 @@
 // Retro egress guard — the deterministic scrub that runs before anything is
 // filed. Deny-by-default: secrets and customer paths are redacted; only
-// safeword-internal paths survive (reusing the spool's allowlist). Two real
-// layers back this: the constrained finding schema (no field for customer code)
-// and this scrubber. There is NO LLM redaction pass today — adopting
-// `@secretlint/core` behind the `scrubSecrets` seam (which tracks new key
-// formats) is the durable hardening; until then the pattern set below is the
-// guarantee, so it errs toward over-redaction for a PUBLIC issue body.
+// safeword-internal paths survive (reusing the spool's allowlist). Three real
+// layers back this: the constrained finding schema (no field for customer code),
+// the maintained `@secretlint/core` rule-packs (28 provider formats, tracked
+// upstream), and the hand-rolled scrubber below.
+//
+// secretlint and the regex set are COMPLEMENTARY, not redundant — keep both:
+//   - secretlint is PRECISE (low false-positive). It only fires on well-formed
+//     keys (e.g. the anthropic rule needs the exact 108-char `sk-ant-api0[34]-`
+//     shape) and its AWS rule skips access-key ids by default — so a truncated
+//     key in a transcript excerpt, or a bare `AKIA…`, slips past it.
+//   - the regex set is BROAD (errs toward over-redaction — the safe direction
+//     for a PUBLIC issue body) and is fully synchronous, so it is also the
+//     fail-open floor when secretlint throws or its dep is unavailable.
+// `sanitizeTextDeep` runs secretlint first, then the sync `sanitizeText` floor.
+
+import { lintSource } from '@secretlint/core';
+import { creator } from '@secretlint/secretlint-rule-preset-recommend';
 
 import { safewordInternalTail } from '../../templates/hooks/lib/self-report.js';
 
@@ -34,10 +45,53 @@ const SECRET_PATTERNS: readonly RegExp[] = [
   /(?<![a-z0-9])(?:api|auth|access)[_-]?(?:key|token)\s*[:=]\s*['"]?[^\s'"]{6,}/gi,
 ];
 
-/** Redact high-signal secret tokens. Seam: replace with secretlint detection later. */
+/**
+ * Redact high-signal secret tokens — the broad, synchronous floor. Catches
+ * truncated/malformed keys and bare `AKIA…` access-key ids that secretlint's
+ * precise rules skip; `redactKnownSecrets` layers maintained provider formats on
+ * top (see `sanitizeTextDeep`).
+ */
 export function scrubSecrets(text: string): string {
   let out = text;
   for (const pattern of SECRET_PATTERNS) out = out.replaceAll(pattern, '[redacted]');
+  return out;
+}
+
+// One config built per module load: the recommend preset wired as a single
+// preset descriptor (core expands `creator.rules` into its 28 scanners).
+const SECRETLINT_CONFIG = {
+  rules: [{ id: '@secretlint/secretlint-rule-preset-recommend', rule: creator }],
+};
+
+/**
+ * Redact secrets that the maintained `@secretlint` rule-packs detect (well-formed
+ * provider keys: sendgrid, linear, notion, grafana, vercel, databricks, figma,
+ * cloudflare, openai, anthropic, …). Fail-OPEN to the input: any error (the dep
+ * missing in a stripped runtime, a malformed source) returns the text unchanged,
+ * because the caller still runs the sync `scrubSecrets` floor over the result —
+ * so a secretlint failure is never *less* safe than the regex-only path.
+ */
+export async function redactKnownSecrets(text: string): Promise<string> {
+  if (!text) return text;
+  let ranges: [number, number][];
+  try {
+    const result = await lintSource({
+      source: { filePath: 'retro.txt', content: text, ext: '.txt', contentType: 'text' },
+      options: { config: SECRETLINT_CONFIG, noPhysicFilePath: true },
+    });
+    ranges = result.messages
+      .map(message => message.range)
+      .filter((range): range is [number, number] => Array.isArray(range) && range.length === 2);
+  } catch {
+    return text; // floor (scrubSecrets) runs next regardless — never less safe
+  }
+  if (ranges.length === 0) return text;
+  // Redact back-to-front so each splice leaves earlier offsets valid.
+  const descending = ranges.toSorted((a, b) => b[0] - a[0]);
+  let out = text;
+  for (const [start, end] of descending) {
+    out = `${out.slice(0, start)}[redacted]${out.slice(end)}`;
+  }
   return out;
 }
 
@@ -96,9 +150,24 @@ function scrubContacts(text: string): string {
   return text.replaceAll(EMAIL, '[email]');
 }
 
-/** Full deny-by-default scrub for a free-text field before egress. */
+/**
+ * Full deny-by-default scrub for a free-text field — the synchronous regex floor
+ * (broad secrets + customer paths + emails). Always safe to call standalone; it
+ * is also the fallback layer `sanitizeTextDeep` composes over.
+ */
 export function sanitizeText(text: string): string {
   return scrubContacts(scrubPaths(scrubSecrets(text)));
+}
+
+/**
+ * The egress scrub the pipeline uses: maintained `@secretlint` provider-format
+ * detection FIRST (on the raw text, for best detection), then the full sync
+ * `sanitizeText` floor over the result. The redacted spans become `[redacted]`,
+ * which carries no secret/path/email shape, so the downstream floor passes stay
+ * clean. Async only because `lintSource` is.
+ */
+export async function sanitizeTextDeep(text: string): Promise<string> {
+  return sanitizeText(await redactKnownSecrets(text));
 }
 
 /**

@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 5e471f85848aae71e46164d34d110198eb102bb0edd9c4f0f9ac85c35f62d0f5
+fingerprint: 0cda9f7dcc2445efaf5133be35b8f94b8cf836fdf485b67250f696d0c87e2768
 ---
 
 # Architecture
@@ -54,6 +54,8 @@ No description yet — awaiting prose.
 `src/retro`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### templates
 

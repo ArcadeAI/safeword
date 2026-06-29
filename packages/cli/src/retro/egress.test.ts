@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveSurface, sanitizeText, scrubSecrets } from './egress.js';
+import {
+  redactKnownSecrets,
+  resolveSurface,
+  sanitizeText,
+  sanitizeTextDeep,
+  scrubSecrets,
+} from './egress.js';
 
 describe('sanitizeText', () => {
   it('retro-transcript-mining.NTB1.AC2.secret_in_free_text_is_redacted', () => {
@@ -140,6 +146,36 @@ describe('scrubSecrets — formats from review #543 round 2', () => {
   it('redacts underscore-prefixed secret names like aws_secret / client_secret (C4)', () => {
     expect(scrubSecrets('aws_secret = wJalrXUtnFEMIK7MDENGbPxRfi')).not.toContain('wJalrXUtnFEMIK');
     expect(scrubSecrets('client_secret: abc123def456ghi')).not.toContain('abc123def456ghi');
+  });
+});
+
+// SPNZKM: the maintained @secretlint rule-packs catch well-formed modern
+// provider keys that the broad regex floor does not target. These prove the
+// secretlint layer (via sanitizeTextDeep / redactKnownSecrets) actually fires.
+describe('sanitizeTextDeep — secretlint provider-format coverage (SPNZKM)', () => {
+  it('redacts a well-formed Anthropic key (exact 108-char shape the regex floor would miss-classify)', async () => {
+    const key = `sk-ant-api03-${'A'.repeat(93)}AA`;
+    const out = await sanitizeTextDeep(`the call used ${key} and failed`);
+    expect(out).not.toContain(key);
+    expect(out).toContain('[redacted]');
+  });
+
+  it('redacts a SendGrid key, which has no dedicated regex-floor pattern', async () => {
+    const key = `SG.${'a'.repeat(22)}.${'b'.repeat(43)}`;
+    const out = await sanitizeTextDeep(`mailer key ${key} leaked`);
+    expect(out).not.toContain(key);
+    expect(out).toContain('[redacted]');
+  });
+
+  it('still applies the sync floor (paths, emails) alongside the secretlint pass', async () => {
+    const out = await sanitizeTextDeep('mailed jane@corp.example from /Users/jane/app/secret.ts');
+    expect(out).not.toContain('jane@corp.example');
+    expect(out).not.toContain('/Users/jane/app/secret.ts');
+  });
+
+  it('redactKnownSecrets returns clean text unchanged (no false positives)', async () => {
+    const clean = 'the coverage gate blocked with no file and no number';
+    expect(await redactKnownSecrets(clean)).toBe(clean);
   });
 });
 
