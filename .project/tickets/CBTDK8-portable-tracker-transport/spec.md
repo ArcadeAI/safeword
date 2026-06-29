@@ -91,6 +91,45 @@ round-trips (plan → results → map) with no transport present — so an execu
 the contract alone, and a malformed results file is rejected with an actionable error rather than
 silently corrupting the map.
 
+## Contract & design decisions (resolved from the cold-start check)
+
+The cold-start check confirmed the mechanism is ready to reuse — `planTicketSync` (`tracker-map.ts`)
+and `buildPayload` (`payload.ts`) already compute the create/update/close decision offline, and
+`TrackerMap.record()` already stores `{ provider, id, url }` keyed per ticket — and flagged that the
+**JSON contract** and its edge semantics were undefined. Pinned here (the schema is the one-way door):
+
+### The JSON contract (versioned from day one)
+
+- `sync-tracker --plan` writes a **SyncPlan** to **stdout** (Unix-composable; pipe to a file or an
+  executor): `{ "version": 1, "intents": Intent[] }`.
+- `Intent` is discriminated on `kind`:
+  - `create` → `{ kind, ticketId, payload: { title, body, labels, state } }`
+  - `update` → `{ kind, ticketId, ref: { provider, number, url }, payload }`
+  - `close` → `{ kind, ticketId, ref: { provider, number, url }, stateReason? }`
+  - each MAY carry `graph?: { parentNumber?, blockedByNumbers? }` — see the open fork below.
+- The executor produces a separate **SyncResults**: `{ "version": 1, "results": [{ ticketId,
+  number, url, status }] }`.
+- `sync-tracker --apply-results <file>` reads SyncResults from a path and folds each **create**
+  result into the map via `record()` as `recorded` (no `pending` — the network already happened in
+  the executor), storing `ref = { provider, id: number, url }`.
+
+### Decisions
+
+- **Plan and apply are offline** — neither resolves a credential (TB1.AC4); the credential gate
+  stays on the live executor path only.
+- **`--plan` and `--apply-results` are mutually exclusive**; no flag = today's `gh` path,
+  byte-for-byte (TB1.AC3).
+- **Internal-id trap guard (sharp catch):** a bare-digits check alone *cannot* catch the spike's
+  internal id `4764539863` — it's also numeric. So results carry both `number` and `url`, and
+  `--apply-results` **rejects a result whose `url` path tail ≠ `number`**. The issue url is
+  `.../issues/549`, so a mistaken internal id fails the tail check structurally.
+- **Malformed** = invalid JSON / missing `ticketId`|`number` / `ticketId` not in the corpus /
+  `url` tail ≠ `number` → rejected with an actionable error, the map left untouched.
+- **Results scope:** required for `create` intents (they mint identity); `update`/`close` act on a
+  ref already in the map, so their results are acks (optional) and fold to no map change.
+- **Versioning:** the contract `version` is independent of the sidecar `SIDECAR_VERSION`
+  (`--apply-results` does not change the map's on-disk format).
+
 ## Rave Moment
 
 skip: child of epic KKNFZA (inherits its rave moment); this slice is internal transport plumbing.
@@ -106,7 +145,14 @@ skip: child of epic KKNFZA (inherits its rave moment); this slice is internal tr
 
 ## Open Questions
 
-- _(none yet — to be surfaced at the engineering-scope gate)_
+- **Graph edges in executor #1 (the one real fork from the cold-start check).** The `gh` path
+  projects parent + blocked-by edges via a separate `projectGraph` step. Does the *agent* executor
+  in this slice have to reproduce those edges, or is core create/update/close enough for now? The
+  contract carries `graph?` on each intent either way (forward-compatible, protects the one-way
+  door); the question is only whether *applying* edges is in this ticket's done-when.
+  _Proposed: carry edges in the contract, defer their **execution** to a follow-on; core CRUD is
+  the slice. Awaiting signoff at the scope gate._
+- _(10 other cold-start gaps resolved — see "Contract & design decisions" above.)_
 
 ## Notes / evidence
 
