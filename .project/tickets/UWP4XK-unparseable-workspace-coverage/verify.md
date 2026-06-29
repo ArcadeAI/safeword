@@ -42,6 +42,30 @@ docs are byte-unchanged; `architecture --check` exits 0.
   docs, both still true; the repo now additionally renders a root index carrying the
   advisory (the honest surface), which that scenario does not contradict.
 
+## Quality review (post-merge-prep, /quality-review)
+
+Fresh-context independent review returned **REQUEST CHANGES** on one real
+false-alarm: the detector classified a *valid* workspace as "unreadable" whenever
+the manager's table/file was present with no parseable globs — but a missing
+member-list declaration is valid for several managers. Verified against primary
+sources and fixed: a workspace is now `unreadable` only when the **member-list
+declaration is present but unparseable**, never when it is simply absent:
+
+- **Cargo** `[workspace]` with no `members` key → `absent` (valid root-package
+  auto-discovery / `default-members`; [Cargo reference](https://doc.rust-lang.org/cargo/reference/workspaces.html)). New `hasTomlTableKey` guard.
+- **pnpm** with no `packages:` key → `absent` (catalog/settings-only is valid;
+  [pnpm reference](https://pnpm.io/pnpm-workspace_yaml)).
+- **go.work** with no `use` directive → `absent` (a fresh `go work init` file).
+- **uv** unchanged — `members` is *required* in `[tool.uv.workspace]`, so a table
+  with no usable members is genuinely malformed → correctly `unreadable`.
+
+Added U9 (Cargo auto-discovery), U10 (pnpm catalog-only), U11 (go.work no-use) —
+each asserts `absent`, not a false alarm. `node:fs` `globSync` confirmed stable
+since Node 22 ([release notes](https://nodejs.org/en/blog/release/v22.0.0)). No new dependencies. Lint + tests green
+after the fix (52 monorepo unit tests, 14 architecture scenarios). The `--check`/
+`--stage` warning is the same `warnUnreadableWorkspaces` call proven end-to-end by
+AC4 on the default command — identical delegation, not separately re-tested.
+
 ## Reconcile
 
 Implementation matches the spec design: each detector returns `absent | parsed |

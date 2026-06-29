@@ -658,6 +658,37 @@ describe('discoverWorkspaces — present-but-unparseable managers are surfaced (
     expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
   });
 
+  it('U9 — a Cargo [workspace] with no members key (auto-discovery) is absent, not unreadable', () => {
+    // A root-package workspace using default-members / path-dep auto-discovery is VALID —
+    // `members` is optional. It must not false-alarm as "unreadable" (quality-review).
+    clearRootManifest(context.directory);
+    writeFileSync(
+      nodePath.join(context.directory, 'Cargo.toml'),
+      '[package]\nname = "root"\n\n[workspace]\ndefault-members = ["crates/a"]\n',
+    );
+
+    expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
+  });
+
+  it('U10 — a catalog-only pnpm-workspace.yaml (no packages key) is absent, not unreadable', () => {
+    // `packages:` is optional in pnpm-workspace.yaml; a catalog-only file is valid and
+    // declares no members — must not false-alarm (quality-review).
+    writeManifest(context.directory, { name: 'root' }); // no package.json workspaces
+    writeFileSync(
+      nodePath.join(context.directory, 'pnpm-workspace.yaml'),
+      'catalog:\n  react: ^19.0.0\n',
+    );
+
+    expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
+  });
+
+  it('U11 — a go.work with no use directive (fresh init) is absent, not unreadable', () => {
+    clearRootManifest(context.directory);
+    writeFileSync(nodePath.join(context.directory, 'go.work'), 'go 1.22\n');
+
+    expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
+  });
+
   it('exposes the unreadable set on the monorepo model', () => {
     makePackage(context.directory, 'web', { modules: ['ui'] });
     writeFileSync(

@@ -11,8 +11,8 @@ any OTHER managers still yield packages."
 | D1 | **Per-manager detection outcome** | (a) absent; (b) parsed; (c) present-but-unparseable | U1–U5 (one per manager × each outcome) |
 | D2 | **Which manager is unparseable** | (a) go.work; (b) Cargo `[workspace]`; (c) uv `[tool.uv.workspace]`; (d) pnpm flow-style; (e) package.json malformed shape | U1/AC1, U2/AC2(Cargo), U3, U4, U5 |
 | D3 | **Co-present readable manager** | (a) none (only the unreadable one) → no root index, warning-only surface; (b) ≥1 other readable → root index lists readable packages + carries the advisory | AC1–AC3 + U6 (b); AC4 (a: warning-only) |
-| D4 | **Absent vs present-but-empty boundary** | (a) manifest absent → absent; (b) workspace table/field absent → absent; (c) table/field present but unparseable → unreadable; (d) explicitly-empty (e.g. `workspaces: []`) → absent | U7 (Cargo no-table absent), U8 (empty array absent) |
-| D5 | **Fingerprint freshness** | (a) unreadable set empty → fingerprint unchanged vs today (no churn); (b) unreadable appears/disappears → fingerprint moves | U9 |
+| D4 | **Absent vs present-but-unparseable boundary** | (a) manifest absent → absent; (b) workspace table/field absent → absent; (c) **member-list key absent though a table exists** (Cargo `[workspace]` no `members` / pnpm no `packages:` / go.work no `use`) → absent, NOT a false alarm; (d) member-list key present but unparseable → unreadable; (e) explicitly-empty (e.g. `workspaces: []`) → absent | U7 (Cargo no-table), U8 (empty array), U9 (Cargo no-members), U10 (pnpm catalog-only), U11 (go.work no-use); U1–U5 (d) |
+| D5 | **Fingerprint freshness** | (a) unreadable set empty → fingerprint unchanged vs today (no churn); (b) unreadable appears/disappears → fingerprint moves | FP1/FP2 (fingerprint tests) |
 | D6 | **Surface non-blocking** | (a) `architecture` exit unchanged; (b) `--check` exit unchanged (advisory ≠ stale) | AC4 (command warns, exit 0) |
 
 ## Load-bearing partitions (where this change actually bites)

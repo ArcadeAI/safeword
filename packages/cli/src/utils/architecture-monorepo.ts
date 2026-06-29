@@ -20,7 +20,7 @@ import { isDirectory, readFileSafe, readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectName, readUvWorkspaceMembers } from './pyproject-manifest.js';
-import { hasTomlTable } from './toml.js';
+import { hasTomlTable, hasTomlTableKey } from './toml.js';
 
 /** Placeholder purpose for a freshly modelled package awaiting prose. */
 const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
@@ -339,17 +339,23 @@ function readBoundaryConfig(projectDirectory: string): string {
  *     - "packages/*"
  *     - "apps/*"
  *
- * `absent` when the file is missing; `parsed` with the include globs (quotes stripped,
- * `!`-exclusions skipped) for the block-list form; `unreadable` when the file is PRESENT
- * but no package glob parses (flow-style `packages: [..]`, an empty list, or other shapes
- * out of scope) — the file's existence IS a workspace declaration, so an unparseable one
- * is surfaced, never silently empty (UWP4XK).
+ * `absent` when the file is missing OR has no top-level `packages:` key at all (a
+ * catalog-only / settings-only `pnpm-workspace.yaml` is valid and declares no members —
+ * out of scope, not a coverage gap); `parsed` with the include globs (quotes stripped,
+ * `!`-exclusions skipped) for the block-list form; `unreadable` only when a `packages:` key
+ * IS present but no glob parses (flow-style `packages: [..]`, an empty block, or other
+ * shapes out of scope) — a present-but-unparseable member list, surfaced not silently empty
+ * (UWP4XK).
  */
 function detectPnpmWorkspaces(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'));
   if (content === undefined) return ABSENT;
 
   const lines = content.split(/\r?\n/);
+  // A top-level `packages:` key (block `packages:` or flow `packages: [..]`) is the member
+  // declaration; without it the file declares no members (catalog-only) → absent.
+  if (lines.every(line => !line.startsWith('packages:'))) return ABSENT;
+
   const start = lines.findIndex(line => /^packages:\s*$/.test(line));
   const globs = start === -1 ? [] : collectPnpmGlobs(lines.slice(start + 1));
   return globs.length > 0
@@ -385,9 +391,10 @@ function collectPnpmGlobs(blockLines: string[]): string[] {
  * Returns the member directories (leading `./` stripped, quotes removed) as `parsed`. An
  * entry that is not a clean relative path (e.g. junk, or a multi-token line) is skipped,
  * not fatal — a single unreadable entry never blinds the rest. `absent` when the file is
- * missing; `unreadable` when the go.work is PRESENT but NO `use` target parses (a malformed
- * file) — surfaced, not silently empty (UWP4XK). A go.work exists to declare a workspace,
- * so one that yields zero members is worth naming.
+ * missing OR has no `use` directive at all (a freshly `go work init`-ed file with no
+ * modules yet declares no members — out of scope, not a coverage gap); `unreadable` only
+ * when a `use` directive IS present but no target parses (a malformed file) — a
+ * present-but-unparseable member list, surfaced not silently empty (UWP4XK).
  */
 function detectGoWork(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'go.work'));
@@ -397,9 +404,12 @@ function detectGoWork(projectDirectory: string): WorkspaceDetection {
   const directories: string[] = [];
   collectGoWorkBlock(lines, directories);
   collectGoWorkSingleLines(lines, directories);
-  return directories.length > 0
-    ? { status: 'parsed', patterns: directories }
-    : { status: 'unreadable', manager: 'go.work', config: 'go.work' };
+  if (directories.length > 0) return { status: 'parsed', patterns: directories };
+  // No member dir parsed: a malformed `use` (present but junk) is unreadable; a go.work
+  // with no `use` directive at all declares no members and stays absent.
+  return lines.some(line => /^\s*use\b/.test(line))
+    ? { status: 'unreadable', manager: 'go.work', config: 'go.work' }
+    : ABSENT;
 }
 
 /** Member directories from a `use (\n  ./x\n)` block, stopping at the closing paren. */
@@ -434,14 +444,17 @@ function normalizeUseTarget(raw: string): string | undefined {
 /**
  * Read workspace member globs from a `Cargo.toml` `[workspace] members` array (ticket
  * YKFA5X) — Cargo stores its workspace list here, not in package.json. `absent` when the
- * file or the `[workspace]` table is missing (a single crate); `parsed` with the globs when
- * readable; `unreadable` when the `[workspace]` table is PRESENT but `members` can't be
- * parsed (UWP4XK) — surfaced, not silently empty.
+ * file, the `[workspace]` table, or the `members` key is missing; `parsed` with the globs
+ * when readable; `unreadable` only when `members` is PRESENT but can't be parsed (UWP4XK).
+ * A `[workspace]` with NO `members` key is a valid root-package workspace that
+ * auto-discovers members from path deps (or lists `default-members`) — out of scope like
+ * nested workspaces, NOT a coverage gap, so it stays `absent` rather than false-alarming.
  */
 function detectCargoWorkspace(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'Cargo.toml'));
   if (content === undefined) return ABSENT; // no Cargo.toml
   if (!hasTomlTable(content, 'workspace')) return ABSENT; // a single crate, not a workspace
+  if (!hasTomlTableKey(content, 'workspace', 'members')) return ABSENT; // auto-discovery, out of scope
   const members = readCargoWorkspaceMembers(content);
   return members === undefined
     ? { status: 'unreadable', manager: 'Cargo [workspace]', config: 'Cargo.toml' }

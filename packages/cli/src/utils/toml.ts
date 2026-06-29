@@ -39,6 +39,29 @@ export function hasTomlTable(content: string, table: string): boolean {
   return content.split(/\r?\n/).some(line => tableHeader(stripTomlComment(line).trim()) === table);
 }
 
+/**
+ * Whether `[<table>]` declares `<key> = …` (any value, parseable or not). Comment-aware,
+ * table-scoped. Lets a caller tell "the key is absent" from "the key is present but its
+ * value is unparseable" — `readTomlTableArray` returns `undefined` for both, so this
+ * separates a workspace whose `members` list can't be read (surface it) from one with no
+ * `members` key at all (a Cargo root-package workspace that auto-discovers members from
+ * path deps — valid, out of scope, not a coverage gap).
+ */
+export function hasTomlTableKey(content: string, table: string, key: string): boolean {
+  let inTable = false;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = stripTomlComment(rawLine).trim();
+    if (line === '') continue;
+    const header = tableHeader(line);
+    if (header !== undefined) {
+      inTable = header === table;
+      continue;
+    }
+    if (inTable && tableValue(line, key) !== undefined) return true;
+  }
+  return false;
+}
+
 /** The string value of `[<table>] <key> = "…"`, or `undefined`. Table-scoped. */
 export function readTomlTableString(
   content: string,

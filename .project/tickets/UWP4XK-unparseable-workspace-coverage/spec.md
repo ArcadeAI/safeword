@@ -63,15 +63,23 @@ Replace each detector's `string[] | undefined` with a discriminated
 - `{ status: 'unreadable'; manager; config }` — a workspace is declared but its
   member list can't be parsed.
 
-What counts as *declared but unreadable* per manager:
+What counts as *declared but unreadable* per manager — the member-list declaration
+is PRESENT but can't be parsed (a *missing* declaration is absent, never a false
+alarm):
 
-- **go.work**: file present but zero member dirs parse (malformed/junk `use`).
-- **Cargo `[workspace]`**: `[workspace]` table present but `members` unparseable
-  (no `[workspace]` table ⇒ absent, a single crate).
-- **uv**: `[tool.uv.workspace]` table present but `members` unparseable (no table
-  ⇒ absent).
-- **pnpm**: `pnpm-workspace.yaml` present but no package glob parses (flow-style,
-  empty). The file existing *is* a workspace declaration.
+- **go.work**: a `use` directive present but zero member dirs parse (malformed/junk
+  `use`). No `use` directive at all ⇒ absent (a `go work init` file with no modules).
+- **Cargo `[workspace]`**: `[workspace]` + a `members` key present but unparseable.
+  No `[workspace]` ⇒ absent (single crate); `[workspace]` with no `members` key ⇒
+  absent (a valid root-package workspace that auto-discovers members from path deps /
+  `default-members` — out of scope like nested workspaces, verified against the Cargo
+  reference).
+- **uv**: `[tool.uv.workspace]` table present but `members` unparseable (no table ⇒
+  absent). uv *requires* `members`, so a table with no usable members is genuinely
+  malformed → unreadable.
+- **pnpm**: a `packages:` key present but no glob parses (flow-style, empty block).
+  No `packages:` key ⇒ absent (a catalog-only/settings-only file is valid and declares
+  no members — verified against the pnpm reference).
 - **package.json**: a `workspaces` field present but not a usable array /
   `{packages: [...]}` (malformed shape) ⇒ unreadable; an explicitly empty array
   ⇒ absent (deliberate). JS precedence (package.json wins over pnpm) is preserved:

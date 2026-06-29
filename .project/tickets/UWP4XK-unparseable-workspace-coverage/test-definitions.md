@@ -44,10 +44,18 @@ command's stdout/stderr) — no package internals.
   `web` + malformed go.work → patterns keep `packages/*`, leaves keep `web`, unreadable
   records `go.work`. The coverage-honesty property (#554 union survives one bad manager).
 - [x] **U7 — single-crate Cargo.toml (no [workspace]) raises no signal** [J1.AC2, D4(b)]
-- [x] **U8 — explicitly-empty `workspaces: []` is absent, not unreadable** [D4(d)]
+- [x] **U8 — explicitly-empty `workspaces: []` is absent, not unreadable** [D4(e)]
+- [x] **U9 — Cargo `[workspace]` with no `members` key (auto-discovery) is absent** [J1.AC2, D4(c)]:
+  a root-package workspace using `default-members`/path-dep auto-discovery is valid, not a
+  coverage gap — must not false-alarm. (quality-review finding; verified vs the Cargo reference.)
+- [x] **U10 — catalog-only `pnpm-workspace.yaml` (no `packages:` key) is absent** [J1.AC2, D4(c)]:
+  `packages:` is optional in pnpm; a catalog/settings-only file declares no members.
+  (quality-review finding; verified vs the pnpm reference.)
+- [x] **U11 — `go.work` with no `use` directive (fresh init) is absent** [J1.AC2, D4(c)]:
+  a member-less go.work declares nothing — only a present-but-junk `use` is unreadable.
 - [x] **model — `extractMonorepoModel` exposes `unreadableWorkspaces`** [feeds render + fingerprint]
-- [x] **U9 — fingerprint moves when an unreadable manager appears** [D5(b)]
-- [x] **U9b — fingerprint does NOT move for a clean repo (no churn)** [D5(a)]: the
+- [x] **FP1 — fingerprint moves when an unreadable manager appears** [D5(b)]
+- [x] **FP2 — fingerprint does NOT move for a clean repo (no churn)** [D5(a)]: the
   unreadable key is contributed only when non-empty, so a readable-only repo keeps its hash.
 
 ## Reconcile note
