@@ -57,6 +57,47 @@ describe('sanitizeText', () => {
     expect(scrubSecrets('glpat-abcdefghijklmnopqrst')).toContain('[redacted]');
     expect(scrubSecrets('npm_abcdefghijklmnopqrstuvwxyz0123456789AB')).toContain('[redacted]');
   });
+
+  // Review (#543): hyphenated LLM-provider keys are exactly what appears in AI
+  // coding transcripts, and retro files into the PUBLIC repo. These previously
+  // leaked because every prior pattern assumed `_`/structured shapes.
+  it('redacts Anthropic and OpenAI key shapes (hyphenated)', () => {
+    expect(scrubSecrets('key sk-ant-api03-AbCdEf012345_-ghIJklMnOpQrStuv')).not.toContain('sk-ant');
+    expect(scrubSecrets('OPENAI=sk-proj-AbCdEf012345ghIJklMnOpQr')).not.toContain('sk-proj');
+    expect(scrubSecrets('legacy sk-AbCdEf012345ghIJklMnOpQrStuv')).toContain('[redacted]');
+  });
+
+  it('does not redact ordinary hyphenated words that merely start with sk-', () => {
+    // Guard against over-redaction: short non-key tokens must survive.
+    expect(scrubSecrets('the sk-cli flag and task-runner')).toBe('the sk-cli flag and task-runner');
+  });
+
+  it('redacts a Bearer token', () => {
+    expect(scrubSecrets('Authorization: Bearer abcdef0123456789ABCDEF0123')).not.toContain(
+      'abcdef0123456789',
+    );
+  });
+
+  it('redacts secret-looking assignment literals', () => {
+    expect(scrubSecrets('password = "hunter2pass"')).not.toContain('hunter2pass');
+    expect(scrubSecrets('api_key: s3cr3t_value_here')).not.toContain('s3cr3t_value_here');
+  });
+});
+
+describe('sanitizeText — relative customer paths (review #543)', () => {
+  it('redacts a relative customer path but keeps a safeword-internal relative tail', () => {
+    const out = sanitizeText('edited src/customers/acme/secret.ts via hooks/stop-quality.ts');
+    expect(out).not.toContain('src/customers/acme/secret.ts');
+    expect(out).toContain('[path]');
+    expect(out).toContain('hooks/stop-quality.ts'); // safeword-internal tail survives
+  });
+
+  it('leaves ordinary prose with a slash untouched', () => {
+    // and/or, he/she, TCP/IP — not paths; must not become [path].
+    expect(sanitizeText('weigh the and/or case for TCP/IP')).toBe(
+      'weigh the and/or case for TCP/IP',
+    );
+  });
 });
 
 describe('resolveSurface (fail-closed)', () => {

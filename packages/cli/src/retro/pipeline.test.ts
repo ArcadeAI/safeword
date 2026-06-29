@@ -57,4 +57,21 @@ describe('prepareEncounters', () => {
     expect(encounter?.draft.body).toContain('[path]');
     expect(encounter?.draft.body).toContain('[redacted]');
   });
+
+  // Review (#543): the modern leak formats must not reach the assembled body
+  // end-to-end (LLM-provider keys + Bearer + relative customer paths).
+  it('scrubs hyphenated provider keys, Bearer tokens, and relative customer paths from the draft', () => {
+    const [encounter] = prepareEncounters([
+      rawFinding({
+        what_happened:
+          'used sk-ant-api03-AbCdEf012345_-ghIJklMnOpQrStuv editing src/customers/acme/secret.ts',
+        why_friction: 'the header was Authorization: Bearer abcdef0123456789ABCDEF0123',
+      }),
+    ]);
+    expect(encounter).toBeDefined();
+    const body = encounter?.draft.body ?? '';
+    expect(body).not.toContain('sk-ant');
+    expect(body).not.toContain('src/customers/acme/secret.ts');
+    expect(body).not.toContain('abcdef0123456789');
+  });
 });
