@@ -211,11 +211,11 @@ Mirror local tickets one-way into GitHub Issues or Linear. Off by default; confi
 }
 ```
 
-| Key        | Values                       | Meaning                                                       |
-| ---------- | ---------------------------- | ------------------------------------------------------------ |
-| `provider` | `none` · `github` · `linear` | Which tracker to mirror to. `none` (default) is inert.       |
+| Key        | Values                       | Meaning                                                                                                                                    |
+| ---------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `provider` | `none` · `github` · `linear` | Which tracker to mirror to. `none` (default) is inert.                                                                                     |
 | `body`     | `minimal` · `full`           | Issue body egress. `minimal` (default) = title/status/labels/back-link only; `full` opts in to the ticket body and warns on a public repo. |
-| `target`   | `{ repo }` / `{ team }`      | GitHub repo (`owner/name`) or Linear team.                   |
+| `target`   | `{ repo }` / `{ team }`      | GitHub repo (`owner/name`) or Linear team.                                                                                                 |
 
 Credentials resolve from the OS keychain or an environment variable only — never from this file.
 
