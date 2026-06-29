@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (349)
+## Tickets (350)
 
 ### agent-surface-refactor
 
@@ -1053,6 +1053,9 @@
 - **Optimize safeword for Fable 5 — capability-tier harness adaptation (SKQR0G)** (in_progress, epic: —)
   Re-weight safeword's harness for frontier models like Fable 5 — amplify fresh-context verification and the no-bloat guardrail, thin the per-turn control injections, and scale harness intensity by model tier/effort — guided by Fable's own prompting guidance.
   → `.project/tickets/SKQR0G-capability-tier-harness`
+- **Durable egress hardening: secretlint rule-packs + GitHub write-path test (SPNZKM)** (todo, epic: —)
+  Replace retro's hand-rolled secret regex with maintained `@secretlint`
+  → `.project/tickets/SPNZKM-retro-egress-hardening`
 - **Stop-gate incremental tsc for TS projects (SW1SE5)** (done, epic: —)
   Add an incremental whole-program `tsc --noEmit` to the stop-quality gate for TypeScript projects, so type errors surface at the stop boundary instead of riding silently to the done gate.
   → `.project/tickets/SW1SE5-stop-gate-tsc-typecheck`
