@@ -10,6 +10,8 @@ allowed-tools: '*'
 
 Deep review with web research to verify against current ecosystem. Complements automatic hook.
 
+**Stakes set depth.** Review as if your verdict is the last gate before this ships — no one re-checks behind you. That standard, not "the hook already looked," sets how hard you research. Before searching, write your review plan: which angles (§2–3) this diff actually needs and the specific question each must answer, then work the list — don't stop at the first finding.
+
 ## Invocation log
 
 This skill is required at the done-gate for tickets with **two or more RGR loops** (W610WW) — the whole-ticket review half of the cross-scenario pass. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /quality-review was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids and Codex thread ids from the runtime environment, so the fallback below can run without hand-picking an id. Hand-writing review notes cannot produce this gate proof.
