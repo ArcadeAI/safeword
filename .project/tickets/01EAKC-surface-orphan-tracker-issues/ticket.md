@@ -38,6 +38,13 @@ family as the orphan (tracker-map ↔ local folders drift); a reconcile/`check` 
 "two local folders claim one issue" belongs with this work. Low severity (user-error, no data
 loss), so it rides along here rather than gating the PR.
 
+**Exotic `--issue` inputs (from PR #548 /quality-review, deferred):** the adopt key normalizer
+strips one leading `#` but does not trim surrounding whitespace, so `--issue ' #4'` adopts the
+literal `' #4'` and `--issue '##5'` adopts `'#5'` — neither matches a bare numeric id the GitHub
+create path can mint (`/^\d+$/`), so they can never join to a real synced issue. Exotic (CLI args
+need quoting to carry a leading space) and low severity; trim + collapse at the adopt boundary
+when this ticket hardens key handling.
+
 ## Work Log
 
 - 2026-06-28T15:11:43.896Z Started: Created ticket 01EAKC (follow-up from DGH59K Decision C)

@@ -4,8 +4,8 @@
  * Linear "ENG-45" or GitHub "#123"/"123") to the local ticket folder recorded
  * for it. The tracker-map is the index (ref id → ticket id); the folder is then
  * found by ticket-id prefix and must exist — a stale entry whose folder is gone
- * returns null, never a dangling path. Pure over the tickets dir + the map. No
- * network.
+ * returns `undefined`, never a dangling path. Pure over the tickets dir + the
+ * map. No network.
  */
 
 import { existsSync, readdirSync } from 'node:fs';
