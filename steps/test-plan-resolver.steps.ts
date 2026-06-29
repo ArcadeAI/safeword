@@ -54,6 +54,10 @@ function seed(world: TestPlanWorld, name: string): void {
   write(world, name, DEFAULT_CONTENT[name] ?? '');
 }
 
+function seedPythonTest(world: TestPlanWorld, directory = ''): void {
+  write(world, nodePath.join(directory, 'tests', 'test_example.py'), 'def test_example():\n');
+}
+
 /** Run the real CLI from source via bun, capturing its JSON plan deterministically. */
 function runPlan(world: TestPlanWorld, kind: 'test' | 'build'): void {
   const cliPath = nodePath.join(process.cwd(), 'packages/cli/src/cli.ts');
@@ -123,6 +127,17 @@ Given('a Python repo with a {string}', function (this: TestPlanWorld, file: stri
 Given('a Python repo with no pytest configuration', function (this: TestPlanWorld) {
   write(this, 'pyproject.toml', '[project]\nname = "x"\n');
 });
+
+Given('the repo has a discoverable Python test file', function (this: TestPlanWorld) {
+  seedPythonTest(this);
+});
+
+Given(
+  'the repo has a discoverable Python test file under {string}',
+  function (this: TestPlanWorld, directory: string) {
+    seedPythonTest(this, directory);
+  },
+);
 
 Given(
   'a Python repo with a {string} and pytest configured',

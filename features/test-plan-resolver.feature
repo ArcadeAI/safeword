@@ -8,8 +8,9 @@ Feature: test-plan resolver
   Rule: Every detected language appears in the plan (no first-match)
 
     @test-plan-resolver.DEV1.AC1
-    Scenario: A JS+Python repo yields exactly a javascript and a python entry
+    Scenario: A JS+Python repo with Python tests yields exactly a javascript and a python entry
       Given a repo with a root "test" script and a "pyproject.toml"
+      And the repo has a discoverable Python test file
       When I request the test plan
       Then the plan includes a "javascript" entry
       And the plan includes a "python" entry
@@ -53,9 +54,16 @@ Feature: test-plan resolver
     @test-plan-resolver.DEV1.AC2
     Scenario: Python with no pytest falls back to unittest
       Given a Python repo with no pytest configuration
+      And the repo has a discoverable Python test file
       And only the "python" toolchain is installed
       When I request the test plan
       Then the "python" entry command is "python -m unittest discover"
+
+    @test-plan-resolver.DEV1.AC2
+    Scenario: Python manifest without tests contributes no python entry
+      Given a Python repo with no pytest configuration
+      When I request the test plan
+      Then the plan has no "python" entry
 
     @test-plan-resolver.DEV1.AC2
     Scenario: A uv-locked Python repo runs pytest through uv
@@ -105,6 +113,7 @@ Feature: test-plan resolver
     @test-plan-resolver.DEV1.AC4
     Scenario: A manifest in a sub-directory is discovered
       Given a repo with a "services/api/pyproject.toml" and no root manifest
+      And the repo has a discoverable Python test file under "services/api"
       When I request the test plan
       Then the plan includes a "python" entry
 

@@ -45,6 +45,7 @@ Feature: migrate consumers to test-plan
     @migrate-consumers.SM1.AC3
     Scenario: A polyglot repo renders every language's command
       Given a repo with a root "test" script and a "pyproject.toml"
+      And the repo has a discoverable Python test file
       And the "pytest" toolchain is installed
       When I render the test plan as a shell script
       Then the script contains "run test"

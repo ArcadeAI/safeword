@@ -6,14 +6,14 @@ R/G/R ledger. Executable Given/When/Then live in the `.feature`; lower-level
 runner-detection proof rides on Vitest unit tests (pure resolver, injected
 `isToolAvailable` + temp fixtures) under each scenario's GREEN step.
 
-> Scenario count is 18 (above the soft >15 define-behavior split hint). Split
+> Scenario count is 19 (above the soft >15 define-behavior split hint). Split
 > **declined**: this is one cohesive journey — a single pure resolver's contract —
 > so "split by user journey" doesn't apply. The runner-detection cluster is
 > table-like and may collapse to a `Scenario Outline` at implementation.
 
 ## Rule: Every detected language appears in the plan (no first-match)
 
-### Scenario: A JS+Python repo yields exactly a javascript and a python entry
+### Scenario: A JS+Python repo with Python tests yields exactly a javascript and a python entry
 
 - [x] RED
 - [x] GREEN
@@ -52,6 +52,12 @@ runner-detection proof rides on Vitest unit tests (pure resolver, injected
 - [x] REFACTOR
 
 ### Scenario: Python with no pytest falls back to unittest
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Python manifest without tests contributes no python entry
 
 - [x] RED
 - [x] GREEN
