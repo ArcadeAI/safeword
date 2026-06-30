@@ -52,14 +52,11 @@ export function hasTomlTable(content: string, table: string): boolean {
 }
 
 /**
- * Whether `[<table>]` declares `<key> = …` (any value, parseable or not). Comment-aware,
- * table-scoped. Lets a caller tell "the key is absent" from "the key is present but its
- * value is unparseable" — `readTomlTableArray` returns `undefined` for both, so this
- * separates a workspace whose `members` list can't be read (surface it) from one with no
- * `members` key at all (a Cargo root-package workspace that auto-discovers members from
- * path deps — valid, out of scope, not a coverage gap).
+ * Yield the meaningful lines (comment-stripped, trimmed, non-empty) that fall inside
+ * `[<table>]`, in document order — the shared table-scoped traversal behind the key/value
+ * readers below. Table membership is tracked via the `[header]` lines a line follows.
  */
-export function hasTomlTableKey(content: string, table: string, key: string): boolean {
+function* linesInTable(content: string, table: string): Generator<string> {
   let inTable = false;
   for (const rawLine of content.split(/\r?\n/)) {
     const line = stripTomlComment(rawLine).trim();
@@ -69,7 +66,21 @@ export function hasTomlTableKey(content: string, table: string, key: string): bo
       inTable = header === table;
       continue;
     }
-    if (inTable && tableValue(line, key) !== undefined) return true;
+    if (inTable) yield line;
+  }
+}
+
+/**
+ * Whether `[<table>]` declares `<key> = …` (any value, parseable or not). Comment-aware,
+ * table-scoped. Lets a caller tell "the key is absent" from "the key is present but its
+ * value is unparseable" — `readTomlTableArray` returns `undefined` for both, so this
+ * separates a workspace whose `members` list can't be read (surface it) from one with no
+ * `members` key at all (a Cargo root-package workspace that auto-discovers members from
+ * path deps — valid, out of scope, not a coverage gap).
+ */
+export function hasTomlTableKey(content: string, table: string, key: string): boolean {
+  for (const line of linesInTable(content, table)) {
+    if (tableValue(line, key) !== undefined) return true;
   }
   return false;
 }
@@ -80,19 +91,7 @@ export function readTomlTableString(
   table: string,
   key: string,
 ): string | undefined {
-  let inTable = false;
-
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = stripTomlComment(rawLine).trim();
-    if (line === '') continue;
-
-    const header = tableHeader(line);
-    if (header !== undefined) {
-      inTable = header === table;
-      continue;
-    }
-    if (!inTable) continue;
-
+  for (const line of linesInTable(content, table)) {
     const value = tableValue(line, key);
     if (value?.startsWith('"')) {
       const end = value.indexOf('"', 1);
