@@ -2,10 +2,10 @@
 id: UWP4XK
 slug: unparseable-workspace-coverage
 type: feature
-phase: define-behavior
+phase: verify
 status: todo
 created: 2026-06-29T19:30:00.000Z
-last_modified: 2026-06-29T19:30:00.000Z
+last_modified: 2026-06-30T04:11:00.000Z
 scope:
   - Distinguish "workspace manager absent" from "workspace manager present-but-unparseable" at the detector boundary in `architecture-monorepo.ts` (`detectGoWork`, `detectCargoWorkspace`, `detectUvWorkspace`, the JS package.json/pnpm detectors). Today each returns `string[] | undefined` and `undefined` collapses both cases, so a present-but-unreadable root manifest contributes zero packages with no marker.
   - SURFACE a present-but-unparseable workspace config (advisory only, never blocking) in two places: a `## Coverage gaps` advisory line in the rendered monorepo root index naming the unreadable config, and a `safeword architecture` / `architecture --check` warning naming the unreadable config.
