@@ -1156,8 +1156,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // paths.projectRoot resolves into the ticket-index paths, and the block re-renders
       // in place on upgrade. Default/legacy output is byte-identical, so those installs
       // no-op. Appended (marker-delimited) so a consumer's own .gitattributes is preserved.
+      // No leading newline (unlike .prettierignore): prettier-plugin-sh DOES format
+      // .gitattributes and rejects a leading blank line on a fresh install; existing
+      // content separates via its own trailing newline.
       operation: 'append',
-      content: ctx => `\n${managedGitattributes(ctx)}\n`,
+      content: ctx => `${managedGitattributes(ctx)}\n`,
       rerender: true,
       marker: GITATTRIBUTES_HEADER,
     },
