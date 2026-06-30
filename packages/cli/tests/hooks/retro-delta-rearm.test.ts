@@ -12,7 +12,7 @@
  * Feature: packages/cli/features/retro-recall-delta-rearm.feature
  */
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -81,9 +81,9 @@ describe('offset-state persistence (SM2.AC3)', () => {
     const finalPath = offsetStatePath('sess-1', baseDirectory);
     // the body is written to a temp path, NOT the final path
     expect(writeFileSyncSpy).toHaveBeenCalledTimes(1);
-    const [writtenPath] = writeFileSyncSpy.mock.calls[0];
+    const writtenPath = writeFileSyncSpy.mock.calls[0]?.[0] as string;
     expect(writtenPath).not.toBe(finalPath);
-    expect(String(writtenPath).startsWith(finalPath)).toBe(true);
+    expect(writtenPath.startsWith(finalPath)).toBe(true);
     // then renamed over the final path (atomic publish)
     expect(renameSyncSpy).toHaveBeenCalledWith(writtenPath, finalPath);
   });
