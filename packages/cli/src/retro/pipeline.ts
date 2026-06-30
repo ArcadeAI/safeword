@@ -43,6 +43,11 @@ export async function prepareEncounters(rawFindings: readonly unknown[]): Promis
     const finding = normalizeFinding(raw);
     if (!finding) continue;
 
+    // 1M20EW: a finding the session already FIXED in safeword is friction that's
+    // gone — filing it spams the tracker with already-solved bugs. The model labels
+    // the status; code drops `resolved` here (positive-label + deterministic filter).
+    if (finding.status === 'resolved') continue;
+
     const surface = resolveSurface(finding.safewordSurface);
     if (surface === undefined) continue;
 
@@ -59,6 +64,7 @@ export async function prepareEncounters(rawFindings: readonly unknown[]): Promis
       whatHappened,
       whyFriction,
       repro,
+      status: finding.status,
     };
 
     encounters.push({ draft: buildDraft(sanitized), manifestation: manifestationKey(sanitized) });

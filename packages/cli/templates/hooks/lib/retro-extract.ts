@@ -161,9 +161,13 @@ const EXTRACT_SYSTEM_PROMPT =
   'array (no prose). Each item: {"category":"bug|rough-edge|gap","title":"canonical ' +
   'title of the SAFEWORD behavior","safeword_surface":"a real safeword path: ' +
   'hooks/…, packages/cli/…, templates/…, dist/…, or .safeword/…","what_happened":"",' +
-  '"why_friction":"","repro":"in terms of safeword commands"}. Rules: SAFEWORD\'s ' +
-  'friction only (not the host project, not Claude Code itself); canonical ' +
-  'behavior-titles; do not invent; [] if none.';
+  '"why_friction":"","repro":"in terms of safeword commands","status":"present|resolved"}. ' +
+  'For "status": label each finding by its state at the END of the digest — set ' +
+  '"resolved" if the session already FIXED this friction in safeword itself (a fix or ' +
+  'commit for it appears in the digest), and "present" if the friction still remains ' +
+  '(including friction the session merely worked around without fixing safeword). ' +
+  "Rules: SAFEWORD's friction only (not the host project, not Claude Code itself); " +
+  'canonical behavior-titles; do not invent; [] if none.';
 
 /** The task prompt: point the read-only child at the digest file. */
 function buildExtractPrompt(digestPath: string): string {

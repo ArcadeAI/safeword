@@ -24,12 +24,32 @@ describe('normalizeFinding', () => {
     });
     expect(out).toBeDefined();
     expect(Object.keys(out ?? {}).toSorted(byName)).toEqual(
-      ['category', 'repro', 'safewordSurface', 'title', 'whatHappened', 'whyFriction'].toSorted(
-        byName,
-      ),
+      [
+        'category',
+        'repro',
+        'safewordSurface',
+        'status',
+        'title',
+        'whatHappened',
+        'whyFriction',
+      ].toSorted(byName),
     );
     expect(JSON.stringify(out)).not.toContain('customer_context');
     expect(JSON.stringify(out)).not.toContain('billing.ts');
+  });
+
+  // 1M20EW: status defaults to `present` unless the model explicitly says
+  // `resolved`, so a missing/garbled label never silently drops live friction.
+  it('defaults status to present when absent', () => {
+    expect(normalizeFinding(rawValid)?.status).toBe('present');
+  });
+
+  it('honors an explicit resolved status', () => {
+    expect(normalizeFinding({ ...rawValid, status: 'resolved' })?.status).toBe('resolved');
+  });
+
+  it('treats an unknown status value as present (backward-safe default)', () => {
+    expect(normalizeFinding({ ...rawValid, status: 'fixed-ish' })?.status).toBe('present');
   });
 
   it('returns undefined when category is not in the enum', () => {

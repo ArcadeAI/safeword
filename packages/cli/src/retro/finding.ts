@@ -11,6 +11,13 @@ type FindingCategory = 'bug' | 'rough-edge' | 'gap';
 
 const CATEGORIES: ReadonlySet<string> = new Set<FindingCategory>(['bug', 'rough-edge', 'gap']);
 
+/**
+ * Whether the friction is still live (`present`) or the session already fixed it
+ * in safeword (`resolved`). The pipeline files only `present` findings — filing a
+ * `resolved` one would spam the tracker with already-solved bugs (ticket 1M20EW).
+ */
+type FindingStatus = 'present' | 'resolved';
+
 /** A normalized retro finding — exactly the allowlisted, typed fields. */
 export interface Finding {
   category: FindingCategory;
@@ -19,6 +26,8 @@ export interface Finding {
   whatHappened: string;
   whyFriction: string;
   repro: string;
+  /** Resolution state; defaults to `present` when the model omits/garbles it. */
+  status: FindingStatus;
 }
 
 // Bound each free-text field so even a schema-valid finding can't carry a blob.
@@ -29,6 +38,15 @@ function boundedString(value: unknown): string | undefined {
   const trimmed = value.trim();
   if (trimmed.length === 0) return undefined;
   return trimmed.slice(0, MAX_FIELD_LENGTH);
+}
+
+/**
+ * Resolve the finding status, defaulting to `present` unless the model EXPLICITLY
+ * says `resolved` — a missing or garbled label must not silently drop live friction
+ * (over-filing is recoverable by triage; suppressing real friction is not; 1M20EW).
+ */
+function resolveStatus(value: unknown): FindingStatus {
+  return value === 'resolved' ? 'resolved' : 'present';
 }
 
 /**
@@ -58,6 +76,7 @@ export function normalizeFinding(raw: unknown): Finding | undefined {
     whatHappened,
     whyFriction,
     repro,
+    status: resolveStatus(source.status),
   };
 }
 

@@ -64,6 +64,7 @@ describe('prepareEncounters', () => {
       whatHappened: 'same symptom',
       whyFriction: 'same friction',
       repro: 'repro one',
+      status: 'present',
     };
     expect(manifestationKey(base)).toBe(manifestationKey({ ...base }));
     expect(manifestationKey(base)).not.toBe(manifestationKey({ ...base, repro: 'repro two' }));

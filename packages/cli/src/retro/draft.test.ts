@@ -10,6 +10,7 @@ const finding: Finding = {
   whatHappened: 'The coverage gate blocked with no file and no number.',
   whyFriction: 'I could not tell the user how to unblock.',
   repro: 'safeword check after an edit that drops coverage',
+  status: 'present',
 };
 
 describe('buildDraft', () => {
