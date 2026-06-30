@@ -210,9 +210,12 @@ export function readOffsetState(
 /**
  * Persist the per-session offset state ATOMICALLY: write a temp file, then
  * `rename` it over the state file (atomic on the same filesystem on Linux), so a
- * concurrent reader never sees a torn write. The temp name carries the pid so two
- * near-simultaneous Stops don't clobber each other's temp file before the rename.
+ * concurrent reader never sees a torn write. The temp name carries the pid AND a
+ * per-process counter, so neither two near-simultaneous Stops (distinct pids) nor
+ * two writes within one process collide on the temp file before the rename.
  */
+let tempWriteCounter = 0;
+
 export function writeOffsetState(
   sessionId: string,
   state: OffsetState,
@@ -220,7 +223,7 @@ export function writeOffsetState(
   atomicFs: AtomicFs = defaultAtomicFs,
 ): void {
   const finalPath = offsetStatePath(sessionId, baseDirectory);
-  const tempPath = `${finalPath}.${process.pid}.tmp`;
+  const tempPath = `${finalPath}.${process.pid}.${tempWriteCounter++}.tmp`;
   atomicFs.writeFileSync(tempPath, JSON.stringify(state));
   atomicFs.renameSync(tempPath, finalPath);
 }
