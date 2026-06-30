@@ -1,6 +1,6 @@
 # Impl Plan: Invisible retro — synchronous headless `claude -p` extraction
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -65,9 +65,23 @@ so units sequence by dependency):
 
 ## Known deviations
 
-- skip: no deviations planned. This composes with the existing retro architecture
-  and changes only the trigger mechanism; the egress/dedup/ledger layers are
-  untouched.
+Reconciled against what shipped (build order followed exactly: digest → argv →
+guard → runner → decideRetroRun → stop-retro → --auto-extract → transport):
+
+- **Transport (refined from the Decisions table):** the plan said "agent owns the
+  transport (MCP/`gh`/token)." Shipped: `resolveGitHubToken` sources the token
+  from `GITHUB_TOKEN` OR `gh auth token` and reuses the existing REST transport,
+  with a graceful no-op when neither is available — **not** a distinct MCP/agent
+  transport. Reason: the headless CLI (spawned by the hook) has no MCP; `gh auth
+  token` IS "the environment's existing GitHub access," and feeding it to the
+  battle-tested REST transport is leaner than a second adapter (avoids bloat). The
+  egress guarantee is unchanged. The MCP/agent-owned transport remains relevant
+  only to the INTERACTIVE path and is out of scope here.
+- **New: `SAFEWORD_RETRO_EXTRACT_CMD` seam** (not in the original plan): added in
+  the stop-retro rewrite so the integration test can prove invisibility without
+  launching a real `claude -p`. A documented test/advanced seam.
+- Otherwise no deviations: composes with the existing retro architecture; the
+  egress/dedup/ledger layers are untouched.
 
 ## Assessment triggers
 
