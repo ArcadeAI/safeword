@@ -18,18 +18,28 @@ scope: |
      Re-fire cadence: additive growth since the last fire (~REARM_GROWTH tool-uses),
      high runaway backstop (~20), gated by #563 "new friction since last fire".
   2. SONNET. Default the extraction model to sonnet (haiku proven too weak: 1–3
-     weak vs 9 strong on the same session).
-  3. ASYNC EXECUTION. Register the retro Stop hook with `async: true` (documented
-     Claude Code hook mode: returns immediately, runs in background, 600s timeout)
-     so re-fires NEVER block the user's session. NOT `asyncRewake` (it surfaces
-     stderr into the chat → breaks invisibility). Replaces the current blocking
-     `spawnSync` in stop-retro.ts.
-  4. SIGNATURE DEDUPE. Re-fires must not open duplicate issues. Match on the
-     content `signature` (retro:hash), not the model-generated title (titles vary
-     across fires). Forward a stable session id to the extractor child (today it
-     falls back to `'unknown'`, breaking ledger session-accounting).
-  5. CONCURRENCY. The re-arm offset state read→write must not double-fire on two
-     near-simultaneous Stops (atomic write / lock).
+     weak vs 9 strong). TWO sites (quality-review): `buildAutoExtractor`
+     (retro.ts:113 — the actual runner, hardcoded `model:'haiku'`) AND the `model?`
+     default in retro-extract.ts. Both → sonnet, config-overridable.
+  3. ASYNC EXECUTION. Register the retro Stop hook `async: true` (documented Claude
+     Code mode — code.claude.com/docs/en/hooks: returns immediately, background,
+     600s). NOT `asyncRewake` (surfaces stderr into chat → breaks invisibility).
+     NOTE (quality-review): `async:true` backgrounds the WHOLE hook tree, so the
+     existing `spawnSync` in stop-retro.ts:69 and in buildAutoExtractor (retro.ts:97)
+     do NOT need to become async — they run in the backgrounded hook and never
+     block the user. The change is the hook REGISTRATION in generated settings,
+     not the spawn calls.
+  4. SIGNATURE DEDUPE. Re-fires must not duplicate. Match the content `signature`
+     (retro:hash), not the model-generated title (triage.ts:82 `searchByTitle` —
+     titles vary across fires). Forward a stable session id to the child
+     (retro.ts:147 falls back to `'unknown'`, breaking ledger session-accounting).
+  5. CONCURRENCY. The offset state read→write must not double-fire on two near-
+     simultaneous Stops. Mechanism: write a temp file then `rename` over the state
+     file (atomic on same filesystem on Linux) — NOT advisory locks.
+  6. DELTA WINDOW PLUMBING (quality-review). `buildDigest` receives a PRE-SLICED
+     window string (transcript since the last fire's offset + small overlap), not
+     the full transcript — so its cap applies to the window, not the head. Overlap
+     size + #563-absent behavior fixed in spec (see refinements).
 out_of_scope: |
   - Transport/filing in cloud (BNGK9W / #568) — the fallback if cloud reclaim
     proves to kill in-hook async work; not this ticket's mechanism.
@@ -49,7 +59,9 @@ done_when: |
   - Delta windowing: a test proves fire N over a grown transcript digests the
     window SINCE fire N-1 (not the head), with overlap; union of deltas covers the
     session.
-  - Two near-simultaneous Stops do not double-fire (atomic offset state).
+  - Two near-simultaneous Stops do not double-fire (atomic temp-write + rename).
+  - Sonnet is the default at BOTH model sites (retro.ts:113 + retro-extract.ts);
+    a test/assertion covers buildAutoExtractor's model, not just the hook concept.
   - Cadence bounded (additive + backstop + #563 friction gate); fail-open, never
     breaks Stop; recursion-guarded. Scenarios green; /verify + /audit pass.
 created: 2026-06-30T15:03:00.000Z
@@ -92,9 +104,28 @@ levers together (supersedes 0XEMEE's inert linear-phase plan).
   re-fire dedupe. Use the content signature + forward the session id.
 - **Cost:** sonnet × delta fires ≈ ~$0.18–0.54 typical, ~$1.44 on a 25 MB session.
 
+## Quality-review refinements (to resolve in spec.md)
+
+- **Overlap size:** fix a concrete value (e.g. last ~50 lines / ~2 KB of the prior
+  window) so a finding straddling a window boundary appears whole in one fire.
+- **#563 absent:** the "new friction since last fire" gate is out-of-scope here;
+  when it's absent the cadence is **fail-open / always-fire** (bounded by the
+  additive growth + backstop) — never silently suppress.
+- **Tail residual:** the last window ends at ~91–100% of the session (sim data);
+  bound the residual to ≤ one `REARM_GROWTH` increment and document it.
+
 ## Work Log
 
 - 2026-06-30T15:03Z Created to supersede 0XEMEE after /figure-it-out settled the
   coherent slice (delta re-arm + sonnet + `async:true` + signature dedupe). 0XEMEE
   and its inert linear-phase scenarios/piece-1 code reverted. Next: spec.md, then
   scenarios for the combined slice.
+- 2026-06-30T16:55Z /quality-review (isolated subprocess) → REQUEST CHANGES, design
+  VALIDATED: `async:true` confirmed in docs (returns immediately/background/600s;
+  asyncRewake would break invisibility — correct); sonnet/haiku IDs current; egress
+  pipeline unbypassed by delta windowing; all 6 existing-code claims verified-from-
+  file. Folded in: (a) second model site retro.ts:113; (b) atomic-offset = temp-
+  write+rename; (c) clarified async:true backgrounds the whole hook tree so inner
+  spawnSync stays sync (reviewer's "two spawnSync defeats async" was a misread, but
+  retro.ts is named as touched); (d) buildDigest takes a pre-sliced window; (e)
+  overlap size / #563-absent fail-open / tail bound → spec refinements. Next: spec.md.
