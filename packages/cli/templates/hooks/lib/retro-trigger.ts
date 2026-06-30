@@ -13,8 +13,9 @@
 // makes re-fires idempotent across sessions; the once-per-session sentinel here
 // makes them idempotent within a session.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 import { tmpdir } from 'node:os';
 
 import { isRetroChild } from './retro-extract.js';
@@ -130,6 +131,106 @@ export function hasNudged(sessionId: string, baseDirectory: string = tmpdir()): 
  */
 export function markNudged(sessionId: string, baseDirectory: string = tmpdir()): void {
   writeFileSync(sentinelPath(sessionId, baseDirectory), `${sessionId}\n`);
+}
+
+// --- Delta re-arm offset state (ticket ZFGWS1) ---------------------------------
+//
+// The boolean once-per-session sentinel above made retro fire ONCE per session,
+// reading only the opening (the digest head-caps to the first 180 KB). Delta
+// re-arm replaces it: per-session offset state lets retro fire repeatedly, each
+// fire digesting only the NEW transcript since the last fire's offset, so the
+// deltas tile the whole session.
+
+/**
+ * Re-fire cadence: re-fire once the transcript grows by this many tool-uses since
+ * the last fire (ADDITIVE, constant spacing → even tiling; sim: last fire 91–100%
+ * of the session). Tunable; injected as `rearmGrowth` in tests.
+ */
+export const REARM_GROWTH = 200;
+
+/**
+ * Runaway backstop: at most this many fires per session, independent of cadence.
+ * A HIGH cap (a crash-loop bound), NOT a low cadence control — a low cap lands the
+ * last fire early and leaves a blind tail (the bug additive cadence fixes).
+ */
+export const MAX_FIRES = 20;
+
+/**
+ * Overlap re-included before a window's start (chars), so a finding straddling a
+ * window boundary appears whole in one fire. A byte-slice may cut the first JSONL
+ * line; `buildDigest` skips that malformed head line, so whole boundary entries
+ * still survive. Duplicate findings from the overlap are absorbed by signature dedupe.
+ */
+export const OVERLAP_BYTES = 2048;
+
+/** Per-session delta state: where the last fire ended, and how many fires so far. */
+export interface OffsetState {
+  /** Transcript length (chars) recorded at the last fire — the next window start. */
+  offset: number;
+  /** Tool-use count at the last fire — the additive-cadence baseline. */
+  toolUses: number;
+  /** Number of fires so far this session — the backstop counter. */
+  fires: number;
+}
+
+/** The fs primitives the atomic state write needs; injected so tests can assert them. */
+export interface AtomicFs {
+  writeFileSync: (path: string, data: string) => void;
+  renameSync: (from: string, to: string) => void;
+}
+
+const defaultAtomicFs: AtomicFs = { writeFileSync, renameSync };
+
+/** Absolute path of the per-session offset-state file for a session id. */
+export function offsetStatePath(sessionId: string, baseDirectory: string = tmpdir()): string {
+  return nodePath.join(
+    baseDirectory,
+    `safeword-retro-offset-${sessionId.replace(/[^\w.-]/g, '_')}.json`,
+  );
+}
+
+/**
+ * Read the per-session offset state, or undefined when absent, unreadable, or
+ * TORN (a partially-written file mid-rename). Fail-open by construction: a torn or
+ * missing state simply re-arms from offset 0 (a re-read the egress dedupe absorbs),
+ * never a throw — a Stop hook must not crash on a partial state file.
+ */
+export function readOffsetState(
+  sessionId: string,
+  baseDirectory: string = tmpdir(),
+): OffsetState | undefined {
+  try {
+    const raw = readFileSync(offsetStatePath(sessionId, baseDirectory), 'utf8');
+    const parsed = JSON.parse(raw) as Partial<OffsetState>;
+    if (
+      typeof parsed.offset !== 'number' ||
+      typeof parsed.toolUses !== 'number' ||
+      typeof parsed.fires !== 'number'
+    ) {
+      return undefined;
+    }
+    return { offset: parsed.offset, toolUses: parsed.toolUses, fires: parsed.fires };
+  } catch {
+    return undefined; // missing / unreadable / torn → fail open (re-arm from 0)
+  }
+}
+
+/**
+ * Persist the per-session offset state ATOMICALLY: write a temp file, then
+ * `rename` it over the state file (atomic on the same filesystem on Linux), so a
+ * concurrent reader never sees a torn write. The temp name carries the pid so two
+ * near-simultaneous Stops don't clobber each other's temp file before the rename.
+ */
+export function writeOffsetState(
+  sessionId: string,
+  state: OffsetState,
+  baseDirectory: string = tmpdir(),
+  atomicFs: AtomicFs = defaultAtomicFs,
+): void {
+  const finalPath = offsetStatePath(sessionId, baseDirectory);
+  const tempPath = `${finalPath}.${process.pid}.tmp`;
+  atomicFs.writeFileSync(tempPath, JSON.stringify(state));
+  atomicFs.renameSync(tempPath, finalPath);
 }
 
 interface SessionIdEnv {
