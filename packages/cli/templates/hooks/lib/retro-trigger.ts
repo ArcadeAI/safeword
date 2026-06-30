@@ -155,14 +155,6 @@ export const REARM_GROWTH = 200;
  */
 export const MAX_FIRES = 20;
 
-/**
- * Overlap re-included before a window's start (chars), so a finding straddling a
- * window boundary appears whole in one fire. A byte-slice may cut the first JSONL
- * line; `buildDigest` skips that malformed head line, so whole boundary entries
- * still survive. Duplicate findings from the overlap are absorbed by signature dedupe.
- */
-export const OVERLAP_BYTES = 2048;
-
 /** Per-session delta state: where the last fire ended, and how many fires so far. */
 export interface OffsetState {
   /** Transcript length (chars) recorded at the last fire — the next window start. */

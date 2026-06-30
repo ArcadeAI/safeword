@@ -86,29 +86,29 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: No session id resolves, so nothing is filed under the unknown fallback
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: clean fail-open branch, no structural improvement
 
 ## Rule: Offset state survives concurrent Stops
 
 ### Scenario: Offset state is written atomically via temp-file then rename
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: helper is minimal (temp-write + rename)
 
 ### Scenario: A later sequential fire strictly advances the recorded offset
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: covered by the cadence decision, no cleanup
 
 ### Scenario: A concurrent reader never sees a torn state file
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: graceful-parse branch is minimal
 
 ## Rule: The retro Stop hook is non-blocking
 
@@ -128,39 +128,39 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A first Stop below the substance threshold does not fire
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: single guard branch, no cleanup
 
 ### Scenario: Growth below the re-arm threshold holds the fire
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: covered by the cadence branch
 
 ### Scenario: Growth at the re-arm threshold re-fires
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: covered by the cadence branch
 
 ### Scenario: The backstop caps total fires per session
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: single backstop guard
 
 ### Scenario: A retro child never re-fires
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: guard ordering unchanged from 7D8PJP
 
 ### Scenario: A state-write failure still fires and leaves the offset unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: fail-open try/catch mirrors markNudged
 
 ## Rule: Every delta window passes the full egress pipeline unchanged
 

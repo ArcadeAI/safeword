@@ -20,6 +20,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { windowFor } from '../../templates/hooks/lib/retro-extract.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 
@@ -46,7 +47,7 @@ export interface RetroOutcome {
  * files nothing when it is missing or unreadable.
  */
 export async function runRetro(
-  options: { transcript?: string },
+  options: { transcript?: string; windowStart?: number },
   dependencies: RetroDependencies,
 ): Promise<RetroOutcome> {
   if (!options.transcript) {
@@ -65,7 +66,12 @@ export async function runRetro(
     return { ok: false, errorMessage: `cannot read transcript at ${options.transcript}` };
   }
 
-  const rawFindings = await dependencies.extract(transcript);
+  // Delta re-arm (ZFGWS1): digest only the window since the last fire's offset
+  // (plus a small overlap), so the cap applies to the new activity, not the head.
+  // windowStart 0 (or absent) means the whole transcript — the first-fire / legacy
+  // behavior. The window flows through the UNCHANGED egress pipeline below.
+  const window = windowFor(transcript, options.windowStart ?? 0);
+  const rawFindings = await dependencies.extract(window);
   const encounters = await prepareEncounters(rawFindings);
   const result = await triage(dependencies.transport, encounters, {
     sessionId: dependencies.sessionId,

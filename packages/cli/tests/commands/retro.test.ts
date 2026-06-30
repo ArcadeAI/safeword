@@ -7,7 +7,7 @@ import type {
   IssueReference,
   IssueTracker,
 } from '../../src/retro/triage.js';
-import { runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
+import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 
 // Compact in-memory transport — only the network boundary is faked.
 class FakeGitHub implements IssueTracker {
@@ -193,5 +193,85 @@ describe('runRetro', () => {
     expect(filed).not.toContain('sk_live_TESTONLY1');
     expect(filed).not.toContain('src/billing.ts');
     expect(filed).toContain('[redacted]');
+  });
+
+  // ZFGWS1 — a friction only in the BACK HALF (beyond the digest head cap) is
+  // filed by a delta fire that windows from the prior offset, and a head-capped
+  // fire over the same transcript files nothing. Drives the real runRetro →
+  // windowFor → runHeadlessExtraction → buildDigest → triage path; the spawn is
+  // gated on whether the (windowed) digest actually contains the back-half marker.
+  it('retro-recall.SM1.AC1.back_half_finding_beyond_the_head_cap_is_filed', async () => {
+    const headText = 'x'.repeat(DIGEST_CAP + 1000); // alone exceeds the digest cap
+    const headEntry = JSON.stringify({
+      type: 'assistant',
+      message: { role: 'assistant', content: [{ type: 'text', text: headText }] },
+    });
+    const backEntry = JSON.stringify({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'BACKHALF friction in hooks/stop-quality.ts' }],
+      },
+    });
+    const transcript = `${headEntry}\n${backEntry}`;
+    const windowStart = headEntry.length + 1; // first char of the back-half line
+
+    const envelope = (text: string) =>
+      JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: text });
+    const findingJSON = JSON.stringify([
+      {
+        category: 'rough-edge',
+        title: 'Back-half friction',
+        safeword_surface: 'hooks/stop-quality.ts',
+        what_happened: 'surfaced only late in the session',
+        why_friction: 'a fire-once retro head-caps and never reads it',
+        repro: 'safeword check late in a long session',
+      },
+    ]);
+
+    // The spawn "sees" the back-half finding only when the digest it was built from
+    // actually contains the marker — i.e. only when the window read the back half.
+    let digest = '';
+    const autoExtractor = (window: string) =>
+      runHeadlessExtraction(window, {
+        writeDigest: (d: string) => {
+          digest = d;
+          return '/tmp/neutral/digest.txt';
+        },
+        spawn: () =>
+          Promise.resolve({
+            code: 0,
+            stdout: envelope(digest.includes('BACKHALF') ? findingJSON : '[]'),
+          }),
+        env: {},
+        cwd: '/tmp/neutral',
+        model: 'sonnet',
+      });
+
+    // Head fire (windowStart 0): the digest head-caps → no BACKHALF → files nothing.
+    const headTransport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/t.jsonl', windowStart: 0 },
+      dependencies({
+        transport: headTransport,
+        extract: autoExtractor,
+        readFile: () => transcript,
+      }),
+    );
+    expect(headTransport.issues).toHaveLength(0);
+
+    // Delta fire (windowStart at the back half): the window digest carries BACKHALF
+    // → the finding is filed, which the head-capped fire above would have missed.
+    const deltaTransport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/t.jsonl', windowStart },
+      dependencies({
+        transport: deltaTransport,
+        extract: autoExtractor,
+        readFile: () => transcript,
+      }),
+    );
+    expect(deltaTransport.issues).toHaveLength(1);
+    expect(deltaTransport.issues[0]?.body).toContain('hooks/stop-quality.ts');
   });
 });

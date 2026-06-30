@@ -15,6 +15,31 @@
 export const DIGEST_CAP = 180_000;
 
 /**
+ * Overlap (chars) re-included before a delta window's start, so a finding
+ * straddling a window boundary appears whole in one fire (ticket ZFGWS1). A
+ * char-slice may cut the first JSONL line; `buildDigest` skips that malformed head
+ * line, so whole boundary entries still survive. Duplicate findings from the
+ * overlap are absorbed by signature dedupe (triage).
+ */
+export const OVERLAP_BYTES = 2048;
+
+/**
+ * Slice the delta window a fire should digest: from `windowStart` (the previous
+ * fire's recorded offset) minus a small overlap, to the end. The FIRST fire
+ * (`windowStart <= 0`) returns the whole transcript so far. So `buildDigest`'s cap
+ * applies to the WINDOW, not the chronological head — defeating the head-cap that
+ * made plain re-arm inert. The overlap is clamped at the start of the transcript.
+ */
+export function windowFor(
+  transcript: string,
+  windowStart: number,
+  overlap: number = OVERLAP_BYTES,
+): string {
+  if (windowStart <= 0) return transcript;
+  return transcript.slice(Math.max(0, windowStart - overlap));
+}
+
+/**
  * The headless extractor only ever READS the digest — never writes, edits, or
  * runs shell. A read-only allow-list keeps the out-of-band child from mutating
  * the working tree or exfiltrating via a tool.
