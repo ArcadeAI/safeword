@@ -624,7 +624,7 @@
   Ensure the always-on `/explain` pointer on a gate block actually reaches the human's eyes on Claude Code — the passive safety net for when the agent misses the confusion-signal that 5XOUDJ's offer rule depends on.
   → `.project/tickets/19E2XQ-explain-hint-reliably-visible`
 - **Retire legacy retro paths after ZFGWS1 + Codex/Cursor invisibility (1B46CT)** (todo, epic: —)
-  Track the dead-code retirement that the recall rework (ZFGWS1) and the
+  Track + drive the dead-code retirement the recall rework (ZFGWS1) and
   → `.project/tickets/1B46CT-retro-legacy-retirement`
 - **Robust dedup: signature marker + label-scoped list lookup (not fuzzy title search) (1FGE1C)** (todo, epic: —)
   Make retro's "never a duplicate issue" guarantee actually hold, by
