@@ -76,3 +76,16 @@ multi-transcript eval set is follow-on (pairs with ZFGWS1's deferred eval scorer
 
 - 2026-06-30T20:43Z Created from the ZFGWS1 live fire — extractor reported 5/6
   already-fixed bugs as current friction. Backlog (todo); needs intake/spec.
+- 2026-06-30T22:50Z Implemented (label-then-filter) + N=1 live smoke-eval. Re-ran
+  real sonnet over the same window with the new prompt: 11 findings → 5 labeled
+  `resolved`, 6 `present`. The 5 resolved were EXACTLY this session's fixed bugs
+  (haiku→sonnet, title→signature dedupe, blocking→async hook, OVERLAP_BYTES rename,
+  pid-uniqueness) — including refactors done late in the session; the filter dropped
+  all 5. The positive-label approach works (sonnet's temporal call was accurate).
+  The 6 `present` were genuine live friction (TDD-misses-tsc, commit-time naming
+  lint, manual mirror-sync, cross-model-unavailable, verify-suite-timeout, the
+  GitHub-indexing risk); they were dropped by the EXISTING resolveSurface
+  fail-closed guard (process-level surfaces, not file paths) — net filed 0 vs ~6
+  false issues pre-change. Caveat: N=1 — multi-transcript eval still owed.
+  Observation (separate ticket candidate): resolveSurface drops process-level
+  friction that has no single file surface; out of scope here.
