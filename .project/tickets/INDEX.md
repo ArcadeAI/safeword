@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (357)
+## Tickets (358)
 
 ### agent-surface-refactor
 
@@ -821,6 +821,9 @@
 - **Interactive 'safeword gateway init' wizard — detect toolkits, deeplink to Arcade, write MCP config (BM8HG4)** (in_progress, epic: —)
   Add a new `safeword gateway init` command that walks the developer through wiring up tool access for their dev agent — detects toolkits the project likely needs (GitHub, Linear, Slack, Gmail, etc.), opens a pre-filled Arcade gateway-creation URL in the browser, accepts the resulting gateway URL back from the user, and writes `.claude/mcp_servers.json` so Claude Code / Cursor / etc. instantly have the configured tools available.
   → `.project/tickets/BM8HG4`
+- **Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)** (in_progress, epic: —)
+  Make the invisible retro actually FILE its findings in a Claude cloud
+  → `.project/tickets/BNGK9W-cloud-retro-filing-transport`
 - **Strengthen golden-path test quality (BPB39Q)** (in_progress, epic: —)
   Replace weak golden-path assertions and duplicated install/upgrade test shape with behavior-specific checks.
   → `.project/tickets/BPB39Q-strengthen-golden-path-test-quality`
