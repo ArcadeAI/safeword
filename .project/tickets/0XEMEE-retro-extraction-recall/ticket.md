@@ -2,7 +2,7 @@
 id: 0XEMEE
 slug: retro-extraction-recall
 type: feature
-phase: intake
+phase: scenario-gate
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 scope: |
@@ -188,6 +188,10 @@ above. The objection bounds the *cost*, it doesn't restore *fire-once* recall.
   digest misses the tail), and METRIC (need validity-based eval, not exact-match).
   Next: figure-it-out on tier (default vs cheap-prefilter->strong escalation) +
   whole-transcript digest, with these numbers as evidence.
+- 2026-06-30T07:40Z BDD: scoped this pass to Phase 0 (TIMING re-arm); tier/coverage/
+  eval-scorer are later phases. Authored spec.md (SM persona, TB1/TB2/TB3/NTB1
+  JTBDs), dimensions.md (8 dimensions), the 12-scenario feature
+  (`retro-rearm-timing.feature`), and the R/G/R ledger. Advanced to scenario-gate.
 - 2026-06-30T07:28Z Added the TIMING lever (Phase 0) after a "when does it run"
   question. Concept-tested on this session's raw transcript: the trigger fires at
   line 19/9,788 (0.2%), but #567 isn't seen until 29% and full coverage not until
