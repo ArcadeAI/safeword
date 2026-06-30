@@ -28,8 +28,9 @@ import {
   selfHealProject,
   type SelfHealResult,
 } from '../utils/architecture-document.js';
+import { discoverUnreadableWorkspaces } from '../utils/architecture-monorepo.js';
 import { isArchitectureDocumentEnforcementEnabled } from '../utils/configured-paths.js';
-import { error, success } from '../utils/output.js';
+import { error, success, warn } from '../utils/output.js';
 
 export function architecture(
   cwd: string = process.cwd(),
@@ -46,7 +47,24 @@ export function architecture(
   for (const result of results) {
     success(`Architecture state document ${result.action}: ${result.path}`);
   }
+  warnUnreadableWorkspaces(cwd);
   return Promise.resolve();
+}
+
+/**
+ * Print a non-blocking warning for each workspace manager that is present at the root but
+ * unparseable (ticket UWP4XK, GitHub #558) — a malformed `go.work`, an unreadable Cargo
+ * `[workspace] members`, a flow-style `pnpm-workspace.yaml`. Advisory only: it never
+ * changes a command's exit code. Surfaced in every mode (default/`--check`/`--stage`),
+ * independent of `architectureDocEnforcement`, because coverage honesty is not enforcement
+ * — the architecture map silently omitting a whole language is wrong regardless of opt-out.
+ */
+function warnUnreadableWorkspaces(cwd: string): void {
+  for (const workspace of discoverUnreadableWorkspaces(cwd)) {
+    warn(
+      `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}). Its packages may be missing from the architecture doc — fix the config and re-run \`safeword architecture\`. (Advisory; nothing is blocked.)`,
+    );
+  }
 }
 
 /**
@@ -55,6 +73,7 @@ export function architecture(
  * — git failures are swallowed so the commit always proceeds.
  */
 function architectureStage(cwd: string): Promise<void> {
+  warnUnreadableWorkspaces(cwd);
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
     success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
     return Promise.resolve();
@@ -89,6 +108,7 @@ function stageDocument(cwd: string, result: SelfHealResult): void {
  * out. Writes nothing — the fix is the human running `safeword architecture`.
  */
 function architectureCheck(cwd: string): Promise<void> {
+  warnUnreadableWorkspaces(cwd);
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
     success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
     return Promise.resolve();

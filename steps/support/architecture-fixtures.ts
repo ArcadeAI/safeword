@@ -21,6 +21,8 @@ export const CLI_PATH = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
 export interface ArchitectureWorld extends SafewordWorld {
   dir?: string;
   status?: number;
+  /** Combined stdout+stderr of the last CLI run, when a step captures it. */
+  output?: string;
 }
 
 /** The scenario's temp project directory, created on first use. */
