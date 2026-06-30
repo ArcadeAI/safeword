@@ -2,8 +2,8 @@
 id: ZFGWS1
 slug: retro-recall-delta-rearm
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 scope: |
   Fix the invisible retro's RECALL as ONE coherent slice (the levers are coupled;
@@ -150,3 +150,8 @@ levers together (supersedes 0XEMEE's inert linear-phase plan).
   must-fix / 0 should-fix; cross-scenario refactor = temp-file uniqueness hardening
   (8ded451). impl-plan reconciled → implemented (no decision changed; 2 naming nuances
   → Known deviations). Phase → verify.
+- 2026-06-30T19:40Z Complete: verify + done — /verify green (suite 4197/4197 + 5
+  skipped, build ✅, Gherkin 23/23, lint+tsc clean, PR scope matches, dep-drift clean);
+  /audit passed (0 circular deps, config in sync, no ZFGWS1 dead code). verify.md
+  written. All 7 done-when criteria met. Ticket → done. Builds on #543 (still open);
+  do not rebase onto main until #543 merges.
