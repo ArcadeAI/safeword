@@ -37,9 +37,9 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.TB2.AC1.headless_argv_omits_bare_flag
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8224ade
+- [x] GREEN 8224ade
+- [x] REFACTOR skip: pure builder (buildExtractArgv); clean on first write
 
 ### Scenario: invisible-retro-claude.TB2.AC2.extraction_runs_synchronously
 
