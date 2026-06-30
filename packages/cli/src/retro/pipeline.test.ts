@@ -34,6 +34,20 @@ describe('prepareEncounters', () => {
     expect(encounters).toEqual([]);
   });
 
+  // 1M20EW: a finding the session ALREADY FIXED (status: resolved) is friction
+  // that's gone — filing it would spam the tracker with already-solved bugs (the
+  // failure the live fire exposed). Code drops it; the model only labels.
+  it('drops a finding the session already resolved (status: resolved)', async () => {
+    const encounters = await prepareEncounters([rawFinding({ status: 'resolved' })]);
+    expect(encounters).toEqual([]);
+  });
+
+  it('keeps a still-present finding (status present, or omitted → present/backward-safe)', async () => {
+    expect(await prepareEncounters([rawFinding({ status: 'present' })])).toHaveLength(1);
+    // a model that omits the field must NOT silently drop everything — default present.
+    expect(await prepareEncounters([rawFinding()])).toHaveLength(1);
+  });
+
   it('caps the number of raw findings processed (anti-abuse bound on secretlint cost)', async () => {
     // A runaway/adversarial extractor array must not fire unbounded secretlint
     // passes inside the synchronous Stop; the cap (50) drops the excess.

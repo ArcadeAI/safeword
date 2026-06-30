@@ -2,8 +2,8 @@
 id: 1M20EW
 slug: retro-fixed-vs-present-friction
 type: task
-phase: intake
-status: todo
+phase: implement
+status: in_progress
 created: 2026-06-30T20:43:24.401Z
 last_modified: 2026-06-30T20:43:24.401Z
 ---
@@ -32,16 +32,40 @@ then closed as #581 after the indexing assumption was empirically confirmed.)
 - Egress + signature + filing + dedupe all worked correctly — the gap is purely
   the extractor's temporal framing of findings.
 
-## Sketch (not yet designed — intake)
+## Approach (decided — /quality-review, web-grounded)
 
-Candidate directions to weigh in spec/figure-it-out:
+**Positive label + deterministic filter.** The extractor labels each finding with
+`status: present | resolved` (a POSITIVE extraction task — "tell me the state"),
+and code drops `resolved` before filing. The decision moves from "trust the model
+to silently omit" to "model labels, code filters" — observable and unit-testable.
 
-- Tighten the extraction system prompt to require findings be friction that is
-  STILL present at the end of the window (ignore problems the session resolved).
-- Post-filter: drop findings whose surface/title was touched by a commit in the
-  same session (the transcript shows the fix landing).
-- Accept-and-dedupe: rely on the occurrence ledger + human triage (weakest —
-  still files the false issue once).
+- Schema: add `status` to the raw finding; `EXTRACT_SYSTEM_PROMPT` asks for it in
+  positive framing ("set status:resolved if the session already fixed this in
+  safeword; present if it remains at session end").
+- `normalizeFinding`: default missing/unknown → `present` (backward-safe — files,
+  never silently drops everything if the model omits the field).
+- `prepareEncounters`: skip `status === 'resolved'`. Over-suppression is the
+  project's safe direction; the egress pipeline is otherwise untouched.
+
+### Rejected
+
+- **Prompt-only "do NOT report resolved bugs"** — negative instructions are
+  empirically unreliable; models follow "do X" better than "don't do Y", and
+  Anthropic's prompt guidance endorses positive framing (16x.engineer "Pink
+  Elephant Problem"; verified 2026-06-30). Replaced by the positive `status` label.
+- **Commit cross-reference post-filter** (drop findings whose file was committed
+  this session) — suppresses real friction in the MOST-edited files (false
+  negatives where signal is highest) and needs git-log/surface-mapping machinery.
+- **Accept-and-dedupe / human triage** — abandons the autonomy that is the point.
+
+### Validation (eval — explicitly insufficient as one fixture)
+
+The live-fire `drafts.json` (5 resolved + 1 present) is a SEED, not a sufficient
+eval — tuning to one session overfits (small-set memorization, verified). A real
+eval needs several diverse transcripts: a fixed-bug session, a hit-and-worked-
+around session (status should be `present`), and a no-fix session. This ticket
+ships the mechanism + a deterministic filter test + an N=1 live smoke-eval; the
+multi-transcript eval set is follow-on (pairs with ZFGWS1's deferred eval scorer).
 
 ## Out of scope
 
