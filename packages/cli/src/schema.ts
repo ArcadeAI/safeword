@@ -30,6 +30,7 @@ import {
   generateOwnedPathsModule,
   resolvedIgnoreDirectories,
   resolvedNamespaceDirectory,
+  resolvedNamespaceRootLabel,
 } from './owned-paths.js';
 import type {
   FileDefinition,
@@ -385,6 +386,31 @@ function managedPrettierPaths(ctx: ProjectContext): string[] {
 // and re-rendered against this exact string). The "(owned dirs)" suffix marks the
 // post-EYRK34 format; the stable prefix is what stale-config-scan detects.
 const PRETTIER_EXCLUSIONS_HEADER = '# Safeword - managed prettier exclusions (owned dirs)';
+
+// Header line of the managed .gitattributes block — also its marker (re-applied and
+// re-rendered against this exact string). See GitHub #566 / ticket GA7T6M.
+const GITATTRIBUTES_HEADER = '# Safeword - managed merge strategy for generated artifacts';
+
+/**
+ * The managed `.gitattributes` block (issue #566): safeword's committed but
+ * deterministically-regenerated artifacts — the architecture docs and the ticket index —
+ * get `merge=union` so a local `git merge`/`rebase`/`pull` of the default branch
+ * auto-resolves them instead of conflicting on the `fingerprint:` line + reconcile/stale
+ * markers. `union` is a BUILT-IN driver (attribute-only, no `git config`), so it works on
+ * any clone/CI from the committed file; the heal + `architecture --check` pipeline then
+ * reconciles the union result to the correct content. `linguist-generated=true` collapses
+ * their diffs and marks them generated on GitHub. Resolved per-ctx so a custom
+ * `paths.projectRoot` ticket index is covered; the architecture-doc glob is root-agnostic.
+ */
+function managedGitattributes(ctx: ProjectContext): string {
+  const root = resolvedNamespaceRootLabel(ctx);
+  return [
+    GITATTRIBUTES_HEADER,
+    '**/architecture.generated.md merge=union linguist-generated=true',
+    `${root}/tickets/INDEX.md merge=union linguist-generated=true`,
+    `${root}/tickets/INDEX-completed.md merge=union linguist-generated=true`,
+  ].join('\n');
+}
 
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
@@ -1124,6 +1150,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       content: ctx => `\n${PRETTIER_EXCLUSIONS_HEADER}\n${managedPrettierPaths(ctx).join('\n')}\n`,
       rerender: true,
       marker: PRETTIER_EXCLUSIONS_HEADER,
+    },
+    '.gitattributes': {
+      // ctx factory + rerender (issue #566), same shape as .prettierignore: a custom
+      // paths.projectRoot resolves into the ticket-index paths, and the block re-renders
+      // in place on upgrade. Default/legacy output is byte-identical, so those installs
+      // no-op. Appended (marker-delimited) so a consumer's own .gitattributes is preserved.
+      operation: 'append',
+      content: ctx => `\n${managedGitattributes(ctx)}\n`,
+      rerender: true,
+      marker: GITATTRIBUTES_HEADER,
     },
     '.codex/config.toml': [
       // Primary patch: retrofits the prompt-timestamp hook onto pre-existing
