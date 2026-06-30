@@ -57,9 +57,9 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.NTB1.AC1.auto_extracted_findings_pass_the_egress_guard
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 717408e
+- [x] GREEN 717408e
+- [x] REFACTOR skip: --auto-extract wiring reuses the unchanged egress pipeline; clean
 
 ### Scenario: invisible-retro-claude.NTB1.AC2.hook_early_returns_under_retro_child_sentinel
 
@@ -71,15 +71,15 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.SM1.AC1.filing_succeeds_without_a_github_token
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bf06371 (no GITHUB_TOKEN but `gh auth token` provides one → transport built, files)
+- [x] GREEN bf06371
+- [x] REFACTOR skip: resolveGitHubToken reuses REST; clean
 
 ### Scenario: invisible-retro-claude.SM1.AC1.token_present_uses_the_rest_transport
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bf06371 (GITHUB_TOKEN present → REST built from it, gh not consulted)
+- [x] GREEN bf06371
+- [x] REFACTOR skip: resolveGitHubToken; clean
 
 ### Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_once_when_sentinel_unset
 
