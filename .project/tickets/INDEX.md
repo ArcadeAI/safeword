@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (350)
+## Tickets (357)
 
 ### agent-surface-refactor
 
@@ -725,6 +725,9 @@
 - **Wire the phase-exit fork review to the cross-model knob (7A0B2K)** (done, epic: —)
   Let the Tier 2 phase-exit fork review (NMSD94) require a different-model reviewer when `crossModelReview` is on, reusing MR5M3A's `modelsMatch` / `isCrossModelReviewRequired` / `AUTHOR_MODEL_ENV` primitives in `review-ledger.ts`.
   → `.project/tickets/7A0B2K-scenario-review-cross-model`
+- **Invisible retro: synchronous headless claude -p extraction (no conversation hijack) (7D8PJP)** (in_progress, epic: —)
+  Run the retro session-retrospective entirely out-of-band — in a separate
+  → `.project/tickets/7D8PJP-invisible-retro-claude`
 - **Deepen scenario-gate adversarial review (port review-spec depth) (7GER0P)** (superseded, epic: —)
   Enrich safeword's scenario-gate (SCENARIOS.md) with the adversarial-review depth from arcade's `/review-spec`, so weak scenarios are caught before they become flaky tests or false-green passes.
   → `.project/tickets/7GER0P-scenario-gate-adversarial-depth`
@@ -846,15 +849,24 @@
 - **Speed up the vitest suite — lift blanket maxWorkers:1, isolate the offenders (CQJBSN)** (in_progress, epic: —)
   Cut full-suite wall-time by removing the blanket `maxWorkers: 1` and running well-isolated test files in parallel.
   → `.project/tickets/CQJBSN-test-suite-parallelism`
+- **Cross-runtime conformance follow-ups (CRZ4TM)** (todo, epic: —)
+  → `.project/tickets/CRZ4TM-cross-runtime-conformance-followups`
 - **Rename generated architecture doc to architecture.generated.md (CTAZT5)** (done, epic: —)
   Give the auto-generated architecture state doc a self-describing, machine-owned name (`<namespace-root>/architecture.generated.md`) that can't be confused with a hand-written architecture/ADR doc.
   → `.project/tickets/CTAZT5-rename-generated-architecture-doc`
 - **Wire test:smoke:live into CI + provision an Anthropic API key secret (CTKZPC)** (backlog, epic: —)
   Run safeword's live real-model smoke (`test:smoke:live`) automatically in CI — on-demand and/or nightly — so the one test that proves a real Claude agent gets steered isn't manual-only.
   → `.project/tickets/CTKZPC-live-smoke-ci-secret`
+- **Spike: does an injected Go-skill directive beat native description-triggering? (2-arm eval, Claude-only, samber pinned) (D50Q0T)** (in_progress, epic: —)
+  {One sentence: what are we trying to achieve?}
+  → `.project/tickets/D50Q0T-go-skill-directive-eval`
 - **Spike: hooks dispatched from the CLI (latency + wiring) (D6GTXY)** (in_progress, epic: —)
   Falsify (or confirm) the load-bearing assumption behind moving safeword's hook layer into the CLI — that a CLI-dispatched hook can run at ~the direct-script latency baseline — with the smallest possible prototype, and produce a go/no-go + migration strategy.
   → `.project/tickets/D6GTXY-hooks-into-cli-spike`
+- **Let projects track feature surfaces during BDD (DBF1FW)** (done, epic: —)
+  Let projects keep a durable inventory of runtime/context feature surfaces that BDD intake, specs, and scenario coverage can use during discovery and implementation.
+  external issue: https://github.com/ArcadeAI/safeword/issues/509
+  → `.project/tickets/DBF1FW-feature-surfaces-bdd`
 - **Ship /explain to Cursor (DC6276)** (done, epic: —)
   Give Cursor users the `/explain` plain-English lifeline they currently don't have — so an NTB on Cursor can decode a block or "where am I" the same way Claude Code and Codex users can.
   → `.project/tickets/DC6276-ship-explain-to-cursor`
@@ -926,6 +938,9 @@
 - **Upgrade eslint-plugin-jsdoc v62 → v63 (HRN1Z6)** (done, epic: —)
   Bump `eslint-plugin-jsdoc` from v62 to v63 across the monorepo and fix the root `package.json` categorization (currently in `dependencies`, belongs in `devDependencies`).
   → `.project/tickets/HRN1Z6`
+- **Python language pack — pyproject discovery, package extraction, dependency fingerprint (HWSEPV)** (done, epic: —)
+  Teach the generated architecture doc to introspect **Python** projects —
+  → `.project/tickets/HWSEPV-architecture-python-language-pack`
 - **Make implementation reviews quiet until exit (JENFZX)** (in_progress, epic: —)
   Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
   external issue: https://github.com/ArcadeAI/safeword/issues/464
@@ -977,6 +992,9 @@
 - **Reduce generated ticket index merge conflicts (MF1DGA)** (in_progress, epic: —)
   Reduce avoidable merge conflicts from the tracked generated ticket index.
   → `.project/tickets/MF1DGA-reduce-generated-ticket-index-conflicts`
+- **Support any monorepo shape — union all workspace managers in discovery (MGWZ4P)** (todo, epic: —)
+  A polyglot monorepo should be fully introspected no matter how many
+  → `.project/tickets/MGWZ4P-polyglot-monorepo-discovery`
 - **Independent evidence-backed architecture gate for features (MR5M3A)** (done, epic: —)
   Layer the missing independent challenge onto #204's impl-plan: require the design to be generated from cited evidence (the /figure-it-out trace) and then survive a fresh-context adversarial review before implementation completes — the one defense against correlated single-agent errors that #204 leaves out.
   → `.project/tickets/MR5M3A-architecture-gate`
@@ -1050,10 +1068,13 @@
 - **`/architecture` LLM-prose resync skill (deferred from JT852Q) (RYKVR5)** (backlog, epic: —)
   An on-demand `/architecture` skill that writes the slow-moving
   → `.project/tickets/RYKVR5-architecture-llm-prose-resync`
+- **Resolve current dependency advisory baseline (SFGCR1)** (in_progress, epic: —)
+  Resolve or explicitly triage the dependency security advisories currently reported by `bun audit`.
+  → `.project/tickets/SFGCR1-resolve-current-dependency-advisory-baseline`
 - **Optimize safeword for Fable 5 — capability-tier harness adaptation (SKQR0G)** (in_progress, epic: —)
   Re-weight safeword's harness for frontier models like Fable 5 — amplify fresh-context verification and the no-bloat guardrail, thin the per-turn control injections, and scale harness intensity by model tier/effort — guided by Fable's own prompting guidance.
   → `.project/tickets/SKQR0G-capability-tier-harness`
-- **Durable egress hardening: secretlint rule-packs + GitHub write-path test (SPNZKM)** (todo, epic: —)
+- **Durable egress hardening: secretlint rule-packs + GitHub write-path test (SPNZKM)** (in_progress, epic: —)
   Replace retro's hand-rolled secret regex with maintained `@secretlint`
   → `.project/tickets/SPNZKM-retro-egress-hardening`
 - **Stop-gate incremental tsc for TS projects (SW1SE5)** (done, epic: —)

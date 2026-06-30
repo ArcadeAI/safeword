@@ -4,18 +4,18 @@
 
 ## Sub-phase gates
 
-Intake advances through sub-phases (load personas/glossary → JTBD → AC → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
+Intake advances through sub-phases (load personas/glossary/surfaces → JTBD → AC → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
 
 1. **Present** the captured artifact verbatim — the JTBD list, the AC list grouped by JTBD, or the Scope / Out of Scope / Done When block.
 2. **Ask** the sub-phase's closing question (below).
 3. **Wait** for confirmation. Any forward-moving reply advances — an explicit "looks good" / "proceed", or an amendment you fold in and re-present. A new concern loops back; you don't advance until it's resolved.
 
-| Sub-phase           | Closing question                                                                                                                                                                             |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Personas / glossary | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)                                                                                                       |
-| Jobs To Be Done     | _"Here's who asked, the cost of not doing it, and how reversible it is — plus the jobs it serves. Given that, is this a feature, or a task? And do the jobs cover who this serves and why?"_ |
-| Acceptance Criteria | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_                                                                                          |
-| Engineering scope   | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                                                                                                          |
+| Sub-phase                      | Closing question                                                                                                                                                                             |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Personas / glossary / surfaces | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)                                                                                                       |
+| Jobs To Be Done                | _"Here's who asked, the cost of not doing it, and how reversible it is — plus the jobs it serves. Given that, is this a feature, or a task? And do the jobs cover who this serves and why?"_ |
+| Acceptance Criteria            | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_                                                                                          |
+| Engineering scope              | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                                                                                                          |
 
 **On resume** (picked up mid-sub-phase across sessions): re-present the captured artifact for re-confirmation rather than assuming the prior signoff still stands — context may have shifted.
 
@@ -50,6 +50,20 @@ At intake start, read the configured glossary file (`paths.glossary`, default `<
 - **If a domain term comes up during intake that isn't in the glossary** — flag it, don't invent a definition. Ask whether it's a new term to define in the configured glossary file, or a synonym for an existing one. Use `validateGlossaryReference` semantics (exact name or alias match; offer the suggestion when only casing differs).
 
 Project-wide terms live in the configured glossary file; vocabulary used in only one spec stays in that ticket. Never extract terms from prose automatically — humans curate the glossary.
+
+## Load project surfaces
+
+At intake start, read the configured surfaces file (`paths.surfaces`, default `<namespace-root>/surfaces.md`). This file is the project's source of truth for feature surfaces: supported product, agent, runtime, protocol, client, or deployment contexts where behavior must keep working. Examples include Claude Code, OpenAI Codex, Cursor, Web app, Mobile app, MCP, Cloud service, and Self-hosted Azure.
+
+- **If the file is missing or empty** (no surface blocks parsed — the scaffolded template comment doesn't count) — surface a soft prompt:
+
+  > _"`surfaces.md` is empty — want to add surfaces now, or proceed without?"_
+
+  The user can answer "proceed without" and intake continues. The surface inventory is optional until a spec names affected surfaces; once it does, saved scenarios should prove coverage with `@surface.<slug>` tags or explicit `skip:` reasons.
+
+- **If a feature mentions a reusable context that isn't in the file** — flag it, don't silently promote it. Ask whether it should become a project surface or stay spec-local under `## Surfaces`.
+
+Promote a spec-local surface into project surfaces when it is recurring across tickets, ambiguous enough to drift, or important enough that missing it would leave a runtime, protocol, client, or deployment untested. One-spec-only contexts stay in that ticket.
 
 ## Author Intake Brief
 

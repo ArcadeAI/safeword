@@ -36,7 +36,9 @@ import { parsePersonas, validatePersonas } from './utils/personas.js';
 import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
+  buildSurfaceCoverageReportFromFeature,
   type CoverageReport,
+  type SurfaceCoverageReport,
 } from './utils/scenario-coverage.js';
 import { formatTicketReference } from './utils/ticket-reference.js';
 import { findDanglingDependencies, findTicketsInCycles } from './utils/ticket-relations.js';
@@ -288,9 +290,19 @@ function coverageDiagnosticsForTicket(
             readFileSafe(nodePath.join(ticketDirectory, 'test-definitions.md')),
           )
         : buildCoverageReportFromFeature(specContent, featureSource.content);
+    const surfaceReport =
+      featureSource === undefined
+        ? undefined
+        : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
     const lineageIssues =
       featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
-    return { issues: lineageIssues, advisories: formatCoverageReport(ticketId, report) };
+    return {
+      issues: lineageIssues,
+      advisories: [
+        ...formatCoverageReport(ticketId, report),
+        ...formatSurfaceCoverageReport(ticketId, surfaceReport),
+      ],
+    };
   } catch (parseError: unknown) {
     if (parseError instanceof FeatureParseError && featureSource !== undefined) {
       return {
@@ -354,6 +366,24 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
     ),
     ...report.orphan.map(
       reference => `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
+    ),
+  ];
+}
+
+function formatSurfaceCoverageReport(
+  ticketId: string,
+  report: SurfaceCoverageReport | undefined,
+): string[] {
+  if (report === undefined) return [];
+  const ticketLabel = formatCoverageTicketLabel(ticketId);
+  return [
+    ...report.missing.map(
+      surface =>
+        `${ticketLabel}: affected surface ${surface.name} has no @surface.* scenario tag (uncovered surface)`,
+    ),
+    ...report.stale.map(
+      slug =>
+        `${ticketLabel}: scenario surface tag @surface.${slug} is not listed under spec.md ## Surfaces Affected (stale surface)`,
     ),
   ];
 }

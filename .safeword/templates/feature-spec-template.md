@@ -10,6 +10,26 @@
 
 ---
 
+## Surfaces
+
+_Optional: list the supported product, agent, runtime, protocol, client, or
+deployment contexts this feature affects. Prefer names from the configured
+surfaces file. Use spec-local names only for one-off contexts._
+
+Affected:
+
+- `<surface name>`
+
+Unaffected:
+
+- `<surface name>` — `<reason>`
+
+Each affected surface should be covered by at least one saved scenario tagged
+`@surface.<slug>` (OpenAI Codex -> `@surface.openai-codex`) or carry
+`skip: <reason>` on the Affected line.
+
+---
+
 ## Technical Constraints
 
 _Non-functional requirements that inform test definitions. Delete sections that don't apply._

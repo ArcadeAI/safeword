@@ -16,8 +16,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
+  buildSurfaceCoverageReportFromFeature,
   parseAcIdsByJtbd,
   parseAcReferenceFromTitle,
+  parseAffectedSurfaceReferences,
 } from './scenario-coverage.js';
 
 /** Wrap a JTBD/AC body in a minimal spec.md with the required section heading. */
@@ -158,5 +160,141 @@ describe('buildCoverageReport (R3 — quiet degradation)', () => {
     const noAcs = spec('### demo.DEV1 — Trace\n\n**Persona:** DEV');
     const report = buildCoverageReport(noAcs, testDefinitions(['demo.DEV1.AC1.x']));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+});
+
+describe('parseAffectedSurfaceReferences', () => {
+  it('reads affected surfaces from the Surfaces section', () => {
+    const references = parseAffectedSurfaceReferences(
+      [
+        '# Spec',
+        '',
+        '## Surfaces',
+        '',
+        'Affected:',
+        '- Claude Code',
+        '- OpenAI Codex',
+        '- Cursor',
+        '',
+        'Unaffected:',
+        '- MCP — no protocol behavior changes',
+        '',
+        '## Jobs To Be Done',
+        '',
+      ].join('\n'),
+    );
+
+    expect(references).toEqual([
+      { name: 'Claude Code', slug: 'claude-code', skipped: false },
+      { name: 'OpenAI Codex', slug: 'openai-codex', skipped: false },
+      { name: 'Cursor', slug: 'cursor', skipped: false },
+    ]);
+  });
+
+  it('ignores commented template examples and records explicit affected-surface skips', () => {
+    const references = parseAffectedSurfaceReferences(
+      [
+        '# Spec',
+        '',
+        '## Surfaces',
+        '',
+        '<!--',
+        'Affected:',
+        '- Claude Code',
+        '-->',
+        '',
+        'Affected:',
+        '- OpenAI Codex — skip: shared generated skill fixture covers Codex',
+        '- Cursor',
+        '',
+      ].join('\n'),
+    );
+
+    expect(references).toEqual([
+      { name: 'OpenAI Codex', slug: 'openai-codex', skipped: true },
+      { name: 'Cursor', slug: 'cursor', skipped: false },
+    ]);
+  });
+});
+
+describe('buildSurfaceCoverageReportFromFeature', () => {
+  function surfaceSpec(body: string): string {
+    return ['# Spec', '', '## Surfaces', '', body, '', '## Jobs To Be Done', ''].join('\n');
+  }
+
+  function feature(tags: readonly string[]): string {
+    return [
+      'Feature: Demo',
+      '',
+      '  Rule: r',
+      '',
+      `    ${toTagLine(tags)}`,
+      '    Scenario: covered surface',
+      '      Given a',
+      '      When b',
+      '      Then c',
+      '',
+    ].join('\n');
+  }
+
+  function toTagLine(tags: readonly string[]): string {
+    return tags.map(tag => `@${tag}`).join(' ');
+  }
+
+  it('reports affected surfaces that have no matching feature tag', () => {
+    const report = buildSurfaceCoverageReportFromFeature(
+      surfaceSpec(['Affected:', '- Claude Code', '- OpenAI Codex', '- Cursor'].join('\n')),
+      feature(['surface.claude-code']),
+    );
+
+    expect(report).toEqual({
+      missing: [
+        { name: 'OpenAI Codex', slug: 'openai-codex' },
+        { name: 'Cursor', slug: 'cursor' },
+      ],
+      stale: [],
+    });
+  });
+
+  it('accepts one scenario carrying multiple surface tags', () => {
+    const report = buildSurfaceCoverageReportFromFeature(
+      surfaceSpec(['Affected:', '- Claude Code', '- OpenAI Codex', '- Cursor'].join('\n')),
+      feature(['surface.claude-code', 'surface.openai-codex', 'surface.cursor']),
+    );
+
+    expect(report).toEqual({ missing: [], stale: [] });
+  });
+
+  it('does not require tags for explicitly skipped affected surfaces', () => {
+    const report = buildSurfaceCoverageReportFromFeature(
+      surfaceSpec(
+        ['Affected:', '- Claude Code', '- OpenAI Codex — skip: not supported in this feature'].join(
+          '\n',
+        ),
+      ),
+      feature(['surface.claude-code']),
+    );
+
+    expect(report).toEqual({ missing: [], stale: [] });
+  });
+
+  it('reports a surface tag that is not listed as affected', () => {
+    const report = buildSurfaceCoverageReportFromFeature(
+      surfaceSpec(['Affected:', '- Claude Code'].join('\n')),
+      feature(['surface.claude-code', 'surface.cursor']),
+    );
+
+    expect(report).toEqual({ missing: [], stale: ['cursor'] });
+  });
+
+  it('stays quiet when the spec has no affected surfaces or no feature source', () => {
+    expect(buildSurfaceCoverageReportFromFeature(surfaceSpec('Affected:'), feature([]))).toEqual({
+      missing: [],
+      stale: [],
+    });
+    expect(buildSurfaceCoverageReportFromFeature(surfaceSpec('Affected:\n- Claude Code'))).toEqual({
+      missing: [],
+      stale: [],
+    });
   });
 });

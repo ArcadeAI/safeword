@@ -20,8 +20,8 @@ import nodePath from 'node:path';
 
 import { isDirectory, readFileSafe } from './fs.js';
 
-/** Logical keys safeword knows how to override via `paths.*`. */
-export type ConfiguredPathKey = 'personas' | 'glossary' | 'architecture';
+/** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
+export type ConfiguredPathKey = 'personas' | 'glossary' | 'surfaces' | 'architecture';
 
 export type ConfiguredDocumentationSource =
   | { type: 'local'; path: string; resolvedPath: string }
@@ -171,7 +171,8 @@ export function readConfiguredDocumentationSourceDecision(
 
 /**
  * Resolve the absolute namespace root — the directory holding safeword's
- * project knowledge (tickets, learnings, personas, glossary, architecture).
+ * project knowledge (tickets, learnings, personas, glossary, surfaces,
+ * architecture).
  *
  * Precedence (epic AQJ95G): explicit config `paths.projectRoot` →
  * `.project/` (the default, shared with arcade) → legacy `.safeword-project/`
@@ -238,7 +239,7 @@ export function defaultConfiguredPath(cwd: string, key: ConfiguredPathKey): stri
  * namespace root (see {@link defaultConfiguredPath}).
  *
  * @param cwd - Project root directory.
- * @param key - Logical key (`personas` | `glossary` | `architecture`).
+ * @param key - Logical project-knowledge key.
  */
 export function resolveConfiguredPath(cwd: string, key: ConfiguredPathKey): string {
   const override = readConfiguredPath(cwd, key);

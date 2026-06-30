@@ -1,7 +1,7 @@
 // Safeword: namespace-root resolver (hook-side copy, ticket TAGWZ8).
 //
 // Resolves the directory holding safeword's project knowledge (tickets,
-// learnings, personas, glossary, architecture). Precedence (epic AQJ95G):
+// learnings, personas, glossary, surfaces, architecture). Precedence (epic AQJ95G):
 // explicit config `paths.projectRoot` in `.safeword/config.json` →
 // `.project/` → legacy `.safeword-project/`; neither present → `.project/`.
 //

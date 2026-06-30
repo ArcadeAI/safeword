@@ -802,6 +802,53 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).toMatch(/demo \(COV004\):.*demo\.DEV1\.AC2.*uncovered/i);
     });
 
+    it('reports an affected surface with no matching feature-source tag as a zero-exit advisory', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('COV007-demo', 'in_progress', {
+        'spec.md': [
+          '# Spec',
+          '',
+          '## Surfaces',
+          '',
+          'Affected:',
+          '- Claude Code',
+          '- OpenAI Codex',
+          '',
+          '## Jobs To Be Done',
+          '',
+          '### demo.DEV1 — Trace',
+          '',
+          '**Persona:** DEV',
+          '',
+          '#### demo.DEV1.AC1 — capability one',
+          '',
+        ].join('\n'),
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.markdown_fallback'),
+      });
+      writeTestFile(
+        temporaryDirectory,
+        'features/demo.feature',
+        [
+          'Feature: Demo',
+          '',
+          '  Rule: r',
+          '',
+          '    @demo.DEV1.AC1 @surface.claude-code',
+          '    Scenario: feature source covers Claude only',
+          '      Given a',
+          '      When b',
+          '      Then c',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/demo \(COV007\):.*OpenAI Codex.*uncovered surface/i);
+    });
+
     it('reports invalid feature source syntax without a parser stack (1DT29X)', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV005-demo', 'in_progress', {
