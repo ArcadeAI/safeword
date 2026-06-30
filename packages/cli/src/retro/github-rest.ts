@@ -3,6 +3,7 @@
 // Intentionally thin and untested-by-unit (it IS the boundary the wiring tests
 // mock); all dedup/cap/ledger/sanitize logic lives in tested modules.
 
+import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
@@ -11,6 +12,32 @@ const UPSTREAM_REPO = 'ArcadeAI/safeword';
 const API = 'https://api.github.com';
 // Safety bound on comment pagination (100/page → up to 2000 comments scanned).
 const MAX_COMMENT_PAGES = 20;
+
+/** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
+function ghAuthToken(): string | undefined {
+  try {
+    const result = spawnSync('gh', ['auth', 'token'], { encoding: 'utf8', timeout: 10_000 });
+    const token = (result.stdout ?? '').trim();
+    return result.status === 0 && token.length > 0 ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolve the GitHub token for retro's code-owned write, dropping the hard
+ * `GITHUB_TOKEN` requirement (7D8PJP): prefer the env var, else fall back to the
+ * environment's existing GitHub access via `gh auth token`. Returns undefined when
+ * neither is available, so the caller can no-op gracefully instead of failing.
+ */
+export function resolveGitHubToken(
+  env: Record<string, string | undefined> = process.env,
+  getGhToken: () => string | undefined = ghAuthToken,
+): string | undefined {
+  const fromEnvironment = env.GITHUB_TOKEN;
+  if (fromEnvironment && fromEnvironment.length > 0) return fromEnvironment;
+  return getGhToken();
+}
 
 /** Build a REST-backed transport, or undefined when no GitHub token is available. */
 export function createRestTransport(token = process.env.GITHUB_TOKEN): IssueTracker | undefined {

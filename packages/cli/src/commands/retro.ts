@@ -123,19 +123,21 @@ async function buildAutoExtractor(): Promise<FindingExtractor> {
 export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const { detectAgent } = await import('../../templates/hooks/lib/self-report.js');
   const { error, info, success } = await import('../utils/output.js');
-  const { createRestTransport } = await import('../retro/github-rest.js');
+  const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
 
   const findingsPath = options.findings;
   const extract: FindingExtractor = options.autoExtract
     ? await buildAutoExtractor()
     : () => Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
 
-  const transport = createRestTransport();
+  // Use the environment's existing GitHub access (GITHUB_TOKEN or `gh auth token`);
+  // no hard token requirement (7D8PJP). With neither, no-op gracefully — the
+  // out-of-band hook path must never fail the Stop for lack of GitHub access.
+  const transport = createRestTransport(resolveGitHubToken());
   if (!transport) {
-    error(
-      'safeword retro needs GitHub access: set GITHUB_TOKEN (target ArcadeAI/safeword), or run it through an agent with GitHub access.',
+    info(
+      'safeword retro: no GitHub access (set GITHUB_TOKEN or run `gh auth login`); nothing filed.',
     );
-    process.exitCode = 1;
     return;
   }
 

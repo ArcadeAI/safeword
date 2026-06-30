@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createRestTransport } from './github-rest.js';
+import { createRestTransport, resolveGitHubToken } from './github-rest.js';
 
 interface MockResponse {
   ok?: boolean;
@@ -139,5 +139,38 @@ describe('createRestTransport', () => {
     expect(call?.url).toBe('https://api.github.com/repos/ArcadeAI/safeword/issues/comments/123');
     expect(call?.init.method).toBe('PATCH');
     expect(JSON.parse(call?.init.body as string)).toEqual({ body: 'edited' });
+  });
+});
+
+describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () => {
+  // invisible-retro-claude.SM1.AC1 (token arm) — GITHUB_TOKEN present → the REST
+  // transport is built from it; `gh` is never consulted.
+  it('invisible-retro-claude.SM1.AC1.token_present_uses_the_rest_transport', () => {
+    let ghConsulted = false;
+    const token = resolveGitHubToken({ GITHUB_TOKEN: 'env-tok' }, () => {
+      ghConsulted = true;
+      return 'gh-tok';
+    });
+    expect(token).toBe('env-tok');
+    expect(ghConsulted).toBe(false);
+    // a transport is genuinely built from the resolved token
+    expect(createRestTransport(token)).toBeDefined();
+  });
+
+  // invisible-retro-claude.SM1.AC1 (no-token arm) — no GITHUB_TOKEN but the
+  // environment's `gh` access provides one → filing proceeds (transport built),
+  // not a failure for lack of a token.
+  it('invisible-retro-claude.SM1.AC1.filing_succeeds_without_a_github_token', () => {
+    const token = resolveGitHubToken({}, () => 'gh-tok');
+    expect(token).toBe('gh-tok');
+    expect(createRestTransport(token)).toBeDefined();
+  });
+
+  it('returns undefined when neither GITHUB_TOKEN nor gh is available (graceful no-op)', () => {
+    // No token resolved → createRestTransport('') yields no transport, so the
+    // command no-ops gracefully rather than failing the Stop.
+    const noGh = (): string | undefined => undefined;
+    expect(resolveGitHubToken({}, noGh)).toBeUndefined();
+    expect(createRestTransport('')).toBeUndefined();
   });
 });
