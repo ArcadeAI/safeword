@@ -2,10 +2,10 @@
 id: AXRC4D
 slug: architecture-md-reconcile
 type: feature
-phase: define-behavior
+phase: verify
 status: todo
 created: 2026-06-29T00:42:00.000Z
-last_modified: 2026-06-29T00:42:00.000Z
+last_modified: 2026-06-30T04:10:00.000Z
 scope:
   - Sharpen the `/audit` skill's existing ARCHITECTURE.md check (§5 "Project Documentation Checks") to reconcile the human doc's STRUCTURAL claims against `architecture.generated.md` — the machine-listed module/layer set — not only against `package.json` dependencies as today. The agent reads the generated doc as ground truth and flags: a documented module/layer that no longer exists (orphaned), a real top-level module the doc never mentions (missing), and a drifted layer→directory mapping. Report only; the agent updates the human narrative with the user reviewing. It NEVER auto-overwrites prose.
   - A fingerprint-triggered staleness NUDGE at the done-gate (`/verify` / the Stop done-gate hook): when the project's top-level shape fingerprint moved DURING this ticket, surface a one-line, NON-blocking advisory — "you changed the top-level structure; ARCHITECTURE.md's module/layer description may be stale — reconcile it." Reuse the EXISTING `shapeFingerprint`/`monorepoFingerprint` already computed by the architecture subsystem; do not build a new detector.
