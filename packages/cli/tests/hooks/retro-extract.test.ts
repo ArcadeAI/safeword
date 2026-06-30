@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDigest, buildExtractArgv } from '../../templates/hooks/lib/retro-extract.js';
+import {
+  buildDigest,
+  buildExtractArgv,
+  isRetroChild,
+  RETRO_CHILD_ENV,
+} from '../../templates/hooks/lib/retro-extract.js';
 
 describe('buildDigest', () => {
   // invisible-retro-claude.TB2.AC3 — a multi-MB transcript is digested, not fed raw:
@@ -96,5 +101,21 @@ describe('buildExtractArgv', () => {
     expect(argv).toContain('SYSRULES');
     // The task prompt is the trailing positional argument.
     expect(argv.at(-1)).toBe('TASKPROMPT');
+  });
+});
+
+describe('isRetroChild', () => {
+  // invisible-retro-claude.NTB1.AC2 (read half) — the recursion guard. The
+  // headless child runs WITH hooks (no `--bare`), so without this it would
+  // re-fire retro. The sentinel env makes every safeword hook early-return.
+  it('invisible-retro-claude.NTB1.AC2.hook_early_returns_under_retro_child_sentinel', () => {
+    expect(isRetroChild({ [RETRO_CHILD_ENV]: '1' })).toBe(true);
+    expect(isRetroChild({})).toBe(false);
+    // Unset/empty is NOT a child — must not suppress a real session's retro.
+    expect(isRetroChild({ [RETRO_CHILD_ENV]: '' })).toBe(false);
+  });
+
+  it('exposes the sentinel env name the spawn half sets', () => {
+    expect(RETRO_CHILD_ENV).toBe('SAFEWORD_RETRO_CHILD');
   });
 });

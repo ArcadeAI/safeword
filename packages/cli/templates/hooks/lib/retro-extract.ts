@@ -21,6 +21,20 @@ export const DIGEST_CAP = 180_000;
  */
 const READ_ONLY_TOOLS = 'Read';
 
+/**
+ * Env sentinel set on the headless child. The auth-working invocation does NOT
+ * use `--bare`, so the child loads safeword's hooks; every safeword hook checks
+ * this and early-returns, so the child can't re-trigger retro (infinite spawn).
+ * NOT `--bare` (breaks cloud auth) and NOT `CLAUDE_CODE_CHILD_SESSION` (already
+ * `1` in the normal tool context, so it can't distinguish a retro child).
+ */
+export const RETRO_CHILD_ENV = 'SAFEWORD_RETRO_CHILD';
+
+/** Whether the current process is a retro headless child (recursion guard). */
+export function isRetroChild(env: Record<string, string | undefined>): boolean {
+  return (env[RETRO_CHILD_ENV] ?? '').length > 0;
+}
+
 export interface ExtractArgvOptions {
   /** Model for the headless extraction (cheap by default — see the caller). */
   model: string;
