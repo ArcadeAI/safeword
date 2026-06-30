@@ -17,15 +17,15 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.TB1.AC1.stop_hook_emits_no_conversation_context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c2dc33d (integration: substantial session → no additionalContext, sentinel armed)
+- [x] GREEN c2dc33d
+- [x] REFACTOR skip: hook adapter rewrite; clean
 
 ### Scenario: invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors
 
-- [x] RED 7189434 (runner fail-open: code≠0 / bad JSON / spawn throw → [], no throw)
-- [x] GREEN 7189434
-- [ ] REFACTOR skip: hook-level no-additionalContext half lands with stop-retro (piece 5)
+- [x] RED 7189434 (runner fail-open) + c2dc33d (hook stays silent: malformed stdin / wrapped try-catch / stdio-ignored spawn)
+- [x] GREEN c2dc33d
+- [x] REFACTOR skip: runner + hook adapter; clean
 
 ### Scenario: invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess
 
