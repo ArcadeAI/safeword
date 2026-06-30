@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { readTomlTableArray, readTomlTableString } from '../../src/utils/toml.js';
+import {
+  isTomlTableEmptyArray,
+  readTomlTableArray,
+  readTomlTableString,
+} from '../../src/utils/toml.js';
 
 describe('readTomlTableArray', () => {
   it('reads a multi-line array scoped to its table', () => {
@@ -98,5 +102,42 @@ describe('readTomlTableArray / readTomlTableString — # inside a quoted value (
     expect(readTomlTableString('[project]\nname = "real" # the name\n', 'project', 'name')).toBe(
       'real',
     );
+  });
+});
+
+describe('isTomlTableEmptyArray (UWP4XK review nit — empty vs unparseable)', () => {
+  it('is true for a well-formed empty array (inline, spaced, and multi-line)', () => {
+    expect(isTomlTableEmptyArray('[workspace]\nmembers = []\n', 'workspace', 'members')).toBe(true);
+    expect(isTomlTableEmptyArray('[workspace]\nmembers = [ ]\n', 'workspace', 'members')).toBe(
+      true,
+    );
+    expect(isTomlTableEmptyArray('[workspace]\nmembers = [\n]\n', 'workspace', 'members')).toBe(
+      true,
+    );
+  });
+
+  it('is false for a non-empty array (read normally, never "empty")', () => {
+    expect(
+      isTomlTableEmptyArray('[workspace]\nmembers = ["crates/*"]\n', 'workspace', 'members'),
+    ).toBe(false);
+  });
+
+  it('is false for a malformed value — a string, or an array left unclosed (still unreadable)', () => {
+    expect(
+      isTomlTableEmptyArray('[workspace]\nmembers = "crates/*"\n', 'workspace', 'members'),
+    ).toBe(false);
+    expect(isTomlTableEmptyArray('[workspace]\nmembers = [\n', 'workspace', 'members')).toBe(false);
+  });
+
+  it('is false when the table or the key is absent', () => {
+    expect(isTomlTableEmptyArray('[project]\nname = "x"\n', 'workspace', 'members')).toBe(false);
+    expect(isTomlTableEmptyArray('[workspace]\nexclude = []\n', 'workspace', 'members')).toBe(
+      false,
+    );
+  });
+
+  it('is table-scoped — an empty array in the target table, not a same-named key elsewhere', () => {
+    const toml = '[other]\nmembers = ["x"]\n\n[workspace]\nmembers = []\n';
+    expect(isTomlTableEmptyArray(toml, 'workspace', 'members')).toBe(true);
   });
 });
