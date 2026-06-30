@@ -5,7 +5,48 @@ import {
   buildExtractArgv,
   isRetroChild,
   RETRO_CHILD_ENV,
+  runHeadlessExtraction,
 } from '../../templates/hooks/lib/retro-extract.js';
+
+// A success envelope as `claude -p --output-format json` emits it: the model's
+// findings JSON lives in `.result`.
+const envelope = (resultText: string) =>
+  JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: resultText });
+
+const validFindings = JSON.stringify([
+  {
+    category: 'rough-edge',
+    title: 'Gate message omits the file',
+    safeword_surface: 'hooks/stop-quality.ts',
+    what_happened: 'x',
+    why_friction: 'y',
+    repro: 'z',
+  },
+]);
+
+function fakeDependencies(over: Record<string, unknown> = {}) {
+  const calls: {
+    argv: string[];
+    options: { cwd: string; env: Record<string, string | undefined> };
+  }[] = [];
+  return {
+    calls,
+    deps: {
+      spawn: (
+        argv: string[],
+        options: { cwd: string; env: Record<string, string | undefined> },
+      ) => {
+        calls.push({ argv, options });
+        return Promise.resolve({ code: 0, stdout: envelope(validFindings) });
+      },
+      writeDigest: (_digest: string) => '/tmp/neutral/digest.txt',
+      env: { HOME: '/home/x' },
+      cwd: '/tmp/neutral',
+      model: 'haiku',
+      ...over,
+    },
+  };
+}
 
 describe('buildDigest', () => {
   // invisible-retro-claude.TB2.AC3 — a multi-MB transcript is digested, not fed raw:
@@ -117,5 +158,56 @@ describe('isRetroChild', () => {
 
   it('exposes the sentinel env name the spawn half sets', () => {
     expect(RETRO_CHILD_ENV).toBe('SAFEWORD_RETRO_CHILD');
+  });
+});
+
+describe('runHeadlessExtraction', () => {
+  // invisible-retro-claude.TB1.AC2 (spawn contract) + NTB1.AC2 (spawn half):
+  // the digest is the input, the child runs from the neutral cwd, and the child
+  // env carries the recursion sentinel.
+  it('invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess', async () => {
+    const { calls, deps } = fakeDependencies();
+    await runHeadlessExtraction('some transcript', deps);
+
+    expect(calls).toHaveLength(1);
+    const call = calls[0];
+    if (!call) throw new Error('expected a spawn call');
+    const { argv, options } = call;
+    // the digest path (the input) is referenced in the task prompt
+    expect(argv.at(-1)).toContain('/tmp/neutral/digest.txt');
+    // neutral cwd, not the user's project
+    expect(options.cwd).toBe('/tmp/neutral');
+    // recursion sentinel set on the child
+    expect(options.env[RETRO_CHILD_ENV]).toBe('1');
+    // no --bare (cloud auth)
+    expect(argv).not.toContain('--bare');
+  });
+
+  // invisible-retro-claude.TB2.AC2 — synchronous: the runner awaits the spawn and
+  // returns its parsed result (it did not return early / detach).
+  it('invisible-retro-claude.TB2.AC2.extraction_runs_synchronously', async () => {
+    const { deps } = fakeDependencies();
+    const findings = await runHeadlessExtraction('t', deps);
+    expect(findings).toHaveLength(1);
+    expect((findings[0] as { title: string }).title).toBe('Gate message omits the file');
+  });
+
+  // invisible-retro-claude.TB1.AC1 (fail-open) — extractor error or junk output
+  // yields no findings and never throws.
+  it('invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors', async () => {
+    const nonZero = fakeDependencies({
+      spawn: () => Promise.resolve({ code: 1, stdout: 'Authentication error' }),
+    });
+    await expect(runHeadlessExtraction('t', nonZero.deps)).resolves.toEqual([]);
+
+    const badJson = fakeDependencies({
+      spawn: () => Promise.resolve({ code: 0, stdout: envelope('not json at all') }),
+    });
+    await expect(runHeadlessExtraction('t', badJson.deps)).resolves.toEqual([]);
+
+    const threw = fakeDependencies({
+      spawn: () => Promise.reject(new Error('spawn failed')),
+    });
+    await expect(runHeadlessExtraction('t', threw.deps)).resolves.toEqual([]);
   });
 });

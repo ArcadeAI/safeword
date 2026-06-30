@@ -66,6 +66,98 @@ export function buildExtractArgv(options: ExtractArgvOptions): string[] {
   ];
 }
 
+// The extraction rules, mirrored from templates/guides/retro.md: SAFEWORD's own
+// friction only, the constrained snake_case schema, no invention. The egress
+// guard sanitizes downstream, so the child writes plainly.
+const EXTRACT_SYSTEM_PROMPT =
+  "You extract SAFEWORD's OWN friction from a session digest. Output ONLY a JSON " +
+  'array (no prose). Each item: {"category":"bug|rough-edge|gap","title":"canonical ' +
+  'title of the SAFEWORD behavior","safeword_surface":"a real safeword path: ' +
+  'hooks/…, packages/cli/…, templates/…, dist/…, or .safeword/…","what_happened":"",' +
+  '"why_friction":"","repro":"in terms of safeword commands"}. Rules: SAFEWORD\'s ' +
+  'friction only (not the host project, not Claude Code itself); canonical ' +
+  'behavior-titles; do not invent; [] if none.';
+
+/** The task prompt: point the read-only child at the digest file. */
+function buildExtractPrompt(digestPath: string): string {
+  return `Read the file ${digestPath} and extract SAFEWORD's own friction as the JSON array described. Output only the JSON array.`;
+}
+
+/** Parse a findings array out of a `claude -p --output-format json` envelope. */
+function parseFindings(stdout: string): unknown[] {
+  let envelopeResult: string;
+  try {
+    const parsed = JSON.parse(stdout) as { result?: unknown };
+    if (typeof parsed.result !== 'string') return [];
+    envelopeResult = parsed.result;
+  } catch {
+    return [];
+  }
+  // The model's text may be fenced (```json … ```); pull the first array literal.
+  const match = envelopeResult.match(/\[[\S\s]*\]/);
+  if (!match) return [];
+  try {
+    const findings = JSON.parse(match[0]) as unknown;
+    return Array.isArray(findings) ? findings : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Result of spawning the headless extractor. */
+export interface SpawnResult {
+  code: number | null;
+  stdout: string;
+}
+
+/** Dependencies for `runHeadlessExtraction` — the process boundaries, injected. */
+export interface RunExtractionDeps {
+  /** Spawn `claude` with argv; resolve with exit code + stdout. Awaited (sync). */
+  spawn: (
+    argv: string[],
+    options: { cwd: string; env: Record<string, string | undefined> },
+  ) => Promise<SpawnResult>;
+  /** Persist the digest to a file the read-only child can Read; return its path. */
+  writeDigest: (digest: string) => string;
+  /** Base env for the child (the sentinel is added here). */
+  env: Record<string, string | undefined>;
+  /** Neutral cwd — NOT the user's project — so project hooks don't load. */
+  cwd: string;
+  /** Extraction model (cheap by default). */
+  model?: string;
+}
+
+/**
+ * Run the retro extraction in a separate, isolated headless `claude -p` session
+ * and return the raw findings array. Synchronous (awaits the spawn) and
+ * fail-OPEN: any error — non-zero exit, unparseable output, a spawn throw —
+ * yields `[]` and never throws, so the Stop hook that wraps this stays silent and
+ * never blocks. Spawn contract: the digest is the input (referenced in the
+ * prompt), the child runs from the neutral cwd, and the child env carries
+ * `SAFEWORD_RETRO_CHILD=1` (recursion guard).
+ */
+export async function runHeadlessExtraction(
+  transcript: string,
+  dependencies: RunExtractionDeps,
+): Promise<unknown[]> {
+  try {
+    const digestPath = dependencies.writeDigest(buildDigest(transcript));
+    const argv = buildExtractArgv({
+      model: dependencies.model ?? 'haiku',
+      systemPrompt: EXTRACT_SYSTEM_PROMPT,
+      prompt: buildExtractPrompt(digestPath),
+    });
+    const { code, stdout } = await dependencies.spawn(argv, {
+      cwd: dependencies.cwd,
+      env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
+    });
+    if (code !== 0) return []; // fail-open on a failed extraction
+    return parseFindings(stdout);
+  } catch {
+    return []; // fail-open on any spawn/IO error
+  }
+}
+
 // A tool-result body is kept whole only when it's short OR carries a friction
 // signal (errors/failures/gate blocks are exactly what retro mines); larger
 // non-signal bodies are dropped so they can't crowd out text + tool-use names.
