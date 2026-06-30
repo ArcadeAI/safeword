@@ -114,15 +114,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The generated Claude Stop settings register the retro hook async
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0d9780f
+- [x] GREEN 8153cb0
+- [x] REFACTOR skip: asyncHook mirrors the existing asyncRewakeHook helper
 
 ### Scenario: The retro Stop hook is not registered asyncRewake
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0d9780f
+- [x] GREEN 8153cb0
+- [x] REFACTOR skip: same assertion (async, not asyncRewake) in one config test
 
 ## Rule: Re-fire cadence is bounded and fail-open
 

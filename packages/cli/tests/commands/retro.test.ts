@@ -278,6 +278,45 @@ describe('runRetro', () => {
     expect(deltaTransport.issues).toHaveLength(1);
     expect(deltaTransport.issues[0]?.body).toContain('hooks/stop-quality.ts');
   });
+
+  // ZFGWS1 NTB1.AC1 — the egress guard holds for EVERY delta window, not just the
+  // first: windowing slices the INPUT transcript only; findings from a re-fire
+  // (windowStart > 0) still flow through normalize → resolveSurface →
+  // sanitizeTextDeep → buildDraft, never bypassing it.
+  it('retro-recall.NTB1.AC1.a_secret_in_a_delta_window_finding_is_redacted', async () => {
+    const transport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/t.jsonl', windowStart: 5000 },
+      dependencies({
+        transport,
+        extract: () =>
+          Promise.resolve([
+            rawFinding({
+              what_happened: 'leaked sk_live_TESTONLY1 editing /Users/jdoe/app/x.ts',
+            }),
+          ]),
+      }),
+    );
+    const filed = JSON.stringify(transport.issues);
+    expect(filed).not.toContain('sk_live_TESTONLY1');
+    expect(filed).not.toContain('/Users/jdoe/app/x.ts');
+    expect(filed).toContain('[redacted]');
+  });
+
+  it('retro-recall.NTB1.AC1.a_delta_window_finding_with_an_unresolved_surface_is_dropped', async () => {
+    const transport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/t.jsonl', windowStart: 5000 },
+      dependencies({
+        transport,
+        extract: () =>
+          Promise.resolve([
+            rawFinding({ safeword_surface: 'src/billing.ts', title: 'Customer bug' }),
+          ]),
+      }),
+    );
+    expect(transport.issues).toHaveLength(0);
+  });
 });
 
 // ZFGWS1 SM1.AC2 — the RUNNER (buildAutoExtractor), not just the headless-default
