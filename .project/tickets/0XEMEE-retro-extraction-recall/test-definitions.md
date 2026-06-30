@@ -89,6 +89,6 @@ Feature source: `packages/cli/features/retro-rearm-timing.feature`
 
 ### Scenario: retro-rearm-timing.NTB1.AC2.rearm_state_keyed_to_session_id
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED (piece 1: re-arm state helpers — keying + round-trip + corrupt-fail-open)
+- [x] GREEN (35/35 retro-trigger tests pass)
+- [x] REFACTOR skip: pure fs helpers mirroring sentinelPath/markNudged; clean

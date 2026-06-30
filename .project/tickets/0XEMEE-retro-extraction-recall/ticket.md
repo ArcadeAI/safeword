@@ -77,6 +77,35 @@ last_modified: 2026-06-30T06:15:02.222Z
 safeword friction — by raising the default tier (justified against cost) and
 covering the whole transcript, not just its head.
 
+## How it works, end to end (plain-English capture)
+
+The invisible retro reviews a session for safeword's OWN friction and files
+issues — invisibly (no chat output; headless `claude -p`, 7D8PJP). Three things
+were broken; this ticket fixes them in order.
+
+1. **WHEN it runs (Phase 0 — this slice, IN PROGRESS).** Today it runs ONCE, at
+   the first Stop with ≥3 tool-uses — which is ~0.2% into a real session — then
+   never again, so it only ever sees the opening. Fix: **re-arm.** Record the
+   tool-use count at each run; run again on a later Stop once the session has grown
+   by ~250 tool-uses (ADDITIVE cadence — geometric front-loads and goes blind on
+   the back 60%). So the LAST run before the session goes quiet sees ~the whole
+   session (~95% in simulation). A high fire-cap (~20) is only a runaway guard.
+   Re-runs that re-surface an already-filed finding open NO duplicate — the
+   existing occurrence ledger (RV9JT4) dedupes. Never blocks Stop; recursion-guarded.
+2. **WHICH model (Phase A — next).** Today's default is haiku, proven too weak
+   (1–3 weak findings vs sonnet's 9 strong on the same session). Default → sonnet.
+3. **HOW MUCH it sees per run (Phase B — later).** The digest keeps only the first
+   180 KB (8.1%) of a long session. Fix: whole-transcript selection (chunk-and-map),
+   measured by an eval scorer (Phase C) instead of exact-match against a human set.
+
+**Cost:** sonnet × re-runs, bounded by additive cadence + fixed per-run digest cap
+
++ dedup + the #563 "new friction since last run" gate. Typical session ~$0.35–1;
+a rare 25 MB session ~$2.80 (G=250). PROVISIONAL pick (G≈250, sonnet) made when the
+cost question couldn't be asked interactively — reversible via config; confirm.
+Future cost win: fire once after the session goes quiet (debounce) — blocked on
+cloud container-reclaim-timing, the same gap that ruled out a SessionEnd hook.
+
 **See:** [spec.md](./spec.md) once authored.
 **Parent:** RV9JT4. **Siblings:** 7D8PJP (built extraction), BNGK9W (#568, transport).
 
@@ -236,6 +265,13 @@ above. The objection bounds the *cost*, it doesn't restore *fire-once* recall.
   #563 friction gate trim typical sessions. Worst-case cost is the OPEN #563 value
   call. Future win: debounce-to-quiet = one ~$0.35 end-fire (blocked on cloud
   reclaim-timing characterization). impl-plan Decisions/approach/triggers updated.
+- 2026-06-30T14:40Z IMPLEMENT piece 1/6 GREEN: re-arm state helpers in
+  retro-trigger.ts (+ `.safeword` mirror) — `RearmState {lastCount, fires}`,
+  `rearmStatePath`, `readRearmState` (fail-open on missing/corrupt), `recordFire`;
+  `REARM_GROWTH=250` + `MAX_FIRES=20` constants. 6 new unit tests (keying,
+  round-trip, re-fire overwrite, path-sanitize, corrupt-fail-open); 35/35
+  retro-trigger pass. NTB1.AC2 ledger row checked. NEXT piece 2: the additive
+  re-arm decision (`decideRetroRun` successor) — TB1.AC1/TB2.AC1/NTB1.AC1.
 - 2026-06-30T07:28Z Added the TIMING lever (Phase 0) after a "when does it run"
   question. Concept-tested on this session's raw transcript: the trigger fires at
   line 19/9,788 (0.2%), but #567 isn't seen until 29% and full coverage not until

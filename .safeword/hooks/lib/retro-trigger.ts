@@ -27,6 +27,20 @@ import { isRetroChild } from './retro-extract.js';
  */
 export const SUBSTANCE_THRESHOLD = 3;
 
+/**
+ * Re-arm cadence (0XEMEE Phase 0). The retro re-fires extraction on later Stops
+ * as the session grows, so the LAST fire sees ~the whole session — the first
+ * qualifying Stop lands at ~0.2% of a real session (concept-tested), so a single
+ * fire reads only the opening. ADDITIVE, not geometric: geometric front-loads its
+ * fires and leaves a long blind tail (simulated on a real 1,904-tool-use session —
+ * geometric's last fire at 38%, additive's at ~95%). `REARM_GROWTH` is the
+ * tool-use growth required between fires; `MAX_FIRES` is a HIGH runaway backstop
+ * (a crash-loop guard), NOT a cadence control — a low cap exhausts early and
+ * re-creates the blind tail. Both are tunable / config-overridable.
+ */
+export const REARM_GROWTH = 250;
+export const MAX_FIRES = 20;
+
 interface ContentItem {
   type?: string;
 }
@@ -130,6 +144,58 @@ export function hasNudged(sessionId: string, baseDirectory: string = tmpdir()): 
  */
 export function markNudged(sessionId: string, baseDirectory: string = tmpdir()): void {
   writeFileSync(sentinelPath(sessionId, baseDirectory), `${sessionId}\n`);
+}
+
+/**
+ * Per-session re-arm state (0XEMEE): the tool-use count at the last fire and the
+ * running fire number (for the `MAX_FIRES` backstop). Replaces the boolean
+ * once-per-session sentinel for the re-arming retro-run path.
+ */
+export interface RearmState {
+  lastCount: number;
+  fires: number;
+}
+
+/** Absolute path of the per-session re-arm state file. */
+export function rearmStatePath(sessionId: string, baseDirectory: string = tmpdir()): string {
+  return nodePath.join(baseDirectory, `${sentinelName(sessionId)}.rearm.json`);
+}
+
+/**
+ * Read a session's re-arm state, or undefined when it has never fired or the file
+ * is missing / unreadable / malformed — fail open, so a corrupt state never
+ * crashes the Stop hook (it just falls back to "never fired").
+ */
+export function readRearmState(
+  sessionId: string,
+  baseDirectory: string = tmpdir(),
+): RearmState | undefined {
+  try {
+    const parsed: unknown = JSON.parse(
+      readFileSync(rearmStatePath(sessionId, baseDirectory), 'utf8'),
+    );
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      typeof (parsed as RearmState).lastCount === 'number' &&
+      typeof (parsed as RearmState).fires === 'number'
+    ) {
+      const { lastCount, fires } = parsed as RearmState;
+      return { lastCount, fires };
+    }
+  } catch {
+    // missing / unreadable / malformed → no state
+  }
+  return undefined;
+}
+
+/** Record a fire: the tool-use count at this fire and the running fire number. */
+export function recordFire(
+  sessionId: string,
+  state: RearmState,
+  baseDirectory: string = tmpdir(),
+): void {
+  writeFileSync(rearmStatePath(sessionId, baseDirectory), JSON.stringify(state));
 }
 
 interface SessionIdEnv {

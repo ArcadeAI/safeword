@@ -6,7 +6,7 @@
  * KHYXY4) wrap. Pure-logic units here; the hook wiring is an integration test.
  */
 
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -20,6 +20,8 @@ import {
   hasNudged,
   isSubstantial,
   markNudged,
+  readRearmState,
+  recordFire,
   resolveSessionId,
   SUBSTANCE_THRESHOLD,
 } from '../../templates/hooks/lib/retro-trigger.js';
@@ -147,6 +149,54 @@ describe('once-per-session sentinel (keyed by session id)', () => {
     // The marker must live in baseDirectory, not escape it; hasNudged round-trips the
     // same sanitization so the value is still observable.
     expect(hasNudged('../../etc/passwd', baseDirectory)).toBe(true);
+  });
+});
+
+// 0XEMEE Phase 0 (re-arm timing): the boolean sentinel becomes a per-session
+// re-arm state — the tool-use count at the last fire + how many times it has
+// fired (for the runaway backstop). NTB1.AC2 keying + the storage seam.
+describe('re-arm state (keyed by session id)', () => {
+  let baseDirectory: string;
+  beforeEach(() => {
+    baseDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-rearm-'));
+  });
+  afterEach(() => {
+    rmSync(baseDirectory, { recursive: true, force: true });
+  });
+
+  it('reports no state before the first fire', () => {
+    expect(readRearmState('sess-1', baseDirectory)).toBeUndefined();
+  });
+
+  it('round-trips the last-fired count and fire number for the same session id', () => {
+    recordFire('sess-1', { lastCount: 250, fires: 1 }, baseDirectory);
+    expect(readRearmState('sess-1', baseDirectory)).toEqual({ lastCount: 250, fires: 1 });
+  });
+
+  it('keys the state by session id — a different id is independent', () => {
+    recordFire('sess-1', { lastCount: 250, fires: 1 }, baseDirectory);
+    expect(readRearmState('sess-2', baseDirectory)).toBeUndefined();
+  });
+
+  it('overwrites the prior state on a re-fire (latest count + bumped fire number)', () => {
+    recordFire('sess-1', { lastCount: 250, fires: 1 }, baseDirectory);
+    recordFire('sess-1', { lastCount: 520, fires: 2 }, baseDirectory);
+    expect(readRearmState('sess-1', baseDirectory)).toEqual({ lastCount: 520, fires: 2 });
+  });
+
+  it('sanitizes a session id with path separators so state stays inside baseDirectory', () => {
+    recordFire('../../etc/passwd', { lastCount: 3, fires: 1 }, baseDirectory);
+    expect(readRearmState('../../etc/passwd', baseDirectory)).toEqual({ lastCount: 3, fires: 1 });
+  });
+
+  it('treats a corrupt state file as no state (fail open)', () => {
+    // A malformed re-arm file must not throw — the decision falls back to "never
+    // fired" rather than crashing the Stop hook.
+    recordFire('sess-1', { lastCount: 1, fires: 1 }, baseDirectory);
+    // Corrupt it by hand, then expect undefined, not a throw.
+    const path = nodePath.join(baseDirectory, 'safeword-retro-sess-1.rearm.json');
+    writeFileSync(path, '{ not json');
+    expect(readRearmState('sess-1', baseDirectory)).toBeUndefined();
   });
 });
 
