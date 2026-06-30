@@ -85,6 +85,24 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     expect(content).toContain('*.png binary'); // consumer's line survives
     expect(content).toContain(HEADER); // safeword block appended
   });
+
+  it('marks only generated artifacts — never a hand-authored doc, a broad *.md, or a lockfile', async () => {
+    // The danger of merge=union is an over-broad pattern silently both-sides-merging a
+    // hand-maintained file with no conflict signal. Pin that every union line targets a
+    // generated/derived artifact, and that the obvious leak targets are never marked.
+    await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
+
+    const content = gitattributes();
+    const unionLines = content.split('\n').filter(line => line.includes('merge=union'));
+    for (const line of unionLines) {
+      expect(line).toMatch(/architecture\.generated\.md|tickets\/INDEX(-completed)?\.md/);
+    }
+    // The hand-authored ARCHITECTURE.md (what #562 reconciles), a blanket markdown glob, and
+    // lockfiles must never be union-merged.
+    expect(content).not.toMatch(/ARCHITECTURE\.md\s+merge=union/);
+    expect(content).not.toMatch(/\*\.md\s+merge=union/);
+    expect(content).not.toMatch(/lock[\w.]*\s+merge=union/i);
+  });
 });
 
 describe('merge=union actually auto-resolves the #566 conflict (git-level)', () => {

@@ -689,6 +689,25 @@ describe('discoverWorkspaces — present-but-unparseable managers are surfaced (
     expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
   });
 
+  it('U12 — an explicitly-empty Cargo [workspace] members array is absent, not unreadable', () => {
+    // `members = []` declares no workspace members — like package.json `workspaces: []` (U8),
+    // a deliberate empty list, not a present-but-unparseable one (UWP4XK).
+    clearRootManifest(context.directory);
+    writeFileSync(nodePath.join(context.directory, 'Cargo.toml'), '[workspace]\nmembers = []\n');
+
+    expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
+  });
+
+  it('U13 — an explicitly-empty uv [tool.uv.workspace] members array is absent, not unreadable', () => {
+    clearRootManifest(context.directory);
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = []\n',
+    );
+
+    expect(discoverUnreadableWorkspaces(context.directory)).toEqual([]);
+  });
+
   it('exposes the unreadable set on the monorepo model', () => {
     makePackage(context.directory, 'web', { modules: ['ui'] });
     writeFileSync(
