@@ -106,7 +106,11 @@ and `buildPayload` (`payload.ts`) already compute the create/update/close decisi
   - `create` → `{ kind, ticketId, payload: { title, body, labels, state } }`
   - `update` → `{ kind, ticketId, ref: { provider, number, url }, payload }`
   - `close` → `{ kind, ticketId, ref: { provider, number, url }, stateReason? }`
-  - each MAY carry `graph?: { parentNumber?, blockedByNumbers? }` — see the open fork below.
+  - a `create`/`update` intent carries `graph?: { parentTicketId?, blockedByTicketIds? }` — edges
+    are expressed by **ticket id**, not issue number, because a new issue's number isn't known
+    until it's created. The executor resolves ticket id → number after creates land (create-then-
+    link, a second pass — mirroring today's `gh` `projectGraph`-after-create). Linking is execution
+    work only: it mints no identity, so `--apply-results` records nothing for edges.
 - The executor produces a separate **SyncResults**: `{ "version": 1, "results": [{ ticketId,
   number, url, status }] }`.
 - `sync-tracker --apply-results <file>` reads SyncResults from a path and folds each **create**
@@ -145,14 +149,9 @@ skip: child of epic KKNFZA (inherits its rave moment); this slice is internal tr
 
 ## Open Questions
 
-- **Graph edges in executor #1 (the one real fork from the cold-start check).** The `gh` path
-  projects parent + blocked-by edges via a separate `projectGraph` step. Does the *agent* executor
-  in this slice have to reproduce those edges, or is core create/update/close enough for now? The
-  contract carries `graph?` on each intent either way (forward-compatible, protects the one-way
-  door); the question is only whether *applying* edges is in this ticket's done-when.
-  _Proposed: carry edges in the contract, defer their **execution** to a follow-on; core CRUD is
-  the slice. Awaiting signoff at the scope gate._
-- _(10 other cold-start gaps resolved — see "Contract & design decisions" above.)_
+- _(All cold-start gaps resolved — see "Contract & design decisions" above. The graph-edge fork is
+  decided: **executor #1 reproduces parent + blocked-by edges** (option B), expressed by ticket id
+  and applied create-then-link, so an agent-applied mirror matches the `gh` path's output.)_
 
 ## Notes / evidence
 
