@@ -16,12 +16,24 @@ import {
   buildRetroNudge,
   countToolUses,
   decideRetroNudge,
+  decideRetroRun,
   hasNudged,
   isSubstantial,
   markNudged,
   resolveSessionId,
   SUBSTANCE_THRESHOLD,
 } from '../../templates/hooks/lib/retro-trigger.js';
+
+// Shared injected-deps factory for the decideRetro* orchestration suites (the
+// gates are identical; only the return shape differs between nudge and run).
+const dependenciesFactory =
+  (getBaseDirectory: () => string, transcript: string) =>
+  (over: Record<string, unknown> = {}) => ({
+    env: {},
+    readFile: () => transcript,
+    baseDirectory: getBaseDirectory(), // lazy: baseDirectory is set in beforeEach
+    ...over,
+  });
 
 // A Claude JSONL transcript with `n` assistant tool_use content items, matching
 // the shape stop-reentry.ts parses: one entry per line, `type` + message.content.
@@ -150,12 +162,7 @@ describe('decideRetroNudge (orchestration)', () => {
     rmSync(baseDirectory, { recursive: true, force: true });
   });
 
-  const dependencies = (over: Record<string, unknown> = {}) => ({
-    env: {},
-    readFile: () => substantial,
-    baseDirectory,
-    ...over,
-  });
+  const dependencies = dependenciesFactory(() => baseDirectory, substantial);
 
   it('SM1.AC1: a substantial unnudged session returns a nudge with path + guide and sets the sentinel', () => {
     const out = decideRetroNudge(
@@ -225,6 +232,73 @@ describe('decideRetroNudge (orchestration)', () => {
     );
     expect(out).toBeUndefined();
     expect(hasNudged('sess-1', baseDirectory)).toBe(false);
+  });
+});
+
+describe('decideRetroRun (invisible trigger — run extraction, never a nudge)', () => {
+  let baseDirectory: string;
+  const substantial = transcriptWithToolUses(SUBSTANCE_THRESHOLD + 2);
+  const trivial = transcriptWithToolUses(SUBSTANCE_THRESHOLD - 1);
+
+  beforeEach(() => {
+    baseDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-run-'));
+  });
+  afterEach(() => {
+    rmSync(baseDirectory, { recursive: true, force: true });
+  });
+
+  const dependencies = dependenciesFactory(() => baseDirectory, substantial);
+
+  it('SM1.AC2: a substantial unset session returns the transcript path and arms the sentinel', () => {
+    const out = decideRetroRun(
+      { session_id: 'sess-1', transcript_path: '/t/sess-1.jsonl' },
+      dependencies(),
+    );
+    expect(out).toEqual({ transcriptPath: '/t/sess-1.jsonl' });
+    expect(hasNudged('sess-1', baseDirectory)).toBe(true);
+  });
+
+  it('SM1.AC2: an already-run session returns undefined (no second extraction)', () => {
+    markNudged('sess-1', baseDirectory);
+    const out = decideRetroRun(
+      { session_id: 'sess-1', transcript_path: '/t/sess-1.jsonl' },
+      dependencies(),
+    );
+    expect(out).toBeUndefined();
+  });
+
+  it('NTB1.AC2: a retro child (sentinel env set) returns undefined even when substantial', () => {
+    const out = decideRetroRun(
+      { session_id: 'sess-1', transcript_path: '/t/sess-1.jsonl' },
+      dependencies({ env: { SAFEWORD_RETRO_CHILD: '1' } }),
+    );
+    expect(out).toBeUndefined();
+    // guard fires before the sentinel is armed
+    expect(hasNudged('sess-1', baseDirectory)).toBe(false);
+  });
+
+  it('a trivial session returns undefined and leaves the sentinel unset', () => {
+    const out = decideRetroRun(
+      { session_id: 'sess-1', transcript_path: '/t/sess-1.jsonl' },
+      dependencies({ readFile: () => trivial }),
+    );
+    expect(out).toBeUndefined();
+    expect(hasNudged('sess-1', baseDirectory)).toBe(false);
+  });
+
+  it('fails open: no session id / no path / unreadable transcript → undefined', () => {
+    expect(decideRetroRun({ transcript_path: '/t/x.jsonl' }, dependencies())).toBeUndefined();
+    expect(decideRetroRun({ session_id: 'sess-1' }, dependencies())).toBeUndefined();
+    expect(
+      decideRetroRun(
+        { session_id: 'sess-1', transcript_path: '/t/missing.jsonl' },
+        dependencies({
+          readFile: () => {
+            throw new Error('ENOENT');
+          },
+        }),
+      ),
+    ).toBeUndefined();
   });
 });
 

@@ -17,6 +17,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { tmpdir } from 'node:os';
 
+import { isRetroChild } from './retro-extract.js';
+
 /**
  * A session is "substantial" — worth a retrospective — once its transcript shows
  * at least this many tool-use events. The transcript itself is the substance
@@ -277,4 +279,62 @@ export function decideRetroNudge(
     // duplicate nudge next Stop, which the occurrence ledger (RV9JT4) dedupes.
   }
   return buildRetroNudge(transcriptPath);
+}
+
+/** What `decideRetroRun` returns when this Stop should run an extraction. */
+export interface RetroRunDecision {
+  /** The transcript to mine, handed to the headless extractor. */
+  transcriptPath: string;
+}
+
+/**
+ * Decide whether to RUN the invisible retro extraction this Stop (7D8PJP) — the
+ * out-of-band replacement for `decideRetroNudge`. Same gates, but it returns the
+ * transcript path to extract from instead of conversation text, and it adds the
+ * recursion guard FIRST: a retro headless child (`SAFEWORD_RETRO_CHILD=1`) never
+ * triggers another retro. Fail-open by construction — every "can't proceed"
+ * branch returns undefined and leaves the once-per-session sentinel untouched:
+ *   - this process is itself a retro child → undefined (before any gate)
+ *   - no resolvable session id / no transcript_path → undefined
+ *   - already ran this session → undefined
+ *   - transcript unreadable / not substantial → undefined, sentinel unset
+ */
+export function decideRetroRun(
+  input: RetroTriggerInput,
+  dependencies: RetroTriggerDeps = {},
+): RetroRunDecision | undefined {
+  const env = dependencies.env ?? (process.env as Record<string, string | undefined>);
+  // Recursion guard first: the auth-working headless child runs with hooks, so
+  // without this it would re-fire retro endlessly.
+  if (isRetroChild(env)) return undefined;
+
+  const resolve = dependencies.resolveSessionId ?? resolveSessionId;
+  const sessionId = resolve(input, env);
+  if (!sessionId) return undefined;
+
+  const transcriptPath = input.transcript_path;
+  if (!transcriptPath || transcriptPath.length === 0) return undefined;
+
+  if (hasNudged(sessionId, dependencies.baseDirectory)) return undefined;
+
+  const read = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
+  let transcript: string;
+  try {
+    transcript = read(transcriptPath);
+  } catch {
+    return undefined; // unreadable transcript → fail open
+  }
+
+  const counter = dependencies.countToolUses ?? countToolUses;
+  if (!isSubstantial(transcript, dependencies.threshold ?? SUBSTANCE_THRESHOLD, counter)) {
+    return undefined; // trivial session → silent, sentinel left unset
+  }
+
+  try {
+    markNudged(sessionId, dependencies.baseDirectory);
+  } catch {
+    // A sentinel-write failure must not suppress the run; worst case is a second
+    // extraction next Stop, which the occurrence ledger (RV9JT4) dedupes.
+  }
+  return { transcriptPath };
 }
