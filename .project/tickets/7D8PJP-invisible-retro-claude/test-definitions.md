@@ -23,15 +23,15 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7189434 (runner fail-open: code≠0 / bad JSON / spawn throw → [], no throw)
+- [x] GREEN 7189434
+- [ ] REFACTOR skip: hook-level no-additionalContext half lands with stop-retro (piece 5)
 
 ### Scenario: invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7189434
+- [x] GREEN 7189434
+- [x] REFACTOR skip: runner unit (injected spawn); clean on first write
 
 ## Rule: It authenticates and completes in a Claude cloud session
 
@@ -43,9 +43,9 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.TB2.AC2.extraction_runs_synchronously
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7189434
+- [x] GREEN 7189434
+- [x] REFACTOR skip: runner unit; clean on first write
 
 ### Scenario: invisible-retro-claude.TB2.AC3.large_transcript_is_digested_before_extraction
 
@@ -63,9 +63,9 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.NTB1.AC2.hook_early_returns_under_retro_child_sentinel
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED cbcf857 (read half — predicate) / 7189434 (spawn half — child env sentinel)
+- [x] GREEN 7189434
+- [x] REFACTOR skip: predicate + runner spawn-env; clean
 
 ## Rule: Filing uses the environment's GitHub access, gated once per session
 
