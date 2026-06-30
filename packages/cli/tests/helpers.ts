@@ -28,6 +28,13 @@ export const TIMEOUT_SYNC = 30_000;
 export const TIMEOUT_SETUP = 60_000;
 /** Acceptance lanes can spawn their own runners and need headroom under full-suite load (120s) */
 export const TIMEOUT_ACCEPTANCE_LANE = 120_000;
+/**
+ * Inner child-process timeout for the Cucumber wiring check (90s).
+ * Sits below `TIMEOUT_ACCEPTANCE_LANE` so a hung `cucumber-js` child is killed
+ * (SIGKILL) and the test fails cleanly with captured output, instead of blocking
+ * the event loop until Vitest's outer lane timeout — which `spawnSync` can starve.
+ */
+export const TIMEOUT_CUCUMBER_CHILD = 90_000;
 /** bun install operations under load or cold cache (120s) */
 export const TIMEOUT_BUN_INSTALL = 120_000;
 

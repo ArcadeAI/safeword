@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import vitestConfig from '../../vitest.config.js';
-import { TIMEOUT_ACCEPTANCE_LANE } from '../helpers.js';
+import { TIMEOUT_ACCEPTANCE_LANE, TIMEOUT_CUCUMBER_CHILD } from '../helpers.js';
 
 const CLI_DIRECTORY = nodePath.resolve(import.meta.dirname, '../..');
 const CUCUMBER_WIRING_CHECK_ARGS = ['cucumber-js', '--dry-run', '--format', 'summary'];
@@ -25,8 +25,23 @@ describe('cucumber-js acceptance lane (SM1.AC1)', () => {
       const result = spawnSync('bunx', CUCUMBER_WIRING_CHECK_ARGS, {
         cwd: CLI_DIRECTORY,
         encoding: 'utf8',
+        // Kill a hung child instead of letting blocking spawnSync starve the
+        // outer Vitest lane timeout (issue #488). SIGKILL because cucumber-js
+        // can ignore SIGTERM; the child timeout sits below the lane ceiling.
+        timeout: TIMEOUT_CUCUMBER_CHILD,
+        killSignal: 'SIGKILL',
       });
-      const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+      // On timeout spawnSync sets `error` (ETIMEDOUT) and `signal`, status null,
+      // and returns whatever stdout/stderr the child emitted before the kill.
+      // Surface all of it so a hang fails cleanly with useful diagnostics.
+      const output = [
+        result.error ? `error: ${result.error.message}` : '',
+        result.signal ? `terminated by signal: ${result.signal}` : '',
+        `stdout:\n${result.stdout ?? ''}`,
+        `stderr:\n${result.stderr ?? ''}`,
+      ]
+        .filter(Boolean)
+        .join('\n');
       expect(result.status, output).toBe(0);
       expect(output).toMatch(/\b[1-9]\d* scenarios? \([1-9]\d* skipped\)/);
       expect(output).not.toMatch(/undefined|ambiguous|pending|passed/);
