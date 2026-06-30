@@ -39,8 +39,12 @@ export function resolveGitHubToken(
   return getGhToken();
 }
 
-/** Build a REST-backed transport, or undefined when no GitHub token is available. */
-export function createRestTransport(token = process.env.GITHUB_TOKEN): IssueTracker | undefined {
+/**
+ * Build a REST-backed transport, or undefined when no token is available. The
+ * token is REQUIRED (no `process.env` default) so every caller routes through
+ * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
+ */
+export function createRestTransport(token: string | undefined): IssueTracker | undefined {
   if (!token) return undefined;
 
   const headers = {

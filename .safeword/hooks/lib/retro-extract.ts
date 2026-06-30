@@ -23,10 +23,11 @@ const READ_ONLY_TOOLS = 'Read';
 
 /**
  * Env sentinel set on the headless child. The auth-working invocation does NOT
- * use `--bare`, so the child loads safeword's hooks; every safeword hook checks
- * this and early-returns, so the child can't re-trigger retro (infinite spawn).
- * NOT `--bare` (breaks cloud auth) and NOT `CLAUDE_CODE_CHILD_SESSION` (already
- * `1` in the normal tool context, so it can't distinguish a retro child).
+ * use `--bare`, so the child loads safeword's hooks; the retro Stop hook checks
+ * this and early-returns, so the child can't re-trigger retro (infinite spawn) —
+ * and stop-retro is the only hook that recursively spawns `claude -p`, so guarding
+ * it is sufficient. NOT `--bare` (breaks cloud auth) and NOT `CLAUDE_CODE_CHILD_SESSION`
+ * (already `1` in the normal tool context, so it can't distinguish a retro child).
  */
 export const RETRO_CHILD_ENV = 'SAFEWORD_RETRO_CHILD';
 
