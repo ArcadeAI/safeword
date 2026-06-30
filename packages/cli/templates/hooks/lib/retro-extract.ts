@@ -35,6 +35,14 @@ export function isRetroChild(env: Record<string, string | undefined>): boolean {
   return (env[RETRO_CHILD_ENV] ?? '').length > 0;
 }
 
+/**
+ * Override for the command the Stop hook spawns to run the extraction CLI. When
+ * set, the hook spawns this command verbatim instead of resolving `safeword retro
+ * --auto-extract`. A test/advanced seam so the hook's invisibility can be proven
+ * without launching a real headless `claude -p`.
+ */
+export const RETRO_EXTRACT_CMD_ENV = 'SAFEWORD_RETRO_EXTRACT_CMD';
+
 export interface ExtractArgvOptions {
   /** Model for the headless extraction (cheap by default — see the caller). */
   model: string;

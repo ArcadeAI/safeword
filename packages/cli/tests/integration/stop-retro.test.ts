@@ -1,11 +1,14 @@
 /**
- * Integration test: the stop-retro hook surfaces a fact-phrased retro nudge via
- * hookSpecificOutput.additionalContext on a substantial session (ticket FTCQGD).
+ * Integration test: the stop-retro hook runs the retro retrospective OUT OF BAND
+ * and emits NOTHING to the conversation (ticket 7D8PJP — supersedes FTCQGD's
+ * additionalContext nudge).
  *
- * Spawns the real dogfood hook under bun, with a seeded transcript file, and
- * asserts the wiring end-to-end: substantial → additionalContext + exit 0; trivial
- * → silent; already-nudged → silent; malformed input → silent; surface=false →
- * silent. The decision logic itself is unit-tested in tests/hooks/retro-trigger.
+ * Spawns the real dogfood hook under bun with a seeded transcript, and asserts the
+ * wiring end-to-end: substantial → no additionalContext + exit 0 + sentinel set
+ * (it decided to run); trivial / already-run / retro-child / surface=false /
+ * malformed → silent. The extraction CLI itself is neutralized via the
+ * SAFEWORD_RETRO_EXTRACT_CMD seam (spawns `true`) so no real `claude -p` launches.
+ * The decision logic is unit-tested in tests/hooks/retro-trigger.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -14,7 +17,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
+import { hasNudged, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -47,23 +50,28 @@ function writeTranscript(directory: string, name: string, toolUses: number): str
   return file;
 }
 
-function runHook(directory: string, input: unknown) {
+function runHook(directory: string, input: unknown, extraEnvironment: Record<string, string> = {}) {
   return spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: directory,
+      // Neutralize the real extraction CLI so no headless claude -p launches.
+      SAFEWORD_RETRO_EXTRACT_CMD: 'true',
+      ...extraEnvironment,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
 }
 
-describe('stop-retro hook (FTCQGD)', () => {
+describe('stop-retro hook — invisible out-of-band run (7D8PJP)', () => {
   let dir: string;
-  // Unique session ids per run so the /tmp sentinel never collides across tests.
   const sessionIds: string[] = [];
 
   function freshSession(tag: string): string {
-    const id = `ftcqgd-${tag}-${process.pid}-${sessionIds.length}`;
+    const id = `inv-retro-${tag}-${process.pid}-${sessionIds.length}`;
     sessionIds.push(id);
     return id;
   }
@@ -77,7 +85,7 @@ describe('stop-retro hook (FTCQGD)', () => {
     sessionIds.length = 0;
   });
 
-  it('surfaces a retro nudge with the transcript path and guide on a substantial session', () => {
+  it('TB1.AC1: a substantial session runs but emits NO conversation context', () => {
     writeConfig(dir, { surface: true });
     const transcript = writeTranscript(dir, 'big.jsonl', 8);
     const id = freshSession('big');
@@ -85,10 +93,11 @@ describe('stop-retro hook (FTCQGD)', () => {
     const result = runHook(dir, { session_id: id, transcript_path: transcript });
 
     expect(result.status).toBe(0);
-    const payload = JSON.parse(result.stdout);
-    expect(payload.hookSpecificOutput.hookEventName).toBe('Stop');
-    expect(payload.hookSpecificOutput.additionalContext).toContain(transcript);
-    expect(payload.hookSpecificOutput.additionalContext.toLowerCase()).toContain('guide');
+    // The invisibility guarantee: nothing reaches the conversation.
+    expect(result.stdout.trim()).toBe('');
+    expect(result.stdout).not.toContain('additionalContext');
+    // It DID decide to run (sentinel armed), so silence is a real run, not a skip.
+    expect(hasNudged(id)).toBe(true);
   });
 
   it('stays silent on a trivial session', () => {
@@ -102,15 +111,31 @@ describe('stop-retro hook (FTCQGD)', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
-  it('stays silent on the second Stop for the same session (sentinel set)', () => {
+  it('SM1.AC2: stays silent on the second Stop for the same session (sentinel set)', () => {
     writeConfig(dir, { surface: true });
     const transcript = writeTranscript(dir, 'big.jsonl', 8);
     const id = freshSession('twice');
 
     const first = runHook(dir, { session_id: id, transcript_path: transcript });
-    expect(first.stdout).toContain('additionalContext');
+    expect(first.status).toBe(0);
     const second = runHook(dir, { session_id: id, transcript_path: transcript });
+    expect(second.status).toBe(0);
     expect(second.stdout.trim()).toBe('');
+  });
+
+  it('NTB1.AC2: stays silent for a retro headless child (SAFEWORD_RETRO_CHILD set)', () => {
+    writeConfig(dir, { surface: true });
+    const transcript = writeTranscript(dir, 'big.jsonl', 8);
+    const id = freshSession('child');
+
+    const result = runHook(
+      dir,
+      { session_id: id, transcript_path: transcript },
+      { SAFEWORD_RETRO_CHILD: '1' },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
   });
 
   it('stays silent when surfacing is disabled', () => {
