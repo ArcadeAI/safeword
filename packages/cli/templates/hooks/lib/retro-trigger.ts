@@ -330,6 +330,14 @@ export interface RetroTriggerDeps {
     input: RetroTriggerInput,
     env: Record<string, string | undefined>,
   ) => string | undefined;
+  /** Additive re-fire growth in tool-uses (defaults to REARM_GROWTH). */
+  rearmGrowth?: number;
+  /** Runaway fire-count backstop (defaults to MAX_FIRES). */
+  maxFires?: number;
+  /** Offset-state reader (injected for tests; defaults to the fs helper). */
+  readOffsetState?: (sessionId: string, baseDirectory?: string) => OffsetState | undefined;
+  /** Offset-state writer (injected for tests; defaults to the atomic fs helper). */
+  writeOffsetState?: (sessionId: string, state: OffsetState, baseDirectory?: string) => void;
 }
 
 /**
@@ -386,19 +394,33 @@ export function decideRetroNudge(
 export interface RetroRunDecision {
   /** The transcript to mine, handed to the headless extractor. */
   transcriptPath: string;
+  /**
+   * Char offset where this fire's delta window starts (0 on the first fire). The
+   * CLI slices `transcript.slice(max(0, windowStart - OVERLAP_BYTES))` before
+   * digesting, so each fire reads only the NEW activity (plus a small overlap).
+   */
+  windowStart: number;
 }
 
 /**
- * Decide whether to RUN the invisible retro extraction this Stop (7D8PJP) — the
- * out-of-band replacement for `decideRetroNudge`. Same gates, but it returns the
- * transcript path to extract from instead of conversation text, and it adds the
- * recursion guard FIRST: a retro headless child (`SAFEWORD_RETRO_CHILD=1`) never
- * triggers another retro. Fail-open by construction — every "can't proceed"
- * branch returns undefined and leaves the once-per-session sentinel untouched:
+ * Decide whether to RUN the invisible retro extraction this Stop, and (when it
+ * does) compute the delta window and advance the per-session offset state
+ * (ZFGWS1 — supersedes the once-per-session sentinel of 7D8PJP). The retro now
+ * fires MORE than once per session: the FIRST fire keeps the substance gate and
+ * digests from offset 0 (the whole transcript so far); RE-fires are gated by
+ * ADDITIVE growth (`rearmGrowth` tool-uses since the last fire) under a high
+ * `maxFires` runaway backstop, and each returns `windowStart` = the previous
+ * fire's offset so the CLI digests only the new delta.
+ *
+ * The recursion guard runs FIRST (a retro headless child never re-fires). Fail-open
+ * by construction — every "can't proceed" branch returns undefined and leaves the
+ * offset state untouched, and a state-write failure still fires (the duplicate it
+ * risks is absorbed by signature dedupe), so the hook never blocks Stop:
  *   - this process is itself a retro child → undefined (before any gate)
  *   - no resolvable session id / no transcript_path → undefined
- *   - already ran this session → undefined
- *   - transcript unreadable / not substantial → undefined, sentinel unset
+ *   - transcript unreadable → undefined
+ *   - first fire below the substance threshold → undefined, state unset
+ *   - re-fire below the growth threshold, or backstop reached → undefined, state unchanged
  */
 export function decideRetroRun(
   input: RetroTriggerInput,
@@ -416,8 +438,6 @@ export function decideRetroRun(
   const transcriptPath = input.transcript_path;
   if (!transcriptPath || transcriptPath.length === 0) return undefined;
 
-  if (hasNudged(sessionId, dependencies.baseDirectory)) return undefined;
-
   const read = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
   let transcript: string;
   try {
@@ -427,15 +447,35 @@ export function decideRetroRun(
   }
 
   const counter = dependencies.countToolUses ?? countToolUses;
-  if (!isSubstantial(transcript, dependencies.threshold ?? SUBSTANCE_THRESHOLD, counter)) {
-    return undefined; // trivial session → silent, sentinel left unset
+  const toolUses = counter(transcript);
+  const threshold = dependencies.threshold ?? SUBSTANCE_THRESHOLD;
+  const rearmGrowth = dependencies.rearmGrowth ?? REARM_GROWTH;
+  const maxFires = dependencies.maxFires ?? MAX_FIRES;
+  const baseDirectory = dependencies.baseDirectory;
+  const readState = dependencies.readOffsetState ?? readOffsetState;
+  const writeState = dependencies.writeOffsetState ?? writeOffsetState;
+  const prior = readState(sessionId, baseDirectory);
+
+  let windowStart: number;
+  let fires: number;
+  if (!prior) {
+    // First fire: substance gate, digest from the start of the transcript.
+    if (toolUses < threshold) return undefined;
+    windowStart = 0;
+    fires = 1;
+  } else {
+    // Re-fire: bounded by the runaway backstop, then gated by additive growth.
+    if (prior.fires >= maxFires) return undefined;
+    if (toolUses - prior.toolUses < rearmGrowth) return undefined;
+    windowStart = prior.offset;
+    fires = prior.fires + 1;
   }
 
   try {
-    markNudged(sessionId, dependencies.baseDirectory);
+    writeState(sessionId, { offset: transcript.length, toolUses, fires }, baseDirectory);
   } catch {
-    // A sentinel-write failure must not suppress the run; worst case is a second
-    // extraction next Stop, which the occurrence ledger (RV9JT4) dedupes.
+    // A state-write failure must not suppress the fire (mirrors markNudged); the
+    // duplicate it risks next Stop is absorbed by signature dedupe (triage).
   }
-  return { transcriptPath };
+  return { transcriptPath, windowStart };
 }

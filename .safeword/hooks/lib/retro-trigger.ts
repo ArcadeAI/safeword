@@ -13,8 +13,9 @@
 // makes re-fires idempotent across sessions; the once-per-session sentinel here
 // makes them idempotent within a session.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 import { tmpdir } from 'node:os';
 
 import { isRetroChild } from './retro-extract.js';
@@ -132,6 +133,106 @@ export function markNudged(sessionId: string, baseDirectory: string = tmpdir()):
   writeFileSync(sentinelPath(sessionId, baseDirectory), `${sessionId}\n`);
 }
 
+// --- Delta re-arm offset state (ticket ZFGWS1) ---------------------------------
+//
+// The boolean once-per-session sentinel above made retro fire ONCE per session,
+// reading only the opening (the digest head-caps to the first 180 KB). Delta
+// re-arm replaces it: per-session offset state lets retro fire repeatedly, each
+// fire digesting only the NEW transcript since the last fire's offset, so the
+// deltas tile the whole session.
+
+/**
+ * Re-fire cadence: re-fire once the transcript grows by this many tool-uses since
+ * the last fire (ADDITIVE, constant spacing → even tiling; sim: last fire 91–100%
+ * of the session). Tunable; injected as `rearmGrowth` in tests.
+ */
+export const REARM_GROWTH = 200;
+
+/**
+ * Runaway backstop: at most this many fires per session, independent of cadence.
+ * A HIGH cap (a crash-loop bound), NOT a low cadence control — a low cap lands the
+ * last fire early and leaves a blind tail (the bug additive cadence fixes).
+ */
+export const MAX_FIRES = 20;
+
+/**
+ * Overlap re-included before a window's start (chars), so a finding straddling a
+ * window boundary appears whole in one fire. A byte-slice may cut the first JSONL
+ * line; `buildDigest` skips that malformed head line, so whole boundary entries
+ * still survive. Duplicate findings from the overlap are absorbed by signature dedupe.
+ */
+export const OVERLAP_BYTES = 2048;
+
+/** Per-session delta state: where the last fire ended, and how many fires so far. */
+export interface OffsetState {
+  /** Transcript length (chars) recorded at the last fire — the next window start. */
+  offset: number;
+  /** Tool-use count at the last fire — the additive-cadence baseline. */
+  toolUses: number;
+  /** Number of fires so far this session — the backstop counter. */
+  fires: number;
+}
+
+/** The fs primitives the atomic state write needs; injected so tests can assert them. */
+export interface AtomicFs {
+  writeFileSync: (path: string, data: string) => void;
+  renameSync: (from: string, to: string) => void;
+}
+
+const defaultAtomicFs: AtomicFs = { writeFileSync, renameSync };
+
+/** Absolute path of the per-session offset-state file for a session id. */
+export function offsetStatePath(sessionId: string, baseDirectory: string = tmpdir()): string {
+  return nodePath.join(
+    baseDirectory,
+    `safeword-retro-offset-${sessionId.replace(/[^\w.-]/g, '_')}.json`,
+  );
+}
+
+/**
+ * Read the per-session offset state, or undefined when absent, unreadable, or
+ * TORN (a partially-written file mid-rename). Fail-open by construction: a torn or
+ * missing state simply re-arms from offset 0 (a re-read the egress dedupe absorbs),
+ * never a throw — a Stop hook must not crash on a partial state file.
+ */
+export function readOffsetState(
+  sessionId: string,
+  baseDirectory: string = tmpdir(),
+): OffsetState | undefined {
+  try {
+    const raw = readFileSync(offsetStatePath(sessionId, baseDirectory), 'utf8');
+    const parsed = JSON.parse(raw) as Partial<OffsetState>;
+    if (
+      typeof parsed.offset !== 'number' ||
+      typeof parsed.toolUses !== 'number' ||
+      typeof parsed.fires !== 'number'
+    ) {
+      return undefined;
+    }
+    return { offset: parsed.offset, toolUses: parsed.toolUses, fires: parsed.fires };
+  } catch {
+    return undefined; // missing / unreadable / torn → fail open (re-arm from 0)
+  }
+}
+
+/**
+ * Persist the per-session offset state ATOMICALLY: write a temp file, then
+ * `rename` it over the state file (atomic on the same filesystem on Linux), so a
+ * concurrent reader never sees a torn write. The temp name carries the pid so two
+ * near-simultaneous Stops don't clobber each other's temp file before the rename.
+ */
+export function writeOffsetState(
+  sessionId: string,
+  state: OffsetState,
+  baseDirectory: string = tmpdir(),
+  atomicFs: AtomicFs = defaultAtomicFs,
+): void {
+  const finalPath = offsetStatePath(sessionId, baseDirectory);
+  const tempPath = `${finalPath}.${process.pid}.tmp`;
+  atomicFs.writeFileSync(tempPath, JSON.stringify(state));
+  atomicFs.renameSync(tempPath, finalPath);
+}
+
 interface SessionIdEnv {
   CLAUDE_CODE_REMOTE_SESSION_ID?: string;
   CLAUDE_SESSION_ID?: string;
@@ -229,6 +330,14 @@ export interface RetroTriggerDeps {
     input: RetroTriggerInput,
     env: Record<string, string | undefined>,
   ) => string | undefined;
+  /** Additive re-fire growth in tool-uses (defaults to REARM_GROWTH). */
+  rearmGrowth?: number;
+  /** Runaway fire-count backstop (defaults to MAX_FIRES). */
+  maxFires?: number;
+  /** Offset-state reader (injected for tests; defaults to the fs helper). */
+  readOffsetState?: (sessionId: string, baseDirectory?: string) => OffsetState | undefined;
+  /** Offset-state writer (injected for tests; defaults to the atomic fs helper). */
+  writeOffsetState?: (sessionId: string, state: OffsetState, baseDirectory?: string) => void;
 }
 
 /**
@@ -285,19 +394,33 @@ export function decideRetroNudge(
 export interface RetroRunDecision {
   /** The transcript to mine, handed to the headless extractor. */
   transcriptPath: string;
+  /**
+   * Char offset where this fire's delta window starts (0 on the first fire). The
+   * CLI slices `transcript.slice(max(0, windowStart - OVERLAP_BYTES))` before
+   * digesting, so each fire reads only the NEW activity (plus a small overlap).
+   */
+  windowStart: number;
 }
 
 /**
- * Decide whether to RUN the invisible retro extraction this Stop (7D8PJP) — the
- * out-of-band replacement for `decideRetroNudge`. Same gates, but it returns the
- * transcript path to extract from instead of conversation text, and it adds the
- * recursion guard FIRST: a retro headless child (`SAFEWORD_RETRO_CHILD=1`) never
- * triggers another retro. Fail-open by construction — every "can't proceed"
- * branch returns undefined and leaves the once-per-session sentinel untouched:
+ * Decide whether to RUN the invisible retro extraction this Stop, and (when it
+ * does) compute the delta window and advance the per-session offset state
+ * (ZFGWS1 — supersedes the once-per-session sentinel of 7D8PJP). The retro now
+ * fires MORE than once per session: the FIRST fire keeps the substance gate and
+ * digests from offset 0 (the whole transcript so far); RE-fires are gated by
+ * ADDITIVE growth (`rearmGrowth` tool-uses since the last fire) under a high
+ * `maxFires` runaway backstop, and each returns `windowStart` = the previous
+ * fire's offset so the CLI digests only the new delta.
+ *
+ * The recursion guard runs FIRST (a retro headless child never re-fires). Fail-open
+ * by construction — every "can't proceed" branch returns undefined and leaves the
+ * offset state untouched, and a state-write failure still fires (the duplicate it
+ * risks is absorbed by signature dedupe), so the hook never blocks Stop:
  *   - this process is itself a retro child → undefined (before any gate)
  *   - no resolvable session id / no transcript_path → undefined
- *   - already ran this session → undefined
- *   - transcript unreadable / not substantial → undefined, sentinel unset
+ *   - transcript unreadable → undefined
+ *   - first fire below the substance threshold → undefined, state unset
+ *   - re-fire below the growth threshold, or backstop reached → undefined, state unchanged
  */
 export function decideRetroRun(
   input: RetroTriggerInput,
@@ -315,8 +438,6 @@ export function decideRetroRun(
   const transcriptPath = input.transcript_path;
   if (!transcriptPath || transcriptPath.length === 0) return undefined;
 
-  if (hasNudged(sessionId, dependencies.baseDirectory)) return undefined;
-
   const read = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
   let transcript: string;
   try {
@@ -326,15 +447,35 @@ export function decideRetroRun(
   }
 
   const counter = dependencies.countToolUses ?? countToolUses;
-  if (!isSubstantial(transcript, dependencies.threshold ?? SUBSTANCE_THRESHOLD, counter)) {
-    return undefined; // trivial session → silent, sentinel left unset
+  const toolUses = counter(transcript);
+  const threshold = dependencies.threshold ?? SUBSTANCE_THRESHOLD;
+  const rearmGrowth = dependencies.rearmGrowth ?? REARM_GROWTH;
+  const maxFires = dependencies.maxFires ?? MAX_FIRES;
+  const baseDirectory = dependencies.baseDirectory;
+  const readState = dependencies.readOffsetState ?? readOffsetState;
+  const writeState = dependencies.writeOffsetState ?? writeOffsetState;
+  const prior = readState(sessionId, baseDirectory);
+
+  let windowStart: number;
+  let fires: number;
+  if (!prior) {
+    // First fire: substance gate, digest from the start of the transcript.
+    if (toolUses < threshold) return undefined;
+    windowStart = 0;
+    fires = 1;
+  } else {
+    // Re-fire: bounded by the runaway backstop, then gated by additive growth.
+    if (prior.fires >= maxFires) return undefined;
+    if (toolUses - prior.toolUses < rearmGrowth) return undefined;
+    windowStart = prior.offset;
+    fires = prior.fires + 1;
   }
 
   try {
-    markNudged(sessionId, dependencies.baseDirectory);
+    writeState(sessionId, { offset: transcript.length, toolUses, fires }, baseDirectory);
   } catch {
-    // A sentinel-write failure must not suppress the run; worst case is a second
-    // extraction next Stop, which the occurrence ledger (RV9JT4) dedupes.
+    // A state-write failure must not suppress the fire (mirrors markNudged); the
+    // duplicate it risks next Stop is absorbed by signature dedupe (triage).
   }
-  return { transcriptPath };
+  return { transcriptPath, windowStart };
 }
