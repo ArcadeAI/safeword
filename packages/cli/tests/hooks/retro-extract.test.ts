@@ -192,6 +192,16 @@ describe('runHeadlessExtraction', () => {
     expect((findings[0] as { title: string }).title).toBe('Gate message omits the file');
   });
 
+  // retro-recall.SM1.AC2 — when no model is passed, the extraction defaults to
+  // sonnet (haiku proved too weak: 1–3 weak findings vs sonnet's 9). ZFGWS1.
+  it('retro-recall.SM1.AC2.headless_extraction_defaults_to_sonnet', async () => {
+    const { calls, deps } = fakeDependencies({ model: undefined });
+    await runHeadlessExtraction('t', deps);
+    const argv = calls[0]?.argv ?? [];
+    const modelAt = argv.indexOf('--model');
+    expect(argv[modelAt + 1]).toBe('sonnet');
+  });
+
   // invisible-retro-claude.TB1.AC1 (fail-open) — extractor error or junk output
   // yields no findings and never throws.
   it('invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors', async () => {
