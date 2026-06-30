@@ -83,12 +83,12 @@ Feature source: `packages/cli/features/invisible-retro-claude.feature`
 
 ### Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_once_when_sentinel_unset
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bab8816
+- [x] GREEN bab8816
+- [x] REFACTOR skip: decideRetroRun gate; clean (shared test deps factory hoisted)
 
 ### Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_at_most_once_per_session
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bab8816
+- [x] GREEN bab8816
+- [x] REFACTOR skip: decideRetroRun once-per-session sentinel; clean
