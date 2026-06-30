@@ -2,7 +2,7 @@
 id: 0XEMEE
 slug: retro-extraction-recall
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 scope: |
@@ -192,6 +192,36 @@ above. The objection bounds the *cost*, it doesn't restore *fire-once* recall.
   eval-scorer are later phases. Authored spec.md (SM persona, TB1/TB2/TB3/NTB1
   JTBDs), dimensions.md (8 dimensions), the 12-scenario feature
   (`retro-rearm-timing.feature`), and the R/G/R ledger. Advanced to scenario-gate.
+- 2026-06-30T07:41Z Scenario-gate PASSED — independent fork review (sonnet,
+  fresh context, /review-spec) returned GATE: PASS, 0 blocking, 6 non-blocking
+  step-authoring heads-ups (add injectable count-writer seam; export count-state
+  read/record at the right granularity; assert on the count VALUE not file
+  existence; treat TB2.AC2/AC3 as two-call/integration with a stateful readFile;
+  mock the spawn boundary; document the resolver-precedence reuse). Stamp recorded.
+
+  **Proof plan & build order (leaf-first, outside-in TDD; boundaries mocked = the
+  `claude -p` spawn, the GitHub transport, and the count-state file via injected
+  baseDir/writer):**
+  1. Count-state helpers in retro-trigger.ts (+ `.safeword` mirror):
+     `readLastFiredCount(sessionId, baseDir)` / `recordFiredCount(sessionId, count,
+     baseDir)`, keyed by the resolved session id. Unit — proves NTB1.AC2 (keying)
+     and the storage seam. Replaces the boolean sentinel file with a count file.
+  2. `REARM_GROWTH_THRESHOLD` + the re-arm decision (a `decideRetroRun` successor,
+     injected deps). Unit — proves TB1.AC1 (first fire + records count; trivial
+     doesn't), TB2.AC1 (re-fire at/above growth; hold below), NTB1.AC1 (recursion
+     guard FIRST; fail-open when record throws). Assert on the count value.
+  3. TB2.AC2 — two-call unit with a stateful `readFile` (short then grown): the
+     re-fire reads the CURRENT transcript.
+  4. TB2.AC3 — integration: injected extractor over the grown transcript → a
+     back-half finding reaches `prepareEncounters`' input (spawn mocked).
+  5. TB3.AC1 — dedupe: a re-fire's already-filed manifestation opens no issue, a
+     new manifestation files (occurrence ledger, RV9JT4). Confirm the ledger is
+     consulted on the `--auto-extract` path before claiming done.
+  6. `stop-retro.ts` (+ mirror) wiring: the hook uses the re-arm decision instead
+     of the once-per-session sentinel.
+  Open impl question to settle in piece 2: the `REARM_GROWTH_THRESHOLD` value
+  (start ~25 tool-uses; tune so a long session re-fires a handful of times, not
+  every Stop).
 - 2026-06-30T07:28Z Added the TIMING lever (Phase 0) after a "when does it run"
   question. Concept-tested on this session's raw transcript: the trigger fires at
   line 19/9,788 (0.2%), but #567 isn't seen until 29% and full coverage not until
