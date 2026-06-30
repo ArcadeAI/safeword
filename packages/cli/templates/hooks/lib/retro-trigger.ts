@@ -391,7 +391,7 @@ export interface RetroRunDecision {
   transcriptPath: string;
   /**
    * Char offset where this fire's delta window starts (0 on the first fire). The
-   * CLI slices `transcript.slice(max(0, windowStart - OVERLAP_BYTES))` before
+   * CLI slices `transcript.slice(max(0, windowStart - OVERLAP_CHARS))` before
    * digesting, so each fire reads only the NEW activity (plus a small overlap).
    */
   windowStart: number;

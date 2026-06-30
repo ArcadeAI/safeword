@@ -48,7 +48,7 @@ export function resolveRetroModel(projectDirectory: string): string {
  * line, so whole boundary entries still survive. Duplicate findings from the
  * overlap are absorbed by signature dedupe (triage).
  */
-export const OVERLAP_BYTES = 2048;
+export const OVERLAP_CHARS = 2048;
 
 /**
  * Slice the delta window a fire should digest: from `windowStart` (the previous
@@ -60,7 +60,7 @@ export const OVERLAP_BYTES = 2048;
 export function windowFor(
   transcript: string,
   windowStart: number,
-  overlap: number = OVERLAP_BYTES,
+  overlap: number = OVERLAP_CHARS,
 ): string {
   if (windowStart <= 0) return transcript;
   return transcript.slice(Math.max(0, windowStart - overlap));

@@ -18,7 +18,7 @@
 
 Audit passed (0 errors).
 
-- **Architecture:** no circular dependencies, no layer violations (depcruise: 211 modules, 610 deps, 0 violations). The retro-trigger↔retro-extract cycle was deliberately avoided by housing `OVERLAP_BYTES`/`windowFor`/`retroChildArgs` in retro-extract.
+- **Architecture:** no circular dependencies, no layer violations (depcruise: 211 modules, 610 deps, 0 violations). The retro-trigger↔retro-extract cycle was deliberately avoided by housing `OVERLAP_CHARS`/`windowFor`/`retroChildArgs` in retro-extract.
 - **Config drift:** ✅ `safeword sync-config --check` in sync.
 - **Dead code:** no ZFGWS1 export is unused. The 5 knip "unused exports" are all pre-existing (schema.ts, labels.ts, upstream-monitor, ticket-index-warnings); the `claude`/`gh` "unused binaries" are spawned subprocesses knip can't see (pre-existing). `searchByTitle` fully removed (no stragglers).
 - **Duplication:** 1.30% across retro/hooks (13 clones, in pre-existing hook files; none introduced by this ticket).

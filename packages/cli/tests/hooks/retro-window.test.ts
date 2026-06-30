@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { OVERLAP_BYTES, windowFor } from '../../templates/hooks/lib/retro-extract.js';
+import { OVERLAP_CHARS, windowFor } from '../../templates/hooks/lib/retro-extract.js';
 
 describe('windowFor (SM1.AC1 — delta window slice)', () => {
   const transcript = 'abcdefghijklmnopqrstuvwxyz'.repeat(500); // 13_000 chars
@@ -22,11 +22,11 @@ describe('windowFor (SM1.AC1 — delta window slice)', () => {
 
   it('a later fire begins at the previous offset minus the overlap', () => {
     const windowStart = 8000;
-    expect(windowFor(transcript, windowStart)).toBe(transcript.slice(windowStart - OVERLAP_BYTES));
+    expect(windowFor(transcript, windowStart)).toBe(transcript.slice(windowStart - OVERLAP_CHARS));
   });
 
   it('the overlap is clamped at the start when it would underflow', () => {
-    const windowStart = Math.floor(OVERLAP_BYTES / 2); // smaller than the overlap
+    const windowStart = Math.floor(OVERLAP_CHARS / 2); // smaller than the overlap
     expect(windowFor(transcript, windowStart)).toBe(transcript);
   });
 });

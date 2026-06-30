@@ -36,7 +36,7 @@ Proof plan + build order (each builds on what's already green):
    windowStart }`. **Unit** (injected deps) — proves all TB1.AC2 scenarios +
    SM2.AC2 no-resolve negative. Composes 1.
 3. **Window slicer + pre-sliced digest** (`retro-extract.ts`): `windowFor(transcript,
-   windowStart)` = `transcript.slice(max(0, windowStart − OVERLAP_BYTES))`;
+   windowStart)` = `transcript.slice(max(0, windowStart − OVERLAP_CHARS))`;
    `buildDigest` runs over the window. **Unit** — proves SM1.AC1 first-fire,
    later-fire (offset − overlap), overlap-clamp. Composes 2's `windowStart`.
 4. **Window plumbing + back-half proof** (`stop-retro.ts` → `retro.ts`): thread
@@ -72,7 +72,7 @@ measured eval, not a regression scorer, which is deferred).
 | -------- | ------ | ----------------------- | ---------------- |
 | Re-fire state | Per-session `{ offset, toolUses, fires }` file replacing the boolean sentinel | Keep sentinel + a 2nd offset file | Two files desync; one atomic state file is simpler |
 | Cadence | **Additive** re-fire each `REARM_GROWTH`=200 tool-uses, backstop `MAX_FIRES`=20 | Geometric backoff; fire-every-Stop; low fire cap | Sim (0XEMEE plan-check): geometric front-loads → last fire 38%, blind tail; low cap exhausts at 7%. Additive → 91–100% |
-| Window boundary | Byte offset; window = `slice(max(0, offset − OVERLAP_BYTES))`; `OVERLAP_BYTES`=2048 | Line offset; no overlap | Byte offset matches `transcript.length`/`rename` atomicity; a cut first line is skipped by `buildDigest`; overlap keeps a straddling finding whole |
+| Window boundary | Char offset; window = `slice(max(0, offset − OVERLAP_CHARS))`; `OVERLAP_CHARS`=2048 | Line offset; no overlap | Char offset matches `transcript.length`/`String.slice`; a cut first line is skipped by `buildDigest`; overlap keeps a straddling finding whole |
 | Concurrency | temp-write + `rename` (atomic, last-writer-wins) | Advisory lock; CAS/max-wins | Ticket forbids locks; max-wins needs a lock. Last-writer-wins + signature dedupe absorbs the rare duplicate |
 | Dedupe key | Content `signature` (`retro:<hash>`) embedded in body, matched via `searchBySignature` (`in:body` + exact-filter) | Match by title (`searchByTitle`) | Titles vary across fires → duplicate issues; signature is stable |
 | Extraction model | `sonnet` default at both sites, `retro.model` config override | Keep haiku; sonnet hardcoded | haiku 1–3 weak vs sonnet 9 strong (measured); config keeps it tunable |
@@ -99,11 +99,10 @@ measured eval, not a regression scorer, which is deferred).
 - **Async last-fire residual:** if the container is reclaimed the instant the user
   goes idle after the final Stop, the last delta may be lost (bounded — one delta).
   Documented; BNGK9W (#568 cloud transport) is the fallback if this proves material.
-- **`OVERLAP_BYTES`/offset are CHAR (UTF-16 code-unit) offsets, not bytes** —
+- **`OVERLAP_CHARS`/offset are CHAR (UTF-16 code-unit) offsets, not bytes** —
   `windowFor` slices and the recorded `offset = transcript.length` both use string
-  code units, so they are internally consistent (no bug); the `*_BYTES` name is a
-  documented misnomer kept for now (quality-review nice-to-have). Rename to
-  `_CHARS` if/when the constant is touched again.
+  code units, so they are internally consistent (no bug). The constant was renamed
+  `OVERLAP_BYTES` → `OVERLAP_CHARS` (post-ship /refactor) to retire the misnomer.
 - **Dedupe depends on GitHub indexing HTML-comment body text** — the signature
   marker is an HTML comment; if GitHub search ever stopped indexing comment text the
   dedupe would false-miss → a duplicate issue (bounded by the per-session create cap).

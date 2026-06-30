@@ -60,7 +60,7 @@ untouched and stays the security boundary.
 - **Delta window** — the slice of transcript from the previous fire's recorded byte
   offset (minus a small overlap) to the current end. Fed to `buildDigest` instead
   of the whole transcript, so the digest cap applies to the *window*, not the head.
-- **Overlap** — the last `OVERLAP_BYTES` (~2 KB) re-included before a window's start,
+- **Overlap** — the last `OVERLAP_CHARS` (~2 KB) re-included before a window's start,
   so a finding straddling a window boundary appears whole in one fire. Duplicate
   findings from overlap are absorbed by signature dedupe.
 - **Offset state** — per-session `{ offset, toolUses, fires }` (replaces the boolean
@@ -168,7 +168,7 @@ the safe direction.
 - **First fire vs re-fire:** the **first** fire keeps the existing substance gate
   (≥`SUBSTANCE_THRESHOLD` tool-uses) and digests from offset 0 (whole transcript so
   far, head-capped — unchanged for fire 1). Re-fires are gated by `REARM_GROWTH`.
-- **Overlap size:** `OVERLAP_BYTES = 2048` (~2 KB, ≈ the "last ~50 lines" framing).
+- **Overlap size:** `OVERLAP_CHARS = 2048` (~2 KB, ≈ the "last ~50 lines" framing).
   A byte-slice may cut the first line; `buildDigest` already skips a malformed JSONL
   line, so the partial head line is harmlessly dropped — the overlap still carries
   whole boundary entries.
