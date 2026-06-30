@@ -87,28 +87,49 @@ export interface RetroCliOptions {
   autoExtract?: boolean;
 }
 
+/** Injectable seam for `buildAutoExtractor` (tests assert the resolved model/argv). */
+export interface AutoExtractDependencies {
+  /** Spawn the headless `claude` process; defaults to the real `spawnSync`. */
+  spawn?: (
+    argv: string[],
+    options: { cwd: string; env: Record<string, string | undefined> },
+  ) => Promise<{ code: number | null; stdout: string }>;
+  /** Extraction model; defaults to the install's `retro.model` (sonnet fallback). */
+  model?: string;
+}
+
 /**
  * Build the auto-extract `FindingExtractor`: run the retro extraction in a
  * separate, isolated headless `claude -p` session (read-only, no `--bare`) from a
- * neutral temp cwd, with `SAFEWORD_RETRO_CHILD=1` set by the runner. Fail-open:
- * the runner returns `[]` on any error.
+ * neutral temp cwd, with `SAFEWORD_RETRO_CHILD=1` set by the runner. The model
+ * defaults to the install's `retro.model` config (sonnet fallback — haiku proved
+ * too weak; ZFGWS1). Fail-open: the runner returns `[]` on any error.
  */
-async function buildAutoExtractor(): Promise<FindingExtractor> {
-  const { runHeadlessExtraction } = await import('../../templates/hooks/lib/retro-extract.js');
+export async function buildAutoExtractor(
+  projectDirectory: string,
+  dependencies: AutoExtractDependencies = {},
+): Promise<FindingExtractor> {
+  const { runHeadlessExtraction, resolveRetroModel } =
+    await import('../../templates/hooks/lib/retro-extract.js');
+
+  const model = dependencies.model ?? resolveRetroModel(projectDirectory);
+  const spawn =
+    dependencies.spawn ??
+    ((argv: string[], spawnOptions: { cwd: string; env: Record<string, string | undefined> }) => {
+      const result = spawnSync('claude', argv, {
+        cwd: spawnOptions.cwd,
+        env: spawnOptions.env,
+        encoding: 'utf8',
+        timeout: 240_000,
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
+    });
 
   const workDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-retro-'));
   return (transcript: string) =>
     runHeadlessExtraction(transcript, {
-      spawn: (argv, spawnOptions) => {
-        const result = spawnSync('claude', argv, {
-          cwd: spawnOptions.cwd,
-          env: spawnOptions.env,
-          encoding: 'utf8',
-          timeout: 240_000,
-          maxBuffer: 64 * 1024 * 1024,
-        });
-        return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
-      },
+      spawn,
       writeDigest: (digest: string) => {
         const path = nodePath.join(workDirectory, 'digest.txt');
         writeFileSync(path, digest);
@@ -116,7 +137,7 @@ async function buildAutoExtractor(): Promise<FindingExtractor> {
       },
       env: process.env,
       cwd: workDirectory, // neutral cwd — not the user's project
-      model: 'haiku',
+      model,
     });
 }
 
@@ -131,9 +152,10 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const { error, info, success } = await import('../utils/output.js');
   const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
 
+  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const findingsPath = options.findings;
   const extract: FindingExtractor = options.autoExtract
-    ? await buildAutoExtractor()
+    ? await buildAutoExtractor(projectDirectory)
     : () => Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
 
   // Use the environment's existing GitHub access (GITHUB_TOKEN or `gh auth token`);

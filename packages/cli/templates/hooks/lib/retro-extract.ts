@@ -8,11 +8,38 @@
 // synchronous runner. Agent-neutral where possible; Claude-specific bits are
 // named as such.
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 /**
  * Default cap (chars) for a transcript digest. A real session transcript is tens
  * of MB; the extractor needs a bounded, signal-dense slice, not the raw JSONL.
  */
 export const DIGEST_CAP = 180_000;
+
+/**
+ * Default extraction model. Sonnet, not haiku: measured head-to-head on the same
+ * transcript, haiku surfaced 1–3 weak findings vs sonnet's 9 strong ones (ZFGWS1).
+ * Overridable per install via `.safeword/config.json` → `retro.model`.
+ */
+export const DEFAULT_RETRO_MODEL = 'sonnet';
+
+/**
+ * Resolve the extraction model for an install: `retro.model` from
+ * `.safeword/config.json`, else the sonnet default. Fail-open to the default on
+ * any missing/unreadable/malformed config — model selection must never break the
+ * out-of-band retro run.
+ */
+export function resolveRetroModel(projectDirectory: string): string {
+  try {
+    const raw = readFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), 'utf8');
+    const parsed = JSON.parse(raw) as { retro?: { model?: unknown } };
+    const model = parsed.retro?.model;
+    return typeof model === 'string' && model.length > 0 ? model : DEFAULT_RETRO_MODEL;
+  } catch {
+    return DEFAULT_RETRO_MODEL;
+  }
+}
 
 /**
  * Overlap (chars) re-included before a delta window's start, so a finding
@@ -177,7 +204,7 @@ export async function runHeadlessExtraction(
   try {
     const digestPath = dependencies.writeDigest(buildDigest(transcript));
     const argv = buildExtractArgv({
-      model: dependencies.model ?? 'haiku',
+      model: dependencies.model ?? DEFAULT_RETRO_MODEL,
       systemPrompt: EXTRACT_SYSTEM_PROMPT,
       prompt: buildExtractPrompt(digestPath),
     });

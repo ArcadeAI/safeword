@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
 
-import { runRetro } from '../../src/commands/retro.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { buildAutoExtractor, runRetro } from '../../src/commands/retro.js';
 import type {
   CreateIssueInput,
   IssueComment,
@@ -273,5 +277,43 @@ describe('runRetro', () => {
     );
     expect(deltaTransport.issues).toHaveLength(1);
     expect(deltaTransport.issues[0]?.body).toContain('hooks/stop-quality.ts');
+  });
+});
+
+// ZFGWS1 SM1.AC2 — the RUNNER (buildAutoExtractor), not just the headless-default
+// concept, requests sonnet by default and honors the retro.model config override.
+// Covers the done_when "a test covers buildAutoExtractor's model".
+describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-overridable)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-runner-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
+  async function modelFromRunner(directory: string): Promise<string | undefined> {
+    let argvSeen: string[] = [];
+    const extract = await buildAutoExtractor(directory, {
+      spawn: (argv: string[]) => {
+        argvSeen = argv;
+        return Promise.resolve({ code: 0, stdout: '' });
+      },
+    });
+    await extract('transcript');
+    return argvSeen[argvSeen.indexOf('--model') + 1];
+  }
+
+  it('builds the extractor with sonnet when no retro.model is configured', async () => {
+    expect(await modelFromRunner(projectDirectory)).toBe('sonnet');
+  });
+
+  it('uses the configured retro.model override', async () => {
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword', 'config.json'),
+      JSON.stringify({ retro: { model: 'haiku' } }),
+    );
+    expect(await modelFromRunner(projectDirectory)).toBe('haiku');
   });
 });

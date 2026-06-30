@@ -8,27 +8,27 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The first fire digests the whole transcript so far under the digest cap
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: pure windowFor slicer asserted directly; RED for applied behavior proven by the back-half run (delta filed 0 pre-impl); lint no-unused-properties blocked a type-only scaffold commit
+- [x] GREEN e50230d
+- [x] REFACTOR skip: windowFor is a one-line clamp+slice
 
 ### Scenario: A later fire digests only the window since the previous fire's offset
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: covered by windowFor later-fire unit + decision windowStart (60863c6); RED verified by run
+- [x] GREEN e50230d
+- [x] REFACTOR skip: no structural improvement
 
 ### Scenario: A back-half-only finding beyond the head cap is filed by the delta fire
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: end-to-end run filed 0 before windowFor applied (verified); lint blocked a type-only scaffold RED commit
+- [x] GREEN e50230d
+- [x] REFACTOR skip: composes existing runRetro pipeline
 
 ### Scenario: The window re-includes the overlap region before the previous offset
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: windowFor overlap-clamp unit asserted directly; RED verified by run
+- [x] GREEN e50230d
+- [x] REFACTOR skip: one-line clamp
 
 ## Rule: Extraction defaults to sonnet at both model sites
 

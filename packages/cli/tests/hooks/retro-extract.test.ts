@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildDigest,
   buildExtractArgv,
   isRetroChild,
+  resolveRetroModel,
   RETRO_CHILD_ENV,
   runHeadlessExtraction,
 } from '../../templates/hooks/lib/retro-extract.js';
@@ -158,6 +163,33 @@ describe('isRetroChild', () => {
 
   it('exposes the sentinel env name the spawn half sets', () => {
     expect(RETRO_CHILD_ENV).toBe('SAFEWORD_RETRO_CHILD');
+  });
+});
+
+describe('resolveRetroModel (SM1.AC2 — config-overridable, sonnet default)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-model-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
+  function writeRetroConfig(config: unknown): void {
+    const safewordDirectory = nodePath.join(projectDirectory, '.safeword');
+    mkdirSync(safewordDirectory, { recursive: true });
+    writeFileSync(nodePath.join(safewordDirectory, 'config.json'), JSON.stringify(config));
+  }
+
+  it('defaults to sonnet when no config / no retro.model is present', () => {
+    expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
+    writeRetroConfig({ selfReport: { surface: true } }); // config present, no retro.model
+    expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
+  });
+
+  it('honors a configured retro.model override', () => {
+    writeRetroConfig({ retro: { model: 'haiku' } });
+    expect(resolveRetroModel(projectDirectory)).toBe('haiku');
   });
 });
 
