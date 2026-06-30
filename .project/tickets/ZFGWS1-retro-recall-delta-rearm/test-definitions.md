@@ -54,35 +54,35 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A repeat signature under a different title opens no second issue
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: searchByTitle→searchBySignature is an atomic interface rename (no partial compiles); bug is triage.ts:82 title match; new behavior verified at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: signature already on RetroDraft; only the match key changed
 
 ### Scenario: A genuinely new signature opens a new issue
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: atomic interface rename; verified at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: unchanged create path
 
 ### Scenario: The issue body embeds the searchable signature marker
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: assembleBody had no marker; embed added in buildDraft, asserted at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: one-line marker append
 
 ### Scenario: A fuzzy signature-search near-miss is rejected by the exact filter
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: searchBySignature is new (exact-filter mirrors searchByTitle's); verified at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: filter mirrors the prior exact-match
 
 ## Rule: A stable session id reaches the extraction child
 
 ### Scenario: The resolved session id is forwarded to the child
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retroChildArgs is new plumbing; forward asserted at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: pure args builder
 
 ### Scenario: No session id resolves, so nothing is filed under the unknown fallback
 
