@@ -14,18 +14,12 @@ import { type Dirent, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractSkeleton } from './architecture-skeleton.js';
+import { readBoundaryConfig } from './boundary-config.js';
 import { readCargoDependencyNames } from './cargo-manifest.js';
+import { readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectDependencies } from './pyproject-manifest.js';
-
-/** Candidate dependency-cruiser config filenames, in resolution order. */
-const DEPENDENCY_CRUISER_CONFIG_NAMES = [
-  '.dependency-cruiser.cjs',
-  '.dependency-cruiser.js',
-  '.dependency-cruiser.mjs',
-  '.dependency-cruiser.json',
-];
 
 /** File extensions treated as schema definitions. */
 const SCHEMA_EXTENSIONS = new Set(['.sql', '.prisma']);
@@ -88,7 +82,9 @@ function readDependencyNames(projectDirectory: string): string[] {
 }
 
 function readPackageJsonDependencyNames(projectDirectory: string): string[] {
-  const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
+  const manifest = readJson(nodePath.join(projectDirectory, 'package.json')) as
+    | Record<string, unknown>
+    | undefined;
   return manifest === undefined ? [] : dependencySectionNames(manifest);
 }
 
@@ -151,17 +147,6 @@ function collectGoRequireLines(lines: string[], modules: Set<string>): void {
   }
 }
 
-function readBoundaryConfig(projectDirectory: string): string {
-  for (const name of DEPENDENCY_CRUISER_CONFIG_NAMES) {
-    try {
-      return readFileSync(nodePath.join(projectDirectory, name), 'utf8');
-    } catch {
-      // Try the next candidate name.
-    }
-  }
-  return '';
-}
-
 function collectSchemaFiles(projectDirectory: string): string[] {
   const schemaFiles: string[] = [];
   const pending: string[] = [projectDirectory];
@@ -198,13 +183,5 @@ function scanDirectoryForSchema(
       const absolutePath = nodePath.join(directory, entry.name);
       schemaFiles.push(nodePath.relative(projectDirectory, absolutePath).replaceAll('\\', '/'));
     }
-  }
-}
-
-function readJson(filePath: string): Record<string, unknown> | undefined {
-  try {
-    return JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, unknown>;
-  } catch {
-    return undefined;
   }
 }
