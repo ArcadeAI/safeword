@@ -543,9 +543,6 @@
 - **Smoke test for safeword — fast/e2e/live tiers + drift guard (0WQA9V)** (done, epic: —)
   An on-demand smoke test that proves safeword's core works — including a live tier that runs **real Claude Code** and confirms a real agent actually gets steered (blocked) by a guardrail.
   → `.project/tickets/0WQA9V-smoke-test`
-- **Retro extraction: tier too weak by default, coverage gaps on long sessions (0XEMEE)** (in_progress, epic: —)
-  Make the automated retro extractor reliably surface valid, high-value
-  → `.project/tickets/0XEMEE-retro-extraction-recall`
 - **Done-gate refuses if commits land after last /verify or /audit (0ZKYJD)** (in_progress, epic: —)
   Close the staleness gap surfaced in the J7VBGJ session — /verify and /audit evidence becomes stale silently if the agent commits more code afterward. The done-gate currently checks "was the skill invoked this session?" not "was it invoked since the last code change?"
   → `.project/tickets/0ZKYJD-donegate-skill-log-freshness`
@@ -1161,6 +1158,9 @@
 - **Go language pack — architecture discovery, extraction, fingerprint (ZD70P1)** (done, epic: —)
   Teach the generated architecture doc to introspect **Go** projects —
   → `.project/tickets/ZD70P1-architecture-go-language-pack`
+- **Retro recall: delta re-arm + sonnet + async hook + signature dedupe (ZFGWS1)** (in_progress, epic: —)
+  Make the invisible retro actually surface the friction a session hits —
+  → `.project/tickets/ZFGWS1-retro-recall-delta-rearm`
 - **Promote scenario-coverage to a blocking gate (split from NMSD94 SM1.AC1) (ZRMDKD)** (backlog, epic: —)
   Promote the deliberately-advisory AC↔scenario coverage check to a skippable blocking gate, so test-definitions with an uncovered AC or an orphan scenario are denied (not just warned), with a measured alert-to-action ratio.
   → `.project/tickets/ZRMDKD-coverage-gate-blocking`
