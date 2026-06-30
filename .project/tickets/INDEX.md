@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (359)
+## Tickets (360)
 
 ### agent-surface-refactor
 
@@ -629,6 +629,9 @@
 - **Harden hook git calls against shell injection (1JMSH6)** (done, epic: —)
   Close the shell-injection class in safeword hooks — git invoked via `execSync` string interpolation runs through `/bin/sh -c`, so file-derived free-text values can inject commands. The hooks auto-fire on UserPromptSubmit/Stop; in a shared repo the file content can come from an untrusted PR.
   → `.project/tickets/1JMSH6-harden-hook-git-injection`
+- **Retro extractor reports fixed/discussed bugs as current friction (1M20EW)** (todo, epic: —)
+  Stop the invisible retro from filing issues for bugs the session
+  → `.project/tickets/1M20EW-retro-fixed-vs-present-friction`
 - **Custom paths.projectRoot: wire formatter ignores + auto-upgrade staging (1QNPCF)** (done, epic: —)
   Make the namespace-root contribution to formatter ignore-lists and the auto-upgrade owned-paths prefixes follow the _resolved_ `paths.projectRoot`, not just the static `.project/`/`.safeword-project/`.
   → `.project/tickets/1QNPCF-custom-projectroot-wiring`
@@ -1158,7 +1161,7 @@
 - **Go language pack — architecture discovery, extraction, fingerprint (ZD70P1)** (done, epic: —)
   Teach the generated architecture doc to introspect **Go** projects —
   → `.project/tickets/ZD70P1-architecture-go-language-pack`
-- **Retro recall: delta re-arm + sonnet + async hook + signature dedupe (ZFGWS1)** (in_progress, epic: —)
+- **Retro recall: delta re-arm + sonnet + async hook + signature dedupe (ZFGWS1)** (done, epic: —)
   Make the invisible retro actually surface the friction a session hits —
   → `.project/tickets/ZFGWS1-retro-recall-delta-rearm`
 - **Promote scenario-coverage to a blocking gate (split from NMSD94 SM1.AC1) (ZRMDKD)** (backlog, epic: —)
