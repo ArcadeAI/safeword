@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { bunTestConfig } from '../bun-test.js';
 import { playwrightConfig } from '../playwright.js';
 import { storybookConfig } from '../storybook.js';
 import { turboConfig } from '../turbo.js';
@@ -106,6 +107,54 @@ describe('Vitest critical rules at error', () => {
 
   it('vitest/valid-expect is at error', () => {
     expect(getSeverityNumber(getRuleConfig(vitestConfig, 'vitest/valid-expect'))).toBe(ERROR);
+  });
+});
+
+// ============ BUN TEST CONFIG ============
+
+describe('bunTestConfig', () => {
+  it('is a non-empty array', () => {
+    expect(Array.isArray(bunTestConfig)).toBe(true);
+    expect(bunTestConfig.length).toBeGreaterThan(0);
+  });
+
+  it('targets test files', () => {
+    const hasTestFilePattern = bunTestConfig.some(
+      config =>
+        typeof config === 'object' &&
+        config !== null &&
+        'files' in config &&
+        Array.isArray(config.files) &&
+        config.files.some((f: string) => f.includes('.test.') || f.includes('.spec.')),
+    );
+    expect(hasTestFilePattern).toBe(true);
+  });
+
+  it.each(['test', 'it', 'describe', 'beforeAll', 'beforeEach', 'afterAll', 'afterEach', 'expect'])(
+    'declares %s as a read-only global',
+    name => {
+      const block = bunTestConfig.find(
+        config =>
+          typeof config === 'object' &&
+          config !== null &&
+          'languageOptions' in config &&
+          config.languageOptions?.globals,
+      ) as { languageOptions: { globals: Record<string, string> } } | undefined;
+      expect(block?.languageOptions.globals[name]).toBe('readonly');
+    },
+  );
+
+  it('does not declare Jest-only aliases bun:test does not export', () => {
+    const block = bunTestConfig.find(
+      config =>
+        typeof config === 'object' &&
+        config !== null &&
+        'languageOptions' in config &&
+        config.languageOptions?.globals,
+    ) as { languageOptions: { globals: Record<string, string> } } | undefined;
+    for (const jestOnly of ['fit', 'xdescribe', 'xit', 'xtest']) {
+      expect(block?.languageOptions.globals[jestOnly]).toBeUndefined();
+    }
   });
 });
 

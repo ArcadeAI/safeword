@@ -198,3 +198,39 @@ describe('hasExistingFormatter', () => {
     expect(detect.hasExistingFormatter(temporaryDirectory, {})).toBe(false);
   });
 });
+
+describe('hasBunTest', () => {
+  let temporaryDirectory: string;
+
+  beforeEach(() => {
+    temporaryDirectory = mkdtempSync(path.join(tmpdir(), 'detect-bun-test-'));
+  });
+
+  afterEach(() => {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it('detects bun-types devDependency', () => {
+    expect(detect.hasBunTest({ 'bun-types': '^1.0.0' }, temporaryDirectory)).toBe(true);
+  });
+
+  it('detects @types/bun devDependency', () => {
+    expect(detect.hasBunTest({ '@types/bun': '^1.0.0' }, temporaryDirectory)).toBe(true);
+  });
+
+  it('detects a bun.lock lockfile with no type packages installed', () => {
+    writeFileSync(path.join(temporaryDirectory, 'bun.lock'), '{}');
+
+    expect(detect.hasBunTest({}, temporaryDirectory)).toBe(true);
+  });
+
+  it('detects a legacy bun.lockb lockfile', () => {
+    writeFileSync(path.join(temporaryDirectory, 'bun.lockb'), '');
+
+    expect(detect.hasBunTest({}, temporaryDirectory)).toBe(true);
+  });
+
+  it('is false for a project with neither signal', () => {
+    expect(detect.hasBunTest({}, temporaryDirectory)).toBe(false);
+  });
+});

@@ -27,6 +27,7 @@ import { VERSION } from '../../version.js';
 import { detect } from './detect.js';
 import { astroConfig } from './eslint-configs/astro.js';
 import { prettierConfig } from './eslint-configs/base.js';
+import { bunTestConfig } from './eslint-configs/bun-test.js';
 import { cliConfig } from './eslint-configs/overrides-cli.js';
 import { relaxedTypesConfig } from './eslint-configs/overrides-relaxed-types.js';
 import { playwrightConfig } from './eslint-configs/playwright.js';
@@ -60,6 +61,7 @@ interface SafewordEslint {
     tailwind: any[];
     tanstackQuery: any[];
     vitest: any[];
+    bunTest: any[];
     playwright: any[];
     storybook: any[];
     turbo: any[];
@@ -96,6 +98,7 @@ export const eslintPlugin: SafewordEslint = {
     tailwind: tailwindConfig,
     tanstackQuery: tanstackQueryConfig,
     vitest: vitestConfig,
+    bunTest: bunTestConfig,
     playwright: playwrightConfig,
     storybook: storybookConfig,
     turbo: turboConfig,
@@ -112,6 +115,7 @@ export const eslintPlugin: SafewordEslint = {
 export { detect } from './detect.js';
 export { astroConfig } from './eslint-configs/astro.js';
 export { prettierConfig } from './eslint-configs/base.js';
+export { bunTestConfig } from './eslint-configs/bun-test.js';
 export { cliConfig } from './eslint-configs/overrides-cli.js';
 export { relaxedTypesConfig } from './eslint-configs/overrides-relaxed-types.js';
 export { playwrightConfig } from './eslint-configs/playwright.js';

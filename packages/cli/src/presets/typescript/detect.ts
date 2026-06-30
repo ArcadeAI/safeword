@@ -192,6 +192,27 @@ function hasPlaywright(dependencies: DependenciesRecord): boolean {
 }
 
 /**
+ * Check if the project uses Bun's built-in test runner (`bun:test`).
+ *
+ * Two independent signals, either is sufficient:
+ * - `bun-types`/`@types/bun` devDependency — the typed-project signal.
+ * - A Bun lockfile at the project root — catches plain-JS Bun projects that
+ *   have no reason to install type packages. This is the case that actually
+ *   needs the fix: Bun's transpiler injects `describe`/`test`/`expect`/etc.
+ *   without an import, which only TypeScript's `eslint-recommended` override
+ *   (no-undef: off for .ts) already tolerates — plain .js/.jsx test files
+ *   still false-positive on `no-undef` (ticket #513).
+ *
+ * Lockfile presence alone doesn't prove Bun is the *test* runner (it could
+ * be package-manager-only), but over-detecting here only widens a globals
+ * allowlist to Bun's real `bun:test` export names — harmless if unused.
+ */
+function hasBunTest(dependencies: DependenciesRecord, cwd: string): boolean {
+  if ('bun-types' in dependencies || '@types/bun' in dependencies) return true;
+  return existsSync(path.join(cwd, 'bun.lock')) || existsSync(path.join(cwd, 'bun.lockb'));
+}
+
+/**
  * Check if Turborepo is installed.
  */
 function hasTurbo(dependencies: DependenciesRecord): boolean {
@@ -409,6 +430,7 @@ export const detect = {
   hasTanstackQuery,
   hasVitest,
   hasPlaywright,
+  hasBunTest,
   hasTurbo,
   hasStorybook,
 
