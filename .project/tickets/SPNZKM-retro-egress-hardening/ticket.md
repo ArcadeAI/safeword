@@ -2,8 +2,8 @@
 id: SPNZKM
 slug: retro-egress-hardening
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 scope: |
   Durable follow-ups from the PR #543 egress review (the immediate Critical —
@@ -71,3 +71,7 @@ auth-header/method drop on the write path currently ships green.
   errors (10 pre-existing `.safeword`-mirror rootDir errors are on origin/main too);
   build + runtime dep-resolution confirmed. `@secretlint/*` documented in
   ARCHITECTURE.md (dep-drift).
+- 2026-06-30T01:40Z DONE. secretlint layered behind scrubSecrets + write-path
+  tests shipped; quality-reviewed (overlap-splice fix) + refactored (shared
+  REDACTED sentinel). Both done_when met. Flipped done alongside 7D8PJP (both ride
+  PR #543; the CI closure guard requires completed tickets to flip).

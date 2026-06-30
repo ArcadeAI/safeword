@@ -2,8 +2,8 @@
 id: 7D8PJP
 slug: invisible-retro-claude
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 github: https://github.com/ArcadeAI/safeword/issues/550
 scope: |
@@ -107,3 +107,10 @@ on #550):
   7. Transport selection (agent vs REST) — proves SM1.AC1 (no token → agent;
      token → REST).
   Boundaries mocked: the `claude -p` subprocess and the GitHub transport only.
+- 2026-06-30T01:40Z DONE. All 7 pieces built (digest → argv → guard → runner →
+  decideRetroRun → stop-retro rewrite → --auto-extract → gh/token transport),
+  12/12 scenarios green. /verify: suite 4171/4171, build + lint + tsc clean.
+  /audit passed (no circular deps, no dead code, test quality clean).
+  /quality-review: independent fork APPROVED (no Criticals); 2 suggestions applied
+  (required createRestTransport token; recursion-guard comment). Validated live in
+  a cloud container (#550 / #553).
