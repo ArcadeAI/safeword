@@ -51,8 +51,13 @@ done_when: |
   - The digest builder caps a multi-MB transcript to an ingestible size while
     retaining friction signal; unit-tested on a large synthetic transcript.
   - Filing works via the agent transport with no `GITHUB_TOKEN` present (token path
-    still works when present).
-  - Scenarios green; /verify passes. (Validated live in a cloud session — see #550.)
+    still works when present). NOTE: the headless CLI's own REST transport does NOT
+    satisfy this in cloud — `GITHUB_TOKEN` is 401 and `gh` is absent there. The
+    agent-owned (sub)agent MCP transport is the cloud-working path; tracked + scoped
+    in #568. This `done_when` is met for the LOCAL token path only; cloud filing is
+    pending #568.
+  - Scenarios green; /verify passes. (Extraction validated live in a cloud session
+    — see #550; cloud *filing* via the CLI transport is pending #568.)
 created: 2026-06-29T03:52:54.107Z
 last_modified: 2026-06-29T03:52:54.107Z
 ---
@@ -68,8 +73,12 @@ conversation is never hijacked, while still working in a Claude cloud session.
 
 ## Live-fire proof (this session, cloud container)
 
-The mechanism was validated end-to-end before this ticket was opened (full detail
-on #550):
+The **extraction** mechanism was validated live before this ticket was opened
+(full detail on #550). The **cloud filing** path was NOT — the one finding was
+filed by-hand via the live session's GitHub MCP, not the headless CLI transport;
+a later live `safeword retro --auto-extract` proved the CLI's REST transport 401s
+in cloud (the #568 gap). So: extraction validated end-to-end; cloud filing via the
+CLI transport is pending #568.
 
 - `claude -p` (no `--bare`) authenticated in the cloud container, used the Read
   tool, returned schema-valid findings — **~41 s, $0.10 (haiku)**.
