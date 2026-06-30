@@ -725,7 +725,7 @@
 - **Wire the phase-exit fork review to the cross-model knob (7A0B2K)** (done, epic: —)
   Let the Tier 2 phase-exit fork review (NMSD94) require a different-model reviewer when `crossModelReview` is on, reusing MR5M3A's `modelsMatch` / `isCrossModelReviewRequired` / `AUTHOR_MODEL_ENV` primitives in `review-ledger.ts`.
   → `.project/tickets/7A0B2K-scenario-review-cross-model`
-- **Invisible retro: synchronous headless claude -p extraction (no conversation hijack) (7D8PJP)** (in_progress, epic: —)
+- **Invisible retro: synchronous headless claude -p extraction (no conversation hijack) (7D8PJP)** (done, epic: —)
   Run the retro session-retrospective entirely out-of-band — in a separate
   → `.project/tickets/7D8PJP-invisible-retro-claude`
 - **Deepen scenario-gate adversarial review (port review-spec depth) (7GER0P)** (superseded, epic: —)
@@ -1074,7 +1074,7 @@
 - **Optimize safeword for Fable 5 — capability-tier harness adaptation (SKQR0G)** (in_progress, epic: —)
   Re-weight safeword's harness for frontier models like Fable 5 — amplify fresh-context verification and the no-bloat guardrail, thin the per-turn control injections, and scale harness intensity by model tier/effort — guided by Fable's own prompting guidance.
   → `.project/tickets/SKQR0G-capability-tier-harness`
-- **Durable egress hardening: secretlint rule-packs + GitHub write-path test (SPNZKM)** (in_progress, epic: —)
+- **Durable egress hardening: secretlint rule-packs + GitHub write-path test (SPNZKM)** (done, epic: —)
   Replace retro's hand-rolled secret regex with maintained `@secretlint`
   → `.project/tickets/SPNZKM-retro-egress-hardening`
 - **Stop-gate incremental tsc for TS projects (SW1SE5)** (done, epic: —)
