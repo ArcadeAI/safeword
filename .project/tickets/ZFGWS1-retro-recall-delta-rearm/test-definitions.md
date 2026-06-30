@@ -6,7 +6,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: Delta windows tile the whole session
 
-### Scenario: The first fire digests from the start of the transcript
+### Scenario: The first fire digests the whole transcript so far under the digest cap
 
 - [ ] RED
 - [ ] GREEN
@@ -18,13 +18,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A back-half-only finding reaches the egress pipeline
+### Scenario: A back-half-only finding beyond the head cap is filed by the delta fire
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The overlap re-includes the boundary so a straddling finding appears whole
+### Scenario: The window re-includes the overlap region before the previous offset
 
 - [ ] RED
 - [ ] GREEN
@@ -70,9 +70,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A fuzzy signature-search near-miss is rejected by the exact filter
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: A stable session id reaches the extraction child
 
 ### Scenario: The resolved session id is forwarded to the child
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: No session id resolves, so nothing is filed under the unknown fallback
 
 - [ ] RED
 - [ ] GREEN
@@ -86,7 +98,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The recorded offset only advances across fires
+### Scenario: A later sequential fire strictly advances the recorded offset
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A concurrent reader never sees a torn state file
 
 - [ ] RED
 - [ ] GREEN
@@ -107,6 +125,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ## Rule: Re-fire cadence is bounded and fail-open
+
+### Scenario: A first Stop below the substance threshold does not fire
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Growth below the re-arm threshold holds the fire
 
@@ -132,7 +156,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A state-write failure still fires
+### Scenario: A state-write failure still fires and leaves the offset unchanged
 
 - [ ] RED
 - [ ] GREEN

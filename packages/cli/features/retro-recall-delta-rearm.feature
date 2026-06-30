@@ -18,28 +18,28 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
   Rule: Delta windows tile the whole session
 
     @retro-recall.SM1.AC1
-    Scenario: The first fire digests from the start of the transcript
+    Scenario: The first fire digests the whole transcript so far under the digest cap
       Given a substantial session at its first Stop with no prior offset state
       When the retro decides to fire
-      Then the delta window starts at offset zero, covering the whole transcript so far
+      Then the delta window is the whole transcript so far and the digest cap applies to that whole, as on the pre-delta fire
 
     @retro-recall.SM1.AC1
     Scenario: A later fire digests only the window since the previous fire's offset
       Given offset state recording the previous fire's byte offset on a grown transcript
       When the retro fires again
-      Then the digested window begins at the previous offset, not the transcript head
+      Then the digested window begins at the previous offset minus the overlap, not at the transcript head
 
     @retro-recall.SM1.AC1
-    Scenario: A back-half-only finding reaches the egress pipeline
-      Given a grown transcript whose only friction appears after the previous fire's offset
-      When the delta fire runs auto-extraction
-      Then that finding reaches the egress pipeline instead of being lost to the head cap
+    Scenario: A back-half-only finding beyond the head cap is filed by the delta fire
+      Given a transcript larger than the digest cap whose only friction appears after the previous fire's offset
+      When safeword retro runs the delta fire over the window since that offset
+      Then an issue carrying that finding's signature is filed, which a head-capped fire would have missed
 
     @retro-recall.SM1.AC1
-    Scenario: The overlap re-includes the boundary so a straddling finding appears whole
-      Given a finding that straddles the previous window's end boundary
+    Scenario: The window re-includes the overlap region before the previous offset
+      Given offset state recording the previous fire's byte offset
       When the next delta fire builds its window
-      Then the window re-includes the prior overlap region so the finding appears whole in one fire
+      Then the window start index is the previous offset minus the overlap size, clamped at zero, so a boundary-straddling entry is contained in full
 
   Rule: Extraction defaults to sonnet at both model sites
 
@@ -82,6 +82,12 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
       When the issue body is built
       Then it contains the finding's retro signature in a form signature search can match
 
+    @retro-recall.SM2.AC1
+    Scenario: A fuzzy signature-search near-miss is rejected by the exact filter
+      Given signature search returns an issue whose body carries a different retro signature
+      When triage filters the search results
+      Then that issue is not treated as a match and a new issue is created
+
   Rule: A stable session id reaches the extraction child
 
     @retro-recall.SM2.AC2
@@ -89,6 +95,12 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
       Given a Stop with a resolvable session id but no CLAUDE_SESSION_ID in the environment
       When the hook spawns the extraction child
       Then the child receives the resolved session id rather than the unknown fallback
+
+    @retro-recall.SM2.AC2
+    Scenario: No session id resolves, so nothing is filed under the unknown fallback
+      Given a Stop where no session id resolves from the input or the environment
+      When the hook evaluates the retro
+      Then the retro does not fire and nothing is filed under an unknown session id
 
   Rule: Offset state survives concurrent Stops
 
@@ -99,10 +111,16 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
       Then it is written to a temp file and renamed over the state file, never written in place
 
     @retro-recall.SM2.AC3
-    Scenario: The recorded offset only advances across fires
-      Given offset state from a previous fire
+    Scenario: A later sequential fire strictly advances the recorded offset
+      Given a fire recorded an offset over a transcript that then grows
       When a later fire records its offset
-      Then the recorded offset is greater than or equal to the previous offset
+      Then the new recorded offset is strictly greater than the prior offset
+
+    @retro-recall.SM2.AC3
+    Scenario: A concurrent reader never sees a torn state file
+      Given an offset-state write whose temp file is written but not yet renamed
+      When another Stop reads the offset state
+      Then it reads either the complete prior state or the complete new state, never a partial one
 
   Rule: The retro Stop hook is non-blocking
 
@@ -119,6 +137,12 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
       Then it does not carry asyncRewake, which would surface stderr into the chat
 
   Rule: Re-fire cadence is bounded and fail-open
+
+    @retro-recall.TB1.AC2
+    Scenario: A first Stop below the substance threshold does not fire
+      Given a first Stop with no prior offset state and tool-uses below the substance threshold
+      When a Stop is evaluated
+      Then the retro does not fire and no offset state is written
 
     @retro-recall.TB1.AC2
     Scenario: Growth below the re-arm threshold holds the fire
@@ -145,10 +169,10 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
       Then the retro does not fire, the recursion guard taking precedence over every other gate
 
     @retro-recall.TB1.AC2
-    Scenario: A state-write failure still fires
+    Scenario: A state-write failure still fires and leaves the offset unchanged
       Given the offset-state writer throws on persist
       When a re-fire is decided
-      Then the retro still fires and does not throw
+      Then the retro still fires without throwing and the recorded offset is unchanged
 
   Rule: Every delta window passes the full egress pipeline unchanged
 

@@ -110,11 +110,14 @@ The resolved session id is forwarded to the child so ledger session-accounting i
 correct; the child no longer falls back to `'unknown'` when `CLAUDE_SESSION_ID` is
 unset (e.g. cloud, where only `CLAUDE_CODE_REMOTE_SESSION_ID` is set).
 
-#### retro-recall.SM2.AC3 — Near-simultaneous Stops don't double-fire or corrupt state
+#### retro-recall.SM2.AC3 — Near-simultaneous Stops don't corrupt state
 
 Offset state is written temp-file-then-`rename` (atomic on the same filesystem), so
-two near-simultaneous Stops never read a torn state file; the offset only advances.
-Signature dedupe is the filing-level backstop against any residual duplicate fire.
+a concurrent reader never sees a torn state file (it reads the complete old or
+complete new state). Across sequential fires the recorded offset strictly advances.
+The mechanism is last-writer-wins, not max-wins (a lock is out of scope), so a rare
+concurrent race can re-cover a window already read — signature dedupe is the
+filing-level backstop that absorbs that residual duplicate fire.
 
 ### retro-recall.TB1 — Repeated retro never intrudes or blocks, and stays cheap
 
