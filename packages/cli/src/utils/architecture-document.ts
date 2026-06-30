@@ -127,12 +127,12 @@ function planTarget(target: HealTarget): SelfHealAction {
   return decideAction(readExisting(target.path), target.fingerprint, target.hasContent);
 }
 
-/** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
-function singleRepoTarget(projectDirectory: string): HealTarget {
-  const fingerprint = shapeFingerprint(projectDirectory);
-  const nodes = extractSkeleton(projectDirectory).nodes;
+/** A `src/`-skeleton doc: the skeleton of `directory`, rendered to `path`. */
+function skeletonTarget(directory: string, path: string): HealTarget {
+  const fingerprint = shapeFingerprint(directory);
+  const nodes = extractSkeleton(directory).nodes;
   return {
-    path: resolveGeneratedArchitecturePath(projectDirectory),
+    path,
     fingerprint,
     hasContent: nodes.length > 0,
     render: (priorStamps, priorProse) =>
@@ -140,17 +140,17 @@ function singleRepoTarget(projectDirectory: string): HealTarget {
   };
 }
 
+/** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
+function singleRepoTarget(projectDirectory: string): HealTarget {
+  return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory));
+}
+
 /** A colocated leaf: the package's own skeleton at `packages/<pkg>/architecture.generated.md`. */
 function leafTarget(packageDirectory: string): HealTarget {
-  const fingerprint = shapeFingerprint(packageDirectory);
-  const nodes = extractSkeleton(packageDirectory).nodes;
-  return {
-    path: nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
-    fingerprint,
-    hasContent: nodes.length > 0,
-    render: (priorStamps, priorProse) =>
-      renderDocument(nodes, fingerprint, priorStamps, priorProse),
-  };
+  return skeletonTarget(
+    packageDirectory,
+    nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
+  );
 }
 
 /** The derived root index: the package graph at the namespace-root path. */
