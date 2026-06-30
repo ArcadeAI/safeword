@@ -11,8 +11,24 @@ scope: |
   returned 9 valid, high-value safeword findings; haiku returned 1-3 weak ones.
   The "0/5 vs the 5 a human filed (#564-#568)" metric was misleading — it scored
   exact agreement with one human's selection, not validity. The session held 15+
-  real frictions; the models found OTHER valid ones. Three real problems remain:
+  real frictions; the models found OTHER valid ones. FOUR problems remain, and
+  D (timing) dominates the rest:
 
+  D. TIMING — Phase 0, the dominant lever. The extractor fires once per session
+     at the FIRST Stop where the transcript shows >= 3 tool-use events
+     (`decideRetroRun` + `SUBSTANCE_THRESHOLD = 3`), then the once-per-session
+     sentinel suppresses it forever. Concept-tested on THIS session's raw
+     transcript: the first qualifying Stop lands at line 19 of 9,788 — 0.2% in —
+     while #567 isn't discovered until line 2,836 (29%) and full coverage isn't
+     reached until ~line 4,894 (50%). So fire-once-early reads the session's
+     OPENING and is structurally blind to everything after. No tier (A) or
+     coverage (B) choice can recover findings from turns that haven't happened
+     yet when the extractor runs. Fix direction: re-arm — run extraction on later
+     substantial Stops too, and lean on the occurrence ledger (RV9JT4) to dedupe
+     filings, so the LAST fire before the session goes quiet sees ~the whole
+     session. There is no SessionEnd hook in cloud (killed before async work
+     finishes; transcript deleted on container reclaim), so a late Stop is the
+     only "near-end" handle. See the steelman below.
   A. TIER. haiku (the hardcoded default, retro.ts:113) is too weak — 1-3 generic
      findings. sonnet found 9 strong ones (incl. a real stack-frame-leak security
      bug). But sonnet cost ~242s/run vs haiku ~75s — a direct #563 cost tension.
@@ -35,6 +51,11 @@ out_of_scope: |
   - Cost-bounding / friction-gated firing (#563) — related (tier cost feeds it)
     but the gating mechanism itself is #563's.
 done_when: |
+  - TIMING (Phase 0): extraction is no longer pinned to the first qualifying Stop.
+    A later Stop runs extraction over the fuller transcript, and re-fires file no
+    duplicates (occurrence ledger). A test proves: (1) a finding that only appears
+    AFTER the first qualifying Stop is still surfaced; (2) re-fires don't re-file
+    an already-filed finding.
   - A tier decision is made and implemented (default model and/or escalation),
     justified against the measured cost (haiku ~75s/1-3 findings vs sonnet
     ~242s/9 findings) — not left hardcoded to haiku by default.
@@ -98,6 +119,63 @@ the extractor's DEFAULT tier under-delivers and its digest can't see the whole
 session. Raising the tier + whole-transcript coverage is the lever — consistent
 with `natural-vs-self-report-gates.md` (cheap self-report is the weak link).
 
+## Timing — the dominant lever (concept-tested on this session)
+
+`decideRetroRun` fires extraction at the **first** Stop where the transcript shows
+`>= SUBSTANCE_THRESHOLD` (3) tool-use events, then the once-per-session sentinel
+suppresses it for the rest of the session. Three tools is reached almost
+immediately, so the extractor reads the session's OPENING.
+
+**Concept test (this session's raw 25 MB transcript, no model calls):**
+
+| Marker | Line (of 9,788) | % through session |
+| --- | --- | --- |
+| First qualifying Stop (cum tool_use >= 3) — **the trigger** | **19** | **0.2%** |
+| #564 multiple-in_progress first appears | 152 | 1.6% |
+| #567 dry-run first appears (organic) | 2,836 | 29% |
+| Full 5/5 coverage reached | ~4,894 | ~50% |
+
+Recall ceiling (signal *availability*, before extraction even runs):
+
+- fire-once at the first qualifying Stop (line 19): **2/5** — and both are
+  compaction-summary echoes at lines 1-2; in a fresh session with no summary
+  header the trigger-window ceiling is **~0/5**.
+- fire at session end: **5/5**. Re-arming climbs monotonically (25%→4/5, 50%→5/5).
+
+So timing caps recall *before* tier or coverage get a vote. Fix it first.
+
+### Steelman — re-arm extraction (fire on later Stops, dedupe via the ledger)
+
+The strongest case for re-arming rather than firing once:
+
+1. **It's the only way to see the whole session in cloud.** There is no usable
+   SessionEnd hook (killed before async finishes; transcript deleted on container
+   reclaim), so a Stop is the only live handle — and only the *last* Stop's
+   transcript contains the whole session. Firing once-early reads 0.2%; only
+   re-arming guarantees a fire that reads ~100%.
+2. **The dedupe infrastructure already exists.** The occurrence ledger (RV9JT4)
+   makes re-files idempotent — a later fire that re-surfaces an earlier finding
+   doesn't open a duplicate. So the cost of re-arming is *compute*, not tracker
+   noise, and the existing 5-new-issues/session cap still holds.
+3. **Cost is bounded and tunable, not unbounded.** Gate re-fires on transcript
+   GROWTH (e.g. +K tool-uses since the last fire), not every Stop — a handful of
+   fires per long session. Combined with the #563 friction gate, a re-fire only
+   does real work when the session both grew and hit new friction.
+4. **It degrades gracefully — never worse than today.** Short session that ends
+   after the first fire? You got exactly the current behavior. Long session? Each
+   later fire strictly improves coverage. There is no input on which re-arm loses
+   to fire-once.
+5. **It turns the tier-cost objection around.** Re-arm can run the CHEAP tier
+   (haiku) on the incremental fires for early signal and escalate to sonnet
+   chunk-and-map only on the final/largest fire — so the expensive pass runs once,
+   over the fullest transcript, instead of the cheap pass running once over the
+   emptiest.
+
+Residual objection (honest): in a pathological very-long session, re-arm fires
+several times; worst case is N extractions for <=5 filings. Mitigation is the
+K-growth gate + #563 friction gate + cheap-incremental/escalate-once tiering
+above. The objection bounds the *cost*, it doesn't restore *fire-once* recall.
+
 ## Work Log
 
 - 2026-06-30T06:15Z Created from a live head-to-head eval (initially framed as
@@ -110,3 +188,10 @@ with `natural-vs-self-report-gates.md` (cheap self-report is the weak link).
   digest misses the tail), and METRIC (need validity-based eval, not exact-match).
   Next: figure-it-out on tier (default vs cheap-prefilter->strong escalation) +
   whole-transcript digest, with these numbers as evidence.
+- 2026-06-30T07:28Z Added the TIMING lever (Phase 0) after a "when does it run"
+  question. Concept-tested on this session's raw transcript: the trigger fires at
+  line 19/9,788 (0.2%), but #567 isn't seen until 29% and full coverage not until
+  ~50% — so fire-once-early reads only the opening and caps recall before tier or
+  coverage matter. Folded in the re-arm fix + steelman; reordered done_when so
+  timing is Phase 0, ahead of tier/coverage. Re-arm cost is the #563-gated value
+  call for the user.
