@@ -1,10 +1,10 @@
 ---
 id: 152
 type: task
-phase: understand
-status: open
+phase: done
+status: done
 created: 2026-05-18T04:58:00Z
-last_modified: 2026-05-18T04:58:00Z
+last_modified: 2026-06-30T17:21:00Z
 ---
 
 # Resolve `bun audit` advisories surfaced 2026-05-18
@@ -68,3 +68,9 @@ Verified via `bun audit` on 2026-05-18:
 ## Provenance
 
 Surfaced during `/quality-review` on branch `wizardly-joliot-76687b` after the [vitest-plugin migration + installer peer-dep guard work](https://github.com/) (commits `b93b696`, `fb280b4`, `553c364`). The quality-review verified those three commits introduced **zero new advisories**; everything in `bun audit` was pre-existing. This ticket exists so the pre-existing surface gets addressed rather than continuing to be tolerated.
+
+## Closeout
+
+- 2026-06-30: PR [#557](https://github.com/ArcadeAI/safeword/pull/557) is merged into `main`.
+- Current `main` resolves the Astro website dependency chain through Astro 7 and keeps the root audit overrides narrowed to the markdown tooling pins still required by `markdownlint-cli2`.
+- `bun audit --json` reports zero advisories on current `main`.

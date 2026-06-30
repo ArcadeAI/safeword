@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (348)
+## Tickets (350)
 
 ### agent-surface-refactor
 
@@ -588,7 +588,7 @@
 - **`safeword setup` offers to pre-allow the skill-invocation bash injection (150)** (open, epic: —)
   Have `bunx safeword setup` (and `safeword upgrade` when appropriate) detect whether `.claude/settings.json` pre-approves the two Bash patterns the skill-invocation log injection needs, and — if not — offer to add them. Prevents the failure mode at install time rather than only documenting it.
   → `.project/tickets/150-setup-pre-allow-skill-bash`
-- **Resolve `bun audit` advisories surfaced 2026-05-18 (152)** (open, epic: —)
+- **Resolve `bun audit` advisories surfaced 2026-05-18 (152)** (done, epic: —)
   Clear the 4 advisories that `bun audit` flags in safeword's tree (1 high, 3 moderate) by bumping the deps that pull in vulnerable transitives. None of these are caused by safeword's own direct deps — they're all transitives — but they show up in `bun audit` output, which customers run too.
   → `.project/tickets/152-resolve-bun-audit-advisories`
 - **Boundary Resilience: Replan-on-Resume (153)** (done, epic: —)
@@ -844,6 +844,9 @@
 - **Wire test:smoke:live into CI + provision an Anthropic API key secret (CTKZPC)** (backlog, epic: —)
   Run safeword's live real-model smoke (`test:smoke:live`) automatically in CI — on-demand and/or nightly — so the one test that proves a real Claude agent gets steered isn't manual-only.
   → `.project/tickets/CTKZPC-live-smoke-ci-secret`
+- **Spike: does an injected Go-skill directive beat native description-triggering? (2-arm eval, Claude-only, samber pinned) (D50Q0T)** (in_progress, epic: —)
+  {One sentence: what are we trying to achieve?}
+  → `.project/tickets/D50Q0T-go-skill-directive-eval`
 - **Spike: hooks dispatched from the CLI (latency + wiring) (D6GTXY)** (in_progress, epic: —)
   Falsify (or confirm) the load-bearing assumption behind moving safeword's hook layer into the CLI — that a CLI-dispatched hook can run at ~the direct-script latency baseline — with the smallest possible prototype, and produce a go/no-go + migration strategy.
   → `.project/tickets/D6GTXY-hooks-into-cli-spike`
@@ -968,6 +971,9 @@
 - **Reduce generated ticket index merge conflicts (MF1DGA)** (in_progress, epic: —)
   Reduce avoidable merge conflicts from the tracked generated ticket index.
   → `.project/tickets/MF1DGA-reduce-generated-ticket-index-conflicts`
+- **Support any monorepo shape — union all workspace managers in discovery (MGWZ4P)** (todo, epic: —)
+  A polyglot monorepo should be fully introspected no matter how many
+  → `.project/tickets/MGWZ4P-polyglot-monorepo-discovery`
 - **Independent evidence-backed architecture gate for features (MR5M3A)** (done, epic: —)
   Layer the missing independent challenge onto #204's impl-plan: require the design to be generated from cited evidence (the /figure-it-out trace) and then survive a fresh-context adversarial review before implementation completes — the one defense against correlated single-agent errors that #204 leaves out.
   → `.project/tickets/MR5M3A-architecture-gate`
