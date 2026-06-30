@@ -222,6 +222,20 @@ above. The objection bounds the *cost*, it doesn't restore *fire-once* recall.
   Open impl question to settle in piece 2: the `REARM_GROWTH_THRESHOLD` value
   (start ~25 tool-uses; tune so a long session re-fires a handful of times, not
   every Stop).
+- 2026-06-30T08:01Z CHECKED THE PLAN AGAINST THIS SESSION (sim-rearm.ts) — and it
+  FAILED twice, corrected both:
+  (1) Cadence: GEOMETRIC backoff front-loads — last fire at 38%, 62% blind tail
+  (its "5/5" was a compaction-summary artifact). Friction-gating is worse (3,622
+  friction lines → exhausts a 5-cap by 7%, 93% blind tail). Fix: ADDITIVE cadence
+  (every ~200 tool-uses, no low cap, high backstop) → last fire 91–100%, full
+  coverage. The low cap was the bug.
+  (2) Model: HAIKU is too weak (proven: 1–3 vs sonnet's 9) — re-arming it re-reads
+  the session badly. Fix: default to SONNET (folds in lever-A's cheap first step).
+  Honest cost with sonnet+additive: typical session ~$0.35–1; pathological 25 MB
+  session ~$3–5 (G=250→$2.80/8 fires). Per-fire input fixed (digest cap); dedup +
+  #563 friction gate trim typical sessions. Worst-case cost is the OPEN #563 value
+  call. Future win: debounce-to-quiet = one ~$0.35 end-fire (blocked on cloud
+  reclaim-timing characterization). impl-plan Decisions/approach/triggers updated.
 - 2026-06-30T07:28Z Added the TIMING lever (Phase 0) after a "when does it run"
   question. Concept-tested on this session's raw transcript: the trigger fires at
   line 19/9,788 (0.2%), but #567 isn't seen until 29% and full coverage not until
