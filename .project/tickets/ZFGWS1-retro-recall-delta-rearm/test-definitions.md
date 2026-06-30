@@ -178,4 +178,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 8ded451 # /quality-review SHIP; applied temp-file uniqueness hardening

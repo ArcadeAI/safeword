@@ -1,6 +1,13 @@
 # Impl Plan: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
 
-**Status:** planned
+**Status:** implemented
+
+_Reconciled at implement exit (2026-06-30): every Decisions-table choice shipped as
+designed — no row changed, no alternative adopted mid-implementation. Build order ran
+1→9 as planned. The load-bearing back-half proof (slice 4) passed, confirming the
+riskiest assumption (windowing surfaces a finding the head-cap misses). Whole-ticket
+/quality-review returned SHIP (0 must-fix); its temp-file-uniqueness hardening landed
+as the cross-scenario refactor. One naming nuance added to Known deviations._
 
 ## Approach
 
@@ -92,6 +99,15 @@ measured eval, not a regression scorer, which is deferred).
 - **Async last-fire residual:** if the container is reclaimed the instant the user
   goes idle after the final Stop, the last delta may be lost (bounded — one delta).
   Documented; BNGK9W (#568 cloud transport) is the fallback if this proves material.
+- **`OVERLAP_BYTES`/offset are CHAR (UTF-16 code-unit) offsets, not bytes** —
+  `windowFor` slices and the recorded `offset = transcript.length` both use string
+  code units, so they are internally consistent (no bug); the `*_BYTES` name is a
+  documented misnomer kept for now (quality-review nice-to-have). Rename to
+  `_CHARS` if/when the constant is touched again.
+- **Dedupe depends on GitHub indexing HTML-comment body text** — the signature
+  marker is an HTML comment; if GitHub search ever stopped indexing comment text the
+  dedupe would false-miss → a duplicate issue (bounded by the per-session create cap).
+  Acceptable: this is the thin REST boundary layer, and a duplicate is self-correcting.
 
 ## Assessment triggers
 

@@ -2,7 +2,7 @@
 id: ZFGWS1
 slug: retro-recall-delta-rearm
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 scope: |
@@ -145,3 +145,8 @@ levers together (supersedes 0XEMEE's inert linear-phase plan).
   Haiku weaker than author, crossModelReview off; independence via zero-history
   fork. impl-plan.md written (load-bearing slice = back-half window→pipeline proof;
   build order 1–9). Phase → implement.
+- 2026-06-30T19:17Z Complete: implement — all 26 scenarios green (173 tests / 14 files);
+  byte-parity mirrors in sync. Whole-ticket /quality-review (fresh context) → SHIP, 0
+  must-fix / 0 should-fix; cross-scenario refactor = temp-file uniqueness hardening
+  (8ded451). impl-plan reconciled → implemented (no decision changed; 2 naming nuances
+  → Known deviations). Phase → verify.
