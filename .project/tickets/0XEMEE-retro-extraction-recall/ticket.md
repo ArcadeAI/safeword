@@ -265,6 +265,32 @@ above. The objection bounds the *cost*, it doesn't restore *fire-once* recall.
   #563 friction gate trim typical sessions. Worst-case cost is the OPEN #563 value
   call. Future win: debounce-to-quiet = one ~$0.35 end-fire (blocked on cloud
   reclaim-timing characterization). impl-plan Decisions/approach/triggers updated.
+- 2026-06-30T14:57Z /figure-it-out → DECISION: the coherent recall slice is
+  **delta re-arm + sonnet + `async:true` hook + signature dedupe** (replaces the
+  inert linear phase plan). Reasoning + evidence:
+  * Coverage: each re-fire digests only the NEW activity since the last fire (a
+    bounded window with a small overlap), so the deltas TILE the whole session —
+    defeating the head-cap that made plain re-arm inert. Cost M bounded calls (not
+    A's M×N whole-transcript chunk-and-map): ~8 calls/~$1.44 on this session, 1–3/
+    ~$0.18–0.54 typical. Validated by sliding-window IE literature (SLIDE,
+    arxiv 2503.17952); the dedup ledger is the cross-window "entity bank".
+    Rejected A (whole-transcript-per-fire): ~M×N calls (~$15), re-reads the opening
+    every fire, for a marginal global-pattern gain that the ledger's recurrence
+    count already covers.
+  * Execution: the latency blocker is RESOLVED by a DOCUMENTED feature —
+    `async: true` (code.claude.com/docs/en/hooks): the Stop hook returns
+    immediately, Claude Code runs it in the background (600s timeout), never
+    blocks. NOT `asyncRewake` (that surfaces stderr into the chat → breaks
+    invisibility). OS-level detached survival also proven empirically this session.
+    Residual: container reclaim could kill the LAST fire if the user goes idle
+    immediately — bounded (loses only the final delta); mid-session fires are safe
+    (container alive). This requires registering the retro hook with `async:true`
+    in the generated settings (a config change, not just stop-retro.ts).
+  * Premortem: if it fails, the cause is reclaim killing in-hook async work in
+    cloud → fallback is the BNGK9W in-session subagent doing extraction.
+  Next: rewrite impl-plan + scenarios for this combined slice (loop back to
+  define-behavior); piece-1 offset state is reused (extend lastCount → a byte/line
+  offset for the delta window).
 - 2026-06-30T14:50Z /quality-review (2 independent reviewers) → REQUEST CHANGES.
   The plan's phase decomposition is WRONG — the levers are coupled, so Phase 0
   (timing) in isolation is INERT:
