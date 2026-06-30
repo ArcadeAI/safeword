@@ -309,6 +309,17 @@ function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): 
   return true;
 }
 
+/**
+ * The shared frontmatter every generated doc opens with: the ownership marker, the
+ * fingerprint line, and the `# Architecture` heading. This is the serialization side of the
+ * contract that `readDocumentFingerprint` / `isSafewordOwned` (and the standalone hook
+ * parser) read back, so both renderers must emit it byte-identically — one writer guarantees
+ * that.
+ */
+function architectureFrontmatter(fingerprint: string): string {
+  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n`;
+}
+
 function renderDocument(
   nodes: SkeletonNode[],
   fingerprint: string,
@@ -339,7 +350,7 @@ function renderDocument(
     })
     .join('\n');
 
-  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Modules\n\n${sections}`;
+  return `${architectureFrontmatter(fingerprint)}## Modules\n\n${sections}`;
 }
 
 function renderSection(
@@ -378,7 +389,7 @@ function renderRootIndex(model: MonorepoModel, fingerprint: string): string {
   const dependencies =
     model.edges.length === 0 ? '_No inter-package dependencies._\n' : `${edgeLines}\n`;
 
-  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n## Dependencies\n\n${dependencies}${renderCoverageGaps(model.unreadableWorkspaces)}`;
+  return `${architectureFrontmatter(fingerprint)}## Packages\n\n${sections}\n## Dependencies\n\n${dependencies}${renderCoverageGaps(model.unreadableWorkspaces)}`;
 }
 
 /**
