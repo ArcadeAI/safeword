@@ -41,6 +41,7 @@ import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invoca
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('stop-quality');
@@ -613,6 +614,13 @@ if (currentPhase === 'done') {
     const currentTicketDirectory = `${ticketsDir}/${ticketInfo.folder}`;
     updateTicketStatus(currentTicketDirectory, 'done', 'done');
 
+    // AXRC4D: non-blocking ARCHITECTURE.md staleness nudge. If this ticket moved the
+    // top-level architecture fingerprint and a human ARCHITECTURE.md exists, advise a
+    // reconcile. Prepended to whatever done-message we surface; the ticket is already
+    // marked done above, so this never blocks the transition.
+    const archDriftNudge = architectureDocumentNudgeForProject(projectDir);
+    const donePrefix = archDriftNudge === null ? '' : `${archDriftNudge}\n\n`;
+
     // Walk hierarchy: cascade done status up and navigate to next sibling
     let directory = currentTicketDirectory;
     const MAX_CASCADE = 10;
@@ -622,7 +630,7 @@ if (currentPhase === 'done') {
         const nextInfo = getTicketInfo(projectDir, next.ticketId);
         const nextLabel = nextInfo.slug ? `${nextInfo.slug} (${next.ticketId})` : next.ticketId;
         softBlock(
-          `Ticket complete! Next up: read ${next.ticketDirectory}/ticket.md and begin work on ${nextLabel}.`,
+          `${donePrefix}Ticket complete! Next up: read ${next.ticketDirectory}/ticket.md and begin work on ${nextLabel}.`,
         );
       } else if (next.type === 'cascade-done') {
         // Mark parent done and continue walking up
@@ -633,6 +641,9 @@ if (currentPhase === 'done') {
         break;
       }
     }
+
+    // No onward navigation, but the shape moved — still surface the advisory once.
+    if (archDriftNudge !== null) softBlock(archDriftNudge);
   }
 
   process.exit(0);
