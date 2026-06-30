@@ -8,11 +8,89 @@
 // synchronous runner. Agent-neutral where possible; Claude-specific bits are
 // named as such.
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 /**
  * Default cap (chars) for a transcript digest. A real session transcript is tens
  * of MB; the extractor needs a bounded, signal-dense slice, not the raw JSONL.
  */
 export const DIGEST_CAP = 180_000;
+
+/**
+ * Default extraction model. Sonnet, not haiku: measured head-to-head on the same
+ * transcript, haiku surfaced 1–3 weak findings vs sonnet's 9 strong ones (ZFGWS1).
+ * Overridable per install via `.safeword/config.json` → `retro.model`.
+ */
+export const DEFAULT_RETRO_MODEL = 'sonnet';
+
+/**
+ * Resolve the extraction model for an install: `retro.model` from
+ * `.safeword/config.json`, else the sonnet default. Fail-open to the default on
+ * any missing/unreadable/malformed config — model selection must never break the
+ * out-of-band retro run.
+ */
+export function resolveRetroModel(projectDirectory: string): string {
+  try {
+    const raw = readFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), 'utf8');
+    const parsed = JSON.parse(raw) as { retro?: { model?: unknown } };
+    const model = parsed.retro?.model;
+    return typeof model === 'string' && model.length > 0 ? model : DEFAULT_RETRO_MODEL;
+  } catch {
+    return DEFAULT_RETRO_MODEL;
+  }
+}
+
+/**
+ * Overlap (chars) re-included before a delta window's start, so a finding
+ * straddling a window boundary appears whole in one fire (ticket ZFGWS1). A
+ * char-slice may cut the first JSONL line; `buildDigest` skips that malformed head
+ * line, so whole boundary entries still survive. Duplicate findings from the
+ * overlap are absorbed by signature dedupe (triage).
+ */
+export const OVERLAP_CHARS = 2048;
+
+/**
+ * Slice the delta window a fire should digest: from `windowStart` (the previous
+ * fire's recorded offset) minus a small overlap, to the end. The FIRST fire
+ * (`windowStart <= 0`) returns the whole transcript so far. So `buildDigest`'s cap
+ * applies to the WINDOW, not the chronological head — defeating the head-cap that
+ * made plain re-arm inert. The overlap is clamped at the start of the transcript.
+ */
+export function windowFor(
+  transcript: string,
+  windowStart: number,
+  overlap: number = OVERLAP_CHARS,
+): string {
+  if (windowStart <= 0) return transcript;
+  return transcript.slice(Math.max(0, windowStart - overlap));
+}
+
+/** A decision to run the retro child, carrying the delta window + stable session id. */
+export interface RetroChildInvocation {
+  transcriptPath: string;
+  windowStart: number;
+  sessionId: string;
+}
+
+/**
+ * Build the `safeword retro` argv the Stop hook spawns out-of-band. Forwards the
+ * delta window offset and the resolved session id (ZFGWS1) so the child digests
+ * only the new window and attributes findings to the real session — not the
+ * 'unknown' fallback its own env resolves to in cloud.
+ */
+export function retroChildArgs(invocation: RetroChildInvocation): string[] {
+  return [
+    'retro',
+    '--auto-extract',
+    '--transcript',
+    invocation.transcriptPath,
+    '--window-start',
+    String(invocation.windowStart),
+    '--session-id',
+    invocation.sessionId,
+  ];
+}
 
 /**
  * The headless extractor only ever READS the digest — never writes, edits, or
@@ -152,7 +230,7 @@ export async function runHeadlessExtraction(
   try {
     const digestPath = dependencies.writeDigest(buildDigest(transcript));
     const argv = buildExtractArgv({
-      model: dependencies.model ?? 'haiku',
+      model: dependencies.model ?? DEFAULT_RETRO_MODEL,
       systemPrompt: EXTRACT_SYSTEM_PROMPT,
       prompt: buildExtractPrompt(digestPath),
     });

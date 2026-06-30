@@ -59,18 +59,36 @@ describe('createRestTransport', () => {
     expect(createRestTransport('')).toBeUndefined();
   });
 
-  it('C2: strips quote/colon from the search query and requests per_page=100', async () => {
+  it('C2: searches the body for the signature hash token and requests per_page=100', async () => {
     const calls = mockFetch(() => ({ json: () => ({ items: [] }) }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
-    await transport.searchByTitle('Gate "fails" on: x');
+    await transport.searchBySignature('retro:abc123def456');
 
     const decoded = decodeURIComponent(calls[0] ?? '');
     expect(calls[0]).toContain('per_page=100');
-    expect(decoded).not.toContain('"');
-    expect(decoded).toContain('Gate');
-    expect(decoded).toContain('fails');
+    // searches the body, by the bare hash token (no `retro:` colon qualifier)
+    expect(decoded).toContain('in:body');
+    expect(decoded).toContain('abc123def456');
+    expect(decoded).not.toContain('retro:abc123def456');
+  });
+
+  it('C2: rejects a fuzzy near-miss whose body lacks the exact signature', async () => {
+    mockFetch(() => ({
+      json: () => ({
+        items: [
+          { number: 1, title: 'near miss', body: 'has retro:zzzzzzzzzzzz only' },
+          { number: 2, title: 'exact', body: 'carries retro:abc123def456 here' },
+        ],
+      }),
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    const matches = await transport.searchBySignature('retro:abc123def456');
+
+    expect(matches).toEqual([{ number: 2, title: 'exact' }]);
   });
 
   it('C1: paginates listComments until a short page', async () => {

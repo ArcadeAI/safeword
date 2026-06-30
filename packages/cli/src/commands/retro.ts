@@ -20,6 +20,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { windowFor } from '../../templates/hooks/lib/retro-extract.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 
@@ -46,7 +47,7 @@ export interface RetroOutcome {
  * files nothing when it is missing or unreadable.
  */
 export async function runRetro(
-  options: { transcript?: string },
+  options: { transcript?: string; windowStart?: number },
   dependencies: RetroDependencies,
 ): Promise<RetroOutcome> {
   if (!options.transcript) {
@@ -65,7 +66,12 @@ export async function runRetro(
     return { ok: false, errorMessage: `cannot read transcript at ${options.transcript}` };
   }
 
-  const rawFindings = await dependencies.extract(transcript);
+  // Delta re-arm (ZFGWS1): digest only the window since the last fire's offset
+  // (plus a small overlap), so the cap applies to the new activity, not the head.
+  // windowStart 0 (or absent) means the whole transcript — the first-fire / legacy
+  // behavior. The window flows through the UNCHANGED egress pipeline below.
+  const window = windowFor(transcript, options.windowStart ?? 0);
+  const rawFindings = await dependencies.extract(window);
   const encounters = await prepareEncounters(rawFindings);
   const result = await triage(dependencies.transport, encounters, {
     sessionId: dependencies.sessionId,
@@ -79,30 +85,55 @@ export interface RetroCliOptions {
   findings?: string;
   /** Extract findings out-of-band via a headless `claude -p` session. */
   autoExtract?: boolean;
+  /** Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1). */
+  windowStart?: number;
+  /** Stable session id forwarded from the hook, so the ledger isn't keyed to 'unknown'. */
+  sessionId?: string;
+}
+
+/** Injectable seam for `buildAutoExtractor` (tests assert the resolved model/argv). */
+export interface AutoExtractDependencies {
+  /** Spawn the headless `claude` process; defaults to the real `spawnSync`. */
+  spawn?: (
+    argv: string[],
+    options: { cwd: string; env: Record<string, string | undefined> },
+  ) => Promise<{ code: number | null; stdout: string }>;
+  /** Extraction model; defaults to the install's `retro.model` (sonnet fallback). */
+  model?: string;
 }
 
 /**
  * Build the auto-extract `FindingExtractor`: run the retro extraction in a
  * separate, isolated headless `claude -p` session (read-only, no `--bare`) from a
- * neutral temp cwd, with `SAFEWORD_RETRO_CHILD=1` set by the runner. Fail-open:
- * the runner returns `[]` on any error.
+ * neutral temp cwd, with `SAFEWORD_RETRO_CHILD=1` set by the runner. The model
+ * defaults to the install's `retro.model` config (sonnet fallback — haiku proved
+ * too weak; ZFGWS1). Fail-open: the runner returns `[]` on any error.
  */
-async function buildAutoExtractor(): Promise<FindingExtractor> {
-  const { runHeadlessExtraction } = await import('../../templates/hooks/lib/retro-extract.js');
+export async function buildAutoExtractor(
+  projectDirectory: string,
+  dependencies: AutoExtractDependencies = {},
+): Promise<FindingExtractor> {
+  const { runHeadlessExtraction, resolveRetroModel } =
+    await import('../../templates/hooks/lib/retro-extract.js');
+
+  const model = dependencies.model ?? resolveRetroModel(projectDirectory);
+  const spawn =
+    dependencies.spawn ??
+    ((argv: string[], spawnOptions: { cwd: string; env: Record<string, string | undefined> }) => {
+      const result = spawnSync('claude', argv, {
+        cwd: spawnOptions.cwd,
+        env: spawnOptions.env,
+        encoding: 'utf8',
+        timeout: 240_000,
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
+    });
 
   const workDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-retro-'));
   return (transcript: string) =>
     runHeadlessExtraction(transcript, {
-      spawn: (argv, spawnOptions) => {
-        const result = spawnSync('claude', argv, {
-          cwd: spawnOptions.cwd,
-          env: spawnOptions.env,
-          encoding: 'utf8',
-          timeout: 240_000,
-          maxBuffer: 64 * 1024 * 1024,
-        });
-        return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
-      },
+      spawn,
       writeDigest: (digest: string) => {
         const path = nodePath.join(workDirectory, 'digest.txt');
         writeFileSync(path, digest);
@@ -110,7 +141,7 @@ async function buildAutoExtractor(): Promise<FindingExtractor> {
       },
       env: process.env,
       cwd: workDirectory, // neutral cwd — not the user's project
-      model: 'haiku',
+      model,
     });
 }
 
@@ -125,9 +156,10 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const { error, info, success } = await import('../utils/output.js');
   const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
 
+  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const findingsPath = options.findings;
   const extract: FindingExtractor = options.autoExtract
-    ? await buildAutoExtractor()
+    ? await buildAutoExtractor(projectDirectory)
     : () => Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
 
   // Use the environment's existing GitHub access (GITHUB_TOKEN or `gh auth token`);
@@ -144,7 +176,10 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const outcome = await runRetro(options, {
     extract,
     transport,
-    sessionId: process.env.CLAUDE_SESSION_ID ?? 'unknown',
+    // Prefer the session id the hook resolved and forwarded (cloud sets
+    // CLAUDE_CODE_REMOTE_SESSION_ID, not CLAUDE_SESSION_ID, so the env fallback
+    // alone resolved to 'unknown' and broke ledger session-accounting; ZFGWS1).
+    sessionId: options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? 'unknown',
     harness: detectAgent(),
     readFile: (path: string) => readFileSync(path, 'utf8'),
   });

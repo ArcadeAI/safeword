@@ -2,8 +2,8 @@
 id: ZFGWS1
 slug: retro-recall-delta-rearm
 type: feature
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 scope: |
   Fix the invisible retro's RECALL as ONE coherent slice (the levers are coupled;
@@ -129,3 +129,29 @@ levers together (supersedes 0XEMEE's inert linear-phase plan).
   spawnSync stays sync (reviewer's "two spawnSync defeats async" was a misread, but
   retro.ts is named as touched); (d) buildDigest takes a pre-sliced window; (e)
   overlap size / #563-absent fail-open / tail bound → spec refinements. Next: spec.md.
+- 2026-06-30T17:20Z Complete: intake — spec.md (4 JTBD / 8 AC across SM/TB/NTB) +
+  dimensions.md authored; /self-review stamped. Cadence constants recovered from the
+  0XEMEE sim plan-check (REARM_GROWTH=200 additive, MAX_FIRES=20 backstop, OVERLAP=2KB).
+- 2026-06-30T17:25Z Complete: define-behavior — 22 scenarios across 8 rules in
+  features/retro-recall-delta-rearm.feature (@manual: unit+wiring, mocked boundaries).
+  Next: scenario-gate independent review (/review-spec, fresh context).
+- 2026-06-30T17:30Z Complete: scenario-gate — independent fresh-context review
+  (general-purpose subagent, /review-spec procedure) round 1: 3 must-fix / 6
+  should-strengthen, all applied (tautological offset advance → strict; back-half
+  → observable filed outcome over >cap transcript; +first-fire substance gate,
+  +no-session-id negative, +fuzzy signature near-miss, +state-write-fail offset
+  unchanged). Round 2: 0 must-fix (gate PASS); 2 optional polish folded in. 26
+  scenarios / 8 rules. Cross-model review SKIPPED — Fable 5 unavailable, Sonnet/
+  Haiku weaker than author, crossModelReview off; independence via zero-history
+  fork. impl-plan.md written (load-bearing slice = back-half window→pipeline proof;
+  build order 1–9). Phase → implement.
+- 2026-06-30T19:17Z Complete: implement — all 26 scenarios green (173 tests / 14 files);
+  byte-parity mirrors in sync. Whole-ticket /quality-review (fresh context) → SHIP, 0
+  must-fix / 0 should-fix; cross-scenario refactor = temp-file uniqueness hardening
+  (8ded451). impl-plan reconciled → implemented (no decision changed; 2 naming nuances
+  → Known deviations). Phase → verify.
+- 2026-06-30T19:40Z Complete: verify + done — /verify green (suite 4197/4197 + 5
+  skipped, build ✅, Gherkin 23/23, lint+tsc clean, PR scope matches, dep-drift clean);
+  /audit passed (0 circular deps, config in sync, no ZFGWS1 dead code). verify.md
+  written. All 7 done-when criteria met. Ticket → done. Builds on #543 (still open);
+  do not rebase onto main until #543 merges.

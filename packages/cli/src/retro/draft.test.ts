@@ -23,6 +23,13 @@ describe('buildDraft', () => {
     expect(draft.title).toBe(finding.title);
     expect(Array.isArray(draft.labels)).toBe(true);
   });
+
+  it('retro-recall.SM2.AC1.body_embeds_the_searchable_signature_marker', () => {
+    const draft = buildDraft(finding);
+    // The signature must appear verbatim in the body so searchBySignature (in:body
+    // + exact-filter) can dedupe re-fires on it rather than the variable title.
+    expect(draft.body).toContain(draft.signature);
+  });
 });
 
 describe('retroSignature', () => {

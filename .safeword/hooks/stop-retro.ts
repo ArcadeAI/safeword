@@ -20,7 +20,7 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { RETRO_EXTRACT_CMD_ENV } from './lib/retro-extract.ts';
+import { retroChildArgs, RETRO_EXTRACT_CMD_ENV } from './lib/retro-extract.ts';
 import { decideRetroRun } from './lib/retro-trigger.ts';
 import { readSelfReportConfig } from './lib/self-report.ts';
 
@@ -36,11 +36,11 @@ interface HookInput {
  */
 function resolveExtractCommand(
   projectDirectory: string,
-  transcriptPath: string,
+  decision: { transcriptPath: string; windowStart: number; sessionId: string },
 ): [string, string[]] {
   const override = process.env[RETRO_EXTRACT_CMD_ENV];
   if (override && override.length > 0) return [override, []];
-  const retroArgs = ['retro', '--auto-extract', '--transcript', transcriptPath];
+  const retroArgs = retroChildArgs(decision);
   const localCli = nodePath.join(projectDirectory, 'packages/cli/src/cli.ts');
   return existsSync(localCli)
     ? ['bun', [localCli, ...retroArgs]]
@@ -65,7 +65,7 @@ async function main(): Promise<void> {
 
   // Run extraction + filing out of band, synchronously, with NO conversation
   // output. Failures are swallowed here (the CLI also fail-opens internally).
-  const [command, args] = resolveExtractCommand(projectDirectory, decision.transcriptPath);
+  const [command, args] = resolveExtractCommand(projectDirectory, decision);
   spawnSync(command, args, { cwd: projectDirectory, stdio: 'ignore', timeout: 300_000 });
 }
 

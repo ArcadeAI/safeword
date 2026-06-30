@@ -1,10 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildDigest,
   buildExtractArgv,
   isRetroChild,
+  resolveRetroModel,
   RETRO_CHILD_ENV,
+  retroChildArgs as retroChildArguments,
   runHeadlessExtraction,
 } from '../../templates/hooks/lib/retro-extract.js';
 
@@ -161,6 +167,48 @@ describe('isRetroChild', () => {
   });
 });
 
+describe('resolveRetroModel (SM1.AC2 — config-overridable, sonnet default)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-model-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
+  function writeRetroConfig(config: unknown): void {
+    const safewordDirectory = nodePath.join(projectDirectory, '.safeword');
+    mkdirSync(safewordDirectory, { recursive: true });
+    writeFileSync(nodePath.join(safewordDirectory, 'config.json'), JSON.stringify(config));
+  }
+
+  it('defaults to sonnet when no config / no retro.model is present', () => {
+    expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
+    writeRetroConfig({ selfReport: { surface: true } }); // config present, no retro.model
+    expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
+  });
+
+  it('honors a configured retro.model override', () => {
+    writeRetroConfig({ retro: { model: 'haiku' } });
+    expect(resolveRetroModel(projectDirectory)).toBe('haiku');
+  });
+});
+
+describe('retroChildArgs (SM2.AC2 — forward session id + window to the child)', () => {
+  it('forwards the resolved session id and the delta window offset', () => {
+    const args = retroChildArguments({
+      transcriptPath: '/t/sess.jsonl',
+      windowStart: 4096,
+      sessionId: 'cloud-9',
+    });
+    expect(args).toContain('--auto-extract');
+    expect(args[args.indexOf('--transcript') + 1]).toBe('/t/sess.jsonl');
+    expect(args[args.indexOf('--window-start') + 1]).toBe('4096');
+    // the stable session id reaches the child rather than its 'unknown' env fallback
+    expect(args[args.indexOf('--session-id') + 1]).toBe('cloud-9');
+  });
+});
+
 describe('runHeadlessExtraction', () => {
   // invisible-retro-claude.TB1.AC2 (spawn contract) + NTB1.AC2 (spawn half):
   // the digest is the input, the child runs from the neutral cwd, and the child
@@ -190,6 +238,16 @@ describe('runHeadlessExtraction', () => {
     const findings = await runHeadlessExtraction('t', deps);
     expect(findings).toHaveLength(1);
     expect((findings[0] as { title: string }).title).toBe('Gate message omits the file');
+  });
+
+  // retro-recall.SM1.AC2 — when no model is passed, the extraction defaults to
+  // sonnet (haiku proved too weak: 1–3 weak findings vs sonnet's 9). ZFGWS1.
+  it('retro-recall.SM1.AC2.headless_extraction_defaults_to_sonnet', async () => {
+    const { calls, deps } = fakeDependencies({ model: undefined });
+    await runHeadlessExtraction('t', deps);
+    const argv = calls[0]?.argv ?? [];
+    const modelAt = argv.indexOf('--model');
+    expect(argv[modelAt + 1]).toBe('sonnet');
   });
 
   // invisible-retro-claude.TB1.AC1 (fail-open) — extractor error or junk output

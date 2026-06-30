@@ -67,18 +67,18 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
   }
 
   return {
-    async searchByTitle(title: string): Promise<IssueReference[]> {
-      // Strip characters GitHub's search grammar treats specially: a `"` would
-      // close the phrase early and `:` can read as a qualifier — both degrade
-      // recall and risk a dedup miss (→ duplicate issue). The exact-match filter
-      // below uses the ORIGINAL title, so stripping here only widens the search.
-      const searchable = title.replaceAll(/[":]/g, ' ');
-      const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:title state:open ${searchable}`);
+    async searchBySignature(signature: string): Promise<IssueReference[]> {
+      // Search the body for the signature's hash token (the `retro:` prefix carries
+      // a `:` that GitHub's grammar reads as a qualifier, degrading recall), then
+      // exact-filter on the FULL signature in the returned body — GitHub search is
+      // fuzzy, so a hash near-miss must be rejected to avoid matching the wrong issue.
+      const hashToken = signature.replace(/^retro:/, '');
+      const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:body state:open ${hashToken}`);
       const data = (await call('GET', `/search/issues?q=${query}&per_page=100`)) as {
-        items?: { number: number; title: string }[];
+        items?: { number: number; title: string; body?: string }[];
       };
       return (data.items ?? [])
-        .filter(item => item.title === title)
+        .filter(item => (item.body ?? '').includes(signature))
         .map(item => ({ number: item.number, title: item.title }));
     },
 

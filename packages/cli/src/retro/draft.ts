@@ -29,12 +29,26 @@ export function retroSignature(finding: Finding): string {
   return `retro:${shortHash(key)}`;
 }
 
+/**
+ * A hidden, searchable marker that carries the content signature into the issue
+ * body. Dedupe matches on THIS (via `searchBySignature` → `in:body`), not the
+ * model-generated title, because titles vary across delta re-fires (ZFGWS1). An
+ * HTML comment keeps it invisible in the rendered issue but present in the raw body
+ * GitHub search indexes.
+ */
+export function signatureMarker(signature: string): string {
+  return `<!-- safeword-retro-signature: ${signature} -->`;
+}
+
 /** Build the namespaced draft from a normalized finding. */
 export function buildDraft(finding: Finding): RetroDraft {
+  const signature = retroSignature(finding);
   return {
-    signature: retroSignature(finding),
+    signature,
     title: finding.title,
-    body: assembleBody(finding),
+    // Embed the signature marker so re-fires (and recurrences) dedupe on the
+    // stable signature, not the variable title.
+    body: `${assembleBody(finding)}\n${signatureMarker(signature)}`,
     labels: ['self-report', 'retro', finding.category],
   };
 }
