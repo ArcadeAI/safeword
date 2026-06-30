@@ -2,7 +2,7 @@
 id: ZFGWS1
 slug: retro-recall-delta-rearm
 type: feature
-phase: intake
+phase: scenario-gate
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 scope: |
@@ -129,3 +129,9 @@ levers together (supersedes 0XEMEE's inert linear-phase plan).
   spawnSync stays sync (reviewer's "two spawnSync defeats async" was a misread, but
   retro.ts is named as touched); (d) buildDigest takes a pre-sliced window; (e)
   overlap size / #563-absent fail-open / tail bound → spec refinements. Next: spec.md.
+- 2026-06-30T17:20Z Complete: intake — spec.md (4 JTBD / 8 AC across SM/TB/NTB) +
+  dimensions.md authored; /self-review stamped. Cadence constants recovered from the
+  0XEMEE sim plan-check (REARM_GROWTH=200 additive, MAX_FIRES=20 backstop, OVERLAP=2KB).
+- 2026-06-30T17:25Z Complete: define-behavior — 22 scenarios across 8 rules in
+  features/retro-recall-delta-rearm.feature (@manual: unit+wiring, mocked boundaries).
+  Next: scenario-gate independent review (/review-spec, fresh context).
