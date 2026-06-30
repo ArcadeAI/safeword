@@ -166,12 +166,16 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A secret in a back-half finding is redacted before filing
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: protect test for the inherited egress guard; invariant holds (windowing slices input only), so it passes — no RED state
+- [x] GREEN b434d3a
+- [x] REFACTOR skip: reuses the unchanged egress pipeline
 
 ### Scenario: A delta-window finding with an unresolved surface is dropped
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: protect test for the inherited egress guard; invariant holds, passes without new code
+- [x] GREEN b434d3a
+- [x] REFACTOR skip: reuses the unchanged egress pipeline
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
