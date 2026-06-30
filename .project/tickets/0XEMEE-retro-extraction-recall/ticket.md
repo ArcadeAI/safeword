@@ -265,6 +265,33 @@ above. The objection bounds the *cost*, it doesn't restore *fire-once* recall.
   #563 friction gate trim typical sessions. Worst-case cost is the OPEN #563 value
   call. Future win: debounce-to-quiet = one ~$0.35 end-fire (blocked on cloud
   reclaim-timing characterization). impl-plan Decisions/approach/triggers updated.
+- 2026-06-30T14:50Z /quality-review (2 independent reviewers) → REQUEST CHANGES.
+  The plan's phase decomposition is WRONG — the levers are coupled, so Phase 0
+  (timing) in isolation is INERT:
+  * **COUPLING (the headline):** `buildDigest` head-slices (first 180 KB of the
+    rendered transcript). The head is always the chronological OPENING, so every
+    re-fire feeds the extractor the SAME first ~8% of content — re-arm surfaces
+    NOTHING new without the coverage fix (Phase B). Timing improves transcript
+    *availability*; the head-cap means the extractor never *reads* the new tail.
+    My concept test measured the raw transcript; the extractor sees the capped
+    digest. "Last fire sees ~the whole session" is true for tool-use COUNT, false
+    for digest CONTENT. So timing + coverage + sonnet must ship TOGETHER; no
+    incremental phase yields a working intermediate.
+  * **LATENCY (verified, both reviewers):** stop-retro.ts:69 `spawnSync(timeout
+    300_000)` BLOCKS Stop for the whole extraction. Re-arm × sonnet = repeated
+    multi-minute UI hangs (2–3 fires × ~242 s). "never blocks Stop" (line 15) is
+    already false. → re-arm REQUIRES detached/async execution (reverses 7D8PJP's
+    sync choice; safe mid-session, container alive).
+  * **DEDUPE (verified):** triage matches by `searchByTitle` (triage.ts:82) —
+    model-generated titles differ across fires → duplicates; and retro.ts:147
+    falls back to sessionId `'unknown'`, breaking ledger session-accounting if
+    CLAUDE_SESSION_ID isn't forwarded to the child. Signature-dedupe (1FGE1C) is a
+    re-arm DEPENDENCY, not a separate nicety.
+  * **CONCURRENCY:** read-then-write TOCTOU on the rearm state file — two near-
+    simultaneous Stops can double-fire. Needs a lock / atomic write.
+  Conclusion: STOP the linear phase build; re-decide the coherent slice
+  (coverage + late-fire + sonnet + async + signature-dedupe ship together). Piece 1
+  (state helpers) is reusable, not wasted. Re-run figure-it-out on the slice.
 - 2026-06-30T14:40Z IMPLEMENT piece 1/6 GREEN: re-arm state helpers in
   retro-trigger.ts (+ `.safeword` mirror) — `RearmState {lastCount, fires}`,
   `rearmStatePath`, `readRearmState` (fail-open on missing/corrupt), `recordFire`;
