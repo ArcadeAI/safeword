@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDigest } from '../../templates/hooks/lib/retro-extract.js';
+import { buildDigest, buildExtractArgv } from '../../templates/hooks/lib/retro-extract.js';
 
 describe('buildDigest', () => {
   // invisible-retro-claude.TB2.AC3 — a multi-MB transcript is digested, not fed raw:
@@ -53,5 +53,48 @@ describe('buildDigest', () => {
     ].join('\n');
     const digest = buildDigest(transcript, 10_000);
     expect(digest).toContain('BLOCKED');
+  });
+});
+
+describe('buildExtractArgv', () => {
+  // invisible-retro-claude.TB2.AC1 — the Claude headless extractor argv: print
+  // mode + JSON output, NO `--bare` (it breaks cloud managed-proxy auth), and a
+  // read-only tool set (the extractor reads the digest; it must not write/exec).
+  it('invisible-retro-claude.TB2.AC1.headless_argv_omits_bare_flag', () => {
+    const argv = buildExtractArgv({
+      model: 'haiku',
+      systemPrompt: 'rules',
+      prompt: 'read the digest',
+    });
+
+    expect(argv).toContain('-p');
+
+    const outputFormatAt = argv.indexOf('--output-format');
+    expect(outputFormatAt).toBeGreaterThanOrEqual(0);
+    expect(argv[outputFormatAt + 1]).toBe('json');
+
+    // The cloud-auth trap: `--bare` skips the managed-provider setup the container
+    // authenticates through. The adapter must never pass it.
+    expect(argv).not.toContain('--bare');
+
+    const allowedToolsAt = argv.indexOf('--allowed-tools');
+    expect(allowedToolsAt).toBeGreaterThanOrEqual(0);
+    const tools = argv[allowedToolsAt + 1] ?? '';
+    expect(tools).toContain('Read');
+    expect(tools).not.toMatch(/Write|Edit|Bash/);
+  });
+
+  it('passes the model, system prompt, and task prompt through', () => {
+    const argv = buildExtractArgv({
+      model: 'haiku',
+      systemPrompt: 'SYSRULES',
+      prompt: 'TASKPROMPT',
+    });
+    const modelAt = argv.indexOf('--model');
+    expect(modelAt).toBeGreaterThanOrEqual(0);
+    expect(argv[modelAt + 1]).toBe('haiku');
+    expect(argv).toContain('SYSRULES');
+    // The task prompt is the trailing positional argument.
+    expect(argv.at(-1)).toBe('TASKPROMPT');
   });
 });

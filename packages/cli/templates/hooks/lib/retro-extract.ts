@@ -14,6 +14,44 @@
  */
 export const DIGEST_CAP = 180_000;
 
+/**
+ * The headless extractor only ever READS the digest — never writes, edits, or
+ * runs shell. A read-only allow-list keeps the out-of-band child from mutating
+ * the working tree or exfiltrating via a tool.
+ */
+const READ_ONLY_TOOLS = 'Read';
+
+export interface ExtractArgvOptions {
+  /** Model for the headless extraction (cheap by default — see the caller). */
+  model: string;
+  /** System prompt appended to the extractor's default behavior. */
+  systemPrompt: string;
+  /** The task prompt (trailing positional) — instructs reading the digest. */
+  prompt: string;
+}
+
+/**
+ * Build the `claude` argv for a headless, isolated retro extraction. Print mode
+ * + JSON output, a read-only tool set, and — load-bearing — NO `--bare`: `--bare`
+ * skips the managed-provider setup a Claude cloud container authenticates through
+ * (proven live: `--bare` → Authentication error). The returned array excludes the
+ * `claude` binary itself; the runner supplies it.
+ */
+export function buildExtractArgv(options: ExtractArgvOptions): string[] {
+  return [
+    '-p',
+    '--model',
+    options.model,
+    '--allowed-tools',
+    READ_ONLY_TOOLS,
+    '--output-format',
+    'json',
+    '--append-system-prompt',
+    options.systemPrompt,
+    options.prompt,
+  ];
+}
+
 // A tool-result body is kept whole only when it's short OR carries a friction
 // signal (errors/failures/gate blocks are exactly what retro mines); larger
 // non-signal bodies are dropped so they can't crowd out text + tool-use names.
