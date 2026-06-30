@@ -194,9 +194,17 @@ program
   .description('Mine a session transcript for qualitative safeword friction and file it (RV9JT4)')
   .requiredOption('--transcript <path>', 'Path to the session transcript (never guessed)')
   .option('--findings <path>', 'Path to agent-produced raw findings JSON to sanitize and file')
-  .action(async (options: { transcript?: string; findings?: string }) => {
+  .option(
+    '--auto-extract',
+    'Extract findings out-of-band via a headless `claude -p` session (no --findings needed)',
+  )
+  .action(async (options: { transcript?: string; findings?: string; autoExtract?: boolean }) => {
     const { retroCommand } = await import('./commands/retro.js');
-    await retroCommand({ transcript: options.transcript, findings: options.findings });
+    await retroCommand({
+      transcript: options.transcript,
+      findings: options.findings,
+      autoExtract: options.autoExtract,
+    });
   });
 
 program

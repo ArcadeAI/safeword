@@ -14,7 +14,10 @@
  * the CLI wrapper supplies the real implementations.
  */
 
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
 import process from 'node:process';
 
 import { prepareEncounters } from '../retro/pipeline.js';
@@ -74,6 +77,41 @@ export async function runRetro(
 export interface RetroCliOptions {
   transcript?: string;
   findings?: string;
+  /** Extract findings out-of-band via a headless `claude -p` session. */
+  autoExtract?: boolean;
+}
+
+/**
+ * Build the auto-extract `FindingExtractor`: run the retro extraction in a
+ * separate, isolated headless `claude -p` session (read-only, no `--bare`) from a
+ * neutral temp cwd, with `SAFEWORD_RETRO_CHILD=1` set by the runner. Fail-open:
+ * the runner returns `[]` on any error.
+ */
+async function buildAutoExtractor(): Promise<FindingExtractor> {
+  const { runHeadlessExtraction } = await import('../../templates/hooks/lib/retro-extract.js');
+
+  const workDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-retro-'));
+  return (transcript: string) =>
+    runHeadlessExtraction(transcript, {
+      spawn: (argv, spawnOptions) => {
+        const result = spawnSync('claude', argv, {
+          cwd: spawnOptions.cwd,
+          env: spawnOptions.env,
+          encoding: 'utf8',
+          timeout: 240_000,
+          maxBuffer: 64 * 1024 * 1024,
+        });
+        return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
+      },
+      writeDigest: (digest: string) => {
+        const path = nodePath.join(workDirectory, 'digest.txt');
+        writeFileSync(path, digest);
+        return path;
+      },
+      env: process.env,
+      cwd: workDirectory, // neutral cwd — not the user's project
+      model: 'haiku',
+    });
 }
 
 /**
@@ -88,8 +126,9 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const { createRestTransport } = await import('../retro/github-rest.js');
 
   const findingsPath = options.findings;
-  const extract: FindingExtractor = () =>
-    Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
+  const extract: FindingExtractor = options.autoExtract
+    ? await buildAutoExtractor()
+    : () => Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
 
   const transport = createRestTransport();
   if (!transport) {

@@ -7,6 +7,7 @@ import type {
   IssueReference,
   IssueTracker,
 } from '../../src/retro/triage.js';
+import { runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 
 // Compact in-memory transport — only the network boundary is faked.
 class FakeGitHub implements IssueTracker {
@@ -141,6 +142,56 @@ describe('runRetro', () => {
     expect(filed).not.toContain('/Users/jdoe/app/billing.ts');
     expect(filed).not.toContain('sk_live_TESTONLY1');
     expect(filed).toContain('[path]');
+    expect(filed).toContain('[redacted]');
+  });
+
+  // invisible-retro-claude.NTB1.AC1 — the --auto-extract path (headless extractor)
+  // feeds findings through the SAME egress guard end-to-end: a secret + customer
+  // path are scrubbed, and a finding whose surface does not resolve is dropped.
+  it('invisible-retro-claude.NTB1.AC1.auto_extracted_findings_pass_the_egress_guard', async () => {
+    const envelope = (text: string) =>
+      JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: text });
+    const extracted = JSON.stringify([
+      {
+        category: 'rough-edge',
+        title: 'Gate omits the file',
+        safeword_surface: 'hooks/stop-quality.ts',
+        what_happened: 'blocked editing /Users/jdoe/app/secret.ts with key sk_live_TESTONLY1',
+        why_friction: 'could not unblock',
+        repro: 'safeword check',
+      },
+      // unresolved surface → must be dropped, not filed
+      {
+        category: 'bug',
+        title: 'Customer-surface finding',
+        safeword_surface: 'src/billing.ts',
+        what_happened: 'x',
+        why_friction: 'y',
+        repro: 'z',
+      },
+    ]);
+
+    const autoExtractor = (transcript: string) =>
+      runHeadlessExtraction(transcript, {
+        spawn: () => Promise.resolve({ code: 0, stdout: envelope(extracted) }),
+        writeDigest: () => '/tmp/neutral/digest.txt',
+        env: {},
+        cwd: '/tmp/neutral',
+        model: 'haiku',
+      });
+
+    const transport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({ transport, extract: autoExtractor }),
+    );
+
+    // The unresolved-surface finding was dropped; only the safeword one filed.
+    expect(transport.issues).toHaveLength(1);
+    const filed = JSON.stringify(transport.issues);
+    expect(filed).not.toContain('/Users/jdoe/app/secret.ts');
+    expect(filed).not.toContain('sk_live_TESTONLY1');
+    expect(filed).not.toContain('src/billing.ts');
     expect(filed).toContain('[redacted]');
   });
 });
