@@ -34,21 +34,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The runner builds the extractor with sonnet by default
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: shares the default-model RED (50abfdb, haiku→sonnet); lint no-unused blocked a runner-export-only scaffold; verified by run
+- [x] GREEN 99f0e1f
+- [x] REFACTOR skip: model resolution extracted to resolveRetroModel
 
 ### Scenario: The headless extraction default is sonnet when no model is passed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 50abfdb
+- [x] GREEN 99f0e1f
+- [x] REFACTOR skip: one-line default change
 
 ### Scenario: A configured model overrides the sonnet default
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: resolveRetroModel added as config infra; override path verified at GREEN
+- [x] GREEN 99f0e1f
+- [x] REFACTOR skip: fail-open config read mirrors readSelfReportConfig
 
 ## Rule: Re-fires dedupe by content signature, not the model-generated title
 
