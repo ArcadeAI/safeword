@@ -13,6 +13,16 @@ import { type Finding, normalizeFinding } from './finding.js';
 import { shortHash } from './hash.js';
 import type { Encounter } from './triage.js';
 
+// Hard ceiling on raw findings processed in one run. Each finding costs four
+// async secretlint passes, and `--auto-extract` feeds in model output whose
+// length we don't control — a runaway/adversarial `claude -p` array must not
+// fire thousands of secretlint calls inside the synchronous Stop hook. A real
+// session yields a handful; this is generous headroom for recurrences (triage
+// caps issue *creation* at 5, but recurrence bumps are unbounded) while keeping
+// the cost ceiling explicit. Excess is dropped (anti-abuse bound, not lossy on
+// legitimate input).
+const MAX_RAW_FINDINGS = 50;
+
 /**
  * Stable hash of the sanitized manifestation, for novelty detection. Keys on the
  * same fields the issue body renders (whatHappened + whyFriction + repro), so a
@@ -29,7 +39,7 @@ export function manifestationKey(finding: Finding): string {
 export async function prepareEncounters(rawFindings: readonly unknown[]): Promise<Encounter[]> {
   const encounters: Encounter[] = [];
 
-  for (const raw of rawFindings) {
+  for (const raw of rawFindings.slice(0, MAX_RAW_FINDINGS)) {
     const finding = normalizeFinding(raw);
     if (!finding) continue;
 

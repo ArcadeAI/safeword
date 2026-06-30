@@ -34,6 +34,14 @@ describe('prepareEncounters', () => {
     expect(encounters).toEqual([]);
   });
 
+  it('caps the number of raw findings processed (anti-abuse bound on secretlint cost)', async () => {
+    // A runaway/adversarial extractor array must not fire unbounded secretlint
+    // passes inside the synchronous Stop; the cap (50) drops the excess.
+    const many = Array.from({ length: 200 }, (_, i) => rawFinding({ title: `friction ${i}` }));
+    const encounters = await prepareEncounters(many);
+    expect(encounters.length).toBeLessThanOrEqual(50);
+  });
+
   it('manifestationKey distinguishes a new repro with the same symptom', () => {
     const base: Finding = {
       category: 'bug',
