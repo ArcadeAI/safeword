@@ -109,10 +109,10 @@ env-detection, no flag.
 ## Dependency / sequencing note
 
 Transport is **necessary but not sufficient.** A live head-to-head eval
-(2026-06-30, see **0XEMEE**) showed the current extractor finds ~0 of the
-findings a human review finds (0/5 on this session) — so even a perfect
-transport would file almost nothing useful. Fix extraction recall (0XEMEE)
-alongside or before this; otherwise BNGK9W delivers an empty pipe.
+(2026-06-30, see **0XEMEE**) showed the current DEFAULT tier (haiku) under-
+delivers — 1-3 weak findings — though a stronger tier (sonnet) yields 9 valid
+ones. Fix the extractor's tier + coverage (0XEMEE) alongside this; otherwise
+BNGK9W delivers a thin pipe filled by the weakest model.
 
 ## Work Log
 
