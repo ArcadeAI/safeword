@@ -106,9 +106,20 @@ on local installs that have a working token.
 Selection rule: **try REST; on failure, fall back to the agent path.** No
 env-detection, no flag.
 
+## Dependency / sequencing note
+
+Transport is **necessary but not sufficient.** A live head-to-head eval
+(2026-06-30, see **0XEMEE**) showed the current extractor finds ~0 of the
+findings a human review finds (0/5 on this session) — so even a perfect
+transport would file almost nothing useful. Fix extraction recall (0XEMEE)
+alongside or before this; otherwise BNGK9W delivers an empty pipe.
+
 ## Work Log
 
 - 2026-06-30T05:58:08.315Z Started: Created ticket BNGK9W
+- 2026-06-30T06:15Z Added 0XEMEE dependency note after the recall eval: transport
+  is moot if extraction finds nothing. Re-sequenced 0XEMEE as the higher-priority
+  sibling.
 - 2026-06-30T05:58Z Intake from /figure-it-out (#568). Parent RV9JT4; sibling of
   7D8PJP (which built invisible extraction; this completes its transport story).
   Decision captured: try-REST-then-agent-subagent, in-session, selected

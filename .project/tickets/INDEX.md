@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (358)
+## Tickets (359)
 
 ### agent-surface-refactor
 
@@ -543,6 +543,9 @@
 - **Smoke test for safeword — fast/e2e/live tiers + drift guard (0WQA9V)** (done, epic: —)
   An on-demand smoke test that proves safeword's core works — including a live tier that runs **real Claude Code** and confirms a real agent actually gets steered (blocked) by a guardrail.
   → `.project/tickets/0WQA9V-smoke-test`
+- **Retro extraction recall is near-zero on long sessions (0XEMEE)** (in_progress, epic: —)
+  Make the automated retro extractor actually find the friction a human
+  → `.project/tickets/0XEMEE-retro-extraction-recall`
 - **Done-gate refuses if commits land after last /verify or /audit (0ZKYJD)** (in_progress, epic: —)
   Close the staleness gap surfaced in the J7VBGJ session — /verify and /audit evidence becomes stale silently if the agent commits more code afterward. The done-gate currently checks "was the skill invoked this session?" not "was it invoked since the last code change?"
   → `.project/tickets/0ZKYJD-donegate-skill-log-freshness`
