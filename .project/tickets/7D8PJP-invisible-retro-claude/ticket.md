@@ -2,7 +2,7 @@
 id: 7D8PJP
 slug: invisible-retro-claude
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 github: https://github.com/ArcadeAI/safeword/issues/550
