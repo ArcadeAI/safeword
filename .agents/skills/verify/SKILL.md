@@ -102,6 +102,27 @@ run_safeword() {
   esac
 }
 
+# >>> run_plan (behavior covered by verify-skill.test.ts #487)
+# Capture the plan, then check the generator's exit status BEFORE running it.
+# `bash -c "$(...)"` discards the substitution's exit code, so a failed
+# generator that prints nothing would leave `bash -c ""` — a false green (#487).
+# Reads $plan_kind from the caller, not a bash positional parameter: in a
+# command file Claude Code rewrites slash-command argument tokens before bash
+# runs, so a positional would be clobbered. Plain assignment (never
+# `local x=$(...)`, which masks `$?`); this block runs without `set -e`, so the
+# explicit check is load-bearing. A successful empty plan stays a clean no-op
+# (`bash -c ""` → exit 0).
+run_plan() {
+  plan="$(run_safeword test-plan --kind "$plan_kind" --format sh)"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "❌ Evidence generation failed: safeword test-plan --kind $plan_kind exited $rc (red, not a passed check)" >&2
+    return "$rc"
+  fi
+  bash -c "$plan"
+}
+# <<< run_plan
+
 CANDIDATE="node_modules/.bin/safeword"
 if [ -x node_modules/.bin/safeword ] && supports_test_plan; then
   SW="node_modules/.bin/safeword"
@@ -115,7 +136,8 @@ else
 fi
 
 # --- Test suite (resolved by safeword test-plan — one source of truth) ---
-bash -c "$(run_safeword test-plan --kind verify --format sh)"
+plan_kind=verify
+run_plan
 
 # Gherkin acceptance lane (when available)
 if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
@@ -125,13 +147,15 @@ else
 fi
 
 # --- Build check (resolved by safeword test-plan) ---
-bash -c "$(run_safeword test-plan --kind build --format sh)"
+plan_kind=build
+run_plan
 
 # --- Typecheck: the same `tsc --noEmit` signal CI's lint job runs (#436). A
 #     green targeted-test run is NOT readiness if types are broken. An empty
 #     plan (no `typecheck` script / non-TS project) is a silent no-op — when the
 #     ticket touched TypeScript, run `/lint` (which runs tsc) so it isn't a gap. ---
-bash -c "$(run_safeword test-plan --kind typecheck --format sh)"
+plan_kind=typecheck
+run_plan
 ```
 
 The `/lint` command handles linting with auto-fix. Report any remaining unfixable errors. Aggregate every attempted stack test into the final `**Test Suite:**` status, and every attempted stack build into the final `**Build:**` status. **Typecheck is part of the gate, not optional:** when the ticket changed TypeScript, a passing targeted-test run is not "ready" until `test-plan --kind typecheck` (or `/lint`, which runs `tsc --noEmit`) is green — CI's lint job runs it and will go red otherwise. A skipped or empty test-plan is not a failure when the project lacks a matching automated check; it is an explicit evidence gap to mention when the ticket touched that stack.
