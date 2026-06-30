@@ -21,7 +21,7 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
     Scenario: The first fire digests the whole transcript so far under the digest cap
       Given a substantial session at its first Stop with no prior offset state
       When the retro decides to fire
-      Then the delta window is the whole transcript so far and the digest cap applies to that whole, as on the pre-delta fire
+      Then the delta window is the whole transcript so far and the digest cap applies to that whole
 
     @retro-recall.SM1.AC1
     Scenario: A later fire digests only the window since the previous fire's offset
@@ -165,8 +165,9 @@ Feature: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
     @retro-recall.TB1.AC2
     Scenario: A retro child never re-fires
       Given the environment marks this process as a retro child
+      And growth at or above the re-arm threshold since the last fire
       When a Stop is evaluated
-      Then the retro does not fire, the recursion guard taking precedence over every other gate
+      Then the retro does not fire, the recursion guard taking precedence over the armed re-fire
 
     @retro-recall.TB1.AC2
     Scenario: A state-write failure still fires and leaves the offset unchanged

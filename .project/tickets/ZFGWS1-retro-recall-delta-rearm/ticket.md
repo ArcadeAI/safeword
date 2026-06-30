@@ -2,7 +2,7 @@
 id: ZFGWS1
 slug: retro-recall-delta-rearm
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 scope: |
@@ -135,3 +135,13 @@ levers together (supersedes 0XEMEE's inert linear-phase plan).
 - 2026-06-30T17:25Z Complete: define-behavior — 22 scenarios across 8 rules in
   features/retro-recall-delta-rearm.feature (@manual: unit+wiring, mocked boundaries).
   Next: scenario-gate independent review (/review-spec, fresh context).
+- 2026-06-30T17:30Z Complete: scenario-gate — independent fresh-context review
+  (general-purpose subagent, /review-spec procedure) round 1: 3 must-fix / 6
+  should-strengthen, all applied (tautological offset advance → strict; back-half
+  → observable filed outcome over >cap transcript; +first-fire substance gate,
+  +no-session-id negative, +fuzzy signature near-miss, +state-write-fail offset
+  unchanged). Round 2: 0 must-fix (gate PASS); 2 optional polish folded in. 26
+  scenarios / 8 rules. Cross-model review SKIPPED — Fable 5 unavailable, Sonnet/
+  Haiku weaker than author, crossModelReview off; independence via zero-history
+  fork. impl-plan.md written (load-bearing slice = back-half window→pipeline proof;
+  build order 1–9). Phase → implement.
