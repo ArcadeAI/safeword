@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { RetroDraft } from './draft.js';
+import { type RetroDraft, signatureMarker } from './draft.js';
 import { LEDGER_MARKER, renderLedger } from './ledger.js';
 import {
   type CreateIssueInput,
@@ -28,8 +28,19 @@ class FakeGitHub implements IssueTracker {
   readonly commentsByIssue = new Map<number, IssueComment[]>();
   readonly calls = { createIssue: 0, createComment: 0, updateComment: 0 };
 
-  seedIssue(title: string, ledger?: { sessions: string[]; manifestations: string[] }): StoredIssue {
-    const issue: StoredIssue = { number: this.nextIssue++, title, body: '', labels: [] };
+  seedIssue(
+    title: string,
+    ledger?: { sessions: string[]; manifestations: string[] },
+    signature = `retro:${title}`,
+  ): StoredIssue {
+    // Embed the signature marker in the body so searchBySignature finds it, exactly
+    // as a real retro-filed issue carries it (buildDraft → signatureMarker).
+    const issue: StoredIssue = {
+      number: this.nextIssue++,
+      title,
+      body: signatureMarker(signature),
+      labels: [],
+    };
     this.issues.push(issue);
     const comments: IssueComment[] = [];
     if (ledger) {
@@ -47,9 +58,13 @@ class FakeGitHub implements IssueTracker {
     return issue;
   }
 
-  searchByTitle(title: string): Promise<IssueReference[]> {
+  searchBySignature(signature: string): Promise<IssueReference[]> {
+    // Match on the signature embedded in the body (as the real REST transport does
+    // via in:body + exact-filter), NOT the title.
     return Promise.resolve(
-      this.issues.filter(i => i.title === title).map(i => ({ number: i.number, title: i.title })),
+      this.issues
+        .filter(i => i.body.includes(signature))
+        .map(i => ({ number: i.number, title: i.title })),
     );
   }
 
@@ -87,15 +102,15 @@ class FakeGitHub implements IssueTracker {
   }
 }
 
-const draft = (title: string): RetroDraft => ({
-  signature: `retro:${title}`,
+const draft = (title: string, signature = `retro:${title}`): RetroDraft => ({
+  signature,
   title,
-  body: `body for ${title}`,
+  body: `body for ${title}\n${signatureMarker(signature)}`,
   labels: ['self-report', 'retro', 'rough-edge'],
 });
 
-const enc = (title: string, manifestation = 'm1'): Encounter => ({
-  draft: draft(title),
+const enc = (title: string, manifestation = 'm1', signature?: string): Encounter => ({
+  draft: draft(title, signature),
   manifestation,
 });
 const ctx = (over: Partial<{ sessionId: string; harness: string; maxNewIssues: number }> = {}) => ({
@@ -120,15 +135,6 @@ describe('triage — never a duplicate issue (SM1.AC2)', () => {
     expect(result.created).toEqual([]);
   });
 
-  it('retro-transcript-mining.SM1.AC2.matches_spool_filed_issue_without_duplicating', async () => {
-    const gh = new FakeGitHub();
-    // A spool-filed issue: same title, no retro ledger comment (non-retro origin).
-    gh.seedIssue('Coverage gate crash');
-    const result = await triage(gh, [enc('Coverage gate crash')], ctx());
-    expect(gh.calls.createIssue).toBe(0);
-    expect(result.created).toEqual([]);
-  });
-
   it('retro-transcript-mining.SM1.AC2.exactly_five_new_signatures_all_file', async () => {
     const gh = new FakeGitHub();
     const encounters = ['a', 'b', 'c', 'd', 'e'].map(t => enc(t));
@@ -145,6 +151,48 @@ describe('triage — never a duplicate issue (SM1.AC2)', () => {
     expect(gh.calls.createIssue).toBe(5);
     expect(result.created).toHaveLength(5);
     expect(result.deferred).toEqual(['f']);
+  });
+});
+
+describe('triage — dedupe by content signature, not title (ZFGWS1 SM2.AC1)', () => {
+  it('retro-recall.SM2.AC1.repeat_signature_under_a_different_title_opens_no_second_issue', async () => {
+    const gh = new FakeGitHub();
+    // An issue already filed for signature S under one (model-generated) title.
+    gh.seedIssue(
+      'Coverage gate omits the file',
+      { sessions: ['old'], manifestations: ['m1'] },
+      'retro:abc123def456',
+    );
+    // A re-fire surfaces the SAME signature under a DIFFERENT title.
+    const result = await triage(
+      gh,
+      [enc('Gate message is missing the filename', 'm1', 'retro:abc123def456')],
+      ctx({ sessionId: 'sess-new' }),
+    );
+    expect(gh.calls.createIssue).toBe(0);
+    expect(result.created).toEqual([]);
+  });
+
+  it('retro-recall.SM2.AC1.a_genuinely_new_signature_opens_a_new_issue', async () => {
+    const gh = new FakeGitHub();
+    gh.seedIssue(
+      'Some other friction',
+      { sessions: ['old'], manifestations: ['m1'] },
+      'retro:111111111111',
+    );
+    const result = await triage(gh, [enc('Brand new friction', 'm1', 'retro:222222222222')], ctx());
+    expect(gh.calls.createIssue).toBe(1);
+    expect(result.created).toEqual(['Brand new friction']);
+  });
+
+  it('retro-recall.SM2.AC1.a_fuzzy_search_near_miss_is_rejected_by_the_exact_filter', async () => {
+    const gh = new FakeGitHub();
+    // The body carries a DIFFERENT signature; the FakeGitHub (like the REST
+    // exact-filter) only matches the exact signature, so this is not a match.
+    gh.seedIssue('Near miss', { sessions: ['old'], manifestations: ['m1'] }, 'retro:aaaaaaaaaaaa');
+    const result = await triage(gh, [enc('New finding', 'm1', 'retro:bbbbbbbbbbbb')], ctx());
+    expect(gh.calls.createIssue).toBe(1);
+    expect(result.created).toEqual(['New finding']);
   });
 });
 

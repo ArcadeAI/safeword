@@ -392,6 +392,11 @@ export interface RetroRunDecision {
    * digesting, so each fire reads only the NEW activity (plus a small overlap).
    */
   windowStart: number;
+  /**
+   * The resolved session id, forwarded to the child so ledger session-accounting
+   * is correct (the child's env fallback resolves to 'unknown' in cloud; ZFGWS1).
+   */
+  sessionId: string;
 }
 
 /**
@@ -469,5 +474,5 @@ export function decideRetroRun(
     // A state-write failure must not suppress the fire (mirrors markNudged); the
     // duplicate it risks next Stop is absorbed by signature dedupe (triage).
   }
-  return { transcriptPath, windowStart };
+  return { transcriptPath, windowStart, sessionId };
 }

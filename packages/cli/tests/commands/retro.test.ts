@@ -20,7 +20,7 @@ class FakeGitHub implements IssueTracker {
   readonly issues: (CreateIssueInput & { number: number })[] = [];
   readonly calls = { createIssue: 0 };
 
-  searchByTitle(): Promise<IssueReference[]> {
+  searchBySignature(): Promise<IssueReference[]> {
     return Promise.resolve([]);
   }
 

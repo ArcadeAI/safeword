@@ -66,6 +66,32 @@ export function windowFor(
   return transcript.slice(Math.max(0, windowStart - overlap));
 }
 
+/** A decision to run the retro child, carrying the delta window + stable session id. */
+export interface RetroChildInvocation {
+  transcriptPath: string;
+  windowStart: number;
+  sessionId: string;
+}
+
+/**
+ * Build the `safeword retro` argv the Stop hook spawns out-of-band. Forwards the
+ * delta window offset and the resolved session id (ZFGWS1) so the child digests
+ * only the new window and attributes findings to the real session — not the
+ * 'unknown' fallback its own env resolves to in cloud.
+ */
+export function retroChildArgs(invocation: RetroChildInvocation): string[] {
+  return [
+    'retro',
+    '--auto-extract',
+    '--transcript',
+    invocation.transcriptPath,
+    '--window-start',
+    String(invocation.windowStart),
+    '--session-id',
+    invocation.sessionId,
+  ];
+}
+
 /**
  * The headless extractor only ever READS the digest — never writes, edits, or
  * runs shell. A read-only allow-list keeps the out-of-band child from mutating

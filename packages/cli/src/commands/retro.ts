@@ -85,6 +85,10 @@ export interface RetroCliOptions {
   findings?: string;
   /** Extract findings out-of-band via a headless `claude -p` session. */
   autoExtract?: boolean;
+  /** Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1). */
+  windowStart?: number;
+  /** Stable session id forwarded from the hook, so the ledger isn't keyed to 'unknown'. */
+  sessionId?: string;
 }
 
 /** Injectable seam for `buildAutoExtractor` (tests assert the resolved model/argv). */
@@ -172,7 +176,10 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const outcome = await runRetro(options, {
     extract,
     transport,
-    sessionId: process.env.CLAUDE_SESSION_ID ?? 'unknown',
+    // Prefer the session id the hook resolved and forwarded (cloud sets
+    // CLAUDE_CODE_REMOTE_SESSION_ID, not CLAUDE_SESSION_ID, so the env fallback
+    // alone resolved to 'unknown' and broke ledger session-accounting; ZFGWS1).
+    sessionId: options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? 'unknown',
     harness: detectAgent(),
     readFile: (path: string) => readFileSync(path, 'utf8'),
   });

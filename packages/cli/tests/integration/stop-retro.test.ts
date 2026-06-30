@@ -17,7 +17,11 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { hasNudged, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
+import {
+  offsetStatePath,
+  readOffsetState,
+  sentinelPath,
+} from '../../templates/hooks/lib/retro-trigger.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -81,7 +85,10 @@ describe('stop-retro hook — invisible out-of-band run (7D8PJP)', () => {
   });
   afterEach(() => {
     removeTemporaryDirectory(dir);
-    for (const id of sessionIds) rmSync(sentinelPath(id), { force: true });
+    for (const id of sessionIds) {
+      rmSync(sentinelPath(id), { force: true });
+      rmSync(offsetStatePath(id), { force: true });
+    }
     sessionIds.length = 0;
   });
 
@@ -96,8 +103,9 @@ describe('stop-retro hook — invisible out-of-band run (7D8PJP)', () => {
     // The invisibility guarantee: nothing reaches the conversation.
     expect(result.stdout.trim()).toBe('');
     expect(result.stdout).not.toContain('additionalContext');
-    // It DID decide to run (sentinel armed), so silence is a real run, not a skip.
-    expect(hasNudged(id)).toBe(true);
+    // It DID decide to run (offset state armed for delta re-arm), so the silence is
+    // a real run, not a skip (ZFGWS1 — offset state replaced the boolean sentinel).
+    expect(readOffsetState(id)).toMatchObject({ fires: 1 });
   });
 
   it('stays silent on a trivial session', () => {
@@ -111,16 +119,18 @@ describe('stop-retro hook — invisible out-of-band run (7D8PJP)', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
-  it('SM1.AC2: stays silent on the second Stop for the same session (sentinel set)', () => {
+  it('TB1.AC2: holds on the second Stop when the transcript has not grown (delta re-arm)', () => {
     writeConfig(dir, { surface: true });
     const transcript = writeTranscript(dir, 'big.jsonl', 8);
     const id = freshSession('twice');
 
     const first = runHook(dir, { session_id: id, transcript_path: transcript });
     expect(first.status).toBe(0);
+    // Same transcript → zero growth since the first fire → below REARM_GROWTH → holds.
     const second = runHook(dir, { session_id: id, transcript_path: transcript });
     expect(second.status).toBe(0);
     expect(second.stdout.trim()).toBe('');
+    expect(readOffsetState(id)).toMatchObject({ fires: 1 });
   });
 
   it('NTB1.AC2: stays silent for a retro headless child (SAFEWORD_RETRO_CHILD set)', () => {

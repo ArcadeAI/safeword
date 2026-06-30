@@ -2,8 +2,9 @@
 // issues but a record of every encounter. The IssueTracker is the only
 // boundary (mockable in tests); all dedup/cap/ledger logic is deterministic.
 //
-// - A signature already represented by an open issue (matched by title) never
-//   spawns a second issue (SM1.AC2); title-match also catches spool-filed issues.
+// - A signature already represented by an open issue (matched by the content
+//   signature embedded in the body, not the model-generated title — titles vary
+//   across delta re-fires; ZFGWS1) never spawns a second issue (SM1.AC2).
 // - New-issue creation is capped per session; the overflow is deferred.
 // - Every encounter with a known issue updates the occurrence ledger idempotently
 //   (one bump per session) and posts a shape comment only for a novel
@@ -36,7 +37,12 @@ export interface CreateIssueInput {
 }
 
 export interface IssueTracker {
-  searchByTitle(title: string): Promise<IssueReference[]>;
+  /**
+   * Find open issues carrying this content `signature` (matched in the body, not
+   * the title — titles vary across delta re-fires; ZFGWS1). Returns the matches so
+   * triage opens no duplicate for a signature already filed.
+   */
+  searchBySignature(signature: string): Promise<IssueReference[]>;
   createIssue(input: CreateIssueInput): Promise<IssueReference>;
   listComments(issueNumber: number): Promise<IssueComment[]>;
   createComment(issueNumber: number, body: string): Promise<IssueComment>;
@@ -79,7 +85,7 @@ export async function triage(
     // Isolate each encounter: a transport error (or a poisoned upstream ledger)
     // on one issue must not abort the rest of the session's findings (C3).
     try {
-      const matches = await transport.searchByTitle(encounter.draft.title);
+      const matches = await transport.searchBySignature(encounter.draft.signature);
       const [existing] = matches;
 
       if (existing) {

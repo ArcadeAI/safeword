@@ -10,6 +10,7 @@ import {
   isRetroChild,
   resolveRetroModel,
   RETRO_CHILD_ENV,
+  retroChildArgs as retroChildArguments,
   runHeadlessExtraction,
 } from '../../templates/hooks/lib/retro-extract.js';
 
@@ -190,6 +191,21 @@ describe('resolveRetroModel (SM1.AC2 — config-overridable, sonnet default)', (
   it('honors a configured retro.model override', () => {
     writeRetroConfig({ retro: { model: 'haiku' } });
     expect(resolveRetroModel(projectDirectory)).toBe('haiku');
+  });
+});
+
+describe('retroChildArgs (SM2.AC2 — forward session id + window to the child)', () => {
+  it('forwards the resolved session id and the delta window offset', () => {
+    const args = retroChildArguments({
+      transcriptPath: '/t/sess.jsonl',
+      windowStart: 4096,
+      sessionId: 'cloud-9',
+    });
+    expect(args).toContain('--auto-extract');
+    expect(args[args.indexOf('--transcript') + 1]).toBe('/t/sess.jsonl');
+    expect(args[args.indexOf('--window-start') + 1]).toBe('4096');
+    // the stable session id reaches the child rather than its 'unknown' env fallback
+    expect(args[args.indexOf('--session-id') + 1]).toBe('cloud-9');
   });
 });
 

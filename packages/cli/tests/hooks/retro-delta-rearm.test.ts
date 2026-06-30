@@ -124,7 +124,7 @@ describe('decideRetroRun — delta re-arm cadence (ZFGWS1)', () => {
       { session_id: 'sess-1', transcript_path: '/t/s.jsonl' },
       dependencies({ readFile: () => transcript }),
     );
-    expect(out).toEqual({ transcriptPath: '/t/s.jsonl', windowStart: 0 });
+    expect(out).toEqual({ transcriptPath: '/t/s.jsonl', windowStart: 0, sessionId: 'sess-1' });
     const state = readOffsetState('sess-1', baseDirectory);
     expect(state).toMatchObject({ offset: transcript.length, fires: 1 });
   });
@@ -148,7 +148,7 @@ describe('decideRetroRun — delta re-arm cadence (ZFGWS1)', () => {
       { session_id: 'sess-1', transcript_path: '/t/s.jsonl' },
       dependencies({ readFile: () => transcript }),
     );
-    expect(out).toEqual({ transcriptPath: '/t/s.jsonl', windowStart: 50 });
+    expect(out).toEqual({ transcriptPath: '/t/s.jsonl', windowStart: 50, sessionId: 'sess-1' });
     expect(readOffsetState('sess-1', baseDirectory)).toMatchObject({
       offset: transcript.length,
       fires: 2,
@@ -202,7 +202,7 @@ describe('decideRetroRun — delta re-arm cadence (ZFGWS1)', () => {
         }),
       );
     }).not.toThrow();
-    expect(out).toEqual({ transcriptPath: '/t/s.jsonl', windowStart: 50 });
+    expect(out).toEqual({ transcriptPath: '/t/s.jsonl', windowStart: 50, sessionId: 'sess-1' });
     // the write threw, so the persisted offset is left at its prior value
     expect(readOffsetState('sess-1', baseDirectory)).toEqual(prior);
   });
