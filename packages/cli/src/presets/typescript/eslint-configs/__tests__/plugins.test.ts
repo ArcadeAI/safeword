@@ -115,6 +115,18 @@ describe('Vitest critical rules at error', () => {
 
 // ============ BUN TEST CONFIG ============
 
+/** Finds the config block declaring bunTestConfig's languageOptions.globals. */
+function getBunTestGlobals(): Record<string, string> | undefined {
+  const block = bunTestConfig.find(
+    config =>
+      typeof config === 'object' &&
+      config !== null &&
+      'languageOptions' in config &&
+      config.languageOptions?.globals,
+  ) as { languageOptions: { globals: Record<string, string> } } | undefined;
+  return block?.languageOptions.globals;
+}
+
 describe('bunTestConfig', () => {
   it('is a non-empty array', () => {
     expect(Array.isArray(bunTestConfig)).toBe(true);
@@ -154,25 +166,11 @@ describe('bunTestConfig', () => {
     'setSystemTime',
     'vi',
   ])('declares %s as a read-only global', name => {
-    const block = bunTestConfig.find(
-      config =>
-        typeof config === 'object' &&
-        config !== null &&
-        'languageOptions' in config &&
-        config.languageOptions?.globals,
-    ) as { languageOptions: { globals: Record<string, string> } } | undefined;
-    expect(block?.languageOptions.globals[name]).toBe('readonly');
+    expect(getBunTestGlobals()?.[name]).toBe('readonly');
   });
 
   it('does not declare fit — bun:test has no focus alias (use .only instead)', () => {
-    const block = bunTestConfig.find(
-      config =>
-        typeof config === 'object' &&
-        config !== null &&
-        'languageOptions' in config &&
-        config.languageOptions?.globals,
-    ) as { languageOptions: { globals: Record<string, string> } } | undefined;
-    expect(block?.languageOptions.globals.fit).toBeUndefined();
+    expect(getBunTestGlobals()?.fit).toBeUndefined();
   });
 
   // Regression test for ticket #513: runs the actual ESLint engine (not just
