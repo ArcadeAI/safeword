@@ -615,6 +615,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
     '.safeword/hooks/lib/retro-extract.ts': { template: 'hooks/lib/retro-extract.ts' },
+    '.safeword/hooks/lib/retro-nudge.ts': { template: 'hooks/lib/retro-nudge.ts' },
     '.safeword/hooks/lib/retro-trigger.ts': { template: 'hooks/lib/retro-trigger.ts' },
     '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
