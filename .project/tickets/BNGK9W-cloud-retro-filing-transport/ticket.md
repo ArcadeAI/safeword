@@ -2,7 +2,7 @@
 id: BNGK9W
 slug: cloud-retro-filing-transport
 type: feature
-phase: intake
+phase: scenario-gate
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 github: https://github.com/ArcadeAI/safeword/issues/568
@@ -136,6 +136,10 @@ Reconciled approach (fold into spec.md before implementing PATH B):
 
 ## Work Log
 
+- 2026-07-01T03:10Z Complete: intake→define-behavior — authored spec.md (3 JTBD /
+  6 AC across SM/TB/NTB, reconciled two-path design) + dimensions.md; /self-review
+  stamped. 11 scenarios / 5 rules in features/cloud-retro-filing-transport.feature
+  (@manual). Next: scenario-gate independent review.
 - 2026-07-01T00:37Z Slice 1 shipped: `packages/cli/src/retro/draft-spool.ts`
   (`spoolDrafts`/`readSpooledDrafts` — capped 20/session, fail-open, torn-tolerant;
   5 unit tests, tsc+eslint clean). The conflict-free foundation both paths need:
