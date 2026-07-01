@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -11,7 +11,7 @@ import type {
   IssueReference,
   IssueTracker,
 } from '../../src/retro/triage.js';
-import { readSpooledDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
+import { draftSpoolPath, readSpooledDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 
 // Compact in-memory transport — only the network boundary is faked.
@@ -392,6 +392,42 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
     const outcome = await runRetro({ transcript: '/t.jsonl' }, dependencies({ transport }));
     expect(outcome.ok).toBe(true);
     expect(outcome.agentFilingNeeded).toBeFalsy();
+  });
+
+  // NTB1.AC1 — only post-egress fields reach the spool. A finding carrying a
+  // distinctive secret + customer path flows through the REAL egress pipeline; the
+  // draft is spooled (REST 401 keeps it on disk), and the spool FILE carries neither
+  // the secret nor the path — the no-leak guarantee holds on disk, not just upstream.
+  it('the spool file carries only sanitized post-egress drafts — no secret, no customer path', async () => {
+    const transport = new RejectingGitHub(); // 401 → the draft stays spooled to inspect
+    await runRetro(
+      { transcript: '/t.jsonl' },
+      dependencies({
+        transport,
+        projectDirectory,
+        extract: () =>
+          Promise.resolve([
+            rawFinding({
+              what_happened:
+                'gate fired editing /acme-corp/prod/secrets.ts with key sk_live_TESTONLY1',
+            }),
+          ]),
+      }),
+    );
+    const raw = readFileSync(draftSpoolPath(projectDirectory, 'sess-a'), 'utf8');
+    expect(raw).not.toContain('sk_live_TESTONLY1'); // recognized secret shape → redacted
+    expect(raw).not.toContain('/acme-corp/prod/secrets.ts'); // customer path → redacted
+    expect(raw).toContain('[redacted]');
+    // Only the four code-assembled fields ever reach disk.
+    const lines = raw.split('\n').filter(line => line.trim());
+    for (const line of lines) {
+      expect(Object.keys(JSON.parse(line)).toSorted((a, b) => a.localeCompare(b))).toEqual([
+        'body',
+        'labels',
+        'signature',
+        'title',
+      ]);
+    }
   });
 });
 

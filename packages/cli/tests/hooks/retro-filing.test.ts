@@ -49,6 +49,19 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([]);
   });
 
+  it('files nothing and posts nothing at a drained boundary (no re-file, no re-nudge)', async () => {
+    // Everything already filed → an empty spool. A later boundary must not re-post.
+    let posts = 0;
+    const post = (): Promise<void> => {
+      posts += 1;
+      return Promise.resolve();
+    };
+    const result = await fileSpooledDrafts(projectDirectory, 'drained-sess', post);
+    expect(result).toEqual({ posted: 0, failed: 0 });
+    expect(posts).toBe(0);
+    expect(decideRetroNudge(projectDirectory, 'drained-sess')).toBeUndefined();
+  });
+
   it('leaves an un-postable draft spooled for retry, and a later boundary still nudges for it', async () => {
     spoolDrafts(projectDirectory, 'sess-1', [
       draft('retro:aaaaaaaaaaaa', 'Postable'),
