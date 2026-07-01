@@ -19,6 +19,8 @@
 
 import vitestPlugin from '@vitest/eslint-plugin';
 
+import { TEST_FILE_GLOBS } from './test-file-globs.js';
+
 /**
  * Vitest test linting config
  *
@@ -28,12 +30,7 @@ import vitestPlugin from '@vitest/eslint-plugin';
 export const vitestConfig: any[] = [
   {
     name: 'safeword/vitest',
-    files: [
-      '**/*.test.{ts,tsx,js,jsx}',
-      '**/*.spec.{ts,tsx,js,jsx}',
-      '**/tests/**/*.{ts,tsx,js,jsx}',
-      '**/e2e/**/*.{ts,tsx,js,jsx}',
-    ],
+    files: [...TEST_FILE_GLOBS],
     plugins: {
       vitest: vitestPlugin,
     },
