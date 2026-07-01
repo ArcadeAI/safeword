@@ -54,17 +54,17 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
   Rule: No duplicates across the fallback
 
     @cloud-retro-filing.SM1.AC3
-    Scenario: A filed draft is drained from the persisted spool
-      Given a spool holding two drafts, one of which has been filed and marked filed
-      When a fresh read of the persisted spool is taken
-      Then the re-read spool yields only the unfiled draft
+    Scenario: Marking a draft filed drains it from the persisted spool
+      Given a spool holding two unfiled drafts
+      When one draft is marked filed and the persisted spool is re-read
+      Then the re-read spool yields only the still-unfiled draft
 
     @cloud-retro-filing.SM1.AC3
     Scenario: A boundary with no unfiled drafts neither re-nudges nor re-files
       Given every spooled draft for the session has been marked filed
       When a later session boundary evaluates the spool
       Then no fallback line is surfaced
-      And nothing is filed again
+      And the filing transport receives no posts
 
   Rule: The cloud fallback stays near-invisible
 
@@ -110,7 +110,7 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
 
     @cloud-retro-filing.NTB1.AC1
     Scenario: Only post-egress draft fields reach the spool
-      Given a raw finding carrying a secret and a customer path
+      Given a raw finding whose text contains the distinctive sentinel secret "SW-LEAK-CANARY-9f3a" and the customer path "/acme-corp/prod/secrets"
       When it flows through the egress pipeline and its draft is spooled
       Then the spool file contains only the sanitized signature, title, body, and labels
-      And the spool file contains neither the secret nor the customer path
+      And the spool file contains neither "SW-LEAK-CANARY-9f3a" nor "/acme-corp/prod/secrets"

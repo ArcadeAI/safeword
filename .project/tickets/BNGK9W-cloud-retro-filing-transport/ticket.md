@@ -2,7 +2,7 @@
 id: BNGK9W
 slug: cloud-retro-filing-transport
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 github: https://github.com/ArcadeAI/safeword/issues/568
@@ -136,6 +136,29 @@ Reconciled approach (fold into spec.md before implementing PATH B):
 
 ## Work Log
 
+- 2026-07-01T03:18Z Complete: scenario-gate. Independent fresh-context /review-spec
+  round 1 (3 must-fix / 4 should-strengthen) → applied; round 2 (0 must-fix / 3
+  should-strengthen / 8 looks-good) → applied. Gate stamped (same-model reviewer;
+  crossModelReview off in config so a same-model independent review satisfies Tier 2).
+  14 scenarios, ledger + dimensions resynced. Phase → implement. Proof plan + build
+  order below. **Paused for user steer before the implement slices** (as told).
+  - **Proof plan** (mocked boundaries only: GitHub REST transport, agent/MCP filing
+    seam, spool fs via injected `projectDirectory`; selection + drain + nudge run real):
+    - SM1.AC1/AC2 transport selection → module-wiring test on `retroCommand`/`runRetro`
+      with a mock `IssueTracker` (REST success → filed + drained + silent; REST 401 →
+      retained + defer signal; partial → only REST-filed drained).
+    - SM1.AC1 subagent seam → wiring test at spool→transport: exactly-N posts, each body
+      byte-equal incl signature marker; subagent partial failure → unfiled retained.
+    - SM1.AC3 drain / TB1.AC2 once-per-batch → unit tests on the new mark-filed/drain
+      primitive + persisted signature-keyed batch marker (re-read, not in-memory).
+    - TB1.AC2 nudge presence/phrasing → hook-level test (factual line, banned-marker list).
+    - NTB1.AC1 → egress→spool seam test with distinctive sentinel.
+  - **Build order** (each RED→GREEN→REFACTOR): (1) mark-filed/drain primitive in
+    `draft-spool.ts` (append-only today; add removal). (2) transport-selection wiring
+    (spool → try-REST → drain-filed / retain-rejected) in `retroCommand`. (3) filing
+    subagent seam (reads spool, posts verbatim, drains). (4) once-per-batch marker +
+    the surfacing hook (SessionStart/UserPromptSubmit). Parity-mirror any templates/hooks
+    change to `.safeword/hooks/**` + keep schema.ts registration.
 - 2026-07-01T03:10Z Complete: intake→define-behavior — authored spec.md (3 JTBD /
   6 AC across SM/TB/NTB, reconciled two-path design) + dimensions.md; /self-review
   stamped. 11 scenarios / 5 rules in features/cloud-retro-filing-transport.feature

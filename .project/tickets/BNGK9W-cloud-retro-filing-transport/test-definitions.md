@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: No duplicates across the fallback
 
-### Scenario: A filed draft is drained from the persisted spool
+### Scenario: Marking a draft filed drains it from the persisted spool
 
 - [ ] RED
 - [ ] GREEN
