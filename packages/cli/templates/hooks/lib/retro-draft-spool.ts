@@ -94,6 +94,20 @@ function draftLine(draft: SpooledDraft): string {
 }
 
 /**
+ * Write `contents` to `file` atomically: write a pid-unique temp sibling, then
+ * rename onto the target, so a concurrent reader sees the whole old or whole new
+ * file — never a half-written one. Creates the parent dir. Throws on I/O error;
+ * callers that must stay fail-open wrap it in their own try/catch. Shared by the
+ * spool drain and the nudge marker (retro-nudge.ts).
+ */
+export function atomicWriteFile(file: string, contents: string): void {
+  const temporary = `${file}.${process.pid}.tmp`;
+  mkdirSync(nodePath.dirname(file), { recursive: true });
+  writeFileSync(temporary, contents);
+  renameSync(temporary, file);
+}
+
+/**
  * Drain the drafts whose signatures were just filed (by either transport) so they
  * neither re-nudge nor re-file. Rewrites the per-session spool minus the filed
  * signatures — a persisted removal, not an in-memory filter, so a fresh read no
@@ -112,13 +126,9 @@ export function markDraftsFiled(
     const remaining = readSpooledDrafts(projectDirectory, sessionId).filter(
       draft => !filed.has(draft.signature),
     );
-    const file = draftSpoolPath(projectDirectory, sessionId);
     const body =
       remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
-    const temporary = `${file}.${process.pid}.tmp`;
-    mkdirSync(nodePath.dirname(file), { recursive: true });
-    writeFileSync(temporary, body);
-    renameSync(temporary, file);
+    atomicWriteFile(draftSpoolPath(projectDirectory, sessionId), body);
   } catch {
     // Self-observation must never break the host. Swallow.
   }

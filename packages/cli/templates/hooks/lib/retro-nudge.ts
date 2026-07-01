@@ -17,10 +17,9 @@
 // so both the CLI and the customer-repo hook can run it — like lib/self-report.ts.
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import nodePath from 'node:path';
+import { readFileSync } from 'node:fs';
 
-import { draftSpoolPath, readSpooledDrafts } from './retro-draft-spool.js';
+import { atomicWriteFile, draftSpoolPath, readSpooledDrafts } from './retro-draft-spool.js';
 
 /** The per-session marker recording the last unfiled batch already surfaced. */
 function nudgeMarkerPath(projectDirectory: string, sessionId: string): string {
@@ -46,11 +45,7 @@ function readNudgeMarker(projectDirectory: string, sessionId: string): string | 
 /** Persist the batch key just surfaced, atomically. Best-effort — never throws. */
 function writeNudgeMarker(projectDirectory: string, sessionId: string, key: string): void {
   try {
-    const file = nudgeMarkerPath(projectDirectory, sessionId);
-    const temporary = `${file}.${process.pid}.tmp`;
-    mkdirSync(nodePath.dirname(file), { recursive: true });
-    writeFileSync(temporary, `${key}\n`);
-    renameSync(temporary, file);
+    atomicWriteFile(nudgeMarkerPath(projectDirectory, sessionId), `${key}\n`);
   } catch {
     // A nudge marker that fails to persist just risks a re-nudge — the safe direction.
   }
