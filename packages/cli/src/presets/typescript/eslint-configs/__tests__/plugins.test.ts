@@ -17,7 +17,7 @@ import { playwrightConfig } from '../playwright.js';
 import { storybookConfig } from '../storybook.js';
 import { turboConfig } from '../turbo.js';
 import { vitestConfig } from '../vitest.js';
-import { getAllRules, getRuleConfig, getSeverityNumber } from './test-utilities.js';
+import { getAllRules, getRuleConfig, getSeverityNumber, hasFilePattern } from './test-utilities.js';
 
 const ERROR = 2;
 const WARN = 1;
@@ -43,15 +43,7 @@ describe('vitestConfig', () => {
   });
 
   it('targets test files', () => {
-    const hasTestFilePattern = vitestConfig.some(
-      config =>
-        typeof config === 'object' &&
-        config !== null &&
-        'files' in config &&
-        Array.isArray(config.files) &&
-        config.files.some((f: string) => f.includes('.test.') || f.includes('.spec.')),
-    );
-    expect(hasTestFilePattern).toBe(true);
+    expect(hasFilePattern(vitestConfig, ['.test.', '.spec.'])).toBe(true);
   });
 
   it('also targets tests/ and e2e/ directories for test infrastructure', () => {
@@ -134,15 +126,7 @@ describe('bunTestConfig', () => {
   });
 
   it('targets test files', () => {
-    const hasTestFilePattern = bunTestConfig.some(
-      config =>
-        typeof config === 'object' &&
-        config !== null &&
-        'files' in config &&
-        Array.isArray(config.files) &&
-        config.files.some((f: string) => f.includes('.test.') || f.includes('.spec.')),
-    );
-    expect(hasTestFilePattern).toBe(true);
+    expect(hasFilePattern(bunTestConfig, ['.test.', '.spec.'])).toBe(true);
   });
 
   it.each([
@@ -233,17 +217,7 @@ describe('playwrightConfig', () => {
   });
 
   it('targets test files', () => {
-    const hasTestFilePattern = playwrightConfig.some(
-      config =>
-        typeof config === 'object' &&
-        config !== null &&
-        'files' in config &&
-        Array.isArray(config.files) &&
-        config.files.some(
-          (f: string) => f.includes('.test.') || f.includes('.spec.') || f.includes('.e2e.'),
-        ),
-    );
-    expect(hasTestFilePattern).toBe(true);
+    expect(hasFilePattern(playwrightConfig, ['.test.', '.spec.', '.e2e.'])).toBe(true);
   });
 });
 
@@ -319,15 +293,7 @@ describe('storybookConfig', () => {
   });
 
   it('targets story files', () => {
-    const hasStoryFilePattern = storybookConfig.some(
-      config =>
-        typeof config === 'object' &&
-        config !== null &&
-        'files' in config &&
-        Array.isArray(config.files) &&
-        config.files.some((f: string) => f.includes('.stories.') || f.includes('.story.')),
-    );
-    expect(hasStoryFilePattern).toBe(true);
+    expect(hasFilePattern(storybookConfig, ['.stories.', '.story.'])).toBe(true);
   });
 });
 
