@@ -29,6 +29,11 @@ spool → REST-fail → nudge — ran for real, not just under mocks.
   shapes verified against current `code.claude.com/docs/en/hooks`. One NOTE
   (`fileSpooledDrafts` tested-but-unwired) resolved by annotating it as the
   intentional executable reference-spec for the guide-driven subagent loop.
+- Second independent quality review (post-done, over the FINAL diff): **APPROVE**,
+  0 critical. Cleared the two changes that landed after the first review — the
+  `preservedDirs`/`.gitignore` spool-exclusion (verified complete via
+  `git check-ignore`; covers both `.jsonl` + `.nudged`, no prefix-collision edge)
+  and the `fileSpooledDrafts` docstring. No edits required.
 - Scenario-gate: two independent review rounds (3 must-fix then 0 must-fix); stamped.
 - Design: muted footprint (no confirmation line) per user steer; PATH B's trigger
   lives on UserPromptSubmit (not the async Stop hook, which surfaces nothing — ZFGWS1).
