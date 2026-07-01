@@ -55,6 +55,6 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Kind:** Agent runtime
 **Description:** Cursor's cloud-based asynchronous agent product (Cloud Agents, formerly "Background Agents"). Each task provisions an isolated cloud VM, clones the repo fresh, works on its own branch, and opens a PR — no developer machine required.
 **Audience:** Technical Builder (TB), Non-Technical Builder (NTB), Safeword Maintainer (SM)
-**Examples:** `.cursor/environment.json` (cloud-only env config), Cursor Web (cursor.com/agents), Slack/GitHub/Linear `@cursor` mentions, `agent/<task-slug>` branches
+**Examples:** `.cursor/environment.json` (cloud-only env config), Cursor Web (cursor.com/agents), Slack/GitHub/Linear `@cursor` mentions, `cursor/<task-slug>` branches (customizable prefix)
 **Coverage notes:** Tag feature scenarios with `@surface.cursor-cloud-agents` when behavior depends on the cloud VM lifecycle rather than local IDE mechanics. Project-level `.cursor/rules`, `.cursor/commands`, and command-based `.cursor/hooks.json` still apply; user-level hooks and IDE-only events do not.
 **Do not confuse with:** Cursor — runs in the IDE on the developer's machine with full local environment access.
