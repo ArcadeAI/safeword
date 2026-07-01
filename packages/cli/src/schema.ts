@@ -690,6 +690,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/prompt-questions.ts': {
       template: 'hooks/prompt-questions.ts',
     },
+    '.safeword/hooks/prompt-retro-nudge.ts': {
+      template: 'hooks/prompt-retro-nudge.ts',
+    },
     '.safeword/hooks/post-tool-lint.ts': {
       template: 'hooks/post-tool-lint.ts',
     },

@@ -51,6 +51,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
   // Prompt hooks fire at prompt-submit, not on tool calls.
   'prompt-timestamp.ts': PROMPT_TURN,
   'prompt-questions.ts': PROMPT_TURN,
+  'prompt-retro-nudge.ts':
+    'prompt hook, fires on user turn — not assertable in a tool-based live run; covered deterministically by tests/integration/prompt-retro-nudge.test.ts',
   // Auxiliary / narrow scope
   'post-tool-sync-learnings.ts':
     'PostToolUse learning-sync hook — no agent-blocking deny path to assert in a live run',

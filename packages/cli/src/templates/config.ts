@@ -440,6 +440,9 @@ export const SETTINGS_HOOKS = {
   UserPromptSubmit: [
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),
     hook(`bun ${HOOKS_DIR}/prompt-questions.ts`),
+    // Cloud-retro filing nudge (BNGK9W): when the async Stop hook spooled unfiled
+    // drafts (REST 401 in cloud), surface one factual line so the agent files them.
+    hook(`bun ${HOOKS_DIR}/prompt-retro-nudge.ts`),
   ],
   Stop: [
     hook(`bun ${HOOKS_DIR}/stop-quality.ts`),

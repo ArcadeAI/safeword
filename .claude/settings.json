@@ -109,6 +109,14 @@
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/prompt-questions.ts"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/prompt-retro-nudge.ts"
+          }
+        ]
       }
     ],
     "Stop": [
