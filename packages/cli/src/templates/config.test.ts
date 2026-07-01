@@ -55,6 +55,7 @@ describe('getEslintConfig', () => {
 
     // All framework plugins are conditional (peer deps require the framework)
     expect(config).toContain('detect.hasVitest(deps)');
+    expect(config).toContain('detect.hasBunTest(deps, __dirname)');
     expect(config).toContain('detect.hasPlaywright(deps)');
     expect(config).toContain('detect.hasStorybook(deps)');
     expect(config).toContain('detect.hasTanstackQuery(deps)');

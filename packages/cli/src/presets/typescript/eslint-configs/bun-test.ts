@@ -16,6 +16,8 @@
  * reach imported helper files either.
  */
 
+import { TEST_FILE_GLOBS } from './test-file-globs.js';
+
 /**
  * `bun:test` global names, all read-only (Bun owns these bindings).
  * Mirrors `bun:test`'s actual exports (verified against
@@ -58,12 +60,7 @@ const BUN_TEST_GLOBALS = {
 export const bunTestConfig: any[] = [
   {
     name: 'safeword/bun-test',
-    files: [
-      '**/*.test.{ts,tsx,js,jsx}',
-      '**/*.spec.{ts,tsx,js,jsx}',
-      '**/tests/**/*.{ts,tsx,js,jsx}',
-      '**/e2e/**/*.{ts,tsx,js,jsx}',
-    ],
+    files: [...TEST_FILE_GLOBS],
     languageOptions: {
       globals: BUN_TEST_GLOBALS,
     },
