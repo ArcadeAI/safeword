@@ -4,6 +4,7 @@
 
 import {
   chmodSync,
+  type Dirent,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -119,16 +120,18 @@ export function findInTree(cwd: string, filename: string, maxDepth = 10): string
   return scanTreeForFile(cwd, filename, 1, maxDepth);
 }
 
+/** Whether a dirent is a subdirectory safe to recurse into (not hidden, not excluded). */
+function isScannableSubdirectory(entry: Dirent): boolean {
+  return (
+    entry.isDirectory() && !entry.name.startsWith('.') && !SUBDIRECTORY_EXCLUDE.has(entry.name)
+  );
+}
+
 /** Return scannable subdirectory paths (excludes hidden dirs and SUBDIRECTORY_EXCLUDE). */
 function getScannableSubdirectories(directory: string): string[] {
   try {
     return readdirSync(directory, { withFileTypes: true })
-      .filter(
-        entry =>
-          entry.isDirectory() &&
-          !entry.name.startsWith('.') &&
-          !SUBDIRECTORY_EXCLUDE.has(entry.name),
-      )
+      .filter(entry => isScannableSubdirectory(entry))
       .map(entry => nodePath.join(directory, entry.name));
   } catch {
     return [];
@@ -199,11 +202,7 @@ function scanTreeForMatch(
   }
 
   for (const entry of entries) {
-    if (
-      !(entry.isDirectory() && !entry.name.startsWith('.') && !SUBDIRECTORY_EXCLUDE.has(entry.name))
-    ) {
-      continue;
-    }
+    if (!isScannableSubdirectory(entry)) continue;
 
     const result = scanTreeForMatch(
       nodePath.join(directory, entry.name),

@@ -127,12 +127,12 @@ function planTarget(target: HealTarget): SelfHealAction {
   return decideAction(readExisting(target.path), target.fingerprint, target.hasContent);
 }
 
-/** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
-function singleRepoTarget(projectDirectory: string): HealTarget {
-  const fingerprint = shapeFingerprint(projectDirectory);
-  const nodes = extractSkeleton(projectDirectory).nodes;
+/** A `src/`-skeleton doc: the skeleton of `directory`, rendered to `path`. */
+function skeletonTarget(directory: string, path: string): HealTarget {
+  const fingerprint = shapeFingerprint(directory);
+  const nodes = extractSkeleton(directory).nodes;
   return {
-    path: resolveGeneratedArchitecturePath(projectDirectory),
+    path,
     fingerprint,
     hasContent: nodes.length > 0,
     render: (priorStamps, priorProse) =>
@@ -140,17 +140,17 @@ function singleRepoTarget(projectDirectory: string): HealTarget {
   };
 }
 
+/** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
+function singleRepoTarget(projectDirectory: string): HealTarget {
+  return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory));
+}
+
 /** A colocated leaf: the package's own skeleton at `packages/<pkg>/architecture.generated.md`. */
 function leafTarget(packageDirectory: string): HealTarget {
-  const fingerprint = shapeFingerprint(packageDirectory);
-  const nodes = extractSkeleton(packageDirectory).nodes;
-  return {
-    path: nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
-    fingerprint,
-    hasContent: nodes.length > 0,
-    render: (priorStamps, priorProse) =>
-      renderDocument(nodes, fingerprint, priorStamps, priorProse),
-  };
+  return skeletonTarget(
+    packageDirectory,
+    nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
+  );
 }
 
 /** The derived root index: the package graph at the namespace-root path. */
@@ -309,6 +309,17 @@ function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): 
   return true;
 }
 
+/**
+ * The shared frontmatter every generated doc opens with: the ownership marker, the
+ * fingerprint line, and the `# Architecture` heading. This is the serialization side of the
+ * contract that `readDocumentFingerprint` / `isSafewordOwned` (and the standalone hook
+ * parser) read back, so both renderers must emit it byte-identically — one writer guarantees
+ * that.
+ */
+function architectureFrontmatter(fingerprint: string): string {
+  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n`;
+}
+
 function renderDocument(
   nodes: SkeletonNode[],
   fingerprint: string,
@@ -339,7 +350,7 @@ function renderDocument(
     })
     .join('\n');
 
-  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Modules\n\n${sections}`;
+  return `${architectureFrontmatter(fingerprint)}## Modules\n\n${sections}`;
 }
 
 function renderSection(
@@ -378,7 +389,7 @@ function renderRootIndex(model: MonorepoModel, fingerprint: string): string {
   const dependencies =
     model.edges.length === 0 ? '_No inter-package dependencies._\n' : `${edgeLines}\n`;
 
-  return `---\n${GENERATOR_KEY}: ${GENERATOR_VALUE}\n${FINGERPRINT_KEY}: ${fingerprint}\n---\n\n# Architecture\n\n## Packages\n\n${sections}\n## Dependencies\n\n${dependencies}${renderCoverageGaps(model.unreadableWorkspaces)}`;
+  return `${architectureFrontmatter(fingerprint)}## Packages\n\n${sections}\n## Dependencies\n\n${dependencies}${renderCoverageGaps(model.unreadableWorkspaces)}`;
 }
 
 /**

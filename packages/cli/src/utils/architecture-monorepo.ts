@@ -298,6 +298,26 @@ function readPyprojectCrateName(packageDirectory: string): string | undefined {
 }
 
 /**
+ * The detection for a TOML workspace whose member list lives in `[<table>] members`:
+ * `parsed` with the globs when readable, `absent` for an explicitly-empty `members = []`
+ * (declares no members, like package.json `workspaces: []` — U8), otherwise `unreadable`
+ * (present but unparseable — UWP4XK). Shared by the Cargo and uv detectors, which differ
+ * only in their pre-checks and these arguments.
+ */
+function resolveTomlWorkspaceMembers(
+  content: string,
+  readMembers: (content: string) => string[] | undefined,
+  table: string,
+  label: string,
+  configFile: string,
+): WorkspaceDetection {
+  const members = readMembers(content);
+  if (members !== undefined) return parsed(members);
+  if (isTomlTableEmptyArray(content, table, 'members')) return ABSENT;
+  return unreadable(label, configFile);
+}
+
+/**
  * Read workspace member globs from a `pyproject.toml` `[tool.uv.workspace] members`
  * array (ticket HWSEPV) — uv stores its workspace list here. `absent` when the file or the
  * uv-workspace table is missing (a single Python package, or a non-uv pyproject); `parsed`
@@ -308,12 +328,13 @@ function detectUvWorkspace(projectDirectory: string): WorkspaceDetection {
   const content = readFileSafe(nodePath.join(projectDirectory, 'pyproject.toml'));
   if (content === undefined) return ABSENT; // no pyproject.toml
   if (!hasTomlTable(content, 'tool.uv.workspace')) return ABSENT; // a non-uv pyproject
-  const members = readUvWorkspaceMembers(content);
-  if (members !== undefined) return parsed(members);
-  // An explicitly-empty `members = []` declares no members — absent, like package.json
-  // `workspaces: []` (U8) — not a present-but-unparseable list (UWP4XK).
-  if (isTomlTableEmptyArray(content, 'tool.uv.workspace', 'members')) return ABSENT;
-  return unreadable('uv workspace', 'pyproject.toml');
+  return resolveTomlWorkspaceMembers(
+    content,
+    readUvWorkspaceMembers,
+    'tool.uv.workspace',
+    'uv workspace',
+    'pyproject.toml',
+  );
 }
 
 function manifestDependencyNames(packageDirectory: string): string[] {
@@ -443,10 +464,11 @@ function detectCargoWorkspace(projectDirectory: string): WorkspaceDetection {
   if (content === undefined) return ABSENT; // no Cargo.toml
   if (!hasTomlTable(content, 'workspace')) return ABSENT; // a single crate, not a workspace
   if (!hasTomlTableKey(content, 'workspace', 'members')) return ABSENT; // auto-discovery, out of scope
-  const members = readCargoWorkspaceMembers(content);
-  if (members !== undefined) return parsed(members);
-  // An explicitly-empty `members = []` declares no members — absent, like package.json
-  // `workspaces: []` (U8) — not a present-but-unparseable list (UWP4XK).
-  if (isTomlTableEmptyArray(content, 'workspace', 'members')) return ABSENT;
-  return unreadable('Cargo [workspace]', 'Cargo.toml');
+  return resolveTomlWorkspaceMembers(
+    content,
+    readCargoWorkspaceMembers,
+    'workspace',
+    'Cargo [workspace]',
+    'Cargo.toml',
+  );
 }
