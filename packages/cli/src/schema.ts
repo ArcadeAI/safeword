@@ -434,6 +434,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   preservedDirs: [
     '.safeword-project/learnings',
     '.safeword/logs',
+    // Runtime cloud-filing spool (BNGK9W) — per-session drafts + nudge markers the
+    // retro writes at runtime; user/runtime data the schema does not own.
+    '.safeword/retro-drafts',
     '.safeword-project/tickets',
     '.safeword-project/tickets/completed',
     '.safeword-project/tmp',
