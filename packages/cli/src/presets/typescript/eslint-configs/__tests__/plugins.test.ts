@@ -7,6 +7,9 @@
  * - Have correct rule severities (all error, LLMs ignore warnings)
  */
 
+import { fileURLToPath } from 'node:url';
+
+import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
 import { bunTestConfig } from '../bun-test.js';
@@ -130,21 +133,27 @@ describe('bunTestConfig', () => {
     expect(hasTestFilePattern).toBe(true);
   });
 
-  it.each(['test', 'it', 'describe', 'beforeAll', 'beforeEach', 'afterAll', 'afterEach', 'expect'])(
-    'declares %s as a read-only global',
-    name => {
-      const block = bunTestConfig.find(
-        config =>
-          typeof config === 'object' &&
-          config !== null &&
-          'languageOptions' in config &&
-          config.languageOptions?.globals,
-      ) as { languageOptions: { globals: Record<string, string> } } | undefined;
-      expect(block?.languageOptions.globals[name]).toBe('readonly');
-    },
-  );
-
-  it('does not declare Jest-only aliases bun:test does not export', () => {
+  it.each([
+    'test',
+    'it',
+    'xtest',
+    'xit',
+    'describe',
+    'xdescribe',
+    'beforeAll',
+    'beforeEach',
+    'afterAll',
+    'afterEach',
+    'onTestFinished',
+    'setDefaultTimeout',
+    'expect',
+    'expectTypeOf',
+    'mock',
+    'spyOn',
+    'jest',
+    'setSystemTime',
+    'vi',
+  ])('declares %s as a read-only global', name => {
     const block = bunTestConfig.find(
       config =>
         typeof config === 'object' &&
@@ -152,9 +161,56 @@ describe('bunTestConfig', () => {
         'languageOptions' in config &&
         config.languageOptions?.globals,
     ) as { languageOptions: { globals: Record<string, string> } } | undefined;
-    for (const jestOnly of ['fit', 'xdescribe', 'xit', 'xtest']) {
-      expect(block?.languageOptions.globals[jestOnly]).toBeUndefined();
-    }
+    expect(block?.languageOptions.globals[name]).toBe('readonly');
+  });
+
+  it('does not declare fit — bun:test has no focus alias (use .only instead)', () => {
+    const block = bunTestConfig.find(
+      config =>
+        typeof config === 'object' &&
+        config !== null &&
+        'languageOptions' in config &&
+        config.languageOptions?.globals,
+    ) as { languageOptions: { globals: Record<string, string> } } | undefined;
+    expect(block?.languageOptions.globals.fit).toBeUndefined();
+  });
+
+  // Regression test for ticket #513: runs the actual ESLint engine (not just
+  // inspecting config shape) against a plain .js file using bun:test's
+  // implicit-globals style — the exact pattern that previously false-positived.
+  describe('against the real ESLint engine', () => {
+    const BUN_TEST_FILE = fileURLToPath(new URL('inline.test.js', import.meta.url));
+
+    it('does not false-positive no-undef on implicit bun:test globals', () => {
+      const linter = new Linter({ configType: 'flat' });
+      const code = `
+xdescribe('example', () => {
+  beforeEach(() => {
+    mock.restore();
+  });
+  it('works', () => {
+    expect(1).toBe(1);
+  });
+});
+`;
+
+      const results = linter.verify(code, [{ rules: { 'no-undef': 'error' } }, ...bunTestConfig], {
+        filename: BUN_TEST_FILE,
+      });
+
+      expect(results.filter(r => r.ruleId === 'no-undef')).toHaveLength(0);
+    });
+
+    it('still flags a genuine undefined name (Jest-only fit, not a bun:test export)', () => {
+      const linter = new Linter({ configType: 'flat' });
+      const code = `fit('typo', () => {});\n`;
+
+      const results = linter.verify(code, [{ rules: { 'no-undef': 'error' } }, ...bunTestConfig], {
+        filename: BUN_TEST_FILE,
+      });
+
+      expect(results.filter(r => r.ruleId === 'no-undef')).toHaveLength(1);
+    });
   });
 });
 

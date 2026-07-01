@@ -18,21 +18,29 @@
 
 /**
  * `bun:test` global names, all read-only (Bun owns these bindings).
- * Mirrors `bun:test`'s actual exports — not Jest's, which also has
- * `fit`/`xdescribe`/`xit`/`xtest` that Bun does not provide (Bun uses
- * chained modifiers like `.only`/`.skip` on `test`/`describe` instead).
- * Declaring names Bun doesn't actually inject would let a typo pass lint
- * only to crash at runtime.
+ * Mirrors `bun:test`'s actual exports (verified against
+ * https://github.com/oven-sh/bun/blob/main/packages/bun-types/test.d.ts and
+ * https://bun.com/reference/bun/test) — not Jest's. Bun ships `xdescribe`/
+ * `xtest`/`xit` as `.skip()` shorthands, but has no `fit` (focus) alias —
+ * use `.only` on `test`/`describe`/`it` instead. Declaring a name Bun
+ * doesn't actually inject would let a typo pass lint only to crash at
+ * runtime.
  */
 const BUN_TEST_GLOBALS = {
   test: 'readonly',
   it: 'readonly',
+  xtest: 'readonly',
+  xit: 'readonly',
   describe: 'readonly',
+  xdescribe: 'readonly',
   beforeAll: 'readonly',
   beforeEach: 'readonly',
   afterAll: 'readonly',
   afterEach: 'readonly',
+  onTestFinished: 'readonly',
+  setDefaultTimeout: 'readonly',
   expect: 'readonly',
+  expectTypeOf: 'readonly',
   mock: 'readonly',
   spyOn: 'readonly',
   jest: 'readonly',
