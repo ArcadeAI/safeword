@@ -67,6 +67,7 @@ const scopedNextConfigs = nextPaths?.flatMap((filePath) =>
  */
 const OPTIONAL_CONFIGS_SNIPPET = `  // Testing configs - only if detected (plugins have framework peer deps)
   ...(detect.hasVitest(deps) ? configs.vitest : []),
+  ...(detect.hasBunTest(deps, __dirname) ? configs.bunTest : []),
   ...(detect.hasPlaywright(deps) ? configs.playwright : []),
   // Storybook - only if detected (v10+ requires storybook peer dep)
   ...(detect.hasStorybook(deps) ? configs.storybook : []),
