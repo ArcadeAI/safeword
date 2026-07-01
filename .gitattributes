@@ -1,0 +1,4 @@
+# Safeword - managed merge strategy for generated artifacts
+**/architecture.generated.md merge=union linguist-generated=true
+.project/tickets/INDEX.md merge=union linguist-generated=true
+.project/tickets/INDEX-completed.md merge=union linguist-generated=true

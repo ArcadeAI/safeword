@@ -7,8 +7,12 @@
  * - Have correct rule severities (all error, LLMs ignore warnings)
  */
 
+import { fileURLToPath } from 'node:url';
+
+import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
+import { bunTestConfig } from '../bun-test.js';
 import { playwrightConfig } from '../playwright.js';
 import { storybookConfig } from '../storybook.js';
 import { turboConfig } from '../turbo.js';
@@ -106,6 +110,105 @@ describe('Vitest critical rules at error', () => {
 
   it('vitest/valid-expect is at error', () => {
     expect(getSeverityNumber(getRuleConfig(vitestConfig, 'vitest/valid-expect'))).toBe(ERROR);
+  });
+});
+
+// ============ BUN TEST CONFIG ============
+
+/** Finds the config block declaring bunTestConfig's languageOptions.globals. */
+function getBunTestGlobals(): Record<string, string> | undefined {
+  const block = bunTestConfig.find(
+    config =>
+      typeof config === 'object' &&
+      config !== null &&
+      'languageOptions' in config &&
+      config.languageOptions?.globals,
+  ) as { languageOptions: { globals: Record<string, string> } } | undefined;
+  return block?.languageOptions.globals;
+}
+
+describe('bunTestConfig', () => {
+  it('is a non-empty array', () => {
+    expect(Array.isArray(bunTestConfig)).toBe(true);
+    expect(bunTestConfig.length).toBeGreaterThan(0);
+  });
+
+  it('targets test files', () => {
+    const hasTestFilePattern = bunTestConfig.some(
+      config =>
+        typeof config === 'object' &&
+        config !== null &&
+        'files' in config &&
+        Array.isArray(config.files) &&
+        config.files.some((f: string) => f.includes('.test.') || f.includes('.spec.')),
+    );
+    expect(hasTestFilePattern).toBe(true);
+  });
+
+  it.each([
+    'test',
+    'it',
+    'xtest',
+    'xit',
+    'describe',
+    'xdescribe',
+    'beforeAll',
+    'beforeEach',
+    'afterAll',
+    'afterEach',
+    'onTestFinished',
+    'setDefaultTimeout',
+    'expect',
+    'expectTypeOf',
+    'mock',
+    'spyOn',
+    'jest',
+    'setSystemTime',
+    'vi',
+  ])('declares %s as a read-only global', name => {
+    expect(getBunTestGlobals()?.[name]).toBe('readonly');
+  });
+
+  it('does not declare fit — bun:test has no focus alias (use .only instead)', () => {
+    expect(getBunTestGlobals()?.fit).toBeUndefined();
+  });
+
+  // Regression test for ticket #513: runs the actual ESLint engine (not just
+  // inspecting config shape) against a plain .js file using bun:test's
+  // implicit-globals style — the exact pattern that previously false-positived.
+  describe('against the real ESLint engine', () => {
+    const BUN_TEST_FILE = fileURLToPath(new URL('inline.test.js', import.meta.url));
+
+    it('does not false-positive no-undef on implicit bun:test globals', () => {
+      const linter = new Linter({ configType: 'flat' });
+      const code = `
+xdescribe('example', () => {
+  beforeEach(() => {
+    mock.restore();
+  });
+  it('works', () => {
+    expect(1).toBe(1);
+  });
+});
+`;
+
+      const results = linter.verify(code, [{ rules: { 'no-undef': 'error' } }, ...bunTestConfig], {
+        filename: BUN_TEST_FILE,
+      });
+
+      expect(results.filter(r => r.ruleId === 'no-undef')).toHaveLength(0);
+    });
+
+    it('still flags a genuine undefined name (Jest-only fit, not a bun:test export)', () => {
+      const linter = new Linter({ configType: 'flat' });
+      const code = `fit('typo', () => {});\n`;
+
+      const results = linter.verify(code, [{ rules: { 'no-undef': 'error' } }, ...bunTestConfig], {
+        filename: BUN_TEST_FILE,
+      });
+
+      expect(results.filter(r => r.ruleId === 'no-undef')).toHaveLength(1);
+    });
   });
 });
 

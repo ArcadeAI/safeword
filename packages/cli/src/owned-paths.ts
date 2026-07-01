@@ -63,8 +63,7 @@ export function safewordIgnoreDirectories(namespaceRootLabel?: string): readonly
  * root resolved OUTSIDE the repo ('../…' would leak nonsensical entries).
  */
 export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefined {
-  const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
-  const label = nodePath.relative(ctx.cwd, root) || '.';
+  const label = resolvedNamespaceRootLabel(ctx);
   // Skip the repo root ('.'), the well-known roots (already in the static lists),
   // and any root resolved OUTSIDE the repo ('../…') — a traversal label would leak
   // nonsensical ignore/prefix entries that match nothing under the repo.
@@ -72,6 +71,18 @@ export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefi
     return undefined;
   }
   return label;
+}
+
+/**
+ * The repo-relative resolved namespace-root label — always concrete (`.project` by
+ * default, the legacy or custom `paths.projectRoot` otherwise), unlike
+ * {@link resolvedNamespaceDirectory} which suppresses the well-known roots. Used where a
+ * managed file must name the actual root path (e.g. the `.gitattributes` ticket-index
+ * entries, #566). Repo-root namespace (`.`) yields `.`, so callers prefix-join cleanly.
+ */
+export function resolvedNamespaceRootLabel(ctx: ProjectContext): string {
+  const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
+  return nodePath.relative(ctx.cwd, root) || '.';
 }
 
 /**

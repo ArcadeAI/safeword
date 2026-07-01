@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (360)
+## Tickets (364)
 
 ### agent-surface-refactor
 
@@ -588,7 +588,7 @@
 - **`safeword setup` offers to pre-allow the skill-invocation bash injection (150)** (open, epic: —)
   Have `bunx safeword setup` (and `safeword upgrade` when appropriate) detect whether `.claude/settings.json` pre-approves the two Bash patterns the skill-invocation log injection needs, and — if not — offer to add them. Prevents the failure mode at install time rather than only documenting it.
   → `.project/tickets/150-setup-pre-allow-skill-bash`
-- **Resolve `bun audit` advisories surfaced 2026-05-18 (152)** (open, epic: —)
+- **Resolve `bun audit` advisories surfaced 2026-05-18 (152)** (done, epic: —)
   Clear the 4 advisories that `bun audit` flags in safeword's tree (1 high, 3 moderate) by bumping the deps that pull in vulnerable transitives. None of these are caused by safeword's own direct deps — they're all transitives — but they show up in `bun audit` output, which customers run too.
   → `.project/tickets/152-resolve-bun-audit-advisories`
 - **Boundary Resilience: Replan-on-Resume (153)** (done, epic: —)
@@ -674,6 +674,9 @@
 - **Update PRINCIPLES.md — extend existing 5 by at most 1-2 net-new principles meeting research/measurement bar (3N3Q7B)** (in_progress, epic: —)
   Update safeword's existing [PRINCIPLES.md](/Users/alex/Projects/safeword/PRINCIPLES.md) (5 principles, research-backed, capped explicitly at "few — 5, not 15" per principle 5) by adding AT MOST 1-2 net-new principles that meet the same bar (Anthropic citation, dogfooding measurement, or equivalent primary evidence). Move all the inferred "principles" from earlier work (originally up to 22 candidates from engineering + product + product-systems clusters) that don't meet the bar into the patterns catalog (62PDX1).
   → `.project/tickets/3N3Q7B`
+- **Lane 1: discover and prefer a real GitHub MCP transport (417FKH)** (backlog, epic: —)
+  Make the retro's silent direct-filing lane use the best GitHub write path
+  → `.project/tickets/417FKH-github-transport-discovery`
 - **Serialize package tests across checkouts (419)** (done, epic: —)
   → `.project/tickets/419-global-package-test-lock`
 - **Styled CLI output orphans its glyph on a leading-newline message (check/diff/reset/upgrade) (469YSR)** (done, epic: —)
@@ -799,6 +802,9 @@
 - **Flip the interactive namespace prompt default to Yes (AV3PYY)** (done, epic: —)
   Make the `safeword upgrade` namespace-migration prompt accept on Enter (default Yes), so a non-technical user who doesn't parse the question gets the recommended outcome by hitting Enter.
   → `.project/tickets/AV3PYY-namespace-prompt-default-yes`
+- **Reconcile ARCHITECTURE.md against the generated architecture doc (AXRC4D)** (todo, epic: —)
+  Keep the human-authored `ARCHITECTURE.md` honest about the project's
+  → `.project/tickets/AXRC4D-architecture-md-reconcile`
 - **Strip defensive force-it prompt padding (Opus 4.8 literalism) (B1TWX7)** (wontfix, epic: —)
   Tighten the hook/skill prompt injections — drop redundant emphatic "force-it" scaffolding (repeated CRITICAL/MUST warnings, belt-and-suspenders restatements) that the latest Opus's literal instruction-following can make counterproductive — without removing any load-bearing instruction.
   → `.project/tickets/B1TWX7-strip-forceit-prompt-padding`
@@ -824,7 +830,7 @@
 - **Interactive 'safeword gateway init' wizard — detect toolkits, deeplink to Arcade, write MCP config (BM8HG4)** (in_progress, epic: —)
   Add a new `safeword gateway init` command that walks the developer through wiring up tool access for their dev agent — detects toolkits the project likely needs (GitHub, Linear, Slack, Gmail, etc.), opens a pre-filled Arcade gateway-creation URL in the browser, accepts the resulting gateway URL back from the user, and writes `.claude/mcp_servers.json` so Claude Code / Cursor / etc. instantly have the configured tools available.
   → `.project/tickets/BM8HG4`
-- **Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)** (in_progress, epic: —)
+- **Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)** (done, epic: —)
   Make the invisible retro actually FILE its findings in a Claude cloud
   → `.project/tickets/BNGK9W-cloud-retro-filing-transport`
 - **Strengthen golden-path test quality (BPB39Q)** (in_progress, epic: —)
@@ -929,6 +935,8 @@
 - **Resolve knip false-positives from lazy-loaded ESLint plugins (G8PBE6)** (superseded, epic: —)
   Suppress the seven knip "unused dependency" false-positives caused by H150ZW's lazy-load pattern, without reverting the lazy-load itself or hiding the false-positives in a way the next person can't find.
   → `.project/tickets/G8PBE6-knip-dynamic-load-false-positives`
+- **Auto-resolve merge conflicts on generated docs via `.gitattributes merge=union` (GA7T6M)** (todo, epic: —)
+  → `.project/tickets/GA7T6M-generated-doc-merge-union`
 - **Quiet expected negative-path test output (GJGSS3)** (in_progress, epic: —)
   Keep passing full test runs quiet when negative-path fixtures intentionally print errors.
   → `.project/tickets/GJGSS3-quiet-expected-negative-path-test-output`
@@ -1098,6 +1106,9 @@
 - **Humanize first-run runtime and dependency failures (UJSZXB)** (done, epic: —)
   Make the first thing an NTB can hit — a missing-bun or deps-not-installed block — readable and safety-framed instead of a shell-jargon wall.
   → `.project/tickets/UJSZXB-humanize-first-run-runtime`
+- **Surface a present-but-unparseable workspace manager (coverage honesty) (UWP4XK)** (todo, epic: —)
+  A workspace manager that is *present* at the repo root but whose member
+  → `.project/tickets/UWP4XK-unparseable-workspace-coverage`
 - **Formatter-aware lint hook: stop colliding with the customer's formatter (V7GGJZ)** (done, epic: —)
   The runtime auto-lint hook honors the formatter the customer already chose — it never
   → `.project/tickets/V7GGJZ-formatter-aware-lint-hook`

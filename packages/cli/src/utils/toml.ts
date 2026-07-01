@@ -17,15 +17,72 @@ export function readTomlTableArray(
   table: string,
   key: string,
 ): string[] | undefined {
-  const body = tableArrayBody(content.split(/\r?\n/), table, key);
-  if (body === undefined) return undefined;
+  const found = tableArrayBody(content.split(/\r?\n/), table, key);
+  if (found === undefined) return undefined;
 
-  const values = body
+  const values = found.body
     .matchAll(/"([^"]*)"|'([^']*)'/g)
     .map(match => match[1] ?? match[2] ?? '')
     .filter(value => value.length > 0)
     .toArray();
   return values.length > 0 ? values : undefined;
+}
+
+/**
+ * Whether `[<table>] <key>` holds a well-formed but EMPTY array (`[]`, possibly across
+ * lines / with comments) — as opposed to a malformed value (`= "x"`, an unclosed `[`),
+ * which `readTomlTableArray` also collapses to `undefined`. Lets a caller treat an
+ * explicitly-empty member list as "declared no members" (absent, like package.json
+ * `workspaces: []`) rather than present-but-unparseable.
+ */
+export function isTomlTableEmptyArray(content: string, table: string, key: string): boolean {
+  const found = tableArrayBody(content.split(/\r?\n/), table, key);
+  return found !== undefined && found.closed && found.body.replaceAll(/[\s,]/g, '') === '';
+}
+
+/**
+ * Whether `content` declares a `[<table>]` (or `[[<table>]]`) header. Comment-aware
+ * (a header inside a `#` comment does not count) and table-scoped (exact name). Lets a
+ * caller tell "the table is absent" from "the table is present but its key is
+ * unparseable" — `readTomlTableArray` returns `undefined` for both, so this distinguishes
+ * a single crate (no `[workspace]`) from a workspace whose `members` could not be read.
+ */
+export function hasTomlTable(content: string, table: string): boolean {
+  return content.split(/\r?\n/).some(line => tableHeader(stripTomlComment(line).trim()) === table);
+}
+
+/**
+ * Yield the meaningful lines (comment-stripped, trimmed, non-empty) that fall inside
+ * `[<table>]`, in document order — the shared table-scoped traversal behind the key/value
+ * readers below. Table membership is tracked via the `[header]` lines a line follows.
+ */
+function* linesInTable(content: string, table: string): Generator<string> {
+  let inTable = false;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = stripTomlComment(rawLine).trim();
+    if (line === '') continue;
+    const header = tableHeader(line);
+    if (header !== undefined) {
+      inTable = header === table;
+      continue;
+    }
+    if (inTable) yield line;
+  }
+}
+
+/**
+ * Whether `[<table>]` declares `<key> = …` (any value, parseable or not). Comment-aware,
+ * table-scoped. Lets a caller tell "the key is absent" from "the key is present but its
+ * value is unparseable" — `readTomlTableArray` returns `undefined` for both, so this
+ * separates a workspace whose `members` list can't be read (surface it) from one with no
+ * `members` key at all (a Cargo root-package workspace that auto-discovers members from
+ * path deps — valid, out of scope, not a coverage gap).
+ */
+export function hasTomlTableKey(content: string, table: string, key: string): boolean {
+  for (const line of linesInTable(content, table)) {
+    if (tableValue(line, key) !== undefined) return true;
+  }
+  return false;
 }
 
 /** The string value of `[<table>] <key> = "…"`, or `undefined`. Table-scoped. */
@@ -34,19 +91,7 @@ export function readTomlTableString(
   table: string,
   key: string,
 ): string | undefined {
-  let inTable = false;
-
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = stripTomlComment(rawLine).trim();
-    if (line === '') continue;
-
-    const header = tableHeader(line);
-    if (header !== undefined) {
-      inTable = header === table;
-      continue;
-    }
-    if (!inTable) continue;
-
+  for (const line of linesInTable(content, table)) {
     const value = tableValue(line, key);
     if (value?.startsWith('"')) {
       const end = value.indexOf('"', 1);
@@ -56,33 +101,52 @@ export function readTomlTableString(
   return undefined;
 }
 
-/** The comment-stripped text inside `[<table>] <key> = [ … ]`, or `undefined`. */
-function tableArrayBody(lines: string[], table: string, key: string): string | undefined {
-  let inTable = false;
-  let body: string | undefined;
+/**
+ * The comment-stripped text inside `[<table>] <key> = [ … ]` plus whether the array
+ * actually closed (a `]` was seen), or `undefined` when no array value is found. The
+ * `closed` flag distinguishes a well-formed array from one left unterminated at EOF —
+ * callers that only need the entries (`readTomlTableArray`) can ignore it.
+ */
+function tableArrayBody(
+  lines: string[],
+  table: string,
+  key: string,
+): { body: string; closed: boolean } | undefined {
+  const opened = findTableArrayOpen(lines, table, key);
+  if (opened === undefined) return undefined;
 
-  for (const rawLine of lines) {
-    const line = stripTomlComment(rawLine);
-    const trimmed = line.trim();
-
-    if (body === undefined) {
-      const header = tableHeader(trimmed);
-      if (header !== undefined) {
-        inTable = header === table;
-        continue;
-      }
-      const value = inTable ? tableValue(trimmed, key) : undefined;
-      if (!value?.startsWith('[')) continue;
-      body = value.slice(1);
-    } else {
-      body += `\n${line}`;
-    }
-
+  let body = opened.initial;
+  for (let index = opened.line; index < lines.length; index += 1) {
+    if (index > opened.line) body += `\n${stripTomlComment(lines[index] ?? '')}`;
     const close = indexOfOutsideQuotes(body, ']');
-    if (close !== -1) return body.slice(0, close);
+    if (close !== -1) return { body: body.slice(0, close), closed: true };
   }
+  return { body, closed: false };
+}
 
-  return body;
+/**
+ * The text after the opening `[` of `[<table>] <key> = [`, with the line it sits on, or
+ * `undefined` when the table, the key, or an array value is absent. Table-scoped and
+ * comment-aware — the seek half of {@link tableArrayBody}.
+ */
+function findTableArrayOpen(
+  lines: string[],
+  table: string,
+  key: string,
+): { line: number; initial: string } | undefined {
+  let inTable = false;
+  for (const [index, rawLine] of lines.entries()) {
+    const trimmed = stripTomlComment(rawLine).trim();
+    const header = tableHeader(trimmed);
+    if (header !== undefined) {
+      inTable = header === table;
+      continue;
+    }
+    if (!inTable) continue;
+    const value = tableValue(trimmed, key);
+    if (value?.startsWith('[') === true) return { line: index, initial: value.slice(1) };
+  }
+  return undefined;
 }
 
 /**

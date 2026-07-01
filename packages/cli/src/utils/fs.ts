@@ -4,6 +4,7 @@
 
 import {
   chmodSync,
+  type Dirent,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -119,16 +120,18 @@ export function findInTree(cwd: string, filename: string, maxDepth = 10): string
   return scanTreeForFile(cwd, filename, 1, maxDepth);
 }
 
+/** Whether a dirent is a subdirectory safe to recurse into (not hidden, not excluded). */
+function isScannableSubdirectory(entry: Dirent): boolean {
+  return (
+    entry.isDirectory() && !entry.name.startsWith('.') && !SUBDIRECTORY_EXCLUDE.has(entry.name)
+  );
+}
+
 /** Return scannable subdirectory paths (excludes hidden dirs and SUBDIRECTORY_EXCLUDE). */
 function getScannableSubdirectories(directory: string): string[] {
   try {
     return readdirSync(directory, { withFileTypes: true })
-      .filter(
-        entry =>
-          entry.isDirectory() &&
-          !entry.name.startsWith('.') &&
-          !SUBDIRECTORY_EXCLUDE.has(entry.name),
-      )
+      .filter(entry => isScannableSubdirectory(entry))
       .map(entry => nodePath.join(directory, entry.name));
   } catch {
     return [];
@@ -155,6 +158,58 @@ function scanTreeForFile(
   // Then recurse deeper
   for (const subdirectory of subdirectories) {
     const result = scanTreeForFile(subdirectory, filename, depth + 1, maxDepth);
+    if (result !== undefined) return result;
+  }
+
+  return undefined;
+}
+
+/**
+ * Find the first directory (root first, then descending) that contains a file
+ * whose name matches `predicate`. Skips hidden dirs + SUBDIRECTORY_EXCLUDE. The
+ * predicate analogue of {@link findInTree} — share this instead of re-walking
+ * the tree (and re-declaring the exclude set) in callers.
+ * @param cwd - Project root directory
+ * @param predicate - Matches a filename (e.g. a Python test-file name)
+ * @param maxDepth - Maximum directory depth to scan (default: 10)
+ * @returns Directory containing a match, or undefined
+ */
+export function findFileMatchingInTree(
+  cwd: string,
+  predicate: (filename: string) => boolean,
+  maxDepth = 10,
+): string | undefined {
+  return scanTreeForMatch(cwd, predicate, 0, maxDepth);
+}
+
+function scanTreeForMatch(
+  directory: string,
+  predicate: (filename: string) => boolean,
+  depth: number,
+  maxDepth: number,
+): string | undefined {
+  if (depth > maxDepth) return undefined;
+
+  let entries;
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+
+  if (entries.some(entry => entry.isFile() && predicate(entry.name))) {
+    return directory;
+  }
+
+  for (const entry of entries) {
+    if (!isScannableSubdirectory(entry)) continue;
+
+    const result = scanTreeForMatch(
+      nodePath.join(directory, entry.name),
+      predicate,
+      depth + 1,
+      maxDepth,
+    );
     if (result !== undefined) return result;
   }
 

@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -169,10 +170,14 @@ describe('verify report structure (146)', () => {
 
   describe('Rule: section 2 consumes safeword test-plan (5FF0ZD)', () => {
     it.each(templateFiles)('%s evals the test and build plans from test-plan', (_name, content) => {
-      expect(content).toContain('test-plan --kind verify --format sh');
-      expect(content).toContain('test-plan --kind build --format sh');
+      // Generation goes through run_plan; the single generator call lives in the
+      // helper (#487), keyed by $plan_kind set at each call site (not a `$1`
+      // positional, which Claude Code would substitute in a command file).
+      expect(content).toContain('test-plan --kind "$plan_kind" --format sh');
+      expect(content).toContain('plan_kind=verify');
+      expect(content).toContain('plan_kind=build');
       // Typecheck is part of the ready path — CI's lint job runs it (#436).
-      expect(content).toContain('test-plan --kind typecheck --format sh');
+      expect(content).toContain('plan_kind=typecheck');
     });
 
     it.each(templateFiles)(
@@ -248,11 +253,81 @@ describe('verify report structure (146)', () => {
       '%s executes test-plan through dispatch instead of shell word splitting',
       (_name, content) => {
         expect(content).toContain('run_safeword()');
-        expect(content).toContain('bash -c "$(run_safeword test-plan --kind verify --format sh)"');
-        expect(content).toContain('bash -c "$(run_safeword test-plan --kind build --format sh)"');
+        // #487: generation is captured + exit-checked via run_plan before its
+        // output runs, replacing the false-green `bash -c "$(...)"` pattern.
+        expect(content).toContain('run_plan()');
+        expect(content).toContain('rc=$?');
+        expect(content).toMatch(/Evidence generation failed/);
+        expect(content).not.toContain('bash -c "$(run_safeword test-plan');
+        // #375 word-splitting guard stays: never re-expand $SW via substitution.
         expect(content).not.toContain('$($SW test-plan');
+        // #487: no `$1`/`$2` positionals — Claude Code substitutes them with
+        // slash-command args in command files (the run_plan kind uses $plan_kind).
         expect(content).not.toContain('$1');
+        expect(content).not.toContain('$2');
       },
     );
+  });
+
+  describe('Rule: verify fails loudly when plan generation fails (487)', () => {
+    // Extract the sentinel-delimited run_plan helper and run it under bash with a
+    // stubbed run_safeword — a behavioral check that the generator's exit code is
+    // gated before its output runs. String presence alone can't prove that: the
+    // bug was `bash -c "$(...)"` discarding the substitution's exit code.
+    const helperMatch = /# >>> run_plan[\s\S]*?# <<< run_plan/.exec(skillContent);
+    const runPlanHelper = helperMatch?.[0] ?? '';
+
+    function runHelper(
+      stub: string,
+      call: string,
+    ): { code: number; stderr: string; stdout: string } {
+      const script = `${stub}\n${runPlanHelper}\n${call}\n`;
+      try {
+        const stdout = execSync('bash', {
+          input: script,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        return { code: 0, stderr: '', stdout };
+      } catch (error) {
+        const err = error as { status?: number; stderr?: string; stdout?: string };
+        return { code: err.status ?? 1, stderr: err.stderr ?? '', stdout: err.stdout ?? '' };
+      }
+    }
+
+    it('embeds an extractable run_plan helper', () => {
+      expect(runPlanHelper).toContain('run_plan()');
+    });
+
+    // AC1 + AC3: a non-zero generator exit must fail loudly for both kinds.
+    it.each(['verify', 'build'])('fails loudly when %s plan generation exits non-zero', kind => {
+      const { code, stderr } = runHelper(
+        'run_safeword() { echo boom >&2; return 3; }',
+        `plan_kind=${kind}\nrun_plan`,
+      );
+      expect(code).not.toBe(0);
+      expect(stderr).toContain('Evidence generation failed');
+    });
+
+    // The original false-green: generator fails but prints no shell.
+    it('reports an empty failed plan as a failure, not a green check', () => {
+      const { code } = runHelper('run_safeword() { return 4; }', 'plan_kind=verify\nrun_plan');
+      expect(code).not.toBe(0);
+    });
+
+    // AC2 (reconciled): a successful empty plan stays a clean no-op.
+    it('stays a clean no-op (exit 0) for a successful empty plan', () => {
+      const { code } = runHelper('run_safeword() { return 0; }', 'plan_kind=verify\nrun_plan');
+      expect(code).toBe(0);
+    });
+
+    it('runs the generated plan when generation succeeds', () => {
+      const { code, stdout } = runHelper(
+        `run_safeword() { printf 'echo RAN_PLAN'; }`,
+        'plan_kind=build\nrun_plan',
+      );
+      expect(code).toBe(0);
+      expect(stdout).toContain('RAN_PLAN');
+    });
   });
 });

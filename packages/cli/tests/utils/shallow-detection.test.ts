@@ -8,7 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { sqlPack } from '../../src/packs/sql/index.js';
-import { existsInTree, findInTree } from '../../src/utils/fs.js';
+import { existsInTree, findFileMatchingInTree, findInTree } from '../../src/utils/fs.js';
 import { detectLanguages } from '../../src/utils/project-detector.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers';
 
@@ -142,6 +142,41 @@ describe('findInTree', () => {
     expect(findInTree(shared.projectDirectory, 'pyproject.toml', 2)).toBeUndefined();
     // depth 3 should reach it
     expect(findInTree(shared.projectDirectory, 'pyproject.toml', 3)).toContain('/a/b/c');
+  });
+});
+
+// =============================================================================
+// findFileMatchingInTree
+// =============================================================================
+
+describe('findFileMatchingInTree', () => {
+  const isMarker = (name: string): boolean => name.endsWith('.marker');
+
+  it('returns the directory of a matching file at root', () => {
+    writeTestFile(shared.projectDirectory, 'a.marker', 'x');
+    expect(findFileMatchingInTree(shared.projectDirectory, isMarker)).toBe(shared.projectDirectory);
+  });
+
+  it('returns the subdirectory that contains a match', () => {
+    writeTestFile(shared.projectDirectory, 'pkg/a.marker', 'x');
+    expect(findFileMatchingInTree(shared.projectDirectory, isMarker)).toContain('/pkg');
+  });
+
+  it('returns undefined when nothing matches', () => {
+    writeTestFile(shared.projectDirectory, 'a.txt', 'x');
+    expect(findFileMatchingInTree(shared.projectDirectory, isMarker)).toBeUndefined();
+  });
+
+  it('skips excluded and hidden directories (no match inside node_modules or .git)', () => {
+    writeTestFile(shared.projectDirectory, 'node_modules/pkg/a.marker', 'x');
+    writeTestFile(shared.projectDirectory, '.git/a.marker', 'x');
+    expect(findFileMatchingInTree(shared.projectDirectory, isMarker)).toBeUndefined();
+  });
+
+  it('respects maxDepth', () => {
+    writeTestFile(shared.projectDirectory, 'a/b/c/deep.marker', 'x');
+    expect(findFileMatchingInTree(shared.projectDirectory, isMarker, 2)).toBeUndefined();
+    expect(findFileMatchingInTree(shared.projectDirectory, isMarker, 3)).toContain('/a/b/c');
   });
 });
 

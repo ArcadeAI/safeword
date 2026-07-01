@@ -129,6 +129,15 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     expect(entryFor(plan, 'python')).toBeUndefined();
   });
 
+  it('ignores python test files inside excluded dirs (node_modules)', () => {
+    const root = makeRepo({
+      'requirements.txt': 'gepa==0.1.1\n',
+      'node_modules/pkg/test_vendored.py': 'def test_x():\n    assert True\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')).toBeUndefined();
+  });
+
   it('detects pytest configured via setup.cfg [tool:pytest]', () => {
     const root = makeRepo({
       'pyproject.toml': '[project]\nname="x"\n',
