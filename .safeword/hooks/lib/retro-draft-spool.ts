@@ -10,12 +10,15 @@
 // Only the code-assembled draft ({signature, title, body, labels}) is written —
 // it is already sanitized at egress, so no raw finding text reaches disk.
 //
-// Self-contained on purpose (imports only node:*): the CLI's `src/` imports it,
-// AND the surfacing hook runs it under bun in a customer repo — the same shape as
-// lib/self-report.ts. `SpooledDraft` is structurally the CLI's `RetroDraft`.
+// The per-session JSONL I/O (append+cap, read-skip-torn, atomic rewrite) lives in
+// lib/jsonl-spool.ts, shared with the self-report spool; this module owns only what
+// is retro-specific: the subdir, the draft schema, and the drain/filing semantics.
+// Self-contained (node:* only): the CLI's `src/` imports it AND the surfacing hook
+// runs it under bun in a customer repo. `SpooledDraft` is structurally `RetroDraft`.
 
-import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { appendJsonlRecords, atomicWriteFile, readJsonlRecords } from './jsonl-spool.js';
 
 /** The four code-assembled, post-egress fields — structurally the CLI's RetroDraft. */
 export interface SpooledDraft {
@@ -64,23 +67,7 @@ function toDraft(value: unknown): SpooledDraft | undefined {
  * skipped, never thrown, so the filing path never crashes on a bad spool.
  */
 export function readSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
-  let raw: string;
-  try {
-    raw = readFileSync(draftSpoolPath(projectDirectory, sessionId), 'utf8');
-  } catch {
-    return [];
-  }
-  const drafts: SpooledDraft[] = [];
-  for (const line of raw.split('\n')) {
-    if (line.trim().length === 0) continue;
-    try {
-      const draft = toDraft(JSON.parse(line));
-      if (draft) drafts.push(draft);
-    } catch {
-      // skip a torn/malformed JSONL line
-    }
-  }
-  return drafts;
+  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
 }
 
 /** Serialize one draft to its canonical spool line (only the four code-assembled fields). */
@@ -91,20 +78,6 @@ function draftLine(draft: SpooledDraft): string {
     body: draft.body,
     labels: draft.labels,
   });
-}
-
-/**
- * Write `contents` to `file` atomically: write a pid-unique temp sibling, then
- * rename onto the target, so a concurrent reader sees the whole old or whole new
- * file — never a half-written one. Creates the parent dir. Throws on I/O error;
- * callers that must stay fail-open wrap it in their own try/catch. Shared by the
- * spool drain and the nudge marker (retro-nudge.ts).
- */
-export function atomicWriteFile(file: string, contents: string): void {
-  const temporary = `${file}.${process.pid}.tmp`;
-  mkdirSync(nodePath.dirname(file), { recursive: true });
-  writeFileSync(temporary, contents);
-  renameSync(temporary, file);
 }
 
 /**
@@ -171,24 +144,17 @@ export async function fileSpooledDrafts(
 
 /**
  * Append post-egress drafts to the session spool (writing ONLY the four
- * code-assembled fields). BEST-EFFORT — never throws, so a spool-write failure
- * can't break the out-of-band Stop path — and capped: once the session spool holds
- * `MAX_DRAFTS_PER_SESSION`, further drafts are dropped rather than growing unbounded.
+ * code-assembled fields). BEST-EFFORT and capped at `MAX_DRAFTS_PER_SESSION` — both
+ * handled by the shared `appendJsonlRecords`.
  */
 export function spoolDrafts(
   projectDirectory: string,
   sessionId: string,
   drafts: readonly SpooledDraft[],
 ): void {
-  try {
-    const existing = readSpooledDrafts(projectDirectory, sessionId).length;
-    const room = MAX_DRAFTS_PER_SESSION - existing;
-    if (room <= 0) return;
-    const file = draftSpoolPath(projectDirectory, sessionId);
-    mkdirSync(nodePath.dirname(file), { recursive: true });
-    const lines = drafts.slice(0, room).map(draft => draftLine(draft));
-    if (lines.length > 0) appendFileSync(file, `${lines.join('\n')}\n`);
-  } catch {
-    // Self-observation must never break the host. Swallow.
-  }
+  appendJsonlRecords(
+    draftSpoolPath(projectDirectory, sessionId),
+    drafts.map(draft => draftLine(draft)),
+    MAX_DRAFTS_PER_SESSION,
+  );
 }

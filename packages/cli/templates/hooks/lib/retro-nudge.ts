@@ -19,7 +19,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-import { atomicWriteFile, draftSpoolPath, readSpooledDrafts } from './retro-draft-spool.js';
+import { atomicWriteFile } from './jsonl-spool.js';
+import { draftSpoolPath, readSpooledDrafts } from './retro-draft-spool.js';
 
 /** The per-session marker recording the last unfiled batch already surfaced. */
 function nudgeMarkerPath(projectDirectory: string, sessionId: string): string {
