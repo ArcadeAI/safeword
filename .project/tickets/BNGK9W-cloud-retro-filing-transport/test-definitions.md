@@ -42,9 +42,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Marking a draft filed drains it from the persisted spool
 
-- [x] RED — `markDraftsFiled` missing → 5 tests fail
-- [x] GREEN — atomic rewrite-minus-filed-signatures; 10/10 pass
-- [x] REFACTOR — extracted `draftLine`, reused in `spoolDrafts`; lint+tsc clean
+- [x] RED 57db830
+- [x] GREEN 57db830
+- [x] REFACTOR 57db830
 
 Unit also covers the partial-drain path (drains only the filed subset), which the
 REST-partial and subagent-partial wiring scenarios consume.
@@ -65,33 +65,33 @@ REST-partial and subagent-partial wiring scenarios consume.
 
 ### Scenario: Unfiled drafts at a boundary surface exactly one factual line
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5413bbf
+- [x] GREEN 5413bbf
+- [ ] REFACTOR skip: hook wiring drives it end-to-end in slice 5
 
 ### Scenario: No unfiled drafts means the boundary stays silent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5413bbf
+- [x] GREEN 5413bbf
+- [ ] REFACTOR skip: hook wiring drives it end-to-end in slice 5
 
 ### Scenario: The fallback line is a statement, not an imperative
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5413bbf
+- [x] GREEN 5413bbf
+- [ ] REFACTOR skip: hook wiring drives it end-to-end in slice 5
 
 ### Scenario: The fallback nudges once per unfiled batch
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5413bbf
+- [x] GREEN 5413bbf
+- [ ] REFACTOR skip: hook wiring drives it end-to-end in slice 5
 
 ### Scenario: A batch that gains a new unfiled draft nudges again
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5413bbf
+- [x] GREEN 5413bbf
+- [ ] REFACTOR skip: hook wiring drives it end-to-end in slice 5
 
 ## Rule: No leak on disk
 

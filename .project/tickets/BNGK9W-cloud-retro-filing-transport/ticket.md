@@ -136,6 +136,16 @@ Reconciled approach (fold into spec.md before implementing PATH B):
 
 ## Work Log
 
+- 2026-07-01T14:41Z implement: slices 1-2 shipped. (1) `markDraftsFiled` drain
+  primitive — rewrites the spool minus filed signatures, atomic, persisted
+  (57db830). Relocated the spool to `templates/hooks/lib/retro-draft-spool.ts`
+  (self-contained, mirrored, schema-registered) so both the CLI and the customer-repo
+  surfacing hook can use it — the lib/self-report.ts precedent (cbb1db8). (2)
+  `lib/retro-nudge.ts` once-per-batch decision + factual non-imperative line, keyed
+  by a persisted sha256 of the unfiled signature set (5413bbf). Muted footprint
+  decision recorded in impl-plan (user steer + docs-confirmed additionalContext is a
+  user-invisible system reminder). Remaining: slice 3 transport-selection wiring in
+  retroCommand, slice 4 filing-subagent seam, slice 5 the surfacing hook.
 - 2026-07-01T03:18Z Complete: scenario-gate. Independent fresh-context /review-spec
   round 1 (3 must-fix / 4 should-strengthen) → applied; round 2 (0 must-fix / 3
   should-strengthen / 8 looks-good) → applied. Gate stamped (same-model reviewer;
