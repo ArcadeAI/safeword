@@ -128,13 +128,17 @@ export function markDraftsFiled(
 export type DraftPoster = (draft: SpooledDraft) => Promise<void>;
 
 /**
- * The agent filing seam (PATH B): read the session spool and post each draft's
- * code-assembled body VERBATIM through `post` (the live agent's GitHub MCP in
- * cloud, mocked in tests), then drain exactly the drafts that posted. A draft
- * whose post throws stays spooled so a later boundary re-nudges and it retries —
- * findings are never dropped. Returns the posted/failed counts. The subagent's
- * MCP filing procedure mirrors this loop; the spool already holds post-egress
- * bodies, so "verbatim" carries no un-sanitized text.
+ * The agent filing seam (PATH B), as an EXECUTABLE REFERENCE-SPEC. In production the
+ * cloud subagent files by reading the spool and calling its GitHub MCP directly,
+ * guided by `guides/self-report-filing.md` — there is deliberately NO code caller
+ * here (an LLM's MCP calls aren't a TS function). This function pins the contract
+ * that guide describes in prose, so it can be tested: read the session spool, post
+ * each draft's code-assembled body VERBATIM through `post` (mocked in tests), then
+ * drain exactly the drafts that posted. A draft whose post throws stays spooled so a
+ * later boundary re-nudges and it retries — findings are never dropped. Returns the
+ * posted/failed counts. The spool already holds post-egress bodies, so "verbatim"
+ * carries no un-sanitized text. (Covers done_when: the subagent posts each draft
+ * verbatim — proven at the spool→transport seam, the MCP call mocked.)
  */
 export async function fileSpooledDrafts(
   projectDirectory: string,
