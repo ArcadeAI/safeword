@@ -18,7 +18,7 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
     Scenario: A valid token files directly via REST and surfaces nothing
       Given a substantial session whose REST transport has a valid token
       When the retro files its drafts
-      Then each draft is filed via REST
+      Then all drafts are filed via REST and drained from the spool
       And no fallback line is surfaced to the conversation
 
     @cloud-retro-filing.SM1.AC1
@@ -28,22 +28,36 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
       Then the sanitized drafts remain in the session spool
       And the outcome signals that agent filing is needed
 
+    @cloud-retro-filing.SM1.AC1
+    Scenario: A partial REST result marks only the drafts REST actually filed
+      Given two spooled drafts where REST files one and rejects the other with an auth error
+      When the retro files its drafts
+      Then a fresh read of the persisted spool yields only the rejected draft
+      And the outcome signals that agent filing is needed for the rejected draft
+
   Rule: Findings from a cloud session reach the tracker
 
     @cloud-retro-filing.SM1.AC1
     Scenario: The filing subagent posts each spooled draft body verbatim
-      Given a session spool holding sanitized drafts the REST path could not file
-      When the agent filing path reads the spool
-      Then it posts each draft's code-assembled body verbatim through the agent transport
+      Given a session spool holding two sanitized drafts the REST path could not file
+      When the agent filing path files them through the mocked agent transport
+      Then the transport receives exactly two posts
+      And each post's body byte-equals the corresponding spooled draft body, signature marker included
+
+    @cloud-retro-filing.SM1.AC1
+    Scenario: A draft the subagent could not post stays spooled for the next boundary
+      Given a session spool holding two unfiled drafts
+      When the agent filing path posts one draft successfully and the other post throws
+      Then a fresh read of the persisted spool yields only the draft that failed to post
+      And a later boundary still surfaces exactly one line for the remaining draft
 
   Rule: No duplicates across the fallback
 
     @cloud-retro-filing.SM1.AC3
-    Scenario: A filed draft is drained from the spool
-      Given a spool holding two drafts
-      When one draft is filed and marked filed
-      Then the spool no longer contains that draft
-      And it still contains the unfiled draft
+    Scenario: A filed draft is drained from the persisted spool
+      Given a spool holding two drafts, one of which has been filed and marked filed
+      When a fresh read of the persisted spool is taken
+      Then the re-read spool yields only the unfiled draft
 
     @cloud-retro-filing.SM1.AC3
     Scenario: A boundary with no unfiled drafts neither re-nudges nor re-files
@@ -58,13 +72,14 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
     Scenario: Extraction and spooling add nothing to the conversation
       Given the async Stop hook runs extraction and spools the drafts
       When the hook completes
-      Then it writes no conversation-visible output
+      Then the drafts are present in the persisted spool
+      And the hook writes no conversation-visible output
 
     @cloud-retro-filing.TB1.AC2
     Scenario: Unfiled drafts at a boundary surface exactly one factual line
-      Given the session spool holds unfiled drafts
+      Given the session spool holds several unfiled drafts
       When a session boundary evaluates whether to nudge
-      Then exactly one factual line is surfaced pointing at the unfiled drafts
+      Then exactly one line is surfaced, referencing the count of unfiled drafts
 
     @cloud-retro-filing.TB1.AC2
     Scenario: No unfiled drafts means the boundary stays silent
@@ -76,13 +91,20 @@ Feature: Cloud retro filing — try-REST-then-agent-subagent transport
     Scenario: The fallback line is a statement, not an imperative
       Given the session spool holds unfiled drafts
       When the fallback line is built
-      Then it reads as a statement of fact and does not open with a bare imperative verb
+      Then the line contains none of the imperative markers run, file, please, you must, or should
+      And the line names the unfiled-draft fact — the count and where the drafts are
 
     @cloud-retro-filing.TB1.AC2
     Scenario: The fallback nudges once per unfiled batch
-      Given the fallback line was already surfaced for the current unfiled batch
-      When the next boundary evaluates the same unchanged batch
-      Then no second line is surfaced
+      Given unfiled drafts were surfaced once and their batch marker was persisted
+      When a fresh boundary evaluation reads the same set of unfiled draft signatures
+      Then no line is surfaced
+
+    @cloud-retro-filing.TB1.AC2
+    Scenario: A batch that gains a new unfiled draft nudges again
+      Given unfiled drafts were surfaced once and their batch marker was persisted
+      When a newly-spooled unfiled draft joins the batch and a fresh boundary evaluates it
+      Then exactly one line is surfaced again
 
   Rule: No leak on disk
 

@@ -18,6 +18,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A partial REST result marks only the drafts REST actually filed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Findings from a cloud session reach the tracker
 
 ### Scenario: The filing subagent posts each spooled draft body verbatim
@@ -26,9 +32,15 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A draft the subagent could not post stays spooled for the next boundary
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: No duplicates across the fallback
 
-### Scenario: A filed draft is drained from the spool
+### Scenario: A filed draft is drained from the persisted spool
 
 - [ ] RED
 - [ ] GREEN
@@ -67,6 +79,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: The fallback nudges once per unfiled batch
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A batch that gains a new unfiled draft nudges again
 
 - [ ] RED
 - [ ] GREEN

@@ -8,6 +8,8 @@ knowledge (transport selection, spool state, surfacing phrasing, dedupe/drain).
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------- |
 | Transport selection         | valid token → REST files in-hook; 401/absent token → REST skipped/failed, drafts left spooled for the agent path        | SM1.AC1/AC2 |
 | Spool on REST failure       | REST throws/401 → drafts remain spooled (not lost); REST success → those drafts drained from the spool                  | SM1.AC1   |
+| REST partial failure        | some drafts file via REST, others 401 → only the REST-filed drafts drain; the rejected drafts stay spooled + defer      | SM1.AC1   |
+| Subagent post failure       | subagent posts N-of-M, the rest throw/MCP-unavailable → only posted drafts drain; unfiled drafts stay spooled for retry | SM1.AC1   |
 | Local silent path           | valid token present → files via REST AND emits no surfacing (zero footprint)                                            | SM1.AC2   |
 | Mark-filed / drain          | a draft filed (either path) → removed from spool; a second boundary sees no unfiled drafts → no re-nudge, no double-file | SM1.AC3   |
 | Extraction/spool silence    | any path → the async Stop hook adds nothing to the conversation                                                         | TB1.AC1   |
