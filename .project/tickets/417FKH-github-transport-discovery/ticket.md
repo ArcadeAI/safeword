@@ -19,8 +19,10 @@ scope: |
   3. The agent's own inherited GitHub MCP (the harness-provided one — what Lane 2
      uses today, but invoked directly here when reachable without surfacing).
   4. `gh` CLI (if installed + authenticated).
-  5. REST with a resolved token (today's Lane 1) — last, since it's the one that
-     401s in cloud.
+
+  (REST-with-token is intentionally NOT a discovery rung — dropped as too much work
+  for its value; 2026-07-01 steer. The MCP/`gh` transports cover the environments we
+  care about, and anything they can't reach degrades to Lane 2.)
 
   The whole point: in more environments Lane 1 succeeds silently, so Lane 2's
   one-line agent nudge fires even less often. Egress stays the boundary — every
@@ -51,8 +53,9 @@ last_modified: 2026-07-01T20:09:53.342Z
 
 **Goal:** Make the retro's silent direct-filing lane use the best GitHub write path
 available in the environment — Arcade MCP → GitHub-official MCP → the agent's own
-MCP → `gh` CLI → REST — so findings file silently in far more setups and the
-agent-mediated fallback (Lane 2) is needed only as a true last resort.
+MCP → `gh` CLI — so findings file silently in far more setups and the
+agent-mediated fallback (Lane 2) is needed only as a true last resort. (REST-with-
+token is dropped — not worth the work; 2026-07-01 steer.)
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
@@ -61,10 +64,10 @@ two-lane design; this deepens Lane 1's transport so Lane 2 fires less.
 
 ## Open Question (raised at intake — resolve before design)
 
-**Is there a more elegant framing than a hardcoded 5-rung preference ladder?**
+**Is there a more elegant framing than a hardcoded preference ladder?**
 
-The scope lists an explicit ordered probe (Arcade → GitHub MCP → agent MCP → gh →
-REST). That works but is a special-case pile — exactly the "wrong level of
+The scope lists an explicit ordered probe (Arcade → GitHub MCP → agent MCP → gh).
+That works but is a special-case pile — exactly the "wrong level of
 abstraction" smell. Candidates to weigh at `/figure-it-out`:
 
 - **A `GitHubWriteTransport` interface + a registry of `{ probe(): bool; make() }`
@@ -80,7 +83,8 @@ abstraction" smell. Candidates to weigh at `/figure-it-out`:
   Lane 1" may be impossible without either (a) an MCP client the CLI opens itself
   (Arcade/GitHub servers are addressable; the agent's inherited one may not be), or
   (b) collapsing "MCP-capable" rungs into Lane 2. Resolve this FIRST — it may prune
-  the ladder to `{ gh, REST }` for Lane 1 and route all MCP through Lane 2.
+  the ladder to just `{ gh }` for Lane 1 (REST already dropped) and route all MCP
+  through Lane 2.
 
 Recommendation: run `/figure-it-out` on the transport-abstraction + the
 headless-MCP-reachability question before writing scenarios; the elegant design
