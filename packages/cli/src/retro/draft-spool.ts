@@ -10,7 +10,7 @@
 // Only the code-assembled draft ({signature, title, body, labels}) is written —
 // it is already sanitized at egress, so no raw finding text reaches disk.
 
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { RetroDraft } from './draft.js';
@@ -73,6 +73,47 @@ export function readSpooledDrafts(projectDirectory: string, sessionId: string): 
   return drafts;
 }
 
+/** Serialize one draft to its canonical spool line (only the four code-assembled fields). */
+function draftLine(draft: RetroDraft): string {
+  return JSON.stringify({
+    signature: draft.signature,
+    title: draft.title,
+    body: draft.body,
+    labels: draft.labels,
+  });
+}
+
+/**
+ * Drain the drafts whose signatures were just filed (by either transport) so they
+ * neither re-nudge nor re-file. Rewrites the per-session spool minus the filed
+ * signatures — a persisted removal, not an in-memory filter, so a fresh read no
+ * longer yields them. Atomic (temp-write + rename) so a concurrent reader sees the
+ * whole old or whole new file, never a half-written one. BEST-EFFORT — never
+ * throws; on any error the spool is left as-is (a filed draft may re-nudge, which
+ * the signature dedupe still catches — the safe direction).
+ */
+export function markDraftsFiled(
+  projectDirectory: string,
+  sessionId: string,
+  filedSignatures: readonly string[],
+): void {
+  try {
+    const filed = new Set(filedSignatures);
+    const remaining = readSpooledDrafts(projectDirectory, sessionId).filter(
+      draft => !filed.has(draft.signature),
+    );
+    const file = draftSpoolPath(projectDirectory, sessionId);
+    const body =
+      remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
+    const temporary = `${file}.${process.pid}.tmp`;
+    mkdirSync(nodePath.dirname(file), { recursive: true });
+    writeFileSync(temporary, body);
+    renameSync(temporary, file);
+  } catch {
+    // Self-observation must never break the host. Swallow.
+  }
+}
+
 /**
  * Append post-egress drafts to the session spool (writing ONLY the four
  * code-assembled fields). BEST-EFFORT — never throws, so a spool-write failure
@@ -90,11 +131,7 @@ export function spoolDrafts(
     if (room <= 0) return;
     const file = draftSpoolPath(projectDirectory, sessionId);
     mkdirSync(nodePath.dirname(file), { recursive: true });
-    const lines = drafts
-      .slice(0, room)
-      .map(d =>
-        JSON.stringify({ signature: d.signature, title: d.title, body: d.body, labels: d.labels }),
-      );
+    const lines = drafts.slice(0, room).map(draft => draftLine(draft));
     if (lines.length > 0) appendFileSync(file, `${lines.join('\n')}\n`);
   } catch {
     // Self-observation must never break the host. Swallow.

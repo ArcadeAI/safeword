@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { RetroDraft } from './draft.js';
-import { draftSpoolPath, readSpooledDrafts, spoolDrafts } from './draft-spool.js';
+import { draftSpoolPath, markDraftsFiled, readSpooledDrafts, spoolDrafts } from './draft-spool.js';
 
 const draft = (signature: string, title = 'A friction'): RetroDraft => ({
   signature,
@@ -62,5 +62,58 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
       'signature',
       'title',
     ]);
+  });
+});
+
+describe('markDraftsFiled (BNGK9W — drain filed drafts so they neither re-nudge nor re-file)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-spool-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
+  it('drains a filed draft from the persisted spool, leaving the unfiled one (fresh re-read)', () => {
+    spoolDrafts(projectDirectory, 'sess-1', [
+      draft('retro:aaaaaaaaaaaa', 'Filed'),
+      draft('retro:bbbbbbbbbbbb', 'Unfiled'),
+    ]);
+    markDraftsFiled(projectDirectory, 'sess-1', ['retro:aaaaaaaaaaaa']);
+    // A FRESH read of the persisted file — an in-memory-only drain would still show both.
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([
+      draft('retro:bbbbbbbbbbbb', 'Unfiled'),
+    ]);
+  });
+
+  it('drains only the filed subset on a partial result (the rest stay spooled for retry)', () => {
+    spoolDrafts(projectDirectory, 'sess-1', [
+      draft('retro:aaaaaaaaaaaa', 'One'),
+      draft('retro:bbbbbbbbbbbb', 'Two'),
+      draft('retro:cccccccccccc', 'Three'),
+    ]);
+    markDraftsFiled(projectDirectory, 'sess-1', ['retro:aaaaaaaaaaaa', 'retro:cccccccccccc']);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([
+      draft('retro:bbbbbbbbbbbb', 'Two'),
+    ]);
+  });
+
+  it('is a no-op for a signature not in the spool (never drops an unmatched draft)', () => {
+    spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
+    markDraftsFiled(projectDirectory, 'sess-1', ['retro:zzzzzzzzzzzz']);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([draft('retro:aaaaaaaaaaaa')]);
+  });
+
+  it('draining every draft leaves an empty spool, not a crash on the next read', () => {
+    spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
+    markDraftsFiled(projectDirectory, 'sess-1', ['retro:aaaaaaaaaaaa']);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([]);
+  });
+
+  it('never throws when the spool is absent (fail-open, like spoolDrafts)', () => {
+    expect(() => {
+      markDraftsFiled(projectDirectory, 'never-spooled', ['retro:aaaaaaaaaaaa']);
+    }).not.toThrow();
+    expect(readSpooledDrafts(projectDirectory, 'never-spooled')).toEqual([]);
   });
 });

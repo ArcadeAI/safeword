@@ -42,9 +42,12 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Marking a draft filed drains it from the persisted spool
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — `markDraftsFiled` missing → 5 tests fail
+- [x] GREEN — atomic rewrite-minus-filed-signatures; 10/10 pass
+- [x] REFACTOR — extracted `draftLine`, reused in `spoolDrafts`; lint+tsc clean
+
+Unit also covers the partial-drain path (drains only the filed subset), which the
+REST-partial and subagent-partial wiring scenarios consume.
 
 ### Scenario: A boundary with no unfiled drafts neither re-nudges nor re-files
 
