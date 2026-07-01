@@ -124,6 +124,37 @@ export function markDraftsFiled(
   }
 }
 
+/** Posts one spooled draft to a tracker (the agent's GitHub MCP, or a REST client). */
+export type DraftPoster = (draft: SpooledDraft) => Promise<void>;
+
+/**
+ * The agent filing seam (PATH B): read the session spool and post each draft's
+ * code-assembled body VERBATIM through `post` (the live agent's GitHub MCP in
+ * cloud, mocked in tests), then drain exactly the drafts that posted. A draft
+ * whose post throws stays spooled so a later boundary re-nudges and it retries —
+ * findings are never dropped. Returns the posted/failed counts. The subagent's
+ * MCP filing procedure mirrors this loop; the spool already holds post-egress
+ * bodies, so "verbatim" carries no un-sanitized text.
+ */
+export async function fileSpooledDrafts(
+  projectDirectory: string,
+  sessionId: string,
+  post: DraftPoster,
+): Promise<{ posted: number; failed: number }> {
+  const filed: string[] = [];
+  let failed = 0;
+  for (const draft of readSpooledDrafts(projectDirectory, sessionId)) {
+    try {
+      await post(draft);
+      filed.push(draft.signature);
+    } catch {
+      failed += 1;
+    }
+  }
+  markDraftsFiled(projectDirectory, sessionId, filed);
+  return { posted: filed.length, failed };
+}
+
 /**
  * Append post-egress drafts to the session spool (writing ONLY the four
  * code-assembled fields). BEST-EFFORT — never throws, so a spool-write failure
