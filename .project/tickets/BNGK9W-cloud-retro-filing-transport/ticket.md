@@ -2,8 +2,8 @@
 id: BNGK9W
 slug: cloud-retro-filing-transport
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 github: https://github.com/ArcadeAI/safeword/issues/568
 scope: |
@@ -136,6 +136,15 @@ Reconciled approach (fold into spec.md before implementing PATH B):
 
 ## Work Log
 
+- 2026-07-01T18:06Z DONE. /verify: full suite 4224/4224 pass (298/298 files, 5
+  skipped), build green, lint clean, tsc unchanged (11 pre-existing baseline), 14/14
+  scenarios, PR scope clean (26 files, all BNGK9W), no dep drift. /audit passed (0/0
+  — config in sync, no arch violations, no BNGK9W dead code). Independent
+  quality-review APPROVE (0 critical; hook API shapes verified vs current docs).
+  verify.md written. Live-fire: PATH B fired for real this session (retro spooled a
+  finding → REST 401 → nudge surfaced). Caught + fixed one runtime-data gap live
+  (retro-drafts spool needed gitignore + preservedDirs; tripped schema-drift). Ready
+  to merge (do NOT rebase onto main until the ZFGWS1/#543 base lands).
 - 2026-07-01T17:27Z implement: slices 3-5 shipped + PATH B made real. (3)
   transport-selection wiring in runRetro — spool post-egress drafts before filing,
   drain the ones that reached the tracker (triage.filedSignatures), report
