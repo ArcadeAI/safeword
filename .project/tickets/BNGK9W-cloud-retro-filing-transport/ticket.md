@@ -136,6 +136,21 @@ Reconciled approach (fold into spec.md before implementing PATH B):
 
 ## Work Log
 
+- 2026-07-01T17:27Z implement: slices 3-5 shipped + PATH B made real. (3)
+  transport-selection wiring in runRetro — spool post-egress drafts before filing,
+  drain the ones that reached the tracker (triage.filedSignatures), report
+  agentFilingNeeded (0beb652). (4) fileSpooledDrafts seam — post each draft verbatim,
+  drain posted, retain failed (8b21bd3). (5) prompt-retro-nudge UserPromptSubmit hook
+  — one factual system-reminder line once per unfiled batch, wired into config.ts +
+  dogfood settings.json, schema-registered, hook-coverage-exempt (9f6a485). Added
+  NTB1.AC1 on-disk no-leak + drained-boundary coverage (ffeb3b1). Taught
+  self-report-filing.md to file cloud-spooled retro drafts — the nudge referenced it
+  but it only covered the self-report spool; an agent would have read the wrong spool
+  (57589eb). All 14 scenarios green; 149/149 BNGK9W-surface tests, eslint clean, tsc
+  unchanged (11 pre-existing baseline). Full suite running for the verify gate.
+  Design note: no cloud-side drain CLI — the once-per-batch marker prevents re-nudge
+  and the container is ephemeral, so the spool needn't drain in cloud (local REST
+  path drains via markDraftsFiled). Next: /verify + /audit → verify.md → done.
 - 2026-07-01T14:41Z implement: slices 1-2 shipped. (1) `markDraftsFiled` drain
   primitive — rewrites the spool minus filed signatures, atomic, persisted
   (57db830). Relocated the spool to `templates/hooks/lib/retro-draft-spool.ts`
