@@ -114,7 +114,37 @@ delivers — 1-3 weak findings — though a stronger tier (sonnet) yields 9 vali
 ones. Fix the extractor's recall (ZFGWS1 — delta re-arm + sonnet + async hook)
 alongside this; otherwise BNGK9W delivers a thin pipe filled by the weakest model.
 
+## Design reconciliation (2026-07-01) — PATH B conflicts with ZFGWS1's async hook
+
+The intake design predates ZFGWS1 **shipping** the retro Stop hook as `async: true`.
+An `async:true` hook runs fully backgrounded and its stdout /
+`hookSpecificOutput.additionalContext` **never reaches the conversation** — that is
+the invisibility ZFGWS1 bought. So PATH B as written ("the Stop hook emits a factual
+`additionalContext` line → the live agent spawns a filing subagent") **cannot fire
+from the async Stop hook.** The two ship-decisions are in tension.
+
+Reconciled approach (fold into spec.md before implementing PATH B):
+
+- **Extraction + spool stay on the async Stop hook** (invisible, backgrounded) — the
+  async hook writes the sanitized drafts to the spool; no surfacing.
+- **The agent-filing trigger moves OFF the Stop hook** to one that CAN surface — a
+  `SessionStart` / `UserPromptSubmit` check that, when it finds unfiled spooled
+  drafts, emits the one factual line so the live agent files them via MCP. Keeps the
+  Stop invisible (ZFGWS1) AND gives PATH B a channel that reaches the agent (BNGK9W).
+- Open for the spec: dedupe the nudge (fire once per unfiled batch) and mark-filed so
+  the spool drains and doesn't re-nudge.
+
 ## Work Log
+
+- 2026-07-01T00:37Z Slice 1 shipped: `packages/cli/src/retro/draft-spool.ts`
+  (`spoolDrafts`/`readSpooledDrafts` — capped 20/session, fail-open, torn-tolerant;
+  5 unit tests, tsc+eslint clean). The conflict-free foundation both paths need:
+  persists post-egress drafts so a cloud REST-401 no longer LOSES them. Recorded the
+  async:true↔PATH-B reconciliation above (intake design was stale re: ZFGWS1).
+  Remaining: wire spool into retroCommand (spool-then-try-REST + mark-filed), the
+  SessionStart/prompt filing nudge, and the filing subagent. Branch
+  `claude/cloud-retro-filing-transport` (off ZFGWS1). Still a feature at intake —
+  spec.md refresh + scenarios owed before the PATH-A/B wiring.
 
 - 2026-06-30T05:58:08.315Z Started: Created ticket BNGK9W
 - 2026-06-30T06:15Z Added 0XEMEE dependency note after the recall eval: transport
