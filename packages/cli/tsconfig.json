@@ -5,6 +5,10 @@
     "moduleResolution": "bundler",
     "lib": ["ES2023", "ESNext.Iterator"],
     "noEmit": true,
+    // tsup's dts build injects `baseUrl` into its rollup TS program; TS 6 errors
+    // on that deprecation (TS5101). tsup 8.5.1 (latest) has no opt-out, so scope
+    // the 6.0 deprecation to silence. Remove when tsup stops injecting baseUrl.
+    "ignoreDeprecations": "6.0",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
