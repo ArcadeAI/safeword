@@ -11,6 +11,7 @@ import type {
   IssueReference,
   IssueTracker,
 } from '../../src/retro/triage.js';
+import { readSpooledDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 
 // Compact in-memory transport — only the network boundary is faked.
@@ -316,6 +317,81 @@ describe('runRetro', () => {
       }),
     );
     expect(transport.issues).toHaveLength(0);
+  });
+});
+
+// BNGK9W — transport selection: spool the post-egress drafts, try REST, then drain
+// only the drafts that reached the tracker (by signature). A REST auth failure (the
+// cloud #568 case) leaves the drafts spooled and signals that the agent path is
+// needed; a partial result drains only the filed drafts. The spool fs is real (a
+// temp projectDirectory), the GitHub REST transport is the mock.
+describe('runRetro transport selection (BNGK9W — spool → try-REST → drain filed)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-transport-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
+  const twoFindings = [
+    rawFinding({ title: 'Alpha friction', safeword_surface: 'hooks/a.ts' }),
+    rawFinding({ title: 'Beta friction', safeword_surface: 'hooks/b.ts' }),
+  ];
+
+  // A transport whose createIssue rejects — simulates the cloud REST 401 per draft.
+  class RejectingGitHub extends FakeGitHub {
+    constructor(private readonly rejectTitle?: string) {
+      super();
+    }
+    override createIssue(input: CreateIssueInput): Promise<IssueReference> {
+      if (this.rejectTitle === undefined || input.title === this.rejectTitle) {
+        return Promise.reject(new Error('401 Bad credentials'));
+      }
+      return super.createIssue(input);
+    }
+  }
+
+  it('a valid token files all drafts and drains the spool — no agent filing needed', async () => {
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/t.jsonl' },
+      dependencies({ transport, projectDirectory, extract: () => Promise.resolve(twoFindings) }),
+    );
+    expect(outcome.ok).toBe(true);
+    expect(transport.calls.createIssue).toBe(2);
+    expect(readSpooledDrafts(projectDirectory, 'sess-a')).toEqual([]); // fully drained
+    expect(outcome.agentFilingNeeded).toBe(false);
+  });
+
+  it('a REST auth failure leaves every draft spooled and signals agent filing', async () => {
+    const transport = new RejectingGitHub();
+    const outcome = await runRetro(
+      { transcript: '/t.jsonl' },
+      dependencies({ transport, projectDirectory, extract: () => Promise.resolve(twoFindings) }),
+    );
+    expect(outcome.ok).toBe(true);
+    expect(readSpooledDrafts(projectDirectory, 'sess-a')).toHaveLength(2); // nothing filed → retained
+    expect(outcome.agentFilingNeeded).toBe(true);
+  });
+
+  it('a partial REST result drains only the filed draft, retaining the rejected one', async () => {
+    const transport = new RejectingGitHub('Beta friction');
+    const outcome = await runRetro(
+      { transcript: '/t.jsonl' },
+      dependencies({ transport, projectDirectory, extract: () => Promise.resolve(twoFindings) }),
+    );
+    const remaining = readSpooledDrafts(projectDirectory, 'sess-a');
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]?.title).toBe('Beta friction');
+    expect(outcome.agentFilingNeeded).toBe(true);
+  });
+
+  it('does not spool when no projectDirectory is provided (opt-in; existing callers unchanged)', async () => {
+    const transport = new FakeGitHub();
+    const outcome = await runRetro({ transcript: '/t.jsonl' }, dependencies({ transport }));
+    expect(outcome.ok).toBe(true);
+    expect(outcome.agentFilingNeeded).toBeFalsy();
   });
 });
 

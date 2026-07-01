@@ -68,6 +68,13 @@ export interface TriageResult {
   deferred: string[];
   /** Encounters whose transport calls threw — isolated so one can't sink the batch. */
   failed: string[];
+  /**
+   * Signatures of the drafts that REACHED the tracker (created or matched an
+   * existing issue) — the drafts the cloud-filing spool can safely drain. A
+   * deferred (capped) or failed (threw) encounter is NOT here, so it stays spooled
+   * for the agent path (BNGK9W).
+   */
+  filedSignatures: string[];
 }
 
 const DEFAULT_MAX_NEW_ISSUES = 5;
@@ -77,7 +84,14 @@ export async function triage(
   encounters: readonly Encounter[],
   ctx: TriageContext,
 ): Promise<TriageResult> {
-  const result: TriageResult = { created: [], bumped: [], commented: [], deferred: [], failed: [] };
+  const result: TriageResult = {
+    created: [],
+    bumped: [],
+    commented: [],
+    deferred: [],
+    failed: [],
+    filedSignatures: [],
+  };
   const maxNew = ctx.maxNewIssues ?? DEFAULT_MAX_NEW_ISSUES;
   let newCount = 0;
 
@@ -90,6 +104,8 @@ export async function triage(
 
       if (existing) {
         await recordOnKnownIssue(transport, existing, encounter, ctx, result);
+        // The finding is represented upstream (issue exists) — safe to drain.
+        result.filedSignatures.push(encounter.draft.signature);
       } else if (newCount >= maxNew) {
         result.deferred.push(encounter.draft.title);
       } else {
@@ -100,6 +116,7 @@ export async function triage(
         });
         newCount += 1;
         result.created.push(encounter.draft.title);
+        result.filedSignatures.push(encounter.draft.signature);
         await transport.createComment(issue.number, renderLedger(seedState(encounter, ctx)));
       }
     } catch {

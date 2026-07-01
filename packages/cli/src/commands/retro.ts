@@ -20,6 +20,11 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import {
+  markDraftsFiled,
+  readSpooledDrafts,
+  spoolDrafts,
+} from '../../templates/hooks/lib/retro-draft-spool.js';
 import { windowFor } from '../../templates/hooks/lib/retro-extract.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
@@ -34,12 +39,25 @@ export interface RetroDependencies {
   harness: string;
   /** File reader (the fs boundary) — injectable for tests. */
   readFile?: (path: string) => string;
+  /**
+   * Project root for the cloud-filing spool (BNGK9W). When provided, the
+   * post-egress drafts are spooled BEFORE filing (so a REST 401 doesn't lose them)
+   * and the drafts that reached the tracker are drained after. Omit to opt out —
+   * existing callers keep their REST-only behavior unchanged.
+   */
+  projectDirectory?: string;
 }
 
 export interface RetroOutcome {
   ok: boolean;
   errorMessage?: string;
   result?: TriageResult;
+  /**
+   * True when drafts remain spooled after filing (REST failed / was capped) — the
+   * signal that the agent filing path (PATH B) is needed. Undefined when the spool
+   * is opted out (no `projectDirectory`).
+   */
+  agentFilingNeeded?: boolean;
 }
 
 /**
@@ -73,11 +91,30 @@ export async function runRetro(
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
   const encounters = await prepareEncounters(rawFindings);
+
+  // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
+  // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
+  const { projectDirectory, sessionId } = dependencies;
+  if (projectDirectory !== undefined) {
+    spoolDrafts(
+      projectDirectory,
+      sessionId,
+      encounters.map(encounter => encounter.draft),
+    );
+  }
+
   const result = await triage(dependencies.transport, encounters, {
-    sessionId: dependencies.sessionId,
+    sessionId,
     harness: dependencies.harness,
   });
-  return { ok: true, result };
+
+  if (projectDirectory === undefined) return { ok: true, result };
+
+  // Drain the drafts that reached the tracker; failed/deferred stay spooled for the
+  // agent path. agentFilingNeeded = anything still spooled after the drain.
+  markDraftsFiled(projectDirectory, sessionId, result.filedSignatures);
+  const agentFilingNeeded = readSpooledDrafts(projectDirectory, sessionId).length > 0;
+  return { ok: true, result, agentFilingNeeded };
 }
 
 export interface RetroCliOptions {
@@ -182,6 +219,9 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
     sessionId: options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? 'unknown',
     harness: detectAgent(),
     readFile: (path: string) => readFileSync(path, 'utf8'),
+    // Enable the cloud-filing spool: on a REST failure the drafts survive on disk
+    // for the agent path (BNGK9W) instead of being lost.
+    projectDirectory,
   });
 
   if (!outcome.ok) {
@@ -195,6 +235,11 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   info(
     `retro: ${r.created.length} filed, ${r.bumped.length} recurrence(s) counted, ${r.commented.length} new manifestation(s), ${r.deferred.length} deferred, ${r.failed.length} failed`,
   );
+  if (outcome.agentFilingNeeded) {
+    // Local diagnostic only — under the async Stop hook this output is not surfaced;
+    // the agent nudge comes from the separate boundary hook (BNGK9W PATH B).
+    info('retro: unfiled drafts were spooled for the agent filing path.');
+  }
   success('retro complete');
 }
 
