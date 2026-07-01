@@ -206,6 +206,10 @@ function hasPlaywright(dependencies: DependenciesRecord): boolean {
  * Lockfile presence alone doesn't prove Bun is the *test* runner (it could
  * be package-manager-only), but over-detecting here only widens a globals
  * allowlist to Bun's real `bun:test` export names — harmless if unused.
+ *
+ * The `bun.lock`/`bun.lockb` filenames are kept in sync by hand with the
+ * package-manager check in `utils/install.ts` (the `cli-presets-self-contained`
+ * rule forbids importing it from here).
  */
 function hasBunTest(dependencies: DependenciesRecord, cwd: string): boolean {
   if ('bun-types' in dependencies || '@types/bun' in dependencies) return true;
