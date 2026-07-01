@@ -58,6 +58,27 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     expect(readSpooledDrafts(projectDirectory, 'sess-1').length).toBeLessThanOrEqual(20);
   });
 
+  it('counts a torn line toward the cap (raw-line bound, not valid-draft count)', () => {
+    // Seed a torn line, then spool more valid drafts than remaining room. The cap
+    // counts NON-BLANK LINES (torn included), so the file is bounded at 20 total and
+    // the torn line consumes one slot — pins the shared line-count cap semantics.
+    const file = draftSpoolPath(projectDirectory, 'sess-torn');
+    mkdirSync(nodePath.dirname(file), { recursive: true });
+    writeFileSync(file, '{"signature":"retro:\n', 'utf8'); // 1 torn line, newline-terminated
+    spoolDrafts(
+      projectDirectory,
+      'sess-torn',
+      Array.from({ length: 25 }, (_, i) =>
+        draft(`retro:${i.toString().padStart(12, '0')}`, `f${i}`),
+      ),
+    );
+    const lines = readFileSync(file, 'utf8')
+      .split('\n')
+      .filter(l => l.trim().length > 0);
+    expect(lines).toHaveLength(20); // torn + 19 valid = 20, capped by raw line count
+    expect(readSpooledDrafts(projectDirectory, 'sess-torn')).toHaveLength(19); // valid drafts only
+  });
+
   it('writes only the code-assembled draft fields (no extra keys reach disk)', () => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
     const raw = readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8').trim();

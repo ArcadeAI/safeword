@@ -249,6 +249,19 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(records).toHaveLength(1);
       expect(records[0]?.source).toBe('a');
     });
+
+    it('retains a well-formed non-object JSONL line (read never shape-validates)', () => {
+      const directory = nodePath.join(projectDirectory, '.safeword', 'self-reports');
+      mkdirSync(directory, { recursive: true });
+      // A valid record plus a well-formed-but-non-object line (`42`). The read path
+      // keeps every PARSEABLE line — it never shape-validates — so a future change
+      // that rejected non-objects would silently drop records. Pin that it doesn't.
+      writeFileSync(
+        nodePath.join(directory, 'sess-C.jsonl'),
+        ['{"ts":"t","sessionId":"sess-C","safewordVersion":"1","source":"a"}', '42'].join('\n'),
+      );
+      expect(readSessionReports(projectDirectory, 'sess-C')).toHaveLength(2);
+    });
   });
 
   describe('summarizeReports', () => {
