@@ -50,6 +50,7 @@ and kept registered in `schema.ts`.
 | Nudge de-dupe key | Persisted marker keyed by the *set of unfiled draft signatures* | In-memory per-process flag; once-per-session sentinel (self-report style) | In-memory resets every hook invocation (proves nothing across boundaries); per-session can't re-nudge when the batch gains a new draft |
 | Agent-filing trigger home | A surfacing-capable hook (SessionStart / UserPromptSubmit), NOT the async Stop hook | Surface from the Stop hook (original PATH B) | ZFGWS1 shipped Stop as `async:true` — backgrounded, surfaces nothing; the trigger must live where output reaches the agent |
 | Transport selection | Try REST; on auth failure fall back to spool+agent; per-draft outcome | Env-sniff cloud vs local; config flag | "Cheapest transport that works" needs no env detection and degrades correctly on any token failure, not just cloud |
+| Footprint of the agent path | **Muted** — nudge is a system-reminder-only `additionalContext` (docs-confirmed: user never sees it as a chat message); agent files via ONE subagent `Task` and emits NO confirmation line | One-line confirmation ("filed N findings"); `mcp_tool` hook filing (no Task at all) | User steer 2026-07-01: "as muted as possible." Confirmation line adds visible footprint; `mcp_tool` hook can't run the search-then-file dedup and SessionStart fires before MCP connects. Floor = one Task call at a boundary |
 
 ## Arch alignment
 

@@ -4,10 +4,15 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import type { RetroDraft } from './draft.js';
-import { draftSpoolPath, markDraftsFiled, readSpooledDrafts, spoolDrafts } from './draft-spool.js';
+import type { SpooledDraft } from '../../templates/hooks/lib/retro-draft-spool.js';
+import {
+  draftSpoolPath,
+  markDraftsFiled,
+  readSpooledDrafts,
+  spoolDrafts,
+} from '../../templates/hooks/lib/retro-draft-spool.js';
 
-const draft = (signature: string, title = 'A friction'): RetroDraft => ({
+const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
   signature,
   title,
   body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,

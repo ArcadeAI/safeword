@@ -1,19 +1,29 @@
-// Retro draft spool (ticket BNGK9W — cloud filing transport, step 1).
+// Retro draft spool (ticket BNGK9W — cloud filing transport).
 //
 // The invisible retro extracts + sanitizes findings into code-assembled drafts,
 // then files them via the REST transport. In a Claude cloud container that REST
 // call 401s (GITHUB_TOKEN is the platform's, not a GitHub token; #568), so the
 // drafts are LOST. This spool persists the POST-EGRESS drafts to disk so a filing
 // failure doesn't lose them — the agent-filing path (PATH B) reads the spool and
-// posts each draft verbatim via its inherited GitHub MCP.
+// posts each draft verbatim via its inherited GitHub MCP, then marks them filed.
 //
 // Only the code-assembled draft ({signature, title, body, labels}) is written —
 // it is already sanitized at egress, so no raw finding text reaches disk.
+//
+// Self-contained on purpose (imports only node:*): the CLI's `src/` imports it,
+// AND the surfacing hook runs it under bun in a customer repo — the same shape as
+// lib/self-report.ts. `SpooledDraft` is structurally the CLI's `RetroDraft`.
 
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import type { RetroDraft } from './draft.js';
+/** The four code-assembled, post-egress fields — structurally the CLI's RetroDraft. */
+export interface SpooledDraft {
+  signature: string;
+  title: string;
+  body: string;
+  labels: string[];
+}
 
 /** Per-session spool cap — bounds a crash-looping or runaway session's disk use. */
 const MAX_DRAFTS_PER_SESSION = 20;
@@ -32,7 +42,7 @@ export function draftSpoolPath(projectDirectory: string, sessionId: string): str
 }
 
 /** A parsed spool line is a draft only when all four code-assembled fields are present. */
-function toDraft(value: unknown): RetroDraft | undefined {
+function toDraft(value: unknown): SpooledDraft | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const record = value as Record<string, unknown>;
   const { signature, title, body, labels } = record;
@@ -53,14 +63,14 @@ function toDraft(value: unknown): RetroDraft | undefined {
  * unreadable, or torn. Fail-open by construction — a partial/malformed line is
  * skipped, never thrown, so the filing path never crashes on a bad spool.
  */
-export function readSpooledDrafts(projectDirectory: string, sessionId: string): RetroDraft[] {
+export function readSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
   let raw: string;
   try {
     raw = readFileSync(draftSpoolPath(projectDirectory, sessionId), 'utf8');
   } catch {
     return [];
   }
-  const drafts: RetroDraft[] = [];
+  const drafts: SpooledDraft[] = [];
   for (const line of raw.split('\n')) {
     if (line.trim().length === 0) continue;
     try {
@@ -74,7 +84,7 @@ export function readSpooledDrafts(projectDirectory: string, sessionId: string): 
 }
 
 /** Serialize one draft to its canonical spool line (only the four code-assembled fields). */
-function draftLine(draft: RetroDraft): string {
+function draftLine(draft: SpooledDraft): string {
   return JSON.stringify({
     signature: draft.signature,
     title: draft.title,
@@ -123,7 +133,7 @@ export function markDraftsFiled(
 export function spoolDrafts(
   projectDirectory: string,
   sessionId: string,
-  drafts: readonly RetroDraft[],
+  drafts: readonly SpooledDraft[],
 ): void {
   try {
     const existing = readSpooledDrafts(projectDirectory, sessionId).length;
