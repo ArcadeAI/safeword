@@ -226,6 +226,19 @@ function looksHighEntropySecret(run: string): boolean {
 }
 
 /**
+ * True when the run — or, since `.` now joins runs, any of its >=20-char
+ * dot-separated segments — is secret-shaped. Testing segments keeps the `.`
+ * merge purely additive: a segment IS a pre-`.` run, so a real secret glued to a
+ * low-entropy dotted tail (which dilutes the merged entropy below the floor) is
+ * still caught, while a token split across a `.` into sub-20 halves is caught by
+ * the merged run (F2).
+ */
+function runCarriesSecret(run: string): boolean {
+  if (looksHighEntropySecret(run)) return true;
+  return run.split('.').some(segment => segment.length >= 20 && looksHighEntropySecret(segment));
+}
+
+/**
  * Deny-by-default entropy backstop: redact bare/prefixless high-entropy tokens and
  * `KEY=<token>` values whose key name isn't secret-shaped — the residual the
  * blocklist (`scrubSecrets`) and secretlint's precise provider rules miss (SPNZKM,
@@ -233,7 +246,7 @@ function looksHighEntropySecret(run: string): boolean {
  * charset-aware entropy floors + UUID guard keep ordinary identifiers and words intact.
  */
 function scrubHighEntropy(text: string): string {
-  return text.replaceAll(HIGH_ENTROPY_RUN, run => (looksHighEntropySecret(run) ? REDACTED : run));
+  return text.replaceAll(HIGH_ENTROPY_RUN, run => (runCarriesSecret(run) ? REDACTED : run));
 }
 
 // Valid IPv4 and internal-TLD hostnames. Any `:port` after the address is left

@@ -238,6 +238,17 @@ describe('sanitizeText — entropy + network backstop (SPNZKM, #601 egress revie
     expect(out).toContain('[redacted]');
   });
 
+  it('redacts a secret diluted by a dotted low-entropy tail (dot-merge is additive)', () => {
+    // Gluing a real >=20-char secret to a long low-entropy `.aaa` tail drops the MERGED
+    // run's entropy below the floor; the per-segment check still catches the secret
+    // segment, so the `.` in the run never makes an already-caught token leak.
+    const secret = 'sk9secretTokenValue012345';
+    const diluted = `${secret}${'.aaa'.repeat(12)}`;
+    const out = sanitizeText(`token ${diluted} here`);
+    expect(out).not.toContain(secret);
+    expect(out).toContain('[redacted]');
+  });
+
   it('redacts private IPs (with port) and internal hostnames', () => {
     // Assemble from octets so the literal IP never appears in source (sonarjs/no-hardcoded-ip).
     const privateIp = ['10', '1', '2', '3'].join('.');
