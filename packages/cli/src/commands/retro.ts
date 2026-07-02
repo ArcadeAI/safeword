@@ -25,7 +25,7 @@ import {
   readSpooledDrafts,
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { windowFor } from '../../templates/hooks/lib/retro-extract.js';
+import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 
@@ -130,13 +130,40 @@ export interface RetroCliOptions {
 
 /** Injectable seam for `buildAutoExtractor` (tests assert the resolved model/argv). */
 export interface AutoExtractDependencies {
-  /** Spawn the headless `claude` process; defaults to the real `spawnSync`. */
+  /** Spawn the headless child process; defaults to the real `spawnSync`. */
   spawn?: (
     argv: string[],
-    options: { cwd: string; env: Record<string, string | undefined> },
+    options: { cwd: string; env: Record<string, string | undefined>; stdio?: 'ignore' },
   ) => Promise<{ code: number | null; stdout: string }>;
-  /** Extraction model; defaults to the install's `retro.model` (sonnet fallback). */
+  /** Extraction model; defaults to the install's `retro.model` or per-agent fallback. */
   model?: string;
+  /** Agent whose headless extractor should run. Defaults to Claude for compatibility. */
+  agent?: RetroAgent;
+  /** Observes whether auto extraction produced schema-valid output. */
+  onExtractionResult?: (result: { ok: boolean; findings: unknown[] }) => void;
+}
+
+type AutoExtractSpawn = NonNullable<AutoExtractDependencies['spawn']>;
+
+function spawnClaudeExtractor(argv: string[], spawnOptions: Parameters<AutoExtractSpawn>[1]) {
+  const result = spawnSync('claude', argv, {
+    cwd: spawnOptions.cwd,
+    env: spawnOptions.env,
+    encoding: 'utf8',
+    timeout: 240_000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
+}
+
+function spawnCodexExtractor(argv: string[], spawnOptions: Parameters<AutoExtractSpawn>[1]) {
+  const result = spawnSync('codex', argv, {
+    cwd: spawnOptions.cwd,
+    env: spawnOptions.env,
+    stdio: spawnOptions.stdio,
+    timeout: 600_000,
+  });
+  return Promise.resolve({ code: result.status, stdout: '' });
 }
 
 /**
@@ -150,27 +177,37 @@ export async function buildAutoExtractor(
   projectDirectory: string,
   dependencies: AutoExtractDependencies = {},
 ): Promise<FindingExtractor> {
-  const { runHeadlessExtraction, resolveRetroModel } =
+  const { runCodexHeadlessExtractionChecked, runHeadlessExtraction, resolveRetroModel } =
     await import('../../templates/hooks/lib/retro-extract.js');
 
-  const model = dependencies.model ?? resolveRetroModel(projectDirectory);
-  const spawn =
-    dependencies.spawn ??
-    ((argv: string[], spawnOptions: { cwd: string; env: Record<string, string | undefined> }) => {
-      const result = spawnSync('claude', argv, {
-        cwd: spawnOptions.cwd,
-        env: spawnOptions.env,
-        encoding: 'utf8',
-        timeout: 240_000,
-        maxBuffer: 64 * 1024 * 1024,
-      });
-      return Promise.resolve({ code: result.status, stdout: result.stdout ?? '' });
-    });
+  const agent = dependencies.agent ?? 'claude';
+  const model = dependencies.model ?? resolveRetroModel(projectDirectory, agent);
+  const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
+  const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
 
   const workDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-retro-'));
+  if (agent === 'codex') {
+    return async (transcript: string) => {
+      const result = await runCodexHeadlessExtractionChecked(transcript, {
+        spawn: spawnCodex,
+        writeFile: (path: string, content: string) => {
+          writeFileSync(path, content);
+        },
+        readFile: (path: string) => readFileSync(path, 'utf8'),
+        env: process.env,
+        cwd: workDirectory,
+        model,
+        schemaPath: nodePath.join(workDirectory, 'schema.json'),
+        outputPath: nodePath.join(workDirectory, 'output.json'),
+      });
+      dependencies.onExtractionResult?.(result);
+      return result.findings;
+    };
+  }
+
   return (transcript: string) =>
     runHeadlessExtraction(transcript, {
-      spawn,
+      spawn: spawnClaude,
       writeDigest: (digest: string) => {
         const path = nodePath.join(workDirectory, 'digest.txt');
         writeFileSync(path, digest);
@@ -180,6 +217,81 @@ export async function buildAutoExtractor(
       cwd: workDirectory, // neutral cwd — not the user's project
       model,
     });
+}
+
+function resolveAutoExtractAgent(env: Record<string, string | undefined>): RetroAgent {
+  return env.SAFEWORD_RETRO_AGENT === 'codex' ? 'codex' : 'claude';
+}
+
+async function buildRetroExtractor(
+  options: RetroCliOptions,
+  projectDirectory: string,
+  agent: RetroAgent,
+  onExtractionResult?: AutoExtractDependencies['onExtractionResult'],
+): Promise<FindingExtractor> {
+  if (options.autoExtract)
+    return buildAutoExtractor(projectDirectory, { agent, onExtractionResult });
+  const findingsPath = options.findings;
+  return () => Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
+}
+
+function resolveRetroHarness(agent: RetroAgent, detectAgent: () => string): string {
+  return agent === 'codex' ? 'codex' : detectAgent();
+}
+
+function unavailableTransportFailure(): Promise<never> {
+  return Promise.reject(new Error('GitHub transport unavailable'));
+}
+
+function unavailableTransport(): IssueTracker {
+  return {
+    searchBySignature: unavailableTransportFailure,
+    createIssue: unavailableTransportFailure,
+    listComments: unavailableTransportFailure,
+    createComment: unavailableTransportFailure,
+    updateComment: unavailableTransportFailure,
+  };
+}
+
+interface RetroCommandOutput {
+  error: (message: string) => void;
+  info: (message: string) => void;
+  success: (message: string) => void;
+}
+
+function reportRetroCommandOutcome(
+  outcome: RetroOutcome,
+  options: {
+    extractionSucceeded: boolean;
+    restTransportAvailable: boolean;
+    output: RetroCommandOutput;
+  },
+): void {
+  const { error, info, success } = options.output;
+  if (!outcome.ok) {
+    error(outcome.errorMessage ?? 'safeword retro failed');
+    process.exitCode = 1;
+    return;
+  }
+  if (!options.extractionSucceeded) {
+    error('retro: Codex auto-extraction did not produce schema-valid output.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const r = outcome.result;
+  if (!r) return;
+  info(
+    `retro: ${r.created.length} filed, ${r.bumped.length} recurrence(s) counted, ${r.commented.length} new manifestation(s), ${r.deferred.length} deferred, ${r.failed.length} failed`,
+  );
+  if (outcome.agentFilingNeeded) {
+    info(
+      options.restTransportAvailable
+        ? 'retro: unfiled drafts were spooled for the agent filing path.'
+        : 'retro: no GitHub access; unfiled drafts were spooled for the agent filing path.',
+    );
+  }
+  success('retro complete');
 }
 
 /**
@@ -194,21 +306,17 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
 
   const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-  const findingsPath = options.findings;
-  const extract: FindingExtractor = options.autoExtract
-    ? await buildAutoExtractor(projectDirectory)
-    : () => Promise.resolve(findingsPath ? readFindings(findingsPath) : []);
+  const autoExtractAgent = resolveAutoExtractAgent(process.env);
+  let extractionSucceeded = true;
+  const extract = await buildRetroExtractor(options, projectDirectory, autoExtractAgent, result => {
+    extractionSucceeded = result.ok;
+  });
 
   // Use the environment's existing GitHub access (GITHUB_TOKEN or `gh auth token`);
   // no hard token requirement (7D8PJP). With neither, no-op gracefully — the
   // out-of-band hook path must never fail the Stop for lack of GitHub access.
-  const transport = createRestTransport(resolveGitHubToken());
-  if (!transport) {
-    info(
-      'safeword retro: no GitHub access (set GITHUB_TOKEN or run `gh auth login`); nothing filed.',
-    );
-    return;
-  }
+  const restTransport = createRestTransport(resolveGitHubToken());
+  const transport = restTransport ?? unavailableTransport();
 
   const outcome = await runRetro(options, {
     extract,
@@ -217,30 +325,18 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
     // CLAUDE_CODE_REMOTE_SESSION_ID, not CLAUDE_SESSION_ID, so the env fallback
     // alone resolved to 'unknown' and broke ledger session-accounting; ZFGWS1).
     sessionId: options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? 'unknown',
-    harness: detectAgent(),
+    harness: resolveRetroHarness(autoExtractAgent, detectAgent),
     readFile: (path: string) => readFileSync(path, 'utf8'),
     // Enable the cloud-filing spool: on a REST failure the drafts survive on disk
     // for the agent path (BNGK9W) instead of being lost.
     projectDirectory,
   });
 
-  if (!outcome.ok) {
-    error(outcome.errorMessage ?? 'safeword retro failed');
-    process.exitCode = 1;
-    return;
-  }
-
-  const r = outcome.result;
-  if (!r) return;
-  info(
-    `retro: ${r.created.length} filed, ${r.bumped.length} recurrence(s) counted, ${r.commented.length} new manifestation(s), ${r.deferred.length} deferred, ${r.failed.length} failed`,
-  );
-  if (outcome.agentFilingNeeded) {
-    // Local diagnostic only — under the async Stop hook this output is not surfaced;
-    // the agent nudge comes from the separate boundary hook (BNGK9W PATH B).
-    info('retro: unfiled drafts were spooled for the agent filing path.');
-  }
-  success('retro complete');
+  reportRetroCommandOutcome(outcome, {
+    extractionSucceeded,
+    restTransportAvailable: restTransport !== undefined,
+    output: { error, info, success },
+  });
 }
 
 function readFindings(path: string): unknown[] {

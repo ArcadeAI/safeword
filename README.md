@@ -240,6 +240,7 @@ Key directories created in your project:
 - `session-compact-context.ts` - Re-injects active ticket context after context compaction
 - `prompt-timestamp.ts` - Injects timestamp into prompts
 - `prompt-questions.ts` - Reminds agent to ask clarifying questions
+- `prompt-retro-nudge.ts` - Surfaces unfiled retro drafts on the next prompt
 - `post-tool-lint.ts` - Auto-lints after file edits
 - `post-tool-quality.ts` - Tracks LOC, detects phase changes and TDD steps
 - `post-tool-bypass-warn.ts` - Warns when agent bypasses quality gates
@@ -251,17 +252,18 @@ Key directories created in your project:
 - `cursor/stop.ts` - Quality review prompt on Cursor stop
 - `cursor/post-tool-skill-nudge.ts` - Cursor adapter for the language coding-skill nudge (dormant pending Cursor bug #534)
 - `codex/pre-tool-quality.ts` - Adapts Codex PreToolUse events to safeword's quality gate
-- `codex/stop.ts` - Emits Codex Stop continuations for done-phase reminders, including ARCHITECTURE.md drift nudges
+- `codex/stop.ts` - Runs invisible retro extraction and emits Stop continuations for done-phase reminders such as ARCHITECTURE.md drift
 - `codex/post-tool-skill-nudge.ts` - Codex adapter for the language coding-skill nudge
 
-Codex edit-gate coverage is limited to the documented PreToolUse tool calls
-that Safeword configures (`Bash`, `apply_patch` edit payloads, and MCP tools).
-Live Codex runs can also report `file_change` execution items; those are
-recorded as a runtime boundary, not as edits Safeword claims to guard through
-PreToolUse. Codex Stop hooks are separate: Safeword uses Codex continuation
-semantics (`decision: "block"`, `reason`) to nudge the agent after a turn,
-including ARCHITECTURE.md drift reminders, without claiming hard done-gate
-enforcement.
+Codex edit-gate coverage is limited to the documented PreToolUse
+tool calls that Safeword configures (`Bash`, `apply_patch` edit payloads, and
+MCP tools). Live Codex runs can also report `file_change` execution items; those
+are recorded as a runtime boundary, not as edits Safeword claims to guard through
+PreToolUse. Codex Stop hooks are separate: Safeword uses continuation semantics
+(`decision: "block"`, `reason`) for done-phase reminders such as ARCHITECTURE.md
+drift, while retro extraction runs silently and synchronously; any unfiled drafts
+surface later through the shared UserPromptSubmit `prompt-retro-nudge.ts` hook
+rather than a Stop continuation.
 
 **Skills** (in `.claude/skills/` and `.agents/skills/`): Specialized agent capabilities
 
