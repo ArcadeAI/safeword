@@ -9,6 +9,7 @@ import process from 'node:process';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
 
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
+const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
 // Safety bound on comment pagination (100/page → up to 2000 comments scanned).
 const MAX_COMMENT_PAGES = 20;
@@ -83,7 +84,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     },
 
     async createIssue(input: CreateIssueInput): Promise<IssueReference> {
-      const data = (await call('POST', `/repos/${UPSTREAM_REPO}/issues`, input)) as {
+      const data = (await call('POST', ISSUES_BASE, input)) as {
         number: number;
         title: string;
       };
@@ -98,7 +99,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       for (let page = 1; page <= MAX_COMMENT_PAGES; page++) {
         const data = (await call(
           'GET',
-          `/repos/${UPSTREAM_REPO}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
+          `${ISSUES_BASE}/${issueNumber}/comments?per_page=100&page=${page}`,
         )) as { id: number; body?: string }[];
         comments.push(...data.map(comment => ({ id: comment.id, body: comment.body ?? '' })));
         if (data.length < 100) break;
@@ -107,14 +108,14 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     },
 
     async createComment(issueNumber: number, body: string): Promise<IssueComment> {
-      const data = (await call('POST', `/repos/${UPSTREAM_REPO}/issues/${issueNumber}/comments`, {
+      const data = (await call('POST', `${ISSUES_BASE}/${issueNumber}/comments`, {
         body,
       })) as { id: number; body?: string };
       return { id: data.id, body: data.body ?? body };
     },
 
     async updateComment(commentId: number, body: string): Promise<void> {
-      await call('PATCH', `/repos/${UPSTREAM_REPO}/issues/comments/${commentId}`, { body });
+      await call('PATCH', `${ISSUES_BASE}/comments/${commentId}`, { body });
     },
   };
 }
