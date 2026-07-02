@@ -573,6 +573,8 @@ describe('Schema - Single Source of Truth', () => {
       const NON_LIFECYCLE_HOOK_MODULES = new Set([
         // Codex-only dispatcher wired through .codex/config.toml, not Claude SETTINGS_HOOKS.
         'session-codex-start.ts',
+        // Codex-only Stop adapter wired through .codex/config.toml, not Claude SETTINGS_HOOKS.
+        'stop.ts',
         // Cursor-only wrapper wired through .cursor/hooks.json, not Claude SETTINGS_HOOKS.
         'session-cursor-auto-upgrade.ts',
         'write-review-stamp.ts',

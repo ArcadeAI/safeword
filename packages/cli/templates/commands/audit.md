@@ -320,7 +320,7 @@ Test Quality:
 - If missing → create from `.safeword/templates/architecture-template.md`
 - If exists → check for drift and gaps:
   - **Drift (error):** Documented tech contradicts the code's actual dependencies (e.g., doc says "Redux" but `package.json` has "zustand"; doc says "Flask" but `pyproject.toml` has "fastapi")
-  - **Gap (warn):** Major dependencies not documented
+  - **Gap (error):** Major dependencies not documented
 
 **README.md:**
 
@@ -333,7 +333,7 @@ Test Quality:
 
 **Documentation impact check:**
 
-Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag any documentation that references changed code but hasn't been updated.
+Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag stale, missing, or contradictory impacted documentation as errors. Documentation drift is never a warning; only date-based staleness with no changed-code contradiction stays a warning.
 
 ---
 
@@ -345,13 +345,14 @@ Report findings by severity with codes:
 
 - [E001] Dead ref: `CLAUDE.md` references missing file `src/foo.ts`
 - [E002] Drift: `ARCHITECTURE.md` documents Redux, code uses Zustand
+- [E004] Documentation drift: Codex Stop hook behavior changed, but `README.md` or docs still describe only PreToolUse coverage
+- [E005] Dependency gap: `@tanstack/query` is a major dependency but is not documented in ARCHITECTURE.md
 
 ### Warnings (should review)
 
 - [W001] Size: `CLAUDE.md` has 245 instructions (recommended: 150-200)
 - [W002] Structure: `AGENTS.md` missing recommended WHAT/WHY/HOW sections
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
-- [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
 

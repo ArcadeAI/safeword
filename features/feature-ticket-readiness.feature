@@ -5,7 +5,7 @@
 # The feature is @wip because hook behavior is already exercised more directly
 # by spawning the Bun hook scripts against temp projects; cucumber step
 # definitions would duplicate that harness without adding confidence.
-@wip @feature-ticket-readiness.TB1.AC1
+@wip
 Feature: Feature ticket readiness before define-behavior
 
   Feature tickets require complete intake artifacts before scenario formulation
@@ -15,13 +15,13 @@ Feature: Feature ticket readiness before define-behavior
 
   Rule: New feature tickets must be ready before entering define-behavior
 
-    @feature-ticket-readiness.TB1.AC1 @feature-ticket-readiness.SM1.AC1
+    @feature-ticket-readiness.TB1.AC1
     Scenario: A feature missing scope frontmatter is denied when phase advances
       Given an in-progress feature ticket in intake without scope, out_of_scope, or done_when
       When the agent edits ticket.md to set phase: define-behavior
       Then the edit is denied with a readiness message naming the missing frontmatter fields
 
-    @feature-ticket-readiness.TB1.AC1 @feature-ticket-readiness.SM1.AC1
+    @feature-ticket-readiness.TB1.AC1
     Scenario: A feature missing spec and dimensions is denied before define-behavior
       Given an in-progress feature ticket in intake with complete scope frontmatter but no spec.md or dimensions.md
       When the agent edits ticket.md to set phase: define-behavior

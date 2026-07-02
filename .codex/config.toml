@@ -41,17 +41,17 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool
 timeout = 30
 statusMessage = "Surfacing language-skill guidance"
 
-[mcp_servers.context7]
-url = "https://mcp.context7.com/mcp"
-
-[mcp_servers.playwright]
-command = "bunx"
-args = ["@playwright/mcp@latest"]
-
 [[hooks.Stop]]
 
 [[hooks.Stop.hooks]]
 type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
 timeout = 30
-statusMessage = "Checking whether to run a safeword retro"
+statusMessage = "Checking safeword Stop nudges"
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.playwright]
+command = "bunx"
+args = ["@playwright/mcp@latest"]

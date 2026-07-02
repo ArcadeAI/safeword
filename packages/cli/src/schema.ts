@@ -211,9 +211,11 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
 
-// Codex Stop hook for the retro auto-trigger (53DQJZ). Retrofits onto pre-existing
-// configs and is stripped on uninstall via the primary patch's unpatchContent.
-// Must byte-match the Stop block appended to the codex/config.toml template.
+// Codex Stop hook for the merged Stop adapter — the retro auto-trigger (53DQJZ)
+// and the architecture-drift advisory (#598/#605) now compose in one
+// codex/stop.ts, so it registers ONCE. Retrofits onto pre-existing configs and is
+// stripped on uninstall via the primary patch's unpatchContent. Must byte-match
+// the Stop block appended to the codex/config.toml template.
 const CODEX_STOP_HOOK_PATCH = `
 [[hooks.Stop]]
 
@@ -221,7 +223,7 @@ const CODEX_STOP_HOOK_PATCH = `
 type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
 timeout = 30
-statusMessage = "Checking whether to run a safeword retro"
+statusMessage = "Checking safeword Stop nudges"
 `;
 
 // Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex

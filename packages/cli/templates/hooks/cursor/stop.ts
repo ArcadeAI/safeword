@@ -8,9 +8,9 @@
 import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 
-import { getTicketInfo } from '../lib/active-ticket.ts';
+import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
-import { readSessionState } from '../lib/quality-state.ts';
+import { readSessionActiveTicket } from '../lib/quality-state.ts';
 import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
@@ -58,11 +58,18 @@ function isAutomatedEvidenceRun(
   workspace: string,
   runIdentity: ReturnType<typeof resolveRunIdentity>,
 ): boolean {
-  const state = readSessionState(workspace, runIdentity);
-  const activeTicket = state?.activeTicket;
-  if (!activeTicket) return false;
-  const phase = getTicketInfo(workspace, activeTicket).phase;
+  const phase = readSessionActiveTicket(workspace, runIdentity)?.phase;
   return phase === 'implement' || phase === 'verify';
+}
+
+function architectureNudgeForDonePhase(
+  workspace: string,
+  runIdentity: ReturnType<typeof resolveRunIdentity>,
+): string | null {
+  const ticketInfo = readSessionActiveTicket(workspace, runIdentity);
+  if (!ticketInfo) return null;
+  if (ticketInfo.status !== 'in_progress' || ticketInfo.phase !== 'done') return null;
+  return architectureDocumentNudgeForProject(workspace);
 }
 
 // Read hook input from stdin
@@ -106,19 +113,22 @@ if (await Bun.file(markerFile).exists()) {
     if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);
   });
 
-  if (isAutomatedEvidenceRun(process.cwd(), runIdentity)) {
+  const architectureNudge = architectureNudgeForDonePhase(process.cwd(), runIdentity);
+  if (isAutomatedEvidenceRun(process.cwd(), runIdentity) && architectureNudge === null) {
     console.log('{}');
     process.exit(0);
   }
 
-  // Quality review takes this stop; retro yields and its sentinel is untouched,
-  // so retro can still fire on a later non-review stop. Accepted trade-off: a
-  // session that edits on EVERY stop never reaches the retro branch and is
-  // starved that session — the occurrence ledger still dedupes across sessions
-  // and the next session's first no-edit stop fires it. One followup_message per
-  // stop is a hard Cursor constraint, so retro can't ride alongside this one.
+  // Quality review (with the architecture-drift advisory when present) takes this
+  // stop; retro yields and its sentinel is untouched, so retro can still fire on a
+  // later non-review stop. Accepted trade-off: a session that edits on EVERY stop
+  // never reaches the retro branch and is starved that session — the occurrence
+  // ledger still dedupes across sessions and the next session's first no-edit stop
+  // fires it. One followup_message per stop is a hard Cursor constraint, so retro
+  // can't ride alongside this one.
+  const followupMessage = [architectureNudge, QUALITY_REVIEW_MESSAGE].filter(Boolean).join('\n\n');
   const output: StopOutput = {
-    followup_message: QUALITY_REVIEW_MESSAGE,
+    followup_message: followupMessage,
   };
   console.log(JSON.stringify(output));
 } else {
