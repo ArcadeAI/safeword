@@ -56,3 +56,6 @@ silently forgotten.
   by design — no action unless a real leak in one of these shapes shows up, or
   closing one becomes cheap. Residual is documented at `egress.ts`
   (`looksHighEntropySecret` docblock) and backstopped by secretlint + the blocklist.
+- 2026-07-02T22:19Z Mirrored to GitHub issue #621 (watch-only) for visibility now that
+  SPNZKM is closed. Cheapest wins noted there: IPv6 + extra internal TLDs (no
+  identifier-collision problem, unlike the entropy shapes).
