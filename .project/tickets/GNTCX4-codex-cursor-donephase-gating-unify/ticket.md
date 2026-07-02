@@ -58,3 +58,12 @@ needs a decision + a test, not a silent merge-time edit.
   Both adapters gate on done-phase; codex falls back to the on-disk active ticket
   when no session ticket resolves, cursor does not. Decide A (cursor gains fallback)
   vs B (codex drops it), then extract one shared helper.
+- 2026-07-02T22:14Z DECISION: **Option A** (cursor gains the on-disk fallback; unify
+  on codex's behavior) via `/figure-it-out`. Both harnesses resolve a session key
+  reliably (Codex Stop `session_id`; Cursor Stop `conversation_id` — latest docs), so
+  the fallback is a deliberate coverage-widening, not an identity crutch. Chose A
+  because the nudge's costly failure is the false-negative (silently-rotting arch
+  doc); the false-positive is narrow (fires only when the generated doc actually
+  moved); and A *adds* coverage to cursor rather than *removing* it from the shipped
+  codex path. Full implementation plan + test + verification captured in GitHub
+  issue #619 (pick-up-cold spec). Ready to implement.
