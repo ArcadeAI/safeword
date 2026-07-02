@@ -217,3 +217,34 @@ export function syncParityPairs(input: ParityInput): ParitySyncResult {
 
   return { synced, unfixable };
 }
+
+export interface ParityFixReport {
+  stdout: string[];
+  stderr: string[];
+  exitCode: number;
+}
+
+/**
+ * The console output + exit code for `parity-check --fix`, derived from a sync
+ * result — the decision the CLI shim only has to print and exit on. Extracted so
+ * the exit-code/output wiring is unit-testable without spawning the script (#585
+ * review): exit 1 iff a pair was unfixable (a missing template), else exit 0.
+ */
+export function formatParityFixReport(result: ParitySyncResult): ParityFixReport {
+  const stdout =
+    result.synced.length === 0
+      ? ['All pairs already in sync — nothing to fix.']
+      : [
+          `Synced ${result.synced.length} drifted pair(s) from templates → dogfood:`,
+          ...result.synced.map(path => `  - ${path}`),
+        ];
+  if (result.unfixable.length === 0) return { stdout, stderr: [], exitCode: 0 };
+  return {
+    stdout,
+    stderr: [
+      `${result.unfixable.length} pair(s) could not be auto-fixed:`,
+      ...result.unfixable.map(failure => `  - ${failure.message}`),
+    ],
+    exitCode: 1,
+  };
+}
