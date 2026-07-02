@@ -9,10 +9,8 @@ const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const AUDIT_SURFACES = [
   'packages/cli/templates/skills/audit/SKILL.md',
-  'packages/cli/templates/commands/audit.md',
   '.agents/skills/audit/SKILL.md',
   '.claude/skills/audit/SKILL.md',
-  '.cursor/commands/audit.md',
 ];
 
 function extractBashBlock(content: string, ordinal: number): string {
@@ -44,8 +42,8 @@ function runAuditAutomation(files: Record<string, string>): {
 } {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-audit-'));
   const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
-  const commandContent = readFileSync(
-    nodePath.join(ROOT, 'packages/cli/templates/commands/audit.md'),
+  const auditSkillContent = readFileSync(
+    nodePath.join(ROOT, 'packages/cli/templates/skills/audit/SKILL.md'),
     'utf8',
   );
 
@@ -78,7 +76,7 @@ function runAuditAutomation(files: Record<string, string>): {
       'if [ "$1" = "--version" ]; then echo "4.9.0"; else echo "[fake-yarn] $@"; fi',
     );
 
-    const result = spawnSync('bash', ['-c', extractBashBlock(commandContent, 2)], {
+    const result = spawnSync('bash', ['-c', extractBashBlock(auditSkillContent, 2)], {
       cwd: projectDirectory,
       env: {
         ...process.env,

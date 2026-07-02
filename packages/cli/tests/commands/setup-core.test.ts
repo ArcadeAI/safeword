@@ -12,7 +12,7 @@ import {
   createPythonProject,
   createRustProject,
   createTemporaryDirectory,
-  createTypeScriptPackageJson,
+  createTypeScriptProjectReadyForSetup,
   fileExists,
   initGitRepo,
   readSafewordConfig,
@@ -24,7 +24,7 @@ import {
 } from '../helpers';
 
 const languageFixtures: [string, (directory: string) => void][] = [
-  ['TypeScript', createTypeScriptPackageJson],
+  ['TypeScript', createTypeScriptProjectReadyForSetup],
   ['Python', createPythonProject],
   ['Go', createGoProject],
   ['Rust', createRustProject],
@@ -43,7 +43,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
   describe('Test 2.1: Creates .safeword directory structure', () => {
     it('should create complete .safeword/ directory', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       const result = await runCli(['setup'], {
@@ -64,7 +64,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
     });
 
     it('should write CLI version to .safeword/version', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -78,7 +78,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
   describe('Test 2.2: Leaves AGENTS.md absent when missing', () => {
     it('should not create AGENTS.md just to point at safeword', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -89,7 +89,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
   describe('Test 2.3: Preserves existing AGENTS.md', () => {
     it('should leave customer content unchanged', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       const existingContent = '# My Project\n\nExisting content here.\n';
@@ -116,7 +116,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
   describe('Test 2.5: Prints summary of created files', () => {
     it('should output summary of created files', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       const result = await runCli(['setup'], {
@@ -157,7 +157,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
   describe('Setup tracks installed packs in config', () => {
     it('should write installedPacks to config.json', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'pyproject.toml', `[project]\nname = "test"\n`);
       initGitRepo(temporaryDirectory);
 

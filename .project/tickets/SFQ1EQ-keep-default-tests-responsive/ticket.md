@@ -21,7 +21,7 @@ done_when:
   - Slow install-backed coverage still runs through a named script.
   - Documentation/comments identify which lane maintainers should use for default, smoke, slow, and release validation.
 created: 2026-06-15T14:11:50.893Z
-last_modified: 2026-06-15T14:12:02Z
+last_modified: 2026-07-02T03:05:28Z
 ---
 
 # Keep default tests responsive for maintainers
@@ -41,6 +41,9 @@ last_modified: 2026-06-15T14:12:02Z
 - 2026-06-15T18:28:19Z Fix path: added a reusable test helper that declares safeword's base JS/BDD devDependencies in fixtures that are not proving installation, then applied it to Python Phase 2 and SQL golden-path setup fixtures. Focused verification passed 30 tests in 13.1s.
 - 2026-06-15T18:40:02Z Verification: the full default `bun run test -- --reporter=verbose` suite completed successfully: 199 files passed, 2915 tests passed, 3 skipped, in 605.6s. The run stayed chatty throughout; remaining runtime is broad integration-fixture cost rather than an idle hang.
 - 2026-06-15T18:54:10Z CI follow-up: GitHub's default test job stayed chatty and reached the end of the suite, then failed one cleanup path in `tests/commands/upgrade-reconcile.test.ts` with `ENOTEMPTY` while removing a temp `node_modules/@testing-library/user-event/dist/types` directory. The test file used raw `rmSync` instead of the shared retrying `removeTemporaryDirectory()` helper, so a filesystem cleanup race could fail an otherwise-passing run.
+- 2026-07-02T03:05:28Z Residual cluster confirmed during #597 verification: the default full suite timed out in `setup-core.test.ts`, `setup-architecture.test.ts`, and then `setup-linting.test.ts`. All three were config/script generation assertions using bare TypeScript fixtures, so setup could still enter package-manager work before reaching assertions that did not test installation.
+- 2026-07-02T03:05:28Z Fix: added `createTypeScriptProjectReadyForSetup()` for config-only TypeScript setup fixtures. The helper predeclares safeword's base JS/BDD devDependencies while preserving each test's override behavior, then `setup-core`, `setup-architecture`, and `setup-linting` switched to that helper. Real install coverage remains in the existing install-proof paths instead of these config-only assertions.
+- 2026-07-02T03:05:28Z Verification: the exact lint timeout repro passed in 4.18s; the affected setup batch (`setup-core`, `setup-architecture`, `setup-linting`, `setup-python-phase2`) passed 42 tests in 58.78s; `bun run lint`, `bun run typecheck`, full `bun run test`, and `bun run test:bdd` all passed. Full Vitest result: 280 files passed, 4097 tests passed, 3 skipped, in 945.02s. BDD result: 181 scenarios and 3414 steps passed in 1m 59.569s.
 
 ## Root Cause
 
@@ -51,5 +54,7 @@ This happens because install coverage and configuration-generation coverage shar
 Confirmed by measuring `setup-python.test.ts`: normal run was 76.7s for 6 tests; `SAFEWORD_SKIP_INSTALL=1` run was 3.1s, and the only failure was the scenario that explicitly asserts `node_modules/eslint` and `node_modules/@cucumber/cucumber` exist.
 
 A second full-suite attempt after rebasing confirmed the same pattern outside the original files: `setup-python-phase2.test.ts` and `sql-golden-path.test.ts` were not testing package installation, but their fixtures lacked safeword's base JS/BDD devDependency declarations. Setup therefore spawned package-manager work just to reach generated-file assertions. Predeclaring those dependencies in config-only fixtures removed the install work while preserving the real install-proof lane.
+
+A July 2026 revalidation found the same residual fixture issue in TypeScript setup coverage: `setup-core.test.ts`, `setup-architecture.test.ts`, and `setup-linting.test.ts` used bare TypeScript package fixtures for assertions about generated directories, scripts, config files, and output. Those tests were not install-proof tests, but missing safeword base dependency declarations meant setup could still attempt package-manager work and hit Vitest's 60s per-test timeout.
 
 The CI-only `upgrade-reconcile.test.ts` failure was a separate harness cleanup race: the test ran real package-manager work and then its `afterEach` called raw `rmSync` on the temp fixture. GitHub Actions still had a nested `node_modules` path in flux, producing `ENOTEMPTY`. The repository already has `removeTemporaryDirectory()` with retries for this exact class of temp cleanup race; using that helper in the failing file fixes the harness failure without changing product behavior.

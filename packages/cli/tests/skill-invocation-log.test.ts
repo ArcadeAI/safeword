@@ -15,19 +15,16 @@ const verifySkill = readFileSync(
   nodePath.join(templatesDirectory, 'skills/verify/SKILL.md'),
   'utf8',
 );
-const auditCommand = readFileSync(nodePath.join(templatesDirectory, 'commands/audit.md'), 'utf8');
 const auditSkill = readFileSync(nodePath.join(templatesDirectory, 'skills/audit/SKILL.md'), 'utf8');
 const readme = readFileSync(nodePath.join(repoRoot, 'README.md'), 'utf8');
 
-// Invocation-log surfaces. /verify and /audit each have skill + command form.
+// Invocation-log surfaces. /audit's Cursor command is a generated wrapper that
+// points at the canonical skill, so the skill owns the helper proof text.
 const verifyForms: [string, string][] = [
   ['verify-command', verifyCommand],
   ['verify-skill', verifySkill],
 ];
-const auditForms: [string, string][] = [
-  ['audit-command', auditCommand],
-  ['audit-skill', auditSkill],
-];
+const auditForms: [string, string][] = [['audit-skill', auditSkill]];
 
 // Skill forms only — they own the `${CLAUDE_PROJECT_DIR:-…}` fallback that the
 // git-root fix (ticket 04HK04) hardens. (Command forms use a bare reference.)
@@ -233,7 +230,6 @@ describe('skill-invocation log: /quality-review carries its invocation line (W61
 // already uses for `safeword test-plan`.
 const auditDriftForms: [string, string][] = [
   ['audit template skill', auditSkill],
-  ['audit template command', auditCommand],
   [
     'audit dogfood claude skill',
     readFileSync(nodePath.join(repoRoot, '.claude/skills/audit/SKILL.md'), 'utf8'),
@@ -241,10 +237,6 @@ const auditDriftForms: [string, string][] = [
   [
     'audit dogfood agents skill',
     readFileSync(nodePath.join(repoRoot, '.agents/skills/audit/SKILL.md'), 'utf8'),
-  ],
-  [
-    'audit dogfood cursor command',
-    readFileSync(nodePath.join(repoRoot, '.cursor/commands/audit.md'), 'utf8'),
   ],
 ];
 
