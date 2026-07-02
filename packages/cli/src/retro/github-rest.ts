@@ -1,0 +1,120 @@
+// Real IssueTracker over the REST API — the network boundary for retro's
+// code-owned egress. Targets the upstream safeword repo, gated on GITHUB_TOKEN.
+// Intentionally thin and untested-by-unit (it IS the boundary the wiring tests
+// mock); all dedup/cap/ledger/sanitize logic lives in tested modules.
+
+import { spawnSync } from 'node:child_process';
+import process from 'node:process';
+
+import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
+
+const UPSTREAM_REPO = 'ArcadeAI/safeword';
+const API = 'https://api.github.com';
+// Safety bound on comment pagination (100/page → up to 2000 comments scanned).
+const MAX_COMMENT_PAGES = 20;
+
+/** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
+function ghAuthToken(): string | undefined {
+  try {
+    const result = spawnSync('gh', ['auth', 'token'], { encoding: 'utf8', timeout: 10_000 });
+    const token = (result.stdout ?? '').trim();
+    return result.status === 0 && token.length > 0 ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolve the GitHub token for retro's code-owned write, dropping the hard
+ * `GITHUB_TOKEN` requirement (7D8PJP): prefer the env var, else fall back to the
+ * environment's existing GitHub access via `gh auth token`. Returns undefined when
+ * neither is available, so the caller can no-op gracefully instead of failing.
+ */
+export function resolveGitHubToken(
+  env: Record<string, string | undefined> = process.env,
+  getGhToken: () => string | undefined = ghAuthToken,
+): string | undefined {
+  const fromEnvironment = env.GITHUB_TOKEN;
+  if (fromEnvironment && fromEnvironment.length > 0) return fromEnvironment;
+  return getGhToken();
+}
+
+/**
+ * Build a REST-backed transport, or undefined when no token is available. The
+ * token is REQUIRED (no `process.env` default) so every caller routes through
+ * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
+ */
+export function createRestTransport(token: string | undefined): IssueTracker | undefined {
+  if (!token) return undefined;
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'safeword-retro',
+  };
+
+  async function call(method: string, path: string, body?: unknown): Promise<unknown> {
+    const response = await fetch(`${API}${path}`, {
+      method,
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!response.ok) {
+      throw new Error(`GitHub ${method} ${path} → ${response.status}`);
+    }
+    return response.json();
+  }
+
+  return {
+    async searchBySignature(signature: string): Promise<IssueReference[]> {
+      // Search the body for the signature's hash token (the `retro:` prefix carries
+      // a `:` that GitHub's grammar reads as a qualifier, degrading recall), then
+      // exact-filter on the FULL signature in the returned body — GitHub search is
+      // fuzzy, so a hash near-miss must be rejected to avoid matching the wrong issue.
+      const hashToken = signature.replace(/^retro:/, '');
+      const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:body state:open ${hashToken}`);
+      const data = (await call('GET', `/search/issues?q=${query}&per_page=100`)) as {
+        items?: { number: number; title: string; body?: string }[];
+      };
+      return (data.items ?? [])
+        .filter(item => (item.body ?? '').includes(signature))
+        .map(item => ({ number: item.number, title: item.title }));
+    },
+
+    async createIssue(input: CreateIssueInput): Promise<IssueReference> {
+      const data = (await call('POST', `/repos/${UPSTREAM_REPO}/issues`, input)) as {
+        number: number;
+        title: string;
+      };
+      return { number: data.number, title: data.title };
+    },
+
+    async listComments(issueNumber: number): Promise<IssueComment[]> {
+      // Paginate fully: the retro ledger comment must be found even on a hot
+      // issue with >100 comments, else triage posts a duplicate ledger and
+      // re-counts every manifestation as novel (idempotency break).
+      const comments: IssueComment[] = [];
+      for (let page = 1; page <= MAX_COMMENT_PAGES; page++) {
+        const data = (await call(
+          'GET',
+          `/repos/${UPSTREAM_REPO}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
+        )) as { id: number; body?: string }[];
+        comments.push(...data.map(comment => ({ id: comment.id, body: comment.body ?? '' })));
+        if (data.length < 100) break;
+      }
+      return comments;
+    },
+
+    async createComment(issueNumber: number, body: string): Promise<IssueComment> {
+      const data = (await call('POST', `/repos/${UPSTREAM_REPO}/issues/${issueNumber}/comments`, {
+        body,
+      })) as { id: number; body?: string };
+      return { id: data.id, body: data.body ?? body };
+    },
+
+    async updateComment(commentId: number, body: string): Promise<void> {
+      await call('PATCH', `/repos/${UPSTREAM_REPO}/issues/comments/${commentId}`, { body });
+    },
+  };
+}

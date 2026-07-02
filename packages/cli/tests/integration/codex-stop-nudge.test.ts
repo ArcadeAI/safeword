@@ -111,7 +111,9 @@ describe('Codex Stop architecture drift nudge', () => {
     const result = runCodexStop(cwd);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe('');
+    // Merged Stop adapter unifies the no-op output on valid JSON `{}` (no decision)
+    // — the retro half requires parseable stdout — rather than empty output.
+    expect(JSON.parse(result.stdout.trim()).decision).toBeUndefined();
     expect(result.stderr).toBe('');
   });
 
@@ -121,7 +123,9 @@ describe('Codex Stop architecture drift nudge', () => {
     const result = runCodexStop(cwd);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe('');
+    // Merged Stop adapter unifies the no-op output on valid JSON `{}` (no decision)
+    // — the retro half requires parseable stdout — rather than empty output.
+    expect(JSON.parse(result.stdout.trim()).decision).toBeUndefined();
     expect(result.stderr).toBe('');
   });
 
@@ -131,7 +135,9 @@ describe('Codex Stop architecture drift nudge', () => {
     const result = runCodexStop(cwd, { stop_hook_active: true });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe('');
+    // Merged Stop adapter unifies the no-op output on valid JSON `{}` (no decision)
+    // — the retro half requires parseable stdout — rather than empty output.
+    expect(JSON.parse(result.stdout.trim()).decision).toBeUndefined();
     expect(result.stderr).toBe('');
   });
 });

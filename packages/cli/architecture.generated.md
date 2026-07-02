@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: b3f28d8c3e9bdad22efef89e1925cd740e93bd7b5341a4d45a228b0212a63a12
+fingerprint: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62
 ---
 
 # Architecture
@@ -47,6 +47,14 @@ No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
+### retro
+
+<!-- reconciled: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62 -->
+
+`src/retro`
+
+No description yet — awaiting prose.
+
 ### skills
 
 <!-- reconciled: b3f28d8c3e9bdad22efef89e1925cd740e93bd7b5341a4d45a228b0212a63a12 -->
@@ -54,6 +62,8 @@ No description yet — awaiting prose.
 `src/skills`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### templates
 

@@ -329,16 +329,18 @@ CLI command
 
 ### Runtime (`dependencies`)
 
-| Package                                           | Purpose                                       |
-| ------------------------------------------------- | --------------------------------------------- |
-| `commander`                                       | CLI argument parsing                          |
-| `yaml`                                            | YAML config parsing (failsafe mode)           |
-| `@eslint/js`                                      | ESLint core rules                             |
-| `typescript-eslint`                               | TypeScript ESLint parser + rules              |
-| `eslint-config-prettier`                          | Disable formatting rules                      |
-| `@eslint-react/eslint-plugin`                     | React, JSX, DOM, RSC, and web API rules       |
-| `eslint-plugin-*`                                 | Other ESLint plugins (see plugin table above) |
-| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance                    |
+| Package                                           | Purpose                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `commander`                                       | CLI argument parsing                                                                       |
+| `yaml`                                            | YAML config parsing (failsafe mode)                                                        |
+| `@secretlint/core`                                | Retro egress: in-process secret detection over a raw string (returns spans)                |
+| `@secretlint/secretlint-rule-preset-recommend`    | Retro egress: maintained provider-key rule-packs (28 formats) layered over the regex floor |
+| `@eslint/js`                                      | ESLint core rules                                                                          |
+| `typescript-eslint`                               | TypeScript ESLint parser + rules                                                           |
+| `eslint-config-prettier`                          | Disable formatting rules                                                                   |
+| `@eslint-react/eslint-plugin`                     | React, JSX, DOM, RSC, and web API rules                                                    |
+| `eslint-plugin-*`                                 | Other ESLint plugins (see plugin table above)                                              |
+| `@eslint-community/eslint-plugin-eslint-comments` | Disable comment governance                                                                 |
 
 ### Dev (`devDependencies`)
 

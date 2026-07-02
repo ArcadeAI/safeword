@@ -118,6 +118,14 @@
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/prompt-questions.ts"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/prompt-retro-nudge.ts"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -142,6 +150,15 @@
           {
             "type": "command",
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/stop-self-report.ts"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/stop-retro.ts",
+            "async": true
           }
         ]
       }

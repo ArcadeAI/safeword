@@ -176,6 +176,20 @@ describe('SETTINGS_HOOKS', () => {
     expect(command.asyncRewake).toBe(true);
   });
 
+  it('retro-recall.TB1.AC1: registers the retro Stop hook async (non-blocking, not asyncRewake)', () => {
+    // ZFGWS1: async:true backgrounds the whole hook tree (returns immediately,
+    // 600s) so repeated delta fires never block Stop. NOT asyncRewake, which
+    // surfaces stderr into the chat on exit 2 and would break invisibility.
+    const command = SETTINGS_HOOKS.Stop.flatMap((entry: HookEntry) => entry.hooks).find(
+      (hook: HookCommand) => hook.type === 'command' && hook.command.includes('stop-retro'),
+    ) as { async?: boolean; asyncRewake?: boolean } | undefined;
+    if (!command) {
+      throw new Error('stop-retro hook not found');
+    }
+    expect(command.async).toBe(true);
+    expect(command.asyncRewake).toBeUndefined();
+  });
+
   it('should have PostToolUse quality observer matcher that includes Bash', () => {
     const qualityHook = SETTINGS_HOOKS.PostToolUse.find((h: HookEntry) =>
       h.hooks.some(
