@@ -21,6 +21,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   setupOrThrow,
+  TIMEOUT_SETUP_HOOK,
 } from '../helpers';
 
 describe('E2E: Claude Code Hook Path Resolution', () => {
@@ -33,7 +34,7 @@ describe('E2E: Claude Code Hook Path Resolution', () => {
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup']);
     differentDirectory = createTemporaryDirectory();
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) removeTemporaryDirectory(projectDirectory);

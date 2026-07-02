@@ -29,6 +29,7 @@ import {
   runCli,
   runLintHook,
   setupOrThrow,
+  TIMEOUT_SETUP_HOOK,
   writeTestFile,
 } from '../helpers';
 
@@ -42,7 +43,7 @@ describe('E2E: Python Golden Path', () => {
     createPythonProject(projectDirectory);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000); // 3 min timeout for setup
+  }, TIMEOUT_SETUP_HOOK); // contains setupOrThrow bounded retry (2x TIMEOUT_SETUP + slack)
 
   afterAll(() => {
     if (projectDirectory) {
@@ -154,7 +155,7 @@ describe('E2E: Python Setup Idempotency', () => {
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
     await runCli(['setup', '--yes'], { cwd: projectDirectory });
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {
@@ -206,7 +207,7 @@ describe('E2E: Python Lint Hook Fallback', () => {
     if (fileExists(projectDirectory, 'ruff.toml')) {
       unlinkSync(nodePath.join(projectDirectory, 'ruff.toml'));
     }
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {

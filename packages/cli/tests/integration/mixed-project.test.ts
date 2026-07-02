@@ -27,6 +27,7 @@ import {
   runLintHook,
   SAFEWORD_VERSION,
   setupOrThrow,
+  TIMEOUT_SETUP_HOOK,
   writeTestFile,
 } from '../helpers';
 
@@ -62,7 +63,7 @@ version = "0.1.0"
 
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {
