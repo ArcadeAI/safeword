@@ -193,6 +193,9 @@ function shannonEntropy(value: string): number {
 // Token-shaped runs of >=20 chars (word/base64/token alphabet, minus `=` so a
 // `KEY=<token>` assignment isolates the value; `.` kept so a dot-split token —
 // two sub-20 halves — is still weighed as one run). Canonical UUIDs are exempt.
+// INVARIANT: `.` is the only separator added beyond the base token alphabet, so
+// `runCarriesSecret` reverses the merge by splitting on `.`. If another separator
+// is added here, add it to that split too or the additive-segment property breaks.
 const HIGH_ENTROPY_RUN = /[\w+/.-]{20,}/g;
 const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Charset-aware floors, mirroring detect-secrets (hex 3.0 / base64 4.5) and its
