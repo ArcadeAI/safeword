@@ -28,6 +28,7 @@ import {
   runLintHook,
   setupOrThrow,
   TIMEOUT_SETUP,
+  TIMEOUT_SETUP_HOOK,
   writeTestFile,
 } from '../helpers';
 
@@ -49,7 +50,7 @@ describe('E2E: Golden Path', () => {
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000); // 3 min timeout for bun install
+  }, TIMEOUT_SETUP_HOOK); // contains setupOrThrow's bounded retry (2 × TIMEOUT_SETUP + slack)
 
   afterAll(() => {
     if (projectDirectory) {
@@ -207,7 +208,7 @@ describe('E2E: TypeScript Setup Idempotency', () => {
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
     await runCli(['setup', '--yes'], { cwd: projectDirectory });
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {
@@ -277,7 +278,7 @@ describe('E2E: TypeScript Lint Hook Fallback', () => {
     if (fileExists(projectDirectory, '.safeword/eslint.config.mjs')) {
       unlinkSync(eslintConfig);
     }
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {

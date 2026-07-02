@@ -25,6 +25,7 @@ import {
   SAFEWORD_VERSION,
   setupOrThrow,
   TIMEOUT_SETUP,
+  TIMEOUT_SETUP_HOOK,
   writeTestFile,
 } from '../helpers';
 
@@ -51,7 +52,7 @@ requires-python = ">=3.10"
     writeTestFile(projectDirectory, 'src/main.py', 'print("hello")\n');
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {
@@ -104,7 +105,7 @@ describe('E2E: mypy Type Error Detection', () => {
     createPythonProject(projectDirectory);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {
@@ -241,7 +242,7 @@ describe('E2E: React ESLint Violation Detection', () => {
 
     // Install dependencies so ESLint can run
     execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {

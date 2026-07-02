@@ -24,8 +24,21 @@ const execFileAsync = promisify(execFile);
 export const TIMEOUT_QUICK = 10_000;
 /** Sync CLI operations without bun install (30s) */
 export const TIMEOUT_SYNC = 30_000;
-/** Setup commands that may run bun install with warm cache (60s) */
-export const TIMEOUT_SETUP = 60_000;
+/**
+ * Setup commands that spawn `safeword setup` (git init + scaffolding + tool
+ * detection + optional skills pull). 120s: setup under full-suite CPU saturation
+ * can far outrun its isolated single-digit-second runtime (issue #419). Paired
+ * with `setupOrThrow`'s bounded retry-on-timeout so a transient spike gets a
+ * second attempt rather than a false red.
+ */
+export const TIMEOUT_SETUP = 120_000;
+/**
+ * `beforeAll` budget for suites that run `safeword setup` via `setupOrThrow`.
+ * Must contain the helper's bounded retry: 2 attempts × TIMEOUT_SETUP + fixture
+ * slack. Without this headroom the outer hook timeout would fire mid-retry and
+ * turn a clean "setup timed out" into an opaque "hook timed out".
+ */
+export const TIMEOUT_SETUP_HOOK = TIMEOUT_SETUP * 2 + 60_000;
 /** Acceptance lanes can spawn their own runners and need headroom under full-suite load (120s) */
 export const TIMEOUT_ACCEPTANCE_LANE = 120_000;
 /** bun install operations under load or cold cache (120s) */
@@ -202,6 +215,13 @@ interface CliResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+  /**
+   * True when the subprocess was killed by its own timeout (wall-clock), as
+   * opposed to exiting with a non-zero code. A timeout is environmental (machine
+   * contention); a non-zero exit is a genuine failure. `setupOrThrow` retries the
+   * former and fails fast on the latter.
+   */
+  timedOut: boolean;
 }
 
 function normalizeCommandOutput(value?: string | Buffer): string {
@@ -257,6 +277,26 @@ export function runCommandSync(
 }
 
 /**
+ * True when a child-process error indicates the process was killed by its own
+ * timeout (wall-clock) rather than exiting with a code. Node marks a timeout kill
+ * with `killed: true` and a signal (SIGTERM); some versions surface the signal
+ * name as a string `code`. A real non-zero exit has `killed: false` and a numeric
+ * code. This is the distinction `setupOrThrow` keys its retry on.
+ * @param execError
+ */
+function wasKilledByTimeout(execError: {
+  killed?: boolean;
+  signal?: string | null;
+  code?: number | string;
+}): boolean {
+  return (
+    execError.killed === true ||
+    (execError.signal !== undefined && execError.signal !== null) ||
+    typeof execError.code === 'string'
+  );
+}
+
+/**
  * Runs the CLI with the given arguments in the specified directory
  * Uses built CLI (dist/cli.js)
  * @param args
@@ -281,20 +321,23 @@ export async function runCli(
       env: { ...process.env, ...env },
       timeout,
     });
-    return { stdout, stderr, exitCode: 0 };
+    return { stdout, stderr, exitCode: 0, timedOut: false };
   } catch (error: unknown) {
     const execError = error as {
       stdout?: string;
       stderr?: string;
       code?: number | string;
       status?: number;
+      killed?: boolean;
+      signal?: string | null;
     };
-    // execFile sets code to signal name (e.g. 'SIGTERM') on timeout kill
+    const timedOut = wasKilledByTimeout(execError);
     const exitCode = typeof execError.code === 'number' ? execError.code : (execError.status ?? 1);
     return {
       stdout: execError.stdout ?? '',
       stderr: execError.stderr ?? '',
       exitCode,
+      timedOut,
     };
   }
 }
@@ -328,16 +371,19 @@ export function runCliSync(
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    return { stdout, stderr: '', exitCode: 0 };
+    return { stdout, stderr: '', exitCode: 0, timedOut: false };
   } catch (error: unknown) {
     const execError = error as {
       stdout?: string | Buffer;
       stderr?: string | Buffer;
       status?: number;
+      killed?: boolean;
+      signal?: string | null;
     };
     const stdout = execError.stdout?.toString() ?? '';
     const stderr = execError.stderr?.toString() ?? '';
-    return { stdout, stderr, exitCode: execError.status ?? 1 };
+    const timedOut = wasKilledByTimeout(execError);
+    return { stdout, stderr, exitCode: execError.status ?? 1, timedOut };
   }
 }
 
@@ -400,6 +446,37 @@ export function initGitRepo(dir: string): void {
 }
 
 /**
+ * Build the error `setupOrThrow` throws once its attempts are exhausted. A
+ * timeout gets an environmental, retry-aware message distinct from the exit-code
+ * failure message, so a real hang stays diagnosable and is never confused with a
+ * "dist stale" failure.
+ * @param label
+ * @param projectDirectory
+ * @param result
+ * @param maxAttempts
+ */
+function buildSetupFailureError(
+  label: string,
+  projectDirectory: string,
+  result: CliResult,
+  maxAttempts: number,
+): Error {
+  if (result.timedOut) {
+    return new Error(
+      `${label} timed out after ${maxAttempts} attempts in ${projectDirectory}.\n` +
+        `A timeout is environmental (machine under load — see issue #419), not necessarily a setup bug.\n` +
+        `stderr: ${result.stderr || '(empty)'}`,
+    );
+  }
+  return new Error(
+    `${label} failed (exit ${result.exitCode}) in ${projectDirectory}.\n` +
+      `Likely cause: dist/cli.js missing or stale.\n` +
+      `Run: bun install && bun run --cwd packages/cli build\n` +
+      `stderr: ${result.stderr || '(empty)'}`,
+  );
+}
+
+/**
  * Run `safeword setup` (or variant) in a fixture and throw a loud, actionable
  * error if it fails. Use this in `beforeAll`/`beforeEach` blocks where a silent
  * setup failure would cascade into misleading test failures across the file.
@@ -407,6 +484,12 @@ export function initGitRepo(dir: string): void {
  * The most common silent-failure mode: `dist/cli.js` missing or stale in a fresh
  * worktree. Without this assertion, every subsequent test in the file fails with
  * "Module not found" or exit-code mismatches that look unrelated to setup.
+ *
+ * Retries ONCE, and ONLY on a wall-clock timeout. A timeout is environmental —
+ * `safeword setup` spawned in a `beforeAll` can outrun its timeout when the machine
+ * is saturated by parallel test/build processes (issue #419), succeeding cleanly in
+ * isolation and on uncontended CI. A non-zero *exit* is a genuine failure and fails
+ * fast/loud with no retry, so a real setup regression is never masked.
  * @param projectDirectory
  * @param setupArgs CLI args including the command (default: ['setup', '--yes'])
  */
@@ -414,17 +497,42 @@ export async function setupOrThrow(
   projectDirectory: string,
   setupArguments: string[] = ['setup', '--yes'],
   cliOptions: { env?: Record<string, string>; timeout?: number } = {},
+  // Injectable for tests: defaults to the real CLI runner. Lets unit tests drive
+  // the retry policy deterministically without spawning (or actually timing out)
+  // a subprocess. Production callers never pass this.
+  runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  const result = await runCli(setupArguments, { cwd: projectDirectory, ...cliOptions });
-  if (result.exitCode !== 0) {
-    throw new Error(
-      `safeword ${setupArguments.join(' ')} failed (exit ${result.exitCode}) in ${projectDirectory}.\n` +
-        `Likely cause: dist/cli.js missing or stale.\n` +
-        `Run: bun install && bun run --cwd packages/cli build\n` +
-        `stderr: ${result.stderr || '(empty)'}`,
-    );
+  const label = `safeword ${setupArguments.join(' ')}`;
+  // One retry (2 attempts). A transient contention spike usually clears by the
+  // second attempt; a persistent timeout across both attempts is a real hang and
+  // surfaces as a distinct, diagnosable error below.
+  const maxAttempts = 2;
+  let lastResult: CliResult | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const result = await runner(setupArguments, { cwd: projectDirectory, ...cliOptions });
+    if (result.exitCode === 0) {
+      return result;
+    }
+    lastResult = result;
+    // Retry ONLY on timeout, never on a real non-zero exit.
+    if (result.timedOut && attempt < maxAttempts) {
+      // Loud breadcrumb (not silent) so a recovered timeout is visible in output.
+      // stderr, not console.*, to sidestep console spies in unrelated suites.
+      process.stderr.write(
+        `[setupOrThrow] ${label} timed out (attempt ${attempt}/${maxAttempts}) in ${projectDirectory} — ` +
+          `retrying once. This is environmental (machine contention, issue #419), not a setup regression.\n`,
+      );
+      continue;
+    }
+    break;
   }
-  return result;
+
+  // Defensive: the loop body always assigns lastResult before it can break/exhaust.
+  if (!lastResult) {
+    throw new Error(`${label} produced no result in ${projectDirectory}.`);
+  }
+  throw buildSetupFailureError(label, projectDirectory, lastResult, maxAttempts);
 }
 
 /**
