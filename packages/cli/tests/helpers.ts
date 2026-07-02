@@ -278,22 +278,20 @@ export function runCommandSync(
 
 /**
  * True when a child-process error indicates the process was killed by its own
- * timeout (wall-clock) rather than exiting with a code. Node marks a timeout kill
- * with `killed: true` and a signal (SIGTERM); some versions surface the signal
- * name as a string `code`. A real non-zero exit has `killed: false` and a numeric
- * code. This is the distinction `setupOrThrow` keys its retry on.
+ * timeout (wall-clock) rather than exiting with a code. Per Node's child_process
+ * docs, on timeout Node sets `killed: true` and a `signal` (the killSignal,
+ * default SIGTERM). A real non-zero exit has `killed: false`, `signal: null`, and
+ * a NUMERIC `code`; a spawn failure (e.g. ENOENT) also has `killed: false` but a
+ * STRING `code`. So the timeout signal is `killed`/`signal` — deliberately NOT a
+ * string `code`: keying on that would misread a spawn failure as a timeout and
+ * wrongly retry a real failure, which `setupOrThrow` must never do.
  * @param execError
  */
-function wasKilledByTimeout(execError: {
+export function wasKilledByTimeout(execError: {
   killed?: boolean;
   signal?: string | null;
-  code?: number | string;
 }): boolean {
-  return (
-    execError.killed === true ||
-    (execError.signal !== undefined && execError.signal !== null) ||
-    typeof execError.code === 'string'
-  );
+  return execError.killed === true || (execError.signal !== undefined && execError.signal !== null);
 }
 
 /**

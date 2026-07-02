@@ -11,7 +11,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { setupOrThrow } from './helpers';
+import { setupOrThrow, wasKilledByTimeout } from './helpers';
 
 interface FakeResult {
   exitCode: number;
@@ -101,5 +101,30 @@ describe('setupOrThrow retry policy', () => {
     );
     // Bounded: never more than 2 attempts even under a persistent timeout.
     expect(callCount()).toBe(2);
+  });
+});
+
+// The timeout detector is what keeps the retry honest: it must fire on a real
+// wall-clock kill and NEVER on a genuine failure. These cases encode the three
+// child-process error shapes from Node's docs so the "retry only on timeout"
+// invariant can't be regressed by a change to the detector.
+describe('wasKilledByTimeout', () => {
+  it('is true for a timeout kill (killed + signal set)', () => {
+    // Node on timeout: killed:true, signal:'SIGTERM'.
+    const timeout = { killed: true, signal: 'SIGTERM' };
+    expect(wasKilledByTimeout(timeout)).toBe(true);
+  });
+
+  it('is false for a real non-zero exit (numeric code, not killed)', () => {
+    // Node on a real exit: killed:false, numeric code, absent signal.
+    const realExit = { killed: false, code: 1 };
+    expect(wasKilledByTimeout(realExit)).toBe(false);
+  });
+
+  it('is false for a spawn failure — a STRING code must not read as a timeout', () => {
+    // ENOENT-style spawn failure carries a string `code` but is NOT a timeout.
+    // The regression guard: keying on a string `code` would retry a real failure.
+    const spawnFailure = { killed: false, code: 'ENOENT' };
+    expect(wasKilledByTimeout(spawnFailure)).toBe(false);
   });
 });
