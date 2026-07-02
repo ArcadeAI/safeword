@@ -507,6 +507,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
 // this only affects fresh setups. v10 keeps the `eslint/config` defineConfig helper
 // used in generated configs.
 export const ESLINT_PACKAGE = 'eslint@^10.0.0';
+export const JITI_PACKAGE = 'jiti@^2.2.0';
 
 export const typescriptPackages = {
   base: [
@@ -515,7 +516,7 @@ export const typescriptPackages = {
     // Safeword (bundles eslint-config-prettier + all ESLint plugins)
     'safeword',
     // Generated .safeword/eslint.config.mjs uses jiti to load eslint.config.ts.
-    'jiti@^2.2.0',
+    JITI_PACKAGE,
     // BDD acceptance lane (ticket 102b) — cucumber-js runs the scaffolded
     // .feature files; tsx transpiles the TypeScript step definitions, and
     // @types/node lets the scaffolded steps (node: imports) pass typechecks.

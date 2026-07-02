@@ -20,7 +20,7 @@ import {
   renderCursorRuleWrapper,
   SKILL_CURSOR_PAIRS,
 } from '../src/cursor-wrappers.js';
-import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
+import { ESLINT_PACKAGE, JITI_PACKAGE } from '../src/packs/typescript/files.js';
 import { SETTINGS_HOOKS } from '../src/templates/config.js';
 
 // Type guard for filtering out undefined values
@@ -306,7 +306,7 @@ describe('Schema - Single Source of Truth', () => {
       const required = [
         ESLINT_PACKAGE, // Fresh installs use the current supported ESLint lane.
         'safeword', // bundles eslint-config-prettier + all ESLint plugins
-        'jiti@^2.2.0', // generated hook ESLint config loads eslint.config.ts through jiti
+        JITI_PACKAGE, // generated hook ESLint config loads eslint.config.ts through jiti
       ];
 
       for (const pkg of required) {

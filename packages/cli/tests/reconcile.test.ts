@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ESLINT_PACKAGE } from '../src/packs/typescript/files.js';
+import { ESLINT_PACKAGE, JITI_PACKAGE } from '../src/packs/typescript/files.js';
 
 // This import will fail until reconcile.ts is created (RED phase)
 // import { reconcile, computePackagesToInstall } from '../src/reconcile.js';
@@ -873,7 +873,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(result.packagesToInstall).toContain(ESLINT_PACKAGE);
       expect(result.packagesToInstall).toContain('prettier');
       expect(result.packagesToInstall).toContain('safeword');
-      expect(result.packagesToInstall).toContain('jiti@^2.2.0');
+      expect(result.packagesToInstall).toContain(JITI_PACKAGE);
       expect(result.packagesToInstall).not.toContain('gherkin-lint');
     });
 
@@ -1594,7 +1594,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       // Base packages + prettier (from "standard" conditional for non-Biome projects)
       expect(result).toContain(ESLINT_PACKAGE);
       expect(result).toContain('safeword');
-      expect(result).toContain('jiti@^2.2.0');
+      expect(result).toContain(JITI_PACKAGE);
       expect(result).toContain('dependency-cruiser');
       expect(result).toContain('knip');
       expect(result).toContain('prettier'); // standard conditional
