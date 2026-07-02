@@ -934,7 +934,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/commands/verify.md': { template: 'commands/verify.md' },
     '.cursor/commands/self-review.md': { template: 'commands/self-review.md' },
     '.cursor/commands/review-spec.md': { template: 'commands/review-spec.md' },
-    '.cursor/commands/audit.md': { template: 'commands/audit.md' },
     '.cursor/commands/cleanup-zombies.md': {
       template: 'commands/cleanup-zombies.md',
     },
