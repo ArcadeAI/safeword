@@ -70,8 +70,17 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
       expect(fileExists(temporaryDirectory, '.prettierrc')).toBe(true);
 
       const content = readTestFile(temporaryDirectory, '.prettierrc');
-      // Should be valid JSON
-      expect(() => JSON.parse(content)).not.toThrow();
+      expect(JSON.parse(content)).toEqual({
+        semi: true,
+        singleQuote: true,
+        tabWidth: 2,
+        trailingComma: 'all',
+        printWidth: 100,
+        endOfLine: 'lf',
+        useTabs: false,
+        bracketSpacing: true,
+        arrowParens: 'avoid',
+      });
     });
   });
 
