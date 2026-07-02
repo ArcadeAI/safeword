@@ -390,6 +390,19 @@ function asyncRewakeHook(command: string) {
   return { hooks: [{ type: 'command', command, asyncRewake: true }] };
 }
 
+/**
+ * Create a fully backgrounded hook with `async: true` (documented Claude Code
+ * mode, https://code.claude.com/docs/en/hooks): the hook returns IMMEDIATELY and
+ * its whole process tree runs in the background (up to 600s), so it never blocks.
+ * Unlike `asyncRewake`, it surfaces NOTHING back into the conversation — used by
+ * the invisible retro (ZFGWS1) so repeated delta fires stay non-blocking AND
+ * invisible. Degrades safely: a build that doesn't know `async` treats it as an
+ * ordinary (synchronous) hook.
+ */
+function asyncHook(command: string) {
+  return { hooks: [{ type: 'command', command, async: true }] };
+}
+
 /** Create a hook entry with a tool matcher (PreToolUse, PostToolUse) */
 function matchedHook(matcher: string, command: string) {
   return { matcher, hooks: [{ type: 'command', command }] };
@@ -428,11 +441,17 @@ export const SETTINGS_HOOKS = {
   UserPromptSubmit: [
     hook(`bun ${HOOKS_DIR}/prompt-timestamp.ts`),
     hook(`bun ${HOOKS_DIR}/prompt-questions.ts`),
+    // Cloud-retro filing nudge (BNGK9W): when the async Stop hook spooled unfiled
+    // drafts (REST 401 in cloud), surface one factual line so the agent files them.
+    hook(`bun ${HOOKS_DIR}/prompt-retro-nudge.ts`),
   ],
   Stop: [
     hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
     hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
     hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
+    // Invisible retro (ZFGWS1): async so repeated delta fires never block Stop and
+    // run fully in the background; the inner spawnSync stays sync within that tree.
+    asyncHook(`bun ${HOOKS_DIR}/stop-retro.ts`),
   ],
   PreToolUse: [
     matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-dependency-readiness.ts`),

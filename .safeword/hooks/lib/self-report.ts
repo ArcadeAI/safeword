@@ -15,8 +15,10 @@
 // it (bundled by tsup, like templates/config.ts) AND the hooks can run it under
 // bun in a customer repo. No third-party dependencies.
 
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { appendJsonlRecords, readJsonlRecords } from './jsonl-spool.js';
 
 /** The agent harness safeword is running under. */
 export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
@@ -150,7 +152,7 @@ function sanitizeErrorClass(value: string): string {
  * segments from last to first so the most specific (e.g. materialized
  * `.safeword/hooks/…`) wins.
  */
-function safewordInternalTail(location: string): string | undefined {
+export function safewordInternalTail(location: string): string | undefined {
   const segments = location.split(/[/\\]/);
   for (let index = segments.length - 1; index >= 0; index--) {
     const segment = segments[index];
@@ -246,25 +248,16 @@ export function recordSignal(
   safewordVersion: string,
 ): void {
   try {
-    const file = spoolPath(projectDirectory, sessionId);
-    // Bound a crash-loop: once the session spool is full, stop appending.
-    if (countSpoolRecords(file) >= MAX_RECORDS_PER_FILE) return;
     const record = buildRecord(signal, { sessionId, safewordVersion });
-    mkdirSync(nodePath.dirname(file), { recursive: true });
-    appendFileSync(file, `${JSON.stringify(record)}\n`);
+    // Cap + fail-open handled by the shared spool: once the session file holds
+    // MAX_RECORDS_PER_FILE, further records are dropped (bounds a crash-loop).
+    appendJsonlRecords(
+      spoolPath(projectDirectory, sessionId),
+      [JSON.stringify(record)],
+      MAX_RECORDS_PER_FILE,
+    );
   } catch {
     // Self-observation must never break the host. Swallow.
-  }
-}
-
-/** Count non-blank lines in a spool file (0 when absent/unreadable). */
-function countSpoolRecords(file: string): number {
-  try {
-    return readFileSync(file, 'utf8')
-      .split('\n')
-      .filter(line => line.trim()).length;
-  } catch {
-    return 0;
   }
 }
 
@@ -338,23 +331,7 @@ export function captureGateEscalation(
 
 /** Parse one spool file into records, skipping blank/malformed lines. */
 function parseSpoolFile(filePath: string): SelfReportRecord[] {
-  let content: string;
-  try {
-    content = readFileSync(filePath, 'utf8');
-  } catch {
-    return [];
-  }
-  const records: SelfReportRecord[] = [];
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      records.push(JSON.parse(trimmed) as SelfReportRecord);
-    } catch {
-      // Skip malformed line.
-    }
-  }
-  return records;
+  return readJsonlRecords(filePath, value => value as SelfReportRecord);
 }
 
 /** Read all records from every session spool file. Skips malformed lines. */

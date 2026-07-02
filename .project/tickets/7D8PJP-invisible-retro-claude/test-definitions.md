@@ -1,0 +1,94 @@
+# Test Definitions: Invisible retro — synchronous headless claude -p extraction (7D8PJP)
+
+Feature source: `packages/cli/features/invisible-retro-claude.feature`
+(Given/When/Then live there — not duplicated here. This file is the R/G/R ledger.)
+
+<!-- Lineage: invisible-retro-claude.<JTBD>.AC<#>.<name>.
+     TB1 = no conversation hijack (no additionalContext; out-of-band subprocess);
+     TB2 = works in cloud (no --bare; synchronous; digest);
+     NTB1 = no-leak (egress guard unchanged) + recursion guard;
+     SM1 = agent-owned transport + once-per-session gate.
+     Unit layer: digest builder, headless-argv builder, decideRetro action,
+     recursion-guard predicate. Hook layer: stop-retro output + sentinel. Command
+     layer: `safeword retro --auto-extract` with claude -p subprocess + GitHub
+     transport boundaries mocked. -->
+
+## Rule: The retro trigger never touches the user's conversation
+
+### Scenario: invisible-retro-claude.TB1.AC1.stop_hook_emits_no_conversation_context
+
+- [x] RED c2dc33d (integration: substantial session → no additionalContext, sentinel armed)
+- [x] GREEN c2dc33d
+- [x] REFACTOR skip: hook adapter rewrite; clean
+
+### Scenario: invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors
+
+- [x] RED 7189434 (runner fail-open) + c2dc33d (hook stays silent: malformed stdin / wrapped try-catch / stdio-ignored spawn)
+- [x] GREEN c2dc33d
+- [x] REFACTOR skip: runner + hook adapter; clean
+
+### Scenario: invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess
+
+- [x] RED 7189434
+- [x] GREEN 7189434
+- [x] REFACTOR skip: runner unit (injected spawn); clean on first write
+
+## Rule: It authenticates and completes in a Claude cloud session
+
+### Scenario: invisible-retro-claude.TB2.AC1.headless_argv_omits_bare_flag
+
+- [x] RED 8224ade
+- [x] GREEN 8224ade
+- [x] REFACTOR skip: pure builder (buildExtractArgv); clean on first write
+
+### Scenario: invisible-retro-claude.TB2.AC2.extraction_runs_synchronously
+
+- [x] RED 7189434
+- [x] GREEN 7189434
+- [x] REFACTOR skip: runner unit; clean on first write
+
+### Scenario: invisible-retro-claude.TB2.AC3.large_transcript_is_digested_before_extraction
+
+- [x] RED 22a7e34
+- [x] GREEN 22a7e34
+- [x] REFACTOR skip: pure unit (buildDigest); clean on first write, cleanup folded into GREEN
+
+## Rule: The egress guard is unchanged and still fails closed
+
+### Scenario: invisible-retro-claude.NTB1.AC1.auto_extracted_findings_pass_the_egress_guard
+
+- [x] RED 717408e
+- [x] GREEN 717408e
+- [x] REFACTOR skip: --auto-extract wiring reuses the unchanged egress pipeline; clean
+
+### Scenario: invisible-retro-claude.NTB1.AC2.hook_early_returns_under_retro_child_sentinel
+
+- [x] RED cbcf857 (read half — predicate) / 7189434 (spawn half — child env sentinel)
+- [x] GREEN 7189434
+- [x] REFACTOR skip: predicate + runner spawn-env; clean
+
+## Rule: Filing uses the environment's GitHub access, gated once per session
+
+### Scenario: invisible-retro-claude.SM1.AC1.filing_succeeds_without_a_github_token
+
+- [x] RED bf06371 (no GITHUB_TOKEN but `gh auth token` provides one → transport built, files)
+- [x] GREEN bf06371
+- [x] REFACTOR skip: resolveGitHubToken reuses REST; clean
+
+### Scenario: invisible-retro-claude.SM1.AC1.token_present_uses_the_rest_transport
+
+- [x] RED bf06371 (GITHUB_TOKEN present → REST built from it, gh not consulted)
+- [x] GREEN bf06371
+- [x] REFACTOR skip: resolveGitHubToken; clean
+
+### Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_once_when_sentinel_unset
+
+- [x] RED bab8816
+- [x] GREEN bab8816
+- [x] REFACTOR skip: decideRetroRun gate; clean (shared test deps factory hoisted)
+
+### Scenario: invisible-retro-claude.SM1.AC2.extraction_fires_at_most_once_per_session
+
+- [x] RED bab8816
+- [x] GREEN bab8816
+- [x] REFACTOR skip: decideRetroRun once-per-session sentinel; clean

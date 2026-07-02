@@ -211,6 +211,19 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
 
+// Codex Stop hook for the retro auto-trigger (53DQJZ). Retrofits onto pre-existing
+// configs and is stripped on uninstall via the primary patch's unpatchContent.
+// Must byte-match the Stop block appended to the codex/config.toml template.
+const CODEX_STOP_HOOK_PATCH = `
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+timeout = 30
+statusMessage = "Checking whether to run a safeword retro"
+`;
+
 // Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex
 // PostToolUse supports hookSpecificOutput.additionalContext (GA), so the adapter
 // forwards the Claude hook's nudge verbatim.
@@ -447,6 +460,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   preservedDirs: [
     '.safeword-project/learnings',
     '.safeword/logs',
+    // Runtime cloud-filing spool (BNGK9W) — per-session drafts + nudge markers the
+    // retro writes at runtime; user/runtime data the schema does not own.
+    '.safeword/retro-drafts',
     '.safeword-project/tickets',
     '.safeword-project/tickets/completed',
     '.safeword-project/tmp',
@@ -628,7 +644,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/lib/dependency-readiness.ts',
     },
     '.safeword/hooks/lib/done-gate.ts': { template: 'hooks/lib/done-gate.ts' },
+    '.safeword/hooks/lib/jsonl-spool.ts': { template: 'hooks/lib/jsonl-spool.ts' },
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
+    '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
+    '.safeword/hooks/lib/retro-extract.ts': { template: 'hooks/lib/retro-extract.ts' },
+    '.safeword/hooks/lib/retro-nudge.ts': { template: 'hooks/lib/retro-nudge.ts' },
+    '.safeword/hooks/lib/retro-trigger.ts': { template: 'hooks/lib/retro-trigger.ts' },
     '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
     '.safeword/hooks/lib/skill-invocation-log.ts': {
       template: 'hooks/lib/skill-invocation-log.ts',
@@ -702,6 +723,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/prompt-questions.ts': {
       template: 'hooks/prompt-questions.ts',
     },
+    '.safeword/hooks/prompt-retro-nudge.ts': {
+      template: 'hooks/prompt-retro-nudge.ts',
+    },
     '.safeword/hooks/post-tool-lint.ts': {
       template: 'hooks/post-tool-lint.ts',
     },
@@ -729,6 +753,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/codex/pre-tool-quality-helpers.ts': {
       template: 'hooks/codex/pre-tool-quality-helpers.ts',
     },
+    '.safeword/hooks/codex/stop.ts': {
+      template: 'hooks/codex/stop.ts',
+    },
     '.safeword/hooks/codex/post-tool-skill-nudge.ts': {
       template: 'hooks/codex/post-tool-skill-nudge.ts',
     },
@@ -755,6 +782,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/stop-retro.ts': { template: 'hooks/stop-retro.ts' },
     '.safeword/hooks/stop-self-report.ts': { template: 'hooks/stop-self-report.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
       template: 'hooks/session-start-reentry.ts',
@@ -772,6 +800,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/guides/self-report-filing.md': {
       template: 'guides/self-report-filing.md',
+    },
+    '.safeword/guides/retro.md': {
+      template: 'guides/retro.md',
     },
     '.safeword/guides/cold-start-check.md': {
       template: 'guides/cold-start-check.md',
@@ -1182,8 +1213,21 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           CODEX_SESSION_START_HOOK_PATCH,
           CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+          CODEX_STOP_HOOK_PATCH,
         ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
+      },
+      // Codex Stop hook retrofit (53DQJZ): add-if-missing, guarded to safeword
+      // scaffolds. Marker is the adapter path so an existing entry suppresses the
+      // append. Uninstall cleanup is owned by the primary patch's unpatchContent.
+      {
+        operation: 'append',
+        content: CODEX_STOP_HOOK_PATCH,
+        marker: '.safeword/hooks/codex/stop.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
       },
       // Migrate existing installs (auto-upgrade-codex follow-up to #433): swap the
       // legacy context-only SessionStart hook for the auto-upgrade dispatcher.

@@ -127,7 +127,11 @@ describe('Cursor stop review surface', () => {
     for (const hookPath of [CURSOR_STOP, TEMPLATE_CURSOR_STOP]) {
       const content = readFileSync(hookPath, 'utf8');
 
-      expect(content).toContain("import { installCrashCapture } from '../lib/self-report.ts';");
+      // installCrashCapture must be imported from self-report (co-imports allowed)
+      // and invoked — assert the wiring, not a brittle exact import string.
+      expect(content).toMatch(
+        /import \{[^}]*\binstallCrashCapture\b[^}]*\} from '\.\.\/lib\/self-report\.ts';/,
+      );
       expect(content).toContain("installCrashCapture('cursor-stop', undefined, 'cursor');");
     }
   });

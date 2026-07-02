@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (350)
+## Tickets (366)
 
 ### agent-surface-refactor
 
@@ -623,9 +623,18 @@
 - **Make the /explain block-hint reliably reach the user (Claude systemMessage) (19E2XQ)** (done, epic: —)
   Ensure the always-on `/explain` pointer on a gate block actually reaches the human's eyes on Claude Code — the passive safety net for when the agent misses the confusion-signal that 5XOUDJ's offer rule depends on.
   → `.project/tickets/19E2XQ-explain-hint-reliably-visible`
+- **Retire legacy retro paths after ZFGWS1 + Codex/Cursor invisibility (1B46CT)** (todo, epic: —)
+  Track + drive the dead-code retirement the recall rework (ZFGWS1) and
+  → `.project/tickets/1B46CT-retro-legacy-retirement`
+- **Robust dedup: signature marker + label-scoped list lookup (not fuzzy title search) (1FGE1C)** (todo, epic: —)
+  Make retro's "never a duplicate issue" guarantee actually hold, by
+  → `.project/tickets/1FGE1C-robust-tracker-dedup`
 - **Harden hook git calls against shell injection (1JMSH6)** (done, epic: —)
   Close the shell-injection class in safeword hooks — git invoked via `execSync` string interpolation runs through `/bin/sh -c`, so file-derived free-text values can inject commands. The hooks auto-fire on UserPromptSubmit/Stop; in a shared repo the file content can come from an untrusted PR.
   → `.project/tickets/1JMSH6-harden-hook-git-injection`
+- **Retro extractor reports fixed/discussed bugs as current friction (1M20EW)** (todo, epic: —)
+  Stop the invisible retro from filing issues for bugs the session
+  → `.project/tickets/1M20EW-retro-fixed-vs-present-friction`
 - **Custom paths.projectRoot: wire formatter ignores + auto-upgrade staging (1QNPCF)** (done, epic: —)
   Make the namespace-root contribution to formatter ignore-lists and the auto-upgrade owned-paths prefixes follow the _resolved_ `paths.projectRoot`, not just the static `.project/`/`.safeword-project/`.
   → `.project/tickets/1QNPCF-custom-projectroot-wiring`
@@ -668,6 +677,9 @@
 - **Update PRINCIPLES.md — extend existing 5 by at most 1-2 net-new principles meeting research/measurement bar (3N3Q7B)** (in_progress, epic: —)
   Update safeword's existing [PRINCIPLES.md](/Users/alex/Projects/safeword/PRINCIPLES.md) (5 principles, research-backed, capped explicitly at "few — 5, not 15" per principle 5) by adding AT MOST 1-2 net-new principles that meet the same bar (Anthropic citation, dogfooding measurement, or equivalent primary evidence). Move all the inferred "principles" from earlier work (originally up to 22 candidates from engineering + product + product-systems clusters) that don't meet the bar into the patterns catalog (62PDX1).
   → `.project/tickets/3N3Q7B`
+- **Lane 1: discover and prefer a real GitHub MCP transport (417FKH)** (backlog, epic: —)
+  Make the retro's silent direct-filing lane use the best GitHub write path
+  → `.project/tickets/417FKH-github-transport-discovery`
 - **Serialize package tests across checkouts (419)** (done, epic: —)
   → `.project/tickets/419-global-package-test-lock`
 - **Styled CLI output orphans its glyph on a leading-newline message (check/diff/reset/upgrade) (469YSR)** (done, epic: —)
@@ -679,6 +691,10 @@
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
   Shipped guidance examples should cite generic `src/...` paths, not safeword's own `packages/cli/src/...` monorepo paths.
   → `.project/tickets/4YJV1N-generic-paths-in-shipped-guidance`
+- **Fire retro from Codex Stop hook (transcript substrate) (53DQJZ)** (done, epic: —)
+  Make retro fire autonomously at the end of real Codex sessions, the
+  blocked by: Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)
+  → `.project/tickets/53DQJZ-retro-codex-trigger`
 - **lint-config-unify (54XH90)** (open, epic: —)
   Eliminate the local-vs-CI eslint config drift so devs don't ship code that passes locally then fails CI (or vice versa).
   → `.project/tickets/54XH90-lint-config-unify`
@@ -718,6 +734,9 @@
 - **Wire the phase-exit fork review to the cross-model knob (7A0B2K)** (done, epic: —)
   Let the Tier 2 phase-exit fork review (NMSD94) require a different-model reviewer when `crossModelReview` is on, reusing MR5M3A's `modelsMatch` / `isCrossModelReviewRequired` / `AUTHOR_MODEL_ENV` primitives in `review-ledger.ts`.
   → `.project/tickets/7A0B2K-scenario-review-cross-model`
+- **Invisible retro: synchronous headless claude -p extraction (no conversation hijack) (7D8PJP)** (done, epic: —)
+  Run the retro session-retrospective entirely out-of-band — in a separate
+  → `.project/tickets/7D8PJP-invisible-retro-claude`
 - **Deepen scenario-gate adversarial review (port review-spec depth) (7GER0P)** (superseded, epic: —)
   Enrich safeword's scenario-gate (SCENARIOS.md) with the adversarial-review depth from arcade's `/review-spec`, so weak scenarios are caught before they become flaky tests or false-green passes.
   → `.project/tickets/7GER0P-scenario-gate-adversarial-depth`
@@ -727,6 +746,9 @@
 - **Eliminate ambiguous smoke ticket ID warning (7VEYAY)** (in_progress, epic: —)
   Remove or intentionally isolate the duplicate `7K9M3P` fixture warning from smoke-fast output.
   → `.project/tickets/7VEYAY-eliminate-ambiguous-smoke-ticket-id-warning`
+- **Eval: retro extraction quality on real transcripts (7ZCKS6)** (todo, epic: —)
+  Verify the core value of `safeword retro` — that a fresh-context reader
+  → `.project/tickets/7ZCKS6-retro-extraction-eval`
 - **Install-time prettier config detection — stop .prettierrc shadowing prettier.config.\* (8BNSTE)** (done, epic: —)
   Make safeword install detect an existing prettier config in any form and skip writing its own `.prettierrc`, so it never silently shadows and reformats a customer's project.
   → `.project/tickets/8BNSTE-prettier-config-shadow`
@@ -783,6 +805,9 @@
 - **Flip the interactive namespace prompt default to Yes (AV3PYY)** (done, epic: —)
   Make the `safeword upgrade` namespace-migration prompt accept on Enter (default Yes), so a non-technical user who doesn't parse the question gets the recommended outcome by hitting Enter.
   → `.project/tickets/AV3PYY-namespace-prompt-default-yes`
+- **Reconcile ARCHITECTURE.md against the generated architecture doc (AXRC4D)** (todo, epic: —)
+  Keep the human-authored `ARCHITECTURE.md` honest about the project's
+  → `.project/tickets/AXRC4D-architecture-md-reconcile`
 - **Strip defensive force-it prompt padding (Opus 4.8 literalism) (B1TWX7)** (wontfix, epic: —)
   Tighten the hook/skill prompt injections — drop redundant emphatic "force-it" scaffolding (repeated CRITICAL/MUST warnings, belt-and-suspenders restatements) that the latest Opus's literal instruction-following can make counterproductive — without removing any load-bearing instruction.
   → `.project/tickets/B1TWX7-strip-forceit-prompt-padding`
@@ -808,6 +833,9 @@
 - **Interactive 'safeword gateway init' wizard — detect toolkits, deeplink to Arcade, write MCP config (BM8HG4)** (in_progress, epic: —)
   Add a new `safeword gateway init` command that walks the developer through wiring up tool access for their dev agent — detects toolkits the project likely needs (GitHub, Linear, Slack, Gmail, etc.), opens a pre-filled Arcade gateway-creation URL in the browser, accepts the resulting gateway URL back from the user, and writes `.claude/mcp_servers.json` so Claude Code / Cursor / etc. instantly have the configured tools available.
   → `.project/tickets/BM8HG4`
+- **Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)** (done, epic: —)
+  Make the invisible retro actually FILE its findings in a Claude cloud
+  → `.project/tickets/BNGK9W-cloud-retro-filing-transport`
 - **Strengthen golden-path test quality (BPB39Q)** (in_progress, epic: —)
   Replace weak golden-path assertions and duplicated install/upgrade test shape with behavior-specific checks.
   → `.project/tickets/BPB39Q-strengthen-golden-path-test-quality`
@@ -894,6 +922,10 @@
 - **Architecture doc staleness enforcement (Slice 2 — auto-fix on commit, fail CI, opt-out) (FPV0E4)** (done, epic: —)
   Make the generated architecture doc's freshness _enforced_, not just
   → `.project/tickets/FPV0E4-architecture-staleness-enforcement`
+- **Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)** (done, epic: —)
+  Make `safeword retro` fire on its own at the end of real sessions —
+  blocks: Fire retro from Codex Stop hook (transcript substrate) (53DQJZ), Fire retro from Cursor stop hook (KHYXY4)
+  → `.project/tickets/FTCQGD-retro-auto-trigger`
 - **Convert bdd cursor rules to @reference + reconcile to 7-phase set (G1A6BS)** (done, epic: —)
   Make the bdd Cursor rules thin `@reference` pointers at the canonical bdd skill files, and bring the rule set up to the live 7-phase model (add verify, de-merge done).
   → `.project/tickets/G1A6BS-bdd-cursor-rules-reference`
@@ -906,6 +938,8 @@
 - **Resolve knip false-positives from lazy-loaded ESLint plugins (G8PBE6)** (superseded, epic: —)
   Suppress the seven knip "unused dependency" false-positives caused by H150ZW's lazy-load pattern, without reverting the lazy-load itself or hiding the false-positives in a way the next person can't find.
   → `.project/tickets/G8PBE6-knip-dynamic-load-false-positives`
+- **Auto-resolve merge conflicts on generated docs via `.gitattributes merge=union` (GA7T6M)** (todo, epic: —)
+  → `.project/tickets/GA7T6M-generated-doc-merge-union`
 - **Quiet expected negative-path test output (GJGSS3)** (in_progress, epic: —)
   Keep passing full test runs quiet when negative-path fixtures intentionally print errors.
   → `.project/tickets/GJGSS3-quiet-expected-negative-path-test-output`
@@ -957,6 +991,10 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
+- **Fire retro from Cursor stop hook (KHYXY4)** (done, epic: —)
+  Make retro fire autonomously at the end of real Cursor sessions, the
+  blocked by: Auto-fire retro at session-stop (cloud-safe, idempotent) (FTCQGD)
+  → `.project/tickets/KHYXY4-retro-cursor-trigger`
 - **De-jargon the interactive CLI; auto-default the namespace-move prompt (KRUEWC)** (done, epic: —)
   Make the unmediated terminal surface (`setup`/`upgrade`/`check`) answerable by a non-coder, and never halt on a jargon-only decision.
   → `.project/tickets/KRUEWC-dejargon-interactive-cli`
@@ -1041,7 +1079,10 @@
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`
-- **safeword retro — transcript-mining session retrospective (RV9JT4)** (in_progress, epic: —)
+- **Egress entropy backstop: track the accepted false-negative tail (RT4NKL)** (backlog, epic: —)
+  Give the retro egress backstop's documented residual false-negative tail
+  → `.project/tickets/RT4NKL-egress-entropy-residual-tail`
+- **safeword retro — transcript-mining session retrospective (RV9JT4)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/RV9JT4-retro-transcript-mining`
 - **`/architecture` LLM-prose resync skill (deferred from JT852Q) (RYKVR5)** (backlog, epic: —)
@@ -1053,6 +1094,9 @@
 - **Optimize safeword for Fable 5 — capability-tier harness adaptation (SKQR0G)** (in_progress, epic: —)
   Re-weight safeword's harness for frontier models like Fable 5 — amplify fresh-context verification and the no-bloat guardrail, thin the per-turn control injections, and scale harness intensity by model tier/effort — guided by Fable's own prompting guidance.
   → `.project/tickets/SKQR0G-capability-tier-harness`
+- **Durable egress hardening: secretlint rule-packs + GitHub write-path test (SPNZKM)** (done, epic: —)
+  Replace retro's hand-rolled secret regex with maintained `@secretlint`
+  → `.project/tickets/SPNZKM-retro-egress-hardening`
 - **Stop-gate incremental tsc for TS projects (SW1SE5)** (done, epic: —)
   Add an incremental whole-program `tsc --noEmit` to the stop-quality gate for TypeScript projects, so type errors surface at the stop boundary instead of riding silently to the done gate.
   → `.project/tickets/SW1SE5-stop-gate-tsc-typecheck`
@@ -1068,6 +1112,9 @@
 - **Humanize first-run runtime and dependency failures (UJSZXB)** (done, epic: —)
   Make the first thing an NTB can hit — a missing-bun or deps-not-installed block — readable and safety-framed instead of a shell-jargon wall.
   → `.project/tickets/UJSZXB-humanize-first-run-runtime`
+- **Surface a present-but-unparseable workspace manager (coverage honesty) (UWP4XK)** (todo, epic: —)
+  A workspace manager that is *present* at the repo root but whose member
+  → `.project/tickets/UWP4XK-unparseable-workspace-coverage`
 - **Formatter-aware lint hook: stop colliding with the customer's formatter (V7GGJZ)** (done, epic: —)
   The runtime auto-lint hook honors the formatter the customer already chose — it never
   → `.project/tickets/V7GGJZ-formatter-aware-lint-hook`
@@ -1131,6 +1178,9 @@
 - **Go language pack — architecture discovery, extraction, fingerprint (ZD70P1)** (done, epic: —)
   Teach the generated architecture doc to introspect **Go** projects —
   → `.project/tickets/ZD70P1-architecture-go-language-pack`
+- **Retro recall: delta re-arm + sonnet + async hook + signature dedupe (ZFGWS1)** (done, epic: —)
+  Make the invisible retro actually surface the friction a session hits —
+  → `.project/tickets/ZFGWS1-retro-recall-delta-rearm`
 - **Promote scenario-coverage to a blocking gate (split from NMSD94 SM1.AC1) (ZRMDKD)** (backlog, epic: —)
   Promote the deliberately-advisory AC↔scenario coverage check to a skippable blocking gate, so test-definitions with an uncovered AC or an orphan scenario are denied (not just warned), with a measured alert-to-action ratio.
   → `.project/tickets/ZRMDKD-coverage-gate-blocking`
