@@ -62,7 +62,7 @@ version = "0.1.0"
 
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
