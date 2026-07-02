@@ -155,9 +155,10 @@ function isRelativeFilePath(run: string): boolean {
  * the allowlist. Backslashes are normalized to `/` for analysis so Windows
  * relative paths are covered. Over-redaction note (accepted, safe direction for a
  * PUBLIC body): non-safeword relative paths like `tests/foo.test.ts` also become
- * `[path]`. Residual: an arbitrary `KEY=secret` whose name isn't allowlisted, and
- * 40-char entropy-shaped keys with no prefix, are NOT caught here — secretlint
- * (ticket SPNZKM) is the durable fix.
+ * `[path]`. An arbitrary `KEY=secret` whose name isn't allowlisted, and prefixless
+ * entropy-shaped keys, are not this pass's job — the `scrubHighEntropy` backstop
+ * later in the same `sanitizeText` pipeline redacts them (secretlint remains the
+ * maintained detector for well-formed provider keys).
  */
 function scrubPaths(text: string): string {
   return text.replaceAll(PATH_CANDIDATE, run => {
