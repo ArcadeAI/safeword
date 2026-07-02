@@ -41,7 +41,9 @@ describe('E2E: Add Go to Existing TypeScript Project', () => {
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
     await setupOrThrow(projectDirectory, ['setup']);
-  }, 180_000);
+    // No explicit budget: inherits the 300s base hookTimeout, which contains
+    // setupOrThrow's bounded retry (was 180_000, < 2× the per-attempt timeout).
+  });
 
   afterAll(() => {
     if (projectDirectory) {

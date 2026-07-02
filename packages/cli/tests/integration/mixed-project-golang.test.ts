@@ -79,7 +79,7 @@ func main() {
 
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {

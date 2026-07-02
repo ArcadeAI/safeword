@@ -40,7 +40,7 @@ describe('E2E: TypeScript Project Setup', () => {
     writeTestFile(projectDirectory, 'src/index.ts', 'export const hello = "world";\n');
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -86,7 +86,7 @@ describe('E2E: Type-Checked ESLint Rules', () => {
 
     // Install dependencies so ESLint can run with type checking
     execSync('bun install', { cwd: projectDirectory, stdio: 'pipe' });
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -193,7 +193,7 @@ describe('E2E: JavaScript-Only Project', () => {
     writeTestFile(projectDirectory, 'src/index.js', 'module.exports = { hello: "world" };\n');
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
