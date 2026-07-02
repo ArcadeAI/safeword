@@ -3,10 +3,10 @@ id: HKR3F9
 slug: retro-hook-lib-refactor-followups
 parent: RV9JT4-retro-transcript-mining
 type: task
-phase: backlog
-status: backlog
+phase: done
+status: done
 created: 2026-07-02T15:42:00.000Z
-last_modified: 2026-07-02T15:42:00.000Z
+last_modified: 2026-07-02T15:52:00.000Z
 scope: |
   Low-value structural polish surfaced by a refactor scout of the retro hook-side
   modules, deferred out of PR #601 because each touches byte-parity-mirrored
@@ -57,3 +57,12 @@ is trying to merge. This ticket keeps them from being forgotten.
 - 2026-07-02T15:42Z Created from a `/refactor` scout of the retro subsystem. src/retro
   was clean save one dup already fixed (63a7157, toEncounterInput). Hook-side items
   deferred here for a post-merge parity-complete pass.
+- 2026-07-02T15:52Z DONE — the user asked to fix them now (not post-merge). All three
+  genuine items landed on the #601 branch, one refactoring → test → mirror → commit
+  each: (3) sanitizeSessionId extract `718afad`; (2) decideRetroNudge →
+  decideRetroAvailableNudge / decideRetroFilingNudge rename `7475de9`; (1)
+  iterateJsonlEntries JSONL-loop dedup `3bc1847`. Optional polish: named the tool_use
+  input cap `618615b`; STRUCK the rest (computeFireWindow extract — decideRetroRun is
+  already clear; renderManifestationComment; self-report 80/120 caps) as not worth
+  the change. done_when met (items 1-3 done). All templates + .safeword mirrors in
+  lockstep; affected suites green, tsc clean.

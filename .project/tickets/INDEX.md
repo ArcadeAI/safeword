@@ -949,7 +949,7 @@
 - **Investigate + address per-scenario TDD discipline bypass (H7M3KQ)** (in_progress, epic: —)
   Investigate the root causes that let an agent in good faith batch 31 scenarios' worth of implementation without doing per-scenario RED → GREEN → REFACTOR, and ship concrete guardrails that prevent it.
   → `.project/tickets/H7M3KQ`
-- **Retro hook-lib refactor follow-ups (deferred from #601) (HKR3F9)** (backlog, epic: —)
+- **Retro hook-lib refactor follow-ups (deferred from #601) (HKR3F9)** (done, epic: —)
   Land the low-value structural polish a refactor scout found in the retro
   → `.project/tickets/HKR3F9-retro-hook-lib-refactor-followups`
 - **Let Codex verify task tickets without Claude session proof (HMZSCD)** (done, epic: —)
