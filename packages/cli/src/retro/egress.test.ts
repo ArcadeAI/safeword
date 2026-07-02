@@ -201,6 +201,49 @@ describe('sanitizeTextDeep — secretlint provider-format coverage (SPNZKM)', ()
   });
 });
 
+// SPNZKM / eng-review #601: the blocklist misses secrets with no known prefix.
+// A deny-by-default entropy backstop + network-locator scrub close the residual,
+// layered UNDER the blocklist + secretlint. Over-redaction is the safe direction
+// for a PUBLIC body, but must not nuke ordinary identifiers/words/UUIDs.
+describe('sanitizeText — entropy + network backstop (SPNZKM, #601 egress review)', () => {
+  it('redacts a bare high-entropy token with no known prefix', () => {
+    const hex40 = 'deadbeefcafebabe0123456789abcdef01234567';
+    const b64 = 'Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MGFiY2RlZmdoaWprbG1ub3A';
+    expect(sanitizeText(`token ${hex40} leaked`)).not.toContain(hex40);
+    expect(sanitizeText(`token ${hex40} leaked`)).toContain('[redacted]');
+    expect(sanitizeText(`blob ${b64} here`)).not.toContain(b64);
+  });
+
+  it('redacts a value-only assignment whose key name is not secret-shaped', () => {
+    // MYVAR is not password/token/api_key — the blocklist misses it; entropy catches the value.
+    const out = sanitizeText('env MYVAR=a8f3c9e1b7d24506f8a1c3e5d7 set');
+    expect(out).not.toContain('a8f3c9e1b7d24506f8a1c3e5d7');
+    expect(out).toContain('[redacted]');
+  });
+
+  it('redacts private IPs (with port) and internal hostnames', () => {
+    // Assemble from octets so the literal IP never appears in source (sonarjs/no-hardcoded-ip).
+    const privateIp = ['10', '1', '2', '3'].join('.');
+    const routerIp = ['192', '168', '0', '42'].join('.');
+    expect(sanitizeText(`connected to ${privateIp}:5432 ok`)).not.toContain(privateIp);
+    expect(sanitizeText(`reached ${routerIp} fine`)).not.toContain(routerIp);
+    expect(sanitizeText('resolved db-primary.internal now')).not.toContain('db-primary.internal');
+  });
+
+  it('does NOT redact ordinary identifiers, long words, UUIDs, or versions (no gratuitous FP)', () => {
+    const survivors = [
+      'the getUserAccountBalanceById call regressed',
+      'internationalization of the message catalog',
+      'the task-runner-config-loader module',
+      'request id 550e8400-e29b-41d4-a716-446655440000 logged',
+      'bumped to version 1.2.3 today',
+    ];
+    for (const text of survivors) {
+      expect(sanitizeText(text)).toBe(text);
+    }
+  });
+});
+
 describe('resolveSurface (fail-closed)', () => {
   it('resolves a bare safeword-internal tail', () => {
     expect(resolveSurface('hooks/stop-quality.ts')).toBe('hooks/stop-quality.ts');

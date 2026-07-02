@@ -178,13 +178,75 @@ function scrubContacts(text: string): string {
   return text.replaceAll(EMAIL, '[email]');
 }
 
+/** Shannon entropy of a string, in bits per character. */
+function shannonEntropy(value: string): number {
+  const counts = new Map<string, number>();
+  for (const char of value) counts.set(char, (counts.get(char) ?? 0) + 1);
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const p = count / value.length;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+
+// Token-shaped runs of >=20 chars (word/base64/token alphabet, minus `=` so a
+// `KEY=<token>` assignment isolates the value). Canonical UUIDs are exempt.
+const HIGH_ENTROPY_RUN = /[\w+/-]{20,}/g;
+const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const HIGH_ENTROPY_MIN_BITS = 3;
+
 /**
- * Full deny-by-default scrub for a free-text field — the synchronous regex floor
- * (broad secrets + customer paths + emails). Always safe to call standalone; it
- * is also the fallback layer `sanitizeTextDeep` composes over.
+ * A run is secret-shaped when it MIXES letters and digits (so pure-letter
+ * identifiers like `getUserAccountBalanceById` and pure-digit numbers survive),
+ * isn't a canonical UUID, and clears the Shannon-entropy floor (so low-entropy
+ * repeats/placeholders survive). ~3 bits catches hex (max 4) and base64 (max 6).
+ */
+function looksHighEntropySecret(run: string): boolean {
+  if (CANONICAL_UUID.test(run)) return false;
+  if (!/[a-z]/i.test(run) || !/\d/.test(run)) return false;
+  return shannonEntropy(run) >= HIGH_ENTROPY_MIN_BITS;
+}
+
+/**
+ * Deny-by-default entropy backstop: redact bare/prefixless high-entropy tokens and
+ * `KEY=<token>` values whose key name isn't secret-shaped — the residual the
+ * blocklist (`scrubSecrets`) and secretlint's precise provider rules miss (SPNZKM,
+ * eng-review #601). Over-redaction is the safe direction for a PUBLIC body; the
+ * letters+digits / UUID / entropy guards keep ordinary identifiers and words intact.
+ */
+function scrubHighEntropy(text: string): string {
+  return text.replaceAll(HIGH_ENTROPY_RUN, run => (looksHighEntropySecret(run) ? REDACTED : run));
+}
+
+// Valid IPv4 and internal-TLD hostnames. Any `:port` after the address is left
+// intact — redacting the address alone already strips the leakable locator, and
+// a nested `(?::\d{1,5})?` quantifier would trip the ReDoS guard. `[host]` carries
+// no leakable shape, so downstream passes never re-match it.
+const IPV4_CANDIDATE = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g;
+const INTERNAL_HOST = /\b[a-z0-9][a-z0-9.-]*\.(?:internal|local|corp|lan|intranet)\b/gi;
+const HOST = '[host]';
+
+/** Redact IPv4 addresses (octets <=255) and internal hostnames. */
+function scrubNetworkLocators(text: string): string {
+  const withoutIps = text.replaceAll(IPV4_CANDIDATE, run =>
+    run.split('.').every(octet => Number(octet) <= 255) ? HOST : run,
+  );
+  return withoutIps.replaceAll(INTERNAL_HOST, () => HOST);
+}
+
+/**
+ * Full deny-by-default scrub for a free-text field — the synchronous regex floor:
+ * blocklist secrets, customer paths, emails, network locators, then the entropy
+ * backstop for prefixless secrets the blocklist can't name. Always safe to call
+ * standalone; it is also the fallback layer `sanitizeTextDeep` composes over.
  */
 export function sanitizeText(text: string): string {
-  return scrubContacts(scrubPaths(scrubSecrets(text)));
+  let out = scrubSecrets(text);
+  out = scrubPaths(out);
+  out = scrubContacts(out);
+  out = scrubNetworkLocators(out);
+  return scrubHighEntropy(out);
 }
 
 /**

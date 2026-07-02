@@ -93,6 +93,12 @@ export async function triage(
     filedSignatures: [],
   };
   const maxNew = ctx.maxNewIssues ?? DEFAULT_MAX_NEW_ISSUES;
+  // Bound the session id before it flows into the ledger-comment JSON (eng-review
+  // #601): it is interpolated into a public issue body, so keep it to a bare token.
+  const boundContext: TriageContext = {
+    ...ctx,
+    sessionId: ctx.sessionId.replaceAll(/[^\w.-]/g, '_') || 'unknown',
+  };
   let newCount = 0;
 
   for (const encounter of encounters) {
@@ -103,7 +109,7 @@ export async function triage(
       const [existing] = matches;
 
       if (existing) {
-        await recordOnKnownIssue(transport, existing, encounter, ctx, result);
+        await recordOnKnownIssue(transport, existing, encounter, boundContext, result);
         // The finding is represented upstream (issue exists) — safe to drain.
         result.filedSignatures.push(encounter.draft.signature);
       } else if (newCount >= maxNew) {
@@ -117,7 +123,10 @@ export async function triage(
         newCount += 1;
         result.created.push(encounter.draft.title);
         result.filedSignatures.push(encounter.draft.signature);
-        await transport.createComment(issue.number, renderLedger(seedState(encounter, ctx)));
+        await transport.createComment(
+          issue.number,
+          renderLedger(seedState(encounter, boundContext)),
+        );
       }
     } catch {
       result.failed.push(encounter.draft.title);
