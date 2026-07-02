@@ -355,12 +355,12 @@ Test Quality:
 - If exists → check for drift and gaps along TWO axes — dependency drift (what tech) and structural drift (what modules/layers):
   - **Dependency drift:**
     - **Drift (error):** Documented tech contradicts the code's actual dependencies (e.g., doc says "Redux" but `package.json` has "zustand"; doc says "Flask" but `pyproject.toml` has "fastapi")
-    - **Gap (warn):** Major dependencies not documented
+    - **Gap (error):** Major dependencies not documented
   - **Structural drift** — reconcile ARCHITECTURE.md's STRUCTURAL claims against `architecture.generated.md`, the deterministic, always-fresh module/package map (kept current by the architecture hooks). Read the generated doc as ground truth — NOT `package.json`:
     - Read the namespace-root `architecture.generated.md` (resolve the namespace root the same way as other audit checks; default `.project/`). Its `### <name>` headings under `## Modules` (single-repo) or `## Packages` (monorepo) ARE the project's real top-level units. This machine list is the source of structural truth, so the verdict is deterministic-by-reading, not guessed.
     - **Orphaned (error):** ARCHITECTURE.md documents a module/layer — including a layer→directory mapping in its "Layers & Boundaries" table — that no longer appears in the generated map (renamed or removed).
-    - **Missing (warn):** A real top-level module/package in the generated map that ARCHITECTURE.md never mentions.
-    - **Drifted layer→dir (warn):** A "Layers & Boundaries" `directory` entry that matches no module path in the generated map.
+    - **Missing (error):** A real top-level module/package in the generated map that ARCHITECTURE.md never mentions.
+    - **Drifted layer→dir (error):** A "Layers & Boundaries" `directory` entry that matches no module path in the generated map.
     - **Report only — never auto-overwrite prose.** Cite the generated-doc evidence and propose narrative edits for the user to review; the human "why" is human-owned, and only a person can judge whether a paragraph is still true. The deterministic structural facts come from reading the generated doc; the narrative judgment stays with the human/agent.
   - A monorepo `## Coverage gaps` advisory in the generated doc (a present-but-unparseable workspace manager, #558) is itself a coverage limitation — note it so the structural reconciliation isn't mistaken for complete.
 
@@ -375,7 +375,7 @@ Test Quality:
 
 **Documentation impact check:**
 
-Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag any documentation that references changed code but hasn't been updated.
+Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag stale, missing, or contradictory impacted documentation as errors. Documentation drift is never a warning; only date-based staleness with no changed-code contradiction stays a warning.
 
 ---
 
@@ -388,18 +388,19 @@ Report findings by severity with codes:
 - [E001] Dead ref: `CLAUDE.md` references missing file `src/foo.ts`
 - [E002] Drift: `ARCHITECTURE.md` documents Redux, code uses Zustand
 - [E003] Structural drift: `ARCHITECTURE.md` documents module `legacy-sync` — absent from `architecture.generated.md` (orphaned; renamed or removed)
+- [E004] Documentation drift: Codex Stop hook behavior changed, but `README.md` or docs still describe only PreToolUse coverage
+- [E005] Dependency gap: `@tanstack/query` is a major dependency but is not documented in ARCHITECTURE.md
+- [E006] Structural gap: module `billing` in `architecture.generated.md` is not documented in `ARCHITECTURE.md` (missing)
+- [E007] Drifted layer→dir: `ARCHITECTURE.md` maps `domain` → `src/core/` but no such module path is in `architecture.generated.md`
 
 ### Warnings (should review)
 
 - [W001] Size: `CLAUDE.md` has 245 instructions (recommended: 150-200)
 - [W002] Structure: `AGENTS.md` missing recommended WHAT/WHY/HOW sections
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
-- [W004] Gap: `@tanstack/query` not documented in ARCHITECTURE.md
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
 - [W006] Learning file missing Covers: — `<namespace-root>/learnings/foo.md` (absent from INDEX.md)
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
-- [W008] Structural gap: module `billing` in `architecture.generated.md` not documented in `ARCHITECTURE.md` (missing)
-- [W009] Drifted layer→dir: `ARCHITECTURE.md` maps `domain` → `src/core/` but no such module path is in `architecture.generated.md`
 
 ### Code Quality
 
