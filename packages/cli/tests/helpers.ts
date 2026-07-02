@@ -199,6 +199,22 @@ export function createTypeScriptPackageJson(
   createFrameworkPackageJson(dir, 'typescript', overrides);
 }
 
+export function createTypeScriptProjectReadyForSetup(
+  dir: string,
+  overrides: Record<string, unknown> = {},
+): void {
+  const existingDevelopmentDependencies =
+    (overrides.devDependencies as Record<string, string>) ?? {};
+  createTypeScriptPackageJson(dir, {
+    ...overrides,
+    devDependencies: {
+      ...SAFEWORD_BASE_DEV_DEPENDENCIES,
+      typescript: '^5.0.0',
+      ...existingDevelopmentDependencies,
+    },
+  });
+}
+
 export function createReactPackageJson(dir: string, overrides: Record<string, unknown> = {}): void {
   createFrameworkPackageJson(dir, 'react', overrides);
 }

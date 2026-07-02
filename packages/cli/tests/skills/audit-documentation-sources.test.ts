@@ -9,17 +9,13 @@ const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const AUDIT_SURFACES = [
   'packages/cli/templates/skills/audit/SKILL.md',
-  'packages/cli/templates/commands/audit.md',
   '.agents/skills/audit/SKILL.md',
   '.claude/skills/audit/SKILL.md',
-  '.cursor/commands/audit.md',
 ];
 
-const AUDIT_SKILL_SURFACES = [
-  'packages/cli/templates/skills/audit/SKILL.md',
-  '.agents/skills/audit/SKILL.md',
-  '.claude/skills/audit/SKILL.md',
-];
+function readAuditSurface(relativePath: string): string {
+  return readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+}
 
 function extractBashBlock(content: string, ordinal: number): string {
   const blocks = content
@@ -50,8 +46,8 @@ function runAuditAutomation(files: Record<string, string>): {
 } {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-audit-'));
   const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
-  const commandContent = readFileSync(
-    nodePath.join(ROOT, 'packages/cli/templates/commands/audit.md'),
+  const auditSkillContent = readFileSync(
+    nodePath.join(ROOT, 'packages/cli/templates/skills/audit/SKILL.md'),
     'utf8',
   );
 
@@ -84,7 +80,7 @@ function runAuditAutomation(files: Record<string, string>): {
       'if [ "$1" = "--version" ]; then echo "4.9.0"; else echo "[fake-yarn] $@"; fi',
     );
 
-    const result = spawnSync('bash', ['-c', extractBashBlock(commandContent, 2)], {
+    const result = spawnSync('bash', ['-c', extractBashBlock(auditSkillContent, 2)], {
       cwd: projectDirectory,
       env: {
         ...process.env,
@@ -106,7 +102,7 @@ function runAuditAutomation(files: Record<string, string>): {
 
 describe('audit documentation source guidance', () => {
   it.each(AUDIT_SURFACES)('%s prompts only when docs.sources is absent', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('If `docs.sources` is absent, prompt the user');
     expect(content).toContain('set `docs.sources: []`');
@@ -115,7 +111,7 @@ describe('audit documentation source guidance', () => {
   });
 
   it.each(AUDIT_SURFACES)('%s reports documentation drift as an error', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('Gap (error)');
     expect(content).toContain('Documentation drift is never a warning');
@@ -125,26 +121,39 @@ describe('audit documentation source guidance', () => {
     expect(content).not.toContain('[W004] Gap');
   });
 
-  it.each(AUDIT_SKILL_SURFACES)(
-    '%s reports structural documentation gaps as errors',
-    relativePath => {
-      const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+  it.each(AUDIT_SURFACES)('%s reports structural documentation gaps as errors', relativePath => {
+    const content = readAuditSurface(relativePath);
 
-      expect(content).toContain('Missing (error)');
-      expect(content).toContain('Drifted layer→dir (error)');
-      expect(content).toContain('[E006] Structural gap');
-      expect(content).toContain('[E007] Drifted layer→dir');
-      expect(content).not.toContain('Missing (warn)');
-      expect(content).not.toContain('Drifted layer→dir (warn)');
-      expect(content).not.toContain('[W008] Structural gap');
-      expect(content).not.toContain('[W009] Drifted layer→dir');
-    },
-  );
+    expect(content).toContain('Missing (error)');
+    expect(content).toContain('Drifted layer→dir (error)');
+    expect(content).toContain('[E006] Structural gap');
+    expect(content).toContain('[E007] Drifted layer→dir');
+    expect(content).not.toContain('Missing (warn)');
+    expect(content).not.toContain('Drifted layer→dir (warn)');
+    expect(content).not.toContain('[W008] Structural gap');
+    expect(content).not.toContain('[W009] Drifted layer→dir');
+  });
+});
+
+describe('audit test quality severity', () => {
+  it.each(AUDIT_SURFACES)('%s reports sampled test-quality issues as errors', relativePath => {
+    const content = readAuditSurface(relativePath);
+    const testQualitySection = content
+      .split('### 4. Test Quality Review', 2)[1]
+      ?.split('### 5. Project Documentation Checks', 2)[0];
+
+    expect(testQualitySection).toBeDefined();
+    expect(testQualitySection).not.toContain('| warn');
+    expect(testQualitySection).toContain('- Issues found: N (E errors)');
+    expect(testQualitySection).toContain('[E] file.test.ts:42');
+    expect(testQualitySection).not.toContain('[E/W]');
+    expect(testQualitySection).not.toContain('[W] file.test.ts');
+  });
 });
 
 describe('audit installed-project stack awareness', () => {
   it.each(AUDIT_SURFACES)('%s gates JavaScript checks on package.json evidence', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('JavaScript-specific checks');
     expect(content).toContain('[ -f package.json ]');
@@ -154,7 +163,7 @@ describe('audit installed-project stack awareness', () => {
   it.each(AUDIT_SURFACES)(
     '%s chooses outdated dependency commands from the project package manager',
     relativePath => {
-      const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+      const content = readAuditSurface(relativePath);
 
       expect(content.toLowerCase()).toContain('detect package manager');
       expect(content).toContain('bun outdated');
@@ -168,7 +177,7 @@ describe('audit installed-project stack awareness', () => {
   );
 
   it.each(AUDIT_SURFACES)('%s audits supported non-JavaScript stacks', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('Python-specific checks');
     expect(content).toContain('uv pip list --outdated');

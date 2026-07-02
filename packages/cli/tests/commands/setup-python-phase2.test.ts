@@ -66,10 +66,10 @@ function readPyprojectToml(dir: string): string {
 }
 
 /**
- * Helper to read the audit.md template content
+ * Helper to read the canonical audit skill content
  */
-function readAuditTemplate(): string {
-  return readFileSync(nodePath.join(__dirname, '../../templates/commands/audit.md'), 'utf8');
+function readAuditSkillTemplate(): string {
+  return readFileSync(nodePath.join(__dirname, '../../templates/skills/audit/SKILL.md'), 'utf8');
 }
 
 /**
@@ -224,9 +224,9 @@ describe('Suite 2: Architecture Validation', () => {
 // =============================================================================
 
 describe('Suite 3: Dead Code Detection', () => {
-  it('Test 3.1: /audit template includes deadcode for Python', () => {
-    // Assert: audit.md template contains deadcode command
-    const auditTemplate = readAuditTemplate();
+  it('Test 3.1: /audit skill includes deadcode for Python', () => {
+    // Assert: the audit skill contains the deadcode command
+    const auditTemplate = readAuditSkillTemplate();
     expect(auditTemplate).toContain('deadcode');
     // Should detect Python projects
     expect(auditTemplate).toMatch(/pyproject\.toml|requirements\.txt/);
@@ -238,19 +238,19 @@ describe('Suite 3: Dead Code Detection', () => {
 // =============================================================================
 
 describe('Suite 4: Copy/Paste Detection', () => {
-  it('Test 4.1: /audit template includes jscpd', () => {
-    // Assert: audit.md template contains jscpd command
-    const auditTemplate = readAuditTemplate();
+  it('Test 4.1: /audit skill includes jscpd', () => {
+    // Assert: the audit skill contains the jscpd command
+    const auditTemplate = readAuditSkillTemplate();
     expect(auditTemplate).toContain('jscpd');
   });
 
   it('Test 4.2: jscpd does not use removed --gitignore flag (removed in jscpd v3+)', () => {
-    const auditTemplate = readAuditTemplate();
+    const auditTemplate = readAuditSkillTemplate();
     expect(auditTemplate).not.toContain('--gitignore');
   });
 
   it('Test 4.3: jscpd uses --min-lines 10', () => {
-    const auditTemplate = readAuditTemplate();
+    const auditTemplate = readAuditSkillTemplate();
     expect(auditTemplate).toMatch(/--min-lines\s+10/);
   });
 });

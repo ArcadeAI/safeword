@@ -60,6 +60,11 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
     skillPath: 'quality-review/SKILL.md',
   },
   {
+    name: 'audit',
+    description: 'Run comprehensive code audit for architecture, dead code, and test quality',
+    skillPath: 'audit/SKILL.md',
+  },
+  {
     name: 'refactor',
     description: REFACTOR_DESCRIPTION,
     skillPath: 'refactor/SKILL.md',
