@@ -1,61 +1,99 @@
 #!/usr/bin/env bun
-// Safeword: Codex Stop adapter for the retro auto-trigger (ticket 53DQJZ).
+// Safeword: invisible Codex retro auto-trigger (ticket CDX602 / issue #602).
 //
-// Codex's Stop hook fires at turn-end while the session is alive and hands a
-// turn-scoped payload that includes `transcript_path` (the Codex rollout JSONL).
-// At most once per SUBSTANTIAL session, this emits a {decision:"block", reason}
-// continuation whose reason points the agent at the retro pipeline — the Codex
-// analogue of the Claude stop-retro additionalContext nudge.
-//
-// It reuses the shared core (sentinel, orchestration) via injection seams:
-//   - countToolUsesCodex  — Codex rollout shape ({type,payload}: function_call /
-//     exec_command_begin / mcp_tool_call_begin), NOT Claude's tool_use.
-//   - resolveCodexSessionId — session-stable id (payload session_id / CODEX_THREAD_ID).
-//
-// Codex Stop requires valid JSON output, so the silent and fail-open paths emit
-// `{}` (no decision) rather than nothing. Best-effort: never wrongly continues.
+// Codex skips async hooks, so this Stop hook runs the retro extraction
+// synchronously and emits NOTHING. There is no {decision:"block"} continuation:
+// Lane 2 surfacing for unfiled drafts belongs to the separate UserPromptSubmit
+// prompt-retro-nudge hook. The child path marks itself with SAFEWORD_RETRO_CHILD
+// so a headless `codex exec` process cannot recursively re-fire Stop.
 
-import { readSelfReportConfig } from '../lib/self-report.ts';
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
+import process from 'node:process';
+
+import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
 import {
   countToolUsesCodex,
-  decideRetroNudge,
+  decideRetroRun,
+  type OffsetState,
   resolveCodexSessionId,
   type RetroTriggerInput,
+  writeOffsetState,
 } from '../lib/retro-trigger.ts';
+import { readSelfReportConfig } from '../lib/self-report.ts';
 
 interface CodexStopInput extends RetroTriggerInput {
   cwd?: string;
 }
 
-// Codex Stop requires JSON output; `{}` is the valid "no continuation" response.
-const SILENT = '{}';
+/**
+ * The command that runs the extraction CLI. Prefer the dogfood local CLI, else
+ * `bunx safeword@latest`; the spawned CLI then launches `codex exec` through the
+ * shared auto-extract boundary.
+ */
+function resolveExtractCommand(
+  projectDirectory: string,
+  decision: { transcriptPath: string; windowStart: number; sessionId: string },
+): [string, string[]] {
+  const retroArgs = retroChildArgs(decision);
+  const localCli = nodePath.join(projectDirectory, 'packages/cli/src/cli.ts');
+  return existsSync(localCli)
+    ? ['bun', [localCli, ...retroArgs]]
+    : ['bunx', ['safeword@latest', ...retroArgs]];
+}
 
-async function main(): Promise<string> {
+async function main(): Promise<void> {
   let input: CodexStopInput;
   try {
     input = (await Bun.stdin.json()) as CodexStopInput;
   } catch {
-    return SILENT; // malformed stdin → fail open with valid JSON
+    return; // malformed stdin / no stdin -> silent fail-open
   }
 
   const projectDirectory = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-  if (!readSelfReportConfig(projectDirectory).surface) return SILENT;
+  if (!readSelfReportConfig(projectDirectory).surface) return;
 
-  const reason = decideRetroNudge(input, {
+  let pendingOffsetState:
+    | { sessionId: string; state: OffsetState; baseDirectory: string | undefined }
+    | undefined;
+  const decision = decideRetroRun(input, {
     env: process.env,
     countToolUses: countToolUsesCodex,
     resolveSessionId: resolveCodexSessionId,
+    writeOffsetState: (sessionId, state, baseDirectory) => {
+      pendingOffsetState = { sessionId, state, baseDirectory };
+    },
   });
-  if (!reason) return SILENT;
+  if (!decision) return;
 
-  return JSON.stringify({ decision: 'block', reason });
+  const [command, args] = resolveExtractCommand(projectDirectory, decision);
+  const result = spawnSync(command, args, {
+    cwd: projectDirectory,
+    env: {
+      ...process.env,
+      SAFEWORD_RETRO_AGENT: 'codex',
+      [RETRO_CHILD_ENV]: '1',
+    },
+    stdio: 'ignore',
+    timeout: 600_000,
+  });
+  if (result.status !== 0 || result.error || !pendingOffsetState) return;
+
+  try {
+    writeOffsetState(
+      pendingOffsetState.sessionId,
+      pendingOffsetState.state,
+      pendingOffsetState.baseDirectory,
+    );
+  } catch {
+    // A state-write failure must not make Stop visible or blocking.
+  }
 }
 
-let output = SILENT;
 try {
-  output = await main();
+  await main();
 } catch {
-  output = SILENT; // self-observation must never break the Codex turn
+  // Self-observation must never break Stop.
 }
-process.stdout.write(`${output}\n`);
 process.exit(0);

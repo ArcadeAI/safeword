@@ -8,7 +8,7 @@
 // synchronous runner. Agent-neutral where possible; Claude-specific bits are
 // named as such.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 /**
@@ -18,26 +18,39 @@ import nodePath from 'node:path';
 export const DIGEST_CAP = 180_000;
 
 /**
- * Default extraction model. Sonnet, not haiku: measured head-to-head on the same
- * transcript, haiku surfaced 1–3 weak findings vs sonnet's 9 strong ones (ZFGWS1).
- * Overridable per install via `.safeword/config.json` → `retro.model`.
+ * Default Claude extraction model. Sonnet, not haiku: measured head-to-head on
+ * the same transcript, haiku surfaced 1–3 weak findings vs sonnet's 9 strong
+ * ones (ZFGWS1). Overridable per install via `.safeword/config.json` →
+ * `retro.model`.
  */
-export const DEFAULT_RETRO_MODEL = 'sonnet';
+export const DEFAULT_CLAUDE_RETRO_MODEL = 'sonnet';
+
+/** Default Codex extraction model. Stock Codex can only call OpenAI models. */
+export const DEFAULT_CODEX_RETRO_MODEL = 'gpt-5.5';
+
+/** Backward-compatible alias for existing Claude call sites/tests. */
+export const DEFAULT_RETRO_MODEL = DEFAULT_CLAUDE_RETRO_MODEL;
+
+export type RetroAgent = 'claude' | 'codex';
+
+function defaultRetroModel(agent: RetroAgent): string {
+  return agent === 'codex' ? DEFAULT_CODEX_RETRO_MODEL : DEFAULT_CLAUDE_RETRO_MODEL;
+}
 
 /**
  * Resolve the extraction model for an install: `retro.model` from
- * `.safeword/config.json`, else the sonnet default. Fail-open to the default on
- * any missing/unreadable/malformed config — model selection must never break the
- * out-of-band retro run.
+ * `.safeword/config.json`, else the per-agent default. Fail-open to the default
+ * on any missing/unreadable/malformed config — model selection must never break
+ * the out-of-band retro run.
  */
-export function resolveRetroModel(projectDirectory: string): string {
+export function resolveRetroModel(projectDirectory: string, agent: RetroAgent = 'claude'): string {
   try {
     const raw = readFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), 'utf8');
     const parsed = JSON.parse(raw) as { retro?: { model?: unknown } };
     const model = parsed.retro?.model;
-    return typeof model === 'string' && model.length > 0 ? model : DEFAULT_RETRO_MODEL;
+    return typeof model === 'string' && model.length > 0 ? model : defaultRetroModel(agent);
   } catch {
-    return DEFAULT_RETRO_MODEL;
+    return defaultRetroModel(agent);
   }
 }
 
@@ -153,6 +166,44 @@ export function buildExtractArgv(options: ExtractArgvOptions): string[] {
   ];
 }
 
+export interface CodexExtractArgvOptions {
+  /** OpenAI model for the child `codex exec` process. */
+  model: string;
+  /** JSON schema path supplied to `--output-schema`. */
+  schemaPath: string;
+  /** JSON output path supplied to `-o`. */
+  outputPath: string;
+  /** Inline digest + task prompt. No Read/MCP tools are available. */
+  prompt: string;
+}
+
+/**
+ * Build the `codex exec` argv for a headless retro extraction. The digest is
+ * inline in the prompt because `--output-schema` is ignored by Codex when the
+ * task requires Read/MCP tool use. Hooks and MCP servers are explicitly disabled,
+ * stdin is closed by the runner, and the sandbox is read-only.
+ */
+export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[] {
+  return [
+    'exec',
+    '--ignore-user-config',
+    '--disable',
+    'hooks',
+    '-c',
+    'mcp_servers={}',
+    '--output-schema',
+    options.schemaPath,
+    '-o',
+    options.outputPath,
+    '--json',
+    '--sandbox',
+    'read-only',
+    '-m',
+    options.model,
+    options.prompt,
+  ];
+}
+
 // The extraction rules, mirrored from templates/guides/retro.md: SAFEWORD's own
 // friction only, the constrained snake_case schema, no invention. The egress
 // guard sanitizes downstream, so the child writes plainly.
@@ -165,9 +216,49 @@ const EXTRACT_SYSTEM_PROMPT =
   'friction only (not the host project, not Claude Code itself); canonical ' +
   'behavior-titles; do not invent; [] if none.';
 
+const CODEX_RETRO_OUTPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          category: { type: 'string', enum: ['bug', 'rough-edge', 'gap'] },
+          title: { type: 'string' },
+          safeword_surface: { type: 'string' },
+          what_happened: { type: 'string' },
+          why_friction: { type: 'string' },
+          repro: { type: 'string' },
+        },
+        required: [
+          'category',
+          'title',
+          'safeword_surface',
+          'what_happened',
+          'why_friction',
+          'repro',
+        ],
+      },
+    },
+  },
+  required: ['findings'],
+};
+
 /** The task prompt: point the read-only child at the digest file. */
 function buildExtractPrompt(digestPath: string): string {
   return `Read the file ${digestPath} and extract SAFEWORD's own friction as the JSON array described. Output only the JSON array.`;
+}
+
+function buildCodexExtractPrompt(digest: string): string {
+  return (
+    `${EXTRACT_SYSTEM_PROMPT}\n\n` +
+    'Return only JSON matching the provided output schema: {"findings":[...]}. ' +
+    'Use an empty findings array when there is no safeword friction.\n\n' +
+    `Transcript digest:\n${digest}`
+  );
 }
 
 /** Parse a findings array out of a `claude -p --output-format json` envelope. */
@@ -188,6 +279,15 @@ function parseFindings(stdout: string): unknown[] {
     return Array.isArray(findings) ? findings : [];
   } catch {
     return [];
+  }
+}
+
+function parseCodexFindingsOutput(rawOutput: string): unknown[] | undefined {
+  try {
+    const parsed = JSON.parse(rawOutput) as { findings?: unknown };
+    return Array.isArray(parsed.findings) ? parsed.findings : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -212,6 +312,37 @@ export interface RunExtractionDeps {
   cwd: string;
   /** Extraction model (cheap by default). */
   model?: string;
+}
+
+export interface CodexSpawnOptions {
+  cwd: string;
+  env: Record<string, string | undefined>;
+  stdio: 'ignore';
+}
+
+/** Dependencies for `runCodexHeadlessExtraction` — injected for tests. */
+export interface RunCodexExtractionDeps {
+  /** Spawn `codex` with argv; resolve after the child exits. Awaited (sync). */
+  spawn: (argv: string[], options: CodexSpawnOptions) => Promise<SpawnResult>;
+  /** Persist the output schema file read by `codex exec --output-schema`. */
+  writeFile?: (path: string, content: string) => void;
+  /** Read the `-o` JSON file written by `codex exec`. */
+  readFile?: (path: string) => string;
+  /** Base env for the child (the sentinel is added here). */
+  env: Record<string, string | undefined>;
+  /** Neutral cwd — NOT the user's project — so project hooks don't load. */
+  cwd: string;
+  /** Extraction model (OpenAI default for Codex). */
+  model?: string;
+  /** Test seam for deterministic schema/output paths. */
+  schemaPath?: string;
+  outputPath?: string;
+}
+
+export interface CodexExtractionResult {
+  /** True only when the child exited successfully and wrote schema-valid JSON. */
+  ok: boolean;
+  findings: unknown[];
 }
 
 /**
@@ -243,6 +374,52 @@ export async function runHeadlessExtraction(
   } catch {
     return []; // fail-open on any spawn/IO error
   }
+}
+
+/**
+ * Run Codex retro extraction in a separate `codex exec` child and return the raw
+ * findings array with a success bit. Synchronous (awaits the child) and
+ * fail-OPEN: any non-zero exit, missing output, malformed JSON, or
+ * spawn/read/write error yields `{ ok:false, findings:[] }`.
+ */
+export async function runCodexHeadlessExtractionChecked(
+  transcript: string,
+  dependencies: RunCodexExtractionDeps,
+): Promise<CodexExtractionResult> {
+  try {
+    const schemaPath = dependencies.schemaPath ?? nodePath.join(dependencies.cwd, 'schema.json');
+    const outputPath = dependencies.outputPath ?? nodePath.join(dependencies.cwd, 'output.json');
+    const writeFile = dependencies.writeFile ?? writeFileSync;
+    const readFile = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
+
+    writeFile(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
+    const argv = buildCodexExtractArgv({
+      model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
+      schemaPath,
+      outputPath,
+      prompt: buildCodexExtractPrompt(buildDigest(transcript)),
+    });
+    const { code } = await dependencies.spawn(argv, {
+      cwd: dependencies.cwd,
+      env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
+      stdio: 'ignore',
+    });
+    if (code !== 0) return { ok: false, findings: [] };
+    const findings = parseCodexFindingsOutput(readFile(outputPath));
+    return findings === undefined ? { ok: false, findings: [] } : { ok: true, findings };
+  } catch {
+    return { ok: false, findings: [] };
+  }
+}
+
+/**
+ * Backward-compatible fail-open wrapper for call sites that only need findings.
+ */
+export async function runCodexHeadlessExtraction(
+  transcript: string,
+  dependencies: RunCodexExtractionDeps,
+): Promise<unknown[]> {
+  return (await runCodexHeadlessExtractionChecked(transcript, dependencies)).findings;
 }
 
 // A tool-result body is kept whole only when it's short OR carries a friction

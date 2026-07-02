@@ -178,6 +178,16 @@ timeout = 5
 statusMessage = "Adding current timestamp"
 `;
 
+export const CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH = `
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-retro-nudge.ts"'
+timeout = 30
+statusMessage = "Checking spooled safeword retro drafts"
+`;
+
 export const CODEX_SESSION_START_HOOK_PATCH = `
 [[hooks.SessionStart]]
 matcher = ""
@@ -220,8 +230,8 @@ const CODEX_STOP_HOOK_PATCH = `
 [[hooks.Stop.hooks]]
 type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
-timeout = 30
-statusMessage = "Checking whether to run a safeword retro"
+timeout = 600
+statusMessage = "Running safeword retro if this session is substantial"
 `;
 
 // Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex
@@ -1210,6 +1220,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           '.safeword/hooks/codex/pre-tool-quality.ts',
         ],
         unpatchContent: [
+          CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH,
           CODEX_SESSION_START_HOOK_PATCH,
           CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
@@ -1224,6 +1235,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         operation: 'append',
         content: CODEX_STOP_HOOK_PATCH,
         marker: '.safeword/hooks/codex/stop.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      // Prompt retro nudge retrofit (CDX602): add-if-missing onto existing Codex
+      // configs. This is Lane 2 for unfiled spooled drafts; Codex Stop itself is
+      // silent and never blocks the turn.
+      {
+        operation: 'append',
+        content: CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH,
+        marker: '.safeword/hooks/prompt-retro-nudge.ts',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
