@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (365)
+## Tickets (366)
 
 ### agent-surface-refactor
 
@@ -1079,6 +1079,9 @@
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`
+- **Egress entropy backstop: track the accepted false-negative tail (RT4NKL)** (backlog, epic: —)
+  Give the retro egress backstop's documented residual false-negative tail
+  → `.project/tickets/RT4NKL-egress-entropy-residual-tail`
 - **safeword retro — transcript-mining session retrospective (RV9JT4)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/RV9JT4-retro-transcript-mining`
