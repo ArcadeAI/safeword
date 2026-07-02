@@ -10,7 +10,7 @@ import {
   spoolDrafts,
   type SpooledDraft,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { decideRetroNudge } from '../../templates/hooks/lib/retro-nudge.js';
+import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
 
 const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
   signature,
@@ -59,7 +59,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     const result = await fileSpooledDrafts(projectDirectory, 'drained-sess', post);
     expect(result).toEqual({ posted: 0, failed: 0 });
     expect(posts).toBe(0);
-    expect(decideRetroNudge(projectDirectory, 'drained-sess')).toBeUndefined();
+    expect(decideRetroFilingNudge(projectDirectory, 'drained-sess')).toBeUndefined();
   });
 
   it('leaves an un-postable draft spooled for retry, and a later boundary still nudges for it', async () => {
@@ -79,7 +79,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     const remaining = readSpooledDrafts(projectDirectory, 'sess-1');
     expect(remaining).toEqual([draft('retro:bbbbbbbbbbbb', 'Unpostable')]);
     // A later boundary still surfaces exactly one line for the remaining draft.
-    const line = decideRetroNudge(projectDirectory, 'sess-1');
+    const line = decideRetroFilingNudge(projectDirectory, 'sess-1');
     expect(line).toBeDefined();
     expect(line).toContain('1');
   });

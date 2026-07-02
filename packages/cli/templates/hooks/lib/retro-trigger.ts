@@ -351,7 +351,7 @@ export interface RetroTriggerDeps {
  *   - transcript unreadable      → silent
  *   - transcript not substantial → silent, sentinel left unset
  */
-export function decideRetroNudge(
+export function decideRetroAvailableNudge(
   input: RetroTriggerInput,
   dependencies: RetroTriggerDeps = {},
 ): string | undefined {

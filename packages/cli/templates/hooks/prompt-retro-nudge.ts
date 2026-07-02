@@ -11,7 +11,7 @@
 
 import { existsSync } from 'node:fs';
 
-import { decideRetroNudge } from './lib/retro-nudge.ts';
+import { decideRetroFilingNudge } from './lib/retro-nudge.ts';
 
 interface HookInput {
   session_id?: string;
@@ -31,7 +31,7 @@ if (existsSync(`${projectDirectory}/.safeword`)) {
   const sessionId = input.session_id;
   if (sessionId) {
     try {
-      const additionalContext = decideRetroNudge(projectDirectory, sessionId);
+      const additionalContext = decideRetroFilingNudge(projectDirectory, sessionId);
       if (additionalContext) {
         process.stdout.write(
           `${JSON.stringify({

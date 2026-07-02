@@ -2,7 +2,7 @@
  * Cursor retro-trigger units (ticket KHYXY4).
  *
  * Cursor reuses the shared core wholesale — the Claude countToolUses (its
- * transcript is Claude-shaped) plus the sentinel and decideRetroNudge. The only
+ * transcript is Claude-shaped) plus the sentinel and decideRetroAvailableNudge. The only
  * Cursor-specific unit is the session-id resolver (conversation_id). The adapter
  * wiring (coexistence with quality-review, followup_message) is an integration test.
  */

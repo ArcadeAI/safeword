@@ -73,7 +73,10 @@ export function formatRetroNudge(count: number, spoolPath: string): string {
  * surfaced; otherwise undefined. On a surface, persists the batch marker so the
  * same unchanged batch stays silent next time. Best-effort — reads are fail-open.
  */
-export function decideRetroNudge(projectDirectory: string, sessionId: string): string | undefined {
+export function decideRetroFilingNudge(
+  projectDirectory: string,
+  sessionId: string,
+): string | undefined {
   const drafts = readSpooledDrafts(projectDirectory, sessionId);
   if (drafts.length === 0) return undefined;
   const key = batchKey(drafts.map(draft => draft.signature));

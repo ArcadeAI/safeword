@@ -13,7 +13,7 @@ import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
 import { readSessionState } from '../lib/quality-state.ts';
 import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
-import { countToolUses, decideRetroNudge, resolveCursorSessionId } from '../lib/retro-trigger.ts';
+import { countToolUses, decideRetroAvailableNudge, resolveCursorSessionId } from '../lib/retro-trigger.ts';
 
 installCrashCapture('cursor-stop', undefined, 'cursor');
 
@@ -42,7 +42,7 @@ function emitRetroOrEmpty(input: CursorInput): void {
     console.log('{}');
     return;
   }
-  const reason = decideRetroNudge(
+  const reason = decideRetroAvailableNudge(
     { conversation_id: input.conversation_id, transcript_path: input.transcript_path },
     { env: process.env, countToolUses, resolveSessionId: resolveCursorSessionId },
   );

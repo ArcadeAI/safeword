@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   buildRetroNudge,
   countToolUses,
-  decideRetroNudge,
+  decideRetroAvailableNudge,
   hasNudged,
   isSubstantial,
   markNudged,
@@ -149,7 +149,7 @@ describe('once-per-session sentinel (keyed by session id)', () => {
   });
 });
 
-describe('decideRetroNudge (orchestration)', () => {
+describe('decideRetroAvailableNudge (orchestration)', () => {
   let baseDirectory: string;
   const substantial = transcriptWithToolUses(SUBSTANCE_THRESHOLD + 2);
   const trivial = transcriptWithToolUses(SUBSTANCE_THRESHOLD - 1);
@@ -164,7 +164,7 @@ describe('decideRetroNudge (orchestration)', () => {
   const dependencies = dependenciesFactory(() => baseDirectory, substantial);
 
   it('SM1.AC1: a substantial unnudged session returns a nudge with path + guide and sets the sentinel', () => {
-    const out = decideRetroNudge(
+    const out = decideRetroAvailableNudge(
       { session_id: 'sess-1', transcript_path: '/t/sess-1.jsonl' },
       dependencies(),
     );
@@ -175,7 +175,7 @@ describe('decideRetroNudge (orchestration)', () => {
   });
 
   it('SM1.AC2: a trivial session returns nothing and leaves the sentinel unset', () => {
-    const out = decideRetroNudge(
+    const out = decideRetroAvailableNudge(
       { session_id: 'sess-1', transcript_path: '/t/sess-1.jsonl' },
       dependencies({ readFile: () => trivial }),
     );
@@ -185,7 +185,7 @@ describe('decideRetroNudge (orchestration)', () => {
 
   it('SM1.AC3: a second call for an already-nudged session returns nothing', () => {
     markNudged('sess-1', baseDirectory);
-    const out = decideRetroNudge(
+    const out = decideRetroAvailableNudge(
       { session_id: 'sess-1', transcript_path: '/t/sess-1.jsonl' },
       dependencies(),
     );
@@ -194,7 +194,7 @@ describe('decideRetroNudge (orchestration)', () => {
 
   it('SM1.AC3: a different session id still nudges (sentinel is per-session)', () => {
     markNudged('sess-1', baseDirectory);
-    const out = decideRetroNudge(
+    const out = decideRetroAvailableNudge(
       { session_id: 'sess-2', transcript_path: '/t/sess-2.jsonl' },
       dependencies(),
     );
@@ -202,7 +202,7 @@ describe('decideRetroNudge (orchestration)', () => {
   });
 
   it('SM1.AC4: resolves the session id from the cloud env when input omits it', () => {
-    decideRetroNudge(
+    decideRetroAvailableNudge(
       { transcript_path: '/t/x.jsonl' },
       dependencies({ env: { CLAUDE_CODE_REMOTE_SESSION_ID: 'cloud-9' } }),
     );
@@ -210,18 +210,21 @@ describe('decideRetroNudge (orchestration)', () => {
   });
 
   it('TB1.AC2: no resolvable session id → no nudge', () => {
-    const out = decideRetroNudge({ transcript_path: '/t/x.jsonl' }, dependencies({ env: {} }));
+    const out = decideRetroAvailableNudge(
+      { transcript_path: '/t/x.jsonl' },
+      dependencies({ env: {} }),
+    );
     expect(out).toBeUndefined();
   });
 
   it('TB1.AC2: missing transcript_path → no nudge, sentinel unset', () => {
-    const out = decideRetroNudge({ session_id: 'sess-1' }, dependencies());
+    const out = decideRetroAvailableNudge({ session_id: 'sess-1' }, dependencies());
     expect(out).toBeUndefined();
     expect(hasNudged('sess-1', baseDirectory)).toBe(false);
   });
 
   it('TB1.AC2: an unreadable transcript → no nudge, sentinel unset (fail open)', () => {
-    const out = decideRetroNudge(
+    const out = decideRetroAvailableNudge(
       { session_id: 'sess-1', transcript_path: '/t/missing.jsonl' },
       dependencies({
         readFile: () => {

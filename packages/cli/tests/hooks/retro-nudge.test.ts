@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { spoolDrafts, type SpooledDraft } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { decideRetroNudge, formatRetroNudge } from '../../templates/hooks/lib/retro-nudge.js';
+import { decideRetroFilingNudge, formatRetroNudge } from '../../templates/hooks/lib/retro-nudge.js';
 
 const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
   signature,
@@ -29,29 +29,29 @@ describe('retro nudge decision (BNGK9W — one factual line per unfiled batch)',
       draft('retro:bbbbbbbbbbbb'),
       draft('retro:cccccccccccc'),
     ]);
-    const line = decideRetroNudge(projectDirectory, 'sess-1');
+    const line = decideRetroFilingNudge(projectDirectory, 'sess-1');
     expect(line).toBeDefined();
     expect(line).not.toContain('\n'); // exactly one line
     expect(line).toContain('3'); // references the count
   });
 
   it('stays silent when there are no unfiled drafts', () => {
-    expect(decideRetroNudge(projectDirectory, 'sess-1')).toBeUndefined();
+    expect(decideRetroFilingNudge(projectDirectory, 'sess-1')).toBeUndefined();
   });
 
   it('nudges once per unfiled batch — a fresh evaluation of the same set is silent', () => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
-    expect(decideRetroNudge(projectDirectory, 'sess-1')).toBeDefined();
+    expect(decideRetroFilingNudge(projectDirectory, 'sess-1')).toBeDefined();
     // A fresh boundary reads the PERSISTED marker — the same batch must not re-nudge.
-    expect(decideRetroNudge(projectDirectory, 'sess-1')).toBeUndefined();
+    expect(decideRetroFilingNudge(projectDirectory, 'sess-1')).toBeUndefined();
   });
 
   it('nudges again when the batch gains a new unfiled draft', () => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
-    expect(decideRetroNudge(projectDirectory, 'sess-1')).toBeDefined();
-    expect(decideRetroNudge(projectDirectory, 'sess-1')).toBeUndefined();
+    expect(decideRetroFilingNudge(projectDirectory, 'sess-1')).toBeDefined();
+    expect(decideRetroFilingNudge(projectDirectory, 'sess-1')).toBeUndefined();
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:bbbbbbbbbbbb')]);
-    expect(decideRetroNudge(projectDirectory, 'sess-1')).toBeDefined();
+    expect(decideRetroFilingNudge(projectDirectory, 'sess-1')).toBeDefined();
   });
 });
 

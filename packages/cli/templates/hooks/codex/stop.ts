@@ -18,7 +18,7 @@
 import { readSelfReportConfig } from '../lib/self-report.ts';
 import {
   countToolUsesCodex,
-  decideRetroNudge,
+  decideRetroAvailableNudge,
   resolveCodexSessionId,
   type RetroTriggerInput,
 } from '../lib/retro-trigger.ts';
@@ -41,7 +41,7 @@ async function main(): Promise<string> {
   const projectDirectory = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   if (!readSelfReportConfig(projectDirectory).surface) return SILENT;
 
-  const reason = decideRetroNudge(input, {
+  const reason = decideRetroAvailableNudge(input, {
     env: process.env,
     countToolUses: countToolUsesCodex,
     resolveSessionId: resolveCodexSessionId,
