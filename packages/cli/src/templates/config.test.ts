@@ -123,6 +123,15 @@ describe('getSafewordEslintConfig', () => {
     expect(config).not.toContain('safeword.prettierConfig');
     expect(config).not.toContain('import safeword from "safeword/eslint"');
   });
+
+  it('loads TypeScript project configs through jiti', () => {
+    const config = getSafewordEslintConfig('eslint.config.ts', false);
+
+    expect(config).toContain('const { createJiti } = await import("jiti");');
+    expect(config).toContain('const jiti = createJiti(import.meta.url);');
+    expect(config).toContain('jiti.import(projectConfigPath.href, { default: true })');
+    expect(config).toContain('isTypeScriptProjectConfig(projectConfigPath)');
+  });
 });
 
 describe('SETTINGS_HOOKS', () => {

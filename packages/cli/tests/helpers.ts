@@ -80,6 +80,7 @@ export const SKIP_SKILLS_ENV = {
 
 const SAFEWORD_BASE_DEV_DEPENDENCIES = {
   eslint: '^9.22.0',
+  jiti: '^2.2.0',
   safeword: SAFEWORD_VERSION,
   'dependency-cruiser': '^17.0.0',
   knip: '^6.0.0',

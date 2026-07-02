@@ -41,6 +41,7 @@
     "markdownlint-cli2": "^0.22.1",
     "prettier": "^3.8.4",
     "prettier-plugin-sh": "^0.18.1",
+    "safeword": "workspace:*",
     "shellcheck": "^4.1.0",
     "tsx": "^4.22.4"
   },

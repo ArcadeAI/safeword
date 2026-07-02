@@ -514,6 +514,8 @@ export const typescriptPackages = {
     ESLINT_PACKAGE,
     // Safeword (bundles eslint-config-prettier + all ESLint plugins)
     'safeword',
+    // Generated .safeword/eslint.config.mjs uses jiti to load eslint.config.ts.
+    'jiti@^2.2.0',
     // BDD acceptance lane (ticket 102b) — cucumber-js runs the scaffolded
     // .feature files; tsx transpiles the TypeScript step definitions, and
     // @types/node lets the scaffolded steps (node: imports) pass typechecks.

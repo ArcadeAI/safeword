@@ -304,8 +304,9 @@ describe('Schema - Single Source of Truth', () => {
     it('should include all required base packages', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const required = [
-        ESLINT_PACKAGE, // Pinned to v9 until ESLint plugin ecosystem supports v10
+        ESLINT_PACKAGE, // Fresh installs use the current supported ESLint lane.
         'safeword', // bundles eslint-config-prettier + all ESLint plugins
+        'jiti@^2.2.0', // generated hook ESLint config loads eslint.config.ts through jiti
       ];
 
       for (const pkg of required) {
