@@ -221,6 +221,23 @@ describe('sanitizeText — entropy + network backstop (SPNZKM, #601 egress revie
     expect(out).toContain('[redacted]');
   });
 
+  it('redacts a prefixless pure-alpha high-entropy token (charset-aware tier, F1)', () => {
+    // No digit, so the letters+digits gate misses it; a random alpha token clears the
+    // higher pure-alpha entropy floor (>=4.2) where identifiers/words (<3.95) do not.
+    const alphaToken = 'QxZvBnMkLpWsEdRfTgYhUjIm'; // 24-char mixed-case, entropy ~4.58
+    const out = sanitizeText(`session ${alphaToken} opened`);
+    expect(out).not.toContain(alphaToken);
+    expect(out).toContain('[redacted]');
+  });
+
+  it('redacts a dot-split high-entropy token as one run (F2)', () => {
+    // Sub-20-char halves individually; the `.` keeps them one run so the value is caught.
+    const dotted = 'abcd1234efgh5678.ijkl9012mnop3456';
+    const out = sanitizeText(`cursor ${dotted} paged`);
+    expect(out).not.toContain(dotted);
+    expect(out).toContain('[redacted]');
+  });
+
   it('redacts private IPs (with port) and internal hostnames', () => {
     // Assemble from octets so the literal IP never appears in source (sonarjs/no-hardcoded-ip).
     const privateIp = ['10', '1', '2', '3'].join('.');
@@ -233,9 +250,11 @@ describe('sanitizeText — entropy + network backstop (SPNZKM, #601 egress revie
   it('does NOT redact ordinary identifiers, long words, UUIDs, or versions (no gratuitous FP)', () => {
     const survivors = [
       'the getUserAccountBalanceById call regressed',
+      'the handleUserAuthenticationFlow helper timed out', // ~3.94, just under the 4.2 tier
       'internationalization of the message catalog',
       'the task-runner-config-loader module',
       'request id 550e8400-e29b-41d4-a716-446655440000 logged',
+      'the ledger showed 1234509876542345678901234 events', // long pure-digit: max entropy < 4.2
       'bumped to version 1.2.3 today',
     ];
     for (const text of survivors) {

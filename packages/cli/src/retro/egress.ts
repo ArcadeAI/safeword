@@ -191,21 +191,38 @@ function shannonEntropy(value: string): number {
 }
 
 // Token-shaped runs of >=20 chars (word/base64/token alphabet, minus `=` so a
-// `KEY=<token>` assignment isolates the value). Canonical UUIDs are exempt.
-const HIGH_ENTROPY_RUN = /[\w+/-]{20,}/g;
+// `KEY=<token>` assignment isolates the value; `.` kept so a dot-split token —
+// two sub-20 halves — is still weighed as one run). Canonical UUIDs are exempt.
+const HIGH_ENTROPY_RUN = /[\w+/.-]{20,}/g;
 const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const HIGH_ENTROPY_MIN_BITS = 3;
+// Charset-aware floors, mirroring detect-secrets (hex 3.0 / base64 4.5) and its
+// all-digit down-weighting. A run that mixes letters+digits (hex/base64-with-digits
+// secrets) clears the low floor; a pure-alpha/pure-digit run needs the high floor,
+// which sits in the gap between ordinary identifiers/words (<=~3.95) and random
+// alpha tokens (>=~4.32) — so `getUserAccountBalanceById` survives while a bare
+// alpha token does not, and long numbers (entropy <=log2(10)=3.32) never trip.
+const MIXED_MIN_BITS = 3;
+const ALPHA_MIN_BITS = 4.2;
 
 /**
- * A run is secret-shaped when it MIXES letters and digits (so pure-letter
- * identifiers like `getUserAccountBalanceById` and pure-digit numbers survive),
- * isn't a canonical UUID, and clears the Shannon-entropy floor (so low-entropy
- * repeats/placeholders survive). ~3 bits catches hex (max 4) and base64 (max 6).
+ * A run is secret-shaped when it isn't a canonical UUID and clears the
+ * charset-appropriate Shannon-entropy floor: the low floor when it mixes letters
+ * and digits, the higher pure-alpha floor otherwise (so identifiers, words, and
+ * numbers survive but a prefixless bare-alpha token does not — SPNZKM F1).
+ *
+ * Accepted residual false-negatives (thin tail, backstopped by secretlint + the
+ * blocklist; over-redaction is the safe direction so we don't chase them here):
+ * a bare pure-alpha token under ~4.2 bits (e.g. 20-char lowercase), a pure-digit
+ * secret (max log2(10)=3.32 bits — matches detect-secrets' all-digit down-weight),
+ * a canonical-UUID-shaped credential, a sub-20-char token, and IPv6 / non-listed
+ * internal TLDs in `scrubNetworkLocators`. Full 40-char hex (git SHAs) IS redacted
+ * — accepted over-redaction under the #601 public-egress posture.
  */
 function looksHighEntropySecret(run: string): boolean {
   if (CANONICAL_UUID.test(run)) return false;
-  if (!/[a-z]/i.test(run) || !/\d/.test(run)) return false;
-  return shannonEntropy(run) >= HIGH_ENTROPY_MIN_BITS;
+  const mixesLettersAndDigits = /[a-z]/i.test(run) && /\d/.test(run);
+  const floor = mixesLettersAndDigits ? MIXED_MIN_BITS : ALPHA_MIN_BITS;
+  return shannonEntropy(run) >= floor;
 }
 
 /**
@@ -213,7 +230,7 @@ function looksHighEntropySecret(run: string): boolean {
  * `KEY=<token>` values whose key name isn't secret-shaped — the residual the
  * blocklist (`scrubSecrets`) and secretlint's precise provider rules miss (SPNZKM,
  * eng-review #601). Over-redaction is the safe direction for a PUBLIC body; the
- * letters+digits / UUID / entropy guards keep ordinary identifiers and words intact.
+ * charset-aware entropy floors + UUID guard keep ordinary identifiers and words intact.
  */
 function scrubHighEntropy(text: string): string {
   return text.replaceAll(HIGH_ENTROPY_RUN, run => (looksHighEntropySecret(run) ? REDACTED : run));
