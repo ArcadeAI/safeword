@@ -15,6 +15,26 @@
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+/**
+ * Yield the JSON-parsed value of each non-blank JSONL line in `text`, skipping any
+ * blank or torn (unparseable) line — never throws. The single home for the
+ * split / skip-blank / parse-or-skip skeleton shared by the spool reader here and
+ * the transcript scanners (retro-trigger's counters, retro-extract's digest);
+ * callers supply only their per-entry handling.
+ */
+export function* iterateJsonlEntries(text: string): Generator<unknown> {
+  for (const line of text.split('\n')) {
+    if (line.trim().length === 0) continue;
+    let value: unknown;
+    try {
+      value = JSON.parse(line);
+    } catch {
+      continue; // skip a torn/malformed JSONL line
+    }
+    yield value;
+  }
+}
+
 /** Count non-blank JSONL records in a spool file (0 when absent/unreadable). */
 export function countJsonlRecords(filePath: string): number {
   try {
@@ -43,13 +63,12 @@ export function readJsonlRecords<T>(
     return [];
   }
   const records: T[] = [];
-  for (const line of raw.split('\n')) {
-    if (line.trim().length === 0) continue;
+  for (const value of iterateJsonlEntries(raw)) {
     try {
-      const record = parse(JSON.parse(line));
+      const record = parse(value);
       if (record !== undefined) records.push(record);
     } catch {
-      // skip a torn/malformed JSONL line
+      // a parse callback that rejects a malformed record is skipped, not fatal
     }
   }
   return records;

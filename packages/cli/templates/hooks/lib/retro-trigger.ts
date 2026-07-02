@@ -18,6 +18,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { tmpdir } from 'node:os';
 
+import { iterateJsonlEntries } from './jsonl-spool.js';
 import { isRetroChild } from './retro-extract.js';
 
 /**
@@ -38,21 +39,14 @@ interface TranscriptEntry {
 }
 
 /**
- * Sum a per-entry count over each parseable line of a JSONL transcript. Malformed
- * lines are skipped, never thrown — a hook must not crash on a partial transcript.
- * The single home for the trim / split / parse-or-skip skeleton both per-agent
- * counters share; each counter supplies only its per-entry rule.
+ * Sum a per-entry count over each parseable line of a JSONL transcript (malformed
+ * lines skipped by `iterateJsonlEntries`, never thrown). Both per-agent counters
+ * share this fold and supply only their per-entry rule.
  */
 function sumOverJsonlEntries(text: string, perEntry: (entry: unknown) => number): number {
-  const trimmed = text.trim();
-  if (trimmed.length === 0) return 0;
   let total = 0;
-  for (const line of trimmed.split('\n')) {
-    try {
-      total += perEntry(JSON.parse(line));
-    } catch {
-      // Skip malformed JSONL lines silently.
-    }
+  for (const entry of iterateJsonlEntries(text)) {
+    total += perEntry(entry);
   }
   return total;
 }

@@ -11,6 +11,8 @@
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { iterateJsonlEntries } from './jsonl-spool.js';
+
 /**
  * Default cap (chars) for a transcript digest. A real session transcript is tens
  * of MB; the extractor needs a bounded, signal-dense slice, not the raw JSONL.
@@ -286,16 +288,9 @@ function lineFor(item: ContentItem, role: string): string | undefined {
  * thrown — a hook must not crash on a partial transcript.
  */
 export function buildDigest(rawTranscript: string, cap: number = DIGEST_CAP): string {
-  const trimmed = rawTranscript.trim();
-  if (trimmed.length === 0) return '';
   const out: string[] = [];
-  for (const line of trimmed.split('\n')) {
-    let entry: TranscriptEntry;
-    try {
-      entry = JSON.parse(line) as TranscriptEntry;
-    } catch {
-      continue; // skip malformed JSONL
-    }
+  for (const raw of iterateJsonlEntries(rawTranscript)) {
+    const entry = raw as TranscriptEntry;
     const role = entry.message?.role ?? entry.type ?? 'entry';
     const content = entry.message?.content;
     if (typeof content === 'string') {
