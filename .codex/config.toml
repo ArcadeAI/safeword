@@ -23,6 +23,14 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestam
 timeout = 5
 statusMessage = "Adding current timestamp"
 
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-retro-nudge.ts"'
+timeout = 30
+statusMessage = "Checking spooled safeword retro drafts"
+
 [[hooks.PreToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
@@ -31,6 +39,14 @@ type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
 timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+timeout = 600
+statusMessage = "Running safeword retro if this session is substantial"
 
 [[hooks.PostToolUse]]
 matcher = "^(apply_patch|Edit|Write|MultiEdit|NotebookEdit)$"
@@ -47,11 +63,3 @@ url = "https://mcp.context7.com/mcp"
 [mcp_servers.playwright]
 command = "bunx"
 args = ["@playwright/mcp@latest"]
-
-[[hooks.Stop]]
-
-[[hooks.Stop.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
-timeout = 30
-statusMessage = "Checking whether to run a safeword retro"

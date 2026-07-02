@@ -5,12 +5,17 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  buildCodexExtractArgv,
   buildDigest,
   buildExtractArgv,
+  DEFAULT_CLAUDE_RETRO_MODEL,
+  DEFAULT_CODEX_RETRO_MODEL,
   isRetroChild,
   resolveRetroModel,
   RETRO_CHILD_ENV,
   retroChildArgs as retroChildArguments,
+  runCodexHeadlessExtraction,
+  runCodexHeadlessExtractionChecked,
   runHeadlessExtraction,
 } from '../../templates/hooks/lib/retro-extract.js';
 
@@ -151,6 +156,30 @@ describe('buildExtractArgv', () => {
   });
 });
 
+describe('buildCodexExtractArgv', () => {
+  // codex-retro-parity.SM1.AC1 — Codex extraction runs through `codex exec` with
+  // structured output, closed stdin, no hooks/MCP, and an inline digest prompt.
+  it('builds the gated codex exec argv used by the Stop hook child', () => {
+    const argv = buildCodexExtractArgv({
+      model: 'gpt-5.5',
+      outputPath: '/tmp/out.json',
+      schemaPath: '/tmp/schema.json',
+      prompt: 'INLINE DIGEST',
+    });
+
+    expect(argv.slice(0, 2)).toEqual(['exec', '--ignore-user-config']);
+    expect(argv).toContain('--disable');
+    expect(argv[argv.indexOf('--disable') + 1]).toBe('hooks');
+    expect(argv).toContain('-c');
+    expect(argv[argv.indexOf('-c') + 1]).toBe('mcp_servers={}');
+    expect(argv[argv.indexOf('--output-schema') + 1]).toBe('/tmp/schema.json');
+    expect(argv[argv.indexOf('-o') + 1]).toBe('/tmp/out.json');
+    expect(argv[argv.indexOf('--sandbox') + 1]).toBe('read-only');
+    expect(argv[argv.indexOf('-m') + 1]).toBe('gpt-5.5');
+    expect(argv.at(-1)).toBe('INLINE DIGEST');
+  });
+});
+
 describe('isRetroChild', () => {
   // invisible-retro-claude.NTB1.AC2 (read half) — the recursion guard. The
   // headless child runs WITH hooks (no `--bare`), so without this it would
@@ -167,7 +196,7 @@ describe('isRetroChild', () => {
   });
 });
 
-describe('resolveRetroModel (SM1.AC2 — config-overridable, sonnet default)', () => {
+describe('resolveRetroModel (SM1.AC2 — config-overridable per-agent defaults)', () => {
   let projectDirectory: string;
   beforeEach(() => {
     projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-model-'));
@@ -182,15 +211,23 @@ describe('resolveRetroModel (SM1.AC2 — config-overridable, sonnet default)', (
     writeFileSync(nodePath.join(safewordDirectory, 'config.json'), JSON.stringify(config));
   }
 
-  it('defaults to sonnet when no config / no retro.model is present', () => {
+  it('defaults to sonnet for Claude and gpt-5.5 for Codex when no retro.model is present', () => {
+    expect(DEFAULT_CLAUDE_RETRO_MODEL).toBe('sonnet');
+    expect(DEFAULT_CODEX_RETRO_MODEL).toBe('gpt-5.5');
+
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
+    expect(resolveRetroModel(projectDirectory, 'claude')).toBe('sonnet');
+    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-5.5');
+
     writeRetroConfig({ selfReport: { surface: true } }); // config present, no retro.model
     expect(resolveRetroModel(projectDirectory)).toBe('sonnet');
+    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('gpt-5.5');
   });
 
-  it('honors a configured retro.model override', () => {
+  it('honors a configured retro.model override for both agents', () => {
     writeRetroConfig({ retro: { model: 'haiku' } });
     expect(resolveRetroModel(projectDirectory)).toBe('haiku');
+    expect(resolveRetroModel(projectDirectory, 'codex')).toBe('haiku');
   });
 });
 
@@ -267,5 +304,111 @@ describe('runHeadlessExtraction', () => {
       spawn: () => Promise.reject(new Error('spawn failed')),
     });
     await expect(runHeadlessExtraction('t', threw.deps)).resolves.toEqual([]);
+  });
+});
+
+describe('runCodexHeadlessExtraction', () => {
+  function codexDependencies(over: Record<string, unknown> = {}) {
+    const files = new Map<string, string>();
+    const calls: {
+      argv: string[];
+      options: { cwd: string; env: Record<string, string | undefined>; stdio: 'ignore' };
+    }[] = [];
+
+    return {
+      calls,
+      files,
+      deps: {
+        spawn: (
+          argv: string[],
+          options: { cwd: string; env: Record<string, string | undefined>; stdio: 'ignore' },
+        ) => {
+          calls.push({ argv, options });
+          files.set(
+            '/tmp/neutral/out.json',
+            JSON.stringify({ findings: JSON.parse(validFindings) }),
+          );
+          return Promise.resolve({ code: 0, stdout: '' });
+        },
+        writeFile: (path: string, content: string) => files.set(path, content),
+        readFile: (path: string) => {
+          const content = files.get(path);
+          if (content === undefined) throw new Error(`missing file: ${path}`);
+          return content;
+        },
+        cwd: '/tmp/neutral',
+        env: { HOME: '/home/x' },
+        model: 'gpt-5.5',
+        schemaPath: '/tmp/neutral/schema.json',
+        outputPath: '/tmp/neutral/out.json',
+        ...over,
+      },
+    };
+  }
+
+  it('codex-retro-parity.SM1.AC1.runs_synchronously_with_schema_output_and_closed_stdio', async () => {
+    const { calls, deps } = codexDependencies();
+    const transcript = JSON.stringify({
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'INLINE_TRANSCRIPT_SIGNAL' }],
+      },
+    });
+    const findings = await runCodexHeadlessExtraction(transcript, deps);
+
+    expect(findings).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+    const call = calls[0];
+    if (!call) throw new Error('expected a spawn call');
+    expect(call.argv[0]).toBe('exec');
+    expect(call.argv).toContain('--output-schema');
+    expect(call.argv).toContain('--json');
+    expect(call.argv.at(-1)).toContain('INLINE_TRANSCRIPT_SIGNAL');
+    expect(call.options.cwd).toBe('/tmp/neutral');
+    expect(call.options.stdio).toBe('ignore');
+    expect(call.options.env[RETRO_CHILD_ENV]).toBe('1');
+  });
+
+  it('codex-retro-parity.SM2.AC1.fail_open_stays_silent_when_codex_output_is_unusable', async () => {
+    const nonZero = codexDependencies({
+      spawn: () => Promise.resolve({ code: 1, stdout: '' }),
+    });
+    await expect(runCodexHeadlessExtraction('t', nonZero.deps)).resolves.toEqual([]);
+    await expect(runCodexHeadlessExtractionChecked('t', nonZero.deps)).resolves.toEqual({
+      ok: false,
+      findings: [],
+    });
+
+    const invalid = codexDependencies({
+      spawn: (
+        _argv: string[],
+        _options: { cwd: string; env: Record<string, string | undefined>; stdio: 'ignore' },
+      ) => {
+        invalid.files.set('/tmp/neutral/out.json', '{not json');
+        return Promise.resolve({ code: 0, stdout: '' });
+      },
+    });
+    await expect(runCodexHeadlessExtraction('t', invalid.deps)).resolves.toEqual([]);
+    await expect(runCodexHeadlessExtractionChecked('t', invalid.deps)).resolves.toEqual({
+      ok: false,
+      findings: [],
+    });
+  });
+
+  it('treats schema-valid empty Codex findings as a successful extraction', async () => {
+    const empty = codexDependencies({
+      spawn: (
+        _argv: string[],
+        _options: { cwd: string; env: Record<string, string | undefined>; stdio: 'ignore' },
+      ) => {
+        empty.files.set('/tmp/neutral/out.json', JSON.stringify({ findings: [] }));
+        return Promise.resolve({ code: 0, stdout: '' });
+      },
+    });
+
+    await expect(runCodexHeadlessExtractionChecked('t', empty.deps)).resolves.toEqual({
+      ok: true,
+      findings: [],
+    });
   });
 });

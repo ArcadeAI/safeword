@@ -1517,6 +1517,44 @@ describe('Reconcile - Reconciliation Engine', () => {
     });
   });
 
+  describe('reconcile() - Codex retro parity (#602)', () => {
+    it('configures the silent Stop retro hook and prompt nudge hook on install', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('.safeword/hooks/codex/stop.ts');
+      expect(content).toContain('timeout = 600');
+      expect(content).toContain('Running safeword retro if this session is substantial');
+      expect(content).toContain('.safeword/hooks/prompt-retro-nudge.ts');
+      expect(content).toContain('Checking spooled safeword retro drafts');
+    });
+
+    it('retrofits the Codex prompt retro nudge into an existing pre-nudge config', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH, SAFEWORD_SCHEMA } =
+        await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const preNudge = readCodexConfigTemplate().replace(CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH, '');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preNudge);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('.safeword/hooks/prompt-retro-nudge.ts');
+      expect(content.match(/\.safeword\/hooks\/prompt-retro-nudge\.ts/g)).toHaveLength(1);
+    });
+  });
+
   describe('reconcile() - dryRun option', () => {
     it('should not make any changes in dryRun mode', async () => {
       const { reconcile } = await import('../src/reconcile.js');
