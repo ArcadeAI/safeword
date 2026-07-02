@@ -251,6 +251,8 @@ export async function runHeadlessExtraction(
 // signal (errors/failures/gate blocks are exactly what retro mines); larger
 // non-signal bodies are dropped so they can't crowd out text + tool-use names.
 const SHORT_RESULT = 600;
+/** Cap for a tool_use's serialized input in the digest — names it enough, not the whole payload. */
+const TOOL_USE_INPUT_CAP = 300;
 const FRICTION = /error|fail|block|denied|stale|drift|guard|FAILED/i;
 
 interface ContentItem {
@@ -269,7 +271,7 @@ interface TranscriptEntry {
 function lineFor(item: ContentItem, role: string): string | undefined {
   if (item.type === 'text' && item.text) return `[${role}] ${item.text}`;
   if (item.type === 'tool_use' && item.name)
-    return `[tool_use] ${item.name}: ${JSON.stringify(item.input ?? {}).slice(0, 300)}`;
+    return `[tool_use] ${item.name}: ${JSON.stringify(item.input ?? {}).slice(0, TOOL_USE_INPUT_CAP)}`;
   if (item.type === 'tool_result') {
     const text =
       typeof item.content === 'string' ? item.content : JSON.stringify(item.content ?? '');
