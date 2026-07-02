@@ -9,13 +9,16 @@ Run the safeword parity check against `SAFEWORD_SCHEMA`. Reports drift on both p
 This command exists only in the safeword repo. It is NOT a customer-facing command and is NOT installed by `safeword install`.
 
 ```bash
-bun scripts/parity-check.ts --mode=all
+bun scripts/parity-check.ts --mode=all   # report drift
+bun scripts/parity-check.ts --fix        # auto-sync: copy drifted templates → dogfood mirrors (#585)
 ```
+
+`--fix` (or `bun run parity:fix`) resolves pair drift by copying each canonical template over its dogfood mirror, so a hook edit no longer has to be hand-`cp`'d between `templates/` and `.safeword/`. Templates are canonical; `.safeword/` is the mirror.
 
 ## What gets checked
 
-- **Pairs** (from `SAFEWORD_SCHEMA.ownedFiles`): every entry with a `template` field is compared byte-for-byte against its dogfood counterpart. Currently 88 pairs.
-- **Contracts** (from `SAFEWORD_SCHEMA.contracts`): every entry asserts its target file contains all required strings. Currently 1 contract.
+- **Pairs** (from `SAFEWORD_SCHEMA.ownedFiles`): every entry with a `template` field is compared byte-for-byte against its dogfood counterpart.
+- **Contracts** (from `SAFEWORD_SCHEMA.contracts`): every entry asserts its target file contains all required strings.
 
 ## When to use
 
@@ -25,7 +28,7 @@ bun scripts/parity-check.ts --mode=all
 
 ## When NOT to use
 
-- Mid-template-iteration: pair drift is expected while editing templates without syncing to dogfood. The release test catches pair drift pre-release; the slash command will surface it as informational here.
+- Mid-template-iteration: pair drift is expected while editing templates without syncing to dogfood — run `--fix` to sync instead of hand-`cp`-ing (#585). The release test catches any residual pair drift pre-release; the slash command surfaces it as informational here.
 
 ## Adding a new parity rule
 
