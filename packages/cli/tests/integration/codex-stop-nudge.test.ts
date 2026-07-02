@@ -83,6 +83,11 @@ function runCodexStop(cwd: string, input: Record<string, unknown> = {}) {
   });
 }
 
+function expectNoContinuation(stdout: string): void {
+  const parsed = JSON.parse(stdout.trim()) as { decision?: string };
+  expect(parsed.decision).toBeUndefined();
+}
+
 describe('Codex Stop architecture drift nudge', () => {
   let cwd = '';
 
@@ -113,7 +118,7 @@ describe('Codex Stop architecture drift nudge', () => {
     expect(result.status).toBe(0);
     // Merged Stop adapter unifies the no-op output on valid JSON `{}` (no decision)
     // — the retro half requires parseable stdout — rather than empty output.
-    expect(JSON.parse(result.stdout.trim()).decision).toBeUndefined();
+    expectNoContinuation(result.stdout);
     expect(result.stderr).toBe('');
   });
 
@@ -125,7 +130,7 @@ describe('Codex Stop architecture drift nudge', () => {
     expect(result.status).toBe(0);
     // Merged Stop adapter unifies the no-op output on valid JSON `{}` (no decision)
     // — the retro half requires parseable stdout — rather than empty output.
-    expect(JSON.parse(result.stdout.trim()).decision).toBeUndefined();
+    expectNoContinuation(result.stdout);
     expect(result.stderr).toBe('');
   });
 
@@ -137,7 +142,7 @@ describe('Codex Stop architecture drift nudge', () => {
     expect(result.status).toBe(0);
     // Merged Stop adapter unifies the no-op output on valid JSON `{}` (no decision)
     // — the retro half requires parseable stdout — rather than empty output.
-    expect(JSON.parse(result.stdout.trim()).decision).toBeUndefined();
+    expectNoContinuation(result.stdout);
     expect(result.stderr).toBe('');
   });
 });
