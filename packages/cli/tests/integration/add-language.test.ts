@@ -26,6 +26,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   setupOrThrow,
+  TIMEOUT_SETUP_HOOK,
   writeTestFile,
 } from '../helpers';
 
@@ -40,7 +41,7 @@ describe('E2E: Add Language to Existing Project', () => {
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
     await setupOrThrow(projectDirectory, ['setup']);
-  }, 180_000);
+  }, TIMEOUT_SETUP_HOOK);
 
   afterAll(() => {
     if (projectDirectory) {

@@ -26,6 +26,7 @@ import {
   runLintHook,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
+  TIMEOUT_SETUP_HOOK,
   writeTestFile,
 } from '../helpers';
 
@@ -69,7 +70,7 @@ describe('Customer override survival (#137)', () => {
       initGitRepo(projectDirectory);
       await setupOrThrow(projectDirectory);
       originalConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
-    }, TIMEOUT_BUN_INSTALL);
+    }, TIMEOUT_SETUP_HOOK);
 
     afterAll(() => {
       if (projectDirectory) removeTemporaryDirectory(projectDirectory);
@@ -223,7 +224,7 @@ export default defineConfig([
       );
       initGitRepo(projectDirectory);
       await setupOrThrow(projectDirectory);
-    }, TIMEOUT_BUN_INSTALL);
+    }, TIMEOUT_SETUP_HOOK);
 
     afterAll(() => {
       if (projectDirectory) removeTemporaryDirectory(projectDirectory);
@@ -268,7 +269,7 @@ select = ["E", "F"]
       initGitRepo(projectDirectory);
       await setupOrThrow(projectDirectory);
       originalRuffToml = readTestFile(projectDirectory, 'ruff.toml');
-    }, TIMEOUT_BUN_INSTALL);
+    }, TIMEOUT_SETUP_HOOK);
 
     afterAll(() => {
       if (projectDirectory) removeTemporaryDirectory(projectDirectory);
@@ -363,7 +364,7 @@ extend-select = ["D"]
         initGitRepo(projectDirectory);
         await setupOrThrow(projectDirectory);
         bareRuffToml = readTestFile(projectDirectory, 'ruff.toml');
-      }, TIMEOUT_BUN_INSTALL);
+      }, TIMEOUT_SETUP_HOOK);
 
       afterAll(() => {
         if (projectDirectory) removeTemporaryDirectory(projectDirectory);
