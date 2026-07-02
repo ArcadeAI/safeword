@@ -318,22 +318,22 @@ find . -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" | grep -v node_m
 | Check                        | Criteria                                                                                                | Severity |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
 | Meaningful assertions        | Every test has specific value/behavior assertions (not just `toBeTruthy`, `toBeDefined`, `not.toThrow`) | error    |
-| Behavior over implementation | Tests assert observable outcomes, not internal state or mock call args                                  | warn     |
+| Behavior over implementation | Tests assert observable outcomes, not internal state or mock call args                                  | error    |
 | Independence                 | No test depends on another test's side effects; fresh state per test                                    | error    |
-| No arbitrary timeouts        | No `sleep()`, `waitForTimeout()`, or hardcoded delays                                                   | warn     |
-| Edge case coverage           | Tests include error paths and boundary cases, not just happy path                                       | warn     |
-| No duplicate tests           | Similar tests use parameterized/table-driven patterns (`it.each`)                                       | warn     |
-| Test naming                  | Names describe behavior, not implementation ("returns 401 when..." not "works correctly")               | warn     |
+| No arbitrary timeouts        | No `sleep()`, `waitForTimeout()`, or hardcoded delays                                                   | error    |
+| Edge case coverage           | Tests include error paths and boundary cases, not just happy path                                       | error    |
+| No duplicate tests           | Similar tests use parameterized/table-driven patterns (`it.each`)                                       | error    |
+| Test naming                  | Names describe behavior, not implementation ("returns 401 when..." not "works correctly")               | error    |
 
 **Report format:**
 
 ```text
 Test Quality:
 - Files reviewed: N
-- Issues found: N (E errors, W warnings)
-- [E/W] file.test.ts:42 — Weak assertion: `expect(result).toBeTruthy()` → assert specific value
-- [E/W] file.test.ts:15 — Shared mutable state: `user` modified across tests
-- [W] file.test.ts — Happy-path only: no error case tests for `processOrder()`
+- Issues found: N (E errors)
+- [E] file.test.ts:42 — Weak assertion: `expect(result).toBeTruthy()` → assert specific value
+- [E] file.test.ts:15 — Shared mutable state: `user` modified across tests
+- [E] file.test.ts — Happy-path only: no error case tests for `processOrder()`
 ```
 
 ### 5. Project Documentation Checks

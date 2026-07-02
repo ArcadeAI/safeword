@@ -107,6 +107,22 @@ describe('audit documentation source guidance', () => {
   });
 });
 
+describe('audit test quality severity', () => {
+  it.each(AUDIT_SURFACES)('%s reports sampled test-quality issues as errors', relativePath => {
+    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const testQualitySection = content
+      .split('### 4. Test Quality Review', 2)[1]
+      ?.split('### 5. Project Documentation Checks', 2)[0];
+
+    expect(testQualitySection).toBeDefined();
+    expect(testQualitySection).not.toContain('| warn');
+    expect(testQualitySection).toContain('- Issues found: N (E errors)');
+    expect(testQualitySection).toContain('[E] file.test.ts:42');
+    expect(testQualitySection).not.toContain('[E/W]');
+    expect(testQualitySection).not.toContain('[W] file.test.ts');
+  });
+});
+
 describe('audit installed-project stack awareness', () => {
   it.each(AUDIT_SURFACES)('%s gates JavaScript checks on package.json evidence', relativePath => {
     const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
