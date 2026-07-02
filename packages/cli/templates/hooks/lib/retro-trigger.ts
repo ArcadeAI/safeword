@@ -106,12 +106,17 @@ export function isSubstantial(
 }
 
 /**
- * Sanitize a session id into a single safe filename component, so a hostile or
- * odd id (path separators, `..`) can't make the sentinel escape its base dir.
- * Non-`[\w.-]` characters collapse to `_`.
+ * Collapse a session id to a single safe filename component, so a hostile or odd
+ * id (path separators, `..`) can't make a marker file escape its base dir.
+ * Non-`[\w.-]` characters collapse to `_`. Shared by every per-session filename
+ * builder here so they can't drift.
  */
+function sanitizeSessionId(sessionId: string): string {
+  return sessionId.replace(/[^\w.-]/g, '_');
+}
+
 function sentinelName(sessionId: string): string {
-  return `safeword-retro-${sessionId.replace(/[^\w.-]/g, '_')}`;
+  return `safeword-retro-${sanitizeSessionId(sessionId)}`;
 }
 
 /** Absolute path of the once-per-session sentinel marker for a session id. */
@@ -175,10 +180,7 @@ const defaultAtomicFs: AtomicFs = { writeFileSync, renameSync };
 
 /** Absolute path of the per-session offset-state file for a session id. */
 export function offsetStatePath(sessionId: string, baseDirectory: string = tmpdir()): string {
-  return nodePath.join(
-    baseDirectory,
-    `safeword-retro-offset-${sessionId.replace(/[^\w.-]/g, '_')}.json`,
-  );
+  return nodePath.join(baseDirectory, `safeword-retro-offset-${sanitizeSessionId(sessionId)}.json`);
 }
 
 /**
