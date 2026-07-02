@@ -33,7 +33,7 @@ describe('E2E: Claude Code Hook Path Resolution', () => {
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup']);
     differentDirectory = createTemporaryDirectory();
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) removeTemporaryDirectory(projectDirectory);

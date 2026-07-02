@@ -45,7 +45,7 @@ describe('E2E: Rust Golden Path', () => {
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000); // 3 min timeout for setup
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -180,7 +180,7 @@ cognitive-complexity-threshold = 25
     );
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -250,7 +250,7 @@ tab_spaces = 4
     );
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -295,7 +295,7 @@ unwrap_used = "allow"
     );
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -342,7 +342,7 @@ describe('E2E: TypeScript + Rust Mixed Project', () => {
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -381,7 +381,7 @@ describe('E2E: Pure Rust Project', () => {
     // Ensure NO package.json exists
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -414,7 +414,7 @@ describe('E2E: Rust Workspace Setup', () => {
     createRustWorkspace(projectDirectory, { members: ['core', 'cli'] });
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -457,7 +457,7 @@ describe('E2E: Rust Virtual Workspace', () => {
     createRustWorkspace(projectDirectory, { members: ['lib-a', 'lib-b'] });
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -506,7 +506,7 @@ unwrap_used = "allow"
 
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -539,7 +539,7 @@ describe('E2E: Rust Workspace Glob Pattern', () => {
     createRustWorkspace(projectDirectory, { members: ['alpha', 'beta', 'gamma'], useGlob: true });
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -580,7 +580,7 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     if (fileExists(projectDirectory, '.safeword/rustfmt.toml')) {
       unlinkSync(rustfmtConfig);
     }
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -610,7 +610,7 @@ describe('E2E: Rust Lint Hook Graceful Handling', () => {
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -656,7 +656,7 @@ describe('E2E: Add Rust to Existing TypeScript Project', () => {
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -723,7 +723,7 @@ describe('E2E: Rust Setup Idempotency', () => {
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
     await runCli(['setup', '--yes'], { cwd: projectDirectory });
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -763,7 +763,7 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
     createRustWorkspace(projectDirectory, { members: ['core', 'cli'] });
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {

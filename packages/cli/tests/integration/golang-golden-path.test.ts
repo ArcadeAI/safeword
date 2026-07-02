@@ -52,7 +52,8 @@ describe('E2E: Go Golden Path', () => {
     createGoProject(projectDirectory);
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
-  }, 180_000); // 3 min timeout for setup
+    // Inherits the 300s base hookTimeout, which contains setupOrThrow's retry.
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -178,7 +179,7 @@ describe('E2E: Go Setup Idempotency', () => {
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
     await runCli(['setup', '--yes'], { cwd: projectDirectory, env: SKIP_SKILLS_ENV });
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {
@@ -228,7 +229,7 @@ describe('E2E: Go Lint Hook Fallback', () => {
     if (fileExists(projectDirectory, '.safeword/.golangci.yml')) {
       unlinkSync(golangciConfig);
     }
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {

@@ -86,7 +86,10 @@ describe('scaffolded lane runs green (AC3)', () => {
     goDirectory = createTemporaryDirectory();
     createGoProject(goDirectory);
     await setupOrThrow(goDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
-  }, TIMEOUT_BUN_INSTALL * 2);
+    // ×3 (was ×2): two sequential setups, each of which setupOrThrow may retry
+    // once on a contention timeout (issue #419). ×3 contains one retry plus the
+    // other setup running normally; a both-retry hang is real and fails here.
+  }, TIMEOUT_BUN_INSTALL * 3);
 
   afterAll(() => {
     removeTemporaryDirectory(tsDirectory);

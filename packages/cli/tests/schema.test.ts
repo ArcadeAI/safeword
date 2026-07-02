@@ -593,13 +593,16 @@ describe('Schema - Single Source of Truth', () => {
         'pre-tool-quality-helpers.ts',
       ]);
 
-      // Hook files in ownedFiles (excluding lib/ modules and cursor/ adapters)
+      // Hook files in ownedFiles (excluding lib/ modules and cursor/ + codex/
+      // adapters — those are wired through .cursor/hooks.json and .codex/config.toml
+      // respectively, not Claude SETTINGS_HOOKS).
       const hookFiles = Object.keys(SAFEWORD_SCHEMA.ownedFiles)
         .filter(
           path =>
             path.startsWith('.safeword/hooks/') &&
             !path.includes('/lib/') &&
-            !path.includes('/cursor/'),
+            !path.includes('/cursor/') &&
+            !path.includes('/codex/'),
         )
         .map(path => path.split('/').pop())
         .filter(isDefined)

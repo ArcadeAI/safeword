@@ -22,9 +22,17 @@ export const baseConfig = defineConfig({
       GIT_CONFIG_KEY_0: 'commit.gpgsign',
       GIT_CONFIG_VALUE_0: 'false',
     },
-    // Increase hook timeout for afterEach cleanup (rmSync with retries)
-    // Default 10s isn't enough when bun has locked files
-    hookTimeout: 30_000,
+    // Hook timeout must contain the slowest *legitimate* hook: a `safeword setup`
+    // spawned in a `beforeAll` via setupOrThrow, which does real work (git init,
+    // scaffolding, tool detection, optional skills pull) and retries ONCE on a
+    // wall-clock timeout under machine contention (issue #419). Worst case is
+    // 2 × the 120s per-attempt setup timeout; 300s adds slack (= TIMEOUT_SETUP_HOOK).
+    // Raising the DEFAULT — rather than a budget per beforeAll — means every
+    // setup-in-beforeAll inherits the headroom with no per-hook override to forget
+    // or mis-size. Suites doing MULTIPLE setups in one hook (bdd-lane) still set a
+    // larger explicit budget. Was 30_000 — itself raised from 10s for afterEach
+    // rmSync-with-retries cleanup, which still fits comfortably.
+    hookTimeout: 300_000,
     // 3 workers (of the 4-vCPU ubuntu-latest runner). maxWorkers:1 timed the CI
     // `test` job out (20-min cap) — sequential is too slow for the full suite +
     // setup. The spawn-heavy integration tier can lose a timing race under CPU

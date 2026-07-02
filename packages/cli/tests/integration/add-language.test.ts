@@ -40,7 +40,7 @@ describe('E2E: Add Language to Existing Project', () => {
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
     await setupOrThrow(projectDirectory, ['setup']);
-  }, 180_000);
+  });
 
   afterAll(() => {
     if (projectDirectory) {

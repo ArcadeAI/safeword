@@ -1,0 +1,181 @@
+# Test Definitions: Retro recall — delta re-arm + sonnet + async hook + signature dedupe
+
+Feature source: `packages/cli/features/retro-recall-delta-rearm.feature`
+
+test-definitions.md is the R/G/R ledger.
+
+## Rule: Delta windows tile the whole session
+
+### Scenario: The first fire digests the whole transcript so far under the digest cap
+
+- [x] RED skip: pure windowFor slicer asserted directly; RED for applied behavior proven by the back-half run (delta filed 0 pre-impl); lint no-unused-properties blocked a type-only scaffold commit
+- [x] GREEN e50230d
+- [x] REFACTOR skip: windowFor is a one-line clamp+slice
+
+### Scenario: A later fire digests only the window since the previous fire's offset
+
+- [x] RED skip: covered by windowFor later-fire unit + decision windowStart (60863c6); RED verified by run
+- [x] GREEN e50230d
+- [x] REFACTOR skip: no structural improvement
+
+### Scenario: A back-half-only finding beyond the head cap is filed by the delta fire
+
+- [x] RED skip: end-to-end run filed 0 before windowFor applied (verified); lint blocked a type-only scaffold RED commit
+- [x] GREEN e50230d
+- [x] REFACTOR skip: composes existing runRetro pipeline
+
+### Scenario: The window re-includes the overlap region before the previous offset
+
+- [x] RED skip: windowFor overlap-clamp unit asserted directly; RED verified by run
+- [x] GREEN e50230d
+- [x] REFACTOR skip: one-line clamp
+
+## Rule: Extraction defaults to sonnet at both model sites
+
+### Scenario: The runner builds the extractor with sonnet by default
+
+- [x] RED skip: shares the default-model RED (50abfdb, haiku→sonnet); lint no-unused blocked a runner-export-only scaffold; verified by run
+- [x] GREEN 99f0e1f
+- [x] REFACTOR skip: model resolution extracted to resolveRetroModel
+
+### Scenario: The headless extraction default is sonnet when no model is passed
+
+- [x] RED 50abfdb
+- [x] GREEN 99f0e1f
+- [x] REFACTOR skip: one-line default change
+
+### Scenario: A configured model overrides the sonnet default
+
+- [x] RED skip: resolveRetroModel added as config infra; override path verified at GREEN
+- [x] GREEN 99f0e1f
+- [x] REFACTOR skip: fail-open config read mirrors readSelfReportConfig
+
+## Rule: Re-fires dedupe by content signature, not the model-generated title
+
+### Scenario: A repeat signature under a different title opens no second issue
+
+- [x] RED skip: searchByTitle→searchBySignature is an atomic interface rename (no partial compiles); bug is triage.ts:82 title match; new behavior verified at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: signature already on RetroDraft; only the match key changed
+
+### Scenario: A genuinely new signature opens a new issue
+
+- [x] RED skip: atomic interface rename; verified at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: unchanged create path
+
+### Scenario: The issue body embeds the searchable signature marker
+
+- [x] RED skip: assembleBody had no marker; embed added in buildDraft, asserted at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: one-line marker append
+
+### Scenario: A fuzzy signature-search near-miss is rejected by the exact filter
+
+- [x] RED skip: searchBySignature is new (exact-filter mirrors searchByTitle's); verified at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: filter mirrors the prior exact-match
+
+## Rule: A stable session id reaches the extraction child
+
+### Scenario: The resolved session id is forwarded to the child
+
+- [x] RED skip: retroChildArgs is new plumbing; forward asserted at GREEN
+- [x] GREEN 645be80
+- [x] REFACTOR skip: pure args builder
+
+### Scenario: No session id resolves, so nothing is filed under the unknown fallback
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: clean fail-open branch, no structural improvement
+
+## Rule: Offset state survives concurrent Stops
+
+### Scenario: Offset state is written atomically via temp-file then rename
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: helper is minimal (temp-write + rename)
+
+### Scenario: A later sequential fire strictly advances the recorded offset
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: covered by the cadence decision, no cleanup
+
+### Scenario: A concurrent reader never sees a torn state file
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: graceful-parse branch is minimal
+
+## Rule: The retro Stop hook is non-blocking
+
+### Scenario: The generated Claude Stop settings register the retro hook async
+
+- [x] RED 0d9780f
+- [x] GREEN 8153cb0
+- [x] REFACTOR skip: asyncHook mirrors the existing asyncRewakeHook helper
+
+### Scenario: The retro Stop hook is not registered asyncRewake
+
+- [x] RED 0d9780f
+- [x] GREEN 8153cb0
+- [x] REFACTOR skip: same assertion (async, not asyncRewake) in one config test
+
+## Rule: Re-fire cadence is bounded and fail-open
+
+### Scenario: A first Stop below the substance threshold does not fire
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: single guard branch, no cleanup
+
+### Scenario: Growth below the re-arm threshold holds the fire
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: covered by the cadence branch
+
+### Scenario: Growth at the re-arm threshold re-fires
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: covered by the cadence branch
+
+### Scenario: The backstop caps total fires per session
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: single backstop guard
+
+### Scenario: A retro child never re-fires
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: guard ordering unchanged from 7D8PJP
+
+### Scenario: A state-write failure still fires and leaves the offset unchanged
+
+- [x] RED d05e17a
+- [x] GREEN 60863c6
+- [x] REFACTOR skip: fail-open try/catch mirrors markNudged
+
+## Rule: Every delta window passes the full egress pipeline unchanged
+
+### Scenario: A secret in a back-half finding is redacted before filing
+
+- [x] RED skip: protect test for the inherited egress guard; invariant holds (windowing slices input only), so it passes — no RED state
+- [x] GREEN b434d3a
+- [x] REFACTOR skip: reuses the unchanged egress pipeline
+
+### Scenario: A delta-window finding with an unresolved surface is dropped
+
+- [x] RED skip: protect test for the inherited egress guard; invariant holds, passes without new code
+- [x] GREEN b434d3a
+- [x] REFACTOR skip: reuses the unchanged egress pipeline
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 8ded451 # /quality-review SHIP; applied temp-file uniqueness hardening

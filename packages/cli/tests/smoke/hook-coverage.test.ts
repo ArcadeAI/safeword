@@ -51,6 +51,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
   // Prompt hooks fire at prompt-submit, not on tool calls.
   'prompt-timestamp.ts': PROMPT_TURN,
   'prompt-questions.ts': PROMPT_TURN,
+  'prompt-retro-nudge.ts':
+    'prompt hook, fires on user turn — not assertable in a tool-based live run; covered deterministically by tests/integration/prompt-retro-nudge.test.ts',
   // Auxiliary / narrow scope
   'post-tool-sync-learnings.ts':
     'PostToolUse learning-sync hook — no agent-blocking deny path to assert in a live run',
@@ -64,6 +66,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
   'stop-reentry.ts': 'stop hook, fires at session end — not assertable in a tool-based live run',
   'stop-self-report.ts':
     'stop hook, fires at session end — not assertable in a tool-based live run; covered deterministically by tests/integration/stop-self-report.test.ts',
+  'stop-retro.ts':
+    'stop hook, fires each turn-end while the session is alive — not assertable in a tool-based live run; covered deterministically by tests/integration/stop-retro.test.ts',
   // Core hooks covered deterministically elsewhere (not re-run live, to save cost)
   'post-tool-lint.ts':
     'PostToolUse lint hook; exercised end-to-end by tests/integration/golden-path.test.ts',
