@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (367)
+## Tickets (368)
 
 ### agent-surface-refactor
 
@@ -864,6 +864,9 @@
 - **Speed up the vitest suite — lift blanket maxWorkers:1, isolate the offenders (CQJBSN)** (in_progress, epic: —)
   Cut full-suite wall-time by removing the blanket `maxWorkers: 1` and running well-isolated test files in parallel.
   → `.project/tickets/CQJBSN-test-suite-parallelism`
+- **Durable safeword attribution on the work it drives (CR9TQ2)** (todo, epic: —)
+  Credit the safeword framework on its commits (and retro-filed issues) with
+  → `.project/tickets/CR9TQ2-safeword-commit-attribution`
 - **Cross-runtime conformance follow-ups (CRZ4TM)** (todo, epic: —)
   → `.project/tickets/CRZ4TM-cross-runtime-conformance-followups`
 - **Rename generated architecture doc to architecture.generated.md (CTAZT5)** (done, epic: —)
