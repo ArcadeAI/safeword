@@ -32,6 +32,7 @@ const CURSOR_ACTION_SKILLS = [
   'cleanup-zombies',
   'self-review',
   'review-spec',
+  'retro',
 ] as const;
 
 // Shared verbatim by a skill's command wrapper and its rule wrapper.
@@ -63,6 +64,12 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
     name: 'refactor',
     description: REFACTOR_DESCRIPTION,
     skillPath: 'refactor/SKILL.md',
+  },
+  {
+    name: 'retro',
+    description:
+      'Run a safeword retrospective on the current session on demand — mine the transcript for friction (bugs / rough edges / gaps) and file it behind the egress guard. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
+    skillPath: 'retro/SKILL.md',
   },
   {
     name: 'testing',

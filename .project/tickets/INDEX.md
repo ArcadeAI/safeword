@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (370)
+## Tickets (371)
 
 ### agent-surface-refactor
 
@@ -1095,6 +1095,9 @@
 - **Egress entropy backstop: track the accepted false-negative tail (RT4NKL)** (backlog, epic: —)
   Give the retro egress backstop's documented residual false-negative tail
   → `.project/tickets/RT4NKL-egress-entropy-residual-tail`
+- **`/retro` slash-command skill (manual on-demand retrospective) (RTSK9C)** (in_progress, epic: —)
+  Let a user trigger a safeword retro on the current session on demand, on
+  → `.project/tickets/RTSK9C-retro-slash-command-skill`
 - **safeword retro — transcript-mining session retrospective (RV9JT4)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/RV9JT4-retro-transcript-mining`
