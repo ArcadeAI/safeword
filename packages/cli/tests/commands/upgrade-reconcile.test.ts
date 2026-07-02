@@ -309,7 +309,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       ).toBe(true);
     });
 
-    it('should add prompt timestamp hook to existing safeword Codex config', async () => {
+    it('should add missing Codex hooks to existing safeword Codex config', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -347,6 +347,8 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(upgraded).toContain('[[hooks.UserPromptSubmit]]');
       expect(upgraded).toContain('.safeword/hooks/prompt-timestamp.ts');
       expect(upgraded).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+      expect(upgraded).toContain('[[hooks.Stop]]');
+      expect(upgraded).toContain('.safeword/hooks/codex/stop.ts');
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const upgradedAgain = readFileSync(
@@ -356,6 +358,8 @@ statusMessage = "Checking safeword PreToolUse gates"
       const timestampHookCount =
         upgradedAgain.split('.safeword/hooks/prompt-timestamp.ts').length - 1;
       expect(timestampHookCount).toBe(1);
+      const stopHookCount = upgradedAgain.split('.safeword/hooks/codex/stop.ts').length - 1;
+      expect(stopHookCount).toBe(1);
     });
 
     it('migrates a customized legacy Codex config: swaps the context-only SessionStart hook for the auto-upgrade dispatcher', async () => {

@@ -39,6 +39,8 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
     **PreToolUse gates run through Codex hooks.** Safeword writes `.codex/config.toml` and a Codex adapter at `.safeword/hooks/codex/pre-tool-quality.ts`. After setup or upgrade, review and trust the project hooks in Codex before relying on those gates. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and MCP tools.
 
+    **Stop nudges run through Codex continuations.** Safeword also installs `.safeword/hooks/codex/stop.ts`, which can continue the turn with advisory text after the agent stops. That is how done-phase reminders such as ARCHITECTURE.md drift nudges reach Codex; it is not hard done-gate enforcement.
+
   </TabItem>
 </Tabs>
 
@@ -75,6 +77,7 @@ Open your project and ask your agent to build something real:
     2. Your agent follows the safeword skills in `.agents/skills/`
     3. Before supported edits, Codex runs `.safeword/hooks/codex/pre-tool-quality.ts`
     4. If a safeword gate blocks the edit, your agent gets the denial before changing files
+    5. When the agent stops, Codex runs `.safeword/hooks/codex/stop.ts` for continuation nudges such as ARCHITECTURE.md drift reminders
 
   </TabItem>
 </Tabs>

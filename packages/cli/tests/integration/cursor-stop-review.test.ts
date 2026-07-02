@@ -12,6 +12,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { ARCHITECTURE_DOCUMENT_NUDGE } from '../../templates/hooks/lib/architecture-document-nudge.js';
 import {
   createTemporaryDirectory,
   initGitRepo,
@@ -32,16 +33,41 @@ const TEMPLATE_CURSOR_STOP = nodePath.join(
 const CONVERSATION_ID = 'conv-quiet-implement';
 const MARKER_FILE = `/tmp/safeword-cursor-edited-cursor-${CONVERSATION_ID}`;
 
-function buildProject(phase: string): string {
+function generatedArchitectureDocument(fingerprint: string): string {
+  return `---\ngenerator: safeword-architecture\nfingerprint: ${fingerprint}\n---\n\n# Architecture\n`;
+}
+
+function moveArchitectureFingerprint(cwd: string): void {
+  const baseBranch = execSync('git branch --show-current', { cwd, encoding: 'utf8' }).trim();
+  execSync('git checkout -q -b feature-architecture-drift', { cwd, stdio: 'pipe' });
+  execSync(`git branch --set-upstream-to=${baseBranch} feature-architecture-drift`, {
+    cwd,
+    stdio: 'pipe',
+  });
+  writeTestFile(
+    cwd,
+    '.safeword-project/architecture.generated.md',
+    generatedArchitectureDocument('moved-fp'),
+  );
+}
+
+function buildProject(phase: string, options: { architectureDrift?: boolean } = {}): string {
   const cwd = createTemporaryDirectory();
   initGitRepo(cwd);
   writeTestFile(cwd, '.safeword/.gitkeep', '');
+  writeTestFile(cwd, 'ARCHITECTURE.md', '# Architecture\n\nHuman narrative.\n');
+  writeTestFile(
+    cwd,
+    '.safeword-project/architecture.generated.md',
+    generatedArchitectureDocument('base-fp'),
+  );
   writeTestFile(
     cwd,
     '.safeword-project/tickets/JENFZX-demo/ticket.md',
     ['---', 'id: JENFZX', 'status: in_progress', 'type: task', `phase: ${phase}`, '---'].join('\n'),
   );
   execSync('git add . && git commit -qm base', { cwd, stdio: 'pipe' });
+  if (options.architectureDrift === true) moveArchitectureFingerprint(cwd);
   bindActiveTicketThroughCursorPostTool(cwd);
   return cwd;
 }
@@ -104,6 +130,15 @@ describe('Cursor stop review surface', () => {
     expect(JSON.parse(result.stdout)).toEqual({});
   });
 
+  it('does not emit the architecture drift nudge during implement-phase work', () => {
+    cwd = buildProject('implement', { architectureDrift: true });
+
+    const result = runCursorStop(cwd);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({});
+  });
+
   it('does not emit a generic follow-up before verify has run', () => {
     cwd = buildProject('verify');
 
@@ -121,6 +156,16 @@ describe('Cursor stop review surface', () => {
 
     expect(result.status).toBe(0);
     expect(parsed.followup_message).toContain('Phase: implement');
+  });
+
+  it('includes the architecture drift nudge for done-phase work when the fingerprint moved', () => {
+    cwd = buildProject('done', { architectureDrift: true });
+
+    const result = runCursorStop(cwd);
+    const parsed = JSON.parse(result.stdout) as { followup_message?: string };
+
+    expect(result.status).toBe(0);
+    expect(parsed.followup_message).toContain(ARCHITECTURE_DOCUMENT_NUDGE);
   });
 
   it('keeps crash capture wired in both Cursor stop hook copies', () => {
