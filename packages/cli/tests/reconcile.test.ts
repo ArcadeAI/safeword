@@ -1201,6 +1201,9 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).toContain('model = "gpt-5-codex"');
       expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
       expect(content).not.toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+      expect(content).not.toContain('.safeword/hooks/codex/post-tool-skill-nudge.ts');
+      expect(content).not.toContain('.safeword/hooks/codex/stop.ts');
+      expect(content).not.toContain('[[hooks.Stop]]');
     });
 
     it('should clean legacy Codex config that only has the safeword PreToolUse hook', async () => {

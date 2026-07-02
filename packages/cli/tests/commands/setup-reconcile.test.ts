@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
 import {
   createTemporaryDirectory,
+  createTypeScriptProjectReadyForSetup,
   getReconcileTestUtilities,
   installFakeCodexCli,
   removeTemporaryDirectory,
@@ -210,6 +211,9 @@ describe('Setup Command - Reconcile Integration', () => {
           nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality-helpers.ts'),
         ),
       ).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/stop.ts'))).toBe(
+        true,
+      );
     });
 
     it('should wire Codex hooks through a single SessionStart dispatcher', async () => {
@@ -226,6 +230,9 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(content).toContain('[[hooks.SessionStart]]');
       expect(content.match(/\[\[hooks\.SessionStart\]\]/g)).toHaveLength(1);
       expect(content).toContain('.safeword/hooks/session-codex-start.ts');
+      expect(content).toContain('[[hooks.Stop]]');
+      expect(content).toContain('.safeword/hooks/codex/stop.ts');
+      expect(content.match(/\[\[hooks\.Stop\]\]/g)).toHaveLength(1);
       expect(content).not.toContain('.safeword/hooks/session-safeword-context.ts" --agent=codex');
     });
 
@@ -309,30 +316,14 @@ describe('Setup Command - Reconcile Integration', () => {
   });
 
   describe('setup command integration', () => {
-    it('should run setup successfully via CLI', () => {
-      writeFileSync(
-        nodePath.join(temporaryDirectory, 'package.json'),
-        JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
-      );
+    it('should run setup successfully via CLI', async () => {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} setup`, {
-        cwd: temporaryDirectory,
-        timeout: 120_000,
-      });
+      const result = await runCli(['setup'], { cwd: temporaryDirectory });
 
-      if (result.exitCode === 0) {
-        expect(result.stdout).toContain('Setup');
-      } else {
-        // If setup timed out, accept if output shows the command path ran.
-        const sawSetupOutput = result.stdout.includes('Setup') || result.stdout.includes('Created');
-        const safewordCreated = existsSync(nodePath.join(temporaryDirectory, '.safeword'));
-        if (!sawSetupOutput || !safewordCreated) {
-          expect.fail(
-            `setup should have failed with recognized setup output. exitCode=${result.exitCode}, stderr=${result.stderr}`,
-          );
-        }
-      }
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stdout).toContain('Setup');
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
     });
 
     it('should error on already configured project', () => {

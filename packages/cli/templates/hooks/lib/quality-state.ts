@@ -5,6 +5,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { getTicketInfo, type TicketDetails } from './active-ticket.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { getRunStorageKey, resolveRunIdentity, type RunIdentity } from './run-identity.js';
 import { captureGateEscalation } from './self-report.js';
@@ -144,6 +145,15 @@ export function readSessionState(
     }
   }
   return null;
+}
+
+export function readSessionActiveTicket(
+  projectDirectory: string,
+  sessionId: string | RunIdentity | undefined,
+): TicketDetails | null {
+  const state = readSessionState(projectDirectory, sessionId);
+  const activeTicket = state?.activeTicket;
+  return activeTicket ? getTicketInfo(projectDirectory, activeTicket) : null;
 }
 
 /** Counter file for cross-session failure pattern tracking. */

@@ -56,25 +56,45 @@ function bareName(value: string, label: string): string {
   return value;
 }
 
-// Optional leading flags `--ticket <folder>` and `--model <id>` (any order),
-// then the positional command. `--model` is the reviewing model, supplied by the
-// orchestrator that assigned it (NOT self-reported by the reviewer — Claude Code
-// withholds model identity from subagents, ticket MR5M3A).
-let positional = process.argv.slice(2);
-let explicitTicket: string | undefined;
-let reviewerModel: string | undefined;
-while (positional[0] === '--ticket' || positional[0] === '--model') {
-  const flag = positional[0];
-  const value = positional[1];
-  if (value === undefined || value === '') fail(`${flag} requires a value`);
-  if (flag === '--ticket') {
-    explicitTicket = bareName(value, '--ticket');
-  } else {
-    if (/\s/.test(value)) fail('--model id must not contain whitespace');
-    reviewerModel = value;
-  }
-  positional = positional.slice(2);
+interface ParsedArguments {
+  positional: string[];
+  explicitTicket: string | undefined;
+  reviewerModel: string | undefined;
 }
+
+// Optional global flags `--ticket <folder>` and `--model <id>` may appear before
+// or after the positional command. `--model` is the reviewing model, supplied by
+// the orchestrator that assigned it (NOT self-reported by the reviewer — Claude
+// Code withholds model identity from subagents, ticket MR5M3A).
+function parseArguments(argv: string[]): ParsedArguments {
+  const positional: string[] = [];
+  let explicitTicket: string | undefined;
+  let reviewerModel: string | undefined;
+
+  for (let index = 2; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === undefined) fail('missing argument');
+    if (arg !== '--ticket' && arg !== '--model') {
+      positional.push(arg);
+      continue;
+    }
+
+    const flag = arg;
+    const value = argv[index + 1];
+    if (value === undefined || value === '') fail(`${flag} requires a value`);
+    if (flag === '--ticket') {
+      explicitTicket = bareName(value, '--ticket');
+    } else {
+      if (/\s/.test(value)) fail('--model id must not contain whitespace');
+      reviewerModel = value;
+    }
+    index += 1;
+  }
+
+  return { positional, explicitTicket, reviewerModel };
+}
+
+const { positional, explicitTicket, reviewerModel } = parseArguments(process.argv);
 
 // Resolve the ticket the same way the gate does conceptually (the one being worked),
 // failing loudly on ambiguity instead of stamping a ticket the gate isn't checking.

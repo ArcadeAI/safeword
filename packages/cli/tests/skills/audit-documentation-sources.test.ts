@@ -105,6 +105,30 @@ describe('audit documentation source guidance', () => {
     expect(content).toContain('If `docs.sources: []` is configured, do not prompt');
     expect(content).toContain('Always report docs coverage');
   });
+
+  it.each(AUDIT_SURFACES)('%s reports documentation drift as an error', relativePath => {
+    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+
+    expect(content).toContain('Gap (error)');
+    expect(content).toContain('Documentation drift is never a warning');
+    expect(content).toContain('[E004] Documentation drift');
+    expect(content).toContain('[E005] Dependency gap');
+    expect(content).not.toContain('Gap (warn)');
+    expect(content).not.toContain('[W004] Gap');
+  });
+
+  it.each(AUDIT_SURFACES)('%s reports structural documentation gaps as errors', relativePath => {
+    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+
+    expect(content).toContain('Missing (error)');
+    expect(content).toContain('Drifted layer→dir (error)');
+    expect(content).toContain('[E006] Structural gap');
+    expect(content).toContain('[E007] Drifted layer→dir');
+    expect(content).not.toContain('Missing (warn)');
+    expect(content).not.toContain('Drifted layer→dir (warn)');
+    expect(content).not.toContain('[W008] Structural gap');
+    expect(content).not.toContain('[W009] Drifted layer→dir');
+  });
 });
 
 describe('audit test quality severity', () => {

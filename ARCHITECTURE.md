@@ -1,7 +1,7 @@
 # Safeword Architecture
 
 **Version:** 1.15
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-07-02
 **Status:** Production
 
 ---
@@ -23,7 +23,7 @@
 
 ## Overview
 
-Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code and Cursor). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
+Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code, Cursor, and Codex). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
 
 ### Tech Stack
 
@@ -82,13 +82,14 @@ packages/cli/
 │   ├── SAFEWORD.md     # Core instructions (installed to .safeword/)
 │   ├── AGENTS.md       # Project context template
 │   ├── commands/       # Slash commands (see templates/commands/ for full list)
+│   ├── codex/          # Codex hook config
 │   ├── cursor/         # Cursor IDE rules (.mdc files)
 │   ├── doc-templates/  # Feature specs, design docs, tickets
 │   ├── guides/         # Methodology guides (TDD, planning, etc.)
-│   ├── hooks/          # Claude Code hooks (lint, quality review)
+│   ├── hooks/          # Claude Code, Cursor, and Codex hook adapters
 │   ├── prompts/        # Prompt templates for commands
 │   ├── scripts/        # Shell scripts (cleanup, bisect)
-│   └── skills/         # Claude Code skills (see templates/skills/ for full list)
+│   └── skills/         # Claude Code and Codex skills (see templates/skills/ for full list)
 ```
 
 ---
@@ -514,6 +515,8 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 **`additionalContext` field:** PreToolUse deny output uses `additionalContext` (Claude Code v2.1.9+) to guide Claude toward skills. `permissionDecisionReason` explains WHY blocked; `additionalContext` tells WHAT TO DO. This prevents content drift — hooks reference skills by name, skills own the review content.
 
 **Quality review cadence (SXSCJQ; implement-step reviews quieted by JENFZX):** The quality review fires at phase boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. Ordinary implement-step (RED/GREEN/REFACTOR) reviews no longer surface per step; they are folded into the whole-ticket review at the implement→verify exit (JENFZX). The Stop hook is a deduped backstop: it reviews per phase, but only for a boundary not already marked (`lastReviewedPhase` in session state), and still fires a generic review when there is no active ticket. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts` (`shouldReviewPhase`); checkbox-flip detection in `lib/checkbox-transitions.ts`.
+
+**Cross-agent Stop delivery (JN403D):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor and Codex use lighter local Stop adapters for continuation nudges, not hard done-gate enforcement: `cursor/stop.ts` appends `followup_message`, while `codex/stop.ts` emits Codex continuation output (`decision: "block"`, `reason`). Both reuse `architectureDocumentNudgeForProject` so the ARCHITECTURE.md drift advisory has one detector and agent-specific delivery wrappers.
 
 **Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 

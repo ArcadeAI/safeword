@@ -52,6 +52,21 @@ export function getSeverityNumber(ruleConfig: unknown): number {
 }
 
 /**
+ * Check whether any config block's `files` glob includes an entry matching
+ * one of the given substrings (e.g. '.test.', '.spec.').
+ */
+export function hasFilePattern(config: any[], matchers: string[]): boolean {
+  return config.some(
+    configObject =>
+      typeof configObject === 'object' &&
+      configObject !== null &&
+      'files' in configObject &&
+      Array.isArray(configObject.files) &&
+      configObject.files.some((f: string) => matchers.some(matcher => f.includes(matcher))),
+  );
+}
+
+/**
  * Collect all rules from flat config array.
  * Merges rules from all config objects.
  */

@@ -204,6 +204,18 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
   });
 
+  it('--ticket after --phase disambiguates when more than one ticket is in_progress', () => {
+    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
+    mkdirSync(second, { recursive: true });
+    writeFileSync(
+      nodePath.join(second, 'ticket.md'),
+      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
+    );
+    const stamp = runStamp('--phase', 'define-behavior', '--ticket', TICKET_ID);
+    expect(stamp.status).toBe(0);
+    expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'phase', 'define-behavior')}`);
+  });
+
   it('fails visibly instead of stamping unknown-session when no runtime identity is available', () => {
     const stamp = runStampWithoutRuntimeIdentity('spec');
 
