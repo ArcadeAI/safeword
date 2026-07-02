@@ -13,6 +13,7 @@
 import type { RetroDraft } from './draft.js';
 import {
   emptyLedger,
+  type EncounterInput,
   LEDGER_MARKER,
   type LedgerState,
   parseLedger,
@@ -136,12 +137,18 @@ export async function triage(
   return result;
 }
 
-function seedState(encounter: Encounter, ctx: TriageContext): LedgerState {
-  return recordEncounter(emptyLedger(), {
+// The ledger's per-encounter input, projected from an encounter + its bound
+// context. One mapping, so `seedState` and `recordOnKnownIssue` can't drift.
+function toEncounterInput(encounter: Encounter, ctx: TriageContext): EncounterInput {
+  return {
     sessionId: ctx.sessionId,
     harness: ctx.harness,
     manifestation: encounter.manifestation,
-  }).state;
+  };
+}
+
+function seedState(encounter: Encounter, ctx: TriageContext): LedgerState {
+  return recordEncounter(emptyLedger(), toEncounterInput(encounter, ctx)).state;
 }
 
 async function recordOnKnownIssue(
@@ -155,11 +162,7 @@ async function recordOnKnownIssue(
   const ledgerComment = comments.find(c => c.body.includes(LEDGER_MARKER));
   const previous = ledgerComment ? parseLedger(ledgerComment.body) : emptyLedger();
 
-  const { state, changed, novel } = recordEncounter(previous, {
-    sessionId: ctx.sessionId,
-    harness: ctx.harness,
-    manifestation: encounter.manifestation,
-  });
+  const { state, changed, novel } = recordEncounter(previous, toEncounterInput(encounter, ctx));
 
   if (changed) {
     const body = renderLedger(state);
