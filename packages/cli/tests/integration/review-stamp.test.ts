@@ -104,6 +104,22 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     return existsSync(logFile) ? readFileSync(logFile, 'utf8') : '';
   }
 
+  function bindSessionTicket(ticketId: string = TICKET_ID): void {
+    writeFileSync(
+      nodePath.join(projectRoot, '.safeword-project', 'quality-state-sess-1.json'),
+      JSON.stringify({ activeTicket: ticketId }),
+    );
+  }
+
+  function createSecondTicket(): void {
+    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
+    mkdirSync(second, { recursive: true });
+    writeFileSync(
+      nodePath.join(second, 'ticket.md'),
+      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
+    );
+  }
+
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'review-stamp-'));
     ticketDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', TICKET_ID);
@@ -170,16 +186,24 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(stamps.some(s => s.scope === 'HACKED:spec@deadbeefcafe')).toBe(false);
   });
 
-  it('fails loudly when more than one ticket is in_progress (no --ticket)', () => {
-    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
-    mkdirSync(second, { recursive: true });
-    writeFileSync(
-      nodePath.join(second, 'ticket.md'),
-      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
-    );
+  it('uses the session-bound active ticket when more than one ticket is in_progress (no --ticket)', () => {
+    createSecondTicket();
+    bindSessionTicket();
+
     const stamp = runStamp('spec');
+
+    expect(stamp.status).toBe(0);
+    expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+  });
+
+  it('fails loudly when multiple tickets are in_progress and no session ticket is bound', () => {
+    createSecondTicket();
+
+    const stamp = runStamp('spec');
+
     expect(stamp.status).toBe(1);
     expect(stamp.stdout).toContain('multiple in_progress tickets');
+    expect(stamp.stdout).toContain('pass --ticket <folder>');
   });
 
   it('rejects a path-separator in --ticket or the artifact (no escaping tickets/)', () => {
@@ -193,12 +217,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
   });
 
   it('--ticket disambiguates when more than one ticket is in_progress', () => {
-    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
-    mkdirSync(second, { recursive: true });
-    writeFileSync(
-      nodePath.join(second, 'ticket.md'),
-      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
-    );
+    createSecondTicket();
     const stamp = runStamp('--ticket', TICKET_ID, 'spec');
     expect(stamp.status).toBe(0);
     expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);

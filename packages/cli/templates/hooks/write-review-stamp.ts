@@ -17,14 +17,16 @@
 // Usage:
 //   bun write-review-stamp.ts [--ticket <folder>] <artifact> [skip reason…]      # stamp <artifact>.md
 //   bun write-review-stamp.ts [--ticket <folder>] --phase <phase> [skip reason…] # stamp a phase exit
-// With more than one in_progress ticket, pass --ticket to disambiguate; without
-// it the step fails rather than guess a ticket the gate may not be checking.
+// Without --ticket, the helper stamps the session-bound active ticket. If no
+// session binding exists and more than one ticket is in_progress, pass --ticket
+// to disambiguate rather than guessing a ticket the gate may not be checking.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { getInProgressTicketFolders } from './lib/active-ticket.ts';
+import { getInProgressTicketFolders, getTicketInfo } from './lib/active-ticket.ts';
+import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
@@ -96,8 +98,31 @@ function parseArguments(argv: string[]): ParsedArguments {
 
 const { positional, explicitTicket, reviewerModel } = parseArguments(process.argv);
 
-// Resolve the ticket the same way the gate does conceptually (the one being worked),
-// failing loudly on ambiguity instead of stamping a ticket the gate isn't checking.
+function formatTicketList(folders: string[]): string {
+  const shown = folders.slice(0, 12).join(', ');
+  const remaining = folders.length - 12;
+  return remaining > 0 ? `${shown}, ... ${remaining} more` : shown;
+}
+
+function resolveSessionTicketFolder(): string | undefined {
+  const activeTicket = readSessionState(projectDirectory, runIdentity)?.activeTicket;
+  if (!activeTicket) return undefined;
+
+  const ticket = getTicketInfo(projectDirectory, activeTicket);
+  if (!ticket.folder) {
+    fail(`session-bound ticket "${activeTicket}" not found — pass --ticket <folder>`);
+  }
+  if (ticket.status !== undefined && ticket.status !== 'in_progress') {
+    fail(
+      `session-bound ticket "${activeTicket}" is ${ticket.status}, not in_progress — pass --ticket <folder>`,
+    );
+  }
+  return ticket.folder;
+}
+
+// Resolve the ticket the same way the gates do: current session binding first,
+// then the legacy single-ticket fallback. The fallback exists for tiny repos; a
+// mature backlog with many in-progress tickets must not become a guessing game.
 function resolveTicketFolder(): string {
   if (explicitTicket !== undefined) {
     if (!existsSync(nodePath.join(ticketsDirectory, explicitTicket, 'ticket.md'))) {
@@ -105,11 +130,15 @@ function resolveTicketFolder(): string {
     }
     return explicitTicket;
   }
+
+  const sessionTicketFolder = resolveSessionTicketFolder();
+  if (sessionTicketFolder !== undefined) return sessionTicketFolder;
+
   const inProgress = getInProgressTicketFolders(projectDirectory);
   if (inProgress.length === 0) fail('no in_progress ticket found — nothing to stamp');
   if (inProgress.length > 1) {
     fail(
-      `multiple in_progress tickets (${inProgress.join(', ')}) — pass --ticket <folder> to disambiguate`,
+      `no session-bound active ticket and multiple in_progress tickets (${formatTicketList(inProgress)}) — pass --ticket <folder> to disambiguate`,
     );
   }
   return inProgress[0] ?? fail('no in_progress ticket found — nothing to stamp');
