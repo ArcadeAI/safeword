@@ -73,3 +73,7 @@ trailer is honest, unbreakable, and doubles as code-archeology metadata.
   at stamp time. This session's 5 pending commits get the trailer by hand (unpushed →
   clean rebase); this ticket makes it automatic via a commit-msg hook + adds the
   retro-issue footer.
+- 2026-07-02T22:18Z Filed pick-up-cold GitHub issue #620 (two deliverables: the
+  retro-issue footer — dependency-free, ship first; and the commit-msg hook, gated on
+  the open install-mechanism sub-decision husky/core.hooksPath/native). Use `VERSION`
+  from `src/version.ts` for both; footer target `assembleBody` (finding.ts:68-86).
