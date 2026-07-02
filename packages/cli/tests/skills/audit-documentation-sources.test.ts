@@ -13,6 +13,10 @@ const AUDIT_SURFACES = [
   '.claude/skills/audit/SKILL.md',
 ];
 
+function readAuditSurface(relativePath: string): string {
+  return readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+}
+
 function extractBashBlock(content: string, ordinal: number): string {
   const blocks = content
     .matchAll(/```bash\n[\s\S]*?\n```/g)
@@ -98,7 +102,7 @@ function runAuditAutomation(files: Record<string, string>): {
 
 describe('audit documentation source guidance', () => {
   it.each(AUDIT_SURFACES)('%s prompts only when docs.sources is absent', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('If `docs.sources` is absent, prompt the user');
     expect(content).toContain('set `docs.sources: []`');
@@ -107,7 +111,7 @@ describe('audit documentation source guidance', () => {
   });
 
   it.each(AUDIT_SURFACES)('%s reports documentation drift as an error', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('Gap (error)');
     expect(content).toContain('Documentation drift is never a warning');
@@ -118,7 +122,7 @@ describe('audit documentation source guidance', () => {
   });
 
   it.each(AUDIT_SURFACES)('%s reports structural documentation gaps as errors', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('Missing (error)');
     expect(content).toContain('Drifted layer→dir (error)');
@@ -133,7 +137,7 @@ describe('audit documentation source guidance', () => {
 
 describe('audit test quality severity', () => {
   it.each(AUDIT_SURFACES)('%s reports sampled test-quality issues as errors', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
     const testQualitySection = content
       .split('### 4. Test Quality Review', 2)[1]
       ?.split('### 5. Project Documentation Checks', 2)[0];
@@ -149,7 +153,7 @@ describe('audit test quality severity', () => {
 
 describe('audit installed-project stack awareness', () => {
   it.each(AUDIT_SURFACES)('%s gates JavaScript checks on package.json evidence', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('JavaScript-specific checks');
     expect(content).toContain('[ -f package.json ]');
@@ -159,7 +163,7 @@ describe('audit installed-project stack awareness', () => {
   it.each(AUDIT_SURFACES)(
     '%s chooses outdated dependency commands from the project package manager',
     relativePath => {
-      const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+      const content = readAuditSurface(relativePath);
 
       expect(content.toLowerCase()).toContain('detect package manager');
       expect(content).toContain('bun outdated');
@@ -173,7 +177,7 @@ describe('audit installed-project stack awareness', () => {
   );
 
   it.each(AUDIT_SURFACES)('%s audits supported non-JavaScript stacks', relativePath => {
-    const content = readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
+    const content = readAuditSurface(relativePath);
 
     expect(content).toContain('Python-specific checks');
     expect(content).toContain('uv pip list --outdated');
