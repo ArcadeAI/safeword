@@ -210,6 +210,9 @@ describe('Setup Command - Reconcile Integration', () => {
           nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality-helpers.ts'),
         ),
       ).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/stop.ts'))).toBe(
+        true,
+      );
     });
 
     it('should wire Codex hooks through a single SessionStart dispatcher', async () => {
@@ -226,6 +229,9 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(content).toContain('[[hooks.SessionStart]]');
       expect(content.match(/\[\[hooks\.SessionStart\]\]/g)).toHaveLength(1);
       expect(content).toContain('.safeword/hooks/session-codex-start.ts');
+      expect(content).toContain('[[hooks.Stop]]');
+      expect(content).toContain('.safeword/hooks/codex/stop.ts');
+      expect(content.match(/\[\[hooks\.Stop\]\]/g)).toHaveLength(1);
       expect(content).not.toContain('.safeword/hooks/session-safeword-context.ts" --agent=codex');
     });
 

@@ -225,6 +225,16 @@ timeout = 30
 statusMessage = "Surfacing language-skill guidance"
 `;
 
+const CODEX_STOP_NUDGE_HOOK_PATCH = `
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+timeout = 30
+statusMessage = "Checking safeword Stop nudges"
+`;
+
 // MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
 // context7 uses the hosted streamable-HTTP transport (url); playwright uses
 // stdio (command/args) — matching MCP_SERVERS. Shipped via the codex/config.toml
@@ -732,6 +742,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/codex/post-tool-skill-nudge.ts': {
       template: 'hooks/codex/post-tool-skill-nudge.ts',
     },
+    '.safeword/hooks/codex/stop.ts': {
+      template: 'hooks/codex/stop.ts',
+    },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
     },
@@ -1215,6 +1228,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         operation: 'append',
         content: CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
         marker: '.safeword/hooks/codex/post-tool-skill-nudge.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      // Stop architecture-nudge retrofit (#598): Codex Stop is a continuation
+      // surface, so this wires only the one-shot advisory adapter. Marker is the
+      // hook path to keep user-authored Stop hooks intact and avoid duplicates.
+      {
+        operation: 'append',
+        content: CODEX_STOP_NUDGE_HOOK_PATCH,
+        marker: '.safeword/hooks/codex/stop.ts',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
