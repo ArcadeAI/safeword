@@ -53,7 +53,7 @@ skip: adapter architecture routes all three harnesses through the single Claude-
 
 #### phase-provenance.NTB1.AC1 — A feature ticket cannot silently begin life past intake
 
-Creating a feature ticket already at a later phase is denied with a plain-language explanation of what intake is for and what to do next — no jargon dead ends. "Begin life" includes the side doors: converting a ticket's type to feature past intake counts as a birth whatever the prior type (task, patch, epic, or none), and a ticket.md without parseable frontmatter fails closed (#119's silent-bypass symptom) rather than slipping through unclassified. Birth semantics cut both ways: a flip at intake, or one carrying complete per-phase justifications, is allowed. The gate never touches non-feature tickets themselves, at birth or in motion.
+Creating a feature ticket already at a later phase is denied with a plain-language explanation of what intake is for and what to do next — no jargon dead ends. "Begin life" includes the side doors: converting a ticket's type to feature past intake counts as a birth whatever the prior type (task, patch, epic, or none) and however it arrives (including a frontmatter repair that turns unparseable frontmatter into a feature past intake), and a ticket.md without parseable frontmatter fails closed at creation (#119's silent-bypass symptom) rather than slipping through unclassified. A flip where the prior phase is unrecognized follows the counts-as-intake rule. Birth semantics cut both ways: a flip at intake, or one carrying complete per-phase justifications, is allowed. The gate never touches non-feature tickets themselves, at birth or in motion.
 
 #### phase-provenance.NTB1.AC2 — Any deliberate phase skip stays visible in the ticket
 

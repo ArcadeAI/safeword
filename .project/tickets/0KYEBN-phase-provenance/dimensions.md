@@ -13,7 +13,7 @@ existing gate exemptions).
 | Prior phase              | canonical · off-enum or absent (counts as intake for step-counting)                                  |
 | phase_skips hatch        | absent · covers every skipped phase · covers only some (partial) · entry with empty reason           |
 | Type trajectory          | type unchanged · non-feature → feature flip · absent → feature flip (both count as a birth at the current phase, with the hatch honored both ways) |
-| Frontmatter parseability | parses · unparseable/missing on creation (fail closed, #119) · at-rest tolerance on edits            |
+| Frontmatter parseability | parses · unparseable/missing on creation (fail closed, #119) · at-rest tolerance on edits · repair (unparseable prior → parseable frontmatter: evaluated as a birth at the repaired values, never a free pass) |
 
 Boundary notes:
 

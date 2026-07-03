@@ -60,7 +60,25 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A type flip to feature past intake with every traversed phase justified is allowed
+### Scenario: A type flip to feature past intake with every skipped phase justified is allowed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A type flip at an unrecognized phase follows the counts-as-intake rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Repairing unparseable frontmatter into a feature past intake counts as a feature birth
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Repairing unparseable frontmatter into a feature at intake is allowed
 
 - [ ] RED
 - [ ] GREEN

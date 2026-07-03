@@ -74,9 +74,28 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
       Then the write is allowed
 
     @phase-provenance.NTB1.AC1
-    Scenario: A type flip to feature past intake with every traversed phase justified is allowed
+    Scenario: A type flip to feature past intake with every skipped phase justified is allowed
       Given a task ticket.md at phase implement
       When the ticket.md is edited to type feature and phase_skips entries with reasons for intake, define-behavior, and scenario-gate
+      Then the write is allowed
+
+    @phase-provenance.NTB1.AC1
+    Scenario: A type flip at an unrecognized phase follows the counts-as-intake rule
+      Given a task ticket.md at phase research
+      When the ticket.md is edited to type feature without changing its phase field
+      Then the write is allowed
+
+    @phase-provenance.NTB1.AC1
+    Scenario: Repairing unparseable frontmatter into a feature past intake counts as a feature birth
+      Given a ticket.md whose YAML frontmatter does not parse
+      When the ticket.md is edited so its frontmatter parses with type feature and phase implement and no phase_skips
+      Then the write is denied
+      And the denial explains that becoming a feature past intake requires phase_skips justifications
+
+    @phase-provenance.NTB1.AC1
+    Scenario: Repairing unparseable frontmatter into a feature at intake is allowed
+      Given a ticket.md whose YAML frontmatter does not parse
+      When the ticket.md is edited so its frontmatter parses with type feature and phase intake
       Then the write is allowed
 
     @phase-provenance.NTB1.AC1
