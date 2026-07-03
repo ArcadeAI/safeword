@@ -1,6 +1,6 @@
 # Impl Plan: Phase provenance gate (0KYEBN, #644 G2)
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -72,7 +72,10 @@ step, per TDD.md; scenario order follows the ledger.
 
 ## Known deviations
 
-None — the gate joins the existing pre-tool chain using its established deny/exemption idioms; no new events, config knobs, or state files.
+None structural — the gate joined the pre-tool chain as planned (before #404, shared `deny()`/`withOrderingNote()`/`isValidSkipReason` idioms; verified in the whole-ticket review). Two reconciliation notes:
+
+- The plan's "RED mechanics" held, but several allow-scenarios' REDs were genuinely unconstructible once earlier slices landed — recorded as reasoned `skip:` annotations in the ledger rather than forced failing tests.
+- Scope grew during scenario-gate review rounds (type-flip births, frontmatter fail-closed/repair, off-enum flip pin) — absorbed into the same evaluator as planned, no architectural change.
 
 ## Assessment triggers
 
@@ -81,3 +84,6 @@ None — the gate joins the existing pre-tool chain using its established deny/e
 - #644 G1 (artifact precedence) lands — it may reorder or merge the ticket.md gate chain this gate sits at the head of.
 - `parseFrontmatter` is replaced with a real YAML parser — the flow-style comma decision becomes obsolete; revisit the syntax guidance.
 - G3/G5 (Bash bypass, commit-time reconciliation) land — revisit the deliberately skipped corrupt-direction gating (out_of_scope, work log 2026-07-03T17:00).
+- The four ticket.md gate sections in pre-tool-quality.ts each re-read prior content and recompute the proposed content — hoist a shared pair if a fifth gate joins the chain (quality-review suggestion #3).
+- Frontmatter values stay case-sensitive codebase-wide (`type: Feature` exempts everywhere, not just here) — a shared normalizer is a later cross-cutting ticket (quality-review suggestion #5).
+- Deleting the `phase:` field is currently a tolerated no-op measured from the intake baseline on re-add — pin with a scenario if it ever misbehaves (quality-review suggestion #4).
