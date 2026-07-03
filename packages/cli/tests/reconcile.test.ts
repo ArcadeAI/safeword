@@ -1203,6 +1203,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
       expect(content).not.toContain('.safeword/hooks/codex/pre-tool-quality.ts');
       expect(content).not.toContain('.safeword/hooks/codex/post-tool-skill-nudge.ts');
+      expect(content).not.toContain('.safeword/hooks/codex/post-tool-quality.ts');
       expect(content).not.toContain('.safeword/hooks/codex/stop.ts');
       expect(content).not.toContain('[[hooks.Stop]]');
     });
@@ -1556,6 +1557,40 @@ describe('Reconcile - Reconciliation Engine', () => {
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       expect(content).toContain('.safeword/hooks/prompt-retro-nudge.ts');
       expect(content.match(/\.safeword\/hooks\/prompt-retro-nudge\.ts/g)).toHaveLength(1);
+    });
+  });
+
+  describe('reconcile() - Codex quality-state parity (#630)', () => {
+    it('configures the PostToolUse quality-state hook on install', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content).toContain('.safeword/hooks/codex/post-tool-quality.ts');
+      expect(content).toContain('Updating safeword quality state');
+    });
+
+    it('retrofits the PostToolUse quality-state hook into an existing pre-#630 config', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { CODEX_POST_TOOL_QUALITY_HOOK_PATCH, SAFEWORD_SCHEMA } =
+        await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+
+      const preQuality = readCodexConfigTemplate().replace(CODEX_POST_TOOL_QUALITY_HOOK_PATCH, '');
+      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preQuality);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
+      expect(content.match(/\.safeword\/hooks\/codex\/post-tool-quality\.ts/g)).toHaveLength(1);
     });
   });
 
