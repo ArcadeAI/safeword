@@ -63,7 +63,7 @@ Feature: Numbered Rule tier between JTBD and scenarios
     @rule-tier.TB2.AC1
     Scenario: A tag ending in an AC segment parses as an AC reference, never a rule reference
       Given a feature file with a scenario tagged "@feat.R1.AC1"
-      When lineage lint runs
+      When safeword check runs
       Then the coverage report attributes the scenario to AC "feat.R1.AC1"
       And no stale or orphan rule advisory is reported for "feat.R1"
 
