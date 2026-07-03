@@ -20,9 +20,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A command with no ledger reference is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side precision pin — passes on first run by design (includes sed -i on a non-ledger file)
+- [x] GREEN ca0f5a4
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: Mentioning the ledger path without a write shape is allowed
 

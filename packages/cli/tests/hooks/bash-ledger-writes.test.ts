@@ -27,5 +27,11 @@ describe('detectLedgerWrite', () => {
       expect(detectLedgerWrite("sed -i 's/a/b/' src/index.ts")).toBeUndefined();
       expect(detectLedgerWrite('echo done > /tmp/log.txt')).toBeUndefined();
     });
+
+    it('Scenario: mentioning the ledger path without a write shape is allowed', () => {
+      expect(detectLedgerWrite(`git add ${LEDGER}`)).toBeUndefined();
+      expect(detectLedgerWrite(`git commit ${LEDGER} -m 'tick RED'`)).toBeUndefined();
+      expect(detectLedgerWrite(`echo ${LEDGER}`)).toBeUndefined();
+    });
   });
 });
