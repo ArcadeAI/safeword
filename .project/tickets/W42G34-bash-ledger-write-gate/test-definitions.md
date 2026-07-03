@@ -80,21 +80,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The Claude gate denies a ledger write through its Bash branch
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: seam pin — the anchor scenario's RED (5d6930d) proved this seam failing; this adds a second shape + allow counterpart at the same seam
+- [x] GREEN 5053f86
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: The Codex adapter carries the same denial
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: seam pin — the adapter's Bash translation pre-existed, so the deny flows through on first run; test guards the translation seam
+- [x] GREEN 5053f86
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: The Codex adapter passes an allowed command through
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side counterpart — passes on first run by design (kills a deny-everything adapter)
+- [x] GREEN 5053f86
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: Cursor's shell pre-filter consults the gate for ledger writes
 
@@ -112,9 +112,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The denial message directs to the Edit channel with the reason
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: message pin — the denial text shipped with the first GREEN (d6e79f0); test locks the Edit-channel + annotation-validation wording
+- [x] GREEN 5053f86
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ## Feature-level
 
