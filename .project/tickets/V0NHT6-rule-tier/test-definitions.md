@@ -28,9 +28,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Mixed AC and Rule JTBD is flagged as a check issue
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5c4e0d9
+- [x] GREEN de2fe00
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: Mixed JTBD still passes the intake-exit gate
 
@@ -60,15 +60,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A tag ending in an AC segment parses as an AC reference, never a rule reference
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 205f30e
+- [x] GREEN d567582
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: Rule block whose name token disagrees with its tag is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 31defdf
+- [x] GREEN 6dfe1fb
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: A tag expression on a rule ID runs exactly that rule's scenarios
 
@@ -80,41 +80,41 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Spec rule with no referencing scenario is reported uncovered
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5c4e0d9
+- [x] GREEN de2fe00
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: Rule reference with a missing rule number is reported stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5c4e0d9
+- [x] GREEN de2fe00
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: Rule reference whose JTBD is absent is reported orphan
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5c4e0d9
+- [x] GREEN de2fe00
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ## Rule: A rule with no rejection path is visible
 
 ### Scenario: Numbered rule with no rejection scenario draws an advisory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ca0b68f
+- [x] GREEN 8a69816
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: Numbered rule with a rejection scenario is silent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5c4e0d9
+- [x] GREEN de2fe00
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: Unnumbered Rule block draws no zero-rejection advisory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ca0b68f
+- [x] GREEN 8a69816
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ## Rule: Non-adopters see zero change
 
@@ -128,15 +128,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Per-JTBD numbered Rule corpus passes lint without restructuring
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4cce165
+- [x] GREEN 74238fe
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ### Scenario: Per-JTBD numbered Rule corpus resolves every reference in coverage
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 205f30e
+- [x] GREEN d567582
+- [x] REFACTOR skip: pure parser/report extension; structure stayed clean at GREEN
 
 ## Rule: Rule warnings are plain-language and actionable
 
