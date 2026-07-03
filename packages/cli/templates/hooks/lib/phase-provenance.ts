@@ -36,12 +36,20 @@ export type ProvenanceVerdict = { ok: true } | { ok: false; reason: string; reme
 const OK: ProvenanceVerdict = { ok: true };
 
 /**
- * `phase_skips` convention: block-sequence entries only ("- <phase>: <reason>").
- * Flow-style arrays are deliberately unsupported — the minimal frontmatter
- * parser splits them on commas, which corrupts comma-bearing reasons.
+ * `phase_skips` convention: an indented YAML block sequence under the key, one
+ * entry per bypassed phase:
+ *
+ *   phase_skips:
+ *     - intake: <reason>
+ *     - define-behavior: <reason>
+ *
+ * Use a block sequence, not a flow-style array (`[intake: a, ...]`): the minimal
+ * frontmatter parser splits flow-style on commas, so a comma in a reason would
+ * corrupt the entry. The `-` must be indented — a zero-column `- intake: …`
+ * parses to nothing, and the skip would read as absent.
  */
 const SKIPS_SYNTAX =
-  'record a deliberate skip for each bypassed phase in frontmatter — phase_skips block-sequence entries like "- intake: <reason>", one entry per skipped phase, each with a non-empty reason';
+  'record a deliberate skip for each bypassed phase as an indented phase_skips block sequence — e.g. `phase_skips:` on its own line, then `  - intake: <reason>` (two-space indent) for each skipped phase, each with a non-empty reason';
 
 function frontmatterOf(content: string): Record<string, string | string[]> | undefined {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
@@ -92,10 +100,18 @@ export function evaluateTicketWrite(
   priorContent: string | undefined,
   proposedContent: string,
 ): ProvenanceVerdict {
+  // Normalize CRLF so a Windows-authored ticket.md isn't misread as having no
+  // frontmatter (the `^---\n` anchors are LF-only). Fail-safe either way — a
+  // false "no frontmatter" only over-denies — but the false positive is poor UX.
+  const proposed = normalizeNewlines(proposedContent);
   if (priorContent === undefined) {
-    return evaluateCreation(proposedContent);
+    return evaluateCreation(proposed);
   }
-  return evaluateEdit(priorContent, proposedContent);
+  return evaluateEdit(normalizeNewlines(priorContent), proposed);
+}
+
+function normalizeNewlines(content: string): string {
+  return content.replace(/\r\n/g, '\n');
 }
 
 function evaluateCreation(proposedContent: string): ProvenanceVerdict {

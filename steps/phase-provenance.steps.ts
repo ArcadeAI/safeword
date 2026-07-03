@@ -304,6 +304,21 @@ When('the ticket.md is edited to phase {word}', function (this: ProvenanceWorld,
 });
 
 When(
+  'the ticket.md is MultiEdited to phase {word}',
+  function (this: ProvenanceWorld, phase: string) {
+    // Drive the MultiEdit payload shape (tool_input.edits[]) so the hook's
+    // content reconstruction is exercised end-to-end, not just Write/Edit.
+    const prior = readFileSync(ticketPath(this), 'utf8');
+    const priorPhase = prior.match(/^phase:\s*(\S+)/m)?.[1];
+    assert.ok(priorPhase, 'fixture must carry a phase to change');
+    this.verdict = runHook(this, 'MultiEdit', {
+      file_path: ticketPath(this),
+      edits: [{ old_string: `phase: ${priorPhase}`, new_string: `phase: ${phase}` }],
+    });
+  },
+);
+
+When(
   'the ticket.md is edited to phase {word} with no phase_skips',
   function (this: ProvenanceWorld, phase: string) {
     const prior = readFileSync(ticketPath(this), 'utf8');

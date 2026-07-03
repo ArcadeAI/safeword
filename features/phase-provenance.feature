@@ -151,6 +151,13 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
       And the denial names define-behavior and scenario-gate as the skipped phases
 
     @phase-provenance.TB1.AC1
+    Scenario: A forward jump via MultiEdit is gated like an Edit
+      Given a feature ticket.md at phase intake
+      When the ticket.md is MultiEdited to phase implement
+      Then the write is denied
+      And the denial names define-behavior and scenario-gate as the skipped phases
+
+    @phase-provenance.TB1.AC1
     Scenario: The maximal jump names every skipped phase
       Given a feature ticket.md at phase intake
       When the ticket.md is edited to phase done with no phase_skips

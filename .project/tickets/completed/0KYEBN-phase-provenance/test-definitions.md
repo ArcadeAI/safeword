@@ -130,6 +130,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 85ef4d1
 - [x] REFACTOR 517db68
 
+### Scenario: A forward jump via MultiEdit is gated like an Edit
+
+- [x] RED skip: post-review coverage add (PR #693 quality-review NOTE 3); reconstruction path already green, this pins the MultiEdit payload shape
+- [x] GREEN skip: same gate logic as Edit; the wiring scenario exercises tool_input.edits[] end-to-end
+- [x] REFACTOR skip: no new logic, test-only addition
+
 ### Scenario: The maximal jump names every skipped phase
 
 - [x] RED 13c6582

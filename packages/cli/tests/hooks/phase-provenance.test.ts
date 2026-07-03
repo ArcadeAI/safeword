@@ -107,6 +107,34 @@ describe('evaluateTicketWrite — phase_skips hatch at birth', () => {
   });
 });
 
+describe('evaluateTicketWrite — CRLF line endings', () => {
+  const crlf = (content: string): string => content.replaceAll('\n', '\r\n');
+
+  it('denies a CRLF-authored feature ticket born past intake (not a false "no frontmatter")', () => {
+    const verdict = evaluateTicketWrite(
+      undefined,
+      crlf(ticket({ type: 'feature', phase: 'implement' })),
+    );
+    expect(verdict.ok).toBe(false);
+    // The provenance denial, not the frontmatter-presence fallback.
+    if (!verdict.ok) expect(verdict.reason).toMatch(/born at phase: intake/);
+  });
+
+  it('honors CRLF-authored phase_skips justifications', () => {
+    const verdict = evaluateTicketWrite(
+      undefined,
+      crlf(
+        ticket({
+          type: 'feature',
+          phase: 'implement',
+          skips: ['intake: a', 'define-behavior: b', 'scenario-gate: c'],
+        }),
+      ),
+    );
+    expect(verdict.ok).toBe(true);
+  });
+});
+
 describe('evaluateTicketWrite — type flips are births', () => {
   it('denies a task → feature flip past intake without skips', () => {
     const verdict = evaluateTicketWrite(
