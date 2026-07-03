@@ -21,6 +21,7 @@ import {
   parseFeatureAcReferences,
   parseFeatureRuleReferences,
   parseFeatureScenarios,
+  parseLineageReferenceFromTag,
 } from './gherkin-feature.js';
 import { computeSkipMask, parseHeading } from './markdown-sections.js';
 
@@ -113,6 +114,55 @@ export function parseCriteriaIdsByJtbd(specContent: string): Map<string, JtbdCri
   }
 
   return byJtbd;
+}
+
+const REJECTION_TAG = '@rejection';
+
+/**
+ * Spec-declared numbered Rules that have at least one referencing scenario but
+ * none tagged `@rejection`. A rule with no scenarios at all is the uncovered
+ * bucket's finding, not noise here; unnumbered `Rule:` grouping blocks declare
+ * no rule id, so they are exempt by construction.
+ */
+export function findRulesMissingRejectionPaths(
+  specContent: string,
+  featureContent: string,
+): string[] {
+  const declared = declaredRuleIds(specContent);
+  if (declared.size === 0) return [];
+
+  const hasRejectionByRule = new Map<string, boolean>();
+  for (const scenario of parseFeatureScenarios(featureContent)) {
+    recordRuleRejections(scenario.tags, declared, hasRejectionByRule);
+  }
+
+  return [...declared].filter(id => hasRejectionByRule.get(id) === false);
+}
+
+/** Every numbered-Rule id declared across the spec's JTBDs. */
+function declaredRuleIds(specContent: string): Set<string> {
+  const declared = new Set<string>();
+  for (const criteria of parseCriteriaIdsByJtbd(specContent).values()) {
+    for (const id of criteria.ruleIds) declared.add(id);
+  }
+  return declared;
+}
+
+/** Fold one scenario's rule refs into the rule → has-rejection-scenario map. */
+function recordRuleRejections(
+  tags: readonly string[],
+  declared: ReadonlySet<string>,
+  hasRejectionByRule: Map<string, boolean>,
+): void {
+  const isRejection = tags.includes(REJECTION_TAG);
+  for (const tag of tags) {
+    const ref = parseLineageReferenceFromTag(tag);
+    if (ref?.kind !== 'rule' || !declared.has(ref.reference)) continue;
+    hasRejectionByRule.set(
+      ref.reference,
+      (hasRejectionByRule.get(ref.reference) ?? false) || isRejection,
+    );
+  }
 }
 
 /** JTBD ids declaring both ACs and numbered Rules — one criteria kind per job. */

@@ -512,7 +512,7 @@ function parseErrorLine(message: string): number | undefined {
 
 type LineageKind = 'ac' | 'rule';
 
-interface LineageReference {
+export interface LineageReference {
   kind: LineageKind;
   reference: string;
 }
@@ -532,7 +532,7 @@ function parseRuleReferenceFromTag(tag: string): string | undefined {
 /** Parse a tag's lineage reference. An AC match wins over a rule-shaped prefix
  * so persona codes like `R` stay unambiguous: `@feat.R1.AC1` is AC1 of JTBD
  * `feat.R1`, never rule `feat.R1`. */
-function parseLineageReferenceFromTag(tag: string): LineageReference | undefined {
+export function parseLineageReferenceFromTag(tag: string): LineageReference | undefined {
   const acReference = parseAcReferenceFromTag(tag);
   if (acReference !== undefined) return { kind: 'ac', reference: acReference };
   const ruleReference = parseRuleReferenceFromTag(tag);
