@@ -37,6 +37,8 @@ const DEFAULT_PROJECT_TYPE = {
   existingClippyConfig: undefined,
   existingRustfmtConfig: undefined,
   existingSqlfluffConfig: undefined,
+  existingCucumberHarness: undefined,
+  scaffoldBddLane: true,
 };
 
 const DEFAULT_LANGUAGES = {

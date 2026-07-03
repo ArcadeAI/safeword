@@ -67,6 +67,20 @@ export interface ProjectType {
   existingRustfmtConfig: string | undefined;
   /** Path to existing SQLFluff config if present (e.g., '.sqlfluff') */
   existingSqlfluffConfig: string | undefined;
+  /**
+   * Evidence of a cucumber harness safeword did not scaffold (e.g.
+   * 'cucumber.yaml'), undefined when none. Drives the setup notice and check
+   * advisories (ticket 56JCFZ, issue #645).
+   */
+  existingCucumberHarness: string | undefined;
+  /**
+   * Whether the starter BDD lane (files, deps, test:bdd) is safeword's to
+   * scaffold and maintain: true when safeword's own lane is present (any
+   * shipped template revision — keep maintaining it, even alongside a host
+   * harness) or when no harness exists; false when a host harness is
+   * detected and safeword's lane is absent (ticket 56JCFZ).
+   */
+  scaffoldBddLane: boolean;
 }
 
 // ============================================================================
@@ -113,7 +127,10 @@ export interface ProjectContext {
 export interface FileDefinition {
   template?: string; // Path in templates/ dir
   content?: string | (() => string); // Static content or factory
-  generator?: (ctx: ProjectContext) => string | undefined; // Dynamic generator, undefined = skip file
+  // Dynamic generator, undefined = skip file. Takes precedence over template/
+  // content, so an entry may declare `template` for the schema↔templates
+  // contract while the generator gates on project context (56JCFZ).
+  generator?: (ctx: ProjectContext) => string | undefined;
 }
 
 // managedFiles: created if missing, updated only if content === current template output

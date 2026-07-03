@@ -381,8 +381,11 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       // knip is JS-app dead-code detection — only for repos with real JS source (BE7C7B).
       if (ctx.projectType.hasJsSource) addScriptIfMissing(scripts, 'knip', 'knip');
       // BDD acceptance lane (ticket 102b) — add-if-absent: an existing
-      // customer test:bdd script always wins.
-      addScriptIfMissing(scripts, 'test:bdd', 'cucumber-js');
+      // customer test:bdd script always wins. Suppressed entirely when the
+      // lane isn't safeword's to scaffold (56JCFZ).
+      if (ctx.projectType.scaffoldBddLane) {
+        addScriptIfMissing(scripts, 'test:bdd', 'cucumber-js');
+      }
 
       // Conditional scripts based on project type
       if (ctx.projectType.publishableLibrary) {
@@ -517,14 +520,14 @@ export const typescriptPackages = {
     'safeword',
     // Generated .safeword/eslint.config.mjs uses jiti to load eslint.config.ts.
     JITI_PACKAGE,
+  ],
+  conditional: {
     // BDD acceptance lane (ticket 102b) — cucumber-js runs the scaffolded
     // .feature files; tsx transpiles the TypeScript step definitions, and
     // @types/node lets the scaffolded steps (node: imports) pass typechecks.
-    '@cucumber/cucumber',
-    'tsx',
-    '@types/node',
-  ],
-  conditional: {
+    // Keyed on ProjectType.scaffoldBddLane: suppressed when the repo has its
+    // own cucumber harness and safeword's lane is absent (56JCFZ).
+    scaffoldBddLane: ['@cucumber/cucumber', 'tsx', '@types/node'],
     // Prettier (only for projects without existing formatter)
     standard: ['prettier'], // "standard" = !existingFormatter
     // Prettier plugins (only for projects without existing formatter that need them)

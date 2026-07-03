@@ -191,6 +191,29 @@ describe('Schema - Single Source of Truth', () => {
     });
   });
 
+  describe('BDD lane surface constants (56JCFZ)', () => {
+    // BDD_LANE_FILE_PATHS feeds the check leftover-scaffold advisory. The lane
+    // entries are the only definitions carrying BOTH template and generator
+    // (the bddLaneFile shape), so the constant and the schema must enumerate
+    // exactly the same paths — otherwise the advisory silently under- or
+    // over-reports leftovers.
+    it('BDD_LANE_FILE_PATHS matches the gated lane entries in the schema', async () => {
+      const { BDD_LANE_FILE_PATHS, SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      const gatedLanePaths = Object.entries({
+        ...SAFEWORD_SCHEMA.ownedFiles,
+        ...SAFEWORD_SCHEMA.managedFiles,
+      })
+        .filter(([, definition]) => definition.template && definition.generator)
+        .map(([filePath]) => filePath)
+        .toSorted((a, b) => a.localeCompare(b));
+
+      expect(gatedLanePaths).toEqual(
+        [...BDD_LANE_FILE_PATHS].toSorted((a, b) => a.localeCompare(b)),
+      );
+    });
+  });
+
   describe('ownedFiles', () => {
     it('should have entry for every template file (template → schema)', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
