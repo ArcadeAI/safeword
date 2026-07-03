@@ -23,6 +23,15 @@ import { isDirectory, readFileSafe } from './fs.js';
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
 export type ConfiguredPathKey = 'personas' | 'glossary' | 'surfaces' | 'architecture';
 
+/**
+ * Directory keys under `paths.*` (unlike ConfiguredPathKey, these point at
+ * directories, following the `projectRoot` pattern). `features`/`steps`
+ * (ticket 56JCFZ) AUGMENT the default BDD-lane search set — defaults stay
+ * searched — so relocated or host-owned lanes are readable without
+ * abandoning root `features/`+`steps/`.
+ */
+export type ConfiguredDirectoryKey = 'projectRoot' | 'features' | 'steps';
+
 export type ConfiguredDocumentationSource =
   | { type: 'local'; path: string; resolvedPath: string }
   | { type: 'url'; url: string }
@@ -34,7 +43,7 @@ export type ConfiguredDocumentationSourceDecision =
   | { kind: 'configured'; sources: ConfiguredDocumentationSource[] };
 
 interface SafewordConfigShape {
-  paths?: Partial<Record<ConfiguredPathKey | 'projectRoot', unknown>>;
+  paths?: Partial<Record<ConfiguredPathKey | ConfiguredDirectoryKey, unknown>>;
   docs?: {
     sources?: unknown;
   };
@@ -104,13 +113,27 @@ function parseGitDocumentationSource(
  */
 export function readConfiguredPath(
   cwd: string,
-  key: ConfiguredPathKey | 'projectRoot',
+  key: ConfiguredPathKey | ConfiguredDirectoryKey,
 ): string | undefined {
   const parsed = readSafewordConfig(cwd);
 
   const raw = parsed?.paths?.[key];
   if (!nonEmptyString(raw)) return undefined;
   return raw;
+}
+
+/**
+ * Absolute path of a configured lane directory (`paths.features` /
+ * `paths.steps`, ticket 56JCFZ), or undefined when unset. Consumers add the
+ * result to their default search set (augment, never replace).
+ */
+export function resolveConfiguredLaneDirectory(
+  cwd: string,
+  key: 'features' | 'steps',
+): string | undefined {
+  const configured = readConfiguredPath(cwd, key);
+  if (configured === undefined) return undefined;
+  return nodePath.isAbsolute(configured) ? configured : nodePath.join(cwd, configured);
 }
 
 /**

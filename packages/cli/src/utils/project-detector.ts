@@ -11,7 +11,8 @@ import nodePath from 'node:path';
 import { LANGUAGE_PACKS } from '../packs/registry.js';
 import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
-import { findInTree } from './fs.js';
+import { isShippedCucumberTemplateRevision } from './cucumber-template-revisions.js';
+import { findInTree, readFileSafe, readJson } from './fs.js';
 
 const {
   TAILWIND_PACKAGES,
@@ -441,6 +442,130 @@ export function hasJsSource(cwd: string, maxDepth = 6): boolean {
   return scanForJsSource(cwd, 0, maxDepth);
 }
 
+// Cucumber-js native config discovery order (first wins). A root config with
+// any of these names is a harness safeword must not compete with — except
+// safeword's own scaffolded cucumber.mjs, excluded by content match below.
+const CUCUMBER_CONFIG_FILES = [
+  'cucumber.json',
+  'cucumber.yaml',
+  'cucumber.yml',
+  'cucumber.js',
+  'cucumber.cjs',
+  'cucumber.mjs',
+] as const;
+
+/**
+ * True when the file is safeword's own lane scaffold: a hash-match against a
+ * shipped template revision (so upgrades from older safewords never read
+ * their own lane as a host harness). The current template is always in the
+ * registry — the cucumber-template-revisions contract test enforces it — so
+ * no separate byte-compare against the bundled template is needed.
+ */
+function isSafewordLaneTemplate(configPath: string): boolean {
+  const content = readFileSafe(configPath);
+  return content !== undefined && isShippedCucumberTemplateRevision(content);
+}
+
+// Direct workspace-package radius for harness evidence — the same
+// conventional roots feature-source.ts scans for feature files.
+const WORKSPACE_PACKAGE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
+
+function manifestDependsOnCucumber(manifestPath: string): boolean {
+  const manifest = readJson(manifestPath) as
+    | { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
+    | undefined;
+  return Boolean(
+    manifest?.dependencies?.['@cucumber/cucumber'] ??
+    manifest?.devDependencies?.['@cucumber/cucumber'],
+  );
+}
+
+/**
+ * Cucumber evidence inside one workspace package: a config file of any name
+ * (no self-exclusion — safeword only ever scaffolds the lane at the root) or
+ * a @cucumber/cucumber dependency.
+ */
+function findCucumberEvidenceInPackage(cwd: string, packagePath: string): string | undefined {
+  for (const name of CUCUMBER_CONFIG_FILES) {
+    if (existsSync(nodePath.join(cwd, packagePath, name))) {
+      return `${packagePath}/${name}`;
+    }
+  }
+  if (manifestDependsOnCucumber(nodePath.join(cwd, packagePath, 'package.json'))) {
+    return `${packagePath}/package.json (@cucumber/cucumber)`;
+  }
+  return undefined;
+}
+
+/** First cucumber config file or dep under `<cwd>/<root>/*`, as evidence. */
+function findCucumberEvidenceUnderRoot(cwd: string, root: string): string | undefined {
+  let entries;
+  try {
+    entries = readdirSync(nodePath.join(cwd, root), { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const evidence = findCucumberEvidenceInPackage(cwd, `${root}/${entry.name}`);
+    if (evidence !== undefined) return evidence;
+  }
+  return undefined;
+}
+
+/** First direct workspace package with cucumber evidence (config file or dep). */
+function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
+  for (const root of WORKSPACE_PACKAGE_ROOTS) {
+    const evidence = findCucumberEvidenceUnderRoot(cwd, root);
+    if (evidence !== undefined) return evidence;
+  }
+  return undefined;
+}
+
+export interface CucumberLaneDetection {
+  existingCucumberHarness: string | undefined;
+  scaffoldBddLane: boolean;
+}
+
+/** Host-harness evidence: first foreign config file, else workspace dep, else root dep. */
+function detectCucumberHarnessEvidence(cwd: string, ownLanePresent: boolean): string | undefined {
+  for (const name of CUCUMBER_CONFIG_FILES) {
+    const configPath = nodePath.join(cwd, name);
+    if (!existsSync(configPath)) continue;
+    if (name === 'cucumber.mjs' && ownLanePresent) continue;
+    return name;
+  }
+
+  const workspaceEvidence = detectWorkspaceCucumberDependency(cwd);
+  if (workspaceEvidence !== undefined) return workspaceEvidence;
+
+  // A root dep with safeword's scaffolded lane present is safeword's own
+  // install, not host evidence — otherwise every existing install would
+  // self-trigger detection at upgrade (the 56JCFZ self-trigger trap).
+  if (!ownLanePresent && manifestDependsOnCucumber(nodePath.join(cwd, 'package.json'))) {
+    return 'package.json (@cucumber/cucumber)';
+  }
+  return undefined;
+}
+
+/**
+ * Detect a cucumber harness safeword did not scaffold, and whether the
+ * starter lane is safeword's to scaffold/maintain (ticket 56JCFZ).
+ * Evidence and suppression are deliberately separate: a bitten repo (own
+ * lane + host harness) keeps lane maintenance while advisories surface the
+ * duplicate; a fresh repo with a host harness gets no lane at all.
+ */
+export function detectCucumberLane(cwd: string | undefined): CucumberLaneDetection {
+  if (!cwd) return { existingCucumberHarness: undefined, scaffoldBddLane: true };
+
+  const ownLanePresent = isSafewordLaneTemplate(nodePath.join(cwd, 'cucumber.mjs'));
+  const evidence = detectCucumberHarnessEvidence(cwd, ownLanePresent);
+  return {
+    existingCucumberHarness: evidence,
+    scaffoldBddLane: ownLanePresent || evidence === undefined,
+  };
+}
+
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
   const dependencies = packageJson.dependencies ?? {};
   const developmentDependencies = packageJson.devDependencies ?? {};
@@ -452,6 +577,7 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
+    ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts),
   };
 }

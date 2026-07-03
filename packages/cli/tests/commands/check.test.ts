@@ -433,8 +433,9 @@ describe('Test Suite 8: Health Check', () => {
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
-      // No config-parse error surfaced.
-      expect(result.stderr).not.toMatch(/JSON|parse error|invalid config/i);
+      // No config-parse error surfaced. (Deliberately not a bare /JSON/ match:
+      // unrelated advisories legitimately mention .safeword/config.json.)
+      expect(result.stderr).not.toMatch(/unexpected token|parse error|invalid config/i);
     });
   });
 
