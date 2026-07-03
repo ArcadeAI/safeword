@@ -254,6 +254,7 @@ Key directories created in your project:
 - `codex/pre-tool-quality.ts` - Adapts Codex PreToolUse events to safeword's quality gate
 - `codex/stop.ts` - Runs invisible retro extraction and emits Stop continuations for done-phase reminders such as ARCHITECTURE.md drift
 - `codex/post-tool-skill-nudge.ts` - Codex adapter for the language coding-skill nudge
+- `codex/post-tool-quality.ts` - Codex adapter that maintains per-session quality state (LOC, active-ticket binding)
 
 Codex edit-gate coverage is limited to the documented PreToolUse
 tool calls that Safeword configures (`Bash`, `apply_patch` edit payloads, and

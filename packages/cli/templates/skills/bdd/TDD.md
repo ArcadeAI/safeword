@@ -143,9 +143,9 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 **Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. This means an explicit different-model subagent — **not** a `context: fork`, which inherits the author's model. Record the model you assigned:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --model < reviewer-model-id > impl-plan
+bun .safeword/hooks/write-review-stamp.ts --model "<reviewer-model-id>" impl-plan
 ```
 
-The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If you can't run a different model, log a deliberate `skip: <reason>` rather than stamping a same-model review. (This gate is stricter than quality-review's advisory loop, which accepts a fresh-context pass on your own model — here a genuinely different model, or an explicit `skip:`, is required.)
+The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If you can't run a different model, log a deliberate skip (`--skip "<reason>"`) rather than stamping a same-model review. (This gate is stricter than quality-review's advisory loop, which accepts a fresh-context pass on your own model — here a genuinely different model, or an explicit `--skip`, is required.)
 
 **Avoid bloat.**
