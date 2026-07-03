@@ -199,3 +199,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
