@@ -34,7 +34,9 @@ export function splitShellSegments(command: string): string[] {
     if (quote !== undefined) continue;
 
     const next = command[index + 1];
-    if (char === ';' || char === '\n' || char === '|' || (char === '&' && next === '&')) {
+    // `>|` is a clobbering redirection operator, not a pipe boundary.
+    const isPipe = char === '|' && command[index - 1] !== '>';
+    if (char === ';' || char === '\n' || isPipe || (char === '&' && next === '&')) {
       segments.push(command.slice(segmentStart, index));
       segmentStart = char === '&' && next === '&' ? index + 2 : index + 1;
       if (char === '&' && next === '&') index += 1;

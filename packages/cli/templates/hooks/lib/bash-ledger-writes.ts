@@ -17,6 +17,12 @@
 //   - script files (`bash tick-boxes.sh`) and functions that embed the path
 //   - `dd of=<ledger>` and exotic writers not in the shape list below
 //   - paths that reach the ledger only after symlink or `cd` resolution
+//   - a write following a single `&` (background operator) whose segment's
+//     command word is the backgrounded command — `&` is not a segment
+//     separator here (only `&&`, `;`, `|`, newline are)
+//
+// Known over-denials (fail-closed, accepted): heredoc body lines are parsed
+// as command segments, so a body line that looks like a ledger write denies.
 //
 // That is accepted: the gate closes the low-friction accident path (#644's
 // one-line `sed -i`), not every adversarial path. The done-gate's distinct-SHA
@@ -36,7 +42,11 @@ export interface LedgerWriteDetection {
 
 /** True when a token is a literal path to an R/G/R ledger file. */
 function isLedgerPath(token: string): boolean {
-  return token.endsWith('test-definitions.md') && isNamespacePath(token, 'tickets/');
+  // Boundary-anchored basename so `my-test-definitions.md` is not a ledger.
+  return (
+    (token === 'test-definitions.md' || token.endsWith('/test-definitions.md')) &&
+    isNamespacePath(token, 'tickets/')
+  );
 }
 
 const IN_PLACE_EDITORS = new Set(['sed', 'perl', 'gsed']);
@@ -77,14 +87,26 @@ function isInlineCodeFlag(word: string): boolean {
 }
 
 /**
- * A redirection whose target is a ledger path: standalone `>`/`>>` (with an
- * optional fd prefix) followed by the target word, or the fused `>target` form.
+ * A redirection whose target is a ledger path: standalone `>`/`>>`/`&>`/`>|`
+ * (with an optional fd prefix) followed by the target word, or the fused
+ * `>target` form.
  */
 function redirectionTarget(words: string[], index: number): string | undefined {
   const word = words[index] ?? '';
-  if (/^\d*>>?$/.test(word)) return words[index + 1];
-  const fused = /^\d*>>?(?<target>[^>].*)$/.exec(word);
+  if (/^(?:\d*|&)>>?\|?$/.test(word)) return words[index + 1];
+  const fused = /^(?:\d*|&)>(?:>|\|)?(?<target>[^>|&].*)$/.exec(word);
   return fused?.groups?.target;
+}
+
+/** The directory value of a `-t` / `--target-directory` flag, if present. */
+function flagTargetDirectory(words: string[]): string | undefined {
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index] ?? '';
+    if (word === '-t' || word === '--target-directory') return words[index + 1];
+    if (word.startsWith('-t') && word.length > 2 && !word.startsWith('--')) return word.slice(2);
+    if (word.startsWith('--target-directory=')) return word.slice('--target-directory='.length);
+  }
+  return undefined;
 }
 
 /** Extract a literal path candidate embedded in a word (e.g. inside inline code). */
@@ -99,7 +121,9 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
   for (let index = 0; index < words.length; index += 1) {
     const target = redirectionTarget(words, index);
     if (target !== undefined && isLedgerPath(target)) {
-      const shape = /^\d*>>/.test(words[index] ?? '') ? 'append redirection' : 'output redirection';
+      const shape = /^(?:\d*|&)>>/.test(words[index] ?? '')
+        ? 'append redirection'
+        : 'output redirection';
       return { shape, path: target };
     }
   }
@@ -127,6 +151,17 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
     const destination = arguments_.at(-1);
     if (destination !== undefined && isLedgerPath(destination)) {
       return { shape: `${commandWord} destination`, path: destination };
+    }
+    // `-t <dir>` form: a source named test-definitions.md landing in a
+    // tickets-namespace directory becomes a ledger at the destination.
+    const targetDirectory = flagTargetDirectory(rest);
+    if (targetDirectory !== undefined && isNamespacePath(targetDirectory, 'tickets/')) {
+      const ledgerSource = arguments_.find(
+        word => word === 'test-definitions.md' || word.endsWith('/test-definitions.md'),
+      );
+      if (ledgerSource !== undefined) {
+        return { shape: `${commandWord} into ticket directory`, path: ledgerSource };
+      }
     }
   }
 

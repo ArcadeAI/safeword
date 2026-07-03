@@ -48,6 +48,12 @@ describe('detectLedgerWrite', () => {
       ['cp destination', `cp /tmp/forged.md ${LEDGER}`],
       ['truncate', `truncate -s 0 ${LEDGER}`],
       ['inline interpreter invocation', `bun -e 'require("fs").appendFileSync("${LEDGER}", "x")'`],
+      ['combined redirection (&>)', `echo '- [x] RED' &> ${LEDGER}`],
+      ['clobbering redirection (>|)', `echo '- [x] RED' >| ${LEDGER}`],
+      [
+        'cp -t into the ticket directory',
+        'cp -t .project/tickets/GH628F/ /tmp/test-definitions.md',
+      ],
     ])('Scenario outline: %s targeting the ledger is denied', (_shape, command) => {
       expect(detectLedgerWrite(command)).toBeDefined();
     });
@@ -76,6 +82,12 @@ describe('detectLedgerWrite', () => {
       ).toBeUndefined();
       expect(
         detectLedgerWrite("sed -i 's/a/b/' docs/examples/test-definitions.md"),
+      ).toBeUndefined();
+    });
+
+    it('Scenario: a suffix-colliding basename in the tickets namespace is not a ledger', () => {
+      expect(
+        detectLedgerWrite('echo x > .project/tickets/GH628F/my-test-definitions.md'),
       ).toBeUndefined();
     });
   });
