@@ -13,3 +13,5 @@ Derived from spec.md (JTBD/ACs), the existing pre-tool-quality.ts chain, and the
 | Phase-advance shape | forward into implement (gated) · forward into implement via phase_skips hatch (still gated; skip valve satisfies) · backward moves (free) · advances not targeting implement (not this gate) · phase unchanged (free) |
 | Path scope | `<namespace-root>/tickets/**` (gated) · same filenames outside the namespace (ignored) |
 | Denial content | earliest missing prerequisite named · forward next action stated · ordered-patch note where pre-edit-state applies (#385) |
+
+Partition routing (review-spec round 1): "payload with no reconstructable content (pass-through)" and "reviewGate flag on (no double-demand)" are pinned at the unit-test level, not Gherkin — the pass-through posture is gate-wiring shared with 0KYEBN's pinned tests, and flag-on behavior is a pure-logic branch; every other partition has a scenario.

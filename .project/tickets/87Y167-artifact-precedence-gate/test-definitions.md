@@ -54,6 +54,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A ticket.md with no type field creates dimensions.md without objection
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Scenarios build only on a reviewed spec
 
 ### Scenario: Scenario authoring with no spec review stamp is denied even with the review gate flag off
@@ -75,6 +81,18 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] REFACTOR
 
 ### Scenario: A logged review skip with a reason satisfies the demand
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A logged review skip with an empty reason does not satisfy the demand
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Another ticket's review stamp does not satisfy even at identical spec content
 
 - [ ] RED
 - [ ] GREEN
@@ -119,6 +137,24 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] REFACTOR
 
 ### Scenario: A logged scenario review skip with a reason satisfies the demand
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A logged scenario review skip with an empty reason does not satisfy the demand
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A ledger stamp does not satisfy when the ledger names a feature source
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An implement advance via MultiEdit is gated like an Edit
 
 - [ ] RED
 - [ ] GREEN
@@ -183,6 +219,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] REFACTOR
 
 ### Scenario: Moving backward out of implement is allowed without any stamp
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Advancing from implement to verify demands no scenario review stamp
 
 - [ ] RED
 - [ ] GREEN

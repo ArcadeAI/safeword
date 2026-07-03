@@ -75,6 +75,12 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
         | patch |
         | epic  |
 
+    @artifact-precedence-gate.NTB1.AC1
+    Scenario: A ticket.md with no type field creates dimensions.md without objection
+      Given a ticket.md with no type field at phase define-behavior and no spec.md
+      When a dimensions.md is written in that ticket folder
+      Then the write is allowed
+
   Rule: Scenarios build only on a reviewed spec
 
     @artifact-precedence-gate.NTB1.AC2
@@ -108,6 +114,21 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       And a logged review skip with a reason exists for the ticket's spec.md at its current content
       When a test-definitions.md is written in that ticket folder
       Then the write is allowed
+
+    @artifact-precedence-gate.NTB1.AC2
+    Scenario: A logged review skip with an empty reason does not satisfy the demand
+      Given a feature ticket.md at phase define-behavior with a complete spec.md and dimensions.md
+      And a logged review skip with a blank reason exists for the ticket's spec.md at its current content
+      When a test-definitions.md is written in that ticket folder
+      Then the write is denied
+      And the denial explains that spec.md must be reviewed at its current content before scenarios
+
+    @artifact-precedence-gate.NTB1.AC2
+    Scenario: Another ticket's review stamp does not satisfy even at identical spec content
+      Given a feature ticket.md at phase define-behavior with a complete spec.md and dimensions.md
+      And a review stamp exists for a different ticket's spec.md at identical content
+      When a test-definitions.md is written in that ticket folder
+      Then the write is denied
 
     @artifact-precedence-gate.NTB1.AC2
     Scenario: Task tickets author test definitions without a spec review stamp
@@ -161,6 +182,31 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       And a logged review skip with a reason exists for the ticket's scenarios at their current content
       When the ticket.md is edited to phase implement
       Then the write is allowed
+
+    @artifact-precedence-gate.NTB1.AC3
+    Scenario: A logged scenario review skip with an empty reason does not satisfy the demand
+      Given a feature ticket.md at phase scenario-gate with saved scenarios
+      And a logged review skip with a blank reason exists for the ticket's scenarios at their current content
+      When the ticket.md is edited to phase implement
+      Then the write is denied
+      And the denial explains that the scenarios need an independent review at their current content
+
+    @artifact-precedence-gate.NTB1.AC3
+    Scenario: A ledger stamp does not satisfy when the ledger names a feature source
+      Given a feature ticket.md at phase scenario-gate whose test-definitions.md names a feature source file
+      And a review stamp exists for the test-definitions.md at its current content
+      And no review stamp exists for the feature source file
+      When the ticket.md is edited to phase implement
+      Then the write is denied
+      And the denial explains that the scenarios need an independent review at their current content
+
+    @artifact-precedence-gate.NTB1.AC3
+    Scenario: An implement advance via MultiEdit is gated like an Edit
+      Given a feature ticket.md at phase scenario-gate with saved scenarios
+      And no review stamp exists for the ticket's scenarios
+      When the ticket.md is MultiEdited to phase implement
+      Then the write is denied
+      And the denial explains that the scenarios need an independent review at their current content
 
     @artifact-precedence-gate.NTB1.AC3
     Scenario: A phase_skips justification covering scenario-gate satisfies the demand
@@ -233,6 +279,13 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       Given a feature ticket.md at phase implement
       And no review stamp exists for the ticket's scenarios
       When the ticket.md is edited to phase define-behavior
+      Then the write is allowed
+
+    @artifact-precedence-gate.TB1.AC2
+    Scenario: Advancing from implement to verify demands no scenario review stamp
+      Given a feature ticket.md at phase implement
+      And no review stamp exists for the ticket's scenarios
+      When the ticket.md is edited to phase verify
       Then the write is allowed
 
     @artifact-precedence-gate.TB1.AC2
