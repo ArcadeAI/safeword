@@ -11,7 +11,7 @@ import nodePath from 'node:path';
 import { LANGUAGE_PACKS } from '../packs/registry.js';
 import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
-import { findInTree } from './fs.js';
+import { findInTree, getTemplatesDirectory } from './fs.js';
 
 const {
   TAILWIND_PACKAGES,
@@ -441,6 +441,49 @@ export function hasJsSource(cwd: string, maxDepth = 6): boolean {
   return scanForJsSource(cwd, 0, maxDepth);
 }
 
+// Cucumber-js native config discovery order (first wins). A root config with
+// any of these names is a harness safeword must not compete with — except
+// safeword's own scaffolded cucumber.mjs, excluded by content match below.
+const CUCUMBER_CONFIG_FILES = [
+  'cucumber.json',
+  'cucumber.yaml',
+  'cucumber.yml',
+  'cucumber.js',
+  'cucumber.cjs',
+  'cucumber.mjs',
+] as const;
+
+/** True when the file is byte-identical to safeword's shipped lane template. */
+function isSafewordLaneTemplate(configPath: string): boolean {
+  try {
+    const content = readFileSync(configPath, 'utf8');
+    const template = readFileSync(
+      nodePath.join(getTemplatesDirectory(), 'cucumber', 'cucumber.mjs'),
+      'utf8',
+    );
+    return content === template;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detect a cucumber harness safeword did not scaffold (ticket 56JCFZ).
+ * Returns the evidence (config file name) or undefined. Safeword's own
+ * scaffolded cucumber.mjs is excluded by exact content match so upgrades
+ * never mistake the lane safeword installed for a host harness.
+ */
+function detectCucumberHarness(cwd: string | undefined): string | undefined {
+  if (!cwd) return undefined;
+  for (const name of CUCUMBER_CONFIG_FILES) {
+    const configPath = nodePath.join(cwd, name);
+    if (!existsSync(configPath)) continue;
+    if (name === 'cucumber.mjs' && isSafewordLaneTemplate(configPath)) continue;
+    return name;
+  }
+  return undefined;
+}
+
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
   const dependencies = packageJson.dependencies ?? {};
   const developmentDependencies = packageJson.devDependencies ?? {};
@@ -452,6 +495,7 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
+    existingCucumberHarness: detectCucumberHarness(cwd),
     ...detectExistingTooling(cwd, scripts),
   };
 }

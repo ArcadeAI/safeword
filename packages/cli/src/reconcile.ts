@@ -58,9 +58,17 @@ const PRETTIER_PACKAGES = new Set([
   'prettier-plugin-sh',
 ]);
 
+// Conditional-package keys whose condition is the ABSENCE of existing tooling,
+// rather than a truthy ProjectType field: "standard" = no existing formatter,
+// "bddLane" = no existing cucumber harness (56JCFZ).
+const INVERTED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => boolean> = {
+  standard: projectType => !projectType.existingFormatter,
+  bddLane: projectType => !projectType.existingCucumberHarness,
+};
+
 /**
  * Get conditional packages based on project type.
- * Handles the "standard" key and prettier filtering for existing formatters.
+ * Handles inverted keys (standard/bddLane) and prettier filtering for existing formatters.
  */
 function getConditionalPackages(
   conditionalPackages: Record<string, string[]>,
@@ -69,11 +77,9 @@ function getConditionalPackages(
   const packages: string[] = [];
 
   for (const [key, dependencies] of Object.entries(conditionalPackages)) {
-    // "standard" means !existingFormatter - only for projects without existing formatter
-    if (key === 'standard') {
-      if (!projectType.existingFormatter) {
-        packages.push(...dependencies);
-      }
+    const inverted = INVERTED_PACKAGE_CONDITIONS[key];
+    if (inverted) {
+      if (inverted(projectType)) packages.push(...dependencies);
       continue;
     }
 
@@ -852,6 +858,13 @@ function executeWrite(cwd: string, path: string, content: string, result: Execut
 // ============================================================================
 
 function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): string | undefined {
+  if (definition.generator) {
+    // Generator decides (undefined = skip file). Takes precedence over
+    // `template` so an entry can declare its template provenance (for the
+    // schema↔templates contract) while gating on project context (56JCFZ).
+    return definition.generator(ctx);
+  }
+
   if (definition.template) {
     const templatesDirectory = getTemplatesDirectory();
     return readFile(nodePath.join(templatesDirectory, definition.template));
@@ -859,11 +872,6 @@ function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): st
 
   if (definition.content) {
     return typeof definition.content === 'function' ? definition.content() : definition.content;
-  }
-
-  if (definition.generator) {
-    // Generator can return null to skip file creation
-    return definition.generator(ctx);
   }
 
   throw new Error('FileDefinition must have template, content, or generator');

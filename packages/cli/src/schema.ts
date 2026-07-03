@@ -7,6 +7,9 @@
  * Adding a new file? Add it here and it will be handled by setup/upgrade/reset.
  */
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -40,6 +43,7 @@ import type {
 } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
+import { getTemplatesDirectory } from './utils/fs.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
@@ -438,6 +442,24 @@ function managedGitattributes(ctx: ProjectContext): string {
   ].join('\n');
 }
 
+/**
+ * Starter-lane template entry, suppressed when the repo has its own cucumber
+ * harness (ticket 56JCFZ, issue #645): the generator returns undefined so
+ * reconcile skips the file entirely instead of scaffolding a competing lane.
+ * Behaves exactly like `{ template }` when no harness is detected.
+ */
+function bddLaneFile(templatePath: string): FileDefinition {
+  return {
+    // `template` declares provenance for the schema↔templates contract;
+    // the generator (which takes precedence) gates on harness detection.
+    template: templatePath,
+    generator: (ctx: ProjectContext): string | undefined =>
+      ctx.projectType.existingCucumberHarness
+        ? undefined
+        : readFileSync(nodePath.join(getTemplatesDirectory(), templatePath), 'utf8'),
+  };
+}
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -599,12 +621,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
+  // (bddLaneFile entries: see the helper defined below the schema)
   ownedFiles: {
     // Project root config files (for audit/quality tools)
     '.jscpd.json': { template: '.jscpd.json' },
     // BDD acceptance lane config (ticket 102b) — safeword-owned; the lane's
     // working files (features/, steps/) are customer-owned in managedFiles.
-    'cucumber.mjs': { template: 'cucumber/cucumber.mjs' },
+    // Suppressed when the repo has its own cucumber harness (56JCFZ).
+    'cucumber.mjs': bddLaneFile('cucumber/cucumber.mjs'),
     // Note: knip.json is in typescriptManagedFiles (with context-aware ignoreDependencies)
 
     // Core files
@@ -1014,10 +1038,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // BDD acceptance lane working files (ticket 102b) — scaffolded once; the
     // customer owns them thereafter (created if missing, updated only while
     // still safeword's template content). The lane config (cucumber.mjs) is
-    // safeword-owned in ownedFiles.
-    'features/safeword-lane.feature': { template: 'cucumber/safeword-lane.feature' },
-    'steps/world.ts': { template: 'cucumber/world.ts' },
-    'steps/shared.steps.ts': { template: 'cucumber/shared.steps.ts' },
+    // safeword-owned in ownedFiles. All suppressed when the repo has its own
+    // cucumber harness (56JCFZ).
+    'features/safeword-lane.feature': bddLaneFile('cucumber/safeword-lane.feature'),
+    'steps/world.ts': bddLaneFile('cucumber/world.ts'),
+    'steps/shared.steps.ts': bddLaneFile('cucumber/shared.steps.ts'),
 
     // TypeScript/JavaScript managed files (ESLint, tsconfig, Knip, Prettier configs)
     ...typescriptManagedFiles,
