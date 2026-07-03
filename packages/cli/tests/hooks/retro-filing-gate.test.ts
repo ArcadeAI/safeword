@@ -16,7 +16,7 @@ import {
   FILING_ATTEMPT_CAP,
   formatFilingDispatch,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
-import { retroDraft as draft, writeSelfReportConfig } from '../helpers.js';
+import { appendRetroAck, retroDraft as draft, writeSelfReportConfig } from '../helpers.js';
 
 describe('retro filing gate decision (GH628F — dispatch until drained, capped)', () => {
   let projectDirectory: string;
@@ -124,13 +124,9 @@ describe('retro filing tripwire (GH644A — unacked removals become telemetry)',
     );
     decideRetroFilingGate(projectDirectory, sessionId, { captureBareDrain: spy });
   }
-  function ack(sessionId: string, signature: string, issue: number): void {
-    mkdirSync(nodePath.dirname(ackFilePath(projectDirectory, sessionId)), { recursive: true });
-    appendFileSync(
-      ackFilePath(projectDirectory, sessionId),
-      `${JSON.stringify({ signature, issue })}\n`,
-    );
-  }
+  const ack = (sessionId: string, signature: string, issue: number): void => {
+    appendRetroAck(projectDirectory, sessionId, signature, issue);
+  };
   const evaluate = (sessionId: string): string | undefined =>
     decideRetroFilingGate(projectDirectory, sessionId, { captureBareDrain: spy });
 

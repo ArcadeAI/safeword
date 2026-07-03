@@ -24,6 +24,7 @@ import {
   FILING_ATTEMPT_CAP,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import {
+  appendRetroAck,
   createTemporaryDirectory,
   removeTemporaryDirectory,
   retroDraft as draft,
@@ -122,7 +123,7 @@ describe('stop-retro-filing hook (GH628F — sanctioned dispatch continuation)',
 // nothing, decides exactly as an ack-clean evaluation, captures an
 // allowlist-shaped RetroBareDrain, and leaves the retro spool untouched.
 // ---------------------------------------------------------------------------
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { readSessionReports } from '../../templates/hooks/lib/self-report.js';
 
@@ -148,10 +149,7 @@ describe('stop-retro-filing tripwire wiring (GH644A — observe, never surface)'
   it('a tripped evaluation emits nothing and decides exactly as an ack-clean one', () => {
     seedBareDrain('bare', 'retro:aaaaaaaaaaaa');
     seedBareDrain('clean', 'retro:aaaaaaaaaaaa');
-    appendFileSync(
-      ackFilePath(projectDirectory, 'clean'),
-      `${JSON.stringify({ signature: 'retro:aaaaaaaaaaaa', issue: 101 })}\n`,
-    );
+    appendRetroAck(projectDirectory, 'clean', 'retro:aaaaaaaaaaaa', 101);
 
     const tripped = runHook(projectDirectory, { session_id: 'bare' });
     const clean = runHook(projectDirectory, { session_id: 'clean' });
