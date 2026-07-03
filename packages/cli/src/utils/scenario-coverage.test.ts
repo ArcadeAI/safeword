@@ -186,6 +186,42 @@ describe('buildCoverageReportFromFeature (feature files as source)', () => {
     expect(report.stale).toEqual(['demo.DEV1.AC5']);
     expect(report.orphan).toEqual(['ghost.SM1.AC1']);
   });
+
+  it('rule-tier.TB3.AC1.uncovered_spec_rule_flagged', () => {
+    const report = buildCoverageReportFromFeature(spec(ONE_RULE), feature(['other.SM1.AC1']));
+    expect(report.uncovered).toEqual(['demo.DEV2.R1']);
+  });
+
+  it('rule-tier.TB3.AC1.stale_rule_ref_flagged', () => {
+    const report = buildCoverageReportFromFeature(spec(ONE_RULE), feature(['demo.DEV2.R5']));
+    expect(report.stale).toEqual(['demo.DEV2.R5']);
+    expect(report.orphan).toEqual([]);
+  });
+
+  it('rule-tier.TB3.AC1.orphan_rule_ref_flagged', () => {
+    const report = buildCoverageReportFromFeature(spec(ONE_RULE), feature(['ghost.SM1.R1']));
+    expect(report.orphan).toEqual(['ghost.SM1.R1']);
+    expect(report.stale).toEqual([]);
+  });
+
+  it('rule-tier.TB4.AC1.rule_numbered_corpus_fully_resolves', () => {
+    const corpusSpec = spec(
+      `${ONE_RULE}\n\n#### demo.DEV2.R2 — deliveries stop after the retry budget`,
+    );
+    const report = buildCoverageReportFromFeature(
+      corpusSpec,
+      feature(['demo.DEV2.R1', 'demo.DEV2.R2']),
+    );
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('rule-tier.TB2.AC1.ac_segment_ref_attributed_to_ac_not_rule', () => {
+    const personaRSpec = spec(
+      '### feat.R1 — Review\n\n**Persona:** R\n\n#### feat.R1.AC1 — reviewable',
+    );
+    const report = buildCoverageReportFromFeature(personaRSpec, feature(['feat.R1.AC1']));
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
 });
 
 describe('buildCoverageReport (R3 — quiet degradation)', () => {
