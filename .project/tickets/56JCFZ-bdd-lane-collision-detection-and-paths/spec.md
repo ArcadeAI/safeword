@@ -1,119 +1,90 @@
 # Spec: BDD lane: detect existing cucumber harness, configurable feature/step paths
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
-
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Stop `safeword setup` from scaffolding a second cucumber harness into repos that already have one, and let any host point safeword's BDD readers and scaffolded runner at its own feature/step directories — so safeword adopts the host's acceptance lane instead of competing with it.
 
 ## Intake Brief
 
-<!-- The decide-to-build framing for substantial features (advisory — write
-`skip: <reason>` on any line that doesn't apply). Intent above is the positive
-"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
-If cost-of-inaction is low and reversibility is high, ask whether this is a
-feature at all, or a leaner task. -->
-
-- **Requested by:** <who asked for this — distinct from the persona it serves>
-- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
+- **Requested by:** Safeword maintainer (issue [#645](https://github.com/ArcadeAI/safeword/issues/645)), after setup dropped a cucumber v13 root lane into ArcadeAI/monorepo's CI-wired cucumber v12 suite.
+- **Cost of inaction:** Every cucumber-shop install gets two runners at different majors, with cucumber-js config-discovery order deciding which config wins per invocation; `safeword codify` output lands in a different home than the host's real acceptance suite; `safeword reset` in such repos deletes the host's own `cucumber.mjs` and rips out their deps.
+- **Reversibility:** Two-way for detection (a gate on existing scaffolding paths); one-way-ish for the `paths.features`/`paths.steps` config keys (public config schema — semver commitment once shipped). Keys kept minimal (two directory strings) for that reason.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- Issue: <https://github.com/ArcadeAI/safeword/issues/645> (incl. design comment on adoption semantics — deferred to ticket 7CK2KP)
+- Design decisions: ticket.md `## Decisions` (two figure-it-out passes + quality review, 2026-07-03)
+- Prior art: ticket 102b (lane scaffolding, documented this collision as accepted risk), VM78NC (discovery alignment across runner/lint/check/codify), K7N2QM (`paths.*` config model)
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- Technical Builder (TB) — installs safeword into a repo that already has a mature cucumber harness, or relocates the scaffolded lane to fit repo conventions.
 
 ## Surfaces
 
-<!-- Optional: supported product, agent, runtime, protocol, client, or
-deployment contexts this feature affects. Prefer names from the configured
-surfaces file. Use spec-local names only for one-off contexts.
-
-Affected:
-- <surface name>
-
-Unaffected:
-- <surface name> — <reason>
-
-Each affected surface should be covered by at least one saved scenario tagged
-`@surface.<slug>` (OpenAI Codex -> `@surface.openai-codex`) or carry
-`skip: <reason>` on the Affected line. -->
+Affected: skip — CLI-level behavior (`setup`/`upgrade`/`uninstall`/`check`/`codify`/`lint-gherkin` and the scaffolded runner config); identical across agent runtimes, no runtime-specific installed files or workflow.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Host harness** — a cucumber setup safeword did not scaffold: any `cucumber.{json,yaml,yml,js,cjs,mjs}` whose content is not safeword's template, or a `@cucumber/cucumber` dependency safeword did not add.
+- **Starter lane** — safeword's scaffold: `cucumber.mjs`, `features/safeword-lane.feature`, `steps/world.ts`, `steps/shared.steps.ts`, the `@cucumber/cucumber`/`tsx`/`@types/node` deps, and the `test:bdd` script.
+- **Augment semantics** — configured `paths.*` directories are added to the default search set; defaults stay searched.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### bdd-lane-collision-detection-and-paths.TB1 — Install safeword without getting a second cucumber harness
 
-Uncomment and customize:
+**Persona:** Technical Builder (TB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I run `safeword setup` in a repo that already has a cucumber suite, I want safeword to recognize and respect my harness instead of scaffolding its own, so I keep one runner and one acceptance-suite home.
 
-**Persona:** Platform Operator (PO)
+#### bdd-lane-collision-detection-and-paths.TB1.AC1 — Setup into a repo with a host harness scaffolds no starter lane and names what it found plus how to point safeword at it
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### bdd-lane-collision-detection-and-paths.TB1.AC2 — Safeword never mistakes its own scaffold for a host harness (upgrades keep maintaining the lane it installed)
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+#### bdd-lane-collision-detection-and-paths.TB1.AC3 — Uninstall/reset never removes host-owned cucumber config or dependencies
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+#### bdd-lane-collision-detection-and-paths.TB1.AC4 — Repos without any cucumber keep getting the starter lane exactly as today
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
--->
+#### bdd-lane-collision-detection-and-paths.TB1.AC5 — Uninstall never deletes files at configured `paths.*` locations
+
+### bdd-lane-collision-detection-and-paths.TB2 — Point safeword's BDD tooling at my repo's own lane locations
+
+**Persona:** Technical Builder (TB)
+
+> When my feature files and step definitions live somewhere other than root `features/`+`steps/`, I want to tell safeword once where they are, so codify, lint, check, and the scaffolded runner all read the same places my suite lives.
+
+#### bdd-lane-collision-detection-and-paths.TB2.AC1 — With `paths.features`/`paths.steps` set, safeword's readers (codify, lint-gherkin, check) search the configured directories in addition to the defaults
+
+#### bdd-lane-collision-detection-and-paths.TB2.AC2 — The scaffolded runner executes features/steps from the configured directories under a real cucumber-js run
+
+#### bdd-lane-collision-detection-and-paths.TB2.AC3 — A missing or unparseable `.safeword/config.json` falls back to default behavior everywhere (no crash, no silent dead lane)
+
+### bdd-lane-collision-detection-and-paths.TB3 — Be told when safeword and my harness are misaligned
+
+**Persona:** Technical Builder (TB)
+
+> When safeword detects my harness but isn't configured to read it, or when an older safeword left a duplicate lane in my repo, I want a persistent, specific warning with the exact fix, so I can align them myself without safeword editing or deleting anything.
+
+#### bdd-lane-collision-detection-and-paths.TB3.AC1 — `safeword check` warns whenever a host harness is detected and `paths.*` is unset, and stays quiet when there is nothing to fix
+
+#### bdd-lane-collision-detection-and-paths.TB3.AC2 — `safeword check` enumerates a leftover duplicate scaffold (files, deps, script — derived from the schema), and never edits or deletes anything
 
 ## Rave Moment
 
-<!-- Optional, and only for the highest persona-facing surface in the tree (the
-epic if there is one, else this feature). Child features under an epic that
-already named one inherit it — skip here; internal/plumbing work skips entirely.
-Advisory; never blocks intake exit. The one moment a persona would tell a peer
-about: name the moment, the expectation it beats, and the one sentence they'd
-repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
-`skip: table-stakes`.
+### bdd-lane-collision-detection-and-paths — "It found our cucumber suite"
 
-### <slug> — <the moment in a few words>
-
-- **Moment:** <the specific beat they'd screenshot or recount>
-- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
-- **They'd say:** "<the one repeatable, status-conferring sentence>"
--->
+- **Moment:** Setup in a decade-old cucumber monorepo finishes with "Detected your cucumber harness (cucumber.yaml, @cucumber/cucumber@12) — skipped safeword's starter lane" instead of a second runner appearing in the diff.
+- **Beats:** The dread of vendor tooling stomping on a mature test suite (which is exactly what v0.x did to ArcadeAI/monorepo).
+- **They'd say:** "It saw our harness and got out of the way."
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- Cucumber-shop installs produce zero duplicate-runner diffs; the ArcadeAI/monorepo failure mode is impossible on fresh setups and surfaced (not silently perpetuated) on existing ones.
+- Hosts with relocated lanes get identical feature discovery across codify / lint-gherkin / check / runner from two config lines.
+- No safeword operation (setup, upgrade, uninstall, check) ever mutates or deletes host-owned harness files or deps.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- defer: stub convention / verification lane / tag semantics for adopted harnesses → ticket 7CK2KP (blocked on this ticket + N≥2 host evidence).
+- defer: `hasJsSource` heuristic treating a relocated lane's `.ts` steps as real JS source → recorded out_of_scope in ticket.md; follow-up if it bites.

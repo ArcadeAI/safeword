@@ -2,7 +2,7 @@
 id: 56JCFZ
 slug: bdd-lane-collision-detection-and-paths
 type: feature
-phase: intake
+phase: scenario-gate
 status: in_progress
 relates_to: [102b, VM78NC, 7CK2KP]
 external_issue: https://github.com/ArcadeAI/safeword/issues/645
@@ -58,4 +58,5 @@ done_when:
 
 - 2026-07-03T14:30:29.116Z Started: Created ticket 56JCFZ
 - 2026-07-03 Scoped from issue #645 investigation + two figure-it-out passes (options A/B/C for the design; persist-vs-print and hint-vs-remove for the open questions). Follow-up adoption semantics split to 7CK2KP.
+- 2026-07-03T15:05Z Complete: define-behavior - 15 scenarios defined across 6 rules (spec.md authored + self-review stamped ×2 after TB1.AC3 split; dimensions.md saved; feature source at packages/cli/features/bdd-lane-collision-detection-and-paths.feature tagged @wip; R/G/R ledger written)
 - 2026-07-03T14:45Z Quality-review pass 1 (fresh-context reviewer): 4 criticals fixed — uninstall/reset data-loss brought into scope (reset would delete a host's cucumber.mjs + deps); "byte-identical" done_when reworded (template content legitimately changes); augment-vs-replace semantics decided (augment); test:bdd suppression added. Also: docs in scope, fixture-run test obligations in done_when, hasJsSource wrinkle recorded out_of_scope.
