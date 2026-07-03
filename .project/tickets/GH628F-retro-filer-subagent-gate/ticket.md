@@ -59,6 +59,13 @@ statement, design decision, and refinements are in the issue comments.
 - 2026-07-03: Design converged on #628 (Stop-gate dispatch → foreground
   safeword-retro-filer subagent on all three harnesses; drain-as-ack; 2-attempt
   cap). Implementation started on branch claude/github-issue-628-nm8qf1.
+- 2026-07-03 (verify): /verify + /audit run for real. Full `bun run test` caught
+  two regressions the targeted rings missed — agent defs were in managedFiles
+  (reset left `.cursor/` behind) and stop-retro-filing.ts lacked a smoke
+  exemption. Both fixed (5c953b6). Cross-scenario refactor deduped the draft
+  fixture (8 files → tests/helpers, 8e9efcf). BDD lane 181/181, typecheck +
+  eslint + depcruise + sync-config clean; knip/jscpd findings are pre-existing
+  baseline. Session-process audit filed as #644.
 - 2026-07-03: Implemented. New `lib/retro-filing-gate.ts` (decision + attempt
   marker + dispatch text), new Claude `stop-retro-filing.ts` (sync, decision:block)
   wired in SETTINGS_HOOKS.Stop, codex/stop.ts post-extraction gate (architecture
