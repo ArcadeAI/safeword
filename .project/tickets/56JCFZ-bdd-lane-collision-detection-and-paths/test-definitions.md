@@ -28,9 +28,9 @@ detection stops being a union.
 
 ### Scenario: Setup skips the starter lane when a customer-authored cucumber.mjs exists
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: behavior shipped with scenario-1 GREEN (content-match self-exclusion) — test passed on first run, added as regression pin
+- [x] GREEN f4059dd
+- [x] REFACTOR skip: pin test only, no production code changed
 
 ### Scenario: Setup skips the starter lane when only a root cucumber dependency exists
 

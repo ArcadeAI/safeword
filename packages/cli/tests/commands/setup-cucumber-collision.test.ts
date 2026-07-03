@@ -109,6 +109,34 @@ describe('setup skips the starter lane when a workspace package depends on cucum
   });
 });
 
+describe('setup skips the starter lane when only a root cucumber dependency exists (TB1.AC1)', () => {
+  let directory: string;
+  let output: string;
+
+  beforeAll(async () => {
+    directory = createTemporaryDirectory();
+    createTypeScriptPackageJson(directory, {
+      devDependencies: { typescript: '^5.0.0', '@cucumber/cucumber': '^12.0.0' },
+    });
+    const result = await setupOrThrow(directory);
+    output = `${result.stdout}\n${result.stderr}`;
+  }, TIMEOUT_BUN_INSTALL);
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.root_dep_suppresses_the_lane', () => {
+    for (const file of LANE_FILES) {
+      expect(fileExists(directory, file), `${file} should not exist`).toBe(false);
+    }
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.root_dep_is_named_as_the_detected_harness', () => {
+    expect(output).toContain('@cucumber/cucumber');
+  });
+});
+
 describe('setup skips the starter lane when a root cucumber config exists (TB1.AC1)', () => {
   let directory: string;
   let output: string;
