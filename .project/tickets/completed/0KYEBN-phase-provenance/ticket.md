@@ -2,8 +2,8 @@
 id: 0KYEBN
 slug: phase-provenance
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/644
 scope: |
   Phase-provenance gate (#644 G2) in pre-tool-quality.ts's ticket.md section,
