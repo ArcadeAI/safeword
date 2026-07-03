@@ -19,7 +19,7 @@ out_of_scope:
   - Path configurability and collision detection (ticket 56JCFZ).
   - Executing host JS cucumber configs to extract profiles (correctness/safety mess; static json/yaml reading may be considered).
 done_when:
-  - Schema shape is designed from ≥2 real host harnesses (not just ArcadeAI/monorepo) or explicitly recorded as deferred pending demand.
+  - "Gate decision recorded first: schema shape designed from ≥2 real host harnesses (not just ArcadeAI/monorepo), OR explicitly deferred pending demand with the evidence gap named. All items below apply only on the build branch; on the deferral branch this ticket closes with the recorded decision."
   - codify can emit stubs matching a configured host convention, and the verify story for spec-ahead scenarios is documented and test-backed against a fixture harness.
   - Generated prose templates no longer hardcode lane paths/conventions that config can carry.
 ---
@@ -40,3 +40,4 @@ done_when:
 
 - 2026-07-03T14:30:29.173Z Started: Created ticket 7CK2KP as the deferred second slice of issue #645.
 - 2026-07-03 Blocked on 56JCFZ (path/detection substrate) and on a second real host harness to validate the schema shape.
+- 2026-07-03T14:45Z Quality-review pass 1: done_when restructured — gate decision (build vs defer) comes first; stub/prose items apply only on the build branch, resolving the build-vs-defer contradiction.
