@@ -111,10 +111,10 @@ Both tools coexist cleanly — ESLint handles code analysis (bugs, security, com
 
 ## SQL Formatting
 
-Safeword lints SQL with SQLFluff, but the host's chosen formatter formats:
+Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
-- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers: setup skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config instead of SQLFluff — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored.
-- **Otherwise**, the edit-time hook runs `sqlfluff lint` and reports violations to the agent. In-place rewriting is opt-in — set `"sql": { "fix": true }` in `.safeword/config.json` to have the hook run `sqlfluff fix` on edited files. SQLFluff honors `.sqlfluffignore`, so you can exclude files (e.g. applied migrations) from rewriting.
+- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers entirely: setup skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
+- **Otherwise**, safeword lints SQL with SQLFluff: the edit-time hook runs `sqlfluff lint` and reports violations to the agent. In-place rewriting is opt-in — set `"sql": { "fix": true }` in `.safeword/config.json` to have the hook run `sqlfluff fix` on edited files. SQLFluff honors `.sqlfluffignore`, so you can exclude files (e.g. applied migrations) from rewriting.
 
 ## Hook Configuration
 

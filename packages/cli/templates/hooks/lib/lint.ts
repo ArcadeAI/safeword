@@ -393,13 +393,22 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     // prettier — no --config override, so the host config (which declares the
     // plugin) and its .prettierignore carve-outs (frozen DDL migrations) apply.
     // Prettier's ignore resolution is cwd-relative; hooks run with cwd =
-    // project root, which is what makes those carve-outs hold. On failure
-    // (e.g. plugin in node_modules but undeclared in config → "No parser could
-    // be inferred", exit 2) fall through to sqlfluff rather than leave SQL
-    // ungated.
+    // project root, which is what makes those carve-outs hold. This bypasses
+    // runPrettier's V7GGJZ guard deliberately: plugin presence means the host
+    // formats SQL with prettier even when Biome/dprint owns its JS/TS style.
     if (hostFormatsSqlWithPrettier(projectDir)) {
       const result = await $`bunx prettier --write ${file}`.nothrow().quiet();
       if (result.exitCode === 0) return { warnings };
+      // Non-zero: the plugin is undeclared in the host config, or the edit
+      // itself doesn't parse. Only fall through to sqlfluff when its config
+      // already exists — in a host-owned repo it's absent by design, and
+      // falling through would fire ensurePackInstalled's network upgrade on
+      // every failing edit. Surface prettier's stderr so the agent sees the
+      // parse error instead of silence.
+      if (!hasConfig(SAFEWORD_SQLFLUFF)) {
+        const stderr = result.stderr.toString().trim();
+        return { warnings, ...(stderr && { errors: stderr }) };
+      }
     }
     const hasSqlfluff = await ensurePackInstalled('sql', SAFEWORD_SQLFLUFF);
     if (hasSqlfluff) {

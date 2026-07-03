@@ -194,35 +194,28 @@ describe('E2E: dbt Golden Path', () => {
   // =========================================================================
 
   describe('Suite 2b: Host-owned SQL formatting', () => {
-    it('2b.1: generates no sqlfluff configs when prettier-plugin-sql is a declared devDependency', async () => {
-      createDbtProject(temporaryDirectory);
-      createSafewordBasePackageJson(temporaryDirectory, {
-        name: 'test-dbt-project',
-        private: true,
-        devDependencies: { 'prettier-plugin-sql': '^0.20.0' },
-      });
-      initGitRepo(temporaryDirectory);
+    it.each(['devDependencies', 'dependencies'] as const)(
+      '2b.1: generates no sqlfluff configs when prettier-plugin-sql is declared in %s',
+      async dependencyField => {
+        createDbtProject(temporaryDirectory);
+        createSafewordBasePackageJson(temporaryDirectory, {
+          name: 'test-dbt-project',
+          private: true,
+          [dependencyField]: { 'prettier-plugin-sql': '^0.20.0' },
+        });
+        initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+        await runCli(['setup'], { cwd: temporaryDirectory });
 
-      expect(fileExists(temporaryDirectory, '.sqlfluff')).toBe(false);
-      expect(fileExists(temporaryDirectory, '.safeword/sqlfluff.cfg')).toBe(false);
-    });
-
-    it('2b.2: generates no sqlfluff configs when prettier-plugin-sql is a declared dependency', async () => {
-      createDbtProject(temporaryDirectory);
-      createSafewordBasePackageJson(temporaryDirectory, {
-        name: 'test-dbt-project',
-        private: true,
-        dependencies: { 'prettier-plugin-sql': '^0.20.0' },
-      });
-      initGitRepo(temporaryDirectory);
-
-      await runCli(['setup'], { cwd: temporaryDirectory });
-
-      expect(fileExists(temporaryDirectory, '.sqlfluff')).toBe(false);
-      expect(fileExists(temporaryDirectory, '.safeword/sqlfluff.cfg')).toBe(false);
-    });
+        // Anchor: the sql pack itself still installs (deference suppresses
+        // configs, not detection) — guards against a vacuous pass where SQL
+        // detection broke and configs are absent for the wrong reason.
+        const config = readTestFile(temporaryDirectory, '.safeword/config.json');
+        expect(JSON.parse(config).installedPacks).toContain('sql');
+        expect(fileExists(temporaryDirectory, '.sqlfluff')).toBe(false);
+        expect(fileExists(temporaryDirectory, '.safeword/sqlfluff.cfg')).toBe(false);
+      },
+    );
 
     it('2b.3: upgrade does not resurrect sqlfluff configs after the host adopts prettier-plugin-sql', async () => {
       createDbtProject(temporaryDirectory);
