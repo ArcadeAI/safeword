@@ -464,6 +464,11 @@ export const SETTINGS_HOOKS = {
     hook(`bun ${HOOKS_DIR}/stop-quality.ts`),
     hook(`bun ${HOOKS_DIR}/stop-reentry.ts`),
     hook(`bun ${HOOKS_DIR}/stop-self-report.ts`),
+    // Retro filing gate (#628/GH628F): when earlier async extraction left unfiled
+    // drafts spooled (REST 401 in cloud), block the stop ONCE (attempt-capped) with
+    // the sanctioned continuation that dispatches the safeword-retro-filer subagent.
+    // Sync and cheap (one spool read); fires only when drafts exist.
+    hook(`bun ${HOOKS_DIR}/stop-retro-filing.ts`),
     // Invisible retro (ZFGWS1): async so repeated delta fires never block Stop and
     // run fully in the background; the inner spawnSync stays sync within that tree.
     asyncHook(`bun ${HOOKS_DIR}/stop-retro.ts`),

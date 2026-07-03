@@ -157,6 +157,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/stop-retro-filing.ts"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/stop-retro.ts",
             "async": true
           }

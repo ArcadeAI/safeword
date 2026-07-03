@@ -10,26 +10,26 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { cursorEditedMarkerPath } from '../../templates/hooks/lib/cursor-state.js';
 import { QUALITY_REVIEW_MESSAGE } from '../../templates/hooks/lib/quality.js';
+import { spoolDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
+import { FILER_AGENT_NAME } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { hasNudged, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  retroDraft,
+  TIMEOUT_QUICK,
+  writeSelfReportConfig as writeConfig,
+} from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/cursor/stop.ts');
-
-function writeConfig(directory: string, selfReport: Record<string, boolean>): void {
-  mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-  writeFileSync(
-    nodePath.join(directory, '.safeword', 'config.json'),
-    JSON.stringify({ selfReport }),
-  );
-}
 
 // Claude-shaped transcript (Cursor's documented shape): n assistant tool_use blocks.
 function writeTranscript(directory: string, name: string, toolUses: number): string {
@@ -166,5 +166,49 @@ describe('cursor/stop.ts retro path (KHYXY4)', () => {
 
     expect(result.status).toBe(0);
     expect(() => JSON.parse(result.stdout)).not.toThrow();
+  });
+
+  // Filing gate (GH628F / #628): unfiled spooled drafts win the one
+  // followup_message slot over the retro-available nudge on a no-edit stop.
+  describe('filing gate (GH628F)', () => {
+    it('retro-filer-gate.SM1.AC1.dispatches_filer_over_the_retro_available_nudge', () => {
+      writeConfig(dir, { surface: true, file: true });
+      const transcript = writeTranscript(dir, 'big.jsonl', 8);
+      const id = freshConversation('filing');
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
+
+      const result = runHook(dir, basePayload(id, transcript));
+
+      expect(result.status).toBe(0);
+      const out = JSON.parse(result.stdout);
+      expect(out.followup_message).toContain(FILER_AGENT_NAME);
+      // Filing took the slot; the retro-available nudge did not burn its sentinel.
+      expect(hasNudged(id)).toBe(false);
+    });
+
+    it('retro-filer-gate.SM1.AC1.quality_review_still_wins_an_edit_stop', () => {
+      writeConfig(dir, { surface: true, file: true });
+      const transcript = writeTranscript(dir, 'big.jsonl', 8);
+      const id = freshConversation('filingquality');
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
+      writeFileSync(markerPathFor(id), '1');
+
+      const result = runHook(dir, basePayload(id, transcript));
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout).followup_message).toBe(QUALITY_REVIEW_MESSAGE);
+    });
+
+    it('retro-filer-gate.SM1.AC1.silent_dispatch_when_selfReport_file_off', () => {
+      writeConfig(dir, { surface: false, file: false });
+      const transcript = writeTranscript(dir, 'small.jsonl', 1);
+      const id = freshConversation('filingoff');
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
+
+      const result = runHook(dir, basePayload(id, transcript));
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({});
+    });
   });
 });

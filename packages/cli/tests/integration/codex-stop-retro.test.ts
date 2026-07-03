@@ -14,19 +14,22 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { spoolDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
+import {
+  FILER_AGENT_NAME,
+  FILING_ATTEMPT_CAP,
+} from '../../templates/hooks/lib/retro-filing-gate.js';
 import { offsetStatePath, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  retroDraft,
+  TIMEOUT_QUICK,
+  writeSelfReportConfig as writeConfig,
+} from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/codex/stop.ts');
-
-function writeConfig(directory: string, selfReport: Record<string, boolean>): void {
-  mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-  writeFileSync(
-    nodePath.join(directory, '.safeword', 'config.json'),
-    JSON.stringify({ selfReport }),
-  );
-}
 
 /** A Codex rollout JSONL with `n` function_call tool events. */
 function writeCodexRollout(directory: string, name: string, toolEvents: number): string {
@@ -303,5 +306,46 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
     expect(result.status).toBe(0);
     expectNoContinuation(result);
     expect(existsSync(recordPath)).toBe(false);
+  });
+
+  // Filing gate (GH628F / #628): unfiled spooled drafts turn the stop into the
+  // sanctioned dispatch continuation; extraction itself stays invisible (CDX602).
+  describe('filing gate (GH628F)', () => {
+    it('retro-filer-gate.SM1.AC1.dispatches_filer_for_unfiled_drafts', () => {
+      writeConfig(dir, { surface: true, file: true });
+      const id = freshSession('filing');
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
+
+      const result = runHook(dir, { session_id: id, cwd: dir });
+
+      expect(result.status).toBe(0);
+      const out = JSON.parse(result.stdout.trim());
+      expect(out.decision).toBe('block');
+      expect(out.reason).toContain(FILER_AGENT_NAME);
+      expect(out.reason).toContain('.safeword/retro-drafts');
+    });
+
+    it('retro-filer-gate.SM1.AC1.silent_when_selfReport_file_off', () => {
+      writeConfig(dir, { surface: true, file: false });
+      const id = freshSession('filingoff');
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
+
+      const result = runHook(dir, { session_id: id, cwd: dir });
+
+      expect(result.status).toBe(0);
+      expectNoContinuation(result);
+    });
+
+    it('retro-filer-gate.SM1.AC2.goes_quiet_after_the_attempt_cap', () => {
+      writeConfig(dir, { surface: true, file: true });
+      const id = freshSession('filingcap');
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
+
+      for (let attempt = 1; attempt <= FILING_ATTEMPT_CAP; attempt++) {
+        const out = JSON.parse(runHook(dir, { session_id: id, cwd: dir }).stdout.trim());
+        expect(out.decision).toBe('block');
+      }
+      expectNoContinuation(runHook(dir, { session_id: id, cwd: dir }));
+    });
   });
 });
