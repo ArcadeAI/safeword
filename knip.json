@@ -34,8 +34,8 @@
     "eslint-plugin-storybook",
     "eslint-plugin-turbo"
   ],
+  "ignoreUnresolved": ["\\.safeword/"],
   "ignoreIssues": {
-    "packages/cli/src/presets/typescript/index.ts": ["duplicates"],
-    "packages/cli/tests/**": ["unresolved"]
+    "packages/cli/src/presets/typescript/index.ts": ["duplicates"]
   }
 }

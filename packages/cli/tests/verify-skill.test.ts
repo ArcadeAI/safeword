@@ -45,8 +45,21 @@ describe('verify command pointer (7PG694)', () => {
     ['template command', commandContent],
     ['dogfood cursor command', dogfoodCursorCommandContent],
   ])('%s is a thin pointer to the canonical skill', (_name, content) => {
+    expect(content).toContain('Read and follow the instructions in');
     expect(content).toContain('.claude/skills/verify/SKILL.md');
     expect(content.split('\n').length).toBeLessThan(10);
+  });
+});
+
+describe('verify.md artifact step (7PG694)', () => {
+  // The done gate blocks on the verify.md artifact; the skill must keep
+  // instructing agents to write it (the missing step was this refactor's
+  // top critical — pin it so a future cut can't silently regress).
+  it.each(allVerifySurfaces)('%s instructs writing the verify.md artifact', (_name, content) => {
+    expect(content).toContain('### 7. Write verify.md');
+    expect(content).toContain(
+      'The all-green collapse in step 8 applies to the **chat report only**',
+    );
   });
 });
 
