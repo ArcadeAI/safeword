@@ -2,8 +2,8 @@
 
 > **Retrospective ledger — not a per-step record.** The ticked RED/GREEN/REFACTOR
 > boxes below entered git history already ticked, with no per-step commit SHAs.
-> Do not cite this ledger as precedent
-> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+> Do not cite this ledger as precedent for R/G/R bookkeeping (issue #644 G8;
+> per-step enforcement is G3 + G5).
 
 **Ticket:** [007-iteration6-implementation-phases](../issues/007-iteration6-implementation-phases.md)
 
