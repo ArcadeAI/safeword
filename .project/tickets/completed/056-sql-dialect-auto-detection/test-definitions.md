@@ -1,5 +1,10 @@
 # 056: SQL Dialect Auto-Detection — Test Definitions
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 ## Scenario 1: Detect dialect from dbt adapter in Python deps
 
 **Given** a project with `dbt-postgres` (or other adapter) in requirements.txt or pyproject.toml

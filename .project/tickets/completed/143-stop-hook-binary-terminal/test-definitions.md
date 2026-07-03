@@ -1,5 +1,10 @@
 # Test Definitions — Ticket 143
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 > 8 rules, 28 scenarios after criteria-restoration patch (was 5/19 pre-patch).
 >
 > **Test surface:** Most scenarios test `getQualityMessage(phase, tddStep)` — a pure function that returns the prompt string. Unit tests on substring presence/absence. Three scenarios cover the schema-contract integration (already enforced by 144's runParity).

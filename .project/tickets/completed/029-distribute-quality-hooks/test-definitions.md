@@ -1,5 +1,10 @@
 # Test Definitions: Distribute Quality Gate Hooks
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were bulk-ticked in a single completion-time commit, with no per-step
+> commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 ## T1: Template Files Exist
 
 - [x] **Given** a fresh `packages/cli/templates/hooks/` directory

@@ -1,5 +1,10 @@
 # Test Definitions — Ticket 147
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 > 6 rules, 23 scenarios (count includes parameterized rows). AODI validated. Covers happy path + failure modes + boundaries.
 >
 > **Test surface mix:** Content-tests on skill files (similar to 146); unit tests on parsing/config functions; integration smoke for the full hook path.
