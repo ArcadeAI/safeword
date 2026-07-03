@@ -42,21 +42,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Scenarios under an ID-tagged Rule block pass lineage lint by inheritance
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4cce165
+- [x] GREEN 74238fe
+- [x] REFACTOR skip: pure parser extension; structure stayed clean at GREEN, no per-scenario refactor
 
 ### Scenario: A scenario carrying a rule lineage tag directly passes lineage lint
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4cce165
+- [x] GREEN 74238fe
+- [x] REFACTOR skip: pure parser extension; structure stayed clean at GREEN, no per-scenario refactor
 
 ### Scenario: A second lineage reference under an ID-tagged Rule block is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4cce165
+- [x] GREEN 74238fe
+- [x] REFACTOR skip: pure parser extension; structure stayed clean at GREEN, no per-scenario refactor
 
 ### Scenario: A tag ending in an AC segment parses as an AC reference, never a rule reference
 
