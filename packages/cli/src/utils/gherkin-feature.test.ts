@@ -241,7 +241,7 @@ describe('findGherkinLintIssues', () => {
 
     expect(findGherkinLintIssues(content, { filePath: 'features/demo.feature' })).toEqual([]);
     expect(findFeatureLineageIssues(content)).toEqual([
-      'Scenario "has no lineage tag" is missing lineage; add exactly one @<jtbd>.AC# tag.',
+      'Scenario "has no lineage tag" is missing lineage; add exactly one @<jtbd>.AC# or @<jtbd>.R# tag.',
     ]);
   });
 });

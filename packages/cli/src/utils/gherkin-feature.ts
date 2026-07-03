@@ -44,11 +44,19 @@ export function parseFeatureScenarios(featureContent: string): ParsedFeatureScen
 }
 
 export function parseFeatureAcReferences(featureContent: string): string[] {
+  return parseFeatureLineageReferences(featureContent, 'ac');
+}
+
+export function parseFeatureRuleReferences(featureContent: string): string[] {
+  return parseFeatureLineageReferences(featureContent, 'rule');
+}
+
+function parseFeatureLineageReferences(featureContent: string, kind: LineageKind): string[] {
   const references = new Set<string>();
   for (const scenario of parseFeatureScenarios(featureContent)) {
     for (const tag of scenario.tags) {
-      const ref = parseAcReferenceFromTag(tag);
-      if (ref !== undefined) references.add(ref);
+      const ref = parseLineageReferenceFromTag(tag);
+      if (ref?.kind === kind) references.add(ref.reference);
     }
   }
   return [...references];
@@ -83,14 +91,16 @@ export function findGherkinLintIssues(
 
 export function findFeatureLineageIssues(featureContent: string): string[] {
   return parseFeatureScenarios(featureContent).flatMap(scenario => {
-    const references = uniqueAcReferences(scenario.tags);
+    const references = uniqueLineageReferences(scenario.tags);
     if (references.length === 0) {
-      return [`Scenario "${scenario.title}" is missing lineage; add exactly one @<jtbd>.AC# tag.`];
+      return [
+        `Scenario "${scenario.title}" is missing lineage; add exactly one @<jtbd>.AC# or @<jtbd>.R# tag.`,
+      ];
     }
     if (references.length > 1) {
       const tagList = references.map(reference => `@${reference}`).join(', ');
       return [
-        `Scenario "${scenario.title}" has multiple lineage tags after inheritance (${tagList}); keep exactly one @<jtbd>.AC# tag.`,
+        `Scenario "${scenario.title}" has multiple lineage tags after inheritance (${tagList}); keep exactly one @<jtbd>.AC# or @<jtbd>.R# tag.`,
       ];
     }
     return [];
@@ -500,17 +510,41 @@ function parseErrorLine(message: string): number | undefined {
   return match?.[1] === undefined ? undefined : Number(match[1]);
 }
 
+type LineageKind = 'ac' | 'rule';
+
+interface LineageReference {
+  kind: LineageKind;
+  reference: string;
+}
+
 function parseAcReferenceFromTag(tag: string): string | undefined {
   const match = /^@?(\S+?)\.AC(\d+)(?:\.|$)/.exec(tag.trim());
   if (!match) return undefined;
   return `${match[1] ?? ''}.AC${match[2] ?? ''}`;
 }
 
-function uniqueAcReferences(tags: readonly string[]): string[] {
+function parseRuleReferenceFromTag(tag: string): string | undefined {
+  const match = /^@?(\S+?)\.R(\d+)(?:\.|$)/.exec(tag.trim());
+  if (!match) return undefined;
+  return `${match[1] ?? ''}.R${match[2] ?? ''}`;
+}
+
+/** Parse a tag's lineage reference. An AC match wins over a rule-shaped prefix
+ * so persona codes like `R` stay unambiguous: `@feat.R1.AC1` is AC1 of JTBD
+ * `feat.R1`, never rule `feat.R1`. */
+function parseLineageReferenceFromTag(tag: string): LineageReference | undefined {
+  const acReference = parseAcReferenceFromTag(tag);
+  if (acReference !== undefined) return { kind: 'ac', reference: acReference };
+  const ruleReference = parseRuleReferenceFromTag(tag);
+  if (ruleReference !== undefined) return { kind: 'rule', reference: ruleReference };
+  return undefined;
+}
+
+function uniqueLineageReferences(tags: readonly string[]): string[] {
   const references = new Set<string>();
   for (const tag of tags) {
-    const ref = parseAcReferenceFromTag(tag);
-    if (ref !== undefined) references.add(ref);
+    const ref = parseLineageReferenceFromTag(tag);
+    if (ref !== undefined) references.add(ref.reference);
   }
   return [...references];
 }
