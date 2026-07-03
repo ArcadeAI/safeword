@@ -79,6 +79,8 @@ invariant is violated; a numbered rule with no rejection-path scenario is a revi
 
 #### rule-tier.TB1.AC3 — JTBDs and repos that declare no Rules keep today's flat AC lineage unchanged
 
+#### rule-tier.TB1.AC4 — A JTBD declaring both ACs and numbered Rules is flagged as a check issue naming the JTBD
+
 ### rule-tier.TB2 — Run every example of one invariant
 
 **Persona:** Technical Builder (TB)
@@ -131,15 +133,28 @@ selection working quietly, not a peak moment that travels.
 
 - **Coexistence — substitute-per-JTBD** (user-confirmed): a JTBD carries either ACs or
   numbered Rules, never both; every scenario keeps exactly one lineage tag (an AC ref or an
-  R ref). Rejected: parallel axis (two overlapping coverage models per scenario), nesting
-  under AC (breaks Arcade corpus fidelity, TB4).
+  R ref). A JTBD declaring both kinds is a `safeword check` **issue** (not advisory) naming
+  the JTBD — the gate still counts its criteria (fail-open), the issue drives the fix.
+  Rejected: parallel axis (two overlapping coverage models per scenario), nesting under AC
+  (breaks Arcade corpus fidelity, TB4).
 - **Tag scheme — combined tag** `@<jtbd-id>.R<#>`, mirroring the AC tag grammar. Preserves
   the exactly-one-lineage-tag lint and dots-only IDs; rule-level selection works under
   cucumber tag expressions either way. Split axes deferred (see Open Questions).
 - **Rule catalog — spec.md is the source of truth:** `#### <jtbd-id>.R<#> — <invariant>`
-  headings under the JTBD (exactly where AC headings sit); the `.feature` `Rule:` block
-  carries the ID as the first token of its name. This powers the drift checks (every rule
-  reference maps back to a spec Rule) with the same walk `parseAcIdsByJtbd` does today.
+  headings under the JTBD (exactly where AC headings sit). This powers the drift checks
+  (every rule reference maps back to a spec Rule) with the same walk `parseAcIdsByJtbd`
+  does today.
+- **Where the ID lives in `.feature`:** the `Rule:` block carries a literal
+  `@<jtbd-id>.R<#>` **tag** (scenarios inherit it via existing rule-tag inheritance — tags
+  are what selection and coverage read, so the tag is authoritative) and repeats the ID as
+  the first token of its name for human readability (Arcade style). Name-token ≠ tag is a
+  lint issue.
+- **Ref-parse precedence — AC wins:** a tag matching `.AC<n>` is an AC ref, never an R ref
+  (guards persona codes like `R`: `@feat.R1.AC1` is AC1 of JTBD `feat.R1`, not rule
+  `feat.R1`). The R-ref parser only matches when no AC segment follows.
+- **R refs are `.feature`-only:** the legacy test-definitions.md markdown-title path
+  (`parseAcReferenceFromTitle`) stays AC-only — the rule tier requires the `.feature`
+  source, which is already the canonical scenario source.
 - **Opt-in — the grammar is the opt-in:** declaring `R<#>` headings under a JTBD opts that
   JTBD into rule lineage; no config flag. Per-JTBD granularity falls out of the substitute
   decision; repos that never write an R heading are untouched.
