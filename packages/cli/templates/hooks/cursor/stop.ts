@@ -9,9 +9,10 @@ import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
+import { cursorEditedMarkerPath } from '../lib/cursor-state.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
-import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
+import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
   countToolUses,
@@ -104,8 +105,7 @@ if (input.status !== 'completed') {
 
 // Check if any file edits occurred in this session by looking for marker file
 const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
-const markerKey = getRunStorageKey(runIdentity) ?? 'cursor-default';
-const markerFile = `/tmp/safeword-cursor-edited-${markerKey}`;
+const markerFile = cursorEditedMarkerPath(input);
 
 if (await Bun.file(markerFile).exists()) {
   // Clean up marker (best-effort; missing file or perm issue is non-fatal)

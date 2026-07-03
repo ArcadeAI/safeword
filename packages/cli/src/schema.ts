@@ -292,6 +292,7 @@ const CODEX_SKILL_TEMPLATE_FILES = [
   ['lint/SKILL.md', 'skills/lint/SKILL.md'],
   ['quality-review/SKILL.md', 'skills/quality-review/SKILL.md'],
   ['refactor/SKILL.md', 'skills/refactor/SKILL.md'],
+  ['retro/SKILL.md', 'skills/retro/SKILL.md'],
   ['review-spec/SKILL.md', 'skills/review-spec/SKILL.md'],
   ['self-review/SKILL.md', 'skills/self-review/SKILL.md'],
   ['tdd-review/SKILL.md', 'skills/tdd-review/SKILL.md'],
@@ -645,6 +646,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
     },
+    '.safeword/hooks/lib/cursor-state.ts': {
+      template: 'hooks/lib/cursor-state.ts',
+    },
     '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
@@ -951,6 +955,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/cleanup-zombies/SKILL.md': {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
+    '.claude/skills/retro/SKILL.md': { template: 'skills/retro/SKILL.md' },
     // Claude skills — contextual (auto-triggered, no slash command)
     '.claude/skills/brainstorm/SKILL.md': {
       template: 'skills/brainstorm/SKILL.md',
