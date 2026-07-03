@@ -47,5 +47,12 @@ describe('detectLedgerWrite', () => {
     ])('Scenario outline: %s targeting the ledger is denied', (_shape, command) => {
       expect(detectLedgerWrite(command)).toBeDefined();
     });
+
+    it('Scenario: a write-shaped segment inside a compound command is denied', () => {
+      expect(
+        detectLedgerWrite(`git status && echo '- [x] RED' >> ${LEDGER}; echo done`),
+      ).toBeDefined();
+      expect(detectLedgerWrite(`echo '- [x] RED' | tee ${LEDGER} | head -1`)).toBeDefined();
+    });
   });
 });

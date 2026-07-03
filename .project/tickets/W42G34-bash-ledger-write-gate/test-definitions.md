@@ -26,15 +26,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Mentioning the ledger path without a write shape is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side precision pin — passes on first run by design (mention ≠ mutation)
+- [x] GREEN b727840
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: Each recognized write shape targeting the ledger is denied (outline)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f91627a
+- [x] GREEN fd9effd
+- [x] REFACTOR skip: shape families already factored into per-kind sets + one dispatch fn at GREEN; no duplication left worth extracting
 
 ### Scenario: A write-shaped segment inside a compound command is denied
 
