@@ -12,10 +12,17 @@
 // Guards: stop_hook_active (never blocks a continuation's own stop),
 // selfReport.file (the filing off-switch), missing session id, and the gate's
 // own silence conditions. Best-effort: any failure allows the stop.
+//
+// Claude runs all Stop hooks in parallel, and the docs define no merge rule for
+// two simultaneous decision:"block" outputs — stop-quality.ts can block the same
+// stop. A collision costs one filing attempt without a dispatch; the gate's
+// per-batch attempt budget (FILING_ATTEMPT_CAP) absorbs it, and the muted nudge
+// remains the backstop after the cap.
 
 import { existsSync } from 'node:fs';
 
 import { decideRetroFilingGate } from './lib/retro-filing-gate.ts';
+import { resolveSessionId } from './lib/retro-trigger.ts';
 import { readSelfReportConfig } from './lib/self-report.ts';
 
 interface HookInput {
@@ -33,7 +40,11 @@ if (existsSync(`${projectDirectory}/.safeword`)) {
     input = {};
   }
 
-  const sessionId = input.session_id;
+  // Resolver parity with the spool writer (retro-trigger resolveSessionId): a
+  // payload without session_id must still key the SAME spool the extraction
+  // wrote (cloud/local env fallbacks), else drafts spool under the env id and
+  // this gate silently never fires.
+  const sessionId = resolveSessionId(input, process.env);
   if (sessionId && input.stop_hook_active !== true && readSelfReportConfig(projectDirectory).file) {
     try {
       const reason = decideRetroFilingGate(projectDirectory, sessionId);

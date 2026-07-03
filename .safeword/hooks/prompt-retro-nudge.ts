@@ -13,6 +13,7 @@
 import { existsSync } from 'node:fs';
 
 import { decideRetroFilingNudge } from './lib/retro-nudge.ts';
+import { resolveSessionId } from './lib/retro-trigger.ts';
 
 interface HookInput {
   session_id?: string;
@@ -29,7 +30,8 @@ if (existsSync(`${projectDirectory}/.safeword`)) {
     input = {};
   }
 
-  const sessionId = input.session_id;
+  // Resolver parity with the spool writer — see stop-retro-filing.ts.
+  const sessionId = resolveSessionId(input, process.env);
   if (sessionId) {
     try {
       const additionalContext = decideRetroFilingNudge(projectDirectory, sessionId);
