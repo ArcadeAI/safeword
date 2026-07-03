@@ -26,10 +26,16 @@ Upstream tracker issue: ArcadeAI/safeword#649.
 
 - Upstream issue: [ArcadeAI/safeword#649](https://github.com/ArcadeAI/safeword/issues/649).
 - XT1FFM — scenario lineage (`<jtbd-id>.AC<#>` tags + `safeword check` coverage report); this
-  feature extends that scheme one tier. Its arcade pair QEGKBK named Arcade's scheme the
+  feature extends that scheme one tier. Its arcade pair QEKGBK named Arcade's scheme the
   fidelity target ("kept snake-exact").
 - 31W8M3 — AC layer in spec.md (`#### <jtbd-id>.AC<n>` headings).
-- Companion gap noted in #649 (post-done `measured` state) is a separate filing — out of scope.
+- ZRMDKD (backlog) — plans to promote the AC↔scenario coverage check to a *blocking*
+  hook-side gate via a differential-tested port of `scenario-coverage.ts`; must become
+  tier-aware or sequence after this feature, else it denies opted-in rule-tier features.
+- NMSD94 — owns the two-tier review-stamp mechanism (candidate anchor for "numbering-locked
+  after review").
+- Companion gap noted in #649 (post-done `measured` state) is to be filed separately — out
+  of scope here.
 
 ## Personas
 
@@ -41,7 +47,8 @@ reviews the invariant catalog, and selects tests by rule when an invariant chang
 Affected:
 
 - skip: runtime-agnostic — the tier lives in CLI parsing/checks (`safeword check`,
-  `lint-gherkin`, `codify`) and shared skill templates deployed identically to every agent
+  `lint-gherkin`, `codify`), the hook-side mirror codepath (`templates/hooks/lib/` deployed
+  to `.safeword/hooks/`), and shared skill templates deployed identically to every agent
   runtime; no per-runtime behavior differs.
 
 ## Vocabulary
@@ -89,6 +96,10 @@ invariant is violated; a numbered rule with no rejection-path scenario is a revi
 > `tests/behaviors/`) onto safeword, I want the lineage grammar to express that corpus
 > as-is, so adopting `/bdd` doesn't force a corpus rewrite or drop the rule tier.
 
+(Persona note: migration is done by the developer running the agent in their own repo —
+that is TB by definition; personas.md has no separate adopter archetype, so TB is a
+deliberate choice, not a default.)
+
 ## Rave Moment
 
 skip: table-stakes — spec-grammar infrastructure; the payoff is review checks and test
@@ -112,7 +123,22 @@ selection working quietly, not a peak moment that travels.
   AC tier. Nested breaks corpus fidelity (motivation #4).
 - **Tag scheme:** safeword-style combined tag (`@<jtbd-id>.R<#>`) vs Arcade's split axes
   (`@job:PO1 @rule:PO1.R1 @scenario:<name>`) with slug-less short IDs. Rule-level test
-  selection works under both; corpus-literal fidelity vs grammar minimalism.
+  selection works under both (tag-expressions reserve only `( ) \` and whitespace, so `:`
+  is legal). The split scheme hides two conflicts: multiple lineage tags per scenario
+  collides with the exactly-one-lineage-tag lint, and a `@scenario:<name>` axis contradicts
+  "names plain English; lineage in tags, not names" — corpus-literal fidelity (TB4's
+  "as-is") therefore means *relaxing* existing lint rules, not just adding a tier.
+- **Enforcement-stack interaction:** under the substitute-per-JTBD lean, a scenario carries
+  no AC tag — which today's `findFeatureLineageIssues` hard-flags ("missing lineage") and
+  `parseAcReferenceFromTag` (AC-only regex) can't read. Tier-awareness must land in the CLI
+  *and* the hook-side mirror (`templates/hooks/lib/`, deployed `.safeword/hooks/`), and
+  ZRMDKD's planned blocking coverage gate must be sequenced with or made aware of the tier,
+  or opted-in features get denied at test-definitions creation.
+- **Numbering-lock mechanism (TB3):** what enforces "numbering-locked after review", and
+  what does "after review" map to in the phase flow — the scenario-gate review stamp
+  (NMSD94), a lint on renumbering an existing rule ID, or convention only? If convention
+  only, TB3's stable-anchor promise and the one-way reversibility claim rest on it —
+  resolve before ACs are written.
 - **Rule catalog declaration:** `#### <jtbd-id>.R<#> — <invariant>` headings in spec.md
   (mirrors ACs; enables the drift gate "every @rule tag maps to a spec rule") vs the
   `.feature` `Rule:` blocks as the sole source of truth.
