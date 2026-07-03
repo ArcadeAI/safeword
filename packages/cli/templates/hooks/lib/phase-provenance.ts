@@ -94,7 +94,28 @@ export function evaluateTicketWrite(
 }
 
 function evaluateCreation(proposedContent: string): ProvenanceVerdict {
+  // Fail closed on unclassifiable creations (#119: a parse failure must not
+  // become a silent bypass) — a ticket.md that can't declare its type could
+  // otherwise slip past every type-keyed gate.
+  if (!/^---\n[\s\S]*?\n---/.test(proposedContent)) {
+    return {
+      ok: false,
+      reason:
+        'ticket.md requires YAML frontmatter — without it no gate can classify the ticket, which is the silent-bypass failure #119 shipped.',
+      remediation:
+        'Start the file with a frontmatter block (---) carrying at least id, type, phase, and status.',
+    };
+  }
   const meta = frontmatterOf(proposedContent);
+  if (meta === undefined) {
+    return {
+      ok: false,
+      reason:
+        'ticket.md requires parseable YAML frontmatter — the block between --- markers parses to no fields, so no gate can classify the ticket.',
+      remediation:
+        'Fix the frontmatter to simple "key: value" lines carrying at least id, type, phase, and status.',
+    };
+  }
   if (scalar(meta, 'type') !== 'feature') return OK;
   return evaluateBirth(meta, 'creation');
 }

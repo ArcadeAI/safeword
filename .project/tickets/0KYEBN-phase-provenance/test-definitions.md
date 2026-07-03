@@ -44,45 +44,45 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Changing a ticket's type to feature counts as a feature birth
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: Adding type feature to a typeless ticket counts as a feature birth
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: A type flip to feature at intake is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: A type flip to feature past intake with every skipped phase justified is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: A type flip at an unrecognized phase follows the counts-as-intake rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: Repairing unparseable frontmatter into a feature past intake counts as a feature birth
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: Repairing unparseable frontmatter into a feature at intake is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: A ticket.md born without parseable frontmatter is denied
 
@@ -100,21 +100,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Born past intake with every skipped phase justified is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: A partial justification is denied naming only the unjustified phases
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: A justification with an empty reason is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed coincidentally against the minimal gate's blanket deny; the partition is genuinely distinguished and unit-pinned at GREEN
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ## Rule: Phases advance one canonical step at a time
 
@@ -172,9 +172,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Born at an unrecognized phase is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: shared evaluateBirth landed clean; no duplication or naming debt to address
 
 ### Scenario: Advancing into an unrecognized phase is denied
 
