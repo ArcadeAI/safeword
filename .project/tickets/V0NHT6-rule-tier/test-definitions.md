@@ -32,9 +32,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Mixed JTBD still passes the intake-exit gate
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Rule blocks carry authoritative tags and scenarios inherit exactly one lineage reference
 
 ### Scenario: Scenarios under an ID-tagged Rule block pass lineage lint by inheritance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A scenario carrying a rule lineage tag directly passes lineage lint
 
 - [ ] RED
 - [ ] GREEN
@@ -98,6 +110,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Unnumbered Rule block draws no zero-rejection advisory
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Non-adopters see zero change
 
 ### Scenario: AC-only project output is unchanged
@@ -108,7 +126,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: An existing rule-numbered corpus is expressible
 
-### Scenario: Per-JTBD numbered Rule corpus parses and lints without restructuring
+### Scenario: Per-JTBD numbered Rule corpus passes lint without restructuring
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Per-JTBD numbered Rule corpus resolves every reference in coverage
 
 - [ ] RED
 - [ ] GREEN
@@ -116,13 +140,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: Rule warnings are plain-language and actionable
 
-### Scenario: Zero-rejection advisory states the problem and next action without jargon
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Mixed-criteria issue states the problem and next action without jargon
+### Scenario: Rule-tier message names the id, the problem, and the next action
 
 - [ ] RED
 - [ ] GREEN

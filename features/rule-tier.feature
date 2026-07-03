@@ -34,11 +34,23 @@ Feature: Numbered Rule tier between JTBD and scenarios
       When safeword check runs
       Then a check issue names that JTBD as mixing criteria kinds
 
+    @rule-tier.TB1.AC4
+    Scenario: Mixed JTBD still passes the intake-exit gate
+      Given a ticket spec whose JTBD declares both an AC heading and a numbered Rule heading
+      When the intake-exit gate evaluates test-definitions creation
+      Then the gate allows the creation
+
   Rule: Rule blocks carry authoritative tags and scenarios inherit exactly one lineage reference
 
     @rule-tier.TB2.AC1
     Scenario: Scenarios under an ID-tagged Rule block pass lineage lint by inheritance
       Given a feature file whose Rule block carries a rule ID tag and untagged scenarios
+      When lineage lint runs
+      Then no lineage issue is reported
+
+    @rule-tier.TB2.AC1
+    Scenario: A scenario carrying a rule lineage tag directly passes lineage lint
+      Given a feature file with a scenario carrying an R lineage tag directly and no ID-tagged Rule block
       When lineage lint runs
       Then no lineage issue is reported
 
@@ -52,8 +64,8 @@ Feature: Numbered Rule tier between JTBD and scenarios
     Scenario: A tag ending in an AC segment parses as an AC reference, never a rule reference
       Given a feature file with a scenario tagged "@feat.R1.AC1"
       When lineage lint runs
-      Then the tag is read as one AC reference for JTBD "feat.R1"
-      And no lineage issue is reported
+      Then the coverage report attributes the scenario to AC "feat.R1.AC1"
+      And no stale or orphan rule advisory is reported for "feat.R1"
 
     @rule-tier.TB2.AC1 @rejection
     Scenario: Rule block whose name token disagrees with its tag is rejected
@@ -101,33 +113,49 @@ Feature: Numbered Rule tier between JTBD and scenarios
       When safeword check runs
       Then no zero-rejection-path advisory is reported
 
+    @rule-tier.TB1.AC2
+    Scenario: Unnumbered Rule block draws no zero-rejection advisory
+      Given a feature file with an unnumbered Rule grouping block and no rejection-tagged scenarios
+      When safeword check runs
+      Then no zero-rejection-path advisory is reported
+
   Rule: Non-adopters see zero change
 
     @rule-tier.TB1.AC3
     Scenario: AC-only project output is unchanged
-      Given a project whose specs and feature files use only AC lineage
+      Given a project whose specs and feature files use only AC lineage, including unnumbered Rule grouping blocks without rejection tags
       When safeword check and gherkin lint run
-      Then the output matches today's flat-lineage output exactly
+      Then the output is byte-identical to the recorded flat-lineage snapshot after path normalization
 
   Rule: An existing rule-numbered corpus is expressible
 
     @rule-tier.TB4.AC1
-    Scenario: Per-JTBD numbered Rule corpus parses and lints without restructuring
+    Scenario: Per-JTBD numbered Rule corpus passes lint without restructuring
       Given a feature file shaped like an existing rule-numbered corpus with a matching spec catalog
-      When safeword check and gherkin lint run
+      When lineage lint runs
       Then no lineage issue is reported
-      And the coverage report resolves every rule reference
+
+    @rule-tier.TB4.AC1
+    Scenario: Per-JTBD numbered Rule corpus resolves every reference in coverage
+      Given a feature file shaped like an existing rule-numbered corpus with a matching spec catalog
+      When safeword check runs
+      Then the coverage report resolves every rule reference
 
   Rule: Rule warnings are plain-language and actionable
 
     @rule-tier.NTB1.AC1
-    Scenario: Zero-rejection advisory states the problem and next action without jargon
-      Given a spec-declared numbered Rule whose feature scenarios carry no rejection tag
-      When safeword check runs
-      Then the advisory names the rule ID, states that no example shows the rule being broken, and says to add a rejection-tagged scenario
+    Scenario Outline: Rule-tier message names the id, the problem, and the next action
+      Given a project exhibiting <condition>
+      When <command> runs
+      Then the <message> names <offender>, states the problem in plain language, and carries a concrete next action
 
-    @rule-tier.NTB1.AC1
-    Scenario: Mixed-criteria issue states the problem and next action without jargon
-      Given a ticket spec whose JTBD declares both an AC heading and a numbered Rule heading
-      When safeword check runs
-      Then the issue names the JTBD, states that a job keeps one criteria kind, and names both kinds as the choice
+      Examples:
+        | condition                                            | command              | message                 | offender           |
+        | a numbered rule with no rejection-tagged scenario    | safeword check       | zero-rejection advisory | the rule ID        |
+        | a JTBD mixing AC and Rule headings                   | safeword check       | mixed-criteria issue    | the JTBD           |
+        | a spec rule no scenario references                   | safeword check       | uncovered advisory      | the rule ID        |
+        | a rule reference with a missing rule number          | safeword check       | stale advisory          | the rule reference |
+        | a rule reference whose JTBD is absent                | safeword check       | orphan advisory         | the rule reference |
+        | a JTBD with neither criteria kind and no skip line   | the intake-exit gate | denial message          | the JTBD           |
+        | a Rule block whose name token disagrees with its tag | gherkin lint         | name-tag mismatch issue | the Rule block     |
+        | a scenario with two lineage references               | lineage lint         | multiple-lineage issue  | the scenario       |
