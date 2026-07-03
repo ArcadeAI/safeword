@@ -1,0 +1,129 @@
+# Test Definitions: Numbered Rule tier between JTBD and scenarios
+
+Feature source: `features/rule-tier.feature`
+
+test-definitions.md is the R/G/R ledger.
+
+## Rule: A JTBD can carry Rules in place of ACs
+
+### Scenario: R-only JTBD satisfies the intake-exit gate
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: JTBD with neither criteria kind is denied naming Rules as an option
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: JTBD with a skip line still satisfies the gate
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: A JTBD declares one criteria kind, never both
+
+### Scenario: Mixed AC and Rule JTBD is flagged as a check issue
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Rule blocks carry authoritative tags and scenarios inherit exactly one lineage reference
+
+### Scenario: Scenarios under an ID-tagged Rule block pass lineage lint by inheritance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A second lineage reference under an ID-tagged Rule block is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A tag ending in an AC segment parses as an AC reference, never a rule reference
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Rule block whose name token disagrees with its tag is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A tag expression on a rule ID runs exactly that rule's scenarios
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Check reports rule drift against the spec catalog
+
+### Scenario: Spec rule with no referencing scenario is reported uncovered
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Rule reference with a missing rule number is reported stale
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Rule reference whose JTBD is absent is reported orphan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: A rule with no rejection path is visible
+
+### Scenario: Numbered rule with no rejection scenario draws an advisory
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Numbered rule with a rejection scenario is silent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Non-adopters see zero change
+
+### Scenario: AC-only project output is unchanged
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: An existing rule-numbered corpus is expressible
+
+### Scenario: Per-JTBD numbered Rule corpus parses and lints without restructuring
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Rule warnings are plain-language and actionable
+
+### Scenario: Zero-rejection advisory states the problem and next action without jargon
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Mixed-criteria issue states the problem and next action without jargon
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR

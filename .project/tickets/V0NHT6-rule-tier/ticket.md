@@ -2,7 +2,7 @@
 id: V0NHT6
 slug: rule-tier
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 scope:
   - 'spec.md grammar: `#### <jtbd-id>.R<n> — <invariant>` Rule headings parsed alongside AC headings (per-JTBD substitute — a JTBD carries ACs or Rules, never both); declaring Rules is the opt-in, no config flag'
@@ -40,3 +40,5 @@ last_modified: 2026-07-03T17:15:00.000Z
 - 2026-07-03T17:15:00.000Z Intake decisions recorded in spec.md (tag scheme, catalog source, opt-in, @rejection convention, gate acceptance, enforcement-stack landing, numbering-lock v1); 2 deliberate defers kept in Open Questions; ACs authored; engineering scope drafted — AC + scope gates pending user signoff.
 - 2026-07-03T20:20:00.000Z /quality-review (2nd invocation, fresh-context reviewer): pass 1 → 1 critical (mixed AC+R JTBD undefined) + 5 improvements; all applied (TB1.AC4, tag-authoritative decision, AC-wins ref precedence, .feature-only R refs, migration-mapping scope owner, de-vacuoused done_when). Pass 2 → APPROVE, no criticals.
 - 2026-07-03T20:22:00.000Z Complete: intake - Understanding converged, scope established. AC + scope gates signed off (user "go"); cold-start check offered (one-way door) and declined.
+- 2026-07-03T20:36:00.000Z Amendment at decider gate: NTB persona + rule-tier.NTB1.AC1 (plain-language actionable messages) + message-contract dimension added on user prompt; scenario set re-presented and accepted ("go").
+- 2026-07-03T20:41:00.000Z Complete: define-behavior - 18 scenarios defined across 8 rules; features/rule-tier.feature saved (lint clean), R/G/R ledger saved.
