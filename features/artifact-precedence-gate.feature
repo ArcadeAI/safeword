@@ -22,13 +22,13 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
 
     @artifact-precedence-gate.NTB1.AC1
     Scenario: spec.md created alongside an existing ticket.md is allowed
-      Given a feature ticket.md at phase intake
+      Given a feature ticket.md at phase intake with no spec.md yet
       When a spec.md is written in that ticket folder
       Then the write is allowed
 
     @artifact-precedence-gate.NTB1.AC1
     Scenario: spec.md created late on a ticket already past intake is allowed
-      Given a feature ticket.md at phase implement
+      Given a feature ticket.md at phase implement with no spec.md yet
       When a spec.md is written in that ticket folder
       Then the write is allowed
 
