@@ -12,6 +12,7 @@
 
 import { spawnSync } from 'node:child_process';
 
+import { detectLedgerWrite } from '../lib/bash-ledger-writes.ts';
 import { commandWordIndex, parseShellWords, splitShellSegments } from '../lib/shell-segments.ts';
 
 /** Fields present on every Cursor agent hook request (the "common schema"). */
@@ -248,6 +249,9 @@ const GIT_GLOBAL_OPTIONS_WITH_VALUE = new Set([
 
 export function requiresFailClosedShellGate(params: { command: string }): boolean {
   const { command } = params;
+  // Ledger writes (W42G34, #644 G3) join git commits as the commands whose
+  // verdict must come from the delegated Claude gate rather than fail-open.
+  if (detectLedgerWrite(command) !== undefined) return true;
   return splitShellSegments(command).some(segment => isGitCommitSegment(parseShellWords(segment)));
 }
 
