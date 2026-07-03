@@ -195,10 +195,13 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
   // without touching ticket.md, so artifact edits must also bind — otherwise
   // write-review-stamp.ts sees no session ticket and hard-fails whenever more
   // than one ticket is in_progress. The folder's ticket.md carries the id.
-  // Epics never bind here (the stamp helper's in_progress scan excludes them),
-  // and a done/backlog folder only clears a binding to that same ticket —
-  // annotating an archived ticket must not unbind the session from its real
-  // one. The per-phase review trigger deliberately stays ticket.md-scoped.
+  // Binding demands status: in_progress — the full vocabulary (done, cancelled,
+  // superseded, wontfix, blocked, …) must neither bind nor steal the binding;
+  // an explicit non-active status only clears a binding to that same ticket, so
+  // annotating an archived ticket cannot unbind the session from its real one.
+  // Epics never bind (the stamp helper's in_progress scan excludes them). The
+  // per-phase review trigger deliberately stays ticket.md-scoped, and a custom
+  // paths.projectRoot shares isNamespacePath's default/legacy-root-only limit.
   const ticketFile = boundTicketFileForArtifact(editedFile);
   if (ticketFile !== undefined && existsSync(ticketFile)) {
     const content = readFileSync(ticketFile, 'utf8');
@@ -206,10 +209,10 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
     const status = content.match(/^status:\s*(\S+)/m)?.[1];
     const type = content.match(/^type:\s*(\S+)/m)?.[1];
     if (id !== undefined) {
-      if (status === 'done' || status === 'backlog') {
-        if (state.activeTicket === id) state.activeTicket = null;
-      } else if (type !== 'epic') {
-        state.activeTicket = id;
+      if (status === 'in_progress') {
+        if (type !== 'epic') state.activeTicket = id;
+      } else if (status !== undefined && state.activeTicket === id) {
+        state.activeTicket = null;
       }
     }
   }

@@ -93,17 +93,6 @@ if (proofCommand !== undefined) {
   });
 }
 
-// Same one-step bridge for write-review-stamp.ts (#630): the stamp helper's
-// process env has no run identity on Codex, so stash the session id right
-// before its command runs. Separate cache from the proof bridge, so a chained
-// `record-skill-invocation && write-review-stamp` command feeds both consumers.
-if (commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
-  rememberCodexReviewStampIdentity({
-    projectDirectory: resolveProjectRoot(),
-    id: input.session_id,
-  });
-}
-
 const translatedInputs = translateCodexInputToClaudeInputs(input);
 if (translatedInputs.length === 0) process.exit(0);
 
@@ -125,6 +114,19 @@ for (const result of results) {
   process.stdout.write(formatCodexReason(result.stdout ?? ''));
   if (result.stderr !== '') process.stderr.write(formatCodexReason(result.stderr ?? ''));
   process.exit(result.status ?? 0);
+}
+
+// Same one-step bridge for write-review-stamp.ts (#630): the stamp helper's
+// process env has no run identity on Codex, so stash the session id right
+// before its command runs. Armed only after the gate allowed the command
+// (mirroring the Cursor adapter) so a denied stamp never leaves a live cache
+// another session could adopt. Separate cache from the proof bridge, so a
+// chained `record-skill-invocation && write-review-stamp` feeds both consumers.
+if (commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
+  rememberCodexReviewStampIdentity({
+    projectDirectory: resolveProjectRoot(),
+    id: input.session_id,
+  });
 }
 
 for (const result of results) {

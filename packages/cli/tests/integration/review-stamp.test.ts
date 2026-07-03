@@ -313,6 +313,28 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
       expect(readSessionBinding()).toBe(TICKET_ID);
     });
 
+    it("editing a cancelled ticket's artifact does not steal the session binding", () => {
+      // The status vocabulary is wider than done/backlog — any non-in_progress
+      // status must neither bind nor overwrite an existing binding.
+      const cancelledDirectory = nodePath.join(
+        projectRoot,
+        '.safeword-project',
+        'tickets',
+        'CAN001',
+      );
+      mkdirSync(cancelledDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(cancelledDirectory, 'ticket.md'),
+        '---\nid: CAN001\ntype: feature\nphase: intake\nstatus: cancelled\n---\n',
+      );
+      writeFileSync(nodePath.join(cancelledDirectory, 'work-log.md'), '# Notes\n');
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      runPostToolEdit(nodePath.join(cancelledDirectory, 'work-log.md'));
+
+      expect(readSessionBinding()).toBe(TICKET_ID);
+    });
+
     it("editing a done ticket's artifact does not unbind the session from its active ticket", () => {
       const doneDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'DONE01');
       mkdirSync(doneDirectory, { recursive: true });
