@@ -523,13 +523,27 @@ function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
  */
 function detectCucumberHarness(cwd: string | undefined): string | undefined {
   if (!cwd) return undefined;
+  let ownLanePresent = false;
   for (const name of CUCUMBER_CONFIG_FILES) {
     const configPath = nodePath.join(cwd, name);
     if (!existsSync(configPath)) continue;
-    if (name === 'cucumber.mjs' && isSafewordLaneTemplate(configPath)) continue;
+    if (name === 'cucumber.mjs' && isSafewordLaneTemplate(configPath)) {
+      ownLanePresent = true;
+      continue;
+    }
     return name;
   }
-  return detectWorkspaceCucumberDependency(cwd);
+
+  const workspaceEvidence = detectWorkspaceCucumberDependency(cwd);
+  if (workspaceEvidence !== undefined) return workspaceEvidence;
+
+  // A root dep with safeword's scaffolded lane present is safeword's own
+  // install, not host evidence — otherwise every existing install would
+  // self-trigger detection at upgrade (the 56JCFZ self-trigger trap).
+  if (!ownLanePresent && manifestDependsOnCucumber(nodePath.join(cwd, 'package.json'))) {
+    return 'package.json (@cucumber/cucumber)';
+  }
+  return undefined;
 }
 
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {

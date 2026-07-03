@@ -34,7 +34,7 @@ detection stops being a union.
 
 ### Scenario: Setup skips the starter lane when only a root cucumber dependency exists
 
-- [ ] RED
+- [x] RED 0023633
 - [ ] GREEN
 - [ ] REFACTOR
 
