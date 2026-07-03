@@ -141,11 +141,9 @@ async function main(): Promise<string> {
   // lets it retry at the next stop.
   // The gate reads selfReport config itself (GH644A): capture gates the
   // tripwire, file gates the dispatch — evaluate unconditionally.
-  {
-    const sessionId = resolveCodexSessionId(input, process.env);
-    const dispatch = sessionId ? decideRetroFilingGate(projectDirectory, sessionId) : undefined;
-    if (dispatch) return JSON.stringify({ decision: 'block', reason: dispatch });
-  }
+  const sessionId = resolveCodexSessionId(input, process.env);
+  const dispatch = sessionId ? decideRetroFilingGate(projectDirectory, sessionId) : undefined;
+  if (dispatch) return JSON.stringify({ decision: 'block', reason: dispatch });
 
   return SILENT;
 }

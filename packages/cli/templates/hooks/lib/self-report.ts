@@ -309,13 +309,6 @@ export function installCrashCapture(
 }
 
 /**
- * Capture a gate-escalation signal: a safeword gate (`pattern`) has fired enough
- * times across sessions to escalate — a candidate for maintainer review (a
- * too-aggressive gate, OR a correct gate firing on a recurring problem; the
- * record does not assert which). Stored as `{agent}:GateEscalation@{pattern}`.
- * Best-effort and config-gated (`selfReport.capture`); never affects the caller.
- */
-/**
  * Capture a retro bare drain (GH644A): the filing gate observed dispatched
  * draft signatures leave the spool with no filed ack. Allowlist-only mirror of
  * captureGateEscalation; once-per-batch is the GATE's job (tripwired flag),
@@ -331,6 +324,13 @@ export function captureBareDrain(projectDirectory: string, sessionId: string | u
   );
 }
 
+/**
+ * Capture a gate-escalation signal: a safeword gate (`pattern`) has fired enough
+ * times across sessions to escalate — a candidate for maintainer review (a
+ * too-aggressive gate, OR a correct gate firing on a recurring problem; the
+ * record does not assert which). Stored as `{agent}:GateEscalation@{pattern}`.
+ * Best-effort and config-gated (`selfReport.capture`); never affects the caller.
+ */
 export function captureGateEscalation(
   projectDirectory: string,
   sessionId: string | undefined,

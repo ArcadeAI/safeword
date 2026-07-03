@@ -102,13 +102,7 @@ export function formatFilingDispatch(count: number, spoolPath: string): string {
   );
 }
 
-/**
- * Decide whether a Stop boundary should emit the filing dispatch. Returns the
- * instruction when unfiled drafts exist AND this batch has not exhausted its
- * attempt cap; otherwise undefined. Each emission increments the persisted
- * per-batch counter (a changed batch resets it), so delivery is at-least-once
- * with the spool drain as the ack. Best-effort — reads fail open to silence.
- */
+/** Injectable seams for `decideRetroFilingGate`. */
 export interface FilingGateOptions {
   /** Test seam; defaults to the real self-report capture. */
   captureBareDrain?: (projectDirectory: string, sessionId: string) => void;
@@ -141,6 +135,20 @@ function runTripwire(
   }
 }
 
+/**
+ * Decide whether a Stop boundary should emit the filing dispatch. Returns the
+ * instruction when unfiled drafts exist AND this batch has not exhausted its
+ * attempt cap; otherwise undefined. Each emission increments the persisted
+ * per-batch counter (a changed batch resets it), so delivery is at-least-once
+ * with the spool drain as the ack. Best-effort — reads fail open to silence.
+ *
+ * Same-key re-arm is DELIBERATE (whole-ticket review, item c): if a tripped
+ * batch's identical draft re-spools, a fresh dispatch cycle re-snapshots it
+ * without `tripwired`, so a second destruction captures a second signal — each
+ * is a distinct loss event, and `signatureOf` collapses them to one deduped
+ * issue downstream. Do not "fix" this into never-re-arming or per-event
+ * multi-firing.
+ */
 export function decideRetroFilingGate(
   projectDirectory: string,
   sessionId: string,

@@ -50,16 +50,11 @@ function emitRetroOrEmpty(input: CursorInput): void {
   const config = readSelfReportConfig(process.cwd());
   // The gate reads selfReport config itself (GH644A): capture gates the
   // tripwire, file gates the dispatch — evaluate unconditionally.
-  {
-    const sessionId = resolveCursorSessionId(
-      { conversation_id: input.conversation_id },
-      process.env,
-    );
-    const dispatch = sessionId ? decideRetroFilingGate(process.cwd(), sessionId) : undefined;
-    if (dispatch) {
-      console.log(JSON.stringify({ followup_message: dispatch } satisfies StopOutput));
-      return;
-    }
+  const sessionId = resolveCursorSessionId({ conversation_id: input.conversation_id }, process.env);
+  const dispatch = sessionId ? decideRetroFilingGate(process.cwd(), sessionId) : undefined;
+  if (dispatch) {
+    console.log(JSON.stringify({ followup_message: dispatch } satisfies StopOutput));
+    return;
   }
   if (!config.surface) {
     console.log('{}');

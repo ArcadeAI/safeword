@@ -27,7 +27,7 @@ procedure, your target repo, or your tools.
      is the sanitized surface, and the signature marker inside the body is what
      future dedup depends on.
 3. **Ack each post before you drain it.** After each successful post (create or
-   comment), append one line `{"signature": "<signature>", "issue": <number>}`
+   comment), append exactly one COMPACT single-line JSON object `{"signature": "<signature>", "issue": <number>}`
    to the ack file beside the spool — same path with `.acks.jsonl` in place of
    `.jsonl`. The ack is what proves the drain honest; a drain without acks trips
    safeword's bare-drain telemetry.

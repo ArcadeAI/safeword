@@ -41,8 +41,10 @@ recorded in the ledger before implementation lands. Build order:
    ITSELF: `capture` gates tripwire evaluation, `file` gates dispatch emission.
    `recordSignal` does not dedup — once-per-batch is the `tripwired` flag; tests
    assert spool record COUNT. Proves SM1.AC1/AC2/AC3 + outline. Tests:
-   `tests/hooks/retro-filing-gate.test.ts`, incl. downgrade-direction marker
-   migration (NEW marker through OLD write semantics disarms, never misfires).
+   `tests/hooks/retro-filing-gate.test.ts` (pre-upgrade/missing/corrupt marker
+   cases shipped; the downgrade direction — OLD code rewriting a NEW marker
+   drops the snapshot, which disarms rather than misfires — is reasoned from
+   the OLD writer's fixed field set, not separately tested).
 3. **Hook wiring / invisibility** — ADAPTERS CHANGE (assessment trigger fired
    at pre-code review): all three drop their `selfReport.file` guards around the
    decide call — the gate now owns config semantics, so a watch-only
