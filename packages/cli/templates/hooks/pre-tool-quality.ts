@@ -40,6 +40,7 @@ import {
   recordFailure,
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { evaluateTicketWrite } from './lib/phase-provenance.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('pre-tool-quality');
@@ -429,6 +430,33 @@ function frontmatterScalar(
 function frontmatterFromContent(content: string): Record<string, string | string[]> {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   return match ? parseFrontmatter(match[1] ?? '') : {};
+}
+
+// ---------------------------------------------------------------------------
+// Phase-provenance gate (0KYEBN, #644 G2) — ALWAYS-ON. A feature ticket's
+// phase is earned, not declared: born at intake, one canonical step at a time,
+// deviations only via per-phase phase_skips justifications. Ordered BEFORE the
+// #404 readiness gate so "wrong step" is reported before "step not earned".
+// ---------------------------------------------------------------------------
+
+if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+  // Only judge writes whose proposed content is reconstructable from the
+  // payload (Write content, Edit old/new, MultiEdit edits). Payload shapes
+  // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
+  // gate polices content it can see, matching the sibling gates' posture.
+  const toolInput = input.tool_input;
+  const reconstructable =
+    toolInput?.content !== undefined ||
+    toolInput?.edits !== undefined ||
+    toolInput?.old_string !== undefined;
+  if (reconstructable) {
+    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
+    const proposedContent = nextContentAfterEdit(toolInput, priorContent ?? '');
+    const verdict = evaluateTicketWrite(priorContent, proposedContent);
+    if (!verdict.ok) {
+      deny(verdict.reason, withOrderingNote(verdict.remediation));
+    }
+  }
 }
 
 // Feature readiness gate (#404): block new entries into define-behavior before
