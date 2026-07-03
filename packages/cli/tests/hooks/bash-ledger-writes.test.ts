@@ -75,4 +75,21 @@ describe('detectLedgerWrite', () => {
       ).toBeUndefined();
     });
   });
+
+  describe('Rule: Detection is conservative and its limits are documented', () => {
+    it('Scenario: an obfuscated write the predicate cannot see is allowed by design', () => {
+      // A variable-carried path is a documented detection limit, not a bug.
+      // The done-gate's distinct-SHA validation is the backstop.
+      expect(
+        detectLedgerWrite(String.raw`f=${LEDGER}; sed -i 's/^- \[ \] /- [x] /' "$f"`),
+      ).toBeUndefined();
+      expect(detectLedgerWrite('bash tick-all-boxes.sh')).toBeUndefined();
+    });
+
+    it('Scenario: an inline interpreter that names the ledger is denied even if its code only reads', () => {
+      // Deliberate over-approximation: read-vs-write inside interpreter code
+      // would require simulation, which this design rejects (dimensions.md).
+      expect(detectLedgerWrite(`python3 -c 'print(open("${LEDGER}").read())'`)).toBeDefined();
+    });
+  });
 });

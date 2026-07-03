@@ -52,9 +52,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Writing a test-definitions.md outside the tickets namespace is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side precision pin — isNamespacePath scoping landed with the first GREEN, so this passes on first run
+- [x] GREEN d3b6049
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ## Rule: Detection is conservative and its limits are documented
 
