@@ -184,17 +184,19 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(readLog()).toBe('');
   });
 
-  it('rejects a flag-like flag value instead of minting a pass stamp from a declared skip', () => {
+  it('rejects --model swallowing --skip instead of minting a pass stamp from a declared skip', () => {
     // Without this guard, `--model --skip` swallows --skip as the model id and
     // writes a PASS stamp whose bogus model tag clears the cross-model gate.
-    const passFromSkip = runStamp('spec', '--model', '--skip');
-    expect(passFromSkip.status).toBe(1);
-    expect(passFromSkip.stdout).toContain('flag-like');
+    const stamp = runStamp('spec', '--model', '--skip');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('flag-like');
+    expect(readLog()).toBe('');
+  });
 
-    const skipEatsTicket = runStamp('--skip', '--ticket', TICKET_ID);
-    expect(skipEatsTicket.status).toBe(1);
-    expect(skipEatsTicket.stdout).toContain('flag-like');
-
+  it('rejects --skip swallowing --ticket instead of stamping the wrong ticket', () => {
+    const stamp = runStamp('--skip', '--ticket', TICKET_ID);
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('flag-like');
     expect(readLog()).toBe('');
   });
 
