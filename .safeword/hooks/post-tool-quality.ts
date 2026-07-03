@@ -159,6 +159,12 @@ function boundTicketFileForArtifact(filePath: string): string | undefined {
   return ticketFile.startsWith('/') ? ticketFile : nodePath.join(projectDirectory, ticketFile);
 }
 
+// One `field: value` line from ticket.md frontmatter (same shape getTicketInfo
+// parses in lib/active-ticket.ts).
+function frontmatterField(content: string, field: string): string | undefined {
+  return content.match(new RegExp(`^${field}:\\s*(\\S+)`, 'm'))?.[1];
+}
+
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
 if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md')) {
   const fullPath = editedFile.startsWith('/')
@@ -168,14 +174,13 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
     const content = readFileSync(fullPath, 'utf8');
 
     // Track active ticket
-    const idMatch = content.match(/^id:\s*(\S+)/m);
-    if (idMatch) {
-      state.activeTicket = idMatch[1];
+    const ticketId = frontmatterField(content, 'id');
+    if (ticketId !== undefined) {
+      state.activeTicket = ticketId;
     }
 
     // Auto-clear binding when ticket reaches done or backlog
-    const statusMatch = content.match(/^status:\s*(\S+)/m);
-    const ticketStatus = statusMatch?.[1];
+    const ticketStatus = frontmatterField(content, 'status');
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       state.activeTicket = null;
     }
@@ -183,7 +188,7 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
     // Per-phase review (enter-semantics, deduped). Fires on the first edit that
     // brings the ticket into an un-reviewed phase — autonomous-safe, since it
     // does not wait for a Stop. The Stop backstop covers non-edit phase bumps.
-    const phase = content.match(/^phase:\s*(\S+)/m)?.[1];
+    const phase = frontmatterField(content, 'phase');
     if (shouldReviewPhase(phase, state.lastReviewedPhase)) {
       reviewMessage = getQualityMessage(phase);
       state.lastReviewedPhase = phase;
@@ -205,9 +210,9 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
   const ticketFile = boundTicketFileForArtifact(editedFile);
   if (ticketFile !== undefined && existsSync(ticketFile)) {
     const content = readFileSync(ticketFile, 'utf8');
-    const id = content.match(/^id:\s*(\S+)/m)?.[1];
-    const status = content.match(/^status:\s*(\S+)/m)?.[1];
-    const type = content.match(/^type:\s*(\S+)/m)?.[1];
+    const id = frontmatterField(content, 'id');
+    const status = frontmatterField(content, 'status');
+    const type = frontmatterField(content, 'type');
     if (id !== undefined) {
       if (status === 'in_progress') {
         if (type !== 'epic') state.activeTicket = id;
