@@ -42,8 +42,10 @@ re-blocks until the corrected spec is re-reviewed.
 ## Skip valve
 
 Trivial or docs-only? Log a skip with a reason instead — it clears the same gate
-and records why (an empty reason does not clear it):
+and records why. Skip is the explicit `--skip` flag, quoted as one argument —
+free text after the artifact is rejected, and an empty reason does not clear
+the gate:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts spec "<why this spec needs no review>"
+bun .safeword/hooks/write-review-stamp.ts spec --skip "<why this spec needs no review>"
 ```
