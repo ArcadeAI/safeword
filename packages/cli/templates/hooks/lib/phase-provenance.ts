@@ -137,6 +137,64 @@ function evaluateEdit(priorContent: string, proposedContent: string): Provenance
     return evaluateBirth(proposed, 'flip');
   }
 
+  if (proposedType === 'feature') {
+    const priorPhase = scalar(prior, 'phase');
+    const proposedPhase = scalar(proposed, 'phase');
+    if (proposedPhase !== undefined && proposedPhase !== priorPhase) {
+      return evaluateAdvance(priorPhase, proposedPhase, proposed);
+    }
+  }
+
+  return OK;
+}
+
+/**
+ * A feature ticket's phase change: backward is free, forward is one canonical
+ * step at a time, and any skipped phase needs a phase_skips justification.
+ * An off-enum or absent prior counts as intake (legacy migration rule); an
+ * off-enum target is denied — an unknown label would unreach every keyed gate.
+ */
+function evaluateAdvance(
+  priorPhase: string | undefined,
+  proposedPhase: string,
+  proposed: Record<string, string | string[]>,
+): ProvenanceVerdict {
+  if (!CANONICAL_SET.has(proposedPhase)) {
+    return {
+      ok: false,
+      reason: `"${proposedPhase}" is not a canonical ticket phase, so no gate keyed to phases would ever fire on this ticket again. Canonical phases: ${CANONICAL_SEQUENCE}.`,
+      remediation: 'Advance to the next canonical phase instead.',
+    };
+  }
+
+  const effectivePrior =
+    priorPhase !== undefined && CANONICAL_SET.has(priorPhase) ? priorPhase : 'intake';
+  const fromIndex = CANONICAL_PHASES.indexOf(effectivePrior as never);
+  const toIndex = CANONICAL_PHASES.indexOf(proposedPhase as never);
+
+  // Backward moves and re-declarations are rework, never gated.
+  if (toIndex <= fromIndex + 1) return OK;
+
+  const skips = parseSkips(proposed);
+  if (skips.invalid.length > 0) {
+    return {
+      ok: false,
+      reason: `phase_skips entry ${skips.invalid.map(entry => `"${entry}"`).join(', ')} is not a valid skip — every entry needs the "<phase>: <reason>" shape with a non-empty reason.`,
+      remediation: `A skip is an auditable act: ${SKIPS_SYNTAX}.`,
+    };
+  }
+
+  const missing = CANONICAL_PHASES.slice(fromIndex + 1, toIndex).filter(
+    bypassed => !skips.justified.has(bypassed),
+  );
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      reason: `Phases advance one canonical step at a time — ${effectivePrior} → ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(', ')}.`,
+      remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`,
+    };
+  }
+
   return OK;
 }
 

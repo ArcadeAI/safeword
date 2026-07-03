@@ -86,15 +86,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A ticket.md born without parseable frontmatter is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 92371f3
+- [x] REFACTOR skip: two guard clauses, no structure to improve
 
 ### Scenario: A ticket.md born with frontmatter that does not parse is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 92371f3
+- [x] REFACTOR skip: two guard clauses, no structure to improve
 
 ## Rule: A deliberate phase skip is explicit, per-phase, and stays visible in the ticket
 

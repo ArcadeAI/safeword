@@ -185,6 +185,106 @@ describe('evaluateTicketWrite — canonical phase enum at creation', () => {
   });
 });
 
+describe('evaluateTicketWrite — feature phase transitions', () => {
+  it('allows advancing one canonical step', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'intake' }),
+      ticket({ type: 'feature', phase: 'define-behavior' }),
+    );
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('denies a forward jump, naming every skipped phase', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'intake' }),
+      ticket({ type: 'feature', phase: 'implement' }),
+    );
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      const named = /justification[^:]*:\s*([^.]*)/.exec(verdict.reason)?.[1] ?? '';
+      expect(named).toContain('define-behavior');
+      expect(named).toContain('scenario-gate');
+    }
+  });
+
+  it('names all four skipped phases on the maximal jump', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'intake' }),
+      ticket({ type: 'feature', phase: 'done' }),
+    );
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      const named = /justification[^:]*:\s*([^.]*)/.exec(verdict.reason)?.[1] ?? '';
+      for (const phase of ['define-behavior', 'scenario-gate', 'implement', 'verify']) {
+        expect(named).toContain(phase);
+      }
+    }
+  });
+
+  it('allows a forward jump when every skipped phase is justified', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'intake' }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        skips: [
+          'define-behavior: scenarios exist as tests',
+          'scenario-gate: reviewed on the PR thread',
+        ],
+      }),
+    );
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('counts an absent prior phase as intake when a phase is added', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature' }),
+      ticket({ type: 'feature', phase: 'implement' }),
+    );
+    expect(verdict.ok).toBe(false);
+  });
+
+  it('counts an off-enum prior phase as intake', () => {
+    const oneStep = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'research' }),
+      ticket({ type: 'feature', phase: 'define-behavior' }),
+    );
+    expect(oneStep.ok).toBe(true);
+    const jump = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'research' }),
+      ticket({ type: 'feature', phase: 'implement' }),
+    );
+    expect(jump.ok).toBe(false);
+  });
+
+  it('denies advancing into an off-enum phase, listing the canonical order', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'implement' }),
+      ticket({ type: 'feature', phase: 'shipped' }),
+    );
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      expect(verdict.reason).toContain(
+        'intake → define-behavior → scenario-gate → implement → verify → done',
+      );
+    }
+  });
+
+  it('never blocks a backward move', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'implement' }),
+      ticket({ type: 'feature', phase: 'define-behavior' }),
+    );
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('ignores an edit that leaves the phase untouched', () => {
+    const content = ticket({ type: 'feature', phase: 'implement' });
+    const verdict = evaluateTicketWrite(content, `${content}\n- work log appended\n`);
+    expect(verdict.ok).toBe(true);
+  });
+});
+
 describe('evaluateTicketWrite — at-rest tolerance', () => {
   it('ignores an edit that leaves an unparseable frontmatter untouched', () => {
     const raw = '---\n{ not yaml [\n%%%\n---\n\n# Fixture\n';
