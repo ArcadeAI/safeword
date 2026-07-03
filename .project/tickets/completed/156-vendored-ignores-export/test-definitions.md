@@ -1,5 +1,10 @@
 # Test Definitions — Ticket 156: Vendored-ignores export + install-time guidance + hygiene pass
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 ## Rule 1 — Export shape & primitive
 
 ### Scenario 1.1: `configs.vendoredIgnores` is a typed, spreadable array

@@ -1,5 +1,10 @@
 # Test Definitions: Phase-Aware Quality Review
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 **Ticket:** [006-phase-aware-quality](../issues/006-phase-aware-quality.md)
 
 ## Scenarios

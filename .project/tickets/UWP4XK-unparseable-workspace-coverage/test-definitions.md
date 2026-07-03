@@ -1,5 +1,10 @@
 # Test definitions (R/G/R ledger) — UWP4XK
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 Behavior: a workspace manager PRESENT at the root but unparseable is surfaced
 (root-index `## Coverage gaps` advisory + `architecture`/`--check` warning),
 never silently dropped. Black-box scenarios in

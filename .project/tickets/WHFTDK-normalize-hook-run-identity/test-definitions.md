@@ -1,5 +1,10 @@
 # Test Definitions: Normalize hook run identity
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 No `.feature` file: the executable proof is Vitest over hook identity helpers and hook-side state/log effects. Scenarios are non-vacuous only if the assertion fails when a runtime-specific id is ignored, misclassified, or collapsed into `unknown-session`.
 
 ## Rule: Runtime inputs normalize to a shared identity contract
