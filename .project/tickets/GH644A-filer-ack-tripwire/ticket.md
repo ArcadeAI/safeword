@@ -2,7 +2,7 @@
 id: GH644A
 slug: filer-ack-tripwire
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 parent: RV9JT4-retro-transcript-mining
 depends_on: [GH628F]
