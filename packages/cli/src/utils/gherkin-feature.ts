@@ -474,7 +474,10 @@ function findRuleNameTagIssues(rule: {
     .find(reference => reference?.kind === 'rule');
   if (ruleReference === undefined) return [];
 
-  const nameToken = rule.name.trim().split(/\s+/, 1)[0] ?? '';
+  // The id ends at the first whitespace or dash separator. Split on em/en dash
+  // too so a name glued as `demo.DEV1.R1—foo` still yields the id, not a false
+  // mismatch; a plain `-` stays part of the token (kebab slugs contain it).
+  const nameToken = rule.name.trim().split(/[\s—–]+/, 1)[0] ?? '';
   if (nameToken === ruleReference.reference) return [];
   return [
     issue(
@@ -553,7 +556,13 @@ function parseAcReferenceFromTag(tag: string): string | undefined {
 }
 
 function parseRuleReferenceFromTag(tag: string): string | undefined {
-  const match = /^@?(\S+?)\.R(\d+)(?:\.|$)/.exec(tag.trim());
+  // Anchor on the *terminal* `.R<n>` (greedy prefix) so the parsed id matches
+  // the spec-side declaration, which keeps the whole heading token
+  // (`scenario-coverage.ts` `isRuleId` = `/\.R\d+$/`). A lazy first-match would
+  // read `@feat.R1.R2` as `feat.R1` while the spec declares `feat.R1.R2`,
+  // splitting one corpus into a spurious uncovered+orphan pair. Rule tags carry
+  // no `.<scenario_name>` tail (unlike AC titles), so terminal anchoring is safe.
+  const match = /^@?(\S+)\.R(\d+)$/.exec(tag.trim());
   if (!match) return undefined;
   return `${match[1] ?? ''}.R${match[2] ?? ''}`;
 }

@@ -216,6 +216,17 @@ describe('buildCoverageReportFromFeature (feature files as source)', () => {
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 
+  it('rule-tier.TB2.AC1.persona_code_r_rule_resolves_whole_id', () => {
+    // JTBD `feat.R1` (persona code R, job 1) declaring rule R2 → id `feat.R1.R2`.
+    // The tag `@feat.R1.R2` must resolve to that declared rule, not split into a
+    // spurious uncovered rule + orphan ref.
+    const personaRSpec = spec(
+      '### feat.R1 — Review\n\n**Persona:** R\n\n#### feat.R1.R2 — an invariant',
+    );
+    const report = buildCoverageReportFromFeature(personaRSpec, feature(['feat.R1.R2']));
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
   it('rule-tier.TB2.AC1.ac_segment_ref_attributed_to_ac_not_rule', () => {
     const personaRSpec = spec(
       '### feat.R1 — Review\n\n**Persona:** R\n\n#### feat.R1.AC1 — reviewable',

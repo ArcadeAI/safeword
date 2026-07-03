@@ -292,6 +292,14 @@ describe('findGherkinLintIssues (rule tier — name-token/tag correspondence)', 
     expect(issues).toContainEqual(expect.objectContaining({ rule: 'rule-name-tag-mismatch' }));
   });
 
+  it('rule-tier.TB2.AC1.name_token_glued_to_em_dash_still_matches', () => {
+    const issues = findGherkinLintIssues(
+      ruleFeature('@demo.DEV1.R1', 'demo.DEV1.R1—retries use exponential backoff'),
+      { filePath: 'features/demo.feature' },
+    );
+    expect(issues.filter(issue => issue.rule === 'rule-name-tag-mismatch')).toEqual([]);
+  });
+
   it('rule-tier.TB2.AC1.unnumbered_rule_block_exempt_from_mismatch', () => {
     const issues = findGherkinLintIssues(ruleFeature('', 'plain grouping words'), {
       filePath: 'features/demo.feature',
@@ -430,6 +438,26 @@ describe('parseFeatureRuleReferences', () => {
     );
 
     expect(references).toEqual(['demo.DEV1.R1', 'demo.DEV1.R2']);
+  });
+
+  it('rule-tier.TB2.AC1.terminal_rule_segment_keeps_whole_id', () => {
+    // A persona code `R` JTBD (`feat.R1`) declaring rule R2: the tag's parsed id
+    // must be the whole `feat.R1.R2`, matching the spec-side declaration, not a
+    // lazy first-match `feat.R1`.
+    const content = [
+      'Feature: Demo',
+      '',
+      '  @feat.R1.R2',
+      '  Rule: feat.R1.R2 — invariant under a persona-code-R job',
+      '',
+      '    Scenario: example',
+      '      Given a',
+      '      When b',
+      '      Then c',
+    ].join('\n');
+
+    expect(parseFeatureRuleReferences(content)).toEqual(['feat.R1.R2']);
+    expect(findFeatureLineageIssues(content)).toEqual([]);
   });
 
   it('rule-tier.TB2.AC1.ac_segment_wins_over_rule_shaped_prefix', () => {

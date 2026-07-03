@@ -613,9 +613,10 @@ Then('the coverage report resolves every rule reference', function (this: RuleTi
   assert.doesNotMatch(output, /orphan/);
 });
 
-// The "recorded flat-lineage snapshot" for the compat scenario: the exact
-// rule-tier-free advisory the flat AC fixture produced before this feature
-// (one uncovered AC), path-normalized by matching on the ticket label form.
+// Equivalence check, not a stored golden: the flat AC fixture must produce
+// exactly the one advisory it would have produced before this feature (the
+// uncovered demo.DEV1.AC2 line, path-normalized to the ticket label), and no
+// rule-tier vocabulary may leak into an AC-only project's output.
 Then(
   'the output is byte-identical to the recorded flat-lineage snapshot after path normalization',
   function (this: RuleTierWorld) {
