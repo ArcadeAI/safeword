@@ -1,3 +1,6 @@
+import { spawnSync } from 'node:child_process';
+import process from 'node:process';
+
 export interface CodexHookInput {
   session_id?: string;
   tool_name?: string;
@@ -17,6 +20,27 @@ export interface ClaudeHookInput {
   hook_event_name: 'PreToolUse';
   tool_name: 'Bash' | 'Edit' | 'Write' | 'MultiEdit' | 'NotebookEdit';
   tool_input: NonNullable<CodexHookInput['tool_input']>;
+}
+
+/**
+ * Spawn a Claude source-of-truth hook with a translated Codex input — shared by
+ * all three Codex adapters. `CLAUDE_PROJECT_DIR` is set for the hook's path
+ * resolution; `SAFEWORD_AGENT_RUNTIME` is the authoritative agent attribution
+ * for the spawned hook (it runs under Codex, not Claude — this same var is what
+ * self-report's detectAgent reads and what scopes the per-session state key).
+ */
+export function runClaudeHookAsCodex(claudeHookPath: string, translated: ClaudeHookInput) {
+  return spawnSync('bun', [claudeHookPath], {
+    cwd: process.cwd(),
+    input: JSON.stringify(translated),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
 }
 
 interface PatchTarget {

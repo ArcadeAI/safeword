@@ -16,7 +16,11 @@ import {
   type QualityState,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
-import { isNamespacePath } from './lib/namespace-root.ts';
+import {
+  isNamespacePath,
+  NAMESPACE_ROOT_DEFAULT,
+  NAMESPACE_ROOT_LEGACY,
+} from './lib/namespace-root.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('post-tool-quality');
@@ -139,6 +143,28 @@ if (state.locSinceCommit >= LOC_THRESHOLD && !isGitOperationInProgress(projectDi
 // implement mode keeps ordinary RED/GREEN/REFACTOR progress out of chat.
 let reviewMessage: string | null = null;
 
+// `<namespace root>/tickets/<folder>/…` → absolute path of that folder's
+// ticket.md. Anchored on the same roots isNamespacePath accepts; a file not
+// nested inside a ticket folder (e.g. `tickets/foo.md`) yields undefined, and
+// `tickets/completed/<f>/…` resolves to the absent `tickets/completed/ticket.md`.
+const escapedNamespaceRoots = [NAMESPACE_ROOT_DEFAULT, NAMESPACE_ROOT_LEGACY]
+  .map(root => root.replaceAll('.', String.raw`\.`))
+  .join('|');
+const TICKET_FOLDER_PATTERN = new RegExp(`(?:^|/)(?:${escapedNamespaceRoots})/tickets/[^/]+/`);
+
+function boundTicketFileForArtifact(filePath: string): string | undefined {
+  const match = TICKET_FOLDER_PATTERN.exec(filePath);
+  if (!match) return undefined;
+  const ticketFile = `${filePath.slice(0, match.index + match[0].length)}ticket.md`;
+  return ticketFile.startsWith('/') ? ticketFile : nodePath.join(projectDirectory, ticketFile);
+}
+
+// One `field: value` line from ticket.md frontmatter (same shape getTicketInfo
+// parses in lib/active-ticket.ts).
+function frontmatterField(content: string, field: string): string | undefined {
+  return content.match(new RegExp(`^${field}:\\s*(\\S+)`, 'm'))?.[1];
+}
+
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
 if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md')) {
   const fullPath = editedFile.startsWith('/')
@@ -148,14 +174,13 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
     const content = readFileSync(fullPath, 'utf8');
 
     // Track active ticket
-    const idMatch = content.match(/^id:\s*(\S+)/m);
-    if (idMatch) {
-      state.activeTicket = idMatch[1];
+    const ticketId = frontmatterField(content, 'id');
+    if (ticketId !== undefined) {
+      state.activeTicket = ticketId;
     }
 
     // Auto-clear binding when ticket reaches done or backlog
-    const statusMatch = content.match(/^status:\s*(\S+)/m);
-    const ticketStatus = statusMatch?.[1];
+    const ticketStatus = frontmatterField(content, 'status');
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       state.activeTicket = null;
     }
@@ -163,10 +188,37 @@ if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md'))
     // Per-phase review (enter-semantics, deduped). Fires on the first edit that
     // brings the ticket into an un-reviewed phase — autonomous-safe, since it
     // does not wait for a Stop. The Stop backstop covers non-edit phase bumps.
-    const phase = content.match(/^phase:\s*(\S+)/m)?.[1];
+    const phase = frontmatterField(content, 'phase');
     if (shouldReviewPhase(phase, state.lastReviewedPhase)) {
       reviewMessage = getQualityMessage(phase);
       state.lastReviewedPhase = phase;
+    }
+  }
+} else if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('.md')) {
+  // Broadened binding write-site (#630): a session resuming an in_progress
+  // ticket usually edits its artifacts (spec.md, test-definitions.md, …)
+  // without touching ticket.md, so artifact edits must also bind — otherwise
+  // write-review-stamp.ts sees no session ticket and hard-fails whenever more
+  // than one ticket is in_progress. The folder's ticket.md carries the id.
+  // Binding demands status: in_progress — the full vocabulary (done, cancelled,
+  // superseded, wontfix, blocked, …) must neither bind nor steal the binding;
+  // an explicit non-active status only clears a binding to that same ticket, so
+  // annotating an archived ticket cannot unbind the session from its real one.
+  // Epics never bind (the stamp helper's in_progress scan excludes them). The
+  // per-phase review trigger deliberately stays ticket.md-scoped, and a custom
+  // paths.projectRoot shares isNamespacePath's default/legacy-root-only limit.
+  const ticketFile = boundTicketFileForArtifact(editedFile);
+  if (ticketFile !== undefined && existsSync(ticketFile)) {
+    const content = readFileSync(ticketFile, 'utf8');
+    const id = frontmatterField(content, 'id');
+    const status = frontmatterField(content, 'status');
+    const type = frontmatterField(content, 'type');
+    if (id !== undefined) {
+      if (status === 'in_progress') {
+        if (type !== 'epic') state.activeTicket = id;
+      } else if (status !== undefined && state.activeTicket === id) {
+        state.activeTicket = null;
+      }
     }
   }
 }

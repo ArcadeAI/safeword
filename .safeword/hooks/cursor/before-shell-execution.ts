@@ -11,7 +11,9 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
+  rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
 import { stashCursorTranscript } from '../lib/cursor-state.ts';
@@ -58,6 +60,17 @@ if (isAutoUpgradeLockActive({ projectDir: process.cwd() })) {
   process.exit(0);
 }
 
+// The stamp helper's process env has no run identity on Cursor; stash the
+// conversation id right before the command runs (mirrors the proof bridge,
+// separate cache — #630).
+function stashReviewStampIdentity(): void {
+  if (!commandInvokesWriteReviewStamp(command)) return;
+  rememberCursorReviewStampIdentity({
+    projectDirectory: process.cwd(),
+    id: input.conversation_id,
+  });
+}
+
 const proofCommand = parseRecordSkillInvocationCommand(command);
 const needsFailClosedGate = requiresFailClosedShellGate({ command });
 if (!needsFailClosedGate) {
@@ -68,6 +81,7 @@ if (!needsFailClosedGate) {
       skillName: proofCommand.skillName,
     });
   }
+  stashReviewStampIdentity();
   emitAllowAndExit();
 }
 
@@ -90,12 +104,15 @@ const decision = decideFromGate(
     timeoutMs: SHELL_GATE_TIMEOUT_MS,
   }),
 );
-if (decision.permission === 'allow' && proofCommand !== undefined) {
-  rememberCursorRunIdentity({
-    projectDirectory: process.cwd(),
-    conversationId: input.conversation_id,
-    skillName: proofCommand.skillName,
-  });
+if (decision.permission === 'allow') {
+  if (proofCommand !== undefined) {
+    rememberCursorRunIdentity({
+      projectDirectory: process.cwd(),
+      conversationId: input.conversation_id,
+      skillName: proofCommand.skillName,
+    });
+  }
+  stashReviewStampIdentity();
 }
 process.stdout.write(JSON.stringify(decision) + '\n');
 process.exit(0);

@@ -5,7 +5,7 @@
  * allow, end to end. Also covers the skip valve and the Tier 2 phase stamp.
  */
 
-import { spawnSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -21,6 +21,15 @@ import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const STAMP_PATH = nodePath.resolve(__dirname, '../../templates/hooks/write-review-stamp.ts');
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
+const POST_TOOL_PATH = nodePath.resolve(__dirname, '../../templates/hooks/post-tool-quality.ts');
+const CURSOR_BEFORE_SHELL_PATH = nodePath.resolve(
+  __dirname,
+  '../../templates/hooks/cursor/before-shell-execution.ts',
+);
+const CODEX_PRE_TOOL_PATH = nodePath.resolve(
+  __dirname,
+  '../../templates/hooks/codex/pre-tool-quality.ts',
+);
 const TICKET_ID = 'ABC123';
 
 const TICKET_FRONTMATTER = [
@@ -111,13 +120,21 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     );
   }
 
-  function createSecondTicket(): void {
-    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
-    mkdirSync(second, { recursive: true });
+  function createTicketFolder(
+    folder: string,
+    { type = 'feature', phase = 'intake', status = 'in_progress' } = {},
+  ): string {
+    const directory = nodePath.join(projectRoot, '.safeword-project', 'tickets', folder);
+    mkdirSync(directory, { recursive: true });
     writeFileSync(
-      nodePath.join(second, 'ticket.md'),
-      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
+      nodePath.join(directory, 'ticket.md'),
+      `---\nid: ${folder}\ntype: ${type}\nphase: ${phase}\nstatus: ${status}\n---\n`,
     );
+    return directory;
+  }
+
+  function createSecondTicket(): void {
+    createTicketFolder('XYZ789');
   }
 
   beforeEach(() => {
@@ -288,5 +305,201 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(stamp.status).toBe(1);
     expect(stamp.stdout).toContain('missing run identity');
     expect(readLog()).not.toContain('unknown-session');
+  });
+
+  // #630: the binding write-site broadened from ticket.md-only to any artifact
+  // under the ticket's folder, so a session that resumes an in_progress ticket
+  // (never editing ticket.md) still stamps without --ticket. Exercises the real
+  // post-tool-quality.ts → write-review-stamp.ts chain.
+  describe('artifact-edit session binding (#630)', () => {
+    function runPostToolEdit(filePath: string): void {
+      const result = spawnSync('bun', [POST_TOOL_PATH], {
+        input: JSON.stringify({
+          session_id: 'sess-1',
+          hook_event_name: 'PostToolUse',
+          tool_name: 'Edit',
+          tool_input: { file_path: filePath },
+        }),
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(result.status).toBe(0);
+    }
+
+    function readSessionBinding(): string | undefined {
+      const stateFile = nodePath.join(
+        projectRoot,
+        '.safeword-project',
+        'quality-state-sess-1.json',
+      );
+      if (!existsSync(stateFile)) return undefined;
+      return (
+        (JSON.parse(readFileSync(stateFile, 'utf8')) as { activeTicket: string | null })
+          .activeTicket ?? undefined
+      );
+    }
+
+    beforeEach(() => {
+      // post-tool-quality.ts exits before the binding write when HEAD is absent.
+      execSync(
+        'git init -q && git add -A && git -c user.email=t@t.t -c user.name=t commit -qm fixture',
+        { cwd: projectRoot, stdio: 'pipe' },
+      );
+    });
+
+    it('resume flow: a spec.md edit binds the session, so the stamp resolves among multiple in_progress tickets', () => {
+      createSecondTicket();
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      const stamp = runStamp('spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('does not rebind to an epic when one of its artifacts is edited', () => {
+      const epicDirectory = createTicketFolder('EPIC01', { type: 'epic' });
+      writeFileSync(nodePath.join(epicDirectory, 'spec.md'), '# Epic spec\n');
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      runPostToolEdit(nodePath.join(epicDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBe(TICKET_ID);
+    });
+
+    it("editing a cancelled ticket's artifact does not steal the session binding", () => {
+      // The status vocabulary is wider than done/backlog — any non-in_progress
+      // status must neither bind nor overwrite an existing binding.
+      const cancelledDirectory = createTicketFolder('CAN001', { status: 'cancelled' });
+      writeFileSync(nodePath.join(cancelledDirectory, 'work-log.md'), '# Notes\n');
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      runPostToolEdit(nodePath.join(cancelledDirectory, 'work-log.md'));
+
+      expect(readSessionBinding()).toBe(TICKET_ID);
+    });
+
+    it("editing a done ticket's artifact does not unbind the session from its active ticket", () => {
+      const doneDirectory = createTicketFolder('DONE01', { phase: 'done', status: 'done' });
+      writeFileSync(nodePath.join(doneDirectory, 'spec.md'), '# Archived spec\n');
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      runPostToolEdit(nodePath.join(doneDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBe(TICKET_ID);
+    });
+
+    it("clears the binding when the bound ticket's own artifact is edited after it went done", () => {
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      expect(readSessionBinding()).toBe(TICKET_ID);
+
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        `---\n${TICKET_FRONTMATTER.replace('status: in_progress', 'status: done')}\n---\n`,
+      );
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBeUndefined();
+    });
+
+    it('does not bind from artifacts under tickets/completed/', () => {
+      const completedDirectory = nodePath.join(
+        projectRoot,
+        '.safeword-project',
+        'tickets',
+        'completed',
+        'OLD001',
+      );
+      mkdirSync(completedDirectory, { recursive: true });
+      writeFileSync(nodePath.join(completedDirectory, 'spec.md'), '# Old spec\n');
+
+      runPostToolEdit(nodePath.join(completedDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBeUndefined();
+    });
+  });
+
+  // #630: on Codex/Cursor the stamp helper's process env has no run identity;
+  // the runtime's pre-shell hook stashes the session id right before the
+  // command runs. Exercises the real pre-shell hook → write-review-stamp.ts
+  // chain, including that the bridged identity reads the SAME session-state
+  // key the runtime's post-tool adapter writes the binding under.
+  describe('run-identity bridge on Codex/Cursor (#630)', () => {
+    const STAMP_COMMAND = 'bun .safeword/hooks/write-review-stamp.ts spec';
+
+    function runCodexPreShell(sessionId: string): void {
+      const result = spawnSync('bun', [CODEX_PRE_TOOL_PATH], {
+        cwd: projectRoot,
+        input: JSON.stringify({
+          session_id: sessionId,
+          tool_name: 'Bash',
+          tool_input: { command: STAMP_COMMAND },
+        }),
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(result.status).toBe(0);
+    }
+
+    function runCursorBeforeShell(conversationId: string): void {
+      const result = spawnSync('bun', [CURSOR_BEFORE_SHELL_PATH], {
+        cwd: projectRoot,
+        input: JSON.stringify({
+          conversation_id: conversationId,
+          command: STAMP_COMMAND,
+          workspace_roots: [projectRoot],
+        }),
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout) as { permission?: string }).toEqual({
+        permission: 'allow',
+      });
+    }
+
+    function bindRuntimeSessionTicket(storageKey: string): void {
+      writeFileSync(
+        nodePath.join(projectRoot, '.safeword-project', `quality-state-${storageKey}.json`),
+        JSON.stringify({ activeTicket: TICKET_ID }),
+      );
+    }
+
+    it('Codex: the pre-shell stash lets the stamp resolve the codex-bound session ticket', () => {
+      createSecondTicket();
+      bindRuntimeSessionTicket('codex-sess-9');
+
+      runCodexPreShell('sess-9');
+      const stamp = runStampWithoutRuntimeIdentity('spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('Cursor: the pre-shell stash lets the stamp resolve the cursor-bound session ticket', () => {
+      createSecondTicket();
+      bindRuntimeSessionTicket('cursor-conv-1');
+
+      runCursorBeforeShell('conv-1');
+      const stamp = runStampWithoutRuntimeIdentity('spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('the stash is single-use: a second stamp without a new pre-shell event fails loudly', () => {
+      createSecondTicket();
+      bindRuntimeSessionTicket('codex-sess-9');
+
+      runCodexPreShell('sess-9');
+      expect(runStampWithoutRuntimeIdentity('spec').status).toBe(0);
+
+      const secondStamp = runStampWithoutRuntimeIdentity('spec');
+      expect(secondStamp.status).toBe(1);
+      expect(secondStamp.stdout).toContain('missing run identity');
+    });
   });
 });

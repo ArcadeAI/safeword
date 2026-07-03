@@ -4,20 +4,13 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import type { SpooledDraft } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
   draftSpoolPath,
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
-
-const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
-  signature,
-  title,
-  body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
+import { retroDraft as draft } from '../helpers.js';
 
 describe('retro draft spool (BNGK9W — persist post-egress drafts on filing failure)', () => {
   let projectDirectory: string;
