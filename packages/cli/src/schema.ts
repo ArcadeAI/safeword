@@ -817,6 +817,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'hooks/post-tool-sync-learnings.ts',
     },
 
+    // Retro filer subagent (GH628F, issue #628): the filing procedure lives in
+    // the agent definition, dispatched by the per-harness stop gates. One
+    // markdown source serves Claude and Cursor; Codex takes TOML. OWNED (not
+    // managed): overwritten on upgrade and removed on reset — a leftover copy
+    // would keep `.cursor/` alive after reset.
+    '.claude/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
+    '.cursor/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
+    '.codex/agents/safeword-retro-filer.toml': { template: 'agents/safeword-retro-filer.toml' },
+
     // Guides
     '.safeword/guides/architecture-guide.md': {
       template: 'guides/architecture-guide.md',
@@ -1077,13 +1086,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword-project/.gitignore': {
       content: NAMESPACE_GITIGNORE_CONTENT,
     },
-
-    // Retro filer subagent (GH628F, issue #628): the filing procedure lives in
-    // the agent definition, dispatched by the per-harness stop gates. One
-    // markdown source serves Claude and Cursor; Codex takes TOML.
-    '.claude/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
-    '.cursor/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
-    '.codex/agents/safeword-retro-filer.toml': { template: 'agents/safeword-retro-filer.toml' },
   },
 
   // JSON files where we merge specific keys
