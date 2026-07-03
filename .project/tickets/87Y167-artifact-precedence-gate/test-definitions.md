@@ -48,7 +48,13 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Non-feature tickets create dimensions.md without objection (task / patch / epic)
+### Scenario: dimensions.md created on a spec whose jobs skip has a blank reason is denied
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Non-feature tickets create dimensions.md without objection
 
 - [ ] RED
 - [ ] GREEN
@@ -154,6 +160,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Another ticket's stamp on the named feature source does not satisfy
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An implement advance via MultiEdit is gated like an Edit
 
 - [ ] RED
@@ -207,6 +219,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] REFACTOR
 
 ### Scenario: Editing an existing test-definitions.md without a spec review stamp is allowed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A file that is not a chain artifact is created in a ticket folder without objection
 
 - [ ] RED
 - [ ] GREEN
