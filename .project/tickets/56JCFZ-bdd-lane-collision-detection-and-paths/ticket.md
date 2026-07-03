@@ -2,8 +2,8 @@
 id: 56JCFZ
 slug: bdd-lane-collision-detection-and-paths
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 relates_to: [102b, VM78NC, 7CK2KP]
 external_issue: https://github.com/ArcadeAI/safeword/issues/645
 scope:
@@ -56,6 +56,7 @@ done_when:
 
 ## Work Log
 
+- 2026-07-03T17:12Z Complete: done — PR #692 opened; ticket closed with the PR per the check-pr-ticket-done gate (user's open-PR instruction = ship signal). Evidence: verify.md (✓ 4438/4438 tests pass, All 20 scenarios marked complete, Audit passed).
 - 2026-07-03T17:08Z Complete: verify — full suite 4438/4438 (313 files, 0 failures), Gherkin lane 181 scenarios green, lint+typecheck clean, audit passed (1 new knip finding fixed, rest baseline); verify.md written. Awaiting user confirmation to mark done.
 - 2026-07-03T16:35Z Complete: implement — all 20 scenarios R/G/R'd (see ledger for SHAs; pins recorded honestly where behavior shipped early); whole-ticket /quality-review: 1 critical (vacuous reset-dep assertion → --full) + 6 improvements applied (drift test, workspace config-file radius, advisory silencing rule, runner CLI-arg fix + re-hash, docs wording, comment nit); cross-scenario refactor dba2c978 (shared collision fixtures); reconciled impl plan — 8 decisions updated (evidence/suppression split, generator precedence, uninstall guard, advisory silencing added), 0 deviations recorded
 - 2026-07-03T15:25Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass by fresh reviewer: 2 must-fix + 6 strengthen findings applied (15→20 scenarios), re-review PASS, stamp written; impl-plan.md written (proof plan + build order in Approach, detection = load-bearing slice 1)
