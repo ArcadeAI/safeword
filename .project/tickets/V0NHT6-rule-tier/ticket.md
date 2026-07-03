@@ -2,11 +2,11 @@
 id: V0NHT6
 slug: rule-tier
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 scope:
   - 'spec.md grammar: `#### <jtbd-id>.R<n> — <invariant>` Rule headings parsed alongside AC headings (per-JTBD substitute — a JTBD carries ACs or Rules, never both); declaring Rules is the opt-in, no config flag'
-  - 'lineage: `@<jtbd-id>.R<n>` combined tag recognized by the ref parser and the exactly-one-lineage-tag lint (AC ref or R ref both satisfy it); `.feature` `Rule:` block names carry the ID as their first token'
+  - 'lineage: `@<jtbd-id>.R<n>` combined tag recognized by the ref parser and the exactly-one-lineage-tag lint (AC ref or R ref both satisfy it; AC-match wins precedence); the `.feature` `Rule:` block carries the tag (authoritative — scenarios inherit it) and repeats the ID as its name''s first token, mismatch is a lint issue'
   - 'coverage: rule buckets (uncovered / stale / orphan) in `safeword check` advisories, plus a zero-rejection-path advisory per numbered Rule via the `@rejection` tag convention; R refs are `.feature`-only (legacy test-definitions title path stays AC-only)'
   - 'mixed-JTBD guard: a JTBD declaring both ACs and Rules is a `safeword check` issue naming the JTBD (gate stays fail-open)'
   - 'intake-exit gate: hook-side `jtbd.ts` mirror accepts ≥1 AC or ≥1 numbered Rule (or `skip:`) per JTBD, with the denial message naming Rules as an option'
@@ -38,3 +38,5 @@ last_modified: 2026-07-03T17:15:00.000Z
 - 2026-07-03T16:55:00.000Z /quality-review pass 1 (fresh-context reviewer): 2 criticals (enforcement-stack interaction incl. ZRMDKD; numbering-lock mechanism) folded into spec; pass 2 APPROVE, nits applied.
 - 2026-07-03T17:11:00.000Z JTBD gate passed: user confirmed 4 jobs + substitute-per-JTBD coexistence ("go").
 - 2026-07-03T17:15:00.000Z Intake decisions recorded in spec.md (tag scheme, catalog source, opt-in, @rejection convention, gate acceptance, enforcement-stack landing, numbering-lock v1); 2 deliberate defers kept in Open Questions; ACs authored; engineering scope drafted — AC + scope gates pending user signoff.
+- 2026-07-03T20:20:00.000Z /quality-review (2nd invocation, fresh-context reviewer): pass 1 → 1 critical (mixed AC+R JTBD undefined) + 5 improvements; all applied (TB1.AC4, tag-authoritative decision, AC-wins ref precedence, .feature-only R refs, migration-mapping scope owner, de-vacuoused done_when). Pass 2 → APPROVE, no criticals.
+- 2026-07-03T20:22:00.000Z Complete: intake - Understanding converged, scope established. AC + scope gates signed off (user "go"); cold-start check offered (one-way door) and declined.
