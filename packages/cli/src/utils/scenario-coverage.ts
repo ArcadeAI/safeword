@@ -81,10 +81,24 @@ interface WalkState {
   currentJtbd: string | undefined;
 }
 
+/** A JTBD's declared criteria, split by kind (ticket V0NHT6 rule tier). */
+export interface JtbdCriteria {
+  acIds: string[];
+  ruleIds: string[];
+}
+
 export function parseAcIdsByJtbd(specContent: string): Map<string, string[]> {
+  const byJtbd = new Map<string, string[]>();
+  for (const [jtbd, criteria] of parseCriteriaIdsByJtbd(specContent)) {
+    byJtbd.set(jtbd, criteria.acIds);
+  }
+  return byJtbd;
+}
+
+export function parseCriteriaIdsByJtbd(specContent: string): Map<string, JtbdCriteria> {
   const lines = specContent.split('\n');
   const skip = computeSkipMask(lines);
-  const byJtbd = new Map<string, string[]>();
+  const byJtbd = new Map<string, JtbdCriteria>();
   let state: WalkState = { inSection: false, currentJtbd: undefined };
 
   for (const [index, line] of lines.entries()) {
@@ -97,11 +111,18 @@ export function parseAcIdsByJtbd(specContent: string): Map<string, string[]> {
   return byJtbd;
 }
 
-/** Apply one heading to the JTBD/AC walk, recording ACs into `byJtbd`. */
+/** JTBD ids declaring both ACs and numbered Rules — one criteria kind per job. */
+export function findMixedCriteriaJtbds(specContent: string): string[] {
+  return [...parseCriteriaIdsByJtbd(specContent)]
+    .filter(([, criteria]) => criteria.acIds.length > 0 && criteria.ruleIds.length > 0)
+    .map(([jtbd]) => jtbd);
+}
+
+/** Apply one heading to the JTBD/criteria walk, recording ids into `byJtbd`. */
 function advance(
   state: WalkState,
   heading: { level: number; text: string },
-  byJtbd: Map<string, string[]>,
+  byJtbd: Map<string, JtbdCriteria>,
 ): WalkState {
   if (heading.level <= 2) {
     return { inSection: heading.text.toLowerCase() === JTBD_HEADING, currentJtbd: undefined };
@@ -109,13 +130,23 @@ function advance(
   if (!state.inSection) return state;
   if (heading.level === 3) {
     const currentJtbd = firstToken(heading.text);
-    if (!byJtbd.has(currentJtbd)) byJtbd.set(currentJtbd, []);
+    if (!byJtbd.has(currentJtbd)) byJtbd.set(currentJtbd, { acIds: [], ruleIds: [] });
     return { inSection: true, currentJtbd };
   }
   if (state.currentJtbd !== undefined) {
-    appendAc(byJtbd, state.currentJtbd, firstToken(heading.text));
+    appendCriterion(byJtbd, state.currentJtbd, firstToken(heading.text));
   }
   return state;
+}
+
+/**
+ * A terminal `.R<n>` id is a numbered Rule; everything else (including the
+ * `.AC<n>`-terminated ids and legacy free-form headings) stays an AC, so an
+ * AC-shaped id wins over a rule-shaped prefix (`feat.R1.AC1` is an AC of
+ * JTBD `feat.R1`).
+ */
+function isRuleId(id: string): boolean {
+  return /\.R\d+$/.test(id);
 }
 
 const EMPTY_REPORT: CoverageReport = { uncovered: [], stale: [], orphan: [] };
@@ -339,11 +370,11 @@ function buildCoverageReportFromReferences(
   };
 }
 
-/** Append an AC id to a JTBD's list, creating the list on first use. */
-function appendAc(byJtbd: Map<string, string[]>, jtbd: string, acId: string): void {
-  const acIds = byJtbd.get(jtbd) ?? [];
-  acIds.push(acId);
-  byJtbd.set(jtbd, acIds);
+/** Append a criterion id to a JTBD's criteria by kind, creating the entry on first use. */
+function appendCriterion(byJtbd: Map<string, JtbdCriteria>, jtbd: string, id: string): void {
+  const criteria = byJtbd.get(jtbd) ?? { acIds: [], ruleIds: [] };
+  (isRuleId(id) ? criteria.ruleIds : criteria.acIds).push(id);
+  byJtbd.set(jtbd, criteria);
 }
 
 /** Strip the trailing `.AC<#>` segment to recover the JTBD id of a reference. */
