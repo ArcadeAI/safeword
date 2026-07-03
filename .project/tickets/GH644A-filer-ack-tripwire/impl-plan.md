@@ -1,7 +1,22 @@
 # Impl Plan: GH644A filer-ack-tripwire
 
-**Status:** planned
-Authored at scenario-gate exit, before implementation code.
+**Status:** implemented
+Authored at scenario-gate exit, before implementation code; reconciled against
+what shipped at implement exit (2026-07-03):
+
+- **Decisions:** all held — ack file `<session>.acks.jsonl` per-post appends,
+  self-report tripwire lane (`captureBareDrain`, errorClass `RetroBareDrain`),
+  `tripwired` once-per-batch, shape-only ack validation, no network.
+- **Arch alignment:** held — one decision function, thin adapters, jsonl-spool
+  reuse, `captureGateEscalation` mirror; parity-check kept pairs synced.
+- **Known deviations vs plan:** (1) adapters changed as re-planned at the
+  pre-code review (shed `selfReport.file` guards; gate owns config semantics) —
+  the plan's own assessment trigger, resolved before RED. (2) A watch-only
+  snapshot path was added during GREEN (capture-on/file-off installs snapshot
+  batches without dispatching, attempts untouched) — required by the
+  capture-not-file scenario, discovered by its failing test. (3) Test-only:
+  `appendRetroAck` fixture added to tests/helpers.ts at the cross-scenario
+  refactor. No unplanned production surface beyond (2).
 
 ## Approach
 
