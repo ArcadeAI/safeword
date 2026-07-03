@@ -21,8 +21,10 @@ export const CUCUMBER_TEMPLATE_REVISION_HASHES: ReadonlySet<string> = new Set([
   '1a9a1bd23c1f7b249800a631e4f3d59abc24678b9bcb1a21891a95378dbadc58',
   // a874ea92 — VM78NC workspace feature paths
   '761b20d508207b58e234fdcf592ae4cd0e916548ef46177469e2165c1e13832b',
-  // 4b3aefd4 — CLI feature-path passthrough (current as of 56JCFZ)
+  // 4b3aefd4 — CLI feature-path passthrough
   '3d22842f73c62e497a525dbe0a126b42bf2202fb8369ede29ba45b6d1e493fb6',
+  // 56JCFZ — runtime paths.features/paths.steps config read (current)
+  'be41addbe682362085c65476308cb91f6070f65f7314038468f2093bdc0b0b0a',
 ]);
 
 /** True when `content` is a shipped revision of safeword's lane template. */
