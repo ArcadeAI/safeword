@@ -12,8 +12,8 @@
 
 import { spawnSync } from 'node:child_process';
 
-import { detectLedgerWrite } from '../lib/bash-ledger-writes.ts';
-import { commandWordIndex, parseShellWords, splitShellSegments } from '../lib/shell-segments.ts';
+import { detectLedgerWrite } from '../lib/bash-ledger-writes.js';
+import { commandWordIndex, parseShellWords, splitShellSegments } from '../lib/shell-segments.js';
 
 /** Fields present on every Cursor agent hook request (the "common schema"). */
 export interface CursorBaseInput {
