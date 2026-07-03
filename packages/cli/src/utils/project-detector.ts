@@ -492,8 +492,25 @@ function manifestDependsOnCucumber(manifestPath: string): boolean {
   }
 }
 
-/** First package under `<cwd>/<root>/*` depending on @cucumber/cucumber, as evidence. */
-function findCucumberDependencyUnderRoot(cwd: string, root: string): string | undefined {
+/**
+ * Cucumber evidence inside one workspace package: a config file of any name
+ * (no self-exclusion — safeword only ever scaffolds the lane at the root) or
+ * a @cucumber/cucumber dependency.
+ */
+function findCucumberEvidenceInPackage(cwd: string, packagePath: string): string | undefined {
+  for (const name of CUCUMBER_CONFIG_FILES) {
+    if (existsSync(nodePath.join(cwd, packagePath, name))) {
+      return `${packagePath}/${name}`;
+    }
+  }
+  if (manifestDependsOnCucumber(nodePath.join(cwd, packagePath, 'package.json'))) {
+    return `${packagePath}/package.json (@cucumber/cucumber)`;
+  }
+  return undefined;
+}
+
+/** First cucumber config file or dep under `<cwd>/<root>/*`, as evidence. */
+function findCucumberEvidenceUnderRoot(cwd: string, root: string): string | undefined {
   let entries;
   try {
     entries = readdirSync(nodePath.join(cwd, root), { withFileTypes: true });
@@ -502,18 +519,16 @@ function findCucumberDependencyUnderRoot(cwd: string, root: string): string | un
   }
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const manifestPath = nodePath.join(cwd, root, entry.name, 'package.json');
-    if (manifestDependsOnCucumber(manifestPath)) {
-      return `${root}/${entry.name}/package.json (@cucumber/cucumber)`;
-    }
+    const evidence = findCucumberEvidenceInPackage(cwd, `${root}/${entry.name}`);
+    if (evidence !== undefined) return evidence;
   }
   return undefined;
 }
 
-/** First direct workspace package depending on @cucumber/cucumber, as evidence. */
+/** First direct workspace package with cucumber evidence (config file or dep). */
 function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
   for (const root of WORKSPACE_PACKAGE_ROOTS) {
-    const evidence = findCucumberDependencyUnderRoot(cwd, root);
+    const evidence = findCucumberEvidenceUnderRoot(cwd, root);
     if (evidence !== undefined) return evidence;
   }
   return undefined;

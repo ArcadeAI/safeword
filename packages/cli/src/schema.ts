@@ -637,7 +637,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
-  // (bddLaneFile entries: see the helper defined below the schema)
+  // (bddLaneFile entries: see the helper defined above the schema)
   ownedFiles: {
     // Project root config files (for audit/quality tools)
     '.jscpd.json': { template: '.jscpd.json' },

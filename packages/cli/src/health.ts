@@ -189,9 +189,12 @@ function findCucumberHarnessAdvisories(cwd: string): string[] {
     return [buildLeftoverLaneAdvisory(cwd, existingCucumberHarness)];
   }
 
+  // paths.features alone silences this: the readers consume only the
+  // features directory. paths.steps matters only to the scaffolded runner
+  // (relocated TypeScript steps), which a host-harness repo isn't using.
   if (readConfiguredPath(cwd, 'features') !== undefined) return [];
   return [
-    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features / paths.steps are not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" }.`,
+    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
   ];
 }
 

@@ -35,7 +35,9 @@ describe('reset leaves a host harness untouched (TB1.AC3)', () => {
     await setupOrThrow(directory);
     expect(fileExists(directory, '.safeword')).toBe(true);
 
-    const reset = await runCli(['reset', '--yes'], { cwd: directory });
+    // --full engages package removal (computePackagesToRemove) — without it
+    // the deps-remain assertion is vacuous, plain reset never touches deps.
+    const reset = await runCli(['reset', '--full', '--yes'], { cwd: directory });
     expect(reset.exitCode, reset.stderr).toBe(0);
   }, TIMEOUT_BUN_INSTALL);
 

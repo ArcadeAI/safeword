@@ -50,7 +50,19 @@ const workspaceStepImports = [
   ...(configuredStepsDirectory ? [`${configuredStepsDirectory}/**/*.ts`] : []),
 ];
 
-const cliFeatureDirectories = new Set(['features', 'packages', 'apps', 'libs', 'modules']);
+const cliFeatureDirectories = new Set([
+  'features',
+  'packages',
+  'apps',
+  'libs',
+  'modules',
+  // A bare configured directory passed as a positional arg is a feature path
+  // too — without this, `cucumber-js tests/behaviors` would still get the
+  // config's default paths merged in.
+  ...(configuredFeaturesDirectory
+    ? [configuredFeaturesDirectory, configuredFeaturesDirectory.split('/', 1)[0]]
+    : []),
+]);
 
 function isCliFeaturePathArgument(argument) {
   if (argument.startsWith('-')) return false;
