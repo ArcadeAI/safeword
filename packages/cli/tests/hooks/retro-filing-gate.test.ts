@@ -8,7 +8,6 @@ import {
   draftSpoolPath,
   markDraftsFiled,
   spoolDrafts,
-  type SpooledDraft,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
   decideRetroFilingGate,
@@ -16,13 +15,7 @@ import {
   FILING_ATTEMPT_CAP,
   formatFilingDispatch,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
-
-const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
-  signature,
-  title,
-  body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
+import { retroDraft as draft } from '../helpers.js';
 
 describe('retro filing gate decision (GH628F — dispatch until drained, capped)', () => {
   let projectDirectory: string;

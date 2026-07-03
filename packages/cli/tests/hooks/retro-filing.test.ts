@@ -11,13 +11,7 @@ import {
   type SpooledDraft,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
-
-const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
-  signature,
-  title,
-  body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
+import { retroDraft as draft } from '../helpers.js';
 
 describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbatim, drain filed)', () => {
   let projectDirectory: string;

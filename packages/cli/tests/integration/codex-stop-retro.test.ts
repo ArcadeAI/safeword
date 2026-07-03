@@ -20,18 +20,16 @@ import {
   FILING_ATTEMPT_CAP,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { offsetStatePath, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  retroDraft,
+  TIMEOUT_QUICK,
+  writeSelfReportConfig as writeConfig,
+} from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/codex/stop.ts');
-
-function writeConfig(directory: string, selfReport: Record<string, boolean>): void {
-  mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-  writeFileSync(
-    nodePath.join(directory, '.safeword', 'config.json'),
-    JSON.stringify({ selfReport }),
-  );
-}
 
 /** A Codex rollout JSONL with `n` function_call tool events. */
 function writeCodexRollout(directory: string, name: string, toolEvents: number): string {
@@ -313,17 +311,10 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
   // Filing gate (GH628F / #628): unfiled spooled drafts turn the stop into the
   // sanctioned dispatch continuation; extraction itself stays invisible (CDX602).
   describe('filing gate (GH628F)', () => {
-    const spooledDraft = (signature: string) => ({
-      signature,
-      title: 'A friction',
-      body: `body\n<!-- safeword-retro-signature: ${signature} -->`,
-      labels: ['self-report', 'retro', 'rough-edge'],
-    });
-
     it('retro-filer-gate.SM1.AC1.dispatches_filer_for_unfiled_drafts', () => {
       writeConfig(dir, { surface: true, file: true });
       const id = freshSession('filing');
-      spoolDrafts(dir, id, [spooledDraft('retro:aaaaaaaaaaaa')]);
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
 
       const result = runHook(dir, { session_id: id, cwd: dir });
 
@@ -337,7 +328,7 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
     it('retro-filer-gate.SM1.AC1.silent_when_selfReport_file_off', () => {
       writeConfig(dir, { surface: true, file: false });
       const id = freshSession('filingoff');
-      spoolDrafts(dir, id, [spooledDraft('retro:aaaaaaaaaaaa')]);
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
 
       const result = runHook(dir, { session_id: id, cwd: dir });
 
@@ -348,7 +339,7 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
     it('retro-filer-gate.SM1.AC2.goes_quiet_after_the_attempt_cap', () => {
       writeConfig(dir, { surface: true, file: true });
       const id = freshSession('filingcap');
-      spoolDrafts(dir, id, [spooledDraft('retro:aaaaaaaaaaaa')]);
+      spoolDrafts(dir, id, [retroDraft('retro:aaaaaaaaaaaa')]);
 
       for (let attempt = 1; attempt <= FILING_ATTEMPT_CAP; attempt++) {
         const out = JSON.parse(runHook(dir, { session_id: id, cwd: dir }).stdout.trim());

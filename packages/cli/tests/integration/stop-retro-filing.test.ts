@@ -9,7 +9,6 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -19,25 +18,16 @@ import {
   FILER_AGENT_NAME,
   FILING_ATTEMPT_CAP,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  retroDraft as draft,
+  TIMEOUT_QUICK,
+  writeSelfReportConfig as writeConfig,
+} from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-retro-filing.ts');
-
-const draft = (signature: string, title: string) => ({
-  signature,
-  title,
-  body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
-
-function writeConfig(directory: string, selfReport: Record<string, boolean>): void {
-  mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-  writeFileSync(
-    nodePath.join(directory, '.safeword', 'config.json'),
-    JSON.stringify({ selfReport }),
-  );
-}
 
 function runHook(directory: string, input: unknown) {
   return spawnSync('bun', [HOOK], {
