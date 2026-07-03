@@ -197,7 +197,10 @@ describe('MBGQ89 blocked_on phase gate (wired, always-on)', () => {
   it('does not block a phase advance that is not leaving intake (grandfather)', () => {
     seedSubject('define-behavior', 'blocked_on: [BLK1]');
     writeBlocker('BLK1', 'in_progress');
-    expectHookAllow(advance('implement', 'blocked_on: [BLK1]'));
+    // scenario-gate, not implement: the phase-provenance gate (0KYEBN) runs
+    // first and denies multi-step jumps — this test's subject is the
+    // blocked_on grandfather, so the advance itself must be legal.
+    expectHookAllow(advance('scenario-gate', 'blocked_on: [BLK1]'));
   });
 
   it('allows a non-phase edit even while a blocker is unmet', () => {
