@@ -35,14 +35,14 @@ detection stops being a union.
 ### Scenario: Setup skips the starter lane when only a root cucumber dependency exists
 
 - [x] RED 0023633
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN fb216b4
+- [x] REFACTOR skip: single guarded branch added, no structural debt
 
 ### Scenario: Setup scaffolds the starter lane when no cucumber exists anywhere
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: no-change guard — pinned by pre-existing setup-bdd-lane.test.ts (102b), which fails if detection over-fires
+- [x] GREEN skip: behavior pre-exists (102b); suite re-verified green alongside scenario-4 GREEN (fb216b4, 23/23)
+- [x] REFACTOR skip: no code changed for this scenario
 
 ## Rule: Safeword never mistakes its own scaffold for a host harness
 
