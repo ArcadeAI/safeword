@@ -636,8 +636,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
     },
-    '.safeword/hooks/lib/cursor-transcript-stash.ts': {
-      template: 'hooks/lib/cursor-transcript-stash.ts',
+    '.safeword/hooks/lib/cursor-state.ts': {
+      template: 'hooks/lib/cursor-state.ts',
     },
     '.safeword/hooks/lib/git-operation.ts': { template: 'hooks/lib/git-operation.ts' },
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },

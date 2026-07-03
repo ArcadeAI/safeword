@@ -14,7 +14,7 @@ import {
   parseRecordSkillInvocationCommand,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
-import { stashCursorTranscript } from '../lib/cursor-transcript-stash.ts';
+import { stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
   type ClaudeGateInput,
