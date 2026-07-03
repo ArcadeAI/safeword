@@ -138,11 +138,11 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   });
 
   it('blocks a Write that advances the phase with no stamp (DEV2.AC1)', () => {
-    expectHookDeny(runGateWrite('implement'), 'define-behavior');
+    expectHookDeny(runGateWrite('scenario-gate'), 'define-behavior');
   });
 
   it('blocks an Edit that advances the phase with no stamp', () => {
-    expectHookDeny(runGateEdit('define-behavior', 'implement'), 'no independent review stamp');
+    expectHookDeny(runGateEdit('define-behavior', 'scenario-gate'), 'no independent review stamp');
   });
 
   it('allows the advance once a phase-exit stamp exists', () => {
@@ -150,18 +150,18 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
       `2026-06-03T00:00:00Z sess review:${reviewScope(TICKET_ID, 'phase', 'define-behavior')}\n`,
     );
-    expectHookAllow(runGateWrite('implement'));
+    expectHookAllow(runGateWrite('scenario-gate'));
   });
 
   it('end to end: write-review-stamp --phase earns a stamp the gate accepts', () => {
-    expectHookDeny(runGateWrite('implement'), 'define-behavior');
+    expectHookDeny(runGateWrite('scenario-gate'), 'define-behavior');
     stampPhase('define-behavior');
-    expectHookAllow(runGateWrite('implement'));
+    expectHookAllow(runGateWrite('scenario-gate'));
   });
 
   it('a skip stamp clears the phase gate', () => {
     stampPhase('define-behavior', 'docs-only', 'phase');
-    expectHookAllow(runGateWrite('implement'));
+    expectHookAllow(runGateWrite('scenario-gate'));
   });
 
   it('allows a ticket.md edit that does not change the phase', () => {
@@ -170,7 +170,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
 
   it('is inert when reviewGate is off (default)', () => {
     writeConfig(false);
-    expectHookAllow(runGateWrite('implement'));
+    expectHookAllow(runGateWrite('scenario-gate'));
   });
 
   describe('cross-model (7A0B2K) — phase-exit review must be a different model', () => {
@@ -178,7 +178,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       writeConfig(true, true);
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
       expectHookDeny(
-        runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
         'cross-model',
       );
     });
@@ -186,14 +186,14 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     it('allows when the phase stamp model differs from the author model', () => {
       writeConfig(true, true);
       stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
-      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 
     it('blocks when the phase stamp records no model (fails closed)', () => {
       writeConfig(true, true);
       stampPhase('define-behavior');
       expectHookDeny(
-        runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
         'cross-model',
       );
     });
@@ -201,34 +201,36 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     it('allows when crossModelReview is OFF even if stamp model equals author', () => {
       writeConfig(true, false);
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 
     it('a logged skip bypasses the cross-model requirement', () => {
       writeConfig(true, true);
       stampPhase('define-behavior', 'docs-only', 'phase');
-      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 
     it('passes when a different-model re-review follows a same-model stamp', () => {
       writeConfig(true, true);
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
       stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
-      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 
     it('passes regardless of stamp order — cross-model first, same-model after', () => {
       writeConfig(true, true);
       stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
-      expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 
     it('blocks via the Edit path too when the stamp model equals the author', () => {
       writeConfig(true, true);
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
       expectHookDeny(
-        runGateEdit('define-behavior', 'implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        runGateEdit('define-behavior', 'scenario-gate', {
+          SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8',
+        }),
         'cross-model',
       );
     });

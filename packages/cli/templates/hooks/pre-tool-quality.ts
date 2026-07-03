@@ -440,11 +440,22 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // ---------------------------------------------------------------------------
 
 if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent ?? '');
-  const verdict = evaluateTicketWrite(priorContent, proposedContent);
-  if (!verdict.ok) {
-    deny(verdict.reason, withOrderingNote(verdict.remediation));
+  // Only judge writes whose proposed content is reconstructable from the
+  // payload (Write content, Edit old/new, MultiEdit edits). Payload shapes
+  // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
+  // gate polices content it can see, matching the sibling gates' posture.
+  const toolInput = input.tool_input;
+  const reconstructable =
+    toolInput?.content !== undefined ||
+    toolInput?.edits !== undefined ||
+    toolInput?.old_string !== undefined;
+  if (reconstructable) {
+    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
+    const proposedContent = nextContentAfterEdit(toolInput, priorContent ?? '');
+    const verdict = evaluateTicketWrite(priorContent, proposedContent);
+    if (!verdict.ok) {
+      deny(verdict.reason, withOrderingNote(verdict.remediation));
+    }
   }
 }
 
