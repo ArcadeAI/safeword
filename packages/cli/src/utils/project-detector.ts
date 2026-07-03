@@ -467,11 +467,59 @@ function isSafewordLaneTemplate(configPath: string): boolean {
   }
 }
 
+// Direct workspace-package radius for harness evidence — the same
+// conventional roots feature-source.ts scans for feature files.
+const WORKSPACE_PACKAGE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
+
+function manifestDependsOnCucumber(manifestPath: string): boolean {
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    return Boolean(
+      manifest.dependencies?.['@cucumber/cucumber'] ??
+      manifest.devDependencies?.['@cucumber/cucumber'],
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** First package under `<cwd>/<root>/*` depending on @cucumber/cucumber, as evidence. */
+function findCucumberDependencyUnderRoot(cwd: string, root: string): string | undefined {
+  let entries;
+  try {
+    entries = readdirSync(nodePath.join(cwd, root), { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const manifestPath = nodePath.join(cwd, root, entry.name, 'package.json');
+    if (manifestDependsOnCucumber(manifestPath)) {
+      return `${root}/${entry.name}/package.json (@cucumber/cucumber)`;
+    }
+  }
+  return undefined;
+}
+
+/** First direct workspace package depending on @cucumber/cucumber, as evidence. */
+function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
+  for (const root of WORKSPACE_PACKAGE_ROOTS) {
+    const evidence = findCucumberDependencyUnderRoot(cwd, root);
+    if (evidence !== undefined) return evidence;
+  }
+  return undefined;
+}
+
 /**
  * Detect a cucumber harness safeword did not scaffold (ticket 56JCFZ).
- * Returns the evidence (config file name) or undefined. Safeword's own
- * scaffolded cucumber.mjs is excluded by exact content match so upgrades
- * never mistake the lane safeword installed for a host harness.
+ * Returns the evidence (config file name or workspace dependency) or
+ * undefined. Safeword's own scaffolded cucumber.mjs is excluded by exact
+ * content match so upgrades never mistake the lane safeword installed for a
+ * host harness; workspace-package deps are always host evidence — safeword
+ * only ever adds the dep at the root.
  */
 function detectCucumberHarness(cwd: string | undefined): string | undefined {
   if (!cwd) return undefined;
@@ -481,7 +529,7 @@ function detectCucumberHarness(cwd: string | undefined): string | undefined {
     if (name === 'cucumber.mjs' && isSafewordLaneTemplate(configPath)) continue;
     return name;
   }
-  return undefined;
+  return detectWorkspaceCucumberDependency(cwd);
 }
 
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
