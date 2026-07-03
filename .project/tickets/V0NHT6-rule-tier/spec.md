@@ -73,6 +73,12 @@ invariant is violated; a numbered rule with no rejection-path scenario is a revi
 > invariant catalog and a rule with no rejection-path scenario surfaces at review instead
 > of hiding in a flat scenario list.
 
+#### rule-tier.TB1.AC1 — A JTBD can declare numbered Rules in place of ACs and still satisfy every gate that requires criteria
+
+#### rule-tier.TB1.AC2 — A numbered Rule with no rejection-path scenario surfaces as an advisory
+
+#### rule-tier.TB1.AC3 — JTBDs and repos that declare no Rules keep today's flat AC lineage unchanged
+
 ### rule-tier.TB2 — Run every example of one invariant
 
 **Persona:** Technical Builder (TB)
@@ -81,6 +87,8 @@ invariant is violated; a numbered rule with no rejection-path scenario is a revi
 > its stable ID (e.g. a cucumber tag expression), so I can verify the invariant directly
 > without running or eyeballing the whole feature suite.
 
+#### rule-tier.TB2.AC1 — Scenarios under a numbered Rule inherit its ID as their single lineage reference, and a tag expression on that ID runs exactly that rule's examples
+
 ### rule-tier.TB3 — Anchor behavior changes to the rule that changed
 
 **Persona:** Technical Builder (TB)
@@ -88,6 +96,8 @@ invariant is violated; a numbered rule with no rejection-path scenario is a revi
 > When reviewed behavior changes, I want the change anchored to the one numbered rule that
 > changed — IDs numbering-locked after review — so status resets and cross-references land
 > on a stable anchor instead of rotting across scattered, renumbered scenarios.
+
+#### rule-tier.TB3.AC1 — `safeword check` reports rule-tier drift as advisories: an uncovered spec Rule, a stale rule reference, and an orphan rule reference
 
 ### rule-tier.TB4 — Migrate an existing rule-numbered corpus onto /bdd
 
@@ -100,6 +110,8 @@ invariant is violated; a numbered rule with no rejection-path scenario is a revi
 (Persona note: migration is done by the developer running the agent in their own repo —
 that is TB by definition; personas.md has no separate adopter archetype, so TB is a
 deliberate choice, not a default.)
+
+#### rule-tier.TB4.AC1 — A corpus of per-JTBD numbered Rule blocks parses, lints, and reports coverage without structural rewriting, with a documented migration mapping for tag spelling
 
 ## Rave Moment
 
@@ -115,37 +127,38 @@ selection working quietly, not a peak moment that travels.
   rejection-path scenarios) without eyeball cross-referencing.
 - Repos that don't opt in see zero change to today's flat AC lineage.
 
+## Decisions (intake, converged 2026-07-03)
+
+- **Coexistence — substitute-per-JTBD** (user-confirmed): a JTBD carries either ACs or
+  numbered Rules, never both; every scenario keeps exactly one lineage tag (an AC ref or an
+  R ref). Rejected: parallel axis (two overlapping coverage models per scenario), nesting
+  under AC (breaks Arcade corpus fidelity, TB4).
+- **Tag scheme — combined tag** `@<jtbd-id>.R<#>`, mirroring the AC tag grammar. Preserves
+  the exactly-one-lineage-tag lint and dots-only IDs; rule-level selection works under
+  cucumber tag expressions either way. Split axes deferred (see Open Questions).
+- **Rule catalog — spec.md is the source of truth:** `#### <jtbd-id>.R<#> — <invariant>`
+  headings under the JTBD (exactly where AC headings sit); the `.feature` `Rule:` block
+  carries the ID as the first token of its name. This powers the drift checks (every rule
+  reference maps back to a spec Rule) with the same walk `parseAcIdsByJtbd` does today.
+- **Opt-in — the grammar is the opt-in:** declaring `R<#>` headings under a JTBD opts that
+  JTBD into rule lineage; no config flag. Per-JTBD granularity falls out of the substitute
+  decision; repos that never write an R heading are untouched.
+- **Rejection-path signal — `@rejection` tag convention:** lint counts a rule's scenarios
+  tagged `@rejection`; zero on a numbered Rule → advisory (never a gate). Then-text
+  heuristics rejected as unreliable.
+- **Intake-exit gate accepts Rules:** ≥1 AC *or* ≥1 numbered Rule (or `skip:`) satisfies a
+  JTBD; lands in the hook-side `jtbd.ts` mirror alongside the CLI.
+- **Enforcement stack:** tier-awareness lands in `gherkin-feature.ts` (lineage lint + ref
+  parser), `scenario-coverage.ts`, and the hook-side mirror together; ZRMDKD's ticket gains
+  a tier-awareness requirement so the future blocking gate cannot deny opted-in features.
+- **Numbering lock (TB3) — v1 ships stable IDs + drift advisories:** a renumbered or
+  deleted rule ID surfaces as stale/orphan advisories on every scenario still referencing
+  it. Hard lock enforcement deferred (see Open Questions).
+
 ## Open Questions
 
-- **AC ↔ Rule coexistence (load-bearing):** parallel axis (scenario carries AC tag +
-  optional rule tag), nested under AC (`.AC1.R1`), or per-JTBD substitute (a JTBD carries
-  either ACs or Rules)? Lean: substitute-per-JTBD — preserves "exactly one lineage
-  reference per scenario" and matches Arcade's job → rule → scenario corpus, which has no
-  AC tier. Nested breaks corpus fidelity (motivation #4).
-- **Tag scheme:** safeword-style combined tag (`@<jtbd-id>.R<#>`) vs Arcade's split axes
-  (`@job:PO1 @rule:PO1.R1 @scenario:<name>`) with slug-less short IDs. Rule-level test
-  selection works under both (tag-expressions reserve only `( ) \` and whitespace, so `:`
-  is legal). The split scheme hides two conflicts: multiple lineage tags per scenario
-  collides with the exactly-one-lineage-tag lint, and a `@scenario:<name>` axis contradicts
-  "names plain English; lineage in tags, not names" — corpus-literal fidelity (TB4's
-  "as-is") therefore means *relaxing* existing lint rules, not just adding a tier.
-- **Enforcement-stack interaction:** under the substitute-per-JTBD lean, a scenario carries
-  no AC tag — which today's `findFeatureLineageIssues` hard-flags ("missing lineage") and
-  `parseAcReferenceFromTag` (AC-only regex) can't read. Tier-awareness must land in the CLI
-  *and* the hook-side mirror (`templates/hooks/lib/`, deployed `.safeword/hooks/`), and
-  ZRMDKD's planned blocking coverage gate must be sequenced with or made aware of the tier,
-  or opted-in features get denied at test-definitions creation.
-- **Numbering-lock mechanism (TB3):** what enforces "numbering-locked after review", and
-  what does "after review" map to in the phase flow — the scenario-gate review stamp
-  (NMSD94), a lint on renumbering an existing rule ID, or convention only? If convention
-  only, TB3's stable-anchor promise and the one-way reversibility claim rest on it —
-  resolve before ACs are written.
-- **Rule catalog declaration:** `#### <jtbd-id>.R<#> — <invariant>` headings in spec.md
-  (mirrors ACs; enables the drift gate "every @rule tag maps to a spec rule") vs the
-  `.feature` `Rule:` blocks as the sole source of truth.
-- **Rejection-path signal:** how lint identifies a rejection-path scenario — a tag
-  convention (e.g. `@negative`) seems necessary; Then-text heuristics are unreliable.
-- **Opt-in mechanism:** `.safeword/config.json` flag vs auto-detection per feature file
-  (presence of `R<#>` IDs in Rule names).
-- **Intake-exit gate:** does the gate accept Rules in place of ACs for opted-in JTBDs
-  (it currently denies `test-definitions.md` until every JTBD has ≥1 AC or a skip)?
+- Split-axis tag compat (`@job:` / `@rule:` / `@scenario:`) — defer: combined tag decided
+  for v1; revisit as a compat flag only if the Arcade corpus migration proves the mechanical
+  tag respelling too costly in practice.
+- Hard numbering-lock enforcement — defer: follow-up anchored to NMSD94's review stamps
+  (deny renumbering a stamped rule ID); v1's stale/orphan advisories cover detection.

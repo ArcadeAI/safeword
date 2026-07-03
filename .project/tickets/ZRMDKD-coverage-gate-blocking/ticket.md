@@ -22,6 +22,8 @@ last_modified: 2026-06-03T04:42:30.504Z
 
 **Out of scope:** the two-tier review stamp mechanism (NMSD94 owns it).
 
+**Dependency (added 2026-07-03):** V0NHT6 (rule-tier) adds a numbered-Rule lineage tier where a JTBD carries `R<n>` rules instead of ACs and scenarios reference `@<jtbd-id>.R<n>`. This gate's hook-side port must treat a rule reference as covering lineage (not an uncovered-AC denial) — sequence after V0NHT6 or port tier-aware coverage from the start.
+
 **Done when:** uncovered-AC / orphan-scenario test-definitions are denied with a clear reason; complete work passes silently; alert-to-action measured before making it permanent; differential test pins the hook port to the CLI original; `templates/hooks/` ↔ `.safeword/hooks/` byte-identical; full suite + parity green.
 
 **Owns:** NMSD94's SM1.AC1 scenarios (`uncovered_ac_blocks`, `orphan_scenario_blocks`, `complete_coverage_silent`).
