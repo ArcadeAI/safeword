@@ -120,53 +120,53 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Advancing one canonical step is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: A forward jump is denied naming every skipped phase
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: The maximal jump names every skipped phase
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: A forward jump with every skipped phase justified is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: A ticket with no phase field counts as intake when a phase is added
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ## Rule: Rework and routine edits stay cheap — the gate never blocks them
 
 ### Scenario: Moving backward for rework is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: An edit that leaves a canonical phase untouched is ignored by the gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: An edit that leaves unparseable frontmatter untouched is ignored by the gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 56a159e
+- [x] REFACTOR skip: the unparseable-proposed early return was untouched by the shared-hatch refactor
 
 ## Rule: Off-sequence phase names cannot smuggle past the gate
 
@@ -178,27 +178,27 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Advancing into an unrecognized phase is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: A ticket already carrying an unrecognized phase advances as if from intake
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: A ticket carrying an unrecognized phase cannot jump forward as if from intake
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13c6582
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ### Scenario: An edit that leaves an unrecognized phase untouched is ignored by the gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: passed vacuously while the edit path was unimplemented; a failing test was not constructible without breaking sibling denies
+- [x] GREEN 85ef4d1
+- [x] REFACTOR 517db68
 
 ## Feature-level cross-scenario refactor
 
