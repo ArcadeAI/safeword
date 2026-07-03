@@ -48,21 +48,21 @@ detection stops being a union.
 
 ### Scenario: Upgrade keeps maintaining the lane safeword installed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: self-exclusion was forced into scenario-1 GREEN to keep the 102b suite green — test passed on first run, added as regression pin
+- [x] GREEN c793521
+- [x] REFACTOR skip: pin test only, no production code changed
 
 ### Scenario: Upgrade recognizes a previous template revision as its own scaffold
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 52761710
+- [x] GREEN 2f4d4417
+- [x] REFACTOR skip: registry is a fresh single-purpose module; nothing to restructure
 
 ### Scenario: Upgrade on a bitten repo maintains safeword's lane without touching the host harness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 45488bf0
+- [x] GREEN 79351a70
+- [x] REFACTOR skip: the evidence/suppression split IS the clean structure; no residue left
 
 ## Rule: Uninstall removes only what safeword owns
 
