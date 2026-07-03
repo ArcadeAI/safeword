@@ -12,6 +12,8 @@ existing gate exemptions).
 | Transition step          | +1 canonical step · > +1 forward (boundary: intake → done, the maximal jump) · backward · into off-enum |
 | Prior phase              | canonical · off-enum or absent (counts as intake for step-counting)                                  |
 | phase_skips hatch        | absent · covers every skipped phase · covers only some (partial) · entry with empty reason           |
+| Type trajectory          | type unchanged · non-feature → feature flip · absent → feature flip (both count as a birth at the current phase, with the hatch honored both ways) |
+| Frontmatter parseability | parses · unparseable/missing on creation (fail closed, #119) · at-rest tolerance on edits            |
 
 Boundary notes:
 
