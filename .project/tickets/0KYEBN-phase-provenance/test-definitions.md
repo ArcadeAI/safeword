@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Born one phase past intake is denied
 
-- [ ] RED
+- [x] RED 13c6582
 - [ ] GREEN
 - [ ] REFACTOR
 
