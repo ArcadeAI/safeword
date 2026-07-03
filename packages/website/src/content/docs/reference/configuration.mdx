@@ -109,6 +109,13 @@ Both tools coexist cleanly — ESLint handles code analysis (bugs, security, com
 | jiti (devDep)     | jiti (devDep)     |
 | _(no Prettier)_   | Prettier (devDep) |
 
+## SQL Formatting
+
+Safeword lints SQL with SQLFluff, but the host's chosen formatter formats:
+
+- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers: setup skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config instead of SQLFluff — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored.
+- **Otherwise**, the edit-time hook runs `sqlfluff lint` and reports violations to the agent. In-place rewriting is opt-in — set `"sql": { "fix": true }` in `.safeword/config.json` to have the hook run `sqlfluff fix` on edited files. SQLFluff honors `.sqlfluffignore`, so you can exclude files (e.g. applied migrations) from rewriting.
+
 ## Hook Configuration
 
 Hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.json` (Cursor), and `.codex/config.toml` (Codex). See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.

@@ -8,7 +8,7 @@
  * - Projects without SQL markers don't get SQL pack
  */
 
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -186,6 +186,64 @@ describe('E2E: dbt Golden Path', () => {
 
       const config = readTestFile(temporaryDirectory, '.safeword/sqlfluff.cfg');
       expect(config).toContain('capitalisation_policy');
+    });
+  });
+
+  // =========================================================================
+  // Suite 2b: Host-owned SQL formatting deference (#636/#638)
+  // =========================================================================
+
+  describe('Suite 2b: Host-owned SQL formatting', () => {
+    it('2b.1: generates no sqlfluff configs when prettier-plugin-sql is a declared devDependency', async () => {
+      createDbtProject(temporaryDirectory);
+      createSafewordBasePackageJson(temporaryDirectory, {
+        name: 'test-dbt-project',
+        private: true,
+        devDependencies: { 'prettier-plugin-sql': '^0.20.0' },
+      });
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup'], { cwd: temporaryDirectory });
+
+      expect(fileExists(temporaryDirectory, '.sqlfluff')).toBe(false);
+      expect(fileExists(temporaryDirectory, '.safeword/sqlfluff.cfg')).toBe(false);
+    });
+
+    it('2b.2: generates no sqlfluff configs when prettier-plugin-sql is a declared dependency', async () => {
+      createDbtProject(temporaryDirectory);
+      createSafewordBasePackageJson(temporaryDirectory, {
+        name: 'test-dbt-project',
+        private: true,
+        dependencies: { 'prettier-plugin-sql': '^0.20.0' },
+      });
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup'], { cwd: temporaryDirectory });
+
+      expect(fileExists(temporaryDirectory, '.sqlfluff')).toBe(false);
+      expect(fileExists(temporaryDirectory, '.safeword/sqlfluff.cfg')).toBe(false);
+    });
+
+    it('2b.3: upgrade does not resurrect sqlfluff configs after the host adopts prettier-plugin-sql', async () => {
+      createDbtProject(temporaryDirectory);
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup'], { cwd: temporaryDirectory });
+      expect(fileExists(temporaryDirectory, '.sqlfluff')).toBe(true);
+
+      // Host adopts prettier-plugin-sql and removes the generated configs
+      createSafewordBasePackageJson(temporaryDirectory, {
+        name: 'test-dbt-project',
+        private: true,
+        devDependencies: { 'prettier-plugin-sql': '^0.20.0' },
+      });
+      rmSync(nodePath.join(temporaryDirectory, '.sqlfluff'));
+      rmSync(nodePath.join(temporaryDirectory, '.safeword', 'sqlfluff.cfg'));
+
+      await runCli(['upgrade'], { cwd: temporaryDirectory });
+
+      expect(fileExists(temporaryDirectory, '.sqlfluff')).toBe(false);
+      expect(fileExists(temporaryDirectory, '.safeword/sqlfluff.cfg')).toBe(false);
     });
   });
 

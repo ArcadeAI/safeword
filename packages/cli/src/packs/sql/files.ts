@@ -5,8 +5,23 @@
  * Imported by schema.ts and spread into SAFEWORD_SCHEMA.
  */
 
-import type { FileDefinition, ManagedFileDefinition } from '../types.js';
+import type { FileDefinition, ManagedFileDefinition, ProjectContext } from '../types.js';
 import { detectSqlDialect } from './dialect.js';
+
+/**
+ * Whether the host repo already owns SQL formatting via prettier-plugin-sql
+ * declared in its root package.json (#636/#638). Setup then generates no
+ * sqlfluff configs — safeword defers to the host's formatter, the same way it
+ * defers to Biome/dprint for JS/TS. Declared deps only: a transitive copy in
+ * node_modules is not ownership. Hook-side twin: hostFormatsSqlWithPrettier in
+ * templates/hooks/lib/lint-config.ts (kept in sync by hand — src can't import
+ * templates).
+ */
+function hostOwnsSqlFormatting(ctx: ProjectContext): boolean {
+  return (
+    'prettier-plugin-sql' in ctx.developmentDeps || 'prettier-plugin-sql' in ctx.productionDeps
+  );
+}
 
 // ============================================================================
 // SQLFluff Configuration
@@ -87,7 +102,7 @@ ${SQLFLUFF_STRICT_RULES}
 export const sqlOwnedFiles: Record<string, FileDefinition> = {
   '.safeword/sqlfluff.cfg': {
     generator: ctx =>
-      ctx.languages?.sql
+      ctx.languages?.sql && !hostOwnsSqlFormatting(ctx)
         ? generateSqlfluffBaseConfig(
             ctx.projectType.existingSqlfluffConfig,
             detectSqlDialect(ctx.cwd) ?? 'ansi',
@@ -122,7 +137,7 @@ apply_dbt_builtins = True
 export const sqlManagedFiles: Record<string, ManagedFileDefinition> = {
   '.sqlfluff': {
     generator: ctx =>
-      ctx.languages?.sql && !ctx.projectType.existingSqlfluffConfig
+      ctx.languages?.sql && !ctx.projectType.existingSqlfluffConfig && !hostOwnsSqlFormatting(ctx)
         ? generateProjectSqlfluffConfig(detectSqlDialect(ctx.cwd) ?? 'ansi')
         : undefined,
   },

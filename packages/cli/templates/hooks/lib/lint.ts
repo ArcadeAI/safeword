@@ -11,7 +11,11 @@ import nodePath from 'node:path';
 
 import { $ } from 'bun';
 
-import { projectOwnsAlternativeFormatter } from './lint-config.js';
+import {
+  hostFormatsSqlWithPrettier,
+  projectOwnsAlternativeFormatter,
+  sqlFixOptedIn,
+} from './lint-config.js';
 
 // File extensions for different linting strategies
 const JS_EXTENSIONS = new Set([
@@ -380,23 +384,48 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     return { warnings };
   }
 
-  // SQL files - sqlfluff (only for SQL-focused projects)
+  // SQL files - host prettier when the host owns SQL formatting, else sqlfluff
+  // (only for SQL-focused projects).
   // Only warn about missing sqlfluff if the sql pack is installed,
   // since .sql files exist in many non-SQL-focused contexts.
   if (SQL_EXTENSIONS.has(extension)) {
+    // Host formats SQL via prettier-plugin-sql (#636/#638): run the HOST's
+    // prettier — no --config override, so the host config (which declares the
+    // plugin) and its .prettierignore carve-outs (frozen DDL migrations) apply.
+    // Prettier's ignore resolution is cwd-relative; hooks run with cwd =
+    // project root, which is what makes those carve-outs hold. On failure
+    // (e.g. plugin in node_modules but undeclared in config → "No parser could
+    // be inferred", exit 2) fall through to sqlfluff rather than leave SQL
+    // ungated.
+    if (hostFormatsSqlWithPrettier(projectDir)) {
+      const result = await $`bunx prettier --write ${file}`.nothrow().quiet();
+      if (result.exitCode === 0) return { warnings };
+    }
     const hasSqlfluff = await ensurePackInstalled('sql', SAFEWORD_SQLFLUFF);
     if (hasSqlfluff) {
       if (
         !(await checkToolAvailable(
           'sqlfluff',
           'SQL/dbt',
-          getPythonInstallHint(file, 'sqlfluff'),
+          getPythonInstallHint(file, "'sqlfluff>=4.2.0'"),
           warnings,
         ))
       ) {
         return { warnings };
       }
-      await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${file}`.nothrow().quiet();
+      // Lint-and-report by default, like the ESLint/ruff branches; in-place
+      // rewriting (`sqlfluff fix`) mutates the file beyond the agent's
+      // intended edit, so it's opt-in via `sql.fix` (#638). Opted-in hosts
+      // carve out frozen files with .sqlfluffignore, which sqlfluff honors
+      // even for explicitly passed paths.
+      if (sqlFixOptedIn(projectDir)) {
+        await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${file}`.nothrow().quiet();
+      }
+      const errors = await captureRemainingErrors(
+        ['sqlfluff', 'lint', '--config', SAFEWORD_SQLFLUFF, file],
+        warnings,
+      );
+      return { warnings, ...(errors && { errors }) };
     }
     return { warnings };
   }

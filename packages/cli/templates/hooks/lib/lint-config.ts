@@ -8,7 +8,8 @@
 // a new extension is a one-line add — the drift this replaces was an
 // *incomplete* list (`.ts`/`.yaml` were missing), not enumeration itself.
 
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 const ESLINT_FLAT_EXTENSIONS = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'];
 const ESLINT_RC_EXTENSIONS = ['js', 'cjs', 'yaml', 'yml', 'json'];
@@ -98,4 +99,33 @@ export function projectOwnsAlternativeFormatter(projectDirectory: string): boole
  */
 export function shouldWarnMissingPrettier(entries: readonly string[]): boolean {
   return !detectAlternativeFormatter(entries) && !detectPrettierConfig(entries);
+}
+
+/**
+ * Whether the host repo formats SQL itself via prettier-plugin-sql (#638). The
+ * SQL branch then runs the HOST's prettier — whose config declares the plugin
+ * and whose .prettierignore carve-outs (e.g. frozen DDL migrations, #636) apply
+ * — instead of sqlfluff. node_modules presence is the signal, mirroring the
+ * prettier-plugin-sh check in lint.ts; the setup-side twin in packs/sql/files.ts
+ * checks declared deps instead (kept in sync by hand — templates can't be
+ * imported from src).
+ */
+export function hostFormatsSqlWithPrettier(projectDirectory: string): boolean {
+  return existsSync(nodePath.join(projectDirectory, 'node_modules', 'prettier-plugin-sql'));
+}
+
+/**
+ * Whether edit-time `sqlfluff fix` is enabled (`.safeword/config.json` →
+ * `sql.fix`). Off by default (#638): the hook lints and reports like the other
+ * language branches; rewriting the file beyond the agent's intended edit is
+ * opt-in. Missing/malformed config reads as "off".
+ */
+export function sqlFixOptedIn(projectDirectory: string): boolean {
+  try {
+    const raw = readFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), 'utf8');
+    const parsed = JSON.parse(raw) as { sql?: { fix?: unknown } };
+    return parsed.sql?.fix === true;
+  } catch {
+    return false;
+  }
 }
