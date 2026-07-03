@@ -13,6 +13,7 @@ lineage machinery (`gherkin-feature.ts`, `scenario-coverage.ts`, `jtbd.ts`).
 | Name-token ↔ tag correspondence        | name first-token matches block tag · mismatch · unnumbered name with no R tag (legacy, exempt)                                                                          |
 | Intake-exit gate outcome               | R-only JTBD passes · neither-kind JTBD denied with message naming Rules                                                                                                  |
 | Backward compatibility                 | repo with zero R headings/tags — check output byte-identical, existing fixtures untouched                                                                                |
+| Message contract (NTB)                 | each new issue/advisory: names the id · plain-language problem · concrete next action                                                                                    |
 
 Boundary notes: 1-indexed `R<n>` per JTBD (R1 boundary); AC-wins precedence is the
 grammar-overlap boundary; unnumbered `Rule:` blocks are the exempt class throughout.

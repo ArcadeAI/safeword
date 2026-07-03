@@ -43,6 +43,10 @@ Upstream tracker issue: ArcadeAI/safeword#649.
 **Technical Builder (TB)** — authors specs and scenarios through `/bdd` in their own repo,
 reviews the invariant catalog, and selects tests by rule when an invariant changes.
 
+**Non-Technical Builder (NTB)** — can't audit diffs; reviews behavior through the
+plain-language invariant catalog the agent presents, and acts on safeword's rule warnings
+only when they say what's wrong and what to do next without internal jargon.
+
 ## Surfaces
 
 Affected:
@@ -100,6 +104,17 @@ invariant is violated; a numbered rule with no rejection-path scenario is a revi
 > on a stable anchor instead of rotting across scattered, renumbered scenarios.
 
 #### rule-tier.TB3.AC1 — `safeword check` reports rule-tier drift as advisories: an uncovered spec Rule, a stale rule reference, and an orphan rule reference
+
+### rule-tier.NTB1 — Act on a rule warning without reading code
+
+**Persona:** Non-Technical Builder (NTB)
+
+> When safeword flags a rule problem (a missing rejection example, a job mixing criteria
+> kinds, a drifted reference), I want the message to name the rule and state the problem
+> and the next action in plain business language, so I can direct my agent to fix it
+> without decoding internal jargon.
+
+#### rule-tier.NTB1.AC1 — Every new rule-tier issue and advisory names the offending id, states the problem in plain language, and carries a concrete next action
 
 ### rule-tier.TB4 — Migrate an existing rule-numbered corpus onto /bdd
 
