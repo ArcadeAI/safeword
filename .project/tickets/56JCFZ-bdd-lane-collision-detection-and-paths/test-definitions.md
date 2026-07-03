@@ -22,9 +22,9 @@ detection stops being a union.
 
 ### Scenario: Setup skips the starter lane when a workspace package depends on cucumber
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7f24ae3
+- [x] GREEN c764480
+- [x] REFACTOR skip: helper extraction already done at GREEN under the lint gate (findCucumberDependencyUnderRoot)
 
 ### Scenario: Setup skips the starter lane when a customer-authored cucumber.mjs exists
 

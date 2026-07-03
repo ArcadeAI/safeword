@@ -36,6 +36,38 @@ function readPackageJson(directory: string): PackageJsonShape {
   return JSON.parse(readTestFile(directory, 'package.json')) as PackageJsonShape;
 }
 
+describe('setup skips the starter lane when a customer-authored cucumber.mjs exists (TB1.AC1)', () => {
+  let directory: string;
+  const CUSTOMER_CONFIG = 'export default { paths: ["acceptance/**/*.feature"] };\n';
+
+  beforeAll(async () => {
+    directory = createTemporaryDirectory();
+    createTypeScriptPackageJson(directory);
+    writeTestFile(directory, 'cucumber.mjs', CUSTOMER_CONFIG);
+    await setupOrThrow(directory);
+  }, TIMEOUT_BUN_INSTALL);
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.custom_cucumber_mjs_suppresses_lane_files', () => {
+    for (const file of LANE_FILES) {
+      if (file === 'cucumber.mjs') continue; // exists — it's the customer's own config
+      expect(fileExists(directory, file), `${file} should not exist`).toBe(false);
+    }
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.customer_cucumber_mjs_content_is_unchanged', () => {
+    expect(readTestFile(directory, 'cucumber.mjs')).toBe(CUSTOMER_CONFIG);
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.custom_cucumber_mjs_no_cucumber_dep_added', () => {
+    const packageJson = readPackageJson(directory);
+    expect(packageJson.devDependencies?.['@cucumber/cucumber']).toBeUndefined();
+  });
+});
+
 describe('setup skips the starter lane when a workspace package depends on cucumber (TB1.AC1)', () => {
   let directory: string;
   let output: string;
