@@ -246,6 +246,60 @@ describe('findGherkinLintIssues', () => {
   });
 });
 
+describe('findGherkinLintIssues (rule tier — name-token/tag correspondence)', () => {
+  function ruleFeature(tagLine: string, ruleName: string): string {
+    return [
+      'Feature: Demo',
+      '',
+      ...(tagLine === '' ? [] : [`  ${tagLine}`]),
+      `  Rule: ${ruleName}`,
+      '',
+      '    Scenario: example',
+      '      Given a',
+      '      When b',
+      '      Then c',
+      '',
+    ].join('\n');
+  }
+
+  it('rule-tier.TB2.AC1.rule_tag_matching_name_token_passes', () => {
+    const issues = findGherkinLintIssues(
+      ruleFeature('@demo.DEV1.R1', 'demo.DEV1.R1 — retries use exponential backoff'),
+      { filePath: 'features/demo.feature' },
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('rule-tier.TB2.AC1.rule_tag_disagreeing_with_name_token_flagged', () => {
+    const issues = findGherkinLintIssues(
+      ruleFeature('@demo.DEV1.R1', 'demo.DEV1.R2 — renamed without retagging'),
+      { filePath: 'features/demo.feature' },
+    );
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        line: 4,
+        message:
+          'Rule "demo.DEV1.R2 — renamed without retagging" is tagged @demo.DEV1.R1 but its name starts with a different id; make the name\'s first token match the tag.',
+        rule: 'rule-name-tag-mismatch',
+      }),
+    );
+  });
+
+  it('rule-tier.TB2.AC1.rule_tag_with_plain_name_flagged', () => {
+    const issues = findGherkinLintIssues(ruleFeature('@demo.DEV1.R1', 'plain grouping words'), {
+      filePath: 'features/demo.feature',
+    });
+    expect(issues).toContainEqual(expect.objectContaining({ rule: 'rule-name-tag-mismatch' }));
+  });
+
+  it('rule-tier.TB2.AC1.unnumbered_rule_block_exempt_from_mismatch', () => {
+    const issues = findGherkinLintIssues(ruleFeature('', 'plain grouping words'), {
+      filePath: 'features/demo.feature',
+    });
+    expect(issues).toEqual([]);
+  });
+});
+
 describe('findFeatureLineageIssues', () => {
   it('gherkin-linting.DEV1.AC2.accepts_one_effective_ac_tag_after_inheritance', () => {
     const issues = findFeatureLineageIssues(
