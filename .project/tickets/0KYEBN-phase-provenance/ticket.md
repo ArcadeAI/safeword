@@ -1,0 +1,55 @@
+---
+id: 0KYEBN
+slug: phase-provenance
+type: feature
+phase: scenario-gate
+status: in_progress
+external_issue: https://github.com/ArcadeAI/safeword/issues/644
+scope: |
+  Phase-provenance gate (#644 G2) in pre-tool-quality.ts's ticket.md section,
+  ordered before the #404 readiness gate, with pure logic in a new
+  lib/phase-provenance.ts. Fires only on writes that create a feature
+  ticket.md or change its phase; denies when (a) a created feature ticket
+  starts past intake, (b) an edit advances phase more than one canonical step
+  (intake → define-behavior → scenario-gate → implement → verify → done), or
+  (c) the target phase is off the canonical enum — unless every skipped phase
+  carries a phase_skips frontmatter entry "<phase>: <reason>" with a non-empty
+  reason (house skip: semantics). Unknown/absent prior phase counts as intake
+  for step-counting (legacy migration path). Backward moves always allowed.
+  Unit tests for the pure logic + gate-level tests per existing conventions.
+out_of_scope: |
+  - #644 G1 (artifact precedence/review demands) and G4 (impl-plan timing) —
+    next ticket, paired per the agreed ordering
+  - #644 G3 (Bash-channel bypass of write-time gates), G5/G6 (commit/push
+    reconciliation) — later tickets
+  - Normalizing existing off-enum tickets (research, backlog, shape, …) —
+    gate is transition-scoped, never validates tickets at rest
+  - CLI `ticket new` changes (already births features at intake)
+  - Codex/Cursor adapter changes (they spawn the Claude gate as source of truth)
+done_when: |
+  - Creating a feature ticket.md at a phase past intake without per-phase
+    skips is denied at write time with plain-language remediation
+  - Editing a feature ticket.md to jump forward past an intermediate phase
+    without matching phase_skips entries is denied, naming the skipped phases
+  - Off-enum target phases are denied for feature creations/phase-changes;
+    tickets at rest and backward moves are untouched
+  - Task/patch/epic ticket writes never trip the gate
+  - Full test suite green
+created: 2026-07-03T15:17:49.077Z
+last_modified: 2026-07-03T15:17:49.077Z
+---
+
+# Phase provenance: feature tickets must be born at intake and advance one phase at a time
+
+**Goal:** Make ticket phase state trustworthy — feature tickets are born at intake and advance one canonical phase at a time, with any deliberate skip explicit, per-phase, and permanently visible (#644 G2).
+
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Work Log
+
+- 2026-07-03T15:17:49.077Z Started: Created ticket 0KYEBN
+- 2026-07-03T15:25:00Z Found: G2 gap confirmed in code — #404 readiness gate (pre-tool-quality.ts:437) only fires on phase *changes into* define-behavior; creation at a later phase and forward jumps never trip it. Cursor/Codex adapters spawn the Claude hook as source of truth, so one gate covers all three harnesses.
+- 2026-07-03T15:25:00Z Found: phase census — ~15 live/completed tickets carry off-enum phases (research, backlog, shape, understand, todo, clarify, tdd, planning); enum validation must be transition-scoped, never at-rest.
+- 2026-07-03T15:50:00Z Complete: define-behavior - 15 scenarios defined across 5 rules (one rule per AC; saved to features/phase-provenance.feature + R/G/R ledger). User accepted the set and directed /quality-review to run after the adversarial pass, before impl-plan.
+- 2026-07-03T15:40:00Z Complete: intake - Understanding converged, scope established. All three sub-phase gates user-confirmed (JTBD ✓, AC ✓, scope re-presented after /figure-it-out on the boundary and confirmed as G2-minimal). /self-review run on spec.md — passed, no edits, stamp written. Cold-start check not offered (recorded Reversibility: two-way door).
+- 2026-07-03T15:30:00Z Decision (/figure-it-out): escape hatch is a per-phase `phase_skips:` frontmatter list ("<phase>: <reason>", non-empty reason, one entry per skipped phase). Rejected: single blanket skip field (suppression-without-justification debt; skipping 3 gates would cost same as 1), no-hatch (drives legitimate retro-ticketing to Bash bypass). Unknown prior phase counts as intake for step-counting (legacy migration path). Gate ordered before #404 so denials compose. Premortem: boilerplate-pasted skips re-normalize bypass — mitigated by per-phase reasons, permanent visibility, and later G5/G6 commit-time reconciliation.
