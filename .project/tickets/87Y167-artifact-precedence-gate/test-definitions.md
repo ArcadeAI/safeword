@@ -18,6 +18,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: spec.md created late on a ticket already past intake is allowed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: dimensions.md created before spec.md exists is denied
 
 - [ ] RED
@@ -117,6 +123,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] REFACTOR
 
 ### Scenario: Scenario authoring at phase scenario-gate demands the spec review the same way
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Scenario authoring at phase scenario-gate with a current stamp is allowed
 
 - [ ] RED
 - [ ] GREEN

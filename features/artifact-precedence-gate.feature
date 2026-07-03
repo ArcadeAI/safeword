@@ -27,6 +27,12 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       Then the write is allowed
 
     @artifact-precedence-gate.NTB1.AC1
+    Scenario: spec.md created late on a ticket already past intake is allowed
+      Given a feature ticket.md at phase implement
+      When a spec.md is written in that ticket folder
+      Then the write is allowed
+
+    @artifact-precedence-gate.NTB1.AC1
     Scenario: dimensions.md created before spec.md exists is denied
       Given a feature ticket.md at phase define-behavior and no spec.md
       When a dimensions.md is written in that ticket folder
@@ -161,6 +167,13 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       When a test-definitions.md is written in that ticket folder
       Then the write is denied
       And the denial explains that spec.md must be reviewed at its current content before scenarios
+
+    @artifact-precedence-gate.NTB1.AC2
+    Scenario: Scenario authoring at phase scenario-gate with a current stamp is allowed
+      Given a feature ticket.md at phase scenario-gate with a complete spec.md and dimensions.md
+      And a review stamp exists for the ticket's spec.md at its current content
+      When a test-definitions.md is written in that ticket folder
+      Then the write is allowed
 
     @artifact-precedence-gate.NTB1.AC2
     Scenario: Task tickets author test definitions without a spec review stamp
