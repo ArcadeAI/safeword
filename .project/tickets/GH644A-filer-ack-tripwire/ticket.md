@@ -49,3 +49,12 @@ draining inline, proving the ack is forgeable by ordinary cooperative drift.
 
 **GitHub:** [#644](https://github.com/ArcadeAI/safeword/issues/644) (G7);
 decision recorded there and in the figure-it-out pass of 2026-07-03.
+
+- 2026-07-03 (implement, pre-code): /quality-review fresh-context pass on the
+  plan caught a real contradiction before RED — adapters gated the decide call
+  on selfReport.file, making the capture-not-file tripwire scenario vacuously
+  green at the unit seam and dead in production. Resolution: gate reads config
+  itself (capture→tripwire, file→dispatch); adapters shed their guards.
+  DraftPoster widens to return the issue ref; captureBareDrain defaulted;
+  tripwire ordering pinned before the empty-spool early return. impl-plan
+  updated (5bb5357→ this commit).
