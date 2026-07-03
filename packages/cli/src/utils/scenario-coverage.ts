@@ -17,7 +17,11 @@
  * No I/O — callers pass file content; check.ts owns ticket discovery.
  */
 
-import { parseFeatureAcReferences, parseFeatureScenarios } from './gherkin-feature.js';
+import {
+  parseFeatureAcReferences,
+  parseFeatureRuleReferences,
+  parseFeatureScenarios,
+} from './gherkin-feature.js';
 import { computeSkipMask, parseHeading } from './markdown-sections.js';
 
 const JTBD_HEADING = 'jobs to be done';
@@ -177,7 +181,12 @@ export function buildCoverageReportFromFeature(
 ): CoverageReport {
   return buildCoverageReportFromReferences(
     specContent,
-    featureContent === undefined ? undefined : parseFeatureAcReferences(featureContent),
+    featureContent === undefined
+      ? undefined
+      : [
+          ...parseFeatureAcReferences(featureContent),
+          ...parseFeatureRuleReferences(featureContent),
+        ],
   );
 }
 
@@ -341,11 +350,13 @@ function buildCoverageReportFromReferences(
   specContent: string,
   scenarioReferences?: readonly string[],
 ): CoverageReport {
-  const byJtbd = parseAcIdsByJtbd(specContent);
-  const knownAcIds = new Set<string>();
-  for (const acIds of byJtbd.values()) for (const id of acIds) knownAcIds.add(id);
+  const byJtbd = parseCriteriaIdsByJtbd(specContent);
+  const knownIds = new Set<string>();
+  for (const criteria of byJtbd.values()) {
+    for (const id of [...criteria.acIds, ...criteria.ruleIds]) knownIds.add(id);
+  }
 
-  if (knownAcIds.size === 0) return { ...EMPTY_REPORT };
+  if (knownIds.size === 0) return { ...EMPTY_REPORT };
   if (scenarioReferences === undefined) return { ...EMPTY_REPORT };
 
   const knownJtbds = new Set(byJtbd.keys());
@@ -354,7 +365,7 @@ function buildCoverageReportFromReferences(
   const orphan = new Set<string>();
 
   for (const reference of scenarioReferences) {
-    if (knownAcIds.has(reference)) {
+    if (knownIds.has(reference)) {
       covered.add(reference);
     } else if (knownJtbds.has(jtbdPart(reference))) {
       stale.add(reference);
@@ -364,7 +375,7 @@ function buildCoverageReportFromReferences(
   }
 
   return {
-    uncovered: [...knownAcIds].filter(id => !covered.has(id)),
+    uncovered: [...knownIds].filter(id => !covered.has(id)),
     stale: [...stale],
     orphan: [...orphan],
   };
@@ -377,9 +388,9 @@ function appendCriterion(byJtbd: Map<string, JtbdCriteria>, jtbd: string, id: st
   byJtbd.set(jtbd, criteria);
 }
 
-/** Strip the trailing `.AC<#>` segment to recover the JTBD id of a reference. */
+/** Strip the trailing `.AC<#>` or `.R<#>` segment to recover the JTBD id of a reference. */
 function jtbdPart(reference: string): string {
-  return reference.replace(/\.AC\d+$/, '');
+  return reference.replace(/\.(?:AC|R)\d+$/, '');
 }
 
 /**
