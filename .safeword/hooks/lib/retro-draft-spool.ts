@@ -107,8 +107,40 @@ export function markDraftsFiled(
   }
 }
 
-/** Posts one spooled draft to a tracker (the agent's GitHub MCP, or a REST client). */
-export type DraftPoster = (draft: SpooledDraft) => Promise<void>;
+/** One filed-draft ack: the signature and the tracker issue it landed on (GH644A). */
+export interface FiledAck {
+  signature: string;
+  issue: number | string;
+}
+
+/** Ack file beside the spool: `<session>.acks.jsonl`, one FiledAck per line. */
+export function ackFilePath(projectDirectory: string, sessionId: string): string {
+  return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.acks.jsonl');
+}
+
+/** A parsed ack line is valid only with a string signature (shape-only; fail-open). */
+function toAck(value: unknown): FiledAck | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { signature, issue } = value as Record<string, unknown>;
+  if (typeof signature !== 'string' || signature.length === 0) return undefined;
+  if (typeof issue !== 'number' && typeof issue !== 'string') return undefined;
+  return { signature, issue };
+}
+
+/**
+ * Read the session's filed-draft acks, `[]` when absent/unreadable/torn. The
+ * gate's tripwire (lib/retro-filing-gate.ts) treats these as the ONLY proof
+ * that a removed draft was filed — shape-only validation, no network.
+ */
+export function readAcks(projectDirectory: string, sessionId: string): FiledAck[] {
+  return readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+}
+
+/**
+ * Posts one spooled draft to a tracker (the agent's GitHub MCP, or a REST
+ * client) and returns the issue the draft landed on, so the ack can name it.
+ */
+export type DraftPoster = (draft: SpooledDraft) => Promise<{ issue: number | string }>;
 
 /**
  * The agent filing seam (PATH B), as an EXECUTABLE REFERENCE-SPEC. In production the
@@ -132,7 +164,15 @@ export async function fileSpooledDrafts(
   let failed = 0;
   for (const draft of readSpooledDrafts(projectDirectory, sessionId)) {
     try {
-      await post(draft);
+      const { issue } = await post(draft);
+      // Ack IMMEDIATELY after the post, before any drain (GH644A): a crash
+      // between post and drain must read as "posted but undrained", never as a
+      // bare drain. Uncapped by design — the filer appends, the gate reads.
+      appendJsonlRecords(
+        ackFilePath(projectDirectory, sessionId),
+        [JSON.stringify({ signature: draft.signature, issue })],
+        Number.POSITIVE_INFINITY,
+      );
       filed.push(draft.signature);
     } catch {
       failed += 1;

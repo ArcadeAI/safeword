@@ -12,6 +12,7 @@ import { architectureDocumentNudgeForProject } from '../lib/architecture-documen
 import { cursorEditedMarkerPath } from '../lib/cursor-state.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
+import { decideRetroFilingGate } from '../lib/retro-filing-gate.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
@@ -37,13 +38,25 @@ interface StopOutput {
 }
 
 /**
- * Emit the retro nudge as a followup_message when this session is substantial and
- * not yet nudged, else `{}`. Only called on stops where the quality-review
+ * Emit the retro FILING dispatch (#628/GH628F) or the retro-available nudge as a
+ * followup_message, else `{}`. Only called on stops where the quality-review
  * followup is NOT firing, so retro never clobbers it and the once-per-session
- * sentinel is left untouched when quality-review wins the stop.
+ * sentinel is left untouched when quality-review wins the stop. Filing outranks
+ * the retro-available nudge: draining already-extracted findings before the
+ * ephemeral container dies beats starting a new extraction, and one
+ * followup_message per stop is a hard Cursor constraint.
  */
 function emitRetroOrEmpty(input: CursorInput): void {
-  if (!readSelfReportConfig(process.cwd()).surface) {
+  const config = readSelfReportConfig(process.cwd());
+  // The gate reads selfReport config itself (GH644A): capture gates the
+  // tripwire, file gates the dispatch — evaluate unconditionally.
+  const sessionId = resolveCursorSessionId({ conversation_id: input.conversation_id }, process.env);
+  const dispatch = sessionId ? decideRetroFilingGate(process.cwd(), sessionId) : undefined;
+  if (dispatch) {
+    console.log(JSON.stringify({ followup_message: dispatch } satisfies StopOutput));
+    return;
+  }
+  if (!config.surface) {
     console.log('{}');
     return;
   }

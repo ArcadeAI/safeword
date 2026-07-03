@@ -1025,3 +1025,42 @@ export function expectHookDeny(result: HookResult, reasonShouldContain: string):
   expect(parsed.hookSpecificOutput.permissionDecision).toBe('deny');
   expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(reasonShouldContain);
 }
+
+// ---------------------------------------------------------------------------
+// Retro draft-spool fixtures (shared by the retro spool/nudge/filing-gate unit
+// suites and the stop-hook integration suites — ticket GH628F cross-scenario
+// refactor; previously copy-pasted in eight files).
+// ---------------------------------------------------------------------------
+
+/**
+ * A canonical post-egress retro draft, keyed by signature. The body carries the
+ * `safeword-retro-signature` marker that dedup and drain semantics key on.
+ */
+export function retroDraft(
+  signature: string,
+  title = 'A friction',
+): { signature: string; title: string; body: string; labels: string[] } {
+  return {
+    signature,
+    title,
+    body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
+    labels: ['self-report', 'retro', 'rough-edge'],
+  };
+}
+
+/** Append one shape-valid ack line to a session's retro ack file (GH644A fixtures). */
+export function appendRetroAck(
+  dir: string,
+  sessionId: string,
+  signature: string,
+  issue: number,
+): void {
+  const file = nodePath.join(dir, '.safeword', 'retro-drafts', `${sessionId}.acks.jsonl`);
+  mkdirSync(nodePath.dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify({ signature, issue })}\n`, { flag: 'a' });
+}
+
+/** Write `.safeword/config.json` with a `selfReport` block (stop-hook fixtures). */
+export function writeSelfReportConfig(dir: string, selfReport: Record<string, boolean>): void {
+  writeTestFile(dir, '.safeword/config.json', JSON.stringify({ selfReport }));
+}

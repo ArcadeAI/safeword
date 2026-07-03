@@ -25,6 +25,10 @@ export default {
   '*.{vue,svelte,astro}': ['eslint --fix', 'prettier --write'],
   '*.{json,css,scss,html,yaml,yml,graphql}': ['prettier --write'],
   '*.md': ['markdownlint-cli2 --fix', 'prettier --write'],
+  // prettier only — markdownlint false-positives on MDX's JSX/imports. Mirrors
+  // CI's `prettier --check .`, which does cover .mdx (the gap that let an
+  // unformatted .mdx commit pass the hook and fail CI on PR #692).
+  '*.mdx': ['prettier --write'],
   '*.sh': ['shellcheck'],
   '*.feature': ['bun packages/cli/src/cli.ts lint-gherkin'],
 };

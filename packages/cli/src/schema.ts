@@ -239,6 +239,22 @@ timeout = 600
 statusMessage = "Running safeword retro if this session is substantial"
 `;
 
+// Includes Bash (unlike the skill nudge): the quality accumulator counts LOC and
+// clears the gate on commit, so shell runs matter. Writes the per-session state
+// (active ticket binding, LOC) the PreToolUse gates and write-review-stamp.ts
+// read back under the same codex-<session> key (#630). Exported so tests can
+// strip the exact block when simulating pre-#630 configs.
+export const CODEX_POST_TOOL_QUALITY_HOOK_PATCH = `
+[[hooks.PostToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-quality.ts"'
+timeout = 30
+statusMessage = "Updating safeword quality state"
+`;
+
 // Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex
 // PostToolUse supports hookSpecificOutput.additionalContext (GA), so the adapter
 // forwards the Claude hook's nudge verbatim.
@@ -493,6 +509,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor',
     '.cursor/rules',
     '.cursor/commands',
+    '.cursor/agents',
   ],
 
   // Directories we add to but don't own (not deleted on reset)
@@ -500,7 +517,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude',
     '.claude/skills',
     '.claude/commands',
+    // Custom-agent homes (GH628F): safeword ships safeword-retro-filer here, but
+    // users keep their own agents in these dirs — add-to, never own.
+    '.claude/agents',
     '.codex',
+    '.codex/agents',
     '.agents',
     '.agents/skills',
     ...CODEX_SKILL_DIRS,
@@ -703,6 +724,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
     '.safeword/hooks/lib/retro-extract.ts': { template: 'hooks/lib/retro-extract.ts' },
+    '.safeword/hooks/lib/retro-filing-gate.ts': { template: 'hooks/lib/retro-filing-gate.ts' },
     '.safeword/hooks/lib/retro-nudge.ts': { template: 'hooks/lib/retro-nudge.ts' },
     '.safeword/hooks/lib/retro-trigger.ts': { template: 'hooks/lib/retro-trigger.ts' },
     '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
@@ -811,6 +833,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/codex/stop.ts': {
       template: 'hooks/codex/stop.ts',
     },
+    '.safeword/hooks/codex/post-tool-quality.ts': {
+      template: 'hooks/codex/post-tool-quality.ts',
+    },
     '.safeword/hooks/codex/post-tool-skill-nudge.ts': {
       template: 'hooks/codex/post-tool-skill-nudge.ts',
     },
@@ -837,6 +862,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/stop-retro-filing.ts': { template: 'hooks/stop-retro-filing.ts' },
     '.safeword/hooks/stop-retro.ts': { template: 'hooks/stop-retro.ts' },
     '.safeword/hooks/stop-self-report.ts': { template: 'hooks/stop-self-report.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
@@ -848,6 +874,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/post-tool-sync-learnings.ts': {
       template: 'hooks/post-tool-sync-learnings.ts',
     },
+
+    // Retro filer subagent (GH628F, issue #628): the filing procedure lives in
+    // the agent definition, dispatched by the per-harness stop gates. One
+    // markdown source serves Claude and Cursor; Codex takes TOML. OWNED (not
+    // managed): overwritten on upgrade and removed on reset — a leftover copy
+    // would keep `.cursor/` alive after reset.
+    '.claude/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
+    '.cursor/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
+    '.codex/agents/safeword-retro-filer.toml': { template: 'agents/safeword-retro-filer.toml' },
 
     // Guides
     '.safeword/guides/architecture-guide.md': {
@@ -1270,6 +1305,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           CODEX_SESSION_START_HOOK_PATCH,
           CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+          CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
           CODEX_STOP_HOOK_PATCH,
         ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
@@ -1328,6 +1364,20 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         operation: 'append',
         content: CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
         marker: '.safeword/hooks/codex/post-tool-skill-nudge.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      // PostToolUse quality-state retrofit (#630): add-if-missing onto existing
+      // configs, same shape as the skill-nudge retrofit above. Writes the
+      // per-session state (active ticket binding, LOC) that the PreToolUse gates
+      // and write-review-stamp.ts read back. Uninstall cleanup is owned by the
+      // primary patch's unpatchContent.
+      {
+        operation: 'append',
+        content: CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
+        marker: '.safeword/hooks/codex/post-tool-quality.ts',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',

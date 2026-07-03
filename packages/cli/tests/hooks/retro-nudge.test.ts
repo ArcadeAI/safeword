@@ -4,15 +4,9 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { spoolDrafts, type SpooledDraft } from '../../templates/hooks/lib/retro-draft-spool.js';
+import { spoolDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge, formatRetroNudge } from '../../templates/hooks/lib/retro-nudge.js';
-
-const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
-  signature,
-  title,
-  body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
+import { retroDraft as draft } from '../helpers.js';
 
 describe('retro nudge decision (BNGK9W — one factual line per unfiled batch)', () => {
   let projectDirectory: string;

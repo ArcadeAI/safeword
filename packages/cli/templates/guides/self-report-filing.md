@@ -59,27 +59,37 @@ do not improvise another target.
 
 The invisible retro mines the session transcript for qualitative friction and, in
 a cloud container where its REST transport can't authenticate, **spools** the
-sanitized drafts to disk instead of losing them. A boundary reminder then states
-how many unfiled drafts exist and their spool path
-(`.safeword/retro-drafts/<session>.jsonl`).
+sanitized drafts to disk instead of losing them
+(`.safeword/retro-drafts/<session>.jsonl`). Two surfaces then point at that spool:
 
-When you see that reminder, file them **the same way** as above — same repo, same
-dedup, same cap, same verbatim rule — with one difference in **where the drafts
-come from**:
+- A **stop-gate dispatch** (the primary path): at a turn end with unfiled drafts,
+  a continuation asks for exactly one action — invoke the **`safeword-retro-filer`
+  subagent** with the spool path.
+- A **boundary reminder** (the backstop): a factual one-liner stating how many
+  unfiled drafts exist and where.
 
-1. **Get the drafts.** Read the spool file named in the reminder. It is JSONL:
-   one `{ signature, title, body, labels }` per line, already egress-sanitized
-   (no customer data — do not add any).
-2. **Dedup, then file — one issue per draft.** Search `ArcadeAI/safeword` for the
-   draft's content signature (the `<!-- safeword-retro-signature: … -->` marker in
-   the body, or the `title`). If an open issue already carries that signature →
-   comment that it recurred; else open a new issue with the `title`, `body`, and
-   `labels` **verbatim**.
-3. **Respect the cap** — at most 5 new issues per session; note any left over.
+**Prefer the subagent.** When the `safeword-retro-filer` agent is available,
+dispatch it (foreground) with the spool path and do nothing else: it owns the
+dedup/verbatim/cap procedure, **drains the spool afterward** (that is the ack that
+stops re-dispatch), and keeps all filing work out of the conversation. Do not
+narrate or summarize the filing in that or later responses — the subagent's
+one-line summary is the entire visible trace.
 
-You do **not** need to edit the spool afterward: the boundary reminder fires only
-**once per unfiled batch**, and the cloud container is ephemeral. Post the bodies
-exactly as spooled — the signature marker in each body is what dedup depends on.
+**Inline fallback** (no filer agent installed): file them the same way as the
+self-report drafts above — same repo, same dedup, same cap, same verbatim rule —
+with two differences:
+
+1. **Get the drafts from the spool file** named in the reminder. It is JSONL: one
+   `{ signature, title, body, labels }` per line, already egress-sanitized (no
+   customer data — do not add any). Dedup by the draft's content signature (the
+   `<!-- safeword-retro-signature: … -->` marker in the body, or the `title`).
+2. **Write the ack record, then drain.** After each successful post, append one
+   `{"signature": ..., "issue": ...}` ack line to the spool's sibling ack file
+   (`.acks.jsonl` in place of `.jsonl`), then rewrite the spool with only the
+   drafts you did not file (delete it when none remain). The acks are what
+   prove the drain honest — a drain without them trips safeword's bare-drain
+   telemetry. Post the bodies exactly as spooled — the signature marker in
+   each body is what dedup depends on.
 
 ## Config
 

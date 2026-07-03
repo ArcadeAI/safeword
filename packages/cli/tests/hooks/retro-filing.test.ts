@@ -6,18 +6,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   fileSpooledDrafts,
+  readAcks,
   readSpooledDrafts,
   spoolDrafts,
   type SpooledDraft,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
-
-const draft = (signature: string, title = 'A friction'): SpooledDraft => ({
-  signature,
-  title,
-  body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
+import { retroDraft as draft } from '../helpers.js';
 
 describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbatim, drain filed)', () => {
   let projectDirectory: string;
@@ -33,9 +28,9 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     spoolDrafts(projectDirectory, 'sess-1', drafts);
 
     const posts: SpooledDraft[] = [];
-    const post = (d: SpooledDraft): Promise<void> => {
+    const post = (d: SpooledDraft): Promise<{ issue: number }> => {
       posts.push(d);
-      return Promise.resolve();
+      return Promise.resolve({ issue: 100 + posts.length });
     };
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', post);
 
@@ -52,14 +47,47 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
   it('files nothing and posts nothing at a drained boundary (no re-file, no re-nudge)', async () => {
     // Everything already filed → an empty spool. A later boundary must not re-post.
     let posts = 0;
-    const post = (): Promise<void> => {
+    const post = (): Promise<{ issue: number }> => {
       posts += 1;
-      return Promise.resolve();
+      return Promise.resolve({ issue: 100 });
     };
     const result = await fileSpooledDrafts(projectDirectory, 'drained-sess', post);
     expect(result).toEqual({ posted: 0, failed: 0 });
     expect(posts).toBe(0);
     expect(decideRetroFilingNudge(projectDirectory, 'drained-sess')).toBeUndefined();
+  });
+
+  // GH644A SM2.AC2: the ack is written after each post and before any drain, so
+  // a crash between post and drain never looks like a forged bare drain.
+  it('records each ack after its post and before any drain (observed mid-run)', async () => {
+    const drafts = [draft('retro:aaaaaaaaaaaa', 'Acked'), draft('retro:bbbbbbbbbbbb', 'Failing')];
+    spoolDrafts(projectDirectory, 'sess-1', drafts);
+
+    let midRun: { acks: unknown[]; spooled: number } | undefined;
+    const post = (d: SpooledDraft): Promise<{ issue: number }> => {
+      if (d.signature === 'retro:bbbbbbbbbbbb') {
+        // At the moment the SECOND post is invoked, the FIRST draft's ack line
+        // must already be on disk while its draft is still spooled (not yet drained).
+        midRun = {
+          acks: readAcks(projectDirectory, 'sess-1'),
+          spooled: readSpooledDrafts(projectDirectory, 'sess-1').length,
+        };
+        return Promise.reject(new Error('MCP post failed'));
+      }
+      return Promise.resolve({ issue: 101 });
+    };
+    const result = await fileSpooledDrafts(projectDirectory, 'sess-1', post);
+
+    expect(result).toEqual({ posted: 1, failed: 1 });
+    expect(midRun?.acks).toEqual([{ signature: 'retro:aaaaaaaaaaaa', issue: 101 }]);
+    expect(midRun?.spooled).toBe(2); // ack precedes ANY drain
+    // End state: success acked + drained; failure unacked + spooled.
+    expect(readAcks(projectDirectory, 'sess-1')).toEqual([
+      { signature: 'retro:aaaaaaaaaaaa', issue: 101 },
+    ]);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([
+      draft('retro:bbbbbbbbbbbb', 'Failing'),
+    ]);
   });
 
   it('leaves an un-postable draft spooled for retry, and a later boundary still nudges for it', async () => {
@@ -68,10 +96,10 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
       draft('retro:bbbbbbbbbbbb', 'Unpostable'),
     ]);
 
-    const post = (d: SpooledDraft): Promise<void> =>
+    const post = (d: SpooledDraft): Promise<{ issue: number }> =>
       d.signature === 'retro:bbbbbbbbbbbb'
         ? Promise.reject(new Error('MCP post failed'))
-        : Promise.resolve();
+        : Promise.resolve({ issue: 100 });
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', post);
 
     expect(result).toEqual({ posted: 1, failed: 1 });

@@ -5,7 +5,7 @@
  * that caused this ticket: `eslint.config.ts` / `.prettierrc.yaml` were missed).
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -15,8 +15,10 @@ import {
   detectAlternativeFormatter,
   detectEslintConfig,
   detectPrettierConfig,
+  hostFormatsSqlWithPrettier,
   projectOwnsAlternativeFormatter,
   shouldWarnMissingPrettier,
+  sqlFixOptedIn,
 } from '../../templates/hooks/lib/lint-config.js';
 
 describe('detectEslintConfig', () => {
@@ -179,6 +181,98 @@ describe('projectOwnsAlternativeFormatter', () => {
 
   it('is false (does not throw) for a nonexistent directory', () => {
     expect(projectOwnsAlternativeFormatter(path.join(directory, 'nope'))).toBe(false);
+  });
+});
+
+describe('hostFormatsSqlWithPrettier', () => {
+  // The gate the SQL branch uses to defer to a host that formats SQL itself
+  // via prettier-plugin-sql (#636/#638): host prettier runs, sqlfluff doesn't.
+  let directory: string;
+
+  beforeEach(() => {
+    directory = mkdtempSync(path.join(tmpdir(), 'sql-owns-'));
+  });
+
+  afterEach(() => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it('is true when prettier-plugin-sql is installed in node_modules', () => {
+    mkdirSync(path.join(directory, 'node_modules', 'prettier-plugin-sql'), { recursive: true });
+
+    expect(hostFormatsSqlWithPrettier(directory)).toBe(true);
+  });
+
+  it('is false without the plugin (other node_modules content does not count)', () => {
+    mkdirSync(path.join(directory, 'node_modules', 'prettier'), { recursive: true });
+
+    expect(hostFormatsSqlWithPrettier(directory)).toBe(false);
+  });
+
+  it.each(['dependencies', 'devDependencies'] as const)(
+    'is true when the plugin is declared in %s but not yet installed',
+    dependencyField => {
+      writeFileSync(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ [dependencyField]: { 'prettier-plugin-sql': '^0.20.0' } }),
+      );
+
+      expect(hostFormatsSqlWithPrettier(directory)).toBe(true);
+    },
+  );
+
+  it('is false for a malformed package.json', () => {
+    writeFileSync(path.join(directory, 'package.json'), '{not json');
+
+    expect(hostFormatsSqlWithPrettier(directory)).toBe(false);
+  });
+
+  it('is false (does not throw) for a nonexistent directory', () => {
+    expect(hostFormatsSqlWithPrettier(path.join(directory, 'nope'))).toBe(false);
+  });
+});
+
+describe('sqlFixOptedIn', () => {
+  // Edit-time `sqlfluff fix` rewrites files beyond the agent's intended edit,
+  // so it's opt-in via `.safeword/config.json` → sql.fix (#638). Anything
+  // other than an explicit true reads as "off".
+  let directory: string;
+
+  beforeEach(() => {
+    directory = mkdtempSync(path.join(tmpdir(), 'sql-fix-'));
+    mkdirSync(path.join(directory, '.safeword'), { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  const writeConfig = (content: string): void => {
+    writeFileSync(path.join(directory, '.safeword', 'config.json'), content);
+  };
+
+  it('is true only when sql.fix is explicitly true', () => {
+    writeConfig(JSON.stringify({ installedPacks: ['sql'], sql: { fix: true } }));
+
+    expect(sqlFixOptedIn(directory)).toBe(true);
+  });
+
+  it('is false when sql.fix is absent, false, or non-boolean', () => {
+    writeConfig(JSON.stringify({ installedPacks: ['sql'] }));
+    expect(sqlFixOptedIn(directory)).toBe(false);
+
+    writeConfig(JSON.stringify({ sql: { fix: false } }));
+    expect(sqlFixOptedIn(directory)).toBe(false);
+
+    writeConfig(JSON.stringify({ sql: { fix: 'yes' } }));
+    expect(sqlFixOptedIn(directory)).toBe(false);
+  });
+
+  it('is false when config.json is missing or malformed', () => {
+    expect(sqlFixOptedIn(path.join(directory, 'nope'))).toBe(false);
+
+    writeConfig('{not json');
+    expect(sqlFixOptedIn(directory)).toBe(false);
   });
 });
 

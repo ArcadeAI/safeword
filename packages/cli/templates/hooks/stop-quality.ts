@@ -290,7 +290,7 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
   if (!reviewGateForNextAsset(scope, stamps).ok) {
     hardBlockDone(
-      'Architecture review gate: the impl-plan design has no independent design review at its current content. Spawn a fresh-context reviewer, then run `bun .safeword/hooks/write-review-stamp.ts impl-plan` on pass (or log a skip with a reason).',
+      'Architecture review gate: the impl-plan design has no independent design review at its current content. Spawn a fresh-context reviewer, then run `bun .safeword/hooks/write-review-stamp.ts impl-plan` on pass (or add `--skip "<reason>"` to log a deliberate skip).',
     );
   }
 

@@ -480,7 +480,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
       if (!gatePhaseAdvance(phaseScope, stamps).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
-          `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or append a skip reason to log a deliberate skip).`,
+          `Spawn a fresh (context:fork) reviewer for the ${exitedPhase} phase, then run \`bun .safeword/hooks/write-review-stamp.ts --phase ${exitedPhase}\` on pass (or add \`--skip "<reason>"\` to log a deliberate skip).`,
         );
       }
       // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
