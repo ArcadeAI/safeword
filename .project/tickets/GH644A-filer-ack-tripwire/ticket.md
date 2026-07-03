@@ -2,8 +2,8 @@
 id: GH644A
 slug: filer-ack-tripwire
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 depends_on: [GH628F]
 external_issue: https://github.com/ArcadeAI/safeword/issues/658
@@ -58,3 +58,6 @@ decision recorded there and in the figure-it-out pass of 2026-07-03.
   DraftPoster widens to return the issue ref; captureBareDrain defaulted;
   tripwire ordering pinned before the empty-spool early return. impl-plan
   updated (5bb5357→ this commit).
+- 2026-07-03 (done): verify + audit green (4436/4436 full suite, 181/181 BDD,
+  0 audit findings). verify.md carries the checklist. Shipped on branch
+  claude/github-issue-628-nm8qf1.
