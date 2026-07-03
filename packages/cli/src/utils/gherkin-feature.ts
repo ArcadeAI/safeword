@@ -324,7 +324,10 @@ function findDocumentLintIssues(feature: Feature): GherkinLintIssue[] {
   for (const child of feature.children) {
     if (child.scenario) scenarios.push(child.scenario);
     if (child.rule) {
-      issues.push(...findDuplicateTagIssues(child.rule.tags, `Rule "${child.rule.name}"`));
+      issues.push(
+        ...findDuplicateTagIssues(child.rule.tags, `Rule "${child.rule.name}"`),
+        ...findRuleNameTagIssues(child.rule),
+      );
       for (const ruleChild of child.rule.children) {
         if (ruleChild.scenario) scenarios.push(ruleChild.scenario);
       }
@@ -454,6 +457,32 @@ function collectPlaceholders(text: string, variables: Set<string>): void {
       start = -1;
     }
   }
+}
+
+/**
+ * A Rule block carrying a rule lineage tag must repeat that id as its name's
+ * first token (the tag is authoritative; the name token is the human-readable
+ * copy). Unnumbered grouping blocks carry no rule tag and are exempt.
+ */
+function findRuleNameTagIssues(rule: {
+  name: string;
+  tags: readonly Tag[];
+  location: { line: number };
+}): GherkinLintIssue[] {
+  const ruleReference = rule.tags
+    .map(tag => parseLineageReferenceFromTag(tag.name))
+    .find(reference => reference?.kind === 'rule');
+  if (ruleReference === undefined) return [];
+
+  const nameToken = rule.name.trim().split(/\s+/, 1)[0] ?? '';
+  if (nameToken === ruleReference.reference) return [];
+  return [
+    issue(
+      'rule-name-tag-mismatch',
+      `Rule "${rule.name}" is tagged @${ruleReference.reference} but its name starts with a different id; make the name's first token match the tag.`,
+      rule.location.line,
+    ),
+  ];
 }
 
 function findDuplicateTagIssues(tags: readonly Tag[], owner: string): GherkinLintIssue[] {
