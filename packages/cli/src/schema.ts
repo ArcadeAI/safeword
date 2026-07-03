@@ -236,6 +236,22 @@ timeout = 600
 statusMessage = "Running safeword retro if this session is substantial"
 `;
 
+// Includes Bash (unlike the skill nudge): the quality accumulator counts LOC and
+// clears the gate on commit, so shell runs matter. Writes the per-session state
+// (active ticket binding, LOC) the PreToolUse gates and write-review-stamp.ts
+// read back under the same codex-<session> key (#630). Exported so tests can
+// strip the exact block when simulating pre-#630 configs.
+export const CODEX_POST_TOOL_QUALITY_HOOK_PATCH = `
+[[hooks.PostToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-quality.ts"'
+timeout = 30
+statusMessage = "Updating safeword quality state"
+`;
+
 // Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex
 // PostToolUse supports hookSpecificOutput.additionalContext (GA), so the adapter
 // forwards the Claude hook's nudge verbatim.
@@ -778,6 +794,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/codex/stop.ts': {
       template: 'hooks/codex/stop.ts',
     },
+    '.safeword/hooks/codex/post-tool-quality.ts': {
+      template: 'hooks/codex/post-tool-quality.ts',
+    },
     '.safeword/hooks/codex/post-tool-skill-nudge.ts': {
       template: 'hooks/codex/post-tool-skill-nudge.ts',
     },
@@ -1246,6 +1265,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           CODEX_SESSION_START_HOOK_PATCH,
           CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+          CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
           CODEX_STOP_HOOK_PATCH,
         ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
@@ -1304,6 +1324,20 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         operation: 'append',
         content: CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
         marker: '.safeword/hooks/codex/post-tool-skill-nudge.ts',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      // PostToolUse quality-state retrofit (#630): add-if-missing onto existing
+      // configs, same shape as the skill-nudge retrofit above. Writes the
+      // per-session state (active ticket binding, LOC) that the PreToolUse gates
+      // and write-review-stamp.ts read back. Uninstall cleanup is owned by the
+      // primary patch's unpatchContent.
+      {
+        operation: 'append',
+        content: CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
+        marker: '.safeword/hooks/codex/post-tool-quality.ts',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',

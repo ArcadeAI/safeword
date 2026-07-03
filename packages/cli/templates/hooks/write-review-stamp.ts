@@ -26,10 +26,14 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { getInProgressTicketFolders, getTicketInfo } from './lib/active-ticket.ts';
+import {
+  readFreshCodexReviewStampIdentity,
+  readFreshCursorReviewStampIdentity,
+} from './lib/cursor-run-identity.ts';
 import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
-import { resolveRunIdentity } from './lib/run-identity.ts';
+import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
@@ -39,7 +43,34 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const runIdentity = resolveRunIdentity({}, { env: process.env });
+// Codex and Cursor expose the session id only to their pre-shell hooks, not to
+// this helper's process env. Those hooks stash it in a short-lived cache right
+// before this command runs (mirroring record-skill-invocation.ts). Construct a
+// full RunIdentity — not a raw string — so the session-state key
+// (`codex-<id>` / `cursor-<id>`) matches the one the runtime's post-tool
+// adapter writes the active-ticket binding under.
+function readBridgedRunIdentity(): RunIdentity | undefined {
+  const codexId = readFreshCodexReviewStampIdentity({ projectDirectory });
+  if (codexId !== undefined) {
+    return { runtime: 'codex', sessionKey: codexId, turnKey: null, source: 'review-stamp-bridge' };
+  }
+  const cursorId = readFreshCursorReviewStampIdentity({ projectDirectory });
+  if (cursorId !== undefined) {
+    return {
+      runtime: 'cursor',
+      sessionKey: cursorId,
+      turnKey: null,
+      source: 'review-stamp-bridge',
+    };
+  }
+  return undefined;
+}
+
+const environmentIdentity = resolveRunIdentity({}, { env: process.env });
+const runIdentity =
+  environmentIdentity.sessionKey === null
+    ? (readBridgedRunIdentity() ?? environmentIdentity)
+    : environmentIdentity;
 const sessionId = runIdentity.sessionKey ?? fail('missing run identity for review stamp');
 
 // Collapse all whitespace (incl. newlines) to single spaces. The log is one

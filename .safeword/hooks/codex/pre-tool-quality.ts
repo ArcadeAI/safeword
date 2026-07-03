@@ -10,13 +10,15 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  type ClaudeHookInput,
   type CodexHookInput,
   denialReasonFromHookOutput,
+  runClaudeHookAsCodex,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
 import {
+  commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
+  rememberCodexReviewStampIdentity,
   rememberCodexRunIdentity,
 } from '../lib/cursor-run-identity.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
@@ -42,23 +44,6 @@ function writeHookOutput(result: { stdout?: string | null; stderr?: string | nul
 
 function formatCodexReason(reason: string): string {
   return reason.replaceAll(CLAUDE_EXPLAIN_HINT, CODEX_EXPLAIN_HINT);
-}
-
-function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
-  return spawnSync('bun', [claudeHookPath], {
-    cwd: process.cwd(),
-    input: JSON.stringify(translated),
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-      // Authoritative agent attribution for the spawned hook: it runs under Codex,
-      // not Claude, even though we set CLAUDE_PROJECT_DIR for its path resolution.
-      // This same var is what self-report's detectAgent reads.
-      SAFEWORD_AGENT_RUNTIME: 'codex',
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
 }
 
 // Resolve the project root the same way the record-skill-invocation.ts fallback
@@ -97,7 +82,9 @@ if (translatedInputs.length === 0) process.exit(0);
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
-const results = translatedInputs.map(translated => runClaudeHook(claudeHookPath, translated));
+const results = translatedInputs.map(translated =>
+  runClaudeHookAsCodex(claudeHookPath, translated),
+);
 
 for (const result of results) {
   const reason = denialReasonFromHookOutput(result.stdout ?? '');
@@ -119,4 +106,19 @@ for (const result of results) {
 }
 
 const failedResult = results.find(result => (result.status ?? 0) !== 0);
+
+// Same one-step bridge for write-review-stamp.ts (#630): the stamp helper's
+// process env has no run identity on Codex, so stash the session id right
+// before its command runs. Armed only after the gate allowed the command AND
+// ran cleanly (mirroring the Cursor adapter) so neither a denied stamp nor a
+// crashed gate leaves a live cache another session could adopt. Separate cache
+// from the proof bridge, so a chained `record-skill-invocation &&
+// write-review-stamp` feeds both consumers.
+if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
+  rememberCodexReviewStampIdentity({
+    projectDirectory: resolveProjectRoot(),
+    id: input.session_id,
+  });
+}
+
 process.exit(failedResult?.status ?? 0);

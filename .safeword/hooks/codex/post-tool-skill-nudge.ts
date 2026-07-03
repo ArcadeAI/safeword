@@ -8,13 +8,12 @@
 // understands, runs it per target, and forwards the first non-empty nudge
 // verbatim. Fail-open: no target / no nudge → exit 0 with no output.
 
-import { spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  type ClaudeHookInput,
   type CodexHookInput,
+  runClaudeHookAsCodex,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
 
@@ -24,20 +23,6 @@ async function readInput(): Promise<CodexHookInput | undefined> {
   } catch {
     return undefined;
   }
-}
-
-function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
-  return spawnSync('bun', [claudeHookPath], {
-    cwd: process.cwd(),
-    input: JSON.stringify(translated),
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-      SAFEWORD_AGENT_RUNTIME: 'codex',
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
 }
 
 const input = await readInput();
@@ -52,7 +37,7 @@ const claudeHookPath = nodePath.join(hookDirectory, '..', 'post-tool-skill-nudge
 // Run per target; the hook dedups per scenario, so at most one fires. Forward the
 // first non-empty additionalContext payload (Codex shares Claude's output shape).
 for (const translated of translatedInputs) {
-  const result = runClaudeHook(claudeHookPath, translated);
+  const result = runClaudeHookAsCodex(claudeHookPath, translated);
   if ((result.stdout ?? '').trim() !== '') {
     process.stdout.write(result.stdout ?? '');
     process.exit(0);
