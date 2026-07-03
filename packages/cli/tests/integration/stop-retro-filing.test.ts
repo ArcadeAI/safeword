@@ -80,6 +80,29 @@ describe('stop-retro-filing hook (GH628F — sanctioned dispatch continuation)',
     expect(runHook(projectDirectory, {}).stdout.trim()).toBe('');
   });
 
+  it('resolves the session id from the env when the payload omits it (spool-writer parity)', () => {
+    // Cloud extraction keys the spool via CLAUDE_CODE_REMOTE_SESSION_ID when the
+    // payload lacks session_id; the gate must find the SAME spool or it silently
+    // never fires (quality-review pass-1, improvement 2).
+    spoolDrafts(projectDirectory, 'cloud-sess', [draft('retro:aaaaaaaaaaaa', 'Alpha')]);
+    const result = spawnSync('bun', [HOOK], {
+      input: JSON.stringify({}),
+      cwd: projectDirectory,
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectDirectory,
+        CLAUDE_CODE_REMOTE_SESSION_ID: 'cloud-sess',
+        CLAUDE_SESSION_ID: '',
+      },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+    expect(result.status).toBe(0);
+    const out = JSON.parse(result.stdout);
+    expect(out.decision).toBe('block');
+    expect(out.reason).toContain(FILER_AGENT_NAME);
+  });
+
   it(`goes quiet after ${FILING_ATTEMPT_CAP} attempts on the same undrained batch`, () => {
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa', 'Alpha')]);
     for (let attempt = 1; attempt <= FILING_ATTEMPT_CAP; attempt++) {
