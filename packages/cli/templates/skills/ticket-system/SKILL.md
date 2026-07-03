@@ -89,7 +89,8 @@ status: in_progress
 **Frontmatter values:**
 
 - `status`: `in_progress | done | cancelled | superseded | wontfix | blocked`
-- `phase`: `intake | define-behavior | scenario-gate | implement | done` (see ticket-template.md)
+- `phase`: `intake | define-behavior | scenario-gate | implement | verify | done` (see ticket-template.md)
+- `phase_skips`: `["<phase>: <reason>", ...]` (optional; feature tickets only) — one entry per phase a feature was born into or advanced past without traversing it. Block sequence, non-empty reason each; the phase-provenance gate requires it when a feature skips phases (see glossary "Gate")
 - `parent`: `<id>` (optional)
 - `epic`: `<slug-or-id>` (optional)
 - `blocked_on`: `[<id>, <id>]` (optional)

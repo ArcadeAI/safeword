@@ -443,6 +443,22 @@ export interface SetupOptions {
   noModify?: boolean;
 }
 
+/**
+ * Adopt-don't-compete notice (ticket 56JCFZ, issue #645): when setup detects a
+ * cucumber harness safeword didn't scaffold, the starter lane was suppressed —
+ * tell the user what was found and the exact config lines that point
+ * safeword's BDD readers (codify / lint-gherkin / check) at their suite.
+ */
+function printCucumberHarnessNotice(evidence: string | undefined): void {
+  if (!evidence) return;
+  info(
+    `\nDetected an existing cucumber harness (${evidence}) — skipped safeword's starter BDD lane.`,
+  );
+  info('Point safeword at your suite via .safeword/config.json:');
+  info('  paths.features — directory holding your .feature files (e.g. "tests/behaviors")');
+  info('  paths.steps    — directory holding your step definitions (e.g. "tests/steps")');
+}
+
 export async function setup(options: SetupOptions): Promise<void> {
   const cwd = process.cwd();
   const safewordDirectory = nodePath.join(cwd, '.safeword');
@@ -472,6 +488,9 @@ export async function setup(options: SetupOptions): Promise<void> {
     };
     const result = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
     success('Created .safeword directory and configuration');
+    if (!ctx.projectType.scaffoldBddLane) {
+      printCucumberHarnessNotice(ctx.projectType.existingCucumberHarness);
+    }
 
     // Language-specific setup. The JS path runs unconditionally: ensurePackageJson
     // guarantees a package.json (the BDD lane's home, ticket 102b), which is what

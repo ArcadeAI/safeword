@@ -11,7 +11,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Gate
 
-**Definition:** A checkpoint that blocks workflow progress until its condition is met. Safeword has several, each with a distinct trigger: the **phase gate** (can't create `test-definitions.md` without `scope`/`out_of_scope`/`done_when`; can't start TDD without `test-definitions.md`), the **LOC gate** (commit roughly every 400 lines of project code), the **done gate** (can't close a ticket without `verify.md`), and the **AC gate** (acceptance-criteria checks routed from `spec.md`).
+**Definition:** A checkpoint that blocks workflow progress until its condition is met. Safeword has several, each with a distinct trigger: the **phase gate** (can't create `test-definitions.md` without `scope`/`out_of_scope`/`done_when`; can't start TDD without `test-definitions.md`), the **phase-provenance gate** (a feature ticket must be born at `phase: intake` and advance one canonical step at a time; skipping a phase requires a per-phase `phase_skips` justification in frontmatter), the **LOC gate** (commit roughly every 400 lines of project code), the **done gate** (can't close a ticket without `verify.md`), and the **AC gate** (acceptance-criteria checks routed from `spec.md`).
 
 **Do not confuse with:** "the gate" unqualified — each fires on a different condition, so always name which one.
 

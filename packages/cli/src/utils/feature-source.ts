@@ -1,6 +1,8 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveConfiguredLaneDirectory } from './configured-paths.js';
+
 const WORKSPACE_FEATURE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
 
 /** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
@@ -26,12 +28,20 @@ export function collectExecutableFeatureFiles(cwd: string, fileName?: string): s
 }
 
 function collectExecutableFeatureDirectories(cwd: string): string[] {
-  return [
+  const directories = [
     nodePath.join(cwd, 'features'),
     ...WORKSPACE_FEATURE_ROOTS.flatMap(root =>
       collectWorkspaceFeatureDirectories(nodePath.join(cwd, root)),
     ),
   ];
+
+  // paths.features AUGMENTS the defaults (ticket 56JCFZ) — relocated/host
+  // lanes become readable without abandoning root features/.
+  const configured = resolveConfiguredLaneDirectory(cwd, 'features');
+  if (configured !== undefined && !directories.includes(configured)) {
+    directories.push(configured);
+  }
+  return directories;
 }
 
 function collectWorkspaceFeatureDirectories(workspaceDirectory: string): string[] {
