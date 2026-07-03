@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 import { LANGUAGE_PACKS } from '../packs/registry.js';
 import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
+import { isShippedCucumberTemplateRevision } from './cucumber-template-revisions.js';
 import { findInTree, getTemplatesDirectory } from './fs.js';
 
 const {
@@ -453,7 +454,12 @@ const CUCUMBER_CONFIG_FILES = [
   'cucumber.mjs',
 ] as const;
 
-/** True when the file is byte-identical to safeword's shipped lane template. */
+/**
+ * True when the file is safeword's own lane scaffold: byte-identical to the
+ * bundled template, or a hash-match against any previously shipped revision
+ * (so upgrades from older safewords never read their own lane as a host
+ * harness).
+ */
 function isSafewordLaneTemplate(configPath: string): boolean {
   try {
     const content = readFileSync(configPath, 'utf8');
@@ -461,7 +467,7 @@ function isSafewordLaneTemplate(configPath: string): boolean {
       nodePath.join(getTemplatesDirectory(), 'cucumber', 'cucumber.mjs'),
       'utf8',
     );
-    return content === template;
+    return content === template || isShippedCucumberTemplateRevision(content);
   } catch {
     return false;
   }
