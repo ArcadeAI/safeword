@@ -18,8 +18,7 @@
  */
 
 import {
-  parseFeatureAcReferences,
-  parseFeatureRuleReferences,
+  parseFeatureLineageReferences,
   parseFeatureScenarios,
   parseLineageReferenceFromTag,
 } from './gherkin-feature.js';
@@ -229,15 +228,9 @@ export function buildCoverageReportFromFeature(
   specContent: string,
   featureContent?: string,
 ): CoverageReport {
-  return buildCoverageReportFromReferences(
-    specContent,
-    featureContent === undefined
-      ? undefined
-      : [
-          ...parseFeatureAcReferences(featureContent),
-          ...parseFeatureRuleReferences(featureContent),
-        ],
-  );
+  if (featureContent === undefined) return buildCoverageReportFromReferences(specContent);
+  const { ac, rule } = parseFeatureLineageReferences(featureContent);
+  return buildCoverageReportFromReferences(specContent, [...ac, ...rule]);
 }
 
 export function buildSurfaceCoverageReportFromFeature(

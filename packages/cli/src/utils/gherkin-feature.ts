@@ -44,22 +44,30 @@ export function parseFeatureScenarios(featureContent: string): ParsedFeatureScen
 }
 
 export function parseFeatureAcReferences(featureContent: string): string[] {
-  return parseFeatureLineageReferences(featureContent, 'ac');
+  return parseFeatureLineageReferences(featureContent).ac;
 }
 
 export function parseFeatureRuleReferences(featureContent: string): string[] {
-  return parseFeatureLineageReferences(featureContent, 'rule');
+  return parseFeatureLineageReferences(featureContent).rule;
 }
 
-function parseFeatureLineageReferences(featureContent: string, kind: LineageKind): string[] {
-  const references = new Set<string>();
+/**
+ * The AC and numbered-Rule lineage references a feature's scenarios carry,
+ * split by kind, from a single `parseFeatureScenarios` pass. Callers that need
+ * both kinds (coverage) read them off one AST build instead of parsing twice.
+ */
+export function parseFeatureLineageReferences(featureContent: string): {
+  ac: string[];
+  rule: string[];
+} {
+  const byKind: Record<LineageKind, Set<string>> = { ac: new Set(), rule: new Set() };
   for (const scenario of parseFeatureScenarios(featureContent)) {
     for (const tag of scenario.tags) {
       const ref = parseLineageReferenceFromTag(tag);
-      if (ref?.kind === kind) references.add(ref.reference);
+      if (ref !== undefined) byKind[ref.kind].add(ref.reference);
     }
   }
-  return [...references];
+  return { ac: [...byKind.ac], rule: [...byKind.rule] };
 }
 
 export function findGherkinLintIssues(
