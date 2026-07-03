@@ -1,6 +1,6 @@
 # Impl Plan: BDD lane: detect existing cucumber harness, configurable feature/step paths
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -33,12 +33,14 @@ Build order (each slice lands green before the next):
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | -------- | ------ | ----------------------- | ---------------- |
-| Detection home | `ProjectType.existingCucumberHarness` field | standalone util called ad hoc | ProjectType is the established detection surface; conditional-packages mechanism already keys off it |
-| Self-exclusion match | exact-content set of shipped template revisions (extracted from git history at build/authoring time, checked into a small registry) | hash only current template | every pre-change install would self-trigger on upgrade (dimensions boundary note) |
-| Dep attribution | `@cucumber/cucumber` counts as safeword-added only when the starter-lane files are present at default locations | tracking installs in config.json | new state file for one bit; lane presence is the observable safeword left behind |
-| Lane-file suppression | per-entry condition on the cucumber schema entries evaluated in reconcile planning | fork the whole schema by project type | one gate on four entries beats two schemas to keep in sync |
-| Runner config read | runtime `JSON.parse` inside `cucumber.mjs`, path resolved from the config file's own location, try/catch → defaults | generating cucumber.mjs from config at setup | generated file goes stale when user edits config.json; ownedFiles overwrite would fight user config |
-| Discovery semantics | augment (configured dirs added to default set) | replace | ticket Decision 4 — replace silently breaks the scenario pipeline while prose still writes to root `features/` |
+| Detection home | TWO `ProjectType` fields: `existingCucumberHarness` (evidence, drives notice/advisories) + `scaffoldBddLane` (suppression) — split forced by the bitten-repo scenario, where evidence and lane-maintenance must diverge | single evidence field (the plan's original shape); standalone util | a single field conflates "harness exists" with "don't maintain the lane", breaking bitten-repo upgrades; `detectCucumberLane` also exported standalone for health.ts |
+| Self-exclusion match | SHA-256 hash set of every shipped template revision (`cucumber-template-revisions.ts`) + byte-compare against the live bundled template; contract test fails when the template changes without a registry append | hash only current template | every pre-change install would self-trigger on upgrade (dimensions boundary note) |
+| Dep attribution | root `@cucumber/cucumber` is safeword-added iff root `cucumber.mjs` matches a shipped template revision; workspace-package deps and config files are ALWAYS host evidence | tracking installs in config.json | new state file for one bit; the lane config is the observable safeword left behind |
+| Lane-file suppression | generator-over-template precedence in `resolveFileContent`: lane entries keep `template` (schema↔templates contract) while the generator gates on `scaffoldBddLane` (undefined = skip) | new per-entry `condition` field; fork the schema by project type | the generator-skip mechanism already existed; a `condition` field would be a second way to say the same thing (no other entry combines generator+template, verified) |
+| Uninstall guard | filter `cucumber.mjs` from owned-file removal when `!scaffoldBddLane`; deps ride the conditional mechanism (not in the removal set when suppressed) | content-check at removal time | `scaffoldBddLane` already encodes exactly that content check |
+| Runner config read | runtime `JSON.parse` inside `cucumber.mjs`, path resolved via `import.meta.dirname` (config file's own location), try/catch → defaults; bare configured dir also recognized as a CLI feature-path arg | generating cucumber.mjs from config at setup; `fileURLToPath` (lint style) | generated file goes stale when user edits config.json; ownedFiles overwrite would fight user config |
+| Discovery semantics | augment (configured dirs added to default set) — proven by dual-violation lint scenario + dual-lane E2E run | replace | ticket Decision 4 — replace silently breaks the scenario pipeline while prose still writes to root `features/` |
+| Advisory silencing | `paths.features` alone silences the detected-harness advisory (readers consume only features; steps is runner-only), stated in the message | require both keys | forcing `paths.steps` on non-TS harnesses is a permanent nag with no consumer |
 
 ## Arch alignment
 
@@ -57,3 +59,5 @@ skip: no deviations planned — the one wrinkle (relocated `.ts` steps flipping 
 - `paths.*` gains a third+ directory key — revisit the ad-hoc key model vs a typed directory-key union.
 - Template revisions registry grows past a handful — revisit exact-content matching vs normalized/structural matching.
 - Advisory ignored in the wild (bitten repos stay bitten) — revisit the rejected de-scaffold command (B2).
+- Harness evidence missed because it lives deeper than the direct-workspace-package radius (e.g. nested workspaces) — widen the scan; currently root + `packages|apps|libs|modules/*` for config files and deps (matches feature-source.ts).
+- A second consumer for `paths.steps` outside the runner appears — revisit the features-only advisory-silencing rule.

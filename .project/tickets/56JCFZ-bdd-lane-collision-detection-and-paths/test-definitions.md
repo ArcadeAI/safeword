@@ -146,4 +146,4 @@ detection stops being a union.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario dba2c978

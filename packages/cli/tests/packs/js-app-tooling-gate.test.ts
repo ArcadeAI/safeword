@@ -29,6 +29,8 @@ function projectType(over: Partial<ProjectType>): ProjectType {
     existingGolangciConfig: undefined,
     existingClippyConfig: undefined,
     existingSqlfluffConfig: undefined,
+    existingCucumberHarness: undefined,
+    scaffoldBddLane: true,
     ...over,
   } as ProjectType;
 }

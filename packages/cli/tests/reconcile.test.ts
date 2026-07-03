@@ -47,6 +47,8 @@ const DEFAULT_PROJECT_TYPE = {
   existingClippyConfig: undefined,
   existingRustfmtConfig: undefined,
   existingSqlfluffConfig: undefined,
+  existingCucumberHarness: undefined,
+  scaffoldBddLane: true,
 };
 
 const GHERKIN_LINT_SCRIPT = 'safeword lint-gherkin';
