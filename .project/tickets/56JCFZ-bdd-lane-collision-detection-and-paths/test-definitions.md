@@ -122,24 +122,28 @@ detection stops being a union.
 
 ### Scenario: Check warns when a harness is detected and paths are unset
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 60b46a6f
+- [x] GREEN dab65eab
+- [x] REFACTOR skip: one advisory function following the established findXxxAdvisories pattern
 
 ### Scenario: Check stays silent when safeword's own lane is the only harness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: negative guard — passed on first run as pin (60b46a6f); falsifiable against an over-firing advisory
+- [x] GREEN dab65eab
+- [x] REFACTOR skip: shares the advisory function
 
 ### Scenario: Check stays silent once configured paths point at the detected harness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: negative guard — passed on first run as pin (60b46a6f); falsifiable against a warn-forever advisory
+- [x] GREEN dab65eab
+- [x] REFACTOR skip: shares the advisory function
 
 ### Scenario: Check enumerates a leftover duplicate scaffold without touching it
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 60b46a6f
+- [x] GREEN dab65eab
+- [x] REFACTOR skip: enumeration derives from schema constants by construction
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
