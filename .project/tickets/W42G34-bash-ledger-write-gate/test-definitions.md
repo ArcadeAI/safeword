@@ -8,9 +8,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The bulk-tick sed command from the audit is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5d6930d
+- [x] GREEN d6e79f0
+- [x] REFACTOR skip: shell-parser extraction to shell-segments.ts was the structural move and landed as GREEN substrate; nothing further to clean
 
 ### Scenario: A read-only reference to the ledger is allowed
 
