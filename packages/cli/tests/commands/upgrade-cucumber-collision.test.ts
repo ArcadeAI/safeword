@@ -20,12 +20,74 @@ import {
   runCli,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
+  writeTestFile,
 } from '../helpers.js';
 
 const CURRENT_LANE_TEMPLATE = readFileSync(
   nodePath.join(repoRoot, 'packages/cli/templates/cucumber/cucumber.mjs'),
   'utf8',
 );
+
+// The 102a/b-era shipped revision of templates/cucumber/cucumber.mjs
+// (git a874ea92) — an install from that era has exactly this content.
+const PREVIOUS_TEMPLATE_REVISION = `// cucumber-js config — safeword's BDD acceptance lane, separate from your unit
+// tests. \`tsx/esm\` transpiles the TypeScript step definitions on the fly;
+// \`paths\` are the Gherkin \`.feature\` files. Run via \`npm run test:bdd\` (or
+// \`bun run test:bdd\`). Safeword owns this file; step definitions and features
+// are yours.
+const workspaceFeaturePaths = [
+  'features/**/*.feature',
+  'packages/*/features/**/*.feature',
+  'apps/*/features/**/*.feature',
+  'libs/*/features/**/*.feature',
+  'modules/*/features/**/*.feature',
+];
+
+const workspaceStepImports = [
+  'tsx/esm',
+  'steps/**/*.ts',
+  'packages/*/features/steps/**/*.ts',
+  'apps/*/features/steps/**/*.ts',
+  'libs/*/features/steps/**/*.ts',
+  'modules/*/features/steps/**/*.ts',
+];
+
+export default {
+  import: workspaceStepImports,
+  paths: workspaceFeaturePaths,
+  tags: 'not @manual and not @live',
+};
+`;
+
+describe('upgrade recognizes a previous template revision as its own scaffold (TB1.AC2)', () => {
+  let directory: string;
+  let upgradeOutput: string;
+
+  beforeAll(async () => {
+    directory = createTemporaryDirectory();
+    createTypeScriptPackageJson(directory);
+    await setupOrThrow(directory);
+    // Simulate an install from an older safeword: the lane config is a
+    // previously shipped template revision, not the current one.
+    writeTestFile(directory, 'cucumber.mjs', PREVIOUS_TEMPLATE_REVISION);
+
+    const upgrade = await runCli(['upgrade'], { cwd: directory });
+    expect(upgrade.exitCode, upgrade.stderr).toBe(0);
+    upgradeOutput = `${upgrade.stdout}\n${upgrade.stderr}`;
+  }, TIMEOUT_BUN_INSTALL);
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC2.previous_revision_is_updated_to_current', () => {
+    expect(readTestFile(directory, 'cucumber.mjs')).toBe(CURRENT_LANE_TEMPLATE);
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC2.previous_revision_no_detection_notice', () => {
+    expect(upgradeOutput).not.toContain('Detected an existing cucumber harness');
+  });
+});
 
 describe('upgrade keeps maintaining the lane safeword installed (TB1.AC2)', () => {
   let directory: string;
