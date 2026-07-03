@@ -51,6 +51,7 @@ function freshProject(dir: string): void {
     devDependencies: {
       typescript: '^5.0.0',
       eslint: '^9.0.0',
+      jiti: '^2.2.0',
       prettier: '^3.0.0',
       'eslint-config-prettier': '^9.0.0',
       safeword: SAFEWORD_VERSION,

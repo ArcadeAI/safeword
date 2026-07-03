@@ -18,6 +18,7 @@ const HEALTH_CHECK_DEVELOPMENT_DEPS = {
   '@types/node': '^24.0.0',
   'dependency-cruiser': '^17.0.0',
   eslint: '^9.22.0',
+  jiti: '^2.2.0',
   knip: '^6.0.0',
   prettier: '^3.0.0',
   safeword: '0.0.0',

@@ -231,8 +231,23 @@ ${safewordImport}${prettier.import}
 //   in the same setup run, so this fallback only fires in degenerate cases.
 let projectConfig = [];
 const projectConfigPath = new URL("../${existingConfig}", import.meta.url);
+
+function isTypeScriptProjectConfig(configPath) {
+  return /\\.[cm]?ts$/.test(configPath.pathname);
+}
+
+async function loadProjectConfig() {
+  if (isTypeScriptProjectConfig(projectConfigPath)) {
+    const { createJiti } = await import("jiti");
+    const jiti = createJiti(import.meta.url);
+    return await jiti.import(projectConfigPath.href, { default: true });
+  }
+  const loaded = await import("../${existingConfig}");
+  return loaded.default;
+}
+
 if (existsSync(projectConfigPath)) {
-  projectConfig = (await import("../${existingConfig}")).default;
+  projectConfig = await loadProjectConfig();
   if (!Array.isArray(projectConfig)) {
     projectConfig = [projectConfig];
   }

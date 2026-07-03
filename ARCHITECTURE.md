@@ -344,15 +344,16 @@ CLI command
 
 ### Dev (`devDependencies`)
 
-| Package      | Purpose                 |
-| ------------ | ----------------------- |
-| `vitest`     | Test runner             |
-| `tsup`       | Bundler                 |
-| `typescript` | Type checking           |
-| `eslint`     | Linting (self-hosted)   |
-| `prettier`   | Formatting              |
-| `knip`       | Dead code detection     |
-| `publint`    | Package publishing lint |
+| Package      | Purpose                                                        |
+| ------------ | -------------------------------------------------------------- |
+| `vitest`     | Test runner                                                    |
+| `tsup`       | Bundler                                                        |
+| `typescript` | Type checking                                                  |
+| `eslint`     | Linting (self-hosted)                                          |
+| `prettier`   | Formatting                                                     |
+| `jiti`       | Load TypeScript ESLint config files from generated hook config |
+| `knip`       | Dead code detection                                            |
+| `publint`    | Package publishing lint                                        |
 
 ### Peer
 

@@ -84,6 +84,7 @@ function markSafewordDevDependenciesInstalled(project: string): void {
     '@cucumber/cucumber': '^12.0.0',
     '@types/node': '^24.0.0',
     eslint: '^10.0.0',
+    jiti: '^2.2.0',
     prettier: '^3.0.0',
     safeword: '0.0.0-test',
     tsx: '^4.0.0',
