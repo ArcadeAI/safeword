@@ -120,13 +120,21 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     );
   }
 
-  function createSecondTicket(): void {
-    const second = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'XYZ789');
-    mkdirSync(second, { recursive: true });
+  function createTicketFolder(
+    folder: string,
+    { type = 'feature', phase = 'intake', status = 'in_progress' } = {},
+  ): string {
+    const directory = nodePath.join(projectRoot, '.safeword-project', 'tickets', folder);
+    mkdirSync(directory, { recursive: true });
     writeFileSync(
-      nodePath.join(second, 'ticket.md'),
-      '---\nid: XYZ789\ntype: feature\nphase: intake\nstatus: in_progress\n---\n',
+      nodePath.join(directory, 'ticket.md'),
+      `---\nid: ${folder}\ntype: ${type}\nphase: ${phase}\nstatus: ${status}\n---\n`,
     );
+    return directory;
+  }
+
+  function createSecondTicket(): void {
+    createTicketFolder('XYZ789');
   }
 
   beforeEach(() => {
@@ -299,12 +307,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     });
 
     it('does not rebind to an epic when one of its artifacts is edited', () => {
-      const epicDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'EPIC01');
-      mkdirSync(epicDirectory, { recursive: true });
-      writeFileSync(
-        nodePath.join(epicDirectory, 'ticket.md'),
-        '---\nid: EPIC01\ntype: epic\nphase: intake\nstatus: in_progress\n---\n',
-      );
+      const epicDirectory = createTicketFolder('EPIC01', { type: 'epic' });
       writeFileSync(nodePath.join(epicDirectory, 'spec.md'), '# Epic spec\n');
 
       runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
@@ -316,17 +319,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     it("editing a cancelled ticket's artifact does not steal the session binding", () => {
       // The status vocabulary is wider than done/backlog — any non-in_progress
       // status must neither bind nor overwrite an existing binding.
-      const cancelledDirectory = nodePath.join(
-        projectRoot,
-        '.safeword-project',
-        'tickets',
-        'CAN001',
-      );
-      mkdirSync(cancelledDirectory, { recursive: true });
-      writeFileSync(
-        nodePath.join(cancelledDirectory, 'ticket.md'),
-        '---\nid: CAN001\ntype: feature\nphase: intake\nstatus: cancelled\n---\n',
-      );
+      const cancelledDirectory = createTicketFolder('CAN001', { status: 'cancelled' });
       writeFileSync(nodePath.join(cancelledDirectory, 'work-log.md'), '# Notes\n');
 
       runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
@@ -336,12 +329,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     });
 
     it("editing a done ticket's artifact does not unbind the session from its active ticket", () => {
-      const doneDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'DONE01');
-      mkdirSync(doneDirectory, { recursive: true });
-      writeFileSync(
-        nodePath.join(doneDirectory, 'ticket.md'),
-        '---\nid: DONE01\ntype: feature\nphase: done\nstatus: done\n---\n',
-      );
+      const doneDirectory = createTicketFolder('DONE01', { phase: 'done', status: 'done' });
       writeFileSync(nodePath.join(doneDirectory, 'spec.md'), '# Archived spec\n');
 
       runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
