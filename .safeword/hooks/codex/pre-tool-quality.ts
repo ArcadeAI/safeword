@@ -10,9 +10,9 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  type ClaudeHookInput,
   type CodexHookInput,
   denialReasonFromHookOutput,
+  runClaudeHookAsCodex,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
 import {
@@ -44,23 +44,6 @@ function writeHookOutput(result: { stdout?: string | null; stderr?: string | nul
 
 function formatCodexReason(reason: string): string {
   return reason.replaceAll(CLAUDE_EXPLAIN_HINT, CODEX_EXPLAIN_HINT);
-}
-
-function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
-  return spawnSync('bun', [claudeHookPath], {
-    cwd: process.cwd(),
-    input: JSON.stringify(translated),
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-      // Authoritative agent attribution for the spawned hook: it runs under Codex,
-      // not Claude, even though we set CLAUDE_PROJECT_DIR for its path resolution.
-      // This same var is what self-report's detectAgent reads.
-      SAFEWORD_AGENT_RUNTIME: 'codex',
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
 }
 
 // Resolve the project root the same way the record-skill-invocation.ts fallback
@@ -99,7 +82,9 @@ if (translatedInputs.length === 0) process.exit(0);
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');
 
-const results = translatedInputs.map(translated => runClaudeHook(claudeHookPath, translated));
+const results = translatedInputs.map(translated =>
+  runClaudeHookAsCodex(claudeHookPath, translated),
+);
 
 for (const result of results) {
   const reason = denialReasonFromHookOutput(result.stdout ?? '');

@@ -14,13 +14,12 @@
 // accumulator emits is forwarded verbatim — Codex PostToolUse shares Claude's
 // hookSpecificOutput.additionalContext output shape.
 
-import { spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  type ClaudeHookInput,
   type CodexHookInput,
+  runClaudeHookAsCodex,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
@@ -35,20 +34,6 @@ async function readInput(): Promise<CodexHookInput | undefined> {
   }
 }
 
-function runClaudeHook(claudeHookPath: string, translated: ClaudeHookInput) {
-  return spawnSync('bun', [claudeHookPath], {
-    cwd: process.cwd(),
-    input: JSON.stringify(translated),
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-      SAFEWORD_AGENT_RUNTIME: 'codex',
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-}
-
 const input = await readInput();
 if (!input) process.exit(0);
 
@@ -61,7 +46,7 @@ const claudeHookPath = nodePath.join(hookDirectory, '..', 'post-tool-quality.ts'
 // Run ALL targets — each spawn accumulates state — then forward the first
 // non-empty additionalContext payload.
 const outputs = translatedInputs.map(
-  translated => runClaudeHook(claudeHookPath, translated).stdout ?? '',
+  translated => runClaudeHookAsCodex(claudeHookPath, translated).stdout ?? '',
 );
 const firstOutput = outputs.find(output => output.trim() !== '');
 if (firstOutput !== undefined) {
