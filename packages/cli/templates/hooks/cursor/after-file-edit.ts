@@ -15,7 +15,7 @@ interface CursorInput {
   file_path?: string;
   conversation_id?: string;
   generation_id?: string;
-  // Stashed for the user-invoked `/retro` command; see cursor-transcript-stash.ts.
+  // Stashed for the user-invoked `/retro` command; see cursor-state.ts.
   transcript_path?: string;
 }
 
