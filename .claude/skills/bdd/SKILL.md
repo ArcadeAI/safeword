@@ -55,8 +55,8 @@ applying the `/review-spec` procedure; **its** verdict decides. When
 `crossModelReview` is on, that reviewer must be a **different model than the
 author** — a same-model reviewer shares the author's blind spots. Prefer one of
 comparable-or-better capability; never weaker. If you can't run a different
-model, log a deliberate `skip: <reason>` rather than stamping a same-model
-review. On a pass, record the stamp:
+model, log a deliberate skip (`--skip "<reason>"`) rather than stamping a
+same-model review. On a pass, record the stamp:
 
 ```bash
 bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
@@ -69,7 +69,7 @@ own guards (intake's user sub-phase gates, implement's tests, the done-gate's
 evidence checks). When the **review gate** is enabled (`reviewGate` in
 `.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
 ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
-(`… --phase <phase> "<why no independent review is needed>"`).
+(`… --phase <phase> --skip "<why no independent review is needed>"`).
 
 ---
 

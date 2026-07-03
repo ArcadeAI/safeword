@@ -2,7 +2,7 @@
 id: 0KYEBN
 slug: phase-provenance
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/644
 scope: |
@@ -56,6 +56,7 @@ last_modified: 2026-07-03T15:17:49.077Z
 - 2026-07-03T15:17:49.077Z Started: Created ticket 0KYEBN
 - 2026-07-03T15:25:00Z Found: G2 gap confirmed in code — #404 readiness gate (pre-tool-quality.ts:437) only fires on phase *changes into* define-behavior; creation at a later phase and forward jumps never trip it. Cursor/Codex adapters spawn the Claude hook as source of truth, so one gate covers all three harnesses.
 - 2026-07-03T15:25:00Z Found: phase census — ~15 live/completed tickets carry off-enum phases (research, backlog, shape, understand, todo, clarify, tdd, planning); enum validation must be transition-scoped, never at-rest.
+- 2026-07-03T17:12:00Z Found: full-suite baseline comparison (origin/main worktree vs branch, name-level diff) — systematic deltas were the gate's collateral, now fixed (a16def3): contentless payloads pass through (pinned by quality-gates 2.4/9.10 + cursor unreadable-ticket tests), Tier-2 fixtures retargeted to one-step advances. Remaining full-run deltas are cross-run flake (installer/lint env tests; 80 vs 76 on identical code, setup-core 11/11 in isolation).
 - 2026-07-03T16:50:00Z Complete: implement — reconciled impl plan; 0 decisions changed (all held), 2 reconciliation notes recorded under Known deviations, 3 assessment triggers added from quality-review suggestions. Whole-ticket /quality-review: APPROVE, no critical issues; cross-scenario refactor 7b0e7f4 (typed canonicalIndex, steps dedupe); docs follow-up parked as SBRA2R. Awaiting baseline suite comparison before phase: verify.
 - 2026-07-03T16:45:00Z Found: implement loop done — 31/31 scenarios through R/G/R (93 ledger boxes, each with step SHA or reasoned skip; commits 13c6582→517db68). Cucumber 33/33 pickles, 30 unit partitions. Full-suite run surfaced 80 failures across 44 files; targeted triage shows the 6 hook-area failures reproduce identically on origin/main (environment/pre-existing, e.g. session-author-model, skill-nudge-agents) — full baseline comparison running before verify. Rough edge for retro: pre-push schema-drift test scans raw .safeword/ filesystem and trips on the gitignored self-report spool; drained (filed #682) spool deleted to unblock push.
 - 2026-07-03T17:35:00Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass: 4 independent review rounds (BLOCK×3 → PASS), all findings applied; /quality-review APPROVE (hook contract + cucumber version verified against live docs; flow-style comma hazard captured as impl decision); user confirmed proceed-unsplit at 31 scenarios; scenario-gate review stamp written; impl-plan.md written (proof plan + build order in Approach, Status: planned).

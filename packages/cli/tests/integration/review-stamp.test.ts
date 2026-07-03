@@ -172,11 +172,63 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
   });
 
-  it('a skip stamp clears the gate and records its reason', () => {
-    const stamp = runStamp('spec', 'trivial', 'boilerplate', 'spec');
+  it('a --skip stamp clears the gate and records its reason', () => {
+    const stamp = runStamp('spec', '--skip', 'trivial boilerplate spec');
     expect(stamp.status).toBe(0);
     expect(readLog()).toContain('skip:trivial boilerplate spec');
     expectHookAllow(runGate());
+  });
+
+  it('rejects free text after the artifact instead of misrecording a pass as a skip (#629)', () => {
+    const stamp = runStamp('spec', 'review', 'passed,', 'some', 'note');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('unexpected trailing arguments');
+    expect(stamp.stdout).toContain('--skip');
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects free text after --phase instead of misrecording a pass as a skip (#629)', () => {
+    const stamp = runStamp('--phase', 'define-behavior', 'independent review PASSED 0 must-fix');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('unexpected trailing arguments');
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects a blank --skip reason', () => {
+    const stamp = runStamp('spec', '--skip', ' '.repeat(3));
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('must not be blank');
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects --model swallowing --skip instead of minting a pass stamp from a declared skip', () => {
+    // Without this guard, `--model --skip` swallows --skip as the model id and
+    // writes a PASS stamp whose bogus model tag clears the cross-model gate.
+    const stamp = runStamp('spec', '--model', '--skip');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('flag-like');
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects --skip swallowing --ticket instead of stamping the wrong ticket', () => {
+    const stamp = runStamp('--skip', '--ticket', TICKET_ID);
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('flag-like');
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects --skip with no value at end of argv', () => {
+    const stamp = runStamp('spec', '--skip');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('--skip requires a value');
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects a repeated flag instead of silently last-winning', () => {
+    const stamp = runStamp('spec', '--skip', 'reason a', '--skip', 'reason b');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('--skip given more than once');
+    expect(readLog()).toBe('');
   });
 
   it('--phase writes a ticket-qualified phase scope', () => {
@@ -196,7 +248,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
   it('a newline in the skip reason cannot inject a second stamp line', () => {
     // A reason crafted to forge a stamp for another scope must be collapsed to
     // one line — the log stays one stamp, and parsing yields only the real one.
-    runStamp('spec', 'looks fine\nreview:HACKED:spec@deadbeefcafe');
+    runStamp('spec', '--skip', 'looks fine\nreview:HACKED:spec@deadbeefcafe');
     const stamps = parseReviewStamps(readLog());
     expect(stamps).toHaveLength(1);
     expect(stamps[0]?.scope).toBe(reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC)));
