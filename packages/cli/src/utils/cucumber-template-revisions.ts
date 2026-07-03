@@ -16,7 +16,7 @@
 
 import { createHash } from 'node:crypto';
 
-export const CUCUMBER_TEMPLATE_REVISION_HASHES: ReadonlySet<string> = new Set([
+const CUCUMBER_TEMPLATE_REVISION_HASHES: ReadonlySet<string> = new Set([
   // f11d63b2 — 102a initial lane config (root features/ only)
   '1a9a1bd23c1f7b249800a631e4f3d59abc24678b9bcb1a21891a95378dbadc58',
   // a874ea92 — VM78NC workspace feature paths

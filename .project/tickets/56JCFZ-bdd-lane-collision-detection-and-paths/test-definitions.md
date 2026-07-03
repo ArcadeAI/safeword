@@ -1,6 +1,6 @@
 # Test Definitions: Detect existing cucumber harness, configurable feature/step paths
 
-Feature source: `packages/cli/features/bdd-lane-collision-detection-and-paths.feature`
+Feature source: `features/bdd-lane-collision-detection-and-paths.feature`
 
 test-definitions.md is the R/G/R ledger.
 
