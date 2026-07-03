@@ -44,9 +44,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Redirecting ledger contents to another file is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side precision pin — the redirection-target design passes it on first run (source ≠ target); the test kills naive substring predicates
+- [x] GREEN d353ae8
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ## Rule: The gate scopes to the tickets namespace
 

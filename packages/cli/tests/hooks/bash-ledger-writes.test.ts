@@ -64,4 +64,15 @@ describe('detectLedgerWrite', () => {
       expect(detectLedgerWrite(`cat ${LEDGER} >> /tmp/backup.md`)).toBeUndefined();
     });
   });
+
+  describe('Rule: The gate scopes to the tickets namespace', () => {
+    it('Scenario: writing a test-definitions.md outside the tickets namespace is allowed', () => {
+      expect(
+        detectLedgerWrite('echo scaffold > /tmp/fixtures/test-definitions.md'),
+      ).toBeUndefined();
+      expect(
+        detectLedgerWrite("sed -i 's/a/b/' docs/examples/test-definitions.md"),
+      ).toBeUndefined();
+    });
+  });
 });
