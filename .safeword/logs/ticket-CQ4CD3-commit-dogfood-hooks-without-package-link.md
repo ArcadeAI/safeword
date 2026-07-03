@@ -16,3 +16,4 @@
 - [15:47] Audit fix: Recorded `/audit`; found generated hook ESLint config now imports `jiti` for `eslint.config.ts` but fresh installs did not request `jiti`. Added `jiti` to TypeScript pack base packages, added schema/reconcile assertions, and updated README, website configuration docs, and `ARCHITECTURE.md`.
 - [15:58] Debugged BDD fallout: Full `test:bdd` first failed because two health-check fixtures were missing `jiti`; added it to both fixture devDependency maps. Canonical full `bun run test:bdd` now passes 181/181 scenarios and 3414/3414 steps.
 - [16:33] Quality review: GitHub full-test CI exposed two remaining Vitest fixtures missing `jiti`; added it to the shared base fixture and self-verify fixture, tightened install behavior to `jiti@^2.2.0`, and reran the affected CI slice plus lint/typecheck/format gates green.
+- [17:31] Done: User confirmed readiness; marked ticket done and prepared PR #615 to leave draft.

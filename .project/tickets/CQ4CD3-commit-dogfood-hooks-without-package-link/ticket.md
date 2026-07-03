@@ -3,11 +3,13 @@ id: CQ4CD3
 slug: commit-dogfood-hooks-without-package-link
 type: task
 subtype: bug-investigated
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-06-26T06:41:31.737Z
-last_modified: 2026-07-02T23:33:40Z
+last_modified: 2026-07-03T00:31:03Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/470
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/615
 scope:
   - Fix Safeword's dogfood/source-worktree ESLint resolution path so `.safeword/eslint.config.mjs` can load `safeword/eslint` during pre-commit lint-staged runs.
   - Cover the source repo and linked worktree case where the root does not contain `node_modules/safeword` before dependency setup.
@@ -68,6 +70,7 @@ The PR's full Vitest CI run still used older fixture manifests in `packages/cli/
 
 ## Work Log
 
+- 2026-07-03T00:31:03Z Done: User confirmed PR readiness after `/refactor` and `/audit`; ticket marked done with PR #615 ready for review.
 - 2026-07-02T23:33:40Z Quality review follow-up: GitHub test CI exposed two remaining Vitest fixtures missing `jiti`; patched the shared base fixture and self-verify fixture, tightened install behavior from bare `jiti` to `jiti@^2.2.0`, and reran the affected CI slice plus lint/typecheck/format gates green.
 - 2026-07-02T22:58:59Z Debugged post-audit BDD fallout: full `test:bdd` initially failed because health-check fixtures were missing the newly required `jiti` devDependency; patched both fixture manifests and reran the canonical full lane to 181/181 scenarios and 3414/3414 steps passing.
 - 2026-07-02T22:47:22Z Audit fix: `/audit` found the generated hook ESLint config imports `jiti` but fresh installs did not request `jiti`; added it to TypeScript pack packages, covered package reconciliation/schema tests, and updated README/website/architecture docs for the devDependency.
