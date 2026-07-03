@@ -456,6 +456,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor',
     '.cursor/rules',
     '.cursor/commands',
+    '.cursor/agents',
   ],
 
   // Directories we add to but don't own (not deleted on reset)
@@ -463,7 +464,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude',
     '.claude/skills',
     '.claude/commands',
+    // Custom-agent homes (GH628F): safeword ships safeword-retro-filer here, but
+    // users keep their own agents in these dirs — add-to, never own.
+    '.claude/agents',
     '.codex',
+    '.codex/agents',
     '.agents',
     '.agents/skills',
     ...CODEX_SKILL_DIRS,
@@ -664,6 +669,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/namespace-root.ts': { template: 'hooks/lib/namespace-root.ts' },
     '.safeword/hooks/lib/retro-draft-spool.ts': { template: 'hooks/lib/retro-draft-spool.ts' },
     '.safeword/hooks/lib/retro-extract.ts': { template: 'hooks/lib/retro-extract.ts' },
+    '.safeword/hooks/lib/retro-filing-gate.ts': { template: 'hooks/lib/retro-filing-gate.ts' },
     '.safeword/hooks/lib/retro-nudge.ts': { template: 'hooks/lib/retro-nudge.ts' },
     '.safeword/hooks/lib/retro-trigger.ts': { template: 'hooks/lib/retro-trigger.ts' },
     '.safeword/hooks/lib/self-report.ts': { template: 'hooks/lib/self-report.ts' },
@@ -798,6 +804,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/stop-quality.ts': { template: 'hooks/stop-quality.ts' },
     '.safeword/hooks/stop-reentry.ts': { template: 'hooks/stop-reentry.ts' },
+    '.safeword/hooks/stop-retro-filing.ts': { template: 'hooks/stop-retro-filing.ts' },
     '.safeword/hooks/stop-retro.ts': { template: 'hooks/stop-retro.ts' },
     '.safeword/hooks/stop-self-report.ts': { template: 'hooks/stop-self-report.ts' },
     '.safeword/hooks/session-start-reentry.ts': {
@@ -1070,6 +1077,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword-project/.gitignore': {
       content: NAMESPACE_GITIGNORE_CONTENT,
     },
+
+    // Retro filer subagent (GH628F, issue #628): the filing procedure lives in
+    // the agent definition, dispatched by the per-harness stop gates. One
+    // markdown source serves Claude and Cursor; Codex takes TOML.
+    '.claude/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
+    '.cursor/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
+    '.codex/agents/safeword-retro-filer.toml': { template: 'agents/safeword-retro-filer.toml' },
   },
 
   // JSON files where we merge specific keys

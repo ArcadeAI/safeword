@@ -1,14 +1,19 @@
 #!/usr/bin/env bun
 // Safeword: Codex Stop adapter for turn-end work.
 //
-// Two behaviors share one Stop hook:
+// Three behaviors share one Stop hook:
 //   1. Architecture-drift advisory: may emit a Codex continuation
 //      (`decision:"block"`) during done-phase work.
 //   2. Retro extraction: runs synchronously and invisibly for substantial Codex
 //      sessions; any unfiled drafts surface later through UserPromptSubmit.
+//   3. Retro FILING gate (#628/GH628F): when extraction (this stop or an earlier
+//      one) left unfiled drafts spooled, emit the sanctioned continuation that
+//      dispatches the safeword-retro-filer subagent — extraction itself stays
+//      invisible (CDX602); only the rare, attempt-capped filing dispatch may
+//      block a stop. The architecture advisory keeps precedence; filing retries
+//      at the next stop.
 //
 // No-op and fail-open paths return valid JSON `{}` so Codex sees no continuation.
-// Retro never emits a Stop continuation.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -18,6 +23,7 @@ import process from 'node:process';
 import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
+import { decideRetroFilingGate } from '../lib/retro-filing-gate.ts';
 import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
@@ -127,9 +133,19 @@ async function main(): Promise<string> {
   runRetroExtraction(projectDirectory, input);
 
   const reason = architectureNudge(projectDirectory, input);
-  if (!reason) return SILENT;
+  if (reason) return JSON.stringify({ decision: 'block', reason });
 
-  return JSON.stringify({ decision: 'block', reason });
+  // Filing gate (#628): extraction above is synchronous, so drafts it spooled are
+  // already on disk — the same stop can dispatch the filer. Yields to the
+  // architecture advisory (one continuation per stop); the gate's attempt budget
+  // lets it retry at the next stop.
+  if (readSelfReportConfig(projectDirectory).file) {
+    const sessionId = resolveCodexSessionId(input, process.env);
+    const dispatch = sessionId ? decideRetroFilingGate(projectDirectory, sessionId) : undefined;
+    if (dispatch) return JSON.stringify({ decision: 'block', reason: dispatch });
+  }
+
+  return SILENT;
 }
 
 let output = SILENT;
