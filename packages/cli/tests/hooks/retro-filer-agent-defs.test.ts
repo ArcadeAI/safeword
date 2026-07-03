@@ -49,3 +49,35 @@ describe('safeword-retro-filer agent definitions (GH628F — shipped artifacts p
     expect(text).toContain('ArcadeAI/safeword');
   });
 });
+
+// GH644A SM2.AC1: shipped prompts and the guide carry the ack procedure and
+// the drain prohibition — the behavioral half of the bare-drain tripwire.
+describe('filer ack procedure in shipped prompts (GH644A)', () => {
+  const tomlText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.toml'), 'utf8');
+  const mdText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.md'), 'utf8');
+  const guideText = readFileSync(
+    nodePath.resolve(import.meta.dirname, '../../templates/guides/self-report-filing.md'),
+    'utf8',
+  );
+
+  it.each([
+    ['markdown (Claude/Cursor)', mdText],
+    ['TOML (Codex)', tomlText],
+  ])('the %s filer definition instructs ack-after-post-before-drain', (_label, text) => {
+    expect(text).toContain('.acks.jsonl');
+    expect(text.toLowerCase()).toMatch(/after each successful post/);
+    expect(text.toLowerCase()).toMatch(/before (draining|you drain)/);
+  });
+
+  it('the dispatch text states that only the filer drains the spool', async () => {
+    const { formatFilingDispatch } = await import('../../templates/hooks/lib/retro-filing-gate.js');
+    expect(formatFilingDispatch(1, '/p/s.jsonl').toLowerCase()).toContain(
+      'only the safeword-retro-filer drains',
+    );
+  });
+
+  it("the guide's inline-fallback section documents appending the ack record", () => {
+    expect(guideText).toContain('.acks.jsonl');
+    expect(guideText.toLowerCase()).toMatch(/ack record|ack line/);
+  });
+});

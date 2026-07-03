@@ -13,12 +13,17 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { markDraftsFiled, spoolDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
+import {
+  draftSpoolPath,
+  markDraftsFiled,
+  spoolDrafts,
+} from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
   FILER_AGENT_NAME,
   FILING_ATTEMPT_CAP,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import {
+  appendRetroAck,
   createTemporaryDirectory,
   removeTemporaryDirectory,
   retroDraft as draft,
@@ -109,5 +114,94 @@ describe('stop-retro-filing hook (GH628F — sanctioned dispatch continuation)',
       expect(runHook(projectDirectory, { session_id: 'sess-1' }).stdout).toContain('block');
     }
     expect(runHook(projectDirectory, { session_id: 'sess-1' }).stdout.trim()).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GH644A TB1.AC1 — the tripwire observes through the REAL hook entry: it emits
+// nothing, decides exactly as an ack-clean evaluation, captures an
+// allowlist-shaped RetroBareDrain, and leaves the retro spool untouched.
+// ---------------------------------------------------------------------------
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+
+import { readSessionReports } from '../../templates/hooks/lib/self-report.js';
+
+describe('stop-retro-filing tripwire wiring (GH644A — observe, never surface)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = createTemporaryDirectory();
+  });
+  afterEach(() => {
+    removeTemporaryDirectory(projectDirectory);
+  });
+
+  /** Seed a dispatched-then-drained batch: snapshot marker, empty spool. */
+  function seedBareDrain(sessionId: string, signature: string): void {
+    const dir = nodePath.join(projectDirectory, '.safeword', 'retro-drafts');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      nodePath.join(dir, `${sessionId}.filing-attempts`),
+      `${JSON.stringify({ key: 'k', attempts: 1, signatures: [signature] })}\n`,
+    );
+  }
+
+  it('a tripped evaluation emits nothing and decides exactly as an ack-clean one', () => {
+    seedBareDrain('bare', 'retro:aaaaaaaaaaaa');
+    seedBareDrain('clean', 'retro:aaaaaaaaaaaa');
+    appendRetroAck(projectDirectory, 'clean', 'retro:aaaaaaaaaaaa', 101);
+
+    const tripped = runHook(projectDirectory, { session_id: 'bare' });
+    const clean = runHook(projectDirectory, { session_id: 'clean' });
+
+    expect(tripped.status).toBe(0);
+    expect(tripped.stdout.trim()).toBe(''); // no continuation, no context line
+    expect(tripped.stdout).toBe(clean.stdout); // decision parity with ack-clean
+    expect(readSessionReports(projectDirectory, 'bare')).toHaveLength(1);
+    expect(readSessionReports(projectDirectory, 'clean')).toHaveLength(0);
+  });
+
+  it('captures an allowlist-shaped RetroBareDrain and leaves the retro spool untouched', () => {
+    // Partial drain: one draft remains spooled, one dispatched signature vanished bare.
+    spoolDrafts(projectDirectory, 'sess-1', [draft('retro:bbbbbbbbbbbb', 'Remaining')]);
+    const dir = nodePath.join(projectDirectory, '.safeword', 'retro-drafts');
+    writeFileSync(
+      nodePath.join(dir, 'sess-1.filing-attempts'),
+      `${JSON.stringify({ key: 'k', attempts: 1, signatures: ['retro:aaaaaaaaaaaa', 'retro:bbbbbbbbbbbb'] })}\n`,
+    );
+    const spoolBefore = readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8');
+
+    runHook(projectDirectory, { session_id: 'sess-1' });
+
+    const records = readSessionReports(projectDirectory, 'sess-1');
+    expect(records).toHaveLength(1);
+    expect(records[0]?.errorClass).toBe('RetroBareDrain');
+    expect(records[0]?.source).toBe('retro-filing-gate');
+    // Allowlist-only field set — no free-form text can ride along.
+    expect(
+      Object.keys(records[0] ?? {}).every(k =>
+        [
+          'ts',
+          'sessionId',
+          'safewordVersion',
+          'source',
+          'agent',
+          'errorClass',
+          'frames',
+          'exitCode',
+        ].includes(k),
+      ),
+    ).toBe(true);
+    expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8')).toBe(spoolBefore);
+  });
+
+  it('a watch-only install (file:false, capture:true) still trips through the real hook', () => {
+    writeConfig(projectDirectory, { capture: true, file: false });
+    seedBareDrain('watch', 'retro:aaaaaaaaaaaa');
+
+    const result = runHook(projectDirectory, { session_id: 'watch' });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(''); // never a dispatch in watch-only mode
+    expect(readSessionReports(projectDirectory, 'watch')).toHaveLength(1);
   });
 });

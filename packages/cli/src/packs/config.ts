@@ -14,6 +14,8 @@ const CONFIG_PATH = '.safeword/config.json';
 interface SafewordConfig {
   installedPacks: string[];
   autoUpgrade?: boolean;
+  /** SQL pack options — `fix: true` opts in to edit-time `sqlfluff fix` (#638). */
+  sql?: { fix?: boolean };
 }
 
 function readConfig(cwd: string): SafewordConfig | undefined {

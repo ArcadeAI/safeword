@@ -2,8 +2,8 @@
 id: GH628F
 slug: retro-filer-subagent-gate
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 parent: RV9JT4-retro-transcript-mining
 depends_on: [BNGK9W, CDX602]
 external_issue: https://github.com/ArcadeAI/safeword/issues/628
@@ -74,3 +74,5 @@ statement, design decision, and refinements are in the issue comments.
   (subagent-primary, drain-as-ack), nudge mentions the filer. Tests: unit gate
   suite + integration suites for all three adapters green; typecheck clean;
   targeted setup/reset/check/retro suites green. R/G/R ledger fully checked.
+- 2026-07-03 (done): PR #659 merged to main (42d0772). Verify/audit/quality-review
+  stamps logged; follow-ups tracked in #658 (GH644A) and #634.

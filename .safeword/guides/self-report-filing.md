@@ -83,10 +83,13 @@ with two differences:
    `{ signature, title, body, labels }` per line, already egress-sanitized (no
    customer data — do not add any). Dedup by the draft's content signature (the
    `<!-- safeword-retro-signature: … -->` marker in the body, or the `title`).
-2. **Drain the spool afterward**: rewrite it with only the drafts you did not
-   file (delete it when none remain). The stop gate re-dispatches an undrained
-   batch — draining is the ack. Post the bodies exactly as spooled — the
-   signature marker in each body is what dedup depends on.
+2. **Write the ack record, then drain.** After each successful post, append one
+   `{"signature": ..., "issue": ...}` ack line to the spool's sibling ack file
+   (`.acks.jsonl` in place of `.jsonl`), then rewrite the spool with only the
+   drafts you did not file (delete it when none remain). The acks are what
+   prove the drain honest — a drain without them trips safeword's bare-drain
+   telemetry. Post the bodies exactly as spooled — the signature marker in
+   each body is what dedup depends on.
 
 ## Config
 
