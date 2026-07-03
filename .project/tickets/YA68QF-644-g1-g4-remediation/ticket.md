@@ -38,7 +38,7 @@ Extend the #128 implement-phase PreTool gate: a new-flow feature at implement re
 
 ## Origin
 
-# 644 session audit (GH628F shipped outside the intended workflow at 12+ steps). Wave 2 of the remediation; ordering agreed with the maintainer 2026-07-03 — G2 first (root cause), then G1+G4. Related: #385 (pre-edit-state gate UX, sibling of G1), #480/#481/#478 (plan-implementation phase + pre-human review gates, siblings of G4/G1 — this epic delivers the enforcement half without the new phase).
+Issue #644 session audit (GH628F shipped outside the intended workflow at 12+ steps). Wave 2 of the remediation; ordering agreed with the maintainer 2026-07-03 — G2 first (root cause), then G1+G4. Related: #385 (pre-edit-state gate UX, sibling of G1), #480/#481/#478 (plan-implementation phase + pre-human review gates, siblings of G4/G1 — this epic delivers the enforcement half without the new phase).
 
 ## Work Log
 
