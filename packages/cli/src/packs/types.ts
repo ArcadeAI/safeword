@@ -69,11 +69,18 @@ export interface ProjectType {
   existingSqlfluffConfig: string | undefined;
   /**
    * Evidence of a cucumber harness safeword did not scaffold (e.g.
-   * 'cucumber.yaml'), undefined when none. Suppresses the starter BDD lane —
-   * files, deps, and test:bdd script — so setup adopts the host's harness
-   * instead of scaffolding a second one (ticket 56JCFZ, issue #645).
+   * 'cucumber.yaml'), undefined when none. Drives the setup notice and check
+   * advisories (ticket 56JCFZ, issue #645).
    */
   existingCucumberHarness: string | undefined;
+  /**
+   * Whether the starter BDD lane (files, deps, test:bdd) is safeword's to
+   * scaffold and maintain: true when safeword's own lane is present (any
+   * shipped template revision — keep maintaining it, even alongside a host
+   * harness) or when no harness exists; false when a host harness is
+   * detected and safeword's lane is absent (ticket 56JCFZ).
+   */
+  scaffoldBddLane: boolean;
 }
 
 // ============================================================================

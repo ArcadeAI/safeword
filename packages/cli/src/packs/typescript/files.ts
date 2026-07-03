@@ -382,8 +382,8 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       if (ctx.projectType.hasJsSource) addScriptIfMissing(scripts, 'knip', 'knip');
       // BDD acceptance lane (ticket 102b) — add-if-absent: an existing
       // customer test:bdd script always wins. Suppressed entirely when the
-      // repo has its own cucumber harness (56JCFZ).
-      if (!ctx.projectType.existingCucumberHarness) {
+      // lane isn't safeword's to scaffold (56JCFZ).
+      if (ctx.projectType.scaffoldBddLane) {
         addScriptIfMissing(scripts, 'test:bdd', 'cucumber-js');
       }
 
@@ -525,9 +525,9 @@ export const typescriptPackages = {
     // BDD acceptance lane (ticket 102b) — cucumber-js runs the scaffolded
     // .feature files; tsx transpiles the TypeScript step definitions, and
     // @types/node lets the scaffolded steps (node: imports) pass typechecks.
-    // Suppressed when the repo already has its own cucumber harness (56JCFZ);
-    // "bddLane" = !existingCucumberHarness, special-cased in reconcile.
-    bddLane: ['@cucumber/cucumber', 'tsx', '@types/node'],
+    // Keyed on ProjectType.scaffoldBddLane: suppressed when the repo has its
+    // own cucumber harness and safeword's lane is absent (56JCFZ).
+    scaffoldBddLane: ['@cucumber/cucumber', 'tsx', '@types/node'],
     // Prettier (only for projects without existing formatter)
     standard: ['prettier'], // "standard" = !existingFormatter
     // Prettier plugins (only for projects without existing formatter that need them)

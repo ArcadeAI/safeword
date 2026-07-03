@@ -454,9 +454,9 @@ function bddLaneFile(templatePath: string): FileDefinition {
     // the generator (which takes precedence) gates on harness detection.
     template: templatePath,
     generator: (ctx: ProjectContext): string | undefined =>
-      ctx.projectType.existingCucumberHarness
-        ? undefined
-        : readFileSync(nodePath.join(getTemplatesDirectory(), templatePath), 'utf8'),
+      ctx.projectType.scaffoldBddLane
+        ? readFileSync(nodePath.join(getTemplatesDirectory(), templatePath), 'utf8')
+        : undefined,
   };
 }
 

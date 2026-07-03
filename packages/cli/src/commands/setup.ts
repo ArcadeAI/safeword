@@ -488,7 +488,9 @@ export async function setup(options: SetupOptions): Promise<void> {
     };
     const result = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
     success('Created .safeword directory and configuration');
-    printCucumberHarnessNotice(ctx.projectType.existingCucumberHarness);
+    if (!ctx.projectType.scaffoldBddLane) {
+      printCucumberHarnessNotice(ctx.projectType.existingCucumberHarness);
+    }
 
     // Language-specific setup. The JS path runs unconditionally: ensurePackageJson
     // guarantees a package.json (the BDD lane's home, ticket 102b), which is what

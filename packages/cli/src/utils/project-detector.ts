@@ -519,24 +519,17 @@ function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
   return undefined;
 }
 
-/**
- * Detect a cucumber harness safeword did not scaffold (ticket 56JCFZ).
- * Returns the evidence (config file name or workspace dependency) or
- * undefined. Safeword's own scaffolded cucumber.mjs is excluded by exact
- * content match so upgrades never mistake the lane safeword installed for a
- * host harness; workspace-package deps are always host evidence — safeword
- * only ever adds the dep at the root.
- */
-function detectCucumberHarness(cwd: string | undefined): string | undefined {
-  if (!cwd) return undefined;
-  let ownLanePresent = false;
+interface CucumberLaneDetection {
+  existingCucumberHarness: string | undefined;
+  scaffoldBddLane: boolean;
+}
+
+/** Host-harness evidence: first foreign config file, else workspace dep, else root dep. */
+function detectCucumberHarnessEvidence(cwd: string, ownLanePresent: boolean): string | undefined {
   for (const name of CUCUMBER_CONFIG_FILES) {
     const configPath = nodePath.join(cwd, name);
     if (!existsSync(configPath)) continue;
-    if (name === 'cucumber.mjs' && isSafewordLaneTemplate(configPath)) {
-      ownLanePresent = true;
-      continue;
-    }
+    if (name === 'cucumber.mjs' && ownLanePresent) continue;
     return name;
   }
 
@@ -552,6 +545,24 @@ function detectCucumberHarness(cwd: string | undefined): string | undefined {
   return undefined;
 }
 
+/**
+ * Detect a cucumber harness safeword did not scaffold, and whether the
+ * starter lane is safeword's to scaffold/maintain (ticket 56JCFZ).
+ * Evidence and suppression are deliberately separate: a bitten repo (own
+ * lane + host harness) keeps lane maintenance while advisories surface the
+ * duplicate; a fresh repo with a host harness gets no lane at all.
+ */
+function detectCucumberLane(cwd: string | undefined): CucumberLaneDetection {
+  if (!cwd) return { existingCucumberHarness: undefined, scaffoldBddLane: true };
+
+  const ownLanePresent = isSafewordLaneTemplate(nodePath.join(cwd, 'cucumber.mjs'));
+  const evidence = detectCucumberHarnessEvidence(cwd, ownLanePresent);
+  return {
+    existingCucumberHarness: evidence,
+    scaffoldBddLane: ownLanePresent || evidence === undefined,
+  };
+}
+
 export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: string): ProjectType {
   const dependencies = packageJson.dependencies ?? {};
   const developmentDependencies = packageJson.devDependencies ?? {};
@@ -563,7 +574,7 @@ export function detectProjectType(packageJson: PackageJsonWithScripts, cwd?: str
     publishableLibrary: detectPublishable(packageJson),
     shell: cwd ? hasShellScripts(cwd) : false,
     hasJsSource: cwd ? hasJsSource(cwd) : false,
-    existingCucumberHarness: detectCucumberHarness(cwd),
+    ...detectCucumberLane(cwd),
     ...detectExistingTooling(cwd, scripts),
   };
 }

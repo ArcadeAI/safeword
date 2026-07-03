@@ -59,16 +59,14 @@ const PRETTIER_PACKAGES = new Set([
 ]);
 
 // Conditional-package keys whose condition is the ABSENCE of existing tooling,
-// rather than a truthy ProjectType field: "standard" = no existing formatter,
-// "bddLane" = no existing cucumber harness (56JCFZ).
+// rather than a truthy ProjectType field: "standard" = no existing formatter.
 const INVERTED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => boolean> = {
   standard: projectType => !projectType.existingFormatter,
-  bddLane: projectType => !projectType.existingCucumberHarness,
 };
 
 /**
  * Get conditional packages based on project type.
- * Handles inverted keys (standard/bddLane) and prettier filtering for existing formatters.
+ * Handles inverted keys (standard) and prettier filtering for existing formatters.
  */
 function getConditionalPackages(
   conditionalPackages: Record<string, string[]>,
