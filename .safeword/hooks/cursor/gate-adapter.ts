@@ -12,6 +12,8 @@
 
 import { spawnSync } from 'node:child_process';
 
+import { commandWordIndex, parseShellWords, splitShellSegments } from '../lib/shell-segments.ts';
+
 /** Fields present on every Cursor agent hook request (the "common schema"). */
 export interface CursorBaseInput {
   /** Stable across all turns of a conversation — used as the state key. */
@@ -249,84 +251,10 @@ export function requiresFailClosedShellGate(params: { command: string }): boolea
   return splitShellSegments(command).some(segment => isGitCommitSegment(parseShellWords(segment)));
 }
 
-function splitShellSegments(command: string): string[] {
-  const segments: string[] = [];
-  let segmentStart = 0;
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (char === '\\') {
-      escaped = true;
-      continue;
-    }
-    if ((char === '"' || char === "'") && quote === undefined) {
-      quote = char;
-      continue;
-    }
-    if (char === quote) {
-      quote = undefined;
-      continue;
-    }
-    if (quote !== undefined) continue;
-
-    const next = command[index + 1];
-    if (char === ';' || char === '\n' || char === '|' || (char === '&' && next === '&')) {
-      segments.push(command.slice(segmentStart, index));
-      segmentStart = char === '&' && next === '&' ? index + 2 : index + 1;
-      if (char === '&' && next === '&') index += 1;
-    }
-  }
-
-  segments.push(command.slice(segmentStart));
-  return segments;
-}
-
-function parseShellWords(segment: string): string[] {
-  const words: string[] = [];
-  let current = '';
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-
-  for (const char of segment) {
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-    if (char === '\\') {
-      escaped = true;
-      continue;
-    }
-    if ((char === '"' || char === "'") && quote === undefined) {
-      quote = char;
-      continue;
-    }
-    if (char === quote) {
-      quote = undefined;
-      continue;
-    }
-    if (quote === undefined && /\s/.test(char)) {
-      if (current !== '') {
-        words.push(current);
-        current = '';
-      }
-      continue;
-    }
-    current += char;
-  }
-
-  if (current !== '') words.push(current);
-  return words;
-}
-
 function isGitCommitSegment(words: string[]): boolean {
-  let index = skipCommandPrefix(words);
+  // commandWordIndex skips `VAR=val` assignments, `command`, and `env` prefixes
+  // so `GIT_AUTHOR_NAME=bot git commit` can't slip the fail-closed gate.
+  let index = commandWordIndex(words);
   if (words[index] !== 'git') return false;
 
   index += 1;
@@ -337,32 +265,6 @@ function isGitCommitSegment(words: string[]): boolean {
   }
 
   return words[index] === 'commit';
-}
-
-function skipCommandPrefix(words: string[]): number {
-  // A leading run of `VAR=val` assignments is a per-command environment, not the
-  // executable (`GIT_AUTHOR_NAME=bot git commit`). Skip it before resolving the
-  // command word — otherwise the assignment is read as the command name and a
-  // `git commit` slips the fail-closed gate.
-  let index = skipEnvironmentAssignments(words, 0);
-  if (words[index] === 'command') index += 1;
-  if (words[index] !== 'env') return index;
-
-  // `env [NAME=value ...] command` — skip past `env` and its own assignments.
-  index += 1;
-  return skipEnvironmentAssignments(words, index);
-}
-
-function skipEnvironmentAssignments(words: string[], start: number): number {
-  let index = start;
-  while (index < words.length && isEnvironmentAssignment(words[index] ?? '')) {
-    index += 1;
-  }
-  return index;
-}
-
-function isEnvironmentAssignment(token: string): boolean {
-  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
 }
 
 function optionTakesSeparateValue(option: string): boolean {

@@ -703,6 +703,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/checkbox-transitions.ts': {
       template: 'hooks/lib/checkbox-transitions.ts',
     },
+    '.safeword/hooks/lib/shell-segments.ts': { template: 'hooks/lib/shell-segments.ts' },
+    '.safeword/hooks/lib/bash-ledger-writes.ts': {
+      template: 'hooks/lib/bash-ledger-writes.ts',
+    },
     '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
     '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
     '.safeword/hooks/lib/ledger-git.ts': { template: 'hooks/lib/ledger-git.ts' },
