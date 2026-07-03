@@ -17,9 +17,11 @@ import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
   buildSurfaceCoverageReportFromFeature,
+  findMixedCriteriaJtbds,
   parseAcIdsByJtbd,
   parseAcReferenceFromTitle,
   parseAffectedSurfaceReferences,
+  parseCriteriaIdsByJtbd,
 } from './scenario-coverage.js';
 
 /** Wrap a JTBD/AC body in a minimal spec.md with the required section heading. */
@@ -40,6 +42,9 @@ function testDefinitions(titles: readonly string[]): string {
 
 const ONE_AC = '### demo.DEV1 — Trace\n\n**Persona:** DEV\n\n#### demo.DEV1.AC1 — capability one';
 const TWO_ACS = `${ONE_AC}\n\n#### demo.DEV1.AC2 — capability two`;
+const ONE_RULE =
+  '### demo.DEV2 — Retry\n\n**Persona:** DEV\n\n#### demo.DEV2.R1 — failed deliveries retry on backoff';
+const MIXED = `${ONE_AC}\n\n#### demo.DEV1.R1 — an invariant slipped in beside the AC`;
 
 describe('parseAcReferenceFromTitle (R1 — title parses to its AC reference, or none)', () => {
   it('cross-reference-numbering.DEV1.AC1.conformant_title_yields_ac_ref', () => {
@@ -67,6 +72,40 @@ describe('parseAcIdsByJtbd (supporting — AC ids grouped by JTBD)', () => {
   it('ignores an HTML-commented example AC', () => {
     const byJtbd = parseAcIdsByJtbd(spec('<!--\n### ex.DEV1 — t\n\n#### ex.DEV1.AC1 — a\n-->'));
     expect(byJtbd.size).toBe(0);
+  });
+});
+
+describe('parseCriteriaIdsByJtbd (rule tier — AC vs R heading classification)', () => {
+  it('rule-tier.TB3.AC1.groups_rule_ids_separately_from_ac_ids', () => {
+    const byJtbd = parseCriteriaIdsByJtbd(spec(`${TWO_ACS}\n\n${ONE_RULE}`));
+    expect(byJtbd.get('demo.DEV1')).toEqual({
+      acIds: ['demo.DEV1.AC1', 'demo.DEV1.AC2'],
+      ruleIds: [],
+    });
+    expect(byJtbd.get('demo.DEV2')).toEqual({ acIds: [], ruleIds: ['demo.DEV2.R1'] });
+  });
+
+  it('rule-tier.TB3.AC1.ac_shaped_heading_wins_over_rule_shaped_prefix', () => {
+    // Persona code `R`: feat.R1 is the JTBD id, its heading declares an AC.
+    const byJtbd = parseCriteriaIdsByJtbd(
+      spec('### feat.R1 — Review\n\n**Persona:** R\n\n#### feat.R1.AC1 — reviewable'),
+    );
+    expect(byJtbd.get('feat.R1')).toEqual({ acIds: ['feat.R1.AC1'], ruleIds: [] });
+  });
+
+  it('rule-tier.TB1.AC3.parse_ac_ids_no_longer_counts_rule_headings', () => {
+    const byJtbd = parseAcIdsByJtbd(spec(ONE_RULE));
+    expect(byJtbd.get('demo.DEV2')).toEqual([]);
+  });
+});
+
+describe('findMixedCriteriaJtbds (rule tier — one criteria kind per JTBD)', () => {
+  it('rule-tier.TB1.AC4.mixed_jtbd_detected', () => {
+    expect(findMixedCriteriaJtbds(spec(MIXED))).toEqual(['demo.DEV1']);
+  });
+
+  it('rule-tier.TB1.AC4.single_kind_jtbds_not_mixed', () => {
+    expect(findMixedCriteriaJtbds(spec(`${TWO_ACS}\n\n${ONE_RULE}`))).toEqual([]);
   });
 });
 
