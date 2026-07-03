@@ -54,5 +54,14 @@ describe('detectLedgerWrite', () => {
       ).toBeDefined();
       expect(detectLedgerWrite(`echo '- [x] RED' | tee ${LEDGER} | head -1`)).toBeDefined();
     });
+
+    it('Scenario: redirecting ledger contents to another file is allowed', () => {
+      // The ledger is the read SOURCE; the write target is elsewhere. A naive
+      // "path present AND redirection present" predicate over-denies exactly this.
+      expect(
+        detectLedgerWrite(String.raw`grep '\[x\]' ${LEDGER} > /tmp/summary.txt`),
+      ).toBeUndefined();
+      expect(detectLedgerWrite(`cat ${LEDGER} >> /tmp/backup.md`)).toBeUndefined();
+    });
   });
 });

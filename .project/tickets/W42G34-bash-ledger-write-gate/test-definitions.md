@@ -38,9 +38,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A write-shaped segment inside a compound command is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: pin — per-segment scan landed with the outline GREEN (fd9effd), so this passes on first run; test guards segment handling
+- [x] GREEN eecd7b7
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: Redirecting ledger contents to another file is allowed
 
