@@ -432,6 +432,22 @@ function frontmatterFromContent(content: string): Record<string, string | string
   return match ? parseFrontmatter(match[1] ?? '') : {};
 }
 
+// Derived once for the ticket.md gate family below (provenance, readiness,
+// Tier-2 review, blocked_on): the on-disk content (undefined when the write
+// would create the file) and the content the write would produce. The gates
+// run back-to-back in one hook invocation with no writes between, so a single
+// derivation is equivalent to each gate re-reading.
+const ticketWrite =
+  editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')
+    ? (() => {
+        const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
+        return {
+          priorContent,
+          proposedContent: nextContentAfterEdit(input.tool_input, priorContent ?? ''),
+        };
+      })()
+    : undefined;
+
 // ---------------------------------------------------------------------------
 // Phase-provenance gate (0KYEBN, #644 G2) — ALWAYS-ON. A feature ticket's
 // phase is earned, not declared: born at intake, one canonical step at a time,
@@ -439,7 +455,7 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // #404 readiness gate so "wrong step" is reported before "step not earned".
 // ---------------------------------------------------------------------------
 
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (ticketWrite !== undefined) {
   // Only judge writes whose proposed content is reconstructable from the
   // payload (Write content, Edit old/new, MultiEdit edits). Payload shapes
   // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
@@ -450,9 +466,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
     toolInput?.edits !== undefined ||
     toolInput?.old_string !== undefined;
   if (reconstructable) {
-    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : undefined;
-    const proposedContent = nextContentAfterEdit(toolInput, priorContent ?? '');
-    const verdict = evaluateTicketWrite(priorContent, proposedContent);
+    const verdict = evaluateTicketWrite(ticketWrite.priorContent, ticketWrite.proposedContent);
     if (!verdict.ok) {
       deny(verdict.reason, withOrderingNote(verdict.remediation));
     }
@@ -462,10 +476,9 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // Feature readiness gate (#404): block new entries into define-behavior before
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
-  const priorMeta = frontmatterFromContent(priorContent);
+if (ticketWrite !== undefined) {
+  const { proposedContent } = ticketWrite;
+  const priorMeta = frontmatterFromContent(ticketWrite.priorContent ?? '');
   const proposedMeta = frontmatterFromContent(proposedContent);
   const priorPhase = frontmatterScalar(priorMeta, 'phase');
   const proposedPhase = frontmatterScalar(proposedMeta, 'phase');
@@ -494,12 +507,11 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // independent phase-exit review stamp exists for it. The stamp is produced by a
 // fresh (context:fork) reviewer and logged via `write-review-stamp.ts --phase`,
 // so the author can't grade their own phase. Inert until reviewGate is enabled.
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (ticketWrite !== undefined) {
   if (isReviewGateOn()) {
-    const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
     const exitedPhase = detectPhaseAdvance(
-      priorContent,
-      nextContentAfterEdit(input.tool_input, priorContent),
+      ticketWrite.priorContent ?? '',
+      ticketWrite.proposedContent,
     );
     if (exitedPhase !== undefined) {
       const ticketDirectory = nodePath.dirname(editedFile);
@@ -540,13 +552,15 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // not done (override with a substantive reason). Joins the phase-gate family.
 // ---------------------------------------------------------------------------
 
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
-  const denial = evaluateBlockedOnGate(priorContent, proposedContent, id => {
-    const info = getTicketInfo(projectDirectory, id);
-    return { found: info.folder !== undefined, status: info.status };
-  });
+if (ticketWrite !== undefined) {
+  const denial = evaluateBlockedOnGate(
+    ticketWrite.priorContent ?? '',
+    ticketWrite.proposedContent,
+    id => {
+      const info = getTicketInfo(projectDirectory, id);
+      return { found: info.folder !== undefined, status: info.status };
+    },
+  );
   if (denial !== undefined) {
     deny(denial.reason, denial.additionalContext);
   }
