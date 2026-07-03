@@ -116,22 +116,24 @@ for (const result of results) {
   process.exit(result.status ?? 0);
 }
 
+for (const result of results) {
+  writeHookOutput(result);
+}
+
+const failedResult = results.find(result => (result.status ?? 0) !== 0);
+
 // Same one-step bridge for write-review-stamp.ts (#630): the stamp helper's
 // process env has no run identity on Codex, so stash the session id right
-// before its command runs. Armed only after the gate allowed the command
-// (mirroring the Cursor adapter) so a denied stamp never leaves a live cache
-// another session could adopt. Separate cache from the proof bridge, so a
-// chained `record-skill-invocation && write-review-stamp` feeds both consumers.
-if (commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
+// before its command runs. Armed only after the gate allowed the command AND
+// ran cleanly (mirroring the Cursor adapter) so neither a denied stamp nor a
+// crashed gate leaves a live cache another session could adopt. Separate cache
+// from the proof bridge, so a chained `record-skill-invocation &&
+// write-review-stamp` feeds both consumers.
+if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
   rememberCodexReviewStampIdentity({
     projectDirectory: resolveProjectRoot(),
     id: input.session_id,
   });
 }
 
-for (const result of results) {
-  writeHookOutput(result);
-}
-
-const failedResult = results.find(result => (result.status ?? 0) !== 0);
 process.exit(failedResult?.status ?? 0);
