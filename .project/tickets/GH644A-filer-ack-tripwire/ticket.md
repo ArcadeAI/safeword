@@ -2,8 +2,8 @@
 id: GH644A
 slug: filer-ack-tripwire
 type: feature
-phase: shape
-status: open
+phase: scenario-gate
+status: in_progress
 parent: RV9JT4-retro-transcript-mining
 depends_on: [GH628F]
 external_issue: https://github.com/ArcadeAI/safeword/issues/658
