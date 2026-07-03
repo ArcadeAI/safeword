@@ -4,6 +4,7 @@
 
 import { existsSync } from 'node:fs';
 
+import { stashCursorTranscript } from '../lib/cursor-transcript-stash.ts';
 import { lintFile } from '../lib/lint.ts';
 import { getRunStorageKey, resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
@@ -15,6 +16,8 @@ interface CursorInput {
   file_path?: string;
   conversation_id?: string;
   generation_id?: string;
+  // Stashed for the user-invoked `/retro` command; see cursor-transcript-stash.ts.
+  transcript_path?: string;
 }
 
 // Read hook input from stdin
@@ -48,6 +51,10 @@ if (!existsSync('.safeword')) {
 // Set marker file for stop hook to know edits were made
 const markerFile = `/tmp/safeword-cursor-edited-${markerKey}`;
 await Bun.write(markerFile, '');
+
+// Stash transcript_path so the user-invoked `/retro` command (which gets no
+// payload) can resolve THIS conversation's transcript (RTSK9C / #624).
+stashCursorTranscript(input);
 
 // Lint the file
 await lintFile(file, process.cwd());

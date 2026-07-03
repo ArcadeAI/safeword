@@ -19,14 +19,44 @@ guard, and filing.
 ## 1. Resolve the transcript path (never guess it)
 
 `safeword retro` **requires** `--transcript <path>` and refuses to guess. Resolve the
-current session's transcript for THIS harness:
+current session's transcript for THIS harness. Each rule below resolves deterministically
+from the environment; only fall back to asking the user when the deterministic path
+comes up empty.
 
-- **Claude Code:** `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` — the cwd is
-  encoded with non-alphanumerics (e.g. `/`, `.`, `_`) → `-`. Use `$CLAUDE_SESSION_ID` when
-  set. If unsure, list that projects directory and pick the newest `.jsonl` for this session.
-- **Codex:** the rollout under `$CODEX_HOME/sessions/` (default `~/.codex/…`).
-- **Cursor:** the `transcript_path` from the session (not env-derivable). If you cannot
-  determine it, **ask the user for the transcript path** rather than guessing.
+- **Claude Code:** `~/.claude/projects/<encoded-cwd>/$CLAUDE_SESSION_ID.jsonl` — the cwd
+  is encoded with non-alphanumerics (`/`, `.`, `_`, …) → `-`. When `$CLAUDE_SESSION_ID`
+  is unset, list that projects directory and take the newest `.jsonl`:
+
+  ```bash
+  ls -t ~/.claude/projects/"${PWD//[^a-zA-Z0-9]/-}"/*.jsonl | head -1
+  ```
+
+- **Codex:** Codex does not reliably expose the session id to agent-launched commands
+  ([openai/codex#8923](https://github.com/openai/codex/issues/8923)), so resolve the
+  **newest rollout by mtime** — the current
+  session's rollout is the one being appended to right now. Rollouts live under
+  `${CODEX_HOME:-$HOME/.codex}/sessions/YYYY/MM/DD/rollout-<timestamp>-<id>.jsonl`
+  (`-exec ls -t {} +` is portable to macOS's BSD `find`, unlike `-printf`):
+
+  ```bash
+  find "${CODEX_HOME:-$HOME/.codex}/sessions" -name 'rollout-*.jsonl' -exec ls -t {} + 2> /dev/null | head -1
+  ```
+
+  If `$CODEX_THREAD_ID` happens to be set, prefer it for an exact match:
+  `find "${CODEX_HOME:-$HOME/.codex}/sessions" -name "rollout-*-$CODEX_THREAD_ID.jsonl" 2>/dev/null | head -1`.
+
+- **Cursor:** Cursor delivers `transcript_path` only in hook payloads (never env), so the
+  safeword Cursor hooks stash it to `/tmp/safeword-cursor-transcript-<key>` on every edit
+  and shell command. `/retro` itself runs a shell command, so THIS conversation's stash is
+  the freshest — read the newest one:
+
+  ```bash
+  f=$(ls -t /tmp/safeword-cursor-transcript-* 2> /dev/null | head -1)
+  [ -n "$f" ] && cat "$f"
+  ```
+
+  If no stash exists (a session with no edits or shell commands yet), **ask the user for
+  the transcript path** rather than guessing.
 
 Echo the resolved path back to the user before proceeding, so a wrong path is caught
 before anything is filed.

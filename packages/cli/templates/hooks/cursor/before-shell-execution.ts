@@ -14,6 +14,7 @@ import {
   parseRecordSkillInvocationCommand,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
+import { stashCursorTranscript } from '../lib/cursor-transcript-stash.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {
   type ClaudeGateInput,
@@ -47,6 +48,10 @@ const command = input.command ?? '';
 if (command === '' || !existsSync('.safeword')) {
   emitAllowAndExit();
 }
+
+// Stash transcript_path for the user-invoked `/retro` command (RTSK9C / #624).
+// This fires on `/retro`'s own bash, keeping THIS conversation's stash freshest.
+stashCursorTranscript(input);
 
 if (isAutoUpgradeLockActive({ projectDir: process.cwd() })) {
   process.stdout.write(JSON.stringify(toCursorDecision(AUTO_UPGRADE_LOCK_MESSAGE)) + '\n');
