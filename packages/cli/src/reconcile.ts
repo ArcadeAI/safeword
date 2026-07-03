@@ -701,8 +701,14 @@ function computeUninstallPlan(
   const actions: Action[] = [];
   const wouldRemove: string[] = [];
 
-  // 1. Remove all owned files and track parent dirs for cleanup
-  const ownedFiles = planExistingFilesRemoval(Object.keys(schema.ownedFiles), ctx.cwd);
+  // 1. Remove all owned files and track parent dirs for cleanup.
+  // cucumber.mjs is only safeword's when the lane is safeword's to scaffold —
+  // in a suppressed-lane repo the root cucumber.mjs is the HOST's own config
+  // and must survive uninstall (ticket 56JCFZ, TB1.AC3).
+  const removableOwnedPaths = Object.keys(schema.ownedFiles).filter(
+    filePath => filePath !== 'cucumber.mjs' || ctx.projectType.scaffoldBddLane,
+  );
+  const ownedFiles = planExistingFilesRemoval(removableOwnedPaths, ctx.cwd);
   actions.push(...ownedFiles.actions);
   wouldRemove.push(...ownedFiles.removed);
 
