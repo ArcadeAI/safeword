@@ -68,55 +68,55 @@ detection stops being a union.
 
 ### Scenario: Reset leaves a host harness untouched
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED fd42c498
+- [x] GREEN cceaeb70
+- [x] REFACTOR skip: one-line filter on the existing removal planner
 
 ### Scenario: Full uninstall never deletes files at configured paths locations
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: holds structurally — uninstall only removes fixed default schema paths; test passed on first run as the regression pin (fd42c498)
+- [x] GREEN skip: no code needed; pinned in fd42c498, re-verified green after scenario-9 GREEN (29/29)
+- [x] REFACTOR skip: no code changed for this scenario
 
 ## Rule: Configured paths augment discovery for safeword's readers
 
 ### Scenario: Codify finds a ticket's feature source in a configured directory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dceb225c
+- [x] GREEN 5d85ec3a
+- [x] REFACTOR skip: one resolver + one append at the existing choke point
 
 ### Scenario: Lint-gherkin lints configured and default directories together
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dceb225c
+- [x] GREEN 5d85ec3a
+- [x] REFACTOR skip: shares the choke-point change; nothing to restructure
 
 ### Scenario: An unparseable config file falls back to default discovery
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: readSafewordConfig was already parse-defensive — test passed on first run, added as regression pin (dceb225c)
+- [x] GREEN skip: no code needed; pin re-verified green after augment GREEN (5d85ec3a, 18/18)
+- [x] REFACTOR skip: no code changed for this scenario
 
 ## Rule: The scaffolded runner honors configured paths
 
 ### Scenario: A real cucumber-js run executes features from configured directories
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a61e5a31
+- [x] GREEN 6f370507
+- [x] REFACTOR skip: template stays a single flat config module; lint gate already shaped the helpers
 
 ### Scenario: The runner behaves exactly as today when no config file exists
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: no-change guard — test passed on first run as pin (a61e5a31); falsifiable against a template that hard-requires config.json
+- [x] GREEN skip: no code needed; re-verified green after runner GREEN (6f370507, 19/19)
+- [x] REFACTOR skip: no code changed for this scenario
 
 ### Scenario: The runner falls back to default directories when the config file is unparseable
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: pinned alongside the runner RED (a61e5a31); try/catch fallback shipped in the same GREEN
+- [x] GREEN 6f370507
+- [x] REFACTOR skip: shares the runner template change
 
 ## Rule: Check advisories name misalignment without editing anything
 
