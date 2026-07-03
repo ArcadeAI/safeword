@@ -15,8 +15,12 @@
 // fork reviewer, not this script.
 //
 // Usage:
-//   bun write-review-stamp.ts [--ticket <folder>] <artifact> [skip reason…]      # stamp <artifact>.md
-//   bun write-review-stamp.ts [--ticket <folder>] --phase <phase> [skip reason…] # stamp a phase exit
+//   bun write-review-stamp.ts [--ticket <folder>] <artifact>       # stamp <artifact>.md as reviewed
+//   bun write-review-stamp.ts [--ticket <folder>] --phase <phase>  # stamp a phase exit as reviewed
+// Add `--skip "<reason>"` to either form to log a deliberate skip instead of a
+// review. Skip is an explicit flag (issue #629): free text after the artifact or
+// phase is rejected, never silently reclassified as a skip — a pass carries no
+// annotation here; narrative context belongs in the ticket work log.
 // Without --ticket, the helper stamps the session-bound active ticket. If no
 // session binding exists and more than one ticket is in_progress, pass --ticket
 // to disambiguate rather than guessing a ticket the gate may not be checking.
@@ -62,21 +66,25 @@ interface ParsedArguments {
   positional: string[];
   explicitTicket: string | undefined;
   reviewerModel: string | undefined;
+  skipReason: string | undefined;
 }
 
-// Optional global flags `--ticket <folder>` and `--model <id>` may appear before
-// or after the positional command. `--model` is the reviewing model, supplied by
-// the orchestrator that assigned it (NOT self-reported by the reviewer — Claude
-// Code withholds model identity from subagents, ticket MR5M3A).
+// Optional global flags `--ticket <folder>`, `--model <id>`, and
+// `--skip <reason>` may appear before or after the positional command.
+// `--model` is the reviewing model, supplied by the orchestrator that assigned
+// it (NOT self-reported by the reviewer — Claude Code withholds model identity
+// from subagents, ticket MR5M3A). `--skip` is the ONLY way to record a skip:
+// pass vs skip is declared intent, never inferred from stray text (issue #629).
 function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
   let explicitTicket: string | undefined;
   let reviewerModel: string | undefined;
+  let skipReason: string | undefined;
 
   for (let index = 2; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === undefined) fail('missing argument');
-    if (arg !== '--ticket' && arg !== '--model') {
+    if (arg !== '--ticket' && arg !== '--model' && arg !== '--skip') {
       positional.push(arg);
       continue;
     }
@@ -86,6 +94,10 @@ function parseArguments(argv: string[]): ParsedArguments {
     if (value === undefined || value === '') fail(`${flag} requires a value`);
     if (flag === '--ticket') {
       explicitTicket = bareName(value, '--ticket');
+    } else if (flag === '--skip') {
+      const reason = singleLine(value);
+      if (reason === '') fail('--skip reason must not be blank — a real reason is the audit trail');
+      skipReason = reason;
     } else {
       if (/\s/.test(value)) fail('--model id must not contain whitespace');
       reviewerModel = value;
@@ -93,10 +105,10 @@ function parseArguments(argv: string[]): ParsedArguments {
     index += 1;
   }
 
-  return { positional, explicitTicket, reviewerModel };
+  return { positional, explicitTicket, reviewerModel, skipReason };
 }
 
-const { positional, explicitTicket, reviewerModel } = parseArguments(process.argv);
+const { positional, explicitTicket, reviewerModel, skipReason } = parseArguments(process.argv);
 
 function formatTicketList(folders: string[]): string {
   const shown = folders.slice(0, 12).join(', ');
@@ -145,7 +157,16 @@ function resolveTicketFolder(): string {
 }
 
 const isPhase = positional[0] === '--phase';
-const skipReason = singleLine(positional.slice(isPhase ? 2 : 1).join(' ')) || undefined;
+
+// Fail closed on free text: before --skip existed, trailing words were slurped
+// into a skip reason, so a pass annotated with commentary was silently
+// misrecorded as a skip (and hidden from the cross-model gate) — issue #629.
+const trailing = positional.slice(isPhase ? 2 : 1);
+if (trailing.length > 0) {
+  fail(
+    `unexpected trailing arguments: "${trailing.join(' ')}" — a pass takes no free text (notes belong in the ticket work log); to log a deliberate skip, pass --skip "<reason>" (quote a multi-word reason as one argument)`,
+  );
+}
 
 function resolveScope(ticketFolder: string): { scope: string; label: string } {
   if (isPhase) {
