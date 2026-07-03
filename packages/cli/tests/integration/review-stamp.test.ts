@@ -5,7 +5,7 @@
  * allow, end to end. Also covers the skip valve and the Tier 2 phase stamp.
  */
 
-import { spawnSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -21,6 +21,7 @@ import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const STAMP_PATH = nodePath.resolve(__dirname, '../../templates/hooks/write-review-stamp.ts');
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
+const POST_TOOL_PATH = nodePath.resolve(__dirname, '../../templates/hooks/post-tool-quality.ts');
 const TICKET_ID = 'ABC123';
 
 const TICKET_FRONTMATTER = [
@@ -236,5 +237,116 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(stamp.status).toBe(1);
     expect(stamp.stdout).toContain('missing run identity');
     expect(readLog()).not.toContain('unknown-session');
+  });
+
+  // #630: the binding write-site broadened from ticket.md-only to any artifact
+  // under the ticket's folder, so a session that resumes an in_progress ticket
+  // (never editing ticket.md) still stamps without --ticket. Exercises the real
+  // post-tool-quality.ts → write-review-stamp.ts chain.
+  describe('artifact-edit session binding (#630)', () => {
+    function runPostToolEdit(filePath: string): void {
+      const result = spawnSync('bun', [POST_TOOL_PATH], {
+        input: JSON.stringify({
+          session_id: 'sess-1',
+          hook_event_name: 'PostToolUse',
+          tool_name: 'Edit',
+          tool_input: { file_path: filePath },
+        }),
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(result.status).toBe(0);
+    }
+
+    function readSessionBinding(): string | undefined {
+      const stateFile = nodePath.join(
+        projectRoot,
+        '.safeword-project',
+        'quality-state-sess-1.json',
+      );
+      if (!existsSync(stateFile)) return undefined;
+      return (
+        (JSON.parse(readFileSync(stateFile, 'utf8')) as { activeTicket: string | null })
+          .activeTicket ?? undefined
+      );
+    }
+
+    beforeEach(() => {
+      // post-tool-quality.ts exits before the binding write when HEAD is absent.
+      execSync(
+        'git init -q && git add -A && git -c user.email=t@t.t -c user.name=t commit -qm fixture',
+        { cwd: projectRoot, stdio: 'pipe' },
+      );
+    });
+
+    it('resume flow: a spec.md edit binds the session, so the stamp resolves among multiple in_progress tickets', () => {
+      createSecondTicket();
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      const stamp = runStamp('spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('does not rebind to an epic when one of its artifacts is edited', () => {
+      const epicDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'EPIC01');
+      mkdirSync(epicDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(epicDirectory, 'ticket.md'),
+        '---\nid: EPIC01\ntype: epic\nphase: intake\nstatus: in_progress\n---\n',
+      );
+      writeFileSync(nodePath.join(epicDirectory, 'spec.md'), '# Epic spec\n');
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      runPostToolEdit(nodePath.join(epicDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBe(TICKET_ID);
+    });
+
+    it("editing a done ticket's artifact does not unbind the session from its active ticket", () => {
+      const doneDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', 'DONE01');
+      mkdirSync(doneDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(doneDirectory, 'ticket.md'),
+        '---\nid: DONE01\ntype: feature\nphase: done\nstatus: done\n---\n',
+      );
+      writeFileSync(nodePath.join(doneDirectory, 'spec.md'), '# Archived spec\n');
+
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      runPostToolEdit(nodePath.join(doneDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBe(TICKET_ID);
+    });
+
+    it("clears the binding when the bound ticket's own artifact is edited after it went done", () => {
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+      expect(readSessionBinding()).toBe(TICKET_ID);
+
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        `---\n${TICKET_FRONTMATTER.replace('status: in_progress', 'status: done')}\n---\n`,
+      );
+      runPostToolEdit(nodePath.join(ticketDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBeUndefined();
+    });
+
+    it('does not bind from artifacts under tickets/completed/', () => {
+      const completedDirectory = nodePath.join(
+        projectRoot,
+        '.safeword-project',
+        'tickets',
+        'completed',
+        'OLD001',
+      );
+      mkdirSync(completedDirectory, { recursive: true });
+      writeFileSync(nodePath.join(completedDirectory, 'spec.md'), '# Old spec\n');
+
+      runPostToolEdit(nodePath.join(completedDirectory, 'spec.md'));
+
+      expect(readSessionBinding()).toBeUndefined();
+    });
   });
 });
