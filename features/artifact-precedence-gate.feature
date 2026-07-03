@@ -42,6 +42,14 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       And the denial explains that spec.md needs a Job To Be Done or a skip reason before dimensions
 
     @artifact-precedence-gate.NTB1.AC1
+    Scenario: dimensions.md created at phase intake before the spec is complete is denied
+      Given a feature ticket.md at phase intake
+      And a spec.md whose Jobs To Be Done section is empty
+      When a dimensions.md is written in that ticket folder
+      Then the write is denied
+      And the denial explains that spec.md needs a Job To Be Done or a skip reason before dimensions
+
+    @artifact-precedence-gate.NTB1.AC1
     Scenario: dimensions.md created on a spec whose job lacks acceptance criteria is denied
       Given a feature ticket.md at phase define-behavior
       And a spec.md with a resolvable Job To Be Done but no Acceptance Criterion under it
@@ -139,6 +147,14 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       Then the write is denied
 
     @artifact-precedence-gate.NTB1.AC2
+    Scenario: Scenario authoring at phase scenario-gate demands the spec review the same way
+      Given a feature ticket.md at phase scenario-gate with a complete spec.md and dimensions.md
+      And no review stamp exists for the ticket's spec.md
+      When a test-definitions.md is written in that ticket folder
+      Then the write is denied
+      And the denial explains that spec.md must be reviewed at its current content before scenarios
+
+    @artifact-precedence-gate.NTB1.AC2
     Scenario: Task tickets author test definitions without a spec review stamp
       Given a task ticket.md at phase define-behavior
       When a test-definitions.md is written in that ticket folder
@@ -174,7 +190,7 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
     @artifact-precedence-gate.NTB1.AC3
     Scenario: The scenario review binds to the feature source when the ledger names one
       Given a feature ticket.md at phase scenario-gate whose test-definitions.md names a feature source file
-      And a review stamp exists for that feature source file at its current content
+      And a review stamp recorded for this ticket exists for that feature source file at its current content
       When the ticket.md is edited to phase implement
       Then the write is allowed
 
@@ -230,6 +246,15 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       Given a feature ticket.md at phase intake and no test-definitions.md
       When the ticket.md is edited to phase implement and phase_skips entries with reasons for define-behavior and scenario-gate
       Then the write is allowed
+
+    @artifact-precedence-gate.NTB1.AC3
+    Scenario: A phase_skips entry for a different phase does not satisfy the demand
+      Given a feature ticket.md at phase scenario-gate with saved scenarios
+      And the ticket.md carries a phase_skips entry with a reason for intake
+      And no review stamp exists for the ticket's scenarios
+      When the ticket.md is edited to phase implement
+      Then the write is denied
+      And the denial explains that the scenarios need an independent review at their current content
 
     @artifact-precedence-gate.NTB1.AC3
     Scenario: Advancing into implement with no scenario artifact is denied naming the artifact first

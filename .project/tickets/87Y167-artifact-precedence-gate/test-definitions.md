@@ -30,6 +30,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: dimensions.md created at phase intake before the spec is complete is denied
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: dimensions.md created on a spec whose job lacks acceptance criteria is denied
 
 - [ ] RED
@@ -104,6 +110,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Scenario authoring at phase scenario-gate demands the spec review the same way
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Task tickets author test definitions without a spec review stamp
 
 - [ ] RED
@@ -173,6 +185,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] REFACTOR
 
 ### Scenario: A phase_skips justification covering scenario-gate satisfies the demand
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A phase_skips entry for a different phase does not satisfy the demand
 
 - [ ] RED
 - [ ] GREEN
