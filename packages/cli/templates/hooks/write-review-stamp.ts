@@ -75,6 +75,9 @@ interface ParsedArguments {
 // it (NOT self-reported by the reviewer — Claude Code withholds model identity
 // from subagents, ticket MR5M3A). `--skip` is the ONLY way to record a skip:
 // pass vs skip is declared intent, never inferred from stray text (issue #629).
+// Flags that consume the next argv token as their value.
+const VALUE_FLAGS = new Set(['--ticket', '--model', '--skip']);
+
 function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
   let explicitTicket: string | undefined;
@@ -84,7 +87,7 @@ function parseArguments(argv: string[]): ParsedArguments {
   for (let index = 2; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === undefined) fail('missing argument');
-    if (arg !== '--ticket' && arg !== '--model' && arg !== '--skip') {
+    if (!VALUE_FLAGS.has(arg)) {
       positional.push(arg);
       continue;
     }
