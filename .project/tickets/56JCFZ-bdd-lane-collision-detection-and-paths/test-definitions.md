@@ -16,9 +16,9 @@ detection stops being a union.
 
 ### Scenario: Setup skips the starter lane when a root cucumber config exists
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 8c855fc
+- [x] GREEN bb7f8c5
+- [x] REFACTOR skip: no structural improvement needed — reused existing generator-skip and conditional-package mechanisms
 
 ### Scenario: Setup skips the starter lane when a workspace package depends on cucumber
 

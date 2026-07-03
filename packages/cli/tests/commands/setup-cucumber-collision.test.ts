@@ -36,6 +36,47 @@ function readPackageJson(directory: string): PackageJsonShape {
   return JSON.parse(readTestFile(directory, 'package.json')) as PackageJsonShape;
 }
 
+describe('setup skips the starter lane when a workspace package depends on cucumber (TB1.AC1)', () => {
+  let directory: string;
+  let output: string;
+
+  beforeAll(async () => {
+    directory = createTemporaryDirectory();
+    createTypeScriptPackageJson(directory);
+    writeTestFile(
+      directory,
+      'packages/api/package.json',
+      JSON.stringify(
+        { name: 'api', private: true, devDependencies: { '@cucumber/cucumber': '^12.0.0' } },
+        undefined,
+        2,
+      ),
+    );
+    const result = await setupOrThrow(directory);
+    output = `${result.stdout}\n${result.stderr}`;
+  }, TIMEOUT_BUN_INSTALL);
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.workspace_dep_suppresses_the_lane', () => {
+    for (const file of LANE_FILES) {
+      expect(fileExists(directory, file), `${file} should not exist`).toBe(false);
+    }
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.workspace_dep_no_root_cucumber_dep_added', () => {
+    const packageJson = readPackageJson(directory);
+    expect(packageJson.devDependencies?.['@cucumber/cucumber']).toBeUndefined();
+  });
+
+  it('bdd-lane-collision-detection-and-paths.TB1.AC1.output_names_the_workspace_dependency', () => {
+    expect(output).toContain('packages/api');
+    expect(output).toContain('@cucumber/cucumber');
+  });
+});
+
 describe('setup skips the starter lane when a root cucumber config exists (TB1.AC1)', () => {
   let directory: string;
   let output: string;
