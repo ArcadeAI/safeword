@@ -62,9 +62,14 @@ test-definitions.md is the R/G/R ledger. RED means an EXECUTED failing run
 
 ### Scenario: The filing seam records each ack after its post and before any drain (SM2.AC2)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:44Z: `npx vitest run tests/hooks/retro-filing.test.ts`
+  → 1 failed / 3 passed; `readAcks` missing, seam returns no acks
+  (`expected undefined to deeply equal [{signature, issue}]`).
+- [x] GREEN — executed 2026-07-03T15:44Z: 4/4 pass. `FiledAck`/`ackFilePath`/`readAcks`
+  (shape-only, fail-open) + per-post ack append in `fileSpooledDrafts` before
+  `markDraftsFiled`; `DraftPoster` returns `{issue}`; three existing mocks widened.
+- [x] REFACTOR — reuses `readJsonlRecords`/`appendJsonlRecords`; ack file uncapped
+  by design (documented in impl-plan Known deviations); no duplication added.
 
 ### Scenario: Shipped prompts and the guide carry the ack procedure and drain prohibition (SM2.AC1)
 
