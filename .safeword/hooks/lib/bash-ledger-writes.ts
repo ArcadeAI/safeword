@@ -45,6 +45,103 @@ function isInPlaceFlag(word: string): boolean {
   return /^-i/.test(word) || word === '--in-place' || word.startsWith('--in-place=');
 }
 
+/** Commands whose last argument is the file being (over)written. */
+const DESTINATION_WRITERS = new Set(['mv', 'cp']);
+
+/** Commands whose ledger argument is mutated regardless of position. */
+const ARGUMENT_WRITERS = new Set(['tee', 'truncate']);
+
+/**
+ * Interpreters (and shells) that execute inline code passed via a flag. When
+ * one names a ledger path anywhere in its words, the predicate denies WITHOUT
+ * judging read vs write — classifying the inline code would be simulation,
+ * which this design rejects (see dimensions.md baked decision, W42G34). A
+ * read-only inline script naming the ledger is a deliberate false positive.
+ */
+const INLINE_INTERPRETERS = new Set([
+  'bash',
+  'bun',
+  'deno',
+  'node',
+  'perl',
+  'python',
+  'python3',
+  'ruby',
+  'sh',
+  'zsh',
+]);
+
+/** An inline-code flag: -e / -c alone or in a bundle (-pe, -ne), or --eval=…. */
+function isInlineCodeFlag(word: string): boolean {
+  return /^-\w*[ce]/.test(word) || word.startsWith('--eval');
+}
+
+/**
+ * A redirection whose target is a ledger path: standalone `>`/`>>` (with an
+ * optional fd prefix) followed by the target word, or the fused `>target` form.
+ */
+function redirectionTarget(words: string[], index: number): string | undefined {
+  const word = words[index] ?? '';
+  if (/^\d*>>?$/.test(word)) return words[index + 1];
+  const fused = /^\d*>>?(?<target>[^>].*)$/.exec(word);
+  return fused?.groups?.target;
+}
+
+/** Extract a literal path candidate embedded in a word (e.g. inside inline code). */
+function embeddedLedgerPath(word: string): string | undefined {
+  const match = /[\w./-]*test-definitions\.md/.exec(word);
+  return match !== null && isLedgerPath(match[0]) ? match[0] : undefined;
+}
+
+function detectInSegment(segment: string): LedgerWriteDetection | undefined {
+  const words = parseShellWords(segment);
+
+  for (let index = 0; index < words.length; index += 1) {
+    const target = redirectionTarget(words, index);
+    if (target !== undefined && isLedgerPath(target)) {
+      const shape = /^\d*>>/.test(words[index] ?? '') ? 'append redirection' : 'output redirection';
+      return { shape, path: target };
+    }
+  }
+
+  const commandIndex = commandWordIndex(words);
+  const commandWord = words[commandIndex] ?? '';
+  const rest = words.slice(commandIndex + 1);
+  const arguments_ = rest.filter(word => !word.startsWith('-'));
+
+  if (IN_PLACE_EDITORS.has(commandWord) && rest.some(isInPlaceFlag)) {
+    const ledgerArgument = rest.find(isLedgerPath);
+    if (ledgerArgument !== undefined) {
+      return { shape: `${commandWord} in-place edit`, path: ledgerArgument };
+    }
+  }
+
+  if (ARGUMENT_WRITERS.has(commandWord)) {
+    const ledgerArgument = arguments_.find(isLedgerPath);
+    if (ledgerArgument !== undefined) {
+      return { shape: commandWord, path: ledgerArgument };
+    }
+  }
+
+  if (DESTINATION_WRITERS.has(commandWord)) {
+    const destination = arguments_.at(-1);
+    if (destination !== undefined && isLedgerPath(destination)) {
+      return { shape: `${commandWord} destination`, path: destination };
+    }
+  }
+
+  if (INLINE_INTERPRETERS.has(commandWord) && rest.some(isInlineCodeFlag)) {
+    for (const word of rest) {
+      const embedded = embeddedLedgerPath(word);
+      if (embedded !== undefined) {
+        return { shape: `inline ${commandWord} code naming the ledger`, path: embedded };
+      }
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Detect a write-shaped reference to a ledger file in a Bash command.
  * Returns the first detection, or undefined when nothing detectable writes
@@ -52,17 +149,8 @@ function isInPlaceFlag(word: string): boolean {
  */
 export function detectLedgerWrite(command: string): LedgerWriteDetection | undefined {
   for (const segment of splitShellSegments(command)) {
-    const words = parseShellWords(segment);
-    const commandIndex = commandWordIndex(words);
-    const commandWord = words[commandIndex] ?? '';
-    const rest = words.slice(commandIndex + 1);
-
-    if (IN_PLACE_EDITORS.has(commandWord) && rest.some(isInPlaceFlag)) {
-      const ledgerArgument = rest.find(isLedgerPath);
-      if (ledgerArgument !== undefined) {
-        return { shape: `${commandWord} in-place edit`, path: ledgerArgument };
-      }
-    }
+    const detection = detectInSegment(segment);
+    if (detection !== undefined) return detection;
   }
   return undefined;
 }
