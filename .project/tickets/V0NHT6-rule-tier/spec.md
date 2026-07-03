@@ -19,7 +19,8 @@ Upstream tracker issue: ArcadeAI/safeword#649.
   checks (a rule with zero rejection-path scenarios is invisible in flat scenario lists) and
   rule-level test selection.
 - **Reversibility:** One-way once adopted — rule IDs land in customer feature corpora, CI tag
-  expressions, and review references, and IDs are numbering-locked after review by design.
+  expressions, and review references, and are intended to be numbering-locked after review
+  (enforcement mechanism open — see Open Questions).
   The tier itself is opt-in; repos that don't adopt keep today's flat AC lineage unchanged.
 
 ## References
@@ -110,8 +111,8 @@ selection working quietly, not a peak moment that travels.
 - A reader of a `.feature` file can map any scenario to the invariant it illustrates, and
   any rule back to its JTBD/persona, from IDs alone.
 - `safeword check` / `lint-gherkin` surface rule-tier gaps (a spec rule no scenario
-  references; a `@rule` reference matching no spec rule; a rule with zero rejection-path
-  scenarios) without eyeball cross-referencing.
+  references; a rule reference in a scenario tag matching no spec rule; a rule with zero
+  rejection-path scenarios) without eyeball cross-referencing.
 - Repos that don't opt in see zero change to today's flat AC lineage.
 
 ## Open Questions
