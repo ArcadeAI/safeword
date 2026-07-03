@@ -2,8 +2,8 @@
 id: V0NHT6
 slug: rule-tier
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - 'spec.md grammar: `#### <jtbd-id>.R<n> — <invariant>` Rule headings parsed alongside AC headings (per-JTBD substitute — a JTBD carries ACs or Rules, never both); declaring Rules is the opt-in, no config flag'
   - 'lineage: `@<jtbd-id>.R<n>` combined tag recognized by the ref parser and the exactly-one-lineage-tag lint (AC ref or R ref both satisfy it; AC-match wins precedence); the `.feature` `Rule:` block carries the tag (authoritative — scenarios inherit it) and repeats the ID as its name''s first token, mismatch is a lint issue'
@@ -44,3 +44,5 @@ last_modified: 2026-07-03T17:15:00.000Z
 - 2026-07-03T20:41:00.000Z Complete: define-behavior - 18 scenarios defined across 8 rules; features/rule-tier.feature saved (lint clean), R/G/R ledger saved.
 - 2026-07-03T20:55:00.000Z Complete: scenario-gate - Independent /review-spec (Tier 2, fresh subagent): PASS WITH FIXES → 1 blocking (unnumbered-Rule exempt class) + 6 strengtheners applied (fail-open gate scenario, direct R tag, observable AC-precedence Then, NTB message Scenario Outline ×8, TB4 atomicity split, snapshot determinism) → final verdict PASS; stamp written. impl-plan.md written (proof plan + build order, 8 slices, load-bearing ref-grammar slice first). Ledger now 21 entries.
 - 2026-07-03T21:35:00.000Z Complete: implement - All 8 slices RGR'd (ref grammar → catalog/mixed → rule coverage buckets → rejection report → name-tag lint → check wiring/messages → gate denial + mirrors → cucumber selection → templates/docs). Ledger 21/21 marked with commit SHAs. Full suite: 311 files, 4482 passed, 5 pre-existing skips. impl-plan reconciled → implemented.
+- 2026-07-03T22:20:00.000Z Complete: verify - /verify + /audit run and logged; verify.md written (full suite 4482 pass, Gherkin lane 209/209 incl. 28 rule-tier instances via new steps/rule-tier.steps.ts, build/typecheck/lint green, PR scope clean, audit passed with pre-existing warnings only).
+- 2026-07-03T22:21:00.000Z Complete: done - Ticket closed (status: done).
