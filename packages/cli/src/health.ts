@@ -15,8 +15,9 @@ import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getMissingPacks } from './packs/registry.js';
+import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { SAFEWORD_SCHEMA } from './schema.js';
+import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
 import { readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -33,6 +34,7 @@ import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-fea
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
 import { header, info, listItem, success, warn } from './utils/output.js';
 import { parsePersonas, validatePersonas } from './utils/personas.js';
+import { detectCucumberLane } from './utils/project-detector.js';
 import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
@@ -168,6 +170,64 @@ function findGlossaryAdvisories(cwd: string): string[] {
   return [
     `${nodePath.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} — legacy file is orphaned. Consider removing.`,
   ];
+}
+
+/**
+ * Cucumber-harness misalignment advisories (ticket 56JCFZ, TB3.AC1+AC2).
+ * Persistent and zero-exit — the setup-time notice alone is ignorable:
+ * - Host harness detected, safeword's lane absent, `paths.*` unset → name
+ *   the harness and the exact config lines to add. Silent once set.
+ * - Host harness AND safeword's starter lane both present (a repo bitten by
+ *   pre-56JCFZ scaffolding) → enumerate the leftover lane surface, derived
+ *   from the schema constants so the list can't drift. Never edits/deletes.
+ */
+function findCucumberHarnessAdvisories(cwd: string): string[] {
+  const { existingCucumberHarness, scaffoldBddLane } = detectCucumberLane(cwd);
+  if (existingCucumberHarness === undefined) return [];
+
+  if (scaffoldBddLane) {
+    return [buildLeftoverLaneAdvisory(cwd, existingCucumberHarness)];
+  }
+
+  if (readConfiguredPath(cwd, 'features') !== undefined) return [];
+  return [
+    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features / paths.steps are not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" }.`,
+  ];
+}
+
+/** Enumerate the starter-lane leftovers (files/deps/script) from schema constants. */
+function buildLeftoverLaneAdvisory(cwd: string, evidence: string): string {
+  const leftovers: string[] = BDD_LANE_FILE_PATHS.filter(filePath =>
+    exists(nodePath.join(cwd, filePath)),
+  );
+
+  const manifest = readPackageJsonSafe(cwd);
+  const developmentDependencies = manifest?.devDependencies ?? {};
+  leftovers.push(
+    ...typescriptPackages.conditional.scaffoldBddLane.filter(dependency =>
+      Object.hasOwn(developmentDependencies, dependency),
+    ),
+  );
+  if (typeof manifest?.scripts?.[BDD_LANE_SCRIPT] === 'string') {
+    leftovers.push(`"${BDD_LANE_SCRIPT}" script`);
+  }
+
+  return `Duplicate BDD lane: a cucumber harness (${evidence}) coexists with safeword's starter lane. Leftover scaffold: ${leftovers.join(', ')}. Safeword never removes these — if the host harness is the real suite, delete the leftovers and set paths.features / paths.steps in .safeword/config.json so safeword reads it.`;
+}
+
+interface PackageJsonManifest {
+  scripts?: Record<string, unknown>;
+  devDependencies?: Record<string, string>;
+}
+
+function readPackageJsonSafe(cwd: string): PackageJsonManifest | undefined {
+  const content = readFileSafe(nodePath.join(cwd, 'package.json'));
+  if (content === undefined) return undefined;
+  try {
+    return JSON.parse(content) as PackageJsonManifest;
+  } catch {
+    return undefined;
+  }
 }
 
 function findDocumentationSourceIssues(cwd: string): string[] {
@@ -608,6 +668,7 @@ export async function checkHealth(
       ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
+      ...findCucumberHarnessAdvisories(cwd),
       ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
       ...findArchitectureAdvisories(cwd),

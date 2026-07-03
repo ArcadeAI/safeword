@@ -519,7 +519,7 @@ function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
   return undefined;
 }
 
-interface CucumberLaneDetection {
+export interface CucumberLaneDetection {
   existingCucumberHarness: string | undefined;
   scaffoldBddLane: boolean;
 }
@@ -552,7 +552,7 @@ function detectCucumberHarnessEvidence(cwd: string, ownLanePresent: boolean): st
  * lane + host harness) keeps lane maintenance while advisories surface the
  * duplicate; a fresh repo with a host harness gets no lane at all.
  */
-function detectCucumberLane(cwd: string | undefined): CucumberLaneDetection {
+export function detectCucumberLane(cwd: string | undefined): CucumberLaneDetection {
   if (!cwd) return { existingCucumberHarness: undefined, scaffoldBddLane: true };
 
   const ownLanePresent = isSafewordLaneTemplate(nodePath.join(cwd, 'cucumber.mjs'));

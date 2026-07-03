@@ -443,6 +443,22 @@ function managedGitattributes(ctx: ProjectContext): string {
 }
 
 /**
+ * The starter BDD lane's full surface — files (the bddLaneFile entries
+ * below), deps (typescriptPackages.conditional.scaffoldBddLane), and the
+ * test:bdd script. The `safeword check` leftover-scaffold advisory
+ * enumerates from these constants so its list can never drift from the
+ * schema (ticket 56JCFZ, TB3.AC2).
+ */
+export const BDD_LANE_FILE_PATHS = [
+  'cucumber.mjs',
+  'features/safeword-lane.feature',
+  'steps/world.ts',
+  'steps/shared.steps.ts',
+] as const;
+
+export const BDD_LANE_SCRIPT = 'test:bdd';
+
+/**
  * Starter-lane template entry, suppressed when the repo has its own cucumber
  * harness (ticket 56JCFZ, issue #645): the generator returns undefined so
  * reconcile skips the file entirely instead of scaffolding a competing lane.
