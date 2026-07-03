@@ -97,7 +97,8 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
-  function stampPhase(phase: string, ...skip: string[]): void {
+  function stampPhase(phase: string, skipReason?: string): void {
+    const skip = skipReason === undefined ? [] : ['--skip', skipReason];
     spawnSync('bun', [STAMP_PATH, '--phase', phase, ...skip], {
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, CLAUDE_SESSION_ID: 'sess-1' },
@@ -160,7 +161,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   });
 
   it('a skip stamp clears the phase gate', () => {
-    stampPhase('define-behavior', 'docs-only', 'phase');
+    stampPhase('define-behavior', 'docs-only phase');
     expectHookAllow(runGateWrite('implement'));
   });
 
@@ -206,7 +207,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
 
     it('a logged skip bypasses the cross-model requirement', () => {
       writeConfig(true, true);
-      stampPhase('define-behavior', 'docs-only', 'phase');
+      stampPhase('define-behavior', 'docs-only phase');
       expectHookAllow(runGateWrite('implement', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 

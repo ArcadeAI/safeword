@@ -27,8 +27,8 @@ function nudgeMarkerPath(projectDirectory: string, sessionId: string): string {
   return draftSpoolPath(projectDirectory, sessionId).replace(/\.jsonl$/, '.nudged');
 }
 
-/** Stable key for an unfiled batch — order-independent over its signatures. */
-function batchKey(signatures: readonly string[]): string {
+/** Stable key for an unfiled batch — order-independent over its signatures. Shared with the filing gate. */
+export function batchKey(signatures: readonly string[]): string {
   const canonical = [...new Set(signatures)].sort((a, b) => a.localeCompare(b)).join('\n');
   return createHash('sha256').update(canonical).digest('hex');
 }
@@ -62,8 +62,8 @@ export function formatRetroNudge(count: number, spoolPath: string): string {
   return (
     `Safeword's retro spooled ${count} unfiled finding${plural} from this session at ${spoolPath}; ` +
     `its GitHub REST transport could not authenticate them into the tracker, so they remain ` +
-    `queued for the live agent's GitHub access. The filing procedure is in ` +
-    `.safeword/guides/self-report-filing.md.`
+    `queued for the safeword-retro-filer subagent (or the live agent's GitHub access). ` +
+    `The filing procedure is in .safeword/guides/self-report-filing.md.`
   );
 }
 

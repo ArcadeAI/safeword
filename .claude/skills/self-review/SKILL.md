@@ -69,7 +69,8 @@ change), log a skip with a reason instead of a review — it clears the same gat
 and records why:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts spec "<why this spec needs no review>"
+bun .safeword/hooks/write-review-stamp.ts spec --skip "<why this spec needs no review>"
 ```
 
-An empty reason does not clear the gate.
+Skip is the explicit `--skip` flag, quoted as one argument — free text after the
+artifact is rejected, and an empty reason does not clear the gate.

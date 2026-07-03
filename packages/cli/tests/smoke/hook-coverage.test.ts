@@ -68,6 +68,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'stop hook, fires at session end — not assertable in a tool-based live run; covered deterministically by tests/integration/stop-self-report.test.ts',
   'stop-retro.ts':
     'stop hook, fires each turn-end while the session is alive — not assertable in a tool-based live run; covered deterministically by tests/integration/stop-retro.test.ts',
+  'stop-retro-filing.ts':
+    'stop hook, fires at turn-end only when unfiled retro drafts are spooled — not assertable in a tool-based live run; covered deterministically by tests/integration/stop-retro-filing.test.ts',
   // Core hooks covered deterministically elsewhere (not re-run live, to save cost)
   'post-tool-lint.ts':
     'PostToolUse lint hook; exercised end-to-end by tests/integration/golden-path.test.ts',

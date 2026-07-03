@@ -189,14 +189,28 @@ describe('SETTINGS_HOOKS', () => {
     // ZFGWS1: async:true backgrounds the whole hook tree (returns immediately,
     // 600s) so repeated delta fires never block Stop. NOT asyncRewake, which
     // surfaces stderr into the chat on exit 2 and would break invisibility.
+    // 'stop-retro.ts' exactly — 'stop-retro' alone would also match the SYNC
+    // filing-gate hook (stop-retro-filing.ts, GH628F).
     const command = SETTINGS_HOOKS.Stop.flatMap((entry: HookEntry) => entry.hooks).find(
-      (hook: HookCommand) => hook.type === 'command' && hook.command.includes('stop-retro'),
+      (hook: HookCommand) => hook.type === 'command' && hook.command.includes('stop-retro.ts'),
     ) as { async?: boolean; asyncRewake?: boolean } | undefined;
     if (!command) {
       throw new Error('stop-retro hook not found');
     }
     expect(command.async).toBe(true);
     expect(command.asyncRewake).toBeUndefined();
+  });
+
+  it('GH628F: registers the retro filing gate Stop hook sync (blocking continuation)', () => {
+    // The filing dispatch must be able to block the stop (decision:"block"), so
+    // it cannot be async/backgrounded like the extraction hook.
+    const command = SETTINGS_HOOKS.Stop.flatMap((entry: HookEntry) => entry.hooks).find(
+      (hook: HookCommand) => hook.type === 'command' && hook.command.includes('stop-retro-filing'),
+    ) as { async?: boolean } | undefined;
+    if (!command) {
+      throw new Error('stop-retro-filing hook not found');
+    }
+    expect(command.async).toBeUndefined();
   });
 
   it('should have PostToolUse quality observer matcher that includes Bash', () => {

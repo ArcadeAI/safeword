@@ -13,17 +13,15 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { spoolDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  retroDraft as draft,
+  TIMEOUT_QUICK,
+} from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PROMPT_RETRO_NUDGE = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-retro-nudge.ts');
-
-const draft = (signature: string, title: string) => ({
-  signature,
-  title,
-  body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
 
 function runNudgeHook(directory: string, sessionId: string) {
   return spawnSync('bun', [PROMPT_RETRO_NUDGE], {
