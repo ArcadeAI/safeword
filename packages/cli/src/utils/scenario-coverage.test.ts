@@ -18,6 +18,7 @@ import {
   buildCoverageReportFromFeature,
   buildSurfaceCoverageReportFromFeature,
   findMixedCriteriaJtbds,
+  findRulesMissingRejectionPaths,
   parseAcIdsByJtbd,
   parseAcReferenceFromTitle,
   parseAffectedSurfaceReferences,
@@ -221,6 +222,70 @@ describe('buildCoverageReportFromFeature (feature files as source)', () => {
     );
     const report = buildCoverageReportFromFeature(personaRSpec, feature(['feat.R1.AC1']));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+});
+
+describe('findRulesMissingRejectionPaths (rule tier — rejection-path visibility)', () => {
+  function toTagLine(tags: readonly string[]): string {
+    return tags.map(tag => `@${tag}`).join(' ');
+  }
+
+  function featureWithScenarios(
+    scenarios: readonly { tags: readonly string[]; title: string }[],
+    ruleLine = '  Rule: demo.DEV2.R1 — failed deliveries retry on backoff',
+  ): string {
+    return [
+      'Feature: Demo',
+      '',
+      ruleLine,
+      '',
+      ...scenarios.flatMap(({ tags, title }) => [
+        ...(tags.length > 0 ? [`    ${toTagLine(tags)}`] : []),
+        `    Scenario: ${title}`,
+        '      Given a',
+        '      When b',
+        '      Then c',
+        '',
+      ]),
+    ].join('\n');
+  }
+
+  it('rule-tier.TB1.AC2.numbered_rule_without_rejection_scenario_flagged', () => {
+    const missing = findRulesMissingRejectionPaths(
+      spec(ONE_RULE),
+      featureWithScenarios([{ tags: ['demo.DEV2.R1'], title: 'happy path only' }]),
+    );
+    expect(missing).toEqual(['demo.DEV2.R1']);
+  });
+
+  it('rule-tier.TB1.AC2.numbered_rule_with_rejection_scenario_silent', () => {
+    const missing = findRulesMissingRejectionPaths(
+      spec(ONE_RULE),
+      featureWithScenarios([
+        { tags: ['demo.DEV2.R1'], title: 'happy path' },
+        { tags: ['demo.DEV2.R1', 'rejection'], title: 'refused when budget exhausted' },
+      ]),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('rule-tier.TB1.AC2.unnumbered_rule_block_exempt', () => {
+    const missing = findRulesMissingRejectionPaths(
+      spec(ONE_AC),
+      featureWithScenarios(
+        [{ tags: ['demo.DEV1.AC1'], title: 'flat lineage under a grouping header' }],
+        '  Rule: plain grouping header',
+      ),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('rule-tier.TB1.AC2.rule_with_no_scenarios_left_to_uncovered_bucket', () => {
+    const missing = findRulesMissingRejectionPaths(
+      spec(ONE_RULE),
+      featureWithScenarios([{ tags: ['other.SM1.AC1'], title: 'unrelated scenario' }]),
+    );
+    expect(missing).toEqual([]);
   });
 });
 
