@@ -184,6 +184,34 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(readLog()).toBe('');
   });
 
+  it('rejects a flag-like flag value instead of minting a pass stamp from a declared skip', () => {
+    // Without this guard, `--model --skip` swallows --skip as the model id and
+    // writes a PASS stamp whose bogus model tag clears the cross-model gate.
+    const passFromSkip = runStamp('spec', '--model', '--skip');
+    expect(passFromSkip.status).toBe(1);
+    expect(passFromSkip.stdout).toContain('flag-like');
+
+    const skipEatsTicket = runStamp('--skip', '--ticket', TICKET_ID);
+    expect(skipEatsTicket.status).toBe(1);
+    expect(skipEatsTicket.stdout).toContain('flag-like');
+
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects --skip with no value at end of argv', () => {
+    const stamp = runStamp('spec', '--skip');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('--skip requires a value');
+    expect(readLog()).toBe('');
+  });
+
+  it('rejects a repeated flag instead of silently last-winning', () => {
+    const stamp = runStamp('spec', '--skip', 'reason a', '--skip', 'reason b');
+    expect(stamp.status).toBe(1);
+    expect(stamp.stdout).toContain('--skip given more than once');
+    expect(readLog()).toBe('');
+  });
+
   it('--phase writes a ticket-qualified phase scope', () => {
     const stamp = runStamp('--phase', 'define-behavior');
     expect(stamp.status).toBe(0);

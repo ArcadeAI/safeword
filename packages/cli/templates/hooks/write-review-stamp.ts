@@ -92,13 +92,22 @@ function parseArguments(argv: string[]): ParsedArguments {
     const flag = arg;
     const value = argv[index + 1];
     if (value === undefined || value === '') fail(`${flag} requires a value`);
+    // A flag-shaped value means the real value was omitted and the NEXT flag got
+    // swallowed — e.g. `--model --skip` would otherwise mint a PASS stamp with
+    // model "--skip" (clearing the cross-model gate) from a declared skip.
+    if (value.startsWith('--')) {
+      fail(`${flag} requires a value, got flag-like "${value}"`);
+    }
     if (flag === '--ticket') {
+      if (explicitTicket !== undefined) fail('--ticket given more than once');
       explicitTicket = bareName(value, '--ticket');
     } else if (flag === '--skip') {
+      if (skipReason !== undefined) fail('--skip given more than once');
       const reason = singleLine(value);
       if (reason === '') fail('--skip reason must not be blank — a real reason is the audit trail');
       skipReason = reason;
     } else {
+      if (reviewerModel !== undefined) fail('--model given more than once');
       if (/\s/.test(value)) fail('--model id must not contain whitespace');
       reviewerModel = value;
     }
