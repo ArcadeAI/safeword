@@ -24,8 +24,9 @@
 import { readFileSync } from 'node:fs';
 
 import { atomicWriteFile } from './jsonl-spool.js';
-import { draftSpoolPath, readSpooledDrafts } from './retro-draft-spool.js';
+import { draftSpoolPath, readAcks, readSpooledDrafts } from './retro-draft-spool.js';
 import { batchKey } from './retro-nudge.js';
+import { captureBareDrain, readSelfReportConfig } from './self-report.js';
 
 /** Gate fires at most this many times per unfiled batch, then goes quiet. */
 export const FILING_ATTEMPT_CAP = 2;
@@ -41,6 +42,10 @@ function attemptMarkerPath(projectDirectory: string, sessionId: string): string 
 interface AttemptMarker {
   key: string;
   attempts: number;
+  /** Dispatched batch snapshot (GH644A) — absent on pre-upgrade markers: tripwire disarmed. */
+  signatures?: string[];
+  /** Set when this batch's bare drain already captured its signal (once per batch). */
+  tripwired?: boolean;
 }
 
 /** Read the persisted attempt marker, or undefined when absent/unreadable. */
@@ -50,7 +55,15 @@ function readAttemptMarker(projectDirectory: string, sessionId: string): Attempt
       readFileSync(attemptMarkerPath(projectDirectory, sessionId), 'utf8'),
     ) as Record<string, unknown>;
     if (typeof raw.key !== 'string' || typeof raw.attempts !== 'number') return undefined;
-    return { key: raw.key, attempts: raw.attempts };
+    const marker: AttemptMarker = { key: raw.key, attempts: raw.attempts };
+    if (
+      Array.isArray(raw.signatures) &&
+      raw.signatures.every((v): v is string => typeof v === 'string')
+    ) {
+      marker.signatures = raw.signatures;
+    }
+    if (raw.tripwired === true) marker.tripwired = true;
+    return marker;
   } catch {
     return undefined;
   }
@@ -82,10 +95,44 @@ export function formatFilingDispatch(count: number, spoolPath: string): string {
     `Safeword's retro spooled ${count} sanitized finding${plural} for its own upstream tracker at ` +
     `${spoolPath}, and its REST transport cannot authenticate in this environment. ` +
     `Invoke the ${FILER_AGENT_NAME} subagent (foreground) with that spool path so it files them ` +
-    `through your GitHub access, then end the turn. Do not file them inline yourself, and do not ` +
+    `through your GitHub access, then end the turn. Only the ${FILER_AGENT_NAME} drains the ` +
+    `spool. Do not file them inline yourself, and do not ` +
     `narrate or summarize the filing in this or later responses. If the subagent or write access ` +
     `to ArcadeAI/safeword is unavailable, state that in one line and stop.`
   );
+}
+
+/** Injectable seams for `decideRetroFilingGate`. */
+export interface FilingGateOptions {
+  /** Test seam; defaults to the real self-report capture. */
+  captureBareDrain?: (projectDirectory: string, sessionId: string) => void;
+}
+
+/**
+ * Bare-drain tripwire (GH644A): runs on the FRESH marker BEFORE the empty-spool
+ * early return (a bare drain IS the empty-spool case) and BEFORE the dispatch
+ * path overwrites the snapshot. An unacked removal — dispatched signature gone
+ * from the spool with no shape-valid ack — captures one RetroBareDrain signal
+ * per batch (tripwired persisted even on silent paths). Gated on
+ * selfReport.capture; never touches the retro spool; fail-open throughout.
+ */
+function runTripwire(
+  projectDirectory: string,
+  sessionId: string,
+  marker: AttemptMarker | undefined,
+  spooled: ReadonlySet<string>,
+  capture: (projectDirectory: string, sessionId: string) => void,
+): void {
+  if (!marker?.signatures?.length || marker.tripwired) return;
+  try {
+    const acked = new Set(readAcks(projectDirectory, sessionId).map(a => a.signature));
+    const bare = marker.signatures.some(s => !spooled.has(s) && !acked.has(s));
+    if (!bare) return;
+    capture(projectDirectory, sessionId);
+    writeAttemptMarker(projectDirectory, sessionId, { ...marker, tripwired: true });
+  } catch {
+    // Observation must never break the gate.
+  }
 }
 
 /**
@@ -94,17 +141,52 @@ export function formatFilingDispatch(count: number, spoolPath: string): string {
  * attempt cap; otherwise undefined. Each emission increments the persisted
  * per-batch counter (a changed batch resets it), so delivery is at-least-once
  * with the spool drain as the ack. Best-effort — reads fail open to silence.
+ *
+ * Same-key re-arm is DELIBERATE (whole-ticket review, item c): if a tripped
+ * batch's identical draft re-spools, a fresh dispatch cycle re-snapshots it
+ * without `tripwired`, so a second destruction captures a second signal — each
+ * is a distinct loss event, and `signatureOf` collapses them to one deduped
+ * issue downstream. Do not "fix" this into never-re-arming or per-event
+ * multi-firing.
  */
 export function decideRetroFilingGate(
   projectDirectory: string,
   sessionId: string,
+  options: FilingGateOptions = {},
 ): string | undefined {
+  const config = readSelfReportConfig(projectDirectory);
   const drafts = readSpooledDrafts(projectDirectory, sessionId);
+  const marker = readAttemptMarker(projectDirectory, sessionId);
+  if (config.capture) {
+    runTripwire(
+      projectDirectory,
+      sessionId,
+      marker,
+      new Set(drafts.map(draft => draft.signature)),
+      options.captureBareDrain ?? captureBareDrain,
+    );
+  }
   if (drafts.length === 0) return undefined;
   const key = batchKey(drafts.map(draft => draft.signature));
-  const marker = readAttemptMarker(projectDirectory, sessionId);
+  // Dispatch emission is gated on selfReport.file; a watch-only install
+  // (capture on, file off) still SNAPSHOTS the batch so later unexplained
+  // drains are policed — observation without dispatch, attempts untouched.
+  if (!config.file) {
+    if (config.capture && marker?.key !== key) {
+      writeAttemptMarker(projectDirectory, sessionId, {
+        key,
+        attempts: 0,
+        signatures: drafts.map(draft => draft.signature),
+      });
+    }
+    return undefined;
+  }
   const attempts = marker?.key === key ? marker.attempts : 0;
   if (attempts >= FILING_ATTEMPT_CAP) return undefined;
-  writeAttemptMarker(projectDirectory, sessionId, { key, attempts: attempts + 1 });
+  writeAttemptMarker(projectDirectory, sessionId, {
+    key,
+    attempts: attempts + 1,
+    signatures: drafts.map(draft => draft.signature),
+  });
   return formatFilingDispatch(drafts.length, draftSpoolPath(projectDirectory, sessionId));
 }

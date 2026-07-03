@@ -23,7 +23,6 @@ import { existsSync } from 'node:fs';
 
 import { decideRetroFilingGate } from './lib/retro-filing-gate.ts';
 import { resolveSessionId } from './lib/retro-trigger.ts';
-import { readSelfReportConfig } from './lib/self-report.ts';
 
 interface HookInput {
   session_id?: string;
@@ -45,7 +44,10 @@ if (existsSync(`${projectDirectory}/.safeword`)) {
   // wrote (cloud/local env fallbacks), else drafts spool under the env id and
   // this gate silently never fires.
   const sessionId = resolveSessionId(input, process.env);
-  if (sessionId && input.stop_hook_active !== true && readSelfReportConfig(projectDirectory).file) {
+  // The gate reads selfReport config itself (GH644A): capture gates the
+  // tripwire evaluation, file gates only the dispatch emission — so watch-only
+  // installs still police bare drains.
+  if (sessionId && input.stop_hook_active !== true) {
     try {
       const reason = decideRetroFilingGate(projectDirectory, sessionId);
       if (reason) {

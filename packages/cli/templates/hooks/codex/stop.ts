@@ -139,11 +139,11 @@ async function main(): Promise<string> {
   // already on disk — the same stop can dispatch the filer. Yields to the
   // architecture advisory (one continuation per stop); the gate's attempt budget
   // lets it retry at the next stop.
-  if (readSelfReportConfig(projectDirectory).file) {
-    const sessionId = resolveCodexSessionId(input, process.env);
-    const dispatch = sessionId ? decideRetroFilingGate(projectDirectory, sessionId) : undefined;
-    if (dispatch) return JSON.stringify({ decision: 'block', reason: dispatch });
-  }
+  // The gate reads selfReport config itself (GH644A): capture gates the
+  // tripwire, file gates the dispatch — evaluate unconditionally.
+  const sessionId = resolveCodexSessionId(input, process.env);
+  const dispatch = sessionId ? decideRetroFilingGate(projectDirectory, sessionId) : undefined;
+  if (dispatch) return JSON.stringify({ decision: 'block', reason: dispatch });
 
   return SILENT;
 }

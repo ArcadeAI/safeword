@@ -309,6 +309,22 @@ export function installCrashCapture(
 }
 
 /**
+ * Capture a retro bare drain (GH644A): the filing gate observed dispatched
+ * draft signatures leave the spool with no filed ack. Allowlist-only mirror of
+ * captureGateEscalation; once-per-batch is the GATE's job (tripwired flag),
+ * cross-session dedup happens downstream via signatureOf.
+ */
+export function captureBareDrain(projectDirectory: string, sessionId: string | undefined): void {
+  if (!readSelfReportConfig(projectDirectory).capture) return;
+  recordSignal(
+    projectDirectory,
+    sessionId ?? 'hook',
+    { source: 'retro-filing-gate', agent: detectAgent(), errorClass: 'RetroBareDrain' },
+    readInstalledVersion(projectDirectory),
+  );
+}
+
+/**
  * Capture a gate-escalation signal: a safeword gate (`pattern`) has fired enough
  * times across sessions to escalate — a candidate for maintainer review (a
  * too-aggressive gate, OR a correct gate firing on a recurring problem; the

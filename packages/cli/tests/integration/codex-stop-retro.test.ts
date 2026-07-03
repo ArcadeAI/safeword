@@ -20,6 +20,7 @@ import {
   FILING_ATTEMPT_CAP,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { offsetStatePath, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
+import { readSessionReports } from '../../templates/hooks/lib/self-report.js';
 import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
@@ -334,6 +335,25 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
 
       expect(result.status).toBe(0);
       expectNoContinuation(result);
+    });
+
+    it('filer-ack-tripwire.SM1.AC3.watch_only_install_still_trips_through_the_codex_hook', () => {
+      // file:false sheds the dispatch but not the tripwire (GH644A): the shed
+      // adapter guard means the shared gate still evaluates and captures.
+      writeConfig(dir, { surface: false, file: false, capture: true });
+      const id = freshSession('watchonly');
+      mkdirSync(nodePath.join(dir, '.safeword', 'retro-drafts'), { recursive: true });
+      writeFileSync(
+        nodePath.join(dir, '.safeword', 'retro-drafts', `${id}.filing-attempts`),
+        `${JSON.stringify({ key: 'k', attempts: 0, signatures: ['retro:aaaaaaaaaaaa'] })}\n`,
+      );
+
+      const result = runHook(dir, { session_id: id, cwd: dir });
+
+      expect(result.status).toBe(0);
+      expectNoContinuation(result);
+      expect(readSessionReports(dir, id)).toHaveLength(1);
+      expect(readSessionReports(dir, id)[0]?.errorClass).toBe('RetroBareDrain');
     });
 
     it('retro-filer-gate.SM1.AC2.goes_quiet_after_the_attempt_cap', () => {

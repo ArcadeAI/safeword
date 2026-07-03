@@ -1025,6 +1025,18 @@ export function retroDraft(
   };
 }
 
+/** Append one shape-valid ack line to a session's retro ack file (GH644A fixtures). */
+export function appendRetroAck(
+  dir: string,
+  sessionId: string,
+  signature: string,
+  issue: number,
+): void {
+  const file = nodePath.join(dir, '.safeword', 'retro-drafts', `${sessionId}.acks.jsonl`);
+  mkdirSync(nodePath.dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify({ signature, issue })}\n`, { flag: 'a' });
+}
+
 /** Write `.safeword/config.json` with a `selfReport` block (stop-hook fixtures). */
 export function writeSelfReportConfig(dir: string, selfReport: Record<string, boolean>): void {
   writeTestFile(dir, '.safeword/config.json', JSON.stringify({ selfReport }));
