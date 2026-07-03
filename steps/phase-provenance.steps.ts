@@ -167,10 +167,8 @@ function editTicket(world: ProvenanceWorld, oldString: string, newString: string
   });
 }
 
-/** Full-content rewrite of an existing ticket.md (Write tool on existing file). */
-function rewriteTicket(world: ProvenanceWorld, content: string): void {
-  world.verdict = runHook(world, 'Write', { file_path: ticketPath(world), content });
-}
+/** Full-content rewrite of an existing ticket.md — same Write payload as creation. */
+const rewriteTicket = writeTicket;
 
 After(function (this: ProvenanceWorld) {
   if (this.projectDirectory !== undefined) {
@@ -214,15 +212,10 @@ Given('a ticket.md whose YAML frontmatter does not parse', function (this: Prove
 // Whens — creation writes
 // ---------------------------------------------------------------------------
 
+// "…and no phase_skips" is the same write as the bare form — the suffix keeps
+// the Gherkin explicit about the hatch being absent.
 When(
-  'a feature ticket.md is written with phase {word} and no phase_skips',
-  function (this: ProvenanceWorld, phase: string) {
-    writeTicket(this, ticketContent({ type: 'feature', phase }));
-  },
-);
-
-When(
-  'a feature ticket.md is written with phase {word}',
+  'a feature ticket.md is written with phase {word}( and no phase_skips)',
   function (this: ProvenanceWorld, phase: string) {
     writeTicket(this, ticketContent({ type: 'feature', phase }));
   },

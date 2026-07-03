@@ -24,6 +24,11 @@ export const CANONICAL_PHASES = [
 
 const CANONICAL_SET: ReadonlySet<string> = new Set(CANONICAL_PHASES);
 
+/** Typed lookup so callers don't need casts; -1 for off-enum names. */
+function canonicalIndex(phase: string): number {
+  return (CANONICAL_PHASES as readonly string[]).indexOf(phase);
+}
+
 const CANONICAL_SEQUENCE = CANONICAL_PHASES.join(' → ');
 
 export type ProvenanceVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
@@ -169,8 +174,8 @@ function evaluateAdvance(
 
   const effectivePrior =
     priorPhase !== undefined && CANONICAL_SET.has(priorPhase) ? priorPhase : 'intake';
-  const fromIndex = CANONICAL_PHASES.indexOf(effectivePrior as never);
-  const toIndex = CANONICAL_PHASES.indexOf(proposedPhase as never);
+  const fromIndex = canonicalIndex(effectivePrior);
+  const toIndex = canonicalIndex(proposedPhase);
 
   // Backward moves and re-declarations are rework, never gated.
   if (toIndex <= fromIndex + 1) return OK;
@@ -231,16 +236,12 @@ function evaluateBirth(
     };
   }
 
-  return requireJustifiedSkips(
-    meta,
-    CANONICAL_PHASES.slice(0, CANONICAL_PHASES.indexOf(phase as never)),
-    missing => {
-      const act = context === 'creation' ? 'begin life' : 'become a feature';
-      return {
-        ok: false,
-        reason: `Feature tickets are born at phase: intake — this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(', ')}.`,
-        remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
-      };
-    },
-  );
+  return requireJustifiedSkips(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase)), missing => {
+    const act = context === 'creation' ? 'begin life' : 'become a feature';
+    return {
+      ok: false,
+      reason: `Feature tickets are born at phase: intake — this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(', ')}.`,
+      remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
+    };
+  });
 }
