@@ -48,7 +48,9 @@ interface StopOutput {
  */
 function emitRetroOrEmpty(input: CursorInput): void {
   const config = readSelfReportConfig(process.cwd());
-  if (config.file) {
+  // The gate reads selfReport config itself (GH644A): capture gates the
+  // tripwire, file gates the dispatch — evaluate unconditionally.
+  {
     const sessionId = resolveCursorSessionId(
       { conversation_id: input.conversation_id },
       process.env,

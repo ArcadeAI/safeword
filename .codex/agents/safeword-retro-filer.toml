@@ -24,12 +24,17 @@ Procedure:
      VERBATIM. Never add, remove, or rephrase content — the draft is the
      sanitized surface, and the signature marker inside the body is what future
      dedup depends on.
-3. Cap: at most 5 new issues per run. If more drafts remain, leave them in the
+3. Ack each post before you drain it: after each successful post (create or
+   comment), append one line {"signature": "<signature>", "issue": <number>} to
+   the ack file beside the spool (same path with .acks.jsonl in place of
+   .jsonl). The ack proves the drain honest; a drain without acks trips
+   safeword's bare-drain telemetry.
+4. Cap: at most 5 new issues per run. If more drafts remain, leave them in the
    spool and include the remainder count in your summary.
-4. Drain the spool (the ack): rewrite the spool file with only the drafts you
+5. Drain the spool: rewrite the spool file with only the drafts you
    did NOT successfully file, or delete the file when none remain. This is what
    stops safeword's stop gate from re-dispatching.
-5. If you cannot write to ArcadeAI/safeword (no GitHub tooling, auth failure,
+6. If you cannot write to ArcadeAI/safeword (no GitHub tooling, auth failure,
    repo unreachable), leave the spool untouched and report
    "retro-filer: cannot file — <reason>". Do not improvise another target.
 

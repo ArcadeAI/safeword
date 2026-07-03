@@ -89,20 +89,25 @@ test-definitions.md is the R/G/R ledger. RED means an EXECUTED failing run
 
 ### Scenario: Shipped prompts and the guide carry the ack procedure and drain prohibition (SM2.AC1)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T16:07Z: 4 failures in retro-filer-agent-defs.test.ts
+  (no ack instructions, no drain prohibition, no guide paragraph).
+- [x] GREEN — executed 2026-07-03T16:10Z: 24/24; both agent defs, dispatch text,
+  and guide fallback updated; dogfood synced via parity-check.
+- [x] REFACTOR — ack step numbered into the existing procedure; no duplication.
 
 ## Rule: The tripwire observes; it never surfaces or loops
 
 ### Scenario: A tripped evaluation emits nothing and decides exactly as an ack-clean one (TB1.AC1 — real Stop hook entry, fs-only mocking)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T16:02Z: 3 failures in stop-retro-filing.test.ts
+  (stale dogfood libs + adapter file-guards blocked the watch-only path).
+- [x] GREEN — executed 2026-07-03T16:04Z: 9/9 through the real hook subprocess;
+  three adapters shed their file-guards (gate owns config semantics).
+- [x] REFACTOR — decision-parity asserted against an ack-clean twin fixture.
 
 ### Scenario: The captured signal is allowlist-shaped and the retro spool is untouched (TB1.AC1)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T16:02Z (same batch): allowlist/spool assertions failed.
+- [x] GREEN — executed 2026-07-03T16:04Z: RetroBareDrain record allowlist-only,
+  retro spool byte-identical through a partial-drain trip.
+- [x] REFACTOR — field allowlist pinned as an explicit key set in the test.
