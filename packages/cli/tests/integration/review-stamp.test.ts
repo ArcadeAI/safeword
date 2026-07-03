@@ -22,6 +22,14 @@ import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 const STAMP_PATH = nodePath.resolve(__dirname, '../../templates/hooks/write-review-stamp.ts');
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 const POST_TOOL_PATH = nodePath.resolve(__dirname, '../../templates/hooks/post-tool-quality.ts');
+const CURSOR_BEFORE_SHELL_PATH = nodePath.resolve(
+  __dirname,
+  '../../templates/hooks/cursor/before-shell-execution.ts',
+);
+const CODEX_PRE_TOOL_PATH = nodePath.resolve(
+  __dirname,
+  '../../templates/hooks/codex/pre-tool-quality.ts',
+);
 const TICKET_ID = 'ABC123';
 
 const TICKET_FRONTMATTER = [
@@ -347,6 +355,89 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
       runPostToolEdit(nodePath.join(completedDirectory, 'spec.md'));
 
       expect(readSessionBinding()).toBeUndefined();
+    });
+  });
+
+  // #630: on Codex/Cursor the stamp helper's process env has no run identity;
+  // the runtime's pre-shell hook stashes the session id right before the
+  // command runs. Exercises the real pre-shell hook → write-review-stamp.ts
+  // chain, including that the bridged identity reads the SAME session-state
+  // key the runtime's post-tool adapter writes the binding under.
+  describe('run-identity bridge on Codex/Cursor (#630)', () => {
+    const STAMP_COMMAND = 'bun .safeword/hooks/write-review-stamp.ts spec';
+
+    function runCodexPreShell(sessionId: string): void {
+      const result = spawnSync('bun', [CODEX_PRE_TOOL_PATH], {
+        cwd: projectRoot,
+        input: JSON.stringify({
+          session_id: sessionId,
+          tool_name: 'Bash',
+          tool_input: { command: STAMP_COMMAND },
+        }),
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(result.status).toBe(0);
+    }
+
+    function runCursorBeforeShell(conversationId: string): void {
+      const result = spawnSync('bun', [CURSOR_BEFORE_SHELL_PATH], {
+        cwd: projectRoot,
+        input: JSON.stringify({
+          conversation_id: conversationId,
+          command: STAMP_COMMAND,
+          workspace_roots: [projectRoot],
+        }),
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout) as { permission?: string }).toEqual({
+        permission: 'allow',
+      });
+    }
+
+    function bindRuntimeSessionTicket(storageKey: string): void {
+      writeFileSync(
+        nodePath.join(projectRoot, '.safeword-project', `quality-state-${storageKey}.json`),
+        JSON.stringify({ activeTicket: TICKET_ID }),
+      );
+    }
+
+    it('Codex: the pre-shell stash lets the stamp resolve the codex-bound session ticket', () => {
+      createSecondTicket();
+      bindRuntimeSessionTicket('codex-sess-9');
+
+      runCodexPreShell('sess-9');
+      const stamp = runStampWithoutRuntimeIdentity('spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('Cursor: the pre-shell stash lets the stamp resolve the cursor-bound session ticket', () => {
+      createSecondTicket();
+      bindRuntimeSessionTicket('cursor-conv-1');
+
+      runCursorBeforeShell('conv-1');
+      const stamp = runStampWithoutRuntimeIdentity('spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('the stash is single-use: a second stamp without a new pre-shell event fails loudly', () => {
+      createSecondTicket();
+      bindRuntimeSessionTicket('codex-sess-9');
+
+      runCodexPreShell('sess-9');
+      expect(runStampWithoutRuntimeIdentity('spec').status).toBe(0);
+
+      const secondStamp = runStampWithoutRuntimeIdentity('spec');
+      expect(secondStamp.status).toBe(1);
+      expect(secondStamp.stdout).toContain('missing run identity');
     });
   });
 });

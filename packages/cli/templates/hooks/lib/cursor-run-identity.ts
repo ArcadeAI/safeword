@@ -1,10 +1,20 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { resolveNamespaceRoot } from './namespace-root.ts';
+import { resolveNamespaceRoot } from './namespace-root.js';
 
 const CURSOR_RUN_IDENTITY_CACHE = 'cursor-run-identity.json';
 const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
+
+// write-review-stamp.ts bridges use their own cache files (#630): the record-
+// skill-invocation cache is single-slot and deleted on read, so a chained
+// `record-skill-invocation && write-review-stamp` command would starve one
+// consumer if they shared a file.
+const CURSOR_REVIEW_STAMP_IDENTITY_CACHE = 'cursor-review-stamp-identity.json';
+const CODEX_REVIEW_STAMP_IDENTITY_CACHE = 'codex-review-stamp-identity.json';
+
+/** Fixed cache key for the stamp-helper bridge — not a skill, so not skill-named. */
+const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
 
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 
@@ -75,6 +85,20 @@ function isBunExecutable(token: string | undefined): boolean {
 function isInvocationHelperPath(token: string | undefined): boolean {
   if (token === undefined) return false;
   return token.replaceAll('\\', '/').endsWith('/.safeword/hooks/record-skill-invocation.ts');
+}
+
+// Unlike the invocation-helper matcher (slash-anchored suffix only), the stamp
+// helper is documented in BOTH forms: `$PROJECT_DIR`-absolute (the self-review
+// fallback) and bare-relative (`bun .safeword/hooks/write-review-stamp.ts …`,
+// the skip valve and the Tier-2 phase stamp). Accept the exact relative form or
+// the slash-anchored suffix; `foo.safeword/…` still never matches.
+function isReviewStampHelperPath(token: string | undefined): boolean {
+  if (token === undefined) return false;
+  const normalized = token.replaceAll('\\', '/');
+  return (
+    normalized === '.safeword/hooks/write-review-stamp.ts' ||
+    normalized.endsWith('/.safeword/hooks/write-review-stamp.ts')
+  );
 }
 
 function tokenizeShellCommand(command: string): string[] {
@@ -151,24 +175,35 @@ function tokenizeShellCommand(command: string): string[] {
   return tokens;
 }
 
-export function parseRecordSkillInvocationCommand(
-  command: string,
-): { skillName: string } | undefined {
+function shellSegments(command: string): string[][] {
   const tokens = tokenizeShellCommand(command);
+  const segments: string[][] = [];
   let segmentStart = 0;
 
   for (let index = 0; index <= tokens.length; index += 1) {
     if (index !== tokens.length && !SHELL_OPERATORS.has(tokens[index] ?? '')) {
       continue;
     }
-
-    const segment = tokens.slice(segmentStart, index);
+    segments.push(tokens.slice(segmentStart, index));
     segmentStart = index + 1;
+  }
 
-    let executableIndex = 0;
-    while (isEnvironmentAssignment(segment[executableIndex] ?? '')) {
-      executableIndex += 1;
-    }
+  return segments;
+}
+
+function executableIndexOf(segment: string[]): number {
+  let executableIndex = 0;
+  while (isEnvironmentAssignment(segment[executableIndex] ?? '')) {
+    executableIndex += 1;
+  }
+  return executableIndex;
+}
+
+export function parseRecordSkillInvocationCommand(
+  command: string,
+): { skillName: string } | undefined {
+  for (const segment of shellSegments(command)) {
+    const executableIndex = executableIndexOf(segment);
 
     if (!isBunExecutable(segment[executableIndex])) continue;
     if (!isInvocationHelperPath(segment[executableIndex + 1])) continue;
@@ -180,6 +215,17 @@ export function parseRecordSkillInvocationCommand(
   }
 
   return undefined;
+}
+
+/** True when any segment of `command` runs write-review-stamp.ts under bun. */
+export function commandInvokesWriteReviewStamp(command: string): boolean {
+  return shellSegments(command).some(segment => {
+    const executableIndex = executableIndexOf(segment);
+    return (
+      isBunExecutable(segment[executableIndex]) &&
+      isReviewStampHelperPath(segment[executableIndex + 1])
+    );
+  });
 }
 
 /**
@@ -275,6 +321,64 @@ export function readFreshCodexRunIdentity(input: ReadFreshRunIdentityInput): str
     projectDirectory: input.projectDirectory,
     cacheFile: CODEX_RUN_IDENTITY_CACHE,
     skillName: input.skillName,
+    now: input.now,
+    maxAgeMs: input.maxAgeMs,
+  });
+}
+
+interface RememberReviewStampIdentityInput {
+  projectDirectory: string;
+  id: string | undefined;
+  now?: Date;
+}
+
+interface ReadFreshReviewStampIdentityInput {
+  projectDirectory: string;
+  now?: Date;
+  maxAgeMs?: number;
+}
+
+export function rememberCursorReviewStampIdentity(
+  input: RememberReviewStampIdentityInput,
+): boolean {
+  return rememberShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CURSOR_REVIEW_STAMP_IDENTITY_CACHE,
+    id: input.id,
+    skillName: REVIEW_STAMP_CACHE_KEY,
+    now: input.now,
+  });
+}
+
+export function readFreshCursorReviewStampIdentity(
+  input: ReadFreshReviewStampIdentityInput,
+): string | undefined {
+  return readFreshShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CURSOR_REVIEW_STAMP_IDENTITY_CACHE,
+    skillName: REVIEW_STAMP_CACHE_KEY,
+    now: input.now,
+    maxAgeMs: input.maxAgeMs,
+  });
+}
+
+export function rememberCodexReviewStampIdentity(input: RememberReviewStampIdentityInput): boolean {
+  return rememberShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CODEX_REVIEW_STAMP_IDENTITY_CACHE,
+    id: input.id,
+    skillName: REVIEW_STAMP_CACHE_KEY,
+    now: input.now,
+  });
+}
+
+export function readFreshCodexReviewStampIdentity(
+  input: ReadFreshReviewStampIdentityInput,
+): string | undefined {
+  return readFreshShellRunIdentity({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CODEX_REVIEW_STAMP_IDENTITY_CACHE,
+    skillName: REVIEW_STAMP_CACHE_KEY,
     now: input.now,
     maxAgeMs: input.maxAgeMs,
   });

@@ -16,7 +16,9 @@ import {
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
 import {
+  commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
+  rememberCodexReviewStampIdentity,
   rememberCodexRunIdentity,
 } from '../lib/cursor-run-identity.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
@@ -88,6 +90,17 @@ if (proofCommand !== undefined) {
     projectDirectory: resolveProjectRoot(),
     sessionId: input.session_id,
     skillName: proofCommand.skillName,
+  });
+}
+
+// Same one-step bridge for write-review-stamp.ts (#630): the stamp helper's
+// process env has no run identity on Codex, so stash the session id right
+// before its command runs. Separate cache from the proof bridge, so a chained
+// `record-skill-invocation && write-review-stamp` command feeds both consumers.
+if (commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
+  rememberCodexReviewStampIdentity({
+    projectDirectory: resolveProjectRoot(),
+    id: input.session_id,
   });
 }
 
