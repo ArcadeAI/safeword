@@ -20,3 +20,4 @@ Behavior-preserving: prose refactor only; the contract test suites define "behav
 
 - 2026-07-03T20:51:51.391Z Started: Created ticket 7PG694
 - 2026-07-03T20:55Z Branch claude/refactor-verify-audit-skills off origin/main. /quality-review invoked; fresh reviewer producing contract inventory + ranked refactor plan for both skills.
+- 2026-07-03T21:07Z Implemented (9ed50dca): reviewer found 4 criticals + 7 APPLY + 4 LIST. All criticals + APPLYs applied to templates, commands/verify.md twin hand-synced, parity-check --fix propagated all copies. Contracts green: 813 vitest (8 suites) + 181 cucumber scenarios; post-commit re-run 142/142. LIST follow-ups (owner sign-off needed): collapse commands/verify.md to a thin pointer (rewrites pinned contracts); extract verify script to installed helper; audit-plan product work (5FF0ZD direction); trim audit research-links.
