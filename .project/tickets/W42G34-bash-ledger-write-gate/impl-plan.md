@@ -13,12 +13,16 @@ source-vs-target boundary). If that pair can't both pass, the design is wrong at
 **Components:**
 
 - `templates/hooks/lib/bash-ledger-writes.ts` (new) — pure predicate:
-  `detectLedgerWrite(command, projectDirectory) → { shape, path } | undefined`. Reuses
-  segment/word parsing extracted from `cursor/gate-adapter.ts` into
-  `templates/hooks/lib/shell-segments.ts` (dependency direction: cursor adapter imports from
-  lib, never the reverse). Ledger path test: basename `test-definitions.md` AND resolves
-  under `<namespace-root>/tickets/` (via `resolveNamespaceRoot`). Module docs carry the
-  detection-limits block (variables, eval, substitution, script files; done-gate backstop).
+  `detectLedgerWrite(command) → { shape, path } | undefined`. Reuses segment/word parsing
+  extracted from `cursor/gate-adapter.ts` into `templates/hooks/lib/shell-segments.ts`
+  (dependency direction: cursor adapter imports from lib, never the reverse). Ledger path
+  test: basename `test-definitions.md` AND `isNamespacePath(token, 'tickets/')` — the same
+  string-level check the Edit-path gate uses, keeping cross-channel verdicts consistent
+  (reconciled from the planned `(command, projectDirectory)` + `resolveNamespaceRoot`
+  signature: the fs-free string check is strictly simpler and matches the Edit gate's
+  existing scoping, including its known paths.projectRoot limitation). Module docs carry
+  the detection-limits block (variables, eval, substitution, script files; done-gate
+  backstop).
 - `templates/hooks/pre-tool-quality.ts` Bash branch — deny on detection, message naming the
   Edit channel. Codex inherits via `codex/pre-tool-quality.ts` translation (no change).
 - `cursor/gate-adapter.ts` — `requiresFailClosedShellGate` widens: git-commit segment OR
@@ -60,7 +64,7 @@ source-vs-target boundary). If that pair can't both pass, the design is wrong at
 | -------- | ------ | ----------------------- | ---------------- |
 | Enforcement strategy | Deny Bash-channel ledger writes (channel-forcing) | Simulate shell + validate post-state; PostToolUse detect/repair | Simulation statically impossible (HotOS'25); PostToolUse can't deny — damage committable (how G3 shipped) |
 | Shell parsing | Extract `splitShellSegments`/`parseShellWords` from cursor/gate-adapter into lib | Duplicate parsing in the new module; lib importing from cursor/ | Duplication drifts; cursor/→lib is the established dependency direction |
-| Ledger-path scope | basename + resolve under `<namespace-root>/tickets/` | Any file named test-definitions.md | Fixture/tmp files outside the namespace must stay writable (SM2.AC2) |
+| Ledger-path scope | basename + `isNamespacePath(token, 'tickets/')` string check (fs-free) | Any file named test-definitions.md; `resolveNamespaceRoot` fs resolution | Fixture/tmp files outside the namespace must stay writable (SM2.AC2); the string check mirrors the Edit gate's scoping so channels can't drift |
 | Inline interpreters | Deny when inline-code flag + ledger path in segment (over-approximate) | Parse interpreter code for write APIs | That's simulation again; documented in module limits |
 | Cursor coverage | Widen `requiresFailClosedShellGate` with the shared predicate | Cursor-side reimplementation | One predicate, three consumers (SM1.AC3); reimplementation drifts |
 
