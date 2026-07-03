@@ -9,38 +9,38 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Born one phase past intake is denied
 
 - [x] RED 13c6582
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN cccb3d9
+- [x] REFACTOR skip: fresh 80-line lib, single branch, no duplication or naming debt yet
 
 ### Scenario: Born at intake is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side landed inside scenario 1's minimal deny condition (cccb3d9); a failing test was never constructible
+- [x] GREEN e0c1e5c
+- [x] REFACTOR skip: no code change beyond the pin; nothing to restructure
 
 ### Scenario: Born with no phase recorded is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side landed inside scenario 1's minimal deny condition (cccb3d9); a failing test was never constructible
+- [x] GREEN e0c1e5c
+- [x] REFACTOR skip: no code change beyond the pin; nothing to restructure
 
 ### Scenario: Non-feature tickets are born at any phase without objection
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: exemption is the fresh gate's default-allow (type gate landed in cccb3d9); a failing test was never constructible
+- [x] GREEN e0c1e5c
+- [x] REFACTOR skip: no code change beyond the pin; nothing to restructure
 
 ### Scenario: A ticket.md with no type field is born at any phase without objection
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: exemption is the fresh gate's default-allow (type gate landed in cccb3d9); a failing test was never constructible
+- [x] GREEN e0c1e5c
+- [x] REFACTOR skip: no code change beyond the pin; nothing to restructure
 
 ### Scenario: Non-feature tickets advance freely
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: edit-path allow is the fresh gate's default; the unit pin (task intake→done stays ok) guards it once transition logic lands
+- [x] GREEN e0c1e5c
+- [x] REFACTOR skip: no code change beyond the pin; nothing to restructure
 
 ### Scenario: Changing a ticket's type to feature counts as a feature birth
 

@@ -11,6 +11,7 @@
 // history — tickets at rest are never re-validated.
 
 import { parseFrontmatter } from './hierarchy.js';
+import { isValidSkipReason } from './parse-annotation.js';
 
 export const CANONICAL_PHASES = [
   'intake',
@@ -20,6 +21,10 @@ export const CANONICAL_PHASES = [
   'verify',
   'done',
 ] as const;
+
+const CANONICAL_SET: ReadonlySet<string> = new Set(CANONICAL_PHASES);
+
+const CANONICAL_SEQUENCE = CANONICAL_PHASES.join(' → ');
 
 export type ProvenanceVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
@@ -48,6 +53,30 @@ function scalar(
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
+/** Parsed phase_skips: justified phase → reason, plus syntactically bad entries. */
+interface ParsedSkips {
+  justified: Map<string, string>;
+  invalid: string[];
+}
+
+function parseSkips(meta: Record<string, string | string[]> | undefined): ParsedSkips {
+  const raw = meta?.['phase_skips'];
+  const entries = Array.isArray(raw) ? raw : typeof raw === 'string' && raw !== '' ? [raw] : [];
+  const justified = new Map<string, string>();
+  const invalid: string[] = [];
+  for (const entry of entries) {
+    const match = /^([^:]+):(.*)$/.exec(entry);
+    const phase = match?.[1]?.trim();
+    const reason = match?.[2] ?? '';
+    if (match === null || phase === undefined || phase === '' || !isValidSkipReason(reason)) {
+      invalid.push(entry);
+      continue;
+    }
+    justified.set(phase, reason.trim());
+  }
+  return { justified, invalid };
+}
+
 /**
  * Evaluate a ticket.md write (creation or edit) for phase provenance.
  *
@@ -61,19 +90,76 @@ export function evaluateTicketWrite(
   if (priorContent === undefined) {
     return evaluateCreation(proposedContent);
   }
-  return OK;
+  return evaluateEdit(priorContent, proposedContent);
 }
 
 function evaluateCreation(proposedContent: string): ProvenanceVerdict {
   const meta = frontmatterOf(proposedContent);
-  const type = scalar(meta, 'type');
-  const phase = scalar(meta, 'phase');
+  if (scalar(meta, 'type') !== 'feature') return OK;
+  return evaluateBirth(meta, 'creation');
+}
 
-  if (type === 'feature' && phase !== undefined && phase !== 'intake') {
+function evaluateEdit(priorContent: string, proposedContent: string): ProvenanceVerdict {
+  const prior = frontmatterOf(priorContent);
+  const proposed = frontmatterOf(proposedContent);
+  // A write that leaves the frontmatter unparseable carries no phase or type
+  // to police — at-rest tolerance (corruption integrity is G3/G5 territory).
+  if (proposed === undefined) return OK;
+
+  const priorType = scalar(prior, 'type');
+  const proposedType = scalar(proposed, 'type');
+
+  // Becoming a feature — from task/patch/epic, no type, or an unparseable
+  // prior (frontmatter repair) — counts as a feature birth at the proposed
+  // phase: the ticket never traversed the phases as a feature.
+  if (proposedType === 'feature' && priorType !== 'feature') {
+    return evaluateBirth(proposed, 'flip');
+  }
+
+  return OK;
+}
+
+/**
+ * Birth semantics, shared by creation and type-flip/repair:
+ * intake (or no phase) is free; past intake needs a phase_skips entry for
+ * every bypassed phase. A non-canonical target is denied at creation; on a
+ * flip it is pre-existing state and counts as intake (legacy migration rule).
+ */
+function evaluateBirth(
+  meta: Record<string, string | string[]> | undefined,
+  context: 'creation' | 'flip',
+): ProvenanceVerdict {
+  const phase = scalar(meta, 'phase');
+  if (phase === undefined || phase === 'intake') return OK;
+
+  if (!CANONICAL_SET.has(phase)) {
+    if (context === 'flip') return OK;
     return {
       ok: false,
-      reason: `Feature tickets are born at phase: intake — this one would begin life at "${phase}", silently skipping the intake conversation (personas, jobs, acceptance criteria) and every gate keyed to the skipped phases.`,
-      remediation: `Create the ticket at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
+      reason: `"${phase}" is not a canonical ticket phase, so no gate keyed to phases would ever fire on this ticket. Canonical phases: ${CANONICAL_SEQUENCE}.`,
+      remediation:
+        'Create the ticket at phase: intake (or another canonical phase justified via phase_skips) and work forward.',
+    };
+  }
+
+  const skips = parseSkips(meta);
+  if (skips.invalid.length > 0) {
+    return {
+      ok: false,
+      reason: `phase_skips entry ${skips.invalid.map(entry => `"${entry}"`).join(', ')} is not a valid skip — every entry needs the "<phase>: <reason>" shape with a non-empty reason.`,
+      remediation: `A skip is an auditable act: ${SKIPS_SYNTAX}.`,
+    };
+  }
+
+  const missing = CANONICAL_PHASES.slice(0, CANONICAL_PHASES.indexOf(phase as never)).filter(
+    bypassed => !skips.justified.has(bypassed),
+  );
+  if (missing.length > 0) {
+    const act = context === 'creation' ? 'begin life' : 'become a feature';
+    return {
+      ok: false,
+      reason: `Feature tickets are born at phase: intake — this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(', ')}.`,
+      remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
     };
   }
 
