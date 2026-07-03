@@ -60,15 +60,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An obfuscated write the predicate cannot see is allowed by design
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: scope-pin — asserts the documented limit (variable paths, script files pass); by definition passes on first run
+- [x] GREEN c717fd2
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: An inline interpreter that names the ledger is denied even if its code only reads
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: pin — over-approximation landed with the outline GREEN (fd9effd); this test locks the decision against a future read-vs-write "fix"
+- [x] GREEN c717fd2
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ### Scenario: The predicate module documents what it cannot catch
 

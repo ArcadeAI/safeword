@@ -8,6 +8,9 @@
  * predicate ever over-denies (mention ≠ mutation, source ≠ target).
  */
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { detectLedgerWrite } from '../../templates/hooks/lib/bash-ledger-writes.js';
@@ -90,6 +93,21 @@ describe('detectLedgerWrite', () => {
       // Deliberate over-approximation: read-vs-write inside interpreter code
       // would require simulation, which this design rejects (dimensions.md).
       expect(detectLedgerWrite(`python3 -c 'print(open("${LEDGER}").read())'`)).toBeDefined();
+    });
+
+    it('Scenario: the predicate module documents what it cannot catch', () => {
+      const moduleSource = readFileSync(
+        nodePath.join(import.meta.dirname, '../../templates/hooks/lib/bash-ledger-writes.ts'),
+        'utf8',
+      );
+      // The limits block must name the undetectable forms and the backstop —
+      // silence pretending completeness is the failure mode (spec SM2.AC1).
+      expect(moduleSource).toMatch(/Detection limits/);
+      expect(moduleSource).toMatch(/shell variables/i);
+      expect(moduleSource).toMatch(/eval/);
+      expect(moduleSource).toMatch(/script files/i);
+      expect(moduleSource).toMatch(/done-gate/i);
+      expect(moduleSource).toMatch(/backstop/i);
     });
   });
 });
