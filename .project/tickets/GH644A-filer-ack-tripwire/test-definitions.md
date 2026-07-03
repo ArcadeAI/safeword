@@ -10,53 +10,69 @@ test-definitions.md is the R/G/R ledger. RED means an EXECUTED failing run
 
 ### Scenario: A dispatched signature vanishing without an ack captures one RetroBareDrain signal (SM1.AC1)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ### Scenario: A tripped batch does not trip again (SM1.AC1)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ### Scenario: A new dispatched batch re-arms the tripwire after an earlier trip (SM1.AC1)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ### Scenario: Removals covered by shape-valid ack lines trip nothing (SM1.AC2)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ### Scenario: Torn ack lines are skipped; the partially acked batch still trips once (SM1.AC2)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ### Scenario: Dispatched signatures still sitting in the spool trip nothing (SM1.AC2)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ## Rule: Absent or pre-upgrade state fails open
 
 ### Scenario Outline: Degraded marker or ack state disarms the tripwire without changing gate behavior (SM1.AC3 — 4 examples)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ### Scenario: Capture-off suppresses the tripwire; file-off alone does not (SM1.AC3)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED — executed 2026-07-03T15:47Z (batch): 5 behavioral failures observed in
+  `tests/hooks/retro-filing-gate.test.ts` pre-implementation (spy never called).
+- [x] GREEN — executed 2026-07-03T15:55Z: 54/54 across gate + neighbor suites.
+- [x] REFACTOR — tripwire isolated in `runTripwire` (fail-open try/catch); marker
+  fields additive/validated; watch-only snapshot path documented.
 
 ## Rule: The filer acks before it drains
 
