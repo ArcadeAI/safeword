@@ -7,7 +7,6 @@
  * Adding a new file? Add it here and it will be handled by setup/upgrade/reset.
  */
 
-import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
@@ -43,7 +42,7 @@ import type {
 } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
-import { getTemplatesDirectory } from './utils/fs.js';
+import { getTemplatesDirectory, readFile } from './utils/fs.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
@@ -471,7 +470,7 @@ function bddLaneFile(templatePath: string): FileDefinition {
     template: templatePath,
     generator: (ctx: ProjectContext): string | undefined =>
       ctx.projectType.scaffoldBddLane
-        ? readFileSync(nodePath.join(getTemplatesDirectory(), templatePath), 'utf8')
+        ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
         : undefined,
   };
 }

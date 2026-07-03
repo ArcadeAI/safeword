@@ -12,7 +12,7 @@ import { LANGUAGE_PACKS } from '../packs/registry.js';
 import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
 import { isShippedCucumberTemplateRevision } from './cucumber-template-revisions.js';
-import { findInTree, getTemplatesDirectory } from './fs.js';
+import { findInTree, readFileSafe, readJson } from './fs.js';
 
 const {
   TAILWIND_PACKAGES,
@@ -455,22 +455,15 @@ const CUCUMBER_CONFIG_FILES = [
 ] as const;
 
 /**
- * True when the file is safeword's own lane scaffold: byte-identical to the
- * bundled template, or a hash-match against any previously shipped revision
- * (so upgrades from older safewords never read their own lane as a host
- * harness).
+ * True when the file is safeword's own lane scaffold: a hash-match against a
+ * shipped template revision (so upgrades from older safewords never read
+ * their own lane as a host harness). The current template is always in the
+ * registry — the cucumber-template-revisions contract test enforces it — so
+ * no separate byte-compare against the bundled template is needed.
  */
 function isSafewordLaneTemplate(configPath: string): boolean {
-  try {
-    const content = readFileSync(configPath, 'utf8');
-    const template = readFileSync(
-      nodePath.join(getTemplatesDirectory(), 'cucumber', 'cucumber.mjs'),
-      'utf8',
-    );
-    return content === template || isShippedCucumberTemplateRevision(content);
-  } catch {
-    return false;
-  }
+  const content = readFileSafe(configPath);
+  return content !== undefined && isShippedCucumberTemplateRevision(content);
 }
 
 // Direct workspace-package radius for harness evidence — the same
@@ -478,18 +471,13 @@ function isSafewordLaneTemplate(configPath: string): boolean {
 const WORKSPACE_PACKAGE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
 
 function manifestDependsOnCucumber(manifestPath: string): boolean {
-  try {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-    };
-    return Boolean(
-      manifest.dependencies?.['@cucumber/cucumber'] ??
-      manifest.devDependencies?.['@cucumber/cucumber'],
-    );
-  } catch {
-    return false;
-  }
+  const manifest = readJson(manifestPath) as
+    | { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
+    | undefined;
+  return Boolean(
+    manifest?.dependencies?.['@cucumber/cucumber'] ??
+    manifest?.devDependencies?.['@cucumber/cucumber'],
+  );
 }
 
 /**

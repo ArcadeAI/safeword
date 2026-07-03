@@ -15,6 +15,7 @@ import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getMissingPacks } from './packs/registry.js';
+import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
 import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
@@ -29,12 +30,11 @@ import {
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
 import { findFeatureSourcePath } from './utils/feature-source.js';
-import { exists, isDirectory, readFileSafe } from './utils/fs.js';
+import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
 import { header, info, listItem, success, warn } from './utils/output.js';
 import { parsePersonas, validatePersonas } from './utils/personas.js';
-import { detectCucumberLane } from './utils/project-detector.js';
 import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
@@ -181,8 +181,12 @@ function findGlossaryAdvisories(cwd: string): string[] {
  *   pre-56JCFZ scaffolding) → enumerate the leftover lane surface, derived
  *   from the schema constants so the list can't drift. Never edits/deletes.
  */
-function findCucumberHarnessAdvisories(cwd: string): string[] {
-  const { existingCucumberHarness, scaffoldBddLane } = detectCucumberLane(cwd);
+function findCucumberHarnessAdvisories(
+  cwd: string,
+  // Detection already ran once for this invocation (createProjectContext →
+  // detectProjectType); reuse it instead of re-sweeping the filesystem.
+  { existingCucumberHarness, scaffoldBddLane }: ProjectType,
+): string[] {
   if (existingCucumberHarness === undefined) return [];
 
   if (scaffoldBddLane) {
@@ -224,13 +228,7 @@ interface PackageJsonManifest {
 }
 
 function readPackageJsonSafe(cwd: string): PackageJsonManifest | undefined {
-  const content = readFileSafe(nodePath.join(cwd, 'package.json'));
-  if (content === undefined) return undefined;
-  try {
-    return JSON.parse(content) as PackageJsonManifest;
-  } catch {
-    return undefined;
-  }
+  return readJson(nodePath.join(cwd, 'package.json')) as PackageJsonManifest | undefined;
 }
 
 function findDocumentationSourceIssues(cwd: string): string[] {
@@ -671,7 +669,7 @@ export async function checkHealth(
       ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
-      ...findCucumberHarnessAdvisories(cwd),
+      ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
       ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
       ...findArchitectureAdvisories(cwd),
