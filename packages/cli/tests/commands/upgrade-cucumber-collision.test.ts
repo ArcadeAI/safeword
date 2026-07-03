@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
+  HOST_CUCUMBER_YAML,
   readTestFile,
   removeTemporaryDirectory,
   repoRoot,
@@ -91,7 +92,6 @@ describe('upgrade recognizes a previous template revision as its own scaffold (T
 
 describe('upgrade on a bitten repo maintains the lane without touching the host harness (TB1.AC2)', () => {
   let directory: string;
-  const HOST_CONFIG = 'default:\n  paths:\n    - tests/behaviors/**/*.feature\n';
 
   beforeAll(async () => {
     directory = createTemporaryDirectory();
@@ -100,7 +100,7 @@ describe('upgrade on a bitten repo maintains the lane without touching the host 
     // A "bitten" repo: an older safeword scaffolded the lane into a repo
     // that has its own cucumber harness (the ArcadeAI/monorepo incident).
     writeTestFile(directory, 'cucumber.mjs', PREVIOUS_TEMPLATE_REVISION);
-    writeTestFile(directory, 'cucumber.yaml', HOST_CONFIG);
+    writeTestFile(directory, 'cucumber.yaml', HOST_CUCUMBER_YAML);
 
     const upgrade = await runCli(['upgrade'], { cwd: directory });
     expect(upgrade.exitCode, upgrade.stderr).toBe(0);
@@ -115,7 +115,7 @@ describe('upgrade on a bitten repo maintains the lane without touching the host 
   });
 
   it('bdd-lane-collision-detection-and-paths.TB1.AC2.bitten_repo_host_config_is_unchanged', () => {
-    expect(readTestFile(directory, 'cucumber.yaml')).toBe(HOST_CONFIG);
+    expect(readTestFile(directory, 'cucumber.yaml')).toBe(HOST_CUCUMBER_YAML);
   });
 });
 

@@ -14,6 +14,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   TIMEOUT_QUICK,
+  writeSafewordPathsConfig,
   writeTestFile,
 } from '../helpers.js';
 
@@ -50,20 +51,12 @@ const DUPLICATE_NAME_FEATURE = [
   '',
 ].join('\n');
 
-function writePathsConfig(directory: string): void {
-  writeTestFile(
-    directory,
-    '.safeword/config.json',
-    JSON.stringify({ paths: { features: 'tests/behaviors', steps: 'tests/steps' } }, undefined, 2),
-  );
-}
-
 describe('codify finds a feature source in a configured directory (TB2.AC1)', () => {
   let directory: string;
 
   beforeAll(() => {
     directory = createTemporaryDirectory();
-    writePathsConfig(directory);
+    writeSafewordPathsConfig(directory);
     writeTestFile(directory, '.project/tickets/DEMO01-demo/ticket.md', '# demo');
     writeTestFile(directory, 'tests/behaviors/demo.feature', FEATURE_SOURCE);
   });
@@ -88,7 +81,7 @@ describe('lint-gherkin lints configured and default directories together (TB2.AC
 
   beforeAll(() => {
     directory = createTemporaryDirectory();
-    writePathsConfig(directory);
+    writeSafewordPathsConfig(directory);
     writeTestFile(directory, 'features/default-dir.feature', TRAILING_SPACE_FEATURE);
     writeTestFile(directory, 'tests/behaviors/configured-dir.feature', DUPLICATE_NAME_FEATURE);
   });

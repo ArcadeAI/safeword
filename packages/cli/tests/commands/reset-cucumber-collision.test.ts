@@ -15,6 +15,7 @@ import {
   runCli,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
+  writeSafewordPathsConfig,
   writeTestFile,
 } from '../helpers.js';
 
@@ -68,18 +69,7 @@ describe('full uninstall never deletes files at configured paths locations (TB1.
     createTypeScriptPackageJson(directory);
     await setupOrThrow(directory);
     // The customer relocates their lane and points safeword at it.
-    writeTestFile(
-      directory,
-      '.safeword/config.json',
-      JSON.stringify(
-        {
-          installedPacks: ['typescript'],
-          paths: { features: 'tests/behaviors', steps: 'tests/steps' },
-        },
-        undefined,
-        2,
-      ),
-    );
+    writeSafewordPathsConfig(directory, { installedPacks: ['typescript'] });
     writeTestFile(directory, 'tests/behaviors/demo.feature', 'Feature: demo\n');
 
     const reset = await runCli(['reset', '--full', '--yes'], { cwd: directory });

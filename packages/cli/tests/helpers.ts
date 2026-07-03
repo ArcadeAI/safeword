@@ -440,6 +440,29 @@ export function writeTestFile(dir: string, relativePath: string, content: string
   writeFileSync(fullPath, content);
 }
 
+/** A host repo's own cucumber config, for harness-collision fixtures (56JCFZ). */
+export const HOST_CUCUMBER_YAML = 'default:\n  paths:\n    - tests/behaviors/**/*.feature\n';
+
+/**
+ * Write a `.safeword/config.json` with `paths.features`/`paths.steps` set —
+ * the relocated-lane fixture shared by the 56JCFZ suites.
+ */
+export function writeSafewordPathsConfig(
+  dir: string,
+  options: { installedPacks?: string[]; features?: string; steps?: string } = {},
+): void {
+  const { installedPacks, features = 'tests/behaviors', steps = 'tests/steps' } = options;
+  writeTestFile(
+    dir,
+    '.safeword/config.json',
+    JSON.stringify(
+      { ...(installedPacks && { installedPacks }), paths: { features, steps } },
+      undefined,
+      2,
+    ),
+  );
+}
+
 /**
  * Checks if a file exists in the test directory
  * @param dir

@@ -11,16 +11,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
+  HOST_CUCUMBER_YAML,
   readTestFile,
   removeTemporaryDirectory,
   runCli,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
   TIMEOUT_QUICK,
+  writeSafewordPathsConfig,
   writeTestFile,
 } from '../helpers.js';
-
-const HOST_CONFIG = 'default:\n  paths:\n    - tests/behaviors/**/*.feature\n';
 
 async function runCheck(directory: string): Promise<string> {
   const result = await runCli(['check', '--offline'], { cwd: directory });
@@ -33,7 +33,7 @@ describe('check warns when a harness is detected and paths are unset (TB3.AC1)',
   beforeAll(async () => {
     directory = createTemporaryDirectory();
     createTypeScriptPackageJson(directory);
-    writeTestFile(directory, 'cucumber.yaml', HOST_CONFIG);
+    writeTestFile(directory, 'cucumber.yaml', HOST_CUCUMBER_YAML);
     await setupOrThrow(directory);
   }, TIMEOUT_BUN_INSTALL);
 
@@ -82,21 +82,10 @@ describe('check stays silent once configured paths point at the detected harness
   beforeAll(async () => {
     directory = createTemporaryDirectory();
     createTypeScriptPackageJson(directory);
-    writeTestFile(directory, 'cucumber.yaml', HOST_CONFIG);
+    writeTestFile(directory, 'cucumber.yaml', HOST_CUCUMBER_YAML);
     await setupOrThrow(directory);
     // The user applies the fix the setup notice / advisory names.
-    writeTestFile(
-      directory,
-      '.safeword/config.json',
-      JSON.stringify(
-        {
-          installedPacks: ['typescript'],
-          paths: { features: 'tests/behaviors', steps: 'tests/steps' },
-        },
-        undefined,
-        2,
-      ),
-    );
+    writeSafewordPathsConfig(directory, { installedPacks: ['typescript'] });
   }, TIMEOUT_BUN_INSTALL);
 
   afterAll(() => {
@@ -125,7 +114,7 @@ describe('check enumerates a leftover duplicate scaffold without touching it (TB
     await setupOrThrow(directory);
     // Bitten repo: an older safeword scaffolded the lane, and the host's own
     // harness (cucumber.yaml) is also present.
-    writeTestFile(directory, 'cucumber.yaml', HOST_CONFIG);
+    writeTestFile(directory, 'cucumber.yaml', HOST_CUCUMBER_YAML);
 
     cucumberMjsBefore = readTestFile(directory, 'cucumber.mjs');
     starterFeatureBefore = readTestFile(directory, 'features/safeword-lane.feature');
