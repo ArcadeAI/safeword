@@ -36,6 +36,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: dimensions.md created at phase intake on a complete spec is allowed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: dimensions.md created on a spec whose job lacks acceptance criteria is denied
 
 - [ ] RED

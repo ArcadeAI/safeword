@@ -50,6 +50,13 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       And the denial explains that spec.md needs a Job To Be Done or a skip reason before dimensions
 
     @artifact-precedence-gate.NTB1.AC1
+    Scenario: dimensions.md created at phase intake on a complete spec is allowed
+      Given a feature ticket.md at phase intake
+      And a spec.md whose Jobs To Be Done and Acceptance Criteria are complete
+      When a dimensions.md is written in that ticket folder
+      Then the write is allowed
+
+    @artifact-precedence-gate.NTB1.AC1
     Scenario: dimensions.md created on a spec whose job lacks acceptance criteria is denied
       Given a feature ticket.md at phase define-behavior
       And a spec.md with a resolvable Job To Be Done but no Acceptance Criterion under it
@@ -145,6 +152,7 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       And a review stamp exists for a different ticket's spec.md at identical content
       When a test-definitions.md is written in that ticket folder
       Then the write is denied
+      And the denial explains that spec.md must be reviewed at its current content before scenarios
 
     @artifact-precedence-gate.NTB1.AC2
     Scenario: Scenario authoring at phase scenario-gate demands the spec review the same way
