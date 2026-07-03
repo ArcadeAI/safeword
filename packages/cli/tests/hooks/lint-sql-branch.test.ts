@@ -13,12 +13,20 @@
  */
 
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 const execFileAsync = promisify(execFile);
 
@@ -62,5 +70,80 @@ describe('lintFile SQL branch — host-owned prettier formatting', () => {
     // No fall-through side effects: ensurePackInstalled would have created or
     // touched .safeword/ via `safeword upgrade` + git; the guard returns first.
     expect(existsSync(path.join(directory, '.safeword'))).toBe(false);
+  }, 90_000);
+});
+
+describe('lintFile SQL branch — sqlfluff dispatch', () => {
+  // The breaking dispatch under review: with sql.fix unset the hook must run
+  // `sqlfluff lint` (report-only) and must NOT run `sqlfluff fix`; with
+  // sql.fix true it runs fix then lint. sqlfluff is stubbed with a PATH shim
+  // that records its argv, so the assertion is on the real command dispatch,
+  // not a mock of the hook's internals.
+  let directory: string;
+  let stubBin: string;
+  let logFile: string;
+
+  beforeAll(() => {
+    directory = mkdtempSync(path.join(tmpdir(), 'lint-sql-dispatch-'));
+    // sqlfluff config present → ensurePackInstalled short-circuits, no upgrade.
+    mkdirSync(path.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(path.join(directory, '.safeword', 'sqlfluff.cfg'), '[sqlfluff]\n');
+    writeFileSync(path.join(directory, 'query.sql'), 'select 1;\n');
+
+    stubBin = path.join(directory, 'stub-bin');
+    logFile = path.join(directory, 'sqlfluff-invocations.log');
+    mkdirSync(stubBin, { recursive: true });
+    const stub = path.join(stubBin, 'sqlfluff');
+    writeFileSync(stub, `#!/bin/sh\necho "$@" >> ${JSON.stringify(logFile)}\nexit 0\n`);
+    chmodSync(stub, 0o755);
+  });
+
+  afterAll(() => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  afterEach(() => {
+    rmSync(logFile, { force: true });
+    rmSync(path.join(directory, '.safeword', 'config.json'), { force: true });
+  });
+
+  async function runLintFile(): Promise<string[]> {
+    const sqlFile = path.join(directory, 'query.sql');
+    const script = `
+      const { lintFile } = await import(${JSON.stringify(LINT_MODULE)});
+      const result = await lintFile(${JSON.stringify(sqlFile)}, ${JSON.stringify(directory)});
+      console.log(JSON.stringify(result));
+    `;
+    await execFileAsync('bun', ['-e', script], {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        PATH: `${stubBin}${path.delimiter}${process.env.PATH ?? ''}`,
+        CLAUDE_PROJECT_DIR: directory,
+      },
+      timeout: 60_000,
+    });
+    return existsSync(logFile)
+      ? readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean)
+      : [];
+  }
+
+  it('runs sqlfluff lint and NOT fix when sql.fix is unset (the #638 default)', async () => {
+    const invocations = await runLintFile();
+
+    expect(invocations.some(line => line.startsWith('lint '))).toBe(true);
+    expect(invocations.some(line => line.startsWith('fix '))).toBe(false);
+  }, 90_000);
+
+  it('runs sqlfluff fix then lint when sql.fix is opted in', async () => {
+    writeFileSync(
+      path.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ installedPacks: ['sql'], sql: { fix: true } }),
+    );
+
+    const invocations = await runLintFile();
+
+    expect(invocations[0]).toMatch(/^fix /);
+    expect(invocations.some(line => line.startsWith('lint '))).toBe(true);
   }, 90_000);
 });

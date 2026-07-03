@@ -209,6 +209,24 @@ describe('hostFormatsSqlWithPrettier', () => {
     expect(hostFormatsSqlWithPrettier(directory)).toBe(false);
   });
 
+  it.each(['dependencies', 'devDependencies'] as const)(
+    'is true when the plugin is declared in %s but not yet installed',
+    dependencyField => {
+      writeFileSync(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ [dependencyField]: { 'prettier-plugin-sql': '^0.20.0' } }),
+      );
+
+      expect(hostFormatsSqlWithPrettier(directory)).toBe(true);
+    },
+  );
+
+  it('is false for a malformed package.json', () => {
+    writeFileSync(path.join(directory, 'package.json'), '{not json');
+
+    expect(hostFormatsSqlWithPrettier(directory)).toBe(false);
+  });
+
   it('is false (does not throw) for a nonexistent directory', () => {
     expect(hostFormatsSqlWithPrettier(path.join(directory, 'nope'))).toBe(false);
   });
