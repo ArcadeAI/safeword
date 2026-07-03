@@ -10,7 +10,7 @@ allowed-tools: '*'
 
 Prove a ticket meets its criteria. Works with or without an active ticket.
 
-**Reviewer class:** verify is _class-2 — independent observation_ (PRINCIPLES.md §1). It checks observable facts (tests pass, build succeeds, scenarios complete) against ground truth, so the test suite and parsers are the independent party. No fresh-context or cross-model reviewer applies — a cheap/weaker judge is fine; cross-modeling a test run buys nothing.
+**Reviewer class:** _class-2 — independent observation_ (PRINCIPLES.md §1): the test suite and parsers are the independent party, so no fresh-context or cross-model reviewer applies.
 
 ## Invocation log
 
@@ -57,13 +57,15 @@ Run these in sequence, reporting each result:
 1. **Run `/lint`** to auto-fix style issues first
 2. Then run target-project verification checks from project evidence.
 
-**Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. `package.json may be safeword lane-host evidence` in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
+**Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
 Per-language test/build commands come from `safeword test-plan` — one source of
 truth (the same plan the stop-hook gate runs). Eval its shell plan in a child
 shell: an absent toolchain prints a visible skip, and a failing suite exits
 non-zero so the gate blocks. The Gherkin acceptance lane runs separately (it is
 not a `test-plan` suite).
+
+**Run the block below verbatim, as ONE bash invocation.** Do not extract or paraphrase individual commands — the CLI resolver, the generator exit-code check inside `run_plan`, and the git preflight are load-bearing (regressions 487, 375, and 469 each came from a hand-rolled variant of this block).
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
@@ -223,7 +225,13 @@ Flag any changed file or behavior that only serves a different outcome than the 
 
 If PR scope fails, do not collapse to "Ready to mark done." Put the concrete split/revert/follow-up action in **Agent's next actions**, or put the scope decision in **Decisions needed** when the user must decide whether to expand the ticket.
 
-### 7. Report Results
+### 7. Write verify.md (skip if no ticket)
+
+The done gate blocks on this **artifact**, not on your chat report: `<ticket folder>/verify.md` must exist and contain a `**PR Scope:**` line whose status is passing (`done-gate.ts` rejects `❌`/piggybacked). Write the full Status checklist (step 8's Verify Checklist block, every line) to `$NS_ROOT/tickets/{ID}-{slug}/verify.md`, and once /audit has run, include its one-line result (`Audit passed …`) there too.
+
+The all-green collapse in step 8 applies to the **chat report only** — verify.md always carries the full checklist, even when everything is green.
+
+### 8. Report Results
 
 Structure the report in three sections, in this order. **Empty sections are hidden entirely** — no "None" placeholders, no empty headers.
 
@@ -251,14 +259,12 @@ The Status section uses the existing Verify Checklist format. Format with these 
 
 **Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings (see `.safeword/guides/architecture-guide.md` → Survey & Reconcile), confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
 
-**Experience** is soft — it never blocks the done gate (it has no done-gate evidence pattern; a ⚠️ here never hard-blocks `done`). Run it for persona-facing work; use `N/A` for internal/plumbing. It is the one _class-1 qualitative judgment_ in an otherwise _class-2_ skill (PRINCIPLES.md §1): no parser stands in as the independent party here, so this lens alone carries the self-preference risk the rest of verify doesn't — which is why the walk-artifact below is mandatory. Two lenses:
+**Experience** is soft — it never blocks the done gate (no done-gate evidence pattern; a ⚠️ never hard-blocks `done`). Run it for persona-facing work; use `N/A` for internal/plumbing. You are grading your own work here, so the walk-artifact below is mandatory — a bare `✅` or "feels clean" is exactly the self-rating it exists to defeat. Two lenses:
 
-- **Friction (every persona-facing feature):** did this add a step, a wait, a re-entry, or a dead-end the persona didn't have before? Walk the changed flow as the persona and inspect its _ending_ specifically — last impressions dominate the memory and are the most under-designed. Effort erodes advocacy faster than peaks build it, so a new friction point is the higher-priority finding. **Record the walk as evidence, not a verdict:** `Walked <persona> through <flow>; worst step = <the one most likely to make them bounce>; new steps vs before = <n>`. Name the _worst_ step, not a tidy summary — you are grading your own work, and a bare `✅` or a flattering "feels clean" is exactly the self-rating this artifact exists to defeat.
+- **Friction (every persona-facing feature):** did this add a step, a wait, a re-entry, or a dead-end the persona didn't have before? Walk the changed flow as the persona, inspect its _ending_ specifically, and **record the walk as evidence, not a verdict:** `Walked <persona> through <flow>; worst step = <the one most likely to make them bounce>; new steps vs before = <n>`. Name the _worst_ step, not a tidy summary.
 - **Peak (only when the ticket or its parent declared a `## Rave Moment` in `spec.md`):** walk that moment as the persona — does it still land, and did this work advance or endanger it? A peak that quietly degraded is a finding even when every test is green.
 
 A ⚠️ Experience finding routes to **Agent's next actions** if you'll fix it now, or to **Decisions needed** if it's a scope/value call for the user. It is never a reason to hold `done` on its own.
-
-**Escalation.** Verify's class-2 checks need no fresh-context reviewer — a test run is its own independent party. This lens is the class-1 exception, so it does: the inline self-check is the cheap first guard, and if shipped work keeps clearing it while real friction reaches users, that is the signal to move _the Experience lens alone_ to an independent reviewer (a fresh-context fork, or a persona-walk of the running product), not to keep trusting the inline pass.
 
 **Done-gate evidence patterns** (the stop hook validates these literal phrases — do not move or rename):
 

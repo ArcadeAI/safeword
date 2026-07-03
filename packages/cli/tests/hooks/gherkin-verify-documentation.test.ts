@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 
+// commands/verify.md is a thin pointer at the skill since 7PG694 — it carries
+// no Gherkin guidance of its own.
 const verifyGuidanceFiles = [
-  nodePath.join(repoRoot, 'packages/cli/templates/commands/verify.md'),
   nodePath.join(repoRoot, 'packages/cli/templates/skills/verify/SKILL.md'),
   nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md'),
   nodePath.join(repoRoot, '.claude/skills/verify/SKILL.md'),

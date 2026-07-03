@@ -10,7 +10,7 @@ allowed-tools: '*'
 
 Run a comprehensive code audit. Execute checks and report results by severity.
 
-**Reviewer class:** audit is _class-2 — independent observation_ (PRINCIPLES.md §1). Every check below — config drift, circular deps, layer violations, dead code, duplication, doc drift, test-quality patterns — confirms an observable fact, so a cheap checker suffices and no cross-model reviewer applies. The _class-1_ counterpart — judging whether the architecture is actually _sound_ — is not audit's job; it lives in the Architecture Review Gate (`ARCHITECTURE.md` → "Architecture Review Gate") and `quality-review`, where the fresh-context, never-weaker, cross-model-when-on rule belongs.
+**Reviewer class:** _class-2 — independent observation_ (PRINCIPLES.md §1): every check confirms an observable fact, so no cross-model reviewer applies. Judging whether the architecture is _sound_ is not audit's job — that lives in the Architecture Review Gate (`ARCHITECTURE.md`) and `quality-review`.
 
 ## Invocation log
 
@@ -32,6 +32,8 @@ Task, patch, and no-ticket audit work may continue after recording that session-
 ## Instructions
 
 ### 1. Code Quality Checks
+
+**Run the block below verbatim, as ONE bash invocation.** Do not extract or paraphrase individual commands — the manifest gates, package-manager routing, and tool-absence messages are load-bearing, and a hand-rolled subset silently skips whole check families.
 
 ```bash
 # Ensure we're in the project root regardless of prior CWD state
@@ -154,13 +156,23 @@ DEPCRUISE_CONFIG=""
 }
 
 # 2b. Dead code - Python (deadcode)
+# A missing tool must be loud — `|| true` alone would make "not installed"
+# read as "no findings".
 ([ -f pyproject.toml ] || [ -f requirements.txt ]) && {
-  deadcode . 2>&1 || true
+  if command -v deadcode > /dev/null 2>&1; then
+    deadcode . 2>&1 || true
+  else
+    echo "Manual evidence required: deadcode not installed — Python dead-code check skipped"
+  fi
 }
 
 # 2c. Dead code - Go (golangci-lint unused)
 [ -f go.mod ] && {
-  golangci-lint run --enable unused --out-format colored-line-number 2>&1 || true
+  if command -v golangci-lint > /dev/null 2>&1; then
+    golangci-lint run --enable unused --out-format colored-line-number 2>&1 || true
+  else
+    echo "Manual evidence required: golangci-lint not installed — Go dead-code check skipped"
+  fi
 }
 
 # 2d. Rust-specific checks (Clippy catches unused code and quality issues)
@@ -172,8 +184,9 @@ DEPCRUISE_CONFIG=""
 # CODE DUPLICATION
 # =========================================================================
 
-# 3. Copy/paste detection (all languages)
-bunx jscpd . --min-lines 10 --reporters console 2>&1 || true
+# 3. Copy/paste detection (all languages). Generated/vendored trees are
+# guaranteed clones, so exclude them — findings should be hand-written dupes.
+bunx jscpd . --min-lines 10 --reporters console --ignore "**/node_modules/**,**/dist/**,**/build/**,**/coverage/**" 2>&1 || true
 
 # =========================================================================
 # OUTDATED DEPENDENCIES
@@ -249,6 +262,11 @@ These mean the ignore override no longer matches anything knip would flag — th
 
 If no configuration hints are found, skip this section.
 
+#### Findings triage — baselines, not re-litigation
+
+- **Knip:** `knip.json`'s ignore lists ARE the accepted-false-positive baseline — persist confirmed FPs there instead of re-triaging them every run (W005 flags any entry that goes stale, so the baseline self-cleans). Report only findings not already covered by the ignore lists.
+- **jscpd:** record the clone count in the audit summary and compare against the previous audit's recorded count (last verify.md/audit record, if any). Deltas are the findings; a flat count is the baseline, not a finding. Never report a raw total as if it were new.
+
 ### 2. Agent Config Checks
 
 Find and check all agent configuration files (excluding `.safeword/`):
@@ -268,11 +286,6 @@ Find and check all agent configuration files (excluding `.safeword/`):
 | Structure  | Has WHAT/WHY/HOW sections                                           | warn     |
 | Dead refs  | All referenced files/paths exist (skip URLs starting with http)     | error    |
 | Staleness  | Last modified 30+ days ago AND commits exist since                  | warn     |
-
-**Research sources:**
-
-- [Anthropic Engineering](https://www.anthropic.com/engineering/claude-code-best-practices)
-- [Cursor Docs](https://cursor.com/docs/context/rules)
 
 ### 3. Learning Files Check
 
@@ -415,21 +428,9 @@ Report findings by severity with codes:
 
 **Duplication:**
 
-- Clone count: X (Y% of codebase)
+- Clone count: X (Y% of codebase; delta vs previous audit: +N/-N/flat)
 
-**Outdated Packages:**
-
-| Package | Current | Latest | Type | Bump | Risk |
-| ------- | ------- | ------ | ---- | ---- | ---- |
-| ...     | ...     | ...    | ...  | ...  | ...  |
-
-(or `✅ All packages up to date` if none outdated)
-
-**Verdict:**
-
-- ✅ **Low risk (N):** Safe to update now — [summary]
-- ⚠️ **Medium risk (N):** Review changelogs — [list packages]
-- 🔴 **High risk (N):** Defer to dedicated task — [list packages]
+**Outdated Packages:** the table + per-tier verdict from "Outdated Package Triage" above (or `✅ All packages up to date`).
 
 **Test Quality:**
 

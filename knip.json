@@ -1,6 +1,40 @@
 {
-  "ignore": [".safeword/**", "packages/cli/templates/**"],
-  "ignoreBinaries": ["shfmt", "dot"],
+  "ignore": [
+    ".safeword/**",
+    "packages/cli/templates/**",
+    "experiments/**",
+    "packages/cli/vitest.live.config.ts",
+    "packages/cli/vitest.release.config.ts",
+    "packages/cli/vitest.slow.config.ts"
+  ],
+  "ignoreBinaries": [
+    "shfmt",
+    "dot",
+    "claude",
+    "codex",
+    "gh",
+    "rustup",
+    "ruff",
+    "golangci-lint",
+    "mypy",
+    "rustfmt",
+    "which",
+    "architecture",
+    "test-plan",
+    "verify",
+    "quality-review"
+  ],
+  "ignoreDependencies": [
+    "safeword",
+    "tsx",
+    "@next/eslint-plugin-next",
+    "@tanstack/eslint-plugin-query",
+    "eslint-plugin-better-tailwindcss",
+    "eslint-plugin-playwright",
+    "eslint-plugin-storybook",
+    "eslint-plugin-turbo"
+  ],
+  "ignoreUnresolved": ["\\.safeword/"],
   "ignoreIssues": {
     "packages/cli/src/presets/typescript/index.ts": ["duplicates"]
   }
