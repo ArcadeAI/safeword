@@ -4,6 +4,14 @@ Feature source: `packages/cli/features/bdd-lane-collision-detection-and-paths.fe
 
 test-definitions.md is the R/G/R ledger.
 
+Deliberate coverage calls (scenario-gate 2026-07-03): `safeword check` as a
+configured-paths reader is proven via the shared `feature-source.ts` choke point
+(sole discovery used by codify/lint-gherkin/check) plus feature-source unit
+tests — no separate check E2E scenario. A cucumber config *file* inside a
+workspace package is covered by the union of the root-config-file and
+workspace-dep scenarios (detection unions signals × radii); accepted, revisit if
+detection stops being a union.
+
 ## Rule: Setup never scaffolds a second harness
 
 ### Scenario: Setup skips the starter lane when a root cucumber config exists
@@ -24,6 +32,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Setup skips the starter lane when only a root cucumber dependency exists
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Setup scaffolds the starter lane when no cucumber exists anywhere
 
 - [ ] RED
@@ -33,6 +47,18 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: Safeword never mistakes its own scaffold for a host harness
 
 ### Scenario: Upgrade keeps maintaining the lane safeword installed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Upgrade recognizes a previous template revision as its own scaffold
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Upgrade on a bitten repo maintains safeword's lane without touching the host harness
 
 - [ ] RED
 - [ ] GREEN
@@ -86,6 +112,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The runner falls back to default directories when the config file is unparseable
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Check advisories name misalignment without editing anything
 
 ### Scenario: Check warns when a harness is detected and paths are unset
@@ -95,6 +127,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Check stays silent when safeword's own lane is the only harness
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Check stays silent once configured paths point at the detected harness
 
 - [ ] RED
 - [ ] GREEN

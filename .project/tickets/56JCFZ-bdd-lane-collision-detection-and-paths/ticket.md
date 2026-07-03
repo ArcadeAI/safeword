@@ -2,7 +2,7 @@
 id: 56JCFZ
 slug: bdd-lane-collision-detection-and-paths
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 relates_to: [102b, VM78NC, 7CK2KP]
 external_issue: https://github.com/ArcadeAI/safeword/issues/645
@@ -56,6 +56,7 @@ done_when:
 
 ## Work Log
 
+- 2026-07-03T15:25Z Complete: scenario-gate - Scenarios validated (AODI) + adversarial pass by fresh reviewer: 2 must-fix + 6 strengthen findings applied (15→20 scenarios), re-review PASS, stamp written; impl-plan.md written (proof plan + build order in Approach, detection = load-bearing slice 1)
 - 2026-07-03T14:30:29.116Z Started: Created ticket 56JCFZ
 - 2026-07-03 Scoped from issue #645 investigation + two figure-it-out passes (options A/B/C for the design; persist-vs-print and hint-vs-remove for the open questions). Follow-up adoption semantics split to 7CK2KP.
 - 2026-07-03T15:05Z Complete: define-behavior - 15 scenarios defined across 6 rules (spec.md authored + self-review stamped ×2 after TB1.AC3 split; dimensions.md saved; feature source at packages/cli/features/bdd-lane-collision-detection-and-paths.feature tagged @wip; R/G/R ledger written)
