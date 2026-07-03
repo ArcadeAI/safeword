@@ -287,11 +287,6 @@ Find and check all agent configuration files (excluding `.safeword/`):
 | Dead refs  | All referenced files/paths exist (skip URLs starting with http)     | error    |
 | Staleness  | Last modified 30+ days ago AND commits exist since                  | warn     |
 
-**Research sources:**
-
-- [Anthropic Engineering](https://www.anthropic.com/engineering/claude-code-best-practices)
-- [Cursor Docs](https://cursor.com/docs/context/rules)
-
 ### 3. Learning Files Check
 
 Project learnings in the resolved namespace root's `learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index.

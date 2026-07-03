@@ -29,18 +29,26 @@ const dogfoodCursorCommandContent = readFileSync(
 );
 
 // These template surfaces are the source files shipped to installed projects.
-const templateFiles: [string, string][] = [
-  ['skill', skillContent],
-  ['command', commandContent],
-];
+// The command template is a thin pointer to the canonical skill (like audit's,
+// ticket C7PXFR) — it carries no verify content of its own, so the content
+// contracts below apply to the skill copies only.
+const templateFiles: [string, string][] = [['skill', skillContent]];
 
 const allVerifySurfaces: [string, string][] = [
   ['template skill', skillContent],
-  ['template command', commandContent],
   ['dogfood agents skill', dogfoodAgentsSkillContent],
   ['dogfood claude skill', dogfoodClaudeSkillContent],
-  ['dogfood cursor command', dogfoodCursorCommandContent],
 ];
+
+describe('verify command pointer (7PG694)', () => {
+  it.each([
+    ['template command', commandContent],
+    ['dogfood cursor command', dogfoodCursorCommandContent],
+  ])('%s is a thin pointer to the canonical skill', (_name, content) => {
+    expect(content).toContain('.claude/skills/verify/SKILL.md');
+    expect(content.split('\n').length).toBeLessThan(10);
+  });
+});
 
 describe('verify report structure (146)', () => {
   describe('Rule: Status section preserves existing checklist + done-gate evidence patterns', () => {
