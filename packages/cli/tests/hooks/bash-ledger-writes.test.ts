@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { requiresFailClosedShellGate } from '../../templates/hooks/cursor/gate-adapter.js';
 import { detectLedgerWrite } from '../../templates/hooks/lib/bash-ledger-writes.js';
 
 const LEDGER = '.project/tickets/GH628F/test-definitions.md';
@@ -108,6 +109,18 @@ describe('detectLedgerWrite', () => {
       expect(moduleSource).toMatch(/script files/i);
       expect(moduleSource).toMatch(/done-gate/i);
       expect(moduleSource).toMatch(/backstop/i);
+    });
+  });
+
+  describe('Rule: One predicate reaches all three harnesses (Cursor pre-filter)', () => {
+    it("Scenario: Cursor's shell pre-filter consults the gate for ledger writes", () => {
+      expect(requiresFailClosedShellGate({ command: `echo '- [x] RED' >> ${LEDGER}` })).toBe(true);
+    });
+
+    it("Scenario: Cursor's shell pre-filter does not demand the gate for a read-only command", () => {
+      expect(requiresFailClosedShellGate({ command: String.raw`grep '^- \[' ${LEDGER}` })).toBe(
+        false,
+      );
     });
   });
 });
