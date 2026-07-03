@@ -83,6 +83,7 @@ function parseArguments(argv: string[]): ParsedArguments {
   let explicitTicket: string | undefined;
   let reviewerModel: string | undefined;
   let skipReason: string | undefined;
+  const seen = new Set<string>();
 
   for (let index = 2; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -93,6 +94,8 @@ function parseArguments(argv: string[]): ParsedArguments {
     }
 
     const flag = arg;
+    if (seen.has(flag)) fail(`${flag} given more than once`);
+    seen.add(flag);
     const value = argv[index + 1];
     if (value === undefined || value === '') fail(`${flag} requires a value`);
     // A flag-shaped value means the real value was omitted and the NEXT flag got
@@ -102,15 +105,12 @@ function parseArguments(argv: string[]): ParsedArguments {
       fail(`${flag} requires a value, got flag-like "${value}"`);
     }
     if (flag === '--ticket') {
-      if (explicitTicket !== undefined) fail('--ticket given more than once');
       explicitTicket = bareName(value, '--ticket');
     } else if (flag === '--skip') {
-      if (skipReason !== undefined) fail('--skip given more than once');
       const reason = singleLine(value);
       if (reason === '') fail('--skip reason must not be blank — a real reason is the audit trail');
       skipReason = reason;
     } else {
-      if (reviewerModel !== undefined) fail('--model given more than once');
       if (/\s/.test(value)) fail('--model id must not contain whitespace');
       reviewerModel = value;
     }
