@@ -175,7 +175,28 @@ function evaluateAdvance(
   // Backward moves and re-declarations are rework, never gated.
   if (toIndex <= fromIndex + 1) return OK;
 
-  const skips = parseSkips(proposed);
+  return requireJustifiedSkips(
+    proposed,
+    CANONICAL_PHASES.slice(fromIndex + 1, toIndex),
+    missing => ({
+      ok: false,
+      reason: `Phases advance one canonical step at a time — ${effectivePrior} → ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(', ')}.`,
+      remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`,
+    }),
+  );
+}
+
+/**
+ * Shared hatch check: every bypassed phase needs a valid phase_skips entry.
+ * Invalid entries (bad shape, empty reason) deny uniformly; uncovered phases
+ * deny with the caller's context-specific message.
+ */
+function requireJustifiedSkips(
+  meta: Record<string, string | string[]> | undefined,
+  bypassed: readonly string[],
+  denialFor: (missing: string[]) => ProvenanceVerdict,
+): ProvenanceVerdict {
+  const skips = parseSkips(meta);
   if (skips.invalid.length > 0) {
     return {
       ok: false,
@@ -183,19 +204,8 @@ function evaluateAdvance(
       remediation: `A skip is an auditable act: ${SKIPS_SYNTAX}.`,
     };
   }
-
-  const missing = CANONICAL_PHASES.slice(fromIndex + 1, toIndex).filter(
-    bypassed => !skips.justified.has(bypassed),
-  );
-  if (missing.length > 0) {
-    return {
-      ok: false,
-      reason: `Phases advance one canonical step at a time — ${effectivePrior} → ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(', ')}.`,
-      remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`,
-    };
-  }
-
-  return OK;
+  const missing = bypassed.filter(phase => !skips.justified.has(phase));
+  return missing.length > 0 ? denialFor(missing) : OK;
 }
 
 /**
@@ -221,26 +231,16 @@ function evaluateBirth(
     };
   }
 
-  const skips = parseSkips(meta);
-  if (skips.invalid.length > 0) {
-    return {
-      ok: false,
-      reason: `phase_skips entry ${skips.invalid.map(entry => `"${entry}"`).join(', ')} is not a valid skip — every entry needs the "<phase>: <reason>" shape with a non-empty reason.`,
-      remediation: `A skip is an auditable act: ${SKIPS_SYNTAX}.`,
-    };
-  }
-
-  const missing = CANONICAL_PHASES.slice(0, CANONICAL_PHASES.indexOf(phase as never)).filter(
-    bypassed => !skips.justified.has(bypassed),
+  return requireJustifiedSkips(
+    meta,
+    CANONICAL_PHASES.slice(0, CANONICAL_PHASES.indexOf(phase as never)),
+    missing => {
+      const act = context === 'creation' ? 'begin life' : 'become a feature';
+      return {
+        ok: false,
+        reason: `Feature tickets are born at phase: intake — this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(', ')}.`,
+        remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
+      };
+    },
   );
-  if (missing.length > 0) {
-    const act = context === 'creation' ? 'begin life' : 'become a feature';
-    return {
-      ok: false,
-      reason: `Feature tickets are born at phase: intake — this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(', ')}.`,
-      remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
-    };
-  }
-
-  return OK;
 }
