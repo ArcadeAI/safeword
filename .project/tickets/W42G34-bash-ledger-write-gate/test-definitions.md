@@ -72,9 +72,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The predicate module documents what it cannot catch
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: doc-contract pin — limits block was authored with the first GREEN; test locks the named forms + backstop
+- [x] GREEN 1ee282f
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ## Rule: One predicate reaches all three harnesses
 
@@ -98,15 +98,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Cursor's shell pre-filter consults the gate for ledger writes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0e19bcd
+- [x] GREEN 2d14bdb
+- [x] REFACTOR skip: two-line widening of an existing predicate; nothing to restructure
 
 ### Scenario: Cursor's shell pre-filter does not demand the gate for a read-only command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side counterpart — passed already at the pre-filter RED commit (kills an always-true widening)
+- [x] GREEN 0e19bcd
+- [x] REFACTOR skip: pin test, nothing to restructure
 
 ## Rule: The denial names the sanctioned channel
 
