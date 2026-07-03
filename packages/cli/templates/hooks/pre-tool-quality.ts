@@ -267,11 +267,14 @@ if (!EDIT_TOOLS.includes(tool)) {
 // Understanding determines the quality of everything downstream.
 // ---------------------------------------------------------------------------
 
-if (
-  editedFile.endsWith('test-definitions.md') &&
-  isNamespacePath(editedFile, 'tickets/') &&
-  !existsSync(editedFile) // Only gate creation, not edits to existing files
-) {
+function enforceTestDefinitionsCreationGate(): void {
+  if (
+    !editedFile.endsWith('test-definitions.md') ||
+    !isNamespacePath(editedFile, 'tickets/') ||
+    existsSync(editedFile) // Only gate creation, not edits to existing files
+  ) {
+    return;
+  }
   const ticketDirectory = nodePath.dirname(editedFile);
   const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
 
@@ -401,6 +404,8 @@ if (
     }
   }
 }
+
+enforceTestDefinitionsCreationGate();
 
 // Reconstruct the file content an Edit/Write/MultiEdit would produce, so a gate
 // can compare it against the on-disk content. Write/NotebookEdit carry the full
