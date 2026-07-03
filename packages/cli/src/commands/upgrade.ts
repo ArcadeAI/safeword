@@ -16,6 +16,8 @@ import {
   installPythonDependencies,
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
+import { hostOwnsSqlFormatting } from '../packs/sql/files.js';
+import type { ProjectContext } from '../packs/types.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
 import { ensureLanguageSkills } from '../skills/languages.js';
@@ -199,11 +201,15 @@ function installPythonTools(cwd: string): void {
   installPythonBasedTools(pythonDirectory, ['ruff', 'mypy'], 'Python tools');
 }
 
-function installSqlTools(cwd: string): void {
+function installSqlTools(cwd: string, ctx: ProjectContext): void {
+  // Host owns SQL formatting via prettier-plugin-sql (#638): no sqlfluff
+  // configs are generated, so don't install a tool safeword won't run.
+  if (hostOwnsSqlFormatting(ctx)) return;
   // SQL projects use Python for SQLFluff — find pyproject.toml near dbt_project.yml
   const sqlDirectory = findInTree(cwd, 'dbt_project.yml') ?? cwd;
   const pythonDirectory = findInTree(sqlDirectory, 'pyproject.toml') ?? sqlDirectory;
-  installPythonBasedTools(pythonDirectory, ['sqlfluff'], 'SQL tools');
+  // >=4.2.0 floor matches the lint hook's install hint (2026 DoS CVEs).
+  installPythonBasedTools(pythonDirectory, ['sqlfluff>=4.2.0'], 'SQL tools');
 }
 
 /**
@@ -213,12 +219,12 @@ function installSqlTools(cwd: string): void {
  * before a language's skills existed; the on-disk presence check keeps repeat
  * upgrades network-free).
  */
-function installLanguageTools(cwd: string, missingPacks: string[]): void {
+function installLanguageTools(cwd: string, missingPacks: string[], ctx: ProjectContext): void {
   if (missingPacks.includes('python')) {
     installPythonTools(cwd);
   }
   if (missingPacks.includes('sql')) {
-    installSqlTools(cwd);
+    installSqlTools(cwd, ctx);
   }
   ensureLanguageSkills(cwd);
 }
@@ -435,7 +441,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
       installPack(packId, cwd);
       info(`Installed ${packId} pack`);
     }
-    installLanguageTools(cwd, missingPacks);
+    installLanguageTools(cwd, missingPacks, ctx);
 
     maybeRefreshDepcruiseConfig(cwd, safewordDirectory, result);
 
