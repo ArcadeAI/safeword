@@ -8,6 +8,7 @@
  *   bun scripts/parity-check.ts                  # mode=all
  *   bun scripts/parity-check.ts --mode=all
  *   bun scripts/parity-check.ts --mode=contracts-only
+ *   bun scripts/parity-check.ts --fix            # copy drifted templates → dogfood mirrors (#585)
  *
  * Exit codes:
  *   0 — no failures
@@ -22,7 +23,12 @@ import nodePath from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { runParity, type ParityInput } from '../packages/cli/src/parity.js';
+import {
+  formatParityFixReport,
+  runParity,
+  syncParityPairs,
+  type ParityInput,
+} from '../packages/cli/src/parity.js';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 
 const scriptDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +38,20 @@ const templatesDirectory = nodePath.resolve(repoRoot, 'packages/cli/templates');
 const arguments_ = process.argv.slice(2);
 const modeFlag = arguments_.find(a => a.startsWith('--mode='))?.split('=')[1];
 const mode: ParityInput['mode'] = modeFlag === 'contracts-only' ? 'contracts-only' : 'all';
+
+if (arguments_.includes('--fix')) {
+  const report = formatParityFixReport(
+    syncParityPairs({
+      schema: SAFEWORD_SCHEMA,
+      mode: 'all',
+      rootDirectory: repoRoot,
+      templatesDirectory,
+    }),
+  );
+  for (const line of report.stdout) console.log(line);
+  for (const line of report.stderr) console.error(line);
+  process.exit(report.exitCode);
+}
 
 const pairCount = Object.values(SAFEWORD_SCHEMA.ownedFiles).filter(d => d.template).length;
 const contractCount = Object.keys(SAFEWORD_SCHEMA.contracts).length;

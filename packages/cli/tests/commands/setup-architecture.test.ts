@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createTemporaryDirectory,
-  createTypeScriptPackageJson,
+  createTypeScriptProjectReadyForSetup,
   fileExists,
   initGitRepo,
   readTestFile,
@@ -31,7 +31,7 @@ describe('Setup - Architecture Integration', () => {
 
   describe('Test 6.1: Generates depcruise config when architecture detected', () => {
     it('should create depcruise configs when src/utils exists', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       // Create architecture directory
@@ -55,7 +55,7 @@ describe('Setup - Architecture Integration', () => {
     });
 
     it('should create depcruise configs when monorepo detected', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       // Create monorepo structure
@@ -76,7 +76,7 @@ describe('Setup - Architecture Integration', () => {
 
   describe('Test 6.2: Skips depcruise config when no architecture', () => {
     it('should not create depcruise configs for simple project', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       // Create simple project without architecture directories
@@ -96,7 +96,7 @@ describe('Setup - Architecture Integration', () => {
 
   describe('Test 6.3: Logs detected architecture', () => {
     it('should output detected architecture during setup', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       // Create architecture directories
@@ -120,7 +120,7 @@ describe('Setup - Architecture Integration', () => {
 
   describe('Test 6.4: Includes arch files in setup summary', () => {
     it('should list depcruise files in created files summary', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       // Create architecture directory
@@ -139,7 +139,7 @@ describe('Setup - Architecture Integration', () => {
 
   describe('Test 6.5: Explains the wrapper file when newly created', () => {
     it('should emit an explainer for .dependency-cruiser.cjs on first creation', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'src/utils/helper.ts', 'export const x = 1;');
 
@@ -154,7 +154,7 @@ describe('Setup - Architecture Integration', () => {
 
   describe('Test 6.6: Skips explainer when wrapper already exists', () => {
     it('should not emit the explainer when .dependency-cruiser.cjs preexists', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'src/utils/helper.ts', 'export const x = 1;');
       // Customer (or a prior setup) already created the wrapper with custom rules

@@ -1,33 +1,33 @@
 #!/usr/bin/env bun
-// Safeword: Codex Stop adapter — composes the two turn-end continuation nudges
-// that each PR wired onto Codex Stop (merge of #601 retro + #605 architecture drift):
-//   1. architecture-drift advisory: when done-phase work moved the generated
-//      architecture doc, point the agent at the drift.
-//   2. retro auto-trigger (53DQJZ): at most once per SUBSTANTIAL session, point the
-//      agent at the retro pipeline.
-// Codex Stop is a continuation surface (`decision:"block"` opens a follow-up prompt)
-// and only ONE continuation fits per turn, so when both fire their reasons are JOINED
-// into a single block rather than one clobbering the other. Silent and fail-open
-// paths emit valid JSON `{}` (no decision) — never empty — so any downstream parse of
-// the Stop output holds; `{}` and empty are equivalent "no continuation" to Codex.
+// Safeword: Codex Stop adapter for turn-end work.
 //
-// Reuses the shared retro core via injection seams:
-//   - countToolUsesCodex — Codex rollout shape (function_call / exec_command_begin /
-//     mcp_tool_call_begin), NOT Claude's tool_use.
-//   - resolveCodexSessionId — session-stable id (payload session_id / CODEX_THREAD_ID).
+// Two behaviors share one Stop hook:
+//   1. Architecture-drift advisory: may emit a Codex continuation
+//      (`decision:"block"`) during done-phase work.
+//   2. Retro extraction: runs synchronously and invisibly for substantial Codex
+//      sessions; any unfiled drafts surface later through UserPromptSubmit.
+//
+// No-op and fail-open paths return valid JSON `{}` so Codex sees no continuation.
+// Retro never emits a Stop continuation.
 
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
+import process from 'node:process';
 
 import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
+import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
   countToolUsesCodex,
-  decideRetroAvailableNudge,
+  decideRetroRun,
+  type OffsetState,
   resolveCodexSessionId,
   type RetroTriggerInput,
+  writeOffsetState,
 } from '../lib/retro-trigger.ts';
 
 installCrashCapture('codex-stop', undefined, 'codex');
@@ -50,20 +50,65 @@ function isDonePhaseWork(projectDirectory: string, input: CodexStopInput): boole
   return getActiveTicket(projectDirectory).phase === 'done';
 }
 
-/** Architecture-drift advisory when done-phase work moved the generated doc, else null. */
 function architectureNudge(projectDirectory: string, input: CodexStopInput): string | null {
   if (!isDonePhaseWork(projectDirectory, input)) return null;
   return architectureDocumentNudgeForProject(projectDirectory);
 }
 
-/** Retro-available nudge for a substantial session (self-report surfacing on), else undefined. */
-function retroNudge(projectDirectory: string, input: CodexStopInput): string | undefined {
-  if (!readSelfReportConfig(projectDirectory).surface) return undefined;
-  return decideRetroAvailableNudge(input, {
+/**
+ * The command that runs the extraction CLI. Prefer the dogfood local CLI, else
+ * `bunx safeword@latest`; the spawned CLI then launches `codex exec` through the
+ * shared auto-extract boundary.
+ */
+function resolveExtractCommand(
+  projectDirectory: string,
+  decision: { transcriptPath: string; windowStart: number; sessionId: string },
+): [string, string[]] {
+  const retroArgs = retroChildArgs(decision);
+  const localCli = nodePath.join(projectDirectory, 'packages/cli/src/cli.ts');
+  return existsSync(localCli)
+    ? ['bun', [localCli, ...retroArgs]]
+    : ['bunx', ['safeword@latest', ...retroArgs]];
+}
+
+function runRetroExtraction(projectDirectory: string, input: CodexStopInput): void {
+  if (!readSelfReportConfig(projectDirectory).surface) return;
+
+  let pendingOffsetState:
+    | { sessionId: string; state: OffsetState; baseDirectory: string | undefined }
+    | undefined;
+  const decision = decideRetroRun(input, {
     env: process.env,
     countToolUses: countToolUsesCodex,
     resolveSessionId: resolveCodexSessionId,
+    writeOffsetState: (sessionId, state, baseDirectory) => {
+      pendingOffsetState = { sessionId, state, baseDirectory };
+    },
   });
+  if (!decision) return;
+
+  const [command, args] = resolveExtractCommand(projectDirectory, decision);
+  const result = spawnSync(command, args, {
+    cwd: projectDirectory,
+    env: {
+      ...process.env,
+      SAFEWORD_RETRO_AGENT: 'codex',
+      [RETRO_CHILD_ENV]: '1',
+    },
+    stdio: 'ignore',
+    timeout: 600_000,
+  });
+  if (result.status !== 0 || result.error || !pendingOffsetState) return;
+
+  try {
+    writeOffsetState(
+      pendingOffsetState.sessionId,
+      pendingOffsetState.state,
+      pendingOffsetState.baseDirectory,
+    );
+  } catch {
+    // A state-write failure must not make Stop visible or blocking.
+  }
 }
 
 async function main(): Promise<string> {
@@ -71,25 +116,20 @@ async function main(): Promise<string> {
   try {
     input = (await Bun.stdin.json()) as CodexStopInput;
   } catch {
-    return SILENT; // malformed stdin → fail open with valid JSON
+    return SILENT; // malformed stdin / no stdin -> fail open with valid JSON
   }
 
-  // Re-entry guard (from the drift nudge). Intentionally covers BOTH nudges: if a
-  // retro first becomes substantial only on a continuation-created re-entry stop it
-  // is skipped this turn, but retro's per-session sentinel + cross-session ledger
-  // self-heal on the next no-edit stop (same accepted trade-off as cursor/stop.ts).
   if (input.stop_hook_active === true) return SILENT;
 
   const projectDirectory = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   if (!existsSync(`${projectDirectory}/.safeword`)) return SILENT;
 
-  const reasons = [
-    architectureNudge(projectDirectory, input),
-    retroNudge(projectDirectory, input),
-  ].filter((reason): reason is string => Boolean(reason));
-  if (reasons.length === 0) return SILENT;
+  runRetroExtraction(projectDirectory, input);
 
-  return JSON.stringify({ decision: 'block', reason: reasons.join('\n\n') });
+  const reason = architectureNudge(projectDirectory, input);
+  if (!reason) return SILENT;
+
+  return JSON.stringify({ decision: 'block', reason });
 }
 
 let output = SILENT;

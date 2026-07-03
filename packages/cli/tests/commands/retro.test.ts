@@ -2,9 +2,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { buildAutoExtractor, runRetro } from '../../src/commands/retro.js';
+import { buildAutoExtractor, retroCommand, runRetro } from '../../src/commands/retro.js';
 import type {
   CreateIssueInput,
   IssueComment,
@@ -13,6 +13,11 @@ import type {
 } from '../../src/retro/triage.js';
 import { draftSpoolPath, readSpooledDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
+
+vi.mock('../../src/retro/github-rest.js', () => ({
+  createRestTransport: () => {},
+  resolveGitHubToken: () => {},
+}));
 
 // Compact in-memory transport — only the network boundary is faked.
 class FakeGitHub implements IssueTracker {
@@ -429,6 +434,35 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
       ]);
     }
   });
+
+  it('retroCommand still spools sanitized drafts when no GitHub transport is available', async () => {
+    const transcript = nodePath.join(projectDirectory, 'transcript.jsonl');
+    const findings = nodePath.join(projectDirectory, 'findings.json');
+    writeFileSync(transcript, 'transcript content');
+    writeFileSync(findings, JSON.stringify(twoFindings));
+
+    const previousProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
+    const previousExitCode = process.exitCode;
+    process.env.CLAUDE_PROJECT_DIR = projectDirectory;
+    process.exitCode = undefined;
+    try {
+      await retroCommand({ transcript, findings, sessionId: 'sess-a' });
+    } finally {
+      if (previousProjectDirectory === undefined) {
+        delete process.env.CLAUDE_PROJECT_DIR;
+      } else {
+        process.env.CLAUDE_PROJECT_DIR = previousProjectDirectory;
+      }
+      process.exitCode = previousExitCode;
+    }
+
+    const remaining = readSpooledDrafts(projectDirectory, 'sess-a');
+    expect(remaining).toHaveLength(2);
+    expect(remaining.map(draft => draft.title).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'Alpha friction',
+      'Beta friction',
+    ]);
+  });
 });
 
 // ZFGWS1 SM1.AC2 — the RUNNER (buildAutoExtractor), not just the headless-default
@@ -443,20 +477,32 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     rmSync(projectDirectory, { recursive: true, force: true });
   });
 
-  async function modelFromRunner(directory: string): Promise<string | undefined> {
+  async function modelFromRunner(
+    directory: string,
+    agent: 'claude' | 'codex' = 'claude',
+  ): Promise<{ argv: string[]; model: string | undefined }> {
     let argvSeen: string[] = [];
     const extract = await buildAutoExtractor(directory, {
+      agent,
       spawn: (argv: string[]) => {
         argvSeen = argv;
         return Promise.resolve({ code: 0, stdout: '' });
       },
     });
     await extract('transcript');
-    return argvSeen[argvSeen.indexOf('--model') + 1];
+    const modelFlag = agent === 'codex' ? '-m' : '--model';
+    return { argv: argvSeen, model: argvSeen[argvSeen.indexOf(modelFlag) + 1] };
   }
 
   it('builds the extractor with sonnet when no retro.model is configured', async () => {
-    expect(await modelFromRunner(projectDirectory)).toBe('sonnet');
+    const result = await modelFromRunner(projectDirectory);
+    expect(result.model).toBe('sonnet');
+  });
+
+  it('builds the Codex extractor with gpt-5.5 when no retro.model is configured', async () => {
+    const result = await modelFromRunner(projectDirectory, 'codex');
+    expect(result.argv[0]).toBe('exec');
+    expect(result.model).toBe('gpt-5.5');
   });
 
   it('uses the configured retro.model override', async () => {
@@ -465,6 +511,9 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
       nodePath.join(projectDirectory, '.safeword', 'config.json'),
       JSON.stringify({ retro: { model: 'haiku' } }),
     );
-    expect(await modelFromRunner(projectDirectory)).toBe('haiku');
+    const claude = await modelFromRunner(projectDirectory);
+    const codex = await modelFromRunner(projectDirectory, 'codex');
+    expect(claude.model).toBe('haiku');
+    expect(codex.model).toBe('haiku');
   });
 });

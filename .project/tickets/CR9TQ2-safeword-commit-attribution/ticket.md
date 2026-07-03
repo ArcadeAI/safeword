@@ -73,3 +73,13 @@ trailer is honest, unbreakable, and doubles as code-archeology metadata.
   at stamp time. This session's 5 pending commits get the trailer by hand (unpushed →
   clean rebase); this ticket makes it automatic via a commit-msg hook + adds the
   retro-issue footer.
+- 2026-07-02T22:18Z Filed pick-up-cold GitHub issue #620 (two deliverables: the
+  retro-issue footer — dependency-free, ship first; and the commit-msg hook, gated on
+  the open install-mechanism sub-decision husky/core.hooksPath/native). Use `VERSION`
+  from `src/version.ts` for both; footer target `assembleBody` (finding.ts:68-86).
+- 2026-07-02T22:20Z Scope broadened (user): attribution on ISSUES + PRs too, not just
+  commits. Added Deliverable 3 to #620 (comment): 3a code-assembled bodies get a shared
+  `VERSION`-stamped `attributionFooter()` (retro path already does via finding.ts:68-86);
+  3b model-created issues/PRs get a `— filed with safeword` footer by convention in
+  AGENTS.md / a guide (no hook — model-driven, not code-assembled). 3a is code+test; 3b
+  is guidance.

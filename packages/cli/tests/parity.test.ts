@@ -1,10 +1,10 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { runParity } from '../src/parity.js';
+import { formatParityFixReport, runParity, syncParityPairs } from '../src/parity.js';
 
 function makeFixture(): { rootDirectory: string; templatesDirectory: string } {
   const base = mkdtempSync(nodePath.join(tmpdir(), 'parity-'));
@@ -376,5 +376,113 @@ describe('runParity', () => {
 
       expect(result.failures.filter(f => f.kind === 'cursor-rule')).toHaveLength(0);
     });
+  });
+});
+
+describe('syncParityPairs (--fix, issue #585)', () => {
+  it('copies the canonical template over a drifted dogfood mirror', () => {
+    const { rootDirectory, templatesDirectory } = makeFixture();
+    mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'CANONICAL\n');
+    writeFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'DRIFTED\n');
+
+    const result = syncParityPairs({
+      schema: { ownedFiles: { '.safeword/sample.ts': { template: 'sample.ts' } }, contracts: {} },
+      mode: 'all',
+      rootDirectory,
+      templatesDirectory,
+    });
+
+    expect(result.synced).toEqual(['.safeword/sample.ts']);
+    expect(result.unfixable).toHaveLength(0);
+    expect(readFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'utf8')).toBe(
+      'CANONICAL\n',
+    );
+  });
+
+  it('creates a missing dogfood mirror and its parent directories from the template', () => {
+    const { rootDirectory, templatesDirectory } = makeFixture();
+    mkdirSync(nodePath.join(templatesDirectory, 'hooks/lib'), { recursive: true });
+    writeFileSync(nodePath.join(templatesDirectory, 'hooks/lib/retro.ts'), 'export const x = 1;\n');
+    const dest = '.safeword/hooks/lib/retro.ts';
+
+    const result = syncParityPairs({
+      schema: { ownedFiles: { [dest]: { template: 'hooks/lib/retro.ts' } }, contracts: {} },
+      mode: 'all',
+      rootDirectory,
+      templatesDirectory,
+    });
+
+    expect(result.synced).toEqual([dest]);
+    expect(existsSync(nodePath.join(rootDirectory, dest))).toBe(true);
+    expect(readFileSync(nodePath.join(rootDirectory, dest), 'utf8')).toBe('export const x = 1;\n');
+  });
+
+  it('leaves a byte-identical pair untouched', () => {
+    const { rootDirectory, templatesDirectory } = makeFixture();
+    mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'same\n');
+    writeFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'same\n');
+
+    const result = syncParityPairs({
+      schema: { ownedFiles: { '.safeword/sample.ts': { template: 'sample.ts' } }, contracts: {} },
+      mode: 'all',
+      rootDirectory,
+      templatesDirectory,
+    });
+
+    expect(result.synced).toHaveLength(0);
+    expect(result.unfixable).toHaveLength(0);
+  });
+
+  it('reports a pair as unfixable when the template is missing (nothing to copy from)', () => {
+    const { rootDirectory, templatesDirectory } = makeFixture();
+    mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(rootDirectory, '.safeword/orphan.ts'), 'dogfood only\n');
+
+    const result = syncParityPairs({
+      schema: { ownedFiles: { '.safeword/orphan.ts': { template: 'orphan.ts' } }, contracts: {} },
+      mode: 'all',
+      rootDirectory,
+      templatesDirectory,
+    });
+
+    expect(result.synced).toHaveLength(0);
+    expect(result.unfixable).toHaveLength(1);
+    expect(result.unfixable[0]?.message).toContain('template missing');
+    expect(readFileSync(nodePath.join(rootDirectory, '.safeword/orphan.ts'), 'utf8')).toBe(
+      'dogfood only\n',
+    );
+  });
+});
+
+describe('formatParityFixReport (--fix output + exit code, #585 wiring)', () => {
+  it('exit 0 with "nothing to fix" when nothing synced or unfixable', () => {
+    const report = formatParityFixReport({ synced: [], unfixable: [] });
+    expect(report.exitCode).toBe(0);
+    expect(report.stdout).toEqual(['All pairs already in sync — nothing to fix.']);
+    expect(report.stderr).toEqual([]);
+  });
+
+  it('exit 0 and lists each synced path when pairs were fixed', () => {
+    const report = formatParityFixReport({
+      synced: ['.safeword/a.ts', '.safeword/b.ts'],
+      unfixable: [],
+    });
+    expect(report.exitCode).toBe(0);
+    expect(report.stdout[0]).toContain('Synced 2 drifted pair(s)');
+    expect(report.stdout).toContain('  - .safeword/a.ts');
+    expect(report.stdout).toContain('  - .safeword/b.ts');
+    expect(report.stderr).toEqual([]);
+  });
+
+  it('exit 1 and reports on stderr when a pair is unfixable', () => {
+    const report = formatParityFixReport({
+      synced: ['.safeword/a.ts'],
+      unfixable: [{ kind: 'pair', message: '[PAIR] Cannot fix — template missing: x.ts' }],
+    });
+    expect(report.exitCode).toBe(1);
+    expect(report.stdout[0]).toContain('Synced 1 drifted pair(s)'); // synced still reported
+    expect(report.stderr.join('\n')).toContain('template missing: x.ts');
   });
 });

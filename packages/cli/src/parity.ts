@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ContractDefinition, FileDefinition } from './schema.js';
@@ -169,4 +169,82 @@ export function runParity(input: ParityInput): ParityResult {
   );
 
   return { failures, passedCount };
+}
+
+export interface ParitySyncResult {
+  /** Destination (dogfood) paths that were (re)written from their template. */
+  synced: string[];
+  /** Pairs that cannot be auto-copied — a missing *template* has nothing to copy from. */
+  unfixable: ParityFailure[];
+}
+
+/**
+ * Resolve byte-pair drift by copying each canonical template over its dogfood
+ * mirror — the auto-sync behind `parity-check --fix` (issue #585), so a hook edit
+ * no longer has to be hand-`cp`'d between `templates/` and `.safeword/`. Templates
+ * are canonical (they ship and are linted; `.safeword/` is the prettier-ignored
+ * mirror that falls behind), so the copy is always template → dogfood. Only `pair`
+ * drift is fixable this way; a missing template is reported unfixable. Contracts,
+ * orphan-templates, and cursor-rule fatness are not byte-copy-fixable and are left
+ * for the check to report. `input.mode` is ignored — sync is always pair-based.
+ */
+export function syncParityPairs(input: ParityInput): ParitySyncResult {
+  const synced: string[] = [];
+  const unfixable: ParityFailure[] = [];
+
+  for (const [destinationPath, definition] of Object.entries(input.schema.ownedFiles)) {
+    if (!definition.template) continue;
+    const templateFile = nodePath.join(input.templatesDirectory, definition.template);
+
+    if (!existsSync(templateFile)) {
+      unfixable.push({
+        kind: 'pair',
+        message: `[PAIR] Cannot fix — template missing: ${definition.template}`,
+      });
+      continue;
+    }
+
+    const dogfoodFile = nodePath.join(input.rootDirectory, destinationPath);
+    const templateContent = readFileSync(templateFile, 'utf8');
+    if (existsSync(dogfoodFile) && readFileSync(dogfoodFile, 'utf8') === templateContent) {
+      continue; // already byte-identical
+    }
+
+    mkdirSync(nodePath.dirname(dogfoodFile), { recursive: true });
+    writeFileSync(dogfoodFile, templateContent);
+    synced.push(destinationPath);
+  }
+
+  return { synced, unfixable };
+}
+
+export interface ParityFixReport {
+  stdout: string[];
+  stderr: string[];
+  exitCode: number;
+}
+
+/**
+ * The console output + exit code for `parity-check --fix`, derived from a sync
+ * result — the decision the CLI shim only has to print and exit on. Extracted so
+ * the exit-code/output wiring is unit-testable without spawning the script (#585
+ * review): exit 1 iff a pair was unfixable (a missing template), else exit 0.
+ */
+export function formatParityFixReport(result: ParitySyncResult): ParityFixReport {
+  const stdout =
+    result.synced.length === 0
+      ? ['All pairs already in sync — nothing to fix.']
+      : [
+          `Synced ${result.synced.length} drifted pair(s) from templates → dogfood:`,
+          ...result.synced.map(path => `  - ${path}`),
+        ];
+  if (result.unfixable.length === 0) return { stdout, stderr: [], exitCode: 0 };
+  return {
+    stdout,
+    stderr: [
+      `${result.unfixable.length} pair(s) could not be auto-fixed:`,
+      ...result.unfixable.map(failure => `  - ${failure.message}`),
+    ],
+    exitCode: 1,
+  };
 }

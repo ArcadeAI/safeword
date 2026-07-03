@@ -17,6 +17,10 @@ export interface CursorBaseInput {
   /** Stable across all turns of a conversation — used as the state key. */
   conversation_id?: string;
   workspace_roots?: string[];
+  // Every Cursor hook carries transcript_path; only hooks receive it (never
+  // env), so the adapters stash it for the user-invoked `/retro` command to
+  // resolve THIS conversation's transcript (RTSK9C / #624).
+  transcript_path?: string;
 }
 
 /** Cursor `preToolUse` payload (generic across all tool types). */

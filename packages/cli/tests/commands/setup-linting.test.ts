@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createTemporaryDirectory,
-  createTypeScriptPackageJson,
+  createTypeScriptProjectReadyForSetup,
   fileExists,
   initGitRepo,
   readTestFile,
@@ -37,7 +37,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
 
   describe('Test 4.4: Creates eslint.config.mjs', () => {
     it('should create ESLint flat config', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -50,7 +50,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
     });
 
     it('should include TypeScript config when detected', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -62,7 +62,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
 
   describe('Test 4.5: Creates .prettierrc', () => {
     it('should create Prettier config', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -70,14 +70,23 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
       expect(fileExists(temporaryDirectory, '.prettierrc')).toBe(true);
 
       const content = readTestFile(temporaryDirectory, '.prettierrc');
-      // Should be valid JSON
-      expect(() => JSON.parse(content)).not.toThrow();
+      expect(JSON.parse(content)).toEqual({
+        semi: true,
+        singleQuote: true,
+        tabWidth: 2,
+        trailingComma: 'all',
+        printWidth: 100,
+        endOfLine: 'lf',
+        useTabs: false,
+        bracketSpacing: true,
+        arrowParens: 'avoid',
+      });
     });
   });
 
   describe('Test 4.6: Adds lint script to package.json', () => {
     it('should add lint script', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -88,7 +97,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
     });
 
     it('should not overwrite existing lint script', async () => {
-      createTypeScriptPackageJson(temporaryDirectory, {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory, {
         scripts: {
           lint: 'eslint src/',
         },
@@ -106,7 +115,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
 
   describe('Test 4.7: Adds format script to package.json', () => {
     it('should add format script', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });
@@ -116,7 +125,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
     });
 
     it('should not overwrite existing format script', async () => {
-      createTypeScriptPackageJson(temporaryDirectory, {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory, {
         scripts: {
           format: 'prettier --write src/',
         },
@@ -137,7 +146,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
     it.skipIf(process.getuid?.() === 0)(
       'should fail with exit 1 when package.json is not writable',
       async () => {
-        createTypeScriptPackageJson(temporaryDirectory);
+        createTypeScriptProjectReadyForSetup(temporaryDirectory);
         initGitRepo(temporaryDirectory);
 
         // Make package.json read-only
@@ -158,7 +167,7 @@ describe('Test Suite 4: Setup - Linting (Integration)', () => {
 
   describe('Test 4.9: Adds format:check script', () => {
     it('should add format:check script to package.json', async () => {
-      createTypeScriptPackageJson(temporaryDirectory);
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup'], { cwd: temporaryDirectory });

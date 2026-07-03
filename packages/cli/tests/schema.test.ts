@@ -360,6 +360,7 @@ describe('Schema - Single Source of Truth', () => {
         'cleanup-zombies',
         'self-review',
         'review-spec',
+        'retro',
       ]);
 
       // Extract skill names from Claude schema paths (short names: debug, quality-review, refactor)
@@ -448,6 +449,7 @@ describe('Schema - Single Source of Truth', () => {
         'cleanup-zombies',
         'self-review',
         'review-spec',
+        'retro',
       ];
 
       const cursorCommands = new Set(
@@ -519,6 +521,16 @@ describe('Schema - Single Source of Truth', () => {
           expected,
         );
       }
+    });
+
+    it('keeps Cursor audit registered as a generated command wrapper (#597)', () => {
+      const wrapper = CURSOR_COMMAND_WRAPPERS.find(entry => entry.name === 'audit');
+
+      expect(wrapper, 'audit must be generated from wrapper metadata').toEqual({
+        name: 'audit',
+        description: 'Run comprehensive code audit for architecture, dead code, and test quality',
+        skillPath: 'audit/SKILL.md',
+      });
     });
 
     it('keeps Cursor rule wrappers generated from metadata', async () => {

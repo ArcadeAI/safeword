@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (368)
+## Tickets (371)
 
 ### agent-surface-refactor
 
@@ -946,6 +946,9 @@
 - **Quiet expected negative-path test output (GJGSS3)** (in_progress, epic: —)
   Keep passing full test runs quiet when negative-path fixtures intentionally print errors.
   → `.project/tickets/GJGSS3-quiet-expected-negative-path-test-output`
+- **Unify the codex/cursor done-phase architecture-nudge gating (GNTCX4)** (todo, epic: —)
+  One shared, tested done-phase gate for the architecture-drift nudge across
+  → `.project/tickets/GNTCX4-codex-cursor-donephase-gating-unify`
 - **Lazy-load stack-specific ESLint plugins via createRequire (H150ZW)** (done, epic: —)
   Stop loading 7 stack-specific ESLint plugins (~7 × ~20ms each = ~140ms saved) into Node memory on every ESLint invocation for customers whose stack doesn't include them. The customer's generated `eslint.config.mjs` already gates plugin _usage_ with `detect.hasStorybook(deps)` etc.; this ticket gates plugin _loading_ to match.
   → `.project/tickets/H150ZW`
@@ -968,6 +971,10 @@
   Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
   external issue: https://github.com/ArcadeAI/safeword/issues/464
   → `.project/tickets/JENFZX-quiet-implement-review-surface`
+- **Nudge architecture drift in Cursor and Codex Stop hooks (JN403D)** (done, epic: —)
+  Make the existing `ARCHITECTURE.md` drift advisory reach Cursor and Codex Stop hooks with the same non-blocking nudge semantics as Claude.
+  external issue: https://github.com/ArcadeAI/safeword/issues/598
+  → `.project/tickets/JN403D-architecture-drift-nudge-harness-parity`
 - **Auto-install deps in fresh worktrees via SessionStart hook (JNVP4W)** (done, epic: —)
   A freshly created git worktree auto-installs its dependencies on session start, so commits (and tests/lint) work immediately instead of failing at the pre-commit guard with "node_modules not installed."
   → `.project/tickets/JNVP4W-worktree-auto-deps`
@@ -1088,6 +1095,9 @@
 - **Egress entropy backstop: track the accepted false-negative tail (RT4NKL)** (backlog, epic: —)
   Give the retro egress backstop's documented residual false-negative tail
   → `.project/tickets/RT4NKL-egress-entropy-residual-tail`
+- **`/retro` slash-command skill (manual on-demand retrospective) (RTSK9C)** (in_progress, epic: —)
+  Let a user trigger a safeword retro on the current session on demand, on
+  → `.project/tickets/RTSK9C-retro-slash-command-skill`
 - **safeword retro — transcript-mining session retrospective (RV9JT4)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/RV9JT4-retro-transcript-mining`

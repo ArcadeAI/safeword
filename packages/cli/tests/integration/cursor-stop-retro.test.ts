@@ -15,9 +15,9 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { cursorEditedMarkerPath } from '../../templates/hooks/lib/cursor-state.js';
 import { QUALITY_REVIEW_MESSAGE } from '../../templates/hooks/lib/quality.js';
 import { hasNudged, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
-import { getRunStorageKey, resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -51,10 +51,7 @@ function writeTranscript(directory: string, name: string, toolUses: number): str
 }
 
 function markerPathFor(conversationId: string): string {
-  const key = getRunStorageKey(
-    resolveRunIdentity({ conversation_id: conversationId }, { runtime: 'cursor' }),
-  );
-  return `/tmp/safeword-cursor-edited-${key ?? 'cursor-default'}`;
+  return cursorEditedMarkerPath({ conversation_id: conversationId });
 }
 
 function runHook(directory: string, input: unknown) {
