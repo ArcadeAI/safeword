@@ -13,6 +13,7 @@ import {
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
+import { evaluateDimensionsCreation, evaluateSpecCreation } from './lib/artifact-precedence.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
@@ -318,30 +319,6 @@ function enforceTestDefinitionsCreationGate(): void {
     );
   }
 
-  // Dimension artifact gate: features require dimensions.md before test-definitions.md.
-  // Natural gate — next step's input doesn't exist if prior step was skipped.
-  // The artifact may be a real dimension table OR a single `skip: <non-empty reason>`
-  // line (ticket MKVNFB) — the escape valve for tiny features with one obvious dimension.
-  if (meta.type === 'feature') {
-    const dimensionsFile = nodePath.join(ticketDirectory, 'dimensions.md');
-    if (!existsSync(dimensionsFile)) {
-      deny(
-        'Features require dimensions.md before test-definitions.md. Document behavioral dimensions and partitions first.',
-        'Create dimensions.md with a dimension table, or write `skip: <non-empty reason>` as the entire content to deliberately omit.',
-      );
-    }
-    // If the file is a pure `skip: <reason>` declaration, validate the reason.
-    // Multi-line content-bearing files don't match this regex and pass through.
-    const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
-    const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
-    if (skipMatch && !isValidSkipReason(skipMatch[1])) {
-      deny(
-        'dimensions.md `skip:` declaration requires a non-empty reason after the colon.',
-        'Either write a real dimension table, or use `skip: <reason>` where the reason explains why no dimensions need enumerating (e.g., `skip: single behavioral dimension, no partitioning to enumerate`).',
-      );
-    }
-  }
-
   // spec.md gate (ticket 9EA27P): features fail closed. A `type: feature`
   // ticket with no spec.md is denied here, rather than silently skipping the
   // JTBD/AC gates below — without a spec.md those gates have nothing to check,
@@ -382,7 +359,36 @@ function enforceTestDefinitionsCreationGate(): void {
         'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n> — <capability>` (a product-level guarantee, not implementation), or `skip: <reason>` under that JTBD to omit it deliberately.',
       );
     }
+  }
 
+  // Dimension artifact gate: features require dimensions.md before test-definitions.md.
+  // Ordered AFTER the spec checks (87Y167, #644 G1): when several prerequisites
+  // are missing the denial names the earliest one in authoring order — spec.md
+  // before dimensions.md, the reverse of the pre-#644 cascade. The artifact may
+  // be a real dimension table OR a single `skip: <non-empty reason>` line
+  // (ticket MKVNFB) — the escape valve for tiny features with one obvious dimension.
+  if (meta.type === 'feature') {
+    const dimensionsFile = nodePath.join(ticketDirectory, 'dimensions.md');
+    if (!existsSync(dimensionsFile)) {
+      deny(
+        'Features require dimensions.md before test-definitions.md. Document behavioral dimensions and partitions first.',
+        'Create dimensions.md with a dimension table, or write `skip: <non-empty reason>` as the entire content to deliberately omit.',
+      );
+    }
+    // If the file is a pure `skip: <reason>` declaration, validate the reason.
+    // Multi-line content-bearing files don't match this regex and pass through.
+    const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
+    const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
+    if (skipMatch && !isValidSkipReason(skipMatch[1])) {
+      deny(
+        'dimensions.md `skip:` declaration requires a non-empty reason after the colon.',
+        'Either write a real dimension table, or use `skip: <reason>` where the reason explains why no dimensions need enumerating (e.g., `skip: single behavioral dimension, no partitioning to enumerate`).',
+      );
+    }
+  }
+
+  if (specExists) {
+    const specContent = readFileSync(specFile, 'utf8');
     // Review gate (NMSD94, Tier 1) — DEFAULT-OFF: only fires when
     // `.safeword/config.json` sets `reviewGate: true`. Scenarios require a review
     // stamp bound to THIS ticket's spec.md at its CURRENT content (so a stale or
@@ -406,6 +412,48 @@ function enforceTestDefinitionsCreationGate(): void {
 }
 
 enforceTestDefinitionsCreationGate();
+
+// ---------------------------------------------------------------------------
+// Forward artifact-precedence creation gates (87Y167, #644 G1) — ALWAYS-ON.
+// Each behavior artifact is created only on complete prerequisites, so the
+// block chain walks spec → dimensions → scenarios forward instead of the
+// reverse cascade #644 documented. Creation-only: edits to existing artifacts
+// never trip these. Phase-independent — dimensions.md's canonical creation
+// point is intake (the #404 readiness gate demands it before define-behavior).
+// ---------------------------------------------------------------------------
+
+if (
+  editedFile.endsWith('spec.md') &&
+  isNamespacePath(editedFile, 'tickets/') &&
+  !existsSync(editedFile)
+) {
+  const ticketFile = nodePath.join(nodePath.dirname(editedFile), 'ticket.md');
+  const specVerdict = evaluateSpecCreation({ ticketFileExists: existsSync(ticketFile) });
+  if (!specVerdict.ok) {
+    deny(specVerdict.reason, withOrderingNote(specVerdict.remediation));
+  }
+}
+
+if (
+  editedFile.endsWith('dimensions.md') &&
+  isNamespacePath(editedFile, 'tickets/') &&
+  !existsSync(editedFile)
+) {
+  const ticketDirectory = nodePath.dirname(editedFile);
+  const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
+  const ticketMeta = existsSync(ticketFile)
+    ? frontmatterFromContent(readFileSync(ticketFile, 'utf8'))
+    : {};
+  const specFile = nodePath.join(ticketDirectory, 'spec.md');
+  const dimensionsVerdict = evaluateDimensionsCreation({
+    ticketType: frontmatterScalar(ticketMeta, 'type'),
+    specContent: existsSync(specFile) ? readFileSync(specFile, 'utf8') : undefined,
+    personasContent: readPersonasForGate(ticketDirectory),
+  });
+  if (!dimensionsVerdict.ok) {
+    deny(dimensionsVerdict.reason, withOrderingNote(dimensionsVerdict.remediation));
+  }
+}
 
 // Reconstruct the file content an Edit/Write/MultiEdit would produce, so a gate
 // can compare it against the on-disk content. Write/NotebookEdit carry the full
