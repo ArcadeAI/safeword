@@ -8,21 +8,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: R-only JTBD satisfies the intake-exit gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 45db62e
+- [x] GREEN 8001c3b
+- [x] REFACTOR skip: message/gate-predicate change; no structural refactor needed
 
 ### Scenario: JTBD with neither criteria kind is denied naming Rules as an option
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 45db62e
+- [x] GREEN 8001c3b
+- [x] REFACTOR skip: message/gate-predicate change; no structural refactor needed
 
 ### Scenario: JTBD with a skip line still satisfies the gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 45db62e
+- [x] GREEN 8001c3b
+- [x] REFACTOR skip: message/gate-predicate change; no structural refactor needed
 
 ## Rule: A JTBD declares one criteria kind, never both
 
@@ -34,9 +34,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Mixed JTBD still passes the intake-exit gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 45db62e
+- [x] GREEN 8001c3b
+- [x] REFACTOR skip: message/gate-predicate change; no structural refactor needed
 
 ## Rule: Rule blocks carry authoritative tags and scenarios inherit exactly one lineage reference
 
@@ -72,9 +72,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A tag expression on a rule ID runs exactly that rule's scenarios
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: pins upstream cucumber rule-tag inheritance — cannot fail before implementation
+- [x] GREEN 4f3aa9b
+- [x] REFACTOR skip: fixture-only integration test
 
 ## Rule: Check reports rule drift against the spec catalog
 
@@ -120,9 +120,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: AC-only project output is unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression guard — proven by the pre-existing check/lint suites passing unchanged
+- [x] GREEN de2fe00
+- [x] REFACTOR skip: no code specific to this scenario
 
 ## Rule: An existing rule-numbered corpus is expressible
 
@@ -142,6 +142,6 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Rule-tier message names the id, the problem, and the next action
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5c4e0d9
+- [x] GREEN de2fe00
+- [x] REFACTOR skip: message strings asserted across check, lint, and gate suites (de2fe00, 6dfe1fb, 8001c3b)
