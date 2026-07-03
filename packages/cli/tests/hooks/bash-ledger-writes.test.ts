@@ -33,5 +33,19 @@ describe('detectLedgerWrite', () => {
       expect(detectLedgerWrite(`git commit ${LEDGER} -m 'tick RED'`)).toBeUndefined();
       expect(detectLedgerWrite(`echo ${LEDGER}`)).toBeUndefined();
     });
+
+    it.each([
+      ['sed in-place editing', String.raw`sed -i 's/^- \[ \] /- [x] /' ${LEDGER}`],
+      ['perl in-place editing', String.raw`perl -i -pe 's/\[ \]/[x]/' ${LEDGER}`],
+      ['output redirection', `echo '- [x] RED' > ${LEDGER}`],
+      ['append redirection', String.raw`printf -- '- [x] GREEN\n' >> ${LEDGER}`],
+      ['tee', `echo '- [x] RED' | tee ${LEDGER}`],
+      ['mv destination', `mv /tmp/forged.md ${LEDGER}`],
+      ['cp destination', `cp /tmp/forged.md ${LEDGER}`],
+      ['truncate', `truncate -s 0 ${LEDGER}`],
+      ['inline interpreter invocation', `bun -e 'require("fs").appendFileSync("${LEDGER}", "x")'`],
+    ])('Scenario outline: %s targeting the ledger is denied', (_shape, command) => {
+      expect(detectLedgerWrite(command)).toBeDefined();
+    });
   });
 });
