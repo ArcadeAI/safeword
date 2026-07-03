@@ -2,7 +2,7 @@
 id: V0NHT6
 slug: rule-tier
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - 'spec.md grammar: `#### <jtbd-id>.R<n> — <invariant>` Rule headings parsed alongside AC headings (per-JTBD substitute — a JTBD carries ACs or Rules, never both); declaring Rules is the opt-in, no config flag'
@@ -43,3 +43,4 @@ last_modified: 2026-07-03T17:15:00.000Z
 - 2026-07-03T20:36:00.000Z Amendment at decider gate: NTB persona + rule-tier.NTB1.AC1 (plain-language actionable messages) + message-contract dimension added on user prompt; scenario set re-presented and accepted ("go").
 - 2026-07-03T20:41:00.000Z Complete: define-behavior - 18 scenarios defined across 8 rules; features/rule-tier.feature saved (lint clean), R/G/R ledger saved.
 - 2026-07-03T20:55:00.000Z Complete: scenario-gate - Independent /review-spec (Tier 2, fresh subagent): PASS WITH FIXES → 1 blocking (unnumbered-Rule exempt class) + 6 strengtheners applied (fail-open gate scenario, direct R tag, observable AC-precedence Then, NTB message Scenario Outline ×8, TB4 atomicity split, snapshot determinism) → final verdict PASS; stamp written. impl-plan.md written (proof plan + build order, 8 slices, load-bearing ref-grammar slice first). Ledger now 21 entries.
+- 2026-07-03T21:35:00.000Z Complete: implement - All 8 slices RGR'd (ref grammar → catalog/mixed → rule coverage buckets → rejection report → name-tag lint → check wiring/messages → gate denial + mirrors → cucumber selection → templates/docs). Ledger 21/21 marked with commit SHAs. Full suite: 311 files, 4482 passed, 5 pre-existing skips. impl-plan reconciled → implemented.

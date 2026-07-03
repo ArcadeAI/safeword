@@ -1,6 +1,13 @@
 # Impl Plan: Numbered Rule tier between JTBD and scenarios
 
-**Status:** planned
+**Status:** implemented
+
+Reconciliation (implement-phase exit, 2026-07-03): shipped as planned across all
+8 slices. Two notes, neither a design change: integration tests run the built
+dist (`runCli`), so slices touching `src/` require a rebuild before check-level
+proofs run; cucumber dry-run reports filtered scenarios as `undefined` (no step
+definitions in the fixture), not `skipped` — the selection-count assertion is
+unaffected.
 
 ## Approach
 
