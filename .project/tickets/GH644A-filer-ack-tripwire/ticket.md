@@ -6,7 +6,7 @@ phase: shape
 status: open
 parent: RV9JT4-retro-transcript-mining
 depends_on: [GH628F]
-external_issue: https://github.com/ArcadeAI/safeword/issues/644
+external_issue: https://github.com/ArcadeAI/safeword/issues/658
 scope: |
   Harden GH628F's drain-as-ack (#644 G7: forgeable by the agent it polices,
   observed live). Decision from the 2026-07-03 figure-it-out pass: filer-stamped
