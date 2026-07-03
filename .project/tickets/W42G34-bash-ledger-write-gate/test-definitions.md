@@ -14,9 +14,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A read-only reference to the ledger is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: allow-side precision pin — the gate is correctly silent here, so the test passes on first run by design (guards future over-denial)
+- [x] GREEN a747dfa
+- [x] REFACTOR skip: three-line pin test, nothing to restructure
 
 ### Scenario: A command with no ledger reference is allowed
 

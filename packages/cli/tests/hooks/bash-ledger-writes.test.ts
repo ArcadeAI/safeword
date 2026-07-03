@@ -21,5 +21,11 @@ describe('detectLedgerWrite', () => {
       expect(detectLedgerWrite(`cat ${LEDGER}`)).toBeUndefined();
       expect(detectLedgerWrite(`git diff ${LEDGER}`)).toBeUndefined();
     });
+
+    it('Scenario: a command with no ledger reference is allowed', () => {
+      expect(detectLedgerWrite('npx vitest run tests/integration/foo.test.ts')).toBeUndefined();
+      expect(detectLedgerWrite("sed -i 's/a/b/' src/index.ts")).toBeUndefined();
+      expect(detectLedgerWrite('echo done > /tmp/log.txt')).toBeUndefined();
+    });
   });
 });
