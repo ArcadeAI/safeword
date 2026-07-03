@@ -20,6 +20,18 @@ Errors: 0 | Warnings: 0 new (knip unused-exports, jscpd 5% clone baseline, and d
 
 Audit passed — sync-config in sync, depcruise 0 violations, learnings conform, no doc drift (guide/agent defs updated in-diff and pinned by tests).
 
+## Post-review re-stamp (2026-07-03T17:05Z)
+
+Whole-ticket quality review (fresh-context, APPROVE, zero criticals) applied
+six improvements (docblocks, adapter cleanup, same-key re-arm pin, compact-JSON
+prompt wording, impl-plan reconciliation, codex watch-only tripwire test).
+Re-verified on the final tree: full suite green (exit 0, `bun run test`
+2026-07-03T17:05Z), Gherkin 181 scenarios / 3414 steps, typecheck clean,
+audit battery clean (sync-config ✓, depcruise 0, jscpd baseline, knip 0 new).
+One CI failure caught and fixed post-review: prettier-vs-parity drift in
+cursor/stop.ts (pre-commit formats templates but ignores dogfood copies) —
+re-synced in 80302cf.
+
 ## Process notes
 
 Full BDD lifecycle with gates honored in order: figure-it-out (decision on
