@@ -202,6 +202,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [x] GREEN 1935b5f
 - [x] REFACTOR skip: crash-to-fail-open fix from whole-ticket review; RED (allow) verified in-session before the src fix, GREEN in the same commit — no separate refactor
 
+### Scenario: An unreadable scenario ledger denies rather than crashing into a silent allow
+
+- [x] RED a4ea4f7
+- [x] GREEN a4ea4f7
+- [x] REFACTOR skip: quality-review follow-up (safeReadFile hardening); RED (allow) verified in-session before the fix, GREEN in the same commit — no separate refactor
+
 ### Scenario: An implement advance via MultiEdit is gated like an Edit
 
 - [x] RED e66dc54
