@@ -14,6 +14,7 @@ import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { exists } from './fs.js';
+import { WORKSPACE_ROOTS } from './workspaces.js';
 
 /**
  * Architecture layer definitions with alternative names.
@@ -58,10 +59,7 @@ export interface DetectedArchitecture {
 function findMonorepoPackages(projectDirectory: string): string[] {
   const packages: string[] = [];
 
-  // Check common monorepo patterns
-  const monorepoRoots = ['packages', 'apps', 'libs', 'modules'];
-
-  for (const root of monorepoRoots) {
+  for (const root of WORKSPACE_ROOTS) {
     const rootPath = nodePath.join(projectDirectory, root);
     if (!exists(rootPath)) continue;
 

@@ -534,6 +534,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Runtime cloud-filing spool (BNGK9W) — per-session drafts + nudge markers the
     // retro writes at runtime; user/runtime data the schema does not own.
     '.safeword/retro-drafts',
+    // Runtime self-report capture (already in SAFEWORD_TRANSIENT_PATHS /
+    // gitignore) — per-session JSONL the hooks write; without this entry the
+    // schema-drift test fails for any session that recorded a signal.
+    '.safeword/self-reports',
     '.safeword-project/tickets',
     '.safeword-project/tickets/completed',
     '.safeword-project/tmp',
@@ -742,6 +746,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },
     '.safeword/hooks/lib/checkbox-transitions.ts': {
       template: 'hooks/lib/checkbox-transitions.ts',
+    },
+    '.safeword/hooks/lib/shell-segments.ts': { template: 'hooks/lib/shell-segments.ts' },
+    '.safeword/hooks/lib/bash-ledger-writes.ts': {
+      template: 'hooks/lib/bash-ledger-writes.ts',
     },
     '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
     '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
