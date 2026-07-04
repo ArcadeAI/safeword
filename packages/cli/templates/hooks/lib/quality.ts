@@ -20,12 +20,7 @@
 // verdicts beat free-form uncertainty descriptions for calibration.
 
 export type BddPhase =
-  | 'intake'
-  | 'define-behavior'
-  | 'scenario-gate'
-  | 'implement'
-  | 'verify'
-  | 'done';
+  'intake' | 'define-behavior' | 'scenario-gate' | 'implement' | 'verify' | 'done';
 
 const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, lead with the answer, named structure only when it carries weight, end with **Next:**.
 

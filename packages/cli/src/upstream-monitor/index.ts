@@ -56,7 +56,7 @@ export interface MonitorDependencies {
 
 const SNAPSHOT_DIRECTORY = '.github/changelog-snapshots';
 
-export const MONITOR_SOURCES: readonly MonitorSource[] = [
+const MONITOR_SOURCES: readonly MonitorSource[] = [
   {
     key: 'claude-code',
     label: 'Claude Code',
@@ -91,7 +91,7 @@ export function getMonitorSource(key: MonitorSourceKey): MonitorSource {
   return source;
 }
 
-export function normalizeMarkdown(raw: string): string {
+function normalizeMarkdown(raw: string): string {
   return normalizeWhitespace(raw);
 }
 

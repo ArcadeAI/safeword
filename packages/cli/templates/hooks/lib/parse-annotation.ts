@@ -11,9 +11,7 @@ export interface CheckboxAnnotation {
 }
 
 export type AnnotationKind =
-  | { kind: 'none' }
-  | { kind: 'skip'; reason: string }
-  | { kind: 'sha'; value: string };
+  { kind: 'none' } | { kind: 'skip'; reason: string } | { kind: 'sha'; value: string };
 
 // Matches a recognized step checkbox line, capturing the checkmark, the step
 // keyword, and any trailing annotation. Word boundary after the step keyword

@@ -17,6 +17,7 @@ dedup against an existing corpus, idempotent occurrence ledger).
 | Encounter recording        | known issue first hit this session → ledger bump; same transcript re-run → no double bump (idempotent); novel manifestation → comment; non-novel recurrence → count only, no comment | SM1.AC3  |
 
 **Test layers:**
+
 - **Unit (pure functions):** body assembly, surface resolution, prose sanitizer,
   signature derivation, dedup decision, novelty check — assert inputs→outputs
   directly (co-located `*.test.ts`), the spool sanitizer's existing test style.

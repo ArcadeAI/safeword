@@ -282,8 +282,7 @@ describe('SETTINGS_HOOKS', () => {
     expect(stageHook).toBeDefined();
     expect(stageHook?.matcher).toBe('Bash');
     const command = stageHook?.hooks.find((h: HookCommand) => h.type === 'command') as
-      | { if?: string; command: string }
-      | undefined;
+      { if?: string; command: string } | undefined;
     expect(command?.if).toBe('Bash(git commit*)');
   });
 
@@ -297,8 +296,7 @@ describe('SETTINGS_HOOKS', () => {
     expect(bareRaceHook).toBeDefined();
     expect(bareRaceHook?.matcher).toBe('Bash');
     const command = bareRaceHook?.hooks.find((h: HookCommand) => h.type === 'command') as
-      | { if?: string; command: string }
-      | undefined;
+      { if?: string; command: string } | undefined;
     expect(command?.if).toBe('Bash(git *)');
   });
 
