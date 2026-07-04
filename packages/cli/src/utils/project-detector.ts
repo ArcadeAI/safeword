@@ -13,6 +13,7 @@ import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
 import { isShippedCucumberTemplateRevision } from './cucumber-template-revisions.js';
 import { findInTree, readFileSafe, readJson } from './fs.js';
+import { WORKSPACE_ROOTS } from './workspaces.js';
 
 const {
   TAILWIND_PACKAGES,
@@ -442,6 +443,12 @@ export function hasJsSource(cwd: string, maxDepth = 6): boolean {
   return scanForJsSource(cwd, 0, maxDepth);
 }
 
+// The cucumber-js config filename safeword scaffolds its own lane as. Load-bearing
+// for own-scaffold identity: its membership in the discovery list (below), the
+// self-exclusion in detectCucumberHarnessEvidence, and the own-lane probe in
+// detectCucumberLane must all name the same file so a scaffold rename stays in lockstep.
+const SAFEWORD_LANE_CONFIG_FILE = 'cucumber.mjs';
+
 // Cucumber-js native config discovery order (first wins). A root config with
 // any of these names is a harness safeword must not compete with — except
 // safeword's own scaffolded cucumber.mjs, excluded by content match below.
@@ -451,7 +458,7 @@ const CUCUMBER_CONFIG_FILES = [
   'cucumber.yml',
   'cucumber.js',
   'cucumber.cjs',
-  'cucumber.mjs',
+  SAFEWORD_LANE_CONFIG_FILE,
 ] as const;
 
 /**
@@ -465,10 +472,6 @@ function isSafewordLaneTemplate(configPath: string): boolean {
   const content = readFileSafe(configPath);
   return content !== undefined && isShippedCucumberTemplateRevision(content);
 }
-
-// Direct workspace-package radius for harness evidence — the same
-// conventional roots feature-source.ts scans for feature files.
-const WORKSPACE_PACKAGE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
 
 function manifestDependsOnCucumber(manifestPath: string): boolean {
   const manifest = readJson(manifestPath) as
@@ -515,7 +518,7 @@ function findCucumberEvidenceUnderRoot(cwd: string, root: string): string | unde
 
 /** First direct workspace package with cucumber evidence (config file or dep). */
 function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
-  for (const root of WORKSPACE_PACKAGE_ROOTS) {
+  for (const root of WORKSPACE_ROOTS) {
     const evidence = findCucumberEvidenceUnderRoot(cwd, root);
     if (evidence !== undefined) return evidence;
   }
@@ -532,7 +535,7 @@ function detectCucumberHarnessEvidence(cwd: string, ownLanePresent: boolean): st
   for (const name of CUCUMBER_CONFIG_FILES) {
     const configPath = nodePath.join(cwd, name);
     if (!existsSync(configPath)) continue;
-    if (name === 'cucumber.mjs' && ownLanePresent) continue;
+    if (name === SAFEWORD_LANE_CONFIG_FILE && ownLanePresent) continue;
     return name;
   }
 
@@ -558,7 +561,7 @@ function detectCucumberHarnessEvidence(cwd: string, ownLanePresent: boolean): st
 export function detectCucumberLane(cwd: string | undefined): CucumberLaneDetection {
   if (!cwd) return { existingCucumberHarness: undefined, scaffoldBddLane: true };
 
-  const ownLanePresent = isSafewordLaneTemplate(nodePath.join(cwd, 'cucumber.mjs'));
+  const ownLanePresent = isSafewordLaneTemplate(nodePath.join(cwd, SAFEWORD_LANE_CONFIG_FILE));
   const evidence = detectCucumberHarnessEvidence(cwd, ownLanePresent);
   return {
     existingCucumberHarness: evidence,
