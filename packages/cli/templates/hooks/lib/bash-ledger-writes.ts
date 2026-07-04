@@ -122,9 +122,8 @@ function embeddedLedgerPath(word: string): string | undefined {
   return match !== null && isLedgerPath(match[0]) ? match[0] : undefined;
 }
 
-function detectInSegment(segment: string): LedgerWriteDetection | undefined {
-  const words = parseShellWords(segment);
-
+/** Scan a segment's words for a redirection (`>`/`>>`/`&>`/`>|`, fd-prefixed) whose target is a ledger. */
+function detectRedirectionWrite(words: string[]): LedgerWriteDetection | undefined {
   for (let index = 0; index < words.length; index += 1) {
     const target = redirectionTarget(words, index);
     if (target !== undefined && isLedgerPath(target)) {
@@ -134,6 +133,14 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
       return { shape, path: target };
     }
   }
+  return undefined;
+}
+
+function detectInSegment(segment: string): LedgerWriteDetection | undefined {
+  const words = parseShellWords(segment);
+
+  const redirection = detectRedirectionWrite(words);
+  if (redirection !== undefined) return redirection;
 
   const commandIndex = commandWordIndex(words);
   const commandWord = words[commandIndex] ?? '';
